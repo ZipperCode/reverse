@@ -26,6 +26,7 @@ import { getSupportedEfforts } from "@rva/catalog/model-thinking";
 import { providerEntry } from "@rva/catalog/compat/providers";
 import { MODEL_KINDS, modelKind, type ModelKind } from "@rva/catalog/types";
 import type { Component, TUI } from "../tui";
+import { resolveEffectiveLocale, type SupportedLocale } from "@rva/utils/i18n";
 import { extractPrintableText, matchesKey } from "../keys";
 import { FuzzyCorpus } from "../fuzzy";
 import { formatKeyHint, formatKeyHints } from "../app-keybindings";
@@ -203,6 +204,7 @@ export interface ModelHubOptions {
 	initialProviderId?: string;
 	/** `provider/id` of the session's model, marked current in the native picker. */
 	currentSelector?: string;
+	locale?: SupportedLocale;
 }
 
 interface SidebarEntry extends HubSidebarEntry<"recent" | "roles" | "all" | "separator" | "provider" | "addProvider"> {
@@ -493,6 +495,7 @@ export class ModelHubComponent implements Component {
 	#nativeVersion = 0;
 	#nativeCache: { version: number; picker: boolean; node: NativeNode } | undefined;
 	#currentSelector: string | undefined;
+	#locale: SupportedLocale;
 	/** The opening online catalog refresh is still in flight (an empty scope then shows as loading). */
 	#catalogRefreshing = false;
 	#kindTabsMemo: { candidates: readonly ModelBrowserItem[]; tabs: TspPickerProps["tabs"] } | undefined;
@@ -523,7 +526,7 @@ export class ModelHubComponent implements Component {
 		this.#scopedModels = scopedModels;
 		this.#callbacks = callbacks;
 		this.#currentSelector = options.currentSelector;
-
+		this.#locale = options.locale ?? resolveEffectiveLocale();
 		this.#browser = new ModelBrowser(settings, {
 			emptyText: () => this.#emptyStateMessage(),
 		});
@@ -778,13 +781,12 @@ export class ModelHubComponent implements Component {
 			entries.push({
 				id: "action:add_provider",
 				kind: "addProvider",
-				label: "+ Add provider…",
+				label: this.#locale === "zh-CN" ? "+ 新增提供商…" : "+ Add provider…",
 			});
 		}
 		if (this.#lockedProviderEntries.length > 0) {
 			entries.push({ id: "sep:locked", kind: "separator", label: "" }, ...this.#lockedProviderEntries);
 		}
-
 		this.#entries = entries;
 		if (!entries.some(entry => entry.id === this.#activeEntryId)) {
 			this.#activeEntryId = "all";

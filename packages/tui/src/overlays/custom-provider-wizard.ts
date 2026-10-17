@@ -2,30 +2,38 @@
  * Custom Provider Add Wizard Component
  *
  * Interactive multi-step wizard for configuring custom OpenAI/Anthropic-compatible providers.
+ * Supports automatic model discovery from endpoints with searchable multiselect,
+ * displaying real metadata and omitting unknown limits from persistent config.
  */
 import type { Api } from "@rva/ai";
 import { formatKeyHint } from "../app-keybindings";
-import { editorKey, editorKeys, interruptKey } from "../chrome/keybinding-hints";
+import { boundKeys, editorKey, editorKeys } from "../chrome/keybinding-hints";
+import type { KeyName } from "../key-hint-format";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { TextFormField, type FormFieldTheme } from "../components/form";
+import { Input } from "../components/input";
 import { SelectList } from "../components/select-list";
 import { WizardStep, type WizardStepKind } from "../components/wizard-step";
-import { Container, matchesKey, Spacer, Text, truncateToWidth, wrapTextWithAnsi } from "../index";
+import { Container, matchesKey, Spacer, Text, wrapTextWithAnsi, type Component } from "../index";
+import { getKeybindings } from "../keybindings";
 import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { col, compact, node, row, span, text } from "../native/describe";
-import type { DescribeContext, NativeChild, NativeNode } from "../native/node";
+import { type DescribeContext, leafKey, type NativeChild, type NativeNode, type NativeUiEvent } from "../native/node";
 import { actionBar, actionButton } from "../native/overlay";
-import { plainText } from "../native/spans";
-import { isNativeRendering } from "../native/state";
 import { ensureThemeSync, getSelectListTheme, theme } from "../theme/theme";
+import type { Focusable } from "../tui";
 import type { SgrMouseEvent } from "../mouse";
 import { resolveEffectiveLocale, type SupportedLocale } from "@rva/utils/i18n";
 
 export interface CustomWizardModel {
 	id: string;
 	name: string;
-	contextWindow: number;
-	maxTokens: number;
+	contextWindow?: number;
+	contextSource?: "endpoint" | "catalog";
+	maxTokens?: number;
+	maxTokensSource?: "endpoint" | "catalog";
+	input?: ("text" | "image")[];
+	reasoning?: boolean;
 }
 
 export interface CustomProviderWizardOutput {
@@ -39,6 +47,12 @@ export interface CustomProviderWizardOutput {
 export interface CustomProviderWizardDeps {
 	existingProviderIds?: readonly string[];
 	validateProviderId?(id: string): string | undefined;
+	fetchModels(options: {
+		baseUrl: string;
+		api: Api;
+		apiKey?: string;
+		signal?: AbortSignal;
+	}): Promise<CustomWizardModel[]>;
 }
 
 export type CustomProviderWizardStep =
@@ -46,26 +60,115 @@ export type CustomProviderWizardStep =
 	| "api"
 	| "baseUrl"
 	| "apiKey"
-	| "modelId"
-	| "modelName"
-	| "contextWindow"
-	| "maxTokens"
-	| "addAnother"
+	| "fetching"
+	| "selectModels"
 	| "confirm";
 
-const MAX_DISPLAY_WIDTH = 76;
+interface NativeStepActions {
+	back?: string;
+	backKey?: KeyName;
+	next?: string;
+	nextKey?: KeyName;
+}
+
+interface NativeWizardStep {
+	title: string;
+	lead?: string;
+	optional?: boolean;
+	body: readonly NativeChild[];
+	choices?: readonly { label: string; description?: string }[];
+	actions: NativeStepActions;
+}
 
 function getFormTheme(): FormFieldTheme {
 	ensureThemeSync();
 	return {
-		label: (text: string) => theme.fg("accent", text),
-		description: (text: string) => theme.fg("muted", text),
-		error: (text: string) => theme.fg("error", `${theme.status.error} ${text}`),
-		hint: (text: string) => theme.fg("dim", text),
+		label: (t: string) => theme.fg("accent", t),
+		description: (t: string) => theme.fg("muted", t),
+		error: (t: string) => theme.fg("error", `${theme.status.error} ${t}`),
+		hint: (t: string) => theme.fg("dim", t),
 	};
 }
 
-export class CustomProviderWizard extends OverlayPanel {
+function formatModelMetadata(m: CustomWizardModel, t: (en: string, zh: string) => string): string {
+	const metaParts: string[] = [];
+	if (m.contextWindow !== undefined) {
+		const src = m.contextSource === "endpoint" ? t("endpoint", "端点声明") : t("catalog", "官方目录");
+		metaParts.push(`ctx: ${m.contextWindow} (${src})`);
+	} else {
+		metaParts.push(t("ctx: unknown (runtime defaults apply)", "ctx: 未知 (运行时使用默认值)"));
+	}
+	if (m.maxTokens !== undefined) {
+		const src = m.maxTokensSource === "endpoint" ? t("endpoint", "端点声明") : t("catalog", "官方目录");
+		metaParts.push(`max: ${m.maxTokens} (${src})`);
+	} else {
+		metaParts.push(t("max: unknown (output fallback applies)", "max: 未知 (运行时使用默认输出上限)"));
+	}
+	if (m.input && m.input.length > 0) {
+		metaParts.push(`[${m.input.join(", ")}]`);
+	}
+	if (m.reasoning) {
+		metaParts.push("reasoning");
+	}
+	return metaParts.join(" · ");
+}
+
+class ModelMultiSelectList implements Component {
+	constructor(
+		private getItems: () => CustomWizardModel[],
+		private getSelectedIds: () => Set<string>,
+		private getSelectedIndex: () => number,
+		private t: (en: string, zh: string) => string,
+	) {}
+
+	render(width: number): readonly string[] {
+		const items = this.getItems();
+		const selectedIds = this.getSelectedIds();
+		const selectedIndex = this.getSelectedIndex();
+		const lines: string[] = [];
+
+		if (items.length === 0) {
+			lines.push(`  ${theme.fg("muted", this.t("No matching models found.", "未找到匹配的模型。"))}`);
+			return lines;
+		}
+
+		const visibleCount = Math.min(items.length, 8);
+		const start = Math.max(0, Math.min(selectedIndex - Math.floor(visibleCount / 2), items.length - visibleCount));
+		const end = Math.min(items.length, start + visibleCount);
+
+		for (let i = start; i < end; i++) {
+			const item = items[i];
+			const isCursor = i === selectedIndex;
+			const isChecked = selectedIds.has(item.id);
+
+			const cursorPrefix = isCursor ? theme.fg("accent", `${theme.nav.cursor} `) : "  ";
+			const boxGlyph = isChecked ? theme.checkbox.checked : theme.checkbox.unchecked;
+			const boxStr = theme.fg(isChecked ? "success" : "dim", `${boxGlyph} `);
+
+			const modelNameStr = item.name && item.name !== item.id ? ` (${item.name})` : "";
+			const labelStr = isCursor
+				? theme.bold(theme.fg("accent", `${item.id}${modelNameStr}`))
+				: theme.fg("text", `${item.id}${modelNameStr}`);
+
+			const metaParts = formatModelMetadata(item, this.t);
+			const metaStr = theme.fg("dim", ` · ${metaParts}`);
+			const line = `${cursorPrefix}${boxStr}${labelStr}${metaStr}`;
+			lines.push(...wrapTextWithAnsi(line, width));
+		}
+
+		if (items.length > visibleCount) {
+			const scrollHint = this.t(
+				`(${selectedIndex + 1}/${items.length} models, use ↑/↓ to scroll)`,
+				`(${selectedIndex + 1}/${items.length} 个模型，使用 ↑/↓ 滚动)`,
+			);
+			lines.push(`  ${theme.fg("dim", scrollHint)}`);
+		}
+
+		return lines;
+	}
+}
+
+export class CustomProviderWizard extends OverlayPanel implements Focusable {
 	#deps: CustomProviderWizardDeps;
 	#locale: SupportedLocale;
 	#currentStep: CustomProviderWizardStep = "providerId";
@@ -73,11 +176,16 @@ export class CustomProviderWizard extends OverlayPanel {
 	#api: Api = "openai-completions";
 	#baseUrl = "";
 	#apiKey = "";
-	#models: CustomWizardModel[] = [];
-	#currentModelId = "";
-	#currentModelName = "";
-	#currentContextWindow = 128000;
-	#currentMaxTokens = 4096;
+
+	// Discovered models & multi-select state
+	#discoveredModels: CustomWizardModel[] = [];
+	#selectedModelIds: Set<string> = new Set();
+	#modelSearchInput: Input = new Input();
+	#modelSelectedIndex = 0;
+	#fetchAbort: AbortController | null = null;
+	#fetchError: string | null = null;
+	#fetchGeneration = 0;
+	#disposed = false;
 
 	#contentContainer: Container;
 	#step: WizardStep | null = null;
@@ -86,8 +194,10 @@ export class CustomProviderWizard extends OverlayPanel {
 	#currentSelectList: SelectList | null = null;
 	#selectedIndex = 0;
 	#validationError: string | null = null;
+	#nativeStep: NativeWizardStep = { title: "", body: [], actions: {} };
 	#native: NativeNode | undefined;
 	#saving = false;
+	#focused = true;
 
 	#onCompleteCallback: (config: CustomProviderWizardOutput) => void | Promise<void>;
 	#onCancelCallback: () => void;
@@ -118,16 +228,36 @@ export class CustomProviderWizard extends OverlayPanel {
 		this.#renderStep();
 	}
 
+	get focused(): boolean {
+		return this.#focused;
+	}
+
+	set focused(value: boolean) {
+		this.#focused = value;
+		if (this.#inputField) {
+			this.#inputField.focused = value;
+		}
+	}
+
 	#requestRender(): void {
 		this.#onRenderCallback?.();
 	}
 
-	#show(step: WizardStep, native: NativeNode): void {
+	#cancelWizard(): void {
+		this.#fetchAbort?.abort();
+		this.#onCancelCallback();
+	}
+
+	#show(step: WizardStep, native: NativeWizardStep): void {
 		step.setMaxHeight(undefined);
 		this.#step = step;
 		this.#contentContainer.clear();
 		this.#contentContainer.addChild(step);
-		this.#native = native;
+		this.#nativeStep = native;
+		this.#native = undefined;
+		if (this.#focused && this.#inputField) {
+			this.#inputField.focused = true;
+		}
 	}
 
 	#t(en: string, zh: string): string {
@@ -152,20 +282,11 @@ export class CustomProviderWizard extends OverlayPanel {
 			case "apiKey":
 				this.#renderApiKeyStep();
 				break;
-			case "modelId":
-				this.#renderModelIdStep();
+			case "fetching":
+				this.#renderFetchingStep();
 				break;
-			case "modelName":
-				this.#renderModelNameStep();
-				break;
-			case "contextWindow":
-				this.#renderContextWindowStep();
-				break;
-			case "maxTokens":
-				this.#renderMaxTokensStep();
-				break;
-			case "addAnother":
-				this.#renderAddAnotherStep();
+			case "selectModels":
+				this.#renderSelectModelsStep();
 				break;
 			case "confirm":
 				this.#renderConfirmStep();
@@ -175,17 +296,81 @@ export class CustomProviderWizard extends OverlayPanel {
 		this.#requestRender();
 	}
 
-	#renderProviderIdStep(): void {
-		const lead = this.#t("Provider ID:", "提供商标识 (Provider ID)：");
-		const placeholder = this.#t("e.g. my-gateway, deepseek, siliconflow", "例如 my-gateway, deepseek, local-vllm");
-		const hint = this.#t("Letters, numbers, '.', '-', '_'. Enter to proceed, Esc to cancel.", "字母、数字、点、减号或下划线。Enter 下一步，Esc 取消。");
+	#showInputStep(options: {
+		stepTitle: string;
+		lead: string;
+		initial: string;
+		placeholder?: string;
+		hint?: string;
+		optional?: boolean;
+		secret?: boolean;
+		empty?: "submit" | "reject";
+		emptyError?: string;
+		validate?: (value: string) => string | undefined;
+		onSubmit: (value: string) => void;
+		onCancel: () => void;
+	}): void {
+		this.#stepKind = "input";
+		const cancelKey = (boundKeys("app.interrupt", ["escape"])[0] ?? "escape") as KeyName;
+		const submitKey = (getKeybindings().getKeys("tui.input.submit")[0] ?? "enter") as KeyName;
 
 		const field = new TextFormField({
 			theme: getFormTheme(),
-			label: lead,
-			details: [new Text(theme.fg("muted", placeholder), 0, 0)],
-			initialValue: this.#providerId,
-			hint,
+			label: options.lead,
+			details: options.placeholder ? [new Text(theme.fg("muted", options.placeholder), 0, 0)] : undefined,
+			initialValue: options.initial,
+			secret: options.secret,
+			hint: options.hint,
+			empty: options.empty ?? (options.optional ? "submit" : "reject"),
+			emptyError:
+				options.emptyError ?? (options.optional ? undefined : this.#t("A value is required.", "此项为必填项。")),
+			validate: options.validate,
+			onSubmit: options.onSubmit,
+			onCancel: options.onCancel,
+			requestRender: () => this.#requestRender(),
+		});
+
+		this.#inputField = field;
+		if (this.#validationError) {
+			field.setError(this.#validationError);
+			this.#validationError = null;
+		}
+
+		const caption = options.hint ? text(options.hint, { role: "rva.customProvider.note", wrap: "word" }) : undefined;
+
+		this.#show(
+			new WizardStep({
+				kind: "input",
+				heading: new Text(theme.fg("accent", theme.bold(options.stepTitle)), 0, 0),
+				content: field,
+			}),
+			{
+				title: options.stepTitle,
+				lead: options.lead,
+				optional: options.optional,
+				body: [
+					node("col", { role: "rva.customProvider.field", gap: "xs" }, compact([field.input, caption]), "field"),
+				],
+				actions: {
+					back: this.#currentStep === "providerId" ? undefined : this.#t("Back", "返回"),
+					backKey: cancelKey,
+					next: this.#t("Continue", "继续"),
+					nextKey: submitKey,
+				},
+			},
+		);
+	}
+
+	#renderProviderIdStep(): void {
+		this.#showInputStep({
+			stepTitle: this.#t("Step 1: Provider ID", "第 1 步：提供商标识"),
+			lead: this.#t("Provider ID:", "提供商标识 (Provider ID)："),
+			placeholder: this.#t("e.g. my-gateway, deepseek, local-vllm", "例如 my-gateway, deepseek, local-vllm"),
+			hint: this.#t(
+				"Letters, numbers, '.', '-', '_'. Enter to proceed, Esc to cancel.",
+				"字母、数字、点、减号或下划线。Enter 下一步，Esc 取消。",
+			),
+			initial: this.#providerId,
 			empty: "reject",
 			emptyError: this.#t("Provider ID is required.", "提供商标识不能为空。"),
 			validate: value => {
@@ -213,28 +398,15 @@ export class CustomProviderWizard extends OverlayPanel {
 				this.#selectedIndex = 0;
 				this.#renderStep();
 			},
-			onCancel: () => this.#onCancelCallback(),
-			requestRender: () => this.#requestRender(),
+			onCancel: () => this.#cancelWizard(),
 		});
-
-		this.#inputField = field;
-		if (this.#validationError) {
-			field.setError(this.#validationError);
-			this.#validationError = null;
-		}
-
-		this.#show(
-			new WizardStep({
-				kind: "input",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Step 1: Provider ID", "第 1 步：提供商标识"))), 0, 0),
-				content: field,
-			}),
-			col([field]),
-		);
 	}
 
 	#renderApiStep(): void {
 		this.#stepKind = "choice";
+		const cancelKey = (boundKeys("app.interrupt", ["escape"])[0] ?? "escape") as KeyName;
+		const submitKey = (getKeybindings().getKeys("tui.input.submit")[0] ?? "enter") as KeyName;
+
 		const choices = [
 			{
 				value: "openai-completions",
@@ -247,12 +419,18 @@ export class CustomProviderWizard extends OverlayPanel {
 			{
 				value: "openai-responses",
 				label: "OpenAI Responses",
-				description: this.#t("OpenAI Responses protocol (POST /responses)", "OpenAI 新版 Responses 协议 (POST /responses)"),
+				description: this.#t(
+					"OpenAI Responses protocol (POST /responses)",
+					"OpenAI 新版 Responses 协议 (POST /responses)",
+				),
 			},
 			{
 				value: "anthropic-messages",
 				label: "Anthropic Messages",
-				description: this.#t("Anthropic Messages protocol (POST /messages)", "Anthropic Messages 协议 (POST /messages)"),
+				description: this.#t(
+					"Anthropic Messages protocol (POST /messages)",
+					"Anthropic Messages 协议 (POST /messages)",
+				),
 			},
 		];
 
@@ -274,6 +452,7 @@ export class CustomProviderWizard extends OverlayPanel {
 				return lines;
 			},
 		});
+
 		this.#currentSelectList = list;
 		list.setSelectedIndex(this.#selectedIndex);
 		list.onSelect = item => {
@@ -290,26 +469,41 @@ export class CustomProviderWizard extends OverlayPanel {
 		this.#show(
 			new WizardStep({
 				kind: "choice",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Step 2: API Protocol", "第 2 步：选择 API 协议"))), 0, 0),
+				heading: new Text(
+					theme.fg("accent", theme.bold(this.#t("Step 2: API Protocol", "第 2 步：选择 API 协议"))),
+					0,
+					0,
+				),
 				content: list,
 				footer: new Text(theme.fg("muted", hint), 0, 0),
 			}),
-			col([list]),
+			{
+				title: this.#t("Step 2: API Protocol", "第 2 步：选择 API 协议"),
+				body: [],
+				choices,
+				actions: {
+					back: this.#t("Back", "返回"),
+					backKey: cancelKey,
+					next: this.#t("Continue", "继续"),
+					nextKey: submitKey,
+				},
+			},
 		);
 	}
 
 	#renderBaseUrlStep(): void {
-		const lead = this.#t("API Base URL:", "API 基础端点地址 (Base URL)：");
 		const placeholder =
 			this.#api === "anthropic-messages" ? "https://api.anthropic.com/v1" : "https://api.openai.com/v1";
-		const hint = this.#t("Must start with http:// or https://. Enter to proceed, Esc to go back.", "必须以 http:// 或 https:// 开头。Enter 下一步，Esc 返回。");
 
-		const field = new TextFormField({
-			theme: getFormTheme(),
-			label: lead,
-			details: [new Text(theme.fg("muted", `e.g. ${placeholder}`), 0, 0)],
-			initialValue: this.#baseUrl || (this.#api === "anthropic-messages" ? "https://api.anthropic.com/v1" : ""),
-			hint,
+		this.#showInputStep({
+			stepTitle: this.#t("Step 3: Base URL", "第 3 步：端点地址"),
+			lead: this.#t("API Base URL:", "API 基础端点地址 (Base URL)："),
+			placeholder: `e.g. ${placeholder}`,
+			hint: this.#t(
+				"Must start with http:// or https://. Enter to proceed, Esc to go back.",
+				"必须以 http:// 或 https:// 开头。Enter 下一步，Esc 返回。",
+			),
+			initial: this.#baseUrl || (this.#api === "anthropic-messages" ? "https://api.anthropic.com/v1" : ""),
 			empty: "reject",
 			emptyError: this.#t("Base URL is required.", "基础端点地址不能为空。"),
 			validate: value => {
@@ -333,319 +527,292 @@ export class CustomProviderWizard extends OverlayPanel {
 				this.#currentStep = "api";
 				this.#renderStep();
 			},
-			requestRender: () => this.#requestRender(),
 		});
-
-		this.#inputField = field;
-		this.#show(
-			new WizardStep({
-				kind: "input",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Step 3: Base URL", "第 3 步：端点地址"))), 0, 0),
-				content: field,
-			}),
-			col([field]),
-		);
 	}
 
 	#renderApiKeyStep(): void {
-		const lead = this.#t("API Key (optional):", "API 密钥（可选）：");
-		const hint = this.#t(
-			"Optional. Leave blank for keyless local endpoints (Ollama/vLLM). Secret is stored in SQLite agent.db, not models.yml.",
-			"可选。留空即为免密端点 (Ollama/vLLM)。密钥将安全存储于 SQLite 凭证库，不会写入 models.yml 明文。",
-		);
-
-		const field = new TextFormField({
-			theme: getFormTheme(),
-			label: lead,
+		this.#showInputStep({
+			stepTitle: this.#t("Step 4: API Key", "第 4 步：API 密钥"),
+			lead: this.#t("API Key (optional):", "API 密钥（可选）："),
+			hint: this.#t(
+				"Optional. Leave blank for keyless local endpoints (Ollama/vLLM). Secret is stored in SQLite agent.db, not models.yml.",
+				"可选。留空即为免密端点 (Ollama/vLLM)。密钥将安全存储于 SQLite 凭证库，不会写入 models.yml 明文。",
+			),
+			initial: this.#apiKey,
 			secret: true,
-			initialValue: this.#apiKey,
-			hint,
+			optional: true,
 			empty: "submit",
 			onSubmit: value => {
 				this.#apiKey = value.trim();
-				this.#currentStep = "modelId";
+				this.#currentStep = "fetching";
+				this.#fetchError = null;
 				this.#renderStep();
+				void this.#runFetchModels();
 			},
 			onCancel: () => {
 				this.#currentStep = "baseUrl";
 				this.#renderStep();
 			},
-			requestRender: () => this.#requestRender(),
 		});
-
-		this.#inputField = field;
-		this.#show(
-			new WizardStep({
-				kind: "input",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Step 4: API Key", "第 4 步：API 密钥"))), 0, 0),
-				content: field,
-			}),
-			col([field]),
-		);
 	}
 
-	#renderModelIdStep(): void {
-		const modelIndex = this.#models.length + 1;
-		const lead = this.#t(`Model #${modelIndex} ID:`, `模型 #${modelIndex} 标识 (Model ID)：`);
-		const placeholder = this.#t("e.g. gpt-4o, claude-3-7-sonnet, llama-3", "例如 gpt-4o, claude-3-7-sonnet, deepseek-chat");
-		const hint = this.#t("Required. The model identifier sent to the endpoint.", "必填。向服务端请求时发送的模型 ID。");
+	async #runFetchModels(): Promise<void> {
+		this.#fetchAbort?.abort();
+		const controller = new AbortController();
+		this.#fetchAbort = controller;
+		const generation = ++this.#fetchGeneration;
 
-		const field = new TextFormField({
-			theme: getFormTheme(),
-			label: lead,
-			details: [new Text(theme.fg("muted", placeholder), 0, 0)],
-			initialValue: this.#currentModelId,
-			hint,
-			empty: "reject",
-			emptyError: this.#t("Model ID is required.", "模型 ID 不能为空。"),
-			onSubmit: value => {
-				this.#currentModelId = value.trim();
-				this.#currentStep = "modelName";
-				this.#renderStep();
-			},
-			onCancel: () => {
-				if (this.#models.length > 0) {
-					this.#currentStep = "addAnother";
-				} else {
-					this.#currentStep = "apiKey";
-				}
-				this.#renderStep();
-			},
-			requestRender: () => this.#requestRender(),
-		});
+		try {
+			const models = await this.#deps.fetchModels({
+				baseUrl: this.#baseUrl,
+				api: this.#api,
+				apiKey: this.#apiKey || undefined,
+				signal: controller.signal,
+			});
 
-		this.#inputField = field;
-		this.#show(
-			new WizardStep({
-				kind: "input",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Step 5: Model ID", "第 5 步：模型标识"))), 0, 0),
-				content: field,
-			}),
-			col([field]),
-		);
-	}
-
-	#renderModelNameStep(): void {
-		const lead = this.#t("Model Display Name (optional):", "模型显示名称（可选）：");
-		const placeholder = this.#currentModelId;
-		const hint = this.#t("Leave blank to use Model ID as display name.", "直接回车默认与模型 ID 相同。");
-
-		const field = new TextFormField({
-			theme: getFormTheme(),
-			label: lead,
-			details: [new Text(theme.fg("muted", `Default: ${placeholder}`), 0, 0)],
-			initialValue: this.#currentModelName,
-			hint,
-			empty: "submit",
-			onSubmit: value => {
-				this.#currentModelName = value.trim() || this.#currentModelId;
-				this.#currentStep = "contextWindow";
-				this.#renderStep();
-			},
-			onCancel: () => {
-				this.#currentStep = "modelId";
-				this.#renderStep();
-			},
-			requestRender: () => this.#requestRender(),
-		});
-
-		this.#inputField = field;
-		this.#show(
-			new WizardStep({
-				kind: "input",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Step 6: Model Name", "第 6 步：显示名称"))), 0, 0),
-				content: field,
-			}),
-			col([field]),
-		);
-	}
-
-	#renderContextWindowStep(): void {
-		const lead = this.#t("Context Window Tokens:", "上下文窗口 Tokens 大小：");
-		const hint = this.#t("Positive integer (e.g. 128000, 200000). Enter to proceed.", "正整数（如 128000、200000）。Enter 下一步。");
-
-		const field = new TextFormField({
-			theme: getFormTheme(),
-			label: lead,
-			initialValue: String(this.#currentContextWindow),
-			hint,
-			empty: "submit",
-			validate: value => {
-				const num = Number(value.trim());
-				if (!Number.isSafeInteger(num) || num <= 0) {
-					return this.#t("Context window must be a positive integer.", "上下文窗口必须为正整数。");
-				}
-				return undefined;
-			},
-			onSubmit: value => {
-				const num = Number(value.trim());
-				this.#currentContextWindow = Number.isSafeInteger(num) && num > 0 ? num : 128000;
-				this.#currentStep = "maxTokens";
-				this.#renderStep();
-			},
-			onCancel: () => {
-				this.#currentStep = "modelName";
-				this.#renderStep();
-			},
-			requestRender: () => this.#requestRender(),
-		});
-
-		this.#inputField = field;
-		this.#show(
-			new WizardStep({
-				kind: "input",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Step 7: Context Window", "第 7 步：上下文窗口"))), 0, 0),
-				content: field,
-			}),
-			col([field]),
-		);
-	}
-
-	#renderMaxTokensStep(): void {
-		const lead = this.#t("Max Output Tokens:", "最大输出 Tokens (Max Tokens)：");
-		const hint = this.#t("Positive integer (e.g. 4096, 8192). Enter to save model.", "正整数（如 4096、8192）。Enter 暂存此模型。");
-
-		const field = new TextFormField({
-			theme: getFormTheme(),
-			label: lead,
-			initialValue: String(this.#currentMaxTokens),
-			hint,
-			empty: "submit",
-			validate: value => {
-				const num = Number(value.trim());
-				if (!Number.isSafeInteger(num) || num <= 0) {
-					return this.#t("Max tokens must be a positive integer.", "最大输出 Tokens 必须为正整数。");
-				}
-				if (num > this.#currentContextWindow) {
-					return this.#t("Max tokens cannot exceed context window.", "最大输出不能大于上下文窗口。");
-				}
-				return undefined;
-			},
-			onSubmit: value => {
-				const num = Number(value.trim());
-				this.#currentMaxTokens = Number.isSafeInteger(num) && num > 0 ? num : 4096;
-
-				// Save this model into list
-				this.#models.push({
-					id: this.#currentModelId,
-					name: this.#currentModelName || this.#currentModelId,
-					contextWindow: this.#currentContextWindow,
-					maxTokens: this.#currentMaxTokens,
-				});
-
-				// Reset temporary model state
-				this.#currentModelId = "";
-				this.#currentModelName = "";
-				this.#currentContextWindow = 128000;
-				this.#currentMaxTokens = 4096;
-
-				this.#currentStep = "addAnother";
-				this.#selectedIndex = 0;
-				this.#renderStep();
-			},
-			onCancel: () => {
-				this.#currentStep = "contextWindow";
-				this.#renderStep();
-			},
-			requestRender: () => this.#requestRender(),
-		});
-
-		this.#inputField = field;
-		this.#show(
-			new WizardStep({
-				kind: "input",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Step 8: Max Output Tokens", "第 8 步：最大输出"))), 0, 0),
-				content: field,
-			}),
-			col([field]),
-		);
-	}
-
-	#renderAddAnotherStep(): void {
-		this.#stepKind = "choice";
-		const choices = [
-			{
-				value: "done",
-				label: this.#t(`Save provider (${this.#models.length} model(s) added)`, `完成并保存提供商（已添加 ${this.#models.length} 个模型）`),
-				description: this.#t("Proceed to review and save this provider", "进入概览并保存此提供商配置"),
-			},
-			{
-				value: "add",
-				label: this.#t("+ Add another model to this provider", "+ 为此提供商继续添加另一个模型"),
-				description: this.#t("Define another model ID and limits", "配置更多可用模型 ID 与限制"),
-			},
-		];
-
-		const items = choices.map(choice => ({
-			value: choice.value,
-			label: choice.label,
-			description: choice.description,
-		}));
-
-		const list = new SelectList(items, choices.length, getSelectListTheme(), {
-			search: "never",
-			renderItem: ({ item, selected, width }) => {
-				const prefix = selected ? theme.fg("accent", `${theme.nav.cursor} `) : "  ";
-				const label = selected ? theme.fg("accent", item.label) : item.label;
-				const lines = wrapTextWithAnsi(prefix + label, width);
-				if (item.description && !selected) {
-					lines.push(...wrapTextWithAnsi(`    ${theme.fg("dim", item.description)}`, width));
-				}
-				return lines;
-			},
-		});
-		this.#currentSelectList = list;
-		list.setSelectedIndex(this.#selectedIndex);
-		list.onSelect = item => {
-			if (item.value === "add") {
-				this.#currentStep = "modelId";
-			} else {
-				this.#currentStep = "confirm";
+			// 仅在当前请求依然有效且未被中止、向导仍处于 fetching 状态时应用结果
+			if (
+				this.#disposed ||
+				controller.signal.aborted ||
+				this.#fetchAbort !== controller ||
+				this.#fetchGeneration !== generation ||
+				this.#currentStep !== "fetching"
+			) {
+				return;
 			}
-			this.#renderStep();
-		};
 
-		const hint = this.#t(
-			`[${editorKeys("tui.select.up", "tui.select.down")} select · ${editorKey("tui.select.confirm")} confirm]`,
-			`[${editorKeys("tui.select.up", "tui.select.down")} 选择 · ${editorKey("tui.select.confirm")} 确认]`,
+			this.#discoveredModels = models;
+			this.#selectedModelIds = new Set(models.map(m => m.id));
+			this.#modelSearchInput.setValue("");
+			this.#modelSelectedIndex = 0;
+			this.#selectedIndex = 0;
+			this.#currentStep = "selectModels";
+			this.#renderStep();
+		} catch (error) {
+			// 若当前请求已被取消或已被后续探测接替，则静默忽略过时异常
+			if (
+				this.#disposed ||
+				controller.signal.aborted ||
+				this.#fetchAbort !== controller ||
+				this.#fetchGeneration !== generation ||
+				this.#currentStep !== "fetching"
+			) {
+				return;
+			}
+			this.#fetchError = error instanceof Error ? error.message : String(error);
+			this.#renderStep();
+		} finally {
+			// 仅在当前活动控制器属于本轮请求时清理引用，避免冲掉并发起动的新请求
+			if (this.#fetchAbort === controller) {
+				this.#fetchAbort = null;
+			}
+		}
+	}
+
+	#renderFetchingStep(): void {
+		this.#stepKind = "choice";
+		const cancelKey = (boundKeys("app.interrupt", ["escape"])[0] ?? "escape") as KeyName;
+		const submitKey = (getKeybindings().getKeys("tui.input.submit")[0] ?? "enter") as KeyName;
+		const container = new Container();
+
+		if (this.#fetchError) {
+			container.addChild(new Text(theme.fg("error", `✗ ${this.#fetchError}`), 0, 0));
+			container.addChild(new Spacer(1));
+			container.addChild(
+				new Text(
+					theme.fg(
+						"dim",
+						this.#t(
+							"[Enter / R] Retry  [Esc] Back to edit API Key",
+							"[Enter / R] 重试  [Esc] 返回修改密钥与端点",
+						),
+					),
+					0,
+					0,
+				),
+			);
+
+			this.#show(
+				new WizardStep({
+					kind: "choice",
+					heading: new Text(
+						theme.fg("error", theme.bold(this.#t("Model Discovery Failed", "获取模型列表失败"))),
+						0,
+						0,
+					),
+					content: container,
+				}),
+				{
+					title: this.#t("Discovery Failed", "获取模型失败"),
+					body: [container],
+					actions: {
+						back: this.#t("Back", "返回"),
+						backKey: cancelKey,
+						next: this.#t("Retry", "重试"),
+						nextKey: submitKey,
+					},
+				},
+			);
+			return;
+		}
+
+		container.addChild(
+			new Text(
+				theme.fg(
+					"accent",
+					this.#t("Discovering available models from endpoint…", "正在从端点探测获取可用模型列表…"),
+				),
+				0,
+				0,
+			),
 		);
+		container.addChild(new Text(theme.fg("dim", this.#t("Press Esc to cancel.", "按 Esc 可取消返回。")), 0, 0));
 
 		this.#show(
 			new WizardStep({
 				kind: "choice",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Models Configured", "模型配置列表"))), 0, 0),
-				content: list,
-				footer: new Text(theme.fg("muted", hint), 0, 0),
+				heading: new Text(theme.fg("accent", theme.bold(this.#t("Fetching Models", "正在获取模型"))), 0, 0),
+				content: container,
 			}),
-			col([list]),
+			{
+				title: this.#t("Fetching Models", "正在获取模型"),
+				body: [
+					node("spinner", {
+						style: "dots",
+						label: [span(this.#t("Fetching models…", "正在获取模型…"), "accent")],
+					}),
+				],
+				actions: {
+					back: this.#t("Cancel", "取消"),
+					backKey: cancelKey,
+				},
+			},
+		);
+	}
+
+	#getFilteredDiscoveredModels(): CustomWizardModel[] {
+		const query = this.#modelSearchInput.getValue().trim().toLowerCase();
+		if (!query) return this.#discoveredModels;
+		return this.#discoveredModels.filter(
+			m => m.id.toLowerCase().includes(query) || (m.name && m.name.toLowerCase().includes(query)),
+		);
+	}
+
+	#renderSelectModelsStep(): void {
+		this.#stepKind = "choice";
+		const cancelKey = (boundKeys("app.interrupt", ["escape"])[0] ?? "escape") as KeyName;
+		const submitKey = (getKeybindings().getKeys("tui.input.submit")[0] ?? "enter") as KeyName;
+		const container = new Container();
+
+		const searchPrompt = this.#t("Search models: ", "搜索模型: ");
+		const searchWidth = 60;
+		const searchLine = theme.fg("muted", searchPrompt) + (this.#modelSearchInput.render(searchWidth)[0] ?? "");
+		container.addChild(new Text(searchLine, 0, 0));
+		container.addChild(new Spacer(1));
+
+		const listComponent = new ModelMultiSelectList(
+			() => this.#getFilteredDiscoveredModels(),
+			() => this.#selectedModelIds,
+			() => this.#modelSelectedIndex,
+			(en, zh) => this.#t(en, zh),
+		);
+		container.addChild(listComponent);
+
+		if (this.#validationError) {
+			container.addChild(new Spacer(1));
+			container.addChild(new Text(theme.fg("error", `${theme.status.error} ${this.#validationError}`), 0, 0));
+		}
+
+		const countHint = this.#t(
+			`[${this.#selectedModelIds.size}/${this.#discoveredModels.length} selected] [Space] Toggle · [Enter] Continue · [Esc] Back`,
+			`[已选 ${this.#selectedModelIds.size}/${this.#discoveredModels.length}] [空格] 勾选/取消 · [Enter] 继续 · [Esc] 返回`,
+		);
+
+		const filtered = this.#getFilteredDiscoveredModels();
+		const nativeChoices = filtered.map(m => ({
+			label: `${this.#selectedModelIds.has(m.id) ? "[x] " : "[ ] "}${m.id}${m.name && m.name !== m.id ? ` (${m.name})` : ""}`,
+			description: formatModelMetadata(m, (en, zh) => this.#t(en, zh)),
+		}));
+
+		this.#show(
+			new WizardStep({
+				kind: "choice",
+				heading: new Text(
+					theme.fg("accent", theme.bold(this.#t("Step 5: Select Models", "第 5 步：选择模型"))),
+					0,
+					0,
+				),
+				content: container,
+				footer: new Text(theme.fg("muted", countHint), 0, 0),
+			}),
+			{
+				title: this.#t("Select Models", "选择模型"),
+				body: compact([
+					node(
+						"col",
+						{ role: "rva.customProvider.search", gap: "xs" },
+						[
+							node(
+								"input",
+								{
+									text: this.#modelSearchInput.getValue(),
+									cursor: this.#modelSearchInput.getCursor(),
+									placeholder: this.#t("Search models…", "搜索模型…"),
+								},
+								undefined,
+								"model-search",
+							),
+						],
+						"search-input",
+					),
+					text(countHint, { role: "rva.customProvider.help", wrap: "word" }),
+					this.#validationError
+						? text(this.#validationError, { role: "rva.customProvider.error", tone: "error", wrap: "word" })
+						: undefined,
+				]),
+				choices: nativeChoices,
+				actions: {
+					back: this.#t("Back", "返回"),
+					backKey: cancelKey,
+					next: this.#t("Continue", "继续"),
+					nextKey: submitKey,
+				},
+			},
 		);
 	}
 
 	#renderConfirmStep(): void {
 		this.#stepKind = "choice";
+		const cancelKey = (boundKeys("app.interrupt", ["escape"])[0] ?? "escape") as KeyName;
+		const submitKey = (getKeybindings().getKeys("tui.input.submit")[0] ?? "enter") as KeyName;
 		const container = new Container();
 
 		const authLabel = this.#apiKey
 			? this.#t("[Configured (securely stored in agent.db)]", "[已提供（安全存储于本地 SQLite 凭据库）]")
 			: this.#t("[Keyless / None]", "[免密 / 无密钥]");
 
+		const selectedModels = this.#discoveredModels.filter(m => this.#selectedModelIds.has(m.id));
+
 		container.addChild(new Text(theme.bold(this.#t("Summary of Custom Provider:", "自定义提供商汇总：")), 0, 0));
-		container.addChild(new Text(`  ${theme.fg("dim", "Provider ID:")} ${theme.fg("accent", this.#providerId)}`, 0, 0));
+		container.addChild(
+			new Text(`  ${theme.fg("dim", "Provider ID:")} ${theme.fg("accent", this.#providerId)}`, 0, 0),
+		);
 		container.addChild(new Text(`  ${theme.fg("dim", "API Protocol:")} ${this.#api}`, 0, 0));
 		container.addChild(new Text(`  ${theme.fg("dim", "Base URL:")}     ${this.#baseUrl}`, 0, 0));
 		container.addChild(new Text(`  ${theme.fg("dim", "API Key:")}      ${authLabel}`, 0, 0));
 		container.addChild(new Spacer(1));
-		container.addChild(new Text(theme.bold(this.#t(`Models (${this.#models.length}):`, `包含模型 (${this.#models.length})：`)), 0, 0));
+		container.addChild(
+			new Text(
+				theme.bold(this.#t(`Selected Models (${selectedModels.length}):`, `所选模型 (${selectedModels.length})：`)),
+				0,
+				0,
+			),
+		);
 
-		for (const m of this.#models) {
-			const nameStr = m.name !== m.id ? ` (${m.name})` : "";
-			container.addChild(
-				new Text(
-					`  • ${theme.fg("accent", m.id)}${nameStr} - ${theme.fg("dim", `ctx: ${m.contextWindow}, max: ${m.maxTokens}`)}`,
-					0,
-					0,
-				),
-			);
+		for (const m of selectedModels) {
+			const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+			const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
+			container.addChild(new Text(`  • ${theme.fg("accent", m.id)}${nameStr} - ${theme.fg("dim", meta)}`, 0, 0));
 		}
 
 		if (this.#validationError) {
@@ -667,7 +834,33 @@ export class CustomProviderWizard extends OverlayPanel {
 				content: container,
 				footer: new Text(theme.fg("muted", hint), 0, 0),
 			}),
-			col([container]),
+			{
+				title: this.#t("Confirm Configuration", "确认配置"),
+				body: [
+					text(this.#t("Summary of Custom Provider:", "自定义提供商汇总："), {
+						role: "rva.customProvider.summaryTitle",
+					}),
+					text(`Provider ID: ${this.#providerId}`),
+					text(`API Protocol: ${this.#api}`),
+					text(`Base URL: ${this.#baseUrl}`),
+					text(`API Key: ${authLabel}`),
+					text(this.#t(`Selected Models (${selectedModels.length}):`, `所选模型 (${selectedModels.length})：`)),
+					...selectedModels.map(m => {
+						const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+						const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
+						return text(`• ${m.id}${nameStr} - ${meta}`);
+					}),
+					...(this.#validationError
+						? [text(this.#validationError, { role: "rva.customProvider.error", tone: "error", wrap: "word" })]
+						: []),
+				],
+				actions: {
+					back: cancelText,
+					backKey: cancelKey,
+					next: saveText,
+					nextKey: submitKey,
+				},
+			},
 		);
 	}
 
@@ -676,13 +869,22 @@ export class CustomProviderWizard extends OverlayPanel {
 		this.#saving = true;
 		this.#requestRender();
 
+		const selectedModels = this.#discoveredModels.filter(m => this.#selectedModelIds.has(m.id));
+
 		try {
 			await this.#onCompleteCallback({
 				providerId: this.#providerId,
 				api: this.#api,
 				baseUrl: this.#baseUrl,
 				apiKey: this.#apiKey || undefined,
-				models: this.#models,
+				models: selectedModels.map(m => ({
+					id: m.id,
+					name: m.name,
+					contextWindow: m.contextWindow,
+					maxTokens: m.maxTokens,
+					input: m.input,
+					reasoning: m.reasoning,
+				})),
 			});
 		} catch (error) {
 			this.#saving = false;
@@ -696,7 +898,7 @@ export class CustomProviderWizard extends OverlayPanel {
 
 		// Handle Ctrl+C to cancel wizard immediately
 		if (keyData === "\x03") {
-			this.#onCancelCallback();
+			this.#cancelWizard();
 			return;
 		}
 
@@ -707,10 +909,73 @@ export class CustomProviderWizard extends OverlayPanel {
 
 		if (matchesAppInterrupt(keyData)) {
 			if (this.#currentStep === "providerId") {
-				this.#onCancelCallback();
+				this.#cancelWizard();
 				return;
 			}
 			this.#goBack();
+			return;
+		}
+
+		if (this.#currentStep === "fetching") {
+			if (this.#fetchError && (matchesKey(keyData, "enter") || keyData.toLowerCase() === "r")) {
+				this.#fetchError = null;
+				this.#renderStep();
+				void this.#runFetchModels();
+				return;
+			}
+			return;
+		}
+
+		if (this.#currentStep === "selectModels") {
+			const items = this.#getFilteredDiscoveredModels();
+
+			if (keyData === " ") {
+				// Toggle highlighted model
+				const current = items[this.#modelSelectedIndex];
+				if (current) {
+					if (this.#selectedModelIds.has(current.id)) {
+						this.#selectedModelIds.delete(current.id);
+					} else {
+						this.#selectedModelIds.add(current.id);
+					}
+					this.#validationError = null;
+					this.#renderStep();
+				}
+				return;
+			}
+
+			if (matchesSelectUp(keyData)) {
+				if (items.length > 0) {
+					this.#modelSelectedIndex = (this.#modelSelectedIndex - 1 + items.length) % items.length;
+					this.#renderStep();
+				}
+				return;
+			}
+
+			if (matchesSelectDown(keyData)) {
+				if (items.length > 0) {
+					this.#modelSelectedIndex = (this.#modelSelectedIndex + 1) % items.length;
+					this.#renderStep();
+				}
+				return;
+			}
+
+			if (matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
+				if (this.#selectedModelIds.size === 0) {
+					this.#validationError = this.#t("Please select at least one model.", "请至少选择一个模型。");
+					this.#renderStep();
+					return;
+				}
+				this.#validationError = null;
+				this.#currentStep = "confirm";
+				this.#renderStep();
+				return;
+			}
+
+			// Filter text typing
+			this.#modelSearchInput.handleInput(keyData);
+			this.#modelSelectedIndex = 0;
+			this.#renderStep();
 			return;
 		}
 
@@ -730,10 +995,116 @@ export class CustomProviderWizard extends OverlayPanel {
 		}
 	}
 
+	handleNativeEvent(event: NativeUiEvent): void {
+		if (this.#saving) return;
+		if (event.type === "action") {
+			this.#runAction(event.act);
+			return;
+		}
+		if (event.type === "edit" || event.type === "undo") {
+			if (this.#currentStep === "selectModels") {
+				this.#modelSearchInput.handleNativeEvent(event);
+				this.#modelSelectedIndex = 0;
+				this.#renderStep();
+				return;
+			}
+			this.#inputField?.input.handleNativeEvent(event);
+			this.#requestRender();
+			return;
+		}
+		if (event.type !== "select" && event.type !== "activate") return;
+
+		if (this.#currentStep === "selectModels") {
+			const items = this.#getFilteredDiscoveredModels();
+			const idx = Number(event.item);
+			if (Number.isInteger(idx) && items[idx]) {
+				this.#modelSelectedIndex = idx;
+				this.#selectedIndex = idx;
+				if (event.type === "activate") {
+					const id = items[idx].id;
+					if (this.#selectedModelIds.has(id)) {
+						this.#selectedModelIds.delete(id);
+					} else {
+						this.#selectedModelIds.add(id);
+					}
+				}
+				this.#renderStep();
+			}
+			return;
+		}
+
+		if (leafKey(event.key) !== `choices-${this.#currentStep}`) return;
+		if (this.#inputField) return;
+		const index = Number(event.item);
+		if (!Number.isInteger(index) || index < 0) return;
+		this.#selectedIndex = index;
+		if (this.#currentSelectList) {
+			this.#currentSelectList.setSelectedIndex(index);
+		}
+		if (event.type === "activate") {
+			if (this.#currentStep === "api") {
+				const apis: Api[] = ["openai-completions", "openai-responses", "anthropic-messages"];
+				if (apis[index]) {
+					this.#api = apis[index];
+					this.#currentStep = "baseUrl";
+					this.#renderStep();
+				}
+			}
+		}
+		this.#requestRender();
+	}
+
+	#runAction(act: string): void {
+		switch (act) {
+			case "cancel":
+				this.#cancelWizard();
+				return;
+			case "back":
+				this.#fetchAbort?.abort();
+				if (this.#currentStep === "providerId") {
+					this.#cancelWizard();
+				} else {
+					this.#goBack();
+				}
+				break;
+			case "next":
+				if (this.#inputField) {
+					this.#inputField.submit();
+				} else if (this.#currentStep === "fetching" && this.#fetchError) {
+					this.#fetchError = null;
+					this.#renderStep();
+					void this.#runFetchModels();
+				} else if (this.#currentStep === "selectModels") {
+					if (this.#selectedModelIds.size === 0) {
+						this.#validationError = this.#t("Please select at least one model.", "请至少选择一个模型。");
+						this.#renderStep();
+						return;
+					}
+					this.#validationError = null;
+					this.#currentStep = "confirm";
+					this.#renderStep();
+				} else if (this.#currentStep === "confirm") {
+					void this.#submitFinal();
+				} else if (this.#currentStep === "api") {
+					const apis: Api[] = ["openai-completions", "openai-responses", "anthropic-messages"];
+					if (apis[this.#selectedIndex]) {
+						this.#api = apis[this.#selectedIndex];
+						this.#currentStep = "baseUrl";
+						this.#renderStep();
+					}
+				}
+				break;
+			default:
+				return;
+		}
+		this.#requestRender();
+	}
+
 	#goBack(): void {
+		this.#fetchAbort?.abort();
 		switch (this.#currentStep) {
 			case "providerId":
-				this.#onCancelCallback();
+				this.#cancelWizard();
 				break;
 			case "api":
 				this.#currentStep = "providerId";
@@ -747,35 +1118,89 @@ export class CustomProviderWizard extends OverlayPanel {
 				this.#currentStep = "baseUrl";
 				this.#renderStep();
 				break;
-			case "modelId":
-				this.#currentStep = this.#models.length > 0 ? "addAnother" : "apiKey";
+			case "fetching":
+				this.#fetchAbort?.abort();
+				this.#currentStep = "apiKey";
 				this.#renderStep();
 				break;
-			case "modelName":
-				this.#currentStep = "modelId";
-				this.#renderStep();
-				break;
-			case "contextWindow":
-				this.#currentStep = "modelName";
-				this.#renderStep();
-				break;
-			case "maxTokens":
-				this.#currentStep = "contextWindow";
-				this.#renderStep();
-				break;
-			case "addAnother":
-				this.#currentStep = "confirm";
+			case "selectModels":
+				this.#fetchAbort?.abort();
+				this.#currentStep = "apiKey";
 				this.#renderStep();
 				break;
 			case "confirm":
-				this.#currentStep = "addAnother";
+				this.#currentStep = "selectModels";
 				this.#renderStep();
 				break;
 		}
 	}
 
+	#describeActions(actions: NativeStepActions): NativeNode {
+		const cancelKey = (boundKeys("app.interrupt", ["escape"])[0] ?? "escape") as KeyName;
+		const cancelLabel = this.#t("Cancel", "取消");
+		const buttons: (NativeNode | null)[] = [
+			actionButton(cancelLabel, "cancel", { keys: actions.back === undefined ? actions.backKey : cancelKey }),
+			null,
+		];
+		if (actions.back) {
+			buttons.push(actionButton(actions.back, "back", { keys: actions.backKey }));
+		}
+		if (actions.next) {
+			buttons.push(actionButton(actions.next, "next", { keys: actions.nextKey, tone: "accent" }));
+		}
+		return actionBar(buttons);
+	}
+
 	override describe(_cx: DescribeContext): NativeNode {
-		return this.#native ?? col([]);
+		if (this.#native) return this.#native;
+		const step = this.#nativeStep;
+		const titleRow = row(
+			compact([
+				text(step.title, { role: "rva.customProvider.title", wrap: "word" }),
+				step.optional && text(this.#t("Optional", "可选"), { role: "rva.customProvider.tag" }),
+			]),
+			{ gap: "sm", align: "center" },
+		);
+		const head = compact([
+			titleRow,
+			step.lead ? text(step.lead, { role: "rva.customProvider.lead", wrap: "word" }) : undefined,
+		]);
+		const children: NativeChild[] = [
+			node("col", { role: "rva.customProvider.head", gap: "xs" }, head, "head"),
+			...step.body,
+		];
+		if (step.choices) {
+			const items = step.choices.map((choice, index) =>
+				node(
+					"item",
+					{
+						label: choice.label,
+						...(choice.description ? { detail: choice.description } : {}),
+					},
+					undefined,
+					String(index),
+				),
+			);
+			const selectedKey =
+				this.#currentStep === "selectModels" ? String(this.#modelSelectedIndex) : String(this.#selectedIndex);
+			children.push(
+				node(
+					"list",
+					{ selected: selectedKey, role: "rva.customProvider.choices" },
+					items,
+					`choices-${this.#currentStep}`,
+				),
+			);
+		}
+		children.push(this.#describeActions(step.actions));
+		const sheet = node(
+			"overlay",
+			{ role: this.nativeRole, head: this.title, anchor: "center", size: "md", modal: true },
+			[col(children, { gap: "lg" })],
+			"sheet",
+		);
+		this.#native = col([sheet]);
+		return this.#native;
 	}
 
 	override render(width: number): readonly string[] {
@@ -784,5 +1209,11 @@ export class CustomProviderWizard extends OverlayPanel {
 
 	routeMouse(event: SgrMouseEvent, line: number, col: number): void {
 		this.#step?.routeMouse(event, line, col);
+	}
+
+	override dispose(): void {
+		this.#disposed = true;
+		this.#fetchAbort?.abort();
+		super.dispose();
 	}
 }

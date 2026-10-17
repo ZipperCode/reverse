@@ -5,6 +5,11 @@
 ### Added
 
 - Added `language` setting (`en` | `zh-CN`, default `en`, overrideable via `RVA_LANG` environment variable) providing Chinese localization for configuration labels, descriptions, group headers, and CLI help, while keeping canonical setting identifiers, enum storage values, and JSON machine contracts unchanged.
+- Added interactive TUI wizard (`/setup providers`, `/models`, `/provider add`, `/models add`) to add custom OpenAI-compatible and Anthropic-compatible providers with automated endpoint model discovery, multi-selection, and context window/output limit extraction without manual input, securely storing credentials in the local SQLite database (`agent.db`) and non-sensitive configurations in `models.yml` with immediate registry reload.
+
+### Fixed
+
+- Fixed custom provider wizard model discovery to abort in-flight requests on cancel, back, and dispose, ignoring stale asynchronous responses; resolved native UI content duplication in model selection; and clearly displayed runtime output fallback for models with unknown `maxTokens` without persisting fabricated values.
 ## [18.11.2] - 2026-10-16
 
 ### Added

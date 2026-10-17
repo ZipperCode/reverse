@@ -17,6 +17,8 @@ export interface CustomModelInput {
 	name?: string;
 	contextWindow?: number;
 	maxTokens?: number;
+	input?: ("text" | "image")[];
+	reasoning?: boolean;
 }
 
 export interface CustomProviderInput {
@@ -181,6 +183,8 @@ export async function saveCustomProvider(
 				...(m.name?.trim() ? { name: m.name.trim() } : {}),
 				...(m.contextWindow !== undefined ? { contextWindow: m.contextWindow } : {}),
 				...(m.maxTokens !== undefined ? { maxTokens: m.maxTokens } : {}),
+				...(m.input && m.input.length > 0 ? { input: m.input } : {}),
+				...(m.reasoning !== undefined ? { reasoning: m.reasoning } : {}),
 			})),
 		};
 
@@ -219,6 +223,7 @@ export async function saveCustomProvider(
 		const serialized = stringifyYamlConfig(updatedConfig);
 		const tempPath = path.join(targetDir, `.${path.basename(configPath)}.tmp.${process.pid}.${Date.now()}`);
 		const backupPath = path.join(targetDir, `.${path.basename(configPath)}.bak.${process.pid}.${Date.now()}`);
+		let preservedBackupForRecovery = false;
 
 		try {
 			await fs.promises.writeFile(tempPath, serialized, { mode: 0o600 });
@@ -236,31 +241,54 @@ export async function saveCustomProvider(
 						source: "login",
 					});
 				} catch (error) {
-					// Rollback credentials and YAML on credential store failure
+					let credentialCleanupError: unknown;
 					try {
 						await deps.authStorage.credentials.remove(providerId);
-					} catch {}
+					} catch (credErr) {
+						credentialCleanupError = credErr;
+					}
+
+					let rollbackError: unknown;
+					let restoredBackup = false;
 					try {
 						if (existingContent !== null && fs.existsSync(backupPath)) {
 							await replaceFileAtomically(backupPath, configPath);
+							restoredBackup = true;
 						} else {
 							await fs.promises.unlink(configPath);
 						}
-					} catch (rollbackError) {
-						throw new Error(
-							`Failed to save credential for provider "${providerId}": ${String(error)} (rollback failed: ${String(rollbackError)})`,
-						);
+					} catch (rbErr) {
+						rollbackError = rbErr;
 					}
-					throw new Error(`Failed to save credential for provider "${providerId}": ${String(error)}`);
+
+					if (!restoredBackup && existingContent !== null && fs.existsSync(backupPath)) {
+						preservedBackupForRecovery = true;
+					}
+
+					const errorDetails = [
+						`Failed to save credential for provider "${providerId}": ${String(error)}`,
+						rollbackError
+							? `file rollback failed: ${String(rollbackError)}${
+									preservedBackupForRecovery ? ` (backup preserved at ${backupPath})` : ""
+								}`
+							: undefined,
+						credentialCleanupError ? `credential cleanup failed: ${String(credentialCleanupError)}` : undefined,
+					]
+						.filter(Boolean)
+						.join("; ");
+
+					throw new Error(errorDetails);
 				}
 			}
 		} finally {
 			try {
 				if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath);
 			} catch {}
-			try {
-				if (fs.existsSync(backupPath)) await fs.promises.unlink(backupPath);
-			} catch {}
+			if (!preservedBackupForRecovery) {
+				try {
+					if (fs.existsSync(backupPath)) await fs.promises.unlink(backupPath);
+				} catch {}
+			}
 		}
 
 		// 7. Invalidate config file cache and refresh registry

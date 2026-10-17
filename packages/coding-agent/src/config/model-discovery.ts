@@ -809,6 +809,49 @@ function collectModalities(values: readonly unknown[]): Set<string> {
 }
 
 /**
+ * Extract reported model limits and capabilities from an endpoint model object.
+ */
+export function extractReportedModelLimits(item: unknown): {
+	rawContext?: number;
+	rawMaxTokens?: number;
+	rawName?: string;
+	rawInput?: ("text" | "image")[];
+} {
+	if (!isRecord(item)) return {};
+	const limits = isRecord(item.limits) ? item.limits : undefined;
+	const maxInputTokens = toTokenLimitOrUndefined(limits?.max_input_tokens);
+	const maxOutputTokens = toTokenLimitOrUndefined(limits?.max_output_tokens);
+	const reportedLimitsContextWindow =
+		maxInputTokens !== undefined &&
+		maxOutputTokens !== undefined &&
+		Number.isSafeInteger(maxInputTokens + maxOutputTokens)
+			? maxInputTokens + maxOutputTokens
+			: undefined;
+
+	const topProvider = isRecord(item.top_provider) ? item.top_provider : undefined;
+	const rawMaxTokens =
+		maxOutputTokens ??
+		toTokenLimitOrUndefined(item.max_output_tokens) ??
+		toTokenLimitOrUndefined(item.max_completion_tokens) ??
+		toTokenLimitOrUndefined(topProvider?.max_completion_tokens) ??
+		toTokenLimitOrUndefined(item.max_tokens);
+
+	const rawContext =
+		toTokenLimitOrUndefined(item.max_model_len) ??
+		toTokenLimitOrUndefined(item.context_length) ??
+		reportedLimitsContextWindow;
+	const rawName =
+		typeof item.display_name === "string" && item.display_name.trim().length > 0
+			? item.display_name.trim()
+			: typeof item.name === "string" && item.name.trim().length > 0
+				? item.name.trim()
+				: undefined;
+
+	const rawInput = extractOpenAIModelsListInputCapabilities(item);
+	return { rawContext, rawMaxTokens, rawName, rawInput };
+}
+
+/**
  * Read image-input support from an OpenAI-compatible `/v1/models` row. Handles
  * direct `input` arrays, Synthetic-style top-level `input_modalities`, and
  * OpenRouter-style `architecture.input_modalities`; returns undefined when none
@@ -949,40 +992,11 @@ export async function discoverOpenAIModelsList(
 		// headers/baseUrl/cost stay local.
 		const reference = resolveModelReference(id, references) as ModelSpec<Api> | undefined;
 		const referenceCompat = reference?.compat as OpenAICompat | undefined;
-		const input = nativeMetadataForModel?.input ??
-			extractOpenAIModelsListInputCapabilities(item) ??
-			reference?.input ?? ["text"];
-		const limits = isRecord(item.limits) ? item.limits : undefined;
-		const maxInputTokens = toTokenLimitOrUndefined(limits?.max_input_tokens);
-		const maxOutputTokens = toTokenLimitOrUndefined(limits?.max_output_tokens);
-		const reportedLimitsContextWindow =
-			maxInputTokens !== undefined &&
-			maxOutputTokens !== undefined &&
-			Number.isSafeInteger(maxInputTokens + maxOutputTokens)
-				? maxInputTokens + maxOutputTokens
-				: undefined;
-		// Gateways spell the output cap nested (`limits.max_output_tokens`),
-		// flat (`max_output_tokens`, OpenRouter-style `max_completion_tokens`,
-		// generic `max_tokens` (#13062)), or under OpenRouter's
-		// `top_provider.max_completion_tokens` (ModelRelay and other
-		// OpenRouter-shaped catalogs). Each spelling is validated on its own so a
-		// malformed one never masks a usable sibling. A `/v1/models` row declares
-		// what the endpoint accepts, so `max_tokens` here is a cap — unlike
-		// llama.cpp, whose positive `max_tokens` is only a per-request default.
-		const topProvider = isRecord(item.top_provider) ? item.top_provider : undefined;
-		const reportedMaxTokens =
-			maxOutputTokens ??
-			toTokenLimitOrUndefined(item.max_output_tokens) ??
-			toTokenLimitOrUndefined(item.max_completion_tokens) ??
-			toTokenLimitOrUndefined(topProvider?.max_completion_tokens) ??
-			toTokenLimitOrUndefined(item.max_tokens);
+		const reported = extractReportedModelLimits(item);
+		const input = nativeMetadataForModel?.input ?? reported.rawInput ?? reference?.input ?? ["text"];
+		const reportedMaxTokens = reported.rawMaxTokens;
 		const reportedContextWindow =
-			toPositiveNumberOrUndefined(item.max_model_len) ??
-			toPositiveNumberOrUndefined(item.context_length) ??
-			reportedLimitsContextWindow ??
-			nativeMetadataForModel?.contextWindow ??
-			reference?.contextWindow ??
-			null;
+			reported.rawContext ?? nativeMetadataForModel?.contextWindow ?? reference?.contextWindow ?? null;
 		// A row that advertises a dedicated task answers through that task's
 		// runner, not the provider's chat API: leaving it on chat both hides it
 		// from its own role and offers the picker a model the chat endpoint
@@ -1306,4 +1320,184 @@ function normalizeOllamaBaseUrl(baseUrl?: string): string {
 	} catch {
 		return DEFAULT_OLLAMA_BASE_URL;
 	}
+}
+
+export interface RawDiscoveredModelMetadata {
+	id: string;
+	name: string;
+	contextWindow?: number;
+	contextSource?: "endpoint" | "catalog";
+	maxTokens?: number;
+	maxTokensSource?: "endpoint" | "catalog";
+	input?: ("text" | "image")[];
+	reasoning?: boolean;
+}
+
+export async function fetchDiscoveredProviderModels(options: {
+	baseUrl: string;
+	api: Api;
+	apiKey?: string;
+	timeoutMs?: number;
+	fetch?: FetchImpl;
+	signal?: AbortSignal;
+}): Promise<RawDiscoveredModelMetadata[]> {
+	const isAnthropic = options.api === "anthropic-messages";
+	let modelsUrl: string;
+	if (isAnthropic) {
+		const raw = options.baseUrl.trim();
+		try {
+			const parsed = new URL(raw);
+			const pathname = parsed.pathname.replace(/\/+$/g, "");
+			if (pathname === "" || pathname === "/") {
+				parsed.pathname = "/v1/models";
+			} else if (pathname.endsWith("/models")) {
+				parsed.pathname = pathname;
+			} else if (pathname.endsWith("/v1")) {
+				parsed.pathname = `${pathname}/models`;
+			} else {
+				parsed.pathname = `${pathname}/models`;
+			}
+			modelsUrl = parsed.toString();
+		} catch {
+			const trimmed = raw.replace(/\/+$/g, "");
+			modelsUrl = trimmed.endsWith("/models")
+				? trimmed
+				: trimmed.endsWith("/v1")
+					? `${trimmed}/models`
+					: `${trimmed}/v1/models`;
+		}
+	} else {
+		modelsUrl = appendModelsPath(normalizeOpenAIModelsListBaseUrl(options.baseUrl));
+	}
+
+	const headers: Record<string, string> = { Accept: "application/json" };
+	if (isAnthropic) {
+		headers["anthropic-version"] = "2023-06-01";
+		if (options.apiKey && options.apiKey.trim().length > 0) {
+			headers["x-api-key"] = options.apiKey.trim();
+		}
+	} else {
+		if (options.apiKey && options.apiKey.trim().length > 0) {
+			headers["authorization"] = `Bearer ${options.apiKey.trim()}`;
+		}
+	}
+
+	const timeoutMs = options.timeoutMs ?? 10_000;
+	const fetchImpl = options.fetch ?? (globalThis.fetch as FetchImpl);
+
+	const items: unknown[] = await withTimeoutSignal(timeoutMs, async signal => {
+		const combinedSignal = options.signal ? AbortSignal.any([options.signal, signal]) : signal;
+		const collected: unknown[] = [];
+		let currentUrl = modelsUrl;
+		let pages = 0;
+		const maxPages = 10;
+		const seenCursors = new Set<string>();
+
+		while (true) {
+			pages += 1;
+			if (pages > maxPages) {
+				throw new Error(`Pagination limit reached: endpoint exceeded maximum allowed pages (${maxPages}).`);
+			}
+
+			const res = await fetchImpl(currentUrl, {
+				headers,
+				signal: combinedSignal,
+			});
+			if (!res.ok) {
+				throw new DiscoveryHttpError(res.status, currentUrl);
+			}
+			const payload = (await res.json()) as unknown;
+
+			let pageItems: unknown[] = [];
+			if (Array.isArray(payload)) {
+				pageItems = payload;
+			} else if (isRecord(payload)) {
+				if (Array.isArray(payload.data)) pageItems = payload.data;
+				else if (Array.isArray(payload.models)) pageItems = payload.models;
+				else if (Array.isArray(payload.result)) pageItems = payload.result;
+				else if (Array.isArray(payload.items)) pageItems = payload.items;
+			}
+			collected.push(...pageItems);
+
+			if (isAnthropic && isRecord(payload) && payload.has_more === true) {
+				const lastId = payload.last_id;
+				if (typeof lastId !== "string" || lastId.trim().length === 0) {
+					throw new Error("Pagination error: endpoint indicated has_more but omitted last_id cursor.");
+				}
+				const trimmedCursor = lastId.trim();
+				if (seenCursors.has(trimmedCursor)) {
+					throw new Error(`Pagination loop detected: repeated cursor "${trimmedCursor}".`);
+				}
+				seenCursors.add(trimmedCursor);
+
+				const url = new URL(modelsUrl);
+				url.searchParams.set("after_id", trimmedCursor);
+				currentUrl = url.toString();
+			} else {
+				break;
+			}
+		}
+
+		return collected;
+	});
+	if (items.length === 0) {
+		throw new Error("The endpoint returned 0 models.");
+	}
+
+	const references = getBundledModelReferenceIndex();
+	const results: RawDiscoveredModelMetadata[] = [];
+	const seenIds = new Set<string>();
+
+	for (const item of items) {
+		const id = (
+			typeof item === "string" ? item : isRecord(item) && typeof item.id === "string" ? item.id : ""
+		).trim();
+		if (!id || seenIds.has(id)) continue;
+		seenIds.add(id);
+
+		const reported = extractReportedModelLimits(item);
+		const reference = references.exact.get(id);
+
+		let contextWindow: number | undefined;
+		let contextSource: "endpoint" | "catalog" | undefined;
+		let maxTokens: number | undefined;
+		let maxTokensSource: "endpoint" | "catalog" | undefined;
+
+		if (reported.rawContext !== undefined) {
+			contextWindow = reported.rawContext;
+			contextSource = "endpoint";
+		} else if (reference?.contextWindow !== undefined && reference.contextWindow !== null) {
+			contextWindow = reference.contextWindow;
+			contextSource = "catalog";
+		}
+
+		if (reported.rawMaxTokens !== undefined) {
+			maxTokens = reported.rawMaxTokens;
+			maxTokensSource = "endpoint";
+		} else if (reference?.maxTokens !== undefined && reference.maxTokens !== null) {
+			maxTokens = reference.maxTokens;
+			maxTokensSource = "catalog";
+		}
+
+		const name = reported.rawName ?? reference?.name ?? id;
+		const input = reported.rawInput ?? reference?.input ?? undefined;
+		const reasoning = reference?.reasoning ?? undefined;
+
+		results.push({
+			id,
+			name,
+			contextWindow,
+			contextSource,
+			maxTokens,
+			maxTokensSource,
+			input,
+			reasoning,
+		});
+	}
+
+	if (results.length === 0) {
+		throw new Error("No valid model entries found in endpoint response.");
+	}
+
+	return results;
 }

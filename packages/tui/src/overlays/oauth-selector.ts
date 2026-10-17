@@ -23,6 +23,7 @@ import type { DescribeContext, NativeNode, NativeUiEvent } from "../native/node"
 import { CLOSE_ACTION, dockedPicker, PICKER_KEY, pickerAction, pickerEvent, pickerQuery } from "../native/picker";
 import { overlayCard } from "../native/overlay";
 import { isNativeRendering } from "../native/state";
+import { resolveEffectiveLocale, type SupportedLocale } from "@rva/utils/i18n";
 
 const OAUTH_SELECTOR_MAX_VISIBLE = 10;
 
@@ -69,6 +70,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 	#statusMessage: string | undefined;
 	#validateAuthCallback?: (providerId: string) => Promise<boolean>;
 	#onAddCustomProvider?: () => void;
+	#locale: SupportedLocale;
 	#requestRenderCallback?: () => void;
 	#authState: Map<string, "checking" | "valid" | "invalid"> = new Map();
 	#spinnerFrame: number = 0;
@@ -91,6 +93,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			validateAuth?: (providerId: string) => Promise<boolean>;
 			onAddCustomProvider?: () => void;
 			requestRender?: () => void;
+			locale?: SupportedLocale;
 		},
 	) {
 		super(mode === "login" ? "Select provider to login" : "Select provider to logout", "omp.overlay.oauth");
@@ -100,6 +103,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 		this.#onCancelCallback = onCancel;
 		this.#validateAuthCallback = options?.validateAuth;
 		this.#onAddCustomProvider = options?.onAddCustomProvider;
+		this.#locale = options?.locale ?? resolveEffectiveLocale();
 		this.#requestRenderCallback = options?.requestRender;
 		this.#menu = new MenuSelection<OAuthProviderInfo>([], {
 			getKey: provider => provider.id,
@@ -163,7 +167,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			if (this.#onAddCustomProvider) {
 				const addCustomItem: OAuthProviderInfo = {
 					id: "custom-add-provider",
-					name: "+ Add custom provider…",
+					name: this.#locale === "zh-CN" ? "+ 新增自定义提供商…" : "+ Add custom provider…",
 					available: true,
 				};
 				filtered.unshift(addCustomItem);

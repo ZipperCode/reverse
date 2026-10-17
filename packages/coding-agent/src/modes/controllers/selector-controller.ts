@@ -44,6 +44,8 @@ import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
 import { CustomProviderWizard } from "@rva/tui/overlays/custom-provider-wizard";
 import { saveCustomProvider } from "../../config/custom-provider-writer";
+import { fetchDiscoveredProviderModels } from "../../config/model-discovery";
+import { resolveEffectiveLocale } from "@rva/utils/i18n";
 import { createSettingsHost } from "../../config/settings-ui";
 import { createPluginSettingsHost } from "../../extensibility/plugins/settings-host";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
@@ -115,10 +117,7 @@ import { createExtensionDashboardRuntime } from "../components/extensions/dashbo
 import { HistorySearchComponent } from "@rva/tui/overlays/history-search";
 import type { LoginDialogComponent as LoginDialogComponentType } from "@rva/tui/overlays/login-dialog";
 import type { LogoutAccountSelectorComponent as LogoutAccountSelectorComponentType } from "@rva/tui/overlays/logout-account-selector";
-import type {
-	ModelHubComponent as ModelHubComponentType,
-	ModelRoleSelectionScope,
-} from "@rva/tui/overlays/model-hub";
+import type { ModelHubComponent as ModelHubComponentType, ModelRoleSelectionScope } from "@rva/tui/overlays/model-hub";
 import { createModelBrowserSource } from "../model-browser-source";
 import type { ModelPickerComponent as ModelPickerComponentType } from "@rva/tui/overlays/model-picker";
 import type { OAuthSelectorComponent as OAuthSelectorComponentType } from "@rva/tui/overlays/oauth-selector";
@@ -151,6 +150,7 @@ import {
 	cfgStatusLineShowHookStatus,
 	cfgStatusLineTransparent,
 	cfgTreeFilterMode,
+	cfgLanguage,
 } from "../settings";
 import { cfgTaskAgentModelOverrides } from "../../task/settings";
 
@@ -1171,6 +1171,7 @@ export class SelectorController {
 				currentSelector: this.ctx.session.model
 					? `${this.ctx.session.model.provider}/${this.ctx.session.model.id}`
 					: undefined,
+				locale: resolveEffectiveLocale(cfgLanguage.get(this.ctx.settings)),
 			},
 		);
 		const menu = this.#claimMenu("model-hub");
@@ -2247,6 +2248,7 @@ export class SelectorController {
 						done();
 						void this.showCustomProviderWizard();
 					},
+					locale: resolveEffectiveLocale(cfgLanguage.get(this.ctx.settings)),
 					requestRender: () => {
 						this.ctx.ui.requestRender();
 					},
@@ -2258,6 +2260,7 @@ export class SelectorController {
 
 	showCustomProviderWizard(): Promise<void> {
 		const existingProviderIds = this.ctx.session.modelRegistry.getAll().map(m => m.provider);
+		const locale = resolveEffectiveLocale(cfgLanguage.get(this.ctx.settings));
 
 		return new Promise<void>(resolve => {
 			this.showSelector(done => {
@@ -2268,37 +2271,37 @@ export class SelectorController {
 				const wizard = new CustomProviderWizard(
 					{
 						existingProviderIds,
+						fetchModels: opts => fetchDiscoveredProviderModels(opts),
 					},
 					async config => {
-						try {
-							await saveCustomProvider(
-								{
-									providerId: config.providerId,
-									baseUrl: config.baseUrl,
-									api: config.api,
-									apiKey: config.apiKey,
-									models: config.models,
-								},
-								{
-									authStorage: this.ctx.session.modelRegistry.authStorage,
-									modelRegistry: this.ctx.session.modelRegistry,
-									agentDir: this.ctx.settings.getAgentDir(),
-								},
-							);
-							finish();
-							this.ctx.showStatus(
-								`Custom provider "${config.providerId}" added with ${config.models.length} model(s).`,
-							);
-							this.ctx.ui.requestRender();
-						} catch (error) {
-							throw error;
-						}
+						await saveCustomProvider(
+							{
+								providerId: config.providerId,
+								baseUrl: config.baseUrl,
+								api: config.api,
+								apiKey: config.apiKey,
+								models: config.models,
+							},
+							{
+								authStorage: this.ctx.session.modelRegistry.authStorage,
+								modelRegistry: this.ctx.session.modelRegistry,
+								agentDir: this.ctx.settings.getAgentDir(),
+							},
+						);
+						finish();
+						const statusMsg =
+							locale === "zh-CN"
+								? `已添加自定义提供商 "${config.providerId}"（包含 ${config.models.length} 个模型）。`
+								: `Custom provider "${config.providerId}" added with ${config.models.length} model(s).`;
+						this.ctx.showStatus(statusMsg);
+						this.ctx.ui.requestRender();
 					},
 					() => {
 						finish();
 						this.ctx.ui.requestRender();
 					},
 					() => this.ctx.ui.requestRender(),
+					locale,
 				);
 				return { component: wizard, focus: wizard };
 			});

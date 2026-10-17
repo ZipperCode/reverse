@@ -369,7 +369,7 @@ Watch the related names. The Google Gemini **API** models use the model provider
 
 Custom providers live in `~/.rva/agent/models.yml` under `providers:`.
 
-You can add custom providers interactively without manual file editing via `/setup providers` (select `+ Add custom provider…`), `/models` (sidebar `+ Add provider…`), or `/provider add`. The wizard writes non-sensitive provider and model declarations to `models.yml` and securely saves API keys in `agent.db` via `AuthStorage`.
+You can add custom providers interactively without manual file editing via `/setup providers` (select `+ Add custom provider…`), `/models` (sidebar `+ Add provider…`), or `/provider add`. The wizard automatically discovers available models from the endpoint, presents a searchable multi-select list, writes non-sensitive provider and model declarations to `models.yml`, and securely saves API keys in `agent.db` via `AuthStorage`.
 Minimal OpenAI-compatible provider:
 
 ```yaml

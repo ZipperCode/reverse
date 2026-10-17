@@ -6,10 +6,7 @@ import { YAML } from "bun";
 import { AuthStorage } from "@rva/ai";
 import { Terminal as VirtualTerminal } from "@rva/utils/vterm";
 import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import {
-	resolveModelsConfigPath,
-	saveCustomProvider,
-} from "@rva/coding-agent/config/custom-provider-writer";
+import { resolveModelsConfigPath, saveCustomProvider } from "@rva/coding-agent/config/custom-provider-writer";
 
 function tempDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -122,9 +119,7 @@ describe("custom provider consumer contract", () => {
 					baseUrl: "http://127.0.0.1:9/v1",
 					api: "openai-completions",
 					apiKey: secret,
-					models: [
-						{ id: "stored-model", contextWindow: 32000, maxTokens: 4096 },
-					],
+					models: [{ id: "stored-model", contextWindow: 32000, maxTokens: 4096 }],
 				},
 				{ agentDir: dir, authStorage },
 			);
@@ -497,7 +492,13 @@ describe("custom provider consumer contract", () => {
 
 				const url = new URL(request.url);
 				if (url.pathname.endsWith("/models")) {
-					return Response.json({ object: "list", data: [{ id: modelId, object: "model" }] });
+					return Response.json({
+						object: "list",
+						data: [
+							{ id: modelId, object: "model" },
+							{ id: `${modelId}-second`, object: "model" },
+						],
+					});
 				}
 				if (!url.pathname.endsWith("/chat/completions")) return new Response("Not found", { status: 404 });
 
@@ -512,9 +513,7 @@ describe("custom provider consumer contract", () => {
 						: Array.isArray(content)
 							? content
 									.map(part =>
-										typeof part === "object" && part !== null && "text" in part
-											? String(part.text)
-											: "",
+										typeof part === "object" && part !== null && "text" in part ? String(part.text) : "",
 									)
 									.join("")
 							: "";
@@ -580,10 +579,13 @@ describe("custom provider consumer contract", () => {
 			RVA_TUI_NATIVE: "0",
 			PI_TUI_NATIVE: "0",
 		};
+		const cliBin = path.resolve(import.meta.dir, "../../dist/rva");
+		const cliArgs = fs.existsSync(cliBin)
+			? [cliBin]
+			: [process.execPath, path.join(import.meta.dir, "../../src/cli.ts")];
 		const child = Bun.spawn(
 			[
-				process.execPath,
-				path.join(import.meta.dir, "../../src/cli.ts"),
+				...cliArgs,
 				"--no-extensions",
 				"--no-skills",
 				"--no-rules",
@@ -620,26 +622,30 @@ describe("custom provider consumer contract", () => {
 			terminal.write(secret);
 			await waitForTerminal(screen, nextData, text => text.includes("•"));
 			terminal.write("\x1b[13u");
-			await waitForTerminal(screen, nextData, text => text.includes("Step 5: Model ID"));
-
-			terminal.write(modelId);
-			await waitForTerminal(screen, nextData, text => text.includes(modelId));
+			await waitForTerminal(screen, nextData, text => text.includes("Step 5: Select Models"));
+			await waitForTerminal(screen, nextData, text => text.includes(modelId) && text.includes(`${modelId}-second`));
+			// Uncheck first model with Space -> 1/2 selected
+			terminal.write(" ");
+			await waitForTerminal(screen, nextData, text => text.includes("[1/2 selected]"));
+			// Move down and uncheck second model -> 0/2 selected
+			terminal.write("\x1b[B");
+			terminal.write(" ");
+			await waitForTerminal(screen, nextData, text => text.includes("[0/2 selected]"));
+			// Enter with 0 selected must show error and not advance
 			terminal.write("\x1b[13u");
-			await waitForTerminal(screen, nextData, text => text.includes("Step 6: Model Name"));
-			terminal.write("PTY Loopback Model");
-			await waitForTerminal(screen, nextData, text => text.includes("PTY Loopback Model"));
-			terminal.write("\x1b[13u");
-			await waitForTerminal(screen, nextData, text => text.includes("Step 7: Context Window"));
-
-			terminal.write("\x1b[13u");
-			await waitForTerminal(screen, nextData, text => text.includes("Step 8: Max Output Tokens"));
-			terminal.write("\x1b[13u");
-			await waitForTerminal(screen, nextData, text => text.includes("Models Configured"));
-
+			await waitForTerminal(screen, nextData, text => text.includes("Please select at least one model."));
+			// Re-check second model -> 1/2 selected
+			terminal.write(" ");
+			await waitForTerminal(screen, nextData, text => text.includes("[1/2 selected]"));
+			// Move back up and re-check first model -> 2/2 selected
+			terminal.write("\x1b[A");
+			terminal.write(" ");
+			await waitForTerminal(screen, nextData, text => text.includes("[2/2 selected]"));
+			// Advance to Confirm Configuration
 			terminal.write("\x1b[13u");
 			await waitForTerminal(screen, nextData, text => text.includes("Confirm Configuration"));
 			terminal.write("\x1b[13u");
-			await waitForTerminal(screen, nextData, text => text.includes("added with"), 20000);
+			await waitForTerminal(screen, nextData, text => text.includes("added with 2 model(s)"), 20000);
 
 			const ymlText = fs.readFileSync(path.join(agentDir, "models.yml"), "utf-8");
 			expect(ymlText).not.toContain(secret);
@@ -662,8 +668,7 @@ describe("custom provider consumer contract", () => {
 
 			const headless = Bun.spawn(
 				[
-					process.execPath,
-					path.join(import.meta.dir, "../../src/cli.ts"),
+					...cliArgs,
 					"--no-extensions",
 					"--no-skills",
 					"--no-rules",
