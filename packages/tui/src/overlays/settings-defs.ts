@@ -1,5 +1,7 @@
 /** Schema-independent display definitions for the settings overlay. */
 import type { SymbolKey } from "../theme/symbols";
+import type { SupportedLocale } from "@rva/utils/i18n";
+import { TUI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN";
 
 export type SettingTab =
 	| "appearance"
@@ -58,6 +60,43 @@ export const TAB_LEADS: Record<SettingTab, string> = {
 	providers: "Services, provider protocols, timeouts and privacy.",
 };
 
+
+/** Get localized tab metadata */
+export function getTabMetadata(tab: SettingTab, locale?: SupportedLocale): TabMetadata {
+	const base = TAB_METADATA[tab];
+	if (locale === "zh-CN") {
+		const tr = TUI_TRANSLATIONS_ZH_CN.tabs[tab];
+		if (tr?.label) return { ...base, label: tr.label };
+	}
+	return base;
+}
+
+/** Get localized tab lead */
+export function getTabLead(tab: SettingTab, locale?: SupportedLocale): string {
+	if (locale === "zh-CN") {
+		const tr = TUI_TRANSLATIONS_ZH_CN.tabs[tab];
+		if (tr?.lead) return tr.lead;
+	}
+	return TAB_LEADS[tab];
+}
+
+/** Get localized group label */
+export function getGroupLabel(group: string, locale?: SupportedLocale): string {
+	if (locale === "zh-CN") {
+		const tr = TUI_TRANSLATIONS_ZH_CN.groups[group];
+		if (tr) return tr;
+	}
+	return group;
+}
+
+/** Look up a localized TUI hint string from TUI_TRANSLATIONS_ZH_CN.hints */
+export function tuiHint(key: string, locale?: SupportedLocale, fallback?: string): string {
+	if (locale === "zh-CN") {
+		const tr = TUI_TRANSLATIONS_ZH_CN.hints?.[key];
+		if (tr) return tr;
+	}
+	return fallback ?? key;
+}
 /**
  * Ordered section groups per tab. Settings declare their section via `ui.group`;
  * the settings UI renders groups in this order with a heading row between them.
@@ -112,8 +151,14 @@ export interface UiBase {
 	tab: SettingTab;
 	/** Section within the tab; must be listed in TAB_GROUPS[tab]. Ungrouped settings render at the top. */
 	group?: string;
+	/** Localized display heading for group (falls back to group). */
+	groupLabel?: string;
 	label: string;
 	description: string;
+	/** Original canonical English label for bilingual search. */
+	canonicalLabel?: string;
+	/** Original canonical English description for bilingual search. */
+	canonicalDescription?: string;
 	/**
 	 * Risk note. Marks the settings row with a warning glyph and renders above
 	 * the description in warning styling. For settings that can get the user
@@ -154,6 +199,8 @@ export interface SettingsHost {
 	unset(path: string): void;
 	normalizeProviderLimits(value: unknown): Record<string, number>;
 	validateProviderLimits(value: unknown): Record<string, number>;
+	locale?: SupportedLocale;
+	reload?(): void;
 }
 
 /** Primitive value displayed by a settings control. */
@@ -165,11 +212,15 @@ interface BaseSettingDef {
 	schemaType: string;
 	label: string;
 	description: string;
+	canonicalLabel?: string;
+	canonicalDescription?: string;
 	/** Risk note shown in warning styling; set for settings that can get the user flagged or banned. */
 	warning?: string;
 	tab: SettingTab;
 	/** Section within the tab; items are ordered by TAB_GROUPS[tab] and rendered under a heading row. */
 	group?: string;
+	/** Localized section heading for display. */
+	groupLabel?: string;
 	/**
 	 * Optional visibility predicate. When supplied and returning false, the
 	 * setting is hidden from the UI. Applies to every variant — booleans,
@@ -238,9 +289,12 @@ function entryToSettingDef(entry: SettingsDisplayEntry): SettingDef | null {
 		schemaType,
 		label: ui.label,
 		description: ui.description,
+		canonicalLabel: ui.canonicalLabel ?? ui.label,
+		canonicalDescription: ui.canonicalDescription ?? ui.description,
 		warning: ui.warning,
 		tab: ui.tab,
 		group: ui.group,
+		groupLabel: ui.groupLabel ?? ui.group,
 		condition,
 	};
 

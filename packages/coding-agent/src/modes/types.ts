@@ -512,6 +512,7 @@ export interface InteractiveModeContext {
 	showSessionPinSelector(): Promise<void>;
 	showResetUsageSelector(): Promise<void>;
 	showProviderSetup(): Promise<void>;
+	showCustomProviderWizard(): Promise<void>;
 	showHookConfirm(title: string, message: string, dialogOptions?: InteractiveSelectorDialogOptions): Promise<boolean>;
 	showDebugSelector(): Promise<void>;
 	showAgentHub(options?: AgentHubOpenOptions): void;

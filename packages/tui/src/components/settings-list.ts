@@ -1,5 +1,7 @@
 import { formatKeyHint } from "../app-keybindings";
 import { editorKey, editorKeys } from "../chrome/keybinding-hints";
+import { tuiHint } from "../overlays/settings-defs";
+import type { SupportedLocale } from "@rva/utils/i18n";
 import { fuzzyFilter } from "../fuzzy";
 import { getKeybindings } from "../keybindings";
 import { extractPrintableText } from "../keys";
@@ -39,6 +41,10 @@ export interface SettingItem {
 	id: string;
 	/** Display label (left side) */
 	label: string;
+	/** Original canonical English label for bilingual search */
+	canonicalLabel?: string;
+	/** Original canonical English description for bilingual search */
+	canonicalDescription?: string;
 	/** Optional description shown when selected */
 	description?: string;
 	/** Optional risk note shown in warning styling above the description, with a glyph on the row. */
@@ -122,6 +128,7 @@ export interface SettingsListTheme {
 /** A contiguous run of items under one heading, derived from the item list. */
 interface SettingSection {
 	name: string;
+	canonicalName?: string;
 	firstItemIndex: number;
 	lastItemIndex: number;
 }
@@ -149,13 +156,23 @@ export interface SettingsListOptions {
 	hint?: string;
 	/** Fixed split-sidebar width (columns incl. indent+gap); default derives from section names. */
 	sidebarWidth?: number;
+	/** Current UI locale (default "en"). */
+	locale?: SupportedLocale;
+	/** Text to display when filtering returns 0 matches. */
+	emptyMatchText?: string;
 }
 
 /** Searchable text for a setting item: label, id, value, description, warning, and cycle values. */
 export function getSettingItemFilterText(item: SettingItem): string {
 	let text = `${item.label} ${item.id} ${item.currentValue}`;
+	if (item.canonicalLabel && item.canonicalLabel !== item.label) {
+		text += ` ${item.canonicalLabel}`;
+	}
 	if (item.description) {
 		text += ` ${item.description}`;
+	}
+	if (item.canonicalDescription && item.canonicalDescription !== item.description) {
+		text += ` ${item.canonicalDescription}`;
 	}
 	if (item.warning) {
 		text += ` ${item.warning}`;
@@ -323,7 +340,8 @@ export class SettingsList implements Component {
 	prefsFocus(): { row?: string; section?: string } {
 		if (this.#sectionFocus) {
 			const sections = this.#sections();
-			return { section: sections[this.#activeSectionIndex(sections)]?.name };
+			const active = sections[this.#activeSectionIndex(sections)];
+			return { section: active?.canonicalName ?? active?.name };
 		}
 		return { row: this.getSelectedItem()?.id };
 	}
@@ -529,7 +547,8 @@ export class SettingsList implements Component {
 		for (let i = 0; i < this.#filteredItems.length; i++) {
 			const item = this.#filteredItems[i];
 			if (item.heading) {
-				current = { name: item.label, firstItemIndex: -1, lastItemIndex: -1 };
+				const canonical = item.id.startsWith("__heading:") ? item.id.slice("__heading:".length) : item.label;
+				current = { name: item.label, canonicalName: canonical, firstItemIndex: -1, lastItemIndex: -1 };
 				sections.push(current);
 				continue;
 			}
@@ -571,7 +590,9 @@ export class SettingsList implements Component {
 
 	#renderSearchStatus(width: number): string {
 		const query = sanitizeSingleLine(this.#filterQuery);
-		const statusText = query ? `  Search: ${query}` : "  Type to search";
+		const statusText = query
+			? `  ${tuiHint("settings.search", this.#options.locale, "Search: {query}").replace("{query}", query)}`
+			: `  ${tuiHint("settings.typeToSearch", this.#options.locale, "Type to search")}`;
 		return this.#theme.hint(truncateToWidth(statusText, width, Ellipsis.Omit));
 	}
 
@@ -683,7 +704,9 @@ export class SettingsList implements Component {
 			selected: this.getSelectedItem()?.id ?? null,
 			filter: this.#filterQuery.trim() || undefined,
 			empty:
-				this.#items.length === 0 ? (this.#options.emptyText ?? "No settings available") : "No matching settings",
+				this.#items.length === 0
+					? (this.#options.emptyText ?? tuiHint("settings.noSettings", this.#options.locale, "No settings available"))
+					: (this.#options.emptyMatchText ?? tuiHint("settings.empty", this.#options.locale, "No matching settings")),
 			max:
 				typeof cachedMax === "object" && cachedMax.lines === this.#maxVisible
 					? cachedMax
@@ -738,11 +761,11 @@ export class SettingsList implements Component {
 	#hintText(): string {
 		const jumpHint =
 			this.#sections().length >= 2
-				? `${editorKeys("tui.select.pageUp", "tui.select.pageDown")} to jump sections · `
+				? `${editorKeys("tui.select.pageUp", "tui.select.pageDown")} ${tuiHint("settings.jumpSections", this.#options.locale, "to jump sections")} · `
 				: "";
 		return (
 			this.#options.hint ??
-			`${editorKey("tui.select.confirm")}/${formatKeyHint("space")} to change · ${jumpHint}Type to search · ${editorKey("tui.select.cancel")} to cancel`
+			`${editorKey("tui.select.confirm")}/${formatKeyHint("space")} ${tuiHint("settings.change", this.#options.locale, "to change")} · ${jumpHint}${tuiHint("settings.typeToSearch", this.#options.locale, "Type to search")} · ${editorKey("tui.select.cancel")} ${tuiHint("settings.cancel", this.#options.locale, "to cancel")}`
 		);
 	}
 
@@ -809,11 +832,18 @@ export class SettingsList implements Component {
 			if (this.#shouldRenderSearchStatus()) {
 				lines.push(this.#renderSearchStatus(width));
 			}
-			lines.push(this.#theme.hint("  No matching settings"));
+			lines.push(this.#theme.hint(this.#options.emptyMatchText ?? `  ${tuiHint("settings.empty", this.#options.locale, "No matching settings")}`));
 			lines.push("");
 			const editKey = editorKey("tui.editor.deleteCharBackward");
 			const cancelKey = editorKey("tui.select.cancel");
-			lines.push(truncateToWidth(this.#theme.hint(`  ${editKey} to edit search · ${cancelKey} to cancel`), width));
+			lines.push(
+				truncateToWidth(
+					this.#theme.hint(
+						`  ${editKey} ${tuiHint("settings.editSearch", this.#options.locale, "to edit search")} · ${cancelKey} ${tuiHint("settings.cancel", this.#options.locale, "to cancel")}`,
+					),
+					width,
+				),
+			);
 			return lines;
 		}
 

@@ -10,6 +10,57 @@ import chalk from "@rva/utils/chalk";
 import { orderedSettings } from "../config/all-settings";
 import { type AnySetting, lookup } from "../config/registry";
 import { Settings, settings } from "../config/settings";
+import { getEffectiveLocale } from "../config/persisted-locale";
+import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
+
+function cliText(key: string, vars?: Record<string, string>): string {
+	const locale = getEffectiveLocale();
+	if (locale === "zh-CN") {
+		let text = CLI_TRANSLATIONS_ZH_CN[key] ?? key;
+		if (vars) {
+			for (const [k, v] of Object.entries(vars)) {
+				text = text.replaceAll(`{${k}}`, v);
+			}
+		}
+		return text;
+	}
+	switch (key) {
+		case "cli.config.unknownCommand":
+			return `Unknown config command: ${vars?.action ?? ""}`;
+		case "cli.config.validCommands":
+			return `Valid commands: ${vars?.commands ?? ""}`;
+		case "cli.config.usage.get":
+			return `Usage: ${vars?.app ?? APP_NAME} config get <key>`;
+		case "cli.config.usage.set":
+			return `Usage: ${vars?.app ?? APP_NAME} config set <key> <value>`;
+		case "cli.config.usage.reset":
+			return `Usage: ${vars?.app ?? APP_NAME} config reset <key>`;
+		case "cli.config.unknownSetting":
+			return `Unknown setting: ${vars?.key ?? ""}`;
+		case "cli.config.runListHint":
+			return `Run '${vars?.app ?? APP_NAME} config list' to see available keys`;
+		case "cli.config.listTitle":
+			return "Settings:\n";
+		case "cli.config.notSet":
+			return "(not set)";
+		case "cli.config.setSuccess":
+			return `Set ${vars?.path ?? ""} = ${vars?.value ?? ""}`;
+		case "cli.config.resetSuccess":
+			return `Reset ${vars?.path ?? ""} to ${vars?.value ?? ""}`;
+		case "cli.config.shadow.fallback":
+			return `$${vars?.name ?? ""} is used as a fallback while the saved value is blank.`;
+		case "cli.config.shadow.override":
+			return `$${vars?.name ?? ""} overrides this value; unset it for the saved value to apply.`;
+		case "cli.config.shadow.project":
+			return "Project settings override this value here; edit or remove it there for the saved value to apply.";
+		case "cli.config.shadow.overlay":
+			return "A --config / PI_CONFIG_FILES overlay overrides this value for this process.";
+		case "cli.config.shadow.runtime":
+			return "A runtime override supplies the effective value for this process.";
+		default:
+			return key;
+	}
+}
 import { theme } from "@rva/tui/theme";
 import { initXdg } from "./commands/init-xdg";
 
@@ -80,8 +131,8 @@ export function parseConfigArgs(args: string[]): ConfigCommandArgs | undefined {
 
 	const action = args[1];
 	if (!VALID_ACTIONS.includes(action as ConfigAction)) {
-		console.error(chalk.red(`Unknown config command: ${action}`));
-		console.error(`Valid commands: ${VALID_ACTIONS.join(", ")}`);
+		console.error(chalk.red(cliText("cli.config.unknownCommand", { action })));
+		console.error(cliText("cli.config.validCommands", { commands: VALID_ACTIONS.join(", ") }));
 		process.exit(1);
 	}
 
@@ -116,7 +167,7 @@ export function parseConfigArgs(args: string[]): ConfigCommandArgs | undefined {
 
 function formatValue(value: unknown): string {
 	if (value === undefined || value === null) {
-		return chalk.dim("(not set)");
+		return chalk.dim(cliText("cli.config.notSet"));
 	}
 	if (typeof value === "boolean") {
 		return value ? chalk.green("true") : chalk.red("false");
@@ -222,7 +273,7 @@ async function handleList(flags: { json?: boolean }): Promise<void> {
 		return;
 	}
 
-	console.log(chalk.bold("Settings:\n"));
+	console.log(chalk.bold(cliText("cli.config.listTitle")));
 
 	const groups: Record<string, CliSettingDef[]> = {};
 	for (const def of defs) {
@@ -257,15 +308,15 @@ async function handleList(flags: { json?: boolean }): Promise<void> {
 
 function handleGet(key: string | undefined, flags: { json?: boolean }): void {
 	if (!key) {
-		console.error(chalk.red(`Usage: ${APP_NAME} config get <key>`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.red(cliText("cli.config.usage.get", { app: APP_NAME })));
+		console.error(chalk.dim(`\n${cliText("cli.config.runListHint", { app: APP_NAME })}`));
 		process.exit(1);
 	}
 
 	const def = findSettingDef(key);
 	if (!def) {
-		console.error(chalk.red(`Unknown setting: ${key}`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.red(cliText("cli.config.unknownSetting", { key })));
+		console.error(chalk.dim(`\n${cliText("cli.config.runListHint", { app: APP_NAME })}`));
 		process.exit(1);
 	}
 
@@ -281,15 +332,15 @@ function handleGet(key: string | undefined, flags: { json?: boolean }): void {
 
 async function handleSet(key: string | undefined, value: string | undefined, flags: { json?: boolean }): Promise<void> {
 	if (!key || value === undefined) {
-		console.error(chalk.red(`Usage: ${APP_NAME} config set <key> <value>`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.red(cliText("cli.config.usage.set", { app: APP_NAME })));
+		console.error(chalk.dim(`\n${cliText("cli.config.runListHint", { app: APP_NAME })}`));
 		process.exit(1);
 	}
 
 	const def = findSettingDef(key);
 	if (!def) {
-		console.error(chalk.red(`Unknown setting: ${key}`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.red(cliText("cli.config.unknownSetting", { key })));
+		console.error(chalk.dim(`\n${cliText("cli.config.runListHint", { app: APP_NAME })}`));
 		process.exit(1);
 	}
 
@@ -310,7 +361,7 @@ async function handleSet(key: string | undefined, value: string | undefined, fla
 		console.log(JSON.stringify({ key: def.path, value: saved, ...shadow?.json }));
 		return;
 	}
-	console.log(chalk.green(`${theme.status.success} Set ${def.path} = ${formatValue(saved)}`));
+	console.log(chalk.green(`${theme.status.success} ${cliText("cli.config.setSuccess", { path: def.path, value: formatValue(saved) })}`));
 	if (shadow) console.log(chalk.yellow(`${theme.status.warning} ${shadow.message}`));
 }
 
@@ -334,42 +385,42 @@ function shadowingSource(setting: AnySetting): { json: Record<string, string>; m
 			return setting.envFallback
 				? {
 						json: { fallbackEnv: name },
-						message: `$${name} is used as a fallback while the saved value is blank.`,
+						message: cliText("cli.config.shadow.fallback", { name }),
 					}
 				: {
 						json: { overriddenBy: name },
-						message: `$${name} overrides this value; unset it for the saved value to apply.`,
+						message: cliText("cli.config.shadow.override", { name }),
 					};
 		}
 		case "project":
 			return {
 				json: { overriddenBy: provenance },
-				message: "Project settings override this value here; edit or remove it there for the saved value to apply.",
+				message: cliText("cli.config.shadow.project"),
 			};
 		case "overlay":
 			return {
 				json: { overriddenBy: provenance },
-				message: "A --config / PI_CONFIG_FILES overlay overrides this value for this process.",
+				message: cliText("cli.config.shadow.overlay"),
 			};
 		case "runtime":
 			return {
 				json: { overriddenBy: provenance },
-				message: "A runtime override supplies the effective value for this process.",
+				message: cliText("cli.config.shadow.runtime"),
 			};
 	}
 }
 
 async function handleReset(key: string | undefined, flags: { json?: boolean }): Promise<void> {
 	if (!key) {
-		console.error(chalk.red(`Usage: ${APP_NAME} config reset <key>`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.red(cliText("cli.config.usage.reset", { app: APP_NAME })));
+		console.error(chalk.dim(`\n${cliText("cli.config.runListHint", { app: APP_NAME })}`));
 		process.exit(1);
 	}
 
 	const def = findSettingDef(key);
 	if (!def) {
-		console.error(chalk.red(`Unknown setting: ${key}`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.red(cliText("cli.config.unknownSetting", { key })));
+		console.error(chalk.dim(`\n${cliText("cli.config.runListHint", { app: APP_NAME })}`));
 		process.exit(1);
 	}
 
@@ -389,7 +440,7 @@ async function handleReset(key: string | undefined, flags: { json?: boolean }): 
 		console.log(JSON.stringify(redacted ? { key: def.path, redacted: true } : { key: def.path, value }));
 	} else {
 		console.log(
-			chalk.green(`${theme.status.success} Reset ${def.path} to ${redacted ? REDACTED : formatValue(value)}`),
+			chalk.green(`${theme.status.success} ${cliText("cli.config.resetSuccess", { path: def.path, value: redacted ? REDACTED : formatValue(value) })}`),
 		);
 	}
 }
@@ -398,35 +449,3 @@ function handlePath(): void {
 	console.log(getAgentDir());
 }
 
-// =============================================================================
-// Help
-// =============================================================================
-
-export function printConfigHelp(): void {
-	console.log(`${chalk.bold(`${APP_NAME} config`)} - Manage settings
-
-${chalk.bold("Commands:")}
-  list               List all settings with current values
-  get <key>          Get a specific setting value
-  set <key> <value>  Set a setting value
-  reset <key>        Remove a setting from config.yml so its default applies
-  path               Print the config directory path
-  init-xdg           Initialize XDG Base Directory structure
-
-${chalk.bold("Options:")}
-  --json             Output as JSON
-
-${chalk.bold("Examples:")}
-  ${APP_NAME} config list
-  ${APP_NAME} config get theme
-  ${APP_NAME} config set theme catppuccin-mocha
-  ${APP_NAME} config set compaction.enabled false
-  ${APP_NAME} config set defaultThinkingLevel medium
-  ${APP_NAME} config reset steeringMode
-  ${APP_NAME} config list --json
-  ${APP_NAME} config init-xdg
-
-${chalk.bold("Boolean Values:")}
-  true, false, yes, no, on, off, 1, 0
-`);
-}

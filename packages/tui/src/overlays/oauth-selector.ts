@@ -68,6 +68,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 	#onCancelCallback: () => void;
 	#statusMessage: string | undefined;
 	#validateAuthCallback?: (providerId: string) => Promise<boolean>;
+	#onAddCustomProvider?: () => void;
 	#requestRenderCallback?: () => void;
 	#authState: Map<string, "checking" | "valid" | "invalid"> = new Map();
 	#spinnerFrame: number = 0;
@@ -88,6 +89,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 		options?: {
 			disabledProviders?: readonly string[];
 			validateAuth?: (providerId: string) => Promise<boolean>;
+			onAddCustomProvider?: () => void;
 			requestRender?: () => void;
 		},
 	) {
@@ -97,6 +99,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 		this.#onSelectCallback = onSelect;
 		this.#onCancelCallback = onCancel;
 		this.#validateAuthCallback = options?.validateAuth;
+		this.#onAddCustomProvider = options?.onAddCustomProvider;
 		this.#requestRenderCallback = options?.requestRender;
 		this.#menu = new MenuSelection<OAuthProviderInfo>([], {
 			getKey: provider => provider.id,
@@ -152,13 +155,20 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			// stores credentials under is disabled, so alias logins (e.g.
 			// `openai-codex-device` ⇒ `openai-codex`) disappear alongside the
 			// model provider they authenticate.
-			this.#menu.setItems(
-				providers.filter(
-					provider =>
-						!disabled.has(provider.id) &&
-						!(provider.storeCredentialsAs && disabled.has(provider.storeCredentialsAs)),
-				),
+			const filtered = providers.filter(
+				provider =>
+					!disabled.has(provider.id) &&
+					!(provider.storeCredentialsAs && disabled.has(provider.storeCredentialsAs)),
 			);
+			if (this.#onAddCustomProvider) {
+				const addCustomItem: OAuthProviderInfo = {
+					id: "custom-add-provider",
+					name: "+ Add custom provider…",
+					available: true,
+				};
+				filtered.unshift(addCustomItem);
+			}
+			this.#menu.setItems(filtered);
 		}
 	}
 
@@ -429,6 +439,11 @@ export class OAuthSelectorComponent extends OverlayPanel {
 	/** Confirm the selected provider (Enter or mouse click). */
 	#confirmSelection(): void {
 		const selectedProvider = this.#menu.selectedItem;
+		if (selectedProvider?.id === "custom-add-provider") {
+			this.stopValidation();
+			this.#onAddCustomProvider?.();
+			return;
+		}
 		if (selectedProvider?.available) {
 			this.#statusMessage = undefined;
 			this.stopValidation();

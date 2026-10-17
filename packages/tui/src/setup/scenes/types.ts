@@ -44,6 +44,7 @@ export interface SetupHost extends SetupUiHost {
 	markComplete(version: number): Promise<void>;
 	playWelcomeIntro(): void;
 	showError(message: string): void;
+	showCustomProviderWizard?(): Promise<void> | void;
 }
 
 /** Outcome reported when an onboarding scene finishes. */

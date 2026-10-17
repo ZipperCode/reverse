@@ -84,6 +84,7 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 		markComplete: version => markSetupWizardComplete(ctx.settings, version),
 		playWelcomeIntro: () => ctx.playWelcomeIntro(),
 		showError: message => ctx.showError(message),
+		showCustomProviderWizard: () => ctx.showCustomProviderWizard(),
 	};
 }
 

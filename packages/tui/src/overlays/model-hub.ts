@@ -161,6 +161,8 @@ export interface ModelHubCallbacks {
 	onFallbackChainChange?: (role: string, chain: string[]) => void;
 	/** Locked provider activation: forward to the /login flow. */
 	onLoginRequest?: (providerId: string) => void;
+	/** User requested adding a custom provider. */
+	onAddProviderRequest?: () => void;
 	/** Save the current role assignments and default thinking level as a named model preset. */
 	onSavePreset?: (name: string) => void;
 	/**
@@ -203,7 +205,7 @@ export interface ModelHubOptions {
 	currentSelector?: string;
 }
 
-interface SidebarEntry extends HubSidebarEntry<"recent" | "roles" | "all" | "separator" | "provider"> {
+interface SidebarEntry extends HubSidebarEntry<"recent" | "roles" | "all" | "separator" | "provider" | "addProvider"> {
 	providerId?: string;
 	locked?: boolean;
 	oauth?: boolean;
@@ -771,6 +773,13 @@ export class ModelHubComponent implements Component {
 		const entries: SidebarEntry[] = [...this.#fixedEntries];
 		if (providers.length > 0) {
 			entries.push({ id: "sep:providers", kind: "separator", label: "" }, ...providers);
+		}
+		if (this.#callbacks.onAddProviderRequest) {
+			entries.push({
+				id: "action:add_provider",
+				kind: "addProvider",
+				label: "+ Add provider…",
+			});
 		}
 		if (this.#lockedProviderEntries.length > 0) {
 			entries.push({ id: "sep:locked", kind: "separator", label: "" }, ...this.#lockedProviderEntries);
@@ -2072,6 +2081,10 @@ export class ModelHubComponent implements Component {
 		// Enter on the sidebar is a pane switch, like →: it lands on the model
 		// rows instead of acting on a row the user cannot see is selected.
 		if (this.#focus === "scope" && (matchesKey(data, "enter") || matchesKey(data, "return") || data === "\n")) {
+			if (entry.kind === "addProvider") {
+				this.#callbacks.onAddProviderRequest?.();
+				return;
+			}
 			this.#focus = "list";
 			return;
 		}
@@ -2400,6 +2413,10 @@ export class ModelHubComponent implements Component {
 	/** Pointer activation of a sidebar entry: pick the scope; a second click on a locked provider logs in. */
 	#clickSidebarEntry(clicked: SidebarEntry | undefined): void {
 		if (!clicked || clicked.kind === "separator") return;
+		if (clicked.kind === "addProvider") {
+			this.#callbacks.onAddProviderRequest?.();
+			return;
+		}
 		const already = clicked.id === this.#activeEntryId;
 		if (clicked.kind === "roles") this.#assigning = null;
 		this.#setActiveEntry(clicked.id);
@@ -2454,6 +2471,8 @@ export class ModelHubComponent implements Component {
 			icon = theme.icon.extensionSkill;
 		} else if (entry.kind === "all") {
 			icon = theme.icon.model;
+		} else if (entry.kind === "addProvider") {
+			icon = "+";
 		} else {
 			icon = muted ? theme.status.shadowed : theme.status.enabled;
 		}
@@ -2464,7 +2483,6 @@ export class ModelHubComponent implements Component {
 			annotation: refreshing
 				? theme.fg("warning", theme.spinnerFrames[this.#refreshSpinnerFrame % theme.spinnerFrames.length] ?? "")
 				: theme.fg("dim", annotationText),
-			muted,
 			hovered: index === this.#sidebarHover,
 			padTruncated: true,
 		};

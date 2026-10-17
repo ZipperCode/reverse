@@ -26,6 +26,7 @@ All external hosted coordination services (collab relays, live screen broadcasti
 - **Terminal Recording & Playback**: `/record` starts and stops local session captures stored in `$TMPDIR/rva-recordings/*.ompcast`; `rva play <recording> --speed 10 --idle-limit 0.1` provides terminal replay without network access.
 - **Session HTML Export**: `rva --export <session.jsonl> [output.html]` generates standalone self-contained HTML transcripts with inlined React tool views.
 - **Local Skills & Plugins**: `rva skill list [dir] [--json]` discovers local `.rva/skills`; `rva install <local-plugin-path>` links development plugins into the isolated user plugin store.
+- **Configuration & Localization (i18n)**: Manage settings via `rva config [list|get|set|reset]`. Full Chinese localization (`zh-CN`) is available for configuration labels, descriptions, group headers, and CLI help, configurable via `rva config set language zh-CN`, in the interactive `/settings` panel (Appearance → Display → Language), or via the `RVA_LANG=zh-CN` environment override, while keeping all setting identifiers, enum values, and JSON machine output canonical.
 
 ## Verification Evidence
 

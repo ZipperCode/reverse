@@ -310,14 +310,37 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "gear",
 		description: "Open provider setup",
 		allowArgs: true,
-		subcommands: [{ name: "providers", description: "Configure sign-in and web search providers" }],
+		subcommands: [
+			{ name: "providers", description: "Configure sign-in and web search providers" },
+			{ name: "add", description: "Add a custom OpenAI/Anthropic-compatible provider" },
+		],
 		handleTui: async (command, runtime) => {
 			const args = command.args.trim().toLowerCase();
-			const opensProviders = args === "" || args === "providers";
-			if (opensProviders) {
+			if (args === "add" || args === "add-provider") {
+				await runtime.ctx.showCustomProviderWizard();
+			} else if (args === "" || args === "providers") {
 				await runtime.ctx.showProviderSetup();
 			} else {
-				runtime.ctx.showWarning(`Usage: /${command.name} [providers]`);
+				runtime.ctx.showWarning(`Usage: /${command.name} [providers|add]`);
+			}
+			clearSubmittedText(runtime);
+		},
+	},
+	{
+		name: "provider",
+		icon: "model",
+		description: "Manage model providers (add custom provider, configure providers)",
+		allowArgs: true,
+		subcommands: [
+			{ name: "add", description: "Add a custom OpenAI/Anthropic-compatible provider" },
+			{ name: "setup", description: "Open provider setup" },
+		],
+		handleTui: async (command, runtime) => {
+			const args = command.args.trim().toLowerCase();
+			if (args === "add") {
+				await runtime.ctx.showCustomProviderWizard();
+			} else {
+				await runtime.ctx.showProviderSetup();
 			}
 			clearSubmittedText(runtime);
 		},
@@ -489,7 +512,12 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			);
 			return commandConsumed();
 		},
-		handleTui: (_command, runtime) => {
+		handleTui: async (command, runtime) => {
+			if (command.args.trim().toLowerCase() === "add") {
+				await runtime.ctx.showCustomProviderWizard();
+				clearSubmittedText(runtime);
+				return;
+			}
 			runtime.ctx.showModelSelector();
 			clearSubmittedText(runtime);
 		},

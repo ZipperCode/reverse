@@ -11,6 +11,7 @@
 import type { CommandEntry } from "@rva/utils/cli";
 import { APP_NAME } from "@rva/utils/dirs";
 import * as commandHelp from "./cli/command-help";
+import { loadEffectiveSettings } from "./config/persisted-locale";
 import {
 	EXTENSION_SHADOWABLE_STRING_FLAGS,
 	flagConsumesValue,
@@ -100,7 +101,10 @@ export const commands: CommandEntry[] = [
 	},
 	{
 		name: "config",
-		load: () => import("./commands/config").then(m => m.default),
+		load: async () => {
+			await loadEffectiveSettings();
+			return import("./commands/config").then(m => m.default);
+		},
 		help: commandHelp.configHelp,
 	},
 	{

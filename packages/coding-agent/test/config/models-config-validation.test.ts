@@ -23,10 +23,8 @@ describe("validateProviderConfiguration (models-config auth)", () => {
 		).not.toThrow();
 	});
 
-	test("default auth (apiKey) still requires apiKey for custom models", () => {
-		expect(() => validateProviderConfiguration("custom", { baseUrl, models }, "models-config")).toThrow(
-			'Provider custom: "apiKey" is required when defining custom models unless auth is "none" or "oauth".',
-		);
+	test("default auth (apiKey) allows custom models without inline apiKey (delegates to AuthStorage/env)", () => {
+		expect(() => validateProviderConfiguration("custom", { baseUrl, models }, "models-config")).not.toThrow();
 	});
 
 	test("explicit auth: apiKey with apiKey set passes", () => {

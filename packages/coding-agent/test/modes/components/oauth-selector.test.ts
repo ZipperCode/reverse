@@ -199,4 +199,29 @@ describe("OAuthSelectorComponent", () => {
 			expect(rendered).toContain("OpenCode Go");
 		});
 	});
+
+	it("offers '+ Add custom provider…' and invokes callback on selection", () => {
+		let addCustomTriggered = false;
+		const component = new OAuthSelectorComponent(
+			"login",
+			authStorage,
+			() => {},
+			() => {},
+			{
+				onAddCustomProvider: () => {
+					addCustomTriggered = true;
+				},
+			},
+		);
+
+		const rendered = component
+			.render(80)
+			.map(line => Bun.stripANSI(line))
+			.join("\n");
+		expect(rendered).toContain("+ Add custom provider…");
+
+		// First item is "+ Add custom provider…", press Enter
+		component.handleInput("\n");
+		expect(addCustomTriggered).toBe(true);
+	});
 });

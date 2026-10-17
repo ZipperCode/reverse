@@ -30,16 +30,21 @@ import type {
 	StatusLineSeparatorStyle,
 } from "../status-line/schema";
 import {
+	getGroupLabel,
+	getTabLead,
+	getTabMetadata,
 	numberSteps,
 	numericOption,
 	SETTING_TABS,
 	type SubmenuOption,
 	TAB_LEADS,
 	TAB_METADATA,
+	tuiHint,
 	type SettingTab,
 	type SettingsHost,
 	type SettingsDisplayEntry,
 } from "./settings-defs";
+import type { SupportedLocale } from "@rva/utils/i18n";
 import type { TspPrefsControl, TspPrefsProps } from "@rva/wire";
 import { prefsSectionId } from "../components/settings-list";
 import { getCurrentThemeName, getSelectListTheme, getSettingsListTheme, theme } from "../theme/theme";
@@ -105,26 +110,27 @@ function settingsTabsNode(tabs: readonly Tab[], active: string | undefined): Nat
 }
 
 /** Footer hints for `mode`, mirroring the ANSI footer line. */
-function settingsHintsNode(mode: SettingsHintMode): NativeNode {
+function settingsHintsNode(mode: SettingsHintMode, locale?: SupportedLocale): NativeNode {
+	const isZh = locale === "zh-CN";
 	const confirmKeys: readonly KeyName[] = actionHint("tui.select.confirm", "")?.keys ?? [];
-	const close = actionHint("tui.select.cancel", "close");
-	const switchTabs: NativeHint = { keys: ["left", "right"], label: "switch tabs" };
+	const close = actionHint("tui.select.cancel", isZh ? "关闭" : "close");
+	const switchTabs: NativeHint = { keys: ["left", "right"], label: isZh ? "切换标签" : "switch tabs" };
 	let hints: (NativeHint | undefined)[];
 	switch (mode) {
 		case "search":
 			hints = [
-				actionHint("tui.select.confirm", "change"),
-				{ keys: ["tab"], label: "jump tabs" },
-				actionHint("tui.select.cancel", "exit search"),
+				actionHint("tui.select.confirm", isZh ? "更改" : "change"),
+				{ keys: ["tab"], label: isZh ? "跳转标签" : "jump tabs" },
+				actionHint("tui.select.cancel", isZh ? "退出搜索" : "exit search"),
 			];
 			break;
 		case "plugins":
-			hints = [{ keys: ["tab"], label: "switch tabs" }, close];
+			hints = [{ keys: ["tab"], label: isZh ? "切换标签" : "switch tabs" }, close];
 			break;
 		case "sections":
 			hints = [
-				actionHint(["tui.select.up", "tui.select.down"], "jump sections"),
-				{ keys: ["tab", ...confirmKeys], label: "to settings" },
+				actionHint(["tui.select.up", "tui.select.down"], isZh ? "跳转分组" : "jump sections"),
+				{ keys: ["tab", ...confirmKeys], label: isZh ? "进入设置" : "to settings" },
 				switchTabs,
 				close,
 			];
@@ -132,11 +138,11 @@ function settingsHintsNode(mode: SettingsHintMode): NativeNode {
 		case "rows":
 		case "rows-sections":
 			hints = [
-				{ keys: [...confirmKeys, "space"], label: "change" },
+				{ keys: [...confirmKeys, "space"], label: isZh ? "更改" : "change" },
 				...(mode === "rows-sections"
-					? [{ keys: ["tab"], label: "jump sections" } satisfies NativeHint, switchTabs]
-					: [{ keys: ["tab"], label: "switch tabs" } satisfies NativeHint]),
-				{ keys: [], label: "type to search" },
+					? [{ keys: ["tab"], label: isZh ? "跳转分组" : "jump sections" } satisfies NativeHint, switchTabs]
+					: [{ keys: ["tab"], label: isZh ? "切换标签" : "switch tabs" } satisfies NativeHint]),
+				{ keys: [], label: isZh ? "输入以搜索" : "type to search" },
 				close,
 			];
 			break;
@@ -411,7 +417,7 @@ class ProviderLimitsSubmenu extends Container {
 	readonly #onChange: (value: Record<string, number>) => void;
 	readonly #onCancel: () => void;
 	readonly #requestRender: (() => void) | undefined;
-
+	readonly #locale: SupportedLocale;
 	constructor(
 		settings: SettingsHost,
 		providers: readonly string[],
@@ -425,6 +431,7 @@ class ProviderLimitsSubmenu extends Container {
 		this.#onChange = onChange;
 		this.#onCancel = onCancel;
 		this.#requestRender = requestRender;
+		this.#locale = settings.locale ?? "en";
 		this.#showProviderList();
 	}
 
@@ -442,23 +449,35 @@ class ProviderLimitsSubmenu extends Container {
 			return {
 				value: provider,
 				label: provider,
-				description: limit === undefined ? "Unlimited" : `Limit: ${limit}`,
+				description:
+					limit === undefined
+						? tuiHint("settings.unlimited", this.#locale, "Unlimited")
+						: tuiHint("settings.limit", this.#locale, `Limit: ${limit}`).replace("{limit}", String(limit)),
 			};
 		});
 		const clearItem: SelectItem[] =
 			Object.keys(limits).length === 0
 				? []
-				: [{ value: "__clear_all", label: "Clear all limits", description: "Make every provider unlimited" }];
+				: [
+						{
+							value: "__clear_all",
+							label: tuiHint("settings.clearAllLimits", this.#locale, "Clear all limits"),
+							description: tuiHint("settings.unlimitedAll", this.#locale, "Make every provider unlimited"),
+						},
+					];
 		const items = [...providerItems, ...clearItem];
 		this.#listField = new SelectFormField({
 			theme: formTheme,
-			label: "Max In-Flight Requests",
-			description:
+			label: tuiHint("settings.maxInFlightRequests", this.#locale, "Max In-Flight Requests"),
+			description: tuiHint(
+				"settings.providerLimitsHelp",
+				this.#locale,
 				"Select a provider, enter a positive number to cap concurrent LLM requests, or clear it for unlimited.",
+			),
 			items,
 			maxVisible: 12,
 			selectTheme: getSelectListTheme(),
-			hint: `  ${editorKey("tui.select.confirm")} to edit provider · ${editorKey("tui.select.cancel")} to go back`,
+			hint: `  ${editorKey("tui.select.confirm")} ${tuiHint("settings.editProvider", this.#locale, "to edit provider")} · ${editorKey("tui.select.cancel")} ${tuiHint("settings.goBack", this.#locale, "to go back")}`,
 			onSubmit: value => {
 				if (value === "__clear_all") {
 					this.#settings.set("providers.maxInFlightRequests", {});
@@ -482,16 +501,24 @@ class ProviderLimitsSubmenu extends Container {
 		this.addChild(
 			new TextFormField({
 				theme: formTheme,
-				label: `Max In-Flight Requests: ${provider}`,
-				description:
+				label: tuiHint("settings.providerLimitLabel", this.#locale, `Max In-Flight Requests: ${provider}`).replace(
+					"{provider}",
+					provider,
+				),
+				description: tuiHint(
+					"settings.providerLimitEditorHelp",
+					this.#locale,
 					"Enter a positive number. Decimals round down. Clear the field to make this provider unlimited.",
+				),
 				initialValue: limits[provider]?.toString() ?? undefined,
 				empty: "submit",
-				hint: `  ${editorKey("tui.input.submit")} to save · ${editorKey("tui.select.cancel")} to cancel · Clear field to unset`,
+				hint: `  ${editorKey("tui.input.submit")} ${tuiHint("settings.save", this.#locale, "to save")} · ${editorKey("tui.select.cancel")} ${tuiHint("settings.cancel", this.#locale, "to cancel")} · ${tuiHint("settings.clearToUnset", this.#locale, "Clear field to unset")}`,
 				validate: value => {
 					if (value.trim() === "") return undefined;
 					const limit = Number(value.trim());
-					if (!Number.isFinite(limit) || limit <= 0) return "Limit must be a positive number.";
+					if (!Number.isFinite(limit) || limit <= 0) {
+						return tuiHint("settings.providerLimitInvalid", this.#locale, "Limit must be a positive number.");
+					}
 					return undefined;
 				},
 				onSubmit: value => {
@@ -501,7 +528,11 @@ class ProviderLimitsSubmenu extends Container {
 						delete next[provider];
 					} else {
 						const limit = Number(trimmed);
-						if (!Number.isFinite(limit) || limit <= 0) throw new Error("Limit must be a positive number.");
+						if (!Number.isFinite(limit) || limit <= 0) {
+							throw new Error(
+								tuiHint("settings.providerLimitInvalid", this.#locale, "Limit must be a positive number."),
+							);
+						}
 						next[provider] = Math.max(1, Math.floor(limit));
 					}
 					const normalized = this.#settings.validateProviderLimits(next);
@@ -537,20 +568,21 @@ function settingsSidebarWidth(entries: readonly SettingsDisplayEntry[]): number 
 	let nameWidth = 0;
 	for (const tab of SETTING_TABS) {
 		for (const def of getSettingsForTab(entries, tab)) {
-			if (def.group) nameWidth = Math.max(nameWidth, visibleWidth(def.group));
+			const groupName = def.groupLabel ?? def.group;
+			if (groupName) nameWidth = Math.max(nameWidth, visibleWidth(groupName));
 		}
 	}
 	return Math.min(22, nameWidth) + 4;
 }
 
-function getSettingsTabs(): Tab[] {
+function getSettingsTabs(locale?: SupportedLocale): Tab[] {
 	return [
 		...SETTING_TABS.map(id => {
-			const meta = TAB_METADATA[id];
+			const meta = getTabMetadata(id, locale);
 			const icon = theme.symbol(meta.icon);
 			return { id, label: `${icon} ${meta.label}`, short: icon };
 		}),
-		{ id: "plugins", label: `${theme.icon.package} Plugins`, short: theme.icon.package },
+		{ id: "plugins", label: `${theme.icon.package} ${tuiHint("settings.plugins", locale, "Plugins")}`, short: theme.icon.package },
 	];
 }
 
@@ -618,6 +650,7 @@ export class SettingsSelectorComponent implements Component {
 	#tabs: Tab[];
 	readonly #native: SettingsNativeMemo = { hints: {} };
 	/** Changed-setting counts per tab for the native page nav, cleared whenever the items rebuild. */
+	#locale: SupportedLocale;
 	readonly #changedCounts = new Map<SettingTab, number>();
 	#currentList: SettingsList | null = null;
 	#searchList: SettingsList | null = null;
@@ -651,10 +684,11 @@ export class SettingsSelectorComponent implements Component {
 	constructor(context: SettingsRuntimeContext, callbacks: SettingsCallbacks) {
 		this.#context = context;
 		this.#callbacks = callbacks;
+		this.#locale = context.settings.locale ?? "en";
 		this.#sidebarWidth = settingsSidebarWidth(context.settings.entries);
 		// No label prefix (the frame title already says Settings) and no
 		// "(tab to cycle)" hint (folded into the footer hint line).
-		const tabs = getSettingsTabs();
+		const tabs = getSettingsTabs(this.#locale);
 		this.#tabs = tabs;
 		this.#tabBar = new TabBar("", tabs, getTabBarTheme());
 		this.#tabBar.showHint = false;
@@ -703,24 +737,32 @@ export class SettingsSelectorComponent implements Component {
 		const confirm = editorKey("tui.select.confirm");
 		const cancel = editorKey("tui.select.cancel");
 		const tab = formatKeyHint("tab");
-		const switchTabs = `${formatKeyHints(["left", "right"])} to switch tabs`;
+		const switchTabs = `${formatKeyHints(["left", "right"])} ${tuiHint("settings.switchTabs", this.#locale, "to switch tabs")}`;
 		if (this.#searchList) {
-			return `${confirm} to change · ${tab} to jump tabs · ${cancel} to exit search`;
+			return `${confirm} ${tuiHint("settings.change", this.#locale, "to change")} · ${tab} ${tuiHint("settings.jumpTabs", this.#locale, "to jump tabs")} · ${cancel} ${tuiHint("settings.exitSearch", this.#locale, "to exit search")}`;
 		}
 		if (this.#currentTabId === "plugins") {
-			return `${tab} to switch tabs · ${cancel} to close`;
+			return `${tab} ${tuiHint("settings.switchTabs", this.#locale, "to switch tabs")} · ${cancel} ${tuiHint("settings.close", this.#locale, "to close")}`;
 		}
 		if (this.#currentList?.sectionFocused) {
-			return `${editorKeys("tui.select.up", "tui.select.down")} to jump sections · ${tab}/${confirm} to settings · ${switchTabs} · ${cancel} to close`;
+			return `${editorKeys("tui.select.up", "tui.select.down")} ${tuiHint("settings.jumpSections", this.#locale, "to jump sections")} · ${tab}/${confirm} ${tuiHint("settings.toSettings", this.#locale, "to settings")} · ${switchTabs} · ${cancel} ${tuiHint("settings.close", this.#locale, "to close")}`;
 		}
-		const nav = this.#hasSectionJump ? `${tab} to jump sections · ${switchTabs}` : `${tab} to switch tabs`;
-		return `${confirm}/${formatKeyHint("space")} to change · ${nav} · Type to search · ${cancel} to close`;
+		const nav = this.#hasSectionJump
+			? `${tab} ${tuiHint("settings.jumpSections", this.#locale, "to jump sections")} · ${switchTabs}`
+			: `${tab} ${tuiHint("settings.switchTabs", this.#locale, "to switch tabs")}`;
+		return `${confirm}/${formatKeyHint("space")} ${tuiHint("settings.change", this.#locale, "to change")} · ${nav} · ${tuiHint("settings.typeToSearch", this.#locale, "Type to search")} · ${cancel} ${tuiHint("settings.close", this.#locale, "to close")}`;
 	}
 
 	/** Single-line search banner: accent icon, editable query with live cursor, right-aligned match count. */
 	#renderSearchBanner(width: number): string {
 		const icon = theme.symbol("icon.search");
-		const countText = this.#searchMatchCount === 1 ? "1 match" : `${this.#searchMatchCount} matches`;
+		const countText =
+			this.#searchMatchCount === 1
+				? tuiHint("settings.matchOne", this.#locale, "1 match")
+				: tuiHint("settings.matchOther", this.#locale, `${this.#searchMatchCount} matches`).replace(
+						"{count}",
+						String(this.#searchMatchCount),
+					);
 		const rightWidth = visibleWidth(countText) + 1; // trailing margin
 		const prefix = ` ${theme.fg("accent", icon)} `;
 		// The input pads itself to exactly this width and keeps the cursor in view.
@@ -742,7 +784,8 @@ export class SettingsSelectorComponent implements Component {
 		const tabLines = this.#tabBar.render(innerWidth);
 		const searching = this.#searchList !== null;
 		const showPreview = !searching && this.#currentTabId === "appearance";
-		const previewLines = showPreview ? ["", theme.fg("muted", "Preview:"), this.#getStatusPreviewString()] : [];
+		const previewLabel = this.#locale === "zh-CN" ? "预览：" : "Preview:";
+		const previewLines = showPreview ? ["", theme.fg("muted", previewLabel), this.#getStatusPreviewString()] : [];
 
 		// Fixed chrome: top border, tabs, divider, [search row], divider, hint, bottom border.
 		const fixedRows = 1 + tabLines.length + 1 + (searching ? 1 : 0) + 1 + 1 + 1;
@@ -761,7 +804,7 @@ export class SettingsSelectorComponent implements Component {
 		}
 
 		const out: string[] = [];
-		out.push(topBorder(width, "Settings"));
+		out.push(topBorder(width, this.#locale === "zh-CN" ? "设置" : "Settings"));
 		this.#tabRowStart = out.length;
 		this.#tabRowCount = tabLines.length;
 		for (const line of tabLines) {
@@ -821,9 +864,14 @@ export class SettingsSelectorComponent implements Component {
 
 		const pages: TspPrefsProps["pages"][number][] = SETTING_TABS.map(id => {
 			const changed = this.#changedCount(id);
-			return { id, label: TAB_METADATA[id].label, icon: id, changed: changed > 0 ? changed : undefined };
+			return { id, label: getTabMetadata(id, this.#locale).label, icon: id, changed: changed > 0 ? changed : undefined };
 		});
-		pages.push({ id: PLUGINS_PAGE, label: "Installed", icon: "plugins", group: "Plugins" });
+		pages.push({
+			id: PLUGINS_PAGE,
+			label: this.#locale === "zh-CN" ? "已安装" : "Installed",
+			icon: "plugins",
+			group: this.#locale === "zh-CN" ? "插件" : "Plugins",
+		});
 
 		let sections: TspPrefsProps["sections"] = [];
 		let focus: string | null = null;
@@ -840,7 +888,8 @@ export class SettingsSelectorComponent implements Component {
 					const def = getSettingDef(entries, item.id);
 					const group = def?.group ?? "General";
 					const id = prefsSectionId(group);
-					return searching && def ? { id: `${def.tab}/${id}`, title: group, page: def.tab } : { id, title: group };
+					const title = def?.groupLabel ?? getGroupLabel(group, this.#locale);
+					return searching && def ? { id: `${def.tab}/${id}`, title, page: def.tab } : { id, title };
 				},
 				item => this.#prefsControl(item.id, item.currentValue),
 			);
@@ -878,10 +927,10 @@ export class SettingsSelectorComponent implements Component {
 		}
 
 		const props: TspPrefsProps = {
-			title: "omp settings",
+			title: this.#locale === "zh-CN" ? "设置" : "omp settings",
 			pages,
 			page: searching ? this.#preSearchTabId : this.#currentTabId,
-			lead: searching ? undefined : (pluginPage?.lead ?? (tab ? TAB_LEADS[tab] : undefined)),
+			lead: searching ? undefined : (pluginPage?.lead ?? (tab ? getTabLead(tab, this.#locale) : undefined)),
 			query: searching ? this.#searchQuery : undefined,
 			cursor: searching ? this.#searchInput.getCursor() : undefined,
 			sections,
@@ -955,7 +1004,7 @@ export class SettingsSelectorComponent implements Component {
 					mono: !def.secret && MONO_TEXT_SETTING.test(def.path) ? true : undefined,
 				};
 			case "providerLimits":
-				return { k: "action", label: "Edit…", act: "edit" };
+				return { k: "action", label: tuiHint("settings.edit", this.#locale, "Edit…"), act: "edit" };
 			case "multiselect":
 				return {
 					k: "multi",
@@ -971,7 +1020,7 @@ export class SettingsSelectorComponent implements Component {
 		const value: unknown = def.defaultValue;
 		switch (def.type) {
 			case "boolean":
-				return value ? "On" : "Off";
+				return value ? tuiHint("settings.on", this.#locale, "On") : tuiHint("settings.off", this.#locale, "Off");
 			case "submenu": {
 				const raw = this.#getSubmenuCurrentValue(def.path, value);
 				return this.#submenuOptions(def).find(o => o.value === raw)?.label ?? raw;
@@ -1177,7 +1226,7 @@ export class SettingsSelectorComponent implements Component {
 						"col",
 						{ gap: "xs" },
 						[
-							text([span("Preview:", "muted")]),
+							text([span(this.#locale === "zh-CN" ? "预览：" : "Preview:", "muted")]),
 							this.#callbacks.describeStatusLinePreview?.() ??
 								text(styledSpans(source), { wrap: "none", truncate: "end" }),
 						],
@@ -1197,11 +1246,11 @@ export class SettingsSelectorComponent implements Component {
 					: this.#hasSectionJump
 						? "rows-sections"
 						: "rows";
-		memo.hints[mode] ??= settingsHintsNode(mode);
+		memo.hints[mode] ??= settingsHintsNode(mode, this.#locale);
 		children.push(memo.hints[mode]);
 
 		if (memo.root && sameItems(memo.root.children, children)) return memo.root.node;
-		const root = overlayCard("omp.overlay.settings", "Settings", children);
+		const root = overlayCard("omp.overlay.settings", this.#locale === "zh-CN" ? "设置" : "Settings", children);
 		memo.root = { children, node: root };
 		return root;
 	}
@@ -1305,7 +1354,7 @@ export class SettingsSelectorComponent implements Component {
 			{
 				layout: "flat",
 				typeToSearch: false,
-				emptyText: "No matching settings",
+				emptyText: this.#locale === "zh-CN" ? "未找到匹配的设置" : "No matching settings",
 				hint: "",
 			},
 		);
@@ -1361,11 +1410,18 @@ export class SettingsSelectorComponent implements Component {
 
 		tabResults.sort((a, b) => a.bestScore - b.bestScore || a.order - b.order);
 		for (const result of tabResults) {
-			const meta = TAB_METADATA[result.tab];
+			const meta = getTabMetadata(result.tab, this.#locale);
+			const matchesCount =
+				result.matched.length === 1
+					? tuiHint("settings.matchOne", this.#locale, "1 match")
+					: tuiHint("settings.matchOther", this.#locale, `${result.matched.length} matches`).replace(
+							"{count}",
+							String(result.matched.length),
+						);
 			items.push({
 				id: `__tab:${result.tab}`,
 				label: `${theme.symbol(meta.icon)} ${meta.label}`,
-				currentValue: "",
+				currentValue: matchesCount,
 				heading: true,
 			});
 			this.#searchFirstMatch.set(result.tab, result.matched[0]?.id ?? "");
@@ -1411,7 +1467,7 @@ export class SettingsSelectorComponent implements Component {
 		const empty: Tab[] = [];
 		const matchedIds = new Set<SettingTab>(matchedTabOrder);
 		for (const id of matchedTabOrder) {
-			const meta = TAB_METADATA[id];
+			const meta = getTabMetadata(id, this.#locale);
 			const icon = theme.symbol(meta.icon);
 			const count = counts.get(id) ?? 0;
 			if (count > 0) {
@@ -1420,14 +1476,14 @@ export class SettingsSelectorComponent implements Component {
 		}
 		for (const id of SETTING_TABS) {
 			if (matchedIds.has(id)) continue;
-			const meta = TAB_METADATA[id];
+			const meta = getTabMetadata(id, this.#locale);
 			const icon = theme.symbol(meta.icon);
 			empty.push({ id, label: `${icon} ${meta.label}`, short: icon, muted: true });
 		}
 		// Plugins hosts its own UI; it is not part of the schema-backed search.
 		empty.push({
 			id: "plugins",
-			label: `${theme.icon.package} Plugins`,
+			label: `${theme.icon.package} ${tuiHint("settings.plugins", this.#locale, "Plugins")}`,
 			short: theme.icon.package,
 			muted: true,
 		});
@@ -1451,6 +1507,10 @@ export class SettingsSelectorComponent implements Component {
 		} else if (def.type === "enum") {
 			this.#context.settings.set(path, newValue);
 			this.#callbacks.onChange(path, newValue);
+			if (path === "language") {
+				this.#reloadLocale();
+				return;
+			}
 		}
 		// Submenu/text types already persisted inside their own done callbacks.
 		if (def.tab === "appearance") {
@@ -1476,7 +1536,9 @@ export class SettingsSelectorComponent implements Component {
 		const item = {
 			id: def.path,
 			label: def.label,
+			canonicalLabel: def.canonicalLabel,
 			description: def.description,
+			canonicalDescription: def.canonicalDescription,
 			warning: def.warning,
 			changed,
 			defaultLabel: changed ? this.#defaultLabel(def) : undefined,
@@ -1558,7 +1620,16 @@ export class SettingsSelectorComponent implements Component {
 		if (def.path === "theme.dark" || def.path === "theme.light") {
 			return this.#context.availableThemes.map(t => ({ value: t, label: t }));
 		}
-		if (def.path === "composer.shape") return getComposerShapeOptions();
+		if (def.path === "composer.shape") {
+			const baseOptions = getComposerShapeOptions();
+			if (this.#locale === "zh-CN") {
+				return baseOptions.map(opt => {
+					const tr = def.options.find(o => o.value === opt.value);
+					return tr ? { value: opt.value, label: tr.label ?? opt.label, description: tr.description ?? opt.description } : opt;
+				});
+			}
+			return baseOptions;
+		}
 		return def.options;
 	}
 
@@ -1652,6 +1723,9 @@ export class SettingsSelectorComponent implements Component {
 				this.#setSettingValue(def.path, value);
 				this.#callbacks.onChange(def.path, value);
 				done(value);
+				if (def.path === "language") {
+					this.#reloadLocale();
+				}
 			},
 			() => {
 				onPreviewCancel?.();
@@ -1712,7 +1786,7 @@ export class SettingsSelectorComponent implements Component {
 	#formatProviderLimitsValue(value: unknown): string {
 		const limits = this.#context.settings.normalizeProviderLimits(value);
 		const entries = Object.entries(limits).sort(([a], [b]) => a.localeCompare(b));
-		if (entries.length === 0) return "Unlimited";
+		if (entries.length === 0) return tuiHint("settings.unlimited", this.#locale, "Unlimited");
 		return entries.map(([provider, limit]) => `${provider}: ${limit}`).join(", ");
 	}
 
@@ -1835,6 +1909,10 @@ export class SettingsSelectorComponent implements Component {
 				} else if (def.type === "enum") {
 					this.#context.settings.set(path, newValue);
 					this.#callbacks.onChange(path, newValue);
+					if (path === "language") {
+						this.#reloadLocale();
+						return;
+					}
 				}
 				// Submenu/text types already persisted the value inside their own
 				// done callbacks before SettingsList re-dispatches here. Re-run the
@@ -1846,14 +1924,13 @@ export class SettingsSelectorComponent implements Component {
 			() => this.#callbacks.onCancel(),
 			// The selector owns type-to-search and the footer hint; pin the
 			// split sidebar width so the divider never jumps between tabs.
-			{ typeToSearch: false, hint: "", sidebarWidth: this.#sidebarWidth },
+			{ typeToSearch: false, hint: "", sidebarWidth: this.#sidebarWidth, locale: this.#locale },
 		);
 	}
 
 	/**
 	 * Map a definition list to UI items, dropping any whose condition is false.
 	 * Inserts a heading row whenever the (group-sorted) definition list crosses
-	 * into a new group; groups whose items are all condition-hidden emit none.
 	 */
 	#buildItemsForDefs(defs: SettingDef[]): SettingItem[] {
 		this.#changedCounts.clear();
@@ -1863,7 +1940,8 @@ export class SettingsSelectorComponent implements Component {
 			const item = this.#defToItem(def);
 			if (!item) continue;
 			if (def.group && def.group !== lastGroup) {
-				items.push({ id: `__heading:${def.group}`, label: def.group, currentValue: "", heading: true });
+				const groupHeading = def.groupLabel ?? getGroupLabel(def.group, this.#locale);
+				items.push({ id: `__heading:${def.group}`, label: groupHeading, currentValue: "", heading: true });
 				lastGroup = def.group;
 			}
 			items.push(item);
@@ -1876,6 +1954,25 @@ export class SettingsSelectorComponent implements Component {
 		if (this.#currentTabId === "plugins" || !this.#currentList) return;
 		this.#currentList.setItems(this.#buildItemsForDefs(defs));
 	}
+	#reloadLocale(): void {
+		this.#context.settings.reload?.();
+		this.#locale = this.#context.settings.locale ?? "en";
+		this.#sidebarWidth = settingsSidebarWidth(this.#context.settings.entries);
+		this.#searchCorpora = null;
+		this.#native.hints = {};
+		this.#native.prefs = undefined;
+		this.#native.root = undefined;
+		this.#tabs = getSettingsTabs(this.#locale);
+		this.#tabBar.setTabs(this.#tabs);
+		if (this.#currentTabId !== "plugins") {
+			const defs = getSettingsForTab(this.#context.settings.entries, this.#currentTabId);
+			this.#refreshCurrentTabItems(defs);
+		}
+		if (this.#searchList && this.#searchQuery) {
+			this.#setSearchQuery(this.#searchQuery);
+		}
+		this.#context.requestRender?.();
+	}
 
 	/**
 	 * Get the status line preview string.
@@ -1884,7 +1981,7 @@ export class SettingsSelectorComponent implements Component {
 		if (this.#callbacks.getStatusLinePreview) {
 			return this.#callbacks.getStatusLinePreview();
 		}
-		return theme.fg("dim", "(preview not available)");
+		return theme.fg("dim", tuiHint("settings.previewUnavailable", this.#locale, "(preview not available)"));
 	}
 
 	/**

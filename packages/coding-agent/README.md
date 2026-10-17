@@ -13,6 +13,25 @@ Package-specific references:
 - [MCP server/tool authoring](../../docs/mcp-server-tool-authoring.md)
 - [DEVELOPMENT](./DEVELOPMENT.md)
 
+## Configuration & Localization
+
+Settings can be viewed and modified via the `rva config` CLI command or the interactive `/settings` overlay in the TUI.
+
+Chinese localization (`zh-CN`) is supported for all configuration labels, descriptions, group headers, and CLI help surfaces:
+
+```sh
+# Switch to Chinese via CLI setting
+rva config set language zh-CN
+
+# Reset back to default English
+rva config reset language
+
+# Override per-command via environment variable
+RVA_LANG=zh-CN rva config --help
+```
+
+In the interactive TUI, `/settings` allows switching languages under **Appearance** → **Display** → **Language**, and dynamically re-renders the panel immediately. Search supports bilingual matching in both Chinese and English canonical keys/labels. All internal setting keys, enum storage values, environment variable names, and JSON machine output (`rva config list --json`) remain strictly canonical and backwards-compatible.
+
 ## Memory backends
 
 The agent supports three mutually-exclusive memory backends, selected via the `memory.backend` setting (Settings → Memory tab, or `~/.omp/config.yml`):

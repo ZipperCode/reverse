@@ -12,6 +12,7 @@ export * from "./frontmatter";
 export * from "./fs-error";
 export * from "./fs-open";
 export * from "./incoming-json";
+export * from "./i18n";
 export * from "./json";
 export * from "./json-parse";
 export * as logger from "./logger";

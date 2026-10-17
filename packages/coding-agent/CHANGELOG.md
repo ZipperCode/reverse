@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added `language` setting (`en` | `zh-CN`, default `en`, overrideable via `RVA_LANG` environment variable) providing Chinese localization for configuration labels, descriptions, group headers, and CLI help, while keeping canonical setting identifiers, enum storage values, and JSON machine contracts unchanged.
 ## [18.11.2] - 2026-10-16
 
 ### Added

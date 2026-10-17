@@ -741,6 +741,24 @@ export const cfgTuiImeSafeCursor = register({
 	},
 });
 
+export const cfgLanguage = register({
+	id: "language",
+	type: "enum",
+	values: ["en", "zh-CN"] as const,
+	default: "en",
+	env: "RVA_LANG",
+	ui: {
+		tab: "appearance",
+		group: "Display",
+		label: "Language",
+		description: "Language used for configuration labels, descriptions, and UI texts",
+		options: [
+			{ value: "en", label: "English", description: "Use English configuration labels and descriptions" },
+			{ value: "zh-CN", label: "简体中文 (Simplified Chinese)", description: "使用简体中文配置标签与说明" },
+		],
+	},
+});
+
 // ────────────────────────────────────────────────────────────────────────
 // Interaction
 // ────────────────────────────────────────────────────────────────────────

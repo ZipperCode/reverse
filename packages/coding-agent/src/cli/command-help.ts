@@ -1,3 +1,4 @@
+import { getEffectiveLocale } from "../config/persisted-locale";
 import type { CommandMetadata } from "@rva/utils/cli";
 
 export const acpHelp = {
@@ -50,7 +51,11 @@ export const compressHelp = {
 	description: "Rewrite a text file into the dense prompt register, reporting what it drops",
 } satisfies CommandMetadata;
 
-export const configHelp = { description: "Manage configuration settings" } satisfies CommandMetadata;
+export const configHelp = {
+	get description() {
+		return getEffectiveLocale() === "zh-CN" ? "管理配置设置" : "Manage configuration settings";
+	},
+} satisfies CommandMetadata;
 
 export const dryBalanceHelp = {
 	description: "Dry-run OAuth account balancing across random session ids",

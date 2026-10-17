@@ -42,6 +42,8 @@ import { resolveAdvisorRoleSelection, resolveModelRoleValue } from "../../config
 import { formatModelSelectorValue } from "@rva/tui/overlays/model-selector";
 import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
+import { CustomProviderWizard } from "@rva/tui/overlays/custom-provider-wizard";
+import { saveCustomProvider } from "../../config/custom-provider-writer";
 import { createSettingsHost } from "../../config/settings-ui";
 import { createPluginSettingsHost } from "../../extensibility/plugins/settings-host";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
@@ -1158,6 +1160,10 @@ export class SelectorController {
 						hub?.refreshAfterExternalMutation();
 					}
 				},
+				onAddProviderRequest: () => {
+					done();
+					void this.showCustomProviderWizard();
+				},
 				onCancel: () => done(),
 			},
 			{
@@ -2236,6 +2242,11 @@ export class SelectorController {
 						);
 						return !!apiKey;
 					},
+					onAddCustomProvider: () => {
+						selector.stopValidation();
+						done();
+						void this.showCustomProviderWizard();
+					},
 					requestRender: () => {
 						this.ctx.ui.requestRender();
 					},
@@ -2245,6 +2256,54 @@ export class SelectorController {
 		});
 	}
 
+	showCustomProviderWizard(): Promise<void> {
+		const existingProviderIds = this.ctx.session.modelRegistry.getAll().map(m => m.provider);
+
+		return new Promise<void>(resolve => {
+			this.showSelector(done => {
+				const finish = () => {
+					done();
+					resolve();
+				};
+				const wizard = new CustomProviderWizard(
+					{
+						existingProviderIds,
+					},
+					async config => {
+						try {
+							await saveCustomProvider(
+								{
+									providerId: config.providerId,
+									baseUrl: config.baseUrl,
+									api: config.api,
+									apiKey: config.apiKey,
+									models: config.models,
+								},
+								{
+									authStorage: this.ctx.session.modelRegistry.authStorage,
+									modelRegistry: this.ctx.session.modelRegistry,
+									agentDir: this.ctx.settings.getAgentDir(),
+								},
+							);
+							finish();
+							this.ctx.showStatus(
+								`Custom provider "${config.providerId}" added with ${config.models.length} model(s).`,
+							);
+							this.ctx.ui.requestRender();
+						} catch (error) {
+							throw error;
+						}
+					},
+					() => {
+						finish();
+						this.ctx.ui.requestRender();
+					},
+					() => this.ctx.ui.requestRender(),
+				);
+				return { component: wizard, focus: wizard };
+			});
+		});
+	}
 	async showSessionPinSelector(): Promise<void> {
 		const session = this.ctx.session;
 		if (session.isStreaming) {

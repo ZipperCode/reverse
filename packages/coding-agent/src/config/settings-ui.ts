@@ -1,5 +1,9 @@
 import { TERMINAL } from "@rva/tui";
 import { isNativeRendering } from "@rva/tui/native/state";
+import { resolveEffectiveLocale, type SupportedLocale } from "@rva/utils/i18n";
+import { TUI_TRANSLATIONS_ZH_CN } from "@rva/tui/i18n/zh-CN";
+import { SETTING_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/settings";
+import { cfgLanguage, cfgTuiVimMode } from "../modes/settings";
 import { SETTING_TABS, type SettingsDisplayEntry, type SettingsHost } from "@rva/tui/overlays/settings-defs";
 import { isSettingsInitialized, Settings, settings } from "./settings";
 import { orderedSettings } from "./all-settings";
@@ -14,7 +18,6 @@ import {
 } from "../session/settings";
 import { cfgAutolearnEnabled } from "../autolearn/settings";
 import { cfgMemoryBackend } from "../memory-backend/settings";
-import { cfgTuiVimMode } from "../modes/settings";
 import { cfgAdvisorEnabled } from "../advisor/settings";
 import { cfgContextFilesExtra } from "../session/context-settings";
 
@@ -41,8 +44,13 @@ const CONDITIONS: Record<string, () => boolean> = {
 };
 
 /** Description suffix telling the panel user that an environment variable is in play. */
-function envNote(setting: AnySetting): string {
+function envNote(setting: AnySetting, locale: SupportedLocale): string {
 	if (!setting.envName || setting.envValue() === undefined) return "";
+	if (locale === "zh-CN") {
+		return setting.envFallback
+			? ` 未设置时，回退到 $${setting.envName}。`
+			: ` 设置了 $${setting.envName} 时，将覆盖此设置。`;
+	}
 	return setting.envFallback
 		? ` Unset, it falls back to $${setting.envName}.`
 		: ` $${setting.envName} overrides this setting while it is set.`;
@@ -55,33 +63,93 @@ function envNote(setting: AnySetting): string {
  */
 export function createSettingsHost(): SettingsHost {
 	const entries: SettingsDisplayEntry[] = [];
-	for (const tab of SETTING_TABS) {
-		for (const setting of orderedSettings()) {
-			const ui = setting.ui;
-			if (ui?.tab !== tab) continue;
-			const note = envNote(setting);
-			entries.push({
-				path: setting.id,
-				type: setting.type,
-				defaultValue: setting.default,
-				ui: note ? { ...ui, description: `${ui.description}${note}` } : ui,
-				enumValues: setting.enumValues,
-				credential: setting.isCredential,
-				condition: ui.condition ? CONDITIONS[ui.condition] : undefined,
-			});
+	const resolveLanguage = (): SupportedLocale => {
+		const raw = isSettingsInitialized() ? cfgLanguage.get(settings) : undefined;
+		return resolveEffectiveLocale(raw);
+	};
+	let currentLocale: SupportedLocale = resolveLanguage();
+
+	const populate = () => {
+		currentLocale = resolveLanguage();
+		const nextEntries: SettingsDisplayEntry[] = [];
+
+		for (const tab of SETTING_TABS) {
+			for (const setting of orderedSettings()) {
+				const ui = setting.ui;
+				if (ui?.tab !== tab) continue;
+				const note = envNote(setting, currentLocale);
+				const tr = currentLocale === "zh-CN" ? SETTING_TRANSLATIONS_ZH_CN[setting.id] : undefined;
+				const label = tr?.label ?? ui.label;
+				const rawDesc = tr?.description ?? ui.description;
+				const description = note ? `${rawDesc}${note}` : rawDesc;
+				const warning = tr?.warning ?? ui.warning;
+				const groupLabel =
+					currentLocale === "zh-CN" && ui.group ? (TUI_TRANSLATIONS_ZH_CN.groups[ui.group] ?? ui.group) : ui.group;
+
+				let options = ui.options;
+				if (ui.options === "runtime" && setting.id === "composer.shape" && tr?.options) {
+					options = Object.entries(tr.options).map(([value, o]) => ({
+						value,
+						label: o.label ?? value,
+						description: o.description,
+					}));
+				} else if (Array.isArray(ui.options) && tr?.options) {
+					options = ui.options.map(opt => {
+						const optTr = tr.options?.[opt.value];
+						if (!optTr) return opt;
+						return {
+							value: opt.value,
+							label: optTr.label ?? opt.label,
+							description: optTr.description ?? opt.description,
+						};
+					});
+				}
+
+				nextEntries.push({
+					path: setting.id,
+					type: setting.type,
+					defaultValue: setting.default,
+					ui: {
+						...ui,
+						label,
+						description,
+						warning,
+						groupLabel,
+						canonicalLabel: ui.label,
+						canonicalDescription: ui.description,
+						options,
+					},
+					enumValues: setting.enumValues,
+					credential: setting.isCredential,
+					condition: ui.condition ? CONDITIONS[ui.condition] : undefined,
+				});
+			}
 		}
-	}
+
+		if (host) {
+			host.entries = nextEntries;
+			host.locale = currentLocale;
+		}
+		return nextEntries;
+	};
+
 	const resolve = (path: string): AnySetting => {
 		const setting = lookup(path);
 		if (!setting) throw new Error(`Unknown setting: ${path}`);
 		return setting;
 	};
-	return {
-		entries,
+
+	let host: SettingsHost;
+	host = {
+		entries: populate(),
+		locale: currentLocale,
 		get: path => lookup(path)?.layered(settings),
 		set: (path, value) => resolve(path).set(settings, value),
 		unset: path => resolve(path).unset(settings),
 		normalizeProviderLimits: normalizeProviderMaxInFlightRequests,
 		validateProviderLimits: validateProviderMaxInFlightRequests,
+		reload: populate,
 	};
+
+	return host;
 }

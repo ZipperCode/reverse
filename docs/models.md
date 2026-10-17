@@ -19,13 +19,23 @@ Primary implementation files:
 
 Default-profile config paths, in precedence order:
 
-- `~/.omp/agent/models.yml`
-- `~/.omp/agent/models.yaml`
+- `~/.rva/agent/models.yml`
+- `~/.rva/agent/models.yaml`
 
 These are relative to the active agent directory returned by `getAgentDir()`. Named profiles use
-`~/.omp/profiles/<name>/agent/`; `PI_CONFIG_DIR` changes the config-root directory name, and
-`PI_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
+`~/.rva/profiles/<name>/agent/`; `RVA_CONFIG_DIR` changes the config-root directory name, and
+`RVA_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
 `ModelRegistry` path overrides the directory-derived location.
+
+### Adding custom providers via UI
+
+Instead of editing `models.yml` by hand, rev provides an interactive TUI wizard to add custom OpenAI-compatible or Anthropic-compatible providers:
+
+- Run `/setup providers` (or `/setup`) and select `+ Add custom provider…`
+- Run `/models` (Model Hub) and select `+ Add provider…` in the sidebar
+- Or run `/provider add`, `/models add`, or `/setup add` directly
+
+The wizard validates provider IDs, protocols (`openai-completions`, `openai-responses`, `anthropic-messages`), base URLs, and model limits. Non-secret provider and model definitions are written atomically to `models.yml`, while API keys are stored securely in the local SQLite credential database (`~/.rva/agent/agent.db`) via `AuthStorage`, without storing plaintext secrets in YAML. Once saved, the registry reloads immediately without restarting.
 
 Legacy behavior still present:
 
