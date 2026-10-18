@@ -927,6 +927,55 @@ export function getSecurityProjectDir(projectKey: string): string {
 	return path.join(getSecurityDir(), projectKey);
 }
 
+/** Get the evidence ledger state directory (~/.omp/evidence). */
+export function getEvidenceDir(): string {
+	return dirs.rootSubdir("evidence", "state");
+}
+
+/** Get one project's evidence ledger state directory (~/.omp/evidence/<project-key>). */
+export function getEvidenceProjectDir(projectKey: string): string {
+	return path.join(getEvidenceDir(), projectKey);
+}
+/** Get the frida sessions state directory (~/.omp/agent/frida-sessions; XDG default: $XDG_STATE_HOME/omp/frida-sessions). */
+export function getFridaSessionsDir(agentDir?: string): string {
+	return dirs.agentSubdir(agentDir, "frida-sessions", "state");
+}
+
+/** Get one project's frida sessions state directory (~/.omp/agent/frida-sessions/<project-key>). */
+export function getFridaSessionsProjectDir(projectKey: string, agentDir?: string): string {
+	return path.join(getFridaSessionsDir(agentDir), projectKey);
+}
+
+/** Get the reverse workflow state directory (~/.omp/agent/reverse-workflows; XDG default: $XDG_STATE_HOME/omp/reverse-workflows). */
+export function getReverseWorkflowDir(agentDir?: string): string {
+	return dirs.agentSubdir(agentDir, "reverse-workflows", "state");
+}
+
+/** Get one project's reverse workflow state directory (~/.omp/agent/reverse-workflows/<project-key>). */
+export function getReverseWorkflowProjectDir(projectKey: string, agentDir?: string): string {
+	return path.join(getReverseWorkflowDir(agentDir), projectKey);
+}
+
+/** Get the reverse runtime sessions state directory (~/.omp/agent/reverse-runtime-sessions; XDG default: $XDG_STATE_HOME/omp/reverse-runtime-sessions). */
+export function getReverseRuntimeSessionsDir(agentDir?: string): string {
+	return dirs.agentSubdir(agentDir, "reverse-runtime-sessions", "state");
+}
+
+/** Get one project's reverse runtime sessions state directory (~/.omp/agent/reverse-runtime-sessions/<project-key>). */
+export function getReverseRuntimeSessionsProjectDir(projectKey: string, agentDir?: string): string {
+	return path.join(getReverseRuntimeSessionsDir(agentDir), projectKey);
+}
+
+/** Get the reverse knowledge state directory (~/.omp/agent/reverse-knowledge; XDG default: $XDG_STATE_HOME/omp/reverse-knowledge). */
+export function getReverseKnowledgeDir(agentDir?: string): string {
+	return dirs.agentSubdir(agentDir, "reverse-knowledge", "state");
+}
+
+/** Get one project's reverse knowledge state directory (~/.omp/agent/reverse-knowledge/<project-key>). */
+export function getReverseKnowledgeProjectDir(projectKey: string, agentDir?: string): string {
+	return path.join(getReverseKnowledgeDir(agentDir), projectKey);
+}
+
 // =============================================================================
 // Agent subdirectories (~/.omp/agent/*)
 // =============================================================================

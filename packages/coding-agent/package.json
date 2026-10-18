@@ -80,6 +80,14 @@
       "types": "./src/autoresearch/tools/*.ts",
       "import": "./src/autoresearch/tools/*.ts"
     },
+    "./reverse-runtime-session": {
+      "types": "./src/reverse-runtime-session/index.ts",
+      "import": "./src/reverse-runtime-session/index.ts"
+    },
+    "./reverse-workspace": {
+      "types": "./src/reverse-workspace/index.ts",
+      "import": "./src/reverse-workspace/index.ts"
+    },
     "./capability": {
       "types": "./src/capability/index.ts",
       "import": "./src/capability/index.ts"

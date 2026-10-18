@@ -19,6 +19,7 @@ import { type ServiceTierInheritSettingValue, validateAgentServiceTierOverrides 
 import { isProviderEnabled, isUserSourceEnabled } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { CustomTool } from "../extensibility/custom-tools/types";
+import type { Skill } from "../extensibility/skills";
 import { sessionLocalProtocolOptions } from "../internal-urls/context";
 import { registerArtifactsDir } from "../internal-urls/registry-helpers";
 import { MCPManager } from "../mcp/manager";
@@ -110,6 +111,8 @@ export interface StructuredSubagentRequest {
 	context?: string;
 	agent?: string;
 	model?: string | string[];
+	/** Skills to autoload into the subagent before the first prompt. */
+	autoloadSkills?: string[];
 	/** Presence, rather than truthiness, makes this the highest-priority schema. */
 	outputSchema?: unknown;
 	schemaMode?: StructuredSubagentSchemaMode;
@@ -520,24 +523,63 @@ async function leaseArtifacts(
 	return { sessionFile: null, artifactsDir, temporary: true, unregister: registerArtifactsDir(artifactsDir) };
 }
 
+export const REVERSE_TASK_AUTOLOAD_SKILLS = ["reverse-lab", "native-binary-reverse"];
+
+const REVERSE_TASK_PATTERNS = [
+	/\b(?:reverse(?:[-_\s]?engineer(?:ing|ed|s)?|[-_\s]?eng)\b|\breversing\b|decompil(?:e|ation|ed|er|ing|es)?|disassembl(?:e|y|ed|er|ing|es)?)\b/i,
+	/\b(?:apktool|jadx|droidasc|android_package_inspect|radare2|ghidra|ghidra_inspect|analyzeHeadless|ida-?pro|idapro|idalib|r2_inspect|dotnet_inspect|r2pipe|frida|pcap_inspect|sqlite_inspect|firmware_inspect|crashdump_inspect|binary_metadata_inspect|evm_inspect|binary_diff|reverse_workflow|reverse_runtime_session|binwalk|vbindiff)\b/i,
+	/\b(?:mach-o|macho|fat\s+binary|pe32\+?|elf(?:32|64)?|minidump|coredump|uimage|squashfs|bytecode|evm)\b/i,
+	/\b\w+\.(?:apk|dex|dylib|so|dll|exe|ipa|aab|pcap|pcapng|sqlite|sqlite3|db|dmp|dump|bin|rom|img|evm)\b/i,
+	/(?:逆向|反编译|反汇编|脱壳|抓包|固件|崩溃转储|转储|字节码|二进制(?:逆向|分析|审计|破解|漏洞|安全|静态分析|动态分析|差异|比对))/,
+];
+
+export function isReverseTask(assignment?: string, context?: string): boolean {
+	const text = `${context ?? ""}\n${assignment ?? ""}`;
+	if (!text.trim()) return false;
+	return REVERSE_TASK_PATTERNS.some(re => re.test(text));
+}
+
+export function getTargetAutoloadSkillNames(agent: AgentDefinition, request?: StructuredSubagentRequest): Set<string> {
+	const names = new Set<string>(agent.autoloadSkills ?? []);
+	if (request?.autoloadSkills) {
+		for (const name of request.autoloadSkills) names.add(name);
+	}
+	if (agent.name === "task" && request && isReverseTask(request.assignment, request.context)) {
+		for (const name of REVERSE_TASK_AUTOLOAD_SKILLS) names.add(name);
+	}
+	return names;
+}
+
 /**
  * Agents are rediscovered on every spawn, but the session's skill list is
  * fixed at startup. Rediscover skills once when an agent autoloads a skill the
  * session has not seen, so a skill added after startup is not silently dropped.
  */
-async function refreshSkillsForAutoload(session: ToolSession, agent: AgentDefinition): Promise<void> {
-	const names = agent.autoloadSkills;
-	if (!names?.length || !session.refreshSkills) return;
+async function refreshSkillsForAutoload(
+	session: ToolSession,
+	agent: AgentDefinition,
+	request?: StructuredSubagentRequest,
+): Promise<void> {
+	const names = getTargetAutoloadSkillNames(agent, request);
+	if (names.size === 0 || !session.refreshSkills) return;
 	const known = new Set((session.skills ?? []).map(skill => skill.name));
-	if (names.every(name => known.has(name))) return;
+	if (Array.from(names).every(name => known.has(name))) return;
 	await session.refreshSkills();
 }
 
-function resolveAutoloadSkills(session: ToolSession, agent: AgentDefinition) {
+export function resolveAutoloadSkills(
+	session: ToolSession,
+	agent: AgentDefinition,
+	request?: StructuredSubagentRequest,
+) {
 	const skills = [...(session.skills ?? [])];
-	const autoloadSkills = agent.autoloadSkills?.length
-		? agent.autoloadSkills.map(name => skills.find(skill => skill.name === name)).filter(skill => skill !== undefined)
-		: [];
+	const names = getTargetAutoloadSkillNames(agent, request);
+	const autoloadSkills =
+		names.size > 0
+			? Array.from(names)
+					.map(name => skills.find(skill => skill.name === name))
+					.filter((skill): skill is Skill => skill !== undefined)
+			: [];
 	return { skills, autoloadSkills };
 }
 
@@ -548,7 +590,7 @@ function buildExecutorOptions(
 	id: string,
 ): ExecutorOptions {
 	const { session } = request;
-	const { skills, autoloadSkills } = resolveAutoloadSkills(session, policy.agent);
+	const { skills, autoloadSkills } = resolveAutoloadSkills(session, policy.agent, request);
 	const localProtocolOptions = sessionLocalProtocolOptions(session);
 	const restrictToolNames = policy.planMode || session.restrictToolNames === true;
 	const enableMCP = !restrictToolNames && (session.enableMCP ?? true);
@@ -798,7 +840,7 @@ export async function runStructuredSubagent(request: StructuredSubagentRequest):
 			...request.identity,
 			label: request.identity?.label ?? (request.invocationKind === "eval" ? "EvalAgent" : undefined),
 		});
-		await refreshSkillsForAutoload(request.session, policy.agent);
+		await refreshSkillsForAutoload(request.session, policy.agent, request);
 		const baseOptions = buildExecutorOptions(request, policy, lease, id);
 		baseOptions.onCleanupDeferred = completion => {
 			deferredCleanup = completion;

@@ -75,6 +75,33 @@ import { type TodoPhase } from "@rva/tui/tools/todo";
 import { TodoTool } from "./todo";
 import { WriteTool } from "./write";
 import { WaitTool } from "./wait";
+import { WasmInspectTool } from "./wasm-inspect";
+import { R2InspectTool } from "./r2-inspect";
+import { DotnetInspectTool } from "./dotnet-inspect";
+import { GhidraInspectTool } from "./ghidra-inspect";
+import { DroidascTool } from "./droidasc";
+import { AndroidPackageInspectTool } from "./android-package-inspect";
+import { AdbObserveTool } from "./adb-observe";
+import { FridaTool } from "./frida";
+import { FridaSessionTool } from "./frida-session";
+import { WebSocketObserveTool } from "./websocket-observe";
+import { WindowsObserveTool } from "./windows-observe";
+import { TriageTool } from "./triage";
+import { EvidenceTool } from "./evidence";
+import { JavascriptApplicationTool } from "./javascript-application";
+import { JsHookPresetTool } from "./js-hook-preset";
+import { SourcemapInspectTool } from "./sourcemap-inspect";
+import { PcapInspectTool } from "./pcap-inspect";
+import { SqliteInspectTool } from "./sqlite-inspect";
+import { FirmwareInspectTool } from "./firmware-inspect";
+import { CrashdumpInspectTool } from "./crashdump-inspect";
+import { BinaryMetadataInspectTool } from "./binary-metadata-inspect";
+import { EvmInspectTool } from "./evm-inspect";
+import { BinaryDiffTool } from "./binary-diff";
+import { ReverseWorkflowTool } from "./reverse-workflow";
+import { ReverseRuntimeSessionTool } from "./reverse-runtime-session";
+import { ReverseKnowledgeTool } from "./reverse-knowledge";
+import { ReverseWorkspaceTool } from "./reverse-workspace";
 import { isMountableUnderXdev, resolveXdevTool, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
 
@@ -114,12 +141,7 @@ export * from "./ask";
 export * from "./ast-edit";
 export * from "./ast-grep";
 export * from "./bash";
-export type {
-	BashToolDetails,
-	BashRenderArgs,
-	BashRenderContext,
-	ShellRendererConfig,
-} from "@rva/tui/tools/bash";
+export type { BashToolDetails, BashRenderArgs, BashRenderContext, ShellRendererConfig } from "@rva/tui/tools/bash";
 export * from "./browser";
 export * from "./checkpoint";
 export * from "./computer";
@@ -146,18 +168,40 @@ export * from "./memory-reflect";
 export * from "./memory-retain";
 export * from "./read";
 export * from "./resolve";
-export type {
-	FindingPriority,
-	FindingPriorityInfo,
-	FindingDetails,
-	SubmitReviewDetails,
-} from "@rva/tui/tools/task";
+export type { FindingPriority, FindingPriorityInfo, FindingDetails, SubmitReviewDetails } from "@rva/tui/tools/task";
 export * from "./security-scan";
 export * from "./think";
 export * from "./todo";
 export * from "./tts";
 export * from "./vibe";
 export * from "./wait";
+export * from "./wasm-inspect";
+export * from "./r2-inspect";
+export * from "./dotnet-inspect";
+export * from "./ghidra-inspect";
+export * from "./droidasc";
+export * from "./android-package-inspect";
+export * from "./adb-observe";
+export * from "./frida";
+export * from "./frida-session";
+export * from "./websocket-observe";
+export * from "./windows-observe";
+export * from "./triage";
+export * from "./evidence";
+export * from "./javascript-application";
+export * from "./js-hook-preset";
+export * from "./sourcemap-inspect";
+export * from "./pcap-inspect";
+export * from "./sqlite-inspect";
+export * from "./firmware-inspect";
+export * from "./crashdump-inspect";
+export * from "./binary-metadata-inspect";
+export * from "./evm-inspect";
+export * from "./binary-diff";
+export * from "./reverse-workflow";
+export * from "./reverse-runtime-session";
+export * from "./reverse-knowledge";
+export * from "./reverse-workspace";
 export type { VibeToolDetails } from "@rva/tui/tools/vibe";
 export * from "./write";
 export * from "./xdev";
@@ -553,6 +597,33 @@ export type ToolFactory = (session: ToolSession) => Tool | null | Promise<Tool |
 export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	read: s => new ReadTool(s),
 	security_scan: s => new SecurityScanTool(s),
+	wasm_inspect: s => new WasmInspectTool(s),
+	r2_inspect: s => new R2InspectTool(s),
+	dotnet_inspect: s => new DotnetInspectTool(s),
+	ghidra_inspect: s => new GhidraInspectTool(s),
+	droidasc: s => new DroidascTool(s),
+	android_package_inspect: s => new AndroidPackageInspectTool(s),
+	adb_observe: s => new AdbObserveTool(s),
+	frida: s => new FridaTool(s),
+	frida_session: s => new FridaSessionTool(s),
+	websocket_observe: s => new WebSocketObserveTool(s),
+	windows_observe: s => new WindowsObserveTool(s),
+	triage: s => new TriageTool(s),
+	evidence: s => new EvidenceTool(s),
+	javascript_application: s => new JavascriptApplicationTool(s),
+	js_hook_preset: s => new JsHookPresetTool(s),
+	sourcemap_inspect: s => new SourcemapInspectTool(s),
+	pcap_inspect: s => new PcapInspectTool(s),
+	sqlite_inspect: s => new SqliteInspectTool(s),
+	firmware_inspect: s => new FirmwareInspectTool(s),
+	crashdump_inspect: s => new CrashdumpInspectTool(s),
+	binary_metadata_inspect: s => new BinaryMetadataInspectTool(s),
+	evm_inspect: s => new EvmInspectTool(s),
+	binary_diff: s => new BinaryDiffTool(s),
+	reverse_workflow: s => new ReverseWorkflowTool(s),
+	reverse_runtime_session: s => new ReverseRuntimeSessionTool(s),
+	reverse_knowledge: s => new ReverseKnowledgeTool(s),
+	reverse_workspace: s => new ReverseWorkspaceTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),
