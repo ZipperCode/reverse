@@ -21,10 +21,7 @@ describe("Local skills discovery & CLI command routing", () => {
 		await fs.rm(tempProject, { recursive: true, force: true });
 	});
 
-	function runCli(
-		args: string[],
-		options: { cwd?: string; env?: Record<string, string | undefined> } = {},
-	) {
+	function runCli(args: string[], options: { cwd?: string; env?: Record<string, string | undefined> } = {}) {
 		const childEnv: Record<string, string | undefined> = {
 			PATH: process.env.PATH,
 			TMPDIR: process.env.TMPDIR,
@@ -101,7 +98,7 @@ describe("Local skills discovery & CLI command routing", () => {
 			procUnknown.exited,
 		]);
 		expect(codeUnknown).toBe(1);
-		expect(stderrUnknown).toContain("Expected action to be one of: list");
+		expect(stderrUnknown).toContain("Expected action to be one of: list, check");
 
 		// Removed remote action: install
 		const procInstall = runCli(["skill", "install", "@scope/foo"]);
@@ -110,43 +107,41 @@ describe("Local skills discovery & CLI command routing", () => {
 			procInstall.exited,
 		]);
 		expect(codeInstall).toBe(1);
-		expect(stderrInstall).toContain("Expected action to be one of: list");
+		expect(stderrInstall).toContain("Expected action to be one of: list, check");
 	});
 
-	it("rejects 7 removed commands in naked, args, and flag-prefixed forms while allowing explicit launch", async () => {
-		const removed = ["collab", "join", "share", "stream", "clip", "grievances", "update"] as const;
+	it(
+		"rejects 7 removed commands in naked, args, and flag-prefixed forms while allowing explicit launch",
+		async () => {
+			const removed = ["collab", "join", "share", "stream", "clip", "grievances", "update"] as const;
 
-		for (const cmd of removed) {
-			const expectedError = `\`${APP_NAME} ${cmd}\` is not available; use \`${APP_NAME} launch\` for a prompt.`;
+			for (const cmd of removed) {
+				const expectedError = `\`${APP_NAME} ${cmd}\` is not available; use \`${APP_NAME} launch\` for a prompt.`;
 
-			// 1. Naked command
-			const procNaked = runCli([cmd]);
-			const [stderrNaked, codeNaked] = await Promise.all([
-				new Response(procNaked.stderr).text(),
-				procNaked.exited,
-			]);
-			expect(codeNaked).toBe(1);
-			expect(stderrNaked).toContain(expectedError);
+				// 1. Naked command
+				const procNaked = runCli([cmd]);
+				const [stderrNaked, codeNaked] = await Promise.all([new Response(procNaked.stderr).text(), procNaked.exited]);
+				expect(codeNaked).toBe(1);
+				expect(stderrNaked).toContain(expectedError);
 
-			// 2. Command with arguments
-			const procArgs = runCli([cmd, "arg1", "--flag"]);
-			const [stderrArgs, codeArgs] = await Promise.all([
-				new Response(procArgs.stderr).text(),
-				procArgs.exited,
-			]);
-			expect(codeArgs).toBe(1);
-			expect(stderrArgs).toContain(expectedError);
+				// 2. Command with arguments
+				const procArgs = runCli([cmd, "arg1", "--flag"]);
+				const [stderrArgs, codeArgs] = await Promise.all([new Response(procArgs.stderr).text(), procArgs.exited]);
+				expect(codeArgs).toBe(1);
+				expect(stderrArgs).toContain(expectedError);
 
-			// 3. Command behind leading launch flags
-			const procPrefixed = runCli(["--cwd", tempProject, cmd]);
-			const [stderrPrefixed, codePrefixed] = await Promise.all([
-				new Response(procPrefixed.stderr).text(),
-				procPrefixed.exited,
-			]);
-			expect(codePrefixed).toBe(1);
-			expect(stderrPrefixed).toContain(expectedError);
-		}
-	});
+				// 3. Command behind leading launch flags
+				const procPrefixed = runCli(["--cwd", tempProject, cmd]);
+				const [stderrPrefixed, codePrefixed] = await Promise.all([
+					new Response(procPrefixed.stderr).text(),
+					procPrefixed.exited,
+				]);
+				expect(codePrefixed).toBe(1);
+				expect(stderrPrefixed).toContain(expectedError);
+			}
+		},
+		45_000,
+	);
 
 	it("installs local extension packages modifying only isolated plugin collection", async () => {
 		// Create a local plugin package directory

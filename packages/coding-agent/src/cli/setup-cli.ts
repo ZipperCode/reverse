@@ -18,20 +18,23 @@ import { downloadSttModel, isSttModelCached } from "../stt/downloader";
 import { isSttModelKey, STT_MODEL_OPTIONS } from "../stt/models";
 import { downloadTtsModel, isTtsLocalModelKey, isTtsModelCached, TTS_LOCAL_MODELS } from "../tts";
 import { selectSetupModel } from "@rva/tui/apps/setup-model-picker";
+import { handleReverseSetup } from "./setup-reverse";
 
 import { cfgPythonInterpreter } from "../eval/settings";
 
-export type SetupComponent = "python" | "speech";
+export type SetupComponent = "python" | "speech" | "reverse";
 
 export interface SetupCommandArgs {
 	component: SetupComponent;
+	tool?: string;
 	flags: {
 		json?: boolean;
 		check?: boolean;
+		execute?: boolean;
 	};
 }
 
-const VALID_COMPONENTS: SetupComponent[] = ["python", "speech"];
+const VALID_COMPONENTS: SetupComponent[] = ["python", "speech", "reverse"];
 
 const MANAGED_PYTHON_ENV = getPythonEnvDir();
 
@@ -58,21 +61,26 @@ export function parseSetupArgs(args: string[]): SetupCommandArgs | undefined {
 	}
 
 	const flags: SetupCommandArgs["flags"] = {};
+	let tool: string | undefined;
 	for (let i = 2; i < args.length; i++) {
 		const arg = args[i];
 		if (arg === "--json") {
 			flags.json = true;
 		} else if (arg === "--check" || arg === "-c") {
 			flags.check = true;
+		} else if (arg === "--execute" || arg === "-x") {
+			flags.execute = true;
+		} else if (!arg.startsWith("-") && tool === undefined) {
+			tool = arg;
 		}
 	}
 
 	return {
 		component: component as SetupComponent,
+		tool,
 		flags,
 	};
 }
-
 export interface PythonCheckResult {
 	available: boolean;
 	pythonPath?: string;
@@ -118,6 +126,11 @@ export async function runSetupCommand(cmd: SetupCommandArgs): Promise<void> {
 		case "speech":
 			await handleSpeechSetup(cmd.flags);
 			break;
+		case "reverse": {
+			const exitCode = await handleReverseSetup(cmd.flags, cmd.tool);
+			if (exitCode !== 0) process.exit(exitCode);
+			break;
+		}
 	}
 }
 
@@ -317,15 +330,18 @@ ${chalk.bold("Usage:")}
   ${APP_NAME} setup <component> [options]
 
 ${chalk.bold("Components:")}
+  reverse   Inspect and install reverse engineering tools (jadx, frida, radare2, etc.)
   python    Verify a Python 3 interpreter is reachable for code execution
   speech    Pick and download speech-to-text and text-to-speech models
 
 ${chalk.bold("Options:")}
-  -c, --check   Check if dependencies are installed without installing
-  --json        Output status as JSON
-
+  -c, --check    Check if dependencies are installed without installing
+  --json         Output status as JSON
+  -x, --execute  Execute verified installation commands after interactive confirmation (reverse only)
 ${chalk.bold("Examples:")}
   ${APP_NAME} setup                  Run the onboarding wizard
+  ${APP_NAME} setup reverse          Open reverse engineering tools setup panel
+  ${APP_NAME} setup reverse --check  Check reverse engineering tools dependencies
   ${APP_NAME} setup python           Check Python execution dependencies
   ${APP_NAME} setup speech           Pick and download the STT and TTS models
   ${APP_NAME} setup speech --check   Check if speech dependencies are available

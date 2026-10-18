@@ -10,7 +10,7 @@ export default class Skill extends Command {
 	static aliases = ["skills"];
 
 	static args = {
-		action: Args.string({ description: "Skill action (list)", required: false, options: SKILL_ACTIONS }),
+		action: Args.string({ description: "Skill action (list, check)", required: false, options: SKILL_ACTIONS }),
 		targets: Args.string({
 			description: "Directory to discover skills for (default: cwd)",
 			required: false,
@@ -19,10 +19,15 @@ export default class Skill extends Command {
 	};
 
 	static flags = {
-		json: Flags.boolean({ description: "Output JSON (list)" }),
+		json: Flags.boolean({ description: "Output JSON (list, check)" }),
 	};
 
-	static examples = ["rva skill list", "rva skill list ./my-project --json"];
+	static examples = [
+		"rva skill list",
+		"rva skill list ./my-project --json",
+		"rva skill check",
+		"rva skill check ./my-project --json",
+	];
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Skill);
@@ -30,11 +35,11 @@ export default class Skill extends Command {
 			process.stdout.write(SKILL_USAGE);
 			return;
 		}
-		if (args.action !== "list") {
+		if (!SKILL_ACTIONS.includes(args.action as SkillAction)) {
 			throw new CliUsageError(`unknown skill action "${args.action}"\n\n${SKILL_USAGE}`);
 		}
 		const exitCode = await runSkillCommand({
-			action: "list",
+			action: args.action as SkillAction,
 			args: args.targets ?? [],
 			cwd: process.cwd(),
 			flags: {

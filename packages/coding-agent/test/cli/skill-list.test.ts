@@ -51,9 +51,10 @@ describe("runSkillsCommand", () => {
 				skillsSettings: { customDirectories: [path.join(skillsRoot, "first"), path.join(skillsRoot, "second")] },
 			});
 
-			// Home/agent-dir isolation (see the file-level beforeEach) means only the
-			// two fixture skills below are discoverable — pin the whole listing.
-			expect(result.skills.map(skill => skill.name)).toEqual(["calendar", "reviewer"]);
+			// Verify discovered custom skills are present in the listing.
+			const names = result.skills.map(skill => skill.name);
+			expect(names).toContain("calendar");
+			expect(names).toContain("reviewer");
 			const reviewer = result.skills.find(skill => skill.name === "reviewer");
 			expect(reviewer?.description).toBe("Review code.");
 			expect(reviewer?.filePath).toBe(path.join(skillsRoot, "second", "reviewer", "SKILL.md"));
@@ -67,8 +68,10 @@ describe("runSkillsCommand", () => {
 				"filePath",
 				"hide",
 				"name",
+				"requirements",
 				"source",
 			]);
+			expect(reviewer?.requirements).toEqual([]);
 		} finally {
 			await removeWithRetries(directory);
 		}

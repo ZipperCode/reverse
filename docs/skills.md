@@ -100,8 +100,9 @@ Current registered skill providers:
 7. `opencode` (priority 55)
 8. `github` (priority 30) — `.github/skills/<name>/SKILL.md` (GitHub Agent Skills layout, project-only)
 9. `omp-managed` (priority 5) — auto-learn skills under `~/.omp/agent/managed-skills`, registered in `src/discovery/builtin.ts` and discovered unconditionally (only writing/nudging is gated by `autolearn.enabled`); always defers to a same-named authored skill
+10. `builtin-skills` (priority 1) — the six reverse skills (`reverse-lab`, `reverse-tool-guide`, `android-reverse`, `windows-reverse`, `web-protocol-reverse`, `native-binary-reverse`) shipped inside the package under `src/discovery/builtin-skills/`. Files are imported with `{ type: "file" }`, so they exist in npm/source installs and are embedded in the compiled binary. The repository-root `.agents/skills/` copies stay for project discovery; a test enforces byte equality and identical copies deduplicate at collision resolution.
 
-Capability dedup key is skill name; the first item with a given name wins in the deduped `items` view. `loadSkills()` resolves same-name collisions itself (see "Collision and duplicate handling").
+Capability dedup key is skill name; the first item with a given name wins in the deduped `items` view. `loadSkills()` resolves same-name collisions itself (see "Collision and duplicate handling"). An authored project/user skill outranks `builtin-skills`, so bundling does not shadow local overrides.
 
 ### Source toggles and filtering
 
@@ -223,6 +224,76 @@ MCP-advertised skills:
 - Actions that need a local file (`%load`, plan-mode write checks, the `:img` selector) report `Unknown skill` without contacting MCP.
 - MCP-served text keeps `read`'s normal result limits; only local skill files read whole.
 - `omp read` starts MCP servers only when a read reaches an MCP resource, so reading a local skill never spawns them.
+
+## Declaring external tool dependencies
+
+Skills can declare the external tools they expect on the machine running `rea`:
+
+```yaml
+---
+name: android-reverse
+description: Android APK and native library analysis.
+metadata:
+  requires: jadx
+  requiresOptional: apktool, adb, frida
+---
+```
+
+- `metadata.requires` lists tools the skill needs; `metadata.requiresOptional` lists tools it can use when present.
+- Values are comma/whitespace-separated strings (or a string list in rea-local skills). Ids are lowercase.
+- `metadata` is the portable location because the Agent Skills schema is closed for plugin skills. Top-level `requires` / `requiresOptional` are accepted only for skills outside that schema.
+
+Dependency checking is read-only and local:
+
+- Tools are resolved through `$PATH` plus catalog-owned directories (Android SDK, Homebrew, Python user scripts, IDA install locations, etc.).
+- The built-in catalog in `packages/coding-agent/src/extensibility/skill-tool-catalog.ts` owns all install hints. A declared id that is not in the catalog is still probed as a command name, but it never produces an install hint.
+- Nothing is installed, downloaded, or executed automatically. Missing tools only produce an advisory notice.
+- A present tool is silent; a missing optional tool is silent as well.
+
+The notice appears when the skill's instruction file is loaded:
+
+- `read skill://<name>` and `read skill://<name>/SKILL.md`
+- `/skill:<name>`
+- autoloaded subagent skills (`autoloadSkills`)
+
+It is prepended to the instruction text only when a required tool is missing. Subpath reads such as `skill://<name>/references/notes.md` are returned unchanged, as are `:raw` reads.
+
+Use the CLI to inspect dependencies for a directory:
+
+```sh
+rva skill check
+rva skill check ./my-project --json
+```
+
+The command exits non-zero only when a required tool is missing; missing optional tools never fail it. JSON output includes each requirement's `id`, `optional`, `foundPath`, and `hint`.
+
+Skills are still discovered and loaded when a required tool is absent: the dependency notice is guidance, not a gate. Skills should describe a fallback path for optional tools and treat `requires` as "install this before relying on the primary workflow". Unknown tool ids are treated as unsupported by the catalog: they can be probed but have no trusted installation guidance.
+
+## MCP helper services
+
+Optional MCP servers live in a separate trusted catalog, `packages/coding-agent/src/extensibility/mcp-service-catalog.ts`, because they are not PATH binaries. Each entry owns:
+
+- prerequisite catalog ids (`requires`), which are checked with the same read-only resolver as skill dependencies;
+- trusted install methods (package manager argv or manual-only instructions);
+- a server config template, server name, transport, and start command;
+- the configuration path (`.rva/mcp.json` for a project, `~/.rva/agent/mcp.json` for the user);
+- a structured usage guide (canonical operation, when to use, output limits, fallback, examples).
+
+`rva setup reverse --json` reports them under `services`, separate from `tools`, with three independent states:
+
+- `prerequisitesReady` (and the backward-compatible alias `ready`) — the prerequisite CLI tools were found; never means configured or connected.
+- `configured` / `configuredScopes` / `enabled` — a read-only probe for an `mcpServers[serverName]` entry in the resolved project and user config files. `enabled` is `null` when unconfigured and reflects `enabled`/`disabledServers`/`enabledServers` when configured.
+- `connection` — always `"unknown"`; inspection never starts a server or performs an MCP handshake.
+
+`configPaths.project` and `configPaths.user` are resolved with `getMCPConfigPath` from the running installation (not the catalog's display hint). A service is never reported with a `foundPath`, and inspection never writes `mcp.json`. `rva setup reverse <service-id>` prints the resolved paths, configured scopes, start command, config snippet, prerequisites, risk notes, and manual fallback. Automated installs remain limited to catalog argv and require explicit confirmation in the interactive panel.
+
+The `reverse-tool-guide` skill exposes the same guidance on demand:
+
+- `skill://reverse-tool-guide/references/cli-tools.md` — canonical CLI commands and fallback tiers.
+- `skill://reverse-tool-guide/references/mcp-services.md` — MCP prerequisites, snippets, and canonical operations.
+
+Skills and MCP servers cannot inject installation argv: only the trusted catalog can supply a command, and non-interactive `--check` / `--json` modes never execute one.
+
 
 ## Skills vs AGENTS.md, commands, tools, hooks
 

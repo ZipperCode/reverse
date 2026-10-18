@@ -2,7 +2,16 @@ import { clearSubmittedText, restoreDetachedDraft } from "./helpers/draft";
 import * as path from "node:path";
 import { AgentBusyError } from "@rva/agent";
 import { formatKeyHint } from "@rva/tui/app-keybindings";
-import { prompt } from "@rva/utils";
+import { APP_NAME, prompt } from "@rva/utils";
+import { Markdown } from "@rva/tui";
+import { getMarkdownTheme } from "@rva/tui/theme";
+import {
+	checkReverseTools,
+	type ReverseCheckReport,
+	type ReverseServiceStatus,
+	type ReverseToolStatus,
+} from "../cli/setup-reverse";
+import { getEffectiveLocale } from "../config/persisted-locale";
 import {
 	formatModelString,
 	getModelMatchPreferences,
@@ -272,6 +281,661 @@ function shortDetail(value: string, limit = AUTOCOMPLETE_DETAIL_LIMIT): string {
 export function formatTokenCount(value: number): string {
 	return value.toLocaleString();
 }
+function formatCompactReverseReport(report: ReverseCheckReport, targetTool?: string, isZh = false): string {
+	const lines: string[] = [];
+	const installedCount = report.tools.filter(t => t.status === "installed").length;
+	const missingCount = report.tools.filter(t => t.status === "missing").length;
+
+	if (targetTool) {
+		const match = report.tools.find(
+			t =>
+				t.id.toLowerCase() === targetTool.toLowerCase() ||
+				t.name.toLowerCase() === targetTool.toLowerCase() ||
+				t.name.toLowerCase().includes(targetTool.toLowerCase()),
+		);
+		if (match) {
+			const isOk = match.status === "installed";
+			lines.push(`# ${match.name} (\`${match.id}\`)`);
+			lines.push("");
+			lines.push(
+				`- **${isZh ? "状态" : "Status"}**: ${
+					isOk
+						? isZh
+							? `✅ 已安装 (${match.foundPath ? `\`${match.foundPath}\`` : "已就绪"})`
+							: `✅ Installed (${match.foundPath ? `\`${match.foundPath}\`` : "ready"})`
+						: isZh
+							? "❌ 未安装"
+							: "❌ Missing"
+				}`,
+			);
+			lines.push(`- **${isZh ? "分类" : "Category"}**: ${match.category}`);
+			lines.push(
+				`- **${isZh ? "类型" : "Type"}**: ${
+					match.optional ? (isZh ? "可选逆向工具" : "optional") : isZh ? "核心系统基础工具（必需）" : "required"
+				}`,
+			);
+			if (match.installCommand) {
+				lines.push("");
+				lines.push(`### ${isZh ? "推荐安装命令" : "Recommended Install Command"}`);
+				lines.push("```bash");
+				lines.push(match.installCommand);
+				lines.push("```");
+			}
+			if (match.secondaryMissing && match.secondaryMissing.length > 0) {
+				lines.push("");
+				lines.push(
+					`> ⚠️ ${isZh ? `缺少前置依赖: ${match.secondaryMissing.join(", ")}` : `Missing prerequisite: ${match.secondaryMissing.join(", ")}`}`,
+				);
+			}
+			if (match.manualUrl) {
+				lines.push("");
+				lines.push(`- **${isZh ? "官方链接" : "URL"}**: ${match.manualUrl}`);
+			}
+			if (match.manualInstructions) {
+				lines.push(`- **${isZh ? "安装说明" : "Guide"}**: ${match.manualInstructions}`);
+			}
+			lines.push("");
+			lines.push("---");
+			lines.push(
+				isZh
+					? `*提示：在终端中运行 \`${APP_NAME} setup reverse --execute\` 可交互式确认并执行安装。*`
+					: `*Tip: Run \`${APP_NAME} setup reverse --execute\` in terminal to install with interactive confirmation.*`,
+			);
+			return lines.join("\n");
+		}
+
+		const serviceMatch = report.services.find(
+			service =>
+				service.id.toLowerCase() === targetTool.toLowerCase() ||
+				service.serverName.toLowerCase() === targetTool.toLowerCase() ||
+				service.name.toLowerCase().includes(targetTool.toLowerCase()),
+		);
+		if (serviceMatch) {
+			lines.push(`# ${serviceMatch.name} (\`${serviceMatch.id}\`) — MCP`);
+			lines.push("");
+			lines.push(
+				`- **${isZh ? "状态" : "Status"}**: ${
+					serviceMatch.ready
+						? isZh
+							? "✅ 前置依赖已就绪"
+							: "✅ Prerequisites ready"
+						: isZh
+							? `⚠️ 缺少前置依赖：${serviceMatch.missingPrerequisites.join(", ")}`
+							: `⚠️ Missing prerequisites: ${serviceMatch.missingPrerequisites.join(", ")}`
+				}`,
+			);
+			lines.push(`- **${isZh ? "分类" : "Category"}**: ${serviceMatch.category}`);
+			lines.push(`- **${isZh ? "许可证" : "License"}**: ${serviceMatch.license}`);
+			lines.push(`- **${isZh ? "启动命令" : "Start command"}**: \`${serviceMatch.startCommand}\``);
+			lines.push(`- **${isZh ? "配置路径" : "Config path"}**: ${serviceMatch.configPath}`);
+			if (serviceMatch.installCommand) {
+				lines.push("");
+				lines.push(`### ${isZh ? "推荐安装命令" : "Recommended Install Command"}`);
+				lines.push("```bash");
+				lines.push(serviceMatch.installCommand);
+				lines.push("```");
+			}
+			lines.push("");
+			lines.push(`### ${isZh ? "MCP 配置片段" : "MCP Config Snippet"}`);
+			lines.push("```json");
+			lines.push(JSON.stringify(serviceMatch.configSnippet, null, 2));
+			lines.push("```");
+			lines.push("");
+			lines.push(`### ${isZh ? "规范用法" : "Canonical Usage"}`);
+			lines.push(`- **${isZh ? "入口" : "Canonical"}**: \`${serviceMatch.usage.canonical}\``);
+			lines.push(`- **${isZh ? "何时使用" : "When to use"}**: ${serviceMatch.usage.whenToUse}`);
+			lines.push(`- **${isZh ? "输出限制" : "Output limits"}**: ${serviceMatch.usage.outputLimits ?? "—"}`);
+			lines.push(`- **${isZh ? "回退方案" : "Fallback"}**: ${serviceMatch.usage.fallback ?? "—"}`);
+			lines.push("");
+			lines.push(`- **${isZh ? "官方链接" : "URL"}**: ${serviceMatch.manualUrl}`);
+			lines.push(`- **${isZh ? "安装说明" : "Guide"}**: ${serviceMatch.manualInstructions}`);
+			lines.push("");
+			lines.push("---");
+			lines.push(
+				isZh
+					? `*提示：MCP 服务不是 PATH 二进制。安装后需将配置片段写入 ${serviceMatch.configPath}，再重启客户端。*`
+					: `*Tip: MCP services are not PATH binaries. After install, merge the snippet into ${serviceMatch.configPath} and restart the client.*`,
+			);
+			return lines.join("\n");
+		}
+		lines.push(
+			isZh
+				? `> ⚠️ 未在工具或 MCP 服务目录中找到 "${targetTool}"。以下为全部状态列表：\n`
+				: `> ⚠️ Tool/service "${targetTool}" not found in catalog. Listing all entries:\n`,
+		);
+	}
+
+	lines.push(isZh ? "# 逆向工程工具链状态" : "# Reverse Engineering Toolchain");
+	lines.push("");
+	const pmStr =
+		report.detectedPackageManagers.length > 0
+			? report.detectedPackageManagers.join(", ")
+			: isZh
+				? "无（仅手动安装）"
+				: "none";
+	lines.push(
+		isZh
+			? `**平台**: \`${report.platform}\` | **包管理器**: ${pmStr}`
+			: `**Platform**: \`${report.platform}\` | **Package Managers**: ${pmStr}`,
+	);
+	lines.push(
+		isZh
+			? `**状态概览**: 已安装 ${installedCount}/${report.tools.length} 项（缺少 ${missingCount} 项）`
+			: `**Status**: ${installedCount}/${report.tools.length} installed (${missingCount} missing)`,
+	);
+	lines.push("");
+	lines.push(
+		isZh
+			? "| 状态 | 工具 | 分类 | 类型 | 路径 / 安装方法 |"
+			: "| Status | Tool | Category | Type | Path / Install Command |",
+	);
+	lines.push("|:---:|:---|:---|:---|:---|");
+	for (const tool of report.tools) {
+		const isOk = tool.status === "installed";
+		const badge = isOk ? "✅" : tool.optional ? "⚠️" : "❌";
+		const detail = isOk
+			? `\`${tool.foundPath ?? "installed"}\``
+			: tool.installCommand
+				? `\`${tool.installCommand}\``
+				: tool.manualUrl || (isZh ? "手动安装" : "manual");
+		const typeStr = tool.optional ? (isZh ? "可选" : "optional") : isZh ? "必需" : "required";
+		lines.push(`| ${badge} | \`${tool.id}\` | ${tool.category} | ${typeStr} | ${detail} |`);
+	}
+	lines.push("");
+	if (report.services.length > 0) {
+		lines.push(isZh ? "### 可选 MCP 辅助服务" : "### Optional MCP Helper Services");
+		lines.push(
+			isZh
+				? "> MCP 服务不是 PATH 二进制；下表只检查前置 CLI 依赖和配置文件条目，不会启动服务或验证连接。"
+				: "> MCP services are not PATH binaries; the table only checks prerequisite CLI tools and config entries. It never starts a server or verifies a connection.",
+		);
+		lines.push("");
+		lines.push(
+			isZh
+				? "| 状态 | 服务 | 分类 | 传输 | 前置依赖 / 安装 |"
+				: "| Status | Service | Category | Transport | Prerequisites / Install |",
+		);
+		lines.push("|:---:|:---|:---|:---|:---|");
+		for (const service of report.services) {
+			const badge = service.ready ? "✅" : "⚠️";
+			const config = service.configured
+				? isZh
+					? `配置: ${service.configuredScopes.join(", ")}`
+					: `configured: ${service.configuredScopes.join(", ")}`
+				: isZh
+					? "未配置"
+					: "not configured";
+			const prerequisites = service.prerequisites.map(p => `\`${p.id}\``).join(", ") || "none";
+			const detail = service.ready
+				? `${prerequisites}; ${config}`
+				: service.installCommand
+					? `\`${service.installCommand}\`; ${config}`
+					: `${service.manualUrl}; ${config}`;
+			lines.push(`| ${badge} | \`${service.id}\` | ${service.category} | ${service.transport} | ${detail} |`);
+		}
+		lines.push("");
+		lines.push(
+			isZh
+				? `> 配置路径（实际解析）：项目 \`${report.services[0].configPaths.project}\`，用户 \`${report.services[0].configPaths.user}\`。连接状态未知，需重启客户端后自行验证。`
+				: `> Resolved config paths: project \`${report.services[0].configPaths.project}\`, user \`${report.services[0].configPaths.user}\`. Connection is unverified; restart the client and check it yourself.`,
+		);
+		lines.push("");
+	}
+	const missingCmds = report.tools.filter(t => t.status === "missing" && t.installCommand);
+	if (missingCmds.length > 0) {
+		lines.push(isZh ? "### 待安装工具推荐命令" : "### Missing Tools Commands");
+		lines.push("```bash");
+		for (const t of missingCmds) {
+			lines.push(t.installCommand!);
+		}
+		lines.push("```");
+		lines.push("");
+	}
+	lines.push(
+		isZh
+			? `> 提示：在终端中运行 \`${APP_NAME} setup reverse --execute\` 可交互式确认并安装工具。运行 \`/setup reverse <工具名>\` 查看具体工具说明。`
+			: `> Tip: Run \`${APP_NAME} setup reverse --execute\` in terminal to install with interactive confirmation. Run \`/setup reverse <tool>\` to view a specific tool.`,
+	);
+	return lines.join("\n");
+}
+
+export type ReverseInstallCallback = (
+	item: ReverseToolStatus | ReverseServiceStatus,
+) => Promise<{ success: boolean; message?: string } | void>;
+
+function getInstallCallback(source: unknown): ReverseInstallCallback | undefined {
+	if (
+		source &&
+		typeof source === "object" &&
+		"installReverseItem" in source &&
+		typeof source.installReverseItem === "function"
+	) {
+		return source.installReverseItem as ReverseInstallCallback;
+	}
+	return undefined;
+}
+
+export async function runInteractiveReverseSetup(
+	ctx: InteractiveModeContext,
+	targetTool?: string,
+	installCallback?: (
+		item: ReverseToolStatus | ReverseServiceStatus,
+	) => Promise<{ success: boolean; message?: string } | void>,
+	options?: { isTTY?: boolean },
+): Promise<void> {
+	const isZh = getEffectiveLocale() === "zh-CN";
+
+	const isInteractive = Boolean(
+		(options?.isTTY ?? ctx.isTTY ?? process.stdin.isTTY) && typeof ctx.showHookSelector === "function",
+	);
+
+	if (!isInteractive) {
+		const report = checkReverseTools();
+		const title = isZh
+			? targetTool
+				? `逆向工具 — ${targetTool}`
+				: "逆向工程工具链状态"
+			: targetTool
+				? `Reverse Tool — ${targetTool}`
+				: "Reverse Engineering Toolchain";
+		const markdown = formatCompactReverseReport(report, targetTool, isZh);
+		ctx.showCommandReport({
+			title,
+			body: new Markdown(markdown.trim(), 0, 0, getMarkdownTheme()),
+		});
+		return;
+	}
+
+	let report = checkReverseTools();
+	let currentFilter: "all" | "missing" | "services" = "all";
+
+	if (targetTool) {
+		const norm = targetTool.toLowerCase();
+		const toolMatch = report.tools.find(t => t.id.toLowerCase() === norm || t.name.toLowerCase().includes(norm));
+		const serviceMatch = toolMatch
+			? undefined
+			: report.services.find(
+					s =>
+						s.id.toLowerCase() === norm ||
+						s.serverName.toLowerCase() === norm ||
+						s.name.toLowerCase().includes(norm),
+				);
+		const targetItem = toolMatch ?? serviceMatch;
+		if (targetItem) {
+			await showItemDetails(
+				ctx,
+				targetItem,
+				() => {
+					report = checkReverseTools();
+					return report;
+				},
+				installCallback,
+				isZh,
+			);
+			return;
+		}
+		ctx.showWarning?.(
+			isZh ? `未在目录中找到工具或服务: "${targetTool}"` : `Tool/service "${targetTool}" not found in catalog.`,
+		);
+	}
+
+	while (true) {
+		report = checkReverseTools();
+		const missingTools = report.tools.filter(t => t.status === "missing");
+		const missingServices = report.services.filter(s => !s.ready);
+		const totalMissing = missingTools.length + missingServices.length;
+
+		const filterLabelAll =
+			currentFilter === "all"
+				? isZh
+					? `● 全部 (${report.tools.length + report.services.length})`
+					: `● All (${report.tools.length + report.services.length})`
+				: isZh
+					? `○ 切换筛选：全部 (${report.tools.length + report.services.length})`
+					: `○ Filter: All (${report.tools.length + report.services.length})`;
+		const filterLabelMissing =
+			currentFilter === "missing"
+				? isZh
+					? `● 仅缺失 (${totalMissing})`
+					: `● Missing only (${totalMissing})`
+				: isZh
+					? `○ 切换筛选：仅缺失 (${totalMissing})`
+					: `○ Filter: Missing only (${totalMissing})`;
+		const filterLabelServices =
+			currentFilter === "services"
+				? isZh
+					? `● 仅辅助服务 (${report.services.length})`
+					: `● MCP services only (${report.services.length})`
+				: isZh
+					? `○ 切换筛选：仅辅助服务 (${report.services.length})`
+					: `○ Filter: MCP services only (${report.services.length})`;
+
+		const items: Array<{ label: string; description?: string }> = [
+			{
+				label: filterLabelAll,
+				description: isZh ? "显示所有 CLI 工具与 MCP 辅助服务" : "Show all CLI tools and MCP services",
+			},
+			{
+				label: filterLabelMissing,
+				description: isZh
+					? "仅显示未安装的 CLI 工具或缺少依赖的 MCP 服务"
+					: "Show only missing tools or unready services",
+			},
+			{
+				label: filterLabelServices,
+				description: isZh ? "仅显示 MCP 辅助服务" : "Show only MCP services",
+			},
+		];
+
+		const visibleTools =
+			currentFilter === "services" ? [] : currentFilter === "missing" ? missingTools : report.tools;
+
+		const visibleServices = currentFilter === "missing" ? missingServices : report.services;
+
+		for (const tool of visibleTools) {
+			const isOk = tool.status === "installed";
+			const badge = isOk ? "✅" : "❌";
+			items.push({
+				label: `${badge} [CLI] ${tool.name} (${tool.id})`,
+				description: `[${tool.category}] ${
+					isOk
+						? isZh
+							? `已安装 (${tool.foundPath ?? "已就绪"})`
+							: `Installed (${tool.foundPath ?? "ready"})`
+						: tool.installCommand
+							? `安装: ${tool.installCommand}`
+							: isZh
+								? "需手动下载安装"
+								: "Manual install required"
+				}`,
+			});
+		}
+
+		if (currentFilter !== "all" || visibleServices.length > 0) {
+			for (const service of visibleServices) {
+				const badge = service.ready ? "✅" : "⚠️";
+				const configState = service.configured
+					? isZh
+						? `已配置(${service.configuredScopes.join(", ")})`
+						: `configured (${service.configuredScopes.join(", ")})`
+					: isZh
+						? "未配置"
+						: "not configured";
+				const connectionState = isZh ? "连接未验证" : "connection unverified";
+				items.push({
+					label: `${badge} [MCP] ${service.name} (${service.id})`,
+					description: `[${service.category}] ${
+						service.ready
+							? isZh
+								? "前置依赖已就绪"
+								: "Prerequisites ready"
+							: isZh
+								? `缺少依赖: ${service.missingPrerequisites.join(", ")}`
+								: `Missing: ${service.missingPrerequisites.join(", ")}`
+					} • ${configState} • ${connectionState} • ${service.startCommand}`,
+				});
+			}
+		}
+
+		items.push({
+			label: isZh ? "← 退出面板" : "← Exit",
+			description: isZh ? "关闭逆向工程工具链面板" : "Close reverse engineering setup panel",
+		});
+
+		const title = isZh ? "逆向工程工具链" : "Reverse Engineering Toolchain";
+		const selected = await ctx.showHookSelector(title, items);
+		if (!selected || selected.includes("← Exit") || selected.includes("← 退出")) {
+			break;
+		}
+
+		if (selected === filterLabelAll) {
+			currentFilter = "all";
+			continue;
+		}
+		if (selected === filterLabelMissing) {
+			currentFilter = "missing";
+			continue;
+		}
+		if (selected === filterLabelServices) {
+			currentFilter = "services";
+			continue;
+		}
+
+		const match = /\(([^)]+)\)$/.exec(selected.trim());
+		const chosenId = match ? match[1] : undefined;
+		if (!chosenId) continue;
+
+		const chosenTool = report.tools.find(t => t.id === chosenId);
+		const chosenService = chosenTool ? undefined : report.services.find(s => s.id === chosenId);
+		const item = chosenTool ?? chosenService;
+		if (!item) continue;
+
+		await showItemDetails(
+			ctx,
+			item,
+			() => {
+				report = checkReverseTools();
+				return report;
+			},
+			installCallback,
+			isZh,
+		);
+	}
+}
+
+async function showItemDetails(
+	ctx: InteractiveModeContext,
+	initialItem: ReverseToolStatus | ReverseServiceStatus,
+	refreshReport: () => ReverseCheckReport,
+	installCallback:
+		| ((item: ReverseToolStatus | ReverseServiceStatus) => Promise<{ success: boolean; message?: string } | void>)
+		| undefined,
+	isZh: boolean,
+): Promise<void> {
+	let currentItem = initialItem;
+
+	while (true) {
+		const isInstalled = currentItem.kind === "cli" ? currentItem.status === "installed" : currentItem.ready;
+		const options: Array<{ label: string; description?: string }> = [];
+
+		if (currentItem.kind === "cli") {
+			if (currentItem.installCommand) {
+				options.push({
+					label: isInstalled
+						? isZh
+							? `重新安装: ${currentItem.installCommand}`
+							: `Reinstall: ${currentItem.installCommand}`
+						: isZh
+							? `安装: ${currentItem.installCommand}`
+							: `Install: ${currentItem.installCommand}`,
+					description: currentItem.packageManager
+						? `[${currentItem.packageManager}] ${currentItem.riskNote ?? ""}`
+						: (currentItem.riskNote ?? undefined),
+				});
+			}
+		} else {
+			if (currentItem.installCommand) {
+				options.push({
+					label: isZh
+						? `安装服务包: ${currentItem.installCommand}`
+						: `Install Server Package: ${currentItem.installCommand}`,
+					description: currentItem.packageManager
+						? `[${currentItem.packageManager}] ${currentItem.riskNote}`
+						: currentItem.riskNote,
+				});
+			}
+			options.push({
+				label: isZh ? "查看 MCP 配置片段" : "Show MCP Config Snippet",
+				description: isZh
+					? `项目路径: ${currentItem.configPaths.project}`
+					: `Project path: ${currentItem.configPaths.project}`,
+			});
+		}
+
+		options.push({
+			label: isZh ? "查看完整指南" : "View Full Guide",
+			description: isZh ? "在独立面板中查看详细指南与说明" : "Show full description, links, and instructions",
+		});
+
+		options.push({
+			label: isZh ? "← 返回列表" : "← Back to list",
+			description: isZh ? "返回逆向工具与服务列表" : "Return to tools and services list",
+		});
+
+		const title =
+			currentItem.kind === "cli"
+				? `${currentItem.name} (${currentItem.id}) — ${
+						isInstalled ? (isZh ? "已安装/就绪" : "Installed/Ready") : isZh ? "未安装/缺失" : "Missing"
+					}`
+				: `${currentItem.name} (${currentItem.id}) — ${
+						currentItem.prerequisitesReady
+							? isZh
+								? "前置依赖就绪"
+								: "Prerequisites ready"
+							: isZh
+								? "前置依赖缺失"
+								: "Prerequisites missing"
+					}${currentItem.configured ? (isZh ? " / 已配置" : " / configured") : isZh ? " / 未配置" : " / not configured"}`;
+
+		const action = await ctx.showHookSelector(title, options);
+		if (!action || action.includes("← Back") || action.includes("← 返回")) {
+			break;
+		}
+
+		if (action.includes("View Full Guide") || action.includes("查看完整指南")) {
+			const report = refreshReport();
+			const markdown = formatCompactReverseReport(report, currentItem.id, isZh);
+			ctx.showCommandReport({
+				title: currentItem.name,
+				body: new Markdown(markdown.trim(), 0, 0, getMarkdownTheme()),
+			});
+			continue;
+		}
+
+		if (action.includes("Show MCP Config Snippet") || action.includes("查看 MCP 配置片段")) {
+			if (currentItem.kind === "mcp") {
+				const service = currentItem;
+				const snippetLines = [
+					`# ${service.name} (\`${service.id}\`) — MCP`,
+					"",
+					`- **${isZh ? "项目配置路径" : "Project config path"}**: \`${service.configPaths.project}\``,
+					`- **${isZh ? "用户配置路径" : "User config path"}**: \`${service.configPaths.user}\``,
+					`- **${isZh ? "配置状态" : "Configured"}**: ${service.configured ? service.configuredScopes.join(", ") + (service.enabled === false ? (isZh ? "（已禁用）" : " (disabled)") : "") : isZh ? "否" : "no"}`,
+					`- **${isZh ? "连接状态" : "Connection"}**: ${isZh ? "未验证（只读检查不会启动服务）" : "unverified (read-only inspection never starts the server)"}`,
+					`- **${isZh ? "启动命令" : "Start command"}**: \`${service.startCommand}\``,
+					`- **${isZh ? "规范用法" : "Canonical usage"}**: \`${service.usage.canonical}\``,
+					"",
+					`### ${isZh ? "MCP 配置片段" : "MCP Config Snippet"}`,
+					"```json",
+					JSON.stringify(service.configSnippet, null, 2),
+					"```",
+					"",
+					`> ${isZh ? "提示：MCP 服务不是 PATH 二进制；片段需手动合并到上述配置文件。检查过程不会写入 mcp.json，也不会验证连接。" : "Tip: MCP services are not PATH binaries; merge the snippet into one of the paths above manually. Inspection never writes mcp.json or verifies a connection."}`,
+				];
+				ctx.showCommandReport({
+					title: `${service.name} — MCP Config`,
+					body: new Markdown(snippetLines.join("\n"), 0, 0, getMarkdownTheme()),
+				});
+				ctx.showStatus?.(
+					isZh ? `已显示 ${service.name} 的 MCP 配置片段` : `Displayed MCP config snippet for ${service.name}`,
+				);
+			}
+			continue;
+		}
+
+		if (
+			action.startsWith("Install") ||
+			action.startsWith("安装") ||
+			action.startsWith("Reinstall") ||
+			action.startsWith("重新安装") ||
+			action.includes("安装服务包")
+		) {
+			const depsNote =
+				currentItem.kind === "cli"
+					? currentItem.secondaryMissing && currentItem.secondaryMissing.length > 0
+						? isZh
+							? `缺少依赖: ${currentItem.secondaryMissing.join(", ")}`
+							: `Missing prerequisite: ${currentItem.secondaryMissing.join(", ")}`
+						: isZh
+							? "前置依赖已满足"
+							: "Prerequisites satisfied"
+					: currentItem.missingPrerequisites.length > 0
+						? isZh
+							? `缺少依赖: ${currentItem.missingPrerequisites.join(", ")}`
+							: `Missing prerequisites: ${currentItem.missingPrerequisites.join(", ")}`
+						: isZh
+							? "前置依赖已满足"
+							: "Prerequisites satisfied";
+
+			const confirmTitle = isZh ? `确认执行安装: ${currentItem.name}` : `Confirm Installation: ${currentItem.name}`;
+
+			const confirmLines = [
+				`${isZh ? "目标" : "Target"}: ${currentItem.name} (${currentItem.id})`,
+				`${isZh ? "执行命令" : "Command"}: ${currentItem.installCommand}`,
+				`${isZh ? "包管理器" : "Package Manager"}: ${currentItem.packageManager ?? (isZh ? "无" : "none")}`,
+				`${isZh ? "依赖要求" : "Dependencies"}: ${depsNote}`,
+				`${isZh ? "风险提示" : "Risk / Notes"}: ${currentItem.riskNote ?? (isZh ? "无" : "none")}`,
+			];
+			if (currentItem.kind === "mcp") {
+				confirmLines.push(`${isZh ? "目标配置路径" : "Config Path"}: ${currentItem.configPath}`);
+			}
+			confirmLines.push("");
+			confirmLines.push(isZh ? "是否现在开始执行安装？" : "Do you want to run this installation command now?");
+
+			const confirmed =
+				typeof ctx.showHookConfirm === "function"
+					? await ctx.showHookConfirm(confirmTitle, confirmLines.join("\n"))
+					: true;
+
+			if (!confirmed) {
+				ctx.showStatus?.(
+					isZh ? `已取消 ${currentItem.name} 的安装。` : `Installation cancelled for ${currentItem.name}.`,
+				);
+				continue;
+			}
+
+			const callback =
+				installCallback ??
+				(typeof ctx.installReverseItem === "function" ? ctx.installReverseItem.bind(ctx) : getInstallCallback(ctx));
+			if (callback) {
+				const res = await callback(currentItem);
+				if (res && typeof res === "object" && "success" in res) {
+					if (res.success) {
+						ctx.showStatus?.(
+							res.message ??
+								(isZh ? `✅ ${currentItem.name} 安装成功。` : `✅ Successfully installed ${currentItem.name}.`),
+						);
+					} else {
+						ctx.showError?.(
+							res.message ??
+								(isZh
+									? `❌ ${currentItem.name} 安装失败。`
+									: `❌ Installation failed for ${currentItem.name}.`),
+						);
+					}
+				} else {
+					ctx.showStatus?.(
+						isZh
+							? `✅ ${currentItem.name} 安装命令已触发。`
+							: `✅ Installation triggered for ${currentItem.name}.`,
+					);
+				}
+				const refreshedReport = refreshReport();
+				const refreshedItem =
+					currentItem.kind === "cli"
+						? refreshedReport.tools.find(t => t.id === currentItem.id)
+						: refreshedReport.services.find(s => s.id === currentItem.id);
+				if (refreshedItem) currentItem = refreshedItem;
+			} else {
+				ctx.showWarning?.(
+					isZh
+						? `当前环境未配置安装执行器。请在终端中运行：\n${currentItem.installCommand}`
+						: `No installer executor available. Please run in terminal:\n${currentItem.installCommand}`,
+				);
+			}
+		}
+	}
+}
 
 export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
@@ -313,15 +977,26 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		subcommands: [
 			{ name: "providers", description: "Configure sign-in and web search providers" },
 			{ name: "add", description: "Add a custom OpenAI/Anthropic-compatible provider" },
+			{ name: "reverse", description: "Inspect reverse engineering toolchain status and install guides" },
 		],
 		handleTui: async (command, runtime) => {
-			const args = command.args.trim().toLowerCase();
-			if (args === "add" || args === "add-provider") {
+			const rawArgs = command.args.trim();
+			const [subcommand, ...rest] = rawArgs.split(/\s+/);
+			const sub = subcommand?.toLowerCase() ?? "";
+			if (sub === "add" || sub === "add-provider") {
 				await runtime.ctx.showCustomProviderWizard();
-			} else if (args === "" || args === "providers") {
+			} else if (sub === "reverse") {
+				const targetTool = rest.join(" ").trim() || undefined;
+				const installCallback =
+					getInstallCallback(runtime) ??
+					(typeof runtime.ctx.installReverseItem === "function"
+						? runtime.ctx.installReverseItem.bind(runtime.ctx)
+						: getInstallCallback(runtime.ctx));
+				await runInteractiveReverseSetup(runtime.ctx, targetTool, installCallback);
+			} else if (sub === "" || sub === "providers") {
 				await runtime.ctx.showProviderSetup();
 			} else {
-				runtime.ctx.showWarning(`Usage: /${command.name} [providers|add]`);
+				runtime.ctx.showWarning(`Usage: /${command.name} [providers|add|reverse]`);
 			}
 			clearSubmittedText(runtime);
 		},

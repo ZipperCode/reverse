@@ -42,6 +42,7 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "@rva/tui";
+import { executeSafeCatalogCommand, type ReverseServiceStatus, type ReverseToolStatus } from "../cli/setup-reverse";
 import type { TerminalAppearanceRequestToken } from "@rva/tui/terminal";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "@rva/tui/native/node";
 import { col, kbd, node, row, span, text } from "@rva/tui/native/describe";
@@ -294,9 +295,7 @@ import { OAuthManualInputManager } from "./oauth-manual-input";
 import { formatPersistenceNotice } from "./persistence-failure";
 import { resolveComposerHint } from "@rva/tui/prompt/composer-hints";
 import { hintUsage } from "../utils/usage-counter";
-import {
-	getRunningSubagentBadgeAgentIds,
-} from "@rva/tui/overlays/running-subagent-badge";
+import { getRunningSubagentBadgeAgentIds } from "@rva/tui/overlays/running-subagent-badge";
 import {
 	type ObservableSession,
 	type SessionObserverChangeKind,
@@ -2353,7 +2352,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		// tree before session_start hooks/reconciliation continue; renderNow keeps
 		// TUI's multiplexer, output-backlog, and image safety gates.
 		this.ui.renderNow();
-
 
 		// Prewarm the local tiny-title worker off the submit hot path: spawn it
 		// now, idle and unref'd, so the first submit reuses a live subprocess
@@ -7705,7 +7703,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.setWorkingMessage(message);
 	}
 
-
 	clearEditor(): void {
 		this.#uiHelpers.clearEditor();
 	}
@@ -7846,7 +7843,6 @@ export class InteractiveMode implements InteractiveModeContext {
 	handleDebugTranscriptCommand(): Promise<void> {
 		return this.#commandController.handleDebugTranscriptCommand();
 	}
-
 
 	handleTodoCommand(args: string): Promise<void> {
 		return this.#todoCommandController.handleTodoCommand(args);
@@ -8255,6 +8251,21 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	showHookConfirm(title: string, message: string, dialogOptions?: InteractiveSelectorDialogOptions): Promise<boolean> {
 		return this.#extensionUiController.showHookConfirm(title, message, dialogOptions);
+	}
+	async installReverseItem(
+		item: ReverseToolStatus | ReverseServiceStatus,
+	): Promise<{ success: boolean; message?: string }> {
+		const result = await executeSafeCatalogCommand(item);
+		if (result.exitCode === 0) {
+			return { success: true };
+		}
+		return {
+			success: false,
+			message: result.stderr || `Command failed with exit code ${result.exitCode}`,
+		};
+	}
+	get isTTY(): boolean {
+		return Boolean(process.stdin.isTTY && process.stdout.isTTY);
 	}
 
 	// Input handling

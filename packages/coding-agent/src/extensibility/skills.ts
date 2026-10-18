@@ -10,6 +10,12 @@ import { skillCapability } from "../capability/skill";
 import type { EffectiveExtensionRoots, SourceMeta } from "../capability/types";
 import type { SkillsSettings } from "./settings";
 import {
+	checkToolRequirements,
+	missingRequirementNotice,
+	readSkillRequirements,
+	type ToolRequirement,
+} from "./skill-requirements";
+import {
 	type Skill as CapabilitySkill,
 	isUserSourceEnabled,
 	loadCapability,
@@ -45,6 +51,12 @@ export interface Skill {
 	 * every `skill://` resource access must realpath-resolve within it.
 	 */
 	containRoot?: string;
+	/**
+	 * External tools the skill expects on this machine, from frontmatter
+	 * `metadata.requires` / `metadata.requiresOptional`. Checked lazily when the
+	 * skill is read; never used to install anything.
+	 */
+	requirements?: readonly ToolRequirement[];
 	/** Source metadata for display */
 	_source?: SourceMeta;
 }
@@ -263,6 +275,7 @@ export async function loadSkillsFromDir(options: LoadSkillsFromDirOptions): Prom
 			source: options.source,
 			...(capSkill.containRoot !== undefined && { containRoot: capSkill.containRoot }),
 			hide: capSkill.frontmatter?.hide === true || capSkill.frontmatter?.disableModelInvocation === true,
+			requirements: readSkillRequirements(capSkill.frontmatter),
 			_source: capSkill._source,
 		})),
 		warnings: (result.warnings ?? []).map(message => ({ skillPath: options.dir, message })),
@@ -461,6 +474,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 			source: `${capSkill._source.provider}:${capSkill.level}`,
 			...(capSkill.containRoot !== undefined && { containRoot: capSkill.containRoot }),
 			hide: capSkill.frontmatter?.hide === true || capSkill.frontmatter?.disableModelInvocation === true,
+			requirements: readSkillRequirements(capSkill.frontmatter),
 			_source: capSkill._source,
 		};
 		if (admit(skill, capSkill.content, capSkill.frontmatter, skillNamespace(capSkill)) !== undefined)
@@ -504,6 +518,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 					source: "custom:user",
 					...(capSkill.containRoot !== undefined && { containRoot: capSkill.containRoot }),
 					hide: capSkill.frontmatter?.hide === true || capSkill.frontmatter?.disableModelInvocation === true,
+					requirements: readSkillRequirements(capSkill.frontmatter),
 					_source: { ...capSkill._source, providerName: "Custom" },
 				},
 				path: capSkill.path,
@@ -587,6 +602,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 			source: `${capSkill._source.provider}:${capSkill.level}`,
 			...(capSkill.containRoot !== undefined && { containRoot: capSkill.containRoot }),
 			hide: capSkill.frontmatter?.hide === true || capSkill.frontmatter?.disableModelInvocation === true,
+			requirements: readSkillRequirements(capSkill.frontmatter),
 			_source: capSkill._source,
 		});
 		realPathSet.add(resolvedPath);
@@ -669,7 +685,7 @@ export type SkillInvocationKind = "user" | "autoload";
 export type SkillPromptInput = Pick<ParsedSkillInvocation, "args"> & Partial<Pick<ParsedSkillInvocation, "prompt">>;
 
 export async function buildSkillPromptMessage(
-	skill: Pick<Skill, "name" | "filePath" | "baseDir">,
+	skill: Pick<Skill, "name" | "filePath" | "baseDir" | "requirements">,
 	input: SkillPromptInput,
 	invocation: SkillInvocationKind = "user",
 ): Promise<BuiltSkillPromptMessage> {
@@ -701,6 +717,11 @@ export async function buildSkillPromptMessage(
 			})
 			.trim();
 	}
+	// Missing required tools are advisory context, prepended once for both the
+	// user-invoked and autoload framings. Present requirements leave the
+	// rendered message byte-identical.
+	const requirementNotice = missingRequirementNotice(checkToolRequirements(skill.requirements ?? []));
+	if (requirementNotice !== undefined) message = `${requirementNotice}\n\n${message}`;
 	return {
 		message,
 		details: {

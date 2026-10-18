@@ -2,7 +2,7 @@ import { getEffectiveLocale } from "../config/persisted-locale";
 import type { CommandMetadata } from "@rva/utils/cli";
 
 export const acpHelp = {
-	description: "Run omp as an ACP (Agent Client Protocol) server over stdio",
+	description: "Run rea as an ACP (Agent Client Protocol) server over stdio",
 } satisfies CommandMetadata;
 
 export const agentsHelp = { description: "Manage bundled task agents" } satisfies CommandMetadata;
@@ -17,7 +17,7 @@ export const authHelp = {
 } satisfies CommandMetadata;
 
 export const authBrokerHelp = {
-	description: "Manage the omp auth-broker (credential vault)",
+	description: "Manage the rea auth-broker (credential vault)",
 } satisfies CommandMetadata;
 
 export const authGatewayHelp = {
@@ -37,7 +37,6 @@ export const browserRelayHelp = {
 export const cleanseHelp = {
 	description: "Detect and fix project diagnostics with weighted parallel subagents",
 } satisfies CommandMetadata;
-
 
 export const commitHelp = { description: "Generate a commit message and update changelogs" } satisfies CommandMetadata;
 
@@ -80,7 +79,6 @@ export const findHelp = {
 
 export const grepHelp = { description: "Test grep tool" } satisfies CommandMetadata;
 
-
 export const loginHelp = {
 	description: "Log in to a model provider (terminal counterpart of /login)",
 } satisfies CommandMetadata;
@@ -92,7 +90,6 @@ export const imagesHelp = {
 export const installHelp = {
 	description: "Install or link an extension package (alias of `plugin install`/`plugin link`)",
 } satisfies CommandMetadata;
-
 
 export const modelsHelp = { description: "List, search, and refresh available models" } satisfies CommandMetadata;
 
@@ -127,21 +124,24 @@ export const sessionHelp = {
 	description: "Hand a session to another machine: pack it, unpack it, or mark the local copy moved",
 } satisfies CommandMetadata;
 
-
 export const setupHelp = {
-	description: "Run onboarding setup or install dependencies for optional features",
+	get description() {
+		return getEffectiveLocale() === "zh-CN"
+			? "运行入职设置或安装可选功能的依赖（reverse、python、speech）"
+			: "Run onboarding setup or install dependencies for optional features (reverse, python, speech)";
+	},
 } satisfies CommandMetadata;
 
 export const shellHelp = { description: "Interactive shell console" } satisfies CommandMetadata;
 
 export const skillHelp = {
-	description: "List available skills and warnings (skill list [dir] [--json])",
+	description:
+		"List available skills and warnings, or check their external tool dependencies (skill list|check [dir] [--json])",
 } satisfies CommandMetadata;
 
 export const sshHelp = { description: "Manage SSH host configurations" } satisfies CommandMetadata;
 
 export const statsHelp = { description: "View usage statistics" } satisfies CommandMetadata;
-
 
 export const tinyModelsHelp = {
 	description: "Download tiny local models (session titles, memory, word completion)",
@@ -156,7 +156,6 @@ export const toksHelp = {
 export const ttsrHelp = {
 	description: "Inspect and test Time-Traveling Stream Rules (TTSR)",
 } satisfies CommandMetadata;
-
 
 export const usageHelp = {
 	description: "Show provider usage limits for every authenticated account",

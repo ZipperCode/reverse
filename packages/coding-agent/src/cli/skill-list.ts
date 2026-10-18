@@ -7,6 +7,7 @@ import type { EffectiveExtensionRoots } from "../capability/types";
 import { initializeWithSettings } from "../discovery";
 import { cfgDisabledExtensions, cfgExtensions, cfgSkills, type SkillsSettings } from "../extensibility/settings";
 import { loadSkills, type SkillWarning } from "../extensibility/skills";
+import type { ToolRequirement } from "../extensibility/skill-requirements";
 
 /** Public skill listing entry: the fields a machine consumer may rely on. */
 export interface SkillSummary {
@@ -16,6 +17,8 @@ export interface SkillSummary {
 	baseDir: string;
 	source: string;
 	hide: boolean;
+	/** Declared external tool dependencies; empty when the skill declares none. */
+	requirements: readonly ToolRequirement[];
 }
 
 export interface SkillsCommandResult {
@@ -79,6 +82,7 @@ export async function runSkillsCommand(
 			baseDir: skill.baseDir,
 			source: skill.source,
 			hide: skill.hide === true,
+			requirements: skill.requirements ?? [],
 		})),
 		warnings,
 	};
@@ -87,8 +91,22 @@ export async function runSkillsCommand(
 /** Control characters (including newlines and tabs) are escaped so skill
  * metadata cannot inject terminal output lines; `--json` consumers get the
  * raw values. */
-function toTerminalSafe(value: string): string {
+export function toTerminalSafe(value: string): string {
 	return value.replace(/[\u0000-\u001f\u007f]/g, ch => `\\x${ch.charCodeAt(0).toString(16).padStart(2, "0")}`);
+}
+
+/** Resolve an optional `[dir]` argument shared by `skill list` and `skill check`. */
+export async function resolveSkillTarget(args: string[], cwd: string, usage: string): Promise<string> {
+	if (args.length > 1) throw new CliUsageError(usage);
+	const target = args[0] ? path.resolve(cwd, args[0]) : cwd;
+	let isDirectory = false;
+	try {
+		isDirectory = (await fs.promises.stat(target)).isDirectory();
+	} catch (error) {
+		if (!isEnoent(error) && !isEnotdir(error)) throw error;
+	}
+	if (!isDirectory) throw new CliUsageError(`Not a directory: ${target}`);
+	return target;
 }
 
 /**
@@ -98,15 +116,7 @@ function toTerminalSafe(value: string): string {
  * including discovery warnings.
  */
 export async function handleSkillList(args: string[], cwd: string, json: boolean): Promise<number> {
-	if (args.length > 1) throw new CliUsageError("usage: omp skill list [dir] [--json]");
-	const target = args[0] ? path.resolve(cwd, args[0]) : cwd;
-	let isDirectory = false;
-	try {
-		isDirectory = (await fs.promises.stat(target)).isDirectory();
-	} catch (error) {
-		if (!isEnoent(error) && !isEnotdir(error)) throw error;
-	}
-	if (!isDirectory) throw new CliUsageError(`Not a directory: ${target}`);
+	const target = await resolveSkillTarget(args, cwd, "usage: omp skill list [dir] [--json]");
 	const result = await runSkillsCommand({ cwd: target });
 	if (json) {
 		process.stdout.write(`${JSON.stringify(result)}\n`);

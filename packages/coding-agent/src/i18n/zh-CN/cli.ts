@@ -1,3 +1,4 @@
+// oxlint-disable no-template-curly-in-string -- text intentionally carries ${name} placeholders.
 /**
  * Chinese text for the `config` command's human-facing help, usage and status
  * messages. Values may contain `{name}` placeholders filled by the caller.
@@ -24,4 +25,41 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.config.shadow.project": "项目设置会在此处覆盖此值；请在项目设置中编辑或移除以应用保存值。",
 	"cli.config.shadow.overlay": "--config / PI_CONFIG_FILES 覆盖层会在当前进程中覆盖此值。",
 	"cli.config.shadow.runtime": "运行时覆盖会为当前进程提供有效值。",
+	"cli.setup.reverse.title": "通用逆向工具链手动安装面板",
+	"cli.setup.reverse.description": "检查工具状态、获取官方安装指南与可复制命令（带 --execute 可在手动确认后辅助执行）",
+	"cli.setup.reverse.platform": "检测到平台：{platform}",
+	"cli.setup.reverse.packageManagers": "可用包管理器：{managers}",
+	"cli.setup.reverse.noPackageManagers": "无（需手动安装）",
+	"cli.setup.reverse.statusInstalled": "已安装",
+	"cli.setup.reverse.statusMissing": "未安装",
+	"cli.setup.reverse.required": "必需",
+	"cli.setup.reverse.optional": "可选",
+	"cli.setup.reverse.promptSelect": "输入要安装的工具序号或 ID（如 1, 3 或 jadx，输入 'q' 退出）：",
+	"cli.setup.reverse.alreadyInstalled": "工具 {name} 已安装在 {path}。是否仍要重新安装？[y/N]：",
+	"cli.setup.reverse.noManagerFound":
+		"当前系统未检测到适用的包管理器（如 brew/apt/choco）。请参阅以下说明进行手动安装：",
+	"cli.setup.reverse.manualUrl": "官方链接：{url}",
+	"cli.setup.reverse.manualGuide": "安装指南：{guide}",
+	"cli.setup.reverse.detailTool": "工具：{name} ({id})",
+	"cli.setup.reverse.detailCategory": "分类：{category}",
+	"cli.setup.reverse.detailType": "类型：{type}",
+	"cli.setup.reverse.detailManager": "包管理器：{manager}",
+	"cli.setup.reverse.detailCommand": "安装命令：{command}",
+	"cli.setup.reverse.detailRisk": "风险与权限说明：{risk}",
+	"cli.setup.reverse.confirmPrompt": "确认执行此安装命令？[y/N]：",
+	"cli.setup.reverse.cancelled": "已取消 {name} 的安装。",
+	"cli.setup.reverse.executing": "正在执行：{command}...",
+	"cli.setup.reverse.execSuccess": "安装命令执行成功。",
+	"cli.setup.reverse.execFailed": "安装命令执行失败（退出码：{code}）。",
+	"cli.setup.reverse.verifiedFound": "已验证：{name} 已成功安装在 {path}！",
+	"cli.setup.reverse.verifiedNotFound":
+		"提示：命令执行完成，但在 PATH 中未检测到 {name} 可执行文件。您可能需要重启终端或配置环境变量。",
+	"cli.setup.reverse.checkSummary": "逆向工程工具链检测概览：",
+	"cli.setup.reverse.allReady":
+		"核心系统工具已就绪（strings、file）。已安装 {installed} 项，另有 {missing} 项可选逆向工具可按需安装。",
+	"cli.setup.reverse.missingRequiredNotice": "缺少核心系统基础工具：{tools}",
+	"cli.setup.reverse.manualModeNotice":
+		"【手动模式】请复制上述命令在终端中运行；如需在确认后辅助执行，请带参数 '--execute' 重新运行。",
+	"cli.setup.reverse.executeRequiresTTY":
+		"{app} setup reverse --execute 需要交互式 TTY 终端。非交互环境请使用 --check 或 --json。",
 };
