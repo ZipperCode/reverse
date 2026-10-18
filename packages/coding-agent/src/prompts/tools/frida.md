@@ -10,7 +10,7 @@ Capabilities:
 2. Target selection:
    - Attach to existing process by PID: `pid: <number>`
    - Attach to existing process by name: `process: "<name>"`
-   - Spawn new process: `spawn: "<path_or_package>"` (e.g. `com.example.app` or `/path/to/binary`). Automatically passes `--no-pause` unless `no_pause: false` is explicitly set.
+   - Spawn new process: `spawn: "<path_or_package>"` (e.g. `com.example.app` or `/path/to/binary`). Resumes target execution automatically; pass `pause: true` (or `no_pause: false`) to leave the main thread paused via `--pause`.
 
 3. Transport & connectivity:
    - Local system: default (omit device flags)
@@ -54,7 +54,7 @@ frida(process: "com.example.app", usb: true, script: "Java.perform(function() { 
 frida(pid: 12345, script_path: "scripts/intercept.js", script_args: { verbose: true }, timeout: 15)
 
 // Spawn binary on remote frida-server host with extra CLI arguments
-frida(spawn: "/usr/local/bin/target_bin", host: "192.168.1.5:27042", script: "Interceptor.attach(Module.findExportByName(null, 'main'), { onEnter: function() { console.log('main reached'); } });", cli_args: ["--runtime=v8"])
+frida(spawn: "/usr/local/bin/target_bin", host: "192.168.1.5:27042", script: "Interceptor.attach(Module.getGlobalExportByName('main'), { onEnter: function() { console.log('main reached'); } });", cli_args: ["--runtime=v8"])
 
 ```
 </examples>

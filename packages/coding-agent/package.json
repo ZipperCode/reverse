@@ -88,6 +88,22 @@
       "types": "./src/reverse-workspace/index.ts",
       "import": "./src/reverse-workspace/index.ts"
     },
+    "./reverse-knowledge": {
+      "types": "./src/reverse-knowledge/index.ts",
+      "import": "./src/reverse-knowledge/index.ts"
+    },
+    "./reverse-knowledge/*": {
+      "types": "./src/reverse-knowledge/*.ts",
+      "import": "./src/reverse-knowledge/*.ts"
+    },
+    "./reverse-workflow": {
+      "types": "./src/reverse-workflow/index.ts",
+      "import": "./src/reverse-workflow/index.ts"
+    },
+    "./reverse-workflow/*": {
+      "types": "./src/reverse-workflow/*.ts",
+      "import": "./src/reverse-workflow/*.ts"
+    },
     "./capability": {
       "types": "./src/capability/index.ts",
       "import": "./src/capability/index.ts"
@@ -115,6 +131,10 @@
     "./commands/*": {
       "types": "./src/commands/*.ts",
       "import": "./src/commands/*.ts"
+    },
+    "./evidence": {
+      "types": "./src/evidence/index.ts",
+      "import": "./src/evidence/index.ts"
     },
     "./commit": {
       "types": "./src/commit/index.ts",

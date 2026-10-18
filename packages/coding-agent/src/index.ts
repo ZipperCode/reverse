@@ -73,6 +73,7 @@ export type {
 } from "@rva/tui/tools/task";
 // Tools (detail types and utilities)
 export * from "./tools";
+export * from "./evidence";
 export * from "./utils/github";
 // UI components for extensions
 export {

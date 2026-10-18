@@ -1647,3 +1647,133 @@ describe("reverse_workflow full-file hashing for >64KiB targets", () => {
 		}
 	});
 });
+
+describe("reverse_workflow install-after resume and canonical host verification", () => {
+	it("fixes TDZ bug and rejects unverified tool even if verified: true is passed", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rw-ret-tdz-"));
+		try {
+			const target = await createPEFixture(tempDir);
+			const session = createTestSession(tempDir);
+			const tool = new ReverseWorkflowTool(session);
+
+			const createRes = await tool.execute({ action: "create", target });
+			const workflowId = createRes.details.workflow!.id;
+
+			// Fail step 1
+			await tool.execute({
+				action: "record",
+				workflow_id: workflowId,
+				step_id: "pe_step_1",
+				status: "failed",
+				error: "Tool non_existent_decomp_tool: command not found",
+			});
+
+			// Retry with installed_tool that does NOT exist on PATH
+			// Pass verified: true - user assertion must NOT be accepted as proof!
+			const retryRes = await tool.execute({
+				action: "retry",
+				workflow_id: workflowId,
+				step_id: "pe_step_1",
+				installed_tool: "non_existent_decomp_tool",
+				verified: true,
+				strategy: "resume_original",
+				next_params: '{"action": "disasm"}',
+			});
+
+			// Must not throw ReferenceError: proposedParams is not defined
+			// Must return structured missing state
+			expect(retryRes.details.status).toBe("missing_dependency");
+			expect(retryRes.details.verified).toBe(false);
+			expect(retryRes.details.missing_tool).toBe("non_existent_decomp_tool");
+
+			const step = retryRes.details.step;
+			expect(step).toBeDefined();
+			// Step must remain failed and not pending
+			expect(step?.status).toBe("failed");
+			// Tool must not have been replaced by the unavailable tool
+			expect(step?.tool).not.toBe("non_existent_decomp_tool");
+			// Resume metadata must record verified: false
+			expect(step?.recovery_metadata?.resume?.verified).toBe(false);
+			expect(step?.recovery_metadata?.resume?.installed_tool).toBe("non_existent_decomp_tool");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("accepts verified resume when installed_tool is present on host", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rw-ret-ver-"));
+		try {
+			const target = await createPEFixture(tempDir);
+			const session = createTestSession(tempDir);
+			const tool = new ReverseWorkflowTool(session);
+
+			const createRes = await tool.execute({ action: "create", target });
+			const workflowId = createRes.details.workflow!.id;
+
+			// Fail step 1
+			await tool.execute({
+				action: "record",
+				workflow_id: workflowId,
+				step_id: "pe_step_1",
+				status: "failed",
+				error: "strings command failed",
+			});
+
+			// Retry with 'strings' which is present on PATH
+			const retryRes = await tool.execute({
+				action: "retry",
+				workflow_id: workflowId,
+				step_id: "pe_step_1",
+				installed_tool: "strings",
+				verified: false, // even if user says false, host check verifies it
+				strategy: "resume_original",
+				next_params: '{"min_length": 6}',
+			});
+
+			expect(retryRes.details.resume?.verified).toBe(true);
+			const step = retryRes.details.step;
+			expect(step?.status).toBe("pending");
+			expect(step?.tool).toBe("triage");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+	it("preserves original adapter step tool when resuming via installed dependency (r2_inspect stays r2_inspect)", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rw-ret-adapt-"));
+		try {
+			const target = await createPEFixture(tempDir);
+			const session = createTestSession(tempDir);
+			const tool = new ReverseWorkflowTool(session);
+
+			const createRes = await tool.execute({ action: "create", target });
+			const workflowId = createRes.details.workflow!.id;
+
+			// Fail step 3 (r2_inspect)
+			await tool.execute({
+				action: "record",
+				workflow_id: workflowId,
+				step_id: "pe_step_3",
+				status: "failed",
+				error: "radare2: command not found",
+			});
+
+			// Retry step 3 indicating radare2 dependency was installed
+			// In resume_original, step.tool MUST remain 'r2_inspect' rather than being overwritten with 'radare2'
+			const retryRes = await tool.execute({
+				action: "retry",
+				workflow_id: workflowId,
+				step_id: "pe_step_3",
+				installed_tool: "radare2",
+				strategy: "resume_original",
+			});
+
+			const step = retryRes.details.step;
+			// Step tool must remain the adapter tool r2_inspect!
+			expect(step?.tool).toBe("r2_inspect");
+			expect(step?.recovery_metadata?.resume?.installed_tool).toBe("radare2");
+			expect(step?.recovery_metadata?.resume?.strategy).toBe("resume_original");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});

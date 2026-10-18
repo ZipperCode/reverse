@@ -35,10 +35,10 @@ const evidenceSchema = type({
 	"title?": type("string").describe("Optional title or headline for the evidence record"),
 	"target?": type("string").describe("Target file, binary, or package path relative to project root"),
 	"sourceTool?": type("string").describe(
-		"Source analysis tool that observed the fact (e.g. triage, r2_inspect, droidasc, read, strings; required for fact)",
+		"Source analysis tool that observed the fact (e.g. triage, r2_inspect, droidasc, frida_session, debug, read, strings; required for fact)",
 	),
 	"locator?": type("string").describe(
-		"Exact location coordinate, e.g. symbol, RVA/offset 0x14001A240, line number (required for fact)",
+		"Exact location coordinate, e.g. symbol, RVA/offset 0x14001A240, session:<id>:seq:<seq>, line number (required for fact)",
 	),
 	"content?": type("string").describe(
 		"Observed ground truth for fact, context for hypothesis, or question for unknown",

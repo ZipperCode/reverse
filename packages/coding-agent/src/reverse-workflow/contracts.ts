@@ -64,12 +64,36 @@ export interface FailureAttribution {
 	matched_pattern?: string;
 	missing_tool?: string;
 	install_hint?: string;
+	setup_command?: string;
+}
+
+/**
+ * Canonical install-after resume metadata recorded when recovering or retrying
+ * a step following external tool installation via trusted setup.
+ */
+export interface StepResumeMetadata {
+	/** Canonical capability ID (e.g. 'apk_unpacking', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception', 'native_debugger') */
+	capability_id?: string;
+	/** Logical name of the installed external tool (e.g. 'jadx', 'apktool', 'unidbg', 'radare2') */
+	installed_tool: string;
+	/** Trusted setup command executed to install the tool (e.g. 'rea setup reverse apktool') */
+	setup_command?: string;
+	/** Whether tool availability was verified post-install before resuming execution */
+	verified: boolean;
+	/** Resumption strategy: resume original planned tool or engage fallback */
+	strategy: "resume_original" | "fallback" | string;
+	/** ISO timestamp when the step was resumed following installation */
+	resumed_at: string;
+	/** Optional parameters passed or adjusted for the resumed tool execution */
+	resumed_params?: Record<string, unknown> | string;
+	/** Optional notes or diagnostic message from operator/caller */
+	notes?: string;
 }
 
 export interface RecoveryAuditEntry {
 	attempt: number;
 	timestamp: string;
-	action: "recover" | "retry" | "retry_plan";
+	action: "recover" | "retry" | "retry_plan" | "resume";
 	category: FailureCategory;
 	cause: string;
 	previous_tool: string;
@@ -79,6 +103,11 @@ export interface RecoveryAuditEntry {
 	applied: boolean;
 	evidence_ids?: string[];
 	caller_result?: string;
+	capability_id?: string;
+	installed_tool?: string;
+	setup_command?: string;
+	verified?: boolean;
+	strategy?: string;
 }
 
 export interface RecoveryPlan {
@@ -95,6 +124,9 @@ export interface RecoveryPlan {
 	max_attempts: number;
 	exhausted: boolean;
 	install_hint?: string;
+	setup_command?: string;
+	/** Canonical install-after resume metadata if proposed or configured */
+	resume?: StepResumeMetadata;
 }
 
 export interface StepRetryEntry {
@@ -112,6 +144,8 @@ export interface StepRecoveryMetadata {
 	attribution?: FailureAttribution;
 	retry_history?: StepRetryEntry[];
 	recovery_audit?: RecoveryAuditEntry[];
+	/** Canonical install-after resume metadata when recovering following external tool installation */
+	resume?: StepResumeMetadata;
 }
 
 export interface WorkflowStepRecord {
@@ -165,6 +199,7 @@ export interface WorkflowMetrics {
 	skipped_steps: number;
 	total_evidence_links: number;
 	total_knowledge_links?: number;
+	resumed_steps?: number;
 	next_step?: WorkflowStepRecord;
 }
 
@@ -176,6 +211,7 @@ export function computeWorkflowMetrics(steps: WorkflowStepRecord[]): WorkflowMet
 	let evidenceLinks = 0;
 	let nextStep: WorkflowStepRecord | undefined;
 	let knowledgeLinks = 0;
+	let resumed = 0;
 
 	for (const step of steps) {
 		if (step.status === "completed") completed++;
@@ -184,6 +220,10 @@ export function computeWorkflowMetrics(steps: WorkflowStepRecord[]): WorkflowMet
 		else if (step.status === "pending" || step.status === "running") {
 			pending++;
 			if (!nextStep) nextStep = step;
+		}
+
+		if (step.recovery_metadata?.resume) {
+			resumed++;
 		}
 
 		if (Array.isArray(step.evidence_ids)) {
@@ -202,6 +242,7 @@ export function computeWorkflowMetrics(steps: WorkflowStepRecord[]): WorkflowMet
 		skipped_steps: skipped,
 		total_evidence_links: evidenceLinks,
 		total_knowledge_links: knowledgeLinks,
+		resumed_steps: resumed,
 		next_step: nextStep,
 	};
 }

@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { ToolError } from "@rva/tui/tools/tool-errors";
 import type { ReverseKnowledgeStore } from "../reverse-knowledge/store";
 import type { EvidenceStore } from "../evidence/store";
+import { isDynamicLocator } from "../reverse-runtime-session/dynamic-events";
 import {
 	type ReverseWorkflowRecord,
 	type WorkflowStepRecord,
@@ -11,6 +12,9 @@ import {
 	validateEvidenceIdFormat,
 	validateKnowledgeIdFormat,
 } from "./contracts";
+import { verifyInstalledTool } from "./recovery";
+import { SKILL_TOOL_CATALOG } from "../extensibility/skill-tool-catalog";
+import { getMcpService } from "../extensibility/mcp-service-catalog";
 
 /**
  * Allowlisted read-only static analysis and triage tools permitted for auto-progression.
@@ -25,6 +29,9 @@ export const ALLOWLISTED_LOW_RISK_TOOLS: readonly string[] = [
 	"wasm_inspect",
 	"grep",
 	"evidence",
+	"reverse_dynamic_evidence",
+	"android_native_workflow",
+	"reverse_capability",
 ];
 
 /**
@@ -219,7 +226,18 @@ export async function advanceWorkflow(
 		}
 
 		const risk = assessStepRisk(step);
-		if (!risk.is_low_risk) {
+		let verifiedByDynamicEvidence = false;
+		if (!risk.is_low_risk && options.status === "completed" && options.evidence_ids && options.evidence_ids.length > 0 && context.evidenceStore) {
+			for (const evId of options.evidence_ids) {
+				const rec = await context.evidenceStore.getRecord(evId).catch(() => null);
+				if (rec && ((rec.kind === "conclusion" && rec.status === "verified") || (rec.kind === "fact" && isDynamicLocator(rec.locator)))) {
+					verifiedByDynamicEvidence = true;
+					break;
+				}
+			}
+		}
+
+		if (!risk.is_low_risk && !verifiedByDynamicEvidence) {
 			const decision = "held_pending_decision";
 			const reason = `Cannot auto-record step '${step.id}': ${risk.reason}`;
 			step.progression_status = "held_pending_decision";
@@ -268,16 +286,11 @@ export async function advanceWorkflow(
 			step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...options.evidence_ids]));
 		}
 
-		// Validate knowledge refs if provided
 		if (options.knowledge_refs && options.knowledge_refs.length > 0 && context.knowledgeStore) {
 			for (const knId of options.knowledge_refs) {
-				if (!validateKnowledgeIdFormat(knId)) {
-					throw new ToolError(`Invalid knowledge ID format: '${knId}'.`);
-				}
+				if (!validateKnowledgeIdFormat(knId)) throw new ToolError(`Invalid knowledge ID format: '${knId}'.`);
 				const exists = await context.knowledgeStore.get(knId);
-				if (!exists) {
-					throw new ToolError(`Knowledge ID '${knId}' not found in project reverse knowledge store.`);
-				}
+				if (!exists && !knId.startsWith("kn_rev_seed_")) throw new ToolError(`Knowledge ID '${knId}' not found in project reverse knowledge store.`);
 				allKnowledgeRefs.add(knId);
 			}
 			step.knowledge_refs = Array.from(new Set([...(step.knowledge_refs ?? []), ...options.knowledge_refs]));
@@ -295,8 +308,12 @@ export async function advanceWorkflow(
 		step.attempts = (step.attempts ?? 0) + 1;
 		step.updated_at = now;
 		step.progression_status = "recorded";
-		step.decision = `Recorded completion of low-risk static step '${step.id}'`;
-		step.decision_reason = risk.reason;
+		step.decision = verifiedByDynamicEvidence
+			? `Recorded completion of dynamic step '${step.id}' verified by dynamic evidence`
+			: `Recorded completion of low-risk static step '${step.id}'`;
+		step.decision_reason = verifiedByDynamicEvidence
+			? `Step verified by dynamic session evidence: ${options.evidence_ids?.join(", ")}`
+			: risk.reason;
 
 		const audit: ProgressionAuditEntry = {
 			step_id: step.id,
@@ -380,6 +397,41 @@ export async function advanceWorkflow(
 			auditEntries.push(audit);
 			workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
 			break; // STOP loop on first dynamic/high-risk step
+		}
+		// Guardrail: Verify host toolchain availability for catalogued tools
+		const normalizedTool = (step.tool ?? "").trim().toLowerCase();
+		if (SKILL_TOOL_CATALOG[normalizedTool] || getMcpService(normalizedTool)) {
+			const check = verifyInstalledTool(step.tool, { cwd: context.repositoryRoot });
+			if (!check.verified) {
+				terminalStatus = "stopped_missing_dependency";
+				terminalDecision = `Halted progression: required dependency '${step.tool}' is missing on host system`;
+				terminalReason =
+					check.missing_reason ??
+					`Required tool '${step.tool}' is not installed or configured. Run '${check.setup_command ?? `rea setup reverse ${step.tool}`}' before proceeding.`;
+				pendingDecisionStep = step;
+
+				step.progression_status = "stopped_missing_dependency";
+				step.decision = terminalDecision;
+				step.decision_reason = terminalReason;
+				step.updated_at = now;
+
+				const audit: ProgressionAuditEntry = {
+					step_id: step.id,
+					step_title: step.title,
+					tool: step.tool,
+					gate: step.gate,
+					action: "auto_advance",
+					status: "stopped_missing_dependency",
+					decision: terminalDecision,
+					reason: terminalReason,
+					is_low_risk: false,
+					timestamp: now,
+					params_summary: step.params_summary,
+				};
+				auditEntries.push(audit);
+				workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+				break; // STOP loop on missing dependency
+			}
 		}
 
 		// Tool is allowlisted low-risk static: query knowledge references

@@ -16,6 +16,7 @@ import {
 	RUNTIME_SESSION_KINDS,
 	DEFAULT_STALE_TIMEOUT_SEC,
 	DEFAULT_LIST_LIMIT,
+	MAX_LIST_LIMIT,
 	createRuntimeSessionId,
 	computeSessionStaleState,
 	ReverseRuntimeSessionStore,
@@ -29,17 +30,19 @@ import {
 
 export const reverseRuntimeSessionSchema = type({
 	action: type
-		.enumerated("register", "list", "status", "restore", "unregister", "heartbeat")
+		.enumerated("register", "list", "status", "restore", "unregister", "heartbeat", "events")
 		.describe(
-			"Action to perform: 'register' (add or initialize session record), 'list' (list sessions with stale detection), 'status' (inspect session state and opt-in safe probes), 'restore' (formulate deterministic restore plan), 'unregister' (remove session record), 'heartbeat' (refresh heartbeat and health metrics)",
+			"Action to perform: 'register' (add or initialize session record), 'list' (list sessions with stale detection), 'status' (inspect session state and opt-in safe probes), 'restore' (formulate deterministic restore plan), 'unregister' (remove session record), 'heartbeat' (refresh heartbeat and health metrics), 'events' (read-only query of session telemetry events stored in metadata)",
 		),
 	"session_id?": type("string").describe(
-		"Identifier for the session (e.g. 'runt_frida_...'). Auto-generated on register if omitted. Required for status/restore/unregister/heartbeat",
+		"Identifier for the session (e.g. 'runt_frida_...'). Auto-generated on register if omitted. Required for status/restore/unregister/heartbeat/events",
 	),
 	"id?": type("string").describe("Alias for session_id"),
 	"kind?": type
-		.enumerated("frida", "browser", "ida", "ghidra", "generic")
-		.describe("Runtime session kind: 'frida', 'browser', 'ida', 'ghidra', or 'generic'. Required for 'register'"),
+		.enumerated("frida", "browser", "dap", "ida", "ghidra", "generic")
+		.describe(
+			"Runtime session kind: 'frida', 'browser', 'dap', 'ida', 'ghidra', or 'generic'. Required for 'register'",
+		),
 	"name?": type("string").describe("Optional friendly label or description for the session"),
 	"target?": type("string").describe(
 		"High-level target description (e.g. process name, PID, URL, binary path, or package ID)",
@@ -75,12 +78,18 @@ export const reverseRuntimeSessionSchema = type({
 		"Stale detection threshold in seconds (default 300)",
 	),
 	"limit?": type("number.integer >= 1").describe(
-		"Maximum sessions to return in 'list' action (default 20, max 100)",
+		"Maximum sessions or events to return (default 20 for list, default 50 for events, max 100)",
 	),
 	"filter_kind?": type
-		.enumerated("frida", "browser", "ida", "ghidra", "generic")
+		.enumerated("frida", "browser", "dap", "ida", "ghidra", "generic")
 		.describe("Filter sessions by kind in 'list' action"),
 	"filter_status?": type("string").describe("Filter sessions by status in 'list' action"),
+	"since_seq?": type("number.integer >= 0").describe(
+		"Optional sequence number to query events after (for 'events' action)",
+	),
+	"event_kind?": type("string").describe(
+		"Optional event kind filter: 'stdout', 'stderr', 'breakpoint', 'step', 'lifecycle', etc. (for 'events' action)",
+	),
 	"to_artifact?": type("boolean").describe(
 		"Export full session details and restore plan to session artifact",
 	),
@@ -89,11 +98,14 @@ export const reverseRuntimeSessionSchema = type({
 export type ReverseRuntimeSessionParams = typeof reverseRuntimeSessionSchema.infer;
 
 export interface ReverseRuntimeSessionDetails {
-	action: "register" | "list" | "status" | "restore" | "unregister" | "heartbeat";
+	action: "register" | "list" | "status" | "restore" | "unregister" | "heartbeat" | "events";
 	session?: RuntimeSessionRecord;
 	sessions?: RuntimeSessionRecord[];
 	restore_plan?: RestorePlan;
 	probe_info?: RuntimeSessionProbeInfo;
+	events?: unknown[];
+	eventCount?: number;
+	total?: number;
 	artifactId?: string;
 	artifactPath?: string;
 	unregistered?: boolean;
@@ -333,8 +345,24 @@ export class ReverseRuntimeSessionTool
 					statusLines.push("- **Last Probe Status**:");
 					statusLines.push(`  - Source: ${record.last_probe.source}`);
 					statusLines.push(`  - Outcome: ${record.last_probe.ok ? "OK" : "FAILURE"}`);
+					if (record.last_probe.reachable !== undefined) {
+						statusLines.push(`  - Reachable: ${record.last_probe.reachable ? "YES" : "NO"}`);
+					}
 					if (record.last_probe.message) statusLines.push(`  - Message: ${record.last_probe.message}`);
 					statusLines.push(`  - Timestamp: ${record.last_probe.timestamp}`);
+				}
+
+				const metaEvents = record.metadata?.events ?? record.metadata?.recent_events ?? record.metadata?.capturedEvents;
+				const eventsCount =
+					typeof record.metadata?.eventsCount === "number"
+						? record.metadata.eventsCount
+						: typeof record.metadata?.events_count === "number"
+							? record.metadata.events_count
+							: Array.isArray(metaEvents)
+								? metaEvents.length
+								: undefined;
+				if (typeof eventsCount === "number") {
+					statusLines.push(`- **Events Count**: ${eventsCount}`);
 				}
 
 				statusLines.push("- **Deterministic Restore Plan Preview**:");
@@ -462,6 +490,107 @@ export class ReverseRuntimeSessionTool
 				return {
 					content: [{ type: "text", text: lines.join("\n") }],
 					details: { action: "restore", session: record, restore_plan: plan },
+				};
+			}
+
+			case "events": {
+				const sessionId = (params.session_id ?? params.id)?.trim();
+				if (!sessionId) {
+					throw new ToolError("session_id is required for 'events' action.");
+				}
+
+				const record = await store.get(sessionId);
+				if (!record) {
+					throw new ToolError(`Runtime session '${sessionId}' not found.`);
+				}
+
+				const metaEvents =
+					record.metadata?.events ??
+					record.metadata?.recent_events ??
+					record.metadata?.capturedEvents;
+				const rawList: unknown[] = Array.isArray(metaEvents) ? metaEvents : [];
+
+				let filtered = rawList;
+				if (typeof params.since_seq === "number") {
+					const sinceSeq = params.since_seq;
+					filtered = filtered.filter((e: unknown) => {
+						if (e && typeof e === "object" && "seq" in e && typeof e.seq === "number") {
+							return e.seq > sinceSeq;
+						}
+						return true;
+					});
+				}
+				if (params.event_kind) {
+					const targetKind = params.event_kind.trim().toLowerCase();
+					filtered = filtered.filter((e: unknown) => {
+						if (e && typeof e === "object") {
+							const rawKind = "kind" in e ? e.kind : "type" in e ? e.type : undefined;
+							const k = typeof rawKind === "string" ? rawKind.toLowerCase() : "";
+							return k === targetKind;
+						}
+						return false;
+					});
+				}
+
+				const limit = Math.min(params.limit ?? 50, MAX_LIST_LIMIT);
+				const events = filtered.slice(0, limit);
+
+				if (events.length === 0) {
+					const noEventText =
+						rawList.length === 0
+							? `Runtime session '${record.id}' (${record.kind}): no events buffered in registry metadata.`
+							: `Runtime session '${record.id}' (${record.kind}): no events matched query (total buffered: ${rawList.length}).`;
+					return {
+						content: [{ type: "text", text: noEventText }],
+						details: {
+							action: "events",
+							session: record,
+							events: [],
+							eventCount: 0,
+							total: rawList.length,
+						},
+					};
+				}
+
+				const lines = [
+					`Runtime session '${record.id}' (${record.kind}) events (showing ${events.length} of ${rawList.length} buffered):`,
+					"",
+					"| Seq | Kind | Timestamp | Summary |",
+					"| :---: | :---: | :--- | :--- |",
+				];
+
+				for (const item of events) {
+					if (item && typeof item === "object") {
+						const seq = "seq" in item && typeof item.seq === "number" ? item.seq : "-";
+						const rawKind = "kind" in item ? item.kind : "type" in item ? item.type : "event";
+						const kind = typeof rawKind === "string" ? rawKind : "event";
+						const timestamp = "timestamp" in item && typeof item.timestamp === "string" ? item.timestamp : "-";
+						let payloadStr = "";
+						if ("payload" in item && item.payload !== undefined && item.payload !== null) {
+							payloadStr = typeof item.payload === "string" ? item.payload : JSON.stringify(item.payload);
+						} else if ("raw" in item && typeof item.raw === "string") {
+							payloadStr = item.raw;
+						} else if ("message" in item && typeof item.message === "string") {
+							payloadStr = item.message;
+						} else if ("body" in item && item.body !== undefined && item.body !== null) {
+							payloadStr = typeof item.body === "string" ? item.body : JSON.stringify(item.body);
+						}
+						const summary = payloadStr.length > 60 ? payloadStr.slice(0, 57) + "..." : payloadStr;
+						lines.push(`| ${seq} | \`${kind}\` | ${timestamp} | ${summary || "-"} |`);
+					} else {
+						lines.push(`| - | \`raw\` | - | ${String(item)} |`);
+					}
+				}
+
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action: "events",
+						session: record,
+						events,
+						eventCount: events.length,
+						total: rawList.length,
+					},
 				};
 			}
 

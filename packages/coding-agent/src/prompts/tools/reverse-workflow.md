@@ -19,18 +19,21 @@ Actions:
   - Strictly requires the step to be in `failed` status.
   - Enforces bounded attempt limits (`attempts < max_attempts`).
   - Records caller-provided next parameters (`next_params`), diagnosis/result (`result`), and optional `fallback_tool`.
-  - Does NOT execute arbitrary commands or tools itself: prepares structured instructions for the agent to invoke the next tool call.
+  - Supports install-after resumption: when an external tool was installed, pass `installed_tool`, `capability_id`, `setup_command`, and `strategy` (`resume_original` or `fallback`) to record structured resumption audit trail.
+  - Canonical host verification: `installed_tool` is actively verified against the host environment (PATH lookup for binaries, configuration check in `mcp.json` for MCP services). User-supplied `verified: true` is never treated as proof. If the tool is missing or unverified, returns a structured missing state without replacing the original step tool or parameters, leaving the step in `failed` state.
+  - Does NOT execute arbitrary commands, auto-install packages, or run target binaries: prepares structured instructions for the agent to invoke the next tool call once verified.
 - `recover`: Diagnose failure, attribute category, propose deterministic fallback/corrected params, record audit trail, and transition step to pending.
   - Classifies failure into structured category: `missing_dependency`, `invalid_format`, `timeout`, `truncated`, `device_required`, `unsupported`, or `unknown`.
   - Computes platform installation hints for missing tools and determines deterministic native fallbacks (`r2_inspect` -> `triage`, `droidasc` -> `android_package_inspect`, `tshark` -> `pcap_inspect`, etc.).
   - Corrects parameters (scope reduction on timeout, pagination on truncation, format check on invalid header).
+  - Supports install-after resumption: when an external tool was installed following a missing dependency failure, caller can pass `installed_tool`, `capability_id`, `setup_command`, and `strategy` (`resume_original` or `fallback`) to resume the original planned tool. Fresh canonical verification is strictly enforced; unavailable tools return a structured missing state without mutating step status.
   - Records a complete recovery audit entry and associates evidence IDs (`evidence_ids`).
   - Strictly enforces bounded retry attempts (`attempts < max_attempts`).
 - `retry_plan`: Preview failure attribution and recovery plan without mutating step status.
   - Returns structured diagnosis, attribution, cause, alternatives, and proposed tool & parameters.
 - `export`: Produce bounded Markdown/JSON workflow reports or export a standardized `.rea/` workspace.
   - Hydrates linked evidence ledger items (title, kind, locator, content).
-  - Captures full failure recovery and retry history.
+  - Captures full failure recovery, retry history, and install-after resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`).
   - When `to_workspace: true` (or `workspace_path` is specified), exports standardized `.rea/` workspace layout containing `manifest.json`, `target/target.json`, `workflow/`, `evidence/`, `findings/`, `scripts/`, `dumps/`, `reports/`, and safe artifact references.
   - Spills to session artifact when requested (`to_artifact: true`) or when content exceeds inline limits.
 - `destroy`: Permanently remove a workflow record from persistent state storage.
@@ -71,6 +74,9 @@ reverse_workflow(action: "record", workflow_id: "wf_rw_018f...", step_id: "elf_s
 reverse_workflow(action: "retry", workflow_id: "wf_rw_018f...", step_id: "elf_step_3", next_params: "{\"action\": \"functions\", \"path\": \"bin/server.elf\", \"base_address\": \"0x400000\"}", result: "Identified base load address from section table")
 // 6. Recover a failed step with deterministic failure attribution and fallback
 reverse_workflow(action: "recover", workflow_id: "wf_rw_018f...", step_id: "apk_step_3", error: "droidasc not found on PATH")
+// 6b. Recover a failed step following external tool installation (Install-After Resumption)
+reverse_workflow(action: "recover", workflow_id: "wf_rw_018f...", step_id: "apk_step_3", capability_id: "apk_unpacking", installed_tool: "jadx", setup_command: "rea setup reverse jadx", verified: true, strategy: "resume_original")
+
 
 // 7. Preview a recovery plan without mutating step state
 reverse_workflow(action: "retry_plan", workflow_id: "wf_rw_018f...", step_id: "apk_step_3", error: "droidasc not found on PATH")

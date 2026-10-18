@@ -1,6 +1,6 @@
 # reverse_runtime_session
 
-> Unified reverse engineering runtime session registry: manages sanitized connection metadata, status/heartbeat stale detection, and deterministic recovery/restore plans across Frida, browser, IDA, and Ghidra without unsafe arbitrary process control.
+> Unified reverse engineering runtime session registry: manages sanitized connection metadata, status/heartbeat stale detection, and deterministic recovery/restore plans across Frida, browser, DAP (debug), IDA, and Ghidra without unsafe arbitrary process control.
 
 ## Source
 - Entry: `packages/coding-agent/src/tools/reverse-runtime-session.ts`
@@ -11,10 +11,10 @@
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `action` | `string` | Yes | Action: `"register"`, `"list"`, `"status"`, `"restore"`, `"unregister"`, `"heartbeat"`. |
-| `session_id` | `string` | No* | Unique session identifier (alias `id`). Auto-generated on `register` if omitted (e.g. `runt_frida_...`). Required for `status`, `restore`, `unregister`, `heartbeat`. |
+| `action` | `string` | Yes | Action: `"register"`, `"list"`, `"status"`, `"restore"`, `"unregister"`, `"heartbeat"`, `"events"`. |
+| `session_id` | `string` | No* | Unique session identifier (alias `id`). Required for `status`, `restore`, `unregister`, `heartbeat`, and `events`. |
 | `id` | `string` | No | Alias for `session_id`. |
-| `kind` | `string` | No* | Session kind: `"frida"`, `"browser"`, `"ida"`, `"ghidra"`, or `"generic"`. Required for `register`. |
+| `kind` | `string` | No* | Session kind: `"frida"`, `"browser"`, `"dap"`, `"ida"`, `"ghidra"`, or `"generic"`. Required for `register`. |
 | `name` | `string` | No | Friendly label or name for the runtime session. |
 | `target` | `string` | No | High-level target identifier (binary path, URL, package name, PID, etc.). |
 | `target_details` | `unknown` | No | Detailed target metadata (PID, package, binary path, database locator, URL, display options). |
@@ -28,17 +28,20 @@
 | `probe_result` | `string` | No | Caller-reported probe outcome or observation message. |
 | `stale_timeout` | `number` | No | Stale detection threshold in seconds (default 300, min 10). |
 | `limit` | `number` | No | Maximum sessions to list in `list` action (default 20, max 100). |
-| `filter_kind` | `string` | No | Filter listed sessions by kind (`frida`, `browser`, `ida`, `ghidra`, `generic`). |
+| `filter_kind` | `string` | No | Filter listed sessions by kind (`frida`, `browser`, `dap`, `ida`, `ghidra`, `generic`). |
 | `filter_status` | `string` | No | Filter listed sessions by status (`active`, `idle`, `stale`, `closed`, `failed`). |
 | `to_artifact` | `boolean` | No | Force exporting full session details to session artifact instead of inline response. |
+| `since_seq` | `number` | No | Return buffered events whose sequence is greater than this cursor. |
+| `event_kind` | `string` | No | Filter buffered telemetry by event kind. |
 
 ## Actions
 
-- **register**: Registers a new or existing runtime session across supported kinds (`frida`, `browser`, `ida`, `ghidra`, `generic`). Automatically deep-sanitizes connection parameters (strips passwords, bearer tokens, API keys, credentials) and removes live process handles (sockets, pipes, child process objects). Generates a deterministic session ID (`runt_<kind>_<uuid>`) if omitted, and saves the record in project-scoped storage.
+- **register**: Registers a new or existing runtime session across supported kinds (`frida`, `browser`, `dap`, `ida`, `ghidra`, `generic`). Automatically deep-sanitizes connection parameters (strips passwords, bearer tokens, API keys, credentials) and removes live process handles (sockets, pipes, child process objects). Generates a deterministic session ID (`runt_<kind>_<uuid>`) if omitted, and saves the record in project-scoped storage.
 - **list**: Lists registered runtime sessions for the active project. Supports filtering by kind, status, or workflow ID. Detects stale sessions deterministically by evaluating the elapsed duration since the last heartbeat against `stale_timeout`. Bounded output prevents context explosion.
+- **events**: Reads bounded normalized telemetry synchronized by Frida, Browser, and DAP controllers. Supports `since_seq`, `event_kind`, and `limit`; does not capture or execute target code. Registry snapshots contain at most the latest 50 controller events and are not a lossless stream.
 - **status**: Inspects detailed sanitized metadata, target properties, heartbeat history, and stale status. When `probe: true` or `caller_status` is supplied, performs a non-invasive metadata check (e.g., verifying target database or binary presence on disk for IDA/Ghidra) or incorporates caller-reported facts without unsafe process manipulation.
 - **heartbeat**: Updates the session's heartbeat timestamp and increments the heartbeat counter, clearing stale status. Allows caller to report health metrics or note error conditions.
-- **restore**: Generates a deterministic, actionable restore plan specifying the target tool (`frida_session`, `browser`, `ida`, `ghidra_inspect`), action, exact parameters, prerequisites, and step-by-step instructions. Does not automatically execute arbitrary background commands.
+- **restore**: Generates a declarative recovery plan. Explicit controller recovery hints take precedence, including `browser_reverse_session` with `tab_name`. The plan does not execute scripts, restart targets, or bypass tool approval.
 - **unregister**: Deletes or marks closed the session record in persistent storage.
 
 ## Security & Architecture Guardrails

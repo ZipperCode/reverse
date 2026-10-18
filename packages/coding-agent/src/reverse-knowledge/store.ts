@@ -32,6 +32,11 @@ import {
 import type { EvidenceStore } from "../evidence/store";
 import type { ConclusionEvidence, HypothesisEvidence } from "../evidence/contracts";
 import { normalizeTargetFormat } from "../reverse-workflow/contracts";
+import {
+	matchAndScoreKnowledgeRecords,
+	searchBundledReverseKnowledge,
+	getBundledReverseKnowledgeRecord,
+} from "./bundled";
 
 const PRIVATE_DIR_MODE = 0o700;
 
@@ -96,6 +101,10 @@ export class ReverseKnowledgeStore {
 			? path.join(path.resolve(options.stateRoot), this.projectKey)
 			: getReverseKnowledgeProjectDir(this.projectKey);
 		this.lockPath = path.join(this.projectDirectory, "store.lock");
+	}
+
+	static forSession(cwd: string, stateRoot?: string): ReverseKnowledgeStore {
+		return new ReverseKnowledgeStore({ repositoryRoot: cwd, stateRoot });
 	}
 
 	async ensureDir(): Promise<void> {
@@ -179,7 +188,10 @@ export class ReverseKnowledgeStore {
 			const text = await fs.readFile(filePath, "utf8");
 			return JSON.parse(text) as ReverseKnowledgeRecord;
 		} catch (err) {
-			if (isEnoent(err)) return null;
+			if (isEnoent(err)) {
+				const bundled = getBundledReverseKnowledgeRecord(id);
+				return bundled ?? null;
+			}
 			throw new ToolError(
 				`Failed to read knowledge record '${id}': ${err instanceof Error ? err.message : String(err)}`,
 			);
@@ -236,153 +248,34 @@ export class ReverseKnowledgeStore {
 
 	async search(filter: ReverseKnowledgeFilter = {}): Promise<ReverseKnowledgeRecord[]> {
 		const records = await this.list();
-		const limit = Math.min(
-			Math.max(filter.limit ?? DEFAULT_KNOWLEDGE_SEARCH_LIMIT, 1),
-			MAX_KNOWLEDGE_SEARCH_LIMIT,
-		);
-		const normalizedFilterFormat = normalizeTargetFormat(filter.format);
+		const projectMatches = matchAndScoreKnowledgeRecords(records, filter);
 
-		const queryTokens = filter.query
-			? filter.query
-					.toLowerCase()
-					.split(/[\s,;:._\-\\/]+/)
-					.filter(t => t.length > 1)
-			: [];
-
-		const scored: Array<{ record: ReverseKnowledgeRecord; score: number }> = [];
-
-		for (const record of records) {
-			// Status filter: inactive/expired/disabled/merged records excluded by default
-			if (!filter.include_inactive) {
-				if (record.status && record.status !== "active") {
-					continue;
-				}
-				if (record.expires_at && new Date(record.expires_at).getTime() <= Date.now()) {
-					continue;
+		if (filter.include_bundled === true) {
+			const bundledMatches = searchBundledReverseKnowledge(filter);
+			const seenIds = new Set(projectMatches.map(r => r.id));
+			const combined = [...projectMatches];
+			for (const b of bundledMatches) {
+				if (!seenIds.has(b.id)) {
+					combined.push(b);
 				}
 			}
-			if (filter.status && record.status !== filter.status) {
-				continue;
-			}
-			if (filter.include_stale === false && record.stale) {
-				continue;
-			}
-
-			let score = 0;
-
-			// Format filter
-			if (normalizedFilterFormat) {
-				if (record.target_format === normalizedFilterFormat) {
-					score += 5;
-				} else if (record.target_format !== "unknown") {
-					// Format mismatch
-					continue;
-				}
-			}
-
-			// Target hash filter
-			if (filter.target_hash) {
-				const filterHash = filter.target_hash.toLowerCase().trim();
-				const recordHash = record.target_hash?.toLowerCase().trim();
-				if (recordHash) {
-					if (recordHash === filterHash) {
-						score += 20; // Exact target match
-					} else if (recordHash.startsWith(filterHash) || filterHash.startsWith(recordHash)) {
-						score += 10;
-					} else {
-						// Explicit hash mismatch
-						continue;
-					}
-				} else if (!normalizedFilterFormat && queryTokens.length === 0 && !filter.tool) {
-					// Search specifically targeted a binary hash and this record has none
-					continue;
-				}
-			}
-
-			// Tool filter
-			if (filter.tool) {
-				const filterTool = filter.tool.toLowerCase().trim();
-				const recordTool = record.tool?.toLowerCase().trim();
-				if (recordTool) {
-					if (recordTool === filterTool) {
-						score += 6;
-					} else if (recordTool.includes(filterTool) || filterTool.includes(recordTool)) {
-						score += 3;
-					} else {
-						continue;
-					}
-				}
-			}
-
-			// Kind filter
-			if (filter.kind) {
-				if (record.kind !== filter.kind) {
-					continue;
-				}
-				score += 2;
-			}
-
-			// Confidence filter
-			if (filter.confidence) {
-				if (record.confidence !== filter.confidence) {
-					continue;
-				}
-				score += 1;
-			}
-
-			// Confidence boost
-			if (record.confidence === "high") {
-				score += 2;
-			}
-
-			// Query tokens matching
-			if (queryTokens.length > 0) {
-				const titleLower = record.title.toLowerCase();
-				const summaryLower = record.summary.toLowerCase();
-				const guidanceLower = (record.actionable_guidance ?? "").toLowerCase();
-				const patternLower = (record.pattern ?? "").toLowerCase();
-
-				let tokenHits = 0;
-				for (const token of queryTokens) {
-					if (titleLower.includes(token)) {
-						score += 5;
-						tokenHits++;
-					}
-					if (guidanceLower.includes(token)) {
-						score += 3;
-						tokenHits++;
-					}
-					if (summaryLower.includes(token)) {
-						score += 2;
-						tokenHits++;
-					}
-					if (patternLower.includes(token)) {
-						score += 3;
-						tokenHits++;
-					}
-				}
-
-				if (tokenHits === 0) {
-					if (queryTokens.length > 0) continue;
-				}
-			} else {
-				// No text query, baseline score for existing items
-				score += 1;
-			}
-
-			scored.push({ record, score });
+			const limit = Math.min(
+				Math.max(filter.limit ?? DEFAULT_KNOWLEDGE_SEARCH_LIMIT, 1),
+				MAX_KNOWLEDGE_SEARCH_LIMIT,
+			);
+			const offset = Math.max(filter.offset ?? 0, 0);
+			return combined.slice(offset, offset + limit);
 		}
 
-		// Sort by score descending, then updated_at descending
-		scored.sort((a, b) => {
-			if (b.score !== a.score) return b.score - a.score;
-			const timeA = a.record.updated_at ? new Date(a.record.updated_at).getTime() : 0;
-			const timeB = b.record.updated_at ? new Date(b.record.updated_at).getTime() : 0;
-			return timeB - timeA;
-		});
+		if (projectMatches.length > 0) {
+			return projectMatches;
+		}
 
-		const offset = Math.max(filter.offset ?? 0, 0);
-		return scored.slice(offset, offset + limit).map(item => item.record);
+		if (filter.include_bundled !== false) {
+			return searchBundledReverseKnowledge(filter);
+		}
+
+		return [];
 	}
 
 	async audit(

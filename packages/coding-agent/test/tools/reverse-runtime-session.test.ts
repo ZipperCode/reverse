@@ -24,6 +24,7 @@ import {
 	sanitizeUrlString,
 	deriveTargetSummary,
 	sanitizeRuntimeSessionRecord,
+	type RuntimeSessionRecord,
 } from "@rva/coding-agent/reverse-runtime-session";
 
 function createTestSession(cwd: string, options: { allocateArtifact?: boolean } = {}): ToolSession {
@@ -506,6 +507,58 @@ describe("reverse_runtime_session lifecycle across kinds", () => {
 			await removeWithRetries(tempDir);
 		}
 	});
+
+	it("registers, inspects, and restores a DAP session", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "runt-dap-"));
+		const stateRoot = path.join(tempDir, "state");
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new ReverseRuntimeSessionTool(session, { stateRoot });
+
+			const programPath = path.join(tempDir, "target_elf");
+			await fs.writeFile(programPath, "ELF EXEC");
+
+			const regRes = await tool.execute({
+				action: "register",
+				kind: "dap",
+				target: programPath,
+				target_details: {
+					program: programPath,
+					adapter: "gdb",
+					args: ["--arg1"],
+					cwd: tempDir,
+				},
+				connection: { host: "127.0.0.1", port: 1234 },
+			});
+
+			const sessionId = regRes.details.session!.id;
+			expect(sessionId).toStartWith("runt_dap_");
+			expect(regRes.details.session?.kind).toBe("dap");
+
+			const probeRes = await tool.execute({
+				action: "status",
+				session_id: sessionId,
+				probe: true,
+			});
+
+			expect(probeRes.details.probe_info?.ok).toBe(true);
+			expect(probeRes.details.probe_info?.message).toContain("DAP target program exists on disk");
+
+			const restoreRes = await tool.execute({
+				action: "restore",
+				session_id: sessionId,
+			});
+
+			expect(restoreRes.details.restore_plan?.kind).toBe("dap");
+			expect(restoreRes.details.restore_plan?.restore_tool).toBe("debug");
+			expect(restoreRes.details.restore_plan?.restore_action).toBe("launch");
+			expect(restoreRes.details.restore_plan?.restore_params.program).toBe(programPath);
+			expect(restoreRes.details.restore_plan?.restore_params.adapter).toBe("gdb");
+			expect(restoreRes.details.restore_plan?.restore_params.port).toBe(1234);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
 });
 
 // ============================================================================
@@ -668,6 +721,342 @@ describe("reverse_runtime_session workflow association and artifacts", () => {
 			const artifactContent = await fs.readFile(statusRes.details.artifactPath!, "utf8");
 			expect(artifactContent).toContain(sessionId);
 			expect(artifactContent).toContain("restorePlan");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});
+// ============================================================================
+// 6. Runtime Closure: DAP Sync, Restore Planner Hints, Events & Reachability
+// ============================================================================
+
+describe("runtime session closure: DAP sync, restore planner hints, events query, and reachability probe", () => {
+	it("honors explicit recovery_hints.restore_tool and params preserving Browser tab_name", () => {
+		// 1. Browser reverse session with explicit recovery hints
+		const browserReverseRecord: RuntimeSessionRecord = {
+			id: "runt_browser_rev_01",
+			kind: "browser",
+			status: "active",
+			target_summary: "Bank Portal",
+			target_details: { tab_name: "bank_tab", url: "https://bank.corp" },
+			connection: {},
+			recovery_hints: {
+				restore_tool: "browser_reverse_session",
+				restore_action: "open",
+				restore_params: { tab_name: "bank_tab", url: "https://bank.corp" },
+				instructions: ['Reopen browser tab "bank_tab" with url "https://bank.corp"'],
+			},
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			last_heartbeat_at: new Date().toISOString(),
+			heartbeat_count: 1,
+			stale_timeout_sec: 300,
+			status_source: "caller_reported",
+		};
+
+		const plan1 = generateRestorePlan(browserReverseRecord);
+		expect(plan1.restore_tool).toBe("browser_reverse_session");
+		expect(plan1.restore_action).toBe("open");
+		expect(plan1.restore_params.tab_name).toBe("bank_tab");
+		expect(plan1.restore_params.url).toBe("https://bank.corp");
+		expect(plan1.can_restore).toBe(true);
+
+		// 2. Browser reverse session with tab_name in target_details but no explicit hints
+		const browserTabRecord: RuntimeSessionRecord = {
+			id: "runt_browser_rev_02",
+			kind: "browser",
+			status: "idle",
+			target_summary: "Portal",
+			target_details: { tab_name: "portal_tab", url: "https://portal.corp" },
+			connection: {},
+			recovery_hints: {},
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			last_heartbeat_at: new Date().toISOString(),
+			heartbeat_count: 1,
+			stale_timeout_sec: 300,
+			status_source: "caller_reported",
+		};
+
+		const plan2 = generateRestorePlan(browserTabRecord);
+		expect(plan2.restore_tool).toBe("browser_reverse_session");
+		expect(plan2.restore_params.tab_name).toBe("portal_tab");
+
+		// 3. Frida session with explicit custom recovery hints
+		const fridaRecord: RuntimeSessionRecord = {
+			id: "runt_frida_custom",
+			kind: "frida",
+			status: "active",
+			target_summary: "Custom Target",
+			target_details: { process: "target.bin" },
+			connection: {},
+			recovery_hints: {
+				restore_tool: "custom_frida_runner",
+				restore_action: "spawn",
+				restore_params: { spawn: "com.custom.app", script_path: "agent.js" },
+			},
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			last_heartbeat_at: new Date().toISOString(),
+			heartbeat_count: 1,
+			stale_timeout_sec: 300,
+			status_source: "caller_reported",
+		};
+
+		const plan3 = generateRestorePlan(fridaRecord);
+		expect(plan3.restore_tool).toBe("custom_frida_runner");
+		expect(plan3.restore_action).toBe("spawn");
+		expect(plan3.restore_params.spawn).toBe("com.custom.app");
+		expect(plan3.restore_params.script_path).toBe("agent.js");
+
+		// 4. DAP session with explicit attach recovery hints
+		const dapRecord: RuntimeSessionRecord = {
+			id: "debug-42",
+			kind: "dap",
+			status: "active",
+			target_summary: "PID 5555",
+			target_details: { adapter: "lldb-dap", pid: 5555 },
+			connection: { adapter: "lldb-dap" },
+			recovery_hints: {
+				restore_tool: "debug",
+				restore_action: "attach",
+				restore_params: { adapter: "lldb-dap", pid: 5555 },
+			},
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			last_heartbeat_at: new Date().toISOString(),
+			heartbeat_count: 1,
+			stale_timeout_sec: 300,
+			status_source: "caller_reported",
+		};
+
+		const plan4 = generateRestorePlan(dapRecord);
+		expect(plan4.restore_tool).toBe("debug");
+		expect(plan4.restore_action).toBe("attach");
+		expect(plan4.restore_params.pid).toBe(5555);
+		expect(plan4.can_restore).toBe(true);
+	});
+
+	it("queries read-only session events from registry store metadata with filters", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "runt-events-"));
+		const stateRoot = path.join(tempDir, "state");
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new ReverseRuntimeSessionTool(session, { stateRoot });
+			const store = ReverseRuntimeSessionStore.forSession(tempDir, stateRoot);
+
+			const eventsData = [
+				{ seq: 1, kind: "lifecycle", timestamp: "2026-10-18T10:00:00.000Z", payload: "Session initialized" },
+				{ seq: 2, kind: "stdout", timestamp: "2026-10-18T10:00:01.000Z", payload: "Loading modules..." },
+				{ seq: 3, kind: "breakpoint", timestamp: "2026-10-18T10:00:02.000Z", payload: "Hit bp at main.c:42" },
+				{ seq: 4, kind: "stdout", timestamp: "2026-10-18T10:00:03.000Z", payload: "Done" },
+			];
+
+			const record: RuntimeSessionRecord = {
+				id: "debug-events-test",
+				kind: "dap",
+				status: "active",
+				target_summary: "my_program",
+				target_details: { adapter: "lldb-dap", program: "./my_program" },
+				connection: { adapter: "lldb-dap" },
+				recovery_hints: { restore_tool: "debug", restore_action: "launch", restore_params: { program: "./my_program" } },
+				created_at: "2026-10-18T10:00:00.000Z",
+				updated_at: "2026-10-18T10:00:03.000Z",
+				last_heartbeat_at: "2026-10-18T10:00:03.000Z",
+				heartbeat_count: 4,
+				stale_timeout_sec: 300,
+				status_source: "caller_reported",
+				metadata: {
+					eventsCount: 4,
+					recent_events: eventsData,
+				},
+			};
+
+			await store.save(record);
+
+			// Query all events
+			const allRes = await tool.execute({
+				action: "events",
+				session_id: "debug-events-test",
+			});
+			expect(allRes.details.action).toBe("events");
+			expect(allRes.details.events?.length).toBe(4);
+			expect(allRes.details.total).toBe(4);
+			const allText = textOf(allRes);
+			expect(allText).toContain("showing 4 of 4");
+			expect(allText).toContain("Hit bp at main.c:42");
+
+			// Query with since_seq filter
+			const sinceRes = await tool.execute({
+				action: "events",
+				session_id: "debug-events-test",
+				since_seq: 2,
+			});
+			expect(sinceRes.details.events?.length).toBe(2);
+			const sinceSeqs = sinceRes.details.events?.map(e =>
+				e && typeof e === "object" && "seq" in e && typeof e.seq === "number" ? e.seq : undefined,
+			);
+			expect(sinceSeqs).toEqual([3, 4]);
+
+			// Query with event_kind filter
+			const kindRes = await tool.execute({
+				action: "events",
+				session_id: "debug-events-test",
+				event_kind: "stdout",
+			});
+			expect(kindRes.details.events?.length).toBe(2);
+			const kinds = kindRes.details.events?.map(e =>
+				e && typeof e === "object" && "kind" in e && typeof e.kind === "string" ? e.kind : undefined,
+			);
+			expect(kinds).toEqual(["stdout", "stdout"]);
+
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("distinguishes empirical reachability from stored heartbeat in status probe without spawning", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "runt-reach-"));
+		const stateRoot = path.join(tempDir, "state");
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new ReverseRuntimeSessionTool(session, { stateRoot });
+			const store = ReverseRuntimeSessionStore.forSession(tempDir, stateRoot);
+
+			// 1. Session with active current process PID (empirically reachable)
+			const livePid = process.pid;
+			const liveRecord: RuntimeSessionRecord = {
+				id: "runt_frida_live",
+				kind: "frida",
+				status: "active",
+				target_summary: `PID ${livePid}`,
+				target_details: { pid: livePid, process: "node" },
+				connection: {},
+				recovery_hints: { restore_tool: "frida_session", restore_action: "attach", restore_params: { pid: livePid } },
+				created_at: "2026-10-18T00:00:00.000Z",
+				updated_at: "2026-10-18T00:00:00.000Z",
+				last_heartbeat_at: "2026-10-18T00:00:00.000Z",
+				heartbeat_count: 1,
+				stale_timeout_sec: 300,
+				status_source: "caller_reported",
+			};
+			await store.save(liveRecord);
+
+			const liveStatus = await tool.execute({
+				action: "status",
+				session_id: "runt_frida_live",
+				probe: true,
+			});
+			expect(liveStatus.details.probe_info?.ok).toBe(true);
+			expect(liveStatus.details.probe_info?.reachable).toBe(true);
+			expect(liveStatus.details.probe_info?.message).toContain("is reachable and running");
+
+			// 2. Session with a non-existent PID (reachability failed despite historical heartbeat)
+			const deadPid = 99999999;
+			const deadRecord: RuntimeSessionRecord = {
+				id: "runt_frida_dead",
+				kind: "frida",
+				status: "active",
+				target_summary: `PID ${deadPid}`,
+				target_details: { pid: deadPid },
+				connection: {},
+				recovery_hints: { restore_tool: "frida_session", restore_action: "attach", restore_params: { pid: deadPid } },
+				created_at: "2026-10-18T00:00:00.000Z",
+				updated_at: "2026-10-18T00:00:00.000Z",
+				last_heartbeat_at: "2026-10-18T00:00:00.000Z",
+				heartbeat_count: 1,
+				stale_timeout_sec: 300,
+				status_source: "caller_reported",
+			};
+			await store.save(deadRecord);
+
+			const deadStatus = await tool.execute({
+				action: "status",
+				session_id: "runt_frida_dead",
+				probe: true,
+			});
+			expect(deadStatus.details.probe_info?.ok).toBe(false);
+			expect(deadStatus.details.probe_info?.reachable).toBe(false);
+			expect(deadStatus.details.probe_info?.message).toContain("is not running");
+			expect(deadStatus.details.probe_info?.message).toContain("Stored heartbeat was at");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("DAP sessions are visible in registry with filter_kind and deterministic restore plan", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "runt-dap-reg-"));
+		const stateRoot = path.join(tempDir, "state");
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new ReverseRuntimeSessionTool(session, { stateRoot });
+			const store = ReverseRuntimeSessionStore.forSession(tempDir, stateRoot);
+
+			const targetProgram = path.join(tempDir, "app_bin");
+			await fs.writeFile(targetProgram, "ELF BINARY MOCK");
+
+			const dapSessionId = "debug-session-1";
+			const dapRecord: RuntimeSessionRecord = {
+				id: dapSessionId,
+				name: "DAP Debug lldb-dap (app_bin)",
+				kind: "dap",
+				status: "active",
+				target_summary: targetProgram,
+				target_details: { adapter: "lldb-dap", program: targetProgram, cwd: tempDir },
+				connection: { adapter: "lldb-dap", cwd: tempDir },
+				recovery_hints: {
+					restore_tool: "debug",
+					restore_action: "launch",
+					restore_params: { adapter: "lldb-dap", program: targetProgram },
+				},
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+				last_heartbeat_at: new Date().toISOString(),
+				heartbeat_count: 2,
+				stale_timeout_sec: 300,
+				status_source: "caller_reported",
+				metadata: {
+					adapter: "lldb-dap",
+					dapStatus: "stopped",
+					eventsCount: 2,
+					recent_events: [
+						{ seq: 1, kind: "lifecycle", timestamp: "2026-10-18T12:00:00.000Z", payload: "started" },
+						{ seq: 2, kind: "breakpoint", timestamp: "2026-10-18T12:00:01.000Z", payload: "hit" },
+					],
+				},
+			};
+
+			await store.save(dapRecord);
+
+			// 1. List action with filter_kind: "dap"
+			const listRes = await tool.execute({
+				action: "list",
+				filter_kind: "dap",
+			});
+			expect(listRes.details.sessions?.length).toBe(1);
+			expect(listRes.details.sessions?.[0].id).toBe(dapSessionId);
+			expect(textOf(listRes)).toContain("debug-session-1");
+			expect(textOf(listRes)).toContain("dap");
+
+			// 2. Status action checks file presence and restore plan
+			const statusRes = await tool.execute({
+				action: "status",
+				session_id: dapSessionId,
+				probe: true,
+			});
+			expect(statusRes.details.probe_info?.ok).toBe(true);
+			expect(statusRes.details.probe_info?.reachable).toBe(true);
+			expect(statusRes.details.restore_plan?.restore_tool).toBe("debug");
+			expect(statusRes.details.restore_plan?.restore_action).toBe("launch");
+			expect(statusRes.details.restore_plan?.can_restore).toBe(true);
+
+			// 3. Events action queries stored events
+			const eventsRes = await tool.execute({
+				action: "events",
+				session_id: dapSessionId,
+			});
+			expect(eventsRes.details.events?.length).toBe(2);
+			expect(textOf(eventsRes)).toContain("showing 2 of 2");
 		} finally {
 			await removeWithRetries(tempDir);
 		}

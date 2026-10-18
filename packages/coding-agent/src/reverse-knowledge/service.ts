@@ -1,5 +1,6 @@
 import type { EvidenceStore } from "../evidence/store";
 import type { EvidenceRecord } from "../evidence/contracts";
+import { isDynamicLocator, parseDynamicLocator } from "../reverse-runtime-session/dynamic-events";
 import type { ReverseWorkflowStore } from "../reverse-workflow/store";
 import type { ReverseKnowledgeStore } from "./store";
 import type { ToolSession } from "../tools/index";
@@ -31,6 +32,11 @@ function extractToolName(command: string): string | undefined {
 	if (trimmed.includes("sqlite")) return "sqlite_inspect";
 	if (trimmed.includes("binwalk")) return "firmware_inspect";
 	if (trimmed.includes("vbindiff") || trimmed.includes("bindiff")) return "binary_diff";
+	if (trimmed.includes("debug") || trimmed.includes("gdb") || trimmed.includes("lldb")) return "debug";
+	if (trimmed.includes("browser") || trimmed.includes("playwright") || trimmed.includes("cdp")) return "browser_reverse_session";
+	if (trimmed.includes("dynamic_evidence") || trimmed.includes("reverse_dynamic_evidence")) return "reverse_dynamic_evidence";
+	if (trimmed.includes("unidbg")) return "unidbg";
+	if (trimmed.includes("android_native_workflow")) return "android_native_workflow";
 	const firstWord = trimmed.split(/\s+/)[0];
 	return firstWord && firstWord.length <= 32 ? firstWord : undefined;
 }
@@ -178,12 +184,58 @@ export async function learnFromEvidenceAndWorkflows(
 
 			// Look up linked hypothesis for richer context
 			let hypothesisClaim: string | undefined;
+			let hasDynamicEvidence = false;
+			const dynamicLocators: string[] = [];
+			const dynamicSessions = new Set<string>();
 			if (ev.hypothesisId) {
 				const hyp = await evidenceStore.getRecord(ev.hypothesisId).catch(() => null);
 				if (hyp && hyp.kind === "hypothesis") {
 					hypothesisClaim = hyp.claim;
 					if (format === "unknown" && hyp.target) {
 						format = normalizeTargetFormat(hyp.target) ?? "unknown";
+					}
+					if (hyp.facts && hyp.facts.length > 0) {
+						for (const fId of hyp.facts) {
+							const f = await evidenceStore.getRecord(fId).catch(() => null);
+							if (f && f.kind === "fact" && isDynamicLocator(f.locator)) {
+								hasDynamicEvidence = true;
+								dynamicLocators.push(f.locator);
+								const parsed = parseDynamicLocator(f.locator);
+								if (parsed) dynamicSessions.add(parsed.sessionId);
+							}
+						}
+					}
+				}
+			}
+
+			if (!hasDynamicEvidence) {
+				const sessionMatch = ev.command?.match(/session_id:\s*["']?([a-zA-Z0-9_.-]+)["']?/);
+				const sessionIdFromCmd = sessionMatch ? sessionMatch[1] : undefined;
+				const isDynamicContext =
+					Boolean(sessionMatch) ||
+					ev.command?.includes("reverse_dynamic_evidence") ||
+					ev.method?.toLowerCase().includes("dynamic") ||
+					ev.result?.toLowerCase().includes("dynamic");
+
+				if (isDynamicContext) {
+					const allFacts = await evidenceStore.listRecords({ kind: "fact", limit: 100 }).catch(() => ({ items: [] }));
+					for (const r of allFacts.items) {
+						if (r.kind === "fact" && isDynamicLocator(r.locator)) {
+							const parsed = parseDynamicLocator(r.locator);
+							const matchesSession = sessionIdFromCmd ? parsed?.sessionId === sessionIdFromCmd : false;
+							const matchesTarget = Boolean(ev.target && r.target && r.target === ev.target);
+							if (matchesSession || matchesTarget) {
+								hasDynamicEvidence = true;
+								if (!dynamicLocators.includes(r.locator)) {
+									dynamicLocators.push(r.locator);
+								}
+								if (parsed) dynamicSessions.add(parsed.sessionId);
+							}
+						}
+					}
+					if (!hasDynamicEvidence && sessionIdFromCmd) {
+						hasDynamicEvidence = true;
+						dynamicSessions.add(sessionIdFromCmd);
 					}
 				}
 			}
@@ -194,6 +246,33 @@ export async function learnFromEvidenceAndWorkflows(
 				? ev.title
 				: `[Verified Finding] ${hypothesisClaim ? hypothesisClaim.slice(0, 80) : ev.conclusion.slice(0, 80)}`;
 
+			let pattern: string | undefined;
+			const lowerText = `${ev.conclusion} ${ev.result} ${ev.method}`.toLowerCase();
+			if (lowerText.includes("aes") || lowerText.includes("crypto") || lowerText.includes("decrypt") || lowerText.includes("encrypt")) {
+				pattern = "dynamic_crypto_verification";
+			} else if (lowerText.includes("jni") || lowerText.includes("registernatives")) {
+				pattern = "dynamic_jni_resolution";
+			} else if (lowerText.includes("token") || lowerText.includes("auth") || lowerText.includes("session")) {
+				pattern = "dynamic_auth_observation";
+			} else if (hasDynamicEvidence) {
+				pattern = "dynamic_runtime_verification";
+			}
+
+			let guidance = `Verified finding via ${ev.method} (${ev.command}): ${ev.conclusion}`;
+			if (hasDynamicEvidence) {
+				guidance += `\nDynamic Verification: Grounded in session telemetry (${dynamicLocators.join(", ")}).`;
+			}
+
+			const metadata: Record<string, unknown> = {
+				command: ev.command,
+				reproducibility: ev.reproducibility,
+			};
+			if (hasDynamicEvidence) {
+				metadata.dynamic_verified = true;
+				metadata.dynamic_locators = dynamicLocators;
+				metadata.dynamic_sessions = Array.from(dynamicSessions);
+			}
+
 			const record: ReverseKnowledgeRecord = {
 				id: createKnowledgeId(),
 				kind: "verified_conclusion",
@@ -202,9 +281,11 @@ export async function learnFromEvidenceAndWorkflows(
 				target_hash: ev.targetSha256,
 				tool: toolName,
 				confidence: "high",
+				pattern,
 				source_evidence_ids: [ev.id, ...(ev.hypothesisId ? [ev.hypothesisId] : [])],
 				summary: `${ev.conclusion}\nMethod: ${ev.method}\nResult: ${ev.result}`,
-				actionable_guidance: `Verified finding via ${ev.method} (${ev.command}): ${ev.conclusion}`,
+				actionable_guidance: guidance,
+				metadata,
 				created_at: now,
 				updated_at: now,
 			};
@@ -252,10 +333,25 @@ export async function learnFromEvidenceAndWorkflows(
 						? audit.proposed_params
 						: JSON.stringify(audit.proposed_params);
 
+				const resumeInfo = step.recovery_metadata?.resume;
+				const isResume = audit.action === "resume" || Boolean(resumeInfo);
+				const title = isResume && resumeInfo
+					? `Recovery Pattern: ${audit.category} on ${audit.previous_tool} -> Resumed via ${resumeInfo.installed_tool} (${resumeInfo.strategy})`
+					: `Recovery Pattern: ${audit.category} on ${audit.previous_tool} -> ${audit.proposed_tool}`;
+				const summary = isResume && resumeInfo
+					? `Failure category: ${audit.category}. Cause: ${audit.cause}. Decision: ${audit.decision}. Resumed after installing '${resumeInfo.installed_tool}' (capability: ${resumeInfo.capability_id || "none"}, strategy: ${resumeInfo.strategy}).`
+					: `Failure category: ${audit.category}. Cause: ${audit.cause}. Decision: ${audit.decision}. Fallback from ${audit.previous_tool} to ${audit.proposed_tool} succeeded.`;
+				const pattern = isResume && resumeInfo
+					? `category:${audit.category};previous_tool:${audit.previous_tool};installed_tool:${resumeInfo.installed_tool};strategy:${resumeInfo.strategy}`
+					: `category:${audit.category};previous_tool:${audit.previous_tool};fallback_tool:${audit.proposed_tool}`;
+				const guidance = isResume && resumeInfo
+					? `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), install '${resumeInfo.installed_tool}' via '${resumeInfo.setup_command || `rea setup reverse ${resumeInfo.installed_tool}`}' and resume (${resumeInfo.strategy}).`
+					: `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), fallback to '${audit.proposed_tool}' with params: ${proposedParamsStr}`;
+
 				const record: ReverseKnowledgeRecord = {
 					id: createKnowledgeId(),
 					kind: "recovery_pattern",
-					title: `Recovery Pattern: ${audit.category} on ${audit.previous_tool} -> ${audit.proposed_tool}`,
+					title,
 					target_format: wf.format,
 					target_hash: wf.target_sha256,
 					tool: audit.previous_tool,
@@ -263,9 +359,9 @@ export async function learnFromEvidenceAndWorkflows(
 					source_workflow_id: wf.id,
 					source_step_id: step.id,
 					source_evidence_ids: audit.evidence_ids,
-					summary: `Failure category: ${audit.category}. Cause: ${audit.cause}. Decision: ${audit.decision}. Fallback from ${audit.previous_tool} to ${audit.proposed_tool} succeeded.`,
-					pattern: `category:${audit.category};previous_tool:${audit.previous_tool};fallback_tool:${audit.proposed_tool}`,
-					actionable_guidance: `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), fallback to '${audit.proposed_tool}' with params: ${proposedParamsStr}`,
+					summary,
+					pattern,
+					actionable_guidance: guidance,
 					params: audit.proposed_params,
 					created_at: now,
 					updated_at: now,
@@ -313,13 +409,14 @@ export async function applyKnowledge(
 	});
 
 	const recommendations: KnowledgeRecommendation[] = records.map(r => {
-		const source: "evidence_ledger" | "workflow_recovery" | "retained_finding" =
-			r.source_evidence_ids && r.source_evidence_ids.length > 0
-				? "evidence_ledger"
-				: r.source_workflow_id
-					? "workflow_recovery"
-					: "retained_finding";
-
+		const source: "evidence_ledger" | "workflow_recovery" | "retained_finding" | "bundled" =
+			r.source === "bundled" || r.metadata?.source === "bundled"
+				? "bundled"
+				: r.source_evidence_ids && r.source_evidence_ids.length > 0
+					? "evidence_ledger"
+					: r.source_workflow_id
+						? "workflow_recovery"
+						: "retained_finding";
 		return {
 			knowledge_id: r.id,
 			title: r.title,
@@ -342,7 +439,9 @@ export async function applyKnowledge(
 	for (const r of records) {
 		r.usage_count = (r.usage_count ?? 0) + 1;
 		r.last_used_at = new Date().toISOString();
-		await knowledgeStore.save(r).catch(() => undefined);
+		if (r.source !== "bundled" && r.metadata?.source !== "bundled") {
+			await knowledgeStore.save(r).catch(() => undefined);
+		}
 	}
 
 	return {

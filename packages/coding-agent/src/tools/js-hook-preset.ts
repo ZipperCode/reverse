@@ -15,9 +15,13 @@ export const HOOK_PRESETS = [
 	"json_parse",
 	"contextBridge",
 	"custom",
+	"console",
 ] as const;
 
 export type HookPresetKind = (typeof HOOK_PRESETS)[number];
+
+export const HOOK_ACTIONS = ["list", "generate", "inject", "capture", "clear"] as const;
+export type HookActionKind = (typeof HOOK_ACTIONS)[number];
 
 export const HOOK_FORMATS = ["snippet", "userscript", "devtools", "frida"] as const;
 export type HookFormatKind = (typeof HOOK_FORMATS)[number];
@@ -32,8 +36,109 @@ const DISALLOWED_TARGET_SEGMENTS: Record<string, true> = {
 	constructor: true,
 };
 
+export interface BrowserReverseEvent {
+	timestamp: number;
+	type: string;
+	id?: string;
+	method?: string;
+	url?: string;
+	status?: number;
+	statusText?: string;
+	duration?: string;
+	data?: unknown;
+	body?: unknown;
+	headers?: unknown;
+	algorithm?: unknown;
+	key?: unknown;
+	dataHex?: string;
+	resultHex?: string;
+	target?: string;
+	args?: unknown[];
+	result?: unknown;
+	code?: string;
+	stack?: string;
+	[key: string]: unknown;
+}
+
+export interface BrowserTabSummary {
+	name: string;
+	state: "alive" | "dead" | "unknown";
+	url?: string;
+	title?: string;
+}
+
+export interface BrowserReverseRunner {
+	getTab(name: string): BrowserTabSummary | undefined;
+	openTab(name: string, url: string, signal?: AbortSignal): Promise<{ name: string; url: string }>;
+	runInTab(name: string, opts: { code: string; timeoutMs?: number; signal?: AbortSignal }): Promise<{
+		returnValue?: unknown;
+		displays?: Array<{ type: string; text?: string }>;
+	}>;
+	closeTab?(name: string, signal?: AbortSignal): Promise<boolean>;
+}
+
+export function createDefaultBrowserReverseRunner(session: ToolSession): BrowserReverseRunner {
+	return {
+		getTab(name: string): BrowserTabSummary | undefined {
+			try {
+				const { getTab } = require("./browser/tab-supervisor");
+				const tab = getTab(name);
+				if (!tab) return undefined;
+				return {
+					name: tab.name,
+					state: tab.state,
+					url: tab.info?.url,
+					title: tab.info?.title,
+				};
+			} catch {
+				return undefined;
+			}
+		},
+		async openTab(name: string, url: string, signal?: AbortSignal): Promise<{ name: string; url: string }> {
+			const { createBrowserPrelude } = require("./browser");
+			const prelude = session.getEvalPreludes?.()?.find((p: { name: string }) => p.name === "browser") ?? createBrowserPrelude(session);
+			const result = await prelude.invoke(
+				{ action: "open", name, url, headed: false },
+				{ signal: signal ?? new AbortController().signal },
+			);
+			const details = (result && typeof result === "object" && "details" in result ? result.details : undefined) as
+				| Record<string, unknown>
+				| undefined;
+			const finalUrl = (typeof details?.url === "string" && details.url) || url;
+			return { name, url: finalUrl };
+		},
+		async runInTab(
+			name: string,
+			opts: { code: string; timeoutMs?: number; signal?: AbortSignal },
+		): Promise<{
+			returnValue?: unknown;
+			displays?: Array<{ type: string; text?: string }>;
+		}> {
+			const { runInTab } = require("./browser/tab-supervisor");
+			const result = await runInTab(name, {
+				code: opts.code,
+				timeoutMs: opts.timeoutMs ?? 30000,
+				signal: opts.signal,
+				session,
+			});
+			return {
+				returnValue: result.returnValue,
+				displays: result.displays,
+			};
+		},
+		async closeTab(name: string, signal?: AbortSignal): Promise<boolean> {
+			try {
+				const { releaseTab } = require("./browser/tab-supervisor");
+				return await releaseTab(name, { timeoutMs: 5000 });
+			} catch {
+				return false;
+			}
+		},
+	};
+}
+
 const jsHookPresetSchema = type({
-	action: type.enumerated("list", "generate"),
+	action: type.enumerated("list", "generate", "inject", "capture", "clear"),
 	"preset?": type.enumerated(...HOOK_PRESETS).describe(
 		"Hook preset: fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, or custom",
 	),
@@ -51,6 +156,15 @@ const jsHookPresetSchema = type({
 	"max_payload_length?": type("number.integer >= 1").describe(
 		"Maximum characters of argument/response payload to log (default 1024, max 32768)",
 	),
+	"tab_name?": type("string").describe("Browser tab name to target for inject/capture/clear (default 'main')"),
+	"url?": type("string").describe("Target URL to open if tab does not exist yet (for action 'inject')"),
+	"clear?": type("boolean").describe("Whether to clear captured events after reading (for action 'capture')"),
+	"export_evidence?": type("boolean").describe(
+		"Whether to format captured events as structured evidence records (for action 'capture')",
+	),
+	"limit?": type("number.integer >= 1").describe(
+		"Maximum number of captured events to return (default 50, max 500)",
+	),
 });
 
 export type JsHookPresetParams = typeof jsHookPresetSchema.infer;
@@ -65,12 +179,16 @@ export interface PresetCatalogEntry {
 }
 
 export interface JsHookPresetDetails {
-	action: "list" | "generate";
+	action: "list" | "generate" | "inject" | "capture" | "clear";
 	preset?: HookPresetKind;
 	target?: string;
 	format?: HookFormatKind;
 	script?: string;
 	scriptLength?: number;
+	tab_name?: string;
+	url?: string;
+	init_script_id?: string;
+	evaluated?: boolean;
 	options?: {
 		filter?: string;
 		stackTrace?: boolean;
@@ -81,6 +199,18 @@ export interface JsHookPresetDetails {
 	isTemplateOnly: boolean;
 	executed: boolean;
 	safetyNote: string;
+	events?: BrowserReverseEvent[];
+	eventCount?: number;
+	consoleLogs?: unknown[];
+	requests?: unknown[];
+	evidence?: Array<{
+		sourceTool: string;
+		kind: "fact";
+		target: string;
+		locator: string;
+		content: string;
+		tags: string[];
+	}>;
 }
 
 const PRESET_CATALOG: PresetCatalogEntry[] = [
@@ -131,10 +261,10 @@ const PRESET_CATALOG: PresetCatalogEntry[] = [
 	},
 	{
 		preset: "eval",
-		name: "Dynamic Code Evaluation Monitor",
+		name: "Dynamic Execution & Eval Detector",
 		description:
-			"Intercepts window.eval, Function constructor, and string-based setTimeout/setInterval to detect dynamic unpackers and runtime code generation.",
-		targetApis: ["window.eval", "window.Function", "setTimeout (string code)", "setInterval (string code)"],
+			"Traps window.eval, Function constructor, and dynamic script execution to expose obfuscated runtime unpackers.",
+		targetApis: ["window.eval", "Function.prototype.constructor", "window.Function"],
 		configurableOptions: ["filter", "stack_trace", "tamper_mode", "max_payload_length", "format"],
 		example: 'js_hook_preset(action: "generate", preset: "eval", tamper_mode: "debugger")',
 	},
@@ -142,28 +272,37 @@ const PRESET_CATALOG: PresetCatalogEntry[] = [
 		preset: "json_parse",
 		name: "JSON Serialization Observer",
 		description:
-			"Intercepts JSON.parse (and JSON.stringify); logs deserialized inputs and stack traces to locate decoding of sensitive tokens and responses.",
-		targetApis: ["JSON.parse", "JSON.stringify"],
+			"Intercepts JSON.parse (and optional stringify) to inspect credential, token, and API state transformations in transit.",
+		targetApis: ["JSON.parse"],
 		configurableOptions: ["filter", "stack_trace", "tamper_mode", "max_payload_length", "format"],
 		example: 'js_hook_preset(action: "generate", preset: "json_parse", filter: "token")',
 	},
 	{
 		preset: "contextBridge",
-		name: "Electron ContextBridge & IPC Monitor",
+		name: "Electron ContextBridge",
 		description:
-			"Hooks Electron contextBridge.exposeInMainWorld to discover and wrap all exposed desktop IPC bridge methods between renderer and main process.",
-		targetApis: ["contextBridge.exposeInMainWorld", "window[apiKey]"],
+			"Traps Electron contextBridge.exposeInMainWorld invocations, wrapping exposed API methods to log cross-boundary IPC traffic.",
+		targetApis: ["contextBridge.exposeInMainWorld"],
 		configurableOptions: ["filter", "stack_trace", "tamper_mode", "max_payload_length", "format"],
 		example: 'js_hook_preset(action: "generate", preset: "contextBridge")',
 	},
 	{
 		preset: "custom",
-		name: "Allowlisted Custom Target Selector Hook",
+		name: "Custom Dotted Property / Method Trap",
 		description:
-			"Generates a wrapper around an allowlisted dotted identifier (e.g. 'window.App.sign' or 'document.cookie') with function or property interception.",
-		targetApis: ["User specified dotted property path"],
+			"Generates function wrapper or getter/setter trap for an allowlisted dotted target path on window or globalThis.",
+		targetApis: ["User specified allowlisted path"],
 		configurableOptions: ["target", "filter", "stack_trace", "tamper_mode", "max_payload_length", "format"],
 		example: 'js_hook_preset(action: "generate", preset: "custom", target: "window.api.generateSignature")',
+	},
+	{
+		preset: "console",
+		name: "Console Logging Interceptor",
+		description:
+			"Intercepts window.console methods (log, info, warn, error, debug) to capture runtime diagnostic logs and debug prints into the structured event ring buffer.",
+		targetApis: ["console.log", "console.info", "console.warn", "console.error", "console.debug"],
+		configurableOptions: ["filter", "stack_trace", "tamper_mode", "max_payload_length", "format"],
+		example: 'js_hook_preset(action: "generate", preset: "console")',
 	},
 ];
 
@@ -217,6 +356,19 @@ function buildUserscriptHeader(preset: string, target?: string): string {
 	].join("\n");
 }
 
+const REA_EVENT_RECORDER_SNIPPET = `
+  const _reaRecord = (ev) => {
+    try {
+      if (typeof window !== "undefined") {
+        window.__rea_events__ = window.__rea_events__ || [];
+        if (window.__rea_events__.length >= 1000) {
+          window.__rea_events__.shift();
+        }
+        window.__rea_events__.push(ev);
+      }
+    } catch {}
+  };`;
+
 function generateFetchHook(
 	filter: string | null,
 	stackTrace: boolean,
@@ -235,6 +387,7 @@ function generateFetchHook(
   const _maxLen = ${maxLen};
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
+${REA_EVENT_RECORDER_SNIPPET}
 
   window.fetch = async function(...args) {
     const input = args[0];
@@ -256,6 +409,16 @@ function generateFetchHook(
       }
     } catch {}
 
+    _reaRecord({
+      timestamp: Date.now(),
+      type: "fetch_request",
+      id: reqId,
+      method,
+      url,
+      headers: init.headers || null,
+      body: bodyPreview,
+    });
+
     console.groupCollapsed(\`%c[FETCH REQ #\${reqId}]%c \${method} \${url}\`, "color:#3b82f6;font-weight:bold;", "color:inherit;");
     console.log("URL:", url);
     console.log("Method:", method);
@@ -270,26 +433,45 @@ function generateFetchHook(
 
     try {
       const response = await _origFetch.apply(this, args);
-      const duration = (performance.now() - startTime).toFixed(1);
       const clone = response.clone();
+      const duration = (performance.now() - startTime).toFixed(1);
+
       clone.text().then(text => {
         let resPreview = text;
         if (resPreview.length > _maxLen) resPreview = resPreview.slice(0, _maxLen) + "...[truncated]";
+        _reaRecord({
+          timestamp: Date.now(),
+          type: "fetch_response",
+          id: reqId,
+          method,
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          duration,
+          body: resPreview,
+        });
         console.groupCollapsed(\`%c[FETCH RES #\${reqId}]%c \${response.status} \${response.statusText} (\${duration}ms) - \${url}\`, "color:#10b981;font-weight:bold;", "color:inherit;");
         console.log("Status:", response.status, response.statusText);
-        console.log("Response URL:", response.url);
-        console.log("Response Preview:", resPreview);
+        console.log("Headers:", Object.fromEntries(response.headers.entries()));
+        console.log("Body Preview:", resPreview);
         console.groupEnd();
-      }).catch(e => {
-        console.warn(\`[FETCH RES #\${reqId}] Failed to clone text:\`, e);
-      });
+      }).catch(() => {});
+
       return response;
     } catch (err) {
-      console.error(\`%c[FETCH ERR #\${reqId}]%c \${method} \${url}\`, "color:#ef4444;font-weight:bold;", "color:inherit;", err);
+      console.error(\`[FETCH ERR #\${reqId}] \${method} \${url}\`, err);
+      _reaRecord({
+        timestamp: Date.now(),
+        type: "fetch_error",
+        id: reqId,
+        method,
+        url,
+        error: String(err),
+      });
       throw err;
     }
   };
-  console.log("%c[REA HOOK]%c fetch hook installed successfully.", "color:#6366f1;font-weight:bold;", "color:inherit;");
+  console.log("%c[REA HOOK]%c window.fetch hook installed successfully.", "color:#6366f1;font-weight:bold;", "color:inherit;");
 })();`;
 }
 
@@ -310,6 +492,7 @@ function generateXhrHook(
   const _maxLen = ${maxLen};
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
+${REA_EVENT_RECORDER_SNIPPET}
 
   const _origOpen = XMLHttpRequest.prototype.open;
   const _origSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
@@ -344,6 +527,15 @@ function generateXhrHook(
           bodyPreview = typeof body === "string" ? body : Object.prototype.toString.call(body);
           if (bodyPreview.length > _maxLen) bodyPreview = bodyPreview.slice(0, _maxLen) + "...[truncated]";
         }
+        _reaRecord({
+          timestamp: Date.now(),
+          type: "xhr_request",
+          id: hook.id,
+          method: hook.method,
+          url: hook.url,
+          headers: hook.headers,
+          body: bodyPreview,
+        });
         console.groupCollapsed(\`%c[XHR REQ #\${hook.id}]%c \${hook.method} \${hook.url}\`, "color:#3b82f6;font-weight:bold;", "color:inherit;");
         console.log("URL:", hook.url);
         console.log("Method:", hook.method);
@@ -363,6 +555,17 @@ function generateXhrHook(
             resPreview = typeof this.responseText === "string" ? this.responseText : String(this.response);
             if (resPreview.length > _maxLen) resPreview = resPreview.slice(0, _maxLen) + "...[truncated]";
           } catch {}
+          _reaRecord({
+            timestamp: Date.now(),
+            type: "xhr_response",
+            id: hook.id,
+            method: hook.method,
+            url: hook.url,
+            status: this.status,
+            statusText: this.statusText,
+            duration,
+            body: resPreview,
+          });
           console.groupCollapsed(\`%c[XHR RES #\${hook.id}]%c \${this.status} (\${duration}ms) - \${hook.url}\`, "color:#10b981;font-weight:bold;", "color:inherit;");
           console.log("Status:", this.status, this.statusText);
           console.log("Response URL:", this.responseURL);
@@ -394,8 +597,9 @@ function generateWebSocketHook(
   const _maxLen = ${maxLen};
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
-  const _OrigWebSocket = window.WebSocket;
+${REA_EVENT_RECORDER_SNIPPET}
 
+  const _OrigWebSocket = window.WebSocket;
   window.WebSocket = function(url, protocols) {
     const ws = protocols !== undefined ? new _OrigWebSocket(url, protocols) : new _OrigWebSocket(url);
     const wsId = Math.random().toString(36).slice(2, 8);
@@ -403,6 +607,13 @@ function generateWebSocketHook(
     const shouldTrack = !_filter || wsUrl.includes(_filter);
 
     if (shouldTrack) {
+      _reaRecord({
+        timestamp: Date.now(),
+        type: "websocket_open",
+        id: wsId,
+        url: wsUrl,
+        protocols: protocols || null,
+      });
       console.groupCollapsed(\`%c[WS OPEN #\${wsId}]%c \${wsUrl}\`, "color:#8b5cf6;font-weight:bold;", "color:inherit;");
       console.log("URL:", wsUrl);
       console.log("Protocols:", protocols || "[none]");
@@ -419,6 +630,13 @@ function generateWebSocketHook(
         } else if (typeof Blob !== "undefined" && data instanceof Blob) {
           preview = \`[Blob: \${data.size} bytes, type=\${data.type}]\`;
         }
+        _reaRecord({
+          timestamp: Date.now(),
+          type: "websocket_send",
+          id: wsId,
+          url: wsUrl,
+          data: preview,
+        });
         console.groupCollapsed(\`%c[WS SEND #\${wsId}]%c \${preview.slice(0, 80)}\`, "color:#3b82f6;font-weight:bold;", "color:inherit;");
         console.log("Data:", preview);
         if (_includeStack) console.log("Call Stack:", new Error().stack);
@@ -439,6 +657,13 @@ function generateWebSocketHook(
         } else if (typeof Blob !== "undefined" && event.data instanceof Blob) {
           preview = \`[Blob: \${event.data.size} bytes]\`;
         }
+        _reaRecord({
+          timestamp: Date.now(),
+          type: "websocket_message",
+          id: wsId,
+          url: wsUrl,
+          data: preview,
+        });
         console.groupCollapsed(\`%c[WS RECV #\${wsId}]%c \${preview.slice(0, 80)}\`, "color:#10b981;font-weight:bold;", "color:inherit;");
         console.log("Data:", preview);
         console.groupEnd();
@@ -468,6 +693,7 @@ function generateCryptoHook(
   const _maxLen = ${maxLen};
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
+${REA_EVENT_RECORDER_SNIPPET}
 
   function toHex(buffer) {
     if (!buffer) return "[null]";
@@ -490,6 +716,15 @@ function generateCryptoHook(
       const shouldLog = !_filter || String(algo).includes(_filter) || method.includes(_filter);
 
       if (shouldLog) {
+        _reaRecord({
+          timestamp: Date.now(),
+          type: "crypto_call",
+          id: callId,
+          method,
+          algorithm: algo,
+          keyPreview: args[1] ? String(args[1]) : null,
+          dataHex: toHex(args[2]),
+        });
         console.groupCollapsed(\`%c[CRYPTO \${method.toUpperCase()} #\${callId}]%c \${algo}\`, "color:#ec4899;font-weight:bold;", "color:inherit;");
         console.log("Method:", method);
         console.log("Algorithm:", args[0]);
@@ -506,6 +741,13 @@ function generateCryptoHook(
       try {
         const result = await origMethod.apply(this, args);
         if (shouldLog) {
+          _reaRecord({
+            timestamp: Date.now(),
+            type: "crypto_result",
+            id: callId,
+            method,
+            resultHex: toHex(result),
+          });
           console.groupCollapsed(\`%c[CRYPTO \${method.toUpperCase()} RES #\${callId}]%c Result\`, "color:#10b981;font-weight:bold;", "color:inherit;");
           console.log("Result Hex/Summary:", toHex(result));
           console.groupEnd();
@@ -513,6 +755,13 @@ function generateCryptoHook(
         return result;
       } catch (err) {
         if (shouldLog) {
+          _reaRecord({
+            timestamp: Date.now(),
+            type: "crypto_error",
+            id: callId,
+            method,
+            error: String(err),
+          });
           console.error(\`[CRYPTO \${method.toUpperCase()} ERR #\${callId}]\`, err);
         }
         throw err;
@@ -525,6 +774,12 @@ function generateCryptoHook(
     crypto.getRandomValues = function(array) {
       const res = origGetRandomValues(array);
       if (!_filter || "getRandomValues".includes(_filter)) {
+        _reaRecord({
+          timestamp: Date.now(),
+          type: "crypto_random",
+          byteLength: array.byteLength,
+          dataHex: toHex(array),
+        });
         console.log(\`%c[CRYPTO getRandomValues]%c \${array.byteLength} bytes -> \${toHex(array)}\`, "color:#ec4899;font-weight:bold;", "color:inherit;");
       }
       return res;
@@ -548,6 +803,7 @@ function generateEvalHook(
   const _maxLen = ${maxLen};
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
+${REA_EVENT_RECORDER_SNIPPET}
 
   if (typeof window !== "undefined" && window.eval) {
     const _origEval = window.eval;
@@ -555,6 +811,13 @@ function generateEvalHook(
       const codeStr = String(code);
       if (!_filter || codeStr.includes(_filter)) {
         const preview = codeStr.length > _maxLen ? codeStr.slice(0, _maxLen) + "...[truncated]" : codeStr;
+        _reaRecord({
+          timestamp: Date.now(),
+          type: "eval",
+          code: preview,
+          length: codeStr.length,
+          stack: _includeStack ? new Error().stack : undefined,
+        });
         console.groupCollapsed(\`%c[EVAL HOOK]%c \${preview.slice(0, 60)}\`, "color:#f59e0b;font-weight:bold;", "color:inherit;");
         console.log("Code:", preview);
         console.log("Code Length:", codeStr.length);
@@ -574,6 +837,13 @@ function generateEvalHook(
     const body = args.length > 0 ? String(args[args.length - 1]) : "";
     if (!_filter || body.includes(_filter)) {
       const preview = body.length > _maxLen ? body.slice(0, _maxLen) + "...[truncated]" : body;
+      _reaRecord({
+        timestamp: Date.now(),
+        type: "function_constructor",
+        args: args.slice(0, -1).map(String),
+        body: preview,
+        stack: _includeStack ? new Error().stack : undefined,
+      });
       console.groupCollapsed(\`%c[FUNCTION CONSTRUCTOR HOOK]%c \${preview.slice(0, 60)}\`, "color:#f59e0b;font-weight:bold;", "color:inherit;");
       console.log("Args:", args.slice(0, -1));
       console.log("Body:", preview);
@@ -606,12 +876,19 @@ function generateJsonParseHook(
   const _maxLen = ${maxLen};
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
+${REA_EVENT_RECORDER_SNIPPET}
 
   const _origParse = JSON.parse;
   JSON.parse = function(text, reviver) {
     const textStr = String(text);
     if (!_filter || textStr.includes(_filter)) {
       const preview = textStr.length > _maxLen ? textStr.slice(0, _maxLen) + "...[truncated]" : textStr;
+      _reaRecord({
+        timestamp: Date.now(),
+        type: "json_parse",
+        input: preview,
+        length: textStr.length,
+      });
       console.groupCollapsed(\`%c[JSON.parse HOOK]%c \${preview.slice(0, 60)}\`, "color:#06b6d4;font-weight:bold;", "color:inherit;");
       console.log("Input:", preview);
       console.log("Length:", textStr.length);
@@ -642,14 +919,14 @@ function generateContextBridgeHook(
   const _maxLen = ${maxLen};
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
+${REA_EVENT_RECORDER_SNIPPET}
 
   function truncate(val) {
     try {
       const s = typeof val === "string" ? val : JSON.stringify(val);
       return s && s.length > _maxLen ? s.slice(0, _maxLen) + "...[truncated]" : s;
     } catch {}
-      return String(val);
-    }
+    return String(val);
   }
 
   function wrapObject(apiKey, target, path = "") {
@@ -664,6 +941,13 @@ function generateContextBridgeHook(
           const fullName = \`\${apiKey}.\${memberPath}\`;
           const shouldLog = !_filter || fullName.includes(_filter) || JSON.stringify(args).includes(_filter);
           if (shouldLog) {
+            _reaRecord({
+              timestamp: Date.now(),
+              type: "contextBridge_call",
+              id: callId,
+              api: fullName,
+              args: args.map(truncate),
+            });
             console.groupCollapsed(\`%c[ELECTRON IPC #\${callId}]%c \${fullName}()\`, "color:#6366f1;font-weight:bold;", "color:inherit;");
             console.log("API:", fullName);
             console.log("Arguments:", args.map(truncate));
@@ -678,12 +962,26 @@ function generateContextBridgeHook(
           if (res && typeof res.then === "function") {
             res.then(ret => {
               if (shouldLog) {
+                _reaRecord({
+                  timestamp: Date.now(),
+                  type: "contextBridge_result",
+                  id: callId,
+                  api: fullName,
+                  result: truncate(ret),
+                });
                 console.groupCollapsed(\`%c[ELECTRON IPC RES #\${callId}]%c \${fullName} -> Resolved\`, "color:#10b981;font-weight:bold;", "color:inherit;");
                 console.log("Return Value:", truncate(ret));
                 console.groupEnd();
               }
             }).catch(err => {
               if (shouldLog) {
+                _reaRecord({
+                  timestamp: Date.now(),
+                  type: "contextBridge_error",
+                  id: callId,
+                  api: fullName,
+                  error: String(err),
+                });
                 console.error(\`[ELECTRON IPC ERR #\${callId}] \${fullName}\`, err);
               }
             });
@@ -737,38 +1035,42 @@ function generateCustomHook(
   const _maxLen = ${maxLen};
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
+${REA_EVENT_RECORDER_SNIPPET}
 
   function truncate(val) {
     try {
       const s = typeof val === "string" ? val : JSON.stringify(val);
       return s && s.length > _maxLen ? s.slice(0, _maxLen) + "...[truncated]" : s;
     } catch {}
-      return String(val);
-    }
+    return String(val);
   }
 
   const parts = _targetPath.split(".");
   let parent = typeof window !== "undefined" ? window : globalThis;
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i];
-    if (parent[part] == null) {
+    if (!parent || !(part in parent)) {
       console.warn(\`[REA HOOK] Target path segment "\${part}" not found while navigating \${_targetPath}\`);
       return;
     }
     parent = parent[part];
   }
 
-  const propName = parts[parts.length - 1];
-  const original = parent[propName];
+  const leafProp = parts[parts.length - 1];
+  const origVal = parent[leafProp];
 
-  if (typeof original === "function") {
-    parent[propName] = function(...args) {
-      const callId = Math.random().toString(36).slice(2, 8);
+  if (typeof origVal === "function") {
+    parent[leafProp] = function(...args) {
       const shouldLog = !_filter || _targetPath.includes(_filter) || JSON.stringify(args).includes(_filter);
       if (shouldLog) {
-        console.groupCollapsed(\`%c[CUSTOM HOOK #\${callId}]%c \${_targetPath}()\`, "color:#f97316;font-weight:bold;", "color:inherit;");
+        _reaRecord({
+          timestamp: Date.now(),
+          type: "custom_call",
+          target: _targetPath,
+          args: args.map(truncate),
+        });
+        console.groupCollapsed(\`%c[CUSTOM HOOK]%c \${_targetPath}()\`, "color:#f43f5e;font-weight:bold;", "color:inherit;");
         console.log("Target:", _targetPath);
-        console.log("This:", this);
         console.log("Arguments:", args.map(truncate));
         if (_includeStack) console.log("Call Stack:", new Error().stack);
         console.groupEnd();
@@ -776,86 +1078,149 @@ function generateCustomHook(
         if (_mode === "debugger") {
           debugger;
         }
+        if (_mode === "stub") {
+          return undefined;
+        }
       }
-
-      if (_mode === "stub") {
-        console.warn(\`[CUSTOM HOOK #\${callId}] Stub mode active; returning undefined.\`);
-        return undefined;
-      }
-
-      const res = original.apply(this, args);
-      if (res && typeof res.then === "function") {
-        res.then(ret => {
-          if (shouldLog) {
-            console.groupCollapsed(\`%c[CUSTOM HOOK RES #\${callId}]%c \${_targetPath} -> Resolved\`, "color:#10b981;font-weight:bold;", "color:inherit;");
-            console.log("Return:", truncate(ret));
-            console.groupEnd();
-          }
-        }).catch(err => {
-          if (shouldLog) {
-            console.error(\`[CUSTOM HOOK ERR #\${callId}] \${_targetPath}\`, err);
-          }
+      const res = origVal.apply(this, args);
+      if (shouldLog) {
+        _reaRecord({
+          timestamp: Date.now(),
+          type: "custom_result",
+          target: _targetPath,
+          result: truncate(res),
         });
-      } else if (shouldLog) {
-        console.log(\`[CUSTOM HOOK RES #\${callId}] Return:\`, truncate(res));
       }
       return res;
     };
-    console.log(\`%c[REA HOOK]%c Custom method \${_targetPath} hooked successfully.\`, "color:#6366f1;font-weight:bold;", "color:inherit;");
+    console.log(\`%c[REA HOOK]%c Function trap placed on \${_targetPath}\`, "color:#6366f1;font-weight:bold;", "color:inherit;");
   } else {
-    let currentVal = original;
-    Object.defineProperty(parent, propName, {
+    let currentVal = origVal;
+    Object.defineProperty(parent, leafProp, {
       configurable: true,
       enumerable: true,
       get() {
         if (!_filter || _targetPath.includes(_filter)) {
-          console.log(\`%c[CUSTOM GET]%c \${_targetPath} ->\`, "color:#f97316;font-weight:bold;", "color:inherit;", truncate(currentVal));
+          _reaRecord({
+            timestamp: Date.now(),
+            type: "custom_get",
+            target: _targetPath,
+            value: truncate(currentVal),
+          });
+          console.log(\`%c[CUSTOM GET]%c \${_targetPath} => \${truncate(currentVal)}\`, "color:#f43f5e;font-weight:bold;", "color:inherit;");
         }
         return currentVal;
       },
       set(newVal) {
-        if (!_filter || _targetPath.includes(_filter)) {
-          console.log(\`%c[CUSTOM SET]%c \${_targetPath} =\`, "color:#f97316;font-weight:bold;", "color:inherit;", truncate(newVal));
+        if (!_filter || _targetPath.includes(_filter) || String(newVal).includes(_filter)) {
+          _reaRecord({
+            timestamp: Date.now(),
+            type: "custom_set",
+            target: _targetPath,
+            value: truncate(newVal),
+          });
+          console.groupCollapsed(\`%c[CUSTOM SET]%c \${_targetPath} = \${truncate(newVal)}\`, "color:#f43f5e;font-weight:bold;", "color:inherit;");
+          console.log("Old Value:", truncate(currentVal));
+          console.log("New Value:", truncate(newVal));
           if (_includeStack) console.log("Call Stack:", new Error().stack);
-          if (_mode === "debugger") debugger;
+          console.groupEnd();
+          if (_mode === "debugger") {
+            debugger;
+          }
         }
         currentVal = newVal;
       },
     });
-    console.log(\`%c[REA HOOK]%c Custom property \${_targetPath} accessor hooked successfully.\`, "color:#6366f1;font-weight:bold;", "color:inherit;");
+    console.log(\`%c[REA HOOK]%c Property getter/setter trap placed on \${_targetPath}\`, "color:#6366f1;font-weight:bold;", "color:inherit;");
   }
 })();`;
 }
 
+function generateConsoleHook(
+	filter: string | null,
+	stackTrace: boolean,
+	tamperMode: HookTamperMode,
+	maxLen: number,
+): string {
+	const filterJson = JSON.stringify(filter);
+	const modeJson = JSON.stringify(tamperMode);
+	return `(() => {
+  if (typeof window === "undefined" || !window.console) {
+    return;
+  }
+  const _orig = {
+    log: window.console.log,
+    info: window.console.info,
+    warn: window.console.warn,
+    error: window.console.error,
+    debug: window.console.debug,
+  };
+  const _filter = ${filterJson};
+  const _maxLen = ${maxLen};
+  const _includeStack = ${stackTrace};
+  const _mode = ${modeJson};
+${REA_EVENT_RECORDER_SNIPPET}
+
+  const methods = ["log", "info", "warn", "error", "debug"];
+  methods.forEach(method => {
+    const origFn = _orig[method];
+    if (typeof origFn !== "function") return;
+    window.console[method] = function(...args) {
+      try {
+        const text = args.map(a => {
+          try {
+            return typeof a === "string" ? a : JSON.stringify(a);
+          } catch {
+            return String(a);
+          }
+        }).join(" ").slice(0, _maxLen);
+
+        if (!_filter || text.includes(_filter)) {
+          if (_mode === "debugger") {
+            debugger;
+          }
+          _reaRecord({
+            timestamp: Date.now(),
+            type: "console",
+            method,
+            text,
+            args: args.map(a => {
+              try {
+                return typeof a === "string" ? a : JSON.parse(JSON.stringify(a));
+              } catch {
+                return String(a);
+              }
+            }).slice(0, 10),
+            stack: _includeStack ? new Error().stack : undefined,
+          });
+        }
+      } catch {}
+      if (_mode !== "stub") {
+        return origFn.apply(this, args);
+      }
+    };
+  });
+})();`;
+}
+
 function formatScript(body: string, preset: string, format: HookFormatKind, target?: string): string {
-	const header = buildHeaderBanner(preset, format, target);
 	switch (format) {
-		case "userscript": {
-			const userscriptMeta = buildUserscriptHeader(preset, target);
-			return `${userscriptMeta}${header}\n\n${body}`;
-		}
-		case "frida": {
-			const fridaWrapper = [
-				header,
-				"// Target: Chromium / WebView / Node.js evaluate context via CDP or Frida Java.perform",
-				"(() => {",
-				"  const script = `" + body.replace(/`/g, "\\`").replace(/\${/g, "\\${") + "`;",
-				"  if (typeof Java !== 'undefined' && Java.available) {",
-				"    console.log('[Frida] Note: Inject script string into WebView using evaluateJavascript()');",
-				"  } else {",
-				"    console.log('[Frida] Injecting hook script template into current JS context...');",
-				"  }",
-				"  // Standalone template payload below:",
-				"})();",
-				"",
-				body,
-			].join("\n");
-			return fridaWrapper;
-		}
+		case "userscript":
+			return `${buildUserscriptHeader(preset, target)}\n${body}`;
 		case "devtools":
+			return `${buildHeaderBanner(preset, format, target)}\n// Tip: Run directly in DevTools Console to activate instrumentation.\n${body}`;
+		case "frida":
+			return `// [Frida] Injected Web View / Chromium Script Evaluator
+Java.perform(function() {
+  // If target WebView is available, evaluate via evaluateJavascript
+  const hookSource = ${JSON.stringify(body)};
+  console.log("[REA Frida] Injecting Web Hook preset '${preset}' into active WebView context...");
+  // Standard Android WebView evaluate pattern:
+  // webView.evaluateJavascript(hookSource, null);
+});`;
 		case "snippet":
 		default:
-			return `${header}\n\n${body}`;
+			return `${buildHeaderBanner(preset, format, target)}\n${body}`;
 	}
 }
 
@@ -866,14 +1231,21 @@ export class JsHookPresetTool
 	readonly approval: ToolTier = "read";
 	readonly label = "JS Hook Preset";
 	readonly summary =
-		"Generate safe JavaScript hook snippets and debugging presets (fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, custom)";
+		"Generate, inject, and capture safe JavaScript hook snippets and debugging presets (fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, custom)";
 	readonly description: string;
 	readonly parameters = jsHookPresetSchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
 
-	constructor(private readonly session: ToolSession) {
+	constructor(
+		private readonly session: ToolSession,
+		private readonly runner?: BrowserReverseRunner,
+	) {
 		this.description = prompt.render(jsHookPresetDescription);
+	}
+
+	private getRunner(): BrowserReverseRunner {
+		return this.runner ?? createDefaultBrowserReverseRunner(this.session);
 	}
 
 	async execute(
@@ -889,7 +1261,7 @@ export class JsHookPresetTool
 				"# JavaScript Hook Presets Catalog",
 				"",
 				"Statically generated runtime inspection and tracing templates for browsers, Electron, and Node.js.",
-				"All scripts are returned as safe templates and are NEVER executed automatically.",
+				"All scripts are returned as safe templates and are NEVER executed automatically unless 'inject' action is called.",
 				"",
 			];
 			for (const item of PRESET_CATALOG) {
@@ -907,89 +1279,381 @@ export class JsHookPresetTool
 					catalog: PRESET_CATALOG,
 					isTemplateOnly: true,
 					executed: false,
-					safetyNote: "Templates are statically generated and have not been executed.",
+					safetyNote: "Templates are statically cataloged and have not been executed.",
 				},
 			};
 		}
 
-		// Action: generate
-		const preset = (params.preset || (params.target ? "custom" : "fetch")) as HookPresetKind;
-		const format: HookFormatKind = params.format || "snippet";
-		const filter = params.filter ? params.filter.trim() : null;
-		const stackTrace = params.stack_trace !== false;
-		const tamperMode: HookTamperMode = params.tamper_mode || "log";
-		const maxLen = Math.min(32768, Math.max(64, Math.floor(params.max_payload_length ?? 1024)));
-		const target = params.target ? params.target.trim() : undefined;
+		if (action === "generate") {
+			const preset = (params.preset || (params.target ? "custom" : "fetch")) as HookPresetKind;
+			const format: HookFormatKind = params.format || "snippet";
+			const filter = params.filter ? params.filter.trim() : null;
+			const stackTrace = params.stack_trace !== false;
+			const tamperMode: HookTamperMode = params.tamper_mode || "log";
+			const maxLen = Math.min(32768, Math.max(64, Math.floor(params.max_payload_length ?? 1024)));
+			const target = params.target ? params.target.trim() : undefined;
 
-		let rawScript = "";
-		switch (preset) {
-			case "fetch":
-				rawScript = generateFetchHook(filter, stackTrace, tamperMode, maxLen);
-				break;
-			case "xhr":
-				rawScript = generateXhrHook(filter, stackTrace, tamperMode, maxLen);
-				break;
-			case "websocket":
-				rawScript = generateWebSocketHook(filter, stackTrace, tamperMode, maxLen);
-				break;
-			case "crypto":
-				rawScript = generateCryptoHook(filter, stackTrace, tamperMode, maxLen);
-				break;
-			case "eval":
-				rawScript = generateEvalHook(filter, stackTrace, tamperMode, maxLen);
-				break;
-			case "json_parse":
-				rawScript = generateJsonParseHook(filter, stackTrace, tamperMode, maxLen);
-				break;
-			case "contextBridge":
-				rawScript = generateContextBridgeHook(filter, stackTrace, tamperMode, maxLen);
-				break;
-			case "custom":
-				if (!target) {
-					throw new ToolError("target parameter is required when preset is 'custom'");
-				}
-				rawScript = generateCustomHook(target, filter, stackTrace, tamperMode, maxLen);
-				break;
-			default:
-				throw new ToolError(`Unsupported hook preset: ${preset}`);
+			let rawScript = "";
+			switch (preset) {
+				case "fetch":
+					rawScript = generateFetchHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "xhr":
+					rawScript = generateXhrHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "websocket":
+					rawScript = generateWebSocketHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "crypto":
+					rawScript = generateCryptoHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "eval":
+					rawScript = generateEvalHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "json_parse":
+					rawScript = generateJsonParseHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "contextBridge":
+					rawScript = generateContextBridgeHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "custom":
+					if (!target) {
+						throw new ToolError("target parameter is required when preset is 'custom'");
+					}
+					rawScript = generateCustomHook(target, filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "console":
+					rawScript = generateConsoleHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				default:
+					throw new ToolError(`Unsupported hook preset: ${preset}`);
+			}
+
+			const finalScript = formatScript(rawScript, preset, format, target);
+
+			const summaryLines = [
+				`# Generated JS Hook Preset: ${preset.toUpperCase()}${target ? ` (${target})` : ""}`,
+				`- **Format**: ${format}`,
+				`- **Tamper Mode**: ${tamperMode}`,
+				`- **Filter**: ${filter ? `"${filter}"` : "[none]"}`,
+				`- **Stack Traces**: ${stackTrace ? "enabled" : "disabled"}`,
+				`- **Max Payload Log Length**: ${maxLen} characters`,
+				`- **Script Size**: ${finalScript.length} bytes`,
+				`- **Status**: Statically generated template (NOT EXECUTED)`,
+				"",
+				"```javascript",
+				finalScript,
+				"```",
+			];
+
+			return {
+				content: [{ type: "text", text: summaryLines.join("\n") }],
+				details: {
+					action: "generate",
+					preset,
+					target,
+					format,
+					script: finalScript,
+					scriptLength: finalScript.length,
+					options: {
+						filter: filter ?? undefined,
+						stackTrace,
+						tamperMode,
+						maxPayloadLength: maxLen,
+					},
+					isTemplateOnly: true,
+					executed: false,
+					safetyNote: "Template is statically generated and has not been executed.",
+				},
+			};
 		}
 
-		const finalScript = formatScript(rawScript, preset, format, target);
+		if (action === "inject") {
+			const preset = (params.preset || (params.target ? "custom" : "fetch")) as HookPresetKind;
+			const format: HookFormatKind = params.format || "snippet";
+			const filter = params.filter ? params.filter.trim() : null;
+			const stackTrace = params.stack_trace !== false;
+			const tamperMode: HookTamperMode = params.tamper_mode || "log";
+			const maxLen = Math.min(32768, Math.max(64, Math.floor(params.max_payload_length ?? 1024)));
+			const target = params.target ? params.target.trim() : undefined;
+			const tabName = params.tab_name?.trim() || "main";
 
-		const summaryLines = [
-			`# Generated JS Hook Preset: ${preset.toUpperCase()}${target ? ` (${target})` : ""}`,
-			`- **Format**: ${format}`,
-			`- **Tamper Mode**: ${tamperMode}`,
-			`- **Filter**: ${filter ? `"${filter}"` : "[none]"}`,
-			`- **Stack Traces**: ${stackTrace ? "enabled" : "disabled"}`,
-			`- **Max Payload Log Length**: ${maxLen} characters`,
-			`- **Script Size**: ${finalScript.length} bytes`,
-			`- **Status**: Statically generated template (NOT EXECUTED)`,
-			"",
-			"```javascript",
-			finalScript,
-			"```",
-		];
+			let rawScript = "";
+			switch (preset) {
+				case "fetch":
+					rawScript = generateFetchHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "xhr":
+					rawScript = generateXhrHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "websocket":
+					rawScript = generateWebSocketHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "crypto":
+					rawScript = generateCryptoHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "eval":
+					rawScript = generateEvalHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "json_parse":
+					rawScript = generateJsonParseHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "contextBridge":
+					rawScript = generateContextBridgeHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "custom":
+					if (!target) {
+						throw new ToolError("target parameter is required when preset is 'custom'");
+					}
+					rawScript = generateCustomHook(target, filter, stackTrace, tamperMode, maxLen);
+					break;
+				case "console":
+					rawScript = generateConsoleHook(filter, stackTrace, tamperMode, maxLen);
+					break;
+				default:
+					throw new ToolError(`Unsupported hook preset: ${preset}`);
+			}
 
-		return {
-			content: [{ type: "text", text: summaryLines.join("\n") }],
-			details: {
-				action: "generate",
-				preset,
-				target,
-				format,
-				script: finalScript,
-				scriptLength: finalScript.length,
-				options: {
-					filter: filter ?? undefined,
-					stackTrace,
-					tamperMode,
-					maxPayloadLength: maxLen,
+			const finalScript = formatScript(rawScript, preset, format, target);
+			const runner = this.getRunner();
+			let tab = runner.getTab(tabName);
+
+			if (!tab || tab.state !== "alive") {
+				if (params.url) {
+					const opened = await runner.openTab(tabName, params.url, signal);
+					tab = { name: opened.name, state: "alive", url: opened.url };
+				} else {
+					throw new ToolError(
+						`Browser tab "${tabName}" is not open or alive. Provide 'url' to open a new tab, or use browser(action: "open", name: "${tabName}", url: "...") first.`,
+					);
+				}
+			}
+
+			const injectionCode = `(async () => {
+  let initId = "";
+  try {
+    const res = await tab.addInitScript(${JSON.stringify(finalScript)});
+    initId = res ? res.id : "";
+  } catch (err) {
+    initId = "";
+  }
+  let evaluated = false;
+  try {
+    await tab.evaluate(${JSON.stringify(finalScript)});
+    evaluated = true;
+  } catch (err) {
+    evaluated = false;
+  }
+  return { initScriptId: initId, evaluated };
+})()`;
+
+			const runRes = await runner.runInTab(tabName, { code: injectionCode, signal });
+			const runValue = (runRes && typeof runRes.returnValue === "object" ? runRes.returnValue : {}) as {
+				initScriptId?: string;
+				evaluated?: boolean;
+			};
+
+			const summaryLines = [
+				`# Injected JS Hook Preset: ${preset.toUpperCase()}${target ? ` (${target})` : ""}`,
+				`- **Tab**: \`${tabName}\``,
+				`- **URL**: ${tab.url || "[blank]"}`,
+				`- **Format**: ${format}`,
+				`- **Tamper Mode**: ${tamperMode}`,
+				`- **Filter**: ${filter ? `"${filter}"` : "[none]"}`,
+				`- **Stack Traces**: ${stackTrace ? "enabled" : "disabled"}`,
+				`- **Init Script Registered**: ${runValue.initScriptId ? `yes (${runValue.initScriptId})` : "no"}`,
+				`- **Immediate Page Evaluated**: ${runValue.evaluated ? "yes" : "no"}`,
+				`- **Status**: Active instrumentation verified on tab \`${tabName}\``,
+			];
+
+			return {
+				content: [{ type: "text", text: summaryLines.join("\n") }],
+				details: {
+					action: "inject",
+					preset,
+					target,
+					format,
+					script: finalScript,
+					scriptLength: finalScript.length,
+					tab_name: tabName,
+					url: tab.url,
+					init_script_id: runValue.initScriptId,
+					evaluated: runValue.evaluated,
+					options: {
+						filter: filter ?? undefined,
+						stackTrace,
+						tamperMode,
+						maxPayloadLength: maxLen,
+					},
+					isTemplateOnly: false,
+					executed: true,
+					safetyNote: "Hook script was injected into the active browser session.",
 				},
-				isTemplateOnly: true,
-				executed: false,
-				safetyNote: "Template is statically generated and has not been executed.",
-			},
-		};
+			};
+		}
+
+		if (action === "capture") {
+			const tabName = params.tab_name?.trim() || "main";
+			const filter = params.filter ? params.filter.trim() : null;
+			const clear = params.clear === true;
+			const limit = Math.min(500, Math.max(1, Math.floor(params.limit ?? 50)));
+			const exportEvidence = params.export_evidence === true;
+
+			const runner = this.getRunner();
+			const tab = runner.getTab(tabName);
+			if (!tab || tab.state !== "alive") {
+				throw new ToolError(
+					`Browser tab "${tabName}" is not open or alive. Cannot capture events from a missing tab.`,
+				);
+			}
+
+			const captureCode = `(async () => {
+  let events = [];
+  try {
+    events = await tab.evaluate((filterStr, clearFlag) => {
+      let evs = Array.isArray(window.__rea_events__) ? window.__rea_events__ : [];
+      if (filterStr) {
+        const query = filterStr.toLowerCase().trim();
+        evs = evs.filter(e => {
+          const typeLower = (e.type || "").toLowerCase();
+          if (query === "ws" && typeLower.startsWith("websocket")) return true;
+          if (query === "send" && (typeLower.includes("send") || typeLower.includes("request"))) return true;
+          if (query === "console" && typeLower.includes("console")) return true;
+          if (query === "crypto" && typeLower.startsWith("crypto")) return true;
+          try {
+            return JSON.stringify(e).toLowerCase().includes(query);
+          } catch {
+            return false;
+          }
+        });
+      }
+      if (clearFlag) {
+        window.__rea_events__ = [];
+      }
+      return evs;
+    }, ${JSON.stringify(filter)}, ${JSON.stringify(clear)});
+  } catch (err) {}
+
+  let consoleLogs = [];
+  try {
+    consoleLogs = await tab.console({ since: 0 });
+  } catch (err) {}
+
+  let requests = [];
+  try {
+    requests = await tab.requests();
+  } catch (err) {}
+
+  return { events, consoleLogs, requests };
+})()`;
+
+			const runRes = await runner.runInTab(tabName, { code: captureCode, signal });
+			const val = (runRes && typeof runRes.returnValue === "object" ? runRes.returnValue : {}) as {
+				events?: BrowserReverseEvent[];
+				consoleLogs?: unknown[];
+				requests?: unknown[];
+			};
+
+			const rawEvents = Array.isArray(val.events) ? val.events : [];
+			const pagedEvents = rawEvents.slice(0, limit);
+			const consoleLogs = Array.isArray(val.consoleLogs) ? val.consoleLogs : [];
+			const requests = Array.isArray(val.requests) ? val.requests : [];
+
+			const typeCounts: Record<string, number> = {};
+			for (const ev of rawEvents) {
+				const t = ev.type || "unknown";
+				typeCounts[t] = (typeCounts[t] || 0) + 1;
+			}
+
+			const evidenceItems = exportEvidence
+				? pagedEvents.map(ev => ({
+						sourceTool: "js_hook_preset",
+						kind: "fact" as const,
+						target: tab.url || tabName,
+						locator: `tab:${tabName}:${ev.type}${ev.id ? `:${ev.id}` : ""}`,
+						content: `Captured ${ev.type} event on ${tab.url || tabName}: ${JSON.stringify(ev).slice(0, 500)}`,
+						tags: ["browser", "js_hook", ev.type],
+					}))
+				: undefined;
+
+			const summaryLines = [
+				`# Browser Captured Events: Tab \`${tabName}\``,
+				`- **Total Events Captured**: ${rawEvents.length}${rawEvents.length > limit ? ` (showing first ${limit})` : ""}`,
+				`- **Event Types Breakdown**: ${Object.keys(typeCounts).length > 0 ? Object.entries(typeCounts).map(([k, v]) => `${k}=${v}`).join(", ") : "[none]"}`,
+				`- **Captured Console Messages**: ${consoleLogs.length}`,
+				`- **Captured Network Requests**: ${requests.length}`,
+				`- **Buffer Cleared**: ${clear ? "yes" : "no"}`,
+				"",
+			];
+
+			if (pagedEvents.length > 0) {
+				summaryLines.push("### Recent Hook Events:");
+				for (let i = 0; i < Math.min(pagedEvents.length, 10); i++) {
+					const ev = pagedEvents[i];
+					summaryLines.push(`- **[${new Date(ev.timestamp).toISOString()}] ${ev.type}** ${ev.url || ev.method || ev.target || ""}`);
+				}
+				if (pagedEvents.length > 10) {
+					summaryLines.push(`... and ${pagedEvents.length - 10} more events.`);
+				}
+			} else {
+				summaryLines.push("_No hook events captured in buffer._");
+			}
+
+			return {
+				content: [{ type: "text", text: summaryLines.join("\n") }],
+				details: {
+					action: "capture",
+					tab_name: tabName,
+					url: tab.url,
+					events: pagedEvents,
+					eventCount: rawEvents.length,
+					consoleLogs,
+					requests,
+					evidence: evidenceItems,
+					isTemplateOnly: false,
+					executed: true,
+					safetyNote: "Structured events captured from live browser tab.",
+				},
+			};
+		}
+
+		if (action === "clear") {
+			const tabName = params.tab_name?.trim() || "main";
+			const runner = this.getRunner();
+			const tab = runner.getTab(tabName);
+			if (!tab || tab.state !== "alive") {
+				throw new ToolError(
+					`Browser tab "${tabName}" is not open or alive. Cannot clear events from a missing tab.`,
+				);
+			}
+
+			const clearCode = `(async () => {
+  try {
+    await tab.evaluate(() => {
+      window.__rea_events__ = [];
+    });
+  } catch (err) {}
+  try {
+    await tab.clearConsole();
+  } catch (err) {}
+  return { cleared: true };
+})()`;
+
+			await runner.runInTab(tabName, { code: clearCode, signal });
+
+			return {
+				content: [{ type: "text", text: `Cleared event buffer and console for tab \`${tabName}\`.` }],
+				details: {
+					action: "clear",
+					tab_name: tabName,
+					url: tab.url,
+					isTemplateOnly: false,
+					executed: true,
+					safetyNote: "Browser event buffer cleared.",
+				},
+			};
+		}
+
+		throw new ToolError(`Unsupported action: ${action}`);
 	}
 }

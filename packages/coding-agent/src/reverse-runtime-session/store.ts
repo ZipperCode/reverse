@@ -19,21 +19,31 @@ export interface SessionListFilter {
 	workflow_id?: string;
 	limit?: number;
 }
+export interface ReverseRuntimeSessionStoreOptions {
+	repositoryRoot?: string;
+	projectDirectory?: string;
+	stateRoot?: string;
+}
 
 export class ReverseRuntimeSessionStore {
 	readonly projectDirectory: string;
 
-	constructor(projectDirectory: string) {
-		this.projectDirectory = projectDirectory;
+	constructor(projectDirectoryOrOptions: string | ReverseRuntimeSessionStoreOptions) {
+		if (typeof projectDirectoryOrOptions === "string") {
+			this.projectDirectory = projectDirectoryOrOptions;
+		} else if (projectDirectoryOrOptions.projectDirectory) {
+			this.projectDirectory = projectDirectoryOrOptions.projectDirectory;
+		} else {
+			const cwd = projectDirectoryOrOptions.repositoryRoot ?? process.cwd();
+			const projectKey = encodeRuntimeSessionProjectKey(cwd);
+			this.projectDirectory = projectDirectoryOrOptions.stateRoot
+				? path.join(path.resolve(projectDirectoryOrOptions.stateRoot), projectKey)
+				: getReverseRuntimeSessionsProjectDir(projectKey);
+		}
 	}
 
 	static forSession(cwd: string, stateRoot?: string): ReverseRuntimeSessionStore {
-		if (stateRoot) {
-			const projectKey = encodeRuntimeSessionProjectKey(cwd);
-			return new ReverseRuntimeSessionStore(path.join(path.resolve(stateRoot), projectKey));
-		}
-		const projectKey = encodeRuntimeSessionProjectKey(cwd);
-		return new ReverseRuntimeSessionStore(getReverseRuntimeSessionsProjectDir(projectKey));
+		return new ReverseRuntimeSessionStore({ repositoryRoot: cwd, stateRoot });
 	}
 
 	async ensureDir(): Promise<void> {

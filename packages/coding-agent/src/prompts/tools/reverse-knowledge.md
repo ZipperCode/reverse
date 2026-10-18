@@ -4,7 +4,7 @@ The `reverse_knowledge` tool provides a bounded, verified reverse engineering kn
 
 ## Actions
 
-- **`search`**: Query stored knowledge by keywords, target format (`PE`, `ELF`, `Mach-O`, `APK`, `JS`, `WASM`, `PCAP`, `SQLite`), SHA256 hash, tool name, or kind. Searches both local project store and Mnemopi recall. Bounded to 5 items by default (max 20).
+- **`search`**: Query stored knowledge by keywords, target format (`PE`, `ELF`, `Mach-O`, `APK`, `JS`, `WASM`, `PCAP`, `SQLite`), SHA256 hash, tool name, or kind. Searches both local project store and Mnemopi recall. Bounded to 5 items by default (max 20). Falls back to bundled default knowledge seeds when the project store has no matching records.
 - **`retain`**: Manually record verified reverse engineering conclusions or recovery patterns. Strictly verifies that unverified hypotheses or refuted claims are never promoted as facts.
 - **`learn`**: Automatically scan the project's `EvidenceStore` and `ReverseWorkflowStore`. Extracts only verified conclusions (`status: verified`) and successful recovery audits (`applied: true` on completed steps) into reusable knowledge entries. Unverified hypotheses and failed attempts are safely skipped.
 - **`apply`**: Match stored knowledge against a given target format, hash, tool, error message, or analytical goal. Returns actionable guidance, recommended fallback tools, and parameter configurations. Automatically excludes disabled, expired, and merged records, while exposing backing evidence sources and confidence.
@@ -21,3 +21,4 @@ The `reverse_knowledge` tool provides a bounded, verified reverse engineering kn
 - **Stale Source Detection**: Backing evidence records are validated against the project evidence ledger; any refuted conclusions or missing evidence items are flagged for review or retirement.
 - **Evidence Ledger Traceability**: Retained conclusions link back to their originating evidence ledger IDs (`ev_conc_...`, `ev_hyp_...`) and workflow audit records.
 - **Deterministic Prior Retrieval**: The `reverse_workflow` orchestrator automatically queries `reverse_knowledge` during `create`, `plan`, and `advance` actions to surface prior findings without executing unrequested commands.
+- **Bundled Seed Catalog**: Ships with a curated baseline catalog of recovery patterns across supported formats (PE, ELF, Mach-O, APK, JS, WASM, PCAP, SQLite). Bundled seeds are explicitly flagged with `source: "bundled"` and unverified status (`user_verified: false`, medium confidence) so they are never confused with user-verified project conclusions.

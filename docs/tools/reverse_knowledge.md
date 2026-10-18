@@ -32,6 +32,7 @@
 | `error` | `string` | No | Error message or failure category to match against recovery patterns in `apply`. |
 | `goal` | `string` | No | Analytical goal or objective for `search` or `apply`. |
 | `limit` | `number` | No | Maximum results to return (default 5, max 20). |
+| `include_bundled` | `boolean` | No | Whether to include bundled default knowledge seeds alongside local project records. |
 
 - **`audit`**: Detects duplicate fingerprints, missing/refuted evidence backing, and expired records. Optional `mark_stale` marks records without deleting them.
 - **`merge`**: Non-destructively marks duplicate records as merged into a primary record.
@@ -43,3 +44,10 @@
 - **No Premature Promotion**: Unverified hypotheses (kind: `hypothesis` without a verifying conclusion) and questions (kind: `unknown`) are rejected from retention and skipped during automated learning.
 - **Evidence Ledger Traceability**: Retained conclusions link back to their originating evidence ledger IDs (`ev_conc_...`, `ev_hyp_...`) and workflow audit records.
 - **Deterministic Prior Retrieval**: The `reverse_workflow` orchestrator automatically queries `reverse_knowledge` during `create` and `plan` actions to surface prior findings without executing unrequested commands.
+
+## Bundled Default Knowledge Seeds
+
+- **Curated Baseline Patterns**: Rea ships with embedded baseline recovery patterns across all supported formats (`PE`, `ELF`, `Mach-O`, `APK`, `JS`, `WASM`, `PCAP`, `SQLite`).
+- **Deterministic Fallback**: When `reverse_knowledge search` or `apply` finds no local matching records in the project store (such as on a fresh install or for a newly targeted format), it automatically falls back to relevant bundled patterns.
+- **Strict Non-Verified Status**: All bundled records are marked with `source: "bundled"` and metadata `{ source: "bundled", user_verified: false, baseline: true }`. They carry `medium` confidence and are never treated as project evidence-verified facts unless the user verifies them in the project ledger.
+- **Read-Only Non-Polluting**: Querying or applying bundled seeds never creates uncommitted disk files in fresh projects until explicitly retained or customized.

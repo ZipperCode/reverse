@@ -79,6 +79,9 @@ const reverseKnowledgeSchema = type({
 	"include_inactive?": type("boolean").describe(
 		"Whether 'search' or 'audit' should include inactive/expired/disabled/merged records",
 	),
+	"include_bundled?": type("boolean").describe(
+		"Whether 'search' should explicitly include bundled baseline templates alongside project findings",
+	),
 	"limit?": type("number.integer >= 1").describe("Maximum results to return (default 5, max 20)"),
 });
 
@@ -172,6 +175,7 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 					kind: params.kind,
 					confidence: params.confidence,
 					include_inactive: params.include_inactive,
+					include_bundled: params.include_bundled,
 					limit,
 				});
 
@@ -195,9 +199,12 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 				}
 
 				const items = records.map(r => {
+					const isBundled = r.source === "bundled" || r.metadata?.source === "bundled";
+					const sourceBadge = isBundled ? " [BUNDLED SEED - UNVERIFIED]" : "";
+					const topicTag = r.metadata?.topic ? ` | **Topic**: \`${r.metadata.topic}\`` : "";
 					const lines = [
-						`### [${r.id}] ${r.title} (${r.kind})`,
-						`- **Format**: ${r.target_format} | **Confidence**: ${r.confidence.toUpperCase()}${r.tool ? ` | **Tool**: \`${r.tool}\`` : ""}`,
+						`### [${r.id}] ${r.title} (${r.kind})${sourceBadge}`,
+						`- **Format**: ${r.target_format} | **Confidence**: ${r.confidence.toUpperCase()}${r.tool ? ` | **Tool**: \`${r.tool}\`` : ""}${topicTag}${isBundled ? " | **Source**: `bundled` (baseline template)" : ""}`,
 						r.target_hash ? `- **Target Hash**: \`${r.target_hash.slice(0, 16)}...\`` : undefined,
 						r.source_evidence_ids && r.source_evidence_ids.length > 0
 							? `- **Evidence Links**: ${r.source_evidence_ids.map(id => `\`${id}\``).join(", ")}`
@@ -207,7 +214,6 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 					].filter(Boolean);
 					return lines.join("\n");
 				});
-
 				const text = [
 					`Found ${records.length} reverse engineering knowledge ${records.length === 1 ? "entry" : "entries"}:`,
 					"",
@@ -433,9 +439,11 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 				}
 
 				const recItems = applyResult.recommendations.map(rec => {
+					const isBundled = rec.source === "bundled";
+					const sourceBadge = isBundled ? " [BUNDLED SEED - UNVERIFIED]" : "";
 					const lines = [
-						`### [${rec.knowledge_id}] ${rec.title} (${rec.kind})`,
-						`- **Confidence**: ${rec.confidence.toUpperCase()}${rec.tool ? ` | **Tool**: \`${rec.tool}\`` : ""} | **Format**: ${rec.format}`,
+						`### [${rec.knowledge_id}] ${rec.title} (${rec.kind})${sourceBadge}`,
+						`- **Confidence**: ${rec.confidence.toUpperCase()}${rec.tool ? ` | **Tool**: \`${rec.tool}\`` : ""} | **Format**: ${rec.format}${isBundled ? " | **Source**: `bundled` (baseline template)" : ""}`,
 						`- **Guidance**: ${rec.guidance}`,
 						rec.suggested_params
 							? `- **Suggested Parameters**: \`${typeof rec.suggested_params === "string" ? rec.suggested_params : JSON.stringify(rec.suggested_params)}\``

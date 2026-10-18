@@ -81,6 +81,7 @@ import { DotnetInspectTool } from "./dotnet-inspect";
 import { GhidraInspectTool } from "./ghidra-inspect";
 import { DroidascTool } from "./droidasc";
 import { AndroidPackageInspectTool } from "./android-package-inspect";
+import { AndroidNativeWorkflowTool } from "./android-native-workflow";
 import { AdbObserveTool } from "./adb-observe";
 import { FridaTool } from "./frida";
 import { FridaSessionTool } from "./frida-session";
@@ -90,6 +91,7 @@ import { TriageTool } from "./triage";
 import { EvidenceTool } from "./evidence";
 import { JavascriptApplicationTool } from "./javascript-application";
 import { JsHookPresetTool } from "./js-hook-preset";
+import { BrowserReverseSessionTool } from "./browser-reverse-session";
 import { SourcemapInspectTool } from "./sourcemap-inspect";
 import { PcapInspectTool } from "./pcap-inspect";
 import { SqliteInspectTool } from "./sqlite-inspect";
@@ -102,6 +104,8 @@ import { ReverseWorkflowTool } from "./reverse-workflow";
 import { ReverseRuntimeSessionTool } from "./reverse-runtime-session";
 import { ReverseKnowledgeTool } from "./reverse-knowledge";
 import { ReverseWorkspaceTool } from "./reverse-workspace";
+import { ReverseDynamicEvidenceTool } from "./reverse-dynamic-evidence";
+import { ReverseCapabilityTool } from "./reverse-capability";
 import { isMountableUnderXdev, resolveXdevTool, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
 
@@ -184,12 +188,14 @@ export * from "./android-package-inspect";
 export * from "./adb-observe";
 export * from "./frida";
 export * from "./frida-session";
+export { FridaSessionTool as ReverseDynamicSessionTool } from "./frida-session";
 export * from "./websocket-observe";
 export * from "./windows-observe";
 export * from "./triage";
 export * from "./evidence";
 export * from "./javascript-application";
 export * from "./js-hook-preset";
+export * from "./browser-reverse-session";
 export * from "./sourcemap-inspect";
 export * from "./pcap-inspect";
 export * from "./sqlite-inspect";
@@ -201,7 +207,9 @@ export * from "./binary-diff";
 export * from "./reverse-workflow";
 export * from "./reverse-runtime-session";
 export * from "./reverse-knowledge";
+export * from "./reverse-dynamic-evidence";
 export * from "./reverse-workspace";
+export * from "./reverse-capability";
 export type { VibeToolDetails } from "@rva/tui/tools/vibe";
 export * from "./write";
 export * from "./xdev";
@@ -603,6 +611,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	ghidra_inspect: s => new GhidraInspectTool(s),
 	droidasc: s => new DroidascTool(s),
 	android_package_inspect: s => new AndroidPackageInspectTool(s),
+	android_native_workflow: s => new AndroidNativeWorkflowTool(s),
 	adb_observe: s => new AdbObserveTool(s),
 	frida: s => new FridaTool(s),
 	frida_session: s => new FridaSessionTool(s),
@@ -612,6 +621,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	evidence: s => new EvidenceTool(s),
 	javascript_application: s => new JavascriptApplicationTool(s),
 	js_hook_preset: s => new JsHookPresetTool(s),
+	browser_reverse_session: s => new BrowserReverseSessionTool(s),
 	sourcemap_inspect: s => new SourcemapInspectTool(s),
 	pcap_inspect: s => new PcapInspectTool(s),
 	sqlite_inspect: s => new SqliteInspectTool(s),
@@ -624,6 +634,8 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	reverse_runtime_session: s => new ReverseRuntimeSessionTool(s),
 	reverse_knowledge: s => new ReverseKnowledgeTool(s),
 	reverse_workspace: s => new ReverseWorkspaceTool(s),
+	reverse_dynamic_evidence: s => new ReverseDynamicEvidenceTool(s),
+	reverse_capability: s => new ReverseCapabilityTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),
@@ -1015,6 +1027,7 @@ export type { AskToolDetails, QuestionResult } from "@rva/tui/tools/ask";
 // renderer through the injected pi.pi namespace (the root barrel of this
 // package). Re-export it so the pi-tui renderer migration doesn't drop it.
 export { askToolRenderer } from "@rva/tui/tools/ask";
+export { AndroidNativeWorkflowTool } from "./android-native-workflow";
 export type {
 	TodoStatus,
 	TodoOperation,

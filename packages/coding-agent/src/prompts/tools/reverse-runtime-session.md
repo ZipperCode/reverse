@@ -1,28 +1,30 @@
-Unified reverse engineering runtime session registry: manages sanitized connection metadata, status/heartbeat stale detection, and deterministic recovery/restore plans across Frida, browser, IDA, and Ghidra without unsafe arbitrary process control.
+Unified reverse engineering runtime session registry: manages sanitized connection metadata, status/heartbeat stale detection, and deterministic recovery/restore plans across Frida, browser, DAP (debug), IDA, and Ghidra without unsafe arbitrary process control.
 
 Actions:
 - `register`: Register a new or existing reverse runtime session.
-  - Accepts session kinds: `frida`, `browser`, `ida`, `ghidra`, or `generic`.
+  - Accepts session kinds: `frida`, `browser`, `dap`, `ida`, `ghidra`, or `generic`.
   - Captures target metadata (PID, package name, binary path, database locator, URL, endpoint).
   - Automatically sanitizes connection metadata: strips secrets, passwords, auth tokens, bearer credentials, and non-serializable live process handles.
   - Generates deterministic session identifier (e.g. `runt_frida_...`) or accepts custom `session_id`.
   - Optionally associates with `workflow_id` and `step_id`.
 - `list`: List registered runtime sessions for the active project.
-  - Supports filtering by `filter_kind` (`frida`, `browser`, `ida`, `ghidra`), `filter_status` (`active`, `idle`, `stale`, `closed`, `failed`), or `workflow_id`.
+  - Supports filtering by `filter_kind` (`frida`, `browser`, `dap`, `ida`, `ghidra`), `filter_status` (`active`, `idle`, `stale`, `closed`, `failed`), or `workflow_id`.
   - Detects stale sessions deterministically based on heartbeat interval and `stale_timeout` (default: 300 seconds).
   - Output is strictly bounded with pagination limits.
 - `status`: Inspect detailed status, metadata, heartbeat history, and health of a session.
   - Reports sanitized connection parameters and target details.
   - Evaluates stale status deterministically without fake live status claims.
-  - Status probes are strictly opt-in and safe (`probe: true` or `caller_status`): performs local non-invasive file presence checks (for IDA db/Ghidra binary) or records caller-reported execution facts; never issues unsafe arbitrary process termination or untrusted network packets.
+  - Status probes are strictly opt-in and safe (`probe: true` or `caller_status`): distinguishes empirical reachability (PID presence / binary check) from mere stored heartbeat; never spawns child processes, issues unsafe arbitrary process termination, or dispatches untrusted network packets.
 - `heartbeat`: Update session heartbeat timestamp and health metrics.
   - Resets stale timer and marks session state active or idle.
   - Accepts optional caller status updates, error notes, or observation summaries.
 - `restore`: Formulate a deterministic restore and recovery plan.
-  - Generates exact tool invocation parameters and recovery instructions for the respective runtime tool (`frida_session`, `browser`, `ida`, `ghidra_inspect`).
+  - Generates exact tool invocation parameters and recovery instructions for the respective runtime tool (`frida_session`, `browser_reverse_session`, `browser`, `debug`, `ida`, `ghidra_inspect`).
+  - Honors explicit recovery hints (`recovery_hints.restore_tool` and `recovery_hints.restore_params`), preserving correct Browser reverse session `tab_name`.
   - Does NOT launch arbitrary processes automatically: returns structured recovery parameters and pre-conditions for controlled execution.
+- `events`: Read-only query of bounded session telemetry events stored in registry metadata.
+  - Supports filtering by `since_seq`, `event_kind`, and pagination `limit`.
 - `unregister`: Remove or close a runtime session record from persistent storage.
-
 Security & Integrity:
 - Secrets redaction: automatically sanitizes API keys, tokens, auth headers, and credential query params.
 - No live handles: stores only serializable metadata; drops socket streams and child process handles.
@@ -55,7 +57,10 @@ reverse_runtime_session(action: "heartbeat", session_id: "runt_frida_018f...")
 // 8. Generate deterministic restore plan after disconnect or session loss
 reverse_runtime_session(action: "restore", session_id: "runt_frida_018f...")
 
-// 9. Unregister a closed session
+// 9. Query buffered dynamic events for a session
+reverse_runtime_session(action: "events", session_id: "runt_frida_018f...", limit: 20)
+
+// 10. Unregister a closed session
 reverse_runtime_session(action: "unregister", session_id: "runt_frida_018f...")
 ```
 </examples>

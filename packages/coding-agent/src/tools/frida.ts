@@ -39,8 +39,9 @@ export const fridaSchema = type({
 	"device?": type("string").describe("Target device identifier or serial (passes -D <device>)"),
 	"host?": type("string").describe("Target remote frida-server host (e.g. '192.168.1.5:27042', passes -H <host>)"),
 	"script_args?": type("unknown").describe("Optional arguments passed to the Frida script via -P / --parameters JSON"),
+	"pause?": type("boolean").describe("For spawn mode: leave main thread paused after spawning (passes --pause)"),
 	"no_pause?": type("boolean").describe(
-		"For spawn mode: automatically start the main thread after spawning (defaults to true; pass false to keep paused)",
+		"For spawn mode: legacy flag for starting main thread immediately (defaults to true; pass false to keep paused via --pause)",
 	),
 	"filter?": type("string").describe(
 		"Text filter: for 'ps' matches process name/identifier; for 'modules' matches module name/path; for 'trace' matches event names",
@@ -250,6 +251,373 @@ export function splitCliArgs(str: string): string[] {
 	});
 }
 
+/**
+ * Safely parses a Python literal value (dict, list, tuple, string, number, bool, None)
+ * or JSON value without code execution/eval.
+ */
+export function parsePythonLiteral(
+	input: string,
+	startIndex = 0,
+	options: { requireEnd?: boolean; maxDepth?: number } = {},
+): { value: unknown; end: number } {
+	const maxDepth = options.maxDepth ?? 64;
+	let depth = 0;
+	let i = startIndex;
+	const len = input.length;
+
+	if (len > 1024 * 1024) {
+		throw new SyntaxError("Input exceeds maximum length limit");
+	}
+
+	function skipWhitespace() {
+		while (i < len) {
+			const c = input.charCodeAt(i);
+			if (c === 32 || c === 9 || c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {
+				i++;
+			} else {
+				break;
+			}
+		}
+	}
+
+	function parseValue(): unknown {
+		skipWhitespace();
+		if (i >= len) throw new SyntaxError("Unexpected end of input");
+
+		const ch = input[i];
+
+		if (ch === "{") return parseDict();
+		if (ch === "[") return parseList();
+		if (ch === "(") return parseTuple();
+		if (ch === "'" || ch === '"') return parseString();
+
+		// Number check: digit, or leading sign followed by digit or dot
+		if (
+			(ch >= "0" && ch <= "9") ||
+			((ch === "-" || ch === "+") &&
+				i + 1 < len &&
+				((input[i + 1] >= "0" && input[i + 1] <= "9") || input[i + 1] === ".")) ||
+			(ch === "." && i + 1 < len && input[i + 1] >= "0" && input[i + 1] <= "9")
+		) {
+			return parseNumber();
+		}
+
+		// String prefix: b', r', u', etc.
+		if (
+			(ch === "b" || ch === "B" || ch === "r" || ch === "R" || ch === "u" || ch === "U") &&
+			i + 1 < len &&
+			(input[i + 1] === "'" || input[i + 1] === '"')
+		) {
+			const isRaw = ch === "r" || ch === "R";
+			i++;
+			return parseString(isRaw);
+		}
+
+		// Identifier / Constant
+		const idStart = i;
+		while (i < len && /[a-zA-Z0-9_$]/.test(input[i])) {
+			i++;
+		}
+		const id = input.slice(idStart, i);
+		if (id === "True" || id === "true") return true;
+		if (id === "False" || id === "false") return false;
+		if (id === "None" || id === "null") return null;
+		if (id === "undefined") return undefined;
+		if (id === "nan" || id === "NaN") return Number.NaN;
+		if (id === "inf" || id === "Infinity") return Number.POSITIVE_INFINITY;
+
+		throw new SyntaxError(`Unexpected token '${id || ch}' at position ${idStart}`);
+	}
+
+	function parseString(isRaw = false): string {
+		const quote = input[i];
+		// Check for triple quotes
+		let isTriple = false;
+		if (i + 2 < len && input[i + 1] === quote && input[i + 2] === quote) {
+			isTriple = true;
+			i += 3;
+		} else {
+			i++;
+		}
+
+		let res = "";
+		while (i < len) {
+			if (isTriple) {
+				if (input[i] === quote && i + 2 < len && input[i + 1] === quote && input[i + 2] === quote) {
+					i += 3;
+					return res;
+				}
+			} else if (input[i] === quote) {
+				i++;
+				return res;
+			}
+
+			if (input[i] === "\\") {
+				if (isRaw) {
+					res += "\\";
+					i++;
+					if (i < len && input[i] === quote) {
+						res += quote;
+						i++;
+					}
+					continue;
+				}
+				i++;
+				if (i >= len) throw new SyntaxError("Unterminated string escape sequence");
+				const esc = input[i++];
+				switch (esc) {
+					case "'": res += "'"; break;
+					case '"': res += '"'; break;
+					case "\\": res += "\\"; break;
+					case "/": res += "/"; break;
+					case "n": res += "\n"; break;
+					case "r": res += "\r"; break;
+					case "t": res += "\t"; break;
+					case "b": res += "\b"; break;
+					case "f": res += "\f"; break;
+					case "v": res += "\v"; break;
+					case "0": res += "\0"; break;
+					case "x": {
+						const hex = input.slice(i, i + 2);
+						if (!/^[0-9a-fA-F]{2}$/.test(hex)) throw new SyntaxError(`Invalid hex escape \\x${hex}`);
+						i += 2;
+						res += String.fromCharCode(Number.parseInt(hex, 16));
+						break;
+					}
+					case "u": {
+						const hex = input.slice(i, i + 4);
+						if (!/^[0-9a-fA-F]{4}$/.test(hex)) throw new SyntaxError(`Invalid unicode escape \\u${hex}`);
+						i += 4;
+						res += String.fromCharCode(Number.parseInt(hex, 16));
+						break;
+					}
+					case "U": {
+						const hex = input.slice(i, i + 8);
+						if (!/^[0-9a-fA-F]{8}$/.test(hex)) throw new SyntaxError(`Invalid unicode escape \\U${hex}`);
+						i += 8;
+						const codePoint = Number.parseInt(hex, 16);
+						if (codePoint < 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) {
+							throw new SyntaxError(`Invalid unicode code point \\U${hex}`);
+						}
+						res += String.fromCodePoint(codePoint);
+						break;
+					}
+					default:
+						res += esc;
+				}
+			} else {
+				res += input[i++];
+			}
+		}
+		throw new SyntaxError("Unterminated string");
+	}
+
+	function parseNumber(): number {
+		const start = i;
+		if (input[i] === "-" || input[i] === "+") i++;
+
+		// Hex, Octal, Binary
+		if (input[i] === "0" && i + 1 < len) {
+			const next = input[i + 1].toLowerCase();
+			if (next === "x") {
+				i += 2;
+				const hexStart = i;
+				while (i < len && /[0-9a-fA-F]/.test(input[i])) i++;
+				if (i === hexStart) throw new SyntaxError("Invalid hex number");
+				const sign = input[start] === "-" ? -1 : 1;
+				return sign * Number.parseInt(input.slice(hexStart, i), 16);
+			}
+			if (next === "o") {
+				i += 2;
+				const octStart = i;
+				while (i < len && /[0-7]/.test(input[i])) i++;
+				if (i === octStart) throw new SyntaxError("Invalid octal number");
+				const sign = input[start] === "-" ? -1 : 1;
+				return sign * Number.parseInt(input.slice(octStart, i), 8);
+			}
+			if (next === "b") {
+				i += 2;
+				const binStart = i;
+				while (i < len && (input[i] === "0" || input[i] === "1")) i++;
+				if (i === binStart) throw new SyntaxError("Invalid binary number");
+				const sign = input[start] === "-" ? -1 : 1;
+				return sign * Number.parseInt(input.slice(binStart, i), 2);
+			}
+		}
+
+		while (i < len && input[i] >= "0" && input[i] <= "9") i++;
+		if (i < len && input[i] === ".") {
+			i++;
+			while (i < len && input[i] >= "0" && input[i] <= "9") i++;
+		}
+		if (i < len && (input[i] === "e" || input[i] === "E")) {
+			i++;
+			if (i < len && (input[i] === "+" || input[i] === "-")) i++;
+			while (i < len && input[i] >= "0" && input[i] <= "9") i++;
+		}
+		const numStr = input.slice(start, i);
+		const num = Number(numStr);
+		if (Number.isNaN(num)) throw new SyntaxError(`Invalid number: ${numStr}`);
+		return num;
+	}
+
+	function parseDict(): Record<string, unknown> {
+		depth++;
+		if (depth > maxDepth) throw new SyntaxError("Maximum recursion depth exceeded");
+		try {
+			i++; // skip '{'
+			const obj: Record<string, unknown> = Object.create(null);
+			skipWhitespace();
+			if (i < len && input[i] === "}") {
+				i++;
+				return obj;
+			}
+
+			while (i < len) {
+				skipWhitespace();
+				if (input[i] === "}") {
+					i++;
+					return obj;
+				}
+				// Parse key: string, identifier, or scalar primitive
+				let key: string;
+				if (input[i] === "'" || input[i] === '"') {
+					key = parseString();
+				} else if (input[i] === "{" || input[i] === "[" || input[i] === "(") {
+					// Compound keys are rejected outright to prevent prototype/amplification attacks
+					throw new SyntaxError("Dictionary keys must be scalar primitives");
+				} else if (/[a-zA-Z_$]/.test(input[i])) {
+					const idStart = i;
+					while (i < len && /[a-zA-Z0-9_$]/.test(input[i])) i++;
+					const id = input.slice(idStart, i);
+					if (id === "True" || id === "true") key = "true";
+					else if (id === "False" || id === "false") key = "false";
+					else if (id === "None" || id === "null") key = "null";
+					else key = id;
+				} else {
+					const rawKey = parseValue();
+					if (rawKey !== null && typeof rawKey === "object") {
+						throw new SyntaxError("Dictionary keys must be scalar primitives");
+					}
+					key = String(rawKey);
+				}
+
+				skipWhitespace();
+				if (i >= len || input[i] !== ":") {
+					throw new SyntaxError(`Expected ':' at position ${i}, got '${input[i] ?? ""}'`);
+				}
+				i++; // skip ':'
+
+				const val = parseValue();
+				Object.defineProperty(obj, key, {
+					value: val,
+					writable: true,
+					enumerable: true,
+					configurable: true,
+				});
+
+				skipWhitespace();
+				if (input[i] === ",") {
+					i++;
+					skipWhitespace();
+				} else if (input[i] === "}") {
+					i++;
+					return obj;
+				} else {
+					throw new SyntaxError(`Expected ',' or '}' at position ${i}, got '${input[i] ?? ""}'`);
+				}
+			}
+			throw new SyntaxError("Unterminated dictionary");
+		} finally {
+			depth--;
+		}
+	}
+
+	function parseList(): unknown[] {
+		depth++;
+		if (depth > maxDepth) throw new SyntaxError("Maximum recursion depth exceeded");
+		try {
+			i++; // skip '['
+			const arr: unknown[] = [];
+			skipWhitespace();
+			if (i < len && input[i] === "]") {
+				i++;
+				return arr;
+			}
+
+			while (i < len) {
+				skipWhitespace();
+				if (input[i] === "]") {
+					i++;
+					return arr;
+				}
+				const val = parseValue();
+				arr.push(val);
+
+				skipWhitespace();
+				if (input[i] === ",") {
+					i++;
+					skipWhitespace();
+				} else if (input[i] === "]") {
+					i++;
+					return arr;
+				} else {
+					throw new SyntaxError(`Expected ',' or ']' at position ${i}, got '${input[i] ?? ""}'`);
+				}
+			}
+			throw new SyntaxError("Unterminated list");
+		} finally {
+			depth--;
+		}
+	}
+
+	function parseTuple(): unknown[] {
+		depth++;
+		if (depth > maxDepth) throw new SyntaxError("Maximum recursion depth exceeded");
+		try {
+			i++; // skip '('
+			const arr: unknown[] = [];
+			skipWhitespace();
+			if (i < len && input[i] === ")") {
+				i++;
+				return arr;
+			}
+
+			while (i < len) {
+				skipWhitespace();
+				if (input[i] === ")") {
+					i++;
+					return arr;
+				}
+				const val = parseValue();
+				arr.push(val);
+
+				skipWhitespace();
+				if (input[i] === ",") {
+					i++;
+					skipWhitespace();
+				} else if (input[i] === ")") {
+					i++;
+					return arr;
+				} else {
+					throw new SyntaxError(`Expected ',' or ')' at position ${i}, got '${input[i] ?? ""}'`);
+				}
+			}
+			throw new SyntaxError("Unterminated tuple");
+		} finally {
+			depth--;
+		}
+	}
+
+	const value = parseValue();
+	if (options.requireEnd) {
+		skipWhitespace();
+		if (i < len) {
+			throw new SyntaxError(`Unexpected trailing text at position ${i}: '${input.slice(i, i + 30)}'`);
+		}
+	}
+	return { value, end: i };
+}
 export function redactTraceEvent(event: FridaTraceEvent): { event: FridaTraceEvent; redactions: number } {
 	return { event, redactions: 0 };
 }
@@ -395,14 +763,19 @@ export function parseFridaDevices(raw: string): FridaDeviceInfo[] {
 	if (trimmed.length === 0) return [];
 	if (trimmed.startsWith("[")) {
 		try {
-			const parsed = JSON.parse(trimmed) as unknown;
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(trimmed);
+			} catch {
+				parsed = parsePythonLiteral(trimmed, 0, { requireEnd: true }).value;
+			}
 			if (Array.isArray(parsed)) {
-				return parsed
+				return (parsed as unknown[])
 					.filter(item => item && typeof item === "object")
 					.map(item => ({
-						id: String(item.id ?? ""),
-						type: String(item.type ?? "unknown"),
-						name: String(item.name ?? ""),
+						id: String((item as Record<string, unknown>).id ?? ""),
+						type: String((item as Record<string, unknown>).type ?? "unknown"),
+						name: String((item as Record<string, unknown>).name ?? ""),
 					}))
 					.filter(item => item.id.length > 0);
 			}
@@ -447,17 +820,26 @@ export function parseFridaProcesses(raw: string): FridaProcessInfo[] {
 	if (trimmed.length === 0) return [];
 	if (trimmed.startsWith("[")) {
 		try {
-			const parsed = JSON.parse(trimmed) as unknown;
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(trimmed);
+			} catch {
+				parsed = parsePythonLiteral(trimmed, 0, { requireEnd: true }).value;
+			}
 			if (Array.isArray(parsed)) {
-				return parsed
+				return (parsed as unknown[])
 					.filter(item => item && typeof item === "object")
-					.map(item => ({
-						pid: Number(item.pid ?? 0),
-						name: String(item.name ?? ""),
-						...(item.parameters?.identifier || item.identifier
-							? { identifier: String(item.parameters?.identifier ?? item.identifier) }
-							: {}),
-					}))
+					.map(item => {
+						const r = item as Record<string, unknown>;
+						const p = r.parameters as Record<string, unknown> | undefined;
+						return {
+							pid: Number(r.pid ?? 0),
+							name: String(r.name ?? ""),
+							...(p?.identifier || r.identifier
+								? { identifier: String(p?.identifier ?? r.identifier) }
+								: {}),
+						};
+					})
 					.filter(item => item.pid > 0);
 			}
 		} catch {
@@ -512,16 +894,24 @@ export function parseFridaModules(raw: string): FridaModuleInfo[] {
 	}
 
 	try {
-		const parsed = JSON.parse(jsonText) as unknown;
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(jsonText);
+		} catch {
+			parsed = parsePythonLiteral(jsonText, 0, { requireEnd: true }).value;
+		}
 		if (Array.isArray(parsed)) {
-			return parsed
+			return (parsed as unknown[])
 				.filter(item => item && typeof item === "object")
-				.map(item => ({
-					name: String(item.name ?? ""),
-					base: String(item.base ?? ""),
-					size: Number(item.size ?? 0),
-					path: String(item.path ?? ""),
-				}))
+				.map(item => {
+					const m = item as Record<string, unknown>;
+					return {
+						name: String(m.name ?? ""),
+						base: String(m.base ?? ""),
+						size: Number(m.size ?? 0),
+						path: String(m.path ?? ""),
+					};
+				})
 				.filter(item => item.name.length > 0);
 		}
 	} catch {
@@ -546,7 +936,12 @@ export function parseFridaTrace(raw: string): {
 	}
 
 	try {
-		const parsed = JSON.parse(jsonText) as unknown;
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(jsonText);
+		} catch {
+			parsed = parsePythonLiteral(jsonText, 0, { requireEnd: true }).value;
+		}
 		if (parsed && typeof parsed === "object") {
 			const obj = parsed as Record<string, unknown>;
 			if (typeof obj.error === "string") {
@@ -857,19 +1252,13 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 		} else if (action === "modules" || action === "inspect") {
 			if (hasSpawn) {
 				args.push("-f", params.spawn!.trim());
-				if (params.no_pause !== false) {
-					args.push("--no-pause");
+				if (params.pause === true || params.no_pause === false) {
+					args.push("--pause");
 				}
 			} else if (hasPid) {
 				args.push("-p", String(params.pid));
-				if (params.no_pause === true) {
-					args.push("--no-pause");
-				}
 			} else if (hasProcess) {
 				args.push("-n", params.process!.trim());
-				if (params.no_pause === true) {
-					args.push("--no-pause");
-				}
 			}
 			args.push("-q");
 			if (hasScriptPath) {
@@ -877,24 +1266,18 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 			} else if (hasScript) {
 				args.push("-e", params.script!);
 			} else {
-				args.push("--no-pause", "-e", FIXED_ENUMERATE_MODULES_SCRIPT);
+				args.push("-e", FIXED_ENUMERATE_MODULES_SCRIPT);
 			}
 		} else if (action === "trace") {
 			if (hasSpawn) {
 				args.push("-f", params.spawn!.trim());
-				if (params.no_pause !== false) {
-					args.push("--no-pause");
+				if (params.pause === true || params.no_pause === false) {
+					args.push("--pause");
 				}
 			} else if (hasPid) {
 				args.push("-p", String(params.pid));
-				if (params.no_pause === true) {
-					args.push("--no-pause");
-				}
 			} else if (hasProcess) {
 				args.push("-n", params.process!.trim());
-				if (params.no_pause === true) {
-					args.push("--no-pause");
-				}
 			}
 			args.push("-q");
 			if (hasScriptPath) {
@@ -914,19 +1297,13 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 			// action === "exec"
 			if (hasSpawn) {
 				args.push("-f", params.spawn!.trim());
-				if (params.no_pause !== false) {
-					args.push("--no-pause");
+				if (params.pause === true || params.no_pause === false) {
+					args.push("--pause");
 				}
 			} else if (hasPid) {
 				args.push("-p", String(params.pid));
-				if (params.no_pause === true) {
-					args.push("--no-pause");
-				}
 			} else if (hasProcess) {
 				args.push("-n", params.process!.trim());
-				if (params.no_pause === true) {
-					args.push("--no-pause");
-				}
 			}
 
 			if (hasScriptPath) {
@@ -975,7 +1352,8 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 		}
 
 		// 7. Execute bounded runner
-		const timeoutMs = timeoutSeconds !== undefined ? (timeoutSeconds + 2) * 1000 : undefined;
+		const watchdogAllowanceSec = 3;
+		const timeoutMs = timeoutSeconds !== undefined ? (timeoutSeconds + watchdogAllowanceSec) * 1000 : undefined;
 		let run: FridaRunResult;
 		try {
 			run = await runner(binary, args, {

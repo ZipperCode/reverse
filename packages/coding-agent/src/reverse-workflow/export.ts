@@ -162,6 +162,19 @@ export async function exportWorkflowToMarkdown(
 				if (rec.attribution.install_hint) {
 					lines.push(`    - Install Hint: \`${rec.attribution.install_hint}\``);
 				}
+				if (rec.attribution.setup_command) {
+					lines.push(`    - Setup Command: \`${rec.attribution.setup_command}\``);
+				}
+			}
+			if (rec.resume) {
+				lines.push("  - Install-After Resume Metadata:");
+				if (rec.resume.capability_id) lines.push(`    - Capability ID: \`${rec.resume.capability_id}\``);
+				lines.push(`    - Installed Tool: \`${rec.resume.installed_tool}\``);
+				if (rec.resume.setup_command) lines.push(`    - Setup Command: \`${rec.resume.setup_command}\``);
+				lines.push(`    - Verified: ${rec.resume.verified}`);
+				lines.push(`    - Strategy: \`${rec.resume.strategy}\``);
+				lines.push(`    - Resumed At: ${rec.resume.resumed_at}`);
+				if (rec.resume.notes) lines.push(`    - Notes: ${rec.resume.notes}`);
 			}
 			if (rec.failure_reason && !rec.attribution) lines.push(`  - Failure Reason: ${rec.failure_reason}`);
 			if (rec.fallback_tool) lines.push(`  - Fallback Tool: \`${rec.fallback_tool}\``);
@@ -177,9 +190,13 @@ export async function exportWorkflowToMarkdown(
 						typeof audit.proposed_params === "string"
 							? audit.proposed_params
 							: JSON.stringify(audit.proposed_params);
-					lines.push(`    - Attempt ${audit.attempt} (${audit.action}): [${audit.category}] ${toolTransition}`);
+					const capTag = audit.capability_id ? ` (Capability: \`${audit.capability_id}\`)` : "";
+					lines.push(`    - Attempt ${audit.attempt} (${audit.action}): [${audit.category}] ${toolTransition}${capTag}`);
 					lines.push(`      - Decision: ${audit.decision}`);
 					lines.push(`      - Proposed Params: \`${paramsStr}\``);
+					if (audit.installed_tool) {
+						lines.push(`      - Installed Tool: \`${audit.installed_tool}\` (Verified: ${audit.verified ?? true})`);
+					}
 					if (audit.evidence_ids && audit.evidence_ids.length > 0) {
 						lines.push(`      - Associated Evidence: ${audit.evidence_ids.map(id => `\`${id}\``).join(", ")}`);
 					}

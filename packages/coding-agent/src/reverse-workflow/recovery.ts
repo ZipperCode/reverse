@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type {
 	FailureAttribution,
 	FailureCategory,
@@ -5,9 +7,19 @@ import type {
 	RecoveryPlan,
 	ReverseWorkflowRecord,
 	WorkflowStepRecord,
+	StepResumeMetadata,
 } from "./contracts";
 import { DEFAULT_MAX_ATTEMPTS, HARD_MAX_ATTEMPTS } from "./contracts";
-
+import {
+	CAPABILITY_CATALOG,
+	SKILL_TOOL_CATALOG,
+	type SkillToolPlatform,
+} from "../extensibility/skill-tool-catalog";
+import { checkToolRequirements, type SkillRequirementWhich } from "../extensibility/skill-requirements";
+import { getMcpService } from "../extensibility/mcp-service-catalog";
+import { getMCPConfigPath, getProjectDir } from "@rva/utils";
+import { readMcpConfigFileSync } from "../cli/setup-reverse";
+import type { MCPConfigFile } from "../mcp/types";
 export interface ToolInstallHint {
 	macos: string;
 	linux: string;
@@ -64,6 +76,12 @@ export const TOOL_INSTALL_HINTS: Record<string, ToolInstallHint> = {
 		windows: "py -m pip install --user frida-tools",
 		fallback: "frida -> static inspection",
 	},
+	unidbg: {
+		macos: "brew install openjdk maven && git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests",
+		linux: "sudo apt install -y default-jdk maven && git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests",
+		windows: "winget install Microsoft.OpenJDK.17 && git clone https://github.com/zhkl0228/unidbg.git",
+		fallback: "unidbg -> android_native_workflow",
+	},
 	wabt: {
 		macos: "brew install wabt",
 		linux: "apt install wabt",
@@ -90,13 +108,59 @@ export const TOOL_INSTALL_HINTS: Record<string, ToolInstallHint> = {
 	},
 };
 
+/**
+ * Find canonical setup command for a missing tool from the capability catalog.
+ * Maps tools to their canonical capability setupCommand (e.g. 'rea setup reverse apktool')
+ * or canonical skill tool setup command.
+ */
+export function getCapabilitySetupCommand(toolName: string): string | undefined {
+	const normalized = toolName.toLowerCase().trim();
+
+	// 1. Direct capability match
+	const directCap = CAPABILITY_CATALOG[normalized];
+	if (directCap?.setupCommand) {
+		return directCap.setupCommand;
+	}
+
+	// 2. Search capabilities by optional external tools, recommended native tool, or fallbacks
+	for (const cap of Object.values(CAPABILITY_CATALOG)) {
+		if (
+			cap.optionalExternalTools.some(t => t.toLowerCase() === normalized) ||
+			cap.recommendedNativeTool?.toLowerCase() === normalized ||
+			cap.fallbacks.some(f => f.toLowerCase() === normalized)
+		) {
+			if (cap.setupCommand) {
+				return cap.setupCommand;
+			}
+		}
+	}
+
+	// 3. Fallback to skill tool catalog if entry exists
+	const skillTool = SKILL_TOOL_CATALOG[normalized];
+	if (skillTool) {
+		return `rea setup reverse ${skillTool.id}`;
+	}
+
+	return undefined;
+}
+
 export function getPlatformInstallCommand(toolName: string, platform: NodeJS.Platform = process.platform): string | undefined {
 	const normalized = toolName.toLowerCase().trim();
 	const hint = TOOL_INSTALL_HINTS[normalized];
-	if (!hint) return undefined;
-	if (platform === "darwin") return hint.macos;
-	if (platform === "win32") return hint.windows;
-	return hint.linux;
+	if (hint) {
+		if (platform === "darwin") return hint.macos;
+		if (platform === "win32") return hint.windows;
+		return hint.linux;
+	}
+
+	const toolDesc = SKILL_TOOL_CATALOG[normalized];
+	if (toolDesc?.installCommands) {
+		const platKey: SkillToolPlatform = platform === "darwin" ? "darwin" : platform === "win32" ? "win32" : "linux";
+		const cmd = toolDesc.installCommands[platKey]?.[0]?.command;
+		if (cmd) return cmd;
+	}
+
+	return getCapabilitySetupCommand(toolName);
 }
 
 export interface FailureClassificationContext {
@@ -139,11 +203,13 @@ export function classifyFailure(
 		{ name: "tshark", pattern: /\btshark\b.*(?:not found|cannot find|command not found)/i },
 		{ name: "vbindiff", pattern: /\bvbindiff\b.*(?:not found|cannot find|command not found)/i },
 		{ name: "ast-grep", pattern: /\bast-grep\b.*(?:not found|cannot find|command not found)/i },
+		{ name: "unidbg", pattern: /\bunidbg\b.*(?:not found|cannot find|no such file|command not found)/i },
 	];
 
 	for (const tp of toolPatterns) {
 		if (tp.pattern.test(rawError)) {
 			const installCmd = getPlatformInstallCommand(tp.name);
+			const setupCmd = getCapabilitySetupCommand(tp.name);
 			return {
 				category: "missing_dependency",
 				cause: `Required tool or dependency '${tp.name}' is not installed or not found on PATH.`,
@@ -151,11 +217,12 @@ export function classifyFailure(
 				raw_error: rawError,
 				matched_pattern: tp.name,
 				missing_tool: tp.name,
-				install_hint: installCmd,
+				install_hint: installCmd ?? setupCmd,
+				setup_command: setupCmd,
 			};
-		}
 	}
 
+	}
 	// Generic missing dependency
 	if (
 		/\b(?:command not found|not found on path|is not installed|not installed on the system|spawn .* enoent|executable not found|no such file or directory)\b/i.test(rawError) ||
@@ -163,6 +230,7 @@ export function classifyFailure(
 	) {
 		const toolName = context.tool ?? "required tool";
 		const installCmd = context.tool ? getPlatformInstallCommand(context.tool) : undefined;
+		const setupCmd = context.tool ? getCapabilitySetupCommand(context.tool) : undefined;
 		return {
 			category: "missing_dependency",
 			cause: `Required executable or external dependency for '${toolName}' was not found in the environment.`,
@@ -170,7 +238,8 @@ export function classifyFailure(
 			raw_error: rawError,
 			matched_pattern: "generic_missing_dependency",
 			missing_tool: context.tool,
-			install_hint: installCmd,
+			install_hint: installCmd ?? setupCmd,
+			setup_command: setupCmd,
 		};
 	}
 
@@ -253,6 +322,152 @@ export interface RecoveryPlanOptions {
 	fallbackToolOverride?: string;
 	nextParamsOverride?: Record<string, unknown> | string;
 	maxAttempts?: number;
+	capabilityId?: string;
+	installedTool?: string;
+	setupCommand?: string;
+	verified?: boolean;
+	strategy?: "resume_original" | "fallback" | string;
+}
+export interface VerifyToolOptions {
+	cwd?: string;
+	platform?: NodeJS.Platform;
+	which?: SkillRequirementWhich;
+	env?: Record<string, string | undefined>;
+	readMcpConfig?: (path: string) => MCPConfigFile | null;
+	connection?: "unknown" | "connected" | "disconnected";
+}
+
+export interface VerifyToolResult {
+	verified: boolean;
+	tool_id: string;
+	kind: "cli" | "mcp" | "unknown";
+	foundPath?: string | null;
+	missing_reason?: string;
+	setup_command?: string;
+}
+
+/**
+ * Verify that an external tool is actually installed and available on the host system.
+ * User-supplied verified: true is never accepted without fresh host verification.
+ */
+export function verifyInstalledTool(
+	toolId: string,
+	options: VerifyToolOptions = {},
+): VerifyToolResult {
+	const normalizedId = (toolId ?? "").trim().toLowerCase();
+	if (!normalizedId) {
+		return {
+			verified: false,
+			tool_id: toolId,
+			kind: "unknown",
+			missing_reason: "Tool identifier is empty.",
+		};
+	}
+
+	// 1. Check MCP service catalog
+	const service = getMcpService(normalizedId);
+	if (service) {
+		const prereqStatuses = checkToolRequirements(
+			service.requires.map(id => ({ id, optional: true })),
+			{
+				platform: options.platform,
+				which: options.which,
+				env: options.env,
+			},
+		);
+		const missingPrereqs = prereqStatuses
+			.filter(s => s.foundPath === null || (s.secondaryMissing?.length ?? 0) > 0)
+			.map(s => s.id);
+		const prereqsReady = missingPrereqs.length === 0;
+
+		const cwd = options.cwd ?? getProjectDir();
+		const configPaths = {
+			project: getMCPConfigPath("project", cwd),
+			user: getMCPConfigPath("user", cwd),
+		};
+		const readConfig = options.readMcpConfig ?? readMcpConfigFileSync;
+		const configFiles = {
+			project: readConfig(configPaths.project),
+			user: readConfig(configPaths.user),
+		};
+
+		let configured = false;
+		let enabled: boolean | null = null;
+		for (const scope of ["project", "user"] as const) {
+			const file = configFiles[scope];
+			const entry = file?.mcpServers?.[service.serverName];
+			if (!entry || typeof entry !== "object") continue;
+			configured = true;
+			const scopeEnabled =
+				!file?.disabledServers?.includes(service.serverName) &&
+				(entry.enabled !== false || (file?.enabledServers?.includes(service.serverName) ?? false));
+			enabled = enabled === null ? scopeEnabled : enabled || scopeEnabled;
+		}
+
+		const isConnected = options.connection === "connected";
+		const isReady = prereqsReady && configured && enabled !== false && isConnected;
+		let missingReason: string | undefined;
+		if (!prereqsReady) {
+			missingReason = `MCP prerequisite tools missing on PATH: ${missingPrereqs.join(", ")}`;
+		} else if (!configured) {
+			missingReason = `MCP service '${service.serverName}' is not configured in ${configPaths.project} or ${configPaths.user}`;
+		} else if (enabled === false) {
+			missingReason = `MCP service '${service.serverName}' is disabled in configuration`;
+		} else if (!isConnected) {
+			missingReason = `MCP service '${service.serverName}' is configured but connection is unverified (status: connection_unknown). Active connection required.`;
+		}
+
+		return {
+			verified: isReady,
+			tool_id: normalizedId,
+			kind: "mcp",
+			missing_reason: missingReason,
+			setup_command: `rea setup reverse ${service.id}`,
+		};
+	}
+
+	// 2. Check CLI tool / binary
+	const toolStatuses = checkToolRequirements([{ id: normalizedId, optional: true }], {
+		platform: options.platform,
+		which: options.which,
+		env: options.env,
+	});
+	const status = toolStatuses[0];
+	const isInstalled = Boolean(
+		status && status.foundPath !== null && (!status.secondaryMissing || status.secondaryMissing.length === 0),
+	);
+
+	let setupCommand: string | undefined;
+	const desc = SKILL_TOOL_CATALOG[normalizedId];
+	if (desc) {
+		const plat: SkillToolPlatform =
+			(options.platform ?? process.platform) === "win32"
+				? "win32"
+				: (options.platform ?? process.platform) === "darwin"
+					? "darwin"
+					: "linux";
+		setupCommand =
+			desc.installCommands?.[plat]?.[0]?.command ??
+			(desc.manualUrl ? `See ${desc.manualUrl}` : `rea setup reverse ${normalizedId}`);
+	}
+
+	let missingReason: string | undefined;
+	if (!isInstalled) {
+		if (status?.secondaryMissing && status.secondaryMissing.length > 0) {
+			missingReason = `Tool '${normalizedId}' found at ${status.foundPath} but secondary dependency missing: ${status.secondaryMissing.join(", ")}`;
+		} else {
+			missingReason = `Tool '${normalizedId}' executable binary was not found on PATH or catalog search paths.`;
+		}
+	}
+
+	return {
+		verified: isInstalled,
+		tool_id: normalizedId,
+		kind: desc ? "cli" : "unknown",
+		foundPath: status?.foundPath ?? null,
+		missing_reason: missingReason,
+		setup_command: setupCommand ?? `rea setup reverse ${normalizedId}`,
+	};
 }
 
 /**
@@ -315,6 +530,68 @@ export function generateRecoveryPlan(
 			max_attempts: maxAttempts,
 			exhausted: true,
 			install_hint: attribution.install_hint,
+			setup_command: attribution.setup_command,
+		};
+	}
+
+	// If caller indicates an external tool was installed to recover from the failure
+	if (options.installedTool) {
+		const verification = verifyInstalledTool(options.installedTool, {
+			cwd: workflow.target_abs_path ? path.dirname(workflow.target_abs_path) : undefined,
+		});
+
+		// User supplied verified:true isn't proof; host check is authoritative
+		const isVerified = verification.verified;
+		const resumeStrategy = options.strategy ?? (options.installedTool === originalTool ? "resume_original" : "fallback");
+		const resumeMeta: StepResumeMetadata = {
+			capability_id: options.capabilityId,
+			installed_tool: options.installedTool,
+			setup_command: options.setupCommand ?? verification.setup_command ?? attribution.setup_command,
+			verified: isVerified,
+			strategy: resumeStrategy,
+			resumed_at: new Date().toISOString(),
+			resumed_params: isVerified ? (options.nextParamsOverride ?? originalParams) : originalParams,
+		};
+
+		if (!isVerified) {
+			// Unavailable tools return structured missing state without replacing original step or running target
+			return {
+				attribution,
+				suggested_action: "abort",
+				original_tool: originalTool,
+				next_tool: originalTool,
+				original_params: originalParams,
+				next_params: originalParams,
+				alternatives: [originalTool, ...(attribution.missing_tool ? [attribution.missing_tool] : [])],
+				reasoning: `Tool '${options.installedTool}' could not be verified on the host system (${verification.missing_reason ?? "missing binary or unconfigured service"}). Run '${resumeMeta.setup_command}' before resuming execution.`,
+				can_retry: false,
+				current_attempts: currentAttempts,
+				max_attempts: maxAttempts,
+				exhausted: false,
+				install_hint: verification.setup_command ?? attribution.install_hint,
+				setup_command: resumeMeta.setup_command,
+				resume: resumeMeta,
+			};
+		}
+
+		const nextTool = options.fallbackToolOverride ?? (resumeStrategy === "resume_original" ? originalTool : options.installedTool);
+		const nextParams = options.nextParamsOverride ?? originalParams;
+		return {
+			attribution,
+			suggested_action: nextTool !== originalTool ? "fallback" : "retry",
+			original_tool: originalTool,
+			next_tool: nextTool,
+			original_params: originalParams,
+			next_params: nextParams,
+			alternatives: [nextTool, ...(attribution.missing_tool ? [attribution.missing_tool] : [])],
+			reasoning: `Tool '${options.installedTool}' is installed (verified: true) for capability '${resumeMeta.capability_id || "reverse"}'. Resuming execution via ${resumeStrategy}: tool='${nextTool}'.`,
+			can_retry: true,
+			current_attempts: currentAttempts,
+			max_attempts: maxAttempts,
+			exhausted: false,
+			install_hint: attribution.install_hint,
+			setup_command: attribution.setup_command,
+			resume: resumeMeta,
 		};
 	}
 
@@ -336,6 +613,7 @@ export function generateRecoveryPlan(
 			max_attempts: maxAttempts,
 			exhausted: false,
 			install_hint: attribution.install_hint,
+			setup_command: attribution.setup_command,
 		};
 	}
 
@@ -349,6 +627,12 @@ export function generateRecoveryPlan(
 	switch (attribution.category) {
 		case "missing_dependency": {
 			suggestedAction = "fallback";
+			if (originalTool === "unidbg") {
+				nextTool = "android_native_workflow";
+				nextParams = { path: targetPath, action: "inspect" };
+				alternatives = ["android_native_workflow", "android_package_inspect"];
+				reasoning = `Unidbg emulator is not available. Falling back to android_native_workflow for static JNI export and DEX native mapping.`;
+			} else
 			if (originalTool === "droidasc" || originalTool === "jadx" || originalTool === "apktool") {
 				nextTool = "android_package_inspect";
 				nextParams = { path: targetPath, action: "dex" };
@@ -442,9 +726,9 @@ export function generateRecoveryPlan(
 			suggestedAction = "fallback";
 			if (workflow.format === "APK") {
 				nextTool = "android_package_inspect";
-				nextParams = { path: targetPath, action: "manifest" };
-				alternatives = ["android_package_inspect", "droidasc"];
-				reasoning = `Dynamic analysis requires an attached device or emulator, but none was detected. Degraded to offline static package inspection.`;
+				nextParams = { path: targetPath, action: "inspect" };
+				alternatives = ["android_package_inspect", "android_native_workflow", "droidasc"];
+				reasoning = `Dynamic analysis requires an attached device or emulator, but none was detected. Pivoted to android_package_inspect for offline static container and manifest analysis.`;
 			} else {
 				nextTool = "triage";
 				nextParams = { path: targetPath, strings: true, limit: 30 };
@@ -487,5 +771,7 @@ export function generateRecoveryPlan(
 		max_attempts: maxAttempts,
 		exhausted: false,
 		install_hint: attribution.install_hint,
+		setup_command: attribution.setup_command,
+		resume: step.recovery_metadata?.resume,
 	};
 }

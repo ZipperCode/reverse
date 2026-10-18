@@ -6,8 +6,13 @@ import { ToolError } from "@rva/tui/tools/tool-errors";
 import { replaceFileAtomically } from "../utils/atomic-file";
 import {
 	type ReverseWorkflowRecord,
+	type TargetFormat,
+	type WorkflowStepRecord,
 	encodeWorkflowProjectKey,
+	createWorkflowId,
+	normalizeTargetFormat,
 } from "./contracts";
+import { generateDeterministicPlan } from "./planner";
 
 const PRIVATE_DIR_MODE = 0o700;
 
@@ -42,6 +47,18 @@ export interface ReverseWorkflowStoreOptions {
 	stateRoot?: string;
 }
 
+export interface CreateWorkflowOptions {
+	id?: string;
+	target: string;
+	format?: TargetFormat | string;
+	goal?: string;
+	steps?: WorkflowStepRecord[];
+	knowledge_refs?: string[];
+	runtime_session_ids?: string[];
+	metadata?: Record<string, unknown>;
+	max_attempts?: number;
+}
+
 export class ReverseWorkflowStore {
 	readonly repositoryRoot: string;
 	readonly projectKey: string;
@@ -55,6 +72,48 @@ export class ReverseWorkflowStore {
 			? path.join(path.resolve(options.stateRoot), this.projectKey)
 			: getReverseWorkflowProjectDir(this.projectKey);
 		this.lockPath = path.join(this.projectDirectory, "store.lock");
+	}
+
+	static forSession(cwd: string, stateRoot?: string): ReverseWorkflowStore {
+		return new ReverseWorkflowStore({ repositoryRoot: cwd, stateRoot });
+	}
+
+	static async create(
+		options: ReverseWorkflowStoreOptions & CreateWorkflowOptions,
+	): Promise<ReverseWorkflowRecord> {
+		const store = new ReverseWorkflowStore(options);
+		return store.create(options);
+	}
+
+	async create(input: CreateWorkflowOptions): Promise<ReverseWorkflowRecord> {
+		const workflowId = input.id ?? createWorkflowId();
+		const format = normalizeTargetFormat(input.format) ?? "unknown";
+		const steps =
+			input.steps && input.steps.length > 0
+				? input.steps
+				: generateDeterministicPlan(input.target, format, {
+						goal: input.goal,
+						maxAttempts: input.max_attempts,
+						formatOverride: input.format,
+					}).steps;
+
+		const now = new Date().toISOString();
+		const record: ReverseWorkflowRecord = {
+			id: workflowId,
+			target: input.target,
+			format,
+			goal: input.goal,
+			status: "active",
+			steps,
+			created_at: now,
+			updated_at: now,
+			...(input.knowledge_refs ? { knowledge_refs: input.knowledge_refs } : {}),
+			...(input.runtime_session_ids ? { runtime_session_ids: input.runtime_session_ids } : {}),
+			...(input.metadata ? { metadata: input.metadata } : {}),
+		};
+
+		await this.save(record);
+		return record;
 	}
 
 	async ensureDir(): Promise<void> {

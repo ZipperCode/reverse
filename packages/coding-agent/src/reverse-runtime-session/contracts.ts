@@ -1,6 +1,7 @@
 export const RUNTIME_SESSION_KINDS = [
 	"frida",
 	"browser",
+	"dap",
 	"ida",
 	"ghidra",
 	"generic",
@@ -55,7 +56,8 @@ export interface RuntimeSessionProbeInfo {
 	ok: boolean;
 	status?: RuntimeSessionStatus;
 	message?: string;
-	source?: "metadata_check" | "caller_reported";
+	source?: "metadata_check" | "caller_reported" | "reachability_check";
+	reachable?: boolean;
 }
 
 export interface RuntimeSessionRecord {

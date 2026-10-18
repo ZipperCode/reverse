@@ -1,0 +1,340 @@
+[
+	{
+		"id": "kn_rev_seed_pe_tls_anti_debug",
+		"kind": "recovery_pattern",
+		"title": "PE TLS Callback & Anti-Debug Triage",
+		"target_format": "PE",
+		"tool": "r2_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Detect and triage Thread Local Storage (TLS) callbacks and early anti-debugging evasion routines executing prior to AddressOfEntryPoint in Windows PE binaries.",
+		"pattern": "Target aborts, crashes, or diverges under debugger execution before reaching AddressOfEntryPoint; .tls section contains non-null AddressOfCallBacks array.",
+		"actionable_guidance": "Examine .tls section data directory in the PE header. Dump AddressOfCallBacks array using r2 'it' or 'ie'. Place hardware execution breakpoints on callback addresses rather than relying on entrypoint break. Inspect callback bodies for IsDebuggerPresent, CheckRemoteDebuggerPresent, and NtQueryInformationProcess (ProcessDebugPort).",
+		"params": {
+			"tool": "r2_inspect",
+			"command": "it"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "anti_debug"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_pe_iat_reconstruction",
+		"kind": "recovery_pattern",
+		"title": "PE Packed Import Address Table (IAT) Reconstruction",
+		"target_format": "PE",
+		"tool": "r2_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Locate Original Entry Point (OEP) and reconstruct corrupted or redirected Import Address Table (IAT) thunk arrays in unpacked Windows PE executables.",
+		"pattern": "Import table points to dynamic stub trampolines, thunk array contains unresolved addresses or null entries, or binary exhibits unpacker signatures.",
+		"actionable_guidance": "Dump process memory image once unpacking stub executes the tail transition (e.g. jmp/call to OEP). Locate the thunk table in dumped memory. Cross-reference redirected stub pointers against export tables of loaded system DLLs using r2 'dmi' to resolve API names and repair IAT structure.",
+		"params": {
+			"tool": "r2_inspect",
+			"command": "dmi"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "unpacking"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_elf_stripped_plt_recovery",
+		"kind": "recovery_pattern",
+		"title": "Stripped ELF Dynamic Symbol & PLT/GOT Relocation Recovery",
+		"target_format": "ELF",
+		"tool": "r2_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Reconstruct external library API call targets in stripped Linux ELF binaries by mapping PLT stubs to .rela.plt/.rel.plt relocation entries.",
+		"pattern": "Disassembly shows unreferenced call targets to sub_... or direct offsets in .plt without descriptive symbol names; .symtab is stripped but .dynsym/.dynstr remain.",
+		"actionable_guidance": "Inspect dynamic relocations using r2 'iR' or readelf -r. Correlate each PLT slot index with its relocation entry in .rela.plt to identify the corresponding symbol name in .dynsym. Annotate PLT jump stubs with recovered library API names.",
+		"params": {
+			"tool": "r2_inspect",
+			"command": "iR"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "symbols"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_elf_init_array_triage",
+		"kind": "recovery_pattern",
+		"title": "ELF .init_array Constructor Analysis for Early Decryption & Anti-Tamper",
+		"target_format": "ELF",
+		"tool": "ghidra_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Identify and decompile early initialization routines executed via .init_array and DT_INIT prior to main() entrypoint in Linux ELF binaries.",
+		"pattern": "Target executes anti-analysis logic, self-decrypts code, or terminates prior to reaching main(); dynamic section contains DT_INIT or DT_INIT_ARRAY.",
+		"actionable_guidance": "Parse .init_array section pointers. Decompile each constructor function in Ghidra/r2 to examine string decoders, integrity checks (/proc/self/status TracerPid), or ptrace(PTRACE_TRACEME) detection prior to main execution.",
+		"params": {
+			"tool": "ghidra_inspect",
+			"action": "decompile_function"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "constructors"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_macho_objc_metadata_triage",
+		"kind": "recovery_pattern",
+		"title": "Mach-O Objective-C / Swift Metadata & Class Hierarchy Recovery",
+		"target_format": "Mach-O",
+		"tool": "r2_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Extract classes, protocols, selectors, and method signatures from Objective-C and Swift metadata sections in macOS/iOS Mach-O binaries.",
+		"pattern": "Disassembly displays extensive objc_msgSend calls with obscured selector arguments; binary is an arm64/x86_64 Mach-O or universal (fat) binary.",
+		"actionable_guidance": "Verify architecture with file/lipo and slice to target architecture if fat binary. Inspect __objc_classlist, __objc_methname, and __objc_methtype sections using r2 'ic' to reconstruct class definitions and method lists before tracing objc_msgSend.",
+		"params": {
+			"tool": "r2_inspect",
+			"command": "ic"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "metadata"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_apk_native_jni_routing",
+		"kind": "recovery_pattern",
+		"title": "Android APK JNI Native Method Resolution & Dynamic Registration Triage",
+		"target_format": "APK",
+		"tool": "android_package_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Locate and map Android native method implementations across lib/<abi>/lib*.so files via standard Java_<pkg> export naming and dynamic JNI_OnLoad RegisterNatives.",
+		"pattern": "Java/Kotlin class declares 'native' method, but exported symbol name is not found in the shared library export table; native registration is dynamic.",
+		"actionable_guidance": "Search decompiled classes for System.loadLibrary calls. Extract lib/<abi>/lib*.so. Search exports for Java_* names. If absent, disassemble JNI_OnLoad, trace env->RegisterNatives calls, and inspect the JNINativeMethod struct array for mapped native function pointers.",
+		"params": {
+			"tool": "android_package_inspect",
+			"action": "libraries"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "jni"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_apk_manifest_security_audit",
+		"kind": "recovery_pattern",
+		"title": "Android APK Manifest Component Exposure & Deep Link Triage",
+		"target_format": "APK",
+		"tool": "android_package_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Audit AndroidManifest.xml for exposed IPC entrypoints (activities, services, receivers, providers) and browsable intent-filters.",
+		"pattern": "Target APK communicates across apps or handles custom URL schemes; potential unauthorized component invocation or deep link hijacking.",
+		"actionable_guidance": "Inspect AndroidManifest.xml for components with android:exported='true' or declaring <intent-filter> without signature-level permissions. Trace target Activity handling of getIntent().getData() in decompiled sources.",
+		"params": {
+			"tool": "android_package_inspect",
+			"action": "manifest"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "manifest"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_js_sourcemap_recovery",
+		"kind": "recovery_pattern",
+		"title": "Web Bundle SourceMap Extraction & Original Source Tree Reconstruction",
+		"target_format": "JS",
+		"tool": "sourcemap_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Discover and extract inline or external SourceMaps (.map) from minified JavaScript bundles to recover original TypeScript/JavaScript source trees.",
+		"pattern": "Minified client-side web application bundle has obfuscated variable and function names; bundle contains //# sourceMappingURL= comment or companion .map file.",
+		"actionable_guidance": "Scan bundle footer for sourceMappingURL directive (relative URL, external URL, or data:application/json;base64). Use sourcemap_inspect to unpack sourcesContent mapping into reconstructed file hierarchy.",
+		"params": {
+			"tool": "sourcemap_inspect",
+			"action": "unpack"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "sourcemap"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_js_api_signature_extraction",
+		"kind": "recovery_pattern",
+		"title": "Obfuscated Web API Request Signature & Token Extraction",
+		"target_format": "JS",
+		"tool": "sourcemap_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Isolate request signing algorithms, HMAC secret keys, and client token generation routines in minified frontend JavaScript bundles.",
+		"pattern": "API network requests fail with 401/403 or 'invalid signature/token' errors; headers include custom timestamp, nonce, or hash parameters.",
+		"actionable_guidance": "Search minified bundle for HTTP client interceptors (axios.interceptors.request, fetch wrappers, 'setRequestHeader'). Trace parameter serialization order, secret salt/token constants, and hash algorithm (MD5/SHA256/HMAC).",
+		"params": {
+			"tool": "sourcemap_inspect",
+			"action": "search"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "api_signing"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_wasm_export_memory_triage",
+		"kind": "recovery_pattern",
+		"title": "WebAssembly (WASM) Export Function & Linear Memory Data Triage",
+		"target_format": "WASM",
+		"tool": "ghidra_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Decompile WebAssembly modules, map exported functions to JavaScript host bindings, and extract linear memory string tables and constants.",
+		"pattern": "Target Web application executes core business logic or cryptography inside .wasm binary module; function names are index-based without symbols.",
+		"actionable_guidance": "Convert WASM to WAT text format or decompile in Ghidra. Identify 'import' declarations representing host JS APIs (DOM, console, crypto). Inspect 'export' table for entrypoints called by JS. Analyze linear memory data segments for strings and lookup tables.",
+		"params": {
+			"tool": "ghidra_inspect",
+			"action": "decompile"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "wasm"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_pcap_tls_sni_alpn_triage",
+		"kind": "recovery_pattern",
+		"title": "PCAP TLS Handshake SNI & ALPN Protocol Stream Classification",
+		"target_format": "PCAP",
+		"tool": "pcap_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Classify encrypted application traffic flows from packet captures using TLS ClientHello Server Name Indication (SNI) and ALPN protocol negotiation.",
+		"pattern": "Encrypted network capture payload without plaintext HTTP headers; need to map server endpoints, protocols (HTTP/2 vs HTTP/1.1), and session boundaries.",
+		"actionable_guidance": "Filter capture for TLS ClientHello packets (ssl.handshake.type == 1). Extract SNI domain names, cipher suite offerings, and ALPN extension values (e.g. 'h2', 'http/1.1') to reconstruct target infrastructure mapping before deeper traffic analysis.",
+		"params": {
+			"tool": "pcap_inspect",
+			"filter": "ssl.handshake.type == 1"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "tls_handshake"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_sqlite_wal_forensics",
+		"kind": "recovery_pattern",
+		"title": "SQLite WAL (Write-Ahead Log) Schema & Forensics Triage",
+		"target_format": "SQLite",
+		"tool": "sqlite_inspect",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Extract table schemas and inspect uncheckpointed transactions from companion SQLite Write-Ahead Log (-wal) and shared memory (-shm) files.",
+		"pattern": "Application database appears empty or lacks recent user actions because active transactions reside in the companion -wal file.",
+		"actionable_guidance": "Query sqlite_master / sqlite_schema for table, index, and trigger declarations. Check PRAGMA journal_mode; if WAL mode, verify whether -wal file has pending pages. Ensure queries read both main DB and WAL pages without corrupting database integrity.",
+		"params": {
+			"tool": "sqlite_inspect",
+			"query": "SELECT type, name, sql FROM sqlite_master WHERE type IN ('table', 'index');"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "database"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	},
+	{
+		"id": "kn_rev_seed_apk_unidbg_jni_emulation",
+		"kind": "recovery_pattern",
+		"title": "Android APK Unidbg ARM Host Emulation & Offline JNI Invocation",
+		"target_format": "APK",
+		"tool": "unidbg",
+		"confidence": "medium",
+		"source": "bundled",
+		"summary": "Emulate Android ARM32/ARM64 shared libraries (.so) and execute JNI native functions on the host JVM without an Android device or emulator.",
+		"pattern": "Target native function performs cryptographic operations, token signing, or device fingerprinting that fails or cannot be reached via static decompiler alone, and no live Android device/emulator is connected.",
+		"actionable_guidance": "Extract lib/<abi>/lib*.so from APK. Use Unidbg to initialize DalvikVM and AndroidEmulator. Load target shared library into virtual address space, resolve JNI symbol (static Java_* export or JNI_OnLoad RegisterNatives), mock necessary Android system services (Context, PackageManager), and invoke native method with synthetic parameters to verify output.",
+		"params": {
+			"tool": "android_native_workflow",
+			"action": "plan"
+		},
+		"metadata": {
+			"source": "bundled",
+			"user_verified": false,
+			"baseline": true,
+			"topic": "emulation"
+		},
+		"status": "active",
+		"usage_count": 0,
+		"created_at": "2026-01-01T00:00:00.000Z",
+		"updated_at": "2026-01-01T00:00:00.000Z"
+	}
+]

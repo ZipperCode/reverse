@@ -324,3 +324,248 @@ describe("js_hook_preset validation and security allowlisting", () => {
 		}
 	});
 });
+function createMockBrowserRunner(initialTabs: Record<string, { state: "alive" | "dead"; url?: string; title?: string }> = {}) {
+	const tabs = new Map<string, { state: "alive" | "dead"; url?: string; title?: string }>(Object.entries(initialTabs));
+	const calls: Array<{ type: string; name: string; payload?: unknown }> = [];
+	const inTabEvents = new Map<string, any[]>();
+	const inTabConsole = new Map<string, any[]>();
+	const inTabRequests = new Map<string, any[]>();
+
+	return {
+		calls,
+		tabs,
+		inTabEvents,
+		inTabConsole,
+		inTabRequests,
+		getTab(name: string) {
+			const t = tabs.get(name);
+			return t ? { name, state: t.state, url: t.url, title: t.title } : undefined;
+		},
+		async openTab(name: string, url: string) {
+			calls.push({ type: "openTab", name, payload: url });
+			tabs.set(name, { state: "alive", url, title: "Test Page" });
+			return { name, url };
+		},
+		async runInTab(name: string, opts: { code: string; timeoutMs?: number; signal?: AbortSignal }) {
+			calls.push({ type: "runInTab", name, payload: opts.code });
+			if (opts.code.includes("tab.addInitScript")) {
+				return {
+					returnValue: { initScriptId: `init_${name}_123`, evaluated: true },
+					displays: [],
+				};
+			}
+			if (opts.code.includes("window.__rea_events__") && opts.code.includes("tab.console")) {
+				const events = inTabEvents.get(name) || [];
+				const consoleLogs = inTabConsole.get(name) || [];
+				const requests = inTabRequests.get(name) || [];
+				if (opts.code.includes("window.__rea_events__ = []")) {
+					inTabEvents.set(name, []);
+				}
+				return {
+					returnValue: { events, consoleLogs, requests },
+					displays: [],
+				};
+			}
+			if (opts.code.includes("window.__rea_events__ = []")) {
+				inTabEvents.set(name, []);
+				return { returnValue: { cleared: true }, displays: [] };
+			}
+			return { returnValue: {}, displays: [] };
+		},
+		async closeTab(name: string) {
+			calls.push({ type: "closeTab", name });
+			tabs.set(name, { state: "dead" });
+			return true;
+		},
+	};
+}
+
+describe("js_hook_preset action: inject", () => {
+	it("rejects when target tab is missing and no url is provided", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-inj-err-"));
+		try {
+			const session = createTestSession(tempDir);
+			const runner = createMockBrowserRunner({});
+			const tool = new JsHookPresetTool(session, runner);
+
+			await expect(
+				tool.execute("call_inj_missing", {
+					action: "inject",
+					preset: "fetch",
+					tab_name: "nonexistent",
+				}),
+			).rejects.toThrow("Browser tab \"nonexistent\" is not open or alive");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("opens a new tab and injects preset when url is supplied", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-inj-open-"));
+		try {
+			const session = createTestSession(tempDir);
+			const runner = createMockBrowserRunner({});
+			const tool = new JsHookPresetTool(session, runner);
+
+			const result = await tool.execute("call_inj_open", {
+				action: "inject",
+				preset: "fetch",
+				tab_name: "auth_tab",
+				url: "https://auth.example.com",
+				filter: "/oauth/token",
+			});
+
+			expect(result.details?.action).toBe("inject");
+			expect(result.details?.preset).toBe("fetch");
+			expect(result.details?.tab_name).toBe("auth_tab");
+			expect(result.details?.url).toBe("https://auth.example.com");
+			expect(result.details?.executed).toBe(true);
+			expect(result.details?.isTemplateOnly).toBe(false);
+			expect(result.details?.init_script_id).toBe("init_auth_tab_123");
+			expect(result.details?.evaluated).toBe(true);
+
+			expect(runner.calls.some(c => c.type === "openTab" && c.name === "auth_tab")).toBe(true);
+			expect(runner.calls.some(c => c.type === "runInTab" && c.name === "auth_tab")).toBe(true);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("injects preset into an existing live tab", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-inj-live-"));
+		try {
+			const session = createTestSession(tempDir);
+			const runner = createMockBrowserRunner({
+				main: { state: "alive", url: "https://app.test/dashboard" },
+			});
+			const tool = new JsHookPresetTool(session, runner);
+
+			const result = await tool.execute("call_inj_live", {
+				action: "inject",
+				preset: "crypto",
+				tab_name: "main",
+			});
+
+			expect(result.details?.action).toBe("inject");
+			expect(result.details?.preset).toBe("crypto");
+			expect(result.details?.executed).toBe(true);
+			expect(result.details?.init_script_id).toBe("init_main_123");
+			expect(result.details?.evaluated).toBe(true);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});
+
+describe("js_hook_preset action: capture and clear", () => {
+	it("fails capture when tab is missing", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-cap-err-"));
+		try {
+			const session = createTestSession(tempDir);
+			const runner = createMockBrowserRunner({});
+			const tool = new JsHookPresetTool(session, runner);
+
+			await expect(
+				tool.execute("call_cap_err", {
+					action: "capture",
+					tab_name: "missing",
+				}),
+			).rejects.toThrow("Browser tab \"missing\" is not open or alive");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("captures structured events, console logs, and formats evidence records", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-cap-ok-"));
+		try {
+			const session = createTestSession(tempDir);
+			const runner = createMockBrowserRunner({
+				main: { state: "alive", url: "https://secure.test/login" },
+			});
+
+			runner.inTabEvents.set("main", [
+				{
+					timestamp: Date.now(),
+					type: "fetch_request",
+					id: "req1",
+					method: "POST",
+					url: "https://secure.test/api/login",
+					body: '{"user":"admin"}',
+				},
+				{
+					timestamp: Date.now(),
+					type: "crypto_call",
+					id: "cry1",
+					method: "encrypt",
+					algorithm: "AES-GCM",
+					dataHex: "61646d696e",
+				},
+			]);
+			runner.inTabConsole.set("main", ["console message 1"]);
+			runner.inTabRequests.set("main", [{ url: "https://secure.test/api/login" }]);
+
+			const tool = new JsHookPresetTool(session, runner);
+			const result = await tool.execute("call_cap_ok", {
+				action: "capture",
+				tab_name: "main",
+				export_evidence: true,
+			});
+
+			expect(result.details?.action).toBe("capture");
+			expect(result.details?.eventCount).toBe(2);
+			expect(result.details?.events).toHaveLength(2);
+			expect(result.details?.events?.[0].type).toBe("fetch_request");
+			expect(result.details?.events?.[1].type).toBe("crypto_call");
+			expect(result.details?.consoleLogs).toHaveLength(1);
+			expect(result.details?.requests).toHaveLength(1);
+
+			expect(result.details?.evidence).toBeDefined();
+			expect(result.details?.evidence).toHaveLength(2);
+			expect(result.details?.evidence?.[0].kind).toBe("fact");
+			expect(result.details?.evidence?.[0].locator).toBe("tab:main:fetch_request:req1");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("clears event buffer via action: clear", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-clear-"));
+		try {
+			const session = createTestSession(tempDir);
+			const runner = createMockBrowserRunner({
+				main: { state: "alive", url: "https://secure.test" },
+			});
+			runner.inTabEvents.set("main", [{ type: "test" }]);
+
+			const tool = new JsHookPresetTool(session, runner);
+			const result = await tool.execute("call_clr", {
+				action: "clear",
+				tab_name: "main",
+			});
+
+			expect(result.details?.action).toBe("clear");
+			expect(result.details?.executed).toBe(true);
+			expect(runner.inTabEvents.get("main")).toEqual([]);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("embeds structured ring buffer recording in all generated templates", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-ring-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new JsHookPresetTool(session);
+
+			for (const preset of ["fetch", "xhr", "websocket", "crypto", "eval", "json_parse", "contextBridge"] as const) {
+				const res = await tool.execute(`gen_${preset}`, { action: "generate", preset });
+				const script = res.details?.script ?? "";
+				expect(script).toContain("window.__rea_events__");
+				expect(script).toContain("_reaRecord");
+			}
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});

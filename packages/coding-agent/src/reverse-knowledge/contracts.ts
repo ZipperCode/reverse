@@ -29,6 +29,7 @@ export interface ReverseKnowledgeRecord {
 	source_evidence_ids?: string[];
 	source_workflow_id?: string;
 	source_step_id?: string;
+	source?: "bundled" | "evidence_ledger" | "workflow_recovery" | "retained_finding";
 	summary: string;
 	pattern?: string;
 	actionable_guidance?: string;
@@ -58,6 +59,7 @@ export interface ReverseKnowledgeFilter {
 	status?: KnowledgeStatus;
 	include_inactive?: boolean;
 	include_stale?: boolean;
+	include_bundled?: boolean;
 	limit?: number;
 	offset?: number;
 }
@@ -111,7 +113,7 @@ export interface KnowledgeRecommendation {
 	source_evidence_ids?: string[];
 	source_workflow_id?: string;
 	source_step_id?: string;
-	source?: "evidence_ledger" | "workflow_recovery" | "retained_finding";
+	source?: "evidence_ledger" | "workflow_recovery" | "retained_finding" | "bundled";
 	status?: KnowledgeStatus;
 	usage_count?: number;
 }

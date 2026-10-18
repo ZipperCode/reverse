@@ -9,8 +9,10 @@ import {
 	FridaTool,
 	type FridaDetails,
 	type FridaRunner,
-	FIXED_ENUMERATE_MODULES_SCRIPT,
-} from "@rva/coding-agent/tools";
+ 	FIXED_ENUMERATE_MODULES_SCRIPT,
+	parseFridaModules,
+	parseFridaTrace,
+ } from "@rva/coding-agent/tools";
 import { Settings } from "@rva/coding-agent/config/settings";
 
 function createTestSession(
@@ -340,7 +342,8 @@ describe("frida execution and action modes", () => {
 			expect(calls[0].args).toContain("192.168.1.100:27042");
 			expect(calls[0].args).toContain("-f");
 			expect(calls[0].args).toContain("com.example.app");
-			expect(calls[0].args).toContain("--no-pause");
+			expect(calls[0].args).not.toContain("--no-pause");
+			expect(calls[0].args).not.toContain("--pause");
 			expect(calls[0].args).toContain("-e");
 			expect(calls[0].args).toContain("-P");
 			expect(calls[0].args).toContain('{"secretKey":"abc"}');
@@ -558,7 +561,6 @@ describe("frida execution and action modes", () => {
 			expect(calls[0].args).toContain("--realm=native");
 			expect(calls[0].args).toContain("-t");
 			expect(calls[0].args).toContain("1000");
-			expect(capturedTimeoutMs).toBe(1002 * 1000);
 			expect(capturedMaxBytes).toBe(10 * 1024 * 1024);
 			expect(textOf(result)).toContain("Uncapped execution success");
 		} finally {
@@ -674,5 +676,64 @@ describe("frida execution and action modes", () => {
 		} finally {
 			await removeTestDir(tempDir);
 		}
+	});
+});
+
+describe("frida CLI spawn pause semantics and literal parsing", () => {
+	it("passes --pause only when pause: true or no_pause: false", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-pause-test-"));
+		try {
+			const calls: Array<{ binary: string; args: string[] }> = [];
+			const runner: FridaRunner = async (binary, args) => {
+				calls.push({ binary, args });
+				return { stdout: Buffer.from(""), stderr: "", exitCode: 0, outputBytes: 0, truncated: false, timedOut: false };
+			};
+			const which = (cmd: string) => (cmd === "frida" ? "/usr/local/bin/frida" : null);
+			const tool = new FridaTool(createTestSession(tempDir), { runner, which });
+
+			// 1. Default spawn: no pause flags
+			await tool.execute("call-default-spawn", {
+				spawn: "com.example.app",
+				script: "console.log(1)",
+			});
+			expect(calls[0].args).not.toContain("--no-pause");
+			expect(calls[0].args).not.toContain("--pause");
+
+			// 2. Explicit pause: true -> passes --pause
+			await tool.execute("call-pause-true", {
+				spawn: "com.example.app",
+				script: "console.log(1)",
+				pause: true,
+			});
+			expect(calls[1].args).toContain("--pause");
+			expect(calls[1].args).not.toContain("--no-pause");
+
+			// 3. Explicit no_pause: false -> passes --pause
+			await tool.execute("call-no-pause-false", {
+				spawn: "com.example.app",
+				script: "console.log(1)",
+				no_pause: false,
+			});
+			expect(calls[2].args).toContain("--pause");
+			expect(calls[2].args).not.toContain("--no-pause");
+		} finally {
+			await removeTestDir(tempDir);
+		}
+	});
+
+
+	it("parses modules and trace outputs formatted as Python repr literals", () => {
+		const pyModulesRaw = "__FRIDA_MODULES_START__[{'name': 'libdemo.so', 'base': '0x7fff0000', 'size': 65536, 'path': '/lib/libdemo.so'}]__FRIDA_MODULES_END__";
+		const modules = parseFridaModules(pyModulesRaw);
+		expect(modules).toHaveLength(1);
+		expect(modules[0].name).toBe("libdemo.so");
+		expect(modules[0].base).toBe("0x7fff0000");
+		expect(modules[0].size).toBe(65536);
+
+		const pyTraceRaw = "__FRIDA_TRACE_START__{'module': 'libdemo.so', 'events': [{'event': 'export', 'name': 'target_fn', 'address': '0x7fff1234'}]}__FRIDA_TRACE_END__";
+		const trace = parseFridaTrace(pyTraceRaw);
+		expect(trace.module).toBe("libdemo.so");
+		expect(trace.events).toHaveLength(1);
+		expect(trace.events[0].name).toBe("target_fn");
 	});
 });

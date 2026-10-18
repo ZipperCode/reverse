@@ -3,6 +3,7 @@ import * as timers from "node:timers/promises";
 import { logger, ptree, untilAborted } from "@rva/utils";
 import { NON_INTERACTIVE_ENV } from "../exec/non-interactive-env";
 import { DapClient } from "./client";
+import { type UniversalDynamicEvent, normalizeDapEvent } from "../reverse-runtime-session/dynamic-events";
 import type {
 	DapAttachArguments,
 	DapAttachSessionOptions,
@@ -96,6 +97,8 @@ interface DapSession {
 	parentSessionId?: string;
 	childSessionIds: Set<string>;
 	port?: number;
+	events: UniversalDynamicEvent[];
+	eventSeq: number;
 }
 
 interface DapTreeOutcomeWaiter {
@@ -1365,6 +1368,8 @@ export class DapSessionManager {
 			parentSessionId,
 			childSessionIds: new Set(),
 			port: client.port,
+			events: [],
+			eventSeq: 0,
 		};
 		client.onReverseRequest("runInTerminal", async rawArgs => {
 			const args = (rawArgs ?? {}) as DapRunInTerminalArguments;
@@ -1405,34 +1410,76 @@ export class DapSessionManager {
 		});
 		client.onEvent("output", body => {
 			truncateOutput(session, (body as DapOutputEventBody | undefined)?.output ?? "");
+			session.eventSeq++;
+			const ev = normalizeDapEvent({ event: "output", body }, session.id, {
+				target: session.program,
+				seq: session.eventSeq,
+			});
+			if (session.events.length >= 500) session.events.shift();
+			session.events.push(ev);
 		});
 		client.onEvent("initialized", () => {
 			session.initializedSeen = true;
 			if (!session.configurationDoneSent && session.status === "launching") {
 				session.status = "configuring";
 			}
+			session.eventSeq++;
+			const ev = normalizeDapEvent({ event: "initialized" }, session.id, {
+				target: session.program,
+				seq: session.eventSeq,
+			});
+			if (session.events.length >= 500) session.events.shift();
+			session.events.push(ev);
 		});
 		client.onEvent("stopped", body => {
 			this.#handleStoppedEvent(session, body as DapStoppedEventBody);
 			this.#activeSessionId = session.id;
 			this.#resolveTreeOutcome(session);
+			session.eventSeq++;
+			const ev = normalizeDapEvent({ event: "stopped", body }, session.id, {
+				target: session.program,
+				seq: session.eventSeq,
+			});
+			if (session.events.length >= 500) session.events.shift();
+			session.events.push(ev);
 		});
 		client.onEvent("continued", body => {
 			const continued = body as { threadId?: number } | undefined;
 			session.status = "running";
 			session.stop = { threadId: continued?.threadId };
 			session.lastStackFrames = [];
+			session.eventSeq++;
+			const ev = normalizeDapEvent({ event: "continued", body }, session.id, {
+				target: session.program,
+				seq: session.eventSeq,
+			});
+			if (session.events.length >= 500) session.events.shift();
+			session.events.push(ev);
 		});
 		client.onEvent("exited", body => {
 			session.exitCode = (body as DapExitedEventBody | undefined)?.exitCode;
 			session.status = "terminated";
 			this.#reactivateAfterTermination(session);
 			this.#resolveTreeOutcome(session);
+			session.eventSeq++;
+			const ev = normalizeDapEvent({ event: "exited", body }, session.id, {
+				target: session.program,
+				seq: session.eventSeq,
+			});
+			if (session.events.length >= 500) session.events.shift();
+			session.events.push(ev);
 		});
 		client.onEvent("terminated", () => {
 			session.status = "terminated";
 			this.#reactivateAfterTermination(session);
 			this.#resolveTreeOutcome(session);
+			session.eventSeq++;
+			const ev = normalizeDapEvent({ event: "terminated" }, session.id, {
+				target: session.program,
+				seq: session.eventSeq,
+			});
+			if (session.events.length >= 500) session.events.shift();
+			session.events.push(ev);
 		});
 		this.#sessions.set(session.id, session);
 		if (parentSessionId) {
@@ -1870,6 +1917,40 @@ export class DapSessionManager {
 			this.#activeSessionId = parent?.id ?? this.#sessions.values().next().value?.id ?? null;
 		}
 		void session.client.dispose().catch(() => {});
+	}
+
+	getEvents(
+		sessionId?: string,
+		options: { limit?: number; sinceSeq?: number; clear?: boolean; kind?: string } = {},
+	): {
+		sessionId: string;
+		events: UniversalDynamicEvent[];
+		total: number;
+	} {
+		const session = sessionId
+			? this.#sessions.get(sessionId)
+			: (this.#activeSessionId ? this.#sessions.get(this.#activeSessionId) : undefined);
+		if (!session) {
+			return { sessionId: sessionId ?? "", events: [], total: 0 };
+		}
+		if (options.clear) {
+			const count = session.events.length;
+			session.events = [];
+			return { sessionId: session.id, events: [], total: count };
+		}
+		let filtered = session.events;
+		if (options.sinceSeq !== undefined) {
+			filtered = filtered.filter(e => e.seq > options.sinceSeq!);
+		}
+		if (options.kind) {
+			filtered = filtered.filter(e => e.kind === options.kind);
+		}
+		const limit = options.limit ?? 50;
+		return {
+			sessionId: session.id,
+			events: filtered.slice(0, limit),
+			total: session.events.length,
+		};
 	}
 }
 

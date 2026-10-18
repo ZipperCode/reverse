@@ -976,6 +976,16 @@ export function getReverseKnowledgeProjectDir(projectKey: string, agentDir?: str
 	return path.join(getReverseKnowledgeDir(agentDir), projectKey);
 }
 
+/** Get the browser sessions state directory (~/.omp/agent/browser-sessions; XDG default: $XDG_STATE_HOME/omp/browser-sessions). */
+export function getBrowserSessionsDir(agentDir?: string): string {
+	return dirs.agentSubdir(agentDir, "browser-sessions", "state");
+}
+
+/** Get one project's browser sessions state directory (~/.omp/agent/browser-sessions/<project-key>). */
+export function getBrowserSessionsProjectDir(projectKey: string, agentDir?: string): string {
+	return path.join(getBrowserSessionsDir(agentDir), projectKey);
+}
+
 // =============================================================================
 // Agent subdirectories (~/.omp/agent/*)
 // =============================================================================

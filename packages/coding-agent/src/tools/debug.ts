@@ -37,6 +37,15 @@ import {
 	selectAttachAdapter,
 	selectLaunchAdapter,
 } from "../dap";
+import {
+	type UniversalDynamicEvent,
+	dynamicEventToFactInput,
+} from "../reverse-runtime-session/dynamic-events";
+import {
+	ReverseRuntimeSessionStore,
+	type RuntimeSessionRecord,
+	type RuntimeSessionRecoveryHint,
+} from "../reverse-runtime-session";
 import debugDescription from "../prompts/tools/debug.md" with { type: "text" };
 import type { ToolSession } from ".";
 import { truncateForPrompt } from "./approval";
@@ -65,6 +74,8 @@ export const DEBUG_READONLY_ACTIONS: ReadonlySet<string> = new Set([
 	"loaded_sources",
 	"modules",
 	"sessions",
+	"events",
+	"export_evidence",
 ]);
 const debugActionSchema = type.enumerated(
 	"launch",
@@ -95,6 +106,8 @@ const debugActionSchema = type.enumerated(
 	"output",
 	"terminate",
 	"sessions",
+	"events",
+	"export_evidence",
 );
 const debugSchema = type({
 	action: debugActionSchema,
@@ -126,6 +139,12 @@ const debugSchema = type({
 	"data_id?": type("string").describe("data breakpoint id"),
 	"access_type?": "'read' | 'write' | 'readWrite'",
 	"command?": type("string").describe("custom dap request command"),
+	"since_seq?": type("number").describe("For events: filter events strictly greater than sequence"),
+	"limit?": type("number").describe("For events or export_evidence: maximum records to return"),
+	"clear?": type("boolean").describe("For events: clear buffered events"),
+	"kind?": type("string").describe("For events: filter by event kind (stdout, stderr, breakpoint, step, lifecycle)"),
+	"session_id?": type("string").describe("DAP session id to query events from (defaults to active session)"),
+	"export_target?": type("string").describe("Target path/name recorded in exported facts"),
 	"arguments?": type({
 		"[string]": "unknown",
 	}).describe("custom request arguments"),
@@ -166,6 +185,9 @@ interface DebugExecutionDetails extends DebugToolDetails {
 	output?: string;
 	adapter?: string;
 	state?: DapContinueOutcome["state"];
+	events?: UniversalDynamicEvent[];
+	eventCount?: number;
+	evidence?: unknown[];
 	timedOut?: boolean;
 	meta?: OutputMeta;
 }
@@ -540,6 +562,10 @@ function resolveDisassemblyReference(memoryReference: string | undefined): strin
 	);
 }
 
+export interface DebugToolOptions {
+	stateRoot?: string;
+}
+
 export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDetails> {
 	readonly name = "debug";
 	readonly approval = (args: unknown): ToolApprovalDecision => {
@@ -579,8 +605,143 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 	readonly concurrency = "exclusive";
 	readonly loadMode = "discoverable";
 
-	constructor(private readonly session: ToolSession) {
+	constructor(
+		private readonly session: ToolSession,
+		private readonly options: DebugToolOptions = {},
+	) {
 		this.description = prompt.render(debugDescription);
+	}
+
+	private async syncToRuntimeSessionStore(
+		snapshot: DapSessionSummary,
+		action: "launch" | "attach" | "terminate" | "update",
+		extraParams?: {
+			program?: string;
+			args?: string[];
+			cwd?: string;
+			adapter?: string;
+			pid?: number;
+			port?: number;
+			host?: string;
+		},
+	): Promise<void> {
+		try {
+			const runtimeStore = ReverseRuntimeSessionStore.forSession(
+				this.session.cwd,
+				this.options.stateRoot,
+			);
+
+			const eventResult = dapSessionManager.getEvents(snapshot.id, { limit: 50 });
+			const recentEvents = eventResult.events;
+			const eventsCount = eventResult.total;
+
+			const isTerminated = action === "terminate" || snapshot.status === "terminated";
+			const runtimeStatus = isTerminated
+				? "closed"
+				: snapshot.status === "stopped" || snapshot.status === "running" || snapshot.status === "initializing"
+					? "active"
+					: "unknown";
+
+			const targetDesc =
+				snapshot.program ||
+				extraParams?.program ||
+				(typeof extraParams?.pid === "number" ? `PID ${extraParams.pid}` : snapshot.adapter);
+
+			const targetDetails: Record<string, unknown> = {
+				adapter: snapshot.adapter,
+			};
+			if (snapshot.program || extraParams?.program) {
+				targetDetails.program = snapshot.program || extraParams?.program;
+			}
+			if (snapshot.cwd || extraParams?.cwd) {
+				targetDetails.cwd = snapshot.cwd || extraParams?.cwd;
+			}
+			if (extraParams?.args && extraParams.args.length > 0) {
+				targetDetails.args = extraParams.args;
+			}
+			if (typeof extraParams?.pid === "number") {
+				targetDetails.pid = extraParams.pid;
+			}
+			if (typeof extraParams?.port === "number") {
+				targetDetails.port = extraParams.port;
+			}
+			if (extraParams?.host) {
+				targetDetails.host = extraParams.host;
+			}
+
+			const connection: Record<string, unknown> = {
+				adapter: snapshot.adapter,
+			};
+			if (snapshot.cwd || extraParams?.cwd) {
+				connection.cwd = snapshot.cwd || extraParams?.cwd;
+			}
+			if (typeof extraParams?.port === "number") {
+				connection.port = extraParams.port;
+			}
+			if (extraParams?.host) {
+				connection.host = extraParams.host;
+			}
+
+			const isAttach = typeof extraParams?.pid === "number" || typeof extraParams?.port === "number" || action === "attach";
+			const restoreAction = isAttach ? "attach" : "launch";
+			const restoreParams: Record<string, unknown> = {
+				adapter: snapshot.adapter,
+				...targetDetails,
+			};
+
+			const recoveryHints: RuntimeSessionRecoveryHint = {
+				restore_tool: "debug",
+				restore_action: restoreAction,
+				restore_params: restoreParams,
+				instructions: [
+					`Restore DAP debug session '${snapshot.id}' via debug(action: '${restoreAction}', adapter: '${snapshot.adapter}', ...) with preserved parameters.`,
+				],
+			};
+
+			const now = new Date().toISOString();
+			const existingRecord = await runtimeStore.get(snapshot.id).catch(() => null);
+
+			const runtimeRecord: RuntimeSessionRecord = {
+				id: snapshot.id,
+				name: `DAP Debug ${snapshot.adapter} (${targetDesc})`,
+				kind: "dap",
+				status: runtimeStatus,
+				target_summary: targetDesc,
+				target_details: {
+					...(existingRecord?.target_details ?? {}),
+					...targetDetails,
+				},
+				connection: {
+					...(existingRecord?.connection ?? {}),
+					...connection,
+				},
+				recovery_hints: existingRecord?.recovery_hints ?? recoveryHints,
+				created_at: existingRecord?.created_at || snapshot.launchedAt || now,
+				updated_at: now,
+				last_heartbeat_at: now,
+				heartbeat_count: (existingRecord?.heartbeat_count ?? 0) + 1,
+				stale_timeout_sec: existingRecord?.stale_timeout_sec ?? 300,
+				status_source: isTerminated ? "closed" : "caller_reported",
+				metadata: {
+					...(existingRecord?.metadata ?? {}),
+					adapter: snapshot.adapter,
+					dapStatus: snapshot.status,
+					breakpointCount: snapshot.breakpointCount,
+					functionBreakpointCount: snapshot.functionBreakpointCount,
+					outputBytes: snapshot.outputBytes,
+					threadId: snapshot.threadId,
+					frameId: snapshot.frameId,
+					stopReason: snapshot.stopReason,
+					eventsCount,
+					events_count: eventsCount,
+					recent_events: recentEvents,
+				},
+			};
+
+			await runtimeStore.save(runtimeRecord);
+		} catch {
+			// Non-blocking sync
+		}
 	}
 
 	static createIf(session: ToolSession): DebugTool | null {
@@ -626,6 +787,12 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				);
 				details.snapshot = snapshot;
 				details.adapter = adapter.name;
+				await this.syncToRuntimeSessionStore(snapshot, "launch", {
+					program,
+					args: params.args,
+					cwd: commandCwd,
+					adapter: adapter.name,
+				});
 				return result.text(formatSessionSnapshot(snapshot).join("\n")).done();
 			}
 			case "attach": {
@@ -650,6 +817,13 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				);
 				details.snapshot = snapshot;
 				details.adapter = adapter.name;
+				await this.syncToRuntimeSessionStore(snapshot, "attach", {
+					adapter: adapter.name,
+					cwd: commandCwd,
+					pid: params.pid,
+					port: params.port,
+					host: params.host,
+				});
 				return result.text(formatSessionSnapshot(snapshot).join("\n")).done();
 			}
 			case "set_breakpoint": {
@@ -788,6 +962,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				details.snapshot = outcome.snapshot;
 				details.state = outcome.state;
 				details.timedOut = outcome.timedOut;
+				void this.syncToRuntimeSessionStore(outcome.snapshot, "update");
 				return result.text(buildOutcomeText(outcome, timeoutSec, "Continue")).done();
 			}
 			case "step_over": {
@@ -795,6 +970,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				details.snapshot = outcome.snapshot;
 				details.state = outcome.state;
 				details.timedOut = outcome.timedOut;
+				void this.syncToRuntimeSessionStore(outcome.snapshot, "update");
 				return result.text(buildOutcomeText(outcome, timeoutSec, "Step over")).done();
 			}
 			case "step_in": {
@@ -802,6 +978,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				details.snapshot = outcome.snapshot;
 				details.state = outcome.state;
 				details.timedOut = outcome.timedOut;
+				void this.syncToRuntimeSessionStore(outcome.snapshot, "update");
 				return result.text(buildOutcomeText(outcome, timeoutSec, "Step in")).done();
 			}
 			case "step_out": {
@@ -809,11 +986,13 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				details.snapshot = outcome.snapshot;
 				details.state = outcome.state;
 				details.timedOut = outcome.timedOut;
+				void this.syncToRuntimeSessionStore(outcome.snapshot, "update");
 				return result.text(buildOutcomeText(outcome, timeoutSec, "Step out")).done();
 			}
 			case "pause": {
 				const snapshot = await dapSessionManager.pause(combinedSignal, timeoutSec * 1000);
 				details.snapshot = snapshot;
+				void this.syncToRuntimeSessionStore(snapshot, "update");
 				return result.text(formatSessionSnapshot(snapshot).concat("Program paused.").join("\n")).done();
 			}
 			case "evaluate": {
@@ -972,12 +1151,55 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 					return result.text("No debug session to terminate.").done();
 				}
 				details.snapshot = snapshot;
+				await this.syncToRuntimeSessionStore(snapshot, "terminate");
 				return result.text(formatSessionSnapshot(snapshot).concat("Debug session terminated.").join("\n")).done();
 			}
 			case "sessions": {
 				const sessions = dapSessionManager.listSessions();
 				details.sessions = sessions;
 				return result.text(formatSessions(sessions)).done();
+			}
+			case "events": {
+				const eventResult = dapSessionManager.getEvents(params.session_id, {
+					limit: params.limit,
+					sinceSeq: params.since_seq,
+					clear: params.clear,
+					kind: params.kind,
+				});
+				details.events = eventResult.events;
+				details.eventCount = eventResult.events.length;
+				if (eventResult.events.length === 0) {
+					return result.text("No DAP events captured.").done();
+				}
+				const lines = [
+					`DAP session '${eventResult.sessionId}' events: showing ${eventResult.events.length} of ${eventResult.total} buffered:`,
+				];
+				for (const ev of eventResult.events) {
+					const preview = ev.raw ? ev.raw.replace(/\r?\n/g, " ").slice(0, 100) : JSON.stringify(ev.payload).slice(0, 100);
+					lines.push(`  #${ev.seq} [${ev.kind}/${ev.channel || "event"}] ${preview}`);
+				}
+				return result.text(lines.join("\n")).done();
+			}
+			case "export_evidence": {
+				const eventResult = dapSessionManager.getEvents(params.session_id, {
+					limit: params.limit,
+					sinceSeq: params.since_seq,
+					kind: params.kind,
+				});
+				const target = params.export_target || params.program;
+				const facts = eventResult.events.map(ev => dynamicEventToFactInput(ev, { target }));
+				details.evidence = facts;
+				details.eventCount = facts.length;
+				if (facts.length === 0) {
+					return result.text("No DAP events available to export as evidence.").done();
+				}
+				const lines = [
+					`Exported ${facts.length} dynamic fact(s) from DAP session '${eventResult.sessionId}':`,
+				];
+				for (const f of facts) {
+					lines.push(`  - ${f.locator}: ${f.title}`);
+				}
+				return result.text(lines.join("\n")).done();
 			}
 			default:
 				throw new ToolError(`Unsupported debug action: ${params.action}`);

@@ -8,6 +8,9 @@ import fridaSessionDescription from "../prompts/tools/frida-session.md" with { t
 import { redactMemorySecrets } from "../memory-backend/redact";
 import type { SkillRequirementWhich } from "../extensibility/skill-requirements";
 import { replaceFileAtomically } from "../utils/atomic-file";
+import { ReverseRuntimeSessionStore } from "../reverse-runtime-session/store";
+import type { RuntimeSessionRecord } from "../reverse-runtime-session/contracts";
+import { normalizeFridaEvent, type UniversalDynamicEvent } from "../reverse-runtime-session/dynamic-events";
 import type { ToolSession } from "./index";
 import { ToolError } from "@rva/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
@@ -20,18 +23,19 @@ import {
 	type FridaRunResult,
 	type FridaRunner,
 	resolveFridaFallback,
-	resolveScriptPath,
-	splitCliArgs,
-} from "./frida";
+ 	resolveScriptPath,
+ 	splitCliArgs,
+	parsePythonLiteral,
+ } from "./frida";
 
 export const fridaSessionSchema = type({
 	"action?": type
-		.enumerated("create", "list", "status", "run", "stop", "destroy")
+		.enumerated("create", "list", "status", "run", "events", "stop", "destroy")
 		.describe(
-			"Action to perform: 'create' (start/initialize new analysis session), 'list' (list saved sessions), 'status' (inspect session state and target status), 'run' (execute script or enumeration in session context), 'stop' (suspend/stop session and active child), 'destroy' (terminate and remove session)",
+			"Action to perform: 'create' (start/initialize new analysis session), 'list' (list saved sessions), 'status' (inspect session state and target status), 'run' (execute script or enumeration in session context), 'events' (inspect, query, or export structured event ring buffer), 'stop' (suspend/stop session and active child), 'destroy' (terminate and remove session)",
 		),
 	"session_id?": type("string").describe(
-		"Identifier for the session. Auto-generated on create if omitted. Required for run/status/stop/destroy when multiple sessions exist",
+		"Identifier for the session. Auto-generated on create if omitted. Required for run/status/events/stop/destroy when multiple sessions exist",
 	),
 	"name?": type("string").describe("Optional friendly name or label for the session"),
 	"pid?": type("number").describe(
@@ -52,18 +56,61 @@ export const fridaSessionSchema = type({
 		"Builtin evaluation command: 'script' (default), 'modules' (list loaded modules), 'ps' (list processes), 'inspect' (inspect target environment)",
 	),
 	"script_args?": type("unknown").describe("Optional arguments passed to the script via -P / --parameters JSON"),
-	"no_pause?": type("boolean").describe("For spawn mode: start main thread immediately (default: true)"),
-	"filter?": type("string").describe("Optional text filter for list action or output inspection"),
+	"pause?": type("boolean").describe("For spawn mode: leave main thread paused after spawning (passes --pause)"),
+	"no_pause?": type("boolean").describe("For spawn mode: legacy flag for starting main thread immediately; set false to leave paused via --pause"),
+	"filter?": type("string").describe("Optional text filter for list/events action or output inspection"),
 	"cli_args?": type("unknown").describe("Optional array of extra CLI arguments passed directly to Frida"),
 	"timeout?": type("number").describe("Watchdog execution timeout in seconds (default: 30)"),
 	"max_bytes?": type("number").describe("Maximum stdout bytes captured before truncation (default: 262144)"),
 	"to_artifact?": type("boolean").describe("Save complete output and session records to session artifact"),
+	"since_seq?": type("number").describe(
+		"For action: 'events': filter to events strictly greater than this sequence number",
+	),
+	"limit?": type("number").describe(
+		"For action: 'events' or 'list': maximum number of records to return (default 50, max 500)",
+	),
+	"clear?": type("boolean").describe(
+		"For action: 'events': clear all captured events from session event ring buffer",
+	),
+	"kind?": type("string").describe(
+		"For action: 'events': filter events by kind ('stdout', 'stderr', 'message', 'trace', 'lifecycle', 'error')",
+	),
+	"channel?": type("string").describe(
+		"For action: 'events': filter events by channel ('console', 'send', 'spawn', 'trace', 'lifecycle')",
+	),
+	"export_evidence?": type("boolean").describe(
+		"For action: 'events' or 'run': format structured evidence references compatible with the evidence ledger",
+	),
 });
 
 export type FridaSessionParams = typeof fridaSessionSchema.infer;
-export type FridaSessionAction = "create" | "list" | "status" | "run" | "stop" | "destroy";
+export type FridaSessionAction = "create" | "list" | "status" | "run" | "events" | "stop" | "destroy";
 export type FridaSessionStatus = "ok" | "missing_dependency" | "stopped" | "not_found" | "timeout" | "error";
 
+export type DynamicSessionEventKind = "stdout" | "stderr" | "message" | "trace" | "lifecycle" | "error";
+
+export interface DynamicSessionEvent {
+	id: string;
+	seq: number;
+	timestamp: string;
+	sessionId: string;
+	kind: DynamicSessionEventKind;
+	channel?: string;
+	payload: unknown;
+	raw?: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface DynamicEvidenceReference {
+	sourceTool: "frida_session" | "reverse_dynamic_session";
+	target: string;
+	locator: string;
+	kind: "fact";
+	title?: string;
+	content: string;
+	excerpt?: string;
+	metadata?: Record<string, unknown>;
+}
 export interface FridaSessionTarget {
 	type: "pid" | "process" | "spawn";
 	value: string | number;
@@ -73,6 +120,7 @@ export interface FridaSessionTarget {
 	usb?: boolean;
 	device?: string;
 	host?: string;
+	pause?: boolean;
 	noPause?: boolean;
 }
 
@@ -102,6 +150,8 @@ export interface FridaSessionRecord {
 	activeChildPid?: number;
 	lastScript?: string;
 	metadata?: Record<string, unknown>;
+	events?: DynamicSessionEvent[];
+	eventsCount?: number;
 }
 
 export interface FridaSessionDetails {
@@ -121,6 +171,10 @@ export interface FridaSessionDetails {
 	dependency?: FridaDependencyStatus;
 	fallback?: FridaFallbackInfo;
 	error?: string;
+	events?: DynamicSessionEvent[];
+	eventsCount?: number;
+	totalEvents?: number;
+	evidence?: DynamicEvidenceReference | DynamicEvidenceReference[];
 	artifactId?: string;
 	artifactPath?: string;
 }
@@ -221,6 +275,436 @@ function sanitizeSessionText(value: string): string {
 	return redacted;
 }
 
+export const DEFAULT_MAX_EVENT_BUFFER_SIZE = 500;
+
+export function appendEventsToBuffer(
+	existingEvents: DynamicSessionEvent[] | undefined,
+	newEvents: DynamicSessionEvent[],
+	maxCapacity: number = DEFAULT_MAX_EVENT_BUFFER_SIZE,
+): DynamicSessionEvent[] {
+	const current = existingEvents ? [...existingEvents] : [];
+	current.push(...newEvents);
+	if (current.length > maxCapacity) {
+		return current.slice(current.length - maxCapacity);
+	}
+	return current;
+}
+
+
+/**
+ * Recursively verifies that parsed object nesting does not exceed maxDepth.
+ */
+function checkMaxObjectDepth(val: unknown, maxDepth: number, currentDepth = 0): boolean {
+	if (currentDepth > maxDepth) return false;
+	if (!val || typeof val !== "object") return true;
+	if (Array.isArray(val)) {
+		for (const item of val) {
+			if (!checkMaxObjectDepth(item, maxDepth, currentDepth + 1)) return false;
+		}
+	} else {
+		for (const key of Object.keys(val)) {
+			if (!checkMaxObjectDepth((val as Record<string, unknown>)[key], maxDepth, currentDepth + 1)) return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Safely parses a structured Frida CLI message line (JSON or Python dict repr).
+ * Handles prefixes like `message:`, `Message:`, `[*]`, `[Local::...] >` and trailing `data: None` / `data: b'...'`.
+ */
+export function parseStructuredFridaMessage(
+	line: string,
+): { parsed: unknown; data: unknown } | null {
+	const trimmed = line.trim();
+	if (trimmed.length === 0) return null;
+
+	// Use dotAll / [\s\S]* to prevent truncating on unicode line separators U+2028 / U+2029
+	const prefixMatch = trimmed.match(
+		/^(?:\[\*\]|\[\+\]|\[Local::.*?\]\s*>)?\s*(?:message:\s*|Message:\s*)?([\s\S]*)$/i,
+	);
+	const candidate = prefixMatch ? prefixMatch[1].trim() : trimmed;
+
+	if (candidate.length > 1024 * 1024) {
+		return null;
+	}
+
+	if (!candidate.startsWith("{") && !candidate.startsWith("[")) {
+		return null;
+	}
+
+	// 1. Try JSON.parse fast path only if candidate looks like a standalone JSON object/array
+	if (
+		(candidate.startsWith("{") && candidate.endsWith("}")) ||
+		(candidate.startsWith("[") && candidate.endsWith("]"))
+	) {
+		try {
+			const parsed = JSON.parse(candidate);
+			if (checkMaxObjectDepth(parsed, 64)) {
+				return { parsed, data: null };
+			}
+		} catch {
+			// Fall through to Python literal parser
+		}
+	}
+
+	try {
+		const { value, end } = parsePythonLiteral(candidate, 0, { maxDepth: 64 });
+		let data: unknown = null;
+		const rest = candidate.slice(end).trim();
+
+		if (rest.length > 0) {
+			// Must strictly match `data: <content>` without arbitrary trailing garbage
+			const dataMatch = rest.match(/^data:\s*([\s\S]*)$/);
+			if (!dataMatch) {
+				return null; // Unrecognized trailing text after parsed object
+			}
+			const rawData = dataMatch[1].trim();
+			if (rawData === "None" || rawData === "null" || rawData.length === 0) {
+				data = null;
+			} else {
+				try {
+					data = parsePythonLiteral(rawData, 0, { requireEnd: true, maxDepth: 64 }).value;
+				} catch {
+					return null;
+				}
+			}
+		}
+
+		return { parsed: value, data };
+	} catch {
+		return null;
+	}
+}
+
+export function parseFridaOutputIntoEvents(
+	sessionId: string,
+	stdout: string,
+	stderr: string,
+	startSeq: number,
+	context: {
+		command?: string;
+		exitCode?: number;
+		durationMs?: number;
+	} = {},
+): { events: DynamicSessionEvent[]; spawnedPid?: number } {
+	const events: DynamicSessionEvent[] = [];
+	let currentSeq = startSeq;
+	const timestamp = new Date().toISOString();
+	let spawnedPid: number | undefined;
+
+	// 1. Lifecycle start event if command was provided
+	if (context.command) {
+		currentSeq++;
+		events.push({
+			id: `ev_${sessionId}_${currentSeq}`,
+			seq: currentSeq,
+			timestamp,
+			sessionId,
+			kind: "lifecycle",
+			channel: "run_start",
+			payload: { command: context.command },
+			raw: `[lifecycle] started execution: ${context.command}`,
+		});
+	}
+
+	// 2. Parse stdout lines
+	if (stdout && stdout.length > 0) {
+		const lines = stdout.split(/\r?\n|\n/g);
+		for (const line of lines) {
+			const trimmed = line.trim();
+			if (!trimmed) continue;
+
+			// Check for spawn marker
+			const spawnMatch =
+				trimmed.match(/__FRIDA_SPAWN_OK__:(\d+)/) ||
+				trimmed.match(/Spawned `.*?`\s*\.\.\.\s*PID:\s*(\d+)/i) ||
+				trimmed.match(/Spawned .*?\(pid (\d+)\)/i);
+			if (spawnMatch) {
+				spawnedPid = Number.parseInt(spawnMatch[1], 10);
+				currentSeq++;
+				events.push({
+					id: `ev_${sessionId}_${currentSeq}`,
+					seq: currentSeq,
+					timestamp,
+					sessionId,
+					kind: "lifecycle",
+					channel: "spawn",
+					payload: { pid: spawnedPid },
+					raw: trimmed,
+				});
+				continue;
+			}
+
+			// Check for JSON send / structured message / Python repr message
+			const structured = parseStructuredFridaMessage(trimmed);
+			if (structured) {
+				const parsed = structured.parsed;
+				currentSeq++;
+				if (
+					parsed &&
+					typeof parsed === "object" &&
+					!Array.isArray(parsed) &&
+					(parsed as Record<string, unknown>).type === "send" &&
+					"payload" in (parsed as Record<string, unknown>)
+				) {
+					const parsedRecord = parsed as Record<string, unknown>;
+					const payloadObj =
+						parsedRecord.payload && typeof parsedRecord.payload === "object" ? parsedRecord.payload : null;
+					const isCrypto = Boolean(
+						payloadObj &&
+							((payloadObj as Record<string, unknown>).cipher ||
+								(payloadObj as Record<string, unknown>).algorithm ||
+								(payloadObj as Record<string, unknown>).key ||
+								(payloadObj as Record<string, unknown>).type === "crypto" ||
+								(payloadObj as Record<string, unknown>).event === "crypto" ||
+								(payloadObj as Record<string, unknown>).event === "key_exchange"),
+					);
+					const isWs = Boolean(
+						payloadObj &&
+							((payloadObj as Record<string, unknown>).type === "ws" ||
+								(payloadObj as Record<string, unknown>).type === "websocket" ||
+								(payloadObj as Record<string, unknown>).event === "ws" ||
+								(payloadObj as Record<string, unknown>).event === "websocket"),
+					);
+					const isConsole = Boolean(
+						payloadObj &&
+							((payloadObj as Record<string, unknown>).type === "console" ||
+								(payloadObj as Record<string, unknown>).type === "log" ||
+								(payloadObj as Record<string, unknown>).event === "console"),
+					);
+					events.push({
+						id: `ev_${sessionId}_${currentSeq}`,
+						seq: currentSeq,
+						timestamp,
+						sessionId,
+						kind: "message",
+						channel: "send",
+						payload: parsedRecord.payload,
+						raw: trimmed,
+						metadata: {
+							...(isCrypto ? { category: "crypto", subChannel: "crypto" } : {}),
+							...(isWs ? { category: "ws", subChannel: "ws" } : {}),
+							...(isConsole ? { category: "console", subChannel: "console" } : {}),
+							...(structured.data !== null && structured.data !== undefined ? { data: structured.data } : {}),
+						},
+					});
+				} else if (
+					parsed &&
+					typeof parsed === "object" &&
+					!Array.isArray(parsed) &&
+					((parsed as Record<string, unknown>).type === "log" || (parsed as Record<string, unknown>).type === "console")
+				) {
+					events.push({
+						id: `ev_${sessionId}_${currentSeq}`,
+						seq: currentSeq,
+						timestamp,
+						sessionId,
+						kind: "stdout",
+						channel: "console",
+						payload: "payload" in (parsed as Record<string, unknown>) ? (parsed as Record<string, unknown>).payload : parsed,
+						raw: trimmed,
+					});
+				} else if (
+					parsed &&
+					typeof parsed === "object" &&
+					!Array.isArray(parsed) &&
+					((parsed as Record<string, unknown>).type === "error" || (parsed as Record<string, unknown>).type === "exception")
+				) {
+					events.push({
+						id: `ev_${sessionId}_${currentSeq}`,
+						seq: currentSeq,
+						timestamp,
+						sessionId,
+						kind: "stderr",
+						channel: "error",
+						payload:
+							"description" in (parsed as Record<string, unknown>)
+								? (parsed as Record<string, unknown>).description
+								: "payload" in (parsed as Record<string, unknown>)
+									? (parsed as Record<string, unknown>).payload
+									: parsed,
+						raw: trimmed,
+					});
+				} else if (
+					parsed &&
+					typeof parsed === "object" &&
+					!Array.isArray(parsed) &&
+					(parsed as Record<string, unknown>).type === "crypto"
+				) {
+					events.push({
+						id: `ev_${sessionId}_${currentSeq}`,
+						seq: currentSeq,
+						timestamp,
+						sessionId,
+						kind: "message",
+						channel: "crypto",
+						payload: "payload" in (parsed as Record<string, unknown>) ? (parsed as Record<string, unknown>).payload : parsed,
+						raw: trimmed,
+						metadata: { category: "crypto", subChannel: "crypto" },
+					});
+				} else if (
+					parsed &&
+					typeof parsed === "object" &&
+					!Array.isArray(parsed) &&
+					((parsed as Record<string, unknown>).type === "ws" || (parsed as Record<string, unknown>).type === "websocket")
+				) {
+					events.push({
+						id: `ev_${sessionId}_${currentSeq}`,
+						seq: currentSeq,
+						timestamp,
+						sessionId,
+						kind: "message",
+						channel: "ws",
+						payload: "payload" in (parsed as Record<string, unknown>) ? (parsed as Record<string, unknown>).payload : parsed,
+						raw: trimmed,
+						metadata: { category: "ws", subChannel: "ws" },
+					});
+				} else {
+					const channel =
+						parsed &&
+						typeof parsed === "object" &&
+						!Array.isArray(parsed) &&
+						typeof (parsed as Record<string, unknown>).type === "string"
+							? ((parsed as Record<string, unknown>).type as string)
+							: "message";
+					events.push({
+						id: `ev_${sessionId}_${currentSeq}`,
+						seq: currentSeq,
+						timestamp,
+						sessionId,
+						kind: "message",
+						channel,
+						payload: parsed,
+						raw: trimmed,
+					});
+				}
+				continue;
+			}
+
+			const consoleMatch = trimmed.match(/^(?:console(?:\.log)?:\s*|\[console\]\s*)(.*)$/i);
+			if (consoleMatch) {
+				currentSeq++;
+				events.push({
+					id: `ev_${sessionId}_${currentSeq}`,
+					seq: currentSeq,
+					timestamp,
+					sessionId,
+					kind: "stdout",
+					channel: "console",
+					payload: consoleMatch[1],
+					raw: trimmed,
+				});
+				continue;
+			}
+
+			// Check for trace marker
+			if (
+				trimmed.includes("__FRIDA_TRACE_START__") ||
+				trimmed.startsWith("/*") ||
+				/0x[0-9a-fA-F]+\s+call\s+/.test(trimmed)
+			) {
+				currentSeq++;
+				events.push({
+					id: `ev_${sessionId}_${currentSeq}`,
+					seq: currentSeq,
+					timestamp,
+					sessionId,
+					kind: "trace",
+					channel: "trace",
+					payload: trimmed,
+					raw: trimmed,
+				});
+				continue;
+			}
+
+			// Standard stdout console message
+			currentSeq++;
+			events.push({
+				id: `ev_${sessionId}_${currentSeq}`,
+				seq: currentSeq,
+				timestamp,
+				sessionId,
+				kind: "stdout",
+				channel: "console",
+				payload: trimmed,
+				raw: trimmed,
+			});
+		}
+	}
+
+	// 3. Parse stderr lines
+	if (stderr && stderr.length > 0) {
+		const errLines = stderr.split(/\r?\n/);
+		for (const errLine of errLines) {
+			const trimmedErr = errLine.trim();
+			if (!trimmedErr) continue;
+
+			currentSeq++;
+			events.push({
+				id: `ev_${sessionId}_${currentSeq}`,
+				seq: currentSeq,
+				timestamp,
+				sessionId,
+				kind: "stderr",
+				channel: "error",
+				payload: trimmedErr,
+				raw: trimmedErr,
+			});
+		}
+	}
+
+	// 4. Lifecycle finish event if exitCode is provided
+	if (context.exitCode !== undefined) {
+		currentSeq++;
+		events.push({
+			id: `ev_${sessionId}_${currentSeq}`,
+			seq: currentSeq,
+			timestamp,
+			sessionId,
+			kind: "lifecycle",
+			channel: "run_finish",
+			payload: {
+				exitCode: context.exitCode,
+				durationMs: context.durationMs,
+			},
+			raw: `[lifecycle] run finished with exitCode ${context.exitCode}`,
+		});
+	}
+
+	return { events, spawnedPid };
+}
+
+export function buildEvidenceReference(
+	session: FridaSessionRecord,
+	event: DynamicSessionEvent,
+): DynamicEvidenceReference {
+	const excerpt =
+		event.raw || (typeof event.payload === "string" ? event.payload : JSON.stringify(event.payload));
+	const targetDesc = String(session.target.value);
+	const title = `Dynamic ${event.kind} [${event.channel || "event"}] on ${targetDesc}`;
+	const content = `Captured dynamic ${event.kind} event in Frida session '${session.id}' on target ${session.target.type}:${targetDesc}: ${
+		typeof event.payload === "object" ? JSON.stringify(event.payload) : String(event.payload)
+	}`;
+
+	return {
+		sourceTool: "frida_session",
+		target: targetDesc,
+		locator: `session:${session.id}:seq:${event.seq}`,
+		kind: "fact",
+		title,
+		content,
+		excerpt: excerpt ? excerpt.slice(0, 1000) : undefined,
+		metadata: {
+			sessionId: session.id,
+			seq: event.seq,
+			kind: event.kind,
+			channel: event.channel,
+			timestamp: event.timestamp,
+		},
+	};
+}
+
 export function sanitizeRecordSecrets(record: FridaSessionRecord): FridaSessionRecord {
 	return {
 		...record,
@@ -232,6 +716,18 @@ export function sanitizeRecordSecrets(record: FridaSessionRecord): FridaSessionR
 		})),
 		metadata: record.metadata
 			? (JSON.parse(sanitizeSessionText(JSON.stringify(record.metadata))) as Record<string, unknown>)
+			: undefined,
+		events: record.events
+			? record.events.map(ev => ({
+					...ev,
+					raw: ev.raw ? sanitizeSessionText(ev.raw) : undefined,
+					payload:
+						typeof ev.payload === "string"
+							? sanitizeSessionText(ev.payload)
+							: ev.payload && typeof ev.payload === "object"
+								? (JSON.parse(sanitizeSessionText(JSON.stringify(ev.payload))) as unknown)
+								: ev.payload,
+				}))
 			: undefined,
 	};
 }
@@ -336,7 +832,11 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 
 	private getStore(): FridaSessionStore {
 		const projectKey = encodeProjectKey(this.session.cwd);
-		const baseDir = this.stateRoot ? path.resolve(this.stateRoot) : getFridaSessionsDir();
+		const baseDir = this.stateRoot
+			? (this.stateRoot.endsWith("frida-sessions") || this.stateRoot.endsWith("frida_sessions")
+				? path.resolve(this.stateRoot)
+				: path.join(path.resolve(this.stateRoot), "frida-sessions"))
+			: getFridaSessionsDir();
 		const projectDir = path.join(baseDir, projectKey);
 		return new FridaSessionStore(projectDir);
 	}
@@ -353,7 +853,6 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		const action: FridaSessionAction =
 			params.action ?? (params.script || params.script_path || params.command ? "run" : "list");
 		const store = this.getStore();
-
 		switch (action) {
 			case "create":
 				return this.handleCreate(params, store, signal);
@@ -363,12 +862,31 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 				return this.handleStatus(params, store);
 			case "run":
 				return this.handleRun(params, store, signal);
+			case "events":
+				return this.handleEvents(params, store, signal);
 			case "stop":
 				return this.handleStop(params, store);
 			case "destroy":
 				return this.handleDestroy(params, store);
 			default:
 				throw new ToolError(`Unsupported action: ${action}`);
+		}
+	}
+
+	approval(params: FridaSessionParams): ToolTier {
+		const action = params.action ?? (params.script || params.script_path || params.command ? "run" : "list");
+		switch (action) {
+			case "list":
+			case "status":
+				return "read";
+			case "events":
+				return params.clear ? "write" : "read";
+			case "create":
+			case "run":
+			case "stop":
+			case "destroy":
+			default:
+				return "exec";
 		}
 	}
 
@@ -426,8 +944,9 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		}
 
 		const sessionId = params.session_id?.trim() || `frida_sess_${Bun.randomUUIDv7().slice(0, 12)}`;
+		const hasInitialScript = Boolean(params.script || params.script_path);
 		const existing = await store.get(sessionId);
-		if (existing && existing.status === "active") {
+		if (existing && existing.status === "active" && !hasInitialScript) {
 			return {
 				content: [
 					{
@@ -460,6 +979,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			...(params.usb ? { usb: true } : {}),
 			...(params.device ? { device: params.device.trim() } : {}),
 			...(params.host ? { host: params.host.trim() } : {}),
+			...(params.pause !== undefined ? { pause: params.pause } : {}),
 			...(params.no_pause !== undefined ? { noPause: params.no_pause } : {}),
 		};
 
@@ -469,7 +989,6 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		let initialHistory: FridaSessionRunEntry[] = [];
 		let activeChildPid: number | undefined;
 
-		const hasInitialScript = Boolean(params.script || params.script_path);
 		if (hasInitialScript) {
 			const runResult = await this.executeFridaRun(
 				target,
@@ -518,6 +1037,36 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			}
 		}
 
+		let initialEvents: DynamicSessionEvent[] = [];
+		if (hasInitialScript || targetType === "spawn") {
+			const parsed = parseFridaOutputIntoEvents(
+				sessionId,
+				initialStdout,
+				initialStderr,
+				0,
+				{
+					command: hasInitialScript ? "initial_script" : "spawn_probe",
+					exitCode: initialExitCode,
+				},
+			);
+			initialEvents = parsed.events;
+			if (parsed.spawnedPid && !activeChildPid) {
+				activeChildPid = parsed.spawnedPid;
+			}
+		} else {
+			initialEvents = [
+				{
+					id: `ev_${sessionId}_1`,
+					seq: 1,
+					timestamp: new Date().toISOString(),
+					sessionId,
+					kind: "lifecycle",
+					channel: "session_create",
+					payload: { targetType, targetValue, ...(params.name ? { name: params.name.trim() } : {}) },
+					raw: `[lifecycle] session created for ${targetType}:${targetValue}`,
+				},
+			];
+		}
 		const now = new Date().toISOString();
 		const record: FridaSessionRecord = {
 			id: sessionId,
@@ -531,9 +1080,12 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			history: initialHistory,
 			...(activeChildPid !== undefined ? { activeChildPid } : {}),
 			...(hasInitialScript ? { lastScript: (params.script ?? params.script_path ?? "").slice(0, 500) } : {}),
+			events: initialEvents,
+			eventsCount: initialEvents.length,
 		};
 
 		await store.save(record);
+		await this.syncToRuntimeSessionStore(record);
 
 		const lines: string[] = [
 			`Frida session '${sessionId}' created for target ${targetType}:${targetValue} (status: ${record.status}).`,
@@ -562,6 +1114,9 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 				exitCode: initialExitCode,
 				stdout: initialStdout,
 				stderr: initialStderr,
+				events: initialEvents,
+				eventsCount: initialEvents.length,
+				totalEvents: initialEvents.length,
 			},
 		};
 	}
@@ -759,6 +1314,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 				cli_args: params.cli_args,
 				timeout: params.timeout,
 				max_bytes: maxBytes,
+				activeChildPid: session.activeChildPid,
 			},
 			signal,
 		);
@@ -786,7 +1342,33 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		if (runResult.exitCode === 0 && session.status !== "active") {
 			session.status = "active";
 		}
+
+		const existingSeq = session.eventsCount ?? (session.events ? session.events.length : 0);
+		const { events: newEvents, spawnedPid } = parseFridaOutputIntoEvents(
+			session.id,
+			runResult.stdout,
+			runResult.stderr,
+			existingSeq,
+			{
+				command,
+				exitCode: runResult.exitCode,
+			},
+		);
+
+		if (spawnedPid && !session.activeChildPid) {
+			session.activeChildPid = spawnedPid;
+		}
+
+		session.events = appendEventsToBuffer(session.events, newEvents);
+		session.eventsCount = existingSeq + newEvents.length;
+
 		await store.save(session);
+		await this.syncToRuntimeSessionStore(session);
+
+		let evidenceRefs: DynamicEvidenceReference[] | undefined;
+		if (params.export_evidence) {
+			evidenceRefs = newEvents.map(ev => buildEvidenceReference(session, ev));
+		}
 
 		let artifactId: string | undefined;
 		let artifactPath: string | undefined;
@@ -804,6 +1386,8 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 						stderr: runResult.stderr,
 						exitCode: runResult.exitCode,
 						executedAt: now,
+						evidence: evidenceRefs,
+						events: newEvents,
 					};
 					await Bun.write(artifactPath, JSON.stringify(recordToSave, null, 2));
 				}
@@ -830,6 +1414,15 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		if (runResult.truncated) {
 			lines.push(`\n… output truncated at ${maxBytes} bytes; full record preserved in session.`);
 		}
+		if (evidenceRefs && evidenceRefs.length > 0) {
+			lines.push("", "--- Evidence Ledger References ---");
+			for (const ref of evidenceRefs.slice(0, 5)) {
+				lines.push(`- [${ref.locator}] ${ref.title}: ${ref.excerpt?.slice(0, 100)}`);
+			}
+			if (evidenceRefs.length > 5) {
+				lines.push(`... and ${evidenceRefs.length - 5} more evidence references.`);
+			}
+		}
 		if (artifactId) {
 			lines.push(`Full execution record saved to artifact: ${artifactId}`);
 		}
@@ -849,6 +1442,223 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 				outputBytes: runResult.outputBytes,
 				truncated: runResult.truncated,
 				timedOut: runResult.timedOut,
+				events: newEvents,
+				eventsCount: newEvents.length,
+				totalEvents: session.events?.length ?? 0,
+				...(evidenceRefs ? { evidence: evidenceRefs } : {}),
+				...(artifactId ? { artifactId } : {}),
+				...(artifactPath ? { artifactPath } : {}),
+			},
+		};
+	}
+
+	private async handleEvents(
+		params: FridaSessionParams,
+		store: FridaSessionStore,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<FridaSessionDetails>> {
+		throwIfAborted(signal);
+		const session = await this.resolveTargetSession(params.session_id, store);
+		if (!session) {
+			throw new ToolError(
+				params.session_id
+					? `Frida session '${params.session_id}' not found.`
+					: "No Frida session found. Create a session first using action: 'create'",
+			);
+		}
+
+		const allEvents = session.events ?? [];
+
+		if (params.clear) {
+			const count = allEvents.length;
+			session.events = [];
+			session.updatedAt = new Date().toISOString();
+			await store.save(session);
+			await this.syncToRuntimeSessionStore(session);
+			return {
+				content: [{ type: "text", text: `Cleared ${count} events from session '${session.id}'.` }],
+				details: {
+					action: "events",
+					status: "ok",
+					sessionId: session.id,
+					session,
+					events: [],
+					eventsCount: 0,
+					totalEvents: 0,
+				},
+			};
+		}
+
+		let filtered = allEvents;
+
+
+		if (typeof params.since_seq === "number") {
+			filtered = filtered.filter(e => e.seq > params.since_seq!);
+		}
+
+		if (params.kind) {
+			const k = params.kind.toLowerCase().trim();
+			filtered = filtered.filter(e => {
+				if (k === "send") {
+					return e.channel?.toLowerCase() === "send";
+				}
+				if (k === "message") {
+					return e.kind.toLowerCase() === "message" || e.channel?.toLowerCase() === "send";
+				}
+				if (k === "console" || k === "stdout") {
+					return e.kind.toLowerCase() === "stdout" || e.channel?.toLowerCase() === "console";
+				}
+				if (k === "error" || k === "stderr") {
+					return e.kind.toLowerCase() === "stderr" || e.channel?.toLowerCase() === "error";
+				}
+				if (k === "ws" || k === "websocket") {
+					return (
+						e.channel?.toLowerCase() === "ws" ||
+						e.channel?.toLowerCase() === "websocket" ||
+						e.metadata?.category === "ws" ||
+						e.metadata?.subChannel === "ws" ||
+						(typeof e.payload === "object" && e.payload !== null &&
+							((e.payload as Record<string, unknown>).type === "ws" || (e.payload as Record<string, unknown>).type === "websocket" || (e.payload as Record<string, unknown>).event === "ws"))
+					);
+				}
+				if (k === "crypto") {
+					return (
+						e.channel?.toLowerCase() === "crypto" ||
+						e.metadata?.category === "crypto" ||
+						e.metadata?.subChannel === "crypto" ||
+						(typeof e.payload === "object" && e.payload !== null &&
+							(Boolean((e.payload as Record<string, unknown>).cipher) || Boolean((e.payload as Record<string, unknown>).algorithm) ||
+								(e.payload as Record<string, unknown>).type === "crypto" || (e.payload as Record<string, unknown>).event === "crypto" || (e.payload as Record<string, unknown>).event === "key_exchange"))
+					);
+				}
+				return e.kind.toLowerCase() === k;
+			});
+		}
+
+		if (params.channel) {
+			const ch = params.channel.toLowerCase().trim();
+			filtered = filtered.filter(e => {
+				if (e.channel?.toLowerCase() === ch) return true;
+				if (ch === "send" && e.kind === "message") return true;
+				if (ch === "console" && (e.kind === "stdout" || e.channel === "log")) return true;
+				if (ch === "error" && e.kind === "stderr") return true;
+				if (ch === "ws" || ch === "websocket") {
+					return (
+						e.channel?.toLowerCase() === "ws" ||
+						e.channel?.toLowerCase() === "websocket" ||
+						e.metadata?.category === "ws" ||
+						e.metadata?.subChannel === "ws" ||
+						(typeof e.payload === "object" && e.payload !== null &&
+							((e.payload as Record<string, unknown>).type === "ws" || (e.payload as Record<string, unknown>).type === "websocket" || (e.payload as Record<string, unknown>).event === "ws"))
+					);
+				}
+				if (ch === "crypto") {
+					return (
+						e.channel?.toLowerCase() === "crypto" ||
+						e.metadata?.category === "crypto" ||
+						e.metadata?.subChannel === "crypto" ||
+						(typeof e.payload === "object" && e.payload !== null &&
+							(Boolean((e.payload as Record<string, unknown>).cipher) || Boolean((e.payload as Record<string, unknown>).algorithm) ||
+								(e.payload as Record<string, unknown>).type === "crypto" || (e.payload as Record<string, unknown>).event === "crypto" || (e.payload as Record<string, unknown>).event === "key_exchange"))
+					);
+				}
+				return false;
+			});
+		}
+
+		if (params.filter) {
+			const query = params.filter.toLowerCase().trim();
+			filtered = filtered.filter(e => {
+				const raw = (e.raw || "").toLowerCase();
+				let payloadStr = "";
+				try {
+					payloadStr = typeof e.payload === "string" ? e.payload.toLowerCase() : JSON.stringify(e.payload).toLowerCase();
+				} catch {}
+				const channel = (e.channel || "").toLowerCase();
+				const kind = (e.kind || "").toLowerCase();
+				const category = (typeof e.metadata?.category === "string" ? e.metadata.category : "").toLowerCase();
+				return (
+					raw.includes(query) ||
+					payloadStr.includes(query) ||
+					channel.includes(query) ||
+					kind.includes(query) ||
+					category.includes(query)
+				);
+			});
+		}
+
+		const limit = Math.min(Math.max(params.limit ?? 50, 1), 500);
+		const paged = filtered.slice(-limit);
+
+		let evidenceRefs: DynamicEvidenceReference[] | undefined;
+		if (params.export_evidence) {
+			evidenceRefs = paged.map(ev => buildEvidenceReference(session, ev));
+		}
+
+		let artifactId: string | undefined;
+		let artifactPath: string | undefined;
+		if (params.to_artifact && this.session.allocateOutputArtifact) {
+			try {
+				const allocation = await this.session.allocateOutputArtifact("frida_session_events");
+				if (allocation) {
+					artifactId = allocation.id;
+					artifactPath = allocation.path;
+					const exportPayload = {
+						sessionId: session.id,
+						target: session.target,
+						totalEvents: allEvents.length,
+						matchedEvents: filtered.length,
+						returnedEvents: paged.length,
+						evidence: evidenceRefs,
+						events: paged,
+					};
+					await Bun.write(artifactPath, JSON.stringify(exportPayload, null, 2));
+				}
+			} catch (err) {
+				logger.warn(`Failed to allocate artifact for events: ${err}`);
+			}
+		}
+
+		const lines: string[] = [
+			`Frida session '${session.id}' events: showing ${paged.length} of ${filtered.length} matched (${allEvents.length} total buffered).`,
+		];
+
+		if (paged.length === 0) {
+			lines.push("No events match the specified criteria.");
+		} else {
+			for (const ev of paged) {
+				const ch = ev.channel ? `/${ev.channel}` : "";
+				const payloadStr =
+					typeof ev.payload === "string" ? ev.payload : JSON.stringify(ev.payload);
+				lines.push(`[#${ev.seq} ${ev.kind}${ch} @ ${ev.timestamp}] ${payloadStr}`);
+			}
+		}
+
+		if (evidenceRefs && evidenceRefs.length > 0) {
+			lines.push("", "--- Evidence Ledger References ---");
+			for (const ref of evidenceRefs.slice(0, 10)) {
+				lines.push(`- [${ref.locator}] ${ref.title}: ${ref.excerpt?.slice(0, 120)}`);
+			}
+			if (evidenceRefs.length > 10) {
+				lines.push(`... and ${evidenceRefs.length - 10} more evidence references.`);
+			}
+		}
+
+		if (artifactId) {
+			lines.push(`\nFull events exported to artifact: ${artifactId}`);
+		}
+
+		return {
+			content: [{ type: "text", text: lines.join("\n") }],
+			details: {
+				action: "events",
+				status: "ok",
+				sessionId: session.id,
+				session,
+				events: paged,
+				eventsCount: paged.length,
+				totalEvents: allEvents.length,
+				...(evidenceRefs ? { evidence: evidenceRefs } : {}),
 				...(artifactId ? { artifactId } : {}),
 				...(artifactPath ? { artifactPath } : {}),
 			},
@@ -936,6 +1746,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		session.status = "stopped";
 		session.updatedAt = new Date().toISOString();
 		await store.save(session);
+		await this.syncToRuntimeSessionStore(session);
 
 		return {
 			content: [{ type: "text", text: `Frida session '${session.id}' stopped.` }],
@@ -966,6 +1777,13 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 
 		stopActiveChild(session.id, session.activeChildPid);
 		await store.delete(session.id);
+		try {
+			const runtimeStore = ReverseRuntimeSessionStore.forSession(
+				this.session.cwd,
+				this.stateRoot,
+			);
+			await runtimeStore.delete(session.id);
+		} catch {}
 
 		return {
 			content: [{ type: "text", text: `Frida session '${session.id}' destroyed and removed.` }],
@@ -989,6 +1807,70 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		const active = all.find(s => s.status === "active");
 		return active ?? all[0];
 	}
+	private async syncToRuntimeSessionStore(session: FridaSessionRecord): Promise<void> {
+		try {
+			const runtimeStore = ReverseRuntimeSessionStore.forSession(
+				this.session.cwd,
+				this.stateRoot,
+			);
+			const targetVal = String(session.target.value ?? session.target.process ?? session.target.pid ?? "");
+			const recent = (session.events ?? []).slice(-50);
+			const normalizedRecent: UniversalDynamicEvent[] = recent.map((ev, idx) =>
+				normalizeFridaEvent(ev, session.id, {
+					target: targetVal,
+					seq: typeof ev.seq === "number" ? ev.seq : idx + 1,
+					timestamp: ev.timestamp,
+				}),
+			);
+			const runtimeRecord: RuntimeSessionRecord = {
+				id: session.id,
+				name: session.name || `Frida target ${session.target.type}:${targetVal}`,
+				kind: "frida",
+				status: session.status === "active" ? "active" : session.status === "stopped" ? "closed" : "unknown",
+				target_summary: targetVal,
+				target_details: { ...session.target },
+				connection: {
+					type: "frida_bridge",
+					usb: session.target.usb,
+					device: session.target.device,
+					host: session.target.host,
+				},
+				recovery_hints: {
+					restore_tool: "frida_session",
+					restore_action: "create",
+					restore_params: {
+						session_id: session.id,
+						pid: session.target.pid,
+						process: session.target.process,
+						spawn: session.target.spawn,
+						usb: session.target.usb,
+						device: session.target.device,
+						host: session.target.host,
+						...(session.lastScript ? { script: session.lastScript } : {}),
+					},
+					instructions: [
+						`Attach or spawn Frida session "${session.id}" on target ${session.target.type}:${targetVal}`,
+						...(session.lastScript ? ["Re-apply previous instrumentation script via frida_session(action: 'run')"] : []),
+					],
+				},
+				created_at: session.createdAt,
+				updated_at: session.updatedAt,
+				last_heartbeat_at: session.lastRunAt || session.updatedAt,
+				heartbeat_count: session.runsCount || 1,
+				stale_timeout_sec: 300,
+				status_source: "caller_reported",
+				metadata: {
+					...session.metadata,
+					eventsCount: session.eventsCount ?? session.events?.length ?? 0,
+					events_count: session.eventsCount ?? session.events?.length ?? 0,
+					runsCount: session.runsCount,
+					recent_events: normalizedRecent,
+					...(session.lastScript ? { last_script: session.lastScript } : {}),
+				},
+			};
+			await runtimeStore.save(runtimeRecord);
+		} catch {}
+	}
 
 	private async executeFridaRun(
 		target: FridaSessionTarget,
@@ -999,6 +1881,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			cli_args?: unknown;
 			timeout?: number;
 			max_bytes?: number;
+			activeChildPid?: number;
 		},
 		signal?: AbortSignal,
 	): Promise<{
@@ -1026,9 +1909,13 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		} else if (target.type === "process") {
 			args.push("-n", target.process!);
 		} else if (target.type === "spawn") {
-			args.push("-f", target.spawn!);
-			if (target.noPause !== false) {
-				args.push("--no-pause");
+			if (options.activeChildPid !== undefined) {
+				args.push("-p", String(options.activeChildPid));
+			} else {
+				args.push("-f", target.spawn!);
+				if (target.pause === true || target.noPause === false) {
+					args.push("--pause");
+				}
 			}
 		}
 
@@ -1061,7 +1948,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		const maxBytes = options.max_bytes ?? DEFAULT_MAX_BYTES;
 		const result = await this.runner(binary, args, {
 			cwd: this.session.cwd,
-			timeoutMs: timeout * 1000,
+			timeoutMs: timeout > 0 ? timeout * 1000 + 3000 : undefined,
 			maxBytes,
 			signal,
 		});
