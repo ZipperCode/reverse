@@ -1,4 +1,4 @@
-# Contributing to rea
+# Contributing to rva
 
 Pull requests are welcome. Keep them focused, understand the work you submit,
 and be prepared to explain and maintain it.
@@ -81,7 +81,7 @@ agreed scope.
 
 ## Contribution licensing
 
-A contribution intentionally submitted for inclusion in rea is licensed under
+A contribution intentionally submitted for inclusion in rva is licensed under
 the MIT License.
 
 This policy does not relicense third-party or vendored code. You must have the
