@@ -92,7 +92,7 @@ Save formal reverse engineering findings in a structured evidence artifact (e.g.
 - **Method**: Frida runtime hook script (`hooks/bypass_license.js`).
 - **Execution Command**:
   ```bash
-  frida -U -f com.example.app -l hooks/bypass_license.js --no-pause
+  frida -U -f com.example.app -l hooks/bypass_license.js
   ```
 - **Hook Code**:
   ```javascript

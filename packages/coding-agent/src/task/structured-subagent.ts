@@ -527,7 +527,7 @@ export const REVERSE_TASK_AUTOLOAD_SKILLS = ["reverse-lab", "native-binary-rever
 
 const REVERSE_TASK_PATTERNS = [
 	/\b(?:reverse(?:[-_\s]?engineer(?:ing|ed|s)?|[-_\s]?eng)\b|\breversing\b|decompil(?:e|ation|ed|er|ing|es)?|disassembl(?:e|y|ed|er|ing|es)?)\b/i,
-	/\b(?:apktool|jadx|droidasc|android_package_inspect|radare2|ghidra|ghidra_inspect|analyzeHeadless|ida-?pro|idapro|idalib|r2_inspect|dotnet_inspect|r2pipe|frida|pcap_inspect|sqlite_inspect|firmware_inspect|crashdump_inspect|binary_metadata_inspect|evm_inspect|binary_diff|reverse_workflow|reverse_runtime_session|binwalk|vbindiff)\b/i,
+	/\b(?:apktool|jadx|droidasc|android_package_inspect|radare2|ghidra|ghidra_inspect|analyzeHeadless|ida-?pro|idapro|idalib|r2_inspect|dotnet_inspect|r2pipe|frida|pcap_inspect|sqlite_inspect|firmware_inspect|crashdump_inspect|binary_metadata_inspect|evm_inspect|binary_diff|reverse_workflow|reverse_runtime_session|reverse_knowledge|reverse_dynamic_evidence|reverse_capability|binwalk|vbindiff)\b/i,
 	/\b(?:mach-o|macho|fat\s+binary|pe32\+?|elf(?:32|64)?|minidump|coredump|uimage|squashfs|bytecode|evm)\b/i,
 	/\b\w+\.(?:apk|dex|dylib|so|dll|exe|ipa|aab|pcap|pcapng|sqlite|sqlite3|db|dmp|dump|bin|rom|img|evm)\b/i,
 	/(?:逆向|反编译|反汇编|脱壳|抓包|固件|崩溃转储|转储|字节码|二进制(?:逆向|分析|审计|破解|漏洞|安全|静态分析|动态分析|差异|比对))/,

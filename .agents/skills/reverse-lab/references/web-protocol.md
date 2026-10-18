@@ -78,27 +78,35 @@ sourcemap_inspect(action: "extract", path: "dist/bundle.js.map", destination_dir
 
 ---
 
-## 3. Dynamic JavaScript Hook Presets (`js_hook_preset`)
+## 3. Dynamic JavaScript Hook Presets & Browser Reverse (`js_hook_preset`, `browser_reverse_session`)
 
-For authorized browser, Electron, or Node.js runtime debugging, use rea's native `js_hook_preset` tool to generate safe, non-executing hook templates (fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, custom):
+For authorized browser, Electron, or Node.js runtime debugging, use rea's native `js_hook_preset` and `browser_reverse_session` tools to generate, inject, and capture live instrumentation (fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, custom):
 
 ```text
 # List available hook presets and options:
 js_hook_preset(action: "list")
 
-# Generate Fetch API interceptor with endpoint filtering:
+# Generate Fetch API interceptor template with endpoint filtering:
 js_hook_preset(action: "generate", preset: "fetch", filter: "/api/v1/")
 
-# Generate Web Crypto API subtle monitor (encrypt/decrypt/digest/sign):
-js_hook_preset(action: "generate", preset: "crypto", format: "devtools")
+# Inject Fetch API hook directly into active browser tab:
+js_hook_preset(action: "inject", tab_name: "main", preset: "fetch", filter: "/api/v1/")
 
-# Generate Electron preload contextBridge IPC tracer:
-js_hook_preset(action: "generate", preset: "contextBridge")
+# Inject Web Crypto subtle monitor into active browser tab:
+js_hook_preset(action: "inject", tab_name: "main", preset: "crypto")
 
-# Generate allowlisted custom function or property trap:
-js_hook_preset(action: "generate", preset: "custom", target: "window.appService.signPayload")
+# Capture structured runtime events from active browser tab:
+js_hook_preset(action: "capture", tab_name: "main", export_evidence: true)
+
+# Open integrated browser reverse session with auto-injected preset:
+browser_reverse_session(action: "open", tab_name: "main", url: "https://target.test/app", preset: "fetch")
+
+# Capture consolidated WebSocket, network, and hook events:
+browser_reverse_session(action: "capture", tab_name: "main")
+
+# Export observed runtime events into standardized evidence facts:
+browser_reverse_session(action: "export_evidence", tab_name: "main", tags: ["auth", "crypto"])
 ```
-All templates are returned as text data and are NEVER executed automatically.
 
 ## 4. WebAssembly (WASM) Reverse Engineering
 

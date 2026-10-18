@@ -2,7 +2,8 @@
 name: native-binary-reverse
 description: Universal native binary reverse engineering specialist for ELF, Mach-O, Fat universal binaries, PE foundations, shared libraries, and raw firmware objects. Guides format triage, section and segment analysis, symbol and relocation inspection, PIE/ASLR/stripped mitigation auditing, disassembly, dynamic verification, and structured evidence chains.
 metadata:
-  requiresOptional: radare2, ida, frida
+  requiresOptional: radare2, ida, frida, ghidra
+  capabilities: native_debugger
 ---
 
 # Native Binary Reverse Engineering Specialist
@@ -35,8 +36,9 @@ Follow the positive triage-to-evidence progression:
 [1. Triage (Built-in)] ──> triage(path: ...) (format, arch, endian, stripped, entropy, sections)
          │
          ▼
-[2. Deep Static Analysis] ──> rea read-binary (IDA Pro) or r2_inspect / radare2 CLI
-         │
+[2. Deep Static Analysis] ──> reverse_capability(action: "resolve", capability: "native_debugger")
+         │                    ├─ Ready: rea read-binary (IDA) or r2_inspect / radare2 CLI
+         │                    └─ Missing: rea setup reverse radare2 ➔ refresh ➔ dispatch
          ▼
 [3. Dynamic Verification] ──> frida (memory hook / trace) or native debugger (GDB / LLDB / DAP)
          │
@@ -55,6 +57,54 @@ Follow the positive triage-to-evidence progression:
    - LLDB / GDB for single-controller stepping and register audits.
 4. **Evidence Tracking (`evidence`)**:
    - Record discovered offsets, symbols, and behaviors using `evidence(action: "add", kind: "fact", ...)` and confirm hypotheses with `evidence(action: "verify", ...)`.
+
+### Canonical Capability Mapping
+
+| Canonical Capability ID | Analytical Scenario | Recommended Native Tool | Optional External Tools | Trusted Setup Command | Fallback Tier |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`native_debugger`** | Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native ELF, PE, and Mach-O binaries | `r2_inspect` / `triage` (built-in) | `radare2`, `ida`, `frida`, `ghidra` | `rea setup reverse radare2` | `binary_metadata_inspect`, `readelf`, `objdump`, `strings`, `file` |
+
+### Capability Resolution Protocol
+
+When disassembling complex functions, decompiling control flow, or attaching debuggers, execute the Discover-Before-Stop / Install-Then-Dispatch lifecycle via `reverse_capability`:
+
+1. **Resolve Capability (`reverse_capability`)**:
+   Query capability status before tool invocation or declaring a blocker:
+   ```json
+   reverse_capability({ action: "resolve", capability: "native_debugger" })
+   ```
+2. **Evaluate Native Baseline First**:
+   Inspect `recommendedNativeTool` (`r2_inspect`) and native built-in `triage`. For initial format detection, architecture, bitness, endianness, entropy, and symbol headers, use `triage` and `r2_inspect` immediately without installation delays.
+3. **Present Setup Notice & Request Approval**:
+   When deep decompilation or headless CLI disassembly requires `radare2` or `ghidra` and the binary is not present on PATH:
+   - Formulate the structured capability notice:
+     ```text
+     [Capability Notice] Required capability: native_debugger ('Native Binary Debugger & Dynamic Tracing')
+       -> Recommended tool: 'radare2' (Status: missing)
+       -> Why: Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native binaries
+       -> Prerequisites: none
+       -> Trusted setup: rea setup reverse radare2 (Requires operator approval)
+       -> Post-install invocation: r2 -d <binary_path> or query via r2_inspect(action: "decompile", symbol: "<func>")
+       -> Fallback if declined: 'triage' + 'readelf' / 'objdump -d' / POSIX 'strings'
+     ```
+   - Request explicit operator approval before executing setup. Do not execute unapproved setup commands.
+4. **Re-Resolve Post-Install**:
+   After the operator executes `rea setup reverse radare2`, verify readiness:
+   ```json
+   reverse_capability({ action: "resolve", capability: "native_debugger", refresh: true })
+   ```
+   Confirm that `status` transitioned to `"ready"` and `radare2` is available on PATH.
+5. **Dispatch & Workflow Resumption / Audit**:
+   - Dispatch the tool command (e.g. `r2_inspect(action: "decompile", path: "<sample>", symbol: "<func>")` or headless `r2 -qc "..." <sample>`).
+   - When recovering or resuming a workflow step following tool setup, record the canonical install-after resume metadata in `reverse_workflow`:
+     - `capability_id`: `"native_debugger"`
+     - `installed_tool`: Catalog tool installed (e.g. `"radare2"`, `"ghidra"`)
+     - `setup_command`: Setup command executed (e.g. `"rea setup reverse radare2"`)
+     - `verified`: `true` (readiness confirmed via `refresh: true`)
+     - `strategy`: `"resume_original"` or `"install_recovery"`
+     - `resumed_at`: ISO 8601 timestamp
+6. **Graceful Fallback Degradation**:
+   If the operator declines setup or the tool is unavailable, smoothly step down the ladder to native `triage`, `readelf -h -S -s`, `objdump -d`, or POSIX `strings -a -n 8` and record the fallback in `reverse_workflow`.
 
 ---
 
@@ -97,26 +147,32 @@ Examine binary structure to pinpoint program logic:
    - If non-stripped (`.symtab` present), extract full symbol table (`r2_inspect(action: "functions")` or `nm -a`).
    - If stripped (`.symtab` absent), rely on exported functions (`.dynsym`), library import call sites, string xrefs, or identify entrypoint (`_start`) and reconstruct `main(argc, argv, envp)`.
 
-### Step 4: Disassembly, Cross-References & Decompilation
+### Step 4: Disassembly, Cross-References & Decompilation (`native_debugger`)
 Focus on high-value logic gates:
-- **String Cross-References**: Locate references to cryptographic markers, URL endpoints, license flags, or diagnostic messages:
-  `r2_inspect(action: "xrefs", path: "sample.bin", address: "0x402010")`
-  Or with IDA: `read path: "sample.bin:xrefs:aInvalidLicense"`
-- **Targeted Disassembly**: Disassemble specific routines without flooding context:
-  `r2_inspect(action: "disasm", path: "sample.bin", symbol: "main", limit: 60)`
-  Or with IDA: `read path: "sample.bin:main:asm"`
-- **Decompilation**: Decompile identified candidate functions:
-  `r2_inspect(action: "decompile", path: "sample.bin", symbol: "validate_key")`
-  Or with IDA: `read path: "sample.bin:validate_key"`
+1. **Capability Check**: Query `reverse_capability({ action: "resolve", capability: "native_debugger" })`.
+   - If `read-binary` (IDA Pro) or `r2_inspect` is ready, proceed immediately.
+   - If deep decompilation requires `radare2` or `ghidra` and neither is on PATH, present the setup notice (`rea setup reverse radare2`). Upon operator installation, re-resolve with `refresh: true`, dispatch `r2_inspect(action: "decompile", ...)` or `r2`, and record install-after resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
+   - If setup is declined, engage the fallback tier (`objdump -d`, `readelf`, `strings`).
+2. **String Cross-References**: Locate references to cryptographic markers, URL endpoints, license flags, or diagnostic messages:
+   `r2_inspect(action: "xrefs", path: "sample.bin", address: "0x402010")`
+   Or with IDA: `read path: "sample.bin:xrefs:aInvalidLicense"`
+3. **Targeted Disassembly**: Disassemble specific routines without flooding context:
+   `r2_inspect(action: "disasm", path: "sample.bin", symbol: "main", limit: 60)`
+   Or with IDA: `read path: "sample.bin:main:asm"`
+4. **Decompilation**: Decompile identified candidate functions:
+   `r2_inspect(action: "decompile", path: "sample.bin", symbol: "validate_key")`
+   Or with IDA: `read path: "sample.bin:validate_key"`
 
-### Step 5: Dynamic Verification & Instrumentation
+### Step 5: Dynamic Verification & Instrumentation (`native_debugger`)
 When static analysis yields a candidate hypothesis:
-1. **Frida Dynamic Instrumentation**:
+1. **Capability Check**: Query `reverse_capability({ action: "resolve", capability: "native_debugger" })`.
+2. **Frida Dynamic Instrumentation**:
    - Trace function arguments and return values:
-     `frida(action: "execute", target: "sample_process", script: "Interceptor.attach(Module.findExportByName(null, 'target_fn'), { onEnter(args) { console.log('arg0:', args[0]); }, onLeave(retval) { console.log('ret:', retval); } });")`
-2. **Debugger Confirmation**:
+     `frida(action: "execute", target: "sample_process", script: "Interceptor.attach(Module.getGlobalExportByName('target_fn'), { onEnter(args) { console.log('arg0:', args[0]); }, onLeave(retval) { console.log('ret:', retval); } });")`
+   - Use `frida_session` for persistent multi-turn dynamic analysis sessions with active target persistence.
+3. **Debugger Confirmation**:
    - Use LLDB or GDB with a single stateful session controller to set breakpoints on target RVAs, inspect registers, and verify branch conditions.
-3. **Patch Verification**:
+4. **Patch Verification**:
    - For offline hypothesis testing, generate a patched binary in `./artifacts/` (e.g. flipping a conditional jump opcode or NOPing a check) and compare behavior against original sample.
 
 ### Step 6: Evidence & Proof Recording

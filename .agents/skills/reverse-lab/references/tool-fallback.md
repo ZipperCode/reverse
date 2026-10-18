@@ -7,34 +7,31 @@ This reference defines the degradation ladders, tool detection mechanisms, and i
 ## 1. Degradation Principles
 
 1. **Zero-Friction When Ready**: If the primary tool is installed, proceed silently without prompting or emitting environment checks.
-2. **Actionable Non-Blocking Degradation**: When a tool is missing, select the next tier on the ladder, notify the operator with the active fallback, and provide a single clean package-manager installation hint.
-3. **Maintain Continuous Progress**: When specialized disassemblers are missing, basic POSIX utilities (`strings`, `file`, `unzip`, `hexdump`, `grep`, `xxd`) can extract significant findings from strings, manifests, and file headers.
-
----
+2. **Discover Before Stop / Install Then Dispatch**: When an investigative step requires specialized capabilities or an external engine is absent from PATH, never halt or abort. Query the capability state via `reverse_capability({ action: "resolve", capability: "<id>" })`. Check the recommended native tool first; if an optional external tool is needed, present the structured notice with technical justification, prerequisites, trusted setup command (`rea setup reverse <tool>`), and post-install invocation. After the operator runs setup, re-resolve with `refresh: true`, dispatch immediately, and record the outcome or active fallback in `reverse_workflow`.
+3. **Setup Integrity & Controlled Execution**: Only execute client-vetted installation recipes via `rea setup reverse <tool>` after explicit user confirmation. Arbitrary shell commands, uncontrolled package scripts, or untrusted network downloads remain strictly prohibited.
+4. **Maintain Continuous Progress**: Basic POSIX utilities (`strings`, `file`, `unzip`, `hexdump`, `grep`, `xxd`) and rea native built-ins can always extract actionable ground truth from manifests, headers, and code without external dependencies.
 
 ## 2. Tool Degradation Matrix
 
-| Analysis Domain | Tier 1 (Primary) | Tier 2 (Secondary) | Tier 3 (Tertiary) | Tier 4 (POSIX Baseline) |
+| Capability / Analysis Domain | Tier 1 (Native Baseline) | Tier 2 (Optional Catalog) | Tier 3 (Secondary Fallback) | Tier 4 (POSIX Baseline) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Android Recon** | native `android_package_inspect` / `droidasc getmanifest` | `aapt2 dump badging` | `apktool d -s` (manifest only) | `unzip -p <apk> AndroidManifest.xml` (AXML) |
-| **Android DEX & Package** | native `android_package_inspect` (info/dex/manifest/signing/resources) | `droidasc getclass` / `findrefs` | `jadx --single-class` | `dexdump -d <dex>` / `unzip` |
-| **Android Dynamic** | `frida_session` / `frida -U` (live hooks) | `adb logcat` / `jdwp` | Static smali patch + rebuild | Offline logic trace in smali |
-| **Native ELF / Mach-O / PE** | `triage` (built-in) + rea `read-binary` (IDA Pro) | `dotnet_inspect` (built-in .NET) / `ghidra_inspect` / `r2_inspect` (`radare2`) | `objdump -d` / `llvm-objdump` / `readelf` | `strings -a -n 8` + `xxd` / `hexdump` |
-| **Web JS Search** | native `ast_grep` (AST pattern) | `ast-grep` CLI | `grep` / ripgrep | Python/JS custom parser |
-| **Web SourceMap** | native `sourcemap_inspect` (`info`/`lookup`/`extract`) | `source-map` CLI | `jq` on `.sourcesContent` / base64 | manual VLQ / raw bundle inspection |
-| **Web JS Hooking** | native `js_hook_preset` (safe templates) | DevTools snippet / Tampermonkey | browser-relay console eval | manual function wrapping |
-| **WebAssembly** | native `wasm_inspect` (`info`/`strings`/`search`) | `wasm_inspect` `wat` / `wasm2wat` (WABT) | `wasm-objdump` | `strings` on WASM data segments / raw bytes |
-| **Web Dynamic** | `browser-relay` / CDP | Headless Playwright / Puppeteer | `curl -v` / `fetch` script | Static network trace inspection |
-| **Network & PCAP** | native `pcap_inspect` (info/list/endpoints/dns) | `tshark -r <pcap>` / `tcpdump -r` | `mitmdump` / `wireshark` | strings / xxd on raw pcap |
+| **`apk_unpacking`** (APK/DEX) | native `android_package_inspect` | `jadx` / `apktool` | `droidasc` / `dexdump` | `unzip -p <apk> AndroidManifest.xml` / `strings` |
+| **`android_native_emulation`** | native `android_native_workflow` | `unidbg` (host JNI emulation) | `frida_session` / `frida` on device | Static `ghidra_inspect` / `r2_inspect` / `readelf` |
+| **Android Dynamic** | `frida_session` / `frida -U` | `adb_observe` / `adb logcat` | Static smali patch + rebuild | Smali control flow trace |
+| **`native_debugger`** (ELF/PE/Mach-O) | native `triage` + `r2_inspect` | `ghidra_inspect` / `radare2` | `objdump -d` / `readelf` | `strings -a -n 8` + `xxd` / `hexdump` |
+| **`js_deobfuscation`** (Web JS) | native `ast_grep` + `sourcemap_inspect` | `ast-grep` CLI / `webcoder` | `grep` / ripgrep | Python/JS custom parser / `strings` |
+| **`browser_debugger`** (Web Dynamic) | `browser_reverse_session` / `js_hook_preset` | `playwright-mcp` (MCP) | Headless HTTP / curl | Static network HAR trace |
+| **`websocket_capture`** (WebSockets) | native `websocket_observe` (offline) | `mitmproxy` / `tshark` | Browser DevTools HAR export | strings / xxd on raw stream |
+| **`traffic_interception`** (Network) | native `pcap_inspect` (offline) | `mitmproxy` (`mitmdump`) | `tshark -r` / `tcpdump -r` | `curl -v` / raw scripts |
 | **Database & SQLite** | native `sqlite_inspect` (info/schema/rows/wal) | `sqlite3 -readonly <db>` CLI | Python `sqlite3` script | strings / grep on db file |
 | **Firmware & ROMs** | native `firmware_inspect` (info/regions/entries/entropy) | `binwalk -B <firmware>` | `7z l` / `unsquashfs -s` | strings / xxd on raw image |
 | **Crash & Core Dumps** | native `crashdump_inspect` (info/threads/mappings/registers/notes) | `gdb --core <dump>` / `lldb -c <dump>` | `readelf -n <core>` | strings on dump |
 | **Go/Rust Metadata** | native `binary_metadata_inspect` (info/go/rust/sections) | `go version -m` / `cargo auditable` | `readelf -p .dep-v0` / `objdump` | strings / grep on binary |
 | **Smart Contracts / EVM** | native `evm_inspect` (info/disasm/selectors/metadata) | `cast disasm` / `hevm` | `pyevmasm` / python disasm | raw hex / manual opcode lookup |
 | **Binary Diffing** | native `binary_diff` (summary/blocks/bytes/headers) | `vbindiff <f1> <f2>` / `radiff2` | `cmp -l <f1> <f2>` | `diff` / `xxd` + diff |
-| **Workflow Orchestration** | native `reverse_workflow` (create/plan/status/record/retry/recover/retry_plan/export) | structured subagent delegation | manual toolchain chaining | one-off CLI execution |
-| **Runtime Session Registry** | native `reverse_runtime_session` (register/list/status/restore/unregister/heartbeat) | tool-native session status (`frida_session`, `browser tabs`, `ida list`) | process inspection (`ps`, `jps`) | manual re-connection |
-
+| **Workflow Orchestration** | native `reverse_workflow` (create/plan/status/record/retry) | subagent delegation | manual tool chaining | one-off execution |
+| **Runtime Session Registry** | native `reverse_runtime_session` (register/list/status/restore) | tool-native session status | process inspection (`ps`) | manual re-connection |
+| **Dynamic Evidence & Closure**| native `reverse_dynamic_evidence` (ingest/events/verify/status) | tool-native evidence export | manual `evidence` facts | raw notes |
 ---
 
 ## 3. Platform Tool Catalog & Installation Matrix
@@ -61,6 +58,11 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
   - macOS / Linux: `pipx install frida-tools`
   - Windows: `py -m pip install --user frida-tools`
 
+- **`unidbg`** (Host JVM ARM32/ARM64 CPU emulation & JNI invoker):
+  - Requires `java` (JRE 17+ recommended)
+  - Install / Setup: `rea setup reverse unidbg`
+  - Invocation: Custom target Java harness (must exist in project; obtain actual invocation from project; no standalone CLI binary exists)
+  - Fallback: `android_native_workflow` library inspection + `ghidra_inspect` / `r2_inspect` static analysis.
 ### 2. Native Binary Toolchain
 - **`triage`** (Built-in tool): Zero-dependency format sniffing, header parsing, architecture/bitness, section table, stripped status, Shannon entropy, and Mach-O Universal slices. Always available.
 - **`dotnet_inspect`** (Built-in tool): Zero-dependency native inspection of .NET assemblies and CIL bytecode. Parses PE/COFF headers, CLR runtime metadata, streams, types, methods, and CIL instructions directly. Always available.
@@ -102,6 +104,12 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
   - Linux: `apt install sqlite3`
   - Windows: `winget install SQLite.SQLite`
 
+- **`mitmproxy`** (`mitmdump` / `mitmweb` HTTPS & WebSocket interception proxy):
+  - macOS: `brew install mitmproxy` (or `rea setup reverse mitmproxy`)
+  - Linux: `apt install mitmproxy` (or `pipx install mitmproxy`)
+  - Windows: `choco install mitmproxy` (or `winget install mitmproxy.mitmproxy`)
+  - Invocation: `mitmdump -p 8080 -w ./artifacts/flows.mitm`
+  - Fallback: `pcap_inspect` for offline captures, browser DevTools HAR, or `curl -v`.
 ### 5. Firmware & Post-Mortem Toolchain
 - **`firmware_inspect`** (Built-in tool): Zero-dependency native offline firmware inspection. Detects uImage, SquashFS, CPIO, TAR, ZIP, FIT/DTB, CramFS, JFFS2 headers, partition boundaries, Shannon entropy, and archive inventories without file extraction or execution. Always available.
 - **`crashdump_inspect`** (Built-in tool): Zero-dependency native offline crash dump analysis. Parses Linux ELF core dumps (`ET_CORE`) and Windows Minidumps (`MDMP`), decoding registers, termination signals, exception codes, faulting thread/IP, loaded modules, and note segments. Always available.
@@ -126,23 +134,308 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
 
 ### 8. Runtime Session Registry
 - **`reverse_runtime_session`** (Built-in tool): Zero-dependency native unified reverse runtime session registry across Frida, browser, IDA, and Ghidra. Manages sanitized connection metadata, status/heartbeat stale detection, and deterministic recovery/restore plans without unsafe arbitrary process control. Always available.
+
+### 9. Dynamic Evidence & Closure Toolchain
+- **`reverse_dynamic_evidence`** (Built-in tool): Zero-dependency native normalizer and closure engine for dynamic reverse events across Frida, browser CDP, DAP, and Unidbg. Transforms telemetry into Evidence ledger facts with deterministic session locators (`session:<id>:seq:<seq>`), verifies hypotheses, promotes verified outcomes into `reverse_knowledge`, and updates workflow progression gates. Always available.
 ---
 
-## 4. Operator Degradation Notice Format
+## 4. Capability Discovery, Setup & Immediate Dispatch Protocol
 
-When a preferred tool is missing and a fallback is engaged, notify the operator using this concise format:
+When an analytical step requires tools that may not be installed or configured, execute this machine-actionable protocol:
 
-```text
-[Notice] Primary tool '<missing-tool>' not found on PATH.
-  -> Engaged fallback: '<fallback-tool>'
-  -> Hint to restore primary capability: <install-command>
+```
+[Step Needs Tool] ──> [1. reverse_capability resolve]
+                               │
+         ┌─────────────────────┴─────────────────────┐
+         ▼ (Native Baseline Ready)                    ▼ (Missing / External Needed)
+[2. Dispatch Native Tool First]              [3. Show Structured Notice & Ask Approval]
+  (Zero-prep built-in tool)                    (why, prereqs, setupCommand, postInstall)
+                                                     │
+                      ┌──────────────────────────────┴──────────────────────────────┐
+                      ▼ (Operator Approves)                                         ▼ (Operator Declines / Prereq Missing)
+[4. User Executes Setup]                                                    [7. Engage Active Fallback Tool]
+  (`rea setup reverse <id>`)                                                   (Run next ladder tier)
+                      │                                                             │
+                      ▼                                                             ▼
+[5. Re-Resolve Capability]                                                  [8. Record Fallback in Workflow]
+  (`reverse_capability(refresh: true)`)                                        (`reverse_workflow(action: "record", ...)`
+                      │                                                         or action: "recover")
+                      ▼                                                             │
+[6. Immediate Tool Dispatch]                                                        ▼
+  (Execute postInstallInvocation or wrapper)                                [9. Continue Investigation Seamlessly]
+                      │
+                      ▼
+[10. Record Step Completion in Workflow]
+  (`reverse_workflow(action: "record", status: "completed", evidence_ids: [...])`)
 ```
 
-**Example in practice**:
-```text
-[Notice] Primary tool 'jadx' not found on PATH.
-  -> Engaged fallback: 'droidasc' (on-demand DEX query)
-  -> Hint to restore primary capability: brew install jadx
-```
+### Protocol Steps
 
-After emitting the notice, continue immediately with the fallback tool to ensure the analysis completes without delay.
+1. **Step 1: Query Capability Status (`reverse_capability`)**:
+   Before attempting tool invocation or falling back, query capability readiness:
+   ```json
+   reverse_capability({ action: "resolve", capability: "<capability_id>" })
+   ```
+   Inspect the returned payload:
+   - `status`: `"ready"` | `"available_with_fallbacks"` | `"missing"`
+   - `ready`: boolean
+   - `recommendedNativeTool`: name of zero-prep native tool if available
+   - `optionalExternalTools`: list of external tools with individual install statuses
+   - `prerequisites`: required system runtimes (e.g. `java`, `node`)
+   - `setupCommand`: client-vetted installation command
+   - `postInstallInvocation`: command template for immediate execution post-install
+   - `availableFallbacks`: list of fallbacks currently available on this host
+
+2. **Step 2: Check Native Baseline Tool**:
+   If `recommendedNativeTool` is defined and provides the required analytical depth (e.g. `android_package_inspect` for container triage, `r2_inspect` for disassembly, `browser_reverse_session` for CDP debugging, `pcap_inspect` for network packets), proceed directly with the native tool.
+
+3. **Step 3: Present Capability Notice & Request Operator Approval**:
+   If the task specifically benefits from an optional external tool or the native tool lacks required depth:
+   ```text
+   [Capability Notice] Required capability: <capability_id> ('<capability_name>')
+     -> Recommended tool: '<tool>' (Status: <missing|installed>)
+     -> Why: <why>
+     -> Prerequisites: <prerequisites or none>
+     -> Trusted setup: <setupCommand> (Requires operator approval)
+     -> Post-install invocation: <postInstallInvocation>
+     -> Fallback if declined: '<fallback_tool>'
+   ```
+   Prompt the user for confirmation to run the trusted setup command.
+
+4. **Step 4: User Executes Setup Command**:
+   The operator executes the setup command (`rea setup reverse <tool_id>`).
+
+5. **Step 5: Re-Resolve Capability Post-Install**:
+   Verify tool readiness by querying with `refresh: true`:
+   ```json
+   reverse_capability({ action: "resolve", capability: "<capability_id>", refresh: true })
+   ```
+   Confirm `status` is `"ready"` and the tool is available on PATH.
+
+6. **Step 6: Immediate Dispatch**:
+   Execute the newly available tool using its `postInstallInvocation` syntax with bounded arguments, or dispatch the native wrapper (e.g. `r2_inspect` / `ghidra_inspect`) which dynamically locates the installed binary.
+
+7. **Step 7: Workflow Recording & Fallback Audit**:
+   Record the step outcome in `reverse_workflow`:
+   - *Successful Install & Run*:
+     ```json
+     reverse_workflow({
+       action: "record",
+       workflow_id: "<wf_id>",
+       step_id: "<step_id>",
+       status: "completed",
+       outputs: "<bounded tool execution summary>",
+       evidence_ids: ["ev_fact_<id>"]
+     })
+     ```
+   - *Refusal or Missing Prerequisite*:
+     Immediately engage the fallback tier, and audit the refusal and active fallback in the workflow:
+     ```json
+     reverse_workflow({
+       action: "record",
+       workflow_id: "<wf_id>",
+       step_id: "<step_id>",
+       status: "completed",
+       outputs: "Operator declined setup for <tool>; engaged fallback <fallback_tool>",
+       fallback_tool: "<fallback_tool>",
+       evidence_ids: ["ev_fact_<id>"]
+     })
+     ```
+
+---
+
+## 5. Concrete End-to-End Scenarios
+
+### 1. `android_native_emulation` (Headless JNI ARM Emulation)
+- **Analytical Need**: Execute an obfuscated JNI signature function (`Java_com_example_Security_signToken`) inside a 64-bit ARM library (`libnative.so`) headlessly without a physical device or emulator.
+- **Step 1 (Resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "android_native_emulation" })
+  ```
+- **Step 2 (Native Evaluation)**: `recommendedNativeTool: "android_package_inspect"` inventories ELF symbols and container structure, but dynamic JNI instruction emulation requires `unidbg`.
+- **Step 3 (Notice & Approval)**:
+  ```text
+  [Capability Notice] Required capability: android_native_emulation ('Android Native Library Emulation (JNI / ARM)')
+    -> Recommended tool: 'unidbg' (Status: missing)
+    -> Why: Simulates Dalvik/ART JVM runtime and Linux ARM CPU environment to execute exported or obfuscated JNI native methods directly from local .so binaries
+    -> Prerequisites: java (JRE 17+ recommended)
+    -> Trusted setup: rea setup reverse unidbg (Requires operator approval)
+    -> Post-install invocation: Custom target Java harness (must exist in project; obtain actual invocation from project)
+    -> Fallback if declined: 'android_native_workflow' + 'r2_inspect' static disassembly
+  ```
+- **Step 4 (Setup)**: User executes `rea setup reverse unidbg`.
+- **Step 5 (Re-resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "android_native_emulation", refresh: true })
+  ```
+- **Step 6 (Dispatch)**:
+  A custom target Java harness must exist in the project; obtain its actual invocation from the project:
+  ```bash
+  # Execute custom target Java harness (must exist in project; obtain actual invocation from project build/test configuration)
+  ```
+- **Step 7 (Workflow Record)**:
+  - *On Success*:
+    ```json
+    reverse_workflow({
+      action: "record",
+      workflow_id: "wf_rw_1",
+      step_id: "apk_step_3",
+      status: "completed",
+      outputs: "Unidbg emulated JNI return value: 0x4a9b21f8",
+      evidence_ids: ["ev_fact_jni_output"]
+    })
+    ```
+  - *On Refusal*:
+    ```json
+    reverse_workflow({
+      action: "record",
+      workflow_id: "wf_rw_1",
+      step_id: "apk_step_3",
+      status: "completed",
+      outputs: "Operator declined unidbg setup; engaged fallback r2_inspect static disassembly",
+      fallback_tool: "r2_inspect",
+      evidence_ids: ["ev_fact_r2_sym"]
+    })
+    ```
+
+### 2. `apk_unpacking` (APK Decompilation & Class Recovery)
+- **Analytical Need**: Recover high-level Java source code from Dalvik bytecode for class `com.example.AuthService` in `target.apk`.
+- **Step 1 (Resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "apk_unpacking" })
+  ```
+- **Step 2 (Native Evaluation)**: `recommendedNativeTool: "android_package_inspect"` is ready for container layout, DEX headers, binary manifest, and signatures. High-level Java decompilation requires `jadx`.
+- **Step 3 (Notice & Approval)**:
+  ```text
+  [Capability Notice] Required capability: apk_unpacking ('APK / AAB Package Decompilation & Unpacking')
+    -> Recommended tool: 'jadx' (Status: missing)
+    -> Why: Transforms opaque binary APK packages and optimized DEX files into structured project trees and intelligible Java source code
+    -> Prerequisites: java
+    -> Trusted setup: rea setup reverse jadx (macOS: brew install jadx)
+    -> Post-install invocation: jadx -d ./artifacts/jadx_out --single-class com.example.AuthService target.apk
+    -> Fallback if declined: 'droidasc' (on-demand DEX class query) / 'android_package_inspect'
+  ```
+- **Step 4 (Setup)**: User executes `rea setup reverse jadx`.
+- **Step 5 (Re-resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "apk_unpacking", refresh: true })
+  ```
+- **Step 6 (Dispatch)**:
+  ```bash
+  jadx -d ./artifacts/jadx_out --single-class com.example.AuthService target.apk
+  ```
+- **Step 7 (Workflow Record)**:
+  - *On Success*:
+    ```json
+    reverse_workflow({
+      action: "record",
+      workflow_id: "wf_rw_1",
+      step_id: "apk_step_2",
+      status: "completed",
+      outputs: "Decompiled AuthService.java to ./artifacts/jadx_out; extracted validateToken method",
+      evidence_ids: ["ev_fact_auth_method"]
+    })
+    ```
+  - *On Refusal*:
+    ```json
+    reverse_workflow({
+      action: "record",
+      workflow_id: "wf_rw_1",
+      step_id: "apk_step_2",
+      status: "completed",
+      outputs: "Operator declined jadx setup; engaged fallback droidasc(op: 'getclass')",
+      fallback_tool: "droidasc",
+      evidence_ids: ["ev_fact_droidasc_cls"]
+    })
+    ```
+
+### 3. `browser_debugger` (Browser CDP Dynamic Inspection)
+- **Analytical Need**: Intercept dynamic JavaScript crypto state (`window.__AUTH_STATE__`) and monitor network requests in a single-page web app.
+- **Step 1 (Resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "browser_debugger" })
+  ```
+- **Step 2 (Native Evaluation)**: `recommendedNativeTool: "browser_reverse_session"` + `js_hook_preset` is ready immediately for local CDP evaluation. If multi-tab persistent headless automation via MCP is requested, evaluate `playwright-mcp`.
+- **Step 3 (Notice & Approval)**:
+  ```text
+  [Capability Notice] Required capability: browser_debugger ('Browser Debugger & CDP Dynamic Inspection')
+    -> Recommended tool: 'playwright-mcp' (Status: missing)
+    -> Why: Enables runtime inspection of complex minified JavaScript code, single-page application state, and dynamic crypto/signature generation
+    -> Prerequisites: node
+    -> Trusted setup: rea setup reverse playwright-mcp (Requires operator approval)
+    -> Post-install invocation: configure .rva/mcp.json playwright entry or launch browser_reverse_session
+    -> Fallback if declined: 'browser_reverse_session' (native CDP)
+  ```
+- **Step 4 (Setup)**: User executes setup or opts for native session.
+- **Step 5 (Re-resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "browser_debugger", refresh: true })
+  ```
+- **Step 6 (Dispatch)**:
+  Dispatch native `browser_reverse_session`:
+  ```json
+  browser_reverse_session({ action: "eval", expression: "JSON.stringify(window.__AUTH_STATE__)" })
+  ```
+- **Step 7 (Workflow Record)**:
+  ```json
+  reverse_workflow({
+    action: "record",
+    workflow_id: "wf_rw_1",
+    step_id: "web_step_2",
+    status: "completed",
+    outputs: "Extracted window.__AUTH_STATE__ tokens and session seed",
+    evidence_ids: ["ev_fact_auth_seed"]
+  })
+  ```
+
+### 4. `native_debugger` (Native Binary Disassembly & Dynamic Debugging)
+- **Analytical Need**: Decompile validation function `validate_key` and inspect control flow branches in native ELF binary `target_bin`.
+- **Step 1 (Resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "native_debugger" })
+  ```
+- **Step 2 (Native Evaluation)**: `recommendedNativeTool: "r2_inspect"` (and `triage`). Ready for bounded disassembly, section entropy, and xrefs. For deep decompilation or dynamic stepping, evaluate `radare2` / `ghidra`.
+- **Step 3 (Notice & Approval)**:
+  ```text
+  [Capability Notice] Required capability: native_debugger ('Native Binary Debugger & Dynamic Tracing')
+    -> Recommended tool: 'radare2' (Status: missing)
+    -> Why: Analyzes packing routines, anti-debugging mechanisms, runtime decryption keys, and dynamically generated control flow
+    -> Prerequisites: none
+    -> Trusted setup: rea setup reverse radare2 (macOS: brew install radare2)
+    -> Post-install invocation: r2 -d <binary_path> or query via r2_inspect(action: "decompile")
+    -> Fallback if declined: 'triage' + 'objdump -d' / POSIX 'strings'
+  ```
+- **Step 4 (Setup)**: User executes `rea setup reverse radare2`.
+- **Step 5 (Re-resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "native_debugger", refresh: true })
+  ```
+- **Step 6 (Dispatch)**:
+  Invoke native `r2_inspect` (which now uses the newly installed `radare2`):
+  ```json
+  r2_inspect({ action: "decompile", path: "./target_bin", symbol: "validate_key" })
+  ```
+- **Step 7 (Workflow Record)**:
+  - *On Success*:
+    ```json
+    reverse_workflow({
+      action: "record",
+      workflow_id: "wf_rw_1",
+      step_id: "native_step_2",
+      status: "completed",
+      outputs: "Decompiled validate_key: detected XOR decryption with hardcoded key '0x5A'",
+      evidence_ids: ["ev_fact_key_xor"]
+    })
+    ```
+  - *On Refusal*:
+    ```json
+    reverse_workflow({
+      action: "record",
+      workflow_id: "wf_rw_1",
+      step_id: "native_step_2",
+      status: "completed",
+      outputs: "Operator declined radare2 setup; engaged fallback objdump -d disassembly",
+      fallback_tool: "objdump",
+      evidence_ids: ["ev_fact_objdump_asm"]
+    })
+    ```

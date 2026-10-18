@@ -17,12 +17,7 @@ import { taskSubprocessRenderer } from "@rva/tui/tools/subprocess";
  *   - Session artifacts for debugging
  */
 import path from "node:path";
-import type {
-	AgentTool,
-	AgentToolResult,
-	AgentToolUpdateCallback,
-	ToolSpeculationPolicy,
-} from "@rva/agent";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback, ToolSpeculationPolicy } from "@rva/agent";
 import type { Usage } from "@rva/ai";
 import { $env, logger, prompt } from "@rva/utils";
 import type { ToolSession } from "..";
@@ -331,6 +326,11 @@ function spawnParamsFor(params: TaskParams, item: TaskItem, defaultAgent: string
 		spawn.isolated = item.isolated;
 	} else if ("isolated" in params) {
 		spawn.isolated = params.isolated;
+	}
+	if (item.autoloadSkills !== undefined) {
+		spawn.autoloadSkills = item.autoloadSkills;
+	} else if ("autoloadSkills" in params) {
+		spawn.autoloadSkills = params.autoloadSkills;
 	}
 	return spawn;
 }
@@ -1657,6 +1657,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				assignment,
 				context,
 				agent: params.agent,
+				autoloadSkills: params.autoloadSkills,
 				...this.#resultParams(params),
 				...(params.effort !== undefined ? { effort: params.effort } : {}),
 				solutionSpace: params.solutionSpace,

@@ -127,13 +127,45 @@ Once the format and packing status are determined, dispatch to the corresponding
 - **Fallback**: Manual multi-tool invocation with direct `evidence` ledger tracking.
 ---
 
-## 4. Gate G3: Tool Availability & Fallback Selection
+## 4. Gate G3: Capability Discovery, Tool Availability & Dispatch Selection
 
-Check tool availability in the current environment:
-- When specialized engines (IDA, Jadx, Frida) are absent, consult `skill://reverse-lab/references/tool-fallback.md` to select the next tool on the degradation ladder (e.g. `radare2` for IDA, `droidasc` or `apktool` for Jadx).
-- Proceed immediately with available alternatives to maintain continuous analytical progress.
----
+Before executing resource-heavy tools or disassemblers, evaluate required capabilities and tool readiness through the concrete `reverse_capability` protocol:
 
+1. **Map to Canonical Capability**:
+   Identify the underlying analytical requirement:
+   - Android JNI emulation ➔ `android_native_emulation`
+   - Android package decompilation & Dalvik analysis ➔ `apk_unpacking`
+   - Dynamic Web & DOM inspection ➔ `browser_debugger`
+   - Native binary disassembly & dynamic stepping ➔ `native_debugger`
+   - WebSocket real-time frame inspection ➔ `websocket_capture`
+   - JavaScript AST deobfuscation ➔ `js_deobfuscation`
+   - Network traffic & HTTPS interception ➔ `traffic_interception`
+
+2. **Query Capability Readiness via `reverse_capability`**:
+   Always check readiness through the capability resolver before tool invocation:
+   ```json
+   reverse_capability({ action: "resolve", capability: "<capability_id>" })
+   ```
+
+3. **Native Tool Baseline First**:
+   Inspect `recommendedNativeTool` and `status`. When a zero-dependency built-in tool fulfills the analytical question (e.g. `android_package_inspect` for APK/DEX/manifest, `triage` / `r2_inspect` for binary headers/disassembly, `browser_reverse_session` for CDP eval, `pcap_inspect` for packet flows, `sourcemap_inspect` for JS maps), dispatch the native tool first without unnecessary installation pauses.
+
+4. **Structured Notice & Operator Setup Approval**:
+   If deeper external analysis is required or the primary tool is absent from PATH:
+   - Present the structured notice with technical rationale (`why`), required host runtimes (`prerequisites`), client-vetted setup command (`rea setup reverse <tool-id>`), and post-install invocation syntax (`postInstallInvocation`).
+   - Request explicit operator approval before executing any setup command.
+
+5. **Setup Execution & Post-Install Re-Resolution**:
+   - Upon operator approval, the operator executes `rea setup reverse <tool-id>`.
+   - Immediately re-resolve capability status with refresh enabled:
+     ```json
+     reverse_capability({ action: "resolve", capability: "<capability_id>", refresh: true })
+     ```
+   - Confirm `status` is `"ready"` and dispatch the tool using its canonical `postInstallInvocation` syntax or native CLI wrapper.
+
+6. **Workflow Audit & Degradation Recording**:
+   - On successful dispatch: record tool results and link evidence via `reverse_workflow({ action: "record", status: "completed", evidence_ids: [...] })`.
+   - On refusal or missing prerequisite: immediately engage the active fallback from the degradation ladder (`skill://reverse-lab/references/tool-fallback.md`) and audit the refusal and fallback engagement via `reverse_workflow({ action: "record", fallback_tool: "...", outputs: "..." })` or `reverse_workflow({ action: "recover", ... })` to maintain uninterrupted analytical progress.
 ## 5. Gate G4: Static vs. Dynamic Closed Loop
 
 Determine the verification strategy based on available execution boundaries:

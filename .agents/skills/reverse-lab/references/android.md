@@ -77,22 +77,30 @@ jadx -d ./jadx_out --include-pkg "com.example.app.auth" target.apk
 jadx -d ./jadx_out --show-bad-code --single-class "com.example.app.security.Crypto" target.apk
 ```
 
-### 2. Native JNI Library (`.so`) Triage
-Android apps often delegate critical cryptography or checks to native C/C++ libraries in `lib/<abi>/`:
-```bash
-# 1. List native libraries in APK
-unzip -l target.apk "lib/*"
+### 2. Native JNI Library (`.so`) Triage & Emulation
+Android apps often delegate critical cryptography, anti-tamper, or token signing to native C/C++ libraries in `lib/<abi>/`:
+```typescript
+// Primary: Built-in zero-prep native inspection and JNI export mapping
+android_native_workflow({ action: "inspect", path: "target.apk" });
 
-# 2. Extract target architecture (prefer arm64-v8a or x86_64 for emulators)
-unzip -j target.apk "lib/arm64-v8a/libnative-crypto.so" -d ./extracted_so/
+// Extract target architecture (.so) into isolated artifacts folder
+android_native_workflow({ action: "extract", path: "target.apk", abi: "arm64-v8a" });
 
-# 3. Check for standard JNI exported symbols
-nm -D ./extracted_so/libnative-crypto.so | grep -E "Java_|JNI_OnLoad"
-# Or using readelf / objdump
-readelf -sW ./extracted_so/libnative-crypto.so | grep "FUNC" | grep "Java_"
+// Generate 6-stage workflow plan with tool readiness
+android_native_workflow({ action: "plan", path: "target.apk" });
 ```
-If symbols follow `Java_com_example_app_Native_methodName`, trace input parameters (`JNIEnv*`, `jobject/jclass`, plus Java args). If unregistered dynamically, inspect `JNI_OnLoad` for `env->RegisterNatives(...)`.
+```bash
+# Fallback CLI: Inspect native libraries and exports manually
+readelf -sW ./artifacts/extracted_so/lib/arm64-v8a/libnative-crypto.so | grep -E "FUNC.*Java_|JNI_OnLoad"
+```
 
+#### JNI Binding Resolution Paths:
+- **Path A (Static JNI Export)**: Exported symbol matches `Java_<package>_<class>_<method>`. Inspect input parameters (`JNIEnv*`, `jobject/jclass`, plus native args) via `r2_inspect` or `ghidra_inspect`.
+- **Path B (Dynamic Registration)**: No `Java_*` export found, but `JNI_OnLoad` exists. Disassemble `JNI_OnLoad`, trace calls to `(*env)->RegisterNatives(...)`, and read the `JNINativeMethod` struct array mapping method names, signatures, and function pointers.
+- **Path C (Host CPU Emulation via Unidbg)**: When no physical phone or emulator is connected, `unidbg` can emulate target ARM functions headlessly on the host JVM. A custom target Java harness (`AndroidEmulator` / `McpToolkit`) must exist in the project; obtain its actual invocation from the project (manual integration required; no generic standalone CLI executable or pretend harness class exists).
+  ```bash
+  # Execute custom target Java harness (must exist in project; obtain actual invocation from project build/test configuration)
+  ```
 ---
 
 ## 4. Phase 3: Smali Bytecode Modification & Rebuild (Apktool)
@@ -217,12 +225,13 @@ Java.perform(function () {
 
 Run Frida:
 ```bash
-frida -U -f com.example.app -l hooks/trace_auth.js --no-pause
+frida -U -f com.example.app -l hooks/trace_auth.js
 ```
-Prefer the built-in `frida` tool for one-shot scripts, or `frida_session` for persistent multi-turn instrumentation workflows (create/run/status/stop/destroy) that retain target process and child state across agent turns:
+Prefer the built-in `frida` tool for one-shot scripts, or `frida_session` (alias `reverse_dynamic_session`) for persistent multi-turn instrumentation workflows (create/run/events/status/stop/destroy) that retain target process and child state across agent turns:
 ```text
 frida_session(action: "create", spawn: "com.example.app", usb: true, session_id: "android-audit")
 frida_session(action: "run", session_id: "android-audit", script_path: "hooks/trace_auth.js")
+frida_session(action: "events", session_id: "android-audit", kind: "message", export_evidence: true)
 frida_session(action: "status", session_id: "android-audit")
 frida_session(action: "stop", session_id: "android-audit")
 ```

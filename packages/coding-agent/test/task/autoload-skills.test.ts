@@ -11,7 +11,12 @@ import type { AgentSession, AgentSessionEvent, PromptOptions } from "@rva/coding
 import { SKILL_PROMPT_MESSAGE_TYPE } from "@rva/coding-agent/session/messages";
 import * as discoveryModule from "@rva/coding-agent/task/discovery";
 import { runSubprocess } from "@rva/coding-agent/task/executor";
-import { runStructuredSubagent } from "@rva/coding-agent/task/structured-subagent";
+import {
+	isReverseTask,
+	resolveAutoloadSkills,
+	REVERSE_TASK_AUTOLOAD_SKILLS,
+	runStructuredSubagent,
+} from "@rva/coding-agent/task/structured-subagent";
 import type { AgentDefinition } from "@rva/coding-agent/task/types";
 import type { ToolSession } from "@rva/coding-agent/tools";
 import { EventBus } from "@rva/coding-agent/utils/event-bus";
@@ -336,5 +341,239 @@ describe("autoloadSkills through task spawn", () => {
 		} finally {
 			await fs.rm(root, { recursive: true, force: true });
 		}
+	});
+
+	it("autoloads reverse-lab and native-binary-reverse for reverse tasks on task subagent", async () => {
+		const mockReverseLab: Skill = {
+			name: "reverse-lab",
+			description: "Multi-platform reverse engineering orchestrator",
+			filePath: "/skills/reverse-lab/SKILL.md",
+			baseDir: "/skills/reverse-lab",
+			source: "bundled",
+		};
+		const mockNativeBinary: Skill = {
+			name: "native-binary-reverse",
+			description: "Native binary reverse engineering skill",
+			filePath: "/skills/native-binary-reverse/SKILL.md",
+			baseDir: "/skills/native-binary-reverse",
+			source: "bundled",
+		};
+
+		const parent = {
+			cwd: "/tmp",
+			hasUI: false,
+			settings: Settings.isolated({ "task.isolation.enabled": false }),
+			getSessionFile: () => null,
+			getSessionSpawns: () => "*",
+			getSessionAgents: () => [],
+			getPlanModeState: () => undefined,
+			skills: [mockReverseLab, mockNativeBinary],
+		} as unknown as ToolSession;
+
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
+			agents: [
+				{
+					name: "task",
+					description: "General subagent",
+					systemPrompt: "test",
+					source: "bundled",
+				},
+			],
+			projectAgentsDir: null,
+		});
+
+		vi.spyOn(skillsModule, "buildSkillPromptMessage").mockImplementation(async skill => ({
+			message: `Content for ${skill.name}`,
+			details: { name: skill.name, path: skill.filePath, lineCount: 1 },
+		}));
+
+		const child = createMockSession(({ emit }) => {
+			emit({
+				type: "tool_execution_end",
+				toolCallId: "tool-1",
+				toolName: "yield",
+				result: {
+					content: [{ type: "text", text: "Done" }],
+					details: { status: "success", data: { ok: true } },
+				},
+				isError: false,
+			});
+		});
+		vi.spyOn(sdkModule, "createAgentSession").mockResolvedValue(createSessionResult(child));
+
+		// 1. Reverse task should autoload reverse skills
+		await runStructuredSubagent({
+			session: parent,
+			invocationKind: "task",
+			assignment: "分析目标 libtarget.so 的导出函数并进行逆向",
+			agent: "task",
+		});
+
+		const sendCustomMessage = child.sendCustomMessage as Mock<any>;
+		expect(sendCustomMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				customType: SKILL_PROMPT_MESSAGE_TYPE,
+				content: expect.stringContaining("Content for reverse-lab"),
+			}),
+			{ triggerTurn: false },
+		);
+		expect(sendCustomMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				customType: SKILL_PROMPT_MESSAGE_TYPE,
+				content: expect.stringContaining("Content for native-binary-reverse"),
+			}),
+			{ triggerTurn: false },
+		);
+	});
+
+	it("does not autoload reverse skills for normal coding tasks on task subagent", async () => {
+		const mockReverseLab: Skill = {
+			name: "reverse-lab",
+			description: "Multi-platform reverse engineering orchestrator",
+			filePath: "/skills/reverse-lab/SKILL.md",
+			baseDir: "/skills/reverse-lab",
+			source: "bundled",
+		};
+		const mockNativeBinary: Skill = {
+			name: "native-binary-reverse",
+			description: "Native binary reverse engineering skill",
+			filePath: "/skills/native-binary-reverse/SKILL.md",
+			baseDir: "/skills/native-binary-reverse",
+			source: "bundled",
+		};
+
+		const parent = {
+			cwd: "/tmp",
+			hasUI: false,
+			settings: Settings.isolated({ "task.isolation.enabled": false }),
+			getSessionFile: () => null,
+			getSessionSpawns: () => "*",
+			getSessionAgents: () => [],
+			getPlanModeState: () => undefined,
+			skills: [mockReverseLab, mockNativeBinary],
+		} as unknown as ToolSession;
+
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
+			agents: [
+				{
+					name: "task",
+					description: "General subagent",
+					systemPrompt: "test",
+					source: "bundled",
+				},
+			],
+			projectAgentsDir: null,
+		});
+
+		const child = createMockSession(({ emit }) => {
+			emit({
+				type: "tool_execution_end",
+				toolCallId: "tool-1",
+				toolName: "yield",
+				result: {
+					content: [{ type: "text", text: "Done" }],
+					details: { status: "success", data: { ok: true } },
+				},
+				isError: false,
+			});
+		});
+		vi.spyOn(sdkModule, "createAgentSession").mockResolvedValue(createSessionResult(child));
+
+		// 2. Normal coding task should NOT autoload reverse skills
+		await runStructuredSubagent({
+			session: parent,
+			invocationKind: "task",
+			assignment: "fix typo in navigation bar and update css colors",
+			agent: "task",
+		});
+
+		const sendCustomMessage = child.sendCustomMessage as Mock<any>;
+		expect(sendCustomMessage).not.toHaveBeenCalled();
+	});
+
+	it("identifies reverse tasks accurately with isReverseTask", () => {
+		expect(isReverseTask("reverse engineering of login routine")).toBe(true);
+		expect(isReverseTask("decompile and inspect Android APK")).toBe(true);
+		expect(isReverseTask("对二进制文件进行反编译")).toBe(true);
+		expect(isReverseTask("inspect Mach-O export headers")).toBe(true);
+		expect(isReverseTask("hook functions using frida script")).toBe(true);
+		expect(isReverseTask("disassemble with radare2")).toBe(true);
+		expect(isReverseTask("check libnative.so exports")).toBe(true);
+
+		// Normal coding tasks should return false
+		expect(isReverseTask("fix typo in index.html")).toBe(false);
+		expect(isReverseTask("add new button to profile page")).toBe(false);
+		expect(isReverseTask("refactor postgres sql query in user repository")).toBe(false);
+		expect(isReverseTask("implement quicksort in typescript")).toBe(false);
+		expect(isReverseTask("reverse a linked list in typescript")).toBe(false);
+		expect(isReverseTask("reverse string order")).toBe(false);
+		expect(isReverseTask("configure nginx reverse proxy for backend")).toBe(false);
+		expect(isReverseTask("sort array in reverse order")).toBe(false);
+		expect(isReverseTask("upload build assets to cloudflare r2 bucket")).toBe(false);
+		expect(isReverseTask("实现二进制转十六进制转换工具")).toBe(false);
+		expect(isReverseTask("二分查找算法优化")).toBe(false);
+		expect(isReverseTask("处理 WebSocket 二进制流 ArrayBuffer")).toBe(false);
+	});
+
+	it("resolves autoloadSkills correctly for reverse vs non-reverse requests", () => {
+		const mockReverseLab: Skill = {
+			name: "reverse-lab",
+			description: "Reverse lab orchestrator",
+			filePath: "/skills/reverse-lab/SKILL.md",
+			baseDir: "/skills/reverse-lab",
+			source: "bundled",
+		};
+		const mockNativeBinary: Skill = {
+			name: "native-binary-reverse",
+			description: "Native binary reverse skill",
+			filePath: "/skills/native-binary-reverse/SKILL.md",
+			baseDir: "/skills/native-binary-reverse",
+			source: "bundled",
+		};
+		const mockOtherSkill: Skill = {
+			name: "other-skill",
+			description: "Other skill",
+			filePath: "/skills/other-skill/SKILL.md",
+			baseDir: "/skills/other-skill",
+			source: "bundled",
+		};
+
+		const session = {
+			skills: [mockReverseLab, mockNativeBinary, mockOtherSkill],
+		} as unknown as ToolSession;
+
+		const taskAgent: AgentDefinition = {
+			name: "task",
+			description: "General subagent",
+			systemPrompt: "test",
+			source: "bundled",
+		};
+
+		expect(REVERSE_TASK_AUTOLOAD_SKILLS).toEqual(["reverse-lab", "native-binary-reverse"]);
+
+		// Reverse task on task agent
+		const reverseResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "reverse engineering of binary",
+		});
+		expect(reverseResult.autoloadSkills.map(s => s.name)).toEqual(["reverse-lab", "native-binary-reverse"]);
+
+		// Normal task on task agent
+		const normalResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "fix css layout bug",
+		});
+		expect(normalResult.autoloadSkills).toEqual([]);
+
+		// Explicit autoloadSkills in request
+		const explicitResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "fix css layout bug",
+			autoloadSkills: ["other-skill"],
+		});
+		expect(explicitResult.autoloadSkills.map(s => s.name)).toEqual(["other-skill"]);
 	});
 });

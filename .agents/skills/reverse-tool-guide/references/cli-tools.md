@@ -1,25 +1,28 @@
 # CLI Tool Guide
 
-Canonical operations for the external CLI tools in `packages/coding-agent/src/extensibility/skill-tool-catalog.ts`. Availability comes from `rva setup reverse --json`; the examples below are the trusted forms to adapt, not installation instructions.
+Canonical operations for the external CLI tools catalogued in `packages/coding-agent/src/extensibility/skill-tool-catalog.ts`. Availability status and trusted installation commands come from `rea setup reverse --json`. The examples below are the vetted canonical forms to adapt.
+
+When a tool is absent, apply the **Discover-Before-Stop / Install-Then-Dispatch** workflow: identify the capability, explain why to the operator, ask confirmation to run `rea setup reverse <tool-id>`, verify availability, and dispatch immediately. If declined, use the listed fallback.
 
 ## Selection matrix
 
-| Question | Primary | Fallback |
+| Capability / Question | Primary Tool | Fallback Tool |
 | :--- | :--- | :--- |
 | File type / architecture | `file <sample>` | `xxd -l 64 <sample>` |
 | Strings and constants | `strings -a -n 8 <sample>` | bounded hex dump + grep |
-| Native headers / imports | `r2 -qc "iI; iS; ii" <sample>` | `readelf` / `objdump` / `llvm-objdump` |
-| Function disassembly | `r2 -qc "aaa; s <sym>; pd 40" <sample>` | `objdump -d --start-address=<addr>` |
-| Callers / xrefs | `r2 -qc "aaa; axt @ <sym>" <sample>` | symbol search in decompiler output |
-| APK manifest / resources | `droidasc(op: "manifest")` | `aapt2 dump badging <apk>` |
-| DEX decompilation | `droidasc(op: "getclass")` | `jadx --single-class` -> `apktool` smali |
-| Smali patch and rebuild | `apktool d` / `apktool b` | `dexdump -d` for inspection only |
+| **`native_debugger`** (Native headers / imports) | `r2 -qc "iI; iS; ii" <sample>` | `readelf` / `objdump` / `llvm-objdump` |
+| **`native_debugger`** (Function disassembly) | `r2 -qc "aaa; s <sym>; pd 40" <sample>` | `objdump -d --start-address=<addr>` |
+| **`native_debugger`** (Callers / xrefs) | `r2 -qc "aaa; axt @ <sym>" <sample>` | symbol search in decompiler output |
+| **`apk_unpacking`** (APK manifest / resources) | `android_package_inspect` / `droidasc(op: "manifest")` | `aapt2 dump badging <apk>` / `unzip` |
+| **`apk_unpacking`** (DEX decompilation) | `droidasc(op: "getclass")` / `jadx --single-class` | `apktool` smali / `dexdump -d` |
+| **`apk_unpacking`** (Smali patch and rebuild) | `apktool d` / `apktool b` | `dexdump -d` for inspection only |
+| **`android_native_emulation`** (JNI emulation) | custom target Java harness (`unidbg`) / `android_native_workflow` | static `ghidra_inspect` / `r2_inspect` |
 | Runtime instrumentation | `frida -U -l hook.js -f <target>` | `adb logcat` + static analysis |
-| HTTP(S) traffic | `mitmdump -p 8080 -w flows.mitm` | `curl` + browser DevTools HAR |
-| PCAP / packet detail | `tshark -r capture.pcapng` | `tcpdump -r capture.pcap` |
+| **`traffic_interception`** (HTTP/S traffic) | `mitmdump -p 8080 -w flows.mitm` | `curl` + browser DevTools HAR |
+| **`websocket_capture`** (PCAP / packet detail) | `pcap_inspect` (offline) / `tshark -r <file>` | `tcpdump -r capture.pcap` |
 | Packed PE | `upx -d -o ./artifacts/unpacked.exe <pe>` | `r2` section/entropy inspection |
 | WebAssembly structure | `wasm_inspect(action: "info")` | `wasm2wat <module> -o module.wat` |
-
+| **`js_deobfuscation`** (AST search & transforms) | `ast_grep(pattern: "...")` | `ast-grep` CLI / `grep` |
 ## 1. Triage: `file`, `strings`, `xxd`
 
 ```bash
@@ -47,7 +50,14 @@ r2 -qc "aaa; axt @ sym.imp.malloc" ./sample.bin
 - Bound disassembly with `pd <n> @ <addr>`; never dump an entire `.text`.
 - Fallback: `objdump` / `llvm-objdump`, then POSIX strings.
 
-## 3. APK / DEX: `droidasc`, `jadx`, `apktool`, `aapt2`, `dexdump`
+## 3. APK / DEX: `android_native_workflow`, `droidasc`, `jadx`, `apktool`, `unidbg`, `bundletool`, `dex2jar`, `baksmali`, `scrcpy`, `aapt2`, `dexdump`
+
+```text
+android_native_workflow(action: "inspect", path: "<target.apk>")
+android_native_workflow(action: "plan", path: "<target.apk>")
+android_native_workflow(action: "extract", path: "<target.apk>", abi: "arm64-v8a")
+android_native_workflow(action: "status")
+```
 
 ```text
 droidasc(op: "manifest", target: "<target.apk>")
@@ -63,12 +73,18 @@ apktool d target.apk -o ./artifacts/apk_src
 apktool b ./artifacts/apk_src -o ./artifacts/patched.apk
 aapt2 dump badging target.apk
 dexdump -d classes.dex
-```
+# unidbg: custom target Java harness must exist in project; obtain actual invocation from project
+bundletool build-apks --bundle=app.aab --output=app.apks --mode=universal
+d2j-dex2jar classes.dex -o classes.jar
+baksmali d classes.dex -o ./smali_out
+scrcpy -S
 
-- Prefer `droidasc` for instant single-class, class list, or xref queries against APK files; it degrades with structured notices. For raw `.dex` or `.aab`, use `dexdump` or `jadx`.
-- `jadx` needs `java`; `apktool` needs `java`.
-- Write all decoded trees and rebuilt APKs to `./artifacts/`.
-- Fallback order: `droidasc` -> `jadx` -> `apktool` smali -> `unzip`/`dexdump`.
+- Prefer `android_native_workflow` for native `.so` library inventory, ELF parsing, JNI symbol resolution, and workflow planning without external dependencies.
+- Prefer `droidasc` for instant single-class, class list, or xref queries against APK files; it degrades with structured notices. For raw `.dex` or `.aab`, use `dexdump`, `bundletool`, or `jadx`.
+- Use `unidbg` for host JVM ARM32/ARM64 CPU emulation. A custom target Java harness must exist in the project; obtain its actual invocation from the project (manual integration required; no standalone CLI binary exists).
+- `jadx`, `apktool`, `unidbg`, `bundletool`, `dex2jar`, and `baksmali` require `java`.
+- Write all decoded trees, extracted shared libraries, and rebuilt APKs to `./artifacts/`.
+- Fallback order: `android_native_workflow` / `droidasc` -> `jadx` -> `apktool` smali -> `unzip`/`dexdump` -> `unidbg`.
 
 ## 4. Dynamic instrumentation: `frida`, `adb`
 
@@ -85,7 +101,7 @@ adb_observe(action: "screencap", serial: "<serial>")
 
 ```bash
 frida-ps -U
-frida -U -l hook.js -f com.example.app --no-pause
+frida -U -l hook.js -f com.example.app
 adb devices
 adb logcat -s <TAG>
 ```
