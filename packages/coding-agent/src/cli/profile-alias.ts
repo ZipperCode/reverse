@@ -1,3 +1,4 @@
+import { APP_NAME } from "@rva/utils/dirs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { normalizeProfileName } from "@rva/utils/dirs";
@@ -24,10 +25,10 @@ export interface ProfileAliasProcessOptions {
 }
 
 const DEFAULT_ALIAS_COMMAND: ProfileAliasCommand = {
-	display: "omp",
-	posix: "omp",
-	fish: "omp",
-	powerShell: "omp",
+	display: APP_NAME,
+	posix: APP_NAME,
+	fish: APP_NAME,
+	powerShell: APP_NAME,
 };
 
 export interface ProfileAliasInstallOptions {
@@ -197,7 +198,7 @@ function normalizeShellName(
 export function resolveProfileAliasCommandFromProcess({
 	argv = process.argv,
 	cwd = process.cwd(),
-	compiled = process.env.RVA_COMPILED === "true",
+	compiled = process.env.REVERSE_COMPILED === "true" || process.env.RVA_COMPILED === "true",
 }: ProfileAliasProcessOptions = {}): ProfileAliasCommand {
 	if (compiled) return DEFAULT_ALIAS_COMMAND;
 

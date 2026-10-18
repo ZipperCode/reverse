@@ -1,0 +1,45 @@
+import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES } from "../../slash-commands/builtin-registry";
+import { getSkillSlashCommandName } from "../skills";
+export function getSessionSlashCommands(session) {
+    const out = [];
+    const runner = session.extensionRunner;
+    if (runner) {
+        for (const cmd of runner.getRegisteredCommands(BUILTIN_SLASH_COMMAND_RESERVED_NAMES)) {
+            out.push({
+                name: cmd.name,
+                description: cmd.description,
+                source: "extension",
+            });
+        }
+    }
+    for (const cmd of session.customCommands) {
+        out.push({
+            name: cmd.command.name,
+            description: cmd.command.description,
+            source: "prompt",
+            location: customCommandLocation(cmd.source),
+            path: cmd.resolvedPath,
+        });
+    }
+    if (session.skillsSettings?.enableSkillCommands) {
+        for (const skill of session.skills) {
+            out.push({
+                name: getSkillSlashCommandName(skill),
+                description: skill.description || undefined,
+                source: "skill",
+                path: skill.filePath,
+            });
+        }
+    }
+    return out;
+}
+function customCommandLocation(source) {
+    switch (source) {
+        case "user":
+            return "user";
+        case "project":
+            return "project";
+        case "bundled":
+            return undefined;
+    }
+}

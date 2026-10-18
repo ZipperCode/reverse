@@ -345,7 +345,7 @@ export async function learnFromEvidenceAndWorkflows(
 					? `category:${audit.category};previous_tool:${audit.previous_tool};installed_tool:${resumeInfo.installed_tool};strategy:${resumeInfo.strategy}`
 					: `category:${audit.category};previous_tool:${audit.previous_tool};fallback_tool:${audit.proposed_tool}`;
 				const guidance = isResume && resumeInfo
-					? `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), install '${resumeInfo.installed_tool}' via '${resumeInfo.setup_command || `rea setup reverse ${resumeInfo.installed_tool}`}' and resume (${resumeInfo.strategy}).`
+					? `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), install '${resumeInfo.installed_tool}' via '${resumeInfo.setup_command || `reverse setup reverse ${resumeInfo.installed_tool}`}' and resume (${resumeInfo.strategy}).`
 					: `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), fallback to '${audit.proposed_tool}' with params: ${proposedParamsStr}`;
 
 				const record: ReverseKnowledgeRecord = {

@@ -63,14 +63,14 @@ export function getExtraHelpText(): string {
   TYPESAFE_API_KEY           - TypeSafe System One judgments (auto thinking, unexpected-stop, AI staging, eval judge())
 
   ${chalk.dim("# Configuration")}
-  RVA_PROFILE                 - Named profile for isolated agent state (same as --profile)
+  REVERSE_PROFILE / RVA_PROFILE - Named profile for isolated agent state (same as --profile)
   Use \`${APP_NAME} --profile <name> --alias <command>\` to create a shell shortcut for a profile
-  RVA_CODING_AGENT_DIR        - Session storage directory (default: ~/${CONFIG_DIR_NAME}/agent)
-  RVA_PACKAGE_DIR             - Override package directory (for Nix/Guix store paths)
-  RVA_SMOL_MODEL              - Override smol/fast model (see --smol)
-  RVA_SLOW_MODEL              - Override slow/reasoning model (see --slow)
-  RVA_PLAN_MODEL              - Override planning model (see --plan)
-  RVA_NO_PTY                  - Disable PTY-based interactive bash execution
+  REVERSE_CODING_AGENT_DIR / RVA_CODING_AGENT_DIR - Session storage directory (default: ~/${CONFIG_DIR_NAME}/agent)
+  REVERSE_PACKAGE_DIR / RVA_PACKAGE_DIR - Override package directory (for Nix/Guix store paths)
+  REVERSE_SMOL_MODEL / RVA_SMOL_MODEL - Override smol/fast model (see --smol)
+  REVERSE_SLOW_MODEL / RVA_SLOW_MODEL - Override slow/reasoning model (see --slow)
+  REVERSE_PLAN_MODEL / RVA_PLAN_MODEL - Override planning model (see --plan)
+  REVERSE_NO_PTY / RVA_NO_PTY - Disable PTY-based interactive bash execution
   For complete environment variable reference, see:
   ${chalk.dim("docs/environment-variables.md")}
 ${chalk.bold("Available Tools (default-enabled unless noted):")}
@@ -94,6 +94,6 @@ ${chalk.bold("Plugin Options:")}
   --plugin-dir <path>        Load plugin from directory (repeatable)
 
 ${chalk.bold("Useful Commands:")}
-  omp agents unpack           - Export bundled subagents to ~/.omp/agent/agents (default)
-  omp agents unpack --project - Export bundled subagents to ./.omp/agents`;
+  ${APP_NAME} agents unpack           - Export bundled subagents to ~/${CONFIG_DIR_NAME}/agent/agents (default)
+  ${APP_NAME} agents unpack --project - Export bundled subagents to ./${CONFIG_DIR_NAME}/agents`;
 }

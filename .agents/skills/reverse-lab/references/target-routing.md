@@ -152,11 +152,11 @@ Before executing resource-heavy tools or disassemblers, evaluate required capabi
 
 4. **Structured Notice & Operator Setup Approval**:
    If deeper external analysis is required or the primary tool is absent from PATH:
-   - Present the structured notice with technical rationale (`why`), required host runtimes (`prerequisites`), client-vetted setup command (`rea setup reverse <tool-id>`), and post-install invocation syntax (`postInstallInvocation`).
+   - Present the structured notice with technical rationale (`why`), required host runtimes (`prerequisites`), client-vetted setup command (`reverse setup reverse <tool-id>`), and post-install invocation syntax (`postInstallInvocation`).
    - Request explicit operator approval before executing any setup command.
 
 5. **Setup Execution & Post-Install Re-Resolution**:
-   - Upon operator approval, the operator executes `rea setup reverse <tool-id>`.
+   - Upon operator approval, the operator executes `reverse setup reverse <tool-id>`.
    - Immediately re-resolve capability status with refresh enabled:
      ```json
      reverse_capability({ action: "resolve", capability: "<capability_id>", refresh: true })

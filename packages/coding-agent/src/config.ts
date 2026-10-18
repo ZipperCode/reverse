@@ -55,7 +55,7 @@ export function walkUpForPackageDir(startDir: string): string | undefined {
  * project's `CHANGELOG.md` rendered as omp's startup changelog).
  */
 export function getPackageDir(): string | undefined {
-	const envDir = process.env.RVA_PACKAGE_DIR || process.env.PI_PACKAGE_DIR;
+	const envDir = process.env.REVERSE_PACKAGE_DIR || process.env.RVA_PACKAGE_DIR || process.env.PI_PACKAGE_DIR;
 	if (envDir) {
 		return expandTilde(envDir);
 	}

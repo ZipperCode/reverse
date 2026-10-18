@@ -1,15 +1,15 @@
 # Tool Fallback & Graceful Degradation Guide
 
-This reference defines the degradation ladders, tool detection mechanisms, and installation hints for the `reverse-lab` toolchain. When an advanced analysis tool is unavailable, `rea` degrades smoothly to available alternatives without blocking progress.
+This reference defines the degradation ladders, tool detection mechanisms, and installation hints for the `reverse-lab` toolchain. When an advanced analysis tool is unavailable, `reverse` degrades smoothly to available alternatives without blocking progress.
 
 ---
 
 ## 1. Degradation Principles
 
 1. **Zero-Friction When Ready**: If the primary tool is installed, proceed silently without prompting or emitting environment checks.
-2. **Discover Before Stop / Install Then Dispatch**: When an investigative step requires specialized capabilities or an external engine is absent from PATH, never halt or abort. Query the capability state via `reverse_capability({ action: "resolve", capability: "<id>" })`. Check the recommended native tool first; if an optional external tool is needed, present the structured notice with technical justification, prerequisites, trusted setup command (`rea setup reverse <tool>`), and post-install invocation. After the operator runs setup, re-resolve with `refresh: true`, dispatch immediately, and record the outcome or active fallback in `reverse_workflow`.
-3. **Setup Integrity & Controlled Execution**: Only execute client-vetted installation recipes via `rea setup reverse <tool>` after explicit user confirmation. Arbitrary shell commands, uncontrolled package scripts, or untrusted network downloads remain strictly prohibited.
-4. **Maintain Continuous Progress**: Basic POSIX utilities (`strings`, `file`, `unzip`, `hexdump`, `grep`, `xxd`) and rea native built-ins can always extract actionable ground truth from manifests, headers, and code without external dependencies.
+2. **Discover Before Stop / Install Then Dispatch**: When an investigative step requires specialized capabilities or an external engine is absent from PATH, never halt or abort. Query the capability state via `reverse_capability({ action: "resolve", capability: "<id>" })`. Check the recommended native tool first; if an optional external tool is needed, present the structured notice with technical justification, prerequisites, trusted setup command (`reverse setup reverse <tool>`), and post-install invocation. After the operator runs setup, re-resolve with `refresh: true`, dispatch immediately, and record the outcome or active fallback in `reverse_workflow`.
+3. **Setup Integrity & Controlled Execution**: Only execute client-vetted installation recipes via `reverse setup reverse <tool>` after explicit user confirmation. Arbitrary shell commands, uncontrolled package scripts, or untrusted network downloads remain strictly prohibited.
+4. **Maintain Continuous Progress**: Basic POSIX utilities (`strings`, `file`, `unzip`, `hexdump`, `grep`, `xxd`) and reverse native built-ins can always extract actionable ground truth from manifests, headers, and code without external dependencies.
 
 ## 2. Tool Degradation Matrix
 
@@ -60,7 +60,7 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
 
 - **`unidbg`** (Host JVM ARM32/ARM64 CPU emulation & JNI invoker):
   - Requires `java` (JRE 17+ recommended)
-  - Install / Setup: `rea setup reverse unidbg`
+  - Install / Setup: `reverse setup reverse unidbg`
   - Invocation: Custom target Java harness (must exist in project; obtain actual invocation from project; no standalone CLI binary exists)
   - Fallback: `android_native_workflow` library inspection + `ghidra_inspect` / `r2_inspect` static analysis.
 ### 2. Native Binary Toolchain
@@ -77,7 +77,7 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
   - Windows: `choco install radare2`
 - **`ida`** (IDA Pro with `idalib`):
   - Commercial engine; install IDA Pro, then configure `ida.installDir` in settings or set `IDADIR` environment variable.
-  - Automatically verified via rea's native `locateIdaInstall`. When absent, fallback directly to `radare2`.
+  - Automatically verified via reverse's native `locateIdaInstall`. When absent, fallback directly to `radare2`.
 ### 3. Web & WASM Toolchain
 - **Native built-ins**: `ast_grep`, `wasm_inspect`, `javascript_application`, `sourcemap_inspect`, and `js_hook_preset` require no installation.
   - Use `sourcemap_inspect` for zero-prep inspection of `.map` files or inline `sourceMappingURL`, VLQ coordinate lookup, and recovering original source trees.
@@ -105,7 +105,7 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
   - Windows: `winget install SQLite.SQLite`
 
 - **`mitmproxy`** (`mitmdump` / `mitmweb` HTTPS & WebSocket interception proxy):
-  - macOS: `brew install mitmproxy` (or `rea setup reverse mitmproxy`)
+  - macOS: `brew install mitmproxy` (or `reverse setup reverse mitmproxy`)
   - Linux: `apt install mitmproxy` (or `pipx install mitmproxy`)
   - Windows: `choco install mitmproxy` (or `winget install mitmproxy.mitmproxy`)
   - Invocation: `mitmdump -p 8080 -w ./artifacts/flows.mitm`
@@ -154,7 +154,7 @@ When an analytical step requires tools that may not be installed or configured, 
                       ┌──────────────────────────────┴──────────────────────────────┐
                       ▼ (Operator Approves)                                         ▼ (Operator Declines / Prereq Missing)
 [4. User Executes Setup]                                                    [7. Engage Active Fallback Tool]
-  (`rea setup reverse <id>`)                                                   (Run next ladder tier)
+  (`reverse setup reverse <id>`)                                                   (Run next ladder tier)
                       │                                                             │
                       ▼                                                             ▼
 [5. Re-Resolve Capability]                                                  [8. Record Fallback in Workflow]
@@ -203,7 +203,7 @@ When an analytical step requires tools that may not be installed or configured, 
    Prompt the user for confirmation to run the trusted setup command.
 
 4. **Step 4: User Executes Setup Command**:
-   The operator executes the setup command (`rea setup reverse <tool_id>`).
+   The operator executes the setup command (`reverse setup reverse <tool_id>`).
 
 5. **Step 5: Re-Resolve Capability Post-Install**:
    Verify tool readiness by querying with `refresh: true`:
@@ -259,11 +259,11 @@ When an analytical step requires tools that may not be installed or configured, 
     -> Recommended tool: 'unidbg' (Status: missing)
     -> Why: Simulates Dalvik/ART JVM runtime and Linux ARM CPU environment to execute exported or obfuscated JNI native methods directly from local .so binaries
     -> Prerequisites: java (JRE 17+ recommended)
-    -> Trusted setup: rea setup reverse unidbg (Requires operator approval)
+    -> Trusted setup: reverse setup reverse unidbg (Requires operator approval)
     -> Post-install invocation: Custom target Java harness (must exist in project; obtain actual invocation from project)
     -> Fallback if declined: 'android_native_workflow' + 'r2_inspect' static disassembly
   ```
-- **Step 4 (Setup)**: User executes `rea setup reverse unidbg`.
+- **Step 4 (Setup)**: User executes `reverse setup reverse unidbg`.
 - **Step 5 (Re-resolve)**:
   ```json
   reverse_capability({ action: "resolve", capability: "android_native_emulation", refresh: true })
@@ -311,11 +311,11 @@ When an analytical step requires tools that may not be installed or configured, 
     -> Recommended tool: 'jadx' (Status: missing)
     -> Why: Transforms opaque binary APK packages and optimized DEX files into structured project trees and intelligible Java source code
     -> Prerequisites: java
-    -> Trusted setup: rea setup reverse jadx (macOS: brew install jadx)
+    -> Trusted setup: reverse setup reverse jadx (macOS: brew install jadx)
     -> Post-install invocation: jadx -d ./artifacts/jadx_out --single-class com.example.AuthService target.apk
     -> Fallback if declined: 'droidasc' (on-demand DEX class query) / 'android_package_inspect'
   ```
-- **Step 4 (Setup)**: User executes `rea setup reverse jadx`.
+- **Step 4 (Setup)**: User executes `reverse setup reverse jadx`.
 - **Step 5 (Re-resolve)**:
   ```json
   reverse_capability({ action: "resolve", capability: "apk_unpacking", refresh: true })
@@ -362,8 +362,8 @@ When an analytical step requires tools that may not be installed or configured, 
     -> Recommended tool: 'playwright-mcp' (Status: missing)
     -> Why: Enables runtime inspection of complex minified JavaScript code, single-page application state, and dynamic crypto/signature generation
     -> Prerequisites: node
-    -> Trusted setup: rea setup reverse playwright-mcp (Requires operator approval)
-    -> Post-install invocation: configure .rva/mcp.json playwright entry or launch browser_reverse_session
+    -> Trusted setup: reverse setup reverse playwright-mcp (Requires operator approval)
+    -> Post-install invocation: configure .reverse/mcp.json playwright entry or launch browser_reverse_session
     -> Fallback if declined: 'browser_reverse_session' (native CDP)
   ```
 - **Step 4 (Setup)**: User executes setup or opts for native session.
@@ -401,11 +401,11 @@ When an analytical step requires tools that may not be installed or configured, 
     -> Recommended tool: 'radare2' (Status: missing)
     -> Why: Analyzes packing routines, anti-debugging mechanisms, runtime decryption keys, and dynamically generated control flow
     -> Prerequisites: none
-    -> Trusted setup: rea setup reverse radare2 (macOS: brew install radare2)
+    -> Trusted setup: reverse setup reverse radare2 (macOS: brew install radare2)
     -> Post-install invocation: r2 -d <binary_path> or query via r2_inspect(action: "decompile")
     -> Fallback if declined: 'triage' + 'objdump -d' / POSIX 'strings'
   ```
-- **Step 4 (Setup)**: User executes `rea setup reverse radare2`.
+- **Step 4 (Setup)**: User executes `reverse setup reverse radare2`.
 - **Step 5 (Re-resolve)**:
   ```json
   reverse_capability({ action: "resolve", capability: "native_debugger", refresh: true })

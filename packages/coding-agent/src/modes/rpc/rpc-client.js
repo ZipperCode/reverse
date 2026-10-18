@@ -1,0 +1,1420 @@
+/**
+ * RPC Client for programmatic access to the coding agent.
+ *
+ * Spawns the agent in RPC mode and provides a typed API for all operations.
+ */
+import { isPromise } from "node:util/types";
+import { isRecord, ptree, readJsonl } from "@rva/utils";
+import { MAX_RPC_FRAME_BYTES, MAX_RPC_REASSEMBLED_BYTES, RpcFrameDecoder } from "./rpc-frame";
+import { RPC_MESSAGES_PAGE_BUSY_ERROR, RPC_MESSAGES_PAGE_STALE_ERROR, } from "./rpc-messages";
+export function defineRpcClientTool(tool) {
+    return tool;
+}
+const agentEventTypes = new Set([
+    "agent_start",
+    "agent_end",
+    "turn_start",
+    "turn_end",
+    "message_start",
+    "message_update",
+    "message_end",
+    "tool_execution_start",
+    "tool_execution_update",
+    "tool_stream_update",
+    "tool_execution_end",
+]);
+const sessionEventTypes = new Set([
+    ...agentEventTypes,
+    "auto_compaction_start",
+    "auto_compaction_end",
+    "auto_retry_start",
+    "auto_retry_end",
+    "cache_warming_start",
+    "cache_warming_end",
+    "retry_fallback_applied",
+    "retry_fallback_succeeded",
+    "ttsr_triggered",
+    "todo_reminder",
+    "todo_auto_clear",
+    "irc_message",
+    "notice",
+    "thinking_level_changed",
+    "model_changed",
+    "goal_updated",
+    "queue_update",
+]);
+function isRpcResponse(value) {
+    if (!isRecord(value))
+        return false;
+    if (value.type !== "response")
+        return false;
+    if (typeof value.command !== "string")
+        return false;
+    if (typeof value.success !== "boolean")
+        return false;
+    if (value.id !== undefined && typeof value.id !== "string")
+        return false;
+    if (value.success === false) {
+        return typeof value.error === "string";
+    }
+    return true;
+}
+function supportsRpcProtocolV2(value) {
+    return (value.type === "ready" &&
+        Array.isArray(value.supportedProtocolVersions) &&
+        value.supportedProtocolVersions.includes(2) &&
+        value.maxFrameBytes === MAX_RPC_FRAME_BYTES &&
+        value.maxReassembledFrameBytes === MAX_RPC_REASSEMBLED_BYTES);
+}
+function isAgentEvent(value) {
+    if (!isRecord(value))
+        return false;
+    const type = value.type;
+    if (typeof type !== "string")
+        return false;
+    return agentEventTypes.has(type);
+}
+function isAgentSessionEvent(value) {
+    if (!isRecord(value))
+        return false;
+    const type = value.type;
+    if (typeof type !== "string")
+        return false;
+    return sessionEventTypes.has(type);
+}
+function isRpcSubagentLifecycleFrame(value) {
+    if (!isRecord(value))
+        return false;
+    return value.type === "subagent_lifecycle" && isRecord(value.payload);
+}
+function isRpcSubagentProgressFrame(value) {
+    if (!isRecord(value))
+        return false;
+    return value.type === "subagent_progress" && isRecord(value.payload);
+}
+function isRpcSubagentEventFrame(value) {
+    if (!isRecord(value))
+        return false;
+    return value.type === "subagent_event" && isRecord(value.payload);
+}
+function isRpcPromptResultFrame(value) {
+    if (!isRecord(value))
+        return false;
+    return value.type === "prompt_result" && typeof value.agentInvoked === "boolean";
+}
+function isRpcSessionSettledFrame(value) {
+    return isRecord(value) && value.type === "session_settled";
+}
+const LIVE_FRAME_TYPES = {
+    live_phase: true,
+    live_levels: true,
+    live_transcript: true,
+    live_end: true,
+};
+function isRpcLiveFrame(value) {
+    return isRecord(value) && typeof value.type === "string" && Object.hasOwn(LIVE_FRAME_TYPES, value.type);
+}
+function isRpcAvailableCommandsUpdateFrame(value) {
+    if (!isRecord(value))
+        return false;
+    return value.type === "available_commands_update" && Array.isArray(value.commands);
+}
+function isRpcBtwDeltaFrame(value) {
+    return (isRecord(value) &&
+        value.type === "btw_delta" &&
+        typeof value.recordId === "string" &&
+        typeof value.delta === "string");
+}
+function isRpcBtwRecordFrame(value) {
+    return isRecord(value) && value.type === "btw_record" && isRecord(value.record);
+}
+function isRpcHostToolCallRequest(value) {
+    if (!isRecord(value))
+        return false;
+    return (value.type === "host_tool_call" &&
+        typeof value.id === "string" &&
+        typeof value.toolCallId === "string" &&
+        typeof value.toolName === "string" &&
+        isRecord(value.arguments));
+}
+function isRpcHostToolCancelRequest(value) {
+    if (!isRecord(value))
+        return false;
+    return value.type === "host_tool_cancel" && typeof value.id === "string" && typeof value.targetId === "string";
+}
+function isRpcExtensionUiRequest(value) {
+    if (!isRecord(value))
+        return false;
+    return value.type === "extension_ui_request" && typeof value.id === "string" && typeof value.method === "string";
+}
+function normalizeToolResult(result) {
+    if (typeof result === "string") {
+        return {
+            content: [{ type: "text", text: result }],
+        };
+    }
+    return result;
+}
+/** Failed RPC command; `code` mirrors the server's machine-readable error code when present. */
+export class RpcCommandError extends Error {
+    command;
+    code;
+    constructor(message, command, code) {
+        super(message);
+        this.command = command;
+        this.code = code;
+        this.name = "RpcCommandError";
+    }
+}
+/** True when a high-level `getMessages()` drain should discard partial pages and fall back to `get_messages`. */
+function isPageFallbackError(error) {
+    if (!(error instanceof Error))
+        return false;
+    if (error instanceof RpcCommandError && (error.code === "session_busy" || error.code === "stale_cursor"))
+        return true;
+    return error.message === RPC_MESSAGES_PAGE_BUSY_ERROR || error.message === RPC_MESSAGES_PAGE_STALE_ERROR;
+}
+// ============================================================================
+// RPC Client
+// ============================================================================
+export class RpcClient {
+    options;
+    #process = null;
+    #reaping = null;
+    #eventListeners = [];
+    #sessionEventListeners = [];
+    #subagentLifecycleListeners = new Set();
+    #subagentProgressListeners = new Set();
+    #subagentEventListeners = new Set();
+    #availableCommandsUpdateListeners = new Set();
+    #btwDeltaListeners = new Set();
+    #btwRecordListeners = new Set();
+    #promptResultListeners = new Set();
+    #sessionSettledListeners = new Set();
+    #liveListeners = new Set();
+    /** `promptAndWait` completions keyed by request id; registered before the prompt is sent. */
+    #promptResultWaiters = new Map();
+    /** Same-id failures that arrive after the success ack removed the pending request. */
+    #promptErrorWaiters = new Map();
+    #pendingRequests = new Map();
+    #customTools = [];
+    #pendingHostToolCalls = new Map();
+    #requestId = 0;
+    #protocolVersion = 1;
+    #extensionUiListeners = new Set();
+    #abortController = new AbortController();
+    constructor(options = {}) {
+        this.options = options;
+        this.#customTools = [...(options.customTools ?? [])];
+    }
+    /**
+     * Start the RPC agent process.
+     *
+     * Safe to call again after {@link stop} on the same instance: a fresh
+     * {@link AbortController} is minted for each start, and any failure after
+     * the child spawn kills the child and clears internal state so callers may
+     * retry without leaking processes.
+     */
+    async start() {
+        await this.#reaping;
+        if (this.#process) {
+            throw new Error("Client already started");
+        }
+        // Mint a fresh controller so a previous stop()'s abort does not
+        // short-circuit the new stdout reader (issue #4079).
+        this.#abortController = new AbortController();
+        this.#protocolVersion = 1;
+        const cliPath = this.options.cliPath ?? "dist/cli.js";
+        const args = ["--mode", "rpc"];
+        if (this.options.provider) {
+            args.push("--provider", this.options.provider);
+        }
+        if (this.options.model) {
+            args.push("--model", this.options.model);
+        }
+        if (this.options.sessionDir) {
+            args.push("--session-dir", this.options.sessionDir);
+        }
+        if (this.options.args) {
+            args.push(...this.options.args);
+        }
+        const child = this.options.spawn
+            ? await this.options.spawn(args)
+            : ptree.spawn(typeof this.options.command === "function"
+                ? this.options.command(args)
+                : [...(this.options.command ?? ["bun", cliPath]), ...args], {
+                cwd: this.options.cwd,
+                env: { ...Bun.env, ...this.options.env },
+                stdin: "pipe",
+            });
+        this.#process = child;
+        // Wait for the "ready" signal or process exit
+        const { promise: readyPromise, resolve: readyResolve, reject: readyReject } = Promise.withResolvers();
+        let readySettled = false;
+        let protocolV2Supported = false;
+        let protocolV2Enabled = false;
+        const frameDecoder = new RpcFrameDecoder();
+        const reapAfterOutputFailure = async (error) => {
+            if (this.#process !== child)
+                return;
+            this.#process = null;
+            this.#abortController.abort(error);
+            const pendingRequests = Array.from(this.#pendingRequests.values());
+            this.#pendingRequests.clear();
+            for (const pendingCall of this.#pendingHostToolCalls.values())
+                pendingCall.controller.abort(error);
+            this.#pendingHostToolCalls.clear();
+            try {
+                child.kill(undefined, this.options.terminationGraceMs);
+            }
+            catch {
+                // The process may already have exited.
+            }
+            await this.#waitForExit(child);
+            for (const request of pendingRequests)
+                request.reject(error);
+        };
+        // Process lines in background, intercepting the ready signal.
+        const lines = readJsonl(child.stdout, this.#abortController.signal);
+        void (async () => {
+            for await (const line of lines) {
+                if (!readySettled && isRecord(line) && line.type === "ready") {
+                    protocolV2Supported = supportsRpcProtocolV2(line);
+                    readySettled = true;
+                    readyResolve();
+                    continue;
+                }
+                if (isRecord(line) && line.type === "rpc_chunk" && !protocolV2Enabled)
+                    throw new Error("RPC chunk received before protocol negotiation");
+                const decoded = frameDecoder.push(line);
+                if (decoded)
+                    this.#handleLine(decoded);
+            }
+            // A closed stdout is terminal even if the child remains alive. Startup
+            // failures are reaped by the readyPromise catch below; established
+            // workers are reaped here so pending requests cannot hang indefinitely.
+            if (!readySettled) {
+                // Stdout can close before the exit reaper finishes draining stderr.
+                // child.exited settles only after the stderr tail is complete (for
+                // nonzero exits), so give it a bounded head start: the exit watcher
+                // below was registered first and rejects with the real stderr text
+                // instead of an empty "Stderr:" (flaked under full-suite load).
+                await Promise.race([child.exited.catch(() => { }), Bun.sleep(250)]);
+                if (readySettled)
+                    return;
+                readySettled = true;
+                readyReject(new Error(`Agent output stream ended before ready. Stderr: ${child.peekStderr()}`));
+                return;
+            }
+            const exitResult = await Promise.race([
+                child.exited.then(exitCode => ({ exitCode }), cause => ({ cause })),
+                Bun.sleep(100).then(() => null),
+            ]);
+            const error = exitResult === null
+                ? new Error(`Agent output stream ended unexpectedly. Stderr: ${child.peekStderr()}`)
+                : "exitCode" in exitResult
+                    ? new Error(`Agent process exited with code ${exitResult.exitCode}. Stderr: ${child.peekStderr()}`)
+                    : new Error(`Agent output stream ended. Stderr: ${child.peekStderr()}`, {
+                        cause: exitResult.cause,
+                    });
+            await reapAfterOutputFailure(error);
+        })().catch(async (cause) => {
+            const error = cause instanceof Error ? cause : new Error(String(cause));
+            if (!readySettled) {
+                readySettled = true;
+                readyReject(error);
+                return;
+            }
+            await reapAfterOutputFailure(new Error(`Agent output reader failed: ${error.message}`, { cause: error }));
+        });
+        // Also race against process exit (in case stdout closes before we read it)
+        void child.exited.then((exitCode) => {
+            if (readySettled)
+                return;
+            readySettled = true;
+            readyReject(new Error(`Agent process exited with code ${exitCode}. Stderr: ${child.peekStderr()}`));
+        }, (err) => {
+            // Killed or reaped without an exit code (e.g. stop() during
+            // startup); surface it instead of leaking an unhandled rejection.
+            if (readySettled)
+                return;
+            readySettled = true;
+            readyReject(new Error(`Agent process exited before ready. Stderr: ${child.peekStderr()}`, { cause: err }));
+        });
+        // Timeout to prevent hanging forever
+        const readyTimeout = this.#startTimeout(30000, () => {
+            if (readySettled)
+                return;
+            readySettled = true;
+            readyReject(new Error(`Timeout waiting for agent to become ready. Stderr: ${child.peekStderr()}`));
+        });
+        try {
+            await readyPromise;
+            if (protocolV2Supported) {
+                protocolV2Enabled = true;
+                const response = await this.#send({ type: "negotiate_protocol", protocolVersion: 2 });
+                if (!response.success ||
+                    response.command !== "negotiate_protocol" ||
+                    !isRecord(response.data) ||
+                    response.data.protocolVersion !== 2)
+                    throw new Error("RPC protocol v2 negotiation failed");
+                this.#protocolVersion = 2;
+            }
+            if (this.#customTools.length > 0) {
+                await this.setCustomTools(this.#customTools);
+            }
+        }
+        catch (cause) {
+            // Startup failed after spawning the child. Reap it before returning
+            // so a retry cannot inherit a live worker or its session lock.
+            const error = cause instanceof Error ? cause : new Error(String(cause));
+            await reapAfterOutputFailure(error);
+            throw cause;
+        }
+        finally {
+            clearTimeout(readyTimeout);
+        }
+    }
+    /**
+     * Stop the RPC agent process.
+     */
+    stop() {
+        if (!this.#process)
+            return this.#reaping ?? Promise.resolve();
+        const error = new Error("Client stopped");
+        const child = this.#process;
+        try {
+            child.kill(undefined, this.options.terminationGraceMs);
+        }
+        catch {
+            // The process may already have exited; client state below must still be cleared.
+        }
+        this.#abortController.abort(error);
+        this.#process = null;
+        for (const request of this.#pendingRequests.values())
+            request.reject(error);
+        this.#pendingRequests.clear();
+        for (const pendingCall of this.#pendingHostToolCalls.values()) {
+            pendingCall.controller.abort(error);
+        }
+        this.#pendingHostToolCalls.clear();
+        return this.#waitForExit(child);
+    }
+    /**
+     * Stop the RPC agent process and clean up resources.
+     */
+    [Symbol.dispose]() {
+        void this.stop();
+    }
+    #waitForExit(child) {
+        const reaping = child.exited.then(() => { }, () => { });
+        this.#reaping = reaping;
+        void reaping.then(() => {
+            if (this.#reaping === reaping)
+                this.#reaping = null;
+        });
+        return reaping;
+    }
+    /**
+     * Subscribe to agent events.
+     */
+    onEvent(listener) {
+        this.#eventListeners.push(listener);
+        return () => {
+            const index = this.#eventListeners.indexOf(listener);
+            if (index !== -1) {
+                this.#eventListeners.splice(index, 1);
+            }
+        };
+    }
+    /**
+     * Subscribe to all top-level session events, including non-core session state events.
+     */
+    onSessionEvent(listener) {
+        this.#sessionEventListeners.push(listener);
+        return () => {
+            const index = this.#sessionEventListeners.indexOf(listener);
+            if (index !== -1) {
+                this.#sessionEventListeners.splice(index, 1);
+            }
+        };
+    }
+    /**
+     * Subscribe to subagent lifecycle frames after setSubagentSubscription("progress" | "events").
+     */
+    onSubagentLifecycle(listener) {
+        this.#subagentLifecycleListeners.add(listener);
+        return () => this.#subagentLifecycleListeners.delete(listener);
+    }
+    /**
+     * Subscribe to aggregated subagent progress frames after setSubagentSubscription("progress" | "events").
+     */
+    onSubagentProgress(listener) {
+        this.#subagentProgressListeners.add(listener);
+        return () => this.#subagentProgressListeners.delete(listener);
+    }
+    /**
+     * Subscribe to raw subagent session events. Call setSubagentSubscription(\"events\") to enable them server-side.
+     */
+    onSubagentEvent(listener) {
+        this.#subagentEventListeners.add(listener);
+        return () => this.#subagentEventListeners.delete(listener);
+    }
+    /**
+     * Subscribe to slash-command availability updates emitted by the RPC server.
+     */
+    onAvailableCommandsUpdate(listener) {
+        this.#availableCommandsUpdateListeners.add(listener);
+        return () => this.#availableCommandsUpdateListeners.delete(listener);
+    }
+    /** Subscribe to `btw_delta` frames: text appended to the running side question's answer. */
+    onBtwDelta(listener) {
+        this.#btwDeltaListeners.add(listener);
+        return () => this.#btwDeltaListeners.delete(listener);
+    }
+    /** Subscribe to `btw_record` frames: a side question's full record on every lifecycle change. */
+    onBtwRecord(listener) {
+        this.#btwRecordListeners.add(listener);
+        return () => this.#btwRecordListeners.delete(listener);
+    }
+    /** Subscribe to `prompt_result` frames: the terminal outcome of each prompt, correlated by request id. */
+    onPromptResult(listener) {
+        this.#promptResultListeners.add(listener);
+        return () => {
+            this.#promptResultListeners.delete(listener);
+        };
+    }
+    /**
+     * Subscribe to `session_settled`: the session is done — the agent yielded and no
+     * background work remains that could inject messages and wake it again.
+     */
+    onSessionSettled(listener) {
+        this.#sessionSettledListeners.add(listener);
+        return () => {
+            this.#sessionSettledListeners.delete(listener);
+        };
+    }
+    /** Subscribe to live voice frames: `live_phase`, `live_levels`, `live_transcript`, `live_end`. */
+    onLive(listener) {
+        this.#liveListeners.add(listener);
+        return () => {
+            this.#liveListeners.delete(listener);
+        };
+    }
+    /**
+     * Get collected stderr output (useful for debugging).
+     */
+    getStderr() {
+        return this.#process?.peekStderr() ?? "";
+    }
+    #startTimeout(timeoutMs, onTimeout) {
+        const timer = setTimeout(onTimeout, timeoutMs);
+        timer.unref();
+        return timer;
+    }
+    // =========================================================================
+    // Command Methods
+    // =========================================================================
+    /**
+     * Send a prompt to the agent.
+     * Returns the request id once the message is admitted (dispatched, queued via
+     * `streamingBehavior` while the agent is busy, or routed to an extension command);
+     * use onEvent() to receive streaming events and onPromptResult() to observe its
+     * completion under that id.
+     */
+    async prompt(message, images, streamingBehavior) {
+        const response = await this.#send({ type: "prompt", message, images, streamingBehavior });
+        this.#getData(response);
+        return response.id ?? "";
+    }
+    /**
+     * Queue a steering message to interrupt the agent mid-run.
+     */
+    async steer(message, images) {
+        await this.#send({ type: "steer", message, images });
+    }
+    /**
+     * Queue a follow-up message to be processed after the agent finishes.
+     */
+    async followUp(message, images) {
+        await this.#send({ type: "follow_up", message, images });
+    }
+    /**
+     * Remove the first matching user message and its companions from one pending queue.
+     * A removed message's images are returned for restoring it to an editor.
+     */
+    async removeQueuedMessage(message, queue) {
+        const response = await this.#send({ type: "remove_queued_message", message, queue });
+        return this.#getData(response);
+    }
+    /**
+     * Move the first matching queued follow-up into steering.
+     * A missing target returns false; retrying may promote another occurrence.
+     */
+    async promoteQueuedMessage(message) {
+        const response = await this.#send({ type: "promote_queued_message", message });
+        return this.#getData(response);
+    }
+    /**
+     * Abort current operation.
+     */
+    async abort() {
+        await this.#send({ type: "abort" });
+    }
+    /**
+     * Abort current operation and immediately start a new turn with the given message.
+     */
+    async abortAndPrompt(message, images) {
+        await this.#send({ type: "abort_and_prompt", message, images });
+    }
+    /**
+     * Withdraw queued user steering/follow-up messages, then abort (the TUI Esc path).
+     * Returns the withdrawn messages so the caller can restore them to its editor.
+     */
+    async abortAndRestoreQueue() {
+        const response = await this.#send({ type: "abort_and_restore_queue" });
+        return this.#getData(response);
+    }
+    /**
+     * Continue the newest session in `sessionDir`, or start a fresh one there.
+     * Lets a pre-spawned process bind to a host-keyed conversation. With `model`,
+     * the session uses it instead of its saved model; otherwise a saved model that
+     * cannot be restored rejects with `Could not restore model <provider/id>`.
+     */
+    async openSession(sessionDir, model) {
+        const response = await this.#send({ type: "open_session", sessionDir, ...model });
+        return this.#getData(response);
+    }
+    /**
+     * Forward only the listed session event types (`null` forwards all).
+     * Responses, prompt results, and UI/host frames are never filtered.
+     */
+    async setEventFilter(events) {
+        const response = await this.#send({ type: "set_event_filter", events });
+        return this.#getData(response).events;
+    }
+    /**
+     * Start a new session, optionally with parent tracking.
+     * @param parentSession - Optional parent session path for lineage tracking
+     * @returns Object with `cancelled: true` if an extension cancelled the new session
+     */
+    async newSession(parentSession) {
+        const response = await this.#send({ type: "new_session", parentSession });
+        return this.#getData(response);
+    }
+    /**
+     * Get current session state.
+     */
+    async getState() {
+        const response = await this.#send({ type: "get_state" });
+        const state = this.#getData(response);
+        return {
+            ...state,
+            fastModeEnabled: state.fastModeEnabled === true,
+            fastModeActive: state.fastModeActive === true,
+            slowModeSupported: state.slowModeSupported === true,
+            slowModeEnabled: state.slowModeEnabled === true,
+            goal: state.goal ?? null,
+            tokensPerSecond: typeof state.tokensPerSecond === "number" && Number.isFinite(state.tokensPerSecond)
+                ? state.tokensPerSecond
+                : null,
+        };
+    }
+    /**
+     * Enable or disable fast mode for the active model family.
+     */
+    async setFastMode(enabled) {
+        const response = await this.#send({ type: "set_fast_mode", enabled });
+        return this.#getData(response);
+    }
+    /**
+     * Enable or disable `/slow` for the active model: the flex tier for this
+     * session on OpenAI/Google, or the persisted Claude low-priority setting
+     * (`providers.anthropic.slowMode`) on Anthropic.
+     */
+    async setSlowMode(enabled) {
+        const response = await this.#send({ type: "set_slow_mode", enabled });
+        return this.#getData(response).enabled;
+    }
+    /**
+     * Read or change goal mode. `get` never mutates or starts a turn; `create`/`resume`
+     * start a turn only when the server enables `goal.continuationModes: ["rpc"]`.
+     */
+    async goal(op, options) {
+        const response = await this.#send({
+            type: "goal",
+            op,
+            objective: options?.objective,
+            token_budget: options?.tokenBudget,
+        });
+        return this.#getData(response);
+    }
+    /**
+     * Start a GPT live voice session bound to this session; resolves once it is connected
+     * and recording. `instructions` replaces the bundled live prompt (Handlebars:
+     * `{{username}}`, `{{firstName}}`). Frames arrive through {@link onLive}.
+     */
+    async liveStart(options) {
+        const response = await this.#send({
+            type: "live_start",
+            voice: options?.voice,
+            instructions: options?.instructions,
+        });
+        return this.#getData(response);
+    }
+    /** Stop the live voice session, if any; resolves once it has stopped. */
+    async liveStop() {
+        const response = await this.#send({ type: "live_stop" });
+        this.#getData(response);
+    }
+    /** Set microphone mute, or toggle it when `muted` is omitted. Fails without an active session. */
+    async liveMute(muted) {
+        const response = await this.#send({ type: "live_mute", muted });
+        return this.#getData(response);
+    }
+    /**
+     * Configure subagent frames emitted by the RPC server. Servers default to "off".
+     * "progress" emits lifecycle/progress frames; "events" additionally emits raw subagent session events.
+     */
+    async setSubagentSubscription(level) {
+        const response = await this.#send({ type: "set_subagent_subscription", level });
+        return this.#getData(response).level;
+    }
+    /**
+     * Return the RPC server's current subagent snapshot.
+     */
+    async getSubagents() {
+        const response = await this.#send({ type: "get_subagents" });
+        return this.#getData(response).subagents;
+    }
+    /**
+     * Read persisted transcript entries for a tracked subagent session.
+     */
+    async getSubagentMessages(selector) {
+        const response = await this.#send({
+            type: "get_subagent_messages",
+            subagentId: selector.subagentId,
+            sessionFile: selector.sessionFile,
+            fromByte: selector.fromByte,
+        });
+        return this.#getData(response);
+    }
+    /**
+     * Cancel one running subagent (foreground or background) without aborting
+     * the session. Resolves `false` when the subagent is unknown or already
+     * finished.
+     */
+    async cancelSubagent(subagentId) {
+        const response = await this.#send({ type: "cancel_subagent", subagentId });
+        return this.#getData(response).cancelled;
+    }
+    /**
+     * Send a message to a running subagent as its user, the same way Agent Hub
+     * chat does: a mid-turn subagent is steered at its next step boundary and one
+     * between turns starts its next turn. Resolves once the message is queued or
+     * the subagent's turn starts; rejects when the subagent is not running or the
+     * message is dropped or refused before that.
+     */
+    async steerSubagent(subagentId, message) {
+        this.#getData(await this.#send({ type: "steer_subagent", subagentId, message }));
+    }
+    /**
+     * Set model by provider and ID.
+     */
+    async setModel(provider, modelId) {
+        const response = await this.#send({ type: "set_model", provider, modelId });
+        return this.#getData(response);
+    }
+    /**
+     * Cycle to next model.
+     */
+    async cycleModel() {
+        const response = await this.#send({ type: "cycle_model" });
+        return this.#getData(response);
+    }
+    /**
+     * Get list of available models.
+     */
+    async getAvailableModels() {
+        const response = await this.#send({ type: "get_available_models" });
+        return this.#getData(response).models;
+    }
+    /**
+     * Get list of available slash commands.
+     */
+    async getAvailableCommands() {
+        const response = await this.#send({ type: "get_available_commands" });
+        return this.#getData(response).commands;
+    }
+    /**
+     * Pi-compatible append-history read. Delegates to the canonical
+     * `SessionManager` on the server: no `since` returns all entries in append
+     * order, `since` returns entries strictly after the matching durable entry.
+     */
+    async getEntries(since) {
+        const response = await this.#send({ type: "get_entries", since });
+        return this.#getData(response);
+    }
+    /**
+     * Pi-compatible raw session tree plus the current leaf id.
+     */
+    async getTree() {
+        const response = await this.#send({ type: "get_tree" });
+        return this.#getData(response);
+    }
+    /**
+     * Selectable thinking levels for the live model, with `off` first.
+     * OMP-only `auto`/`inherit` selectors are omitted from discovery.
+     */
+    async getAvailableThinkingLevels() {
+        const response = await this.#send({ type: "get_available_thinking_levels" });
+        return this.#getData(response).levels;
+    }
+    /**
+     * Set thinking level.
+     */
+    async setThinkingLevel(level) {
+        await this.#send({ type: "set_thinking_level", level });
+    }
+    /**
+     * Cycle thinking level.
+     */
+    async cycleThinkingLevel() {
+        const response = await this.#send({ type: "cycle_thinking_level" });
+        return this.#getData(response);
+    }
+    /**
+     * Set steering mode.
+     */
+    async setSteeringMode(mode) {
+        await this.#send({ type: "set_steering_mode", mode });
+    }
+    /**
+     * Set follow-up mode.
+     */
+    async setFollowUpMode(mode) {
+        await this.#send({ type: "set_follow_up_mode", mode });
+    }
+    /**
+     * Compact session context.
+     */
+    async compact(customInstructions) {
+        const response = await this.#send({ type: "compact", customInstructions });
+        return this.#getData(response);
+    }
+    /**
+     * Set auto-compaction enabled/disabled.
+     */
+    async setAutoCompaction(enabled) {
+        await this.#send({ type: "set_auto_compaction", enabled });
+    }
+    /** Set the session-scoped cache warming mode and return the effective mode. */
+    async setCacheWarming(mode) {
+        const response = await this.#send({ type: "set_cache_warming", mode });
+        return this.#getData(response).mode;
+    }
+    /**
+     * Set auto-retry enabled/disabled.
+     */
+    async setAutoRetry(enabled) {
+        await this.#send({ type: "set_auto_retry", enabled });
+    }
+    /**
+     * Abort in-progress retry.
+     */
+    async abortRetry() {
+        await this.#send({ type: "abort_retry" });
+    }
+    /**
+     * Execute a bash command.
+     */
+    async bash(command) {
+        const response = await this.#send({ type: "bash", command });
+        return this.#getData(response);
+    }
+    /**
+     * Abort running bash command.
+     */
+    async abortBash() {
+        await this.#send({ type: "abort_bash" });
+    }
+    /**
+     * Get session statistics.
+     */
+    async getSessionStats() {
+        const response = await this.#send({ type: "get_session_stats" });
+        return this.#getData(response);
+    }
+    /**
+     * Ask a side question (`/btw`), or a follow-up in topic `recordId`. Resolves with the
+     * running record; the answer streams via {@link onBtwDelta} and {@link onBtwRecord}.
+     */
+    async btw(question, recordId) {
+        const response = await this.#send({ type: "btw", question, ...(recordId === undefined ? {} : { recordId }) });
+        return this.#getData(response).record;
+    }
+    /** Cancel the running side question (only if it is `recordId`, when given). */
+    async cancelBtw(recordId) {
+        const response = await this.#send({ type: "btw_cancel", ...(recordId === undefined ? {} : { recordId }) });
+        return this.#getData(response).cancelled;
+    }
+    /** This session's side questions, newest first. */
+    async getBtwHistory() {
+        const response = await this.#send({ type: "get_btw_history" });
+        return this.#getData(response).records;
+    }
+    /**
+     * Summarize the session into a handoff document and compact it in place.
+     */
+    async handoff(customInstructions) {
+        const response = await this.#send({ type: "handoff", customInstructions });
+        return this.#getData(response);
+    }
+    /**
+     * Export session to HTML.
+     */
+    async exportHtml(outputPath) {
+        const response = await this.#send({ type: "export_html", outputPath });
+        return this.#getData(response);
+    }
+    /**
+     * Switch to a different session file, optionally with `model` instead of its saved one.
+     * @returns Object with `cancelled: true` if an extension cancelled the switch
+     */
+    async switchSession(sessionPath, model) {
+        const response = await this.#send({ type: "switch_session", sessionPath, ...model });
+        return this.#getData(response);
+    }
+    /**
+     * Branch from a specific message.
+     * @returns Object with `text` (the message text) and `cancelled` (if extension cancelled)
+     */
+    async branch(entryId) {
+        const response = await this.#send({ type: "branch", entryId });
+        return this.#getData(response);
+    }
+    /**
+     * Fork into a new session file and switch to it: history up to and including
+     * `entryId`, or the whole session when omitted.
+     * @returns Object with `cancelled: true` if an extension cancelled the fork
+     */
+    async fork(entryId) {
+        const response = await this.#send({ type: "fork", entryId });
+        return this.#getData(response);
+    }
+    /**
+     * Get messages available for branching.
+     */
+    async getBranchMessages() {
+        const response = await this.#send({ type: "get_branch_messages" });
+        return this.#getData(response).messages;
+    }
+    /**
+     * Get text of last assistant message.
+     */
+    async getLastAssistantText() {
+        const response = await this.#send({ type: "get_last_assistant_text" });
+        return this.#getData(response).text;
+    }
+    /**
+     * Ghost-text suffix for the prose word ending at `cursor` (a UTF-16 offset
+     * into `text`), from the `spelling.autocomplete` engine; `null` when none applies.
+     */
+    async predictWord(text, cursor) {
+        // The server runs one prediction at a time per session and holds at most one
+        // more behind it, so this request may wait out an in-flight cold request
+        // (up to 3 daemon-start rounds of 30s plus a 30s first completion) before
+        // its own 30s completion: ~150s. Outlast that so the server's answer, not
+        // our timeout, decides.
+        const response = await this.#send({ type: "predict_word", text, cursor }, 155000);
+        return this.#getData(response).suffix;
+    }
+    /** Report a shown suggestion the user accepted or typed past, with the text and cursor it was shown at. */
+    async predictWordFeedback(text, cursor, suggestion, accepted) {
+        const response = await this.#send({ type: "predict_word_feedback", text, cursor, suggestion, accepted });
+        this.#getData(response);
+    }
+    /**
+     * Get one stable, byte-bounded message page.
+     */
+    async getMessagesPage(options = {}) {
+        const response = await this.#send({ type: "get_messages_page", ...options });
+        return this.#getData(response);
+    }
+    /** Get all messages, draining stable pages when protocol v2 is available. */
+    async getMessages() {
+        if (this.#protocolVersion === 2) {
+            try {
+                const messages = [];
+                const seenCursors = new Set();
+                let totalMessages;
+                let cursor;
+                do {
+                    const page = await this.getMessagesPage({ cursor, limit: 256 });
+                    if (!Number.isSafeInteger(page.totalMessages) ||
+                        page.totalMessages < 0 ||
+                        (totalMessages !== undefined && page.totalMessages !== totalMessages))
+                        throw new Error("RPC message pagination returned an inconsistent total");
+                    totalMessages = page.totalMessages;
+                    messages.push(...page.messages);
+                    cursor = page.nextCursor;
+                    if (cursor && seenCursors.has(cursor))
+                        throw new Error("RPC message pagination repeated a cursor");
+                    if (cursor)
+                        seenCursors.add(cursor);
+                } while (cursor);
+                if (messages.length !== totalMessages)
+                    throw new Error("RPC message pagination ended before the advertised total");
+                return messages;
+            }
+            catch (error) {
+                if (!isPageFallbackError(error))
+                    throw error;
+            }
+        }
+        const response = await this.#send({ type: "get_messages" });
+        return this.#getData(response).messages;
+    }
+    /**
+     * Get list of OAuth providers available for login, with their current authentication status.
+     */
+    async getLoginProviders() {
+        const response = await this.#send({ type: "get_login_providers" });
+        return this.#getData(response).providers;
+    }
+    /**
+     * Trigger OAuth login for the given provider.
+     * The server will emit an `open_url` extension_ui_request for the auth URL.
+     * Providers that require pasted-code completion may then emit an `input`
+     * extension_ui_request; pass `onManualCodeInput` to satisfy it.
+     * Resolves when login completes or rejects on failure.
+     *
+     * @param onOpenUrl Called when the server emits the auth URL. The host must
+     *   open `url` in a browser. When the flow's callback server hosts a
+     *   `/launch` redirect, `launchUrl` is a short loopback URL that 302s to
+     *   `url` — hosts SHOULD surface it as the truncation-safe copy target so
+     *   terminal viewport clipping cannot corrupt trailing OAuth query
+     *   parameters (e.g. `code_challenge_method=S256`).
+     */
+    async login(providerId, options) {
+        const { onManualCodeInput, onOpenUrl } = options ?? {};
+        const listener = onOpenUrl || onManualCodeInput
+            ? (req) => {
+                if (req.method === "open_url") {
+                    onOpenUrl?.(req.url, req.instructions, req.launchUrl);
+                    return;
+                }
+                if (req.method !== "input" || !onManualCodeInput)
+                    return;
+                // The prompt can outlive the agent (e.g. a broken stdin pipe stops the client); drop the reply
+                // instead of throwing "Client not started" out of a detached promise chain.
+                void Promise.resolve(onManualCodeInput({ title: req.title, placeholder: req.placeholder })).then(value => {
+                    if (this.#process)
+                        this.#writeFrame({ type: "extension_ui_response", id: req.id, value });
+                }, () => {
+                    if (this.#process) {
+                        this.#writeFrame({ type: "extension_ui_response", id: req.id, cancelled: true });
+                    }
+                });
+            }
+            : undefined;
+        if (listener)
+            this.#extensionUiListeners.add(listener);
+        try {
+            const response = await this.#send({ type: "login", providerId }, 600000);
+            return this.#getData(response);
+        }
+        finally {
+            if (listener)
+                this.#extensionUiListeners.delete(listener);
+        }
+    }
+    /** List the stored credentials `logout()` can remove for a provider, active first. */
+    async getLogoutAccounts(providerId) {
+        const response = await this.#send({ type: "get_logout_accounts", providerId });
+        return this.#getData(response).accounts;
+    }
+    /**
+     * Remove one stored credential. Rejects when it is no longer stored.
+     * `remainingSource` names what still authenticates the provider (another stored credential, env var, config).
+     */
+    async logout(providerId, credentialId) {
+        const response = await this.#send({ type: "logout", providerId, credentialId });
+        return this.#getData(response);
+    }
+    /**
+     * Replace the host-owned custom tools exposed to the RPC session.
+     * Changes take effect before the next model call.
+     */
+    async setCustomTools(tools) {
+        this.#customTools = [...tools];
+        if (!this.#process) {
+            return this.#customTools.map(tool => tool.name);
+        }
+        const definitions = this.#customTools.map(tool => ({
+            name: tool.name,
+            label: tool.label,
+            description: tool.description,
+            parameters: tool.parameters,
+            hidden: tool.hidden,
+            loadMode: tool.loadMode,
+            readsSkillUris: tool.readsSkillUris,
+        }));
+        const response = await this.#send({ type: "set_host_tools", tools: definitions });
+        return this.#getData(response).toolNames;
+    }
+    // =========================================================================
+    // Helpers
+    // =========================================================================
+    /**
+     * Wait for agent to become idle (no streaming).
+     * Resolves when agent_end event is received.
+     */
+    waitForIdle(timeout = 60000) {
+        const { promise, resolve, reject } = Promise.withResolvers();
+        let settled = false;
+        const unsubscribe = this.onEvent(event => {
+            if (event.type === "agent_end") {
+                settled = true;
+                unsubscribe();
+                clearTimeout(timeoutId);
+                resolve();
+            }
+        });
+        const timeoutId = this.#startTimeout(timeout, () => {
+            if (settled)
+                return;
+            settled = true;
+            unsubscribe();
+            reject(new Error(`Timeout waiting for agent to become idle. Stderr: ${this.#process?.peekStderr() ?? ""}`));
+        });
+        return promise;
+    }
+    /**
+     * Collect events until agent becomes idle.
+     */
+    collectEvents(timeout = 60000) {
+        const { promise, resolve, reject } = Promise.withResolvers();
+        const events = [];
+        let settled = false;
+        const unsubscribe = this.onEvent(event => {
+            events.push(event);
+            if (event.type === "agent_end") {
+                settled = true;
+                unsubscribe();
+                clearTimeout(timeoutId);
+                resolve(events);
+            }
+        });
+        const timeoutId = this.#startTimeout(timeout, () => {
+            if (settled)
+                return;
+            settled = true;
+            unsubscribe();
+            reject(new Error(`Timeout collecting events. Stderr: ${this.#process?.peekStderr() ?? ""}`));
+        });
+        return promise;
+    }
+    /**
+     * Wait until the session is done, not merely yielded: resolves at once when
+     * `get_state` reports it settled, otherwise at the next `session_settled`.
+     * Use after {@link promptAndWait} when background jobs may still wake the agent.
+     */
+    async waitForSettled(timeout = 60000) {
+        const { promise, resolve, reject } = Promise.withResolvers();
+        const unsubscribe = this.onSessionSettled(resolve);
+        let timeoutId;
+        try {
+            // Subscribed before asking, so a settle between the two cannot be missed.
+            if ((await this.getState()).isSettled)
+                return;
+            timeoutId = this.#startTimeout(timeout, () => {
+                reject(new Error(`Timeout waiting for session_settled. Stderr: ${this.#process?.peekStderr() ?? ""}`));
+            });
+            await promise;
+        }
+        finally {
+            unsubscribe();
+            clearTimeout(timeoutId);
+        }
+    }
+    /**
+     * Send a prompt and wait for its own `prompt_result`, returning the agent events
+     * streamed meanwhile. A local-only prompt answered synchronously resolves with
+     * the events seen so far.
+     */
+    async promptAndWait(message, images, timeout = 60000) {
+        const id = `req_${++this.#requestId}`;
+        const events = [];
+        const { promise, resolve, reject } = Promise.withResolvers();
+        const unsubscribe = this.onEvent(event => events.push(event));
+        this.#promptResultWaiters.set(id, result => {
+            if (result.status === "error") {
+                reject(new Error(result.error?.message ?? "Prompt failed"));
+                return;
+            }
+            resolve(events);
+        });
+        this.#promptErrorWaiters.set(id, reject);
+        let timeoutId;
+        try {
+            const response = await this.#send({ type: "prompt", message, images }, 30000, id);
+            const data = this.#getData(response);
+            if (data?.agentInvoked === false)
+                return events;
+            timeoutId = this.#startTimeout(timeout, () => {
+                reject(new Error(`Timeout waiting for prompt_result. Stderr: ${this.#process?.peekStderr() ?? ""}`));
+            });
+            return await promise;
+        }
+        finally {
+            unsubscribe();
+            clearTimeout(timeoutId);
+            this.#promptResultWaiters.delete(id);
+            this.#promptErrorWaiters.delete(id);
+        }
+    }
+    // =========================================================================
+    // Internal
+    // =========================================================================
+    #handleLine(data) {
+        // Check if it's a response to a pending request
+        if (isRpcResponse(data)) {
+            const id = data.id;
+            if (id && this.#pendingRequests.has(id)) {
+                const pending = this.#pendingRequests.get(id);
+                this.#pendingRequests.delete(id);
+                pending.resolve(data);
+                return;
+            }
+            if (id && data.success === false) {
+                const rejectLate = this.#promptErrorWaiters.get(id);
+                if (rejectLate) {
+                    this.#promptErrorWaiters.delete(id);
+                    rejectLate(new RpcCommandError(data.error, data.command, data.code));
+                    return;
+                }
+            }
+        }
+        if (isRpcHostToolCallRequest(data)) {
+            void this.#handleHostToolCall(data);
+            return;
+        }
+        if (isRpcExtensionUiRequest(data)) {
+            for (const listener of this.#extensionUiListeners) {
+                listener(data);
+            }
+            return;
+        }
+        if (isRpcHostToolCancelRequest(data)) {
+            this.#pendingHostToolCalls.get(data.targetId)?.controller.abort();
+            return;
+        }
+        if (isRpcSubagentLifecycleFrame(data)) {
+            for (const listener of this.#subagentLifecycleListeners) {
+                listener(data.payload);
+            }
+            return;
+        }
+        if (isRpcSubagentProgressFrame(data)) {
+            for (const listener of this.#subagentProgressListeners) {
+                listener(data.payload);
+            }
+            return;
+        }
+        if (isRpcSubagentEventFrame(data)) {
+            for (const listener of this.#subagentEventListeners) {
+                listener(data.payload);
+            }
+            return;
+        }
+        if (isRpcLiveFrame(data)) {
+            for (const listener of this.#liveListeners) {
+                listener(data);
+            }
+            return;
+        }
+        if (isRpcSessionSettledFrame(data)) {
+            for (const listener of this.#sessionSettledListeners) {
+                listener();
+            }
+            return;
+        }
+        if (isRpcPromptResultFrame(data)) {
+            if (data.id !== undefined)
+                this.#promptResultWaiters.get(data.id)?.(data);
+            for (const listener of this.#promptResultListeners) {
+                listener(data);
+            }
+            return;
+        }
+        if (isRpcAvailableCommandsUpdateFrame(data)) {
+            for (const listener of this.#availableCommandsUpdateListeners) {
+                listener(data.commands);
+            }
+            return;
+        }
+        if (isRpcBtwDeltaFrame(data)) {
+            for (const listener of this.#btwDeltaListeners)
+                listener(data);
+            return;
+        }
+        if (isRpcBtwRecordFrame(data)) {
+            for (const listener of this.#btwRecordListeners)
+                listener(data.record);
+            return;
+        }
+        if (!isAgentSessionEvent(data))
+            return;
+        for (const listener of this.#sessionEventListeners) {
+            listener(data);
+        }
+        if (!isAgentEvent(data))
+            return;
+        for (const listener of this.#eventListeners) {
+            listener(data);
+        }
+    }
+    #send(command, timeoutMs = 30000, id = `req_${++this.#requestId}`) {
+        if (!this.#process?.stdin) {
+            throw new Error("Client not started");
+        }
+        const fullCommand = { ...command, id };
+        const { promise, resolve, reject } = Promise.withResolvers();
+        let settled = false;
+        const timeoutId = this.#startTimeout(timeoutMs, () => {
+            if (settled)
+                return;
+            this.#pendingRequests.delete(id);
+            settled = true;
+            reject(new Error(`Timeout waiting for response to ${command.type}. Stderr: ${this.#process?.peekStderr() ?? ""}`));
+        });
+        this.#pendingRequests.set(id, {
+            resolve: response => {
+                if (settled)
+                    return;
+                settled = true;
+                clearTimeout(timeoutId);
+                resolve(response);
+            },
+            reject: error => {
+                if (settled)
+                    return;
+                settled = true;
+                clearTimeout(timeoutId);
+                reject(error);
+            },
+        });
+        const fail = (err) => {
+            this.#pendingRequests.delete(id);
+            if (settled)
+                return;
+            settled = true;
+            clearTimeout(timeoutId);
+            reject(err);
+        };
+        // Settle this promise on a synchronous throw too (e.g. a non-serializable command): the caller only
+        // receives `promise`, so a later rejection routed through `fail` would otherwise be unhandled.
+        try {
+            this.#writeFrame(fullCommand, fail);
+        }
+        catch (err) {
+            fail(err instanceof Error ? err : new Error(String(err)));
+        }
+        return promise;
+    }
+    async #handleHostToolCall(request) {
+        const tool = this.#customTools.find(candidate => candidate.name === request.toolName);
+        if (!tool) {
+            this.#writeFrame({
+                type: "host_tool_result",
+                id: request.id,
+                result: {
+                    content: [{ type: "text", text: `Host tool "${request.toolName}" is not registered` }],
+                    details: {},
+                },
+                isError: true,
+            });
+            return;
+        }
+        const controller = new AbortController();
+        this.#pendingHostToolCalls.set(request.id, { controller });
+        const sendUpdate = (partialResult) => {
+            if (controller.signal.aborted)
+                return;
+            this.#writeFrame({
+                type: "host_tool_update",
+                id: request.id,
+                partialResult: normalizeToolResult(partialResult),
+            });
+        };
+        try {
+            const result = await tool.execute(request.arguments, {
+                toolCallId: request.toolCallId,
+                signal: controller.signal,
+                sendUpdate,
+            });
+            if (controller.signal.aborted)
+                return;
+            this.#writeFrame({
+                type: "host_tool_result",
+                id: request.id,
+                result: normalizeToolResult(result),
+            });
+        }
+        catch (error) {
+            if (controller.signal.aborted)
+                return;
+            this.#writeFrame({
+                type: "host_tool_result",
+                id: request.id,
+                result: {
+                    content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
+                    details: {},
+                },
+                isError: true,
+            });
+        }
+        finally {
+            this.#pendingHostToolCalls.delete(request.id);
+        }
+    }
+    #writeFrame(frame, onError) {
+        if (!this.#process?.stdin) {
+            throw new Error("Client not started");
+        }
+        const child = this.#process;
+        const stdin = child.stdin;
+        // Serialize first: a non-serializable frame is the caller's error, not a pipe failure.
+        const line = `${JSON.stringify(frame)}\n`;
+        // A broken stdin pipe is terminal: fail this frame's request, then stop so start() can relaunch.
+        const failed = (err) => {
+            onError?.(err instanceof Error ? err : new Error(String(err)));
+            if (this.#process === child)
+                void this.stop();
+        };
+        try {
+            const write = stdin.write(line);
+            if (isPromise(write))
+                write.catch(failed);
+            if (!("flush" in stdin))
+                return;
+            const flushResult = stdin.flush();
+            if (isPromise(flushResult))
+                flushResult.catch(failed);
+        }
+        catch (err) {
+            failed(err);
+        }
+    }
+    #getData(response) {
+        if (!response.success) {
+            const errorResponse = response;
+            throw new RpcCommandError(errorResponse.error, errorResponse.command, errorResponse.code);
+        }
+        // Type assertion: we trust response.data matches T based on the command sent.
+        // This is safe because each public method specifies the correct T for its command.
+        const successResponse = response;
+        return successResponse.data;
+    }
+}

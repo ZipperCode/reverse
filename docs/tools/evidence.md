@@ -1,6 +1,6 @@
 # evidence
 
-> Empirical reverse-engineering evidence ledger: record facts, propose hypotheses, verify outcomes, track hash drift, and export structured proof artifacts conforming to the rea reverse-lab standard.
+> Empirical reverse-engineering evidence ledger: record facts, propose hypotheses, verify outcomes, track hash drift, and export structured proof artifacts conforming to the reverse reverse-lab standard.
 
 ## Source
 - Entry: `packages/coding-agent/src/tools/evidence.ts`
@@ -44,7 +44,7 @@
 - **export**: Generates a structured Markdown proof report matching `reverse-lab/references/evidence.md`. Spills to a session artifact (`artifact://<id>`) when output is large or when `to_artifact: true`.
 
 ## Security & Storage
-- **Per-project state**: Stored under agent state directory (`~/.rva/evidence/<project-key>/ledger.jsonl`), completely isolating ledger data from the workspace repository.
+- **Per-project state**: Stored under agent state directory (`~/.reverse/evidence/<project-key>/ledger.jsonl`, with `~/.rva/` fallback), completely isolating ledger data from the workspace repository.
 - **Append-only & Atomic**: Concurrent writes are serialized via in-process write chains and cross-process advisory file locks (`ledger.lock`). Writes are staged to temporary files and atomically renamed.
 - **Read-only Target Files**: Target binaries and source files are accessed in read-only mode for hash calculation and excerpt verification; target files are never modified.
 - **Sensitive Data Redaction**: Automatic redaction strips API keys, JWT tokens, AWS credentials, GitHub PATs, and URL-embedded passwords prior to persistence.

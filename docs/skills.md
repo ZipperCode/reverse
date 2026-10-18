@@ -227,7 +227,7 @@ MCP-advertised skills:
 
 ## Declaring external tool dependencies
 
-Skills can declare the external tools they expect on the machine running `rea`:
+Skills can declare the external tools they expect on the machine running `reverse`:
 
 ```yaml
 ---
@@ -240,7 +240,7 @@ metadata:
 ```
 
 - `metadata.requires` lists tools the skill needs; `metadata.requiresOptional` lists tools it can use when present.
-- Values are comma/whitespace-separated strings (or a string list in rea-local skills). Ids are lowercase.
+- Values are comma/whitespace-separated strings (or a string list in reverse-local skills). Ids are lowercase.
 - `metadata` is the portable location because the Agent Skills schema is closed for plugin skills. Top-level `requires` / `requiresOptional` are accepted only for skills outside that schema.
 
 Dependency checking is read-only and local:
@@ -261,8 +261,8 @@ It is prepended to the instruction text only when a required tool is missing. Su
 Use the CLI to inspect dependencies for a directory:
 
 ```sh
-rva skill check
-rva skill check ./my-project --json
+reverse skill check
+reverse skill check ./my-project --json
 ```
 
 The command exits non-zero only when a required tool is missing; missing optional tools never fail it. JSON output includes each requirement's `id`, `optional`, `foundPath`, and `hint`.
@@ -276,16 +276,16 @@ Optional MCP servers live in a separate trusted catalog, `packages/coding-agent/
 - prerequisite catalog ids (`requires`), which are checked with the same read-only resolver as skill dependencies;
 - trusted install methods (package manager argv or manual-only instructions);
 - a server config template, server name, transport, and start command;
-- the configuration path (`.rva/mcp.json` for a project, `~/.rva/agent/mcp.json` for the user);
+- the configuration path (`.reverse/mcp.json` for a project, `~/.reverse/agent/mcp.json` for the user; `.rva` fallback supported);
 - a structured usage guide (canonical operation, when to use, output limits, fallback, examples).
 
-`rva setup reverse --json` reports them under `services`, separate from `tools`, with three independent states:
+`reverse setup reverse --json` (or `rva setup reverse --json`) reports them under `services`, separate from `tools`, with three independent states:
 
 - `prerequisitesReady` (and the backward-compatible alias `ready`) — the prerequisite CLI tools were found; never means configured or connected.
 - `configured` / `configuredScopes` / `enabled` — a read-only probe for an `mcpServers[serverName]` entry in the resolved project and user config files. `enabled` is `null` when unconfigured and reflects `enabled`/`disabledServers`/`enabledServers` when configured.
 - `connection` — always `"unknown"`; inspection never starts a server or performs an MCP handshake.
 
-`configPaths.project` and `configPaths.user` are resolved with `getMCPConfigPath` from the running installation (not the catalog's display hint). A service is never reported with a `foundPath`, and inspection never writes `mcp.json`. `rva setup reverse <service-id>` prints the resolved paths, configured scopes, start command, config snippet, prerequisites, risk notes, and manual fallback. Automated installs remain limited to catalog argv and require explicit confirmation in the interactive panel.
+`configPaths.project` and `configPaths.user` are resolved with `getMCPConfigPath` from the running installation (not the catalog's display hint). A service is never reported with a `foundPath`, and inspection never writes `mcp.json`. `reverse setup reverse <service-id>` (or `rva setup reverse <service-id>`) prints the resolved paths, configured scopes, start command, config snippet, prerequisites, risk notes, and manual fallback. Automated installs remain limited to catalog argv and require explicit confirmation in the interactive panel.
 
 The `reverse-tool-guide` skill exposes the same guidance on demand:
 

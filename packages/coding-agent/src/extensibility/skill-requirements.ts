@@ -67,7 +67,7 @@ function requirementIds(value: unknown): string[] {
 
 /**
  * Required ids win over optional ones. `metadata` is the portable location
- * (Agent Skills allows it); top-level keys serve rea-local skills.
+ * (Agent Skills allows it); top-level keys serve reverse-local skills.
  */
 export function readSkillRequirements(frontmatter?: SkillFrontmatter): ToolRequirement[] {
 	if (!frontmatter) return [];

@@ -106,7 +106,7 @@ const reverseWorkflowSchema = type({
 		"Logical identifier of newly installed external tool (e.g. 'jadx', 'apktool', 'unidbg', 'radare2') for install-after resumption",
 	),
 	"setup_command?": type("string").describe(
-		"Trusted setup command executed to install the tool (e.g. 'rea setup reverse apktool')",
+		"Trusted setup command executed to install the tool (e.g. 'reverse setup reverse apktool')",
 	),
 	"verified?": type("boolean").describe(
 		"Whether tool availability was verified post-install before resuming (defaults to true)",
@@ -127,10 +127,10 @@ const reverseWorkflowSchema = type({
 		"Export full report to session artifact instead of inline response",
 	),
 	"to_workspace?": type("boolean").describe(
-		"Export standardized reverse engineering workspace to local .rea/ directory (target info, workflow, evidence, findings, and safe artifact references)",
+		"Export standardized reverse engineering workspace to local .reverse/ directory (target info, workflow, evidence, findings, and safe artifact references)",
 	),
 	"workspace_path?": type("string").describe(
-		"Custom directory path for workspace export (defaults to '.rea' in project root)",
+		"Custom directory path for workspace export (defaults to '.reverse' in project root)",
 	),
 	"clean_workspace?": type("boolean").describe(
 		"Clean previous dumps/scripts before exporting new workspace run",
@@ -891,7 +891,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					await store.save(workflow);
 					const metrics = computeWorkflowMetrics(workflow.steps);
 					const missingReason = verificationResult?.missing_reason ?? "Executable binary not found on PATH or service unconfigured in mcp.json.";
-					const setupCmd = resumeMeta?.setup_command ?? `rea setup reverse ${params.installed_tool}`;
+					const setupCmd = resumeMeta?.setup_command ?? `reverse setup reverse ${params.installed_tool}`;
 					const text = [
 						`Cannot resume step \`${step.id}\` in workflow \`${workflow.id}\`:`,
 						`- Tool: \`${params.installed_tool}\` could not be verified on the host system.`,
@@ -1107,7 +1107,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					};
 					await store.save(workflow);
 					const metrics = computeWorkflowMetrics(workflow.steps);
-					const setupCmd = resumeMeta.setup_command ?? `rea setup reverse ${resumeMeta.installed_tool}`;
+					const setupCmd = resumeMeta.setup_command ?? `reverse setup reverse ${resumeMeta.installed_tool}`;
 					const text = [
 						`Cannot recover step \`${step.id}\` in workflow \`${workflow.id}\`:`,
 						`- Tool: \`${resumeMeta.installed_tool}\` could not be verified on the host system.`,

@@ -64,7 +64,7 @@ const DUMP_EXTENSIONS: Record<string, true> = {
 	".headers": true,
 };
 
-const GITIGNORE_CONTENT = `# Rea reverse workspace gitignore
+const GITIGNORE_CONTENT = `# Reverse workspace gitignore
 # Excludes heavy raw binaries, cores, and memory dumps while preserving reports and manifests
 *.raw
 *.bin
@@ -80,7 +80,7 @@ const GITIGNORE_CONTENT = `# Rea reverse workspace gitignore
 
 /**
  * Exports a reverse workflow and all associated evidence, findings, and safe artifact
- * references into a standardized, deterministic .rea/ workspace.
+ * references into a standardized, deterministic .reverse/ workspace.
  */
 export async function exportWorkflowToWorkspace(
 	options: ExportToWorkspaceOptions,

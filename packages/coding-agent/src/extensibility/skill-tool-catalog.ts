@@ -2310,7 +2310,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		optionalExternalTools: ["unidbg"],
 		prerequisites: ["java"],
 		fallbacks: ["frida", "readelf", "radare2"],
-		setupCommand: "rea setup reverse unidbg",
+		setupCommand: "reverse setup reverse unidbg",
 		postInstallInvocation: "Manual Maven Java harness integration required (git clone https://github.com/zhkl0228/unidbg, implement McpToolkit or test harness with JavaVM/DalvikModule, run with Maven)",
 	},
 	apk_unpacking: {
@@ -2326,7 +2326,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		optionalExternalTools: ["apktool", "jadx", "baksmali", "dexdump"],
 		prerequisites: ["java"],
 		fallbacks: ["file", "strings"],
-		setupCommand: "rea setup reverse apktool",
+		setupCommand: "reverse setup reverse apktool",
 		postInstallInvocation: "apktool d -f -o <output_dir> <target.apk> or jadx -d <output_dir> <target.apk>",
 	},
 	browser_debugger: {
@@ -2342,9 +2342,9 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		optionalExternalTools: ["playwright-mcp"],
 		prerequisites: ["node"],
 		fallbacks: ["mitmproxy", "curl", "file"],
-		setupCommand: "rea setup reverse playwright-mcp",
+		setupCommand: "reverse setup reverse playwright-mcp",
 		postInstallInvocation:
-			"Configure .rva/mcp.json playwright entry or launch browser_reverse_session with target URL",
+			"Configure .reverse/mcp.json playwright entry or launch browser_reverse_session with target URL",
 	},
 	websocket_capture: {
 		id: "websocket_capture",
@@ -2359,7 +2359,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		optionalExternalTools: ["mitmproxy", "tshark"],
 		prerequisites: [],
 		fallbacks: ["pcap_inspect", "strings", "curl"],
-		setupCommand: "rea setup reverse mitmproxy",
+		setupCommand: "reverse setup reverse mitmproxy",
 		postInstallInvocation:
 			"mitmweb --web-port 8081 or tshark -Y websocket -i any (or inspect existing captures with websocket_observe)",
 	},
@@ -2376,7 +2376,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		optionalExternalTools: ["radare2", "r2mcp", "frida", "ghidra"],
 		prerequisites: [],
 		fallbacks: ["binary_metadata_inspect", "readelf", "strings", "file"],
-		setupCommand: "rea setup reverse radare2",
+		setupCommand: "reverse setup reverse radare2",
 		postInstallInvocation: "r2 -d <binary_path> or frida -f <binary_path> (or query via r2_inspect)",
 	},
 	js_deobfuscation: {
@@ -2392,7 +2392,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		optionalExternalTools: ["hbctool"],
 		prerequisites: ["node"],
 		fallbacks: ["strings", "file"],
-		setupCommand: "rea setup reverse hbctool",
+		setupCommand: "reverse setup reverse hbctool",
 		postInstallInvocation: "hbctool disasm <index.android.bundle> <out_dir> or node deobfuscate.js",
 	},
 	traffic_interception: {
@@ -2408,7 +2408,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		optionalExternalTools: ["mitmproxy", "tshark"],
 		prerequisites: [],
 		fallbacks: ["curl", "strings"],
-		setupCommand: "rea setup reverse mitmproxy",
+		setupCommand: "reverse setup reverse mitmproxy",
 		postInstallInvocation: "mitmproxy -p 8080 or mitmdump -s filter.py",
 	},
 };

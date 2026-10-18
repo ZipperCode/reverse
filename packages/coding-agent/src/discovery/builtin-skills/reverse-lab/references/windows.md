@@ -26,9 +26,9 @@ llvm-readobj --file-headers target.exe
 
 ---
 
-## 2. Primary Toolchain: rea Native `read-binary` (IDA Pro Integration)
+## 2. Primary Toolchain: reverse Native `read-binary` (IDA Pro Integration)
 
-When IDA Pro is configured and available in `rea`, leverage the high-performance `:selector` virtual URLs via the `read` tool:
+When IDA Pro is configured and available in `reverse`, leverage the high-performance `:selector` virtual URLs via the `read` tool:
 
 ### 1. `:overview` — Binary Summary
 Retrieve compiler detection, architecture, entrypoint, and section table:

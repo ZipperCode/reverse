@@ -31,10 +31,10 @@ Actions:
   - Strictly enforces bounded retry attempts (`attempts < max_attempts`).
 - `retry_plan`: Preview failure attribution and recovery plan without mutating step status.
   - Returns structured diagnosis, attribution, cause, alternatives, and proposed tool & parameters.
-- `export`: Produce bounded Markdown/JSON workflow reports or export a standardized `.rea/` workspace.
+- `export`: Produce bounded Markdown/JSON workflow reports or export a standardized `.reverse/` workspace.
   - Hydrates linked evidence ledger items (title, kind, locator, content).
   - Captures full failure recovery, retry history, and install-after resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`).
-  - When `to_workspace: true` (or `workspace_path` is specified), exports standardized `.rea/` workspace layout containing `manifest.json`, `target/target.json`, `workflow/`, `evidence/`, `findings/`, `scripts/`, `dumps/`, `reports/`, and safe artifact references.
+  - When `to_workspace: true` (or `workspace_path` is specified), exports standardized `.reverse/` workspace layout containing `manifest.json`, `target/target.json`, `workflow/`, `evidence/`, `findings/`, `scripts/`, `dumps/`, `reports/`, and safe artifact references.
   - Spills to session artifact when requested (`to_artifact: true`) or when content exceeds inline limits.
 - `destroy`: Permanently remove a workflow record from persistent state storage.
 - `advance` / `auto_advance`: Safely progress through workflow steps following low-risk static allowlist rules.
@@ -51,7 +51,7 @@ Security & Guardrails:
 - Bounded retries: prevents infinite failure loops with strict attempt caps.
 - Strict cross-tool evidence linking: verifies that linked evidence IDs exist in the project evidence ledger.
 - Isolated project storage with advisory file locking and atomic replacement.
-- Clean standardized `.rea/` workspace: target binary is accessed strictly read-only and preserved by reference (never mutated or duplicated); only safe small scripts/dumps (<= 1 MiB) are copied with credentials and tokens scrubbed.
+- Clean standardized `.reverse/` workspace: target binary is accessed strictly read-only and preserved by reference (never mutated or duplicated); only safe small scripts/dumps (<= 1 MiB) are copied with credentials and tokens scrubbed.
 - Prior knowledge integration: bounded, verified findings and recovery patterns from `reverse_knowledge` are surfaced without executing unverified hypotheses.
 <examples>
 ```
@@ -75,7 +75,7 @@ reverse_workflow(action: "retry", workflow_id: "wf_rw_018f...", step_id: "elf_st
 // 6. Recover a failed step with deterministic failure attribution and fallback
 reverse_workflow(action: "recover", workflow_id: "wf_rw_018f...", step_id: "apk_step_3", error: "droidasc not found on PATH")
 // 6b. Recover a failed step following external tool installation (Install-After Resumption)
-reverse_workflow(action: "recover", workflow_id: "wf_rw_018f...", step_id: "apk_step_3", capability_id: "apk_unpacking", installed_tool: "jadx", setup_command: "rea setup reverse jadx", verified: true, strategy: "resume_original")
+reverse_workflow(action: "recover", workflow_id: "wf_rw_018f...", step_id: "apk_step_3", capability_id: "apk_unpacking", installed_tool: "jadx", setup_command: "reverse setup reverse jadx", verified: true, strategy: "resume_original")
 
 
 // 7. Preview a recovery plan without mutating step state
@@ -84,7 +84,7 @@ reverse_workflow(action: "retry_plan", workflow_id: "wf_rw_018f...", step_id: "a
 // 8. Export full workflow report with recovery audit trail to Markdown
 reverse_workflow(action: "export", workflow_id: "wf_rw_018f...", format_type: "markdown")
 
-// 9. Export standardized reverse engineering workspace to local .rea/ directory
+// 9. Export standardized reverse engineering workspace to local .reverse/ directory
 reverse_workflow(action: "export", workflow_id: "wf_rw_018f...", to_workspace: true)
 
 // 10. Auto-advance the next low-risk static step

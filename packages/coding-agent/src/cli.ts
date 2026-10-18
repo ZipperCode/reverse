@@ -62,7 +62,7 @@ try {
 // (`B:/~BUN/root/cli.js`), so Bun's internal match fails. `bun build --compile`
 // CLI builds are unaffected. A compiled binary's entry module is by definition
 // the process entry, so the define-folded RVA_COMPILED marker stands in.
-const isProcessEntry = import.meta.main || process.env.RVA_COMPILED === "true";
+const isProcessEntry = import.meta.main || process.env.REVERSE_COMPILED === "true" || process.env.RVA_COMPILED === "true";
 
 /**
  * Worker inboxes must attach before this entry module reaches its first await,
@@ -456,14 +456,14 @@ export async function runCli(argv: string[]): Promise<void> {
 			// validation here turns `OMP_PROFILE=.. omp --version` into a clean error;
 			// calling setProfile keeps every later path helper on the env-selected
 			// profile instead of the default agent directory.
-			setProfile(resolveProfileEnv(process.env.RVA_PROFILE));
+			setProfile(resolveProfileEnv(process.env.REVERSE_PROFILE || process.env.RVA_PROFILE));
 		}
 		if (extracted.aliasName !== undefined) {
 			// Command boundary: shell/path setup is used only by --alias.
 			const { installProfileAlias, resolveProfileAliasCommandFromProcess } = await import("./cli/profile-alias");
 			const profile = extracted.profile ?? getActiveProfile();
 			if (!profile) {
-				throw new Error("--alias requires --profile <name> or RVA_PROFILE");
+				throw new Error("--alias requires --profile <name> or REVERSE_PROFILE (or RVA_PROFILE)");
 			}
 			const result = await installProfileAlias({
 				profile,

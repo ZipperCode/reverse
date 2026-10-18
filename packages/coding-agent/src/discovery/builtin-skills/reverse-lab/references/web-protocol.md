@@ -35,7 +35,7 @@ grep -n -E "crypto\.subtle|createHmac|createHash|CryptoJS|AES|RSA|PBKDF2|SHA256"
 ```
 
 ### 2. AST-Based Structural Search (`ast_grep`)
-When variable names are minified (e.g. `function(e,t,n)`), match code patterns structurally with rea's native `ast_grep` tool (no external CLI required; the optional `ast-grep` CLI is a fallback):
+When variable names are minified (e.g. `function(e,t,n)`), match code patterns structurally with reverse's native `ast_grep` tool (no external CLI required; the optional `ast-grep` CLI is a fallback):
 ```
 ast_grep(pat: "crypto.subtle.sign($$$)", path: "bundle.js")
 ast_grep(pat: "new Hmac($$$)", path: "bundle.js")
@@ -49,7 +49,7 @@ ast_grep(pat: "fetch($URL, { headers: { $$$ } })", path: "bundle.js")
 
 ## 2. SourceMap Recovery & Source Tree Reconstruction
 
-When developer SourceMaps are present (.map file or inline `sourceMappingURL` in `.js`), use rea's native `sourcemap_inspect` tool to inspect metadata, map minified line/column coordinates back to original source code, and extract unminified TypeScript/JavaScript source trees without external CLI dependencies:
+When developer SourceMaps are present (.map file or inline `sourceMappingURL` in `.js`), use reverse's native `sourcemap_inspect` tool to inspect metadata, map minified line/column coordinates back to original source code, and extract unminified TypeScript/JavaScript source trees without external CLI dependencies:
 
 ### 1. Inspect SourceMap Metadata & File List
 ```text
@@ -80,7 +80,7 @@ sourcemap_inspect(action: "extract", path: "dist/bundle.js.map", destination_dir
 
 ## 3. Dynamic JavaScript Hook Presets & Browser Reverse (`js_hook_preset`, `browser_reverse_session`)
 
-For authorized browser, Electron, or Node.js runtime debugging, use rea's native `js_hook_preset` and `browser_reverse_session` tools to generate, inject, and capture live instrumentation (fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, custom):
+For authorized browser, Electron, or Node.js runtime debugging, use reverse's native `js_hook_preset` and `browser_reverse_session` tools to generate, inject, and capture live instrumentation (fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, custom):
 
 ```text
 # List available hook presets and options:
@@ -110,7 +110,7 @@ browser_reverse_session(action: "export_evidence", tab_name: "main", tags: ["aut
 
 ## 4. WebAssembly (WASM) Reverse Engineering
 
-WebAssembly modules (`.wasm`) are binary format. Start with rea's native `wasm_inspect` tool, which reads imports, exports, signatures, names, and strings without external dependencies. Request WAT only when instruction-level analysis is needed.
+WebAssembly modules (`.wasm`) are binary format. Start with reverse's native `wasm_inspect` tool, which reads imports, exports, signatures, names, and strings without external dependencies. Request WAT only when instruction-level analysis is needed.
 
 ### 1. Inspect Structure, Imports & Exports
 ```text
@@ -148,7 +148,7 @@ grep -E '\(import |\(export |\(data ' module.wat
 
 Execute browser console hooks, DOM evaluations, and network frame captures exclusively against explicitly authorized staging domains, local loopback services, or designated test targets. Save all HAR captures, console outputs, and session logs to dedicated artifact paths (`./artifacts/`).
 
-When analyzing live Web sessions, use Chrome DevTools Protocol (CDP) or rea's `browser-relay`:
+When analyzing live Web sessions, use Chrome DevTools Protocol (CDP) or reverse's `browser-relay`:
 
 ### 1. Network Traffic Capture
 - **HAR Export**: Save complete network waterfalls including request payloads, response bodies, and TLS certificates.
@@ -204,7 +204,7 @@ Document request/response delta in the evidence artifact to establish reproducib
 
 ## 7. Native Offline PCAP & PCAPNG Inspection (`pcap_inspect`)
 
-When analyzing offline packet captures (`.pcap`, `.pcapng`), use rea's native, zero-dependency `pcap_inspect` tool to extract headers, packet lists, endpoints, conversations, and DNS queries without live packet capture or network replay:
+When analyzing offline packet captures (`.pcap`, `.pcapng`), use reverse's native, zero-dependency `pcap_inspect` tool to extract headers, packet lists, endpoints, conversations, and DNS queries without live packet capture or network replay:
 
 ### 1. Capture Overview & Protocol Breakdown
 ```text
@@ -237,7 +237,7 @@ Extracts DNS query domains, record types (A, AAAA, CNAME), and resolved IP addre
 
 ## 8. Native Offline SQLite Database Inspection (`sqlite_inspect`)
 
-When analyzing client-side storage, mobile databases, or browser profiles (`.db`, `.sqlite`, `.sqlite3`), use rea's native `sqlite_inspect` tool for read-only schema, table, row, and WAL inspection without mutation or arbitrary SQL execution:
+When analyzing client-side storage, mobile databases, or browser profiles (`.db`, `.sqlite`, `.sqlite3`), use reverse's native `sqlite_inspect` tool for read-only schema, table, row, and WAL inspection without mutation or arbitrary SQL execution:
 
 ### 1. Database Header & Storage Overview
 ```text

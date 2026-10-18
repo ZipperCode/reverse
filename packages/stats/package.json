@@ -28,6 +28,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "bin": {
+    "reverse-stats": "./src/index.ts",
     "rva-stats": "./src/index.ts"
   },
   "scripts": {

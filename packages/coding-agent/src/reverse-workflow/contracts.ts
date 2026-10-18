@@ -76,7 +76,7 @@ export interface StepResumeMetadata {
 	capability_id?: string;
 	/** Logical name of the installed external tool (e.g. 'jadx', 'apktool', 'unidbg', 'radare2') */
 	installed_tool: string;
-	/** Trusted setup command executed to install the tool (e.g. 'rea setup reverse apktool') */
+	/** Trusted setup command executed to install the tool (e.g. 'reverse setup reverse apktool') */
 	setup_command?: string;
 	/** Whether tool availability was verified post-install before resuming execution */
 	verified: boolean;

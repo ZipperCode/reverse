@@ -1,8 +1,8 @@
 # CLI Tool Guide
 
-Canonical operations for the external CLI tools catalogued in `packages/coding-agent/src/extensibility/skill-tool-catalog.ts`. Availability status and trusted installation commands come from `rea setup reverse --json`. The examples below are the vetted canonical forms to adapt.
+Canonical operations for the external CLI tools catalogued in `packages/coding-agent/src/extensibility/skill-tool-catalog.ts`. Availability status and trusted installation commands come from `reverse setup reverse --json`. The examples below are the vetted canonical forms to adapt.
 
-When a tool is absent, apply the **Discover-Before-Stop / Install-Then-Dispatch** workflow: identify the capability, explain why to the operator, ask confirmation to run `rea setup reverse <tool-id>`, verify availability, and dispatch immediately. If declined, use the listed fallback.
+When a tool is absent, apply the **Discover-Before-Stop / Install-Then-Dispatch** workflow: identify the capability, explain why to the operator, ask confirmation to run `reverse setup reverse <tool-id>`, verify availability, and dispatch immediately. If declined, use the listed fallback.
 
 ## Selection matrix
 

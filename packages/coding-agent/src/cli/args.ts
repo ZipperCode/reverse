@@ -243,7 +243,7 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 		unknownFlags: new Map(),
 		unrecognizedFlags: [],
 		invalidFlagValues: [],
-		sessionDir: $env.RVA_CODING_AGENT_SESSION_DIR || undefined,
+		sessionDir: $env.REVERSE_CODING_AGENT_SESSION_DIR || $env.RVA_CODING_AGENT_SESSION_DIR || undefined,
 	};
 
 	// `--` ends option parsing (POSIX end-of-options). Everything after it is

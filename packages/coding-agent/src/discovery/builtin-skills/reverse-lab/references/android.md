@@ -30,7 +30,7 @@ Always start with lightweight discovery to preserve context budget:
 ### 1. Instant Manifest Extraction
 Extract package name, entrypoint activities, permissions, and exported components without full decompilation:
 ```typescript
-// Primary: rea built-in droidasc tool
+// Primary: reverse built-in droidasc tool
 droidasc({ op: "manifest", target: "target.apk" })
 ```
 ```bash
@@ -41,7 +41,7 @@ aapt2 dump badging target.apk | grep -E "package:|launchable-activity"
 ### 2. Fast Reference Lookup & Class Listing (Search-First)
 List classes across DEX entries or query method references, class references, or string constants across all DEX files:
 ```typescript
-// Primary: rea built-in droidasc tool
+// Primary: reverse built-in droidasc tool
 droidasc({ op: "listclass", target: "target.apk", prefix: "com.example" })
 droidasc({ op: "findrefs", target: "target.apk", kind: "string", query: "api/v2/auth" })
 droidasc({ op: "findrefs", target: "target.apk", kind: "method", query: "checkLicense", class: "com.example.LicenseValidator" })
@@ -51,7 +51,7 @@ droidasc({ op: "findrefs", target: "target.apk", kind: "string", query: "SecretK
 ### 3. On-Demand Single Class Decompilation
 Decompile only the exact class identified by `findrefs`:
 ```typescript
-// Primary: rea built-in droidasc tool
+// Primary: reverse built-in droidasc tool
 droidasc({ op: "getclass", target: "target.apk", class: "com/example/app/auth/AuthManager" })
 ```
 ```bash
@@ -206,7 +206,7 @@ Java.perform(function () {
     var SSLContext = Java.use("javax.net.ssl.SSLContext");
 
     var TrustAll = Java.registerClass({
-        name: "com.rea.TrustAll",
+        name: "com.reverse.TrustAll",
         implements: [TrustManager],
         methods: {
             checkClientTrusted: function (chain, authType) {},

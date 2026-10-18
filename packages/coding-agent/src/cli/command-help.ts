@@ -1,8 +1,11 @@
+import { APP_NAME } from "@rva/utils/dirs";
 import { getEffectiveLocale } from "../config/persisted-locale";
 import type { CommandMetadata } from "@rva/utils/cli";
 
 export const acpHelp = {
-	description: "Run rea as an ACP (Agent Client Protocol) server over stdio",
+	get description() {
+		return `Run ${APP_NAME} as an ACP (Agent Client Protocol) server over stdio`;
+	},
 } satisfies CommandMetadata;
 
 export const agentsHelp = { description: "Manage bundled task agents" } satisfies CommandMetadata;
@@ -17,7 +20,9 @@ export const authHelp = {
 } satisfies CommandMetadata;
 
 export const authBrokerHelp = {
-	description: "Manage the rea auth-broker (credential vault)",
+	get description() {
+		return `Manage the ${APP_NAME} auth-broker (credential vault)`;
+	},
 } satisfies CommandMetadata;
 
 export const authGatewayHelp = {

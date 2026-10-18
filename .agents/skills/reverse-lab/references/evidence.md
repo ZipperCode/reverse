@@ -1,6 +1,6 @@
 # Evidence Chain & Scientific Verification Guide
 
-In `rea`, reverse engineering claims MUST rest on empirical proof. This reference establishes the standard for separating observable facts from working hypotheses, documenting evidence chains, and formatting proof artifacts.
+In `reverse`, reverse engineering claims MUST rest on empirical proof. This reference establishes the standard for separating observable facts from working hypotheses, documenting evidence chains, and formatting proof artifacts.
 
 ---
 

@@ -173,10 +173,11 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 	}, WS_KEEPALIVE_MS);
 	keepalive.unref();
 
-	log("relay listening", { port: server.port });
+	const port = server.port ?? opts.port;
+	log("relay listening", { port });
 	return {
 		bridge,
-		port: server.port,
+		port,
 		stop() {
 			clearInterval(keepalive);
 			server.stop(true);

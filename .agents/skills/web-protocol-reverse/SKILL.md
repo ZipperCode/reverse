@@ -45,10 +45,10 @@ Read `skill://reverse-lab/references/evidence.md` for report schemas.
 
 | Canonical Capability ID | Analytical Scenario | Recommended Native Tool | Optional External Tools | Trusted Setup Command | Fallback Tier |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`browser_debugger`** | Dynamic Web application inspection, DOM inspection, script debugging, source-map recovery, and automated CDP control | `browser_reverse_session` / `js_hook_preset` (native) | `playwright-mcp`, `node` | `rea setup reverse playwright-mcp` | `curl`, `file` |
-| **`websocket_capture`** | Intercept, monitor, record, decode, and analyze WebSocket frames and bidirectional streaming protocols | `websocket_observe` (native offline) | `mitmproxy`, `tshark` | `rea setup reverse mitmproxy` | `pcap_inspect`, `strings`, `curl` |
-| **`js_deobfuscation`** | De-obfuscate minified/packed JavaScript, reconstruct AST, recover source maps, disassemble React Native Hermes bytecode | `sourcemap_inspect` / `ast_grep` (native) | `hbctool`, `node`, `ast-grep` | `rea setup reverse hbctool` | `strings`, `file` |
-| **`traffic_interception`** | Transparent network proxying, SSL/TLS decryption, request/response tampering, and API endpoint mapping | `pcap_inspect` (native offline) / `curl` | `mitmproxy`, `tshark` | `rea setup reverse mitmproxy` | `curl`, `strings` |
+| **`browser_debugger`** | Dynamic Web application inspection, DOM inspection, script debugging, source-map recovery, and automated CDP control | `browser_reverse_session` / `js_hook_preset` (native) | `playwright-mcp`, `node` | `reverse setup reverse playwright-mcp` | `curl`, `file` |
+| **`websocket_capture`** | Intercept, monitor, record, decode, and analyze WebSocket frames and bidirectional streaming protocols | `websocket_observe` (native offline) | `mitmproxy`, `tshark` | `reverse setup reverse mitmproxy` | `pcap_inspect`, `strings`, `curl` |
+| **`js_deobfuscation`** | De-obfuscate minified/packed JavaScript, reconstruct AST, recover source maps, disassemble React Native Hermes bytecode | `sourcemap_inspect` / `ast_grep` (native) | `hbctool`, `node`, `ast-grep` | `reverse setup reverse hbctool` | `strings`, `file` |
+| **`traffic_interception`** | Transparent network proxying, SSL/TLS decryption, request/response tampering, and API endpoint mapping | `pcap_inspect` (native offline) / `curl` | `mitmproxy`, `tshark` | `reverse setup reverse mitmproxy` | `curl`, `strings` |
 
 ### Capability Resolution Protocol
 
@@ -78,7 +78,7 @@ When dynamic instrumentation, live proxying, automated browser orchestration, or
    ```
    Request explicit operator confirmation before executing setup. Do not execute unapproved setup commands.
 4. **Re-Resolve Post-Install**:
-   After the operator executes the trusted setup command (`rea setup reverse <tool>`), verify readiness:
+   After the operator executes the trusted setup command (`reverse setup reverse <tool>`), verify readiness:
    ```json
    reverse_capability({ action: "resolve", capability: "<capability_id>", refresh: true })
    ```
@@ -88,7 +88,7 @@ When dynamic instrumentation, live proxying, automated browser orchestration, or
    - When recovering or resuming a workflow step following tool setup, record the canonical install-after resume metadata in `reverse_workflow`:
      - `capability_id`: Canonical capability ID (e.g. `"browser_debugger"`, `"websocket_capture"`, `"js_deobfuscation"`, `"traffic_interception"`).
      - `installed_tool`: Catalog tool installed (e.g. `"playwright-mcp"`, `"mitmproxy"`, `"hbctool"`).
-     - `setup_command`: Exact setup command executed (e.g. `"rea setup reverse playwright-mcp"`).
+     - `setup_command`: Exact setup command executed (e.g. `"reverse setup reverse playwright-mcp"`).
      - `verified`: `true` (readiness confirmed via `refresh: true`).
      - `strategy`: `"resume_original"` or `"install_recovery"`.
      - `resumed_at`: ISO 8601 timestamp.
@@ -113,23 +113,23 @@ When dynamic instrumentation, live proxying, automated browser orchestration, or
    - Resolve capability: `reverse_capability({ action: "resolve", capability: "browser_debugger" })`.
    - Prefer native built-ins first: generate safe, non-executing hook presets with `js_hook_preset(action: "generate", preset: "...")` for `fetch`, `xhr`, `websocket`, `crypto`, `eval`, `json_parse`, or Electron `contextBridge`.
    - For live page evaluation and CDP control, dispatch native `browser_reverse_session({ action: "eval", expression: "..." })`.
-   - When automated multi-session browser control via Playwright is required, present setup notice for `playwright-mcp` (`rea setup reverse playwright-mcp`). Upon install, re-resolve with `refresh: true`, dispatch, and record resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
+   - When automated multi-session browser control via Playwright is required, present setup notice for `playwright-mcp` (`reverse setup reverse playwright-mcp`). Upon install, re-resolve with `refresh: true`, dispatch, and record resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
    - Fallback: `browser_reverse_session` / `curl` / `file`.
 4. **WebAssembly & Bytecode Deconstruction (`js_deobfuscation`)**:
    - For WebAssembly: Start with `wasm_inspect(action: "info")` for imports, exports, signatures, and name-section functions; use `strings` and `search` before requesting WAT. Use `wasm_inspect(action: "wat")` when `wabt` is installed, or `wasm2wat module.wasm -o module.wat` directly, and analyze exported crypto routines.
-   - For React Native Hermes bytecode (`.hbc`): Resolve capability `reverse_capability({ action: "resolve", capability: "js_deobfuscation" })`. If `hbctool` is missing, present setup notice (`rea setup reverse hbctool`). Upon install, re-resolve with `refresh: true`, dispatch `hbctool disasm <index.android.bundle> <out_dir>`, and record resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`. Fallback: `strings` / `file`.
+   - For React Native Hermes bytecode (`.hbc`): Resolve capability `reverse_capability({ action: "resolve", capability: "js_deobfuscation" })`. If `hbctool` is missing, present setup notice (`reverse setup reverse hbctool`). Upon install, re-resolve with `refresh: true`, dispatch `hbctool disasm <index.android.bundle> <out_dir>`, and record resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`. Fallback: `strings` / `file`.
 5. **Protocol Capture & Frame Analysis (`websocket_capture`) (Authorized Targets Only)**:
    - Resolve capability: `reverse_capability({ action: "resolve", capability: "websocket_capture" })`.
    - For offline capture analysis (zero external dependency): Record WebSocket traffic to a HAR or CDP NDJSON file with the browser relay or an authorized proxy; keep the original capture read-only.
    - Start with `websocket_observe(action: "inspect", path: "...")` for connections, opcodes, direction counts, and time range.
    - Use `list`/`search` with `url`, `direction`, `opcode`, `filter`, and `regex` to isolate the handshake, subscribe, or signing frames; payload previews are bounded and credentials are redacted.
    - Use `export` with `export_format: "ndjson"` when full redacted payloads are needed, then cite the artifact id and frame index.
-   - When live capture or proxy decryption is required and no capture file exists, present setup notice for `mitmproxy` (`rea setup reverse mitmproxy`) or `tshark`. Upon install, re-resolve with `refresh: true`, dispatch `mitmweb --web-port 8081` or `tshark -Y websocket -i any`, and record resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
+   - When live capture or proxy decryption is required and no capture file exists, present setup notice for `mitmproxy` (`reverse setup reverse mitmproxy`) or `tshark`. Upon install, re-resolve with `refresh: true`, dispatch `mitmweb --web-port 8081` or `tshark -Y websocket -i any`, and record resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
    - Fallback: native `websocket_observe` / `pcap_inspect` / `strings` / `curl`.
 6. **Protocol Verification, Replay & Traffic Interception (`traffic_interception`) (Authorized Targets Only)**:
    - Resolve capability: `reverse_capability({ action: "resolve", capability: "traffic_interception" })`.
    - For bounded replay: Replay captured requests with exact headers and signatures via `curl` against authorized endpoints to verify parameter validation behavior, saving response traces to `./artifacts/`. Note that `websocket_observe` itself is analysis-only: it never connects or replays; any live replay is a separate, explicitly authorized step.
-   - For live HTTPS traffic interception and API contract mapping: Present setup notice for `mitmproxy` (`rea setup reverse mitmproxy`) or `tshark`. Upon install, re-resolve with `refresh: true`, dispatch `mitmproxy -p 8080` or `mitmdump -s filter.py`, and record resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
+   - For live HTTPS traffic interception and API contract mapping: Present setup notice for `mitmproxy` (`reverse setup reverse mitmproxy`) or `tshark`. Upon install, re-resolve with `refresh: true`, dispatch `mitmproxy -p 8080` or `mitmdump -s filter.py`, and record resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
    - Fallback: `curl` / `strings` / offline `pcap_inspect`.
 
 7. **Network Capture Forensics**:

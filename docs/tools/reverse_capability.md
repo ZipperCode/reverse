@@ -15,4 +15,4 @@
 ## 调度规范
 
 1. 优先使用推荐的原生零配置内置工具（如 `android_package_inspect`、`r2_inspect`、`websocket_observe`）。
-2. 当外部工具缺失时，执行受信 setupCommand（如 `rea setup reverse apktool`）并在安装后按 `postInstallInvocation` 调用。
+2. 当外部工具缺失时，执行受信 setupCommand（如 `reverse setup reverse apktool`）并在安装后按 `postInstallInvocation` 调用。

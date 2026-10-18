@@ -1,0 +1,558 @@
+import { logger } from "@rva/utils";
+import { findPersistedRecall, persistRecall } from "../memory-backend/recall-entry";
+import { ensureBankExists } from "./bank";
+import { composeRecallQuery, formatMemories, prepareRetentionTranscript, sliceLastTurnsByUserBoundary, truncateRecallQuery, } from "./content";
+import { ensureMentalModels, MENTAL_MODEL_FIRST_TURN_DEADLINE_MS, resolveSeedsForScope, tryLoadMentalModelsBlock, } from "./mental-models";
+import { countUserTurns, extractMessages } from "./transcript";
+const RETAIN_FLUSH_BATCH_SIZE = 16;
+const RETAIN_FLUSH_INTERVAL_MS = 5000;
+const MENTAL_MODEL_LOAD_TIMED_OUT = Symbol("mental-model-load-timed-out");
+/**
+ * Debounced batch queue for tool-initiated `retain` calls owned by one
+ * Hindsight session state instance.
+ *
+ * Auto-retain (`HindsightSessionState.retainSession`) is intentionally not
+ * routed through this queue — it submits a full transcript as one large item
+ * and already runs `async: true` server-side.
+ */
+export class HindsightRetainQueue {
+    #state;
+    #items = [];
+    #timer;
+    #flushing;
+    #closed = false;
+    constructor(state) {
+        this.#state = state;
+    }
+    get depth() {
+        return this.#items.length;
+    }
+    enqueue(content, context) {
+        if (this.#closed) {
+            throw new Error("Hindsight retain queue is closed.");
+        }
+        this.#items.push({ content, context, timestamp: new Date() });
+        if (this.#items.length >= RETAIN_FLUSH_BATCH_SIZE) {
+            void this.flush();
+            return;
+        }
+        if (!this.#timer) {
+            this.#timer = setTimeout(() => {
+                void this.flush();
+            }, RETAIN_FLUSH_INTERVAL_MS);
+            // Don't pin the event loop alive just for a pending retain flush.
+            this.#timer.unref?.();
+        }
+    }
+    async flush() {
+        if (this.#timer) {
+            clearTimeout(this.#timer);
+            this.#timer = undefined;
+        }
+        if (this.#flushing) {
+            // Coalesce: wait for the in-flight flush, then drain anything that
+            // landed after it started so we don't strand items.
+            await this.#flushing;
+            if (this.#items.length > 0)
+                await this.flush();
+            return;
+        }
+        if (this.#items.length === 0)
+            return;
+        const items = this.#items.splice(0);
+        const flushPromise = this.#doFlush(items);
+        this.#flushing = flushPromise;
+        try {
+            await flushPromise;
+        }
+        finally {
+            this.#flushing = undefined;
+        }
+    }
+    dispose() {
+        this.#closed = true;
+        if (this.#timer) {
+            clearTimeout(this.#timer);
+            this.#timer = undefined;
+        }
+        this.#items = [];
+    }
+    async #doFlush(items) {
+        const state = this.#state;
+        const sessionId = state.sessionId;
+        if (state.session.getHindsightSessionState() !== state) {
+            // Session went away before we could flush. We can't notify anyone, so
+            // log and drop — these are best-effort facts, not transactional writes.
+            logger.warn("Hindsight retain queue: session vanished, dropping batch", {
+                sessionId,
+                items: items.length,
+            });
+            return;
+        }
+        try {
+            await ensureBankExists(state.client, state.bankId, state.config, state.banksSet);
+            const batch = items.map(item => ({
+                content: item.content,
+                context: item.context ?? state.config.retainContext,
+                metadata: { session_id: sessionId },
+                tags: state.retainTags,
+                timestamp: item.timestamp,
+            }));
+            await state.client.retainBatch(state.bankId, batch, { async: true });
+            if (state.config.debug) {
+                logger.debug("Hindsight retain queue: batch flushed", {
+                    sessionId,
+                    bankId: state.bankId,
+                    items: items.length,
+                });
+            }
+        }
+        catch (err) {
+            const errorText = err instanceof Error ? err.message : String(err);
+            logger.warn("Hindsight retain queue: batch flush failed", {
+                sessionId,
+                bankId: state.bankId,
+                items: items.length,
+                error: errorText,
+            });
+            this.#notifyRetainFailure(items.length, errorText);
+        }
+    }
+    #notifyRetainFailure(count, errorText) {
+        const noun = count === 1 ? "memory" : "memories";
+        this.#state.session.emitNotice("warning", `Memory retention failed for ${count} ${noun}: ${errorText}`, "Hindsight");
+    }
+}
+/**
+ * Rolling hash of messages[0, to) for retention-cache validation (see #lastRetainedPrefixKey),
+ * continued from `key` = the rolling hash of messages[0, from).
+ */
+function extendRetentionPrefixKey(key, messages, from, to) {
+    for (let i = from; i < to; i++) {
+        const m = messages[i];
+        if (m === undefined)
+            break;
+        key = Bun.hash(`${key}\u0000${m.role}\u0000${m.content}\u0000${m.timestamp ?? ""}`).toString(36);
+    }
+    return key;
+}
+/** Per-session Hindsight runtime state owned by its AgentSession. */
+export class HindsightSessionState {
+    /** Session id used for retain-queue metadata. */
+    sessionId;
+    client;
+    bankId;
+    /** Tags applied to every retain — non-empty in per-project-tagged mode. */
+    retainTags;
+    /** Tag filter applied to every recall/reflect — non-empty in per-project-tagged mode. */
+    recallTags;
+    recallTagsMatch;
+    config;
+    session;
+    banksSet;
+    lastRetainedTurn;
+    #lastRetainedMessageIndex = 0;
+    #cachedTranscript = "";
+    // Rolling hash of ALL messages in [0, #lastRetainedMessageIndex) at cache
+    // time. The incremental full-session cache assumes the branch is append-only;
+    // a rewind, branch switch, compaction, or in-place edit rewrites the prefix
+    // without changing the session id. Re-hashing the current prefix at use time
+    // makes the cache self-healing: on ANY prefix change (not just the boundary
+    // message) we rebuild the full transcript instead of retaining stale content
+    // or silently retaining nothing forever. Hashing is orders of magnitude
+    // cheaper than the re-formatting this cache avoids.
+    #lastRetainedPrefixKey = "";
+    hasRecalledForFirstTurn;
+    lastRecallSnippet;
+    #recallGeneration = 0;
+    /** Cached `<mental_models>` block injected into developer instructions. */
+    mentalModelsSnippet;
+    /** When the current bootstrap/boundary load settled; gates the first-turn race. */
+    mentalModelsLoadedAt;
+    /**
+     * In-flight bootstrap or transcript-boundary load. `beforeAgentStartPrompt`
+     * awaits it on the first turn so a timely snapshot lands before generation,
+     * even though startup and transcript transitions remain non-blocking.
+     */
+    mentalModelsLoadPromise;
+    #mentalModelsLoadGeneration = 0;
+    unsubscribe;
+    /** Alias states delegate persistence config to a primary parent state. */
+    aliasOf;
+    retainQueue;
+    constructor(options) {
+        this.sessionId = options.sessionId;
+        this.client = options.client;
+        this.bankId = options.bankId;
+        this.retainTags = options.retainTags;
+        this.recallTags = options.recallTags;
+        this.recallTagsMatch = options.recallTagsMatch;
+        this.config = options.config;
+        this.session = options.session;
+        this.banksSet = options.banksSet;
+        this.lastRetainedTurn = options.lastRetainedTurn ?? 0;
+        this.#lastRetainedMessageIndex = 0;
+        this.#cachedTranscript = "";
+        this.#lastRetainedPrefixKey = "";
+        this.hasRecalledForFirstTurn = options.hasRecalledForFirstTurn ?? false;
+        this.aliasOf = options.aliasOf;
+        this.retainQueue = new HindsightRetainQueue(this);
+    }
+    setSessionId(sessionId) {
+        if (this.sessionId !== sessionId)
+            this.#recallGeneration++;
+        this.sessionId = sessionId;
+        this.#lastRetainedMessageIndex = 0;
+        this.#cachedTranscript = "";
+        this.#lastRetainedPrefixKey = "";
+    }
+    resetConversationTracking() {
+        this.#recallGeneration++;
+        this.lastRetainedTurn = 0;
+        this.hasRecalledForFirstTurn = false;
+        this.lastRecallSnippet = undefined;
+        this.#lastRetainedMessageIndex = 0;
+        this.#cachedTranscript = "";
+        this.#lastRetainedPrefixKey = "";
+    }
+    enqueueRetain(content, context) {
+        this.retainQueue.enqueue(content, context);
+    }
+    async flushRetainQueue() {
+        await this.retainQueue.flush();
+    }
+    async recallForContext(query, signal) {
+        try {
+            const response = await this.client.recall(this.bankId, query, {
+                budget: this.config.recallBudget,
+                maxTokens: this.config.recallMaxTokens,
+                types: this.config.recallTypes.length > 0 ? this.config.recallTypes : undefined,
+                tags: this.recallTags,
+                tagsMatch: this.recallTagsMatch,
+                signal,
+            });
+            if (signal?.aborted)
+                return { context: null, ok: false };
+            const results = response.results ?? [];
+            if (results.length === 0)
+                return { context: null, ok: true };
+            const formatted = formatMemories(results);
+            const block = `<memories>\n${this.config.recallPromptPreamble}\n\n${formatted}\n</memories>`;
+            return { context: block, ok: true };
+        }
+        catch (err) {
+            if (this.config.debug) {
+                logger.debug("Hindsight: recall failed", { bankId: this.bankId, error: String(err) });
+            }
+            return { context: null, ok: false };
+        }
+    }
+    #sessionSourceTimestamp() {
+        const header = this.session.sessionManager?.getHeader?.();
+        const timestamp = header?.timestamp;
+        if (typeof timestamp !== "string")
+            return undefined;
+        const trimmed = timestamp.trim();
+        if (!trimmed)
+            return undefined;
+        const parsed = new Date(trimmed);
+        return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+    }
+    async retainSession(messages) {
+        const retainedAt = new Date();
+        const sourceTimestamp = this.#sessionSourceTimestamp() ?? retainedAt;
+        const retainFullWindow = this.config.retainMode === "full-session";
+        let documentId;
+        let transcript;
+        let nextCachedTranscript;
+        let prefixKey = "";
+        let hashedThrough = 0;
+        if (retainFullWindow) {
+            documentId = this.sessionId;
+            const boundary = this.#lastRetainedMessageIndex;
+            if (boundary <= messages.length)
+                prefixKey = extendRetentionPrefixKey("", messages, 0, boundary);
+            if (boundary > messages.length || prefixKey !== this.#lastRetainedPrefixKey) {
+                this.#lastRetainedMessageIndex = 0;
+                this.#cachedTranscript = "";
+                this.#lastRetainedPrefixKey = "";
+                prefixKey = "";
+            }
+            hashedThrough = this.#lastRetainedMessageIndex;
+            const newMessages = messages.slice(hashedThrough);
+            const { transcript: newPart } = prepareRetentionTranscript(newMessages, true, { includeTimestamps: true });
+            if (!newPart)
+                return;
+            nextCachedTranscript = this.#cachedTranscript ? `${this.#cachedTranscript}\n\n${newPart}` : newPart;
+            transcript = nextCachedTranscript;
+        }
+        else {
+            const windowTurns = this.config.retainEveryNTurns + this.config.retainOverlapTurns;
+            const target = sliceLastTurnsByUserBoundary(messages, windowTurns);
+            documentId = `${this.sessionId}-${retainedAt.getTime()}`;
+            this.#lastRetainedMessageIndex = 0;
+            this.#cachedTranscript = "";
+            this.#lastRetainedPrefixKey = "";
+            const { transcript: windowTranscript } = prepareRetentionTranscript(target, true, { includeTimestamps: true });
+            if (!windowTranscript)
+                return;
+            transcript = windowTranscript;
+        }
+        await ensureBankExists(this.client, this.bankId, this.config, this.banksSet);
+        await this.client.retain(this.bankId, transcript, {
+            documentId,
+            context: this.config.retainContext,
+            metadata: { session_id: this.sessionId },
+            tags: this.retainTags,
+            timestamp: sourceTimestamp,
+            async: true,
+        });
+        if (nextCachedTranscript !== undefined) {
+            this.#cachedTranscript = nextCachedTranscript;
+            // prefixKey hashes [0, hashedThrough) of this same snapshot; extend it instead of rehashing from 0.
+            this.#lastRetainedPrefixKey = extendRetentionPrefixKey(prefixKey, messages, hashedThrough, messages.length);
+            this.#lastRetainedMessageIndex = messages.length;
+        }
+    }
+    async maybeRetainOnAgentEnd() {
+        if (!this.config.autoRetain)
+            return;
+        // Cheap gate first: most agent_end events are not retain turns, so skip text extraction.
+        const userTurns = countUserTurns(this.session.sessionManager);
+        if (userTurns - this.lastRetainedTurn < this.config.retainEveryNTurns)
+            return;
+        const messages = extractMessages(this.session.sessionManager);
+        if (messages.length === 0)
+            return;
+        try {
+            await this.retainSession(messages);
+            this.lastRetainedTurn = userTurns;
+            if (this.config.debug) {
+                logger.debug("Hindsight: auto-retain succeeded", {
+                    sessionId: this.sessionId,
+                    bankId: this.bankId,
+                    userTurns,
+                    messages: messages.length,
+                });
+            }
+        }
+        catch (err) {
+            logger.warn("Hindsight: auto-retain failed", {
+                sessionId: this.sessionId,
+                bankId: this.bankId,
+                error: String(err),
+            });
+        }
+    }
+    async forceRetainCurrentSession() {
+        const messages = extractMessages(this.session.sessionManager);
+        if (messages.length === 0)
+            return;
+        // Forced retains are user-initiated rebuilds (`/memory enqueue`): drop the
+        // incremental cache so the full transcript is reformatted and resent even
+        // when no new messages arrived since the last auto-retain — otherwise a
+        // rebuild could never recover an upstream document that was deleted or a
+        // previous async retain that never materialized.
+        this.#lastRetainedMessageIndex = 0;
+        this.#cachedTranscript = "";
+        this.#lastRetainedPrefixKey = "";
+        try {
+            await this.retainSession(messages);
+            this.lastRetainedTurn = messages.filter(m => m.role === "user").length;
+        }
+        catch (err) {
+            logger.warn("Hindsight: forced retain failed", {
+                sessionId: this.sessionId,
+                bankId: this.bankId,
+                error: String(err),
+            });
+        }
+    }
+    async beforeAgentStartPrompt(promptText, signal) {
+        if (this.config.mentalModelsEnabled && this.mentalModelsLoadPromise && this.mentalModelsLoadedAt === undefined) {
+            await Promise.race([this.mentalModelsLoadPromise, Bun.sleep(MENTAL_MODEL_FIRST_TURN_DEADLINE_MS)]);
+        }
+        if (!this.config.autoRecall || this.hasRecalledForFirstTurn)
+            return undefined;
+        const latestPrompt = promptText.trim();
+        if (!latestPrompt)
+            return undefined;
+        const generation = ++this.#recallGeneration;
+        // Reuse this transcript's recall so a resumed session sends the same prompt. Hindsight
+        // memories cannot be looked up by id, so changes since are not reported.
+        const persisted = findPersistedRecall(this.session.sessionManager, this.#recallScope());
+        if (persisted !== undefined) {
+            return {
+                context: persisted.text || undefined,
+                commit: () => this.#commitRecall(generation, persisted.text, false),
+            };
+        }
+        const history = extractMessages(this.session.sessionManager);
+        const queryMessages = [...history, { role: "user", content: latestPrompt }];
+        const query = composeRecallQuery(latestPrompt, queryMessages, this.config.recallContextTurns);
+        const truncated = truncateRecallQuery(query, latestPrompt, this.config.recallMaxQueryChars);
+        const { context, ok } = await this.recallForContext(truncated, signal);
+        if (!ok)
+            return undefined;
+        return {
+            context: context ?? undefined,
+            commit: () => this.#commitRecall(generation, context ?? "", true),
+        };
+    }
+    /** Adopts a first-turn recall unless a newer turn or reset superseded it; `""` means it found nothing. */
+    #commitRecall(generation, context, persist) {
+        if (this.#recallGeneration !== generation)
+            return false;
+        this.hasRecalledForFirstTurn = true;
+        if (context)
+            this.lastRecallSnippet = context;
+        if (persist)
+            persistRecall(this.session.sessionManager, this.#recallScope(), { text: context, memories: [] });
+        return true;
+    }
+    /**
+     * Identifies the server, account, bank and tag filter a recall reads, so a persisted
+     * recall is only reused for the same ones. The account is a hash of the API token.
+     */
+    #recallScope() {
+        return JSON.stringify([
+            "hindsight",
+            this.config.hindsightApiUrl,
+            Bun.hash(this.config.hindsightApiToken ?? "").toString(16),
+            this.bankId,
+            this.recallTags ?? [],
+            this.recallTagsMatch ?? null,
+        ]);
+    }
+    async recallForCompaction(messages) {
+        const lastUser = messages.findLast(m => m.role === "user");
+        if (!lastUser)
+            return undefined;
+        const query = composeRecallQuery(lastUser.content, messages, this.config.recallContextTurns);
+        const truncated = truncateRecallQuery(query, lastUser.content, this.config.recallMaxQueryChars);
+        const { context } = await this.recallForContext(truncated);
+        return context ?? undefined;
+    }
+    async runMentalModelLoad(scope) {
+        if (!this.config.mentalModelsEnabled)
+            return;
+        const generation = ++this.#mentalModelsLoadGeneration;
+        const previousSnippet = this.mentalModelsSnippet;
+        this.mentalModelsLoadedAt = undefined;
+        const bootstrap = (async () => {
+            // Create/ensure the bank BEFORE the first mental-model POST so we don't
+            // land `createMentalModel` against a bank the server has never seen —
+            // that surfaces as a FK / 404 on Hindsight's side. `ensureBankExists`
+            // is idempotent (PUT) and skips after the first call via `banksSet`.
+            await ensureBankExists(this.client, this.bankId, this.config, this.banksSet);
+            // Seeding is opt-in (`hindsight.mentalModelAutoSeed`). Default behaviour is
+            // read-only: we surface whatever models the operator has curated on the
+            // bank, but we do NOT POST to create new ones unless they explicitly
+            // asked. `/memory mm seed` remains the explicit-write entry point.
+            if (this.config.mentalModelAutoSeed) {
+                const seeds = resolveSeedsForScope(scope, this.config.scoping);
+                if (seeds.length > 0) {
+                    await ensureMentalModels(this.client, this.bankId, seeds, this.config.debug);
+                }
+            }
+            await this.#loadAndPublishMentalModels(generation, previousSnippet, "MM load");
+        })();
+        await this.#settleMentalModelsLoadWithinDeadline(bootstrap, generation, previousSnippet);
+    }
+    /**
+     * Starts a bounded reload for a new transcript without blocking the session
+     * transition. A result that misses the first-turn deadline is discarded so
+     * the previous snapshot stays frozen for the whole transcript.
+     */
+    beginMentalModelsTranscriptReload() {
+        if (!this.config.mentalModelsEnabled)
+            return;
+        const generation = ++this.#mentalModelsLoadGeneration;
+        const previousSnippet = this.mentalModelsSnippet;
+        this.mentalModelsLoadedAt = undefined;
+        const reload = this.#settleMentalModelsLoadWithinDeadline(this.#loadAndPublishMentalModels(generation, previousSnippet, "MM transcript reload"), generation, previousSnippet).catch(error => {
+            if (generation === this.#mentalModelsLoadGeneration) {
+                this.mentalModelsSnippet = previousSnippet;
+                this.mentalModelsLoadedAt = Date.now();
+            }
+            logger.debug("Hindsight: mental-model transcript reload failed", { error: String(error) });
+        });
+        this.mentalModelsLoadPromise = reload;
+    }
+    async #settleMentalModelsLoadWithinDeadline(load, generation, previousSnippet) {
+        const outcome = await Promise.race([
+            load,
+            Bun.sleep(MENTAL_MODEL_FIRST_TURN_DEADLINE_MS).then(() => MENTAL_MODEL_LOAD_TIMED_OUT),
+        ]);
+        if (outcome !== MENTAL_MODEL_LOAD_TIMED_OUT || generation !== this.#mentalModelsLoadGeneration)
+            return;
+        // Invalidate the still-running load before restoring the stable snapshot.
+        // SessionTools checks the same generation before committing a prompt build,
+        // so a queued publication cannot rewrite the prefix after this deadline.
+        this.#mentalModelsLoadGeneration++;
+        this.mentalModelsSnippet = previousSnippet;
+        this.mentalModelsLoadedAt = Date.now();
+    }
+    async #loadAndPublishMentalModels(generation, previousSnippet, reason) {
+        const result = await tryLoadMentalModelsBlock(this.client, this.bankId, this.config.mentalModelMaxRenderChars, this.recallTags);
+        if (generation !== this.#mentalModelsLoadGeneration)
+            return;
+        if (!result.ok) {
+            this.mentalModelsLoadedAt = Date.now();
+            return;
+        }
+        this.mentalModelsSnippet = result.block;
+        const published = await this.#refreshBaseSystemPromptAfter(reason, () => generation === this.#mentalModelsLoadGeneration);
+        if (generation !== this.#mentalModelsLoadGeneration)
+            return;
+        if (!published)
+            this.mentalModelsSnippet = previousSnippet;
+        this.mentalModelsLoadedAt = Date.now();
+    }
+    async reloadMentalModels() {
+        if (this.aliasOf)
+            return false;
+        if (!this.config.mentalModelsEnabled)
+            return false;
+        const generation = ++this.#mentalModelsLoadGeneration;
+        const previousSnippet = this.mentalModelsSnippet;
+        await this.#loadAndPublishMentalModels(generation, previousSnippet, "MM reload");
+        return generation === this.#mentalModelsLoadGeneration;
+    }
+    attachSessionListeners() {
+        this.unsubscribe?.();
+        this.unsubscribe = this.session.subscribe(event => {
+            if (event.type === "agent_end") {
+                void this.maybeRetainOnAgentEnd();
+                // Drain any queued tool-initiated retain calls now that the turn
+                // is settled. The queue is also debounced/size-bounded, but
+                // flushing here keeps the bank fresh between turns.
+                void this.flushRetainQueue();
+                // Mental models are deliberately NOT re-listed here. Rewriting the
+                // cached <mental_models> block mid-session changes the base system
+                // prompt bytes and busts the provider prompt-cache prefix (#11961).
+                // The block is frozen for the current transcript — like local-memory
+                // guidance after #3745 — so a background reflect applies when the
+                // next transcript/session boundary reloads it. `/memory mm reload`
+                // stays the explicit in-session invalidation.
+            }
+        });
+    }
+    dispose() {
+        this.#recallGeneration++;
+        this.#mentalModelsLoadGeneration++;
+        this.unsubscribe?.();
+        this.unsubscribe = undefined;
+        this.retainQueue.dispose();
+    }
+    async #refreshBaseSystemPromptAfter(reason, commitIf) {
+        try {
+            await this.session.refreshBaseSystemPrompt(commitIf);
+            return !commitIf || commitIf();
+        }
+        catch (err) {
+            logger.debug(`Hindsight: refreshBaseSystemPrompt after ${reason} failed`, { error: String(err) });
+            return false;
+        }
+    }
+}

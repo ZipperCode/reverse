@@ -1,14 +1,14 @@
 /**
- * Centralized path helpers for omp config directories.
+ * Centralized path helpers for reverse config directories.
  *
- * Uses PI_CONFIG_DIR (default ".omp") for the config root and
- * PI_CODING_AGENT_DIR to override the agent directory.
- *
- * On Linux, if XDG_DATA_HOME / XDG_STATE_HOME / XDG_CACHE_HOME environment
- * variables are set, paths are redirected to XDG-compliant locations under
- * $XDG_*_HOME/omp/. This requires running `omp config migrate` first to
- * move data to the new locations. No filesystem existence checks are performed
- * — if the env var is set, omp trusts that the migration has been done.
+ * Identity architecture:
+ * - Canonical project identity & binary: `reverse`
+ * - Config directory: `~/.reverse` (with fallback to `~/.rva` if existing)
+ * - Primary environment variables: `REVERSE_*` (e.g. `REVERSE_CONFIG_DIR`, `REVERSE_PROFILE`,
+ *   `REVERSE_CODING_AGENT_DIR`), with `RVA_*` as backward compatibility fallbacks.
+ * - Transitional package scope: `@rva/*` is preserved across internal monorepo imports for
+ *   stability while product identity, CLI commands (`reverse`, `reverse-memory`, `reverse-stats`),
+ *   config roots, and environment variables are cut over to canonical `reverse`.
  */
 
 import * as fs from "node:fs";
@@ -18,14 +18,14 @@ import { expandWindowsLongPath } from "@rva/natives/path";
 import { engines, version } from "../package.json" with { type: "json" };
 import { isEnoent, isEnotdir } from "./fs-error";
 
-/** App name (e.g. "omp") */
-export const APP_NAME: string = "rva";
+/** App name (e.g. "reverse") */
+export const APP_NAME: string = "reverse";
 
-/** Public homepage that inference gateways (OpenRouter, Vercel AI Gateway) credit omp traffic to. */
+/** Public homepage that inference gateways (OpenRouter, Vercel AI Gateway) credit reverse traffic to. */
 export const APP_URL: string = "https://github.com/ZipperCode/rev";
 
-/** Config directory name (e.g. ".omp") */
-export const CONFIG_DIR_NAME: string = ".rva";
+/** Config directory name (e.g. ".reverse") */
+export const CONFIG_DIR_NAME: string = ".reverse";
 
 /** Ordered main settings filenames: canonical write target first, legacy-compatible YAML fallback second. */
 export const MAIN_CONFIG_FILENAMES = ["config.yml", "config.yaml"] as const;
@@ -33,14 +33,14 @@ export const MAIN_CONFIG_FILENAMES = ["config.yml", "config.yaml"] as const;
 /** Version (e.g. "1.0.0") */
 export const VERSION: string = version;
 
-/** Default User-Agent header string (e.g. "omp/17.2.12") */
-export const USER_AGENT = `rva/${VERSION}`;
+/** Default User-Agent header string (e.g. "reverse/17.2.12") */
+export const USER_AGENT = `reverse/${VERSION}`;
 
 /** Minimum Bun version */
 export const MIN_BUN_VERSION: string = engines.bun.replace(/[^0-9.]/g, "");
 
 const PROFILE_NAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/;
-const PROFILE_ENV_KEYS = ["RVA_PROFILE"] as const;
+const PROFILE_ENV_KEYS = ["REVERSE_PROFILE", "RVA_PROFILE"] as const;
 
 /**
  * Names Windows treats as reserved device aliases. Matches the basename
@@ -71,7 +71,7 @@ export function normalizeProfileName(profile: string | undefined): string | unde
 		WINDOWS_RESERVED_BASENAME_RE.test(normalized)
 	) {
 		throw new Error(
-			`Invalid RVA profile "${profile}". Profile names must match ${PROFILE_NAME_RE.source}, ` +
+			`Invalid reverse profile "${profile}". Profile names must match ${PROFILE_NAME_RE.source}, ` +
 				`cannot be "." or "..", cannot end with ".", and cannot be a Windows reserved device name ` +
 				`(CON, PRN, AUX, NUL, COM0-9, LPT0-9, or any of those with an extension).`,
 		);
@@ -80,7 +80,7 @@ export function normalizeProfileName(profile: string | undefined): string | unde
 }
 
 /**
- * Resolve the active profile from RVA_PROFILE. Delegates validation/normalization
+ * Resolve the active profile from REVERSE_PROFILE or RVA_PROFILE. Delegates validation/normalization
  * to {@link normalizeProfileName} (which throws on a syntactically invalid value).
  */
 export function resolveProfileEnv(profile: string | undefined): string | undefined {
@@ -88,7 +88,7 @@ export function resolveProfileEnv(profile: string | undefined): string | undefin
 }
 
 function getProfileFromEnv(): string | undefined {
-	return resolveProfileEnv(process.env.RVA_PROFILE);
+	return resolveProfileEnv(process.env.REVERSE_PROFILE || process.env.RVA_PROFILE);
 }
 
 /**
@@ -321,9 +321,18 @@ export function getSafeProjectCwd(): string {
 	return os.homedir();
 }
 
-/** Get the config directory name relative to home (e.g. ".omp" or PI_CONFIG_DIR override). */
+/** Get the config directory name relative to home (e.g. ".reverse" or REVERSE_CONFIG_DIR / RVA_CONFIG_DIR override). */
 export function getConfigDirName(): string {
-	return process.env.RVA_CONFIG_DIR || CONFIG_DIR_NAME;
+	const envConfig = process.env.REVERSE_CONFIG_DIR || process.env.RVA_CONFIG_DIR;
+	if (envConfig) return envConfig;
+	const primaryHome = path.join(os.homedir(), CONFIG_DIR_NAME);
+	if (!fs.existsSync(primaryHome)) {
+		const legacyHome = path.join(os.homedir(), ".rva");
+		if (fs.existsSync(legacyHome)) {
+			return ".rva";
+		}
+	}
+	return CONFIG_DIR_NAME;
 }
 
 /** Get the config agent directory name relative to home (e.g. ".omp/agent" or PI_CONFIG_DIR + "/agent"). */
@@ -391,9 +400,14 @@ class DirResolver {
 					if (profile) {
 						const profilePath = path.join(appRoot, "profiles", profile);
 						if (fs.existsSync(profilePath)) return profilePath;
+						const legacyProfilePath = path.join(value, "rva", "profiles", profile);
+						if (fs.existsSync(legacyProfilePath)) return legacyProfilePath;
 						return undefined;
 					}
-					return fs.existsSync(appRoot) ? appRoot : undefined;
+					if (fs.existsSync(appRoot)) return appRoot;
+					const legacyAppRoot = path.join(value, "rva");
+					if (fs.existsSync(legacyAppRoot)) return legacyAppRoot;
+					return undefined;
 				} catch {}
 				return undefined;
 			};
@@ -413,7 +427,10 @@ class DirResolver {
 			if (!value) return undefined;
 			try {
 				const appRoot = path.join(value, APP_NAME);
-				return fs.existsSync(appRoot) ? appRoot : undefined;
+				if (fs.existsSync(appRoot)) return appRoot;
+				const legacyAppRoot = path.join(value, "rva");
+				if (fs.existsSync(legacyAppRoot)) return legacyAppRoot;
+				return undefined;
 			} catch {}
 			return undefined;
 		};
@@ -493,10 +510,14 @@ let activeProfile = readProfileFromEnvSafe();
  * {@link resolvePreProfileAgentDir}). Shared by the module-load resolver and
  * {@link refreshDirsFromEnv} so both apply identical logic.
  */
+function getAgentDirEnv(): string | undefined {
+	return process.env.REVERSE_CODING_AGENT_DIR || process.env.RVA_CODING_AGENT_DIR;
+}
+
 function resolveActiveAgentDirOverride(): string | undefined {
 	return activeProfile
 		? undefined
-		: resolvePreProfileAgentDir(undefined, process.env.RVA_CODING_AGENT_DIR, readPiProfileFromEnvSafe());
+		: resolvePreProfileAgentDir(undefined, getAgentDirEnv(), readPiProfileFromEnvSafe());
 }
 
 let dirs = new DirResolver({
@@ -516,7 +537,7 @@ let dirs = new DirResolver({
  */
 let preProfileAgentDirEnv: string | undefined = resolvePreProfileAgentDir(
 	activeProfile,
-	process.env.RVA_CODING_AGENT_DIR,
+	getAgentDirEnv(),
 	activeProfile ?? readPiProfileFromEnvSafe(),
 );
 // Anchor home for the resolver. Captured at module load to stay stable across
@@ -555,6 +576,7 @@ export function getConfigRootDir(): string {
 export function setAgentDir(dir: string): void {
 	activeProfile = undefined;
 	dirs = new DirResolver({ agentDirOverride: dir });
+	process.env.REVERSE_CODING_AGENT_DIR = dir;
 	process.env.RVA_CODING_AGENT_DIR = dir;
 	preProfileAgentDirEnv = dir;
 	for (const key of PROFILE_ENV_KEYS) {
@@ -573,7 +595,7 @@ export function setAgentDir(dir: string): void {
 export function __resetProfileSnapshotForTests(): void {
 	preProfileAgentDirEnv = resolvePreProfileAgentDir(
 		activeProfile,
-		process.env.RVA_CODING_AGENT_DIR,
+		getAgentDirEnv(),
 		activeProfile ?? readPiProfileFromEnvSafe(),
 	);
 }
@@ -601,22 +623,26 @@ export function setProfile(profile: string | undefined): void {
 		// entered the picture, not the state between two activations.
 		preProfileAgentDirEnv = resolvePreProfileAgentDir(
 			undefined,
-			process.env.RVA_CODING_AGENT_DIR,
+			getAgentDirEnv(),
 			readPiProfileFromEnvSafe(),
 		);
 	}
 	activeProfile = next;
 	if (activeProfile) {
 		dirs = new DirResolver({ profile: activeProfile });
+		process.env.REVERSE_PROFILE = activeProfile;
 		process.env.RVA_PROFILE = activeProfile;
+		process.env.REVERSE_CODING_AGENT_DIR = dirs.agentDir;
 		process.env.RVA_CODING_AGENT_DIR = dirs.agentDir;
 	} else {
 		for (const key of PROFILE_ENV_KEYS) {
 			delete process.env[key];
 		}
 		if (preProfileAgentDirEnv === undefined) {
+			delete process.env.REVERSE_CODING_AGENT_DIR;
 			delete process.env.RVA_CODING_AGENT_DIR;
 		} else {
+			process.env.REVERSE_CODING_AGENT_DIR = preProfileAgentDirEnv;
 			process.env.RVA_CODING_AGENT_DIR = preProfileAgentDirEnv;
 		}
 		dirs = new DirResolver({ agentDirOverride: preProfileAgentDirEnv });
@@ -637,9 +663,14 @@ export function getAgentDir(): string {
 	return dirs.agentDir;
 }
 
-/** Get the project-local config directory (.omp). */
+/** Get the project-local config directory (.reverse, with .rva fallback). */
 export function getProjectAgentDir(cwd: string = getProjectDir()): string {
-	return path.join(cwd, CONFIG_DIR_NAME);
+	const primary = path.join(cwd, CONFIG_DIR_NAME);
+	if (!fs.existsSync(primary)) {
+		const legacy = path.join(cwd, ".rva");
+		if (fs.existsSync(legacy)) return legacy;
+	}
+	return primary;
 }
 
 // =============================================================================
@@ -700,12 +731,18 @@ export function getPluginsPackageJson(home?: string): string {
 	return path.join(getPluginsDir(home), "package.json");
 }
 
-/** Plugin lock file (~/.rva/plugins/rva-plugins.lock.json). */
+/** Plugin lock file (~/.reverse/plugins/reverse-plugins.lock.json, with fallback to rva-plugins.lock.json). */
 export function getPluginsLockfile(home?: string): string {
-	return path.join(getPluginsDir(home), "rva-plugins.lock.json");
+	const dir = getPluginsDir(home);
+	const primary = path.join(dir, "reverse-plugins.lock.json");
+	if (!fs.existsSync(primary)) {
+		const legacy = path.join(dir, "rva-plugins.lock.json");
+		if (fs.existsSync(legacy)) return legacy;
+	}
+	return primary;
 }
 
-/** Get the remote mount directory (~/.rva/remote). */
+/** Get the remote mount directory (~/.reverse/remote). */
 export function getRemoteDir(): string {
 	return dirs.rootSubdir("remote", "data");
 }
@@ -756,7 +793,8 @@ export function setWorktreesDir(dir: string | undefined): string | undefined {
  * ignored and resolution falls through.
  */
 export function getWorktreesDir(): string {
-	return resolveAbsoluteDir(process.env.RVA_WORKTREE_DIR) ?? worktreesDirOverride ?? dirs.rootSubdir("wt", "data");
+	const env = process.env.REVERSE_WORKTREE_DIR || process.env.RVA_WORKTREE_DIR;
+	return resolveAbsoluteDir(env) ?? worktreesDirOverride ?? dirs.rootSubdir("wt", "data");
 }
 
 /** Get the SSH control socket directory (~/.omp/ssh-control). */
@@ -823,7 +861,7 @@ export function getWorktreeDir(segment: string): string {
  * cache file without touching the rest of the config root.
  */
 export function getGithubCacheDbPath(): string {
-	const override = process.env.RVA_GITHUB_CACHE_DB;
+	const override = process.env.REVERSE_GITHUB_CACHE_DB || process.env.RVA_GITHUB_CACHE_DB;
 	if (override) return override;
 	return dirs.rootSubdir(path.join("cache", "github-cache.db"), "cache");
 }
@@ -832,7 +870,7 @@ export function getGithubCacheDbPath(): string {
  * Honors `OMP_COMMIT_CACHE_DB` so tests and operators can isolate the cache.
  */
 export function getCommitCacheDbPath(): string {
-	const override = process.env.RVA_COMMIT_CACHE_DB;
+	const override = process.env.REVERSE_COMMIT_CACHE_DB || process.env.RVA_COMMIT_CACHE_DB;
 	if (override) return override;
 	return dirs.rootSubdir(path.join("cache", "commit-inference.db"), "cache");
 }
@@ -842,7 +880,7 @@ export function getCommitCacheDbPath(): string {
  * Honors `OMP_JUDGMENT_CACHE_DB` so tests and operators can isolate the cache.
  */
 export function getJudgmentCacheDbPath(): string {
-	const override = process.env.RVA_JUDGMENT_CACHE_DB;
+	const override = process.env.REVERSE_JUDGMENT_CACHE_DB || process.env.RVA_JUDGMENT_CACHE_DB;
 	if (override) return override;
 	return dirs.rootSubdir(path.join("cache", "judgment-cache.db"), "cache");
 }
@@ -858,7 +896,7 @@ export function getLegacyPiExtensionCacheDbPath(): string {
  * operators can isolate or relocate the cache file.
  */
 export function getAuthBrokerSnapshotCachePath(): string {
-	const override = process.env.RVA_AUTH_BROKER_SNAPSHOT_CACHE;
+	const override = process.env.REVERSE_AUTH_BROKER_SNAPSHOT_CACHE || process.env.RVA_AUTH_BROKER_SNAPSHOT_CACHE;
 	if (override) return override;
 	return dirs.rootSubdir(path.join("cache", "auth-broker-snapshot.enc"), "cache");
 }
@@ -889,7 +927,8 @@ export function getNativeGrammarsDir(): string {
 
 /** Get the natives directory. PI_NATIVES_DIR overrides the usual cache root; relative values are ignored. */
 export function getNativesDir(): string {
-	return resolveAbsoluteDir(process.env.RVA_NATIVES_DIR) ?? dirs.rootSubdir("natives", "cache");
+	const env = process.env.REVERSE_NATIVES_DIR || process.env.RVA_NATIVES_DIR;
+	return resolveAbsoluteDir(env) ?? dirs.rootSubdir("natives", "cache");
 }
 
 /** Get the stats database path (~/.omp/stats.db). */
@@ -1257,8 +1296,8 @@ const INSTALL_ID_FILE = "install-id";
  * app X use" instead of folding everything into one install-wide bucket.
  */
 export function getAppName(): string {
-	const value = process.env.RVA_APP_NAME?.trim();
-	return value ? value : "rva";
+	const value = (process.env.REVERSE_APP_NAME || process.env.RVA_APP_NAME)?.trim();
+	return value ? value : "reverse";
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

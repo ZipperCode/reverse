@@ -35,8 +35,8 @@ Read `skill://reverse-lab/references/evidence.md` for artifact formats.
 
 | Canonical Capability ID | Analytical Scenario | Recommended Native Tool | Optional External Tools | Trusted Setup Command | Fallback Tier |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`apk_unpacking`** | Container triage, DEX decompilation, manifest decoding, smali patching | `android_package_inspect` (built-in) / `droidasc` | `jadx`, `apktool`, `baksmali`, `dexdump` | `rea setup reverse jadx` / `apktool` | `droidasc` ➔ `dexdump` ➔ `unzip -p <apk> AndroidManifest.xml` / `strings` |
-| **`android_native_emulation`** | Headless ARM32/ARM64 CPU emulation and JNI invocation of native `.so` crypto algorithms without a device | `android_native_workflow` (built-in triage) | `unidbg` (Maven Java harness) | `rea setup reverse unidbg` | `frida` / `frida_session` (live device) ➔ static `r2_inspect` / `ghidra_inspect` / `readelf` |
+| **`apk_unpacking`** | Container triage, DEX decompilation, manifest decoding, smali patching | `android_package_inspect` (built-in) / `droidasc` | `jadx`, `apktool`, `baksmali`, `dexdump` | `reverse setup reverse jadx` / `apktool` | `droidasc` ➔ `dexdump` ➔ `unzip -p <apk> AndroidManifest.xml` / `strings` |
+| **`android_native_emulation`** | Headless ARM32/ARM64 CPU emulation and JNI invocation of native `.so` crypto algorithms without a device | `android_native_workflow` (built-in triage) | `unidbg` (Maven Java harness) | `reverse setup reverse unidbg` | `frida` / `frida_session` (live device) ➔ static `r2_inspect` / `ghidra_inspect` / `readelf` |
 
 ### Core Toolchain & Prerequisites
 
@@ -72,7 +72,7 @@ When an analytical task requires decompilation or emulation, operators MUST NOT 
      ```
    - Request operator approval before running setup.
 3. **Execute Trusted Setup**:
-   The operator runs `rea setup reverse <tool>` (e.g. `rea setup reverse jadx`, `rea setup reverse apktool`, or `rea setup reverse unidbg`).
+   The operator runs `reverse setup reverse <tool>` (e.g. `reverse setup reverse jadx`, `reverse setup reverse apktool`, or `reverse setup reverse unidbg`).
 4. **Re-Resolve Capability Post-Install**:
    Verify tool readiness by re-resolving with `refresh: true`:
    ```json
@@ -91,7 +91,7 @@ When an analytical task requires decompilation or emulation, operators MUST NOT 
        evidence_ids: ["ev_fact_<id>"],
        capability_id: "apk_unpacking",
        installed_tool: "jadx",
-       setup_command: "rea setup reverse jadx",
+       setup_command: "reverse setup reverse jadx",
        verified: true,
        strategy: "resume_original",
        resumed_at: "2026-10-18T01:00:00Z"
@@ -132,7 +132,7 @@ When primary tools are absent, operators SHOULD consult `skill://reverse-lab/ref
    - Inventory package native libraries, ABI architectures, and JNI bindings via built-in tool `android_native_workflow(action: "inspect", path: "<target.apk>")`.
    - Extract target `.so` binaries safely into artifacts using `android_native_workflow(action: "extract", path: "<target.apk>", abi: "arm64-v8a")`.
    - Formulate structured analysis steps and verify toolchain availability using `android_native_workflow(action: "plan", path: "<target.apk>")`.
-   - When analyzing native cryptography or token algorithms without a physical Android device or emulator, resolve capability `reverse_capability({ action: "resolve", capability: "android_native_emulation" })`. If `unidbg` is missing, present setup notice for `rea setup reverse unidbg`, re-resolve with `refresh: true`, and dispatch headless JNI emulation; fallback to static disassembly via `r2_inspect` or `ghidra_inspect` if declined.
+   - When analyzing native cryptography or token algorithms without a physical Android device or emulator, resolve capability `reverse_capability({ action: "resolve", capability: "android_native_emulation" })`. If `unidbg` is missing, present setup notice for `reverse setup reverse unidbg`, re-resolve with `refresh: true`, and dispatch headless JNI emulation; fallback to static disassembly via `r2_inspect` or `ghidra_inspect` if declined.
 4. **Smali Modification & Static Patching (Authorized Targets Only) (`apk_unpacking`)**:
    - Resolve capability `apk_unpacking` for resource decoding and smali rebuilding.
    - Decode bytecode with `apktool d <target.apk> -o ./artifacts/apk_src`.

@@ -31,6 +31,7 @@
   "module": "./src/index.ts",
   "types": "./src/index.ts",
   "bin": {
+    "reverse-memory": "src/cli.ts",
     "rva-memory": "src/cli.ts"
   },
   "scripts": {

@@ -671,7 +671,7 @@ export class Settings {
 		this.#cwd = path.normalize(options.cwd ?? getProjectDir());
 		this.#agentDir = path.normalize(options.agentDir ?? getAgentDir());
 		this.#configPath = options.inMemory ? null : path.join(this.#agentDir, MAIN_CONFIG_FILENAMES[0]);
-		const configFiles = (process.env.RVA_CONFIG_FILES || process.env.PI_CONFIG_FILES)?.split(path.delimiter).filter(Boolean) ?? [];
+		const configFiles = (process.env.REVERSE_CONFIG_FILES || process.env.RVA_CONFIG_FILES || process.env.PI_CONFIG_FILES)?.split(path.delimiter).filter(Boolean) ?? [];
 		if (options.configFiles) configFiles.push(...options.configFiles);
 		this.#configFiles = configFiles.map(file => path.resolve(this.#cwd, expandTilde(file)));
 		this.#persist = !options.inMemory && options.readOnly !== true;

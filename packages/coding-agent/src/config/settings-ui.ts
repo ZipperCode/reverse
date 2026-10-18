@@ -139,9 +139,8 @@ export function createSettingsHost(): SettingsHost {
 		return setting;
 	};
 
-	let host: SettingsHost;
-	host = {
-		entries: populate(),
+	const host: SettingsHost = {
+		entries: [],
 		locale: currentLocale,
 		get: path => lookup(path)?.layered(settings),
 		set: (path, value) => resolve(path).set(settings, value),
@@ -150,6 +149,7 @@ export function createSettingsHost(): SettingsHost {
 		validateProviderLimits: validateProviderMaxInFlightRequests,
 		reload: populate,
 	};
+	host.entries = populate();
 
 	return host;
 }

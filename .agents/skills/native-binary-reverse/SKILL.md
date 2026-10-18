@@ -37,8 +37,8 @@ Follow the positive triage-to-evidence progression:
          │
          ▼
 [2. Deep Static Analysis] ──> reverse_capability(action: "resolve", capability: "native_debugger")
-         │                    ├─ Ready: rea read-binary (IDA) or r2_inspect / radare2 CLI
-         │                    └─ Missing: rea setup reverse radare2 ➔ refresh ➔ dispatch
+         │                    ├─ Ready: reverse read-binary (IDA) or r2_inspect / radare2 CLI
+         │                    └─ Missing: reverse setup reverse radare2 ➔ refresh ➔ dispatch
          ▼
 [3. Dynamic Verification] ──> frida (memory hook / trace) or native debugger (GDB / LLDB / DAP)
          │
@@ -62,7 +62,7 @@ Follow the positive triage-to-evidence progression:
 
 | Canonical Capability ID | Analytical Scenario | Recommended Native Tool | Optional External Tools | Trusted Setup Command | Fallback Tier |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`native_debugger`** | Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native ELF, PE, and Mach-O binaries | `r2_inspect` / `triage` (built-in) | `radare2`, `ida`, `frida`, `ghidra` | `rea setup reverse radare2` | `binary_metadata_inspect`, `readelf`, `objdump`, `strings`, `file` |
+| **`native_debugger`** | Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native ELF, PE, and Mach-O binaries | `r2_inspect` / `triage` (built-in) | `radare2`, `ida`, `frida`, `ghidra` | `reverse setup reverse radare2` | `binary_metadata_inspect`, `readelf`, `objdump`, `strings`, `file` |
 
 ### Capability Resolution Protocol
 
@@ -83,13 +83,13 @@ When disassembling complex functions, decompiling control flow, or attaching deb
        -> Recommended tool: 'radare2' (Status: missing)
        -> Why: Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native binaries
        -> Prerequisites: none
-       -> Trusted setup: rea setup reverse radare2 (Requires operator approval)
+       -> Trusted setup: reverse setup reverse radare2 (Requires operator approval)
        -> Post-install invocation: r2 -d <binary_path> or query via r2_inspect(action: "decompile", symbol: "<func>")
        -> Fallback if declined: 'triage' + 'readelf' / 'objdump -d' / POSIX 'strings'
      ```
    - Request explicit operator approval before executing setup. Do not execute unapproved setup commands.
 4. **Re-Resolve Post-Install**:
-   After the operator executes `rea setup reverse radare2`, verify readiness:
+   After the operator executes `reverse setup reverse radare2`, verify readiness:
    ```json
    reverse_capability({ action: "resolve", capability: "native_debugger", refresh: true })
    ```
@@ -99,7 +99,7 @@ When disassembling complex functions, decompiling control flow, or attaching deb
    - When recovering or resuming a workflow step following tool setup, record the canonical install-after resume metadata in `reverse_workflow`:
      - `capability_id`: `"native_debugger"`
      - `installed_tool`: Catalog tool installed (e.g. `"radare2"`, `"ghidra"`)
-     - `setup_command`: Setup command executed (e.g. `"rea setup reverse radare2"`)
+     - `setup_command`: Setup command executed (e.g. `"reverse setup reverse radare2"`)
      - `verified`: `true` (readiness confirmed via `refresh: true`)
      - `strategy`: `"resume_original"` or `"install_recovery"`
      - `resumed_at`: ISO 8601 timestamp
@@ -151,7 +151,7 @@ Examine binary structure to pinpoint program logic:
 Focus on high-value logic gates:
 1. **Capability Check**: Query `reverse_capability({ action: "resolve", capability: "native_debugger" })`.
    - If `read-binary` (IDA Pro) or `r2_inspect` is ready, proceed immediately.
-   - If deep decompilation requires `radare2` or `ghidra` and neither is on PATH, present the setup notice (`rea setup reverse radare2`). Upon operator installation, re-resolve with `refresh: true`, dispatch `r2_inspect(action: "decompile", ...)` or `r2`, and record install-after resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
+   - If deep decompilation requires `radare2` or `ghidra` and neither is on PATH, present the setup notice (`reverse setup reverse radare2`). Upon operator installation, re-resolve with `refresh: true`, dispatch `r2_inspect(action: "decompile", ...)` or `r2`, and record install-after resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
    - If setup is declined, engage the fallback tier (`objdump -d`, `readelf`, `strings`).
 2. **String Cross-References**: Locate references to cryptographic markers, URL endpoints, license flags, or diagnostic messages:
    `r2_inspect(action: "xrefs", path: "sample.bin", address: "0x402010")`

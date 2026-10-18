@@ -23,14 +23,14 @@ const reverseWorkspaceSchema = type({
 	action: type
 		.enumerated("export", "status", "manifest", "clean")
 		.describe(
-			"Workspace action: export (write standardized .rea/ workspace), status (inspect .rea/ workspace integrity and layout), manifest (read manifest.json), clean (safely remove dump files while preserving reports)",
+			"Workspace action: export (write standardized .reverse/ workspace), status (inspect .reverse/ workspace integrity and layout), manifest (read manifest.json), clean (safely remove dump files while preserving reports)",
 		),
 	"workflow_id?": type("string").describe(
 		"Workflow identifier to export (optional for status/manifest/clean, will pick most recent if omitted)",
 	),
 	"id?": type("string").describe("Alias for workflow_id"),
 	"workspace_path?": type("string").describe(
-		"Target workspace directory (defaults to '.rea' in project root)",
+		"Target workspace directory (defaults to '.reverse' in project root)",
 	),
 	"format_type?": type
 		.enumerated("markdown", "json")
@@ -54,7 +54,7 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 	readonly name = "reverse_workspace";
 	readonly label = "Reverse Engineering Workspace Manager";
 	readonly summary =
-		"Standardized reverse-engineering workspace manager: creates and validates local .rea/ layout with manifest, target profile, workflow, evidence ledger, findings, and safe artifact references.";
+		"Standardized reverse-engineering workspace manager: creates and validates local .reverse/ layout with manifest, target profile, workflow, evidence ledger, findings, and safe artifact references.";
 	readonly description: string;
 	readonly parameters = reverseWorkspaceSchema;
 	readonly strict = true;

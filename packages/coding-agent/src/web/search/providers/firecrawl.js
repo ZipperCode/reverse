@@ -1,0 +1,157 @@
+/**
+ * Firecrawl Web Search Provider
+ *
+ * Calls Firecrawl's search API and maps web results into the unified
+ * SearchResponse shape used by the web search tool.
+ */
+import { resolveApiKeyOnce, seedApiKeyResolver, withAuth } from "@rva/ai";
+import { SearchProviderError } from "../../../web/search/types";
+import { resolveFirecrawlUrl } from "../../firecrawl";
+import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery } from "../query";
+import { clampNumResults } from "../utils";
+import { SearchProvider } from "./base";
+import { classifyProviderHttpError, withHardTimeout } from "./utils";
+const DEFAULT_NUM_RESULTS = 10;
+const MAX_NUM_RESULTS = 100;
+const RECENCY_TBS = {
+    day: "qdr:d",
+    week: "qdr:w",
+    month: "qdr:m",
+    year: "qdr:y",
+};
+/** Resolve Firecrawl API key through the shared auth storage pipeline. */
+export function findApiKey(authStorage, sessionId, signal) {
+    return authStorage.keys.get("firecrawl", sessionId, { signal });
+}
+function buildRequestBody(params) {
+    const body = {
+        query: params.query,
+        limit: clampNumResults(params.num_results, DEFAULT_NUM_RESULTS, MAX_NUM_RESULTS),
+        sources: [{ type: "web" }],
+    };
+    const tbs = params.tbs ?? (params.recency ? RECENCY_TBS[params.recency] : undefined);
+    if (tbs) {
+        body.tbs = tbs;
+    }
+    return body;
+}
+async function callFirecrawlSearch(apiKey, params) {
+    const headers = {
+        "Content-Type": "application/json",
+    };
+    if (apiKey) {
+        headers.Authorization = `Bearer ${apiKey}`;
+    }
+    const response = await (params.fetch ?? fetch)(resolveFirecrawlUrl("/search"), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(buildRequestBody(params)),
+        signal: withHardTimeout(params.signal, params.timeoutMs),
+    });
+    if (!response.ok) {
+        const errorText = await response.text();
+        const classified = classifyProviderHttpError("firecrawl", response.status, errorText);
+        if (classified)
+            throw classified;
+        throw new SearchProviderError("firecrawl", `Firecrawl API error (${response.status}): ${errorText}`, response.status);
+    }
+    const data = (await response.json());
+    if (data.success === false) {
+        throw new SearchProviderError("firecrawl", data.error?.trim() || "Firecrawl request failed");
+    }
+    return data;
+}
+/** ISO `YYYY-MM-DD` to Google `MM/DD/YYYY` for `tbs=cdr` custom date ranges. */
+function toGoogleDate(iso) {
+    const [year, month, day] = iso.split("-");
+    return `${month}/${day}/${year}`;
+}
+/**
+ * Map explicit `before:`/`after:` bounds to a Firecrawl `tbs` custom date
+ * range (`cdr:1,cd_min:MM/DD/YYYY,cd_max:MM/DD/YYYY`), or undefined when the
+ * query carries no absolute date bounds.
+ */
+function buildDateTbs(parsed) {
+    if (!parsed.after && !parsed.before)
+        return undefined;
+    const parts = ["cdr:1"];
+    if (parsed.after)
+        parts.push(`cd_min:${toGoogleDate(parsed.after)}`);
+    if (parsed.before)
+        parts.push(`cd_max:${toGoogleDate(parsed.before)}`);
+    return parts.join(",");
+}
+function getWebResults(data) {
+    if (Array.isArray(data.data))
+        return data.data;
+    if (data.data && Array.isArray(data.data.web))
+        return data.data.web;
+    return data.results ?? [];
+}
+/** Execute Firecrawl web search. */
+export async function searchFirecrawl(params) {
+    const parsed = params.parsedQuery ?? parseSearchQuery(params.query);
+    let query = params.query;
+    let tbs;
+    if (parsed.hasDirectives) {
+        // Firecrawl search is SERP-backed: the query supports Google operators
+        // (site:, inurl:, intitle:, quotes, -, OR). Absolute date bounds move to
+        // the native tbs param and are stripped from the query string.
+        tbs = buildDateTbs(parsed);
+        query = formatQuery(parsed, tbs ? { ...GOOGLE_QUERY_SYNTAX, dateRange: false } : GOOGLE_QUERY_SYNTAX);
+    }
+    const firecrawlParams = {
+        query,
+        num_results: params.numSearchResults ?? params.limit,
+        recency: params.recency,
+        tbs,
+        signal: params.signal,
+        timeoutMs: params.timeoutMs,
+        fetch: params.fetch,
+    };
+    const keyResolver = params.authStorage.keys.resolver("firecrawl", {
+        sessionId: params.sessionId,
+    });
+    const numResults = clampNumResults(firecrawlParams.num_results, DEFAULT_NUM_RESULTS, MAX_NUM_RESULTS);
+    const resolvedKey = await resolveApiKeyOnce(keyResolver, params.signal);
+    let data;
+    if (resolvedKey) {
+        // Reuse the preflight credential for the initial authenticated attempt.
+        const seededResolver = seedApiKeyResolver(resolvedKey, keyResolver);
+        data = await withAuth(seededResolver, key => callFirecrawlSearch(key, firecrawlParams), {
+            signal: params.signal,
+        });
+    }
+    else {
+        // Keyless mode — omit Authorization header
+        data = await callFirecrawlSearch(undefined, firecrawlParams);
+    }
+    const sources = [];
+    for (const result of getWebResults(data)) {
+        if (!result.url)
+            continue;
+        sources.push({
+            title: result.title ?? result.url,
+            url: result.url,
+            snippet: result.description ?? result.snippet ?? result.markdown ?? undefined,
+        });
+    }
+    return {
+        provider: "firecrawl",
+        sources: sources.slice(0, numResults),
+        requestId: data.id ?? undefined,
+        authMode: resolvedKey ? "api_key" : "keyless",
+    };
+}
+/** Search provider for Firecrawl web search. */
+export class FirecrawlProvider extends SearchProvider {
+    id = "firecrawl";
+    label = "Firecrawl";
+    /** Always available: without a credential or self-hosted endpoint, search runs in keyless mode. */
+    isAvailable(_authStorage) {
+        return true;
+    }
+    search(params) {
+        return searchFirecrawl(params);
+    }
+}

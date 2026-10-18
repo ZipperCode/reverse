@@ -10,7 +10,7 @@ Actions:
 Workflow Guidance:
 1. Call `reverse_capability(action: "resolve")` at the beginning of an investigation to understand host tool availability.
 2. If an external tool is missing, prefer the `recommendedNativeTool` (which is zero-dependency and built-in, e.g. `android_package_inspect`, `r2_inspect`, `websocket_observe`) or available fallbacks.
-3. If an external capability is needed, use the `setupCommand` (e.g. `rea setup reverse apktool`) to guide the operator through interactive installation, then follow `postInstallInvocation`.
+3. If an external capability is needed, use the `setupCommand` (e.g. `reverse setup reverse apktool`) to guide the operator through interactive installation, then follow `postInstallInvocation`.
 
 <examples>
 ```

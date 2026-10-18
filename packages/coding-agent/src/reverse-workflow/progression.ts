@@ -407,7 +407,7 @@ export async function advanceWorkflow(
 				terminalDecision = `Halted progression: required dependency '${step.tool}' is missing on host system`;
 				terminalReason =
 					check.missing_reason ??
-					`Required tool '${step.tool}' is not installed or configured. Run '${check.setup_command ?? `rea setup reverse ${step.tool}`}' before proceeding.`;
+					`Required tool '${step.tool}' is not installed or configured. Run '${check.setup_command ?? `reverse setup reverse ${step.tool}`}' before proceeding.`;
 				pendingDecisionStep = step;
 
 				step.progression_status = "stopped_missing_dependency";

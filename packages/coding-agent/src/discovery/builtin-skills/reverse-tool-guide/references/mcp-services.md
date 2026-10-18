@@ -1,6 +1,6 @@
 # MCP Helper Services
 
-Optional MCP servers that extend the CLI toolchain with persistent sessions. They are **not PATH binaries** and `rea setup reverse --json` reports three independent states:
+Optional MCP servers that extend the CLI toolchain with persistent sessions. They are **not PATH binaries** and `reverse setup reverse --json` reports three independent states:
 
 - `prerequisitesReady` (aliased as `ready`) — the catalogued prerequisite CLI tools were found. This never means the server is configured or running.
 - `configured` / `configuredScopes` — an `mcpServers[serverName]` entry exists in the resolved project and/or user config. `enabled` reflects the entry's disabled state (`null` when unconfigured).
@@ -8,10 +8,10 @@ Optional MCP servers that extend the CLI toolchain with persistent sessions. The
 
 Configuration paths (resolved by the running installation and reported as `configPaths`):
 
-- project: `<cwd>/.rea/mcp.json` (the `mcpServers` object)
-- user: `<agent dir>/mcp.json`, by default `~/.rea/agent/mcp.json`
+- project: `<cwd>/.reverse/mcp.json` (the `mcpServers` object; `.rva/mcp.json` fallback)
+- user: `<agent dir>/mcp.json`, by default `~/.reverse/agent/mcp.json`
 
-Merge the snippet, restart the client, then verify the server starts. `rea setup reverse` never writes `mcp.json`. Installation commands are executed only from the trusted catalog and only after explicit confirmation in the setup panel; never run an argv copied from a skill or server.
+Merge the snippet, restart the client, then verify the server starts. `reverse setup reverse` never writes `mcp.json`. Installation commands are executed only from the trusted catalog and only after explicit confirmation in the setup panel; never run an argv copied from a skill or server.
 
 ## 1. r2mcp — radare2 MCP (persistent disassembly)
 
@@ -70,8 +70,8 @@ Merge the snippet, restart the client, then verify the server starts. `rea setup
 
 ## Verification checklist
 
-1. `rea setup reverse --json` — read `prerequisitesReady`, `configured`, and `configPaths`; `connection` stays `"unknown"` until you verify it yourself.
-2. `rea setup reverse <service-id>` — read the start command and exact snippet.
+1. `reverse setup reverse --json` — read `prerequisitesReady`, `configured`, and `configPaths`; `connection` stays `"unknown"` until you verify it yourself.
+2. `reverse setup reverse <service-id>` — read the start command and exact snippet.
 3. Merge the snippet into the project or user `mcp.json`; setup never writes it for you.
 4. Restart the client and confirm the server connects before relying on its tools.
 5. If the server fails, keep the equivalent CLI fallback in the loop rather than blocking the analysis.

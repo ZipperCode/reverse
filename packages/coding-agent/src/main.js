@@ -1,0 +1,2197 @@
+var __addDisposableResource = (this && this.__addDisposableResource) || function (env, value, async) {
+    if (value !== null && value !== void 0) {
+        if (typeof value !== "object" && typeof value !== "function") throw new TypeError("Object expected.");
+        var dispose, inner;
+        if (async) {
+            if (!Symbol.asyncDispose) throw new TypeError("Symbol.asyncDispose is not defined.");
+            dispose = value[Symbol.asyncDispose];
+        }
+        if (dispose === void 0) {
+            if (!Symbol.dispose) throw new TypeError("Symbol.dispose is not defined.");
+            dispose = value[Symbol.dispose];
+            if (async) inner = dispose;
+        }
+        if (typeof dispose !== "function") throw new TypeError("Object not disposable.");
+        if (inner) dispose = function() { try { inner.call(this); } catch (e) { return Promise.reject(e); } };
+        env.stack.push({ value: value, dispose: dispose, async: async });
+    }
+    else if (async) {
+        env.stack.push({ async: true });
+    }
+    return value;
+};
+var __disposeResources = (this && this.__disposeResources) || (function (SuppressedError) {
+    return function (env) {
+        function fail(e) {
+            env.error = env.hasError ? new SuppressedError(e, env.error, "An error was suppressed during disposal.") : e;
+            env.hasError = true;
+        }
+        var r, s = 0;
+        function next() {
+            while (r = env.stack.pop()) {
+                try {
+                    if (!r.async && s === 1) return s = 0, env.stack.push(r), Promise.resolve().then(next);
+                    if (r.dispose) {
+                        var result = r.dispose.call(r.value);
+                        if (r.async) return s |= 2, Promise.resolve(result).then(next, function(e) { fail(e); return next(); });
+                    }
+                    else s |= 1;
+                }
+                catch (e) {
+                    fail(e);
+                }
+            }
+            if (s === 1) return env.hasError ? Promise.reject(env.error) : Promise.resolve();
+            if (env.hasError) throw env.error;
+        }
+        return next();
+    };
+})(typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+    var e = new Error(message);
+    return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+});
+/**
+ * Main entry point for the coding agent CLI.
+ *
+ * This file handles CLI argument parsing and translates them into
+ * createAgentSession() options. The SDK does the heavy lifting.
+ */
+import * as fsSync from "node:fs";
+import * as os from "node:os";
+import { EventLoopKeepalive } from "@rva/agent/utils/yield";
+import { getModelPricingStatus } from "@rva/catalog/models";
+import { isEnoent, isEnotdir } from "@rva/utils";
+import { APP_NAME, directoryIsMissing, getLogPath, getProjectDir, normalizePathForComparison, setProjectDir, VERSION, } from "@rva/utils/dirs";
+import { $env, isBunTestRuntime, setInteractiveHost } from "@rva/utils/env";
+import * as logger from "@rva/utils/logger";
+import * as postmortem from "@rva/utils/postmortem";
+import { fuzzyFilter } from "@rva/tui/fuzzy";
+import chalk from "@rva/utils/chalk";
+import { reset as resetCapabilities } from "./capability";
+import { reportInvalidFlagValues, reportUnrecognizedFlags, validateGoalLaunch, validateGoalStartup, validateRestoreLaunch, validateRestorePrompt, validateToolNames, } from "./cli/args";
+import { applyExtensionFlags } from "./cli/extension-flags";
+import { processFileArguments } from "./cli/file-processor";
+import { buildInitialMessage } from "./cli/initial-message";
+import { formatKeyHint } from "@rva/tui/app-keybindings";
+import { applyStartupCwd } from "./cli/startup-cwd";
+import { findConfigFile } from "./config";
+import { ModelRegistry } from "./config/model-registry";
+import { formatModelSelectorValue } from "@rva/tui/overlays/model-selector";
+import { DEFAULT_PREWALK_TARGET, disabledProviderIds, expandRoleAlias, getModelMatchPreferences, resolveCliModel, resolveConfiguredModelPatterns, resolveModelRoleValue, resolveModelScope, } from "./config/model-resolver";
+import { ModelsConfigFile } from "./config/models-config";
+import { serviceTierSettingToTier } from "./config/service-tier";
+import { all, combine } from "./config/registry";
+import { Settings, settings } from "./config/settings";
+import { initializeWithSettings } from "./discovery";
+import { clearPluginRootsAndCaches, injectPluginDirRoots, preloadPluginRoots, resolveActiveProjectRegistryPath, } from "./discovery/helpers";
+import { injectRvaExtensionCliRoots } from "./discovery/rva-extension-roots";
+import { formatExtensionLoadNotifications } from "./extensibility/extensions/load-errors";
+import { loadExtensions } from "./extensibility/extensions/loader";
+import { ExtensionRunner } from "./extensibility/extensions/runner";
+import { scheduleMarketplaceAutoUpdate } from "./extensibility/plugins/marketplace-auto-update";
+import { registerDaemonProjectPresence } from "./launch/presence";
+import { claimRpcInput } from "./modes/rpc/rpc-input";
+import { CURRENT_SETUP_VERSION } from "@rva/tui/setup/setup-version";
+import { invokeSkillCommandFromText, isKnownSkillCommand } from "./modes/skill-command";
+import { applyStartupComposerPreferences, stopPendingStartupComposer, takeStartupComposerLease, } from "./modes/startup-composer";
+import { ensureTheme, initTheme, stopThemeWatcher } from "@rva/tui/theme";
+import { createWarpEventBridgeExtension } from "./modes/warp-events";
+import { AgentLifecycleManager } from "./registry/agent-lifecycle";
+import { createAgentSession, discoverAuthStorage, loadSessionExtensions, resolvePrewalkTarget, } from "./sdk";
+import { createAuthStorageSettingsSync, describeAuthBrokerStartupError } from "./session/auth-broker-config";
+import { describePendingToolCalls } from "./session/exit-diagnostics";
+import { createForeignSessionStore, foreignSessionInfoToSessionInfo, foreignSessionSourceName, persistForeignSession, } from "./session/foreign-session-import";
+import { loadRuntimeIdentity } from "./session/runtime-identity";
+import { resolveResumableSession } from "./session/session-listing";
+import { ForkSourceNotFoundError, SessionManager, SessionMoveRefusedError } from "./session/session-manager";
+import { forkIfMovedAway } from "./session/session-transfer";
+import { shouldShowStartupSplash } from "./startup-splash";
+import { discoverSystemPromptOverride, discoverTitleSystemPromptFile, loadSystemPromptTemplateFile, resolvePromptInput, } from "./system-prompt";
+import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
+import { restoreSession } from "./task/restore";
+import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
+import { cfgTelemetryOtlpExportEnabled } from "./telemetry-settings";
+import { registerLocalInferenceApi } from "./tiny/local-inference-api";
+import { automaticThinkingLevel, concreteThinkingLevel, parseConfiguredThinkingLevel } from "@rva/tui/thinking";
+import { sanitizeDisplayWarnings } from "@rva/tui/render/render-utils";
+import { getChangelogPath, readLastChangelogVersion, resolveStartupChangelogForDisplay, } from "./utils/changelog";
+import { EventBus } from "./utils/event-bus";
+import { resolveFirstLaunchPythonEvalWarning } from "./eval/startup-warning";
+import { CliUsageError } from "./cli/usage-error";
+import { cfgGoalEnabled } from "./goals/settings";
+import { cfgPlanDefaultOnStartup, cfgPlanEnabled } from "./plan-mode/settings";
+import { cfgAdvisorEnabled } from "./advisor/settings";
+import { cfgToolsApprovalMode } from "./tools/settings";
+import { cfgAutocompleteMaxVisible, cfgAutoResume, cfgColorBlindMode, cfgComposerShape, cfgImagesAutoResize, cfgMarketplaceAutoUpdate, cfgSetupVersion, cfgShowHardwareCursor, cfgSpellingAutocomplete, cfgSpellingAutocorrect, cfgSpellingTypoDetection, cfgStartupChangelogMode, cfgStartupQuiet, cfgStartupSetupWizard, cfgStartupShowSplash, cfgSymbolPreset, cfgThemeDark, cfgThemeLight, cfgTuiImeSafeCursor, cfgTuiMaxInlineImages, cfgTuiResizeScrollback, } from "./modes/settings";
+import { cfgDefaultThinkingLevel, cfgExternalThinking, cfgHideThinkingBlock, cfgOmitThinking, cfgPrewalkEnabled, } from "./session/settings";
+import { cfgDisabledProviders, cfgEnabledModels } from "./config/model-settings";
+import { cfgTaskAgentIdleTtlMs } from "./task/settings";
+import { cfgSkillsIncludeSkills } from "./extensibility/settings";
+import { cfgWorkspaceAdditionalDirectories } from "./session/context-settings";
+/** Interactive-only graph boundary; login dialogs and overlays load on first real use. */
+async function loadInteractiveModeConstructor() {
+    return (await import("./modes/interactive-mode")).InteractiveMode;
+}
+/** Resume/import-only graph boundary; ordinary launches never construct a picker. */
+async function loadSessionPicker() {
+    const [{ selectSession }, { HistoryStorage }, { loadPinnedSessionIds }, { FileSessionStorage }] = await Promise.all([
+        import("@rva/tui/apps/session-picker"),
+        import("./session/history-storage"),
+        import("./session/session-pins"),
+        import("./session/session-storage"),
+    ]);
+    return (sessions, options) => {
+        const storage = new FileSessionStorage();
+        return selectSession(sessions, options, {
+            loadPinnedIds: loadPinnedSessionIds,
+            loadHistoryMatcher: () => {
+                const history = HistoryStorage.open();
+                return query => history.matchingSessionIds(query);
+            },
+            deleteSession: async (session) => {
+                await storage.deleteSessionWithArtifacts(session.path);
+                return true;
+            },
+            loadAllSessions: () => SessionManager.listAllForPicker(storage),
+        });
+    };
+}
+/** Join-only graph boundary; the full built-in slash-command registry is otherwise unnecessary at startup. */
+async function loadBuiltinSlashCommandExecutor() {
+    return (await import("./slash-commands/builtin-registry")).executeBuiltinSlashCommand;
+}
+/** Missing-session-directory prompt boundary; ordinary launches do not need node:readline. */
+async function loadReadlineInterface() {
+    return (await import("node:readline/promises")).createInterface;
+}
+export function writeStartupNotice(parsedArgs, text) {
+    (parsedArgs.mode === "json" ? process.stderr : process.stdout).write(text);
+}
+// Protocol hosts inherit OMP's neutral defaults for settings declaring `protocolDefault`
+// instead of the local user's interactive preferences. The pin holds only while nothing
+// configures the setting — caller `Settings.isolated` overrides, project `.claude/settings.yml`,
+// `--config` overlays, or global `config.yml` always win (#2598, #3207), including a config
+// edit the RPC file watcher picks up later and an ACP session's own project config.
+function applyProtocolDefaults(host, targetSettings = settings) {
+    for (const setting of all()) {
+        if (setting.definition.protocolDefault?.includes(host))
+            setting.pinDefault(targetSettings);
+    }
+}
+/** `--no-ui` only applies to RPC modes; reject it elsewhere (exit 1). */
+function rejectNoUiWithoutRpc(args) {
+    if (!args.noUi || args.mode === "rpc" || args.mode === "rpc-ui")
+        return;
+    process.stderr.write(`${chalk.red("Error: --no-ui requires --mode rpc or --mode rpc-ui")}\n`);
+    process.exit(1);
+}
+/** Fail an interactive launch whose stdin is not a terminal: the TUI cannot run there. */
+function exitWithoutTerminal() {
+    process.stderr.write(`${chalk.red("Error: interactive mode requires a terminal, but stdin is not a TTY.")}\n` +
+        `Pass a prompt (\`${APP_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`);
+    process.exit(2);
+}
+/** Reads a non-TTY stdin stream as prompt text. */
+export async function readPipedInput() {
+    if (process.stdin.isTTY === true)
+        return undefined;
+    // stdin is a pipe: a producer that never writes nor closes would block
+    // startup forever with zero output. Say what we're blocked on after 1s.
+    const notice = isBunTestRuntime()
+        ? undefined
+        : setTimeout(() => {
+            process.stderr.write(`${chalk.dim(`Reading prompt from piped stdin (waiting for EOF; ${formatKeyHint("ctrl+c")} to abort)…`)}\n`);
+        }, 1000);
+    notice?.unref?.();
+    try {
+        const text = await Bun.stdin.text();
+        if (text.trim().length === 0)
+            return undefined;
+        return text;
+    }
+    catch {
+        return undefined;
+    }
+    finally {
+        clearTimeout(notice);
+    }
+}
+// ---------------------------------------------------------------------------
+// Startup watchdog
+// ---------------------------------------------------------------------------
+// Speculative-hang reporter: until startup hands off to a mode runner, print a
+// stderr line every 10s naming the deepest in-flight startup phase. Turns
+// zero-output indefinite hangs (stuck discovery read, network wait, stdin
+// pipe) into self-diagnosing reports instead of "it just hangs" (see the
+// PI_DEBUG_STARTUP markers for the synchronous-hang counterpart).
+const STARTUP_WATCHDOG_INTERVAL_MS = 10000;
+let startupWatchdogTimer;
+let startupWatchdogActive = false;
+let startupWatchdogStartedAt = 0;
+function armStartupWatchdog() {
+    if (isBunTestRuntime())
+        return;
+    if (startupWatchdogTimer)
+        return;
+    startupWatchdogTimer = setInterval(() => {
+        const elapsed = Math.round((Date.now() - startupWatchdogStartedAt) / 1000);
+        const phase = logger.openSpanPath().join(" > ") || "module load / pre-phase work";
+        process.stderr.write(`${chalk.yellow(`Still starting after ${elapsed}s`)}${chalk.dim(` — phase: ${phase}`)}\n` +
+            `${chalk.dim(`  logs: ${getLogPath()} · re-run with PI_DEBUG_STARTUP=1 for streaming phase markers`)}\n`);
+    }, STARTUP_WATCHDOG_INTERVAL_MS);
+    startupWatchdogTimer.unref?.();
+}
+function disarmStartupWatchdog() {
+    if (!startupWatchdogTimer)
+        return;
+    clearInterval(startupWatchdogTimer);
+    startupWatchdogTimer = undefined;
+}
+/** Begin watching startup (idempotent). */
+function startStartupWatchdog() {
+    if (isBunTestRuntime())
+        return;
+    startupWatchdogActive = true;
+    startupWatchdogStartedAt = Date.now();
+    armStartupWatchdog();
+}
+/** Permanently stop watching: a mode runner now owns the terminal. */
+function stopStartupWatchdog() {
+    startupWatchdogActive = false;
+    disarmStartupWatchdog();
+}
+/** Pause while an interactive prompt legitimately waits on the user. */
+function pauseStartupWatchdog() {
+    disarmStartupWatchdog();
+}
+/** Resume after an interactive prompt, if startup is still being watched. */
+function resumeStartupWatchdog() {
+    if (isBunTestRuntime())
+        return;
+    if (startupWatchdogActive)
+        armStartupWatchdog();
+}
+export function buildModelScopeNotification(scopedModelsForDisplay, startupQuiet) {
+    if (startupQuiet || scopedModelsForDisplay.length === 0) {
+        return null;
+    }
+    const modelList = scopedModelsForDisplay
+        .map(scopedModel => {
+        const thinkingStr = scopedModel.explicitThinkingLevel && scopedModel.thinkingLevel ? `:${scopedModel.thinkingLevel}` : "";
+        return `${scopedModel.model.id}${thinkingStr}`;
+    })
+        .join(", ");
+    return { kind: "info", message: `Model scope: ${modelList} (${formatKeyHint("ctrl+p")} to cycle)` };
+}
+export async function submitInteractiveInput(mode, session, input) {
+    if (input.cancelled) {
+        return;
+    }
+    try {
+        const env_1 = { stack: [], error: void 0, hasError: false };
+        try {
+            const _keepalive = __addDisposableResource(env_1, new EventLoopKeepalive(), false);
+            // Honor the submission's queue intent, defaulting to followUp. Reading
+            // `session.isStreaming` to decide queue-vs-fresh is NOT atomic with the
+            // eventual `agent.prompt()` call inside `session.prompt()`: a background turn
+            // (queued-message drain, idle compaction, goal/loop continuation timer) can
+            // flip the agent busy in the gap, and a bare prompt() would then throw
+            // AgentBusyError straight to an error toast even though the UI shows no
+            // "Working…". Passing a behavior unconditionally is a no-op when the session
+            // is genuinely idle (a fresh turn runs and the option is ignored) and queues
+            // the message instead of erroring when a turn is already underway. Normal
+            // user Enter carries "steer" (interrupt, matching the streaming-branch Enter);
+            // background/continuation submits omit it and fall back to "followUp". The
+            // synthetic branch below opts out by design.
+            const streamingBehavior = input.streamingBehavior ?? "followUp";
+            // Continue shortcuts submit an already-started synthetic developer prompt with
+            // no optimistic user message.
+            if (!input.started && !mode.markPendingSubmissionStarted(input)) {
+                return;
+            }
+            const skillHost = {
+                skillCommands: mode.skillCommands,
+                session,
+                showError: mode.showError.bind(mode),
+                renderOptimisticSkillMessage: mode.renderOptimisticSkillMessage.bind(mode),
+                clearOptimisticSkillMessage: mode.clearOptimisticSkillMessage.bind(mode),
+                get optimisticSkillMessagePending() {
+                    return mode.optimisticSkillMessagePending;
+                },
+            };
+            if (input.customType) {
+                const message = {
+                    customType: input.customType,
+                    content: input.text,
+                    display: input.display ?? false,
+                    attribution: "agent",
+                };
+                await session.promptCustomMessage(message, { streamingBehavior });
+            }
+            else if (input.synthetic) {
+                // Synthetic continue shortcuts are hidden developer prompts. The streaming
+                // queue (#queueUserMessage) only carries user-attributed messages, so we do
+                // NOT pass streamingBehavior here: queueing would silently demote the
+                // developer directive to a visible user message. A synthetic submit while
+                // streaming keeps its prior behavior (rejected as busy) rather than changing
+                // its role.
+                await session.prompt(input.text, {
+                    synthetic: true,
+                    expandPromptTemplates: false,
+                    userInitiated: input.userInitiated,
+                });
+            }
+            else if (isKnownSkillCommand(skillHost, input.text)) {
+                // Resubmitted skill text must dispatch through the skill path, or the
+                // model receives a literal `/skill:` token.
+                await invokeSkillCommandFromText(skillHost, input.text, streamingBehavior, {
+                    images: input.images,
+                    imageLinks: input.imageLinks,
+                    optimistic: true,
+                    propagateErrors: true,
+                });
+            }
+            else {
+                let forwarded = false;
+                try {
+                    forwarded = await session.prompt(input.text, { images: input.images, streamingBehavior });
+                }
+                catch (error) {
+                    mode.showError(error instanceof Error ? error.message : "Unknown error occurred");
+                }
+                // Dispatch consumed the body locally (void custom command) or rejected
+                // instead of starting a turn: when it is the armed loop body, park the
+                // loop rather than resubmitting a failed or local-only body after
+                // every yield. A failed body degrades to idle like any other
+                // submission failure instead of error-looping.
+                if (!forwarded && mode.loopPrompt === input.text)
+                    mode.pauseLoop?.();
+            }
+        }
+        catch (e_1) {
+            env_1.error = e_1;
+            env_1.hasError = true;
+        }
+        finally {
+            __disposeResources(env_1);
+        }
+    }
+    catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+        mode.showError(errorMessage);
+    }
+    finally {
+        mode.finishPendingSubmission(input);
+        await mode.checkShutdownRequested();
+    }
+}
+async function loadTrustedSessionExtensions(options, cwd, eventBus) {
+    const paths = options.additionalExtensionPaths ?? [];
+    for (const trustedPath of paths) {
+        let stat;
+        try {
+            stat = fsSync.statSync(trustedPath);
+        }
+        catch {
+            throw new Error(`Trusted extension must be an existing module file: ${trustedPath}`);
+        }
+        if (!stat.isFile()) {
+            throw new Error(`Trusted extension must be a module file, not a directory: ${trustedPath}`);
+        }
+    }
+    return loadExtensions(paths, cwd, eventBus);
+}
+/**
+ * Build the per-`session/new` factory used by ACP mode.
+ *
+ * MCP servers in ACP sessions are owned exclusively by the ACP client, which
+ * supplies them through `session/new.mcpServers` and re-applies them via
+ * {@link AcpAgent#configureMcpServers}. We therefore force `enableMCP: false`
+ * on every session created here so {@link createAgentSession} skips the on-disk
+ * `.mcp.json` discovery path — otherwise host MCP tools land in the session's
+ * tool registry and shadow the client-supplied servers (issue #1234).
+ */
+export function createAcpSessionFactory(args) {
+    return async (cwd, factoryOptions) => {
+        const nextSettings = await args.settings.cloneForCwd(cwd);
+        const nextSessionManager = SessionManager.create(cwd, args.sessionDir);
+        const agentId = `acp:${nextSessionManager.getSessionId()}`;
+        // `baseOptions.titleSystemPrompt` is resolved from the launch cwd; an ACP
+        // host can open `session/new` for any client-supplied workspace, so
+        // re-discover `TITLE_SYSTEM.md` against THIS session's `cwd` to keep the
+        // replan-driven title refresh consistent with the target project's
+        // policy (PR #3736 follow-up).
+        const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
+        const titleSystemPrompt = await resolvePromptInput(titleSystemPromptSource, "title system prompt");
+        const eventBus = new EventBus();
+        const trustedExtensions = args.parsedArgs.trustedExtensions && args.parsedArgs.trustedExtensions.length > 0
+            ? await loadTrustedSessionExtensions(args.baseOptions, cwd, eventBus)
+            : undefined;
+        if (trustedExtensions && trustedExtensions.errors.length > 0) {
+            throw new Error(`Trusted extension failed to load: ${trustedExtensions.errors.map(item => item.error).join("; ")}`);
+        }
+        // Like every top-level session, it holds process-wide effects (`worktree.base`, request
+        // limits, …) on its own project's settings until disposed; its requests redact credentials
+        // per that project's `secrets.enabled` regardless of which session holds the effects.
+        const { session: nextSession, setToolUIContext } = await args.createSession({
+            ...args.baseOptions,
+            cwd,
+            sessionManager: nextSessionManager,
+            settings: nextSettings,
+            authStorage: args.authStorage,
+            modelRegistry: args.modelRegistry,
+            agentId,
+            // ACP defers the `ask` capability and reserve-policy confirmation until
+            // client capabilities are known, without enabling other UI-only behavior.
+            interactivePrompts: factoryOptions?.interactivePrompts,
+            deferUsageReserveConfirmation: true,
+            enableMCP: false,
+            titleSystemPrompt,
+            eventBus,
+            preloadedExtensions: trustedExtensions,
+        });
+        if (args.parsedArgs.apiKey && !args.baseOptions.model && nextSession.model) {
+            args.authStorage.keys.setRuntime(nextSession.model.provider, args.parsedArgs.apiKey);
+        }
+        const runner = nextSession.extensionRunner;
+        const reparsedArgs = applyExtensionFlags(runner
+            ? {
+                getFlags: () => runner.getFlags(),
+                setFlagValue: (name, value) => {
+                    runner.setFlagValue(name, value);
+                },
+            }
+            : undefined, args.rawArgs);
+        const effectiveArgs = reparsedArgs ?? args.parsedArgs;
+        if (effectiveArgs.invalidFlagValues.length > 0) {
+            await nextSession.dispose();
+            throw new CliUsageError(effectiveArgs.invalidFlagValues.join("\n"));
+        }
+        const requestedTools = reparsedArgs?.tools ?? args.parsedArgs.tools;
+        if (requestedTools) {
+            try {
+                validateToolNames(requestedTools, nextSession.getAllToolNames());
+            }
+            catch (error) {
+                await nextSession.dispose();
+                throw error;
+            }
+        }
+        return { session: nextSession, setToolUIContext };
+    };
+}
+async function runInteractiveMode(session, version, startupChangelog, notifs, initialMessages, setExtensionUIContext, lspServers, mcpManager, resuming, forceSetupWizard, showStartupSplash, eventBus, subagentEventBus, initialMessage, initialImages, startDeferredStartupWork, startupLease, startupGoal, startupRestore) {
+    const InteractiveModeConstructor = await loadInteractiveModeConstructor();
+    let mode;
+    try {
+        mode = new InteractiveModeConstructor(session, version, startupChangelog, setExtensionUIContext, lspServers, mcpManager, eventBus, startupLease?.composer, subagentEventBus);
+        startupLease?.adopt();
+    }
+    catch (error) {
+        startupLease?.dispose();
+        throw error;
+    }
+    let setupWizard;
+    let setupScenes = [];
+    let playStartupSplash = false;
+    try {
+        // Cold-launch gate: the full setup wizard (every scene + the overlay and
+        // their TUI/OAuth/search/theme deps) is heavy, yet the common case only needs
+        // to know whether the stored setup version is current. Lazy-load the wizard
+        // barrel only when setup is stale, forced, or the explicit startup splash
+        // setting needs the shared setup splash renderer.
+        const storedSetupVersion = cfgSetupVersion.get(settings);
+        setupWizard =
+            forceSetupWizard || storedSetupVersion < CURRENT_SETUP_VERSION || showStartupSplash
+                ? await import("./modes/setup")
+                : undefined;
+        setupScenes = setupWizard
+            ? await setupWizard.selectSetupScenes(storedSetupVersion, setupWizard.ALL_SCENES, mode, {
+                resuming,
+                isTTY: process.stdin.isTTY && process.stdout.isTTY,
+                setupWizardEnabled: cfgStartupSetupWizard.get(settings),
+                force: forceSetupWizard,
+            })
+            : [];
+        playStartupSplash = showStartupSplash && setupScenes.length === 0;
+        await logger.time("InteractiveMode.init", () => mode.init({
+            suppressWelcomeIntro: resuming || setupScenes.length > 0 || playStartupSplash,
+            clearInitialTerminalHistory: true,
+        }));
+        startDeferredStartupWork?.();
+        if (setupWizard && playStartupSplash) {
+            await setupWizard.runStartupSplash(mode);
+        }
+        if (setupWizard && setupScenes.length > 0) {
+            await setupWizard.runSetupWizard(mode, setupScenes);
+        }
+        // `init` already cleared native history before painting the startup frame.
+        // Replaying resumed transcript rows and repainting the viewport is enough;
+        // another clear would only archive the startup frame. In-process session
+        // replacements still request `clearTerminalHistory` at their own callsites.
+        await logger.time("InteractiveMode.renderInitialMessages", () => mode.renderInitialMessages({ preserveExistingChat: true }));
+        // A resolved version check must not insert its banner into a partial transcript.
+        const advisorConfigWarnings = session.getAdvisorConfigWarnings();
+        if (advisorConfigWarnings.length > 0) {
+            // Pulled here, not pushed from SessionAdvisors: the constructor-time
+            // `emitNotice` fired before the UI subscribed and was silently lost.
+            mode.showWarning(`WATCHDOG.yml: ${sanitizeDisplayWarnings(advisorConfigWarnings).join("; ")}`);
+        }
+        for (const notify of notifs) {
+            if (!notify) {
+                continue;
+            }
+            if (notify.kind === "warn") {
+                mode.showWarning(notify.message);
+            }
+            else if (notify.kind === "error") {
+                mode.showError(notify.message);
+            }
+            else if (notify.kind === "info") {
+                mode.showStatus(notify.message);
+            }
+        }
+        if (!resuming) {
+            await mode.maybeAutoCreateWorktree();
+        }
+    }
+    catch (error) {
+        mode.stop();
+        throw error;
+    }
+    if (startupGoal !== undefined) {
+        try {
+            await mode.startGoalAtStartup(startupGoal);
+        }
+        catch (error) {
+            mode.showError(error instanceof Error ? error.message : "Unknown error occurred");
+        }
+    }
+    if (startupRestore) {
+        try {
+            const env_2 = { stack: [], error: void 0, hasError: false };
+            try {
+                const _keepalive = __addDisposableResource(env_2, new EventLoopKeepalive(), false);
+                const { turn, subagents } = await startupRestore();
+                const agents = subagents.length === 1 ? "1 subagent" : `${subagents.length} subagents`;
+                mode.showStatus(turn && subagents.length > 0
+                    ? `Restored: going on with the interrupted turn and ${agents}.`
+                    : turn
+                        ? "Restored: going on with the interrupted turn."
+                        : subagents.length > 0
+                            ? `Restored: ${agents} going on with their interrupted turns.`
+                            : "Restored: nothing was left unfinished.");
+            }
+            catch (e_2) {
+                env_2.error = e_2;
+                env_2.hasError = true;
+            }
+            finally {
+                __disposeResources(env_2);
+            }
+        }
+        catch (error) {
+            mode.showError(error instanceof Error ? error.message : "Unknown error occurred");
+        }
+    }
+    if (initialMessage !== undefined) {
+        try {
+            const env_3 = { stack: [], error: void 0, hasError: false };
+            try {
+                const _keepalive = __addDisposableResource(env_3, new EventLoopKeepalive(), false);
+                // `steer` covers the race where the user submits a prompt of their own
+                // before this dispatch runs (the composer accepts input as soon as the
+                // first turn starts): the CLI message queues into that turn instead of
+                // dying with AgentBusyError.
+                await session.prompt(initialMessage, { images: initialImages, streamingBehavior: "steer" });
+            }
+            catch (e_3) {
+                env_3.error = e_3;
+                env_3.hasError = true;
+            }
+            finally {
+                __disposeResources(env_3);
+            }
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+            mode.showError(errorMessage);
+        }
+    }
+    for (const message of initialMessages) {
+        try {
+            const env_4 = { stack: [], error: void 0, hasError: false };
+            try {
+                const _keepalive = __addDisposableResource(env_4, new EventLoopKeepalive(), false);
+                await session.prompt(message, { streamingBehavior: "steer" });
+            }
+            catch (e_4) {
+                env_4.error = e_4;
+                env_4.hasError = true;
+            }
+            finally {
+                __disposeResources(env_4);
+            }
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+            mode.showError(errorMessage);
+        }
+    }
+    while (true) {
+        const input = await mode.getUserInput();
+        await submitInteractiveInput(mode, session, input);
+    }
+}
+async function promptMoveSession(session) {
+    if (!process.stdin.isTTY) {
+        return "unavailable";
+    }
+    const message = `Session's directory no longer exists (${session.cwd}). Move (re-root) it into the current directory? [Y/n] `;
+    pauseStartupWatchdog();
+    const createInterface = await loadReadlineInterface();
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    try {
+        const answer = (await rl.question(message)).trim().toLowerCase();
+        return answer === "" || answer === "y" || answer === "yes" ? "accepted" : "declined";
+    }
+    finally {
+        rl.close();
+        resumeStartupWatchdog();
+    }
+}
+/**
+ * Friendly CLI failure raised by {@link createSessionManager} when the user's
+ * session-resolution flags (`--resume`/`--fork`/missing-directory move prompts)
+ * cannot be satisfied. {@link runRootCommand} catches it and prints a clean
+ * stderr message instead of letting it surface as `[Uncaught Exception]`
+ * (see issue #2084).
+ */
+export class SessionResolutionError extends Error {
+    hint;
+    constructor(message, hint) {
+        super(message);
+        this.name = "SessionResolutionError";
+        this.hint = hint;
+    }
+}
+function exitForSessionResolutionError(error) {
+    process.stderr.write(`${chalk.red(`Error: ${error.message}`)}\n`);
+    if (error.hint) {
+        process.stderr.write(`${chalk.dim(error.hint)}\n`);
+    }
+    process.exit(1);
+}
+function resolveForeignSessionSource(parsed) {
+    if (parsed.fromClaude && parsed.fromCodex) {
+        throw new SessionResolutionError("--from-claude and --from-codex cannot be used together");
+    }
+    const source = parsed.fromClaude ? "claude" : parsed.fromCodex ? "codex" : undefined;
+    if (!source)
+        return undefined;
+    if (parsed.noSession) {
+        throw new SessionResolutionError(`--from-${source} requires session persistence`);
+    }
+    if (parsed.continue || parsed.resume || parsed.fork) {
+        throw new SessionResolutionError(`--from-${source} cannot be combined with --continue, --resume, or --fork`);
+    }
+    return source;
+}
+function isForeignSessionImport(parsed) {
+    return parsed.fromClaude === true || parsed.fromCodex === true;
+}
+async function moveMissingCwdSessionIfNeeded(sessionArg, session, cwd, sessionDir, askToMoveSession) {
+    const sourceCwd = session.cwd;
+    if (!sourceCwd || fsSync.existsSync(sourceCwd)) {
+        return { status: "not-needed" };
+    }
+    // A removed worktree of this checkout's repository: its session belongs here, no question to ask.
+    if (!(await SessionManager.isFromRemovedWorktree(session, cwd, sessionDir))) {
+        const movePromptResult = await askToMoveSession(session);
+        if (movePromptResult === "unavailable") {
+            throw new SessionResolutionError(`Session "${sessionArg}" belongs to a directory that no longer exists (${sourceCwd}); run interactively to move it into the current project.`);
+        }
+        if (movePromptResult === "declined") {
+            return { status: "declined" };
+        }
+    }
+    return { status: "moved", manager: await openRelocatedSession(session, cwd, sessionDir) };
+}
+/** {@link SessionManager.openRelocated} into `cwd`, reporting a live-writer refusal as a CLI error. */
+async function openRelocatedSession(session, cwd, sessionDir) {
+    try {
+        return await SessionManager.openRelocated(session.path, session.cwd, cwd, sessionDir);
+    }
+    catch (err) {
+        if (!(err instanceof SessionMoveRefusedError))
+            throw err;
+        // Its directory is gone, so it cannot be resumed in place either.
+        throw new SessionResolutionError(err.message, "Close the session in the other omp process, then resume it again.");
+    }
+}
+async function switchToResumedProject(resumedCwd, activeSettings, pluginPreloadPromise, sessionManager) {
+    const launchCwd = getProjectDir();
+    if (!resumedCwd ||
+        normalizePathForComparison(resumedCwd) === normalizePathForComparison(launchCwd) ||
+        (await directoryIsMissing(resumedCwd))) {
+        return { cwd: launchCwd };
+    }
+    // Let the launch-cwd preload settle before clearing and re-warming its caches.
+    await pluginPreloadPromise.catch(() => { });
+    try {
+        setProjectDir(resumedCwd);
+    }
+    catch (error) {
+        logger.warn("Could not switch to resumed project directory", { cwd: resumedCwd, error: String(error) });
+        sessionManager.setCwdWithoutRelocation(launchCwd);
+        return { cwd: launchCwd, chdirFailed: resumedCwd };
+    }
+    clearPluginRootsAndCaches();
+    resetCapabilities();
+    const cwd = getProjectDir();
+    // clearPluginRootsAndCaches only kicks off an unawaited re-warm; await a fresh
+    // destination preload so sync consumers (plugin-provided LSP/DAP config) never
+    // read the launch project's stale/empty roots during session creation.
+    try {
+        await preloadPluginRoots(os.homedir(), cwd);
+        await activeSettings.reloadForCwd(cwd);
+        if (normalizePathForComparison(sessionManager.getCwd()) !== normalizePathForComparison(cwd)) {
+            sessionManager.adoptRecordedCwd();
+        }
+    }
+    catch (error) {
+        // The process cwd is already committed to the target. If rescoping the
+        // cwd-derived state fails, undo the whole transition instead of building
+        // the session with target-scoped cwd and launch-scoped settings.
+        logger.warn("Could not rescope to resumed project directory", { cwd, error: String(error) });
+        try {
+            setProjectDir(launchCwd);
+            sessionManager.setCwdWithoutRelocation(launchCwd);
+            clearPluginRootsAndCaches();
+            await preloadPluginRoots(os.homedir(), launchCwd);
+            // Settings.#cwd was already assigned the destination; re-scope it
+            // back so path-derived values and project saves target the launch
+            // project, not the failed resume target.
+            await activeSettings.reloadForCwd(launchCwd);
+        }
+        catch (rollbackError) {
+            throw new SessionResolutionError(`Could not switch to resumed project ${resumedCwd} (${error instanceof Error ? error.message : String(error)}); failed to restore launch directory ${launchCwd}: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`);
+        }
+        return { cwd: launchCwd, chdirFailed: resumedCwd };
+    }
+    return { cwd };
+}
+function notifyResumeCwdFallback(parsedArgs, resumedProject, cwd) {
+    if (!resumedProject.chdirFailed)
+        return;
+    writeStartupNotice(parsedArgs, `${chalk.yellow(`Could not switch to resumed project ${resumedProject.chdirFailed}; staying in ${cwd}.`)}\n`);
+}
+/**
+ * Resolve the effective model allow-list from an explicit `--models` scope or,
+ * failing that, the active project's `enabledModels`. A totally collapsed scope
+ * gets one cache-aware discovery pass before session construction: otherwise an
+ * all-discovery `--models` launch can select an unrelated static model before the
+ * later background rebuild activates the requested scope. The pass only helps
+ * providers already known to be discoverable (models.yml `discovery:`, runtime
+ * managers); a scope naming only extension-supplied models stays empty here
+ * because those providers register during `createAgentSession` — that case is
+ * covered by deferring to the SDK's `modelPattern` resolution in
+ * {@link buildSessionOptions}. Re-run after a resume switches projects so the
+ * destination project's settings-derived scope wins over the launch directory's.
+ */
+export async function resolveScopedModels(parsed, modelRegistry, activeSettings) {
+    const modelPatterns = parsed.models ?? cfgEnabledModels.get(activeSettings);
+    if (!modelPatterns || modelPatterns.length === 0) {
+        return [];
+    }
+    const preferences = getModelMatchPreferences(activeSettings);
+    const scopedModels = await resolveModelScope(modelPatterns, modelRegistry, preferences, activeSettings);
+    if (scopedModels.length > 0 || modelRegistry.getDiscoverableProviders().length === 0) {
+        return scopedModels;
+    }
+    await modelRegistry.refresh("online-if-uncached");
+    return await resolveModelScope(modelPatterns, modelRegistry, preferences, activeSettings);
+}
+/**
+ * Map resolver scope entries to the session's Ctrl+P cycle shape, filling in the
+ * configured default thinking level for entries without an explicit `:level`
+ * suffix. `auto` is session-level only, so it is coerced to a concrete default here.
+ */
+export function toSessionScopedModels(scopedModels, activeSettings) {
+    if (scopedModels.length === 0)
+        return [];
+    const defaultThinkingLevel = concreteThinkingLevel(parseConfiguredThinkingLevel(cfgDefaultThinkingLevel.get(activeSettings)));
+    return scopedModels.map(scopedModel => {
+        const fallback = automaticThinkingLevel(scopedModel.model, defaultThinkingLevel);
+        return {
+            model: scopedModel.model,
+            thinkingLevel: scopedModel.explicitThinkingLevel ? (scopedModel.thinkingLevel ?? fallback) : fallback,
+        };
+    });
+}
+/** Whether two scope lists reference the same set of models (order-independent). */
+function sameScopedModelSet(a, b) {
+    if (a.length !== b.length)
+        return false;
+    const keys = new Set(a.map(entry => `${entry.model.provider}/${entry.model.id}`));
+    return b.every(entry => keys.has(`${entry.model.provider}/${entry.model.id}`));
+}
+/**
+ * Startup resolves the `--models`/`enabledModels` scope from the model registry
+ * before background provider discovery runs — `createSession` fires
+ * `refreshInBackground()` only after the session is built — so a scoped selector
+ * whose model first materializes through runtime discovery (e.g.
+ * `opencode-go/ox-alpha-free` on a fresh launch with no cache row) is absent from
+ * the frozen scoped `/models` list even though it is in `enabledModels`, invokable
+ * via `--model`, and listed by `omp models find`. Once the initial refresh settles,
+ * re-resolve the scope and, when the set changed, push the fuller list into the
+ * session so the scoped picker and Ctrl+P cycle include it. A scope that resolved
+ * to zero models may become active here when the startup discovery pass returned
+ * no models but the background pass succeeded. Fire-and-forget — never blocks the
+ * prompt on background discovery latency. Issue #9220.
+ */
+export async function rebuildScopedModelsAfterDiscovery(session, parsed, modelRegistry, activeSettings) {
+    const patterns = parsed.models ?? cfgEnabledModels.get(activeSettings);
+    if (!patterns || patterns.length === 0)
+        return;
+    await modelRegistry.awaitBackgroundRefresh();
+    if (session.isDisposed)
+        return;
+    const rebuilt = await resolveModelScope(patterns, modelRegistry, getModelMatchPreferences(activeSettings), activeSettings);
+    const mapped = toSessionScopedModels(rebuilt, activeSettings);
+    if (mapped.length === 0 || sameScopedModelSet(session.scopedModels, mapped))
+        return;
+    session.setScopedModels(mapped);
+}
+/** Settings the scoped model list follows (see {@link watchScopedModelSettings}). */
+const cfgScopedModelInputs = combine({ enabledModels: cfgEnabledModels, disabledProviders: cfgDisabledProviders });
+/**
+ * Keep the Ctrl+P / scoped `/models` list in step with live settings: an
+ * `enabledModels` edit re-resolves a settings-derived scope (an explicit
+ * `--models` scope stays pinned), and a `disabledProviders` edit re-resolves
+ * after the catalog rebuild so re-enabled providers rejoin (disabled ones are
+ * already filtered from `session.scopedModels` at read time).
+ */
+export function watchScopedModelSettings(session, parsed, modelRegistry, activeSettings) {
+    const stop = cfgScopedModelInputs.listen(activeSettings, async (next, previous) => {
+        const providersChanged = !Bun.deepEquals(next.disabledProviders, previous.disabledProviders);
+        if (parsed.models && !providersChanged)
+            return;
+        if (providersChanged)
+            await modelRegistry.reapplyModelPolicies();
+        if (session.isDisposed)
+            return;
+        const patterns = parsed.models ?? cfgEnabledModels.get(activeSettings);
+        const rebuilt = patterns.length === 0
+            ? []
+            : await resolveModelScope(patterns, modelRegistry, getModelMatchPreferences(activeSettings), activeSettings);
+        const mapped = toSessionScopedModels(rebuilt, activeSettings);
+        if (sameScopedModelSet(session.scopedModels, mapped))
+            return;
+        session.setScopedModels(mapped);
+    });
+    session.addDisposer(stop);
+}
+async function getChangelogForDisplay(parsed, mode) {
+    if (parsed.continue || parsed.resume || isForeignSessionImport(parsed)) {
+        return undefined;
+    }
+    return resolveStartupChangelogForDisplay({
+        mode,
+        currentVersion: VERSION,
+        changelogPath: getChangelogPath(),
+    });
+}
+const SESSION_ID_ARG_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function normalizeContinueSessionArgs(parsed, rawArgs) {
+    if (!parsed.continue || parsed.resume || parsed.fork)
+        return;
+    let message;
+    if (parsed.unrecognizedFlags.length === 0 && parsed.messages.length === 1) {
+        message = parsed.messages[0]?.trim();
+    }
+    else if (rawArgs) {
+        const continueIndex = rawArgs.findIndex(arg => arg === "--continue" || arg === "-c");
+        message = rawArgs[continueIndex + 1]?.trim();
+    }
+    if (!message || !SESSION_ID_ARG_RE.test(message))
+        return;
+    const messageIndex = parsed.messages.indexOf(message);
+    if (messageIndex === -1)
+        return;
+    parsed.resume = message;
+    parsed.continue = false;
+    parsed.messages.splice(messageIndex, 1);
+}
+const SESSION_NOT_FOUND_HINT = "Run `omp --resume` without an argument to pick from recent sessions, or `omp` to start a new one.";
+function validateSessionPersistenceArgs(parsed) {
+    if (!parsed.noSession)
+        return;
+    if (parsed.resume !== undefined) {
+        throw new SessionResolutionError("--resume requires session persistence");
+    }
+    if (parsed.continue) {
+        throw new SessionResolutionError("--continue requires session persistence");
+    }
+}
+/**
+ * Resolves CLI session flags into an existing, forked, in-memory, or cancelled session manager.
+ *
+ * `nativeFlagOwnership: "preliminary"` is reserved for the startup parse,
+ * before extensions establish whether a built-in-named flag belongs to them.
+ */
+export async function createSessionManager(parsed, cwd, activeSettings = settings, askToMoveSession = promptMoveSession, options = {}) {
+    if (parsed.fork) {
+        if (parsed.noSession) {
+            throw new SessionResolutionError("--fork requires session persistence");
+        }
+        const forkSource = parsed.fork;
+        if (forkSource.includes("/") || forkSource.includes("\\") || forkSource.endsWith(".jsonl")) {
+            try {
+                return await SessionManager.forkFrom(forkSource, cwd, parsed.sessionDir, undefined, {
+                    repairInterruptedTail: true,
+                });
+            }
+            catch (err) {
+                if (err instanceof ForkSourceNotFoundError) {
+                    throw new SessionResolutionError(err.message, SESSION_NOT_FOUND_HINT);
+                }
+                throw err;
+            }
+        }
+        const match = await resolveResumableSession(forkSource, cwd, parsed.sessionDir);
+        if (!match) {
+            throw new SessionResolutionError(`Session "${forkSource}" not found.`, SESSION_NOT_FOUND_HINT);
+        }
+        try {
+            return await SessionManager.forkFrom(match.session.path, cwd, parsed.sessionDir, undefined, {
+                repairInterruptedTail: true,
+            });
+        }
+        catch (err) {
+            if (err instanceof ForkSourceNotFoundError) {
+                throw new SessionResolutionError(`Session "${forkSource}" not found.`, SESSION_NOT_FOUND_HINT);
+            }
+            throw err;
+        }
+    }
+    if (parsed.noSession) {
+        normalizeContinueSessionArgs(parsed);
+        if (options.nativeFlagOwnership !== "preliminary") {
+            validateSessionPersistenceArgs(parsed);
+        }
+        return SessionManager.inMemory();
+    }
+    normalizeContinueSessionArgs(parsed);
+    if (typeof parsed.resume === "string") {
+        const sessionArg = parsed.resume;
+        if (sessionArg.includes("/") || sessionArg.includes("\\") || sessionArg.endsWith(".jsonl")) {
+            let manager;
+            try {
+                manager = await SessionManager.open(sessionArg, parsed.sessionDir, undefined, { throwIfMissing: true });
+            }
+            catch (err) {
+                if (isEnoent(err) || isEnotdir(err)) {
+                    throw new SessionResolutionError(`Session "${sessionArg}" not found.`, SESSION_NOT_FOUND_HINT);
+                }
+                throw err;
+            }
+            // A copy whose conversation moved to another machine continues as a fork.
+            return await forkIfMovedAway(manager, parsed.sessionDir);
+        }
+        const match = await resolveResumableSession(sessionArg, cwd, parsed.sessionDir);
+        if (!match) {
+            throw new SessionResolutionError(`Session "${sessionArg}" not found.`, SESSION_NOT_FOUND_HINT);
+        }
+        if (match.scope === "local") {
+            const moveResult = await moveMissingCwdSessionIfNeeded(sessionArg, match.session, cwd, parsed.sessionDir, askToMoveSession);
+            if (moveResult.status === "moved") {
+                return await forkIfMovedAway(moveResult.manager, parsed.sessionDir);
+            }
+            if (moveResult.status === "declined") {
+                return undefined;
+            }
+        }
+        if (match.scope === "global") {
+            const moveResult = await moveMissingCwdSessionIfNeeded(sessionArg, match.session, cwd, parsed.sessionDir, askToMoveSession);
+            if (moveResult.status === "moved") {
+                return await forkIfMovedAway(moveResult.manager, parsed.sessionDir);
+            }
+            if (moveResult.status === "declined") {
+                return undefined;
+            }
+        }
+        return await forkIfMovedAway(await SessionManager.open(match.session.path, parsed.sessionDir), parsed.sessionDir);
+    }
+    if (parsed.continue) {
+        return await forkIfMovedAway(await SessionManager.continueRecent(cwd, parsed.sessionDir), parsed.sessionDir);
+    }
+    // --resume without value is handled separately (needs picker UI)
+    // If --session-dir provided without --continue/--resume, create new session there
+    if (parsed.sessionDir) {
+        return SessionManager.create(cwd, parsed.sessionDir);
+    }
+    // Auto-resume: behave like --continue if the setting is enabled and a prior
+    // session exists. When a prior session is resumed, mark parsed.continue so
+    // buildSessionOptions restores the session's model/thinking instead of
+    // overriding them with CLI defaults.
+    // An explicit startup goal starts fresh even when implicit auto-resume is configured.
+    if (parsed.goal === undefined && cfgAutoResume.get(activeSettings)) {
+        const manager = await forkIfMovedAway(await SessionManager.continueRecent(cwd, parsed.sessionDir), parsed.sessionDir);
+        if (manager.getEntries().length > 0) {
+            parsed.continue = true;
+        }
+        return manager;
+    }
+    // Default case (new session) returns undefined, SDK will create one
+    return undefined;
+}
+/** Discover APPEND_SYSTEM.md file if no CLI append system prompt was provided */
+function discoverAppendSystemPromptFile() {
+    const projectPath = findConfigFile("APPEND_SYSTEM.md", { user: false });
+    if (projectPath) {
+        return projectPath;
+    }
+    const globalPath = findConfigFile("APPEND_SYSTEM.md", { user: true });
+    if (globalPath) {
+        return globalPath;
+    }
+    return undefined;
+}
+/** Apply resolved CLI/discovered prompt files without bypassing system prompt templates. */
+export function applyResolvedSystemPromptInputs(options, resolvedSystemPrompt, resolvedAppendPrompt) {
+    if (resolvedSystemPrompt !== undefined) {
+        options.customSystemPrompt = resolvedSystemPrompt;
+    }
+    if (resolvedAppendPrompt) {
+        options.appendSystemPrompt = resolvedAppendPrompt;
+    }
+}
+/** Builds startup session options from parsed CLI flags, scoped models, and resolved session lineage. */
+export async function buildSessionOptions(parsed, scopedModels, sessionManager, modelRegistry, activeSettings) {
+    const options = {
+        cwd: parsed.cwd ?? getProjectDir(),
+        autoApprove: parsed.autoApprove ?? false,
+    };
+    const restoringSession = Boolean(parsed.continue || parsed.resume || isForeignSessionImport(parsed));
+    if (parsed.serviceTier !== undefined) {
+        options.openAIServiceTier = serviceTierSettingToTier(parsed.serviceTier) ?? null;
+    }
+    const cliDirs = parsed.addDir ?? [];
+    const settingsDirs = cfgWorkspaceAdditionalDirectories.get(activeSettings);
+    if (cliDirs.length > 0 || settingsDirs.length > 0) {
+        options.additionalDirectories = [...new Set([...cliDirs, ...settingsDirs])];
+    }
+    if (parsed.maxTime !== undefined) {
+        options.deadline = Date.now() + parsed.maxTime * 1000;
+    }
+    // Explicit prompt inputs win over discovered SYSTEM_TEMPLATE.md/SYSTEM.md.
+    if (parsed.systemPrompt !== undefined && parsed.systemPromptTemplate !== undefined) {
+        throw new Error("--system-prompt and --system-prompt-template cannot be combined");
+    }
+    const cwd = options.cwd;
+    const discoveredOverride = parsed.systemPrompt === undefined && parsed.systemPromptTemplate === undefined
+        ? await discoverSystemPromptOverride(cwd)
+        : undefined;
+    const systemPromptSource = parsed.systemPrompt ?? (discoveredOverride?.kind === "text" ? discoveredOverride.path : undefined);
+    const templatePath = parsed.systemPromptTemplate ?? (discoveredOverride?.kind === "template" ? discoveredOverride.path : undefined);
+    const appendPromptSource = parsed.appendSystemPrompt ?? discoverAppendSystemPromptFile();
+    const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
+    const [resolvedSystemPrompt, resolvedAppendPrompt, titleSystemPrompt, resolvedSystemPromptTemplate] = await Promise.all([
+        discoveredOverride?.kind === "text"
+            ? Promise.resolve(discoveredOverride.content)
+            : resolvePromptInput(systemPromptSource, "system prompt"),
+        resolvePromptInput(appendPromptSource, "append system prompt"),
+        resolvePromptInput(titleSystemPromptSource, "title system prompt"),
+        // Discovered templates arrive pre-loaded from the capability; only
+        // explicit CLI paths hit the strict file loader here.
+        discoveredOverride?.kind === "template" && parsed.systemPromptTemplate === undefined
+            ? Promise.resolve(discoveredOverride.content)
+            : templatePath === undefined
+                ? Promise.resolve(undefined)
+                : loadSystemPromptTemplateFile(templatePath),
+    ]);
+    if (sessionManager) {
+        options.sessionManager = sessionManager;
+    }
+    if (parsed.providerSessionId) {
+        options.providerSessionId = parsed.providerSessionId;
+    }
+    if (parsed.providerPromptCacheKey) {
+        options.providerPromptCacheKey = parsed.providerPromptCacheKey;
+        options.providerPromptCacheKeySource = "explicit";
+    }
+    else {
+        const header = sessionManager?.getHeader();
+        const scopedModelOverride = scopedModels.length > 0 && !restoringSession;
+        const forkCacheShapeChanged = scopedModelOverride ||
+            parsed.model !== undefined ||
+            parsed.thinking !== undefined ||
+            parsed.systemPrompt !== undefined ||
+            parsed.systemPromptTemplate !== undefined ||
+            parsed.appendSystemPrompt !== undefined ||
+            parsed.tools !== undefined ||
+            parsed.noTools === true;
+        if (!forkCacheShapeChanged && header?.providerPromptCacheKey) {
+            options.providerPromptCacheKey = header.providerPromptCacheKey;
+            options.providerPromptCacheKeySource = "fork";
+        }
+    }
+    // Model from CLI
+    // - supports --provider <name> --model <pattern>
+    // - supports --model <provider>/<pattern>
+    const modelMatchPreferences = getModelMatchPreferences(activeSettings);
+    const disabledProviders = disabledProviderIds(activeSettings);
+    // `--model` rewrites the session's `default` role below. Preserve the
+    // configured assignment so explicit prewalk role targets still resolve
+    // against the value that existed when the CLI was invoked.
+    const preModelOverrideDefaultRole = activeSettings.getModelRole("default");
+    // True when a configured `default` role was deliberately left unresolved for
+    // createAgentSession's post-extension re-resolution (issue #6694); the
+    // scoped thinking-level seed below must be deferred along with the model.
+    let deferredDefaultRole = false;
+    if (parsed.model) {
+        const resolved = resolveCliModel({
+            cliProvider: parsed.provider,
+            cliModel: parsed.model,
+            modelRegistry,
+            availableModels: modelRegistry.getAvailable(),
+            settings: activeSettings,
+            preferences: modelMatchPreferences,
+        });
+        if (resolved.warning) {
+            process.stderr.write(`${chalk.yellow(`Warning: ${resolved.warning}`)}\n`);
+        }
+        if (resolved.disabledProvider !== undefined) {
+            // Deferring a disabled pin to post-extension resolution would let it
+            // through, so refuse here (issue #13079).
+            process.stderr.write(`${chalk.red(resolved.error ?? `Provider "${resolved.disabledProvider}" is disabled.`)}\n`);
+            process.exit(1);
+        }
+        const matchedAfterMissingRolePattern = (resolved.configuredPatternIndex ?? 0) > 0;
+        if (matchedAfterMissingRolePattern) {
+            // Extensions may register an earlier configured role candidate.
+            options.modelPattern = parsed.model;
+        }
+        else if (resolved.error) {
+            const hasExtensions = (parsed.extensions?.length ?? 0) > 0 || (parsed.trustedExtensions?.length ?? 0) > 0;
+            if ((!parsed.provider || hasExtensions) && ((resolved.configuredPatterns?.length ?? 0) > 0 || !parsed.model.includes(":"))) {
+                // Model not found in built-in registry — defer resolution to after extensions load
+                // (extensions may register additional providers/models via registerProvider)
+                options.modelPattern = parsed.provider ? `${parsed.provider}/${parsed.model}` : parsed.model;
+            }
+            else {
+                process.stderr.write(`${chalk.red(resolved.error)}\n`);
+                process.exit(1);
+            }
+        }
+        else if (resolved.model) {
+            options.model = resolved.model;
+            options.rebindModelAfterDiscovery = true;
+            // The recorded role must carry the effort the session actually starts
+            // at, or the first cycle back into `default` overrides it.
+            activeSettings.overrideModelRoles({
+                default: formatModelSelectorValue(resolved.selector ?? `${resolved.model.provider}/${resolved.model.id}`, parsed.thinking ?? resolved.thinkingLevel),
+            });
+            if (!parsed.thinking && resolved.thinkingLevel) {
+                options.thinkingLevel = resolved.thinkingLevel;
+            }
+        }
+    }
+    else if (scopedModels.length > 0 && !restoringSession) {
+        const remembered = activeSettings.getModelRole("default");
+        if (remembered) {
+            const rememberedSpec = resolveModelRoleValue(remembered, scopedModels.map(scopedModel => scopedModel.model), {
+                settings: activeSettings,
+                matchPreferences: modelMatchPreferences,
+            });
+            const rememberedResolvedModel = rememberedSpec.model;
+            const rememberedModel = rememberedResolvedModel
+                ? scopedModels.find(scopedModel => scopedModel.model.provider === rememberedResolvedModel.provider &&
+                    scopedModel.model.id === rememberedResolvedModel.id)
+                : scopedModels.find(scopedModel => scopedModel.model.id.toLowerCase() === remembered.toLowerCase());
+            if (rememberedModel) {
+                options.model = rememberedModel.model;
+                options.rebindModelAfterDiscovery = true;
+                // Apply explicit thinking level from remembered role value
+                if (!parsed.thinking && rememberedSpec.explicitThinkingLevel && rememberedSpec.thinkingLevel) {
+                    options.thinkingLevel = rememberedSpec.thinkingLevel;
+                }
+            }
+        }
+        // A configured `default` role that doesn't resolve within the startup
+        // scope is deferred, NOT silently pinned to `scopedModels[0]`: the scope
+        // is resolved before extensions register their providers, so a role naming
+        // an extension-registered model (listed in `enabledModels`) would drop out
+        // here and the session would run on an unrelated in-scope provider without
+        // any error. Leaving `options.model` unset lets createAgentSession's
+        // post-extension default-role resolution reclaim it against the fully
+        // registered, still enabledModels-scoped catalog (issue #6694).
+        // Defer ONLY for a settings-derived scope: createAgentSession re-resolves
+        // against `settings.enabledModels` and never sees CLI `--models`, so
+        // deferring under an explicit CLI scope would let the saved default
+        // escape it — keep pinning the first scoped model there.
+        deferredDefaultRole = !options.model && Boolean(remembered) && !((parsed.models?.length ?? 0) > 0);
+        if (!options.model && !deferredDefaultRole) {
+            options.model = scopedModels[0].model;
+            options.rebindModelAfterDiscovery = true;
+        }
+    }
+    else if ((parsed.models?.length ?? 0) > 0 && !restoringSession) {
+        // A CLI `--models` scope that resolved to zero models at startup: its
+        // selectors name only models supplied by extension providers (or discovery)
+        // that register during createAgentSession, so nothing matched the
+        // pre-session catalog and `getDiscoverableProviders()` did not yet list the
+        // provider for resolveScopedModels' pre-refresh. Defer the choice to the
+        // SDK's post-extension resolution — the same `modelPattern` path a deferred
+        // `--model` uses — so the initial model is picked from the requested scope
+        // instead of an unrelated fallback. The fire-and-forget rebuild then
+        // activates the scoped list once discovery settles (issue #9220).
+        options.modelPattern = parsed.models;
+    }
+    if (parsed.noPrewalk && (parsed.prewalk || parsed.prewalkInto !== undefined)) {
+        throw new Error("--no-prewalk cannot be combined with --prewalk or --prewalk-into");
+    }
+    const explicitPrewalk = parsed.prewalk === true || parsed.prewalkInto !== undefined;
+    const prewalkEnabled = parsed.noPrewalk
+        ? false
+        : explicitPrewalk
+            ? true
+            : !restoringSession && cfgPrewalkEnabled.get(activeSettings);
+    if (prewalkEnabled) {
+        const target = parsed.prewalkInto ?? DEFAULT_PREWALK_TARGET;
+        let targetPatterns;
+        if (parsed.prewalkInto === undefined) {
+            // Preserve the existing default-prewalk behavior; this PR only needs
+            // pre-override role semantics for an explicit target.
+            targetPatterns = [expandRoleAlias(DEFAULT_PREWALK_TARGET, activeSettings)];
+        }
+        else {
+            // `--model` mutates only the session default role. Resolve explicit
+            // prewalk aliases against the pre-mutation default while leaving all
+            // other role lookups live.
+            const preModelOverrideRoleLookup = {
+                getModelRole: (role) => role === "default" ? preModelOverrideDefaultRole : activeSettings.getModelRole(role),
+            };
+            // Bare `default` is a backwards-compatible special selector handled
+            // by expandRoleAlias rather than the prefixed role-alias grammar.
+            const targetSelector = target.trim() === "default" ? expandRoleAlias(target, preModelOverrideRoleLookup) : target;
+            const configuredPatterns = resolveConfiguredModelPatterns(targetSelector, preModelOverrideRoleLookup);
+            targetPatterns = configuredPatterns.length > 0 ? configuredPatterns : [targetSelector];
+        }
+        const selection = await resolvePrewalkTarget(targetPatterns, target, modelRegistry, modelMatchPreferences, disabledProviders, { deferUnregistered: true });
+        if (selection.deferred) {
+            // Preserve role fallback order until extensions have registered their providers.
+            options.deferredPrewalk = { target, patterns: targetPatterns };
+        }
+        else {
+            options.prewalk = selection.prewalk;
+            for (const warning of selection.warnings) {
+                process.stderr.write(`${chalk.yellow(`Warning: ${warning}`)}\n`);
+            }
+        }
+    }
+    if (parsed.planYoloInto !== undefined && !parsed.planYolo) {
+        throw new Error("--plan-yolo-into requires --plan-yolo");
+    }
+    if (parsed.planYolo) {
+        const rolePattern = expandRoleAlias(parsed.planYoloInto ?? "@smol", activeSettings);
+        const resolved = resolveCliModel({ cliModel: rolePattern, modelRegistry, preferences: modelMatchPreferences });
+        if (resolved.warning) {
+            process.stderr.write(`${chalk.yellow(`Warning: ${resolved.warning}`)}\n`);
+        }
+        if (resolved.error || !resolved.model) {
+            throw new Error(resolved.error ?? `Model "${parsed.planYoloInto ?? "@smol"}" not found`);
+        }
+        if (disabledProviders.has(resolved.model.provider)) {
+            throw new Error(`Provider "${resolved.model.provider}" is disabled. Remove it from disabledProviders to hand off to "${rolePattern}".`);
+        }
+        if (!modelRegistry.hasConfiguredAuth(resolved.model)) {
+            throw new Error(`No API key for ${resolved.model.provider}/${resolved.model.id}`);
+        }
+        options.planYolo = { target: resolved.model, thinkingLevel: resolved.thinkingLevel };
+    }
+    // Thinking level
+    if (parsed.thinking) {
+        options.thinkingLevel = parsed.thinking;
+    }
+    else if (scopedModels.length > 0 &&
+        scopedModels[0].explicitThinkingLevel === true &&
+        // A deferred default role resolves its own model (and any explicit
+        // thinking suffix) after extensions register; seeding the fallback
+        // scoped model's level here would override it in createAgentSession.
+        !deferredDefaultRole &&
+        !restoringSession) {
+        options.thinkingLevel = scopedModels[0].thinkingLevel;
+    }
+    // Scoped models for Ctrl+P cycling — fill in default thinking levels when not explicit.
+    if (scopedModels.length > 0) {
+        options.scopedModels = toSessionScopedModels(scopedModels, activeSettings);
+    }
+    // API key from CLI - set in authStorage
+    // (handled by caller before createAgentSession)
+    // System prompt
+    applyResolvedSystemPromptInputs(options, resolvedSystemPrompt, resolvedAppendPrompt);
+    if (resolvedSystemPromptTemplate !== undefined) {
+        options.systemPromptTemplate = resolvedSystemPromptTemplate;
+    }
+    // Replan-driven title refresh resolves the override from this same field on
+    // `AgentSession`, so threading it through `CreateAgentSessionOptions` keeps
+    // both first-input titling (`input-controller.ts`) and replan refresh
+    // (`AgentSession.#refreshTitleAfterReplan`) on one source of truth.
+    if (titleSystemPrompt) {
+        options.titleSystemPrompt = titleSystemPrompt;
+    }
+    // Tools
+    if (parsed.noTools) {
+        options.toolNames = parsed.tools && parsed.tools.length > 0 ? parsed.tools : [];
+    }
+    else if (parsed.tools) {
+        options.toolNames = parsed.tools;
+    }
+    if (parsed.noLsp) {
+        options.enableLsp = false;
+    }
+    // Skills
+    if (parsed.noSkills) {
+        options.skills = [];
+    }
+    else if (parsed.skills && parsed.skills.length > 0) {
+        // Override includeSkills for this session
+        cfgSkillsIncludeSkills.override(activeSettings, parsed.skills);
+    }
+    // Rules
+    if (parsed.noRules) {
+        options.rules = [];
+    }
+    // Trusted extension paths are an exact allowlist for extension modules.
+    if (parsed.trustedExtensions && parsed.trustedExtensions.length > 0) {
+        const trustedPaths = parsed.trustedExtensions.map(trustedPath => {
+            let resolvedPath;
+            let stat;
+            try {
+                resolvedPath = fsSync.realpathSync.native(trustedPath);
+                stat = fsSync.statSync(resolvedPath);
+            }
+            catch {
+                throw new Error(`Trusted extension must be an existing module file: ${trustedPath}`);
+            }
+            if (!stat.isFile()) {
+                throw new Error(`Trusted extension must be a module file, not a directory: ${trustedPath}`);
+            }
+            return resolvedPath;
+        });
+        options.disableExtensionDiscovery = true;
+        options.additionalExtensionPaths = trustedPaths;
+    }
+    else {
+        // Additional extension paths from CLI
+        const cliExtensionPaths = [...(parsed.extensions ?? []), ...(parsed.hooks ?? [])];
+        if (cliExtensionPaths.length > 0) {
+            options.additionalExtensionPaths = cliExtensionPaths;
+        }
+        if (parsed.noExtensions) {
+            options.disableExtensionDiscovery = true;
+        }
+    }
+    return options;
+}
+const DEFAULT_RUN_ROOT_DEPENDENCIES = {};
+/**
+ * Settle the session's dispose promise without letting a failure the caller has
+ * already reported escape as a raw fatal dump. `AgentSession.dispose()` memoizes
+ * its first call, so awaiting it again after print mode swallowed a store
+ * failure rethrows the identical rejection (issue #11493).
+ */
+export async function disposeSessionQuietly(session) {
+    await session.dispose().catch(() => undefined);
+}
+export async function runRootCommand(parsed, rawArgs, deps = DEFAULT_RUN_ROOT_DEPENDENCIES) {
+    logger.startTiming();
+    startStartupWatchdog();
+    try {
+        // Non-prepaint commands still need a default theme; an existing Composer
+        // already initialized its cached theme synchronously for the first frame.
+        await logger.time("initTheme:initial", ensureTheme);
+        const parsedArgs = parsed;
+        try {
+            await logger.time("applyStartupCwd", applyStartupCwd, parsedArgs);
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            process.stderr.write(`${chalk.red(`Error: ${message}`)}\n`);
+            process.exit(1);
+        }
+        const notifs = [];
+        if (parsedArgs.version) {
+            writeStartupNotice(parsedArgs, `${VERSION}\n`);
+            process.exit(0);
+        }
+        if (parsedArgs.export) {
+            // Export loads no extensions, so none can own a value the bootstrap parse
+            // rejected: report it as the usage error it is instead of exporting.
+            if (reportInvalidFlagValues(parsedArgs)) {
+                process.exit(2);
+            }
+            let result;
+            try {
+                const outputPath = parsedArgs.messages.length > 0 ? parsedArgs.messages[0] : undefined;
+                const { exportFromFile } = await import("./export/html");
+                result = await exportFromFile(parsedArgs.export, outputPath);
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : "Failed to export session";
+                process.stderr.write(`${chalk.red(`Error: ${message}`)}\n`);
+                process.exit(1);
+            }
+            writeStartupNotice(parsedArgs, `Exported to: ${result}\n`);
+            process.exit(0);
+        }
+        if ((parsedArgs.mode === "rpc" || parsedArgs.mode === "rpc-ui") && parsedArgs.fileArgs.length > 0) {
+            process.stderr.write(`${chalk.red("Error: @file arguments are not supported in RPC mode")}\n`);
+            process.exit(1);
+        }
+        // A pending invalid `--mode` leaves `mode` unset; report it (exit 2) at the
+        // post-extension recheck before judging `--no-ui` against the mode.
+        if (parsedArgs.invalidFlagValues.length === 0) {
+            rejectNoUiWithoutRpc(parsedArgs);
+        }
+        const mode = parsedArgs.mode || "text";
+        // RPC owns stdin. Claim its singleton stream before plugin/extension discovery can load an in-process consumer.
+        const rpcInput = mode === "rpc" || mode === "rpc-ui" ? claimRpcInput() : undefined;
+        // Kick off plugin-root preload in parallel with the remaining startup work.
+        // Awaited later (before extension/skill discovery in createAgentSession needs it).
+        const home = os.homedir();
+        const pluginPreloadPromise = parsedArgs.pluginDirs && parsedArgs.pluginDirs.length > 0
+            ? logger.time("injectPluginDirRoots", injectPluginDirRoots, home, parsedArgs.pluginDirs, getProjectDir())
+            : logger.time("preloadPluginRoots", preloadPluginRoots, home, getProjectDir());
+        // Mark the promise as handled so a synchronous failure does not surface as an unhandled-rejection
+        // warning before we reach the await site below.
+        pluginPreloadPromise.catch(() => { });
+        // Trusted files load as exact module paths, never as package roots whose
+        // sibling hooks/tools/commands/MCP content could be discovered implicitly.
+        if (!parsedArgs.trustedExtensions?.length) {
+            // Register CLI-provided extension package paths (`--extension`, `--hook`) so
+            // the `omp-plugins` discovery provider can surface their `skills/`, `hooks/`,
+            // `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json` sub-trees.
+            // Explicit roots remain authorized under `--no-extensions`; only ambient
+            // extension discovery is disabled.
+            const cliExtensions = [...(parsedArgs.extensions ?? []), ...(parsedArgs.hooks ?? [])];
+            injectRvaExtensionCliRoots(cliExtensions, home, getProjectDir(), {
+                mode: parsedArgs.noExtensions ? "explicit-only" : "merge",
+                replace: true,
+            });
+        }
+        let cwd = getProjectDir();
+        // Classify the host before opening auth or settings storage so every
+        // session-critical database connection picks the right busy timeout.
+        // See getDbBusyTimeoutMs().
+        const isProtocolMode = mode === "rpc" || mode === "rpc-ui" || mode === "acp";
+        // Protocol modes own stdin; treating it as prompt text would consume JSON-RPC frames before their transports start.
+        const pipedInput = isProtocolMode ? undefined : await logger.time("readPipedInput", readPipedInput);
+        // Without a terminal on stdin the TUI cannot run, so such a launch is always
+        // headless: a piped or argv prompt runs like `-p`, and one with no prompt
+        // fails with a usage error instead of booting the interactive stack and
+        // exiting silently.
+        const stdinIsTerminal = process.stdin.isTTY === true;
+        const autoPrint = (pipedInput !== undefined || !stdinIsTerminal) && !parsedArgs.print && parsedArgs.mode === undefined;
+        const isInteractive = !parsedArgs.print && !autoPrint && parsedArgs.mode === undefined;
+        // Before session resolution: resume, fork, and import act on these same
+        // startup-parse flags, so rejecting later would leave forked or imported
+        // transcripts (or an opened picker) behind a usage error.
+        validateGoalLaunch(parsedArgs, isInteractive);
+        validateRestoreLaunch(parsedArgs, isInteractive);
+        // Without piped text the prompt must come from argv, which only the
+        // post-extension reparse can settle: an extension string flag's value
+        // (`--spawn-peer reviewer`) looks like a prompt here, and a boolean flag
+        // shadowing a built-in (`--mode compact`) hides one. Fail early only for
+        // an unambiguous argv; otherwise the recheck there decides.
+        const autoPrintNeedsArgPrompt = autoPrint && pipedInput === undefined;
+        if (autoPrintNeedsArgPrompt &&
+            parsedArgs.messages.length === 0 &&
+            parsedArgs.fileArgs.length === 0 &&
+            parsedArgs.unrecognizedFlags.length === 0 &&
+            parsedArgs.invalidFlagValues.length === 0) {
+            exitWithoutTerminal();
+        }
+        // Only the interactive host renders a focusable Agent Hub / subagent session
+        // tree; declare it so headless subagent optimizations (e.g. skipping replan
+        // title refresh) can tell a focusable process from a print/RPC/eval one.
+        setInteractiveHost(isInteractive);
+        if (!isInteractive) {
+            stopPendingStartupComposer();
+        }
+        // Account routing must use the effective settings, including `--config` and
+        // `PI_CONFIG_FILES` overlays, rather than independently re-reading only the
+        // main config file during auth discovery.
+        const settingsPromise = deps.settings
+            ? Promise.resolve(deps.settings)
+            : logger.time("settings:init", Settings.init, { cwd, configFiles: parsedArgs.config });
+        settingsPromise.catch(() => { });
+        const authStoragePromise = logger.time("discoverAuthStorage", async () => (deps.discoverAuthStorage ?? discoverAuthStorage)(undefined, { settings: await settingsPromise }));
+        authStoragePromise.catch(() => { });
+        let authStorage;
+        try {
+            authStorage = await authStoragePromise;
+        }
+        catch (error) {
+            const message = await describeAuthBrokerStartupError(error);
+            if (message === null)
+                throw error;
+            process.stderr.write(`${chalk.red(`Error: ${message}`)}\n`);
+            process.exit(1);
+        }
+        const settingsInstance = await settingsPromise;
+        // Process-lifetime: broker/account-policy edits reconfigure the shared credential store.
+        createAuthStorageSettingsSync(settingsInstance, authStorage);
+        if (parsedArgs.approvalMode) {
+            // Runtime override (not persisted): every `tools.approvalMode` read downstream
+            // sees this value. The wrapper still honours --auto-approve / --yolo on top of it.
+            cfgToolsApprovalMode.override(settingsInstance, parsedArgs.approvalMode);
+        }
+        else if (parsedArgs.autoApprove) {
+            // --auto-approve / --yolo without an explicit --approval-mode: reflect in settings so
+            // setup-time checks (e.g. #wrapToolForAcpPermission) also see the yolo intent.
+            cfgToolsApprovalMode.override(settingsInstance, "yolo");
+        }
+        if (parsedArgs.mode === "rpc" || parsedArgs.mode === "rpc-ui") {
+            applyProtocolDefaults("rpc", settingsInstance);
+        }
+        else if (parsedArgs.mode === "acp") {
+            applyProtocolDefaults("acp", settingsInstance);
+        }
+        // The registry composes policy-dependent metadata synchronously, including
+        // extended-context window caps, so it must receive the finalized settings.
+        const modelRegistry = logger.time("modelRegistry:init", () => new ModelRegistry(authStorage, undefined, { settings: settingsInstance }));
+        // Credential-scoped catalogs (e.g. GitHub Copilot) load from their cache
+        // rows only after credentials resolve. `--model` and `enabledModels` below
+        // resolve against the registry before `createAgentSession` hydrates it, so
+        // without this a cached-only model is absent and its selector fuzzy-matches
+        // a bundled sibling (issue #14075). Local-only and never rejects; awaited
+        // right before the first catalog read so its I/O overlaps theme setup.
+        const credentialScopedCacheHydration = logger.time("hydrateCredentialScopedModelCaches", () => modelRegistry.hydrateCredentialScopedModelCaches());
+        // A source checkout's uncommitted diff is read off-thread; it overlaps model setup and is
+        // awaited before any session entry is written.
+        const runtimeIdentityLoad = logger.time("loadRuntimeIdentity", loadRuntimeIdentity);
+        if (parsedArgs.noPty || parsedArgs.mode === "rpc-ui") {
+            Bun.env.RVA_NO_PTY = "1";
+            Bun.env.PI_NO_PTY = "1";
+        }
+        if (parsedArgs.noTitle ||
+            parsedArgs.mode === "rpc" ||
+            parsedArgs.mode === "rpc-ui" ||
+            parsedArgs.mode === "acp") {
+            Bun.env.RVA_NO_TITLE = "1";
+            Bun.env.PI_NO_TITLE = "1";
+        }
+        // Initialize discovery system with settings for provider persistence
+        logger.time("initializeWithSettings", initializeWithSettings, settingsInstance);
+        // Apply model role overrides from CLI args or env vars (ephemeral, not persisted)
+        const smolModel = parsedArgs.smol ?? $env.RVA_SMOL_MODEL ?? $env.PI_SMOL_MODEL;
+        const slowModel = parsedArgs.slow ?? $env.RVA_SLOW_MODEL ?? $env.PI_SLOW_MODEL;
+        const planModel = parsedArgs.plan ?? $env.RVA_PLAN_MODEL ?? $env.PI_PLAN_MODEL;
+        if (smolModel || slowModel || planModel) {
+            settingsInstance.overrideModelRoles({
+                smol: smolModel,
+                slow: slowModel,
+                plan: planModel,
+            });
+        }
+        // --print-thoughts (single-shot print mode) must surface reasoning, so un-hide
+        // thinking before the session is built — otherwise a passive omitThinking
+        // setting makes the provider omit summaries and the flag prints nothing. An
+        // explicit --hide-thinking block display option still wins for output display.
+        if (parsedArgs.printThoughts && !isProtocolMode && !isInteractive) {
+            cfgOmitThinking.override(settingsInstance, false);
+        }
+        // Apply --hide-thinking CLI flag (ephemeral, not persisted)
+        if (parsedArgs.hideThinking) {
+            cfgHideThinkingBlock.override(settingsInstance, true);
+        }
+        // Apply --advisor CLI flag (ephemeral, not persisted)
+        if (parsedArgs.advisor) {
+            cfgAdvisorEnabled.override(settingsInstance, true);
+        }
+        // Apply --external-thinking CLI flag (ephemeral, not persisted)
+        if (parsedArgs.externalThinking) {
+            cfgExternalThinking.override(settingsInstance, true);
+        }
+        await logger.time("initTheme:final", initTheme, isInteractive, cfgSymbolPreset.get(settingsInstance), cfgColorBlindMode.get(settingsInstance), cfgThemeDark.get(settingsInstance), cfgThemeLight.get(settingsInstance));
+        applyStartupComposerPreferences({
+            quiet: cfgStartupQuiet.get(settingsInstance),
+            composerShape: cfgComposerShape.get(settingsInstance),
+            showHardwareCursor: cfgShowHardwareCursor.get(settingsInstance),
+            maxInlineImages: cfgTuiMaxInlineImages.get(settingsInstance),
+            resizeScrollback: cfgTuiResizeScrollback.get(settingsInstance),
+            imeSafeCursor: cfgTuiImeSafeCursor.get(settingsInstance),
+            autocompleteMaxVisible: cfgAutocompleteMaxVisible.get(settingsInstance),
+            spellingTypoDetection: cfgSpellingTypoDetection.get(settingsInstance),
+            spellingAutocomplete: cfgSpellingAutocomplete.get(settingsInstance),
+            spellingAutocorrect: cfgSpellingAutocorrect.get(settingsInstance),
+            theme: {
+                symbolPreset: cfgSymbolPreset.get(settingsInstance),
+                colorBlindMode: cfgColorBlindMode.get(settingsInstance),
+                darkTheme: cfgThemeDark.get(settingsInstance),
+                lightTheme: cfgThemeLight.get(settingsInstance),
+            },
+        });
+        await credentialScopedCacheHydration;
+        let scopedModels = await logger.time("resolveModelScope", resolveScopedModels, parsedArgs, modelRegistry, settingsInstance);
+        // Resolve an explicit `--continue <id>` before extension flags are loaded.
+        // Reading the token immediately after `--continue` distinguishes the session
+        // id from UUID-shaped values owned by later extension flags.
+        normalizeContinueSessionArgs(parsedArgs, rawArgs);
+        await runtimeIdentityLoad;
+        // Resolve native resume/fork flags or import one foreign transcript into a
+        // fresh persisted OMP session before constructing the AgentSession.
+        let sessionManager;
+        let foreignSource;
+        try {
+            foreignSource = resolveForeignSessionSource(parsedArgs);
+            if (foreignSource) {
+                if (isProtocolMode) {
+                    throw new SessionResolutionError(`--from-${foreignSource} is not supported in ${mode} mode`);
+                }
+                const sourceName = foreignSessionSourceName(foreignSource);
+                const store = (deps.createForeignSessionStore ?? createForeignSessionStore)(foreignSource);
+                let foreignSessions;
+                try {
+                    foreignSessions = await logger.time(`list${sourceName}Sessions`, () => store.list());
+                }
+                catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    throw new SessionResolutionError(`Failed to list ${sourceName} sessions: ${message}`);
+                }
+                if (foreignSessions.length === 0) {
+                    writeStartupNotice(parsedArgs, `${chalk.dim(`No ${sourceName} sessions found`)}\n`);
+                    stopStartupWatchdog();
+                    process.exit(0);
+                }
+                const choices = foreignSessions.map(foreignSessionInfoToSessionInfo);
+                pauseStartupWatchdog();
+                let selected;
+                try {
+                    const selectSessionImpl = deps.selectSession ?? (await loadSessionPicker());
+                    selected = await logger.time(`select${sourceName}Session`, selectSessionImpl, choices, {
+                        title: `Import ${sourceName} Session`,
+                        scopeLabel: false,
+                        showCwd: true,
+                        allowDelete: false,
+                        allowGlobalScope: false,
+                        historySearch: false,
+                    });
+                }
+                finally {
+                    resumeStartupWatchdog();
+                }
+                if (!selected) {
+                    writeStartupNotice(parsedArgs, `${chalk.dim(`No ${sourceName} session selected`)}\n`);
+                    stopStartupWatchdog();
+                    process.exit(0);
+                }
+                const foreignSession = foreignSessions.find(session => session.id === selected.id && session.path === selected.path);
+                if (!foreignSession) {
+                    throw new SessionResolutionError(`Selected ${sourceName} session is no longer available`);
+                }
+                try {
+                    sessionManager = await logger.time(`import${sourceName}Session`, persistForeignSession, store, foreignSession, { fallbackCwd: cwd, sessionDir: parsedArgs.sessionDir });
+                }
+                catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    throw new SessionResolutionError(`Failed to import ${sourceName} session: ${message}`);
+                }
+            }
+            else {
+                sessionManager = await logger.time("createSessionManager", createSessionManager, parsedArgs, cwd, settingsInstance, promptMoveSession, { nativeFlagOwnership: "preliminary" });
+            }
+        }
+        catch (error) {
+            if (error instanceof SessionResolutionError) {
+                exitForSessionResolutionError(error);
+            }
+            throw error;
+        }
+        if ((typeof parsedArgs.resume === "string" || foreignSource) && sessionManager && !parsedArgs.noSession) {
+            const previousCwd = cwd;
+            const recordedCwd = sessionManager.getRecordedCwd() ?? sessionManager.getCwd();
+            const resumedProject = await switchToResumedProject(recordedCwd, settingsInstance, pluginPreloadPromise, sessionManager);
+            cwd = resumedProject.cwd;
+            notifyResumeCwdFallback(parsedArgs, resumedProject, cwd);
+            if (cwd !== previousCwd) {
+                // applyStartupCwd persists an explicit --cwd in parsedArgs; once resume
+                // switches projects, keep session construction on the destination too.
+                parsedArgs.cwd = cwd;
+                // Destination project may scope a different `enabledModels`; re-resolve
+                // so the model UI and session options reflect it (explicit `--models`
+                // stays fixed inside resolveScopedModels).
+                scopedModels = await resolveScopedModels(parsedArgs, modelRegistry, settingsInstance);
+            }
+        }
+        // User declined the missing-directory move prompt — exit cleanly instead of
+        // letting the cancellation fall through to a new session.
+        if (typeof parsedArgs.resume === "string" && !sessionManager) {
+            writeStartupNotice(parsedArgs, `${chalk.dim("Resume cancelled: session was not moved.")}\n`);
+            stopStartupWatchdog();
+            process.exit(0);
+        }
+        // Handle --resume (no value): show session picker. Skipped under
+        // --no-session — createSessionManager already returned an ephemeral manager,
+        // and the deferred persistence check below (after extension flag ownership is
+        // resolved) rejects a native --resume, so the picker must not run first.
+        if (parsedArgs.resume === true && !parsedArgs.fork && !parsedArgs.noSession) {
+            const folderSessions = await logger.time("SessionManager.listForPicker", SessionManager.listForPicker, cwd, parsedArgs.sessionDir);
+            let preloadedAllSessions;
+            if (folderSessions.length === 0) {
+                // Probe globally so we can exit fast when the user has no sessions at
+                // all, but never auto-switch the picker into all-projects scope — that
+                // silently surfaced other projects' history when the cwd was empty
+                // (issue #3099). The preloaded list also makes the user's Tab switch
+                // instant on the way in.
+                preloadedAllSessions = await logger.time("SessionManager.listAllForPicker", SessionManager.listAllForPicker);
+                if (preloadedAllSessions.length === 0) {
+                    writeStartupNotice(parsedArgs, `${chalk.dim("No sessions found")}\n`);
+                    stopStartupWatchdog();
+                    process.exit(0);
+                }
+            }
+            pauseStartupWatchdog();
+            const selectSessionImpl = deps.selectSession ?? (await loadSessionPicker());
+            const selected = await logger.time("selectSession", selectSessionImpl, folderSessions, {
+                allSessions: preloadedAllSessions,
+            });
+            resumeStartupWatchdog();
+            if (!selected) {
+                writeStartupNotice(parsedArgs, `${chalk.dim("No session selected")}\n`);
+                // Quit instead of returning: startup already armed long-lived handles
+                // (theme watcher + SIGWINCH/macOS appearance listeners via initTheme,
+                // settings save timer, model registry) that keep the event loop alive,
+                // so a bare return hangs the process after the picker leaves the alt
+                // screen. No session was built here, so there is nothing to flush. The
+                // in-session `/resume` picker (selector-controller.ts) takes a different
+                // onCancel that just closes the overlay — only this startup path exits.
+                stopStartupWatchdog();
+                process.exit(0);
+            }
+            try {
+                sessionManager = await forkIfMovedAway((await SessionManager.isFromRemovedWorktree(selected, cwd, parsedArgs.sessionDir))
+                    ? await openRelocatedSession(selected, cwd, parsedArgs.sessionDir)
+                    : await SessionManager.open(selected.path), parsedArgs.sessionDir);
+            }
+            catch (error) {
+                if (error instanceof SessionResolutionError)
+                    exitForSessionResolutionError(error);
+                throw error;
+            }
+            const previousCwd = cwd;
+            // A relocated session's `selected.cwd` is the removed worktree: missing, so the launch cwd stays.
+            const recordedCwd = selected.cwd || sessionManager.getRecordedCwd() || sessionManager.getCwd();
+            const resumedProject = await switchToResumedProject(recordedCwd, settingsInstance, pluginPreloadPromise, sessionManager);
+            cwd = resumedProject.cwd;
+            notifyResumeCwdFallback(parsedArgs, resumedProject, cwd);
+            if (cwd !== previousCwd) {
+                parsedArgs.cwd = cwd;
+                scopedModels = await resolveScopedModels(parsedArgs, modelRegistry, settingsInstance);
+            }
+        }
+        if (sessionManager && (parsedArgs.continue || parsedArgs.resume || parsedArgs.fork || foreignSource)) {
+            const pendingToolWarning = describePendingToolCalls(sessionManager.getBranch());
+            if (pendingToolWarning) {
+                logger.warn("Resumed session has pending tool calls", {
+                    sessionId: sessionManager.getSessionId(),
+                    sessionFile: sessionManager.getSessionFile(),
+                });
+                if (isInteractive) {
+                    notifs.push({ kind: "warn", message: pendingToolWarning });
+                }
+                else {
+                    process.stderr.write(`${chalk.yellow(`${pendingToolWarning}\n`)}`);
+                }
+            }
+        }
+        await pluginPreloadPromise;
+        // Pure file I/O: overlap it with session-option building, but land it before
+        // extensions load or the session can start project daemons.
+        const daemonPresencePromise = deps === DEFAULT_RUN_ROOT_DEPENDENCIES
+            ? logger.time("registerDaemonProjectPresence", registerDaemonProjectPresence, cwd)
+            : undefined;
+        daemonPresencePromise?.catch(() => { });
+        scheduleMarketplaceAutoUpdate({
+            autoUpdate: cfgMarketplaceAutoUpdate.get(settingsInstance),
+            resolveActiveProjectRegistryPath,
+            clearPluginRootsCache: clearPluginRootsAndCaches,
+        });
+        const sessionOptions = await logger.time("buildSessionOptions", buildSessionOptions, parsedArgs, scopedModels, sessionManager, modelRegistry, settingsInstance);
+        sessionOptions.authStorage = authStorage;
+        sessionOptions.modelRegistry = modelRegistry;
+        sessionOptions.hasUI = isInteractive || mode === "rpc-ui";
+        sessionOptions.allowSessionModelFallback = isInteractive;
+        sessionOptions.settingsApproval = isInteractive;
+        sessionOptions.tuiTranscript = isInteractive;
+        sessionOptions.autoTitle = isInteractive;
+        sessionOptions.settings = settingsInstance;
+        sessionOptions.onPrewalkWarning = warning => {
+            if (isInteractive)
+                notifs.push({ kind: "warn", message: warning });
+            else
+                process.stderr.write(`${chalk.yellow(`Warning: ${warning}`)}\n`);
+        };
+        // OTEL: unless `telemetry.otlpExportEnabled` is off, register global OTLP
+        // exporters when an endpoint is configured via env, then switch on the agent
+        // loop's telemetry hooks so traces, run-level metrics, and structured logs
+        // have source events to export. Content capture remains governed by
+        // OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT.
+        await logger.time("initTelemetryExport", initTelemetryExport, cfgTelemetryOtlpExportEnabled.get(settingsInstance));
+        if (isTelemetryExportEnabled()) {
+            // Chat telemetry reports each request's provider-computed cost. A model
+            // without a known rate card reports an unavailable reason instead of $0.
+            sessionOptions.telemetry = createTelemetryExportConfig(sessionOptions.telemetry, (providerId, modelId) => {
+                const model = modelRegistry.find(providerId, modelId);
+                return model !== undefined && getModelPricingStatus(model) !== "unknown";
+            });
+        }
+        await daemonPresencePromise;
+        // Handle CLI --api-key as runtime override (not persisted)
+        if (parsedArgs.apiKey) {
+            if (!sessionOptions.model && !sessionOptions.modelPattern) {
+                process.stderr.write(`${chalk.red("--api-key requires a model to be specified via --model, --provider/--model, or --models")}\n`);
+                process.exit(1);
+            }
+            if (sessionOptions.model) {
+                authStorage.keys.setRuntime(sessionOptions.model.provider, parsedArgs.apiKey);
+            }
+        }
+        const createAgentSessionImpl = deps.createAgentSession ?? createAgentSession;
+        const createSession = async (options) => {
+            const result = await logger.time("createAgentSession", createAgentSessionImpl, options);
+            // Kick off background model discovery only after createAgentSession finishes its parallel
+            // discovery arms; running these concurrently contends for the event loop and stretches
+            // every parallel arm by ~30ms. Interactive startup defers it further, behind the first
+            // frame (see `startDeferredStartupWork`), for the same reason.
+            if (!isInteractive)
+                modelRegistry.refreshInBackground();
+            return result;
+        };
+        if (mode === "acp") {
+            // ACP binds extensions per `session/new`, and any of them may own a flag
+            // the bootstrap parse rejected, so pending invalid enum values are
+            // normally settled by the per-session factory. With discovery off and no
+            // explicit extension (`-e`, `--hook`, trusted) no session can load one,
+            // so fail the launch now instead of every `session/new` — without
+            // binding anything, since extension factories have side effects.
+            if (sessionOptions.disableExtensionDiscovery &&
+                (sessionOptions.additionalExtensionPaths?.length ?? 0) === 0 &&
+                reportInvalidFlagValues(parsedArgs)) {
+                process.exit(2);
+            }
+            const createAcpSession = createAcpSessionFactory({
+                baseOptions: sessionOptions,
+                settings: settingsInstance,
+                sessionDir: parsedArgs.sessionDir,
+                authStorage,
+                modelRegistry,
+                parsedArgs,
+                rawArgs,
+                createSession,
+            });
+            // Branch-only protocol runner: keep ACP server code out of normal interactive startup.
+            const runAcpMode = deps.runAcpMode ?? (await import("./modes/acp/acp-mode")).runAcpMode;
+            stopStartupWatchdog();
+            // Startup is over: stop recording spans, or every later session and subagent
+            // appends to the timing tree for the life of the server.
+            logger.endTiming();
+            await runAcpMode(createAcpSession);
+        }
+        else {
+            // Resolve extension-registered CLI flags before creating the session so a
+            // bad `@file` fails fast WITHOUT leaving a junk session/breadcrumb
+            // (createAgentSession writes the terminal breadcrumb eagerly). Loading the
+            // extensions here also makes `@file` classification extension-aware — e.g. a
+            // string-flag value such as `--target @notes.md` is the flag's value, not a
+            // file — and the same result is handed to createAgentSession via
+            // `preloadedExtensions` so the discovery work is not repeated.
+            if (isInteractive && !parsedArgs.trustedExtensions?.length) {
+                sessionOptions.extensions = [...(sessionOptions.extensions ?? []), createWarpEventBridgeExtension()];
+            }
+            const eventBus = new EventBus();
+            const subagentEventBus = new EventBus();
+            const extensionsResult = parsedArgs.trustedExtensions?.length
+                ? await loadTrustedSessionExtensions(sessionOptions, cwd, eventBus)
+                : await loadSessionExtensions(sessionOptions, cwd, settingsInstance, eventBus);
+            const extensionFlagSink = {
+                getFlags: () => ExtensionRunner.aggregateFlags(extensionsResult.extensions),
+                setFlagValue: (name, value) => {
+                    extensionsResult.runtime.flagValues.set(name, value);
+                },
+            };
+            const initialArgs = applyExtensionFlags(extensionFlagSink, rawArgs) ?? parsedArgs;
+            normalizeContinueSessionArgs(initialArgs, rawArgs);
+            try {
+                validateSessionPersistenceArgs(initialArgs);
+            }
+            catch (error) {
+                if (error instanceof SessionResolutionError) {
+                    exitForSessionResolutionError(error);
+                }
+                throw error;
+            }
+            if ((parsedArgs.trustedExtensions?.length ?? 0) > 0 && extensionsResult.errors.length > 0) {
+                throw new Error(`Trusted extension failed to load: ${extensionsResult.errors.map(item => item.error).join("; ")}`);
+            }
+            for (const message of formatExtensionLoadNotifications(extensionsResult.errors)) {
+                if (isInteractive) {
+                    notifs.push({ kind: "warn", message });
+                }
+                else {
+                    process.stderr.write(`${chalk.yellow(`${message}\n`)}`);
+                }
+            }
+            // Fail fast on stale/typo flags (e.g. `omp --list-models`) and invalid
+            // built-in enum values now that we know the real extension flag set —
+            // an extension may shadow `--mode`/`--thinking`/`--approval-mode`, so
+            // neither can be judged by the pre-extension parse. Without this check
+            // the unrecognized token gets silently consumed and any following
+            // positional leaks as the initial prompt — kicking off a real LLM
+            // session, MCP connection, and tool calls (issue #2459). Exit code 2
+            // matches the conventional "command line usage error" convention.
+            const invalidValues = reportInvalidFlagValues(initialArgs);
+            const unknownFlags = reportUnrecognizedFlags(initialArgs);
+            if (invalidValues || unknownFlags) {
+                process.exit(2);
+            }
+            rejectNoUiWithoutRpc(parsedArgs);
+            validateRestorePrompt(initialArgs);
+            if (initialArgs.goal !== undefined) {
+                validateGoalStartup(initialArgs, cfgGoalEnabled.get(settingsInstance), pipedInput, cfgPlanDefaultOnStartup.get(settingsInstance) && cfgPlanEnabled.get(settingsInstance));
+            }
+            if (autoPrintNeedsArgPrompt && initialArgs.messages.length === 0 && initialArgs.fileArgs.length === 0) {
+                exitWithoutTerminal();
+            }
+            const processedFiles = initialArgs.fileArgs.length > 0
+                ? await logger.time("processFileArguments", () => processFileArguments(initialArgs.fileArgs, {
+                    autoResizeImages: cfgImagesAutoResize.get(settingsInstance),
+                }))
+                : undefined;
+            const { initialMessage, initialImages } = buildInitialMessage({
+                parsed: initialArgs,
+                fileText: processedFiles?.text,
+                fileImages: processedFiles?.images,
+                stdinContent: pipedInput,
+            });
+            const showStartupSplash = shouldShowStartupSplash({
+                configured: cfgStartupShowSplash.get(settingsInstance),
+                isInteractive,
+                resuming: Boolean(parsedArgs.continue || parsedArgs.resume || parsedArgs.fork || foreignSource),
+                quiet: cfgStartupQuiet.get(settingsInstance),
+                timing: Boolean($env.PI_TIMING),
+                stdinIsTTY: process.stdin.isTTY,
+                stdoutIsTTY: process.stdout.isTTY,
+            });
+            // Read the changelog marker before the changelog resolution below writes it.
+            // The probe may spawn a detached interpreter; abort it on process exit so Ctrl-C
+            // during startup cannot orphan a hung configured python.interpreter.
+            let pythonEvalWarningPromise;
+            if (isInteractive) {
+                const pythonEvalProbeAbort = new AbortController();
+                const unregisterPythonEvalProbe = postmortem.register("python-eval-startup-probe", () => pythonEvalProbeAbort.abort(), { exitOnly: true });
+                pythonEvalWarningPromise = resolveFirstLaunchPythonEvalWarning({
+                    args: parsedArgs,
+                    lastChangelogVersion: await readLastChangelogVersion(),
+                    cwd: sessionOptions.cwd ?? getProjectDir(),
+                    settings: settingsInstance,
+                    signal: pythonEvalProbeAbort.signal,
+                }).finally(unregisterPythonEvalProbe);
+            }
+            // Startup changelog is only consumed by interactive mode below; kick the
+            // CHANGELOG.md parse off now so it overlaps session creation instead of
+            // serializing after it.
+            const startupChangelogPromise = isInteractive
+                ? logger.time("main:getChangelogForDisplay", getChangelogForDisplay, parsedArgs, cfgStartupChangelogMode.get(settingsInstance))
+                : undefined;
+            const { session, setToolUIContext, modelFallbackMessage, lspServers, mcpManager, startBackgroundModelDiscovery, } = await createSession({
+                ...sessionOptions,
+                eventBus,
+                subagentEventBus,
+                preloadedExtensions: extensionsResult,
+                // runInteractiveMode validates once init has painted the first frame.
+                deferRetryFallbackValidation: isInteractive,
+            });
+            const sessionToolNames = session.getAllToolNames();
+            try {
+                validateToolNames(initialArgs.tools, sessionToolNames);
+            }
+            catch (error) {
+                await session.dispose();
+                // With no working eval backend, `--tools eval` is rejected here, before the startup
+                // notification path; carry the interpreter diagnosis instead of a bare "Unknown tool".
+                const evalWarning = sessionToolNames.includes("eval") ? undefined : await pythonEvalWarningPromise;
+                if (evalWarning && error instanceof CliUsageError) {
+                    throw new CliUsageError(`${error.message}\n${evalWarning}`);
+                }
+                throw error;
+            }
+            // Cold-revive support: a `parked` subagent ref restored from disk (Agent Hub
+            // scan, collab mirror, resumed process) has a sessionFile but no in-memory
+            // reviver, so `ensureLive` (IRC sends, hub focus) would refuse it. Install a
+            // factory — bound to THIS top-level session — that rebuilds the subagent from
+            // its persisted JSONL (see persisted-revive.ts). Scoped to the non-ACP
+            // bootstrap: ACP keeps several concurrent top-level sessions and a single
+            // process-global factory must not be clobbered by the most recent one.
+            AgentLifecycleManager.global().setPersistedSubagentReviverFactory(createPersistedSubagentReviverFactory({
+                session,
+                authStorage,
+                modelRegistry,
+                settings: settingsInstance,
+                enableLsp: sessionOptions.enableLsp ?? true,
+                eventBus,
+                subagentEventBus,
+            }), () => Math.trunc(Number(cfgTaskAgentIdleTtlMs.get(settingsInstance)) || 0));
+            if (parsedArgs.apiKey && !sessionOptions.model && session.model) {
+                authStorage.keys.setRuntime(session.model.provider, parsedArgs.apiKey);
+            }
+            // Runtime provider discovery (opencode-go, models.yml `discovery:`, proxies)
+            // populates the registry AFTER the scope was snapshotted at startup; re-resolve
+            // once it settles so newly-discovered configured models join the scoped
+            // /models list and Ctrl+P cycle, including scopes that initially resolved
+            // empty (issue #9220). Fire-and-forget: the prompt must never block on the
+            // background pass.
+            const configuredScope = parsedArgs.models ?? cfgEnabledModels.get(settingsInstance);
+            // Interactive-only work that must not delay the first session-bound frame:
+            // runInteractiveMode calls it once init has painted. Neither feeds the first
+            // prompt: fallback-chain validation only produces header warnings, and the
+            // background refresh already raced the first prompt when it ran earlier.
+            const startDeferredStartupWork = () => {
+                session.validateRetryFallbackChains();
+                modelRegistry.refreshInBackground();
+                if (configuredScope.length > 0) {
+                    // Must follow refreshInBackground: it waits on the in-flight refresh.
+                    void rebuildScopedModelsAfterDiscovery(session, parsedArgs, modelRegistry, settingsInstance).catch(error => logger.warn("Scoped model rebuild after discovery failed", { error: String(error) }));
+                }
+                void startBackgroundModelDiscovery?.();
+            };
+            watchScopedModelSettings(session, parsedArgs, modelRegistry, settingsInstance);
+            if (modelFallbackMessage) {
+                notifs.push({ kind: "warn", message: modelFallbackMessage });
+            }
+            const modelRegistryError = modelRegistry.getError();
+            for (const warning of modelRegistry.drainConfigWarnings()) {
+                if (isInteractive)
+                    notifs.push({ kind: "warn", message: warning });
+                else
+                    process.stderr.write(`${chalk.yellow(`Warning: ${warning}`)}\n`);
+            }
+            if (modelRegistryError) {
+                notifs.push({ kind: "error", message: modelRegistryError.message });
+            }
+            if (!isInteractive && !session.model) {
+                if (modelRegistryError) {
+                    process.stderr.write(`${chalk.red(modelRegistryError.message)}\n\n`);
+                }
+                if (modelFallbackMessage) {
+                    process.stderr.write(`${chalk.red(modelFallbackMessage)}\n`);
+                }
+                else {
+                    process.stderr.write(`${chalk.red("No models available.")}\n`);
+                }
+                const availableModels = modelRegistry.getAvailable();
+                if (parsedArgs.model && availableModels.length > 0) {
+                    // Credentials work; the requested selector is what failed. Point at
+                    // the nearest usable models instead of an API-key checklist.
+                    const suggestions = fuzzyFilter(availableModels.map(model => `${model.provider}/${model.id}`), parsedArgs.model, selector => selector).slice(0, 5);
+                    if (suggestions.length > 0) {
+                        process.stderr.write(`${chalk.yellow("\nDid you mean:")}\n`);
+                        for (const selector of suggestions)
+                            process.stderr.write(`  ${selector}\n`);
+                    }
+                    process.stderr.write(`\nRun \`${APP_NAME} models find <pattern>\` to search, or \`${APP_NAME} models\` to list all.\n`);
+                    process.exit(1);
+                }
+                process.stderr.write(`${chalk.yellow("\nSet an API key environment variable:")}\n`);
+                process.stderr.write("  ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, etc.\n");
+                process.stderr.write(`${chalk.yellow(`\nOr create ${ModelsConfigFile.path()}`)}\n`);
+                process.exit(1);
+            }
+            if (mode === "rpc" || mode === "rpc-ui" || isInteractive) {
+                // Long-lived hosts apply on-disk config edits (config.yml, project
+                // settings, `--config` overlays) live. No-op unless this is the
+                // persisting process-global instance.
+                settingsInstance.startWatching();
+                postmortem.register("settings-file-watcher", () => settingsInstance.stopWatching(), { exitOnly: true });
+            }
+            if (mode === "rpc" || mode === "rpc-ui") {
+                // Branch-only protocol runner: keep RPC host code out of normal interactive startup.
+                const runRpcMode = (await import("./modes/rpc/rpc-mode")).runRpcMode;
+                stopStartupWatchdog();
+                logger.endTiming();
+                await runRpcMode(session, {
+                    setToolUIContext: mode === "rpc-ui" ? setToolUIContext : undefined,
+                    headless: parsedArgs.noUi === true,
+                    subagentEventBus,
+                    input: rpcInput,
+                });
+            }
+            else if (isInteractive) {
+                const startupChangelog = await startupChangelogPromise;
+                const modelScopeNotification = buildModelScopeNotification(scopedModels, cfgStartupQuiet.get(settingsInstance));
+                if (modelScopeNotification) {
+                    // Routed through the TUI (not stdout): the startup capture owns the
+                    // terminal in raw mode here, and the TUI's first clearScrollback paint
+                    // would wipe a pre-TUI line anyway.
+                    notifs.push(modelScopeNotification);
+                }
+                const pythonEvalWarning = await pythonEvalWarningPromise;
+                if (pythonEvalWarning) {
+                    notifs.push({ kind: "warn", message: pythonEvalWarning });
+                }
+                if ($env.PI_TIMING) {
+                    logger.printTimings();
+                    if (logger.shouldExitAfterTimings()) {
+                        process.exit(0);
+                    }
+                }
+                const startupLease = takeStartupComposerLease();
+                try {
+                    stopStartupWatchdog();
+                    logger.endTiming();
+                    await runInteractiveMode(session, VERSION, startupChangelog, notifs, initialArgs.messages, setToolUIContext, lspServers, mcpManager, Boolean(parsedArgs.continue || parsedArgs.resume || parsedArgs.fork || foreignSource), deps.forceSetupWizard === true, showStartupSplash, eventBus, subagentEventBus, initialMessage, initialImages, startDeferredStartupWork, startupLease, initialArgs.goal, parsedArgs.restore ? () => restoreSession(session, { eventBus, subagentEventBus }) : undefined);
+                }
+                finally {
+                    startupLease?.dispose();
+                }
+            }
+            else {
+                // Branch-only single-shot runner: keep print-mode code out of normal interactive startup.
+                stopStartupWatchdog();
+                // PI_TIMING prints the tree after the run; otherwise stop recording now so a
+                // long `-p` run's subagents do not keep growing it.
+                if (!$env.PI_TIMING)
+                    logger.endTiming();
+                const runPrintMode = (await import("./modes/print-mode")).runPrintMode;
+                const exitCode = await runPrintMode(session, {
+                    mode,
+                    messages: initialArgs.messages,
+                    initialMessage,
+                    initialImages,
+                    printThoughts: initialArgs.printThoughts,
+                    planYolo: parsedArgs.planYolo,
+                    mcpManager,
+                });
+                if ($env.PI_TIMING) {
+                    logger.printTimings();
+                }
+                await disposeSessionQuietly(session);
+                stopThemeWatcher();
+                await postmortem.quit(exitCode);
+            }
+        }
+    }
+    catch (error) {
+        stopPendingStartupComposer();
+        stopStartupWatchdog();
+        throw error;
+    }
+}
+export async function main(args) {
+    registerLocalInferenceApi();
+    const { runCli } = await import("./cli");
+    await runCli(args.length === 0 ? ["launch"] : args);
+}

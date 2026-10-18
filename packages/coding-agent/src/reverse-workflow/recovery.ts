@@ -110,7 +110,7 @@ export const TOOL_INSTALL_HINTS: Record<string, ToolInstallHint> = {
 
 /**
  * Find canonical setup command for a missing tool from the capability catalog.
- * Maps tools to their canonical capability setupCommand (e.g. 'rea setup reverse apktool')
+ * Maps tools to their canonical capability setupCommand (e.g. 'reverse setup reverse apktool')
  * or canonical skill tool setup command.
  */
 export function getCapabilitySetupCommand(toolName: string): string | undefined {
@@ -138,7 +138,7 @@ export function getCapabilitySetupCommand(toolName: string): string | undefined 
 	// 3. Fallback to skill tool catalog if entry exists
 	const skillTool = SKILL_TOOL_CATALOG[normalized];
 	if (skillTool) {
-		return `rea setup reverse ${skillTool.id}`;
+		return `reverse setup reverse ${skillTool.id}`;
 	}
 
 	return undefined;
@@ -422,7 +422,7 @@ export function verifyInstalledTool(
 			tool_id: normalizedId,
 			kind: "mcp",
 			missing_reason: missingReason,
-			setup_command: `rea setup reverse ${service.id}`,
+			setup_command: `reverse setup reverse ${service.id}`,
 		};
 	}
 
@@ -448,7 +448,7 @@ export function verifyInstalledTool(
 					: "linux";
 		setupCommand =
 			desc.installCommands?.[plat]?.[0]?.command ??
-			(desc.manualUrl ? `See ${desc.manualUrl}` : `rea setup reverse ${normalizedId}`);
+			(desc.manualUrl ? `See ${desc.manualUrl}` : `reverse setup reverse ${normalizedId}`);
 	}
 
 	let missingReason: string | undefined;
@@ -466,7 +466,7 @@ export function verifyInstalledTool(
 		kind: desc ? "cli" : "unknown",
 		foundPath: status?.foundPath ?? null,
 		missing_reason: missingReason,
-		setup_command: setupCommand ?? `rea setup reverse ${normalizedId}`,
+		setup_command: setupCommand ?? `reverse setup reverse ${normalizedId}`,
 	};
 }
 

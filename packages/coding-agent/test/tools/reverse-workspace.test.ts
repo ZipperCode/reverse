@@ -51,7 +51,7 @@ async function createTargetFixture(dir: string, name = "sample.elf"): Promise<st
 	return filePath;
 }
 
-describe("Reverse Workspace Tool & Standardized .rea Layout", () => {
+describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 	it("registers reverse_workspace in built-in names and normalizes aliases", () => {
 		expect(BUILTIN_TOOL_NAMES).toContain("reverse_workspace");
 		expect(normalizeToolName("reverse-workspace")).toBe("reverse_workspace");
@@ -73,7 +73,7 @@ describe("Reverse Workspace Tool & Standardized .rea Layout", () => {
 		expect(tool.approval({ action: "clean" })).toBe("write");
 	});
 
-	it("exports standardized .rea/ workspace via reverse_workflow to_workspace option", async () => {
+	it("exports standardized .reverse/ workspace via reverse_workflow to_workspace option", async () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rea-ws-test-"));
 
 		try {
@@ -262,7 +262,7 @@ describe("Reverse Workspace Tool & Standardized .rea Layout", () => {
 			expect(virtArt?.copied).toBe(false);
 			expect(virtArt?.reason).toBe("session_artifact");
 
-			// Verify copied files actually exist on disk in .rea/scripts and .rea/dumps
+			// Verify copied files actually exist on disk in .reverse/scripts and .reverse/dumps
 			const wsDir = path.join(tempDir, DEFAULT_WORKSPACE_DIR);
 			const copiedScriptExists = await fs
 				.stat(path.join(wsDir, "scripts/hook.js"))
@@ -379,7 +379,7 @@ describe("Reverse Workspace Tool & Standardized .rea Layout", () => {
 				status: "running",
 			});
 
-			// Verify .rea/ was NOT created unexpectedly
+			// Verify .reverse/ was NOT created unexpectedly
 			const wsDir = path.join(tempDir, DEFAULT_WORKSPACE_DIR);
 			const wsExists = await fs.stat(wsDir).then(() => true).catch(() => false);
 			expect(wsExists).toBe(false);

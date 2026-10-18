@@ -7,14 +7,14 @@
  * Exit codes: 0 = asserted; 1 = local-day regression; 2 = premise not met
  * (TZ not honored — the caller treats this as a skip).
  */
-import { getLogPath, localDay } from "../../src/dirs";
+import { APP_NAME, getLogPath, localDay } from "../../src/dirs";
 
 const date = new Date(2026, 4, 31, 2, 30); // 02:30 local — previous UTC day in UTC+8
 if (date.getTimezoneOffset() === 0 || localDay(date) === date.toISOString().slice(0, 10)) {
 	process.exit(2);
 }
 const basename = getLogPath(date, 7).replace(/.*[/\\]/, "");
-if (basename !== `rva.${localDay(date)}.7.log`) {
+if (basename !== `${APP_NAME}.${localDay(date)}.7.log`) {
 	console.error(`getLogPath used the UTC day key: ${basename}`);
 	process.exit(1);
 }

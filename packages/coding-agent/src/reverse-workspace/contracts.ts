@@ -1,7 +1,7 @@
 import type { TargetFormat, WorkflowStatus, ReverseWorkflowRecord } from "../reverse-workflow/contracts";
 import type { EvidenceStore } from "../evidence/store";
 
-export const DEFAULT_WORKSPACE_DIR = ".rea";
+export const DEFAULT_WORKSPACE_DIR = ".reverse";
 
 export const WORKSPACE_SUBDIRS = [
 	"target",

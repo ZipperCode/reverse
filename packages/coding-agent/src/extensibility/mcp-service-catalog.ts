@@ -41,9 +41,9 @@ export interface McpServiceDescriptor {
 	manualInstructions: Partial<Record<SkillToolPlatform, string>>;
 	/** Human-readable launch command (display only; config declares the argv). */
 	startCommand: string;
-	/** Server key written under `mcpServers` in the rea MCP config. */
+	/** Server key written under `mcpServers` in the reverse MCP config. */
 	serverName: string;
-	/** Trusted MCP server config template for `.rva/mcp.json`. */
+	/** Trusted MCP server config template for `.reverse/mcp.json`. */
 	server: MCPServerConfig;
 	/** Display-only config path hint; `setup reverse --json` reports resolved `configPaths`. */
 	configPath: string;
@@ -58,7 +58,7 @@ export interface McpServiceDescriptor {
 }
 
 /** Config path hint shown by setup panels and the guide skill. */
-export const MCP_CONFIG_PATH_HINT = ".rva/mcp.json (project) or ~/.rva/agent/mcp.json (user)";
+export const MCP_CONFIG_PATH_HINT = ".reverse/mcp.json (project) or ~/.reverse/agent/mcp.json (user; .rva fallback supported)";
 
 /** Suggested server key + config for a service, ready to merge into `mcpServers`. */
 export function mcpServerSnippet(descriptor: McpServiceDescriptor): { mcpServers: Record<string, MCPServerConfig> } {

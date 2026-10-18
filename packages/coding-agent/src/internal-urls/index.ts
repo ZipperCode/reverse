@@ -19,6 +19,8 @@ export * from "./issue-pr-protocol";
 export * from "./local-protocol";
 export * from "./mcp-protocol";
 export * from "./memory-protocol";
+export * from "./reverse-protocol";
+export * from "./reverse-scope";
 export * from "./rva-protocol";
 export * from "./rva-scope";
 export * from "./parse";

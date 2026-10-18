@@ -27,6 +27,7 @@ import { IssueProtocolHandler, PrProtocolHandler } from "./issue-pr-protocol";
 import { LocalProtocolHandler } from "./local-protocol";
 import { McpProtocolHandler } from "./mcp-protocol";
 import { MemoryProtocolHandler } from "./memory-protocol";
+import { ReverseProtocolHandler } from "./reverse-protocol";
 import { RvaProtocolHandler } from "./rva-protocol";
 import { extractUriScheme, parseInternalUrl } from "./parse";
 import { ProcProtocolHandler } from "./proc-protocol";
@@ -119,6 +120,7 @@ export class InternalUrlRouter {
 		this.register(new IssueProtocolHandler());
 		this.register(new PrProtocolHandler());
 		this.register(resourceFallback);
+		this.register(new ReverseProtocolHandler());
 		this.register(new RvaProtocolHandler());
 		this.register(new XdProtocolHandler());
 		this.register(new AttachmentProtocolHandler());
