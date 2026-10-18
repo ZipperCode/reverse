@@ -29,7 +29,7 @@ These are relative to the active agent directory returned by `getAgentDir()`. Na
 
 ### Adding custom providers via UI
 
-Instead of editing `models.yml` by hand, rev provides an interactive TUI wizard to add custom OpenAI-compatible or Anthropic-compatible providers:
+Instead of editing `models.yml` by hand, rea provides an interactive TUI wizard to add custom OpenAI-compatible or Anthropic-compatible providers:
 
 - Run `/setup providers` (or `/setup`) and select `+ Add custom provider…`
 - Run `/models` (Model Hub) and select `+ Add provider…` in the sidebar
