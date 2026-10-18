@@ -1,0 +1,1235 @@
+import { createReadStream } from "node:fs";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { createHash } from "node:crypto";
+import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
+import { type } from "@rva/omptype";
+import { prompt, getProjectDir } from "@rva/utils";
+import { ToolError } from "@rva/tui/tools/tool-errors";
+import { throwIfAborted } from "./tool-errors";
+import { resolveReadPath } from "./path-utils";
+import type { ToolSession } from "./index";
+import reverseWorkflowDescription from "../prompts/tools/reverse-workflow.md" with { type: "text" };
+import { EvidenceStore } from "../evidence/store";
+import { ReverseKnowledgeStore } from "../reverse-knowledge/store";
+import {
+	exportWorkflowToWorkspace,
+	hashFile,
+	type ReverseWorkspaceManifest,
+} from "../reverse-workspace";
+import {
+	ReverseWorkflowStore,
+	sniffTargetFormat,
+	generateDeterministicPlan,
+	exportWorkflowToMarkdown,
+	exportWorkflowToJson,
+	createWorkflowId,
+	computeWorkflowMetrics,
+	validateEvidenceIdFormat,
+	validateKnowledgeIdFormat,
+	normalizeTargetFormat,
+	classifyFailure,
+	generateRecoveryPlan,
+	advanceWorkflow,
+	assessStepRisk,
+	type ReverseWorkflowRecord,
+	type WorkflowStepRecord,
+	type WorkflowMetrics,
+	type TargetFormat,
+	type StepRetryEntry,
+	type RecoveryAuditEntry,
+	type RecoveryPlan,
+	type FailureAttribution,
+	type FailureCategory,
+	type ProgressionAuditEntry,
+	type ProgressionStatus,
+	MAX_INLINE_CHARS,
+	DEFAULT_MAX_ATTEMPTS,
+	HARD_MAX_ATTEMPTS,
+} from "../reverse-workflow";
+const reverseWorkflowSchema = type({
+	action: type
+		.enumerated("create", "plan", "status", "record", "retry", "recover", "retry_plan", "export", "destroy", "advance", "auto_advance")
+		.describe(
+			"Workflow orchestrator action: create (initialize target-routed workflow plan), plan (preview/generate deterministic plan), status (inspect workflow and step progress), record (record step execution, outputs, and evidence ledger links), retry (retry failed step with bounded attempts and caller params), recover (diagnose failure, attribute category, propose deterministic fallback/corrected params, record audit trail, and transition to pending), retry_plan (preview failure attribution and recovery plan without mutating state), export (produce bounded Markdown/JSON report), destroy (delete workflow), advance (progress or record next allowlisted low-risk static step), auto_advance (progress next allowlisted read/static triage step, attaching verified prior knowledge and halting on dynamic/high-risk tools or ambiguous targets)",
+		),
+	"workflow_id?": type("string").describe("Workflow identifier (e.g. 'wf_rw_...')"),
+	"id?": type("string").describe("Alias for workflow_id"),
+	"target?": type("string").describe("Path to target binary, package, capture, or script relative to project"),
+	"path?": type("string").describe("Alias for target"),
+	"format?": type("string").describe(
+		"Explicit target format override (PE, ELF, Mach-O, APK, JS, WASM, PCAP, SQLite)",
+	),
+	"goal?": type("string").describe("Analytical goal or objective for the reverse engineering workflow"),
+	"step_id?": type("string").describe("Target step identifier within the workflow (e.g. 'pe_step_1')"),
+	"status?": type
+		.enumerated("completed", "failed", "running", "skipped")
+		.describe("Execution status for the step in 'record' action"),
+	"outputs?": type("string").describe("Output summary, extracted strings, or execution results for 'record'"),
+	"artifact_refs?": type("string[]").describe(
+		"Optional list of artifact IDs or generated file references produced by the step",
+	),
+	"evidence_ids?": type("string[]").describe(
+		"Array of evidence ledger IDs (ev_fact_..., ev_hyp_..., ev_conc_..., ev_unk_...) to link to this step",
+	),
+	"knowledge_refs?": type("string[]").describe(
+		"Optional array of reverse knowledge IDs (kn_rev_...) to link to this step or workflow",
+	),
+	"runtime_session_id?": type("string").describe(
+		"Optional reverse runtime session identifier (e.g. 'runt_frida_...') to associate with this step or workflow",
+	),
+	"runtime_session_ids?": type("string[]").describe(
+		"Optional array of reverse runtime session identifiers to associate with this step or workflow",
+	),
+	"error?": type("string").describe("Failure reason or error message when marking step as 'failed'"),
+	"failure_reason?": type("string").describe("Alias for error"),
+	"next_params?": type("string").describe(
+		"Caller-provided parameters or adjusted arguments for the upcoming retry attempt (JSON or description)",
+	),
+	"result?": type("string").describe(
+		"Caller-provided diagnostic result, failure analysis, or hypothesis verification outcome for retry",
+	),
+	"caller_result?": type("string").describe("Alias for result"),
+	"fallback_tool?": type("string").describe(
+		"Optional fallback tool to replace the failed step's tool for the next retry attempt",
+	),
+	"max_attempts?": type("number.integer >= 1").describe(
+		"Maximum retry attempts allowed for step or workflow (default 3, max 10)",
+	),
+	"format_type?": type
+		.enumerated("markdown", "json")
+		.describe("Export report format: 'markdown' (default) or 'json'"),
+	"to_artifact?": type("boolean").describe(
+		"Export full report to session artifact instead of inline response",
+	),
+	"to_workspace?": type("boolean").describe(
+		"Export standardized reverse engineering workspace to local .rea/ directory (target info, workflow, evidence, findings, and safe artifact references)",
+	),
+	"workspace_path?": type("string").describe(
+		"Custom directory path for workspace export (defaults to '.rea' in project root)",
+	),
+	"clean_workspace?": type("boolean").describe(
+		"Clean previous dumps/scripts before exporting new workspace run",
+	),
+	"max_steps?": type("number.integer >= 1").describe("Maximum steps to evaluate in auto_advance (default 1, max 5)"),
+	"propose_only?": type("boolean").describe("Only propose the next low-risk static step without mutating state"),
+	"limit?": type("number.integer >= 1").describe("Maximum items to list in 'status' action (default 20)"),
+});
+
+export type ReverseWorkflowParams = typeof reverseWorkflowSchema.infer;
+
+export interface ReverseWorkflowDetails {
+	action: "create" | "plan" | "status" | "record" | "retry" | "recover" | "retry_plan" | "export" | "destroy" | "advance" | "auto_advance";
+	workflow?: ReverseWorkflowRecord;
+	workflows?: ReverseWorkflowRecord[];
+	step?: WorkflowStepRecord;
+	plan?: {
+		format: TargetFormat;
+		steps: WorkflowStepRecord[];
+	};
+	recovery_plan?: RecoveryPlan;
+	metrics?: WorkflowMetrics;
+	export_format?: "markdown" | "json";
+	artifactId?: string;
+	artifactPath?: string;
+	destroyed?: boolean;
+	workspace_dir?: string;
+	workspace_manifest?: ReverseWorkspaceManifest;
+	workspace_files_count?: number;
+	knowledge_refs?: string[];
+	prior_knowledge?: Array<{
+		id: string;
+		title: string;
+		kind: string;
+		confidence: string;
+	}>;
+	progression_status?: ProgressionStatus;
+	decision?: string;
+	decision_reason?: string;
+	progression_audit?: ProgressionAuditEntry[];
+	evaluated_steps?: WorkflowStepRecord[];
+}
+
+export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSchema, ReverseWorkflowDetails> {
+	readonly name = "reverse_workflow";
+	readonly label = "Reverse Engineering Workflow Orchestrator";
+	readonly summary =
+		"Bounded reverse-engineering workflow orchestrator: target-first routing, deterministic tool plans, cross-tool evidence association, and failure recovery metadata without arbitrary execution.";
+	readonly description: string;
+	readonly parameters = reverseWorkflowSchema;
+	readonly strict = true;
+	readonly loadMode = "discoverable";
+	readonly approval = (args: unknown): ToolTier => {
+		if (args && typeof args === "object" && "action" in args) {
+			const action = String(args.action);
+			if (
+				action === "create" ||
+				action === "record" ||
+				action === "retry" ||
+				action === "recover" ||
+				action === "destroy" ||
+				action === "advance" ||
+				action === "auto_advance" ||
+				(action === "export" && (
+					("to_workspace" in args && Boolean(args.to_workspace)) ||
+					("workspace_path" in args && Boolean(args.workspace_path))
+				))
+			) {
+				return "write";
+			}
+		}
+		return "read";
+	};
+
+	constructor(private readonly session: ToolSession) {
+		this.description = prompt.render(reverseWorkflowDescription);
+	}
+
+	async execute(
+		toolCallIdOrParams: string | ReverseWorkflowParams,
+		paramsOrContext?: ReverseWorkflowParams | { abortSignal?: AbortSignal },
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<ReverseWorkflowDetails>> {
+		let params: ReverseWorkflowParams;
+		let abortSignal: AbortSignal | undefined;
+
+		if (typeof toolCallIdOrParams === "string") {
+			params = paramsOrContext as ReverseWorkflowParams;
+			abortSignal = signal;
+		} else {
+			params = toolCallIdOrParams;
+			const ctx = paramsOrContext as { abortSignal?: AbortSignal } | undefined;
+			abortSignal = ctx?.abortSignal;
+		}
+
+		throwIfAborted(abortSignal);
+
+		const repoRoot = this.session.cwd ?? getProjectDir();
+		const store = new ReverseWorkflowStore({ repositoryRoot: repoRoot });
+		const evidenceStore = new EvidenceStore({ repositoryRoot: repoRoot, signal: abortSignal });
+		const knowledgeStore = new ReverseKnowledgeStore({ repositoryRoot: repoRoot });
+
+		switch (params.action) {
+			case "create": {
+				const rawTarget = params.target ?? params.path;
+				if (!rawTarget) {
+					throw new ToolError("Target file path ('target' or 'path') is required for 'create' action.");
+				}
+
+				const targetPath = resolveReadPath(rawTarget, this.session.cwd);
+				let stat;
+				try {
+					stat = await fs.stat(targetPath);
+				} catch (err) {
+					throw new ToolError(`Target file not found: ${rawTarget} (${err instanceof Error ? err.message : String(err)})`);
+				}
+
+				if (stat.isDirectory()) {
+					throw new ToolError(`Target path must be a file, not a directory: ${rawTarget}`);
+				}
+
+				// Sample header up to 64KB for format sniffing
+				const readLen = Math.min(stat.size, 65536);
+				const buf = Buffer.alloc(readLen);
+				const fileHandle = await fs.open(targetPath, "r");
+				try {
+					await fileHandle.read(buf, 0, readLen, 0);
+				} finally {
+					await fileHandle.close();
+				}
+
+				// Compute full target SHA-256 (not bounded to prefix sample)
+				let fileHash: string;
+				if (stat.size <= readLen) {
+					fileHash = createHash("sha256").update(buf.subarray(0, stat.size)).digest("hex");
+				} else {
+					const hashed = await hashFile(targetPath);
+					if (hashed?.sha256) {
+						fileHash = hashed.sha256;
+					} else {
+						const hash = createHash("sha256");
+						const stream = createReadStream(targetPath);
+						for await (const chunk of stream) {
+							hash.update(chunk);
+						}
+						fileHash = hash.digest("hex");
+					}
+				}
+				const detectedFormat = sniffTargetFormat(targetPath, buf, stat.size);
+				const plan = generateDeterministicPlan(targetPath, detectedFormat, {
+					goal: params.goal,
+					maxAttempts: params.max_attempts,
+					formatOverride: params.format,
+				});
+
+				const priorKnowledge = await knowledgeStore.search({
+					format: plan.format,
+					target_hash: fileHash,
+					query: params.goal,
+					limit: 5,
+				});
+				const knowledgeRefs = priorKnowledge.length > 0 ? priorKnowledge.map(k => k.id) : undefined;
+
+				const workflowId = params.workflow_id ?? params.id ?? createWorkflowId();
+				const now = new Date().toISOString();
+
+				const workflow: ReverseWorkflowRecord = {
+					id: workflowId,
+					target: path.relative(this.session.cwd, targetPath) || targetPath,
+					target_abs_path: targetPath,
+					target_sha256: fileHash,
+					target_size: stat.size,
+					format: plan.format,
+					goal: params.goal,
+					status: "active",
+					steps: plan.steps,
+					created_at: now,
+					updated_at: now,
+					...(knowledgeRefs ? { knowledge_refs: knowledgeRefs } : {}),
+				};
+
+				await store.save(workflow);
+				const metrics = computeWorkflowMetrics(workflow.steps);
+
+				const stepListText = workflow.steps
+					.map(s => `  - [${s.id}] ${s.title} -> tool: \`${s.tool}\` (${s.gate})`)
+					.join("\n");
+
+				const text = [
+					`Created reverse engineering workflow \`${workflow.id}\``,
+					`- **Target**: \`${workflow.target}\` (${stat.size} bytes, format: **${workflow.format}**)`,
+					workflow.goal ? `- **Goal**: ${workflow.goal}` : undefined,
+					`- **Status**: active | ${workflow.steps.length} steps planned`,
+					"",
+					"Planned Steps:",
+					stepListText,
+					"",
+					`Next recommended step: \`${workflow.steps[0]?.id}\` via \`${workflow.steps[0]?.tool}\`. Run the tool and call 'record' when finished.`,
+					...(priorKnowledge.length > 0
+						? [
+								"",
+								`Prior Knowledge (${priorKnowledge.length} reusable ${priorKnowledge.length === 1 ? "entry" : "entries"} found):`,
+								...priorKnowledge.map(
+									k =>
+										`  - [\`${k.id}\`] ${k.title} (${k.kind}, ${k.confidence.toUpperCase()})${k.actionable_guidance ? `\n    Guidance: ${k.actionable_guidance}` : ""}`,
+								),
+							]
+						: []),
+				]
+					.filter(Boolean)
+					.join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: {
+						action: "create",
+						workflow,
+						metrics,
+						knowledge_refs: knowledgeRefs,
+						prior_knowledge: priorKnowledge.map(k => ({
+							id: k.id,
+							title: k.title,
+							kind: k.kind,
+							confidence: k.confidence,
+						})),
+					},
+				};
+			}
+
+			case "plan": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (workflowId) {
+					const existing = await store.get(workflowId);
+					if (existing) {
+						const metrics = computeWorkflowMetrics(existing.steps);
+						const stepListText = existing.steps
+							.map(s => `  - [${s.status.toUpperCase()}] ${s.id}: ${s.title} -> tool: \`${s.tool}\``)
+							.join("\n");
+						const knText = existing.knowledge_refs?.length
+							? `\nLinked Knowledge: ${existing.knowledge_refs.join(", ")}`
+							: "";
+						const text = `Plan for existing workflow \`${existing.id}\` (Format: ${existing.format}):\n${stepListText}${knText}`;
+						return {
+							content: [{ type: "text", text }],
+							details: {
+								action: "plan",
+								workflow: existing,
+								plan: { format: existing.format, steps: existing.steps },
+								metrics,
+								knowledge_refs: existing.knowledge_refs,
+							},
+						};
+					}
+				}
+
+				const rawTarget = params.target ?? params.path;
+				if (!rawTarget && !params.format) {
+					throw new ToolError(
+						"Either target path ('target') or format ('format') must be specified for 'plan' action.",
+					);
+				}
+
+				let detectedFormat: TargetFormat = "unknown";
+				let targetPath = rawTarget ?? "";
+
+				if (rawTarget) {
+					targetPath = resolveReadPath(rawTarget, this.session.cwd);
+					try {
+						const stat = await fs.stat(targetPath);
+						if (!stat.isDirectory()) {
+							const readLen = Math.min(stat.size, 65536);
+							const buf = Buffer.alloc(readLen);
+							const fh = await fs.open(targetPath, "r");
+							try {
+								await fh.read(buf, 0, readLen, 0);
+							} finally {
+								await fh.close();
+							}
+							detectedFormat = sniffTargetFormat(targetPath, buf, stat.size);
+						}
+					} catch {
+						// Target doesn't exist on disk, fallback to format override
+						if (!params.format) {
+							throw new ToolError(`Target file not found: ${rawTarget}`);
+						}
+					}
+				}
+
+				const plan = generateDeterministicPlan(targetPath || (rawTarget ?? "sample"), detectedFormat, {
+					goal: params.goal,
+					maxAttempts: params.max_attempts,
+					formatOverride: params.format,
+				});
+
+				const priorKnowledge = await knowledgeStore.search({
+					format: plan.format,
+					query: params.goal,
+					limit: 5,
+				});
+
+				const priorKnowledgeLines =
+					priorKnowledge.length > 0
+						? [
+								"",
+								`Prior Knowledge (${priorKnowledge.length} reusable ${priorKnowledge.length === 1 ? "entry" : "entries"} found):`,
+								...priorKnowledge.map(
+									k =>
+										`  - [\`${k.id}\`] ${k.title} (${k.kind}, ${k.confidence.toUpperCase()})${k.actionable_guidance ? `\n    Guidance: ${k.actionable_guidance}` : ""}`,
+								),
+							]
+						: [];
+
+				const stepListText = plan.steps
+					.map(s => {
+						const paramsSummary =
+							typeof s.params_summary === "string"
+								? s.params_summary
+								: JSON.stringify(s.params_summary);
+						return `  - [${s.id}] ${s.title}\n    Tool: \`${s.tool}\` (${s.gate}) | Default params: \`${paramsSummary}\``;
+					})
+					.join("\n");
+
+				const text = [
+					`Deterministic Reverse Engineering Plan for **${plan.format}**:`,
+					stepListText,
+					...priorKnowledgeLines,
+					"",
+					"To initiate this workflow and start tracking execution state, call 'reverse_workflow(action: \"create\", target: \"...\")'.",
+				].join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: {
+						action: "plan",
+						plan,
+						knowledge_refs: priorKnowledge.map(k => k.id),
+						prior_knowledge: priorKnowledge.map(k => ({
+							id: k.id,
+							title: k.title,
+							kind: k.kind,
+							confidence: k.confidence,
+						})),
+					},
+				};
+			}
+
+			case "status": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) {
+					const workflows = await store.list();
+					if (workflows.length === 0) {
+						return {
+							content: [{ type: "text", text: "No reverse engineering workflows found for this project." }],
+							details: { action: "status", workflows: [] },
+						};
+					}
+
+					const listLimit = Math.min(params.limit ?? 20, 100);
+					const items = workflows.slice(0, listLimit).map(wf => {
+						const m = computeWorkflowMetrics(wf.steps);
+						const knTag = wf.knowledge_refs?.length ? `, ${wf.knowledge_refs.length} knowledge refs` : "";
+						return `- \`${wf.id}\` [${wf.status.toUpperCase()}]: ${wf.target} (${wf.format}) - ${m.completed_steps}/${m.total_steps} steps, ${m.total_evidence_links} evidence links${knTag} (Updated: ${wf.updated_at})`;
+					});
+
+					const text = `Reverse Engineering Workflows (${workflows.length} total):\n\n${items.join("\n")}`;
+					return {
+						content: [{ type: "text", text }],
+						details: { action: "status", workflows },
+					};
+				}
+
+				const workflow = await store.get(workflowId);
+				if (!workflow) {
+					throw new ToolError(`Workflow '${workflowId}' not found.`);
+				}
+
+				if (params.step_id) {
+					const step = workflow.steps.find(s => s.id === params.step_id);
+					if (!step) {
+						throw new ToolError(`Step '${params.step_id}' not found in workflow '${workflowId}'.`);
+					}
+
+					const stepLines = [
+						`### Step Details: \`${step.id}\` (${step.title})`,
+						`- **Tool**: \`${step.tool}\` (${step.gate})`,
+						`- **Status**: ${step.status} (Attempts: ${step.attempts}/${step.max_attempts})`,
+						`- **Parameters**: \`${typeof step.params_summary === "string" ? step.params_summary : JSON.stringify(step.params_summary)}\``,
+					];
+
+					if (step.outputs) {
+						const outStr = typeof step.outputs === "string" ? step.outputs : JSON.stringify(step.outputs);
+						stepLines.push(`- **Output**: ${outStr}`);
+					}
+					if (step.artifact_refs?.length) {
+						stepLines.push(`- **Artifacts**: ${step.artifact_refs.join(", ")}`);
+					}
+					if (step.evidence_ids?.length) {
+						stepLines.push(`- **Linked Evidence**: ${step.evidence_ids.join(", ")}`);
+					}
+					if (step.knowledge_refs?.length) {
+						stepLines.push(`- **Knowledge References**: ${step.knowledge_refs.join(", ")}`);
+					}
+					if (step.error) {
+						stepLines.push(`- **Error**: ${step.error}`);
+					}
+					if (step.runtime_session_id) {
+						stepLines.push(`- **Runtime Session**: \`${step.runtime_session_id}\``);
+					}
+					if (step.runtime_session_ids?.length) {
+						stepLines.push(`- **Runtime Sessions**: ${step.runtime_session_ids.map(id => `\`${id}\``).join(", ")}`);
+					}
+					if (step.recovery_metadata) {
+						const rec = step.recovery_metadata;
+						stepLines.push("- **Recovery Metadata**:");
+						if (rec.attribution) {
+							stepLines.push(`  - Attribution: [${rec.attribution.category.toUpperCase()}] ${rec.attribution.cause}`);
+							if (rec.attribution.install_hint) {
+								stepLines.push(`    - Install Hint: \`${rec.attribution.install_hint}\``);
+							}
+						}
+						if (rec.failure_reason && !rec.attribution) {
+							stepLines.push(`  - Failure Reason: ${rec.failure_reason}`);
+						}
+						if (rec.fallback_tool) stepLines.push(`  - Fallback Tool: \`${rec.fallback_tool}\``);
+						if (rec.suggested_fix) stepLines.push(`  - Suggested Fix: ${rec.suggested_fix}`);
+						if (rec.recovery_audit && rec.recovery_audit.length > 0) {
+							stepLines.push("  - Recovery Audit Trail:");
+							for (const audit of rec.recovery_audit) {
+								const toolTransition =
+									audit.previous_tool === audit.proposed_tool
+										? `\`${audit.proposed_tool}\``
+										: `\`${audit.previous_tool}\` -> \`${audit.proposed_tool}\``;
+								stepLines.push(`    - [Attempt ${audit.attempt}] (${audit.action}): [${audit.category}] ${toolTransition} - ${audit.decision}`);
+								if (audit.evidence_ids && audit.evidence_ids.length > 0) {
+									stepLines.push(`      - Associated Evidence: ${audit.evidence_ids.map(id => `\`${id}\``).join(", ")}`);
+								}
+							}
+						}
+					}
+					return {
+						content: [{ type: "text", text: stepLines.join("\n") }],
+						details: { action: "status", workflow, step },
+					};
+				}
+
+				const metrics = computeWorkflowMetrics(workflow.steps);
+				const stepRows = workflow.steps.map(s => {
+					const evLinks = s.evidence_ids?.length ? ` [${s.evidence_ids.length} ev]` : "";
+					const runtTag = s.runtime_session_id ? ` [runt: ${s.runtime_session_id}]` : "";
+					const auditCount = s.recovery_metadata?.recovery_audit?.length ? ` [${s.recovery_metadata.recovery_audit.length} recovery audit]` : "";
+					return `  - [${s.status.toUpperCase()}] ${s.id}: ${s.title} -> \`${s.tool}\` (${s.attempts}/${s.max_attempts} attempts)${evLinks}${runtTag}${auditCount}`;
+				});
+
+				const text = [
+					`Workflow Status: \`${workflow.id}\``,
+					`- **Target**: \`${workflow.target}\` (${workflow.format})`,
+					`- **Status**: ${workflow.status.toUpperCase()}`,
+					`- **Metrics**: ${metrics.completed_steps} completed, ${metrics.failed_steps} failed, ${metrics.pending_steps} pending, ${metrics.total_evidence_links} evidence links${metrics.total_knowledge_links ? `, ${metrics.total_knowledge_links} knowledge links` : ""}`,
+					workflow.knowledge_refs && workflow.knowledge_refs.length > 0
+						? `- **Knowledge References**: ${workflow.knowledge_refs.map(id => `\`${id}\``).join(", ")}`
+						: undefined,
+					"",
+					...(workflow.progression_audit && workflow.progression_audit.length > 0
+						? [
+								"Recent Progression Decisions:",
+								...workflow.progression_audit.slice(-3).map(
+									a => `  - [${a.status.toUpperCase()}] ${a.step_id} (${a.tool}): ${a.decision}`,
+								),
+								"",
+							]
+						: []),
+					"Steps:",
+					stepRows.join("\n"),
+					"",
+					metrics.next_step
+						? `Next pending step: \`${metrics.next_step.id}\` via \`${metrics.next_step.tool}\`.`
+						: "All steps completed or no pending steps.",
+				]
+					.filter(Boolean)
+					.join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: { action: "status", workflow, metrics },
+				};
+			}
+
+			case "record": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) throw new ToolError("workflow_id is required for 'record' action.");
+
+				const stepId = params.step_id;
+				if (!stepId) throw new ToolError("step_id is required for 'record' action.");
+
+				const status = params.status;
+				if (!status) {
+					throw new ToolError("status ('completed', 'failed', 'running', 'skipped') is required for 'record' action.");
+				}
+
+				const workflow = await store.get(workflowId);
+				if (!workflow) throw new ToolError(`Workflow '${workflowId}' not found.`);
+
+				const step = workflow.steps.find(s => s.id === stepId);
+				if (!step) throw new ToolError(`Step '${stepId}' not found in workflow '${workflowId}'.`);
+
+				// Validate and link evidence IDs if provided
+				if (Array.isArray(params.evidence_ids) && params.evidence_ids.length > 0) {
+					for (const evId of params.evidence_ids) {
+						if (!validateEvidenceIdFormat(evId)) {
+							throw new ToolError(
+								`Invalid evidence ID format: '${evId}'. Must be a valid evidence ledger ID starting with ev_fact_, ev_hyp_, ev_conc_, or ev_unk_.`,
+							);
+						}
+						const existingRecord = await evidenceStore.getRecord(evId);
+						if (!existingRecord) {
+							throw new ToolError(
+								`Evidence ID '${evId}' not found in the project evidence ledger. You must first record the fact or hypothesis using the 'evidence' tool (action: 'add') before linking it to workflow steps.`,
+							);
+						}
+					}
+					step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...params.evidence_ids]));
+				}
+
+
+				if (Array.isArray(params.knowledge_refs) && params.knowledge_refs.length > 0) {
+					for (const knId of params.knowledge_refs) {
+						if (!validateKnowledgeIdFormat(knId)) {
+							throw new ToolError(
+								`Invalid knowledge ID format: '${knId}'. Must be a valid reverse knowledge ID starting with kn_rev_.`,
+							);
+						}
+						const existingRecord = await knowledgeStore.get(knId);
+						if (!existingRecord) {
+							throw new ToolError(
+								`Knowledge ID '${knId}' not found in the project reverse knowledge store.`,
+							);
+						}
+					}
+					step.knowledge_refs = Array.from(new Set([...(step.knowledge_refs ?? []), ...params.knowledge_refs]));
+					workflow.knowledge_refs = Array.from(new Set([...(workflow.knowledge_refs ?? []), ...params.knowledge_refs]));
+				}
+				if (Array.isArray(params.artifact_refs)) {
+					step.artifact_refs = Array.from(new Set([...(step.artifact_refs ?? []), ...params.artifact_refs]));
+				}
+
+				if (params.runtime_session_id) {
+					step.runtime_session_id = params.runtime_session_id;
+					step.runtime_session_ids = Array.from(
+						new Set([...(step.runtime_session_ids ?? []), params.runtime_session_id]),
+					);
+					workflow.runtime_session_ids = Array.from(
+						new Set([...(workflow.runtime_session_ids ?? []), params.runtime_session_id]),
+					);
+				}
+				if (Array.isArray(params.runtime_session_ids) && params.runtime_session_ids.length > 0) {
+					step.runtime_session_ids = Array.from(
+						new Set([...(step.runtime_session_ids ?? []), ...params.runtime_session_ids]),
+					);
+					workflow.runtime_session_ids = Array.from(
+						new Set([...(workflow.runtime_session_ids ?? []), ...params.runtime_session_ids]),
+					);
+					if (!step.runtime_session_id) {
+						step.runtime_session_id = params.runtime_session_ids[0];
+					}
+				}
+				if (params.outputs !== undefined) {
+					step.outputs = params.outputs;
+				}
+
+				const errorMsg = params.error ?? params.failure_reason;
+				if (errorMsg) {
+					step.error = errorMsg;
+					step.recovery_metadata = {
+						...(step.recovery_metadata ?? {}),
+						failure_reason: errorMsg,
+					};
+				}
+
+				step.attempts = (step.attempts ?? 0) + 1;
+				step.status = status;
+				step.updated_at = new Date().toISOString();
+
+				// Update overall workflow status
+				const allDone = workflow.steps.every(s => s.status === "completed" || s.status === "skipped");
+				if (allDone) {
+					workflow.status = "completed";
+				} else {
+					workflow.status = "active";
+				}
+				workflow.updated_at = new Date().toISOString();
+				if (allDone && workflow.metadata?.auto_export_workspace === true) {
+					try {
+						const projectDir = repoRoot;
+						await exportWorkflowToWorkspace({
+							workflow,
+							evidenceStore,
+							projectDir,
+						});
+					} catch {
+						// completion policy export is non-fatal
+					}
+				}
+
+				await store.save(workflow);
+				const metrics = computeWorkflowMetrics(workflow.steps);
+
+				const text = [
+					`Updated step \`${step.id}\` in workflow \`${workflow.id}\`:`,
+					`- Status: **${step.status}** (Attempts: ${step.attempts}/${step.max_attempts})`,
+					step.evidence_ids?.length ? `- Linked Evidence: ${step.evidence_ids.join(", ")}` : undefined,
+					step.runtime_session_id ? `- Associated Runtime Session: \`${step.runtime_session_id}\`` : undefined,
+					step.outputs ? `- Output recorded (${typeof step.outputs === "string" ? step.outputs.length : JSON.stringify(step.outputs).length} chars)` : undefined,
+					step.error ? `- Failure reason: ${step.error}` : undefined,
+					metrics.next_step ? `Next recommended step: \`${metrics.next_step.id}\` via \`${metrics.next_step.tool}\`.` : "Workflow completed!",
+				]
+					.filter(Boolean)
+					.join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: {
+						action: "record",
+						workflow,
+						step,
+						metrics,
+					},
+				};
+			}
+
+			case "retry": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) throw new ToolError("workflow_id is required for 'retry' action.");
+
+				const stepId = params.step_id;
+				if (!stepId) throw new ToolError("step_id is required for 'retry' action.");
+
+				const workflow = await store.get(workflowId);
+				if (!workflow) throw new ToolError(`Workflow '${workflowId}' not found.`);
+
+				const step = workflow.steps.find(s => s.id === stepId);
+				if (!step) throw new ToolError(`Step '${stepId}' not found in workflow '${workflowId}'.`);
+
+				if (step.status !== "failed") {
+					throw new ToolError(
+						`Cannot retry step '${stepId}': step is currently in '${step.status}' state. Only steps in 'failed' state can be retried.`,
+					);
+				}
+
+				const maxAttempts =
+					typeof params.max_attempts === "number" && params.max_attempts > 0
+						? Math.min(params.max_attempts, HARD_MAX_ATTEMPTS)
+						: step.max_attempts || DEFAULT_MAX_ATTEMPTS;
+
+				if (step.attempts >= maxAttempts) {
+					throw new ToolError(
+						`Retry attempt limit reached for step '${stepId}' (${step.attempts}/${maxAttempts} attempts). Maximum retry attempts exceeded.`,
+					);
+				}
+
+				const retryNumber = step.attempts + 1;
+				const callerResult = params.result ?? params.caller_result;
+
+				const rawError = step.error ?? step.recovery_metadata?.failure_reason ?? "Step execution failed";
+				const attribution = classifyFailure(rawError, {
+					tool: step.tool,
+					stepId: step.id,
+					targetPath: workflow.target_abs_path || workflow.target,
+					targetFormat: workflow.format,
+					paramsSummary: step.params_summary,
+				});
+
+				const proposedTool = params.fallback_tool ?? step.tool;
+				const proposedParams = params.next_params !== undefined ? params.next_params : step.params_summary;
+
+				const auditEntry: RecoveryAuditEntry = {
+					attempt: retryNumber,
+					timestamp: new Date().toISOString(),
+					action: "retry",
+					category: attribution.category,
+					cause: attribution.cause,
+					previous_tool: step.tool,
+					proposed_tool: proposedTool,
+					proposed_params: proposedParams,
+					decision: callerResult ? `Retry with caller diagnosis: ${callerResult}` : `Retry configured for attempt ${retryNumber}`,
+					applied: true,
+					evidence_ids: params.evidence_ids,
+					caller_result: callerResult,
+				};
+
+				const retryEntry: StepRetryEntry = {
+					attempt: retryNumber,
+					timestamp: new Date().toISOString(),
+					error: rawError,
+					caller_result: callerResult,
+					params: params.next_params,
+				};
+
+				step.recovery_metadata = {
+					...(step.recovery_metadata ?? {}),
+					failure_reason: rawError,
+					fallback_tool: params.fallback_tool ?? step.recovery_metadata?.fallback_tool,
+					attribution: step.recovery_metadata?.attribution ?? attribution,
+					recovery_audit: [...(step.recovery_metadata?.recovery_audit ?? []), auditEntry],
+					retry_history: [...(step.recovery_metadata?.retry_history ?? []), retryEntry],
+				};
+
+				if (params.fallback_tool) {
+					step.tool = params.fallback_tool;
+				}
+
+				if (params.next_params !== undefined) {
+					step.next_params = params.next_params;
+					step.params_summary = params.next_params;
+				}
+
+				step.status = "pending";
+				step.error = undefined;
+				step.updated_at = new Date().toISOString();
+				workflow.status = "active";
+				workflow.updated_at = new Date().toISOString();
+
+				await store.save(workflow);
+				const metrics = computeWorkflowMetrics(workflow.steps);
+
+				const text = [
+					`Prepared retry for step \`${step.id}\` in workflow \`${workflow.id}\`:`,
+					`- Tool: \`${step.tool}\``,
+					`- Status: **pending** (Upcoming Attempt: ${retryNumber}/${maxAttempts})`,
+					params.fallback_tool ? `- Fallback tool switched to: \`${params.fallback_tool}\`` : undefined,
+					params.next_params ? `- Prepared retry parameters: \`${params.next_params}\`` : undefined,
+					callerResult ? `- Diagnostic note: ${callerResult}` : undefined,
+					"",
+					`Ready for execution. Run \`${step.tool}\` with the specified parameters, then call 'record' with the result.`,
+				]
+					.filter(Boolean)
+					.join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: {
+						action: "retry",
+						workflow,
+						step,
+						metrics,
+					},
+				};
+			}
+			case "recover": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) throw new ToolError("workflow_id is required for 'recover' action.");
+
+				const stepId = params.step_id;
+				if (!stepId) throw new ToolError("step_id is required for 'recover' action.");
+
+				const workflow = await store.get(workflowId);
+				if (!workflow) throw new ToolError(`Workflow '${workflowId}' not found.`);
+
+				const step = workflow.steps.find(s => s.id === stepId);
+				if (!step) throw new ToolError(`Step '${stepId}' not found in workflow '${workflowId}'.`);
+
+				if (step.status !== "failed") {
+					throw new ToolError(
+						`Cannot recover step '${stepId}': step is currently in '${step.status}' state. Only steps in 'failed' state can be recovered.`,
+					);
+				}
+
+				const maxAttempts =
+					typeof params.max_attempts === "number" && params.max_attempts > 0
+						? Math.min(params.max_attempts, HARD_MAX_ATTEMPTS)
+						: step.max_attempts || DEFAULT_MAX_ATTEMPTS;
+
+				if (step.attempts >= maxAttempts) {
+					throw new ToolError(
+						`Retry attempt limit reached for step '${stepId}' (${step.attempts}/${maxAttempts} attempts). Maximum recovery attempts exceeded.`,
+					);
+				}
+
+				// Validate and link evidence IDs if provided
+				if (Array.isArray(params.evidence_ids) && params.evidence_ids.length > 0) {
+					for (const evId of params.evidence_ids) {
+						if (!validateEvidenceIdFormat(evId)) {
+							throw new ToolError(
+								`Invalid evidence ID format: '${evId}'. Must be a valid evidence ledger ID starting with ev_fact_, ev_hyp_, ev_conc_, or ev_unk_.`,
+							);
+						}
+						const existingRecord = await evidenceStore.getRecord(evId);
+						if (!existingRecord) {
+							throw new ToolError(
+								`Evidence ID '${evId}' not found in the project evidence ledger. You must first record the fact or hypothesis using the 'evidence' tool (action: 'add') before linking it to workflow recovery.`,
+							);
+						}
+					}
+					step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...params.evidence_ids]));
+				}
+
+				const rawError = params.error ?? params.failure_reason ?? step.error ?? "Step execution failed without explicit error";
+
+				const plan = generateRecoveryPlan(step, workflow, {
+					error: rawError,
+					fallbackToolOverride: params.fallback_tool,
+					nextParamsOverride: params.next_params,
+					maxAttempts,
+				});
+
+				const retryNumber = step.attempts + 1;
+				const callerResult = params.result ?? params.caller_result;
+
+				const auditEntry: RecoveryAuditEntry = {
+					attempt: retryNumber,
+					timestamp: new Date().toISOString(),
+					action: "recover",
+					category: plan.attribution.category,
+					cause: plan.attribution.cause,
+					previous_tool: step.tool,
+					proposed_tool: plan.next_tool,
+					proposed_params: plan.next_params,
+					decision: `Attributed as '${plan.attribution.category}'. ${plan.reasoning}`,
+					applied: true,
+					evidence_ids: params.evidence_ids,
+					caller_result: callerResult,
+				};
+
+				const retryEntry: StepRetryEntry = {
+					attempt: retryNumber,
+					timestamp: new Date().toISOString(),
+					error: rawError,
+					caller_result: callerResult,
+					params: plan.next_params,
+				};
+
+				step.recovery_metadata = {
+					...(step.recovery_metadata ?? {}),
+					failure_reason: rawError,
+					fallback_tool: plan.next_tool !== step.tool ? plan.next_tool : step.recovery_metadata?.fallback_tool,
+					suggested_fix: plan.reasoning,
+					attribution: plan.attribution,
+					recovery_audit: [...(step.recovery_metadata?.recovery_audit ?? []), auditEntry],
+					retry_history: [...(step.recovery_metadata?.retry_history ?? []), retryEntry],
+				};
+
+				step.tool = plan.next_tool;
+				step.params_summary = plan.next_params;
+				step.next_params = plan.next_params;
+				step.status = "pending";
+				step.error = undefined;
+				step.updated_at = new Date().toISOString();
+				workflow.status = "active";
+				workflow.updated_at = new Date().toISOString();
+
+				await store.save(workflow);
+				const metrics = computeWorkflowMetrics(workflow.steps);
+
+				const nextParamsStr =
+					typeof plan.next_params === "string" ? plan.next_params : JSON.stringify(plan.next_params);
+
+				const text = [
+					`Recovered step \`${step.id}\` in workflow \`${workflow.id}\`:`,
+					`- Failure Attribution: **[${plan.attribution.category.toUpperCase()}]** ${plan.attribution.cause}`,
+					plan.attribution.install_hint ? `- Install Hint: \`${plan.attribution.install_hint}\`` : undefined,
+					`- Recovery Strategy: **${plan.suggested_action}**`,
+					`- Tool: \`${step.tool}\` (Previous: \`${auditEntry.previous_tool}\`)`,
+					`- Status: **pending** (Upcoming Attempt: ${retryNumber}/${maxAttempts})`,
+					`- Corrected Parameters: \`${nextParamsStr}\``,
+					plan.alternatives.length > 1 ? `- Alternatives: ${plan.alternatives.map(a => `\`${a}\``).join(", ")}` : undefined,
+					step.evidence_ids?.length ? `- Linked Evidence: ${step.evidence_ids.join(", ")}` : undefined,
+					callerResult ? `- Diagnostic Note: ${callerResult}` : undefined,
+					"",
+					`Ready for caller execution. Run \`${step.tool}\` with the corrected parameters, then call 'record' with the result.`,
+				]
+					.filter(Boolean)
+					.join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: {
+						action: "recover",
+						workflow,
+						step,
+						recovery_plan: plan,
+						metrics,
+					},
+				};
+			}
+
+			case "retry_plan": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) throw new ToolError("workflow_id is required for 'retry_plan' action.");
+
+				const stepId = params.step_id;
+				if (!stepId) throw new ToolError("step_id is required for 'retry_plan' action.");
+
+				const workflow = await store.get(workflowId);
+				if (!workflow) throw new ToolError(`Workflow '${workflowId}' not found.`);
+
+				const step = workflow.steps.find(s => s.id === stepId);
+				if (!step) throw new ToolError(`Step '${stepId}' not found in workflow '${workflowId}'.`);
+
+				const maxAttempts =
+					typeof params.max_attempts === "number" && params.max_attempts > 0
+						? Math.min(params.max_attempts, HARD_MAX_ATTEMPTS)
+						: step.max_attempts || DEFAULT_MAX_ATTEMPTS;
+
+				const rawError = params.error ?? params.failure_reason ?? step.error ?? "Step execution failed without explicit error";
+
+				const plan = generateRecoveryPlan(step, workflow, {
+					error: rawError,
+					fallbackToolOverride: params.fallback_tool,
+					nextParamsOverride: params.next_params,
+					maxAttempts,
+				});
+
+				const nextParamsStr =
+					typeof plan.next_params === "string" ? plan.next_params : JSON.stringify(plan.next_params);
+
+				const text = [
+					`Recovery Plan for step \`${step.id}\` in workflow \`${workflow.id}\`:`,
+					`- Current Tool: \`${step.tool}\` (Status: ${step.status}, Attempts: ${step.attempts}/${maxAttempts})`,
+					`- Failure Attribution: **[${plan.attribution.category.toUpperCase()}]** ${plan.attribution.cause}`,
+					plan.attribution.install_hint ? `- Install Hint: \`${plan.attribution.install_hint}\`` : undefined,
+					`- Proposed Action: **${plan.suggested_action}**`,
+					`- Proposed Tool: \`${plan.next_tool}\``,
+					`- Corrected Parameters: \`${nextParamsStr}\``,
+					`- Alternatives: ${plan.alternatives.map(a => `\`${a}\``).join(", ")}`,
+					`- Reasoning: ${plan.reasoning}`,
+					`- Bounded Recovery Status: ${plan.can_retry ? "Retry permitted" : "Exhausted"}`,
+					"",
+					plan.can_retry
+						? `To apply this recovery and transition step to pending, call 'reverse_workflow(action: "recover", workflow_id: "${workflow.id}", step_id: "${step.id}")'.`
+						: "Retry limit reached. No further automated retries permitted for this step.",
+				]
+					.filter(Boolean)
+					.join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: {
+						action: "retry_plan",
+						workflow,
+						step,
+						recovery_plan: plan,
+					},
+				};
+			}
+
+			case "export": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) throw new ToolError("workflow_id is required for 'export' action.");
+
+				const workflow = await store.get(workflowId);
+				if (!workflow) throw new ToolError(`Workflow '${workflowId}' not found.`);
+
+				const formatType = params.format_type ?? "markdown";
+				const content =
+					formatType === "json"
+						? await exportWorkflowToJson(workflow, evidenceStore)
+						: await exportWorkflowToMarkdown(workflow, evidenceStore);
+				if (params.to_workspace === true || params.workspace_path) {
+					const projectDir = repoRoot;
+					const wsResult = await exportWorkflowToWorkspace({
+						workflow,
+						evidenceStore,
+						projectDir,
+						workspaceDir: params.workspace_path,
+						formatType,
+						clean: params.clean_workspace ?? false,
+					});
+
+					const summaryLines = [
+						`# Standardized Reverse Workspace Exported: \`${wsResult.relative_workspace_dir}\``,
+						"",
+						`- **Target**: \`${wsResult.target_info.name}\` (\`${wsResult.target_info.format}\`) — Safe reference preserved (never mutated)`,
+						`- **Manifest**: \`${wsResult.relative_workspace_dir}/manifest.json\``,
+						`- **Layout**: \`manifest\`, \`target\`, \`workflow\`, \`evidence\`, \`findings\`, \`scripts\`, \`dumps\`, \`reports\``,
+						`- **Created Files**: ${wsResult.created_files.length}`,
+						`- **Execution Progress**: ${wsResult.stats.steps_completed}/${wsResult.stats.steps_total} steps completed`,
+						`- **Evidence Ledger**: ${wsResult.stats.evidence_total} items (${wsResult.stats.facts_count} facts, ${wsResult.stats.conclusions_count} verified conclusions)`,
+						`- **Artifacts**: ${wsResult.manifest.artifacts.length} total (${wsResult.stats.scripts_count} scripts copied, ${wsResult.stats.dumps_count} dumps copied, ${wsResult.manifest.artifacts.filter(a => !a.copied).length} safe references)`,
+					];
+
+					return {
+						content: [{ type: "text", text: summaryLines.join("\n") }],
+						details: {
+							action: "export",
+							workflow,
+							export_format: formatType,
+							workspace_dir: wsResult.workspace_dir,
+							workspace_manifest: wsResult.manifest,
+							workspace_files_count: wsResult.created_files.length,
+						},
+					};
+				}
+
+				const mustArtifact = params.to_artifact === true || content.length > MAX_INLINE_CHARS;
+				if (mustArtifact && this.session.allocateOutputArtifact) {
+					try {
+						const alloc = await this.session.allocateOutputArtifact("reverse_workflow");
+						if (alloc?.path && alloc.id) {
+							await fs.writeFile(alloc.path, content, "utf8");
+							const preview = content.slice(0, 1200);
+							const text = `Exported workflow artifact (${Buffer.byteLength(content)} bytes): artifact://${alloc.id}\n\nPreview:\n${preview}...\n\n(Read full report with 'read artifact://${alloc.id}')`;
+							return {
+								content: [{ type: "text", text }],
+								details: {
+									action: "export",
+									workflow,
+									export_format: formatType,
+									artifactId: alloc.id,
+									artifactPath: alloc.path,
+								},
+							};
+						}
+					} catch {
+						// Fall back to inline output on artifact error
+					}
+				}
+
+				return {
+					content: [{ type: "text", text: content }],
+					details: {
+						action: "export",
+						workflow,
+						export_format: formatType,
+					},
+				};
+			}
+
+			case "destroy": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) throw new ToolError("workflow_id is required for 'destroy' action.");
+
+				const deleted = await store.delete(workflowId);
+				if (!deleted) {
+					throw new ToolError(`Workflow '${workflowId}' not found.`);
+				}
+
+				return {
+					content: [{ type: "text", text: `Destroyed workflow \`${workflowId}\` and removed its state.` }],
+					details: { action: "destroy", destroyed: true },
+				};
+			}
+			case "advance":
+			case "auto_advance": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) throw new ToolError(`workflow_id is required for '${params.action}' action.`);
+
+				const workflow = await store.get(workflowId);
+				if (!workflow) throw new ToolError(`Workflow '${workflowId}' not found.`);
+
+				const progressionResult = await advanceWorkflow(
+					workflow,
+					{
+						step_id: params.step_id,
+						max_steps: params.max_steps,
+						status: params.status,
+						outputs: params.outputs,
+						evidence_ids: params.evidence_ids,
+						knowledge_refs: params.knowledge_refs,
+						artifact_refs: params.artifact_refs,
+						propose_only: params.propose_only,
+					},
+					{
+						repositoryRoot: repoRoot,
+						knowledgeStore,
+						evidenceStore,
+					},
+				);
+
+				await store.save(workflow);
+
+				const lines: string[] = [
+					`Workflow Auto Progression: \`${workflow.id}\``,
+					`- **Target**: \`${workflow.target}\` (${workflow.format})`,
+					`- **Progression Status**: \`${progressionResult.status.toUpperCase()}\``,
+					`- **Decision**: ${progressionResult.decision}`,
+					`- **Reason**: ${progressionResult.reason}`,
+				];
+
+				if (progressionResult.pending_decision_step) {
+					const step = progressionResult.pending_decision_step;
+					lines.push("");
+					lines.push(
+						`**Notice: Step \`${step.id}\` requires dynamic or high-risk tool \`${step.tool}\`.** Auto progression halts here; please inspect and run this step manually via the tool, then call \`reverse_workflow(action: "record", step_id: "${step.id}", ...)\`.`,
+					);
+				} else if (progressionResult.evaluated_steps.length > 0) {
+					const proposed = progressionResult.evaluated_steps[0];
+					lines.push("");
+					lines.push(
+						`Proposed Next Step: \`${proposed.id}\` via \`${proposed.tool}\` (${proposed.gate})`,
+					);
+					lines.push(`- **Title**: ${proposed.title}`);
+					const paramsStr =
+						typeof proposed.params_summary === "string"
+							? proposed.params_summary
+							: JSON.stringify(proposed.params_summary);
+					lines.push(`- **Suggested Parameters**: \`${paramsStr}\``);
+				}
+
+				if (progressionResult.knowledge_refs.length > 0) {
+					lines.push("");
+					lines.push(
+						`- **Associated Prior Knowledge**: ${progressionResult.knowledge_refs.map(id => `\`${id}\``).join(", ")}`,
+					);
+				}
+
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action: params.action,
+						workflow,
+						step: progressionResult.evaluated_steps[0] ?? progressionResult.pending_decision_step,
+						evaluated_steps: progressionResult.evaluated_steps,
+						progression_status: progressionResult.status,
+						decision: progressionResult.decision,
+						decision_reason: progressionResult.reason,
+						progression_audit: progressionResult.audit_entries,
+						knowledge_refs: progressionResult.knowledge_refs,
+					},
+				};
+			}
+
+
+			default:
+				throw new ToolError(`Unknown reverse_workflow action: '${String(params.action)}'`);
+		}
+	}
+}

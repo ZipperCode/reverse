@@ -1,0 +1,466 @@
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { ReverseKnowledgeStore } from "../reverse-knowledge/store";
+import type { EvidenceStore } from "../evidence/store";
+import {
+	type ReverseWorkflowRecord,
+	type WorkflowStepRecord,
+	type ProgressionAuditEntry,
+	type ProgressionStatus,
+	validateEvidenceIdFormat,
+	validateKnowledgeIdFormat,
+} from "./contracts";
+
+/**
+ * Allowlisted read-only static analysis and triage tools permitted for auto-progression.
+ */
+export const ALLOWLISTED_LOW_RISK_TOOLS: readonly string[] = [
+	"triage",
+	"binary_metadata_inspect",
+	"sourcemap_inspect",
+	"android_package_inspect",
+	"pcap_inspect",
+	"sqlite_inspect",
+	"wasm_inspect",
+	"grep",
+	"evidence",
+];
+
+/**
+ * High-risk, dynamic, interactive, or modifying tools strictly prohibited from silent auto-execution.
+ */
+export const HIGH_RISK_OR_DYNAMIC_TOOLS: readonly string[] = [
+	"shell",
+	"bash",
+	"exec",
+	"frida",
+	"reverse_runtime_session",
+	"patch",
+	"replay",
+	"droidasc",
+	"r2_inspect",
+	"ghidra_inspect",
+];
+
+export interface StepRiskAssessment {
+	is_low_risk: boolean;
+	tool: string;
+	gate: string;
+	risk_level: "low" | "high" | "dynamic";
+	reason: string;
+}
+
+export function assessStepRisk(step: WorkflowStepRecord): StepRiskAssessment {
+	const tool = (step.tool ?? "").trim().toLowerCase();
+
+	// Check explicitly prohibited / high-risk / dynamic tools
+	for (const dynamicTool of HIGH_RISK_OR_DYNAMIC_TOOLS) {
+		if (tool === dynamicTool || tool.startsWith(`${dynamicTool}_`) || tool.includes(dynamicTool)) {
+			const isDynamic =
+				dynamicTool === "frida" ||
+				dynamicTool === "reverse_runtime_session" ||
+				dynamicTool === "replay";
+			return {
+				is_low_risk: false,
+				tool: step.tool,
+				gate: step.gate,
+				risk_level: isDynamic ? "dynamic" : "high",
+				reason: `Tool '${step.tool}' is a ${isDynamic ? "dynamic runtime" : "high-risk/deep disassembly"} operation. Auto progression halted; step remains pending manual decision.`,
+			};
+		}
+	}
+
+	// Check allowlisted low-risk static tools
+	const isAllowlisted = ALLOWLISTED_LOW_RISK_TOOLS.some(
+		allowed => tool === allowed || tool.endsWith(`_${allowed}`) || tool.includes(allowed),
+	);
+
+	if (isAllowlisted) {
+		return {
+			is_low_risk: true,
+			tool: step.tool,
+			gate: step.gate,
+			risk_level: "low",
+			reason: `Tool '${step.tool}' is an allowlisted read-only static triage/inspection tool (${step.gate}).`,
+		};
+	}
+
+	return {
+		is_low_risk: false,
+		tool: step.tool,
+		gate: step.gate,
+		risk_level: "high",
+		reason: `Tool '${step.tool}' is not in the allowlisted low-risk static tools (${ALLOWLISTED_LOW_RISK_TOOLS.join(", ")}). Requires explicit execution decision.`,
+	};
+}
+
+export interface AutoAdvanceOptions {
+	step_id?: string;
+	max_steps?: number;
+	status?: "completed" | "failed" | "running" | "skipped";
+	outputs?: string;
+	evidence_ids?: string[];
+	knowledge_refs?: string[];
+	artifact_refs?: string[];
+	propose_only?: boolean;
+}
+
+export interface AutoAdvanceContext {
+	repositoryRoot: string;
+	knowledgeStore?: ReverseKnowledgeStore;
+	evidenceStore?: EvidenceStore;
+}
+
+export interface AutoAdvanceResult {
+	advanced: boolean;
+	status: ProgressionStatus;
+	decision: string;
+	reason: string;
+	evaluated_steps: WorkflowStepRecord[];
+	pending_decision_step?: WorkflowStepRecord;
+	audit_entries: ProgressionAuditEntry[];
+	knowledge_refs: string[];
+	workflow: ReverseWorkflowRecord;
+}
+
+/**
+ * Deterministically evaluate and advance reverse engineering workflow steps.
+ * Enforces strict verification guardrails:
+ * 1. Only proposes or records allowlisted read/static tools.
+ * 2. Halts on dynamic, high-risk, shell, frida, patch, replay steps and marks them held pending decision.
+ * 3. Halts on ambiguous target files or missing dependencies.
+ * 4. Bounded progression (max 5 steps).
+ * 5. Never executes shell commands or dynamic processes silently.
+ */
+export async function advanceWorkflow(
+	workflow: ReverseWorkflowRecord,
+	options: AutoAdvanceOptions = {},
+	context: AutoAdvanceContext,
+): Promise<AutoAdvanceResult> {
+	const now = new Date().toISOString();
+	const auditEntries: ProgressionAuditEntry[] = [];
+	const evaluatedSteps: WorkflowStepRecord[] = [];
+	const allKnowledgeRefs = new Set<string>(workflow.knowledge_refs ?? []);
+
+	// 1. Guardrail: Validate target ambiguity and accessibility
+	const targetPath = workflow.target_abs_path ?? path.resolve(context.repositoryRoot, workflow.target);
+	let targetAccessible = false;
+	try {
+		const stat = await fs.stat(targetPath);
+		if (stat.isFile() || stat.isDirectory()) {
+			targetAccessible = true;
+		}
+	} catch {
+		targetAccessible = false;
+	}
+
+	if (!targetAccessible) {
+		const decision = "stopped_ambiguous_target";
+		const reason = `Target '${workflow.target}' cannot be accessed or resolved on disk at '${targetPath}'. Auto progression halted.`;
+		const audit: ProgressionAuditEntry = {
+			step_id: workflow.steps[0]?.id ?? "g0_init",
+			step_title: "Target Resolution",
+			tool: "triage",
+			gate: "G0",
+			action: "advance",
+			status: "stopped_ambiguous_target",
+			decision,
+			reason,
+			is_low_risk: false,
+			timestamp: now,
+		};
+		workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+		return {
+			advanced: false,
+			status: "stopped_ambiguous_target",
+			decision,
+			reason,
+			evaluated_steps: [],
+			audit_entries: [audit],
+			knowledge_refs: Array.from(allKnowledgeRefs),
+			workflow,
+		};
+	}
+
+	if (workflow.format === "unknown") {
+		const decision = "stopped_ambiguous_target";
+		const reason = `Target format is unknown or ambiguous; requires manual triage before auto progression can proceed safely.`;
+		const audit: ProgressionAuditEntry = {
+			step_id: workflow.steps[0]?.id ?? "g0_init",
+			step_title: "Target Classification",
+			tool: "triage",
+			gate: "G0",
+			action: "advance",
+			status: "stopped_ambiguous_target",
+			decision,
+			reason,
+			is_low_risk: false,
+			timestamp: now,
+		};
+		workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+		return {
+			advanced: false,
+			status: "stopped_ambiguous_target",
+			decision,
+			reason,
+			evaluated_steps: [],
+			audit_entries: [audit],
+			knowledge_refs: Array.from(allKnowledgeRefs),
+			workflow,
+		};
+	}
+
+	// 2. Single step recording mode (if step_id and status/outputs passed)
+	if (options.step_id && options.status) {
+		const step = workflow.steps.find(s => s.id === options.step_id);
+		if (!step) {
+			throw new ToolError(`Step '${options.step_id}' not found in workflow '${workflow.id}'.`);
+		}
+
+		const risk = assessStepRisk(step);
+		if (!risk.is_low_risk) {
+			const decision = "held_pending_decision";
+			const reason = `Cannot auto-record step '${step.id}': ${risk.reason}`;
+			step.progression_status = "held_pending_decision";
+			step.decision = decision;
+			step.decision_reason = reason;
+
+			const audit: ProgressionAuditEntry = {
+				step_id: step.id,
+				step_title: step.title,
+				tool: step.tool,
+				gate: step.gate,
+				action: "advance",
+				status: "held_pending_decision",
+				decision,
+				reason,
+				is_low_risk: false,
+				timestamp: now,
+				params_summary: step.params_summary,
+			};
+			workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+
+			return {
+				advanced: false,
+				status: "held_pending_decision",
+				decision,
+				reason,
+				evaluated_steps: [step],
+				pending_decision_step: step,
+				audit_entries: [audit],
+				knowledge_refs: Array.from(allKnowledgeRefs),
+				workflow,
+			};
+		}
+
+		// Validate evidence links if provided
+		if (options.evidence_ids && options.evidence_ids.length > 0 && context.evidenceStore) {
+			for (const evId of options.evidence_ids) {
+				if (!validateEvidenceIdFormat(evId)) {
+					throw new ToolError(`Invalid evidence ID format: '${evId}'.`);
+				}
+				const exists = await context.evidenceStore.getRecord(evId);
+				if (!exists) {
+					throw new ToolError(`Evidence ID '${evId}' not found in project evidence ledger.`);
+				}
+			}
+			step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...options.evidence_ids]));
+		}
+
+		// Validate knowledge refs if provided
+		if (options.knowledge_refs && options.knowledge_refs.length > 0 && context.knowledgeStore) {
+			for (const knId of options.knowledge_refs) {
+				if (!validateKnowledgeIdFormat(knId)) {
+					throw new ToolError(`Invalid knowledge ID format: '${knId}'.`);
+				}
+				const exists = await context.knowledgeStore.get(knId);
+				if (!exists) {
+					throw new ToolError(`Knowledge ID '${knId}' not found in project reverse knowledge store.`);
+				}
+				allKnowledgeRefs.add(knId);
+			}
+			step.knowledge_refs = Array.from(new Set([...(step.knowledge_refs ?? []), ...options.knowledge_refs]));
+			workflow.knowledge_refs = Array.from(allKnowledgeRefs);
+		}
+
+		if (options.artifact_refs) {
+			step.artifact_refs = Array.from(new Set([...(step.artifact_refs ?? []), ...options.artifact_refs]));
+		}
+
+		step.status = options.status;
+		if (options.outputs !== undefined) {
+			step.outputs = options.outputs;
+		}
+		step.attempts = (step.attempts ?? 0) + 1;
+		step.updated_at = now;
+		step.progression_status = "recorded";
+		step.decision = `Recorded completion of low-risk static step '${step.id}'`;
+		step.decision_reason = risk.reason;
+
+		const audit: ProgressionAuditEntry = {
+			step_id: step.id,
+			step_title: step.title,
+			tool: step.tool,
+			gate: step.gate,
+			action: "advance",
+			status: "recorded",
+			decision: step.decision,
+			reason: step.decision_reason,
+			is_low_risk: true,
+			timestamp: now,
+			knowledge_refs: step.knowledge_refs,
+			params_summary: step.params_summary,
+		};
+		auditEntries.push(audit);
+		workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+
+		const allDone = workflow.steps.every(s => s.status === "completed" || s.status === "skipped");
+		if (allDone) {
+			workflow.status = "completed";
+		}
+		workflow.updated_at = now;
+
+		return {
+			advanced: true,
+			status: "recorded",
+			decision: step.decision,
+			reason: step.decision_reason,
+			evaluated_steps: [step],
+			audit_entries: auditEntries,
+			knowledge_refs: Array.from(allKnowledgeRefs),
+			workflow,
+		};
+	}
+
+	// 3. Auto Progression Mode: Bounded evaluation of next pending steps
+	const maxSteps = Math.min(Math.max(options.max_steps ?? 1, 1), 5);
+	let stepsEvaluated = 0;
+	let terminalStatus: ProgressionStatus = "proposed";
+	let terminalDecision = "";
+	let terminalReason = "";
+	let pendingDecisionStep: WorkflowStepRecord | undefined;
+
+	for (const step of workflow.steps) {
+		if (step.status !== "pending") continue;
+		if (options.step_id && step.id !== options.step_id) continue;
+		if (stepsEvaluated >= maxSteps) break;
+
+		stepsEvaluated++;
+		evaluatedSteps.push(step);
+
+		// Assess risk of tool
+		const risk = assessStepRisk(step);
+
+		if (!risk.is_low_risk) {
+			// Dynamic / high-risk tool: Halt progression!
+			terminalStatus = "held_pending_decision";
+			terminalDecision = `Held step '${step.id}' pending explicit decision (${step.tool})`;
+			terminalReason = risk.reason;
+			pendingDecisionStep = step;
+
+			step.progression_status = "held_pending_decision";
+			step.decision = terminalDecision;
+			step.decision_reason = terminalReason;
+			step.updated_at = now;
+
+			const audit: ProgressionAuditEntry = {
+				step_id: step.id,
+				step_title: step.title,
+				tool: step.tool,
+				gate: step.gate,
+				action: "auto_advance",
+				status: "held_pending_decision",
+				decision: terminalDecision,
+				reason: terminalReason,
+				is_low_risk: false,
+				timestamp: now,
+				params_summary: step.params_summary,
+			};
+			auditEntries.push(audit);
+			workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+			break; // STOP loop on first dynamic/high-risk step
+		}
+
+		// Tool is allowlisted low-risk static: query knowledge references
+		const stepKnowledgeRefs: string[] = [];
+		if (context.knowledgeStore) {
+			try {
+				const activePrior = await context.knowledgeStore.search({
+					format: workflow.format,
+					tool: step.tool,
+					target_hash: workflow.target_sha256,
+					limit: 3,
+				});
+				for (const kn of activePrior) {
+					stepKnowledgeRefs.push(kn.id);
+					allKnowledgeRefs.add(kn.id);
+				}
+			} catch {
+				// Non-fatal if search fails
+			}
+		}
+
+		if (stepKnowledgeRefs.length > 0) {
+			step.knowledge_refs = Array.from(new Set([...(step.knowledge_refs ?? []), ...stepKnowledgeRefs]));
+			workflow.knowledge_refs = Array.from(allKnowledgeRefs);
+		}
+
+		terminalStatus = "proposed";
+		terminalDecision = `Proposed low-risk static step '${step.id}' via tool '${step.tool}'`;
+		terminalReason = risk.reason;
+
+		step.progression_status = "proposed";
+		step.decision = terminalDecision;
+		step.decision_reason = terminalReason;
+		step.updated_at = now;
+
+		const audit: ProgressionAuditEntry = {
+			step_id: step.id,
+			step_title: step.title,
+			tool: step.tool,
+			gate: step.gate,
+			action: "auto_advance",
+			status: "proposed",
+			decision: terminalDecision,
+			reason: terminalReason,
+			is_low_risk: true,
+			timestamp: now,
+			knowledge_refs: stepKnowledgeRefs.length > 0 ? stepKnowledgeRefs : undefined,
+			params_summary: step.params_summary,
+		};
+		auditEntries.push(audit);
+		workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+
+		// Proposing mode proposes the single next step and pauses for invocation
+		break;
+	}
+
+	if (stepsEvaluated === 0) {
+		const allDone = workflow.steps.every(s => s.status === "completed" || s.status === "skipped");
+		if (allDone) {
+			terminalStatus = "completed";
+			terminalDecision = "All workflow steps completed";
+			terminalReason = "No pending steps remaining in reverse engineering plan.";
+			workflow.status = "completed";
+		} else {
+			terminalStatus = "held_pending_decision";
+			terminalDecision = "No pending low-risk steps eligible for progression";
+			terminalReason = "All remaining steps are in non-pending or completed state.";
+		}
+	}
+
+	workflow.updated_at = now;
+
+	return {
+		advanced: terminalStatus === "proposed" || terminalStatus === "recorded",
+		status: terminalStatus,
+		decision: terminalDecision,
+		reason: terminalReason,
+		evaluated_steps: evaluatedSteps,
+		pending_decision_step: pendingDecisionStep,
+		audit_entries: auditEntries,
+		knowledge_refs: Array.from(allKnowledgeRefs),
+		workflow,
+	};
+}
