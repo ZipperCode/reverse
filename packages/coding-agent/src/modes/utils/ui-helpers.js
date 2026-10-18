@@ -1,0 +1,1218 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { getStreamingPartialJson } from "@rva/ai/utils/block-symbols";
+import { Spacer, Text } from "@rva/tui";
+import { StatusNotice } from "@rva/tui/chrome/status-notice";
+import { QueuedMessagesBand } from "@rva/tui/prompt/queued-messages";
+import { logger } from "@rva/utils";
+import { InternalUrlRouter } from "../../internal-urls";
+import { settings } from "../../config/settings";
+import { createAdvisorMessageCard } from "@rva/tui/chat/advisor-message";
+import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
+import { readMediaPath } from "@rva/tui/native/blobs";
+import { createBackgroundTanDispatchBlock } from "@rva/tui/chat/background-tan-message";
+import { BashExecutionComponent } from "@rva/tui/chat/bash-execution";
+import { detectCacheInvalidation } from "@rva/tui/chat/cache-invalidation-marker";
+import { ServedModelTracker } from "@rva/tui/chat/served-model-marker";
+import { BranchSummaryMessageComponent, CompactionSummaryMessageComponent, createHandoffSummaryMessageComponent, } from "@rva/tui/chat/compaction-summary-message";
+import { CustomMessageComponent } from "@rva/tui/chat/custom-message";
+import { EvalExecutionComponent } from "@rva/tui/chat/eval-execution";
+import { LateDiagnosticsMessageComponent, routeLateDiagnostics, } from "@rva/tui/chat/late-diagnostics-message";
+import { groupedReadUsageCallIds, ReadToolGroupComponent, readArgsCollapseIntoGroup, } from "@rva/tui/chat/read-tool-group";
+import { SkillMessageComponent } from "@rva/tui/chat/skill-message";
+import { StrippedToolCallsPlaceholder } from "@rva/tui/chat/stripped-tool-calls-placeholder";
+import { imageContent, textContent } from "@rva/tui/chat/transcript-entry";
+import { ToolActivityContainer } from "@rva/tui/chrome/tool-activity";
+import { isSettledJobFrame, parksAsBackground, settleWithJobFrame, ToolExecutionComponent, toolRenderName, } from "@rva/tui/chat/tool-execution";
+import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
+import { createUsageRowBlock, turnElapsedMs } from "@rva/tui/overlays/usage-row";
+import { UserMessageComponent } from "@rva/tui/chat/user-message";
+import { decodeStreamedToolArgs, streamingStringKeysForTool } from "../../modes/controllers/tool-args-reveal";
+import { materializeImageReferenceLinks, materializeImageReferenceLinksSync, } from "@rva/tui/prompt/image-references";
+import { normalizeBlobExtension } from "@rva/tui/prompt/image-format";
+import { imageAttachmentSource } from "@rva/tui/prompt/image-source";
+import { theme } from "@rva/tui/theme";
+import { extractVisibleAssistantText } from "../rpc/rpc-live";
+import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "../../session/launch-completion";
+import { BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE, isUserTurnInitiator, LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE, SKILL_PROMPT_MESSAGE_TYPE, } from "../../session/messages";
+import { executeBuiltinSlashCommand, lookupBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
+import { parseSlashCommand } from "../../slash-commands/helpers/parse";
+import { buildSkillCommandPrompt, invokeSkillCommandFromText, isKnownSkillCommand } from "../skill-command";
+import { createAssistantMessageComponent, getAssistantMessageLinkTargets, refreshAssistantMessageLinkTargets, } from "@rva/tui/prompt/interactive-context-helpers";
+import { assistantHasVisibleContent, assistantUsageIsBilled, buildAsyncResultBlock, buildFileMentionBlock, buildIrcMessageCard, buildLaunchCompletionBlock, normalizeToolArgs, resolveAssistantErrorPresentation, splitAssistantMessageToolTimeline, } from "@rva/tui/chat/transcript-render-helpers";
+import { cfgComposerRecallClearedDrafts, cfgDisplayCacheMissMarker, cfgDisplayCollapseCompacted, cfgDisplayShowTokenUsage, cfgDisplayShowTurnTime, cfgTerminalShowImages, } from "../settings";
+import { cfgReadToolResultPreview } from "../../tools/settings";
+const TRANSCRIPT_RENDER_CHUNK_MESSAGES = 32;
+const TRANSCRIPT_RENDER_CHUNK_MS = 8;
+/**
+ * Upper bound on full-transcript replay restarts inside
+ * {@link UiHelpers.renderInitialMessages}. Each restart discards the staged
+ * tree and replays every message from scratch, so on a large resumed session
+ * (issue #7811: ~6k entries) a single pass takes longer than the interval
+ * between entries persisted by background sources — the restart condition
+ * becomes permanently true and an unbounded loop livelocks at 100% CPU.
+ * Entries that land after the final accepted pass are
+ * durable in the session file and reach the display on the next rebuild.
+ */
+const TRANSCRIPT_REPLAY_MAX_ATTEMPTS = 5;
+function waitForImmediate() {
+    const { promise, resolve } = Promise.withResolvers();
+    setImmediate(resolve);
+    return promise;
+}
+/**
+ * Internal URLs (`local://`) stay on the image for the model but resolve against the
+ * session root, which `/move` relocates, so a chip cannot point at them. Their backing
+ * file holds the original pasted bytes (the payload may be auto-resized), so the chip
+ * opens a stable blob copy of that file. Undefined when no file backs the image.
+ */
+function imageChipSource(image, sessionManager) {
+    const sourcePath = imageAttachmentSource(image)?.path;
+    if (!sourcePath)
+        return undefined;
+    const router = InternalUrlRouter.instance();
+    if (!router.canHandle(sourcePath))
+        return { kind: "file", path: sourcePath };
+    try {
+        const located = router.locateSync(sourcePath, {
+            localProtocolOptions: {
+                getArtifactsDir: () => sessionManager.getArtifactsDir(),
+                getSessionId: () => sessionManager.getSessionId(),
+            },
+        });
+        return located === undefined ? undefined : { kind: "internal", path: located };
+    }
+    catch {
+        return undefined;
+    }
+}
+/** Chip targets for attached images: each file on disk, else a blob copy of the original bytes (or the payload). */
+export async function materializeImageChipLinks(images, sessionManager) {
+    const putBlob = sessionManager.putBlob.bind(sessionManager);
+    return Promise.all(images.map(async (image) => {
+        const source = imageChipSource(image, sessionManager);
+        if (source?.kind === "file")
+            return source.path;
+        if (source) {
+            try {
+                const bytes = await fs.promises.readFile(source.path);
+                return (await putBlob(bytes, { extension: normalizeBlobExtension(path.extname(source.path)) }))
+                    .displayPath;
+            }
+            catch (error) {
+                logger.warn("Failed to copy original image for its chip", {
+                    path: source.path,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+        return (await materializeImageReferenceLinks([image], putBlob))?.[0];
+    }));
+}
+/** Synchronous {@link materializeImageChipLinks} for transcript rebuilds. */
+function imageLinksForMessage(images, sessionManager) {
+    if (images.length === 0)
+        return undefined;
+    const putBlobSync = sessionManager.putBlobSync.bind(sessionManager);
+    return images.map(image => {
+        const source = imageChipSource(image, sessionManager);
+        if (source?.kind === "file")
+            return source.path;
+        if (source) {
+            try {
+                const bytes = fs.readFileSync(source.path);
+                return putBlobSync(bytes, { extension: normalizeBlobExtension(path.extname(source.path)) }).displayPath;
+            }
+            catch (error) {
+                logger.warn("Failed to copy original image for its chip", {
+                    path: source.path,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+        return materializeImageReferenceLinksSync([image], putBlobSync)?.[0];
+    });
+}
+export class UiHelpers {
+    ctx;
+    constructor(ctx) {
+        this.ctx = ctx;
+    }
+    /**
+     * Show a status message in the chat.
+     *
+     * If multiple status messages are emitted back-to-back (without anything else being added to the chat),
+     * we update the previous status line instead of appending new ones to avoid log spam.
+     */
+    showStatus(message, options) {
+        const children = this.ctx.chatContainer.children;
+        const last = children.length > 0 ? children[children.length - 1] : undefined;
+        const useDim = options?.dim ?? true;
+        // Resolve the dim color lazily so a later theme change re-shapes the line
+        // instead of leaving the palette that was active when it was presented.
+        const styleFn = useDim ? (t) => theme.fg("dim", t) : undefined;
+        const notice = { styleFn, toast: options?.toast };
+        if (last && last === this.ctx.lastStatus) {
+            this.ctx.lastStatus.setMessage(message, notice);
+            this.ctx.ui.requestRender();
+            return;
+        }
+        const status = new StatusNotice(message, notice);
+        this.ctx.present([status]);
+        this.ctx.lastStatus = status;
+    }
+    addMessageToChat(message, options) {
+        switch (message.role) {
+            case "bashExecution": {
+                const component = new BashExecutionComponent(message.command, this.ctx.ui, message.excludeFromContext);
+                if (message.output) {
+                    component.appendOutput(message.output);
+                }
+                component.setComplete(message.exitCode, message.cancelled, {
+                    truncation: message.meta?.truncation,
+                    artifactError: message.meta?.artifactError,
+                    images: message.images,
+                    showImages: cfgTerminalShowImages.get(settings),
+                });
+                this.ctx.chatContainer.addChild(component);
+                break;
+            }
+            case "pythonExecution": {
+                const component = new EvalExecutionComponent(message.code, this.ctx.ui, message.excludeFromContext);
+                if (message.output) {
+                    component.appendOutput(message.output);
+                }
+                component.setComplete(message.exitCode, message.cancelled, {
+                    truncation: message.meta?.truncation,
+                    artifactError: message.meta?.artifactError,
+                });
+                this.ctx.chatContainer.addChild(component);
+                break;
+            }
+            case "hookMessage":
+            case "custom": {
+                if (message.display) {
+                    if (message.customType === "async-result") {
+                        const component = buildAsyncResultBlock(message);
+                        this.ctx.chatContainer.addChild(component);
+                        break;
+                    }
+                    if (message.customType === LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE) {
+                        const details = message.details;
+                        // Native: into the edit/write frames they belong to; the rest stand alone.
+                        const files = routeLateDiagnostics(this.ctx.chatContainer.children, details?.files ?? []);
+                        if (files.length === 0)
+                            break;
+                        const component = new LateDiagnosticsMessageComponent(files);
+                        component.setExpanded(this.ctx.toolOutputExpanded);
+                        this.ctx.chatContainer.addChild(component);
+                        break;
+                    }
+                    if (message.customType === LAUNCH_COMPLETION_MESSAGE_TYPE) {
+                        this.ctx.chatContainer.addChild(buildLaunchCompletionBlock(message));
+                        break;
+                    }
+                    if (message.customType === SKILL_PROMPT_MESSAGE_TYPE) {
+                        const component = new SkillMessageComponent(message);
+                        component.setExpanded(this.ctx.toolOutputExpanded);
+                        this.ctx.chatContainer.addChild(component);
+                        break;
+                    }
+                    if (message.customType === "irc:incoming" ||
+                        message.customType === "irc:autoreply" ||
+                        message.customType === "irc:relay" ||
+                        message.customType === "irc:workpool") {
+                        const card = buildIrcMessageCard(message, () => this.ctx.toolOutputExpanded);
+                        this.ctx.chatContainer.addChild(card);
+                        return [card];
+                    }
+                    if (message.customType === "advisor") {
+                        const details = message.details;
+                        this.ctx.chatContainer.addChild(createAdvisorMessageCard(details, () => this.ctx.toolOutputExpanded, theme));
+                        break;
+                    }
+                    if (message.customType === BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE) {
+                        this.ctx.chatContainer.addChild(createBackgroundTanDispatchBlock(message));
+                        break;
+                    }
+                    const handoffComponent = createHandoffSummaryMessageComponent(message, this.ctx.toolOutputExpanded);
+                    if (handoffComponent) {
+                        this.ctx.chatContainer.addChild(handoffComponent);
+                        break;
+                    }
+                    const renderer = this.ctx.viewSession.extensionRunner?.getMessageRenderer(message.customType);
+                    // Both HookMessage and CustomMessage have the same structure, cast for compatibility
+                    const component = new CustomMessageComponent(message, renderer);
+                    component.setExpanded(this.ctx.toolOutputExpanded);
+                    this.ctx.chatContainer.addChild(component);
+                }
+                break;
+            }
+            case "compactionSummary": {
+                const component = new CompactionSummaryMessageComponent(message);
+                component.setExpanded(this.ctx.toolOutputExpanded);
+                this.ctx.chatContainer.addChild(component);
+                break;
+            }
+            case "branchSummary": {
+                const component = new BranchSummaryMessageComponent(message);
+                component.setExpanded(this.ctx.toolOutputExpanded);
+                this.ctx.chatContainer.addChild(component);
+                break;
+            }
+            case "fileMention": {
+                // Render compact file mention display
+                const block = buildFileMentionBlock(message.files, 0);
+                if (block.children.length > 0)
+                    this.ctx.chatContainer.addChild(block);
+                break;
+            }
+            case "user":
+            case "developer": {
+                const userText = message.role === "user" ? textContent(message.content) : "";
+                if (userText) {
+                    const isSynthetic = message.role === "developer" ? true : (message.synthetic ?? false);
+                    const cached = options?.reuseSettledComponent
+                        ? this.ctx.transcriptMessageComponents.get(message)
+                        : undefined;
+                    let userComponent;
+                    if (cached instanceof UserMessageComponent) {
+                        userComponent = cached;
+                    }
+                    else {
+                        const images = imageContent(message.content);
+                        const imageLinks = options?.imageLinks ?? imageLinksForMessage(images, this.ctx.viewSession.sessionManager);
+                        userComponent = new UserMessageComponent(userText, {
+                            synthetic: isSynthetic,
+                            imageLinks,
+                            images,
+                            liveSteered: message.role === "user" && message.liveSteered === true,
+                            timestamp: message.timestamp,
+                        });
+                        this.ctx.transcriptMessageComponents.set(message, userComponent);
+                    }
+                    this.ctx.chatContainer.addChild(userComponent);
+                }
+                break;
+            }
+            case "assistant": {
+                const cached = options?.reuseSettledComponent
+                    ? this.ctx.transcriptMessageComponents.get(message)
+                    : undefined;
+                const assistantComponent = cached instanceof AssistantMessageComponent
+                    ? cached
+                    : createAssistantMessageComponent(this.ctx, splitAssistantMessageToolTimeline(message).beforeTools, getAssistantMessageLinkTargets(this.ctx));
+                if (cached !== assistantComponent) {
+                    this.ctx.transcriptMessageComponents.set(message, assistantComponent);
+                }
+                assistantComponent.pickReactionTarget(this.ctx.chatContainer.children);
+                this.ctx.chatContainer.addChild(assistantComponent);
+                break;
+            }
+            case "toolResult": {
+                // Tool results are rendered inline with tool calls, handled separately
+                break;
+            }
+            default: {
+                message;
+            }
+        }
+        return [];
+    }
+    /**
+     * Render session context to chat. Used for initial load and rebuild after compaction.
+     * @param sessionContext Session context to render
+     * @param options.updateFooter Update footer state
+     * @param options.populateHistory Add user messages to editor history
+     */
+    renderSessionContext(sessionContext, options = {}) {
+        const steps = this.#renderSessionContextSteps(sessionContext, options);
+        while (!steps.next().done) { }
+    }
+    /** Build a session context in bounded chunks so terminal input runs between event-loop turns. */
+    async renderSessionContextIncrementally(sessionContext, options, renderChunk) {
+        const steps = this.#renderSessionContextSteps(sessionContext, options);
+        let messagesSinceYield = 0;
+        let chunkStartedAt = performance.now();
+        while (!steps.next().done) {
+            messagesSinceYield++;
+            if (messagesSinceYield < TRANSCRIPT_RENDER_CHUNK_MESSAGES &&
+                performance.now() - chunkStartedAt < TRANSCRIPT_RENDER_CHUNK_MS) {
+                continue;
+            }
+            renderChunk?.();
+            await waitForImmediate();
+            messagesSinceYield = 0;
+            chunkStartedAt = performance.now();
+        }
+    }
+    *#renderSessionContextSteps(sessionContext, options = {}) {
+        // Preserved: message_start handler owns this lifecycle (see #783)
+        this.ctx.pendingTools.clear();
+        const activeToolExecutionUpdates = this.ctx.viewSession.activeToolExecutionUpdates?.() ?? [];
+        const runningAsyncJobs = this.ctx.viewSession.getAsyncJobSnapshot?.()?.running ?? [];
+        // Reseed the cache-invalidation baseline: this rebuild re-derives every
+        // turn's marker from usage, and the last turn becomes the live baseline.
+        this.ctx.lastAssistantUsage = undefined;
+        // Same for the served-model tracker: replaying history re-flags the first
+        // occurrence of each substitution and carries the memory forward live.
+        this.ctx.servedModelTracker = new ServedModelTracker();
+        if (options.updateFooter) {
+            this.ctx.statusLine.invalidate();
+            this.ctx.updateEditorBorderColor();
+        }
+        let readGroup = null;
+        const readToolCallArgs = new Map();
+        const readToolCallAssistantComponents = new Map();
+        // Defer per-turn metrics until the turn's tool results have materialized.
+        // Read-only invisible turns attach the metrics to their shared compact
+        // group; every other turn keeps the standalone row below its tool blocks.
+        let pendingUsage;
+        let pendingUsageDuration;
+        let pendingUsageTtft;
+        let pendingUsageTimestamp;
+        let pendingReadUsageCallIds;
+        let pendingUsageTurnElapsed;
+        let turnStartedAt;
+        const flushPendingUsage = () => {
+            if (!pendingUsage)
+                return;
+            const usageAttached = pendingReadUsageCallIds !== undefined &&
+                (readGroup?.attachUsage(pendingReadUsageCallIds, pendingUsage, pendingUsageDuration, pendingUsageTtft, pendingUsageTimestamp, pendingUsageTurnElapsed) ??
+                    false);
+            if (!usageAttached) {
+                readGroup?.seal();
+                readGroup = null;
+                this.ctx.chatContainer.addChild(createUsageRowBlock(pendingUsage, pendingUsageDuration, pendingUsageTtft, pendingUsageTimestamp, pendingUsageTurnElapsed));
+            }
+            pendingUsage = undefined;
+            pendingUsageDuration = undefined;
+            pendingUsageTtft = undefined;
+            pendingUsageTimestamp = undefined;
+            pendingReadUsageCallIds = undefined;
+            pendingUsageTurnElapsed = undefined;
+        };
+        // Rebuild-time mirror of the event controller's displaceable-poll
+        // bookkeeping: a `wait` that found every watched job still running is
+        // superseded by the next `wait` call, so a rebuilt transcript collapses a
+        // repeated-poll run to its final snapshot instead of replaying the spam.
+        let waitingPoll = null;
+        const resolveWaitingPoll = (nextToolName) => {
+            const previous = waitingPoll;
+            if (!previous)
+                return;
+            waitingPoll = null;
+            if (nextToolName === "wait" &&
+                previous.isDisplaceableBlock() &&
+                this.ctx.chatContainer.canDisplaceBlock(previous)) {
+                this.ctx.chatContainer.removeChild(previous);
+            }
+            // Sealing finalizes the block and stops the waiting-poll spinner that
+            // updateResult armed.
+            previous.seal();
+        };
+        let todoSnapshot = null;
+        const resolveTodoSnapshot = (nextToolName) => {
+            const previous = todoSnapshot;
+            if (!previous)
+                return;
+            if (!previous.isDisplaceableBlock()) {
+                todoSnapshot = null;
+                return;
+            }
+            if (previous.canBeDisplacedBy(nextToolName)) {
+                todoSnapshot = null;
+                this.ctx.chatContainer.removeChild(previous);
+                previous.seal();
+                return;
+            }
+            if (nextToolName !== undefined)
+                return;
+            todoSnapshot = null;
+            previous.seal();
+        };
+        // Background job calls persist their initial `async.state === "running"`
+        // result, but the job keeps streaming progress afterwards. Parked here
+        // (not finalized) so replayed and live frames still route to the card;
+        // the ids are handed back to the controller after the loop (#10447).
+        const backgroundCallIds = new Set();
+        const messages = sessionContext.messages;
+        const count = messages.length;
+        for (let i = 0; i < count; i++) {
+            // Yield BEFORE each message (except the first) rather than after: the
+            // per-message body has several early `continue` paths (preserved live
+            // results, image-only and grouped `read` results), and a trailing yield
+            // is skipped by all of them. A large parallel-read batch is entirely
+            // such results, so an after-body yield never trips the chunk counter and
+            // the whole batch replays in one event-loop turn. Yielding at the top of
+            // the next iteration is reached no matter how the prior message exited.
+            if (i > 0)
+                yield;
+            const message = messages[i];
+            if (message.role !== "toolResult")
+                flushPendingUsage();
+            // Assistant messages need special handling for tool calls
+            if (message.role === "assistant") {
+                const timeline = splitAssistantMessageToolTimeline(message);
+                this.ctx.addMessageToChat(message, { reuseSettledComponent: options.reuseSettledComponents });
+                const lastChild = this.ctx.chatContainer.children[this.ctx.chatContainer.children.length - 1];
+                const assistantComponent = lastChild instanceof AssistantMessageComponent ? lastChild : undefined;
+                if (assistantComponent) {
+                    const usage = message.usage;
+                    const explained = sessionContext.cacheMissExplainedAt?.[i] ?? false;
+                    if (cfgDisplayCacheMissMarker.get(this.ctx.settings) && !explained) {
+                        const invalidation = detectCacheInvalidation(this.ctx.lastAssistantUsage, usage);
+                        if (invalidation)
+                            assistantComponent.setCacheInvalidation(invalidation);
+                    }
+                    if (usage.cacheRead + usage.cacheWrite + usage.input > 0) {
+                        this.ctx.lastAssistantUsage = usage;
+                    }
+                    assistantComponent.setServedModelMismatch(this.ctx.servedModelTracker.check(message));
+                }
+                const hasVisibleAssistantContent = assistantHasVisibleContent(message);
+                if (hasVisibleAssistantContent) {
+                    // Rebuild reconstructs immutable history; seal (not finalize) because
+                    // a pending entry otherwise keeps the group active indefinitely.
+                    readGroup?.seal();
+                    readGroup = null;
+                }
+                const errorPresentation = resolveAssistantErrorPresentation(message, this.ctx.viewSession.retryAttempt);
+                const hasErrorStop = errorPresentation.kind === "full";
+                const errorMessage = hasErrorStop ? errorPresentation.text : null;
+                const appendAssistantSegment = (segment) => {
+                    if (!segment || !assistantHasVisibleContent(segment))
+                        return;
+                    const component = createAssistantMessageComponent(this.ctx, segment, getAssistantMessageLinkTargets(this.ctx));
+                    this.ctx.chatContainer.addChild(component);
+                };
+                // Render tool call components
+                for (const content of message.content) {
+                    if (content.type !== "toolCall") {
+                        continue;
+                    }
+                    const afterToolSegment = timeline.afterToolCalls.get(content.id);
+                    if (options.preservedLiveToolCallIds?.has(content.id)) {
+                        appendAssistantSegment(afterToolSegment);
+                        continue;
+                    }
+                    const tool = this.ctx.viewSession.getToolByName(content.name);
+                    const renderToolName = toolRenderName(content.name, tool);
+                    resolveWaitingPoll(renderToolName);
+                    if (renderToolName === "read" && readArgsCollapseIntoGroup(content.arguments)) {
+                        if (hasErrorStop && errorMessage) {
+                            if (!readGroup) {
+                                readGroup = new ReadToolGroupComponent({
+                                    showContentPreview: cfgReadToolResultPreview.get(this.ctx.settings),
+                                });
+                                readGroup.setExpanded(this.ctx.toolOutputExpanded);
+                                this.ctx.chatContainer.addChild(readGroup);
+                            }
+                            readGroup.updateArgs(content.arguments, content.id);
+                            readGroup.updateResult({ content: [{ type: "text", text: errorMessage }], isError: true }, false, content.id);
+                        }
+                        else if (afterToolSegment) {
+                            if (!readGroup) {
+                                readGroup = new ReadToolGroupComponent({
+                                    showContentPreview: cfgReadToolResultPreview.get(this.ctx.settings),
+                                });
+                                readGroup.setExpanded(this.ctx.toolOutputExpanded);
+                                this.ctx.chatContainer.addChild(readGroup);
+                            }
+                            readGroup.updateArgs(content.arguments, content.id);
+                            this.ctx.pendingTools.set(content.id, readGroup);
+                            if (assistantComponent) {
+                                readToolCallAssistantComponents.set(content.id, assistantComponent);
+                                if (this.ctx.viewSession.isStreaming) {
+                                    this.ctx.eventController?.inheritReadToolAssistant(content.id, assistantComponent);
+                                }
+                            }
+                        }
+                        else {
+                            const normalizedArgs = normalizeToolArgs(content.arguments);
+                            readToolCallArgs.set(content.id, normalizedArgs);
+                            if (assistantComponent) {
+                                readToolCallAssistantComponents.set(content.id, assistantComponent);
+                            }
+                        }
+                        appendAssistantSegment(afterToolSegment);
+                        continue;
+                    }
+                    readGroup?.seal();
+                    readGroup = null;
+                    const partialJson = getStreamingPartialJson(content);
+                    // Mid-stream rebuild (theme change, settings, focus replay): decode
+                    // display args from the raw stream exactly like the live reveal path.
+                    // The provider-parsed `arguments` lag the stream by up to a throttled
+                    // parse window, so spreading them alone would freeze a long write/edit
+                    // preview at its last full parse.
+                    const rawInput = content.customWireName !== undefined;
+                    const renderArgs = partialJson
+                        ? decodeStreamedToolArgs(partialJson, {
+                            rawInput,
+                            fullArgs: content.arguments,
+                            streamingStringKeys: streamingStringKeysForTool(renderToolName, rawInput),
+                        })
+                        : content.arguments;
+                    const component = new ToolExecutionComponent(renderToolName, renderArgs, {
+                        useBuiltInRenderer: this.ctx.viewSession.hasBuiltInTool(renderToolName),
+                        showImages: cfgTerminalShowImages.get(settings),
+                    }, tool, this.ctx.ui, this.ctx.viewSession.sessionManager.getCwd(), content.id);
+                    component.setExpanded(this.ctx.toolOutputExpanded);
+                    this.ctx.chatContainer.addChild(component);
+                    if (hasErrorStop && errorMessage) {
+                        component.updateResult({ content: [{ type: "text", text: errorMessage }], isError: true }, false, content.id);
+                    }
+                    else {
+                        this.ctx.pendingTools.set(content.id, component);
+                    }
+                    appendAssistantSegment(afterToolSegment);
+                }
+                // Dangling toolCalls (no result on the resolved path — failed or
+                // retried turns, results on sibling branches) were stripped by the
+                // context build; surface a placeholder so the turn's activity is
+                // visibly elided instead of silently vanishing (the "bare thinking
+                // lines" transcript trap).
+                const strippedToolCalls = message.strippedToolCalls ?? 0;
+                if (strippedToolCalls > 0) {
+                    this.ctx.chatContainer.addChild(new StrippedToolCallsPlaceholder(strippedToolCalls, !this.ctx.hideToolActivity));
+                }
+                pendingUsage =
+                    cfgDisplayShowTokenUsage.get(this.ctx.settings) && assistantUsageIsBilled(message.usage)
+                        ? message.usage
+                        : undefined;
+                pendingUsageDuration = message.duration;
+                pendingUsageTtft = message.ttft;
+                pendingUsageTimestamp = message.timestamp;
+                pendingReadUsageCallIds = pendingUsage ? groupedReadUsageCallIds(message) : undefined;
+                pendingUsageTurnElapsed = cfgDisplayShowTurnTime.get(this.ctx.settings)
+                    ? turnElapsedMs(turnStartedAt, message)
+                    : undefined;
+            }
+            else if (message.role === "toolResult") {
+                if (options.preservedLiveToolCallIds?.has(message.toolCallId))
+                    continue;
+                const pendingReadComponent = this.ctx.pendingTools.get(message.toolCallId);
+                const isReadGroupResult = message.toolName === "read" &&
+                    (!pendingReadComponent || pendingReadComponent instanceof ReadToolGroupComponent);
+                if (isReadGroupResult) {
+                    const assistantComponent = readToolCallAssistantComponents.get(message.toolCallId);
+                    if (this.ctx.viewSession.isStreaming) {
+                        this.ctx.eventController?.inheritReadToolAssistant(message.toolCallId, undefined);
+                    }
+                    const images = message.content.filter((content) => content.type === "image");
+                    const mediaPath = readMediaPath(message.details);
+                    if (mediaPath && images.length === 0)
+                        assistantComponent?.setToolResultImages(message.toolCallId, [], mediaPath);
+                    if (images.length > 0 && assistantComponent) {
+                        assistantComponent.setToolResultImages(message.toolCallId, images, mediaPath);
+                        const hasText = message.content.some(c => c.type === "text");
+                        if (!hasText && cfgTerminalShowImages.get(settings)) {
+                            if (pendingReadComponent) {
+                                pendingReadComponent.updateResult(message, false, message.toolCallId);
+                                this.ctx.pendingTools.delete(message.toolCallId);
+                            }
+                            readToolCallArgs.delete(message.toolCallId);
+                            readToolCallAssistantComponents.delete(message.toolCallId);
+                            continue;
+                        }
+                    }
+                    let component = this.ctx.pendingTools.get(message.toolCallId);
+                    if (!component) {
+                        if (!readGroup) {
+                            readGroup = new ReadToolGroupComponent({
+                                showContentPreview: cfgReadToolResultPreview.get(this.ctx.settings),
+                            });
+                            readGroup.setExpanded(this.ctx.toolOutputExpanded);
+                            this.ctx.chatContainer.addChild(readGroup);
+                        }
+                        const args = readToolCallArgs.get(message.toolCallId);
+                        if (args) {
+                            readGroup.updateArgs(args, message.toolCallId);
+                        }
+                        component = readGroup;
+                        this.ctx.pendingTools.set(message.toolCallId, readGroup);
+                    }
+                    component.updateResult(message, false, message.toolCallId);
+                    this.ctx.pendingTools.delete(message.toolCallId);
+                    readToolCallArgs.delete(message.toolCallId);
+                    readToolCallAssistantComponents.delete(message.toolCallId);
+                    continue;
+                }
+                // Match tool results to pending tool components
+                const component = this.ctx.pendingTools.get(message.toolCallId);
+                if (component) {
+                    const jobId = message.details?.async?.jobId;
+                    const frame = activeToolExecutionUpdates.find(event => event.toolCallId === message.toolCallId)?.partialResult;
+                    const isBackground = parksAsBackground(message.toolName, message.details) &&
+                        (frame !== undefined || runningAsyncJobs.some(job => job.id === jobId));
+                    const settled = isBackground && isSettledJobFrame(frame?.details);
+                    // A background job call's persisted result is only its "still running"
+                    // snapshot; the job's latest frame supersedes it. Until that frame
+                    // settles, keep the card partial, parked, and in `pendingTools` so
+                    // later live progress frames land on it instead of hitting the
+                    // no-pending-component early return (#10447).
+                    if (settled) {
+                        settleWithJobFrame(component, frame, message.toolCallId);
+                    }
+                    else if (frame && isBackground) {
+                        component.updateResult(frame, true, message.toolCallId);
+                    }
+                    else {
+                        component.updateResult(message, isBackground, message.toolCallId);
+                    }
+                    if (isBackground && !settled) {
+                        component.parkAsBackground();
+                        backgroundCallIds.add(message.toolCallId);
+                    }
+                    else {
+                        this.ctx.pendingTools.delete(message.toolCallId);
+                        if (message.toolName === "wait" &&
+                            component instanceof ToolExecutionComponent &&
+                            component.isDisplaceableBlock()) {
+                            waitingPoll = component;
+                        }
+                        else if (message.toolName === "todo" &&
+                            component instanceof ToolExecutionComponent &&
+                            component.canBeDisplacedBy("todo")) {
+                            // A successful todo result supersedes the prior live snapshot. Failed
+                            // follow-ups return false from canBeDisplacedBy("todo"), so the
+                            // last-good panel stays on screen.
+                            resolveTodoSnapshot("todo");
+                            todoSnapshot = component;
+                        }
+                    }
+                }
+            }
+            else {
+                readGroup?.seal();
+                readGroup = null;
+                // A user prompt closes the displacement window, same as the live path.
+                if (message.role === "user")
+                    resolveWaitingPoll();
+                if (message.role === "user")
+                    resolveTodoSnapshot();
+                // Only genuinely user-attributed prompts anchor the delta; a mid-run
+                // agent-attributed `user` message (advisor tool-loop redirect) must not.
+                if (message.role === "user" && message.attribution !== "agent")
+                    turnStartedAt = message.timestamp;
+                // A synthetic developer message initiates a fresh run (auto-continue,
+                // /goal, approved plan): replay must not inherit the preceding user
+                // prompt's timestamp, mirroring the live agent_start clear. Same-turn
+                // continuation reminders (todo, plan) are persisted developer messages
+                // WITHOUT the synthetic marker, so their anchor survives the rebuild.
+                if (message.role === "developer" && message.synthetic) {
+                    // A deliberate operator action (`.`, `c` continue shortcut) is the
+                    // turn's own prompt: anchor the delta to it instead of clearing.
+                    if (message.userInitiated)
+                        turnStartedAt = message.timestamp;
+                    else
+                        turnStartedAt = undefined;
+                }
+                if (message.role === "custom" && isUserTurnInitiator(message)) {
+                    turnStartedAt = message.timestamp;
+                }
+                // All other messages use standard rendering
+                this.ctx.addMessageToChat(message, { reuseSettledComponent: options.reuseSettledComponents });
+            }
+        }
+        flushPendingUsage();
+        // The trailing read run has no following break to close it; seal so the
+        // rebuilt group can retire as history even with a never-persisted result.
+        readGroup?.seal();
+        // A trailing waiting poll is final history on rebuild; seal it and stop
+        // its spinner timer.
+        resolveWaitingPoll();
+        // A trailing todo snapshot is live state, not history: when the rebuild
+        // runs mid-turn (settings overlay close, focus attach during streaming),
+        // hand it back to the controller so a follow-up `todo` update keeps
+        // displacing instead of stacking. Idle rebuilds (resume / compaction)
+        // fall through to the seal path so the snapshot retires as history.
+        if (todoSnapshot && this.ctx.viewSession.isStreaming) {
+            this.ctx.eventController?.inheritDisplaceableTodo(todoSnapshot);
+            todoSnapshot = null;
+        }
+        else {
+            resolveTodoSnapshot();
+        }
+        // Same mid-turn handoff for the prompt→yield delta: focus attach and
+        // mid-turn rebuilds reset the controller's turn start before replaying,
+        // so the in-flight assistant `message_end` would otherwise render the
+        // usage row without the elapsed figure. Mirrors inheritDisplaceableTodo.
+        if (this.ctx.viewSession.isStreaming) {
+            this.ctx.eventController?.inheritTurnStart(turnStartedAt);
+        }
+        // Re-register parked background cards with the controller: focus
+        // attach resets its `#backgroundCallIds` before replaying, and unlike
+        // the todo/turn handoffs this must run whether or not the session streams
+        // — a background job keeps running while the main session sits idle
+        // (#10447). Membership is re-checked against `pendingTools`.
+        if (backgroundCallIds.size > 0) {
+            this.ctx.eventController?.markBackgroundCalls(backgroundCallIds);
+        }
+        // Entries still in `pendingTools` are toolCalls whose result never landed
+        // during the replay — with `keepInFlightToolCalls` these are exactly the
+        // turn's in-flight calls (assistant turn persisted at message_end, tool
+        // still executing). While the viewed session streams, keep them tracked so
+        // the live event stream routes `tool_execution_update`/`_end` into the
+        // rebuilt components instead of dropping the result; their args are final,
+        // so mark them complete. Idle rebuilds have no result coming: seal so the
+        // blocks can retire as history, then clear them so reconstructed historical
+        // components never leak into active tracking.
+        // (`rebuildChatFromMessages` builds its context WITHOUT dangling calls and
+        // restores its own preserved live components afterwards — for that caller
+        // the map is empty here either way.)
+        if (this.ctx.viewSession.isStreaming) {
+            for (const [toolCallId, component] of this.ctx.pendingTools) {
+                component.setArgsComplete(toolCallId);
+                if (this.ctx.eventController?.hasToolExecutionStarted(toolCallId)) {
+                    component.setExecutionStarted(toolCallId);
+                }
+            }
+        }
+        else {
+            for (const [toolCallId, component] of this.ctx.pendingTools) {
+                // A parked background job keeps running even while the main session
+                // is idle, so leave its card pending — sealing and clearing it would
+                // drop the replayed snapshot and every later job frame (#10447).
+                if (backgroundCallIds.has(toolCallId)) {
+                    component.setArgsComplete(toolCallId);
+                    continue;
+                }
+                component.seal();
+                this.ctx.pendingTools.delete(toolCallId);
+            }
+        }
+        this.ctx.ui.requestRender();
+    }
+    /**
+     * Fast-path history rewind (esc-esc branch, /tree rewind to an ancestor):
+     * drop the rendered components at/after `message` in place instead of the
+     * destructive clear-scrollback replay. Rows already committed to native
+     * scrollback are immutable, so the drop is expressible only while every
+     * affected block is still wholly inside the visible window; returns false
+     * when the caller must fall back to
+     * `renderInitialMessages({ clearTerminalHistory: true })`.
+     *
+     * Callers must have already rewound the session so that `message` and
+     * everything after it are no longer part of the view session's transcript.
+     */
+    truncateTranscriptFromMessage(message) {
+        if (!this.ctx.initialChatRendered || this.ctx.focusedAgentId || this.ctx.viewSession.isStreaming)
+            return false;
+        // In-flight blocks route future events into their components; a rewind
+        // with any of them live takes the full-replay path instead.
+        if (this.ctx.pendingTools.size > 0 ||
+            this.ctx.pendingBashComponents.length > 0 ||
+            this.ctx.pendingPythonComponents.length > 0) {
+            return false;
+        }
+        const chat = this.ctx.chatContainer;
+        const cut = this.ctx.transcriptMessageComponents.get(message);
+        if (!cut)
+            return false;
+        const index = chat.children.indexOf(cut);
+        if (index < 0)
+            return false;
+        // Every dropped block must still be uncommitted: removing rows already on
+        // the tape is an interior deletion of committed history the render engine
+        // cannot express (see TranscriptContainer.isBlockUncommitted).
+        for (let i = index; i < chat.children.length; i++) {
+            if (!chat.canRemoveBlock(chat.children[i]))
+                return false;
+        }
+        // Ground truth for the surviving prefix. The cut message still present
+        // means the session was not actually rewound past it — bail before
+        // mutating anything.
+        const context = this.ctx.viewSession.buildTranscriptSessionContext({
+            collapseCompactedHistory: cfgDisplayCollapseCompacted.get(settings),
+        });
+        for (const remaining of context.messages) {
+            if (remaining === message)
+                return false;
+        }
+        const dropped = chat.children.slice(index);
+        for (let i = dropped.length - 1; i >= 0; i--) {
+            const child = dropped[i];
+            chat.removeChild(child);
+            child.dispose?.();
+        }
+        // Prune the settled-component cache to the surviving messages — dropped
+        // entries stay strongly reachable through the session tree and would
+        // otherwise pin their components' layout caches (same rationale as
+        // rebuildChatFromMessages).
+        const retained = new WeakMap();
+        for (const remaining of context.messages) {
+            const component = this.ctx.transcriptMessageComponents.get(remaining);
+            if (component)
+                retained.set(remaining, component);
+        }
+        this.ctx.transcriptMessageComponents = retained;
+        // Reseed the cache-invalidation baseline from the surviving transcript
+        // (mirrors the replay path's billed-usage rule).
+        let baseline;
+        for (let i = context.messages.length - 1; i >= 0; i--) {
+            const candidate = context.messages[i];
+            if (candidate.role !== "assistant")
+                continue;
+            const usage = candidate.usage;
+            if (usage.cacheRead + usage.cacheWrite + usage.input > 0) {
+                baseline = usage;
+                break;
+            }
+        }
+        this.ctx.lastAssistantUsage = baseline;
+        this.ctx.statusLine.invalidate();
+        this.ctx.updateEditorBorderColor();
+        this.ctx.ui.requestRender();
+        return true;
+    }
+    async renderInitialMessages(options = {}) {
+        // Collapsed replay keeps in-flight calls so pending tools remain routable during mid-turn rebuilds.
+        let context = this.ctx.viewSession.buildTranscriptSessionContext({
+            collapseCompactedHistory: cfgDisplayCollapseCompacted.get(settings),
+            keepInFlightToolCalls: this.ctx.viewSession.isStreaming,
+        });
+        let replayEntryCount = this.ctx.viewSession.sessionManager.getEntries().length;
+        // Build against a detached container. Incremental construction still yields
+        // to terminal input, while paints keep using the complete visible transcript
+        // until the replacement is ready to swap in.
+        const visibleChatContainer = this.ctx.chatContainer;
+        const stagedChatContainer = new TranscriptContainer();
+        stagedChatContainer.setToolActivityVisible(!this.ctx.hideToolActivity);
+        const preservedChatChildren = options.preserveExistingChat ? [...visibleChatContainer.children] : undefined;
+        const previousTranscriptMessageComponents = this.ctx.transcriptMessageComponents;
+        const previousPendingTools = this.ctx.pendingTools;
+        const previousPendingBashComponents = this.ctx.pendingBashComponents;
+        const previousPendingPythonComponents = this.ctx.pendingPythonComponents;
+        const previousLastAssistantUsage = this.ctx.lastAssistantUsage;
+        const previousServedModelTracker = this.ctx.servedModelTracker;
+        const chatWasAlreadyRendered = this.ctx.initialChatRendered;
+        const renderOptions = {
+            updateFooter: true,
+        };
+        let committed = false;
+        let replayAttempts = 0;
+        this.ctx.initialChatRendered = false;
+        try {
+            // Resolve before replacing live component maps: streaming events may arrive during filesystem I/O.
+            await refreshAssistantMessageLinkTargets(this.ctx, context.messages.filter((message) => message.role === "assistant"));
+            this.ctx.chatContainer = stagedChatContainer;
+            this.ctx.transcriptMessageComponents = new WeakMap();
+            this.ctx.pendingTools = new Map();
+            // Drops deferred bash/python blocks with the old transcript, then repaints
+            // the queued-message bar from the live session queue: a mid-turn rebuild
+            // (rewind, /tree) keeps the queue, so it must stay visible and editable.
+            this.ctx.updatePendingMessagesDisplay();
+            this.ctx.pendingBashComponents = [];
+            this.ctx.pendingPythonComponents = [];
+            while (true) {
+                if (this.ctx.viewSession.isStreaming) {
+                    // Live events mutate the same component maps; keep their replay atomic so
+                    // a delta cannot land halfway through rebuilding its pending tool block.
+                    this.ctx.renderSessionContext(context, renderOptions);
+                }
+                else {
+                    await this.ctx.renderSessionContextIncrementally(context, renderOptions);
+                }
+                if (this.ctx.viewSession.sessionManager.getEntries().length === replayEntryCount) {
+                    break;
+                }
+                replayAttempts++;
+                if (replayAttempts >= TRANSCRIPT_REPLAY_MAX_ATTEMPTS) {
+                    // A source keeps persisting entries faster than a full replay pass
+                    // completes. Accept the transcript just replayed instead of
+                    // restarting forever (see TRANSCRIPT_REPLAY_MAX_ATTEMPTS).
+                    logger.warn("renderInitialMessages: transcript replay did not converge; accepting current replay", {
+                        attempts: replayAttempts,
+                        replayEntryCount,
+                        currentEntryCount: this.ctx.viewSession.sessionManager.getEntries().length,
+                    });
+                    break;
+                }
+                // An extension persisted a display message while the transcript replay
+                // yielded. The display callback stayed gated by initialChatRendered;
+                // discard the stale partial tree and replay the current session once
+                // more instead of letting a reentrant synchronous rebuild interleave.
+                context = this.ctx.viewSession.buildTranscriptSessionContext({
+                    collapseCompactedHistory: cfgDisplayCollapseCompacted.get(settings),
+                    keepInFlightToolCalls: this.ctx.viewSession.isStreaming,
+                });
+                replayEntryCount = this.ctx.viewSession.sessionManager.getEntries().length;
+                await refreshAssistantMessageLinkTargets(this.ctx, context.messages.filter((message) => message.role === "assistant"));
+                stagedChatContainer.disposeChildren();
+                this.ctx.transcriptMessageComponents = new WeakMap();
+                this.ctx.pendingTools.clear();
+                this.ctx.pendingBashComponents = [];
+                this.ctx.pendingPythonComponents = [];
+            }
+            const replayedChatChildren = [...stagedChatContainer.children];
+            stagedChatContainer.clear();
+            this.ctx.chatContainer = visibleChatContainer;
+            if (preservedChatChildren) {
+                visibleChatContainer.clear();
+            }
+            else {
+                visibleChatContainer.disposeChildren();
+            }
+            for (const child of replayedChatChildren) {
+                visibleChatContainer.addChild(child);
+            }
+            if (preservedChatChildren) {
+                for (const child of preservedChatChildren) {
+                    visibleChatContainer.addChild(child);
+                }
+            }
+            committed = true;
+            // Show compaction info if session was compacted.
+            const allEntries = this.ctx.viewSession.sessionManager.getEntries();
+            let compactionCount = 0;
+            for (const entry of allEntries) {
+                if (entry.type === "compaction") {
+                    compactionCount++;
+                }
+            }
+            if (compactionCount > 0) {
+                const times = compactionCount === 1 ? "1 time" : `${compactionCount} times`;
+                this.ctx.showStatus(`Session compacted ${times}`);
+            }
+            if (options.clearTerminalHistory) {
+                this.ctx.ui.requestRender(true, { clearScrollback: true });
+            }
+            else {
+                this.ctx.ui.requestRender();
+            }
+        }
+        finally {
+            if (!committed) {
+                this.ctx.chatContainer = visibleChatContainer;
+                this.ctx.transcriptMessageComponents = previousTranscriptMessageComponents;
+                this.ctx.pendingTools = previousPendingTools;
+                this.ctx.pendingBashComponents = previousPendingBashComponents;
+                this.ctx.pendingPythonComponents = previousPendingPythonComponents;
+                this.ctx.lastAssistantUsage = previousLastAssistantUsage;
+                this.ctx.servedModelTracker = previousServedModelTracker;
+                stagedChatContainer.disposeChildren();
+            }
+            this.ctx.initialChatRendered = committed ? true : chatWasAlreadyRendered;
+        }
+    }
+    clearEditor() {
+        if (cfgComposerRecallClearedDrafts.get(this.ctx.settings))
+            this.ctx.editor.clearDraftForRecall();
+        else
+            this.ctx.editor.clearDraft();
+        this.ctx.ui.requestRender();
+    }
+    showError(errorMessage) {
+        const text = new Text(`Error: ${errorMessage}`, 1, 0).setStyleFn(t => theme.fg("error", t));
+        this.ctx.present([new Spacer(1), text]);
+    }
+    showWarning(warningMessage, options) {
+        const text = new Text(`Warning: ${warningMessage}`, 1, 0).setStyleFn(t => theme.fg("warning", t));
+        const content = [new Spacer(1), text];
+        this.ctx.present(options?.hideWithToolActivity ? new ToolActivityContainer(content) : content);
+    }
+    updatePendingMessagesDisplay() {
+        this.ctx.pendingMessagesContainer.disposeChildren();
+        const queuedMessages = this.ctx.viewSession.getQueuedMessages();
+        const steeringMessages = [...queuedMessages.steering];
+        const followUpMessages = [...queuedMessages.followUp];
+        if (!this.ctx.focusedAgentId) {
+            for (const entry of this.ctx.compactionQueuedMessages) {
+                if (entry.mode === "steer")
+                    steeringMessages.push(entry.text);
+                else
+                    followUpMessages.push(entry.text);
+            }
+        }
+        const groups = [
+            { label: "Steering", messages: steeringMessages },
+            { label: "After yield", messages: followUpMessages },
+        ].filter(group => group.messages.length > 0);
+        if (groups.length > 0) {
+            const dequeueKey = this.ctx.keybindings.getKeys("app.message.dequeue")[0] ?? "alt+up";
+            this.ctx.pendingMessagesContainer.addChild(new QueuedMessagesBand(groups, dequeueKey, () => this.ctx.handleDequeue()));
+        }
+        this.ctx.ui.requestComponentRender(this.ctx.pendingMessagesContainer);
+    }
+    queueCompactionMessage(text, mode, images, options) {
+        const queuedImages = images && images.length > 0 ? images : undefined;
+        this.ctx.compactionQueuedMessages.push({ text, mode, images: queuedImages });
+        if (options?.preserveDraft)
+            this.ctx.editor.addToHistory(text);
+        else
+            this.ctx.editor.clearDraft(text);
+        this.ctx.updatePendingMessagesDisplay();
+        this.ctx.showStatus(queuedImages ? "Queued message with image for after compaction" : "Queued message for after compaction");
+    }
+    /**
+     * Park the loop when drain dispatch consumes the armed body locally (void
+     * custom command) instead of starting a turn. The drain otherwise discards
+     * prompt()'s result, and the next idle tick would resubmit a local action.
+     */
+    #parkLoopOnLocalConsume(text, forwarded) {
+        if (!forwarded && this.ctx.loopPrompt === text)
+            this.ctx.pauseLoop();
+    }
+    async #deliverQueuedMessage(message) {
+        const builtin = await executeBuiltinSlashCommand(message.text, {
+            ctx: this.ctx,
+            input: message.images ? { images: message.images } : undefined,
+        });
+        if (builtin === true) {
+            this.#parkLoopOnLocalConsume(message.text, false);
+            return;
+        }
+        if (typeof builtin === "string") {
+            const forwarded = await this.ctx.session.prompt(builtin, {
+                streamingBehavior: message.mode,
+                images: message.images,
+            });
+            this.#parkLoopOnLocalConsume(message.text, forwarded);
+            return;
+        }
+        if (await invokeSkillCommandFromText(this.ctx, message.text, message.mode, {
+            propagateErrors: true,
+            queueOnly: true,
+            images: message.images,
+        })) {
+            return;
+        }
+        if (this.ctx.isKnownSlashCommand(message.text)) {
+            const forwarded = await this.ctx.session.prompt(message.text);
+            this.#parkLoopOnLocalConsume(message.text, forwarded);
+            return;
+        }
+        await this.ctx.withLocalSubmission(message.text, () => message.mode === "followUp"
+            ? this.ctx.session.followUp(message.text, message.images)
+            : this.ctx.session.steer(message.text, message.images), { imageCount: message.images?.length ?? 0 });
+    }
+    isKnownSlashCommand(text) {
+        if (!text.startsWith("/"))
+            return false;
+        const parsed = parseSlashCommand(text);
+        const builtin = parsed && lookupBuiltinSlashCommand(parsed.name);
+        if (builtin && (builtin.allowArgs || !parsed.args))
+            return true;
+        const spaceIndex = text.indexOf(" ");
+        const commandName = spaceIndex === -1 ? text.slice(1) : text.slice(1, spaceIndex);
+        if (!commandName)
+            return false;
+        if (this.ctx.session.extensionRunner?.getCommand(commandName)) {
+            return true;
+        }
+        for (const command of this.ctx.session.customCommands) {
+            if (command.command.name === commandName) {
+                return true;
+            }
+        }
+        return this.ctx.fileSlashCommands.has(commandName);
+    }
+    async flushCompactionQueue(options) {
+        if (this.ctx.compactionQueuedMessages.length === 0) {
+            return;
+        }
+        const queuedMessages = [...this.ctx.compactionQueuedMessages];
+        this.ctx.compactionQueuedMessages = [];
+        this.ctx.updatePendingMessagesDisplay();
+        const restoreQueue = (error) => {
+            this.ctx.session.clearQueue();
+            this.ctx.compactionQueuedMessages = queuedMessages;
+            this.ctx.updatePendingMessagesDisplay();
+            this.ctx.showError(`Failed to send queued message${queuedMessages.length > 1 ? "s" : ""}: ${error instanceof Error ? error.message : String(error)}`);
+        };
+        try {
+            if (options?.willRetry) {
+                for (const message of queuedMessages) {
+                    await this.#deliverQueuedMessage(message);
+                }
+                this.ctx.updatePendingMessagesDisplay();
+                return;
+            }
+            let firstPromptIndex = -1;
+            for (let i = 0; i < queuedMessages.length; i++) {
+                if (!this.ctx.isKnownSlashCommand(queuedMessages[i].text)) {
+                    firstPromptIndex = i;
+                    break;
+                }
+            }
+            if (firstPromptIndex === -1) {
+                for (const message of queuedMessages) {
+                    await this.#deliverQueuedMessage(message);
+                }
+                return;
+            }
+            const preCommands = queuedMessages.slice(0, firstPromptIndex);
+            const firstPrompt = queuedMessages[firstPromptIndex];
+            const rest = queuedMessages.slice(firstPromptIndex + 1);
+            for (const message of preCommands) {
+                // preCommands are all slash commands; #deliverQueuedMessage handles
+                // that branch (no local-submission marking needed since slash
+                // commands don't generate a matching user message_start).
+                await this.#deliverQueuedMessage(message);
+            }
+            // First prompt is fire-and-forget — its rejection is funneled through
+            // `restoreQueue` rather than rethrown. Plain prompts use primitive
+            // recordLocalSubmission and dispose manually in the catch. Skill prompts
+            // are rebuilt as user-attributed custom messages so queued `/skill:` text
+            // is not sent as a literal prompt after compaction.
+            let promptPromise;
+            if (isKnownSkillCommand(this.ctx, firstPrompt.text)) {
+                const built = await buildSkillCommandPrompt(this.ctx, firstPrompt.text, firstPrompt.mode, firstPrompt.images);
+                promptPromise = built
+                    ? this.ctx.session.promptCustomMessage(built.message, built.options).catch(restoreQueue)
+                    : Promise.resolve();
+            }
+            else {
+                const disposeFirstPrompt = this.ctx.recordLocalSubmission(firstPrompt.text, firstPrompt.images?.length ?? 0);
+                promptPromise = this.ctx.session
+                    .prompt(firstPrompt.text, {
+                    streamingBehavior: firstPrompt.mode === "followUp" ? "followUp" : "steer",
+                    images: firstPrompt.images,
+                })
+                    .catch((error) => {
+                    disposeFirstPrompt();
+                    restoreQueue(error);
+                });
+            }
+            for (const message of rest) {
+                await this.#deliverQueuedMessage(message);
+            }
+            this.ctx.updatePendingMessagesDisplay();
+            // The dispatch above bypasses `getUserInput`, so nothing would schedule
+            // the next loop iteration for a prompt queued during compaction.
+            if (this.ctx.loopModeEnabled)
+                this.ctx.armLoopAutoSubmit();
+            void promptPromise;
+        }
+        catch (error) {
+            restoreQueue(error);
+        }
+    }
+    /** Move pending bash components from pending area to chat */
+    flushPendingBashComponents() {
+        for (const component of this.ctx.pendingBashComponents) {
+            this.ctx.pendingMessagesContainer.removeChild(component);
+            this.ctx.chatContainer.addChild(component);
+        }
+        this.ctx.pendingBashComponents = [];
+        for (const component of this.ctx.pendingPythonComponents) {
+            this.ctx.pendingMessagesContainer.removeChild(component);
+            this.ctx.chatContainer.addChild(component);
+        }
+        this.ctx.pendingPythonComponents = [];
+    }
+    findLastAssistantMessage() {
+        for (let i = this.ctx.viewSession.messages.length - 1; i >= 0; i--) {
+            const message = this.ctx.viewSession.messages[i];
+            if (message?.role === "assistant") {
+                return message;
+            }
+        }
+        return undefined;
+    }
+    extractAssistantText(message) {
+        return extractVisibleAssistantText(message);
+    }
+}

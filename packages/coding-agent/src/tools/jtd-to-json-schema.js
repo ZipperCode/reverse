@@ -1,0 +1,367 @@
+/**
+ * Convert JSON Type Definition (JTD) to JSON Schema.
+ *
+ * JTD (RFC 8927) is a simpler schema format. This converter allows users to
+ * write schemas in JTD and have them converted to JSON Schema for model APIs.
+ *
+ * @see https://jsontypedef.com/
+ * @see https://datatracker.ietf.org/doc/html/rfc8927
+ */
+import { isRecord } from "@rva/utils";
+import { isJTDDiscriminator, isJTDElements, isJTDEnum, isJTDProperties, isJTDRef, isJTDType, isJTDValues, } from "./jtd-utils.js";
+const primitiveMap = {
+    boolean: "boolean",
+    string: "string",
+    timestamp: "string", // ISO 8601
+    float32: "number",
+    float64: "number",
+    int8: "integer",
+    uint8: "integer",
+    int16: "integer",
+    uint16: "integer",
+    int32: "integer",
+    uint32: "integer",
+};
+function convertSchema(schema) {
+    if (schema === null || typeof schema !== "object")
+        return {};
+    const converted = convertSchemaForm(schema);
+    return "nullable" in schema && schema.nullable === true ? { anyOf: [converted, { type: "null" }] } : converted;
+}
+function convertSchemaForm(schema) {
+    // Enum form: { enum: ["a", "b"] } → { enum: ["a", "b"] }
+    if (isJTDEnum(schema)) {
+        return { enum: schema.enum };
+    }
+    // Elements form: { elements: { type: "string" } } → { type: "array", items: ... }
+    if (isJTDElements(schema)) {
+        return {
+            type: "array",
+            items: convertSchema(schema.elements),
+        };
+    }
+    // Type form: { type: "string" } → { type: "string" }
+    if (isJTDType(schema)) {
+        const jsonType = primitiveMap[schema.type];
+        if (!jsonType) {
+            return { type: schema.type };
+        }
+        return { type: jsonType };
+    }
+    // Values form: { values: { type: "string" } } → { type: "object", additionalProperties: ... }
+    if (isJTDValues(schema)) {
+        return {
+            type: "object",
+            additionalProperties: convertSchema(schema.values),
+        };
+    }
+    // Properties form: { properties: {...}, optionalProperties: {...} }
+    if (isJTDProperties(schema)) {
+        const properties = {};
+        const required = [];
+        // Required properties
+        if (schema.properties) {
+            for (const [key, value] of Object.entries(schema.properties)) {
+                properties[key] = convertSchema(value);
+                required.push(key);
+            }
+        }
+        // Optional properties
+        if (schema.optionalProperties) {
+            for (const [key, value] of Object.entries(schema.optionalProperties)) {
+                properties[key] = convertSchema(value);
+            }
+        }
+        const result = {
+            type: "object",
+            properties,
+            additionalProperties: false,
+        };
+        if (required.length > 0) {
+            result.required = required;
+        }
+        return result;
+    }
+    // Discriminator form: { discriminator: "type", mapping: { ... } }
+    if (isJTDDiscriminator(schema)) {
+        const oneOf = [];
+        for (const [tag, props] of Object.entries(schema.mapping)) {
+            const converted = convertSchema(props);
+            // Add the discriminator property
+            const properties = (converted.properties || {});
+            properties[schema.discriminator] = { const: tag };
+            const required = (converted.required || []).slice();
+            if (!required.includes(schema.discriminator)) {
+                required.push(schema.discriminator);
+            }
+            oneOf.push({
+                ...converted,
+                properties,
+                required,
+            });
+        }
+        return { oneOf };
+    }
+    // Ref form: { ref: "MyType" } → { $ref: "#/$defs/MyType" }
+    if (isJTDRef(schema)) {
+        return { $ref: `#/$defs/${schema.ref}` };
+    }
+    // Empty form: {} → {} (accepts anything)
+    return {};
+}
+const jtdOnlyPrimitiveTypes = {
+    timestamp: true,
+    float32: true,
+    float64: true,
+    int8: true,
+    uint8: true,
+    int16: true,
+    uint16: true,
+    int32: true,
+    uint32: true,
+};
+/** Every keyword RFC 8927 defines. A member outside this set proves the document is JSON Schema. */
+const jtdKeywords = {
+    definitions: true,
+    metadata: true,
+    nullable: true,
+    ref: true,
+    type: true,
+    enum: true,
+    elements: true,
+    properties: true,
+    optionalProperties: true,
+    additionalProperties: true,
+    values: true,
+    discriminator: true,
+    mapping: true,
+};
+/** JTD sub-schema maps, recursed by {@link isJTDDocument}. `metadata` stays opaque: it holds arbitrary user data. */
+const jtdSchemaMaps = ["properties", "optionalProperties", "definitions", "mapping"];
+/**
+ * Check that `schema` and every sub-schema it reaches stay inside the JTD grammar
+ * (RFC 8927 §2): known keywords only, `type` limited to the JTD primitives, and the
+ * scalar keywords carrying their declared value types.
+ *
+ * Used to resolve documents whose root parses as both formats. JSON Schema reaches
+ * here through keywords JTD never defines (`items`, `required`, `$ref`, `anyOf`, …)
+ * or through `type` values JTD never allows (`"object"`, `"array"`, `"integer"`), so
+ * one such node rules the whole document out.
+ */
+function isJTDDocument(schema) {
+    if (!isRecord(schema))
+        return false;
+    for (const key in schema) {
+        if (!Object.hasOwn(schema, key))
+            continue;
+        if (!Object.hasOwn(jtdKeywords, key))
+            return false;
+    }
+    if ("type" in schema && !(typeof schema.type === "string" && Object.hasOwn(primitiveMap, schema.type)))
+        return false;
+    if ("enum" in schema && !(Array.isArray(schema.enum) && schema.enum.every(value => typeof value === "string"))) {
+        return false;
+    }
+    if ("ref" in schema && typeof schema.ref !== "string")
+        return false;
+    if ("discriminator" in schema && typeof schema.discriminator !== "string")
+        return false;
+    if ("nullable" in schema && typeof schema.nullable !== "boolean")
+        return false;
+    if ("additionalProperties" in schema && typeof schema.additionalProperties !== "boolean")
+        return false;
+    if ("elements" in schema && !isJTDDocument(schema.elements))
+        return false;
+    if ("values" in schema && !isJTDDocument(schema.values))
+        return false;
+    for (const mapKeyword of jtdSchemaMaps) {
+        const map = schema[mapKeyword];
+        if (map === undefined)
+            continue;
+        if (!isRecord(map))
+            return false;
+        for (const name in map) {
+            if (!Object.hasOwn(map, name))
+                continue;
+            if (!isJTDDocument(map[name]))
+                return false;
+        }
+    }
+    return true;
+}
+/**
+ * Detect if a schema is JTD format (vs JSON Schema).
+ *
+ * JTD schemas use: type (primitives), properties, optionalProperties, elements, values, enum, discriminator, ref
+ * JSON Schema uses: type: "object", type: "array", items, additionalProperties, etc.
+ */
+export function isJTDSchema(schema) {
+    if (schema === null || typeof schema !== "object") {
+        return false;
+    }
+    const obj = schema;
+    // JTD-specific keywords
+    if ("elements" in obj)
+        return true;
+    if ("values" in obj)
+        return true;
+    if ("optionalProperties" in obj)
+        return true;
+    if ("discriminator" in obj)
+        return true;
+    if ("ref" in obj)
+        return true;
+    // JTD type primitives (JSON Schema doesn't have int32, float64, etc.)
+    if (typeof obj.type === "string" && Object.hasOwn(jtdOnlyPrimitiveTypes, obj.type)) {
+        return true;
+    }
+    // `properties` without `type` parses as both JTD and JSON Schema. Only the whole
+    // document separates them, because the JTD reading is destructive: `convertSchema`
+    // rebuilds the node from JTD keywords alone and drops everything else (#12893).
+    if ("properties" in obj && !("type" in obj)) {
+        return isJTDDocument(obj);
+    }
+    return false;
+}
+function isUnambiguousJTDSchema(schema) {
+    if (!isRecord(schema))
+        return false;
+    if (isRecord(schema.elements) || isRecord(schema.values) || isRecord(schema.optionalProperties)) {
+        return true;
+    }
+    if (typeof schema.ref === "string")
+        return true;
+    if (typeof schema.type === "string" && Object.hasOwn(jtdOnlyPrimitiveTypes, schema.type)) {
+        return true;
+    }
+    if (typeof schema.discriminator !== "string" || !isRecord(schema.mapping)) {
+        return false;
+    }
+    for (const key in schema.mapping) {
+        if (!Object.hasOwn(schema.mapping, key))
+            continue;
+        const mapping = schema.mapping[key];
+        if (!isRecord(mapping))
+            return false;
+        let hasSchemaProperties = false;
+        if (Object.hasOwn(mapping, "properties")) {
+            if (!isRecord(mapping.properties))
+                return false;
+            hasSchemaProperties = true;
+        }
+        if (Object.hasOwn(mapping, "optionalProperties")) {
+            if (!isRecord(mapping.optionalProperties))
+                return false;
+            hasSchemaProperties = true;
+        }
+        if (!hasSchemaProperties)
+            return false;
+    }
+    return true;
+}
+function normalizeJsonSchemaArray(value) {
+    if (!Array.isArray(value))
+        return value;
+    let normalized;
+    for (let index = 0; index < value.length; index++) {
+        const item = value[index];
+        const converted = normalizeJsonSchemaNode(item);
+        if (converted === item)
+            continue;
+        normalized ??= value.slice();
+        normalized[index] = converted;
+    }
+    return normalized ?? value;
+}
+function normalizeJsonSchemaMap(value) {
+    if (!isRecord(value))
+        return value;
+    let normalized;
+    for (const key in value) {
+        if (!Object.hasOwn(value, key))
+            continue;
+        const item = value[key];
+        const converted = normalizeJsonSchemaNode(item);
+        if (converted === item)
+            continue;
+        normalized ??= { ...value };
+        normalized[key] = converted;
+    }
+    return normalized ?? value;
+}
+function normalizeJsonSchemaNode(schema) {
+    if (!isRecord(schema))
+        return schema;
+    if (isUnambiguousJTDSchema(schema))
+        return convertSchema(schema);
+    let normalized;
+    for (const key in schema) {
+        if (!Object.hasOwn(schema, key))
+            continue;
+        const value = schema[key];
+        let converted;
+        switch (key) {
+            case "not":
+            case "if":
+            case "then":
+            case "else":
+            case "items":
+            case "contains":
+            case "propertyNames":
+            case "additionalProperties":
+            case "unevaluatedProperties":
+            case "unevaluatedItems":
+            case "contentSchema":
+                converted = normalizeJsonSchemaNode(value);
+                break;
+            case "allOf":
+            case "anyOf":
+            case "oneOf":
+            case "prefixItems":
+                converted = normalizeJsonSchemaArray(value);
+                break;
+            case "properties":
+            case "patternProperties":
+            case "$defs":
+            case "definitions":
+            case "dependentSchemas":
+                converted = normalizeJsonSchemaMap(value);
+                break;
+            default:
+                continue;
+        }
+        if (converted === value)
+            continue;
+        normalized ??= { ...schema };
+        normalized[key] = converted;
+    }
+    return normalized ?? schema;
+}
+/**
+ * Convert JTD schema to JSON Schema.
+ * If already JSON Schema, returns as-is.
+ */
+export function jtdToJsonSchema(schema) {
+    if (isJTDSchema(schema)) {
+        // convertSchema is recursive; re-walking its JSON Schema output caused #1345.
+        return convertSchema(schema);
+    }
+    return normalizeJsonSchemaNode(schema);
+}
+/**
+ * Normalize a schema input that may be a JSON string, object, or null/undefined.
+ * Returns { normalized } on success, or { error } if JSON parsing fails.
+ */
+export function normalizeSchema(schema) {
+    if (schema === undefined || schema === null)
+        return {};
+    if (typeof schema === "string") {
+        try {
+            return { normalized: JSON.parse(schema) };
+        }
+        catch (err) {
+            return { error: err instanceof Error ? err.message : String(err) };
+        }
+    }
+    return { normalized: schema };
+}
