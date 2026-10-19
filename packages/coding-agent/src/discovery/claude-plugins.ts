@@ -557,12 +557,12 @@ async function resolveMarketplaceEnv(
 	const literalKeys: string[] = [];
 	for (const [key, rawValue] of Object.entries(env)) {
 		// Feed the reserved plugin-root names through extraEnv: expansion then
-		// cannot consume an ambient CLAUDE_PLUGIN_ROOT/RVA_PLUGIN_ROOT, and
+		// cannot consume an ambient CLAUDE_PLUGIN_ROOT/REVERSE_PLUGIN_ROOT, and
 		// the registered root inserted as the value is never re-scanned
 		// for `${...}`.
 		const final = expandEnvVarsDeep(rawValue, {
 			CLAUDE_PLUGIN_ROOT: rootPath,
-			RVA_PLUGIN_ROOT: rootPath,
+			REVERSE_PLUGIN_ROOT: rootPath,
 		}) as string;
 		if (final !== rawValue) literalKeys.push(key);
 		resolved[key] = final;

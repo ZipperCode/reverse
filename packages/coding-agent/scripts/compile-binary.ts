@@ -50,9 +50,9 @@ export async function compileCodingAgent(options: CodingAgentCompileOptions): Pr
 			external: [...COMPILED_EXTERNAL_DEPENDENCIES],
 			files: options.native ? await embeddedAddonFiles(options.native) : {},
 			define: {
-				"process.env.RVA_COMPILED": JSON.stringify("true"),
-				"process.env.RVA_TINY_TRANSFORMERS_VERSION": JSON.stringify(options.transformersVersion),
-				"process.env.RVA_DOCS_EMBED": JSON.stringify((await buildDocsIndexPayload()).payload),
+				"process.env.REVERSE_COMPILED": JSON.stringify("true"),
+				"process.env.REVERSE_TINY_TRANSFORMERS_VERSION": JSON.stringify(options.transformersVersion),
+				"process.env.REVERSE_DOCS_EMBED": JSON.stringify((await buildDocsIndexPayload()).payload),
 			},
 			// Precompiled bytecode skips parsing the ~20 MB bundle at boot:
 			// `omp --version` 256 ms -> 30 ms on M4 Max (+52 MB binary).

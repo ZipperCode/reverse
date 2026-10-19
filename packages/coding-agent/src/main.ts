@@ -1879,7 +1879,7 @@ export async function runRootCommand(
 		// awaited before any session entry is written.
 		const runtimeIdentityLoad = logger.time("loadRuntimeIdentity", loadRuntimeIdentity);
 		if (parsedArgs.noPty || parsedArgs.mode === "rpc-ui") {
-			Bun.env.RVA_NO_PTY = "1";
+			Bun.env.REVERSE_NO_PTY = "1";
 			Bun.env.PI_NO_PTY = "1";
 		}
 		if (
@@ -1888,7 +1888,7 @@ export async function runRootCommand(
 			parsedArgs.mode === "rpc-ui" ||
 			parsedArgs.mode === "acp"
 		) {
-			Bun.env.RVA_NO_TITLE = "1";
+			Bun.env.REVERSE_NO_TITLE = "1";
 			Bun.env.PI_NO_TITLE = "1";
 		}
 
@@ -1896,9 +1896,9 @@ export async function runRootCommand(
 		logger.time("initializeWithSettings", initializeWithSettings, settingsInstance);
 
 		// Apply model role overrides from CLI args or env vars (ephemeral, not persisted)
-		const smolModel = parsedArgs.smol ?? $env.RVA_SMOL_MODEL ?? $env.PI_SMOL_MODEL;
-		const slowModel = parsedArgs.slow ?? $env.RVA_SLOW_MODEL ?? $env.PI_SLOW_MODEL;
-		const planModel = parsedArgs.plan ?? $env.RVA_PLAN_MODEL ?? $env.PI_PLAN_MODEL;
+		const smolModel = parsedArgs.smol ?? $env.REVERSE_SMOL_MODEL ?? $env.PI_SMOL_MODEL;
+		const slowModel = parsedArgs.slow ?? $env.REVERSE_SLOW_MODEL ?? $env.PI_SLOW_MODEL;
+		const planModel = parsedArgs.plan ?? $env.REVERSE_PLAN_MODEL ?? $env.PI_PLAN_MODEL;
 		if (smolModel || slowModel || planModel) {
 			settingsInstance.overrideModelRoles({
 				smol: smolModel,

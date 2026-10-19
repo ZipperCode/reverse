@@ -572,14 +572,14 @@ describe("custom provider consumer contract", () => {
 			TMPDIR: home,
 			LANG: process.env.LANG ?? "en_US.UTF-8",
 			TERM: "xterm-256color",
-			RVA_CODING_AGENT_DIR: agentDir,
-			RVA_NO_TITLE: "1",
-			RVA_SKIP_SETUP: "1",
+			REVERSE_CODING_AGENT_DIR: agentDir,
+			REVERSE_NO_TITLE: "1",
+			REVERSE_SKIP_SETUP: "1",
 			NO_COLOR: "1",
-			RVA_TUI_NATIVE: "0",
+			REVERSE_TUI_NATIVE: "0",
 			PI_TUI_NATIVE: "0",
 		};
-		const cliBin = path.resolve(import.meta.dir, "../../dist/rva");
+		const cliBin = path.resolve(import.meta.dir, "../../dist/reverse");
 		const cliArgs = fs.existsSync(cliBin)
 			? [cliBin]
 			: [process.execPath, path.join(import.meta.dir, "../../src/cli.ts")];

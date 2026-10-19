@@ -63,9 +63,9 @@ if "__omp_prelude_loaded__" not in globals():
     _OMP_BARE_ARTIFACT_RE = re.compile(r"^artifact://\d+$", re.IGNORECASE)
 
     def _omp_url_roots() -> dict:
-        """On-disk roots for internal-URL schemes, keyed by scheme (RVA_EVAL_LOCAL_ROOTS)."""
+        """On-disk roots for internal-URL schemes, keyed by scheme (REVERSE_EVAL_LOCAL_ROOTS)."""
         try:
-            roots = json.loads(os.environ.get("RVA_EVAL_LOCAL_ROOTS") or "{}")
+            roots = json.loads(os.environ.get("REVERSE_EVAL_LOCAL_ROOTS") or "{}")
         except (ValueError, TypeError):
             return {}
         return roots if isinstance(roots, dict) else {}
@@ -125,7 +125,7 @@ if "__omp_prelude_loaded__" not in globals():
         """Map a helper path to a real filesystem Path.
 
         A `scheme://…` whose scheme has an injected on-disk root (via
-        RVA_EVAL_LOCAL_ROOTS) is rewritten under that root so it lands where
+        REVERSE_EVAL_LOCAL_ROOTS) is rewritten under that root so it lands where
         `read scheme://…` resolves — not a literal `scheme:/` directory under
         the cwd (which `Path("scheme://x")` collapses to). Plain paths pass
         through unchanged; any other `scheme://` is rejected, as is

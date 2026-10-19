@@ -371,40 +371,40 @@ describe("GrepTool internal URL resolution", () => {
 		);
 	});
 
-	it("expands rva:// root to grep embedded documentation files", async () => {
+	it("expands reverse:// root to grep embedded documentation files", async () => {
 		const session = createSession();
 		const tool = new GrepTool(session);
 
 		const result = await tool.execute("test-call", {
 			pattern: "Grep file contents with a regex across files",
-			path: "rva://",
+			path: "reverse://",
 		});
 
 		const text = getResultText(result);
-		expect(text).toContain("# rva://tools/grep.md");
+		expect(text).toContain("# reverse://tools/grep.md");
 		expect(text).toContain("Grep file contents with a regex across files");
 	});
 
-	it("walks an rva:// docs subdirectory and names hits by URL without edit anchors", async () => {
+	it("walks a reverse:// docs subdirectory and names hits by URL without edit anchors", async () => {
 		const session = createSession({ hasEditTool: true });
 		const tool = new GrepTool(session);
 
 		const result = await tool.execute("test-call", {
 			pattern: "Read files, directories, archives",
-			path: "rva://tools",
+			path: "reverse://tools",
 		});
 
 		const text = getResultText(result);
-		expect(result.details?.files).toContain("rva://tools/read.md");
+		expect(result.details?.files).toContain("reverse://tools/read.md");
 		expect(text).toContain("Read files, directories, archives");
-		expect(text).not.toMatch(/rva:\/\/tools\/read\.md#[0-9A-F]{4}/);
+		expect(text).not.toMatch(/reverse:\/\/tools\/read\.md#[0-9A-F]{4}/);
 	});
 
-	it("globs rva:// docs by URL pattern", async () => {
-		const text = getResultText(await new GlobTool(createSession()).execute("glob-rva", { path: "rva://tools/*.md" }));
+	it("globs reverse:// docs by URL pattern", async () => {
+		const text = getResultText(await new GlobTool(createSession()).execute("glob-reverse", { path: "reverse://tools/*.md" }));
 
-		expect(text).toContain("rva://tools/read.md");
-		expect(text).toContain("rva://tools/grep.md");
+		expect(text).toContain("reverse://tools/read.md");
+		expect(text).toContain("reverse://tools/grep.md");
 	});
 
 	it("suppresses hashline anchors when searching immutable artifact:// sources", async () => {

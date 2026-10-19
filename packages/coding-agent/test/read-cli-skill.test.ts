@@ -46,7 +46,7 @@ describe("omp read skill resources", () => {
 				HOME: root,
 				USERPROFILE: root,
 				NO_COLOR: "1",
-				RVA_CODING_AGENT_DIR: agentDir,
+				REVERSE_CODING_AGENT_DIR: agentDir,
 			},
 		});
 		const stdout = new Response(proc.stdout).text();

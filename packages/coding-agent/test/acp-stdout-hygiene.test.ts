@@ -105,8 +105,8 @@ describe("ACP stdout hygiene", () => {
 				...process.env,
 				XDG_DATA_HOME: xdg,
 				XDG_CONFIG_HOME: xdg,
-				RVA_CODING_AGENT_DIR: agentDir,
-				RVA_NO_TITLE: "1",
+				REVERSE_CODING_AGENT_DIR: agentDir,
+				REVERSE_NO_TITLE: "1",
 				NO_COLOR: "1",
 			},
 		});

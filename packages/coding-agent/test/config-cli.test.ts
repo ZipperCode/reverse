@@ -6,7 +6,7 @@ import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
 import { getConfigRootDir, setAgentDir, TempDir } from "@rva/utils";
 
 let testAgentDir: TempDir | undefined;
-const originalAgentDir = process.env.RVA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.REVERSE_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 
@@ -42,7 +42,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.RVA_CODING_AGENT_DIR;
+		delete process.env.REVERSE_CODING_AGENT_DIR;
 	}
 	if (testAgentDir) {
 		try {
@@ -209,7 +209,7 @@ describe("config CLI schema coverage", () => {
 	it("fully flushes JSON larger than a pipe buffer", async () => {
 		if (!testAgentDir) throw new Error("Test agent directory was not initialized");
 		const { exitCode, output, error } = await runCliProcess(["config", "list", "--json"], {
-			RVA_CODING_AGENT_DIR: testAgentDir.path(),
+			REVERSE_CODING_AGENT_DIR: testAgentDir.path(),
 		});
 
 		expect(exitCode).toBe(0);
@@ -222,8 +222,8 @@ describe("config CLI schema coverage", () => {
 		if (!testAgentDir) throw new Error("Test agent directory was not initialized");
 		const overlayPath = path.join(testAgentDir.path(), "overlay.yml");
 		await Bun.write(overlayPath, "compaction:\n  enabled: false\n");
-		const previousConfigFiles = process.env.RVA_CONFIG_FILES;
-		process.env.RVA_CONFIG_FILES = overlayPath;
+		const previousConfigFiles = process.env.REVERSE_CONFIG_FILES;
+		process.env.REVERSE_CONFIG_FILES = overlayPath;
 		try {
 			const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 			await runConfigCommand({ action: "set", key: "compaction.enabled", value: "true", flags: { json: true } });
@@ -233,8 +233,8 @@ describe("config CLI schema coverage", () => {
 				overriddenBy: "overlay",
 			});
 		} finally {
-			if (previousConfigFiles === undefined) delete process.env.RVA_CONFIG_FILES;
-			else process.env.RVA_CONFIG_FILES = previousConfigFiles;
+			if (previousConfigFiles === undefined) delete process.env.REVERSE_CONFIG_FILES;
+			else process.env.REVERSE_CONFIG_FILES = previousConfigFiles;
 		}
 	});
 	it("loads PI_CONFIG_FILES overlays in path-list order", async () => {
@@ -246,8 +246,8 @@ describe("config CLI schema coverage", () => {
 			Bun.write(finalOverlayPath, "defaultThinkingLevel: max\n"),
 		]);
 		const { exitCode, output, error } = await runCliProcess(["config", "get", "defaultThinkingLevel", "--json"], {
-			RVA_CODING_AGENT_DIR: testAgentDir.path(),
-			RVA_CONFIG_FILES: [baseOverlayPath, finalOverlayPath].join(path.delimiter),
+			REVERSE_CODING_AGENT_DIR: testAgentDir.path(),
+			REVERSE_CONFIG_FILES: [baseOverlayPath, finalOverlayPath].join(path.delimiter),
 		});
 
 		expect(exitCode).toBe(0);

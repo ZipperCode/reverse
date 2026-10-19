@@ -215,7 +215,7 @@ const napiBin = path.join(path.dirname(napiManifestPath), napiBinEntry);
 
 // Profiles live in the root Cargo.toml; `local` trades size for iteration
 // speed, `ci` strips and drops incremental state.
-const cargoProfile = Bun.env.RVA_NATIVE_CARGO_PROFILE?.trim() || "local";
+const cargoProfile = Bun.env.REVERSE_NATIVE_CARGO_PROFILE?.trim() || "local";
 
 const napiArgs = [
 	"build",
@@ -235,7 +235,7 @@ const napiArgs = [
 
 // Local-only opt-in: pass extra cargo features through to napi build, e.g.
 // OMP_NATIVE_FEATURES=wayland-pipewire bun --cwd=packages/natives run build
-const extraFeatures = Bun.env.RVA_NATIVE_FEATURES?.trim();
+const extraFeatures = Bun.env.REVERSE_NATIVE_FEATURES?.trim();
 if (extraFeatures) {
 	napiArgs.push("--features", extraFeatures);
 }

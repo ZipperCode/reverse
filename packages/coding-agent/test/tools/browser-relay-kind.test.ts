@@ -25,12 +25,12 @@ describe("resolveRelayKind", () => {
 		});
 	});
 
-	it("RVA_BROWSER_RELAY=0 disables the relay even when the setting enables it", () => {
-		expect(resolveRelayKind({ settingEnabled: true }, { RVA_BROWSER_RELAY: "0" })).toBeNull();
+	it("REVERSE_BROWSER_RELAY=0 disables the relay even when the setting enables it", () => {
+		expect(resolveRelayKind({ settingEnabled: true }, { REVERSE_BROWSER_RELAY: "0" })).toBeNull();
 	});
 
-	it("RVA_BROWSER_RELAY=1 enables the relay when the setting is off", () => {
-		expect(resolveRelayKind({ settingEnabled: false }, { RVA_BROWSER_RELAY: "1" })).toEqual({
+	it("REVERSE_BROWSER_RELAY=1 enables the relay when the setting is off", () => {
+		expect(resolveRelayKind({ settingEnabled: false }, { REVERSE_BROWSER_RELAY: "1" })).toEqual({
 			kind: "relay",
 			cdpUrl: DEFAULT_RELAY_URL,
 		});

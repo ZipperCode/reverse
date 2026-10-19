@@ -746,7 +746,7 @@ export const cfgLanguage = register({
 	type: "enum",
 	values: ["en", "zh-CN"] as const,
 	default: "en",
-	env: "RVA_LANG",
+	env: "REVERSE_LANG",
 	ui: {
 		tab: "appearance",
 		group: "Display",

@@ -15,7 +15,7 @@ function mockWhich(lookup: Record<string, string | null>): SkillRequirementWhich
 }
 
 afterEach(() => {
-	process.env.RVA_LANG = "en";
+	process.env.REVERSE_LANG = "en";
 });
 
 describe("MCP helper service catalog", () => {

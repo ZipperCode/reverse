@@ -144,7 +144,7 @@ export interface ReverseSetupDeps {
 	which?: SkillRequirementWhich;
 	platform?: NodeJS.Platform;
 	env?: Record<string, string | undefined>;
-	/** Project directory used to resolve `.rva/mcp.json`; defaults to the active project. */
+	/** Project directory used to resolve `.reverse/mcp.json`; defaults to the active project. */
 	cwd?: string;
 	/** Read-only MCP config probe; defaults to reading the resolved file synchronously. */
 	readMcpConfig?: (filePath: string) => MCPConfigFile | null;

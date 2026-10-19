@@ -33,7 +33,7 @@ export function resolveRelayKind(
 	options?: ResolveRelayKindOptions | null,
 	env: Record<string, string | undefined> = process.env,
 ): RelayKind | null {
-	if (!parseFlag(env.RVA_BROWSER_RELAY, options?.settingEnabled ?? false)) {
+	if (!parseFlag(env.REVERSE_BROWSER_RELAY, options?.settingEnabled ?? false)) {
 		return null;
 	}
 	const url = options?.url?.trim() || DEFAULT_RELAY_URL;

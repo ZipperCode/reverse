@@ -105,7 +105,7 @@ describe("InternalUrlFilesystem local://", () => {
 
 	it("applies the link target's write policy when writing through a URL symlink", async () => {
 		await fs.mkdir(localRoot, { recursive: true });
-		await nativeSymlink("rva://README.md", path.join(localRoot, "doc"));
+		await nativeSymlink("reverse://README.md", path.join(localRoot, "doc"));
 
 		const response = await shellFs().handle({ op: ShellFsOp.Open, path: "local://doc", open: CREATE });
 
@@ -122,7 +122,7 @@ describe("InternalUrlFilesystem local://", () => {
 			path: path.join(localRoot, "dir", "new", "file.txt"),
 		});
 		await expect(fs.stat(path.join(localRoot, "dir", "new"))).rejects.toThrow();
-		await expect(shellFs().handle({ op: ShellFsOp.BackingPath, path: "rva://" })).resolves.toEqual({});
+		await expect(shellFs().handle({ op: ShellFsOp.BackingPath, path: "reverse://" })).resolves.toEqual({});
 	});
 
 	it("refuses renames that leave the URL namespace", async () => {
@@ -173,12 +173,12 @@ describe("InternalUrlFilesystem policy", () => {
 });
 
 describe("InternalUrlFilesystem rendered resources", () => {
-	it("serves rva:// as a read-only tree whose files hold the rendered bytes", async () => {
+	it("serves reverse:// as a read-only tree whose files hold the rendered bytes", async () => {
 		const filesystem = shellFs();
-		const listing = await filesystem.handle({ op: ShellFsOp.ReadDir, path: "rva://" });
+		const listing = await filesystem.handle({ op: ShellFsOp.ReadDir, path: "reverse://" });
 		const entry = listing.entries?.find(item => item.fileType === ShellFsFileType.File);
-		if (!entry) throw new Error("rva:// listed no documents");
-		const url = `rva://${entry.name}`;
+		if (!entry) throw new Error("reverse:// listed no documents");
+		const url = `reverse://${entry.name}`;
 
 		const opened = await filesystem.handle({ op: ShellFsOp.Open, path: url, open: READ });
 		const handle = opened.handle;

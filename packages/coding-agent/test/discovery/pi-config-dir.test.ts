@@ -7,13 +7,13 @@ import { resolveClaudePaths } from "@rva/coding-agent/config/claude-paths";
 import { getUserPath } from "@rva/coding-agent/discovery/helpers";
 import { getAgentDir } from "@rva/utils";
 
-describe("RVA_CONFIG_DIR", () => {
-	const original = process.env.RVA_CONFIG_DIR;
+describe("REVERSE_CONFIG_DIR", () => {
+	const original = process.env.REVERSE_CONFIG_DIR;
 	afterEach(() => {
 		if (original === undefined) {
-			delete process.env.RVA_CONFIG_DIR;
+			delete process.env.REVERSE_CONFIG_DIR;
 		} else {
-			process.env.RVA_CONFIG_DIR = original;
+			process.env.REVERSE_CONFIG_DIR = original;
 		}
 	});
 
@@ -31,11 +31,11 @@ describe("RVA_CONFIG_DIR", () => {
 		expect(getUserPath(ctx, "native", "commands")).not.toContain(ctx.home);
 	});
 
-	test("getConfigDirs respects RVA_CONFIG_DIR for user base", () => {
-		process.env.RVA_CONFIG_DIR = ".config/rva";
+	test("getConfigDirs respects REVERSE_CONFIG_DIR for user base", () => {
+		process.env.REVERSE_CONFIG_DIR = ".config/reverse";
 		const result = getConfigDirs("commands", { project: false });
-		const expected = path.resolve(path.join(os.homedir(), ".config/rva", "agent", "commands"));
-		expect(result[0]).toEqual({ path: expected, source: ".rva", level: "user" });
+		const expected = path.resolve(path.join(os.homedir(), ".config/reverse", "agent", "commands"));
+		expect(result[0]).toEqual({ path: expected, source: ".reverse", level: "user" });
 	});
 });
 

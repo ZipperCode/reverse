@@ -74,11 +74,11 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 			}),
 		).toBe(false);
 
-		// Env override (e.g. user-set RVA_COMPILED=1) still wins.
+		// Env override (e.g. user-set REVERSE_COMPILED=1) still wins.
 		expect(
 			detectCompiledBinary({
 				embeddedAddon: null,
-				env: { RVA_COMPILED: "1" },
+				env: { REVERSE_COMPILED: "1" },
 				importMetaUrl: "/anywhere",
 			}),
 		).toBe(true);

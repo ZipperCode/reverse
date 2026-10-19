@@ -374,7 +374,7 @@ const BUN_TEST_ENTRY_PATTERN = /[._](?:test|spec)\.[cm]?[jt]sx?$/;
 
 /** True when the process is an explicitly marked test child or Bun is running a test entrypoint. */
 export function isBunTestRuntime(): boolean {
-	if (Bun.env.REVERSE_TEST_RUNTIME === "1" || Bun.env.RVA_TEST_RUNTIME === "1") return true;
+	if (Bun.env.REVERSE_TEST_RUNTIME === "1") return true;
 	const hasTestEnvironment = Bun.env.BUN_ENV === "test" || Bun.env.NODE_ENV === "test";
 	return hasTestEnvironment && BUN_TEST_ENTRY_PATTERN.test(Bun.main);
 }
@@ -455,7 +455,7 @@ export function getDbBusyTimeoutMs(): number {
  * first for cheap fast-path detection.
  */
 export function isCompiledBinary(): boolean {
-	if (process.env.REVERSE_COMPILED || process.env.RVA_COMPILED || Bun.env.REVERSE_COMPILED || Bun.env.RVA_COMPILED) return true;
+	if (process.env.REVERSE_COMPILED || Bun.env.REVERSE_COMPILED) return true;
 	const url = import.meta.url;
 	return url.includes("$bunfs") || url.includes("~BUN") || url.includes("%7EBUN");
 }

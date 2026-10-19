@@ -28,7 +28,7 @@ describe("Local skills discovery & CLI command routing", () => {
 			HOME: tempHome,
 			USERPROFILE: tempHome,
 			NO_COLOR: "1",
-			RVA_NO_TITLE: "1",
+			REVERSE_NO_TITLE: "1",
 			AWS_EC2_METADATA_DISABLED: "true",
 			...options.env,
 		};

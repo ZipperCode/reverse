@@ -3,13 +3,13 @@ import { substitutePluginRoot } from "@rva/coding-agent/discovery/substitute-plu
 
 // Use concatenation to avoid noTemplateCurlyInString lint rule on literal placeholder names
 const CLAUDE_VAR = "$" + "{CLAUDE_PLUGIN_ROOT}";
-const RVA_VAR = "$" + "{RVA_PLUGIN_ROOT}";
+const REVERSE_VAR = "$" + "{REVERSE_PLUGIN_ROOT}";
 
 describe("substitutePluginRoot", () => {
 	const ROOT = "/plugins/my-plugin";
 
 	it("replaces both variables in same string", () => {
-		expect(substitutePluginRoot(`${CLAUDE_VAR}:${RVA_VAR}`, ROOT)).toBe("/plugins/my-plugin:/plugins/my-plugin");
+		expect(substitutePluginRoot(`${CLAUDE_VAR}:${REVERSE_VAR}`, ROOT)).toBe("/plugins/my-plugin:/plugins/my-plugin");
 	});
 
 	it("handles arrays recursively", () => {
@@ -23,7 +23,7 @@ describe("substitutePluginRoot", () => {
 		const input = {
 			command: `${CLAUDE_VAR}/server`,
 			args: ["--port", "3000"],
-			env: { HOME: RVA_VAR },
+			env: { HOME: REVERSE_VAR },
 		};
 		expect(substitutePluginRoot(input, ROOT)).toEqual({
 			command: "/plugins/my-plugin/server",

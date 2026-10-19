@@ -19,7 +19,7 @@ import type { Skill } from "../src/extensibility/skills";
 import type { AuthStorage } from "../src/session/auth-storage";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-const ENV_KEYS = ["RVA_CONFIG_DIR", "RVA_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
+const ENV_KEYS = ["REVERSE_CONFIG_DIR", "REVERSE_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
 
 describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 	"skill description cache under XDG",
@@ -39,10 +39,10 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 			configDir = `.omp-skill-xdg-${Snowflake.next()}`;
 			agentDir = path.join(os.homedir(), configDir, "agent");
 			xdgData = path.join(tempRoot, "data");
-			await fs.promises.mkdir(path.join(xdgData, "rva"), { recursive: true });
+			await fs.promises.mkdir(path.join(xdgData, "reverse"), { recursive: true });
 			await fs.promises.mkdir(agentDir, { recursive: true });
-			process.env.RVA_CONFIG_DIR = configDir;
-			delete process.env.RVA_CODING_AGENT_DIR;
+			process.env.REVERSE_CONFIG_DIR = configDir;
+			delete process.env.REVERSE_CODING_AGENT_DIR;
 			__resetProfileSnapshotForTests();
 		});
 

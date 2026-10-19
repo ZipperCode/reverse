@@ -18,7 +18,7 @@ describe("Python gateway environment filtering", () => {
 			OPENAI_API_KEY: "secret",
 			ANTHROPIC_API_KEY: "also-secret",
 			UNSAFE_TOKEN: "nope",
-			RVA_CUSTOM: "1",
+			REVERSE_CUSTOM: "1",
 			PI_CUSTOM: "1",
 			LC_ALL: "en_US.UTF-8",
 			LD_LIBRARY_PATH: "/opt/conda/lib",
@@ -28,7 +28,7 @@ describe("Python gateway environment filtering", () => {
 
 		expect(filtered.PATH).toBe("/bin");
 		expect(filtered.HOME).toBe("/home/test");
-		expect(filtered.RVA_CUSTOM).toBe("1");
+		expect(filtered.REVERSE_CUSTOM).toBe("1");
 		expect(filtered.PI_CUSTOM).toBe("1");
 		expect(filtered.LC_ALL).toBe("en_US.UTF-8");
 		expect(filtered.LD_LIBRARY_PATH).toBe("/opt/conda/lib");

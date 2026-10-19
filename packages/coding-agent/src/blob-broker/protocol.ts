@@ -15,20 +15,20 @@ import type { BlobBrokerSavingsStatus } from "./savings";
 import type { DestinationRuntimeConfig } from "./uploader-runtime";
 
 /** Environment key carrying the control socket path the worker listens on. */
-export const BLOB_BROKER_SOCKET_ENV = "RVA_BLOB_BROKER_SOCKET";
+export const BLOB_BROKER_SOCKET_ENV = "REVERSE_BLOB_BROKER_SOCKET";
 
 /** Environment key carrying the JSON {@link BlobBrokerWorkerConfig}. */
-export const BLOB_BROKER_CONFIG_ENV = "RVA_BLOB_BROKER_CONFIG";
+export const BLOB_BROKER_CONFIG_ENV = "REVERSE_BLOB_BROKER_CONFIG";
 
 /** Stable broker daemon name for the shared blob broker. */
-export const BLOB_BROKER_DAEMON_NAME = "rva.blob.broker";
+export const BLOB_BROKER_DAEMON_NAME = "reverse.blob.broker";
 
 /** Broker readiness regex matched against the banner printed by the worker. */
-export const BLOB_BROKER_READY_PATTERN = String.raw`rva blob broker serving \S+`;
+export const BLOB_BROKER_READY_PATTERN = String.raw`reverse blob broker serving \S+`;
 
 /** Banner printed on stdout once the exposure is up and control is listening. */
 export function blobBrokerReadyBanner(baseUrl: string): string {
-	return `rva blob broker serving ${baseUrl}`;
+	return `reverse blob broker serving ${baseUrl}`;
 }
 
 /** Resolve the control socket path for one project scope. */

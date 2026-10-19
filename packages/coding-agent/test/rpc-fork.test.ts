@@ -25,7 +25,7 @@ describe("RPC fork", () => {
 		client = new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "fork-rpc-agent.ts"), directory],
 			cwd: directory,
-			env: { RVA_CODING_AGENT_DIR: directory, RVA_NO_TITLE: "1" },
+			env: { REVERSE_CODING_AGENT_DIR: directory, REVERSE_NO_TITLE: "1" },
 		});
 	});
 

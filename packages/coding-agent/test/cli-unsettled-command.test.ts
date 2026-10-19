@@ -87,7 +87,7 @@ async function runConfigSet(tempDir: TempDir, settingsInit: SettingsInitMode): P
 		new Response(proc.stdout).text(),
 		new Response(proc.stderr).text(),
 	]);
-	return { exitCode, stdout, stderr, configPath: path.join(home, ".rva", "agent", "config.yml") };
+	return { exitCode, stdout, stderr, configPath: path.join(home, ".reverse", "agent", "config.yml") };
 }
 
 // Each case cold-starts the CLI graph in a child process; the budget covers that transpile.

@@ -298,25 +298,25 @@ describe("jfind cascade", () => {
 	});
 	it("resolves URL scopes in place and rejects unknown docs and range selectors before judging", async () => {
 		const filesystem = urlFs(process.cwd());
-		expect(await resolveSearchRoot(filesystem, "rva://", process.cwd())).toEqual({
-			path: "rva://",
+		expect(await resolveSearchRoot(filesystem, "reverse://", process.cwd())).toEqual({
+			path: "reverse://",
 			type: "directory",
 		});
-		expect(await resolveSearchRoot(filesystem, "rva://tools/read.md", process.cwd())).toMatchObject({
-			path: "rva://tools/read.md",
+		expect(await resolveSearchRoot(filesystem, "reverse://tools/read.md", process.cwd())).toMatchObject({
+			path: "reverse://tools/read.md",
 			type: "file",
 		});
-		await expect(resolveSearchRoot(filesystem, "rva://nope.md", process.cwd())).rejects.toThrow(
-			"Path not found: rva://nope.md",
+		await expect(resolveSearchRoot(filesystem, "reverse://nope.md", process.cwd())).rejects.toThrow(
+			"Path not found: reverse://nope.md",
 		);
-		await expect(resolveSearchRoot(filesystem, "rva://tools/read.md:1-10", process.cwd())).rejects.toThrow(
+		await expect(resolveSearchRoot(filesystem, "reverse://tools/read.md:1-10", process.cwd())).rejects.toThrow(
 			"line-range selectors are not supported",
 		);
 	});
 
 	it("searches a single omp doc in place and reports hits as its URL", async () => {
 		const filesystem = urlFs(process.cwd());
-		const root = await resolveSearchRoot(filesystem, "rva://tools/read.md", process.cwd());
+		const root = await resolveSearchRoot(filesystem, "reverse://tools/read.md", process.cwd());
 		const result = await runCascade({
 			root,
 			filesystem,
@@ -326,14 +326,14 @@ describe("jfind cascade", () => {
 			includeHidden: false,
 		});
 		expect(result.stats.listed).toBe(1);
-		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["rva://tools/read.md"]);
+		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["reverse://tools/read.md"]);
 	});
 
 	it("walks the omp root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
-		const completions = (await InternalUrlRouter.instance().complete("rva", "")) ?? [];
+		const completions = (await InternalUrlRouter.instance().complete("reverse", "")) ?? [];
 		const docs = new Set(completions.map(completion => completion.value));
 		const filesystem = urlFs(process.cwd());
-		const root = await resolveSearchRoot(filesystem, "rva://", process.cwd());
+		const root = await resolveSearchRoot(filesystem, "reverse://", process.cwd());
 		const judge = new FakeJudge((request, key) => {
 			const state = stateOf(request);
 			if ("tree" in state) return String(state.tree).includes(`${key} read.md`) ? 0.9 : 0.1;
@@ -352,7 +352,7 @@ describe("jfind cascade", () => {
 			includeHidden: false,
 		});
 		expect(result.stats.listed).toBe(docs.size);
-		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["rva://tools/read.md"]);
+		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["reverse://tools/read.md"]);
 	});
 
 	it("rejects a missing scope path or a line selector before spending any judgment", async () => {

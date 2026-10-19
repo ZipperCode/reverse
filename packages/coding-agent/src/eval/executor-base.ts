@@ -316,7 +316,7 @@ export const MANAGED_KERNEL_ENV_KEYS = [
 	"PI_TOOL_BRIDGE_URL",
 	"PI_TOOL_BRIDGE_TOKEN",
 	"PI_TOOL_BRIDGE_SESSION",
-	"RVA_EVAL_LOCAL_ROOTS",
+	"REVERSE_EVAL_LOCAL_ROOTS",
 ] as const;
 
 interface ManagedKernelEnvOptions {
@@ -349,7 +349,7 @@ export function buildManagedKernelEnvPatch(
 			patch.PI_TOOL_BRIDGE_TOKEN = options.bridge.token;
 			patch.PI_TOOL_BRIDGE_SESSION = options.bridgeSessionId ?? "";
 		}
-		if (localRoots) patch.RVA_EVAL_LOCAL_ROOTS = JSON.stringify(localRoots);
+		if (localRoots) patch.REVERSE_EVAL_LOCAL_ROOTS = JSON.stringify(localRoots);
 		return patch;
 	}
 	return {
@@ -358,7 +358,7 @@ export function buildManagedKernelEnvPatch(
 		PI_TOOL_BRIDGE_URL: options.bridge?.url ?? null,
 		PI_TOOL_BRIDGE_TOKEN: options.bridge?.token ?? null,
 		PI_TOOL_BRIDGE_SESSION: options.bridge && options.bridgeSessionId ? options.bridgeSessionId : null,
-		RVA_EVAL_LOCAL_ROOTS: localRoots && Object.keys(localRoots).length > 0 ? JSON.stringify(localRoots) : null,
+		REVERSE_EVAL_LOCAL_ROOTS: localRoots && Object.keys(localRoots).length > 0 ? JSON.stringify(localRoots) : null,
 	};
 }
 

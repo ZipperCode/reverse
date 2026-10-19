@@ -40,7 +40,7 @@ describe("worker selector dispatch", () => {
 				"__rva_worker_does_not_exist",
 			],
 			cwd: repoRoot,
-			env: { ...process.env, RVA_COMPILED: "true" },
+			env: { ...process.env, REVERSE_COMPILED: "true" },
 			stdout: "pipe",
 			stderr: "ignore",
 		});
@@ -134,7 +134,7 @@ describe("worker selector dispatch", () => {
 				const child = Bun.spawn({
 					cmd: [process.execPath, "packages/coding-agent/src/cli.ts", "__rva_worker_js_eval_process"],
 					cwd: ${JSON.stringify(repoRoot)},
-					env: { ...process.env, RVA_TEST_NO_NATIVES: "1" },
+					env: { ...process.env, REVERSE_TEST_NO_NATIVES: "1" },
 					ipc() {},
 					serialization: "advanced",
 					windowsHide: true,
@@ -185,7 +185,7 @@ describe("worker selector dispatch", () => {
 			const repoRoot = path.resolve(__dirname, "../../..");
 			const childScript = `
 			Object.defineProperty(process, "ppid", { value: 1, configurable: true });
-			process.env.RVA_TEST_NO_NATIVES = "1";
+			process.env.REVERSE_TEST_NO_NATIVES = "1";
 			const { runCli } = await import("./packages/coding-agent/src/cli.ts");
 			await runCli(["__rva_worker_js_eval_process"]);
 		`;

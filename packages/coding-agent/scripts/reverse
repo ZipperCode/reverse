@@ -27,13 +27,11 @@ cli=$scripts_dir/../src/cli.ts
 preload=$scripts_dir/reverse.ts
 timing_preload=$scripts_dir/../../utils/src/module-timer.ts
 
-launch_dir=${REVERSE_DEV_LAUNCH_DIR:-${RVA_DEV_LAUNCH_DIR:-${HOME}/.reverse/.dev-cwd}}
+launch_dir=${REVERSE_DEV_LAUNCH_DIR:-${HOME}/.reverse/.dev-cwd}
 mkdir -p "$launch_dir"
 
 REVERSE_LAUNCH_CWD=$PWD
-RVA_LAUNCH_CWD=$PWD
 export REVERSE_LAUNCH_CWD
-export RVA_LAUNCH_CWD
 cd "$launch_dir"
 # Herdr 0.7.5 validates the foreground process name. The macOS shell can
 # preserve process identity while still running the development CLI through Bun.
@@ -44,7 +42,7 @@ run_bun() {
 	exec bun "$@"
 }
 
-if [ -n "${REVERSE_TIMING:-${RVA_TIMING:-}}" ]; then
+if [ -n "${REVERSE_TIMING:-}" ]; then
 	run_bun --preload "$preload" --preload "$timing_preload" "$cli" "$@"
 fi
 run_bun --preload "$preload" "$cli" "$@"

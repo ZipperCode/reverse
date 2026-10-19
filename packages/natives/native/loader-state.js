@@ -47,7 +47,7 @@ const SUPPORTED_PLATFORMS = [
  * @param {string} text
  */
 function startupMarker(text) {
-	if (!process.env.RVA_DEBUG_STARTUP) return;
+	if (!process.env.REVERSE_DEBUG_STARTUP) return;
 	try {
 		fs.writeSync(2, `[startup] ${text}\n`);
 	} catch {
@@ -57,7 +57,7 @@ function startupMarker(text) {
 
 function getNativesDir() {
 	// Match pi-utils directory overrides without depending on pi-utils.
-	const override = process.env.RVA_NATIVES_DIR?.trim();
+	const override = process.env.REVERSE_NATIVES_DIR?.trim();
 	if (override) {
 		let dir = override;
 		if (dir === "~") dir = os.homedir();
@@ -65,10 +65,10 @@ function getNativesDir() {
 		if (path.isAbsolute(dir)) return path.normalize(dir);
 	}
 	const xdgDataHome = process.env.XDG_DATA_HOME;
-	if (xdgDataHome && fs.existsSync(path.join(xdgDataHome, "rva"))) {
-		return path.join(xdgDataHome, "rva", "natives");
+	if (xdgDataHome && fs.existsSync(path.join(xdgDataHome, "reverse"))) {
+		return path.join(xdgDataHome, "reverse", "natives");
 	}
-	return path.join(os.homedir(), ".rva", "natives");
+	return path.join(os.homedir(), ".reverse", "natives");
 }
 
 function resolveLeafPackageDir(platformTag) {
@@ -94,7 +94,7 @@ function resolveLeafPackageDir(platformTag) {
  */
 export function detectCompiledBinary({ embeddedAddon, env, importMetaUrl }) {
 	if (embeddedAddon) return true;
-	if (env && env.RVA_COMPILED) return true;
+	if (env && env.REVERSE_COMPILED) return true;
 	if (typeof importMetaUrl === "string") {
 		if (importMetaUrl.includes("$bunfs")) return true;
 		if (importMetaUrl.includes("~BUN")) return true;
@@ -273,7 +273,7 @@ export function cleanupStaleNativeVersions({ nativesDir, currentVersion }) {
  * so every Bun worker and child process spawned afterwards inherits the same
  * verdict and skips re-detection. See `selectCpuVariant` for the lookup order.
  */
-const VARIANT_CACHE_ENV_KEY = "__RVA_NATIVE_VARIANT_CACHE";
+const VARIANT_CACHE_ENV_KEY = "__REVERSE_NATIVE_VARIANT_CACHE";
 
 /**
  * Spawn `command` with `args` and capture stdout. Prefers `Bun.spawnSync`
@@ -305,7 +305,7 @@ function runCommand(command, args) {
 }
 
 function getVariantOverride() {
-	const value = process.env.RVA_NATIVE_VARIANT || process.env.PI_NATIVE_VARIANT;
+	const value = process.env.REVERSE_NATIVE_VARIANT || process.env.PI_NATIVE_VARIANT;
 	if (!value) return null;
 	if (value === "modern" || value === "baseline") return value;
 	return null;
@@ -777,7 +777,7 @@ export function initLoaderContext(overrides = {}) {
 	const versionedDir = path.join(nativesDir, packageVersion);
 	const userDataDir =
 		platform === "win32"
-			? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "rva")
+			? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "reverse")
 			: path.join(os.homedir(), ".local", "bin");
 
 	const isCompiledBinary =

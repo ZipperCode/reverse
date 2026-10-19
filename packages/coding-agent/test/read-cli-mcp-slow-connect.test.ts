@@ -60,7 +60,7 @@ describe("omp read MCP resource with a slow-connecting server", () => {
 				...process.env,
 				HOME: root,
 				NO_COLOR: "1",
-				RVA_CODING_AGENT_DIR: agentDir,
+				REVERSE_CODING_AGENT_DIR: agentDir,
 			},
 		});
 		const stdout = new Response(proc.stdout).text();

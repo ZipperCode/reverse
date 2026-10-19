@@ -22,7 +22,7 @@ import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeSyncWithRetries, set
 let tempDir: string;
 let home: string;
 // setAgentDir() rewrites these; restore them all so later test files see the original resolver.
-const ENV_KEYS = ["RVA_CODING_AGENT_DIR", "RVA_PROFILE", "RVA_CONFIG_DIR"] as const;
+const ENV_KEYS = ["REVERSE_CODING_AGENT_DIR", "REVERSE_PROFILE", "REVERSE_CONFIG_DIR"] as const;
 let savedEnv: Record<(typeof ENV_KEYS)[number], string | undefined>;
 
 function writeFile(filePath: string, content: string): void {
@@ -145,10 +145,10 @@ test("a repo-local session agent directory does not hide native project config o
 	});
 });
 
-test.each([undefined, ".rva-custom"])(
-	"native project discovery skips a foreign user config root without hiding a workspace above it (RVA_CONFIG_DIR=%s)",
+test.each([undefined, ".reverse-custom"])(
+	"native project discovery skips a foreign user config root without hiding a workspace above it (REVERSE_CONFIG_DIR=%s)",
 	async configDirName => {
-		if (configDirName) process.env.RVA_CONFIG_DIR = configDirName;
+		if (configDirName) process.env.REVERSE_CONFIG_DIR = configDirName;
 		const foreignHome = path.join(tempDir, "alice");
 		const cwd = path.join(foreignHome, "scratch", "work");
 		fs.mkdirSync(cwd, { recursive: true });

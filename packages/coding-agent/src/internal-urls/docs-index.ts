@@ -21,7 +21,7 @@ import { gunzip } from "node:zlib";
 import { isEnoent, logger } from "@rva/utils";
 import { Glob } from "bun";
 
-const docsEmbed = process.env.PI_DOCS_EMBED ?? "";
+const docsEmbed = process.env.REVERSE_DOCS_EMBED ?? process.env.PI_DOCS_EMBED ?? "";
 
 /** Repo `docs/` tree backing a monorepo checkout; unreachable from an installed package (see `getIndex`). */
 const DOCS_DIR = path.resolve(import.meta.dir, "../../../../docs");

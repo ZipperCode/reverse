@@ -22,8 +22,8 @@ describe("Claude plugin MCP timeout compatibility", () => {
 		clearClaudePluginRootsCache();
 		clearFsCache();
 		originalHome = process.env.HOME;
-		originalAgentDirEnv = process.env.RVA_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.RVA_PROFILE;
+		originalAgentDirEnv = process.env.REVERSE_CODING_AGENT_DIR;
+		originalOmpProfileEnv = process.env.REVERSE_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 		delete process.env.CLAUDE_CONFIG_DIR;
@@ -49,8 +49,8 @@ describe("Claude plugin MCP timeout compatibility", () => {
 		else process.env.OMP_PROFILE = originalOmpProfileEnv;
 		if (originalPiProfileEnv === undefined) delete process.env.PI_PROFILE;
 		else process.env.PI_PROFILE = originalPiProfileEnv;
-		if (originalAgentDirEnv === undefined) delete process.env.RVA_CODING_AGENT_DIR;
-		else process.env.RVA_CODING_AGENT_DIR = originalAgentDirEnv;
+		if (originalAgentDirEnv === undefined) delete process.env.REVERSE_CODING_AGENT_DIR;
+		else process.env.REVERSE_CODING_AGENT_DIR = originalAgentDirEnv;
 		if (originalClaudeConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
 		else process.env.CLAUDE_CONFIG_DIR = originalClaudeConfigDir;
 		__resetDirsFromEnvForTests();

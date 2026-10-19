@@ -8,10 +8,10 @@ import {
 } from "../src/i18n";
 
 describe("utils/i18n", () => {
-	const savedEnv = process.env.RVA_LANG;
+	const savedEnv = process.env.REVERSE_LANG;
 	afterEach(() => {
-		if (savedEnv === undefined) delete process.env.RVA_LANG;
-		else process.env.RVA_LANG = savedEnv;
+		if (savedEnv === undefined) delete process.env.REVERSE_LANG;
+		else process.env.REVERSE_LANG = savedEnv;
 	});
 
 	it("has supported locales and default locale", () => {
@@ -35,16 +35,16 @@ describe("utils/i18n", () => {
 		expect(normalizeLocale("zh-TW")).toBe("zh-CN");
 	});
 
-	it("reads RVA_LANG override from environment", () => {
+	it("reads REVERSE_LANG override from environment", () => {
 		expect(getEnvLocale()).toBeUndefined();
 
-		process.env.RVA_LANG = "zh-CN";
+		process.env.REVERSE_LANG = "zh-CN";
 		expect(getEnvLocale()).toBe("zh-CN");
 
-		process.env.RVA_LANG = "en";
+		process.env.REVERSE_LANG = "en";
 		expect(getEnvLocale()).toBe("en");
 
-		process.env.RVA_LANG = "invalid";
+		process.env.REVERSE_LANG = "invalid";
 		expect(getEnvLocale()).toBe("en");
 	});
 
@@ -57,11 +57,11 @@ describe("utils/i18n", () => {
 		expect(resolveEffectiveLocale("zh-CN")).toBe("zh-CN");
 		expect(resolveEffectiveLocale("en")).toBe("en");
 
-		// RVA_LANG takes precedence over configured setting
-		process.env.RVA_LANG = "zh-CN";
+		// REVERSE_LANG takes precedence over configured setting
+		process.env.REVERSE_LANG = "zh-CN";
 		expect(resolveEffectiveLocale("en")).toBe("zh-CN");
 
-		process.env.RVA_LANG = "en";
+		process.env.REVERSE_LANG = "en";
 		expect(resolveEffectiveLocale("zh-CN")).toBe("en");
 	});
 });

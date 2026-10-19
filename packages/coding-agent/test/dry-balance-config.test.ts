@@ -59,7 +59,7 @@ test("omp dry-balance routes by account policies from a --config overlay", async
 			],
 			{
 				cwd: agentDir.path(),
-				env: { ...process.env, NO_COLOR: "1", RVA_CODING_AGENT_DIR: agentDir.path() },
+				env: { ...process.env, NO_COLOR: "1", REVERSE_CODING_AGENT_DIR: agentDir.path() },
 				stdout: "pipe",
 				stderr: "pipe",
 			},

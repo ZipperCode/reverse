@@ -20,11 +20,11 @@ export async function loadEffectiveSettings(): Promise<Settings> {
 }
 
 /**
- * Resolves the effective UI locale (REVERSE_LANG > RVA_LANG > persisted config > default "en").
+ * Resolves the effective UI locale (REVERSE_LANG > persisted config > default "en").
  * Uses canonical Settings (or loadReadOnly()) to respect profile, project, and overlay layers.
  */
 export function getEffectiveLocale(): SupportedLocale {
-	const env = process.env.REVERSE_LANG || process.env.RVA_LANG;
+	const env = process.env.REVERSE_LANG;
 	if (env && env.trim()) {
 		return resolveEffectiveLocale(env);
 	}

@@ -1,8 +1,8 @@
 /**
- * Core i18n types and helpers for rva.
+ * Core i18n types and helpers for reverse.
  *
  * Supports "en" (default) and "zh-CN".
- * Respects RVA_LANG environment variable override.
+ * Respects REVERSE_LANG environment variable override.
  */
 
 export type SupportedLocale = "en" | "zh-CN";
@@ -24,11 +24,11 @@ export function normalizeLocale(locale: string | null | undefined): SupportedLoc
 }
 
 /**
- * Gets the current environment-defined locale (from RVA_LANG), if set.
- * Returns undefined if RVA_LANG is not set or empty.
+ * Gets the current environment-defined locale (from REVERSE_LANG), if set.
+ * Returns undefined if REVERSE_LANG is not set or empty.
  */
 export function getEnvLocale(): SupportedLocale | undefined {
-	const env = process.env.RVA_LANG;
+	const env = process.env.REVERSE_LANG;
 	if (env && env.trim()) {
 		return normalizeLocale(env);
 	}
@@ -38,7 +38,7 @@ export function getEnvLocale(): SupportedLocale | undefined {
 /**
  * Resolves the effective locale given an explicit setting value.
  * Precedence:
- * 1. RVA_LANG environment variable (if present)
+ * 1. REVERSE_LANG environment variable (if present)
  * 2. Explicit configured language setting
  * 3. Default locale ("en")
  */

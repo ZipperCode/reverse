@@ -37,7 +37,7 @@
 import { describe, expect, it } from "bun:test";
 import { getAddonFilenames, selectCpuVariant } from "../native/loader-state.js";
 
-const VARIANT_CACHE_ENV_KEY = "__RVA_NATIVE_VARIANT_CACHE";
+const VARIANT_CACHE_ENV_KEY = "__REVERSE_NATIVE_VARIANT_CACHE";
 
 describe("issue 3238: variant resolution across worker contexts", () => {
 	it("returns the cached variant from env without re-detecting", () => {
@@ -88,7 +88,7 @@ describe("issue 3238: variant resolution across worker contexts", () => {
 		expect(result.cacheEnvValue).toBe("baseline");
 	});
 
-	it("honors RVA_NATIVE_VARIANT override above both cache and detection", () => {
+	it("honors REVERSE_NATIVE_VARIANT override above both cache and detection", () => {
 		let detectorCalls = 0;
 		const result = selectCpuVariant({
 			arch: "x64",
@@ -108,7 +108,7 @@ describe("issue 3238: variant resolution across worker contexts", () => {
 		expect(result.cacheEnvKey).toBeUndefined();
 	});
 
-	it("ignores garbage values in RVA_NATIVE_VARIANT and in the cache", () => {
+	it("ignores garbage values in REVERSE_NATIVE_VARIANT and in the cache", () => {
 		const result = selectCpuVariant({
 			arch: "x64",
 			override: "garbage" as unknown as "modern",

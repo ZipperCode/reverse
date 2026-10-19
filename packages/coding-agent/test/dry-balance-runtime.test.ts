@@ -40,7 +40,7 @@ test("omp dry-balance resolves credential-scoped models from the model cache", a
 			[process.execPath, cliEntry, "dry-balance", `opencode-go/${modelId}`, "--count", "1", "--json"],
 			{
 				cwd: tempDir.path(),
-				env: { ...process.env, NO_COLOR: "1", OPENCODE_API_KEY: apiKey, RVA_CODING_AGENT_DIR: tempDir.path() },
+				env: { ...process.env, NO_COLOR: "1", OPENCODE_API_KEY: apiKey, REVERSE_CODING_AGENT_DIR: tempDir.path() },
 				stdout: "pipe",
 				stderr: "pipe",
 			},

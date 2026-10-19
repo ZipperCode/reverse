@@ -67,7 +67,7 @@ describe("omp read MCP resources", () => {
 				...process.env,
 				HOME: root,
 				NO_COLOR: "1",
-				RVA_CODING_AGENT_DIR: agentDir,
+				REVERSE_CODING_AGENT_DIR: agentDir,
 			},
 		});
 		const stdout = new Response(proc.stdout).text();

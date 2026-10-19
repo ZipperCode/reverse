@@ -137,10 +137,10 @@ export function getProxyForProvider(provider: string): string | undefined {
 	}
 
 	const normalized = provider.toUpperCase().replace(/[^A-Z0-9]/g, "_");
-	const rvaKey = `RVA_PROXY_${normalized}`;
+	const reverseKey = `REVERSE_PROXY_${normalized}`;
 	const piKey = `PI_PROXY_${normalized}`;
-	const value = Bun.env[rvaKey] || Bun.env[piKey] || Bun.env.RVA_PROXY || Bun.env.PI_PROXY;
-	const envKey = Bun.env[rvaKey] ? rvaKey : Bun.env[piKey] ? piKey : Bun.env.RVA_PROXY ? "RVA_PROXY" : "PI_PROXY";
+	const value = Bun.env[reverseKey] || Bun.env[piKey] || Bun.env.REVERSE_PROXY || Bun.env.PI_PROXY;
+	const envKey = Bun.env[reverseKey] ? reverseKey : Bun.env[piKey] ? piKey : Bun.env.REVERSE_PROXY ? "REVERSE_PROXY" : "PI_PROXY";
 	proxyCache.set(provider, value);
 	// Once per provider per process: a silently unproxied provider request is
 	// otherwise indistinguishable from a proxied one until the region block
@@ -246,7 +246,7 @@ export function __resetGlobalProxyFetch(): void {
  */
 export function installGlobalProxyFetch(): void {
 	if (globalProxyFetchInstalled) return;
-	const proxyUrl = (Bun.env.RVA_PROXY || Bun.env.PI_PROXY)?.trim();
+	const proxyUrl = (Bun.env.REVERSE_PROXY || Bun.env.PI_PROXY)?.trim();
 	// One line naming every proxy-relevant variable this process can see: a
 	// missing PI_PROXY and a NO_PROXY rule that silences it are otherwise
 	// indistinguishable from a working proxy that the peer rejected.

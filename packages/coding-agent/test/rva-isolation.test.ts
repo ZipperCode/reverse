@@ -32,7 +32,7 @@ async function fileTreeSnapshot(dir: string): Promise<Record<string, string>> {
 	return result;
 }
 
-describe("RVA environment & filesystem isolation", () => {
+describe("reverse environment & filesystem isolation", () => {
 	let tempRoot: string;
 	let isolatedHome: string;
 	let isolatedProject: string;
@@ -115,7 +115,7 @@ ${scriptBody}
 		return JSON.parse(stdout) as T;
 	}
 
-	it("consumes .rva configurations, credentials, and sessions via runtime APIs with project precedence, keeping legacy .omp trees untouched", async () => {
+	it("consumes .reverse configurations, credentials, and sessions via runtime APIs with project precedence, keeping legacy .omp trees untouched", async () => {
 		// Populate legacy .omp trees with distinct sentinels
 		const legacyUserDir = path.join(isolatedHome, ".omp", "agent");
 		const legacyProjectDir = path.join(isolatedProject, ".omp");
@@ -131,20 +131,20 @@ ${scriptBody}
 			"modelRoles:\n  default: legacy-omp-project-model\n",
 		);
 
-		// Populate active .rva trees with rva configurations
-		const rvaUserDir = path.join(isolatedHome, ".rva", "agent");
-		const rvaProjectDir = path.join(isolatedProject, ".rva");
-		await fs.mkdir(path.join(rvaUserDir, "sessions"), { recursive: true });
-		await fs.mkdir(rvaProjectDir, { recursive: true });
+		// Populate active .reverse trees with reverse configurations
+		const reverseUserDir = path.join(isolatedHome, ".reverse", "agent");
+		const reverseProjectDir = path.join(isolatedProject, ".reverse");
+		await fs.mkdir(path.join(reverseUserDir, "sessions"), { recursive: true });
+		await fs.mkdir(reverseProjectDir, { recursive: true });
 
 		// Global configuration: sets default and fast roles
 		await fs.writeFile(
-			path.join(rvaUserDir, "config.yml"),
+			path.join(reverseUserDir, "config.yml"),
 			"modelRoles:\n  default: anthropic/claude-3-5-sonnet-user\n  fast: anthropic/claude-3-5-haiku-user\n",
 		);
 		// Project configuration: overrides default role to demonstrate project precedence
 		await fs.writeFile(
-			path.join(rvaProjectDir, "config.yml"),
+			path.join(reverseProjectDir, "config.yml"),
 			"modelRoles:\n  default: google/gemini-2.5-pro-project\n",
 		);
 
@@ -234,19 +234,19 @@ process.stdout.write(JSON.stringify({
 			},
 		);
 
-		// Assert consumer-visible resolutions land in .rva, not .omp
-		expect(probeResult.paths.appName).toBe("rva");
-		expect(probeResult.paths.configDirName).toBe(".rva");
-		expect(probeResult.paths.configRoot).toBe(path.join(isolatedHome, ".rva"));
-		expect(probeResult.paths.agentDir).toBe(rvaUserDir);
-		expect(probeResult.paths.projectAgentDir).toBe(rvaProjectDir);
-		expect(probeResult.paths.authDb).toBe(path.join(rvaUserDir, "agent.db"));
-		expect(probeResult.paths.sessionsDir).toBe(path.join(rvaUserDir, "sessions"));
-		expect(probeResult.paths.nativesDir).toBe(path.join(isolatedHome, ".rva", "natives"));
-		expect(probeResult.paths.logsDir).toBe(path.join(isolatedHome, ".rva", "logs"));
-		expect(probeResult.paths.worktreesDir).toBe(path.join(isolatedHome, ".rva", "wt"));
+		// Assert consumer-visible resolutions land in .reverse, not .omp
+		expect(probeResult.paths.appName).toBe("reverse");
+		expect(probeResult.paths.configDirName).toBe(".reverse");
+		expect(probeResult.paths.configRoot).toBe(path.join(isolatedHome, ".reverse"));
+		expect(probeResult.paths.agentDir).toBe(reverseUserDir);
+		expect(probeResult.paths.projectAgentDir).toBe(reverseProjectDir);
+		expect(probeResult.paths.authDb).toBe(path.join(reverseUserDir, "agent.db"));
+		expect(probeResult.paths.sessionsDir).toBe(path.join(reverseUserDir, "sessions"));
+		expect(probeResult.paths.nativesDir).toBe(path.join(isolatedHome, ".reverse", "natives"));
+		expect(probeResult.paths.logsDir).toBe(path.join(isolatedHome, ".reverse", "logs"));
+		expect(probeResult.paths.worktreesDir).toBe(path.join(isolatedHome, ".reverse", "wt"));
 		expect(probeResult.paths.globalDaemon).toBe(
-			path.join(isolatedHome, ".rva", "run", "daemons", "global", "text-predict"),
+			path.join(isolatedHome, ".reverse", "run", "daemons", "global", "text-predict"),
 		);
 
 		// None of the paths contain .omp
@@ -267,7 +267,7 @@ process.stdout.write(JSON.stringify({
 		expect(probeResult.storedCredentialKey).not.toContain("omp");
 
 		// 3. Real SessionManager creation, storage path, and listing
-		expect(probeResult.sessionFilePath).toContain(path.join(isolatedHome, ".rva", "agent", "sessions"));
+		expect(probeResult.sessionFilePath).toContain(path.join(isolatedHome, ".reverse", "agent", "sessions"));
 		expect(probeResult.sessionFilePath).not.toContain(".omp");
 		expect(probeResult.listedSessionIds).toContain(probeResult.createdSessionId);
 		// Verify explicit RVA_WORKTREE_DIR override works and ignores legacy OMP_WORKTREE_DIR
@@ -275,7 +275,7 @@ process.stdout.write(JSON.stringify({
 		const wtResult = await runProbe<{ worktreesDir: string }>(
 			`process.stdout.write(JSON.stringify({ worktreesDir: getWorktreesDir() }));`,
 			{
-				RVA_WORKTREE_DIR: customWt,
+				REVERSE_WORKTREE_DIR: customWt,
 				OMP_WORKTREE_DIR: path.join(isolatedHome, ".omp", "wt-ignored"),
 				PI_WORKTREE_DIR: path.join(isolatedHome, ".omp", "wt-ignored"),
 			},
@@ -301,7 +301,7 @@ process.stdout.write(JSON.stringify({
 		expect(projectOmpAfter).toEqual(projectOmpBefore);
 	});
 
-	it("discovers extension package roots exclusively from .rva, never from .omp", async () => {
+	it("discovers extension package roots exclusively from .reverse, never from .omp", async () => {
 		// Set up mock extension packages on disk
 		const rvaProjectExt = path.join(isolatedProject, "rva-proj-ext");
 		const ompProjectExt = path.join(isolatedProject, "omp-proj-ext");
@@ -315,14 +315,14 @@ process.stdout.write(JSON.stringify({
 		}
 
 		// Set up project configs in both .rva and .omp
-		const projectRva = path.join(isolatedProject, ".rva");
+		const projectReverse = path.join(isolatedProject, ".reverse");
 		const projectOmp = path.join(isolatedProject, ".omp");
 
-		await fs.mkdir(projectRva, { recursive: true });
+		await fs.mkdir(projectReverse, { recursive: true });
 		await fs.mkdir(projectOmp, { recursive: true });
 
 		await fs.writeFile(
-			path.join(projectRva, "config.yml"),
+			path.join(projectReverse, "config.yml"),
 			`extensions:\n  - ${rvaProjectExt}\n`,
 		);
 		await fs.writeFile(
@@ -350,8 +350,8 @@ process.stdout.write(JSON.stringify({
 	});
 
 	it("consumes profile-scoped configurations upon profile switch and recovers default", async () => {
-		const workAgent = path.join(isolatedHome, ".rva", "profiles", "work", "agent");
-		const defaultAgent = path.join(isolatedHome, ".rva", "agent");
+		const workAgent = path.join(isolatedHome, ".reverse", "profiles", "work", "agent");
+		const defaultAgent = path.join(isolatedHome, ".reverse", "agent");
 
 		await fs.mkdir(workAgent, { recursive: true });
 		await fs.mkdir(defaultAgent, { recursive: true });
@@ -401,12 +401,12 @@ process.stdout.write(JSON.stringify({
 
 		expect(result.defaultModelInitial).toBe("anthropic/default-profile-model");
 		expect(result.workModel).toBe("anthropic/work-profile-model");
-		expect(result.workRoot).toBe(path.join(isolatedHome, ".rva", "profiles", "work"));
+		expect(result.workRoot).toBe(path.join(isolatedHome, ".reverse", "profiles", "work"));
 		expect(result.workAgent).toBe(workAgent);
 		expect(result.workRoot).not.toContain(".omp");
 
 		expect(result.recoveredModel).toBe("anthropic/default-profile-model");
-		expect(result.recoveredRoot).toBe(path.join(isolatedHome, ".rva"));
+		expect(result.recoveredRoot).toBe(path.join(isolatedHome, ".reverse"));
 
 		// Behavior: invalid profile names are rejected and leave active profile unchanged
 		expect(() => normalizeProfileName("../bad")).toThrow();
@@ -416,7 +416,7 @@ process.stdout.write(JSON.stringify({
 		expect(getActiveProfile()).toBeUndefined();
 	});
 
-	it("consumes explicit RVA_CODING_AGENT_DIR override configuration", async () => {
+	it("consumes explicit REVERSE_CODING_AGENT_DIR override configuration", async () => {
 		const customAgent = path.join(tempRoot, "custom-rva-agent");
 		await fs.mkdir(customAgent, { recursive: true });
 		await fs.writeFile(
@@ -458,7 +458,7 @@ process.stdout.write(JSON.stringify({
 }));
 `,
 			{
-				RVA_CODING_AGENT_DIR: customAgent,
+				REVERSE_CODING_AGENT_DIR: customAgent,
 				PI_CODING_AGENT_DIR: path.join(tempRoot, "pi-legacy-agent"),
 				OMP_CODING_AGENT_DIR: path.join(tempRoot, "omp-legacy-agent"),
 			},
@@ -467,22 +467,22 @@ process.stdout.write(JSON.stringify({
 		expect(result.initialAgent).toBe(customAgent);
 		expect(result.initialDb).toBe(path.join(customAgent, "agent.db"));
 		expect(result.consumedModel).toBe("anthropic/custom-override-model");
-		expect(result.tempProfileAgent).toBe(path.join(isolatedHome, ".rva", "profiles", "temp", "agent"));
+		expect(result.tempProfileAgent).toBe(path.join(isolatedHome, ".reverse", "profiles", "temp", "agent"));
 		expect(result.restoredAgent).toBe(customAgent);
 		expect(result.restoredModel).toBe("anthropic/custom-override-model");
 	});
 
-	it("uses XDG subdirectories for rva and ignores legacy omp XDG directories", async () => {
+	it("uses XDG subdirectories for reverse and ignores legacy omp XDG directories", async () => {
 		const xdgData = path.join(tempRoot, "xdg-data");
 		const xdgState = path.join(tempRoot, "xdg-state");
 		const xdgCache = path.join(tempRoot, "xdg-cache");
 
 		// Create both rva and legacy omp directories under XDG roots
-		await fs.mkdir(path.join(xdgData, "rva"), { recursive: true });
+		await fs.mkdir(path.join(xdgData, "reverse"), { recursive: true });
 		await fs.mkdir(path.join(xdgData, "omp"), { recursive: true });
-		await fs.mkdir(path.join(xdgState, "rva"), { recursive: true });
+		await fs.mkdir(path.join(xdgState, "reverse"), { recursive: true });
 		await fs.mkdir(path.join(xdgState, "omp"), { recursive: true });
-		await fs.mkdir(path.join(xdgCache, "rva"), { recursive: true });
+		await fs.mkdir(path.join(xdgCache, "reverse"), { recursive: true });
 		await fs.mkdir(path.join(xdgCache, "omp"), { recursive: true });
 
 		// Place sentinel in omp directories
@@ -510,10 +510,10 @@ process.stdout.write(JSON.stringify({
 			},
 		);
 
-		expect(result.skillDescriptionsDb).toBe(path.join(xdgData, "rva", "skill-descriptions.db"));
-		expect(result.globalDaemon).toBe(path.join(xdgState, "rva", "run", "daemons", "global", "text-predict"));
-		expect(result.commitCacheDb).toBe(path.join(xdgCache, "rva", "cache", "commit-inference.db"));
-		expect(result.nativesDir).toBe(path.join(xdgCache, "rva", "natives"));
+		expect(result.skillDescriptionsDb).toBe(path.join(xdgData, "reverse", "skill-descriptions.db"));
+		expect(result.globalDaemon).toBe(path.join(xdgState, "reverse", "run", "daemons", "global", "text-predict"));
+		expect(result.commitCacheDb).toBe(path.join(xdgCache, "reverse", "cache", "commit-inference.db"));
+		expect(result.nativesDir).toBe(path.join(xdgCache, "reverse", "natives"));
 
 		// None should contain omp
 		expect(result.skillDescriptionsDb).not.toContain("/omp/");
@@ -547,7 +547,7 @@ process.stdout.write(JSON.stringify({
 `);
 
 		expect(result.defaultDirsNatives).toBe(result.defaultLoaderNatives);
-		expect(result.defaultDirsNatives).toBe(path.join(isolatedHome, ".rva", "natives"));
+		expect(result.defaultDirsNatives).toBe(path.join(isolatedHome, ".reverse", "natives"));
 
 		// Native ABI names remain unchanged (pi_natives)
 		expect(result.filenames).toEqual(["pi_natives.darwin-arm64.node"]);
@@ -565,7 +565,7 @@ process.stdout.write(JSON.stringify({
 	loaderNatives: initLoaderContext().nativesDir,
 }));
 `,
-			{ RVA_NATIVES_DIR: customNativesDir },
+			{ REVERSE_NATIVES_DIR: customNativesDir },
 		);
 
 		expect(overrideResult.dirsNatives).toBe(customNativesDir);

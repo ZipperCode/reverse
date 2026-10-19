@@ -19,12 +19,12 @@ Primary implementation files:
 
 Default-profile config paths, in precedence order:
 
-- `~/.rva/agent/models.yml`
-- `~/.rva/agent/models.yaml`
+- `~/.reverse/agent/models.yml`
+- `~/.reverse/agent/models.yaml`
 
 These are relative to the active agent directory returned by `getAgentDir()`. Named profiles use
-`~/.rva/profiles/<name>/agent/`; `RVA_CONFIG_DIR` changes the config-root directory name, and
-`RVA_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
+`~/.reverse/profiles/<name>/agent/`; `REVERSE_CONFIG_DIR` changes the config-root directory name, and
+`REVERSE_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
 `ModelRegistry` path overrides the directory-derived location.
 
 ### Adding custom providers via UI
@@ -35,7 +35,7 @@ Instead of editing `models.yml` by hand, rev provides an interactive TUI wizard 
 - Run `/models` (Model Hub) and select `+ Add provider…` in the sidebar
 - Or run `/provider add`, `/models add`, or `/setup add` directly
 
-The wizard validates provider IDs, protocols (`openai-completions`, `openai-responses`, `anthropic-messages`), and base URLs. It automatically discovers available models from the endpoint (`/v1/models`), enriches them with verified catalog limits where available (leaving unknown limits cleanly omitted), and presents a searchable multi-select list. Non-secret provider and selected model declarations are written atomically to `models.yml`, while API keys are stored securely in the local SQLite credential database (`~/.rva/agent/agent.db`) via `AuthStorage`, without storing plaintext secrets in YAML. Once saved, the registry reloads immediately without restarting.
+The wizard validates provider IDs, protocols (`openai-completions`, `openai-responses`, `anthropic-messages`), and base URLs. It automatically discovers available models from the endpoint (`/v1/models`), enriches them with verified catalog limits where available (leaving unknown limits cleanly omitted), and presents a searchable multi-select list. Non-secret provider and selected model declarations are written atomically to `models.yml`, while API keys are stored securely in the local SQLite credential database (`~/.reverse/agent/agent.db`) via `AuthStorage`, without storing plaintext secrets in YAML. Once saved, the registry reloads immediately without restarting.
 
 Legacy behavior still present:
 

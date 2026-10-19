@@ -317,7 +317,7 @@ async function loadMCPServers(ctx: LoadContext): Promise<LoadResult<MCPServer>> 
 		}
 		const servers = expandEnvVarsDeep(parsed.mcpServers, {
 			CLAUDE_PLUGIN_ROOT: root.path,
-			RVA_PLUGIN_ROOT: root.path,
+			REVERSE_PLUGIN_ROOT: root.path,
 		});
 		if (!servers || typeof servers !== "object" || Array.isArray(servers)) continue;
 

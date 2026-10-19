@@ -198,7 +198,7 @@ function normalizeShellName(
 export function resolveProfileAliasCommandFromProcess({
 	argv = process.argv,
 	cwd = process.cwd(),
-	compiled = process.env.REVERSE_COMPILED === "true" || process.env.RVA_COMPILED === "true",
+	compiled = process.env.REVERSE_COMPILED === "true",
 }: ProfileAliasProcessOptions = {}): ProfileAliasCommand {
 	if (compiled) return DEFAULT_ALIAS_COMMAND;
 

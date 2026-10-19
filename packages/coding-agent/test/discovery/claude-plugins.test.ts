@@ -59,8 +59,8 @@ describe("listClaudePluginRoots", () => {
 		clearClaudePluginRootsCache();
 		clearFsCache();
 		originalHome = process.env.HOME;
-		originalAgentDirEnv = process.env.RVA_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.RVA_PROFILE;
+		originalAgentDirEnv = process.env.REVERSE_CODING_AGENT_DIR;
+		originalOmpProfileEnv = process.env.REVERSE_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 		delete process.env.CLAUDE_CONFIG_DIR;
@@ -85,7 +85,7 @@ describe("listClaudePluginRoots", () => {
 		restoreEnvValue("HOME", originalHome);
 		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
 		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
-		restoreEnvValue("RVA_CODING_AGENT_DIR", originalAgentDirEnv);
+		restoreEnvValue("REVERSE_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
 		enableProvider("claude-plugins");
 		disableUserSource("claude-plugins");

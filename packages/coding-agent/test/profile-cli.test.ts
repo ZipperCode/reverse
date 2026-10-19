@@ -49,13 +49,12 @@ describe("global --profile flag", () => {
 	beforeEach(() => {
 		originalProfile = getActiveProfile();
 		originalAgentDir = getAgentDir();
-		originalAgentDirEnv = process.env.RVA_CODING_AGENT_DIR ?? process.env.PI_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.RVA_PROFILE ?? process.env.OMP_PROFILE;
+		originalAgentDirEnv = process.env.REVERSE_CODING_AGENT_DIR ?? process.env.PI_CODING_AGENT_DIR;
+		originalOmpProfileEnv = process.env.REVERSE_PROFILE ?? process.env.OMP_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
-		originalConfigDir = process.env.RVA_CONFIG_DIR ?? process.env.PI_CONFIG_DIR;
-		configDir = `.rva-profile-cli-test-${Snowflake.next()}`;
-		process.env.RVA_CONFIG_DIR = configDir;
-		process.env.PI_CONFIG_DIR = configDir;
+		originalConfigDir = process.env.REVERSE_CONFIG_DIR ?? process.env.PI_CONFIG_DIR;
+		configDir = `.reverse-profile-cli-test-${Snowflake.next()}`;
+		process.env.REVERSE_CONFIG_DIR = configDir;
 		process.exitCode = 0;
 	});
 
@@ -63,11 +62,10 @@ describe("global --profile flag", () => {
 		vi.restoreAllMocks();
 		setProfile(undefined);
 		if (originalConfigDir === undefined) {
-			delete process.env.RVA_CONFIG_DIR;
+			delete process.env.REVERSE_CONFIG_DIR;
 			delete process.env.PI_CONFIG_DIR;
 		} else {
-			process.env.RVA_CONFIG_DIR = originalConfigDir;
-			process.env.PI_CONFIG_DIR = originalConfigDir;
+			process.env.REVERSE_CONFIG_DIR = originalConfigDir;
 		}
 		if (originalProfile) {
 			setProfile(originalProfile);
@@ -77,11 +75,10 @@ describe("global --profile flag", () => {
 			setProfile(undefined);
 		}
 		if (originalOmpProfileEnv === undefined) {
-			delete process.env.RVA_PROFILE;
+			delete process.env.REVERSE_PROFILE;
 			delete process.env.OMP_PROFILE;
 		} else {
-			process.env.RVA_PROFILE = originalOmpProfileEnv;
-			process.env.OMP_PROFILE = originalOmpProfileEnv;
+			process.env.REVERSE_PROFILE = originalOmpProfileEnv;
 		}
 		if (originalPiProfileEnv === undefined) {
 			delete process.env.PI_PROFILE;
@@ -89,11 +86,10 @@ describe("global --profile flag", () => {
 			process.env.PI_PROFILE = originalPiProfileEnv;
 		}
 		if (originalAgentDirEnv === undefined) {
-			delete process.env.RVA_CODING_AGENT_DIR;
+			delete process.env.REVERSE_CODING_AGENT_DIR;
 			delete process.env.PI_CODING_AGENT_DIR;
 		} else {
-			process.env.RVA_CODING_AGENT_DIR = originalAgentDirEnv;
-			process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+			process.env.REVERSE_CODING_AGENT_DIR = originalAgentDirEnv;
 		}
 		__resetProfileSnapshotForTests();
 		process.exitCode = 0;
@@ -114,7 +110,7 @@ describe("global --profile flag", () => {
 	it("activates a profile inherited from OMP_PROFILE at run time", async () => {
 		const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 		setProfile(undefined);
-		process.env.RVA_PROFILE = "work";
+		process.env.REVERSE_PROFILE = "work";
 		process.env.OMP_PROFILE = "work";
 		delete process.env.PI_PROFILE;
 
@@ -192,16 +188,16 @@ describe("global --profile flag", () => {
 				HOME: home,
 				// os.homedir() reads USERPROFILE on Windows, HOME elsewhere.
 				USERPROFILE: home,
-				RVA_CONFIG_DIR: configDir,
+				REVERSE_CONFIG_DIR: configDir,
 				PI_CONFIG_DIR: configDir,
-				RVA_NO_TITLE: "1",
+				REVERSE_NO_TITLE: "1",
 				PI_NO_TITLE: "1",
 				NO_COLOR: "1",
 			};
-			delete childEnv.RVA_PROFILE;
+			delete childEnv.REVERSE_PROFILE;
 			delete childEnv.OMP_PROFILE;
 			delete childEnv.PI_PROFILE;
-			delete childEnv.RVA_CODING_AGENT_DIR;
+			delete childEnv.REVERSE_CODING_AGENT_DIR;
 			delete childEnv.PI_CODING_AGENT_DIR;
 			delete childEnv.OMP_PROFILE_BOOTSTRAP_SENTINEL;
 
@@ -250,14 +246,14 @@ describe("global --profile flag", () => {
 				...process.env,
 				HOME: home,
 				USERPROFILE: home,
-				RVA_CONFIG_DIR: ".rva-profile-cli-env-bad",
-				PI_CONFIG_DIR: ".rva-profile-cli-env-bad",
-				RVA_PROFILE: "..",
+				REVERSE_CONFIG_DIR: ".reverse-profile-cli-env-bad",
+				PI_CONFIG_DIR: ".reverse-profile-cli-env-bad",
+				REVERSE_PROFILE: "..",
 				OMP_PROFILE: "..",
 				NO_COLOR: "1",
 			};
 			delete childEnv.PI_PROFILE;
-			delete childEnv.RVA_CODING_AGENT_DIR;
+			delete childEnv.REVERSE_CODING_AGENT_DIR;
 			delete childEnv.PI_CODING_AGENT_DIR;
 
 			const proc = Bun.spawn([process.execPath, probePath], {

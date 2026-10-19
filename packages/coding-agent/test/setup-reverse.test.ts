@@ -6,12 +6,12 @@ import { afterEach, beforeEach } from "bun:test";
 
 let originalRvaLang: string | undefined;
 beforeEach(() => {
-	originalRvaLang = process.env.RVA_LANG;
-	process.env.RVA_LANG = "en";
+	originalRvaLang = process.env.REVERSE_LANG;
+	process.env.REVERSE_LANG = "en";
 });
 afterEach(() => {
-	if (originalRvaLang !== undefined) process.env.RVA_LANG = originalRvaLang;
-	else delete process.env.RVA_LANG;
+	if (originalRvaLang !== undefined) process.env.REVERSE_LANG = originalRvaLang;
+	else delete process.env.REVERSE_LANG;
 });
 
 function mockWhich(lookup: Record<string, string | null>): SkillRequirementWhich {
@@ -292,8 +292,8 @@ describe("handleReverseSetup non-interactive modes", () => {
 		expect(errOutput).toContain("Missing required system tools");
 	});
 
-	it("renders Chinese localized text when RVA_LANG is zh-CN", async () => {
-		process.env.RVA_LANG = "zh-CN";
+	it("renders Chinese localized text when REVERSE_LANG is zh-CN", async () => {
+		process.env.REVERSE_LANG = "zh-CN";
 		let output = "";
 		const which = mockWhich({
 			strings: "/usr/bin/strings",

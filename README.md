@@ -18,16 +18,15 @@ All external hosted coordination services (collab relays, live screen broadcasti
 
 ## Supported Local Workflows
 
-- **Development Launcher**: `sh packages/coding-agent/scripts/rva` (or `bun run dev` / `bun run rva`) restores the launch working directory via preload shims without bunfig pollution.
-- **Compiled Standalone Binary**: `packages/coding-agent/dist/rva` provides a self-contained executable with embedded native bindings and ad-hoc code signature.
-- **Single-Turn Execution**: `rva -p "read src/index.ts"` executes prompt and tool calls in print mode.
-- **Multi-Turn Resumption**: `rva -p --continue "summarize"` rehydrates the prior session's user, tool, and assistant history.
-- **Interactive Terminal (TUI)**: `rva` launches the full interactive workspace with prompt composer, live status line, and `/new` session switching.
-- **Terminal Recording & Playback**: `/record` starts and stops local session captures stored in `$TMPDIR/rva-recordings/*.ompcast`; `rva play <recording> --speed 10 --idle-limit 0.1` provides terminal replay without network access.
-- **Session HTML Export**: `rva --export <session.jsonl> [output.html]` generates standalone self-contained HTML transcripts with inlined React tool views.
-- **Local Skills & Plugins**: `rva skill list [dir] [--json]` discovers local `.rva/skills`; `rva install <local-plugin-path>` links development plugins into the isolated user plugin store.
-- **Configuration & Localization (i18n)**: Manage settings via `rva config [list|get|set|reset]`. Full Chinese localization (`zh-CN`) is available for configuration labels, descriptions, group headers, and CLI help, configurable via `rva config set language zh-CN`, in the interactive `/settings` panel (Appearance → Display → Language), or via the `RVA_LANG=zh-CN` environment override, while keeping all setting identifiers, enum values, and JSON machine output canonical.
-
+- **Development Launcher**: `sh packages/coding-agent/scripts/reverse` (or `bun run dev` / `bun run reverse`) restores the launch working directory via preload shims without bunfig pollution.
+- **Compiled Standalone Binary**: `packages/coding-agent/dist/reverse` provides a self-contained executable with embedded native bindings and ad-hoc code signature.
+- **Single-Turn Execution**: `reverse -p "read src/index.ts"` executes prompt and tool calls in print mode.
+- **Multi-Turn Resumption**: `reverse -p --continue "summarize"` rehydrates the prior session's user, tool, and assistant history.
+- **Interactive Terminal (TUI)**: `reverse` launches the full interactive workspace with prompt composer, live status line, and `/new` session switching.
+- **Terminal Recording & Playback**: `/record` starts and stops local session captures stored in `$TMPDIR/reverse-recordings/*.ompcast`; `reverse play <recording> --speed 10 --idle-limit 0.1` provides terminal replay without network access.
+- **Session HTML Export**: `reverse --export <session.jsonl> [output.html]` generates standalone self-contained HTML transcripts with inlined React tool views.
+- **Local Skills & Plugins**: `reverse skill list [dir] [--json]` discovers local `.reverse/skills`; `reverse install <local-plugin-path>` links development plugins into the isolated user plugin store.
+- **Configuration & Localization (i18n)**: Manage settings via `reverse config [list|get|set|reset]`. Full Chinese localization (`zh-CN`) is available for configuration labels, descriptions, group headers, and CLI help, configurable via `reverse config set language zh-CN`, in the interactive `/settings` panel (Appearance → Display → Language), or via the `REVERSE_LANG=zh-CN` environment override, while keeping all setting identifiers, enum values, and JSON machine output canonical. No migration promise is made for legacy rva aliases.
 ## Verification Evidence
 
 A clean-room, zero-external-credential loopback smoke harness verified both the development launcher (`scripts/rva`) and compiled standalone binary (`dist/rva`):

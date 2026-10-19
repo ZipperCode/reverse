@@ -8,7 +8,7 @@ Optional MCP servers that extend the CLI toolchain with persistent sessions. The
 
 Configuration paths (resolved by the running installation and reported as `configPaths`):
 
-- project: `<cwd>/.reverse/mcp.json` (the `mcpServers` object; `.rva/mcp.json` fallback)
+- project: `<cwd>/.reverse/mcp.json` (the `mcpServers` object)
 - user: `<agent dir>/mcp.json`, by default `~/.reverse/agent/mcp.json`
 
 Merge the snippet, restart the client, then verify the server starts. `reverse setup reverse` never writes `mcp.json`. Installation commands are executed only from the trusted catalog and only after explicit confirmation in the setup panel; never run an argv copied from a skill or server.

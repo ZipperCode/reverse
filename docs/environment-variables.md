@@ -16,13 +16,13 @@ Most runtime lookups use `$env` from `@rva/utils` (`packages/utils/src/env.ts`).
 
 1. Existing process environment (`Bun.env`)
 2. Project `.env` from the launch working directory for keys whose current value is empty/unset
-3. Active agent `.env` (normally `~/.rva/agent/.env`) for keys whose current value is empty/unset
-4. Active config-root `.env` (normally `~/.rva/.env`) for keys whose current value is empty/unset
+3. Active agent `.env` (normally `~/.reverse/agent/.env`) for keys whose current value is empty/unset
+4. Active config-root `.env` (normally `~/.reverse/.env`) for keys whose current value is empty/unset
 5. Home `.env` (`~/.env`) for keys whose current value is empty/unset
 
-The agent/root locations respect profiles, `RVA_CONFIG_DIR`, and—only for the default profile—`RVA_CODING_AGENT_DIR`. Whole dotenv files are parsed with Bun's `node:util.parseEnv`, including quoted multiline values, escaped newlines, and inline comments. Names must be shell identifiers (`[A-Za-z_][A-Za-z0-9_]*`); unsafe names/values are discarded. Variable references remain literal in this parser; only Bun's launch-directory dotenv autoload performs variable expansion before this module runs. Child-shell filtering uses the same parser to identify project dotenv values across `.env`, `.env.<NODE_ENV>` (default `development`), `.env.local`, and `.env.<NODE_ENV>.local`. It removes project-dotenv credentials from shell subprocesses while preserving launcher-owned variables; Linux's original exec environment provides the authoritative launch snapshot, with best-effort value matching elsewhere.
+The agent/root locations respect profiles, `REVERSE_CONFIG_DIR`, and—only for the default profile—`REVERSE_CODING_AGENT_DIR`. Whole dotenv files are parsed with Bun's `node:util.parseEnv`, including quoted multiline values, escaped newlines, and inline comments. Names must be shell identifiers (`[A-Za-z_][A-Za-z0-9_]*`); unsafe names/values are discarded. Variable references remain literal in this parser; only Bun's launch-directory dotenv autoload performs variable expansion before this module runs. Child-shell filtering uses the same parser to identify project dotenv values across `.env`, `.env.<NODE_ENV>` (default `development`), `.env.local`, and `.env.<NODE_ENV>.local`. It removes project-dotenv credentials from shell subprocesses while preserving launcher-owned variables; Linux's original exec environment provides the authoritative launch snapshot, with best-effort value matching elsewhere.
 
-Cross-brand environment variable mirroring is disabled: RVA operates with its own `RVA_*` namespace and configuration root `.rva`.
+Cross-brand environment variable mirroring is disabled: reverse operates with its own `REVERSE_*` namespace and configuration root `.reverse`. No migration promise is made for legacy rva aliases or environment variables.
 
 Variables declared on a setting definition (see [settings precedence](./settings.md#precedence)) are parsed by the setting's type unless noted otherwise. Boolean ones (`PI_PY`, `PI_JS`, `PI_INTENT_TRACING`, `PI_AUTO_QA`, `HINDSIGHT_AUTO_RECALL`, …) follow `parseFlag`: an empty value is ignored, so the setting applies; `1`, `y`, `true`, `yes`, and `on` (all-lowercase or all-uppercase) mean true; any other non-empty value means false.
 

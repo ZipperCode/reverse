@@ -57,25 +57,25 @@ async function withClearedSecretEnv<T>(run: () => Promise<T>): Promise<T> {
 
 async function withTempConfigRoot<T>(run: () => Promise<T>): Promise<T> {
 	const originalProfile = getActiveProfile();
-	const originalConfigDir = process.env.RVA_CONFIG_DIR;
-	const originalAgentDir = process.env.RVA_CODING_AGENT_DIR;
-	const configDirName = `.rva-sdk-session-${Snowflake.next()}`;
+	const originalConfigDir = process.env.REVERSE_CONFIG_DIR;
+	const originalAgentDir = process.env.REVERSE_CODING_AGENT_DIR;
+	const configDirName = `.reverse-sdk-session-${Snowflake.next()}`;
 	const configRoot = path.join(os.homedir(), configDirName);
 	try {
-		process.env.RVA_CONFIG_DIR = configDirName;
+		process.env.REVERSE_CONFIG_DIR = configDirName;
 		setProfile(undefined);
 		return await run();
 	} finally {
 		setProfile(undefined);
 		if (originalConfigDir === undefined) {
-			delete process.env.RVA_CONFIG_DIR;
+			delete process.env.REVERSE_CONFIG_DIR;
 		} else {
-			process.env.RVA_CONFIG_DIR = originalConfigDir;
+			process.env.REVERSE_CONFIG_DIR = originalConfigDir;
 		}
 		if (originalAgentDir === undefined) {
-			delete process.env.RVA_CODING_AGENT_DIR;
+			delete process.env.REVERSE_CODING_AGENT_DIR;
 		} else {
-			process.env.RVA_CODING_AGENT_DIR = originalAgentDir;
+			process.env.REVERSE_CODING_AGENT_DIR = originalAgentDir;
 		}
 		setProfile(originalProfile);
 		// The model registry opened the shared `<configRoot>/agent/models.db` cache while the

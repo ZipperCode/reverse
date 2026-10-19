@@ -35,8 +35,8 @@ describe("native executable custom tool discovery", () => {
 		clearClaudePluginRootsCache();
 		clearFsCache();
 		originalHome = process.env.HOME;
-		originalAgentDirEnv = process.env.RVA_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.RVA_PROFILE;
+		originalAgentDirEnv = process.env.REVERSE_CODING_AGENT_DIR;
+		originalOmpProfileEnv = process.env.REVERSE_PROFILE;
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-builtin-tools-"));
 		const home = path.join(root, "home");
 		project = path.join(root, "project");
@@ -59,8 +59,8 @@ describe("native executable custom tool discovery", () => {
 		clearFsCache();
 		vi.restoreAllMocks();
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("RVA_PROFILE", originalOmpProfileEnv);
-		restoreEnvValue("RVA_CODING_AGENT_DIR", originalAgentDirEnv);
+		restoreEnvValue("REVERSE_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("REVERSE_CODING_AGENT_DIR", originalAgentDirEnv);
 		__resetDirsFromEnvForTests();
 		await removeWithRetries(root);
 	});

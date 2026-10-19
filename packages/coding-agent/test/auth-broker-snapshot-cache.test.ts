@@ -16,7 +16,7 @@ import { removeWithRetries } from "@rva/utils";
 const ENV_KEYS = [
 	"OMP_AUTH_BROKER_URL",
 	"OMP_AUTH_BROKER_TOKEN",
-	"RVA_AUTH_BROKER_SNAPSHOT_CACHE",
+	"REVERSE_AUTH_BROKER_SNAPSHOT_CACHE",
 	"OMP_AUTH_BROKER_SNAPSHOT_CACHE",
 	"OMP_AUTH_BROKER_SNAPSHOT_TTL_MS",
 ] as const;
@@ -78,7 +78,7 @@ describe("discoverAuthStorage auth-broker snapshot cache", () => {
 		const downUrl = "http://127.0.0.1:1";
 		process.env.OMP_AUTH_BROKER_URL = downUrl;
 		process.env.OMP_AUTH_BROKER_TOKEN = TOKEN;
-		process.env.RVA_AUTH_BROKER_SNAPSHOT_CACHE = cachePath;
+		process.env.REVERSE_AUTH_BROKER_SNAPSHOT_CACHE = cachePath;
 		process.env.OMP_AUTH_BROKER_SNAPSHOT_CACHE = cachePath;
 		process.env.OMP_AUTH_BROKER_SNAPSHOT_TTL_MS = "3600000";
 		await writeAuthBrokerSnapshotCache({
@@ -113,7 +113,7 @@ describe("discoverAuthStorage auth-broker snapshot cache", () => {
 			});
 			process.env.OMP_AUTH_BROKER_URL = handle.url;
 			process.env.OMP_AUTH_BROKER_TOKEN = TOKEN;
-			process.env.RVA_AUTH_BROKER_SNAPSHOT_CACHE = cachePath;
+			process.env.REVERSE_AUTH_BROKER_SNAPSHOT_CACHE = cachePath;
 			process.env.OMP_AUTH_BROKER_SNAPSHOT_CACHE = cachePath;
 			process.env.OMP_AUTH_BROKER_SNAPSHOT_TTL_MS = "3600000";
 
@@ -155,7 +155,7 @@ describe("discoverAuthStorage auth-broker snapshot cache", () => {
 		try {
 			process.env.OMP_AUTH_BROKER_URL = url;
 			process.env.OMP_AUTH_BROKER_TOKEN = TOKEN;
-			process.env.RVA_AUTH_BROKER_SNAPSHOT_CACHE = cachePath;
+			process.env.REVERSE_AUTH_BROKER_SNAPSHOT_CACHE = cachePath;
 			process.env.OMP_AUTH_BROKER_SNAPSHOT_CACHE = cachePath;
 			process.env.OMP_AUTH_BROKER_SNAPSHOT_TTL_MS = "3600000";
 			await writeAuthBrokerSnapshotCache({

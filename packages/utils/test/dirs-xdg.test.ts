@@ -14,9 +14,9 @@ import {
 import { Snowflake } from "@rva/utils/snowflake";
 
 const ENV_KEYS = [
-	"RVA_PROFILE",
-	"RVA_CONFIG_DIR",
-	"RVA_CODING_AGENT_DIR",
+	"REVERSE_PROFILE",
+	"REVERSE_CONFIG_DIR",
+	"REVERSE_CODING_AGENT_DIR",
 	"XDG_DATA_HOME",
 	"XDG_STATE_HOME",
 	"XDG_CACHE_HOME",
@@ -33,15 +33,15 @@ describe("XDG-aware runtime paths", () => {
 
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
-		originalProfile = process.env.RVA_PROFILE;
+		originalProfile = process.env.REVERSE_PROFILE;
 		originalEnv = {};
 		for (const key of ENV_KEYS) originalEnv[key] = process.env[key];
 		tempRoot = path.join(os.tmpdir(), "pi-utils-dirs-xdg", Snowflake.next());
 		configDir = `.rva-dirs-xdg-${Snowflake.next()}`;
 		defaultAgentDir = path.join(os.homedir(), configDir, "agent");
 		await fs.mkdir(tempRoot, { recursive: true });
-		process.env.RVA_CONFIG_DIR = configDir;
-		delete process.env.RVA_CODING_AGENT_DIR;
+		process.env.REVERSE_CONFIG_DIR = configDir;
+		delete process.env.REVERSE_CODING_AGENT_DIR;
 		delete process.env.XDG_DATA_HOME;
 		delete process.env.XDG_STATE_HOME;
 		delete process.env.XDG_CACHE_HOME;

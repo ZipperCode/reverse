@@ -19,7 +19,7 @@ const CJK = /[\u4e00-\u9fff]/;
 
 async function initSettings(overrides: Record<string, unknown> = {}): Promise<void> {
 	resetSettingsForTest();
-	delete process.env.RVA_LANG;
+	delete process.env.REVERSE_LANG;
 	await Settings.init({ inMemory: true, overrides });
 }
 
@@ -37,13 +37,13 @@ describe("settings i18n behavior", () => {
 	let originalLang: string | undefined;
 
 	beforeEach(async () => {
-		originalLang = process.env.RVA_LANG;
+		originalLang = process.env.REVERSE_LANG;
 		await initSettings();
 	});
 
 	afterEach(() => {
-		if (originalLang === undefined) delete process.env.RVA_LANG;
-		else process.env.RVA_LANG = originalLang;
+		if (originalLang === undefined) delete process.env.REVERSE_LANG;
+		else process.env.REVERSE_LANG = originalLang;
 		resetSettingsForTest();
 	});
 
@@ -80,16 +80,16 @@ describe("settings i18n behavior", () => {
 		expect(CJK.test(getTabLead("appearance", "zh-CN"))).toBe(true);
 	});
 
-	it("gives RVA_LANG precedence over the configured language and refreshes the host", async () => {
+	it("gives REVERSE_LANG precedence over the configured language and refreshes the host", async () => {
 		await initSettings({ language: "zh-CN" });
-		process.env.RVA_LANG = "en";
+		process.env.REVERSE_LANG = "en";
 		const host = createSettingsHost();
 		expect(host.locale).toBe("en");
 		expect(settingDef(host, "appearance", "theme.dark").label).toBe(
 			settingDef(host, "appearance", "theme.dark").canonicalLabel ?? "",
 		);
 
-		delete process.env.RVA_LANG;
+		delete process.env.REVERSE_LANG;
 		host.reload?.();
 		expect(host.locale).toBe("zh-CN");
 		expect(CJK.test(settingDef(host, "appearance", "theme.dark").label ?? "")).toBe(true);

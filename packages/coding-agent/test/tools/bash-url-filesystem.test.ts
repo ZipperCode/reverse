@@ -75,7 +75,7 @@ describe("bash internal URLs through the shell filesystem", () => {
 	});
 
 	it("fails a redirection into a read-only scheme", async () => {
-		const { isError } = await run("printf 'x' > rva://README.md");
+		const { isError } = await run("printf 'x' > reverse://README.md");
 
 		expect(isError).toBe(true);
 	});

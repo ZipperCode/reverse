@@ -1,5 +1,5 @@
 /**
- * Protocol handler for reverse:// (and legacy rva://) URLs.
+ * Protocol handler for reverse:// URLs.
  *
  * Serves statically embedded documentation files bundled at build time.
  *
@@ -40,7 +40,7 @@ function docFileFor(url: InternalUrl): string | undefined {
 }
 
 /**
- * Handler for reverse:// URLs (and base for rva:// compatibility).
+ * Handler for reverse:// URLs.
  *
  * Resolves documentation file names to their content, or lists available docs.
  */

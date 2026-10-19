@@ -287,7 +287,7 @@ describe("default bench runtime", () => {
 					...process.env,
 					NO_COLOR: "1",
 					OPENCODE_API_KEY: apiKey,
-					RVA_CODING_AGENT_DIR: tempDir.path(),
+					REVERSE_CODING_AGENT_DIR: tempDir.path(),
 				},
 				stdout: "pipe",
 				stderr: "pipe",

@@ -104,7 +104,7 @@ export interface PythonExecutorOptions {
 	/**
 	 * On-disk roots the prelude helpers (`read`/`write`) substitute for
 	 * internal-URL schemes (e.g. `{ local: "/…/artifacts/local" }`). Exported to
-	 * the kernel as `RVA_EVAL_LOCAL_ROOTS` (JSON) so `write("local://x")` lands
+	 * the kernel as `REVERSE_EVAL_LOCAL_ROOTS` (JSON) so `write("local://x")` lands
 	 * where `read local://x` resolves instead of a literal `local:/` directory.
 	 */
 	localRoots?: Record<string, string>;

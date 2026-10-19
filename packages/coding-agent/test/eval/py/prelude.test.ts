@@ -134,7 +134,7 @@ describe("python prelude", () => {
 		try {
 			// No inherited artifacts root (an Eval cell running these tests has one); tests that want one pass it.
 			const result = await runPrelude(code, {
-				RVA_EVAL_LOCAL_ROOTS: "{}",
+				REVERSE_EVAL_LOCAL_ROOTS: "{}",
 				...env,
 				PI_TOOL_BRIDGE_URL: server.url.toString(),
 				PI_TOOL_BRIDGE_TOKEN: "test-token",
@@ -159,7 +159,7 @@ describe("python prelude", () => {
 				`print(repr(read("artifact://12", offset=2, limit=1)))`,
 				`print([read("artifact://12", limit=0), read("artifact://12", limit=-1), read("artifact://7", limit=0)])`,
 			].join("\n"),
-			{ RVA_EVAL_LOCAL_ROOTS: JSON.stringify({ artifact: artifacts.path() }) },
+			{ REVERSE_EVAL_LOCAL_ROOTS: JSON.stringify({ artifact: artifacts.path() }) },
 			async () => ({ text: "from the read tool" }),
 		);
 
@@ -179,7 +179,7 @@ describe("python prelude", () => {
 				`print(repr(read("artifact://7", offset=3, limit=2)))`,
 				`print(read("artifact://7", offset=3) == "".join(f"row {i}\\n" for i in range(3000)))`,
 			].join("\n"),
-			{ RVA_EVAL_LOCAL_ROOTS: JSON.stringify({ artifact: tmp.join("own") }) },
+			{ REVERSE_EVAL_LOCAL_ROOTS: JSON.stringify({ artifact: tmp.join("own") }) },
 			artifactReadBridge(tmp.path(), tmp.join("owner")),
 		);
 

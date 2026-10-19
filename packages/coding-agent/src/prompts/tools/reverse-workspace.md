@@ -1,4 +1,4 @@
-Standardized reverse-engineering workspace manager for `reverse`. Manages the local `.reverse/` workspace (with `.rva/` and `.rea/` compatibility) with deterministic target profiles, execution plans, verified evidence chains, findings reports, and safe artifact references.
+Standardized reverse-engineering workspace manager for `reverse`. Manages the local `.reverse/` workspace (with `.rea/` compatibility) with deterministic target profiles, execution plans, verified evidence chains, findings reports, and safe artifact references.
 
 Actions:
 - `export`: Export a reverse workflow and all hydrated evidence/findings into the standardized `.reverse/` workspace.

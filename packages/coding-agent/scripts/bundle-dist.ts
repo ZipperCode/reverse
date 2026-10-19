@@ -98,8 +98,8 @@ export async function bundleDist(outDir: string = defaultOutDir): Promise<void> 
 			plugins: [createJsonParsePlugin(), await createLegacyPiVirtualModulePlugin()],
 			external: [...ALWAYS_EXTERNAL, ...RUNTIME_EXTERNAL],
 			define: {
-				"process.env.RVA_BUNDLED": JSON.stringify("true"),
-				"process.env.RVA_DOCS_EMBED": JSON.stringify(docsPayload.payload),
+				"process.env.REVERSE_BUNDLED": JSON.stringify("true"),
+				"process.env.REVERSE_DOCS_EMBED": JSON.stringify(docsPayload.payload),
 			},
 			minify: {
 				whitespace: true,

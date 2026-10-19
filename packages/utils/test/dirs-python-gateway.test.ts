@@ -13,7 +13,7 @@ describe("python gateway directory", () => {
 
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
-		originalConfigDir = process.env.RVA_CONFIG_DIR;
+		originalConfigDir = process.env.REVERSE_CONFIG_DIR;
 		originalXdgStateHome = process.env.XDG_STATE_HOME;
 		tempRoot = path.join(os.tmpdir(), "pi-utils-python-gateway", Snowflake.next());
 		await fs.mkdir(tempRoot, { recursive: true });
@@ -21,9 +21,9 @@ describe("python gateway directory", () => {
 
 	afterEach(async () => {
 		if (originalConfigDir === undefined) {
-			delete process.env.RVA_CONFIG_DIR;
+			delete process.env.REVERSE_CONFIG_DIR;
 		} else {
-			process.env.RVA_CONFIG_DIR = originalConfigDir;
+			process.env.REVERSE_CONFIG_DIR = originalConfigDir;
 		}
 		if (originalXdgStateHome === undefined) {
 			delete process.env.XDG_STATE_HOME;
@@ -37,14 +37,14 @@ describe("python gateway directory", () => {
 	it("uses XDG state for the default agent profile", async () => {
 		if (process.platform === "win32") return;
 
-		process.env.RVA_CONFIG_DIR = `.rva-test-${Snowflake.next()}`;
+		process.env.REVERSE_CONFIG_DIR = `.reverse-test-${Snowflake.next()}`;
 		process.env.XDG_STATE_HOME = path.join(tempRoot, "state");
-		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "rva"), { recursive: true });
+		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "reverse"), { recursive: true });
 
 		const defaultAgentDir = path.join(os.homedir(), getConfigDirName(), "agent");
 		setAgentDir(defaultAgentDir);
 
-		expect(getPythonGatewayDir()).toBe(path.join(process.env.XDG_STATE_HOME, "rva", "python-gateway"));
+		expect(getPythonGatewayDir()).toBe(path.join(process.env.XDG_STATE_HOME, "reverse", "python-gateway"));
 	});
 
 	it("keeps custom agent profiles isolated from XDG shared state", async () => {

@@ -74,8 +74,8 @@ describe("omp read <image>?q=", () => {
 					env: {
 						...process.env,
 						HOME: home,
-						RVA_CODING_AGENT_DIR: agentDir,
-						RVA_TEST_RUNTIME: "1",
+						REVERSE_CODING_AGENT_DIR: agentDir,
+						REVERSE_TEST_RUNTIME: "1",
 					},
 					stdout: "pipe",
 					stderr: "pipe",

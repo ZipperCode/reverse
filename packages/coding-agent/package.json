@@ -28,8 +28,7 @@
     "directory": "packages/coding-agent"
   },
   "bin": {
-    "reverse": "src/cli.ts",
-    "rva": "src/cli.ts"
+    "reverse": "src/cli.ts"
   },
   "files": [
     "src",

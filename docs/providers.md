@@ -31,7 +31,7 @@ Factory's native context limits hold even when extended context is disabled. Fac
 The model registry composes these sources:
 
 1. The bundled model catalog.
-2. Custom provider and model entries from the active agent directory's `models.yml` (default: `~/.rva/agent/models.yml`).
+2. Custom provider and model entries from the active agent directory's `models.yml` (default: `~/.reverse/agent/models.yml`).
 3. Cached and runtime-discovered models for local engines and discovery-enabled hosted providers.
 4. Providers and models registered by extensions, including extension-owned discovery.
 
@@ -60,7 +60,7 @@ When a provider needs an API key, `omp` resolves it in this order (first match w
 6. **Provider environment variable**: including values loaded from `.env` files (see [the env-var table](#environment-variables-and-env-files)).
 7. **Other stored API key**: for example, a broker-migrated key. This is a last resort so an explicit environment variable wins.
 
-Local credentials live in the active auth store (default: `~/.rva/agent/agent.db`); broker mode uses the configured shared auth broker. Named profiles and Linux XDG layouts can relocate the store. In the default profile, `RVA_CODING_AGENT_DIR` overrides the agent directory. See [Settings](./settings.md) and [Secrets and credentials](./secrets.md) for path resolution.
+Local credentials live in the active auth store (default: `~/.reverse/agent/agent.db`); broker mode uses the configured shared auth broker. Named profiles and Linux XDG layouts can relocate the store. In the default profile, `REVERSE_CODING_AGENT_DIR` overrides the agent directory. See [Settings](./settings.md) and [Secrets and credentials](./secrets.md) for path resolution.
 
 ### OAuth vs API key, and provider-scoped logins
 
@@ -86,7 +86,7 @@ For Command Code, set `COMMAND_CODE_API_KEY` or run `/login commandcode`; login 
 A custom provider's `apiKey` is resolved as **environment-variable-name-or-literal**: if the value names an exact-case environment variable with a non-empty value, that value is used; otherwise the string itself is the key. Prefixing the value with `!` runs it as a shell command and uses the trimmed stdout (see [Model and Provider Configuration](./models.md) for the full value syntax).
 
 ```yaml
-# ~/.rva/agent/models.yml
+# ~/.reverse/agent/models.yml
 providers:
   my-gateway:
     baseUrl: https://gateway.example.com/v1
@@ -367,7 +367,7 @@ Watch the related names. The Google Gemini **API** models use the model provider
 
 ## Custom providers in `models.yml`
 
-Custom providers live in `~/.rva/agent/models.yml` under `providers:`.
+Custom providers live in `~/.reverse/agent/models.yml` under `providers:`.
 
 You can add custom providers interactively without manual file editing via `/setup providers` (select `+ Add custom provider…`), `/models` (sidebar `+ Add provider…`), or `/provider add`. The wizard automatically discovers available models from the endpoint, presents a searchable multi-select list, writes non-sensitive provider and model declarations to `models.yml`, and securely saves API keys in `agent.db` via `AuthStorage`.
 Minimal OpenAI-compatible provider:

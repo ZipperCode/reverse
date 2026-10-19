@@ -80,7 +80,7 @@ const DEFAULT_ENV_DENYLIST = new Set([
 	"MISTRAL_API_KEY",
 ]);
 
-const DEFAULT_ENV_ALLOW_PREFIXES = ["LC_", "XDG_", "RVA_", "PI_"];
+const DEFAULT_ENV_ALLOW_PREFIXES = ["LC_", "XDG_", "REVERSE_", "PI_"];
 
 const CASE_INSENSITIVE_ENV = process.platform === "win32";
 const BASE_ENV_ALLOWLIST = new Set([...DEFAULT_ENV_ALLOWLIST, ...WINDOWS_ENV_ALLOWLIST]);

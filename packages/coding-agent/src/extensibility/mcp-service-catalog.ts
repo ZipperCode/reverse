@@ -58,7 +58,7 @@ export interface McpServiceDescriptor {
 }
 
 /** Config path hint shown by setup panels and the guide skill. */
-export const MCP_CONFIG_PATH_HINT = ".reverse/mcp.json (project) or ~/.reverse/agent/mcp.json (user; .rva fallback supported)";
+export const MCP_CONFIG_PATH_HINT = ".reverse/mcp.json (project) or ~/.reverse/agent/mcp.json (user)";
 
 /** Suggested server key + config for a service, ready to merge into `mcpServers`. */
 export function mcpServerSnippet(descriptor: McpServiceDescriptor): { mcpServers: Record<string, MCPServerConfig> } {

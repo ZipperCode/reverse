@@ -10,7 +10,7 @@ import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/bui
 import { __resetDirsFromEnvForTests, APP_NAME, getConfigRootDir, refreshDirsFromEnv, setAgentDir } from "@rva/utils";
 
 let tempDir: string;
-const originalAgentDir = process.env.RVA_CODING_AGENT_DIR ?? process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.REVERSE_CODING_AGENT_DIR ?? process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 const storage = new FileSessionStorage();
 
@@ -25,7 +25,7 @@ afterEach(async () => {
 	} else {
 		setAgentDir(fallbackAgentDir);
 		delete process.env.PI_CODING_AGENT_DIR;
-		delete process.env.RVA_CODING_AGENT_DIR;
+		delete process.env.REVERSE_CODING_AGENT_DIR;
 	}
 	await fs.rm(tempDir, { recursive: true, force: true });
 });
@@ -178,9 +178,9 @@ describe("/resume slash command", () => {
 
 		const originalXdgData = process.env.XDG_DATA_HOME;
 		const originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
-		const originalRvaCodingAgentDir = process.env.RVA_CODING_AGENT_DIR;
+		const originalRvaCodingAgentDir = process.env.REVERSE_CODING_AGENT_DIR;
 		delete process.env.PI_CODING_AGENT_DIR;
-		delete process.env.RVA_CODING_AGENT_DIR;
+		delete process.env.REVERSE_CODING_AGENT_DIR;
 		process.env.XDG_DATA_HOME = xdgDataDir;
 		__resetDirsFromEnvForTests();
 
@@ -207,7 +207,7 @@ describe("/resume slash command", () => {
 			if (originalXdgData !== undefined) process.env.XDG_DATA_HOME = originalXdgData;
 			else delete process.env.XDG_DATA_HOME;
 			if (originalPiCodingAgentDir !== undefined) process.env.PI_CODING_AGENT_DIR = originalPiCodingAgentDir;
-			if (originalRvaCodingAgentDir !== undefined) process.env.RVA_CODING_AGENT_DIR = originalRvaCodingAgentDir;
+			if (originalRvaCodingAgentDir !== undefined) process.env.REVERSE_CODING_AGENT_DIR = originalRvaCodingAgentDir;
 			__resetDirsFromEnvForTests();
 		}
 	});

@@ -1,5 +1,5 @@
 /**
- * Shared grammar for `reverse://` (and legacy `rva://`) docs scopes:
+ * Grammar for `reverse://` docs scopes:
  * which doc a URL names, and the whole embedded corpus for the docs root.
  */
 import * as path from "node:path";

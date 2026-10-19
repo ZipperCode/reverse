@@ -27,7 +27,7 @@ rva config set language zh-CN
 rva config reset language
 
 # Override per-command via environment variable
-RVA_LANG=zh-CN rva config --help
+REVERSE_LANG=zh-CN reverse config --help
 ```
 
 In the interactive TUI, `/settings` allows switching languages under **Appearance** → **Display** → **Language**, and dynamically re-renders the panel immediately. Search supports bilingual matching in both Chinese and English canonical keys/labels. All internal setting keys, enum storage values, environment variable names, and JSON machine output (`rva config list --json`) remain strictly canonical and backwards-compatible.

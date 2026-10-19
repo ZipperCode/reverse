@@ -122,7 +122,7 @@ Kernel startup and per-execution environment patching can receive:
 - `PI_TOOL_BRIDGE_URL`
 - `PI_TOOL_BRIDGE_TOKEN`
 - `PI_TOOL_BRIDGE_SESSION`
-- `RVA_EVAL_LOCAL_ROOTS`
+- `REVERSE_EVAL_LOCAL_ROOTS`
 
 The runner applies the requested cwd and managed environment patch before each cell, with cwd placed first on `sys.path`. A `%cd` or `os.chdir()` inside a cell does not override the host session cwd for the next eval call. Managed entries omitted from the patch are removed from `os.environ`.
 
