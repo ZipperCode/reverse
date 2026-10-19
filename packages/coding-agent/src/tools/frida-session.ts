@@ -31,12 +31,18 @@ import {
 	splitCliArgs,
 	parsePythonLiteral,
 } from "./frida";
-
+import { probeFridaLiveDependency, type FridaLiveDependencyStatus } from "./frida-live-env";
+import { FridaLiveClient, type FridaLiveInitResult, type FridaLiveLoadResult } from "./frida-live-client";
 export const fridaSessionSchema = type({
 	"action?": type
-		.enumerated("create", "list", "status", "run", "events", "stop", "destroy")
+		.enumerated("create", "list", "status", "run", "events", "stop", "destroy", "load", "unload", "rpc", "resume")
 		.describe(
-			"Action to perform: 'create' (start/initialize new analysis session), 'list' (list saved sessions), 'status' (inspect session state and target status), 'run' (execute script or enumeration in session context), 'events' (inspect, query, or export structured event ring buffer), 'stop' (suspend/stop session and active child), 'destroy' (terminate and remove session)",
+			"Action to perform: 'create' (start/initialize new analysis session), 'list' (list saved sessions), 'status' (inspect session state and target status), 'run' (execute script or enumeration in session context), 'load' (load or hot-reload script in live session), 'unload' (unload active script from live session), 'rpc' (call exported RPC function in live session), 'resume' (resume paused/suspended live spawned process), 'events' (inspect, query, or export structured event ring buffer), 'stop' (suspend/stop session and active child), 'destroy' (terminate and remove session)",
+		),
+	"mode?": type
+		.enumerated("batch", "live")
+		.describe(
+			"Session mode: 'batch' (default: oneshot CLI invocation per run) or 'live' (persistent long-lived Frida session process with RPC, live telemetry, and hot reload)",
 		),
 	"session_id?": type("string").describe(
 		"Identifier for the session. Auto-generated on create if omitted. Required for run/status/events/stop/destroy when multiple sessions exist",
@@ -52,8 +58,12 @@ export const fridaSessionSchema = type({
 	"usb?": type("boolean").describe("Target USB device/emulator (shorthand for frida -U)"),
 	"device?": type("string").describe("Target device serial or ID (passes -D <device>)"),
 	"host?": type("string").describe("Target remote frida-server host (e.g. '192.168.1.5:27042', passes -H <host>)"),
-	"script?": type("string").describe("Inline Frida JavaScript source code to execute"),
-	"script_path?": type("string").describe("Local path to a Frida JavaScript script file to execute"),
+	"script?": type("string").describe("Inline Frida JavaScript source code to execute or load"),
+	"script_path?": type("string").describe("Local path to a Frida JavaScript script file to execute or load"),
+	"rpc_method?": type("string").describe("For action: 'rpc': name of exported RPC function in rpc.exports"),
+	"rpc_args?": type("unknown").describe(
+		"For action: 'rpc': arguments passed to the RPC function (scalar, array, or object)",
+	),
 	"command?": type("string").describe(
 		"Builtin evaluation command: 'script' (default), 'modules' (list loaded modules), 'ps' (list processes), 'inspect' (inspect target environment)",
 	),
@@ -86,7 +96,18 @@ export const fridaSessionSchema = type({
 });
 
 export type FridaSessionParams = typeof fridaSessionSchema.infer;
-export type FridaSessionAction = "create" | "list" | "status" | "run" | "events" | "stop" | "destroy";
+export type FridaSessionAction =
+	| "create"
+	| "list"
+	| "status"
+	| "run"
+	| "events"
+	| "stop"
+	| "destroy"
+	| "load"
+	| "unload"
+	| "rpc"
+	| "resume";
 export type FridaSessionStatus = "ok" | "missing_dependency" | "stopped" | "not_found" | "timeout" | "error";
 
 export type DynamicSessionEventKind = "stdout" | "stderr" | "message" | "trace" | "lifecycle" | "error";
@@ -142,6 +163,8 @@ export interface FridaSessionRunEntry {
 export interface FridaSessionRecord {
 	id: string;
 	name?: string;
+	mode?: "batch" | "live";
+	liveStatus?: "connected" | "detached" | "stopped" | "error" | "disconnected";
 	target: FridaSessionTarget;
 	status: "active" | "stopped" | "failed" | "error";
 	createdAt: string;
@@ -151,6 +174,8 @@ export interface FridaSessionRecord {
 	history: FridaSessionRunEntry[];
 	activeChildPid?: number;
 	lastScript?: string;
+	loadedScript?: string;
+	rpcExports?: string[];
 	metadata?: Record<string, unknown>;
 	events?: DynamicSessionEvent[];
 	eventsCount?: number;
@@ -160,6 +185,8 @@ export interface FridaSessionDetails {
 	action: FridaSessionAction;
 	status: FridaSessionStatus;
 	sessionId?: string;
+	mode?: "batch" | "live";
+	liveStatus?: string;
 	session?: FridaSessionRecord;
 	sessions?: FridaSessionRecord[];
 	target?: string;
@@ -170,7 +197,7 @@ export interface FridaSessionDetails {
 	outputBytes?: number;
 	truncated?: boolean;
 	timedOut?: boolean;
-	dependency?: FridaDependencyStatus;
+	dependency?: FridaDependencyStatus | FridaLiveDependencyStatus;
 	fallback?: FridaFallbackInfo;
 	error?: string;
 	events?: DynamicSessionEvent[];
@@ -179,6 +206,8 @@ export interface FridaSessionDetails {
 	evidence?: DynamicEvidenceReference | DynamicEvidenceReference[];
 	artifactId?: string;
 	artifactPath?: string;
+	rpcResult?: unknown;
+	exports?: string[];
 }
 
 export interface FridaSessionToolOptions {
@@ -205,12 +234,83 @@ interface ActiveChild {
 }
 
 const ACTIVE_CHILDREN = new Map<string, ActiveChild>();
+export interface FridaLiveContext {
+	sessionId: string;
+	projectKey: string;
+	client: FridaLiveClient;
+	record: FridaSessionRecord;
+	store: FridaSessionStore;
+	syncToRuntime: (r: FridaSessionRecord) => Promise<void>;
+	hasPendingSave: boolean;
+	isWritingSave: boolean;
+	disposed: boolean;
+	flushResolvers: Array<() => void>;
+}
+
+const ACTIVE_LIVE_SESSIONS = new Map<string, FridaLiveContext>();
+
+function getLiveSessionKey(projectKey: string, sessionId: string): string {
+	return `${projectKey}:${sessionId}`;
+}
+async function persistLiveSessionContext(context: FridaLiveContext, waitForFlush = false): Promise<void> {
+	if (context.disposed) return;
+	context.hasPendingSave = true;
+
+	if (context.isWritingSave) {
+		if (waitForFlush) {
+			const { promise, resolve } = Promise.withResolvers<void>();
+			context.flushResolvers.push(resolve);
+			return promise;
+		}
+		return;
+	}
+
+	context.isWritingSave = true;
+
+	const runSaveLoop = async () => {
+		try {
+			while (context.hasPendingSave && !context.disposed) {
+				context.hasPendingSave = false;
+				const snapshot: FridaSessionRecord = {
+					...context.record,
+					events: context.record.events ? [...context.record.events] : [],
+					history: [...context.record.history],
+				};
+				await context.store.save(snapshot);
+				await context.syncToRuntime(snapshot);
+			}
+		} catch (err) {
+			logger.warn(`Failed serialized save for live Frida session ${context.sessionId}`, { error: String(err) });
+		} finally {
+			context.isWritingSave = false;
+			const resolvers = context.flushResolvers;
+			context.flushResolvers = [];
+			for (const resolve of resolvers) {
+				resolve();
+			}
+		}
+	};
+
+	if (waitForFlush) {
+		await runSaveLoop();
+	} else {
+		queueMicrotask(runSaveLoop);
+	}
+}
 
 let exitHookInstalled = false;
 function ensureExitHook(): void {
 	if (exitHookInstalled) return;
 	exitHookInstalled = true;
 	process.once("exit", () => {
+		for (const [, ctx] of ACTIVE_LIVE_SESSIONS) {
+			try {
+				ctx.client.destroy();
+			} catch {
+				// Best effort on exit
+			}
+		}
+		ACTIVE_LIVE_SESSIONS.clear();
 		for (const [, active] of ACTIVE_CHILDREN) {
 			try {
 				active.abortController?.abort();
@@ -719,6 +819,7 @@ export function sanitizeRecordSecrets(record: FridaSessionRecord): FridaSessionR
 	return {
 		...record,
 		lastScript: record.lastScript ? sanitizeSessionText(record.lastScript) : undefined,
+		loadedScript: record.loadedScript ? sanitizeSessionText(record.loadedScript) : undefined,
 		history: record.history.map(entry => ({
 			...entry,
 			scriptSnippet: entry.scriptSnippet ? sanitizeSessionText(entry.scriptSnippet) : undefined,
@@ -764,7 +865,7 @@ export class FridaSessionStore {
 	async save(record: FridaSessionRecord): Promise<void> {
 		await this.ensureDir();
 		const targetPath = this.filePath(record.id);
-		const tempPath = `${targetPath}.${process.pid}.${Bun.randomUUIDv7().slice(0, 8)}.tmp`;
+		const tempPath = `${targetPath}.${process.pid}.${Bun.randomUUIDv7()}.${Math.random().toString(36).slice(2)}.tmp`;
 		const sanitized = sanitizeRecordSecrets(record);
 		const json = JSON.stringify(sanitized, null, 2);
 		await Bun.write(tempPath, json);
@@ -871,9 +972,17 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			case "list":
 				return this.handleList(params, store);
 			case "status":
-				return this.handleStatus(params, store);
+				return this.handleStatus(params, store, signal);
 			case "run":
 				return this.handleRun(params, store, signal);
+			case "load":
+				return this.handleLoad(params, store, signal);
+			case "unload":
+				return this.handleUnload(params, store, signal);
+			case "rpc":
+				return this.handleRpc(params, store, signal);
+			case "resume":
+				return this.handleResume(params, store, signal);
 			case "events":
 				return this.handleEvents(params, store, signal);
 			case "stop":
@@ -897,6 +1006,10 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 				return "read";
 			case "events":
 				return params.clear ? "write" : "read";
+			case "resume":
+			case "load":
+			case "unload":
+			case "rpc":
 			case "create":
 			case "run":
 			case "stop":
@@ -911,6 +1024,9 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		store: FridaSessionStore,
 		signal?: AbortSignal,
 	): Promise<AgentToolResult<FridaSessionDetails>> {
+		if (params.mode === "live") {
+			return this.handleCreateLive(params, store, signal);
+		}
 		const targetCount = [params.pid !== undefined, Boolean(params.process), Boolean(params.spawn)].filter(
 			Boolean,
 		).length;
@@ -1130,16 +1246,690 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			},
 		};
 	}
+	private async handleCreateLive(
+		params: FridaSessionParams,
+		store: FridaSessionStore,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<FridaSessionDetails>> {
+		const targetCount = [params.pid !== undefined, Boolean(params.process), Boolean(params.spawn)].filter(
+			Boolean,
+		).length;
+		if (targetCount === 0) {
+			throw new ToolError("Must specify target: 'pid', 'process', or 'spawn'");
+		}
+		if (targetCount > 1) {
+			throw new ToolError("Mutually exclusive: cannot provide more than one of 'pid', 'process', or 'spawn'");
+		}
+
+		const transportCount = [Boolean(params.usb), Boolean(params.device), Boolean(params.host)].filter(Boolean).length;
+		if (transportCount > 1) {
+			throw new ToolError("Mutually exclusive: cannot combine 'usb', 'device', or 'host'");
+		}
+
+		// Pre-validate initial script or script_path before starting worker process
+		let initialScriptSource: string | undefined;
+		if (params.script_path) {
+			const resolved = resolveScriptPath(params.script_path, this.session.cwd);
+			try {
+				initialScriptSource = await Bun.file(resolved).text();
+			} catch (err) {
+				throw new ToolError(`Failed to read script_path file at '${resolved}': ${err}`);
+			}
+		} else if (params.script) {
+			initialScriptSource = params.script;
+		}
+
+		const liveDep = await probeFridaLiveDependency(this.which);
+		if (!liveDep.available || !liveDep.pythonPath) {
+			return {
+				content: [
+					{
+						type: "text",
+						text: [
+							"frida_session: Frida Python toolchain is not available for persistent live mode.",
+							`Error: ${liveDep.error ?? "No suitable Python interpreter with 'frida' package found."}`,
+							`Install: ${liveDep.installHint ?? "pipx install frida-tools (or python3 -m pip install --user frida)"}`,
+							`Documentation: ${liveDep.manualUrl ?? "https://frida.re/docs/installation/"}`,
+						].join("\n"),
+					},
+				],
+				details: {
+					action: "create",
+					status: "missing_dependency",
+					mode: "live",
+					dependency: liveDep,
+					error: liveDep.error ?? "Frida Python toolchain not found",
+				},
+			};
+		}
+
+		const targetType: "pid" | "process" | "spawn" =
+			params.pid !== undefined ? "pid" : params.process ? "process" : "spawn";
+		const targetValue: string | number =
+			params.pid !== undefined ? params.pid : params.process ? params.process.trim() : params.spawn!.trim();
+
+		const target: FridaSessionTarget = {
+			type: targetType,
+			value: targetValue,
+			...(params.pid !== undefined ? { pid: params.pid } : {}),
+			...(params.process ? { process: params.process.trim() } : {}),
+			...(params.spawn ? { spawn: params.spawn.trim() } : {}),
+			...(params.usb ? { usb: true } : {}),
+			...(params.device ? { device: params.device.trim() } : {}),
+			...(params.host ? { host: params.host.trim() } : {}),
+			...(params.pause !== undefined ? { pause: params.pause } : {}),
+			...(params.no_pause !== undefined ? { noPause: params.no_pause } : {}),
+		};
+
+		const sessionId = params.session_id
+			? params.session_id.trim()
+			: `frida_live_${Bun.randomUUIDv7()}_${Math.random().toString(36).slice(2, 8)}`;
+		const projectKey = encodeProjectKey(this.session.cwd);
+		const sessionKey = getLiveSessionKey(projectKey, sessionId);
+
+		const existing = ACTIVE_LIVE_SESSIONS.get(sessionKey);
+		if (existing) {
+			existing.disposed = true;
+			existing.client.onEvent(undefined);
+			await persistLiveSessionContext(existing, true);
+			try {
+				await existing.client.stop(2000);
+			} catch {}
+			existing.client.destroy();
+			ACTIVE_LIVE_SESSIONS.delete(sessionKey);
+		}
+
+		const client = new FridaLiveClient({
+			pythonPath: liveDep.pythonPath,
+			cwd: this.session.cwd,
+		});
+
+		await client.start();
+
+		const timeoutMs = (params.timeout ?? DEFAULT_TIMEOUT_SECONDS) * 1000;
+		let initRes: FridaLiveInitResult;
+		try {
+			initRes = await client.init(target, timeoutMs, signal);
+		} catch (err) {
+			client.destroy();
+			return {
+				content: [
+					{ type: "text", text: `Failed to attach to target ${targetType}:${targetValue}: ${String(err)}` },
+				],
+				details: {
+					action: "create",
+					status: "error",
+					sessionId,
+					mode: "live",
+					error: String(err),
+				},
+			};
+		}
+
+		const now = new Date().toISOString();
+		const initialEvents: DynamicSessionEvent[] = [
+			{
+				id: `ev_${sessionId}_1`,
+				seq: 1,
+				timestamp: now,
+				sessionId,
+				kind: "lifecycle",
+				channel: "session_create",
+				payload: { targetType, targetValue, pid: initRes.pid ?? params.pid, mode: "live" },
+				raw: `[lifecycle] live session created for ${targetType}:${targetValue} (pid: ${initRes.pid ?? params.pid})`,
+			},
+		];
+
+		const record: FridaSessionRecord = {
+			id: sessionId,
+			...(params.name ? { name: params.name.trim() } : {}),
+			mode: "live",
+			liveStatus: "connected",
+			target,
+			status: "active",
+			createdAt: now,
+			updatedAt: now,
+			runsCount: 0,
+			history: [],
+			activeChildPid: initRes.pid ?? params.pid,
+			events: initialEvents,
+			eventsCount: 1,
+		};
+
+		const liveCtx: FridaLiveContext = {
+			sessionId,
+			projectKey,
+			client,
+			record,
+			store,
+			syncToRuntime: r => this.syncToRuntimeSessionStore(r),
+			hasPendingSave: false,
+			isWritingSave: false,
+			disposed: false,
+			flushResolvers: [],
+		};
+
+		ACTIVE_LIVE_SESSIONS.set(sessionKey, liveCtx);
+
+		client.onEvent(eventFrame => {
+			if (liveCtx.disposed) return;
+			const seq = (record.eventsCount ?? record.events?.length ?? 0) + 1;
+			record.eventsCount = seq;
+			const newEv: DynamicSessionEvent = {
+				id: `ev_${sessionId}_${seq}`,
+				seq,
+				timestamp: eventFrame.timestamp || new Date().toISOString(),
+				sessionId,
+				kind: eventFrame.kind,
+				channel: eventFrame.channel,
+				payload: eventFrame.payload,
+				raw: eventFrame.raw,
+				...(eventFrame.metadata ? { metadata: eventFrame.metadata } : {}),
+			};
+			if (!record.events) record.events = [];
+			record.events.push(newEv);
+			if (record.events.length > 500) {
+				record.events = record.events.slice(-500);
+			}
+			record.updatedAt = new Date().toISOString();
+
+			if (eventFrame.kind === "lifecycle" && eventFrame.channel === "detached") {
+				record.status = "stopped";
+				record.liveStatus = "detached";
+			}
+
+			persistLiveSessionContext(liveCtx, false);
+		});
+
+		let loadRes: FridaLiveLoadResult | undefined;
+		if (initialScriptSource) {
+			try {
+				loadRes = await client.load(initialScriptSource, "initial_script", timeoutMs, signal);
+				record.loadedScript = initialScriptSource;
+				record.lastScript = initialScriptSource.slice(0, 500);
+				record.rpcExports = loadRes.exports;
+				record.runsCount = 1;
+				record.history.push({
+					id: Bun.randomUUIDv7(),
+					timestamp: new Date().toISOString(),
+					command: "load:initial_script",
+					scriptSnippet: initialScriptSource.slice(0, 200),
+					scriptSource: params.script_path ? "file" : "inline",
+					scriptPath: params.script_path ? resolveScriptPath(params.script_path, this.session.cwd) : undefined,
+					exitCode: 0,
+				});
+			} catch (err) {
+				record.status = "error";
+				record.history.push({
+					id: Bun.randomUUIDv7(),
+					timestamp: new Date().toISOString(),
+					command: "load:initial_script",
+					error: String(err),
+				});
+			}
+		}
+
+		// Auto-resume spawned target after initial script loaded (unless paused explicitly)
+		if (targetType === "spawn" && target.pause !== true && target.noPause !== false) {
+			try {
+				await client.resume(timeoutMs, signal);
+			} catch (err) {
+				logger.warn(`Failed to auto-resume spawned target for ${sessionId}`, { error: String(err) });
+			}
+		}
+
+		await persistLiveSessionContext(liveCtx, true);
+
+		const lines: string[] = [
+			`Frida persistent live session '${sessionId}' created for target ${targetType}:${targetValue} (pid: ${initRes.pid ?? params.pid ?? "attached"}).`,
+			`Mode: live (persistent worker process)`,
+		];
+		if (params.name) lines.push(`Name: ${params.name}`);
+		if (loadRes) {
+			lines.push(`Script loaded successfully. Exports: [${loadRes.exports.join(", ")}]`);
+		}
+
+		return {
+			content: [{ type: "text", text: lines.join("\n") }],
+			details: {
+				action: "create",
+				status: record.status === "active" ? "ok" : "error",
+				sessionId,
+				mode: "live",
+				liveStatus: record.liveStatus,
+				session: record,
+				target: String(targetValue),
+				targetMode: targetType,
+				exports: loadRes?.exports,
+				events: record.events,
+				eventsCount: record.events?.length ?? 0,
+				totalEvents: record.events?.length ?? 0,
+			},
+		};
+	}
+
+	private async handleLoad(
+		params: FridaSessionParams,
+		store: FridaSessionStore,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<FridaSessionDetails>> {
+		const session = await this.resolveTargetSession(params.session_id, store);
+		if (!session) {
+			throw new ToolError(
+				params.session_id ? `Frida session '${params.session_id}' not found.` : "No Frida session found.",
+			);
+		}
+		if (session.mode !== "live") {
+			throw new ToolError(
+				`Session '${session.id}' is in batch mode. Action 'load' is only supported on live mode sessions.`,
+			);
+		}
+
+		const projectKey = encodeProjectKey(this.session.cwd);
+		const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, session.id));
+		if (!liveCtx || liveCtx.disposed || liveCtx.client.exited) {
+			session.status = "stopped";
+			session.liveStatus = "disconnected";
+			session.updatedAt = new Date().toISOString();
+			if (liveCtx && !liveCtx.disposed) {
+				await persistLiveSessionContext(liveCtx, true);
+			} else {
+				await store.save(session);
+				await this.syncToRuntimeSessionStore(session);
+			}
+			return {
+				content: [
+					{
+						type: "text",
+						text: `Frida live session '${session.id}' is disconnected. Reconnect with action: 'create', mode: 'live', session_id: '${session.id}'.`,
+					},
+				],
+				details: {
+					action: "load",
+					status: "stopped",
+					sessionId: session.id,
+					mode: "live",
+					liveStatus: "disconnected",
+					error: "Worker process is not active",
+				},
+			};
+		}
+
+		let scriptSource = params.script;
+		if (!scriptSource && params.script_path) {
+			const resolved = resolveScriptPath(params.script_path, this.session.cwd);
+			try {
+				scriptSource = await Bun.file(resolved).text();
+			} catch (err) {
+				throw new ToolError(`Failed to read script_path file at '${resolved}': ${err}`);
+			}
+		}
+		if (!scriptSource) {
+			throw new ToolError("Must provide 'script' or 'script_path' for action: 'load'");
+		}
+
+		const timeoutMs = (params.timeout ?? DEFAULT_TIMEOUT_SECONDS) * 1000;
+		const loadRes = await liveCtx.client.load(scriptSource, "user_script", timeoutMs, signal);
+
+		const now = new Date().toISOString();
+		liveCtx.record.loadedScript = scriptSource;
+		liveCtx.record.lastScript = scriptSource.slice(0, 500);
+		liveCtx.record.rpcExports = loadRes.exports;
+		liveCtx.record.updatedAt = now;
+		liveCtx.record.lastRunAt = now;
+		liveCtx.record.runsCount++;
+		liveCtx.record.history.push({
+			id: Bun.randomUUIDv7(),
+			timestamp: now,
+			command: "load",
+			scriptSnippet: scriptSource.slice(0, 200),
+			scriptSource: params.script_path ? "file" : "inline",
+			scriptPath: params.script_path ? resolveScriptPath(params.script_path, this.session.cwd) : undefined,
+			exitCode: 0,
+		});
+
+		await persistLiveSessionContext(liveCtx, true);
+
+		return {
+			content: [
+				{
+					type: "text",
+					text: `Frida live session '${session.id}': script loaded/hot-reloaded successfully.\nExports: [${loadRes.exports.join(", ")}]`,
+				},
+			],
+			details: {
+				action: "load",
+				status: "ok",
+				sessionId: session.id,
+				mode: "live",
+				liveStatus: session.liveStatus,
+				session: liveCtx.record,
+				exports: loadRes.exports,
+			},
+		};
+	}
+
+	private async handleUnload(
+		params: FridaSessionParams,
+		store: FridaSessionStore,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<FridaSessionDetails>> {
+		const session = await this.resolveTargetSession(params.session_id, store);
+		if (!session) {
+			throw new ToolError(
+				params.session_id ? `Frida session '${params.session_id}' not found.` : "No Frida session found.",
+			);
+		}
+		if (session.mode !== "live") {
+			throw new ToolError(
+				`Session '${session.id}' is in batch mode. Action 'unload' is only supported on live mode sessions.`,
+			);
+		}
+
+		const projectKey = encodeProjectKey(this.session.cwd);
+		const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, session.id));
+		if (!liveCtx || liveCtx.disposed || liveCtx.client.exited) {
+			session.status = "stopped";
+			session.liveStatus = "disconnected";
+			session.updatedAt = new Date().toISOString();
+			if (liveCtx && !liveCtx.disposed) {
+				await persistLiveSessionContext(liveCtx, true);
+			} else {
+				await store.save(session);
+				await this.syncToRuntimeSessionStore(session);
+			}
+			return {
+				content: [
+					{
+						type: "text",
+						text: `Frida live session '${session.id}' is disconnected.`,
+					},
+				],
+				details: {
+					action: "unload",
+					status: "stopped",
+					sessionId: session.id,
+					mode: "live",
+					liveStatus: "disconnected",
+				},
+			};
+		}
+
+		const timeoutMs = (params.timeout ?? 10) * 1000;
+		await liveCtx.client.unload(timeoutMs, signal);
+
+		const now = new Date().toISOString();
+		liveCtx.record.loadedScript = undefined;
+		liveCtx.record.rpcExports = [];
+		liveCtx.record.updatedAt = now;
+		liveCtx.record.history.push({
+			id: Bun.randomUUIDv7(),
+			timestamp: now,
+			command: "unload",
+			exitCode: 0,
+		});
+
+		await persistLiveSessionContext(liveCtx, true);
+
+		return {
+			content: [{ type: "text", text: `Frida live session '${session.id}': script unloaded, hooks removed.` }],
+			details: {
+				action: "unload",
+				status: "ok",
+				sessionId: session.id,
+				mode: "live",
+				liveStatus: session.liveStatus,
+				session: liveCtx.record,
+			},
+		};
+	}
+
+	private async handleRpc(
+		params: FridaSessionParams,
+		store: FridaSessionStore,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<FridaSessionDetails>> {
+		const session = await this.resolveTargetSession(params.session_id, store);
+		if (!session) {
+			throw new ToolError(
+				params.session_id ? `Frida session '${params.session_id}' not found.` : "No Frida session found.",
+			);
+		}
+		if (!params.rpc_method) {
+			throw new ToolError("Must provide 'rpc_method' for action: 'rpc'");
+		}
+
+		const projectKey = encodeProjectKey(this.session.cwd);
+		const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, session.id));
+		if (!liveCtx || liveCtx.disposed || liveCtx.client.exited) {
+			session.status = "stopped";
+			session.liveStatus = "disconnected";
+			session.updatedAt = new Date().toISOString();
+			if (liveCtx && !liveCtx.disposed) {
+				await persistLiveSessionContext(liveCtx, true);
+			} else {
+				await store.save(session);
+				await this.syncToRuntimeSessionStore(session);
+			}
+			return {
+				content: [
+					{
+						type: "text",
+						text: `Frida live session '${session.id}' is disconnected. Cannot execute RPC.`,
+					},
+				],
+				details: {
+					action: "rpc",
+					status: "stopped",
+					sessionId: session.id,
+					mode: "live",
+					liveStatus: "disconnected",
+					error: "Worker process is not active",
+				},
+			};
+		}
+
+		const timeoutMs = (params.timeout ?? DEFAULT_TIMEOUT_SECONDS) * 1000;
+		const rpcRes = await liveCtx.client.rpc(params.rpc_method, params.rpc_args, timeoutMs, signal);
+
+		const now = new Date().toISOString();
+		liveCtx.record.runsCount++;
+		liveCtx.record.lastRunAt = now;
+		liveCtx.record.updatedAt = now;
+		liveCtx.record.history.push({
+			id: Bun.randomUUIDv7(),
+			timestamp: now,
+			command: `rpc:${params.rpc_method}`,
+			exitCode: 0,
+		});
+
+		await persistLiveSessionContext(liveCtx, true);
+
+		const textResult = typeof rpcRes.result === "string" ? rpcRes.result : JSON.stringify(rpcRes.result, null, 2);
+
+		return {
+			content: [
+				{
+					type: "text",
+					text: `Frida live session '${session.id}' RPC [${params.rpc_method}] result:\n${textResult}`,
+				},
+			],
+			details: {
+				action: "rpc",
+				status: "ok",
+				sessionId: session.id,
+				mode: "live",
+				liveStatus: session.liveStatus,
+				session: liveCtx.record,
+				rpcResult: rpcRes.result,
+			},
+		};
+	}
+
+	private async handleResume(
+		params: FridaSessionParams,
+		store: FridaSessionStore,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<FridaSessionDetails>> {
+		const session = await this.resolveTargetSession(params.session_id, store);
+		if (!session) {
+			throw new ToolError(
+				params.session_id ? `Frida session '${params.session_id}' not found.` : "No Frida session found.",
+			);
+		}
+		if (session.mode !== "live") {
+			throw new ToolError("Action 'resume' is only supported on live mode sessions.");
+		}
+
+		const projectKey = encodeProjectKey(this.session.cwd);
+		const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, session.id));
+		if (!liveCtx || liveCtx.disposed || liveCtx.client.exited) {
+			session.status = "stopped";
+			session.liveStatus = "disconnected";
+			session.updatedAt = new Date().toISOString();
+			if (liveCtx && !liveCtx.disposed) {
+				await persistLiveSessionContext(liveCtx, true);
+			} else {
+				await store.save(session);
+				await this.syncToRuntimeSessionStore(session);
+			}
+			return {
+				content: [{ type: "text", text: `Frida live session '${session.id}' is disconnected.` }],
+				details: {
+					action: "resume",
+					status: "stopped",
+					sessionId: session.id,
+					mode: "live",
+					liveStatus: "disconnected",
+				},
+			};
+		}
+
+		const res = await liveCtx.client.resume(10_000, signal);
+		const now = new Date().toISOString();
+		liveCtx.record.updatedAt = now;
+		liveCtx.record.history.push({
+			id: Bun.randomUUIDv7(),
+			timestamp: now,
+			command: "resume",
+			exitCode: 0,
+		});
+
+		await persistLiveSessionContext(liveCtx, true);
+
+		return {
+			content: [
+				{
+					type: "text",
+					text: `Frida live session '${session.id}' target resumed (pid: ${res.pid ?? session.activeChildPid}).`,
+				},
+			],
+			details: {
+				action: "resume",
+				status: "ok",
+				sessionId: session.id,
+				mode: "live",
+				liveStatus: session.liveStatus,
+				session: liveCtx.record,
+			},
+		};
+	}
+
+	private async handleRunLive(
+		session: FridaSessionRecord,
+		params: FridaSessionParams,
+		store: FridaSessionStore,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<FridaSessionDetails>> {
+		const projectKey = encodeProjectKey(this.session.cwd);
+		const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, session.id));
+		if (!liveCtx || liveCtx.disposed || liveCtx.client.exited) {
+			session.status = "stopped";
+			session.liveStatus = "disconnected";
+			session.updatedAt = new Date().toISOString();
+			if (liveCtx && !liveCtx.disposed) {
+				await persistLiveSessionContext(liveCtx, true);
+			} else {
+				await store.save(session);
+				await this.syncToRuntimeSessionStore(session);
+			}
+			return {
+				content: [
+					{
+						type: "text",
+						text: `Frida live session '${session.id}' is disconnected (process-local worker does not persist across restarts). Reconnect with action: 'create', mode: 'live', session_id: '${session.id}'.`,
+					},
+				],
+				details: {
+					action: "run",
+					status: "stopped",
+					sessionId: session.id,
+					mode: "live",
+					liveStatus: "disconnected",
+					error: "Live session is disconnected",
+				},
+			};
+		}
+
+		const command = params.command ?? (params.script || params.script_path ? "script" : "inspect");
+		if (command === "ps") {
+			return this.handleRunPs(session, params, store, signal);
+		}
+
+		if (command === "inspect") {
+			const inspectScript = `rpc.exports = { inspect: function() { try { return { pid: Process.id, arch: Process.arch, platform: Process.platform, pageSize: Process.pageSize, pointerSize: Process.pointerSize }; } catch(e) { return { error: e.message || String(e) }; } } };`;
+			await this.handleLoad({ ...params, session_id: session.id, script: inspectScript }, store, signal);
+			return this.handleRpc({ ...params, session_id: session.id, rpc_method: "inspect" }, store, signal);
+		}
+
+		let scriptSource = params.script;
+		if (!scriptSource && params.script_path) {
+			const resolved = resolveScriptPath(params.script_path, this.session.cwd);
+			try {
+				scriptSource = await Bun.file(resolved).text();
+			} catch (err) {
+				throw new ToolError(`Failed to read script_path file at '${resolved}': ${err}`);
+			}
+		}
+		if (command === "modules" && !scriptSource) {
+			scriptSource = FIXED_ENUMERATE_MODULES_SCRIPT;
+		}
+
+		if (!scriptSource) {
+			throw new ToolError("Must provide 'script', 'script_path', or 'command' for run action");
+		}
+
+		return this.handleLoad({ ...params, session_id: session.id, script: scriptSource }, store, signal);
+	}
 
 	private async handleList(
 		params: FridaSessionParams,
 		store: FridaSessionStore,
 	): Promise<AgentToolResult<FridaSessionDetails>> {
+		const projectKey = encodeProjectKey(this.session.cwd);
 		const records = await store.list();
 		const updatedRecords: FridaSessionRecord[] = [];
 
 		for (const record of records) {
-			if (record.status === "active" && record.activeChildPid) {
+			if (record.mode === "live") {
+				const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, record.id));
+				if (liveCtx && !liveCtx.disposed && !liveCtx.client.exited) {
+					record.status = "active";
+					record.liveStatus = "connected";
+				} else {
+					record.status = "stopped";
+					record.liveStatus = "disconnected";
+				}
+				updatedRecords.push(record);
+				continue;
+			}
+			if (
+				!record.target.usb &&
+				!record.target.device &&
+				!record.target.host &&
+				record.status === "active" &&
+				record.activeChildPid
+			) {
 				if (!isProcessAlive(record.activeChildPid)) {
 					record.status = "stopped";
 					record.updatedAt = new Date().toISOString();
@@ -1148,7 +1938,6 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			}
 			updatedRecords.push(record);
 		}
-
 		const filterText = params.filter?.toLowerCase().trim();
 		const filtered = updatedRecords.filter(r => {
 			if (!filterText) return true;
@@ -1193,6 +1982,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 	private async handleStatus(
 		params: FridaSessionParams,
 		store: FridaSessionStore,
+		signal?: AbortSignal,
 	): Promise<AgentToolResult<FridaSessionDetails>> {
 		const session = await this.resolveTargetSession(params.session_id, store);
 		if (!session) {
@@ -1213,11 +2003,42 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			};
 		}
 
-		if (session.status === "active" && session.activeChildPid) {
-			if (!isProcessAlive(session.activeChildPid)) {
+		const projectKey = encodeProjectKey(this.session.cwd);
+		const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, session.id));
+		if (session.mode === "live" || liveCtx) {
+			if (liveCtx && !liveCtx.disposed && !liveCtx.client.exited) {
+				try {
+					const liveStatusRes = await liveCtx.client.status(5000, signal);
+					if (liveStatusRes.detached) {
+						liveCtx.record.status = "stopped";
+						liveCtx.record.liveStatus = "detached";
+					} else {
+						liveCtx.record.status = "active";
+						liveCtx.record.liveStatus = "connected";
+					}
+					liveCtx.record.rpcExports = liveStatusRes.exports;
+					if (liveStatusRes.pid) {
+						liveCtx.record.activeChildPid = liveStatusRes.pid;
+					}
+				} catch {
+					// Client probe error
+				}
+				liveCtx.record.updatedAt = new Date().toISOString();
+				await persistLiveSessionContext(liveCtx, true);
+			} else {
 				session.status = "stopped";
+				session.liveStatus = "disconnected";
 				session.updatedAt = new Date().toISOString();
 				await store.save(session);
+				await this.syncToRuntimeSessionStore(session);
+			}
+		} else if (session.status === "active" && session.activeChildPid) {
+			if (!session.target.usb && !session.target.device && !session.target.host) {
+				if (!isProcessAlive(session.activeChildPid)) {
+					session.status = "stopped";
+					session.updatedAt = new Date().toISOString();
+					await store.save(session);
+				}
 			}
 		}
 
@@ -1230,6 +2051,13 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			`Updated: ${session.updatedAt}`,
 		];
 		if (session.name) lines.push(`Name: ${session.name}`);
+		if (session.mode === "live") {
+			lines.push(`Mode: live (persistent worker process)`);
+			lines.push(`Live status: ${session.liveStatus ?? "disconnected"}`);
+			if (session.rpcExports && session.rpcExports.length > 0) {
+				lines.push(`RPC exports: [${session.rpcExports.join(", ")}]`);
+			}
+		}
 		if (session.activeChildPid) lines.push(`Active PID: ${session.activeChildPid}`);
 		if (session.lastRunAt) lines.push(`Last run: ${session.lastRunAt}`);
 		if (session.lastScript) lines.push(`Last script snippet:\n  ${session.lastScript.replace(/\n/g, "\n  ")}`);
@@ -1249,9 +2077,12 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 				action: "status",
 				status: "ok",
 				sessionId: session.id,
+				mode: session.mode,
+				liveStatus: session.liveStatus,
 				session,
 				target: String(session.target.value),
 				targetMode: session.target.type,
+				exports: session.rpcExports,
 			},
 		};
 	}
@@ -1268,6 +2099,10 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 					? `Frida session '${params.session_id}' not found.`
 					: "No Frida session found. Create a session first using action: 'create'",
 			);
+		}
+
+		if (session.mode === "live") {
+			return this.handleRunLive(session, params, store, signal);
 		}
 
 		const dependency = fridaDependency(this.which);
@@ -1484,9 +2319,16 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		if (params.clear) {
 			const count = allEvents.length;
 			session.events = [];
+			session.eventsCount = 0;
 			session.updatedAt = new Date().toISOString();
-			await store.save(session);
-			await this.syncToRuntimeSessionStore(session);
+			const projectKey = encodeProjectKey(this.session.cwd);
+			const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, session.id));
+			if (liveCtx && !liveCtx.disposed) {
+				await persistLiveSessionContext(liveCtx, true);
+			} else {
+				await store.save(session);
+				await this.syncToRuntimeSessionStore(session);
+			}
 			return {
 				content: [{ type: "text", text: `Cleared ${count} events from session '${session.id}'.` }],
 				details: {
@@ -1766,12 +2608,35 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 				},
 			};
 		}
-
-		stopActiveChild(session.id, session.activeChildPid);
-		session.status = "stopped";
-		session.updatedAt = new Date().toISOString();
-		await store.save(session);
-		await this.syncToRuntimeSessionStore(session);
+		const projectKey = encodeProjectKey(this.session.cwd);
+		const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, session.id));
+		if (session.mode === "live" || liveCtx) {
+			if (liveCtx) {
+				liveCtx.disposed = true;
+				liveCtx.client.onEvent(undefined);
+				try {
+					await liveCtx.client.stop(5000);
+				} catch {}
+				liveCtx.client.destroy();
+				ACTIVE_LIVE_SESSIONS.delete(getLiveSessionKey(projectKey, session.id));
+				liveCtx.record.status = "stopped";
+				liveCtx.record.liveStatus = "stopped";
+				liveCtx.record.updatedAt = new Date().toISOString();
+				await persistLiveSessionContext(liveCtx, true);
+			} else {
+				session.status = "stopped";
+				session.liveStatus = "stopped";
+				session.updatedAt = new Date().toISOString();
+				await store.save(session);
+				await this.syncToRuntimeSessionStore(session);
+			}
+		} else {
+			stopActiveChild(session.id, session.activeChildPid);
+			session.status = "stopped";
+			session.updatedAt = new Date().toISOString();
+			await store.save(session);
+			await this.syncToRuntimeSessionStore(session);
+		}
 
 		return {
 			content: [{ type: "text", text: `Frida session '${session.id}' stopped.` }],
@@ -1800,7 +2665,21 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			};
 		}
 
-		stopActiveChild(session.id, session.activeChildPid);
+		const projectKey = encodeProjectKey(this.session.cwd);
+		const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, session.id));
+		if (session.mode === "live" || liveCtx) {
+			if (liveCtx) {
+				liveCtx.disposed = true;
+				liveCtx.client.onEvent(undefined);
+				await persistLiveSessionContext(liveCtx, true);
+				try {
+					liveCtx.client.destroy();
+				} catch {}
+				ACTIVE_LIVE_SESSIONS.delete(getLiveSessionKey(projectKey, session.id));
+			}
+		} else {
+			stopActiveChild(session.id, session.activeChildPid);
+		}
 		await store.delete(session.id);
 		try {
 			const runtimeStore = ReverseRuntimeSessionStore.forSession(this.session.cwd, this.stateRoot);
@@ -1821,8 +2700,17 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		sessionId: string | undefined,
 		store: FridaSessionStore,
 	): Promise<FridaSessionRecord | null> {
+		const projectKey = encodeProjectKey(this.session.cwd);
 		if (sessionId && sessionId.trim().length > 0) {
-			return store.get(sessionId.trim());
+			const id = sessionId.trim();
+			const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, id));
+			if (liveCtx && !liveCtx.disposed) return liveCtx.record;
+			return store.get(id);
+		}
+		for (const [key, ctx] of ACTIVE_LIVE_SESSIONS) {
+			if (key.startsWith(`${projectKey}:`) && !ctx.disposed && ctx.record.status === "active") {
+				return ctx.record;
+			}
 		}
 		const all = await store.list();
 		if (all.length === 0) return null;
@@ -1865,6 +2753,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 						usb: session.target.usb,
 						device: session.target.device,
 						host: session.target.host,
+						...(session.mode ? { mode: session.mode } : {}),
 						...(session.lastScript ? { script: session.lastScript } : {}),
 					},
 					instructions: [
@@ -1882,6 +2771,9 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 				status_source: "caller_reported",
 				metadata: {
 					...session.metadata,
+					mode: session.mode,
+					live_status: session.liveStatus,
+					rpc_exports: session.rpcExports,
 					eventsCount: session.eventsCount ?? session.events?.length ?? 0,
 					events_count: session.eventsCount ?? session.events?.length ?? 0,
 					runsCount: session.runsCount,

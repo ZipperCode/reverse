@@ -193,6 +193,8 @@ export * from "./android-package-inspect";
 export * from "./adb-observe";
 export * from "./frida";
 export * from "./frida-session";
+export * from "./frida-live-env";
+export * from "./frida-live-client";
 export { FridaSessionTool as ReverseDynamicSessionTool } from "./frida-session";
 export * from "./websocket-observe";
 export * from "./windows-observe";

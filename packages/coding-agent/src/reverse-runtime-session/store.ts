@@ -80,7 +80,7 @@ export class ReverseRuntimeSessionStore {
 		}
 
 		const targetPath = this.filePath(record.id);
-		const tempPath = `${targetPath}.${process.pid}.${Bun.randomUUIDv7().slice(0, 8)}.tmp`;
+		const tempPath = `${targetPath}.${process.pid}.${Bun.randomUUIDv7()}.${Math.random().toString(36).slice(2)}.tmp`;
 
 		// Deep sanitize all record fields before persisting
 		const sanitizedRecord = sanitizeRuntimeSessionRecord(record);

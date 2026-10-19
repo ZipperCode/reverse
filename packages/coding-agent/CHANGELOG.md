@@ -6,10 +6,14 @@
 
 - Added `language` setting (`en` | `zh-CN`, default `en`, overrideable via `REVERSE_LANG` environment variable) providing Chinese localization for configuration labels, descriptions, group headers, and CLI help, while keeping canonical setting identifiers, enum storage values, and JSON machine contracts unchanged.
 - Added interactive TUI wizard (`/setup providers`, `/models`, `/provider add`, `/models add`) to add custom OpenAI-compatible and Anthropic-compatible providers with automated endpoint model discovery, multi-selection, and context window/output limit extraction without manual input, securely storing credentials in the local SQLite database (`agent.db`) and non-sensitive configurations in `models.yml` with immediate registry reload.
+- Added a shared five-panel setup menu for CLI and TUI: providers, custom providers, reverse tools, Python, and speech.
+- Added opt-in Frida live sessions with continuous telemetry, RPC, script reload/unload, explicit resume, and detach-only shutdown; batch mode remains available.
+- Added local standalone installation/check/uninstallation helpers with bounded version probes and collision-preserving backups.
 
 ### Changed
 
 - Migrated internal workspace packages and imports from `@rva/*` to `@reverse/*`, including build scripts, lockfile metadata, and SDK examples. No old-scope aliases are provided.
+- Standalone outputs and startup branding now use `reverse`; bundled skills treat optional external analyzers as on-demand dependencies rather than startup requirements.
 
 ### Fixed
 
