@@ -5,7 +5,7 @@
  * ACP terminal-auth flag asks the same command to open the interactive TUI.
  */
 
-import { Command } from "@rva/utils/cli";
+import { Command } from "@reverse/utils/cli";
 import { type Args as ParsedArgs, parseArgs, reportCliUsageError } from "../cli/args";
 import { acpHelp as commandHelp } from "../cli/command-help";
 import { runRootCommand } from "../main";

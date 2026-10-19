@@ -22,7 +22,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { BlobDestinationId } from "./destinations";
 import { type ExposureConfig, type ExposureKind, probeExposureHealth, startExposure } from "./exposure";
 import type {

@@ -8,9 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Api, Model, ModelSpec } from "@rva/ai/types";
-import * as buildModule from "@rva/catalog/build";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
+import type { Api, Model, ModelSpec } from "@reverse/ai/types";
+import * as buildModule from "@reverse/catalog/build";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const UNBUILDABLE = "unbuildable-model";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { dereferenceJsonSchema } from "@rva/ai/utils/schema";
+import { dereferenceJsonSchema } from "@reverse/ai/utils/schema";
 
 describe("dereferenceJsonSchema", () => {
 	it("returns schema without $defs unchanged", () => {

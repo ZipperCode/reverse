@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { initDb, insertMessageStats, insertToolCalls } from "@rva/stats/db";
+import { initDb, insertMessageStats, insertToolCalls } from "@reverse/stats/db";
 import {
 	getDailyActivityFromRollup,
 	getOverallStats,
@@ -11,8 +11,8 @@ import {
 	getToolStats,
 	getToolTimeSeries,
 	refreshRollups,
-} from "@rva/stats/rollup";
-import type { MessageStats, ToolCallStats } from "@rva/stats/types";
+} from "@reverse/stats/rollup";
+import type { MessageStats, ToolCallStats } from "@reverse/stats/types";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-rollup-");

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamBedrock } from "@rva/ai/providers/amazon-bedrock";
-import { streamSimple } from "@rva/ai/stream";
-import type { Model } from "@rva/ai/types";
+import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Model } from "@reverse/ai/types";
 import {
 	bedrockTestModel,
 	BEDROCK_TEST_CONTEXT,

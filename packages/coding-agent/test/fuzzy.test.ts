@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fuzzyFilter, fuzzyMatch } from "@rva/tui";
+import { fuzzyFilter, fuzzyMatch } from "@reverse/tui";
 
 describe("fuzzyMatch", () => {
 	test("empty query matches everything with score 0", () => {

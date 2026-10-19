@@ -1,13 +1,13 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { OAuthController } from "@rva/ai/oauth/types";
-import { stream } from "@rva/ai/stream";
-import type { FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { parseCloudflareCredential, serializeCloudflareCredential } from "@rva/catalog/wire/cloudflare";
-import { CLOUDFLARE_AI_GATEWAY_ANTHROPIC_BASE_URL } from "@rva/catalog/wire/cloudflare-ai-gateway";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { OAuthController } from "@reverse/ai/oauth/types";
+import { stream } from "@reverse/ai/stream";
+import type { FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { parseCloudflareCredential, serializeCloudflareCredential } from "@reverse/catalog/wire/cloudflare";
+import { CLOUDFLARE_AI_GATEWAY_ANTHROPIC_BASE_URL } from "@reverse/catalog/wire/cloudflare-ai-gateway";
 import { withEnv } from "./helpers";
 
 const ANTHROPIC_MODEL = buildModel({

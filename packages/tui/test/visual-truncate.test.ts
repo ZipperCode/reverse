@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { truncateToVisualLines } from "@rva/tui/chrome/visual-truncate";
+import { truncateToVisualLines } from "@reverse/tui/chrome/visual-truncate";
 
 describe("truncateToVisualLines", () => {
 	it("returns empty output for empty text", () => {

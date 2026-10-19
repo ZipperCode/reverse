@@ -6,9 +6,9 @@
  * dropped.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import type { ImageContent } from "@reverse/ai";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 interface StubEditor {
 	setText: (text: string) => void;

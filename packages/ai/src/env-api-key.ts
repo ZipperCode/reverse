@@ -4,8 +4,8 @@
  * Lives outside `stream.ts` so auth code (AuthStorage, credential cascade,
  * usage) can resolve env keys without importing the whole provider stack.
  */
-import { providerEntries } from "@rva/catalog/compat/providers";
-import { $env, $pickenv } from "@rva/utils";
+import { providerEntries } from "@reverse/catalog/compat/providers";
+import { $env, $pickenv } from "@reverse/utils";
 import { PROVIDER_REGISTRY } from "./registry";
 
 type KeyResolver = string | (() => string | undefined);

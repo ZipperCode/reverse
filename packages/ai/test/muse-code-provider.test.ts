@@ -1,12 +1,12 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { type } from "@rva/omptype";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { mapOpenAIResponsesToolChoiceForTools } from "@rva/ai/providers/openai-responses";
-import { getProviderDefinition } from "@rva/ai/registry/registry";
-import type { Tool, ToolChoice } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { seedModels } from "@rva/catalog/compat/providers";
+import { type } from "@reverse/omptype";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { mapOpenAIResponsesToolChoiceForTools } from "@reverse/ai/providers/openai-responses";
+import { getProviderDefinition } from "@reverse/ai/registry/registry";
+import type { Tool, ToolChoice } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { seedModels } from "@reverse/catalog/compat/providers";
 
 const encodedMuseCredential = JSON.stringify({
 	oauthAccessToken: "meta-account-access",

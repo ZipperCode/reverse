@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { TreeSelectorComponent } from "@rva/tui/overlays/tree-selector";
-import { initTheme } from "@rva/tui/theme";
-import type { SessionEntry, SessionTreeNode } from "@rva/coding-agent/session/session-entries";
+import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
+import { initTheme } from "@reverse/tui/theme";
+import type { SessionEntry, SessionTreeNode } from "@reverse/coding-agent/session/session-entries";
 
 beforeAll(async () => {
 	await initTheme(false, undefined, undefined, "dark", "light");

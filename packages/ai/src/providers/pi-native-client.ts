@@ -16,7 +16,7 @@
  * itself stays credential-free.
  */
 import * as os from "node:os";
-import { getAppName, getInstallId, readSseJson } from "@rva/utils";
+import { getAppName, getInstallId, readSseJson } from "@reverse/utils";
 import * as AIError from "../error";
 import type {
 	Api,

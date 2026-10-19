@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type TerminalFrameProvider, TUI } from "@rva/tui";
-import { emergencyTerminalRestore, ProcessTerminal, setAltScreenActive } from "@rva/tui/terminal";
-import { setTerminalHeadless } from "@rva/utils";
+import { type TerminalFrameProvider, TUI } from "@reverse/tui";
+import { emergencyTerminalRestore, ProcessTerminal, setAltScreenActive } from "@reverse/tui/terminal";
+import { setTerminalHeadless } from "@reverse/utils";
 
 // Regression coverage for the Windows shell-handoff corruption on exit:
 // `emergencyTerminalRestore()` used to write DECRST 1049 ("leave alternate

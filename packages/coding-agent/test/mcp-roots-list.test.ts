@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { toJsonRpcError } from "@rva/coding-agent/mcp/types";
+import { toJsonRpcError } from "@reverse/coding-agent/mcp/types";
 
 describe("toJsonRpcError", () => {
 	it("extracts code from Error with .code property", () => {

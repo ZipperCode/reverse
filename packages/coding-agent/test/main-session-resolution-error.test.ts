@@ -9,17 +9,17 @@ import { describe, expect, it, vi } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Args } from "@rva/coding-agent/cli/args";
-import type { Settings } from "@rva/coding-agent/config/settings";
-import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@rva/coding-agent/main";
+import type { Args } from "@reverse/coding-agent/cli/args";
+import type { Settings } from "@reverse/coding-agent/config/settings";
+import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@reverse/coding-agent/main";
 import {
 	collectPendingToolCalls,
 	TOOL_EXECUTION_START_CUSTOM_TYPE,
-} from "@rva/coding-agent/session/exit-diagnostics";
-import * as sessionListingModule from "@rva/coding-agent/session/session-listing";
-import { loadEntriesFromFile, loadSessionFile } from "@rva/coding-agent/session/session-loader";
-import { ForkSourceNotFoundError, SessionManager } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage } from "@rva/coding-agent/session/session-storage";
+} from "@reverse/coding-agent/session/exit-diagnostics";
+import * as sessionListingModule from "@reverse/coding-agent/session/session-listing";
+import { loadEntriesFromFile, loadSessionFile } from "@reverse/coding-agent/session/session-loader";
+import { ForkSourceNotFoundError, SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage } from "@reverse/coding-agent/session/session-storage";
 
 function buildResumeArgs(resume: string, sessionDir?: string): Args {
 	return {

@@ -1,10 +1,10 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { Agent } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { RpcHostToolBridge } from "@rva/coding-agent/modes/rpc/host-tools";
+import { Agent } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { RpcHostToolBridge } from "@reverse/coding-agent/modes/rpc/host-tools";
 import {
 	dispatchRpcInputFrame,
 	type PendingExtensionRequest,
@@ -12,18 +12,18 @@ import {
 	type RpcInputFrameDeps,
 	RpcPendingExtensionRequests,
 	RpcShutdownCoordinator,
-} from "@rva/coding-agent/modes/rpc/rpc-mode";
+} from "@reverse/coding-agent/modes/rpc/rpc-mode";
 import type {
 	RpcCommand,
 	RpcExtensionUIResponse,
 	RpcHostToolCallRequest,
 	RpcHostToolCancelRequest,
 	RpcResponse,
-} from "@rva/coding-agent/modes/rpc/rpc-types";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import * as imageLoading from "@rva/coding-agent/utils/image-loading";
+} from "@reverse/coding-agent/modes/rpc/rpc-types";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import * as imageLoading from "@reverse/coding-agent/utils/image-loading";
 
 type OutputFrame = RpcResponse | object;
 

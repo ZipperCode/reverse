@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { Api, Model } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { type GeneratedProvider, getBundledModel } from "@rva/catalog/models";
-import { formatModelStringWithRouting, resolveModelOverride } from "@rva/coding-agent/config/model-resolver";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { tinyTitleClient } from "@rva/coding-agent/tiny/title-client";
+import type { Api, Model } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { type GeneratedProvider, getBundledModel } from "@reverse/catalog/models";
+import { formatModelStringWithRouting, resolveModelOverride } from "@reverse/coding-agent/config/model-resolver";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { tinyTitleClient } from "@reverse/coding-agent/tiny/title-client";
 import {
 	disposeTerminalTitleState,
 	generateSessionTitle,
@@ -16,9 +16,9 @@ import {
 	setTerminalTitlePullRequest,
 	setTerminalTitleSpinnerStyle,
 	setTerminalTitleState,
-} from "@rva/coding-agent/utils/title-generator";
-import { setNativeRendering } from "@rva/tui/native/state";
-import { isWsl, logger, setTerminalHeadless } from "@rva/utils";
+} from "@reverse/coding-agent/utils/title-generator";
+import { setNativeRendering } from "@reverse/tui/native/state";
+import { isWsl, logger, setTerminalHeadless } from "@reverse/utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
 function getModelOrThrow(id: string): Model<Api> {

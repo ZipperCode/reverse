@@ -1,6 +1,6 @@
 import { type Component, Container, type HistoryBatch } from "../tui";
-import * as logger from "@rva/utils/logger";
-import { popLoopPhase, pushLoopPhase } from "@rva/utils";
+import * as logger from "@reverse/utils/logger";
+import { popLoopPhase, pushLoopPhase } from "@reverse/utils";
 import { renderForScrollback } from "../components/image";
 import { col } from "../native/describe";
 import type { NativeNode } from "../native/node";

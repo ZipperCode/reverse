@@ -4,11 +4,11 @@ import {
 	type AgentMessage,
 	type AgentTurnEndContext,
 	createToolScopedAbortReason,
-} from "@rva/agent";
-import type { AssistantMessage, AssistantMessageEvent, Model } from "@rva/ai";
-import { GeminiHeaderRunDetector } from "@rva/ai/utils/thinking-loop";
-import { type RepeatedToolCallDetection, ToolCallLoopGuard } from "@rva/ai/utils/tool-call-loop-guard";
-import { logger, prompt } from "@rva/utils";
+} from "@reverse/agent";
+import type { AssistantMessage, AssistantMessageEvent, Model } from "@reverse/ai";
+import { GeminiHeaderRunDetector } from "@reverse/ai/utils/thinking-loop";
+import { type RepeatedToolCallDetection, ToolCallLoopGuard } from "@reverse/ai/utils/tool-call-loop-guard";
+import { logger, prompt } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import geminiToolReminderTemplate from "../prompts/system/gemini-tool-call-reminder.md" with { type: "text" };
 import type { CustomMessage } from "./messages";

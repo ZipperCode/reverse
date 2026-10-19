@@ -5,15 +5,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent, type AgentEvent } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { Agent, type AgentEvent } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 function makeEvent(): AgentEvent {
 	return { type: "tool_execution_start", toolCallId: "probe-1", toolName: "probe", args: {} };

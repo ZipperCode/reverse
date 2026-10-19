@@ -1,12 +1,12 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import * as fs from "node:fs";
-import { TtyWriter } from "@rva/natives";
-import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@rva/utils/env";
-import * as logger from "@rva/utils/logger";
-import { popLoopPhase, pushLoopPhase } from "@rva/utils/loop-phase";
-import * as postmortem from "@rva/utils/postmortem";
-import { restoreTerminalStderr, suppressTerminalStderr } from "@rva/utils/stderr-guard";
-import { TSP_VERSION } from "@rva/wire";
+import { TtyWriter } from "@reverse/natives";
+import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@reverse/utils/env";
+import * as logger from "@reverse/utils/logger";
+import { popLoopPhase, pushLoopPhase } from "@reverse/utils/loop-phase";
+import * as postmortem from "@reverse/utils/postmortem";
+import { restoreTerminalStderr, suppressTerminalStderr } from "@reverse/utils/stderr-guard";
+import { TSP_VERSION } from "@reverse/wire";
 import { getActiveTerminal, registerStdoutErrorHandler, setActiveTerminal } from "./active-terminal";
 import {
 	encodeBundledGlyphRegistrations,

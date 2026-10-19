@@ -24,15 +24,15 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { getBundledModel } from "@rva/catalog/models";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { getBundledModel } from "@reverse/catalog/models";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	MemorySessionStorage,
 	type SessionStorage,
 	type SessionStorageWriter,
 	type WriteTextAtomicOptions,
-} from "@rva/coding-agent/session/session-storage";
-import type { SessionTitleUpdate } from "@rva/coding-agent/session/session-title-slot";
+} from "@reverse/coding-agent/session/session-storage";
+import type { SessionTitleUpdate } from "@reverse/coding-agent/session/session-title-slot";
 
 class CloseHoldingStorage implements SessionStorage {
 	readonly #inner = new MemorySessionStorage();

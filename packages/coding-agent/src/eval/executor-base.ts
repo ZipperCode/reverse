@@ -1,7 +1,7 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { Settings } from "../config/settings";
-import { type OutputArtifactError, OutputSink } from "@rva/tui/tools/streaming-output";
-import { statusEventKey } from "@rva/tui/tools/eval";
+import { type OutputArtifactError, OutputSink } from "@reverse/tui/tools/streaming-output";
+import { statusEventKey } from "@reverse/tui/tools/eval";
 import type { ToolSession } from "../tools";
 import {
 	resolveOutputMaxColumns,

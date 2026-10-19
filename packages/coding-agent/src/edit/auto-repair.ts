@@ -13,9 +13,9 @@
  * 94% under 150 lines; smol fixed 99% with one feedback retry, with ~12% of
  * raw candidates being reverts — hence the explicit revert rejection.
  */
-import { completeSimple, retryTransientCompletion } from "@rva/ai";
-import { diffLineRuns, editDiffString, parseCodeStatus } from "@rva/natives";
-import { logger, prompt } from "@rva/utils";
+import { completeSimple, retryTransientCompletion } from "@reverse/ai";
+import { diffLineRuns, editDiffString, parseCodeStatus } from "@reverse/natives";
+import { logger, prompt } from "@reverse/utils";
 import { resolveRoleSelection } from "../config/model-resolver";
 import type { WritethroughCallback } from "../lsp";
 import type { ToolSession } from "../tools";

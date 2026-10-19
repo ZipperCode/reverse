@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { chunkForConPTY, ProcessTerminal } from "@rva/tui/terminal";
-import { setTerminalHeadless } from "@rva/utils";
+import { chunkForConPTY, ProcessTerminal } from "@reverse/tui/terminal";
+import { setTerminalHeadless } from "@reverse/utils";
 
 // Regression test for https://github.com/can1357/oh-my-pi/issues/2034
 //

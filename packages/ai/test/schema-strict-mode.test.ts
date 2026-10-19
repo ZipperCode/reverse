@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import type { Tool, ToolCall } from "@rva/ai/types";
+import { type } from "@reverse/omptype";
+import type { Tool, ToolCall } from "@reverse/ai/types";
 import {
 	adaptSchemaForStrict,
 	arkToWireSchema,
@@ -11,8 +11,8 @@ import {
 	sanitizeSchemaForStrictMode,
 	toolWireSchema,
 	tryEnforceStrictSchema,
-} from "@rva/ai/utils/schema";
-import { validateToolArguments } from "@rva/ai/utils/validation";
+} from "@reverse/ai/utils/schema";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
 
 describe("sanitizeSchemaForStrictMode", () => {
 	it("infers object type, strips non-structural keywords, and converts const to enum", () => {

@@ -21,12 +21,12 @@
  */
 
 import { beforeAll, describe, expect, mock, test } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { CompactionQueuedMessage, InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { RestoredQueuedMessage } from "@rva/coding-agent/session/agent-session";
+import type { ImageContent } from "@reverse/ai";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { CompactionQueuedMessage, InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { RestoredQueuedMessage } from "@reverse/coding-agent/session/agent-session";
 
 beforeAll(() => {
 	initTheme();

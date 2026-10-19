@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { gunzipSync } from "node:zlib";
-import { streamDevin } from "@rva/ai/providers/devin";
-import type { AssistantMessage, Context, Model, StreamOptions } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamDevin } from "@reverse/ai/providers/devin";
+import type { AssistantMessage, Context, Model, StreamOptions } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	type GetChatMessageRequest,
 	GetChatMessageRequestSchema,
 	GetUserJwtResponseSchema,
-} from "@rva/catalog/discovery/devin-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/devin-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 const devinModel: Model<"devin-agent"> = buildModel({
 	id: "devin-test",

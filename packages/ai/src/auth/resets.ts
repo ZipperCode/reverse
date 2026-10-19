@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { USAGE_REPORT_TTL_MS } from "./sqlite-credential-store";
 import type { UsageReport } from "../usage";
 import { claudeResetClearedBlockScopes, consumeClaudeResetCredit, listClaudeResetCredits } from "../usage/claude-reset";

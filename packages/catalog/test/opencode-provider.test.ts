@@ -2,22 +2,22 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@rva/catalog/build";
-import { sendsImageInputOnWire } from "@rva/ai/providers/vision-guard";
-import { Effort } from "@rva/catalog/effort";
-import { readModelCache, writeModelCache } from "@rva/catalog/model-cache";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { getBundledModels } from "@rva/catalog/models";
+import { buildModel } from "@reverse/catalog/build";
+import { sendsImageInputOnWire } from "@reverse/ai/providers/vision-guard";
+import { Effort } from "@reverse/catalog/effort";
+import { readModelCache, writeModelCache } from "@reverse/catalog/model-cache";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { getBundledModels } from "@reverse/catalog/models";
 import {
 	fetchWellKnownModels,
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	modelsDevCatalogFallback,
 	opencodeGoModelManagerOptions,
 	opencodeZenModelManagerOptions,
-} from "@rva/catalog/provider-models/openai-compat";
-import type { ModelSpec } from "@rva/catalog/types";
-import { USER_AGENT, type FetchImpl } from "@rva/utils";
+} from "@reverse/catalog/provider-models/openai-compat";
+import type { ModelSpec } from "@reverse/catalog/types";
+import { USER_AGENT, type FetchImpl } from "@reverse/utils";
 import { mergePreviousSnapshotModels } from "../scripts/generate-models";
 
 const LIVE_FREE_MODEL_IDS = [

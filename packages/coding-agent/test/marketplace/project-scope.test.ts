@@ -4,7 +4,7 @@
  * resolveActiveProjectRegistryPath: walk-up, .git fallback, null return, canonical path.
  * listClaudePluginRoots: project entries shadow user entries for same plugin ID.
  *
- * Note: helpers.ts imports @rva/natives (Rust addon via glob).
+ * Note: helpers.ts imports @reverse/natives (Rust addon via glob).
  * This file imports from helpers.ts directly — the native addon IS present in the
  * test environment (verified: `bun run import-helpers.ts` succeeds).
  */
@@ -17,18 +17,18 @@ import {
 	listClaudePluginRoots,
 	resolveActiveProjectRegistryPath,
 	resolveOrDefaultProjectRegistryPath,
-} from "@rva/coding-agent/discovery/helpers";
-import { MarketplaceManager } from "@rva/coding-agent/extensibility/plugins/marketplace/manager";
-import { getEnabledPlugins } from "@rva/coding-agent/extensibility/plugins/loader";
-import type { InstalledPluginEntry } from "@rva/coding-agent/extensibility/plugins/marketplace";
+} from "@reverse/coding-agent/discovery/helpers";
+import { MarketplaceManager } from "@reverse/coding-agent/extensibility/plugins/marketplace/manager";
+import { getEnabledPlugins } from "@reverse/coding-agent/extensibility/plugins/loader";
+import type { InstalledPluginEntry } from "@reverse/coding-agent/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
 	buildPluginId,
 	readInstalledPluginsRegistry,
 	writeInstalledPluginsRegistry,
-} from "@rva/coding-agent/extensibility/plugins/marketplace";
-import { CONFIG_DIR_NAME, removeSyncWithRetries } from "@rva/utils";
-import * as piUtils from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import { CONFIG_DIR_NAME, removeSyncWithRetries } from "@reverse/utils";
+import * as piUtils from "@reverse/utils";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@
  *      user), and either decision tool resets the counter.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import {
 	Agent,
 	type AgentMessage,
@@ -19,19 +19,19 @@ import {
 	type StreamFn,
 	type ToolApproval,
 	type ToolLoadMode,
-} from "@rva/agent";
-import { createMockModel, type MockModel, type MockResponse } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CustomTool } from "@rva/coding-agent/extensibility/custom-tools/types";
-import { resolveLocalUrlToPath } from "@rva/coding-agent/internal-urls";
-import { type IrcMessage } from "@rva/tui/tools/irc";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { XdevState } from "@rva/coding-agent/tools/xdev";
-import { TempDir } from "@rva/utils";
+} from "@reverse/agent";
+import { createMockModel, type MockModel, type MockResponse } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CustomTool } from "@reverse/coding-agent/extensibility/custom-tools/types";
+import { resolveLocalUrlToPath } from "@reverse/coding-agent/internal-urls";
+import { type IrcMessage } from "@reverse/tui/tools/irc";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { XdevState } from "@reverse/coding-agent/tools/xdev";
+import { TempDir } from "@reverse/utils";
 import planModeReminderPrompt from "../src/prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
 
 /** A stable, literal (non-templated) line of the reminder prompt, so the test

@@ -1,5 +1,5 @@
-import type { ImageContent, Model } from "@rva/ai";
-import { decodeBase64ImageData, formatBytes, parseImageMetadata, SUPPORTED_IMAGE_MIME_TYPES } from "@rva/utils";
+import type { ImageContent, Model } from "@reverse/ai";
+import { decodeBase64ImageData, formatBytes, parseImageMetadata, SUPPORTED_IMAGE_MIME_TYPES } from "@reverse/utils";
 
 export const MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024;
 

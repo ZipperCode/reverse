@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { jsonSchemaToTypeScript, toolWireSchema } from "@rva/ai/utils/schema";
+import { type } from "@reverse/omptype";
+import { jsonSchemaToTypeScript, toolWireSchema } from "@reverse/ai/utils/schema";
 
 describe("jsonSchemaToTypeScript", () => {
 	it("renders objects with optional markers and JSDoc descriptions", () => {

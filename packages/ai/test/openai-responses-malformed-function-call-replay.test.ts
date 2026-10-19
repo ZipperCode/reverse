@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import type { AssistantMessage, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import type { AssistantMessage, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const model: Model<"openai-responses"> = buildModel({
 	id: "gpt-5",

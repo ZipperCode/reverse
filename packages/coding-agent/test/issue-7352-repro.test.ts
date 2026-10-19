@@ -17,11 +17,11 @@
  * exercised without fastembed/onnxruntime.
  */
 import { describe, expect, it, vi } from "bun:test";
-import { MnemopiEmbedClient, type MnemopiEmbedWorkerHandle } from "@rva/coding-agent/mnemopi/embed-client";
+import { MnemopiEmbedClient, type MnemopiEmbedWorkerHandle } from "@reverse/coding-agent/mnemopi/embed-client";
 import type {
 	MnemopiEmbedWorkerInbound,
 	MnemopiEmbedWorkerOutbound,
-} from "@rva/coding-agent/mnemopi/embed-protocol";
+} from "@reverse/coding-agent/mnemopi/embed-protocol";
 
 /** A fake worker that answers `init` but never answers `embed`. */
 function silentEmbedWorker(state: { spawns: number; terminated: number }): () => MnemopiEmbedWorkerHandle {

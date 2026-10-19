@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { createModelManager } from "@rva/catalog/model-manager";
-import { syntheticModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { createModelManager } from "@reverse/catalog/model-manager";
+import { syntheticModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@reverse/catalog/types";
 
 /**
  * Entries mirror live `https://api.synthetic.new/openai/v1/models` payloads:

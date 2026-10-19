@@ -6,16 +6,12 @@
  * internals, which massively overcounts.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { buildModel } from "@rva/catalog/build";
-import type { Model, ModelSpec } from "@rva/catalog/types";
-import { Tokenizer } from "@rva/agent";
-import {
-	compactionContextTokens,
-	DEFAULT_COMPACTION_SETTINGS,
-	shouldCompact,
-} from "@rva/agent/compaction";
-import { arkToWireSchema } from "@rva/ai/utils/schema";
+import { type } from "@reverse/omptype";
+import { buildModel } from "@reverse/catalog/build";
+import type { Model, ModelSpec } from "@reverse/catalog/types";
+import { Tokenizer } from "@reverse/agent";
+import { compactionContextTokens, DEFAULT_COMPACTION_SETTINGS, shouldCompact } from "@reverse/agent/compaction";
+import { arkToWireSchema } from "@reverse/ai/utils/schema";
 import {
 	type ContextBreakdown,
 	type NonMessageTokenSource,

@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type LocalProtocolOptions, resolveLocalRoot } from "@rva/coding-agent/internal-urls";
-import { InternalUrlFilesystem } from "@rva/coding-agent/internal-urls/url-filesystem";
-import { executeShell, ShellFsFileType, ShellFsOp } from "@rva/natives";
+import { type LocalProtocolOptions, resolveLocalRoot } from "@reverse/coding-agent/internal-urls";
+import { InternalUrlFilesystem } from "@reverse/coding-agent/internal-urls/url-filesystem";
+import { executeShell, ShellFsFileType, ShellFsOp } from "@reverse/natives";
 
 const READ = { read: true, write: false, append: false, truncate: false, create: false, createNew: false };
 const CREATE = { read: false, write: true, append: false, truncate: true, create: true, createNew: false };

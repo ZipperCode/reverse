@@ -1,4 +1,4 @@
-import { logger, VERSION } from "@rva/utils";
+import { logger, VERSION } from "@reverse/utils";
 import { buildModel } from "./build";
 import { collapseBuiltVariants } from "./compat/collapse";
 import { applyCatalogMetrics, CatalogMetricsIndex } from "./identity/metrics";

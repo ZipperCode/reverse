@@ -1,24 +1,24 @@
-import type { AssistantMessage, ImageContent } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { getStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { type Component, Loader, TERMINAL } from "@rva/tui";
-import { formatDuration, isRecord, logger, prompt, sanitizeText } from "@rva/utils";
-import { INTENT_FIELD } from "@rva/wire";
+import type { AssistantMessage, ImageContent } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { getStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { type Component, Loader, TERMINAL } from "@reverse/tui";
+import { formatDuration, isRecord, logger, prompt, sanitizeText } from "@reverse/utils";
+import { INTENT_FIELD } from "@reverse/wire";
 import { extractTextContent } from "../../commit/utils";
 import { settings } from "../../config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { detectCacheInvalidation } from "@rva/tui/chat/cache-invalidation-marker";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { detectCacheInvalidation } from "@reverse/tui/chat/cache-invalidation-marker";
 import {
 	groupedReadUsageCallIds,
 	ReadToolGroupComponent,
 	readArgsCollapseIntoGroup,
 	readArgsHaveTarget,
-} from "@rva/tui/chat/read-tool-group";
-import { RecapNotice } from "@rva/tui/chat/recap-notice";
-import { readMediaPath } from "@rva/tui/native/blobs";
-import { TodoReminderComponent } from "@rva/tui/chat/todo-reminder";
-import { isNativeRendering } from "@rva/tui/native/state";
-import { textContent } from "@rva/tui/chat/transcript-entry";
+} from "@reverse/tui/chat/read-tool-group";
+import { RecapNotice } from "@reverse/tui/chat/recap-notice";
+import { readMediaPath } from "@reverse/tui/native/blobs";
+import { TodoReminderComponent } from "@reverse/tui/chat/todo-reminder";
+import { isNativeRendering } from "@reverse/tui/native/state";
+import { textContent } from "@reverse/tui/chat/transcript-entry";
 import {
 	asyncJobState,
 	isSettledJobFrame,
@@ -27,13 +27,13 @@ import {
 	ToolExecutionComponent,
 	type ToolExecutionHandle,
 	toolRenderName,
-} from "@rva/tui/chat/tool-execution";
-import { TtsrNotificationComponent } from "@rva/tui/chat/ttsr-notification";
-import { createUsageRowBlock, TurnUsageTally, turnElapsedMs } from "@rva/tui/overlays/usage-row";
-import { appKey } from "@rva/tui/chrome/keybinding-hints";
-import { getSymbolTheme, theme } from "@rva/tui/theme";
+} from "@reverse/tui/chat/tool-execution";
+import { TtsrNotificationComponent } from "@reverse/tui/chat/ttsr-notification";
+import { createUsageRowBlock, TurnUsageTally, turnElapsedMs } from "@reverse/tui/overlays/usage-row";
+import { appKey } from "@reverse/tui/chrome/keybinding-hints";
+import { getSymbolTheme, theme } from "@reverse/tui/theme";
 import type { InteractiveModeContext } from "../../modes/types";
-import type { TodoPhase } from "@rva/tui/tools/todo";
+import type { TodoPhase } from "@reverse/tui/tools/todo";
 import idleRecapPrompt from "../../prompts/system/recap-user.md" with { type: "text" };
 import type { AgentSessionEvent } from "../../session/agent-session";
 import {
@@ -45,25 +45,25 @@ import {
 } from "../../session/messages";
 import { formatApprovalPrompt, resolveApproval } from "../../tools/approval";
 import { recoverAskQuestions } from "../../tools/ask";
-import { previewLine, PREVIEW_LIMITS, TRUNCATE_LENGTHS } from "@rva/tui/render/render-utils";
-import { PROPOSE_DEVICE_NAME } from "@rva/tui/tools/resolve";
+import { previewLine, PREVIEW_LIMITS, TRUNCATE_LENGTHS } from "@reverse/tui/render/render-utils";
+import { PROPOSE_DEVICE_NAME } from "@reverse/tui/tools/resolve";
 import { writeDeviceDispatch } from "../../tools/resolve";
 import { nextActionableTask } from "../../tools/todo";
 import { SpeechEnhancer } from "../../tts/speech-enhancer";
 import { vocalizer } from "../../tts/vocalizer";
-import { canonicalizeMessage } from "@rva/tui/chat/thinking-display";
+import { canonicalizeMessage } from "@reverse/tui/chat/thinking-display";
 import { type RunStatus, setRunStatus } from "../../utils/run-status";
 import { setTerminalTitleState } from "../../utils/title-generator";
 import {
 	assistantMessageLinkTargets,
 	createAssistantMessageComponent,
 	refreshAssistantMessageLinkTargets,
-} from "@rva/tui/prompt/interactive-context-helpers";
+} from "@reverse/tui/prompt/interactive-context-helpers";
 import {
 	assistantHasVisibleContent,
 	assistantUsageIsBilled,
 	splitAssistantMessageToolTimeline,
-} from "@rva/tui/chat/transcript-render-helpers";
+} from "@reverse/tui/chat/transcript-render-helpers";
 import { isWarpCliAgentProtocolActive } from "../warp-events";
 import { ComposerPredictionController } from "./composer-prediction-controller";
 import { StreamingRevealController } from "./streaming-reveal";

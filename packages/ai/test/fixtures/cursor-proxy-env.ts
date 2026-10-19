@@ -1,7 +1,7 @@
 import * as net from "node:net";
-import { streamCursor } from "@rva/ai/providers/cursor";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamCursor } from "@reverse/ai/providers/cursor";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 // Fake HTTP CONNECT proxy: record the CONNECT target of the first request, then
 // reset. The run fails afterwards regardless — the recorded target is the proof

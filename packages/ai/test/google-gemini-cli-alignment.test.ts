@@ -4,10 +4,10 @@ import {
 	parseGeminiCliCredentials,
 	shouldRefreshGeminiCliCredentials,
 	streamGoogleGeminiCli,
-} from "@rva/ai/providers/google-gemini-cli";
-import { getOAuthApiKey } from "@rva/ai/registry/oauth";
-import type { AssistantMessageEvent, Context, FetchImpl, Model, TJsonSchema } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/providers/google-gemini-cli";
+import { getOAuthApiKey } from "@reverse/ai/registry/oauth";
+import type { AssistantMessageEvent, Context, FetchImpl, Model, TJsonSchema } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 function createModel(
 	provider: "google-gemini-cli" | "google-antigravity",

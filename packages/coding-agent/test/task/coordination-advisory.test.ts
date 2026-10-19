@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildCoordinationAdvisory, composeSpawnAdvisory } from "@rva/coding-agent/task";
-import type { TaskItem } from "@rva/tui/tools/task";
+import { buildCoordinationAdvisory, composeSpawnAdvisory } from "@reverse/coding-agent/task";
+import type { TaskItem } from "@reverse/tui/tools/task";
 
 const item = (): TaskItem => ({ task: "do the thing" });
 

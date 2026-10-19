@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AssistantMessage } from "@rva/ai";
-import { logger } from "@rva/utils";
+import type { AssistantMessage } from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import { ADVISOR_TRANSCRIPT_FILENAME, isAdvisorTranscriptName } from "../advisor/transcript-recorder";
 import { resolveExplicitModelRole } from "../config/model-resolver";
 import { assistantTurnProducedOutput } from "../session/messages";

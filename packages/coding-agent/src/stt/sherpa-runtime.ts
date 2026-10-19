@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import * as os from "node:os";
-import { resolveRuntimeModule } from "@rva/utils";
+import { resolveRuntimeModule } from "@reverse/utils";
 
 const SHERPA_PACKAGE = "sherpa-onnx-node";
 

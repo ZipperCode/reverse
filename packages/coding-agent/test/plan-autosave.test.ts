@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@rva/catalog/build";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { resolveLocalUrlToPath } from "@rva/coding-agent/internal-urls";
-import { getSettingsForTab } from "@rva/tui/overlays/settings-defs";
-import { createSettingsHost } from "@rva/coding-agent/config/settings-ui";
-import { autosaveApprovedPlan, resolvePlanAutosaveDir } from "@rva/coding-agent/plan-mode/plan-autosave";
-import type { PlanModeState } from "@rva/coding-agent/plan-mode/state";
-import type { PlanYolo } from "@rva/coding-agent/session/agent-session-types";
-import { PrewalkCoordinator, type PrewalkCoordinatorHost } from "@rva/coding-agent/session/prewalk";
-import type { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { CONFIG_DIR_NAME, TempDir } from "@rva/utils";
+import { buildModel } from "@reverse/catalog/build";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { resolveLocalUrlToPath } from "@reverse/coding-agent/internal-urls";
+import { getSettingsForTab } from "@reverse/tui/overlays/settings-defs";
+import { createSettingsHost } from "@reverse/coding-agent/config/settings-ui";
+import { autosaveApprovedPlan, resolvePlanAutosaveDir } from "@reverse/coding-agent/plan-mode/plan-autosave";
+import type { PlanModeState } from "@reverse/coding-agent/plan-mode/state";
+import type { PlanYolo } from "@reverse/coding-agent/session/agent-session-types";
+import { PrewalkCoordinator, type PrewalkCoordinatorHost } from "@reverse/coding-agent/session/prewalk";
+import type { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { CONFIG_DIR_NAME, TempDir } from "@reverse/utils";
 
-import { cfgPlanAutosave, cfgPlanEnabled } from "@rva/coding-agent/plan-mode/settings";
+import { cfgPlanAutosave, cfgPlanEnabled } from "@reverse/coding-agent/plan-mode/settings";
 
 let tempDir: TempDir | undefined;
 

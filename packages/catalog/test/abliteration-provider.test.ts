@@ -1,10 +1,10 @@
 import { describe, expect, test, vi } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { clampThinkingLevelForModel } from "@rva/catalog/model-thinking";
-import { seedModels } from "@rva/catalog/compat/providers";
-import { abliterationModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, Model } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { clampThinkingLevelForModel } from "@reverse/catalog/model-thinking";
+import { seedModels } from "@reverse/catalog/compat/providers";
+import { abliterationModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, Model } from "@reverse/catalog/types";
 
 function seed(id: string): Model<"openai-responses"> {
 	const spec = seedModels<"openai-responses">("abliteration").find(model => model.id === id);

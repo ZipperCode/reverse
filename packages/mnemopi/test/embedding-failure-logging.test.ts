@@ -3,9 +3,9 @@ import {
 	embed,
 	resetEmbeddingProviderForTests,
 	setLocalModelInitializerForTests,
-} from "@rva/mnemopi/core/embeddings";
-import { withMnemopiRuntimeOptions } from "@rva/mnemopi/core/runtime-options";
-import { logger } from "@rva/utils";
+} from "@reverse/mnemopi/core/embeddings";
+import { withMnemopiRuntimeOptions } from "@reverse/mnemopi/core/runtime-options";
+import { logger } from "@reverse/utils";
 
 const ENV_KEYS = [
 	"NODE_ENV",

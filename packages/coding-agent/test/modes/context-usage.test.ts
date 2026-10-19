@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Tokenizer } from "@rva/agent";
-import { computeNonMessageBreakdown, estimateToolSchemaTokens } from "@rva/tui/status-line/context-usage";
+import { Tokenizer } from "@reverse/agent";
+import { computeNonMessageBreakdown, estimateToolSchemaTokens } from "@reverse/tui/status-line/context-usage";
 import { applyToolProxy } from "../../src/extensibility/tool-proxy";
 
 const tokenizer = new Tokenizer();

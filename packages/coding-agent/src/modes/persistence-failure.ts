@@ -1,5 +1,5 @@
-import { sanitizeText } from "@rva/utils";
-import { replaceTabs, shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@rva/tui/render/render-utils";
+import { sanitizeText } from "@reverse/utils";
+import { replaceTabs, shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@reverse/tui/render/render-utils";
 import type { SessionPersistenceNotice } from "../session/session-manager";
 
 /**

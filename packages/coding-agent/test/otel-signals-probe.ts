@@ -6,23 +6,23 @@
  *
  * Stands up a loopback OTLP/proto receiver, points the standard env vars at it,
  * registers the providers, drives a log record through the bridged
- * `@rva/utils` logger and metric instruments through the agent
+ * `@reverse/utils` logger and metric instruments through the agent
  * telemetry hooks, flushes, and exits 0 only if the receiver got a non-empty
  * protobuf POST at both /v1/logs and /v1/metrics.
  */
 
-import { agentLoop } from "@rva/agent/agent-loop";
-import type { AgentContext, AgentMessage, AgentTool } from "@rva/agent/types";
-import { type } from "@rva/omptype";
-import type { Message } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
+import { agentLoop } from "@reverse/agent/agent-loop";
+import type { AgentContext, AgentMessage, AgentTool } from "@reverse/agent/types";
+import { type } from "@reverse/omptype";
+import type { Message } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import {
 	createTelemetryExportConfig,
 	flushTelemetryExport,
 	initTelemetryExport,
 	isTelemetryExportEnabled,
-} from "@rva/coding-agent/telemetry-export";
-import { logger } from "@rva/utils";
+} from "@reverse/coding-agent/telemetry-export";
+import { logger } from "@reverse/utils";
 
 const seen = new Set<string>();
 const metricPayloads: Uint8Array[] = [];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
+import type { FetchImpl } from "@reverse/ai/types";
 import {
 	analyzeAuthError,
 	discoverOAuthEndpoints,
@@ -7,7 +7,7 @@ import {
 	extractOAuthChallengeScopes,
 	fetchResourceMetadataScopes,
 	rfc9728ProtectedResourceMetadataUrl,
-} from "@rva/coding-agent/mcp/oauth-discovery";
+} from "@reverse/coding-agent/mcp/oauth-discovery";
 import { type FetchInput, mockFetch } from "./helpers/fetch-mock";
 
 describe("mcp oauth discovery", () => {

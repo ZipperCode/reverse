@@ -1,7 +1,7 @@
 import * as stream from "node:stream";
 import { inspect } from "node:util";
-import { getLogsDir, postmortem } from "@rva/utils";
-import { AgentSideConnection, ndJsonStream, type Stream } from "@rva/utils/acp";
+import { getLogsDir, postmortem } from "@reverse/utils";
+import { AgentSideConnection, ndJsonStream, type Stream } from "@reverse/utils/acp";
 import type { ExtensionUIContext } from "../../extensibility/extensions/types";
 import type { AgentSession } from "../../session/agent-session";
 import { AcpAgent } from "./acp-agent";

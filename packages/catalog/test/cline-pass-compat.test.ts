@@ -1,17 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { toClinePassPublicModelId, toClinePassWireModelId } from "@rva/catalog/cline-pass-model-id";
-import { isBareIdReferenceProvider } from "@rva/catalog/compat/behavior";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { Effort } from "@rva/catalog/effort";
+import { toClinePassPublicModelId, toClinePassWireModelId } from "@reverse/catalog/cline-pass-model-id";
+import { isBareIdReferenceProvider } from "@reverse/catalog/compat/behavior";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { Effort } from "@reverse/catalog/effort";
 import {
 	DEFAULT_MODEL_PER_PROVIDER,
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	mapModelsDevToModels,
 	PROVIDER_DESCRIPTORS,
-} from "@rva/catalog/provider-models";
-import { createReferenceResolver } from "@rva/catalog/provider-models/bundled-references";
-import { clinePassModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { ModelSpec } from "@rva/catalog/types";
+} from "@reverse/catalog/provider-models";
+import { createReferenceResolver } from "@reverse/catalog/provider-models/bundled-references";
+import { clinePassModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 const CLINEPASS_MODELS_DEV_FIXTURE = {
 	"cline-pass": {

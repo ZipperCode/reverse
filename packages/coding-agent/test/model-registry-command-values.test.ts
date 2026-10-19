@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { streamSimple } from "@rva/ai";
-import { withAuth } from "@rva/ai/auth-retry";
-import type { Api, Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { invalidateAllCommandConfigs, resolveConfigValue } from "@rva/coding-agent/config/resolve-config-value";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import * as piUtils from "@rva/utils";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { streamSimple } from "@reverse/ai";
+import { withAuth } from "@reverse/ai/auth-retry";
+import type { Api, Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { invalidateAllCommandConfigs, resolveConfigValue } from "@reverse/coding-agent/config/resolve-config-value";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import * as piUtils from "@reverse/utils";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 function shellQuote(value: string): string {
 	return `'${value.replaceAll("'", "'\\''")}'`;

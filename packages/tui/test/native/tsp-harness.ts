@@ -12,11 +12,11 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type TspApplyError, TspDocument } from "@rva/tui/native/apply";
-import { splitTspMessage, type TspHello } from "@rva/tui/native/encode";
-import type { Terminal, TerminalAppearance, TerminalStartOptions, TspHelloHandler } from "@rva/tui/terminal";
-import { type RenderScheduler, type RenderTimer, TUI } from "@rva/tui/tui";
-import { TSP_KINDS, type TspEvent, type TspFrame, type TspNode, type TspPalette } from "@rva/wire";
+import { type TspApplyError, TspDocument } from "@reverse/tui/native/apply";
+import { splitTspMessage, type TspHello } from "@reverse/tui/native/encode";
+import type { Terminal, TerminalAppearance, TerminalStartOptions, TspHelloHandler } from "@reverse/tui/terminal";
+import { type RenderScheduler, type RenderTimer, TUI } from "@reverse/tui/tui";
+import { TSP_KINDS, type TspEvent, type TspFrame, type TspNode, type TspPalette } from "@reverse/wire";
 
 export interface TspHarnessOptions {
 	cols?: number;

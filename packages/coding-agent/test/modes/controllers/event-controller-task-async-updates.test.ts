@@ -14,17 +14,17 @@
  *    background ("running") finalizes and untracks it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, ToolResultMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { isNativeRendering, setNativeRendering } from "@rva/tui/native/state";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@rva/coding-agent/session/session-context";
-import type { TaskToolDetails } from "@rva/tui/tools/task";
-import { type BashToolDetails, formatBackgroundNotice } from "@rva/tui/tools/bash";
-import type { CoordinationDetails } from "@rva/tui/tools/wait";
+import type { AssistantMessage, ToolResultMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { isNativeRendering, setNativeRendering } from "@reverse/tui/native/state";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { SessionContext } from "@reverse/coding-agent/session/session-context";
+import type { TaskToolDetails } from "@reverse/tui/tools/task";
+import { type BashToolDetails, formatBackgroundNotice } from "@reverse/tui/tools/bash";
+import type { CoordinationDetails } from "@reverse/tui/tools/wait";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 function taskResult(asyncState: "running" | "completed" | "failed" | undefined, text: string) {

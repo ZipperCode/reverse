@@ -1,4 +1,4 @@
-import { withLoopPhase } from "@rva/utils";
+import { withLoopPhase } from "@reverse/utils";
 import { getDiagnostics, safeForLog } from "./extraction/diagnostics";
 import { callHostLlm, getHostLlmBackend } from "./llm-backends";
 import {

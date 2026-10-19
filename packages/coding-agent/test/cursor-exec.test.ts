@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import {
 	type AgentEvent,
 	type AgentTool,
 	type AgentToolContext,
 	TOOL_RESULT_ADDITIONAL_CONTEXT,
 	type ToolResultWithAdditionalContext,
-} from "@rva/agent";
-import { type BlockState, handleServerMessage, type ToolCallState } from "@rva/ai/providers/cursor";
-import { buildPiReadResult, piTruncation } from "@rva/ai/providers/cursor/exec-modern";
-import type { AssistantMessage, ToolResultMessage } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+} from "@reverse/agent";
+import { type BlockState, handleServerMessage, type ToolCallState } from "@reverse/ai/providers/cursor";
+import { buildPiReadResult, piTruncation } from "@reverse/ai/providers/cursor/exec-modern";
+import type { AssistantMessage, ToolResultMessage } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import {
 	AgentClientMessageSchema,
 	AgentServerMessageSchema,
@@ -22,28 +22,28 @@ import {
 	McpArgsSchema,
 	ReadArgsSchema,
 	ShellArgsSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary } from "@rva/catalog/discovery/protobuf";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { CursorExecHandlers } from "@rva/coding-agent/cursor";
-import { registerArtifactsDir } from "@rva/coding-agent/internal-urls/registry-helpers";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary } from "@reverse/catalog/discovery/protobuf";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { CursorExecHandlers } from "@reverse/coding-agent/cursor";
+import { registerArtifactsDir } from "@reverse/coding-agent/internal-urls/registry-helpers";
 import {
 	bridgeToolMap,
 	createBridgeEditTool,
 	createBridgeGrepFactory,
 	cursorMcpPrefersReplaceEdit,
 	normalizeCursorReplaceArgs,
-} from "@rva/coding-agent/cursor-bridge-tools";
+} from "@reverse/coding-agent/cursor-bridge-tools";
 
-import { EditTool } from "@rva/coding-agent/edit";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import { ExtensionToolWrapper } from "@rva/coding-agent/extensibility/extensions";
-import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@rva/coding-agent/tools";
-import { BashTool } from "@rva/coding-agent/tools/bash";
-import { TodoTool } from "@rva/coding-agent/tools/todo";
-import type { TruncationMeta } from "@rva/tui/tools/output-meta";
-import type { TodoPhase } from "@rva/tui/tools/todo";
-import { removeWithRetries } from "@rva/utils";
+import { EditTool } from "@reverse/coding-agent/edit";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import { ExtensionToolWrapper } from "@reverse/coding-agent/extensibility/extensions";
+import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
+import { TodoTool } from "@reverse/coding-agent/tools/todo";
+import type { TruncationMeta } from "@reverse/tui/tools/output-meta";
+import type { TodoPhase } from "@reverse/tui/tools/todo";
+import { removeWithRetries } from "@reverse/utils";
 import { AdviseTool } from "../src/advisor/advise-tool";
 
 function yoloToolContext(): AgentToolContext {

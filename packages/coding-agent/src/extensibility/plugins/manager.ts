@@ -11,7 +11,7 @@ import {
 	isEnoent,
 	logger,
 	normalizePathForComparison,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { JSONC } from "bun";
 import { resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import { loadExtensions } from "../extensions/loader";

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { syncAllSessions } from "@rva/stats/aggregator";
-import { getOverallStats } from "@rva/stats/rollup";
-import { getSessionsDir } from "@rva/utils";
+import { syncAllSessions } from "@reverse/stats/aggregator";
+import { getOverallStats } from "@reverse/stats/rollup";
+import { getSessionsDir } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-sync-serial-");

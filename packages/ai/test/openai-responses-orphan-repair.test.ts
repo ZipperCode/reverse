@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ResponseInput } from "@rva/ai/providers/openai-responses-wire";
-import {
-	repairOrphanResponsesToolCalls,
-	repairOrphanResponsesToolOutputs,
-} from "@rva/ai/providers/openai-shared";
+import type { ResponseInput } from "@reverse/ai/providers/openai-responses-wire";
+import { repairOrphanResponsesToolCalls, repairOrphanResponsesToolOutputs } from "@reverse/ai/providers/openai-shared";
 
 describe("repairOrphanResponsesToolCalls", () => {
 	it("appends a synthetic function_call_output after a call with no result", () => {

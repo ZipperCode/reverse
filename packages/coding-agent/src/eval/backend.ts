@@ -1,9 +1,9 @@
 import { buildEvalUrlRoots, LocalProtocolHandler } from "../internal-urls";
 import { contextLocalProtocolOptions } from "../internal-urls/context";
-import type { OutputArtifactError } from "@rva/tui/tools/streaming-output";
+import type { OutputArtifactError } from "@reverse/tui/tools/streaming-output";
 import type { ToolSession } from "../tools";
 import type { BackendProbeOptions } from "./probe";
-import type { EvalLanguage, EvalStatusEvent } from "@rva/tui/tools/eval";
+import type { EvalLanguage, EvalStatusEvent } from "@reverse/tui/tools/eval";
 import type { EvalDisplayOutput } from "./types";
 
 /** Per-cell execute() options. */

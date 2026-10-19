@@ -4,7 +4,7 @@ import {
 	formatMCPConnectingMessage,
 	formatMCPConnectionStatusMessage,
 	isMcpConnectionStatusEvent,
-} from "@rva/coding-agent/mcp/startup-events";
+} from "@reverse/coding-agent/mcp/startup-events";
 
 // Cross-module contract guard.
 //

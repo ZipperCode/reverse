@@ -1,7 +1,7 @@
-import { crc32 } from "@rva/ai/providers/aws-eventstream";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
+import { crc32 } from "@reverse/ai/providers/aws-eventstream";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
 import { withEnv } from "./index";
 
 // Shared harness for the Bedrock Converse-Stream provider tests: encodes the

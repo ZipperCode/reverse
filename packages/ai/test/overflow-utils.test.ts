@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { isContextOverflow, isPayloadRejection } from "@rva/ai/error";
+import type { AssistantMessage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { isContextOverflow, isPayloadRejection } from "@reverse/ai/error";
 
 function createErrorMessage(errorMessage: string): AssistantMessage {
 	return {

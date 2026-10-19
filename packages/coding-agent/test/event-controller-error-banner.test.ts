@@ -8,19 +8,19 @@
  * pin a banner.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { ErrorBannerComponent } from "@rva/tui/overlays/error-banner";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { Loader } from "@rva/tui";
-import { PREVIEW_LIMITS, TRUNCATE_LENGTHS } from "@rva/tui/render/render-utils";
+import type { AssistantMessage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { ErrorBannerComponent } from "@reverse/tui/overlays/error-banner";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { Loader } from "@reverse/tui";
+import { PREVIEW_LIMITS, TRUNCATE_LENGTHS } from "@reverse/tui/render/render-utils";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
-import { cfgDisplaySmoothStreaming } from "@rva/coding-agent/modes/settings";
+import { cfgDisplaySmoothStreaming } from "@reverse/coding-agent/modes/settings";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {

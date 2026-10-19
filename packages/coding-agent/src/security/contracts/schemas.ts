@@ -1,5 +1,5 @@
-import { type } from "@rva/omptype";
-import { once } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { once } from "@reverse/utils";
 
 export const getSecurityContractSchemas = once(() => {
 	const stringRecordSchema = type({ "[string]": "string" });

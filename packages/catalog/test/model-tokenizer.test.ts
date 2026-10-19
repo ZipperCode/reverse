@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { resolveModelTokenizer } from "@rva/catalog/model-tokenizer";
-import type { ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveModelTokenizer } from "@reverse/catalog/model-tokenizer";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 function spec(id: string): ModelSpec<"openai-completions"> {
 	return {

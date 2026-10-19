@@ -1,6 +1,6 @@
-import { APP_NAME } from "@rva/utils/dirs";
+import { APP_NAME } from "@reverse/utils/dirs";
 import { getEffectiveLocale } from "../config/persisted-locale";
-import type { CommandMetadata } from "@rva/utils/cli";
+import type { CommandMetadata } from "@reverse/utils/cli";
 
 export const acpHelp = {
 	get description() {

@@ -11,8 +11,8 @@
  * massage shapes the LLM almost got right.
  */
 
-import { type Type, type } from "@rva/omptype";
-import { structuredCloneJSON } from "@rva/utils";
+import { type Type, type } from "@reverse/omptype";
+import { structuredCloneJSON } from "@reverse/utils";
 import * as AIError from "../error";
 import type { Tool, ToolCall } from "../types";
 import { upgradeJsonSchemaTo202012 } from "./schema/draft";

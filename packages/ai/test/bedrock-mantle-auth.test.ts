@@ -2,12 +2,12 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearAwsCredentialCache } from "@rva/ai/providers/aws-credentials";
-import type { BedrockMantleOptions } from "@rva/ai/providers/bedrock-mantle";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { stream, streamSimple } from "@rva/ai/stream";
-import type { Context, FetchImpl, Model, SimpleStreamOptions } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { clearAwsCredentialCache } from "@reverse/ai/providers/aws-credentials";
+import type { BedrockMantleOptions } from "@reverse/ai/providers/bedrock-mantle";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { stream, streamSimple } from "@reverse/ai/stream";
+import type { Context, FetchImpl, Model, SimpleStreamOptions } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import { removeWithRetries } from "../../utils/src/temp";
 import { withEnv } from "./helpers";
 

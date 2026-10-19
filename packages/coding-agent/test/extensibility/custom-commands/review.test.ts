@@ -2,18 +2,18 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn, vi } from 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ReviewCommand } from "@rva/coding-agent/extensibility/custom-commands/bundled/review";
-import type { CustomCommandAPI } from "@rva/coding-agent/extensibility/custom-commands/types";
-import type { HookCommandContext } from "@rva/coding-agent/extensibility/hooks/types";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls";
-import type { SessionEntry } from "@rva/coding-agent/session/session-entries";
-import type { PrDiffPayload, ViewLookupResult } from "@rva/coding-agent/tools/gh";
-import * as gh from "@rva/coding-agent/tools/gh";
-import { parsePrUnifiedDiff } from "@rva/coding-agent/tools/gh-pr-diff";
-import { github } from "@rva/coding-agent/utils/github";
-import type { VcsGitRepo, VcsRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { removeWithRetries } from "@rva/utils";
+import { ReviewCommand } from "@reverse/coding-agent/extensibility/custom-commands/bundled/review";
+import type { CustomCommandAPI } from "@reverse/coding-agent/extensibility/custom-commands/types";
+import type { HookCommandContext } from "@reverse/coding-agent/extensibility/hooks/types";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls";
+import type { SessionEntry } from "@reverse/coding-agent/session/session-entries";
+import type { PrDiffPayload, ViewLookupResult } from "@reverse/coding-agent/tools/gh";
+import * as gh from "@reverse/coding-agent/tools/gh";
+import { parsePrUnifiedDiff } from "@reverse/coding-agent/tools/gh-pr-diff";
+import { github } from "@reverse/coding-agent/utils/github";
+import type { VcsGitRepo, VcsRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { removeWithRetries } from "@reverse/utils";
 import { $ } from "bun";
 
 const SAMPLE_JJ_DIFF = `diff --git a/src/workspace.ts b/src/workspace.ts

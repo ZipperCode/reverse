@@ -6,15 +6,15 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
-import { readArchiveEntries } from "@rva/utils/ar";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
+import { Agent } from "@reverse/agent";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
+import { readArchiveEntries } from "@reverse/utils/ar";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 function subagentJsonl(id: string, userText: string | null): string {

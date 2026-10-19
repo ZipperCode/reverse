@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type MCPServer, mcpCapability } from "@rva/coding-agent/capability/mcp";
-import { loadCapability } from "@rva/coding-agent/discovery";
-import { removeWithRetries } from "@rva/utils";
+import { type MCPServer, mcpCapability } from "@reverse/coding-agent/capability/mcp";
+import { loadCapability } from "@reverse/coding-agent/discovery";
+import { removeWithRetries } from "@reverse/utils";
 
 async function loadStandaloneMcpConfig(cwd: string): Promise<MCPServer[]> {
 	const result = await loadCapability<MCPServer>(mcpCapability.id, {

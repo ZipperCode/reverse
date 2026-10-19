@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, highlightCode, setThemeInstance } from "@rva/tui/theme";
+import { getThemeByName, highlightCode, setThemeInstance } from "@reverse/tui/theme";
 
 const unifiedDiffChunks = [
 	[

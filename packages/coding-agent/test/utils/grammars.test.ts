@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { WasmGrammarInfo } from "@rva/natives";
-import { installGrammar } from "@rva/coding-agent/utils/grammars";
-import { TempDir } from "@rva/utils";
+import type { WasmGrammarInfo } from "@reverse/natives";
+import { installGrammar } from "@reverse/coding-agent/utils/grammars";
+import { TempDir } from "@reverse/utils";
 
 const RELEASE = "grammars-test";
 const WASM = new Uint8Array([

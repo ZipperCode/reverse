@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
-import type { FetchImpl } from "@rva/utils";
+import type { FetchImpl } from "@reverse/utils";
 // Import from source, not the package specifier: the workspace `node_modules`
 // copy resolves to the primary checkout, not this worktree.
 import { buildModel } from "../src/build";

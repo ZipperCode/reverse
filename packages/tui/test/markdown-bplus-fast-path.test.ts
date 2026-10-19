@@ -4,7 +4,7 @@ import {
 	type DefaultTextStyle,
 	fastLineStartHazard,
 	Markdown,
-} from "@rva/tui/components/markdown";
+} from "@reverse/tui/components/markdown";
 import { defaultMarkdownTheme } from "./test-themes.js";
 
 // B+ fast-tail contract: when a transient streaming frame's last content row

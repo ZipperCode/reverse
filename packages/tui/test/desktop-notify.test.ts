@@ -7,8 +7,8 @@ import {
 	resolveDesktopNotifier,
 	sendDesktopNotification,
 	shouldDeliverDesktopNotification,
-} from "@rva/tui/desktop-notify";
-import * as utils from "@rva/utils";
+} from "@reverse/tui/desktop-notify";
+import * as utils from "@reverse/utils";
 
 const LINUX_ENV: NodeJS.ProcessEnv = { DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/1000/bus" };
 

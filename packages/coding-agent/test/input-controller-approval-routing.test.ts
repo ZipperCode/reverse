@@ -5,8 +5,8 @@
  * session: sent to the focused child, it never denies the approval.
  */
 import { describe, expect, it, vi } from "bun:test";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 function createContext(approvalOwnsComposer: boolean) {
 	const mainPrompt = vi.fn(async () => true);

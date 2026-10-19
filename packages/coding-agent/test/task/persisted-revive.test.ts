@@ -1,51 +1,51 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import { createMockModel, type MockResponse, type MockResponseSource } from "@rva/ai/providers/mock";
-import { buildModel } from "@rva/catalog/build";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import { resolveThresholdTokens, shouldCompact } from "@rva/agent/compaction";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import { createMockModel, type MockResponse, type MockResponseSource } from "@reverse/ai/providers/mock";
+import { buildModel } from "@reverse/catalog/build";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import { resolveThresholdTokens, shouldCompact } from "@reverse/agent/compaction";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { EffectiveExtensionRoots } from "@rva/coding-agent/capability/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { cfgCompaction } from "@rva/coding-agent/session/context-settings";
-import type { PreparedExtension } from "@rva/coding-agent/extensibility/extensions/types";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import { RpcSubagentRegistry } from "@rva/coding-agent/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@rva/coding-agent/modes/rpc/rpc-types";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import type { AgentRef } from "@rva/coding-agent/registry/agent-registry";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { registerPersistedSubagents } from "@rva/coding-agent/registry/persisted-agents";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { CustomMessage } from "@rva/coding-agent/session/messages";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import type { EffectiveExtensionRoots } from "@reverse/coding-agent/capability/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { cfgCompaction } from "@reverse/coding-agent/session/context-settings";
+import type { PreparedExtension } from "@reverse/coding-agent/extensibility/extensions/types";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import { RpcSubagentRegistry } from "@reverse/coding-agent/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@reverse/coding-agent/modes/rpc/rpc-types";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import type { AgentRef } from "@reverse/coding-agent/registry/agent-registry";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { registerPersistedSubagents } from "@reverse/coding-agent/registry/persisted-agents";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { CustomMessage } from "@reverse/coding-agent/session/messages";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	findRetryFallbackCandidates,
 	getRetryFallbackChains,
 	type RetryFallbackResolutionContext,
 	type RetryFallbackRole,
 	resolveRetryFallbackChainKey,
-} from "@rva/coding-agent/session/retry-fallback-chains";
-import { getBundledModel } from "@rva/catalog/models";
-import { FileSessionStorage } from "@rva/coding-agent/session/session-storage";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import { createPersistedSubagentReviverFactory } from "@rva/coding-agent/task/persisted-revive";
-import { buildWakeRelayBody } from "@rva/coding-agent/task/executor";
-import type { SingleResult } from "@rva/tui/tools/task";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { IrcBus } from "@rva/coding-agent/irc/bus";
-import { type IrcMessage } from "@rva/tui/tools/irc";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/retry-fallback-chains";
+import { getBundledModel } from "@reverse/catalog/models";
+import { FileSessionStorage } from "@reverse/coding-agent/session/session-storage";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import { createPersistedSubagentReviverFactory } from "@reverse/coding-agent/task/persisted-revive";
+import { buildWakeRelayBody } from "@reverse/coding-agent/task/executor";
+import type { SingleResult } from "@reverse/tui/tools/task";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { IrcBus } from "@reverse/coding-agent/irc/bus";
+import { type IrcMessage } from "@reverse/tui/tools/irc";
+import { TempDir } from "@reverse/utils";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
-import { cfgAdvisorEnabled } from "@rva/coding-agent/advisor/settings";
+import { cfgAdvisorEnabled } from "@reverse/coding-agent/advisor/settings";
 
 const tempDirs: TempDir[] = [];
 

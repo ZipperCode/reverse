@@ -20,12 +20,12 @@ import {
 	TINY_MODEL_DTYPE_SETTING_VALUES,
 } from "../tiny/dtype";
 import { DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS, MAX_WEB_SEARCH_TIMEOUT_SECONDS } from "../web/search/types";
-import { DEFAULT_USAGE_RESERVE_PCT } from "@rva/ai/auth-storage";
-import { configureProviderStoreResponses } from "@rva/ai/providers/openai-responses";
-import { configureProviderMaxInFlightRequests } from "@rva/ai/stream";
-import { THINKING_EFFORTS } from "@rva/catalog/effort";
-import { formatKeyHint } from "@rva/tui/app-keybindings";
-import { AUTO_THINKING, getConfiguredThinkingLevelMetadata, getThinkingLevelMetadata } from "@rva/tui/thinking";
+import { DEFAULT_USAGE_RESERVE_PCT } from "@reverse/ai/auth-storage";
+import { configureProviderStoreResponses } from "@reverse/ai/providers/openai-responses";
+import { configureProviderMaxInFlightRequests } from "@reverse/ai/stream";
+import { THINKING_EFFORTS } from "@reverse/catalog/effort";
+import { formatKeyHint } from "@reverse/tui/app-keybindings";
+import { AUTO_THINKING, getConfiguredThinkingLevelMetadata, getThinkingLevelMetadata } from "@reverse/tui/thinking";
 
 const EMPTY_NUMBER_RECORD: Record<string, number> = {};
 const EMPTY_STRING_ARRAYS_RECORD: Record<string, string[]> = {};

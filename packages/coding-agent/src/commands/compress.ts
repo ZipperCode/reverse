@@ -1,5 +1,5 @@
-import { postmortem } from "@rva/utils";
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { postmortem } from "@reverse/utils";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { compressHelp as commandHelp } from "../cli/command-help";
 import { CliUsageError } from "../cli/usage-error";
 import { runCompressCommand } from "../compress";

@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as url from "node:url";
-import { __buildLegacyPiPackageRootOverrides } from "@rva/coding-agent/extensibility/plugins/legacy-pi-compat";
-import { TempDir } from "@rva/utils";
+import { __buildLegacyPiPackageRootOverrides } from "@reverse/coding-agent/extensibility/plugins/legacy-pi-compat";
+import { TempDir } from "@reverse/utils";
 import { __renderLegacyPiVirtualModule, collectBundledPiEntries } from "../../scripts/legacy-pi-virtual-module";
 import type { BundledPiEntry } from "../../scripts/legacy-pi-virtual-module";
 
@@ -77,9 +77,9 @@ export const finalBeta = Reflect.get(globalThis, "__betaLoads") ?? 0;
 		}
 	});
 
-	it("serves @rva/ai/oauth through the bundled virtual namespace in compiled mode", () => {
+	it("serves @reverse/ai/oauth through the bundled virtual namespace in compiled mode", () => {
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides["@rva/ai/oauth"]).toBe("omp-legacy-pi-bundled:@rva/ai/oauth");
+		expect(overrides["@reverse/ai/oauth"]).toBe("omp-legacy-pi-bundled:@reverse/ai/oauth");
 	});
 
 	it("expands wildcard exports for concrete on-disk targets (issue #3442 follow-up)", () => {
@@ -90,13 +90,11 @@ export const finalBeta = Reflect.get(globalThis, "__betaLoads") ?? 0;
 		// fall-through. The generator now globs each wildcard's source pattern
 		// and registers every concrete `.ts` match against the virtual namespace.
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides["@rva/ai/oauth/anthropic"]).toBe(
-			"omp-legacy-pi-bundled:@rva/ai/oauth/anthropic",
-		);
+		expect(overrides["@reverse/ai/oauth/anthropic"]).toBe("omp-legacy-pi-bundled:@reverse/ai/oauth/anthropic");
 		// Sanity: the wildcard expansion also reaches deeper subroots so plugins
-		// pinned to e.g. `@rva/ai/providers/openai` keep resolving.
-		expect(bundledModuleKeys.has("@rva/ai/oauth/anthropic")).toBe(true);
-		expect(bundledModuleKeys.has("@rva/ai/oauth/openai-codex")).toBe(true);
+		// pinned to e.g. `@reverse/ai/providers/openai` keep resolving.
+		expect(bundledModuleKeys.has("@reverse/ai/oauth/anthropic")).toBe(true);
+		expect(bundledModuleKeys.has("@reverse/ai/oauth/openai-codex")).toBe(true);
 	});
 
 	it("actually loads the shim's shared Pi translation through the bundled registry", async () => {
@@ -107,7 +105,7 @@ export const finalBeta = Reflect.get(globalThis, "__betaLoads") ?? 0;
 		//
 		// Executing the generated registry is the contract — a key present in the
 		// override map still proves nothing if the module cannot be imported.
-		const key = "@rva/ai/providers/cursor-pi-args";
+		const key = "@reverse/ai/providers/cursor-pi-args";
 		const entry = bundledEntries.find(candidate => candidate.key === key);
 		expect(entry).toBeDefined();
 
@@ -124,14 +122,14 @@ export const observed = [mod.piEscapeRegexLiteral("a.b*c"), mod.piJoinPath("src"
 	});
 
 	it("loads catalog root and provider-model exports from the bundled graph", async () => {
-		const root = bundledEntries.find(entry => entry.key === "@rva/catalog");
-		const provider = bundledEntries.find(entry => entry.key === "@rva/catalog/provider-models");
+		const root = bundledEntries.find(entry => entry.key === "@reverse/catalog");
+		const provider = bundledEntries.find(entry => entry.key === "@reverse/catalog/provider-models");
 		if (!root || !provider) throw new Error("Catalog imports are missing from the bundled registry");
 
 		const observed = await runRegistryProbe(
 			[root, provider],
-			`const catalog = await BUNDLED_PI_MODULE_LOADERS["@rva/catalog"]();
-const providers = await BUNDLED_PI_MODULE_LOADERS["@rva/catalog/provider-models"]();
+			`const catalog = await BUNDLED_PI_MODULE_LOADERS["@reverse/catalog"]();
+const providers = await BUNDLED_PI_MODULE_LOADERS["@reverse/catalog/provider-models"]();
 const result = await catalog.createModelManager(providers.anthropicModelManagerOptions()).refresh("offline");
 export const observed = result.models.some(model => model.id === "claude-3-5-sonnet-20240620");`,
 		);
@@ -139,7 +137,7 @@ export const observed = result.models.some(model => model.id === "claude-3-5-son
 	});
 
 	it("loads catalog build exports through the bundled registry in compiled mode", async () => {
-		const key = "@rva/catalog/build";
+		const key = "@reverse/catalog/build";
 		const entry = bundledEntries.find(candidate => candidate.key === key);
 		if (!entry) throw new Error("Catalog build import is missing from the bundled registry");
 
@@ -167,10 +165,10 @@ export const observed = buildModel({
 	it("expands web search provider wildcard exports for compiled plugin imports", () => {
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		const providerKeys = [
-			"@rva/coding-agent/web/search/providers/xai",
-			"@rva/coding-agent/web/search/providers/tinyfish",
-			"@rva/coding-agent/web/search/providers/firecrawl",
-			"@rva/coding-agent/web/search/providers/duckduckgo",
+			"@reverse/coding-agent/web/search/providers/xai",
+			"@reverse/coding-agent/web/search/providers/tinyfish",
+			"@reverse/coding-agent/web/search/providers/firecrawl",
+			"@reverse/coding-agent/web/search/providers/duckduckgo",
 		] as const;
 
 		for (const key of providerKeys) {
@@ -180,7 +178,7 @@ export const observed = buildModel({
 	});
 
 	it("serves coding-agent registry wildcard exports in compiled mode", () => {
-		const key = "@rva/coding-agent/registry/agent-registry";
+		const key = "@reverse/coding-agent/registry/agent-registry";
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		expect(bundledModuleKeys.has(key)).toBe(true);
 		expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
@@ -189,8 +187,8 @@ export const observed = buildModel({
 	it("keeps coding-agent's root catch-all wildcards (./* / ./*.js) out of the bundle", () => {
 		// coding-agent exposes CLI entrypoints at the root; importing one from
 		// the virtual registry would expand the binary entry's transitive graph.
-		expect(bundledModuleKeys.has("@rva/coding-agent/cli")).toBe(false);
-		expect(bundledModuleKeys.has("@rva/coding-agent/main")).toBe(false);
+		expect(bundledModuleKeys.has("@reverse/coding-agent/cli")).toBe(false);
+		expect(bundledModuleKeys.has("@reverse/coding-agent/main")).toBe(false);
 	});
 
 	it("does not bundle main-thread-unsafe worker entrypoints", () => {
@@ -198,7 +196,7 @@ export const observed = buildModel({
 		// The compiled legacy registry is imported on the main thread while
 		// validating plugin extensions, so enumerating these files recreates the
 		// `js worker-entry: missing parentPort` failure from #3508.
-		expect(bundledModuleKeys.has("@rva/coding-agent/eval/js/worker-entry")).toBe(false);
+		expect(bundledModuleKeys.has("@reverse/coding-agent/eval/js/worker-entry")).toBe(false);
 	});
 
 	it("maps every bundled key (minus shimmed roots + typebox) to its virtual specifier in compiled mode", () => {
@@ -209,12 +207,7 @@ export const observed = buildModel({
 			// shims (they re-attach `Type`, `defineTool`, `decodeKittyPrintable`, etc.
 			// dropped from the canonical package surfaces); typebox is served via
 			// TYPEBOX_SHIM_PATH.
-			if (
-				key === "@rva/ai" ||
-				key === "@rva/coding-agent" ||
-				key === "@rva/tui" ||
-				key === "typebox"
-			)
+			if (key === "@reverse/ai" || key === "@reverse/coding-agent" || key === "@reverse/tui" || key === "typebox")
 				continue;
 			if (overrides[key] !== `omp-legacy-pi-bundled:${key}`) {
 				missing.push(key);
@@ -225,8 +218,8 @@ export const observed = buildModel({
 
 	it("does not register subpath overrides in dev/install mode", () => {
 		const overrides = __buildLegacyPiPackageRootOverrides(false);
-		expect(overrides).not.toHaveProperty("@rva/ai/oauth");
-		expect(overrides).not.toHaveProperty("@rva/coding-agent/tools");
+		expect(overrides).not.toHaveProperty("@reverse/ai/oauth");
+		expect(overrides).not.toHaveProperty("@reverse/coding-agent/tools");
 		// Dev keeps only the historical shim entries so canonical subpath
 		// imports continue to flow through `Bun.resolveSync` against the live
 		// monorepo / installed `node_modules` tree.
@@ -247,22 +240,22 @@ export const observed = buildModel({
 		// top level left every nested key out of the compiled registry, so the
 		// import resolved from source and failed inside a binary — which is how
 		// a real extension (`quota-hud.ts`) broke on this exact specifier.
-		expect(bundledModuleKeys.has("@rva/coding-agent/slash-commands/helpers/active-oauth-account")).toBe(true);
+		expect(bundledModuleKeys.has("@reverse/coding-agent/slash-commands/helpers/active-oauth-account")).toBe(true);
 		// `./theme/*` serves `theme/defaults/index` by spelling, so the key exists.
-		expect(bundledModuleKeys.has("@rva/tui/theme/defaults/index")).toBe(true);
+		expect(bundledModuleKeys.has("@reverse/tui/theme/defaults/index")).toBe(true);
 	});
 
 	it("loads pi-tui native/* modules through the bundled registry in compiled mode (issue #14834)", async () => {
 		// `native/*` was only reachable through pi-tui's root `./*` catch-all, which
 		// the generator skips, so extensions importing it failed inside the binary.
-		const keys = ["@rva/tui/native/overlay", "@rva/tui/native/spans"] as const;
+		const keys = ["@reverse/tui/native/overlay", "@reverse/tui/native/spans"] as const;
 		const entries = bundledEntries.filter(entry => (keys as readonly string[]).includes(entry.key));
 		expect(entries.map(entry => entry.key).sort()).toEqual([...keys]);
 
 		const observed = await runRegistryProbe(
 			entries,
-			`const { actionBar, actionButton } = await BUNDLED_PI_MODULE_LOADERS["@rva/tui/native/overlay"]();
-const { plainLine } = await BUNDLED_PI_MODULE_LOADERS["@rva/tui/native/spans"]();
+			`const { actionBar, actionButton } = await BUNDLED_PI_MODULE_LOADERS["@reverse/tui/native/overlay"]();
+const { plainLine } = await BUNDLED_PI_MODULE_LOADERS["@reverse/tui/native/spans"]();
 export const observed = { role: actionBar([actionButton("Go", "go")]).p.role, line: plainLine("\\x1b[1ma\\n b\\x1b[0m") };`,
 		);
 		expect(observed).toEqual({ role: "omp.actions", line: "a b" });
@@ -275,20 +268,20 @@ export const observed = { role: actionBar([actionButton("Go", "go")]).p.role, li
 		// the registry, so a compiled extension loaded those specifiers from its
 		// own node_modules and saw a second `TERMINAL` / theme record.
 		const keys = [
-			"@rva/tui/terminal-capabilities",
-			"@rva/tui/chat/svg-figure",
-			"@rva/tui/theme",
-			"@rva/tui/theme/index",
+			"@reverse/tui/terminal-capabilities",
+			"@reverse/tui/chat/svg-figure",
+			"@reverse/tui/theme",
+			"@reverse/tui/theme/index",
 		] as const;
 		const entries = bundledEntries.filter(entry => (keys as readonly string[]).includes(entry.key));
 		expect(entries.map(entry => entry.key).sort()).toEqual([...keys].sort());
 
 		const observed = await runRegistryProbe(
 			entries,
-			`const theme = await BUNDLED_PI_MODULE_LOADERS["@rva/tui/theme"]();
-const themeIndex = await BUNDLED_PI_MODULE_LOADERS["@rva/tui/theme/index"]();
-const svg = await BUNDLED_PI_MODULE_LOADERS["@rva/tui/chat/svg-figure"]();
-const caps = await BUNDLED_PI_MODULE_LOADERS["@rva/tui/terminal-capabilities"]();
+			`const theme = await BUNDLED_PI_MODULE_LOADERS["@reverse/tui/theme"]();
+const themeIndex = await BUNDLED_PI_MODULE_LOADERS["@reverse/tui/theme/index"]();
+const svg = await BUNDLED_PI_MODULE_LOADERS["@reverse/tui/chat/svg-figure"]();
+const caps = await BUNDLED_PI_MODULE_LOADERS["@reverse/tui/terminal-capabilities"]();
 export const observed = {
 	theme: theme.setThemeInstance === themeIndex.setThemeInstance,
 	svg: typeof svg.svgFigurePalette,

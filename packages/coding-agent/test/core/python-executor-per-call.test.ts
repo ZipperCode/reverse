@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { executePython } from "@rva/coding-agent/eval/py/executor";
-import type { KernelExecuteOptions, KernelExecuteResult } from "@rva/coding-agent/eval/py/kernel";
-import { PythonKernel } from "@rva/coding-agent/eval/py/kernel";
-import { TempDir } from "@rva/utils";
+import { executePython } from "@reverse/coding-agent/eval/py/executor";
+import type { KernelExecuteOptions, KernelExecuteResult } from "@reverse/coding-agent/eval/py/kernel";
+import { PythonKernel } from "@reverse/coding-agent/eval/py/kernel";
+import { TempDir } from "@reverse/utils";
 
 interface KernelStub {
 	execute: (code: string, options?: KernelExecuteOptions) => Promise<KernelExecuteResult>;

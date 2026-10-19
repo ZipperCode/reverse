@@ -1,4 +1,4 @@
-import { $env } from "@rva/utils";
+import { $env } from "@reverse/utils";
 import { parseXAIAccessTokenPayload } from "../registry/oauth/xai-oauth";
 
 /** Bundled xAI API endpoint for the `xai` and `xai-oauth` providers. */

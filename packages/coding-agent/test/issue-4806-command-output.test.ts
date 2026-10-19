@@ -1,19 +1,19 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { HistoryStorage } from "@rva/coding-agent/session/history-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { Text } from "@rva/tui";
-import { isNativeRendering, setNativeRendering } from "@rva/tui/native/state";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { HistoryStorage } from "@reverse/coding-agent/session/history-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { Text } from "@reverse/tui";
+import { isNativeRendering, setNativeRendering } from "@reverse/tui/native/state";
+import { TempDir } from "@reverse/utils";
 
 describe("issue #4806 command output during streaming", () => {
 	let authStorage: AuthStorage;

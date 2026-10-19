@@ -9,7 +9,7 @@ import {
 } from "../index";
 import { type ThemeColor, theme } from "../theme/theme";
 import { formatKeyHint } from "../app-keybindings";
-import type { TspSpan } from "@rva/wire";
+import type { TspSpan } from "@reverse/wire";
 import type { NativeNode, NativeUiEvent } from "../native/node";
 import { col, node, span, text } from "../native/describe";
 import { actionBar, actionButton } from "../native/overlay";

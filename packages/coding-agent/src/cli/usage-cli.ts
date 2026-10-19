@@ -22,19 +22,19 @@ import {
 	type UsageLimit,
 	type UsageReport,
 	type UsageUnit,
-} from "@rva/ai";
-import { AuthBrokerClient, AuthBrokerError } from "@rva/ai/auth-broker";
-import type { ClientUsageClientSummary } from "@rva/ai/usage";
-import { formatProviderName } from "@rva/tui/chrome/format";
-import { formatDuration, formatNumber, getProjectDir, sanitizeText } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+} from "@reverse/ai";
+import { AuthBrokerClient, AuthBrokerError } from "@reverse/ai/auth-broker";
+import type { ClientUsageClientSummary } from "@reverse/ai/usage";
+import { formatProviderName } from "@reverse/tui/chrome/format";
+import { formatDuration, formatNumber, getProjectDir, sanitizeText } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";
 import { resolveAuthBrokerConfig } from "../session/auth-broker-config";
 import { resetAccountLockKey } from "../session/codex-auto-reset";
 import { checkCodexBalance, type ResetMarker, resetLockPath, withResetFence } from "../session/reset-fence";
-import { collapseSharedUsageReports, summarizeUsageResetCredits } from "@rva/tui/overlays/usage-display";
+import { collapseSharedUsageReports, summarizeUsageResetCredits } from "@reverse/tui/overlays/usage-display";
 import { reportMatchesStatus } from "../session/claude-auto-reset";
 import {
 	classifyResetExpiry,

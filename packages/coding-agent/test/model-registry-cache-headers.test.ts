@@ -3,12 +3,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { getBundledModels } from "@rva/catalog/models";
-import { resolveModelCacheProviderId } from "@rva/catalog/provider-models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { removeSyncWithRetries } from "@rva/utils";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { getBundledModels } from "@reverse/catalog/models";
+import { resolveModelCacheProviderId } from "@reverse/catalog/provider-models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 describe("startup model cache header restoration (#5780)", () => {
 	let tempDir: string;

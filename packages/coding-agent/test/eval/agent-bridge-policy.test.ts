@@ -1,7 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 import { AsyncJobManager } from "../../src/async";
 import { Settings } from "../../src/config/settings";
 import { runEvalAgent, type EvalAgentBridgeOptions, type EvalAgentResult } from "../../src/eval/agent-bridge";
@@ -22,7 +22,7 @@ import * as taskExecutor from "../../src/task/executor";
 import * as isolationRunner from "../../src/task/isolation-runner";
 import { AgentOutputManager } from "../../src/task/output-manager";
 import type { AgentDefinition } from "../../src/task/types";
-import type { AgentProgress, SingleResult, StructuredSubagentOutput } from "@rva/tui/tools/task";
+import type { AgentProgress, SingleResult, StructuredSubagentOutput } from "@reverse/tui/tools/task";
 import type { ToolSession } from "../../src/tools";
 
 const taskAgent = {

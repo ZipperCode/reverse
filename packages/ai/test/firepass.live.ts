@@ -10,9 +10,9 @@
  *   4. Invalid efforts are rejected with 400 by the router.
  */
 
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const apiKey = process.env.FIREPASS_API_KEY;
 if (!apiKey) {

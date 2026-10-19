@@ -5,8 +5,8 @@ import {
 	type TerminalFrameProvider,
 	TUI,
 	type ViewportSize,
-} from "@rva/tui";
-import type { RenderTimer } from "@rva/tui/tui";
+} from "@reverse/tui";
+import type { RenderTimer } from "@reverse/tui/tui";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";

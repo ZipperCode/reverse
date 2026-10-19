@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { agentPauseGate } from "@rva/agent";
-import type { Component } from "@rva/tui";
-import type { NativeChild, NativeNode } from "@rva/tui/native/node";
+import { agentPauseGate } from "@reverse/agent";
+import type { Component } from "@reverse/tui";
+import type { NativeChild, NativeNode } from "@reverse/tui/native/node";
 import { Settings } from "../../../src/config/settings";
 import {
 	PauseScreenComponent,
 	type PauseScreenHost,
 	renderPauseScreen,
 	runPauseScreen,
-} from "@rva/tui/overlays/pause-screen";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
+} from "@reverse/tui/overlays/pause-screen";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 
 // Strip SGR colors so assertions see visible text only.
 const stripAnsi = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, "");

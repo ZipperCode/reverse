@@ -3,7 +3,7 @@ import {
 	applyEmojiCompletion,
 	getEmojiSuggestions,
 	tryEmojiInlineReplace,
-} from "@rva/tui/prompt/emoji-autocomplete";
+} from "@reverse/tui/prompt/emoji-autocomplete";
 
 describe("emoji autocomplete", () => {
 	describe("getEmojiSuggestions", () => {

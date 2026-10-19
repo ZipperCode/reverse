@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as configValue from "@rva/coding-agent/config/resolve-config-value";
-import * as mcpClient from "@rva/coding-agent/mcp/client";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import type { MCPServerConnection, MCPStdioServerConfig, MCPTransport } from "@rva/coding-agent/mcp/types";
-import { removeWithRetries, withTimeout } from "@rva/utils";
+import * as configValue from "@reverse/coding-agent/config/resolve-config-value";
+import * as mcpClient from "@reverse/coding-agent/mcp/client";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import type { MCPServerConnection, MCPStdioServerConfig, MCPTransport } from "@reverse/coding-agent/mcp/types";
+import { removeWithRetries, withTimeout } from "@reverse/utils";
 import { TOOL_NAME as DELAYED_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
 const CONFIG: MCPStdioServerConfig = {

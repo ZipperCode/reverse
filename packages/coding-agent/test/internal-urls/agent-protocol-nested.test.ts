@@ -1,7 +1,7 @@
 import { afterAll, afterEach, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 import { AgentProtocolHandler } from "../../src/internal-urls/agent-protocol";
 import { InternalUrlRouter } from "../../src/internal-urls/router";
 import { resetRegisteredArtifactDirsForTests } from "../../src/internal-urls/registry-helpers";

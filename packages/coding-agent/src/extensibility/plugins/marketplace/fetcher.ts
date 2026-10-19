@@ -7,8 +7,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { isEnoent, logger } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { isEnoent, logger } from "@reverse/utils";
 
 import {
 	isValidNameSegment,

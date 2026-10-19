@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { callTool } from "@rva/coding-agent/mcp/client";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import type { MCPStdioServerConfig } from "@rva/coding-agent/mcp/types";
-import { MCPCommandController } from "@rva/coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@rva/tui/theme";
+import { callTool } from "@reverse/coding-agent/mcp/client";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import type { MCPStdioServerConfig } from "@reverse/coding-agent/mcp/types";
+import { MCPCommandController } from "@reverse/coding-agent/modes/controllers/mcp-command-controller";
+import { initTheme } from "@reverse/tui/theme";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 import { TOOL_NAME, TOOL_RESULT } from "./fixtures/delayed-tool-mcp";
 

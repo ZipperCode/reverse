@@ -1,5 +1,5 @@
-import { decodeJwt } from "@rva/ai/registry/oauth/openai-codex";
-import * as vcs from "@rva/natives/vcs";
+import { decodeJwt } from "@reverse/ai/registry/oauth/openai-codex";
+import * as vcs from "@reverse/natives/vcs";
 import type { AuthStorage } from "../session/auth-storage";
 import { resolveExactSecurityOAuthAccess } from "./auth";
 import {

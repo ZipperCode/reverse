@@ -10,8 +10,8 @@
  * back to a process-local spawn.
  */
 import * as os from "node:os";
-import { IpcConnection, ipcEndpoint } from "@rva/natives";
-import { logger, ptree } from "@rva/utils";
+import { IpcConnection, ipcEndpoint } from "@reverse/natives";
+import { logger, ptree } from "@reverse/utils";
 import { encodeMessageFrame, MessageFramer } from "../../jsonrpc/message-framing";
 import { daemonClientForProject } from "../../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../../launch/ensure";

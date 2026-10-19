@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getTinyModelsCacheDir, isEnoent, logger, withFileLock } from "@rva/utils";
+import { getTinyModelsCacheDir, isEnoent, logger, withFileLock } from "@reverse/utils";
 import { withDownload } from "../downloads/activity";
 import { sha256File } from "../utils/file-hash";
 import { downloadFile } from "../utils/tools-manager";

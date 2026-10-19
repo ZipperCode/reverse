@@ -1,7 +1,7 @@
-import type { OAuthAccess } from "@rva/ai";
-import type { Api, Model } from "@rva/ai/types";
-import type { ModelResolutionSource } from "@rva/catalog/model-manager";
-import { MODELS_DEV_CATALOG_PROVIDER_IDS, PROVIDER_DESCRIPTORS } from "@rva/catalog/provider-models";
+import type { OAuthAccess } from "@reverse/ai";
+import type { Api, Model } from "@reverse/ai/types";
+import type { ModelResolutionSource } from "@reverse/catalog/model-manager";
+import { MODELS_DEV_CATALOG_PROVIDER_IDS, PROVIDER_DESCRIPTORS } from "@reverse/catalog/provider-models";
 import type { AuthStorage, OAuthCredential } from "../session/auth-storage";
 
 /**

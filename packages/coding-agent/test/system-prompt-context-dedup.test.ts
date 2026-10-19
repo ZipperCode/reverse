@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { dedupeContainedContextFiles } from "@rva/coding-agent/system-prompt";
+import { dedupeContainedContextFiles } from "@reverse/coding-agent/system-prompt";
 
 interface ContextFile {
 	path: string;

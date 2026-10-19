@@ -1,4 +1,4 @@
-# @rva/browser-relay
+# @reverse/browser-relay
 
 Chrome extension that lets omp's Eval `browser` API drive **your existing Chrome tabs** — logged-in sessions included — without relaunching Chrome with `--remote-debugging-port` (which Chrome 136+ refuses on the default profile anyway).
 

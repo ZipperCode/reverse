@@ -8,7 +8,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getSafeProjectCwd, logger, postmortem } from "@rva/utils";
+import { getSafeProjectCwd, logger, postmortem } from "@reverse/utils";
 import { quotePosixArgument } from "./shell-quote";
 import fnEnvHelper from "./shell-snapshot-fn-env.sh" with { type: "text" };
 

@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { prompt, TempDir } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { prompt, TempDir } from "@reverse/utils";
 import submitReminderTemplate from "../src/prompts/system/subagent-yield-reminder.md" with { type: "text" };
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 

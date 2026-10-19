@@ -2,15 +2,15 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as os from "node:os";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
-import { decodePng } from "@rva/coding-agent/tools/browser/screenshot";
+import { decodePng } from "@reverse/coding-agent/tools/browser/screenshot";
 import {
 	formatDimensionNote,
 	formatScreenshot,
 	type ResizedImage,
 	resizeImage,
 	type ScreenshotArea,
-} from "@rva/coding-agent/utils/image-resize";
-import { encodeRawPng } from "@rva/coding-agent/utils/png-encode";
+} from "@reverse/coding-agent/utils/image-resize";
+import { encodeRawPng } from "@reverse/coding-agent/utils/png-encode";
 
 describe("formatScreenshot", () => {
 	function fakeResized(

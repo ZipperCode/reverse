@@ -21,7 +21,7 @@
  */
 
 import * as fs from "node:fs/promises";
-import { logger, untilAborted } from "@rva/utils";
+import { logger, untilAborted } from "@reverse/utils";
 import type { AgentSession } from "../session/agent-session";
 import { trackLateCleanup } from "../utils/late-cleanup";
 import {

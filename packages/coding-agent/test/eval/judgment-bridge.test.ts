@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import * as vm from "node:vm";
-import * as ai from "@rva/ai";
-import type { Api, AssistantMessage, ImageContent, Model } from "@rva/ai";
+import * as ai from "@reverse/ai";
+import type { Api, AssistantMessage, ImageContent, Model } from "@reverse/ai";
 import { ModelRegistry } from "../../src/config/model-registry";
 import { Settings } from "../../src/config/settings";
 import { runEvalJudgment } from "../../src/eval/judgment-bridge";
@@ -11,7 +11,7 @@ import { JAVASCRIPT_PRELUDE_SOURCE } from "../../src/eval/js/shared/prelude";
 import type { ToolSession } from "../../src/tools";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { asGlobalFetch } from "../helpers/fetch-mock";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 
 const SMOL: Model<Api> = {
 	id: "smol",

@@ -28,9 +28,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl } from "@rva/ai/types";
-import { kNoAuth, ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import type { FetchImpl } from "@reverse/ai/types";
+import { kNoAuth, ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 
 const LM_KEY = "sk-lm-12281-test-key";
 const LM_MODEL = { id: "qwen3-8b", object: "model", owned_by: "local" };

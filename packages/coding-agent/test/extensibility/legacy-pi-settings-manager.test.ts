@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { ExtensionToolWrapper, wrapRegisteredTool } from "@rva/coding-agent/extensibility/extensions/wrapper";
-import { SettingsManager } from "@rva/coding-agent/extensibility/legacy-pi-coding-agent-shim";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { getProjectAgentDir, TempDir } from "@rva/utils";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { ExtensionToolWrapper, wrapRegisteredTool } from "@reverse/coding-agent/extensibility/extensions/wrapper";
+import { SettingsManager } from "@reverse/coding-agent/extensibility/legacy-pi-coding-agent-shim";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { getProjectAgentDir, TempDir } from "@reverse/utils";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "../helpers/settings-test-state";
 

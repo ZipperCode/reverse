@@ -4,7 +4,7 @@ import {
 	parseCardReply,
 	parseCardTitleReply,
 	splitCardTitle,
-} from "@rva/coding-agent/utils/title-card";
+} from "@reverse/coding-agent/utils/title-card";
 
 describe("parseCardTitleReply", () => {
 	const reply = '<title nf="nf-md-flask" emoji="🧪" code="FLAKY">Fix flaky park tests</title>';

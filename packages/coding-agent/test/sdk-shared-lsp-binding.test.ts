@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { Api, ModelSpec } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { resetCapabilityForTests } from "@rva/coding-agent/capability";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as lspClient from "@rva/coding-agent/lsp/client";
-import { cfgLspShared } from "@rva/coding-agent/lsp/settings";
-import { type CreateAgentSessionOptions, createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { createSubagentSettings } from "@rva/coding-agent/task/executor";
-import { TempDir } from "@rva/utils";
+import type { Api, ModelSpec } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { resetCapabilityForTests } from "@reverse/coding-agent/capability";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as lspClient from "@reverse/coding-agent/lsp/client";
+import { cfgLspShared } from "@reverse/coding-agent/lsp/settings";
+import { type CreateAgentSessionOptions, createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { createSubagentSettings } from "@reverse/coding-agent/task/executor";
+import { TempDir } from "@reverse/utils";
 
 const modelSpec: ModelSpec<Api> = {
 	id: "shared-lsp-binding",

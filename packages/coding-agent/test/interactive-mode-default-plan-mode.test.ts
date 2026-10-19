@@ -1,21 +1,21 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import { type Api, Effort, type Model } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { initTheme } from "@rva/tui/theme";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import { type Api, Effort, type Model } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import type { CustomTool } from "../src/extensibility/custom-tools/types";
 import { resolveLocalUrlToPath } from "../src/internal-urls";
 import { InteractiveMode, shouldEnterPlanModeOnStartup } from "../src/modes/interactive-mode";
 import { resolveXdevTool, type XdevState } from "../src/tools/xdev";
 
-import { cfgStartupQuiet } from "@rva/coding-agent/modes/settings";
+import { cfgStartupQuiet } from "@reverse/coding-agent/modes/settings";
 
 function makeTool(name: string): AgentTool {
 	return {

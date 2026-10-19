@@ -3,9 +3,9 @@ import type {
 	CustomCommandAPI,
 	CustomCommandContext,
 } from "../../../../extensibility/custom-commands/types";
-import type { AutocompleteItem } from "@rva/tui";
-import { CombinedAutocompleteProvider } from "@rva/tui/autocomplete";
-import type { CodeReviewOverlayResult, TextReviewSource } from "@rva/tui/overlays/annotation-types";
+import type { AutocompleteItem } from "@reverse/tui";
+import { CombinedAutocompleteProvider } from "@reverse/tui/autocomplete";
+import type { CodeReviewOverlayResult, TextReviewSource } from "@reverse/tui/overlays/annotation-types";
 import {
 	extractReviewPrRefFromArgs,
 	liveCommandCwd,

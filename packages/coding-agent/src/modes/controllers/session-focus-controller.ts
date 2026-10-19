@@ -1,6 +1,6 @@
-import type { AssistantMessage } from "@rva/ai";
-import { formatDoubleTap } from "@rva/tui/app-keybindings";
-import { appKey } from "@rva/tui/chrome/keybinding-hints";
+import type { AssistantMessage } from "@reverse/ai";
+import { formatDoubleTap } from "@reverse/tui/app-keybindings";
+import { appKey } from "@reverse/tui/chrome/keybinding-hints";
 import { AgentLifecycleManager } from "../../registry/agent-lifecycle";
 import { AgentRegistry, MAIN_AGENT_ID, type AgentRef, type RegistryEvent } from "../../registry/agent-registry";
 import type { AgentSession } from "../../session/agent-session";

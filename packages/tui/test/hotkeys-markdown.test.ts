@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { setKeyHintPlatform } from "@rva/tui/app-keybindings";
-import { buildHotkeysMarkdown } from "@rva/tui/hotkeys-markdown";
+import { setKeyHintPlatform } from "@reverse/tui/app-keybindings";
+import { buildHotkeysMarkdown } from "@reverse/tui/hotkeys-markdown";
 
 /** Exit-row wiring for stubs that only care about display strings: no key claims the
  *  forward-delete role, so the exit row renders its plain "Exit" wording. */

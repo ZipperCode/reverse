@@ -7,7 +7,7 @@ import {
 	mergeCompatibleEnumSchemas,
 	mergePropertySchemas,
 	stripResidualCombiners,
-} from "@rva/ai/utils/schema";
+} from "@reverse/ai/utils/schema";
 
 describe("isJsonObject", () => {
 	it("returns true for plain objects", () => {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type DownloadActivity, onDownloadActivity } from "@rva/coding-agent/downloads/activity";
-import { ensureTool } from "@rva/coding-agent/utils/tools-manager";
-import * as ptree from "@rva/utils/ptree";
+import { type DownloadActivity, onDownloadActivity } from "@reverse/coding-agent/downloads/activity";
+import { ensureTool } from "@reverse/coding-agent/utils/tools-manager";
+import * as ptree from "@reverse/utils/ptree";
 
 describe("ensureTool signal abort handling", () => {
 	const originalPath = process.env.PATH;

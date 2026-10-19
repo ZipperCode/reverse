@@ -1,4 +1,4 @@
-import { isRecord } from "@rva/utils/type-guards";
+import { isRecord } from "@reverse/utils/type-guards";
 import type {
 	UsageFetchContext,
 	UsageFetchParams,

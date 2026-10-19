@@ -1,5 +1,5 @@
 import { parentPort } from "node:worker_threads";
-import { installWorkerInbox } from "@rva/utils/worker-host";
+import { installWorkerInbox } from "@reverse/utils/worker-host";
 import { COMPUTER_WORKER_ARG } from "../../src/tools/computer/protocol";
 import { startComputerWorker } from "../../src/tools/computer/worker-entry";
 

@@ -2,12 +2,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as mcpClient from "@rva/coding-agent/mcp/client";
-import * as mcpConfigWriter from "@rva/coding-agent/mcp/config-writer";
-import { MCPCommandController } from "@rva/coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { Component } from "@rva/tui";
-import { getConfigRootDir, getProjectDir, removeWithRetries, setAgentDir, setProjectDir } from "@rva/utils";
+import * as mcpClient from "@reverse/coding-agent/mcp/client";
+import * as mcpConfigWriter from "@reverse/coding-agent/mcp/config-writer";
+import { MCPCommandController } from "@reverse/coding-agent/modes/controllers/mcp-command-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { Component } from "@reverse/tui";
+import { getConfigRootDir, getProjectDir, removeWithRetries, setAgentDir, setProjectDir } from "@reverse/utils";
 import {
 	createInteractiveModeContext,
 	createMcpManagerStub,

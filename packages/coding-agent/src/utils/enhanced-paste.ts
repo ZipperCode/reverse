@@ -1,4 +1,4 @@
-import type { ImageContent } from "@rva/ai";
+import type { ImageContent } from "@reverse/ai";
 
 const OSC5522_PREFIX = "\x1b]5522;";
 const OSC_TERMINATOR_ST = "\x1b\\";

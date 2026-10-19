@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { shouldSkipHistory } from "@rva/coding-agent/modes/controllers/input-controller";
+import { shouldSkipHistory } from "@reverse/coding-agent/modes/controllers/input-controller";
 
 describe("shouldSkipHistory — security filter for slash command history", () => {
 	it("skips /login with a redirect URL argument (contains OAuth code/state)", () => {

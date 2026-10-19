@@ -1,5 +1,5 @@
-import { isAnthropicServerToolHistoryBlock } from "@rva/ai/providers/anthropic-wire";
-import { countNewlines, isRecord } from "@rva/utils";
+import { isAnthropicServerToolHistoryBlock } from "@reverse/ai/providers/anthropic-wire";
+import { countNewlines, isRecord } from "@reverse/utils";
 import {
 	type BlobStore,
 	externalizeImageDataSync,

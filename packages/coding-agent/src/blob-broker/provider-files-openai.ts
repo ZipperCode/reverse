@@ -1,4 +1,4 @@
-import type { Model } from "@rva/ai";
+import type { Model } from "@reverse/ai";
 import type { ProviderFileClient, ProviderFileHandle, ProviderFileUploadRequest } from "./provider-file-types";
 import type { FetchImpl } from "./uploader-runtime";
 

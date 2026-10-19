@@ -11,11 +11,11 @@ import {
 	agentPauseGate,
 	EventLoopKeepalive,
 	ThinkingLevel,
-} from "@rva/agent";
-import type { CompactionOutcome } from "@rva/agent/compaction";
-import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@rva/ai";
-import { modelsAreEqual } from "@rva/catalog/models";
-import { execReplace } from "@rva/natives";
+} from "@reverse/agent";
+import type { CompactionOutcome } from "@reverse/agent/compaction";
+import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@reverse/ai";
+import { modelsAreEqual } from "@reverse/catalog/models";
+import { execReplace } from "@reverse/natives";
 import type {
 	AutocompleteProvider,
 	Component,
@@ -24,7 +24,7 @@ import type {
 	LoaderMessageColorFn,
 	OverlayHandle,
 	SlashCommand,
-} from "@rva/tui";
+} from "@reverse/tui";
 import {
 	Container,
 	clearRenderCache,
@@ -41,18 +41,18 @@ import {
 	type TUI,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@rva/tui";
+} from "@reverse/tui";
 import { executeSafeCatalogCommand, type ReverseServiceStatus, type ReverseToolStatus } from "../cli/setup-reverse";
-import type { TerminalAppearanceRequestToken } from "@rva/tui/terminal";
-import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "@rva/tui/native/node";
-import { col, kbd, node, row, span, text } from "@rva/tui/native/describe";
-import { sameItems } from "@rva/tui/native/memo";
-import { describeSegmentTrack, renderSegmentTrack, type TrackSegment } from "@rva/tui/chrome/segment-track";
-import type { WorkingRowSpec } from "@rva/tui/components/loader";
-import { formatDoubleTap } from "@rva/tui/key-hint-format";
-import { thinkingLevelWord } from "@rva/tui/status-line/segments";
-import type { TspChecklistItem, TspChecklistPhase, TspSpan, TspText, TspTreeNode } from "@rva/wire";
-import { isInsideTerminalMultiplexer } from "@rva/tui/terminal-capabilities";
+import type { TerminalAppearanceRequestToken } from "@reverse/tui/terminal";
+import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "@reverse/tui/native/node";
+import { col, kbd, node, row, span, text } from "@reverse/tui/native/describe";
+import { sameItems } from "@reverse/tui/native/memo";
+import { describeSegmentTrack, renderSegmentTrack, type TrackSegment } from "@reverse/tui/chrome/segment-track";
+import type { WorkingRowSpec } from "@reverse/tui/components/loader";
+import { formatDoubleTap } from "@reverse/tui/key-hint-format";
+import { thinkingLevelWord } from "@reverse/tui/status-line/segments";
+import type { TspChecklistItem, TspChecklistPhase, TspSpan, TspText, TspTreeNode } from "@reverse/wire";
+import { isInsideTerminalMultiplexer } from "@reverse/tui/terminal-capabilities";
 import {
 	$env,
 	adjustHsv,
@@ -65,12 +65,12 @@ import {
 	prompt,
 	sanitizeText,
 	setProjectDir,
-} from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+} from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { pickTableChart } from "../auto-graph/planner";
 import { restartArgv } from "../cli/flag-tables";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { appKey, editorKey, rawKeyHint } from "@rva/tui/chrome/keybinding-hints";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { appKey, editorKey, rawKeyHint } from "@reverse/tui/chrome/keybinding-hints";
 import { formatModelString, type ResolvedModelRoleValue } from "../config/model-resolver";
 import { isSettingsInitialized, Settings, settings } from "../config/settings";
 import { clearClaudePluginRootsCache } from "../discovery/helpers";
@@ -119,10 +119,10 @@ import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md
 import planFilenamePrompt from "../prompts/system/plan-filename.md" with { type: "text" };
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
 import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
-import type { AgentHubRegistry } from "@rva/tui/overlays/agent-hub-types";
+import type { AgentHubRegistry } from "@reverse/tui/overlays/agent-hub-types";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { registerPersistedSubagents } from "../registry/persisted-agents";
-import type { AgentCostSnapshot } from "@rva/tui/overlays/agent-hub-projection";
+import type { AgentCostSnapshot } from "@reverse/tui/overlays/agent-hub-projection";
 import { sumSubagentTreeCost } from "./agent-hub-runtime";
 import {
 	type AgentSession,
@@ -135,12 +135,12 @@ import type { CompactMode } from "../session/compact-modes";
 import type { ForeignSessionSource } from "../session/foreign-session-store";
 import { HistoryStorage } from "../session/history-storage";
 import { syncTextPrediction, textPredictionBackend } from "../predict/client";
-import { setWordPredictionHost } from "@rva/tui/prompt/word-completion";
+import { setWordPredictionHost } from "@reverse/tui/prompt/word-completion";
 import { USER_INTERRUPT_LABEL } from "../session/messages";
 import { resolveMarkdownLinkHrefs } from "../internal-urls/hyperlink-targets";
 import type { ResolveContext } from "../internal-urls/index";
-import { modelMentionDisplayName } from "@rva/tui/prompt/model-mention-syntax";
-import { modelMentionChipLabel, shiftImageMarkers } from "@rva/tui/prompt/composer-attachments";
+import { modelMentionDisplayName } from "@reverse/tui/prompt/model-mention-syntax";
+import { modelMentionChipLabel, shiftImageMarkers } from "@reverse/tui/prompt/composer-attachments";
 import type { SessionContext } from "../session/session-context";
 import type { SessionManager } from "../session/session-manager";
 import {
@@ -153,14 +153,14 @@ import {
 import type { ShakeMode } from "../session/shake-types";
 import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
 import { buildStaticInlineHint } from "../slash-commands/builtin-completions";
-import { formatCoarseDuration } from "@rva/tui/chrome/format";
+import { formatCoarseDuration } from "@reverse/tui/chrome/format";
 import { type DictationTarget, MicCursor, type SttCallbacks, STTController, type SttState } from "../stt";
-import type { SpaceHoldHandler } from "@rva/tui/space-hold";
+import type { SpaceHoldHandler } from "@reverse/tui/space-hold";
 import { resolveCliEntryCmd } from "../subprocess/worker-client";
 import { discoverTitleSystemPromptFile, resolvePromptInput } from "../system-prompt";
 import { labelEchoesHandle } from "../task/label";
-import { agentTypeBadge, formatTaskId } from "@rva/tui/tools/task";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
+import { agentTypeBadge, formatTaskId } from "@reverse/tui/tools/task";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
 import { isMCPToolName } from "../tools/builtin-names";
 import type { LspStartupServerInfo } from "../tools";
 import { resolvePlanFilePath } from "../plan-mode/plan-files";
@@ -179,7 +179,7 @@ import {
 	shortenPath,
 	TRUNCATE_LENGTHS,
 	truncateToWidth,
-} from "@rva/tui/render/render-utils";
+} from "@reverse/tui/render/render-utils";
 import { type CfgApproval, type CfgChangeRequest, setCfgApprovalHost } from "../internal-urls/cfg-protocol";
 import {
 	createTodoHudStateData,
@@ -195,18 +195,18 @@ import {
 	selectCollapsedTodos,
 	setActiveTodoDescriptionsProvider,
 	todoMatchesAnyDescription,
-} from "@rva/tui/tools/todo";
+} from "@reverse/tui/tools/todo";
 import { vocalizer } from "../tts/vocalizer";
-import { applyHyperlinkSetting, fileHyperlink } from "@rva/tui/render/hyperlink";
-import { renderTreeList } from "@rva/tui/render/tree-list";
+import { applyHyperlinkSetting, fileHyperlink } from "@reverse/tui/render/hyperlink";
+import { renderTreeList } from "@reverse/tui/render/tree-list";
 import { formatStartupChangelogSummary, type StartupChangelogSelection } from "../utils/changelog";
 import { copyToClipboard } from "../utils/clipboard";
 import type { EventBus } from "../utils/event-bus";
 import { getEditorCommand, openInEditor } from "../utils/external-editor";
 import { openPath } from "../utils/open";
 import { resumeCommand } from "../utils/resume-command";
-import { getSessionAccentAnsi, getSessionAccentHex } from "@rva/tui/theme/session-color";
-import { messageHasDisplayableThinking } from "@rva/tui/chat/thinking-display";
+import { getSessionAccentAnsi, getSessionAccentHex } from "@reverse/tui/theme/session-color";
+import { messageHasDisplayableThinking } from "@reverse/tui/chat/thinking-display";
 import type { TokenRateMeter } from "../utils/token-rate";
 import { disposeProgramStatus, initProgramStatus, setProgramStatusEnabled } from "../utils/run-status";
 import {
@@ -227,44 +227,44 @@ import {
 	type VibeParentSession,
 	VibeSessionRegistry,
 } from "../vibe/runtime";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { setSvgFigureRendering } from "@rva/tui/chat/svg-figure";
-import { setTableCharts } from "@rva/tui/chat/table-chart";
-import { setTranscriptActionHandler } from "@rva/tui/chat/transcript-actions";
-import { StatusNotice } from "@rva/tui/chrome/status-notice";
-import { ReadToolGroupComponent } from "@rva/tui/chat/read-tool-group";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { AttachmentChipsBand } from "@rva/tui/prompt/attachment-chips";
-import type { BashExecutionComponent } from "@rva/tui/chat/bash-execution";
-import { ChatBlock, type ChatBlockHost } from "@rva/tui/chrome/chat-block";
-import { CodexResetFireworksController } from "@rva/tui/overlays/codex-reset-fireworks";
-import { type ComposerNativeState, CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { DynamicBorder } from "@rva/tui/chrome/dynamic-border";
-import { EditorTopGap } from "@rva/tui/prompt/editor-top-gap";
-import { ErrorBannerComponent } from "@rva/tui/overlays/error-banner";
-import type { EvalExecutionComponent } from "@rva/tui/chat/eval-execution";
-import type { HookEditorComponent } from "@rva/tui/overlays/hook-editor";
-import type { HookInputComponent } from "@rva/tui/overlays/hook-input";
-import type { HookSelectorComponent, HookSelectorSlider } from "@rva/tui/overlays/hook-selector";
-import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@rva/tui/overlays/plan-review-overlay";
-import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@rva/tui/overlays/plan-save-overlay";
-import { ServedModelTracker } from "@rva/tui/chat/served-model-marker";
-import { SessionInfoOverlay } from "@rva/tui/overlays/session-info-overlay";
-import { JobsSheet } from "@rva/tui/overlays/jobs-panel";
-import { SkillMessageComponent } from "@rva/tui/chat/skill-message";
-import { StatusLineComponent } from "@rva/tui/status-line";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { setSvgFigureRendering } from "@reverse/tui/chat/svg-figure";
+import { setTableCharts } from "@reverse/tui/chat/table-chart";
+import { setTranscriptActionHandler } from "@reverse/tui/chat/transcript-actions";
+import { StatusNotice } from "@reverse/tui/chrome/status-notice";
+import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { AttachmentChipsBand } from "@reverse/tui/prompt/attachment-chips";
+import type { BashExecutionComponent } from "@reverse/tui/chat/bash-execution";
+import { ChatBlock, type ChatBlockHost } from "@reverse/tui/chrome/chat-block";
+import { CodexResetFireworksController } from "@reverse/tui/overlays/codex-reset-fireworks";
+import { type ComposerNativeState, CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { DynamicBorder } from "@reverse/tui/chrome/dynamic-border";
+import { EditorTopGap } from "@reverse/tui/prompt/editor-top-gap";
+import { ErrorBannerComponent } from "@reverse/tui/overlays/error-banner";
+import type { EvalExecutionComponent } from "@reverse/tui/chat/eval-execution";
+import type { HookEditorComponent } from "@reverse/tui/overlays/hook-editor";
+import type { HookInputComponent } from "@reverse/tui/overlays/hook-input";
+import type { HookSelectorComponent, HookSelectorSlider } from "@reverse/tui/overlays/hook-selector";
+import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@reverse/tui/overlays/plan-review-overlay";
+import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@reverse/tui/overlays/plan-save-overlay";
+import { ServedModelTracker } from "@reverse/tui/chat/served-model-marker";
+import { SessionInfoOverlay } from "@reverse/tui/overlays/session-info-overlay";
+import { JobsSheet } from "@reverse/tui/overlays/jobs-panel";
+import { SkillMessageComponent } from "@reverse/tui/chat/skill-message";
+import { StatusLineComponent } from "@reverse/tui/status-line";
 import { statusLineHost } from "./status-line-host";
-import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "@rva/tui/chat/tool-execution";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
+import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "@reverse/tui/chat/tool-execution";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
 import {
 	Composer,
 	type ComposerPreferences,
 	type ComposerStatusCache,
 	PINNED_HUD_TOGGLE_ID,
-} from "@rva/tui/prompt/composer";
-import { setMagicKeywords } from "@rva/tui/prompt/magic-keywords";
+} from "@reverse/tui/prompt/composer";
+import { setMagicKeywords } from "@reverse/tui/prompt/magic-keywords";
 import { MAGIC_KEYWORDS } from "./magic-keywords";
-import { sharedComposerCache } from "@rva/tui/prompt/composer-cache";
+import { sharedComposerCache } from "@reverse/tui/prompt/composer-cache";
 import { BtwController } from "./controllers/btw-controller";
 import { CleanseCommandController } from "./controllers/cleanse-command-controller";
 import { CommandController } from "./controllers/command-controller";
@@ -279,7 +279,7 @@ import { SessionFocusController } from "./controllers/session-focus-controller";
 import { SSHCommandController } from "./controllers/ssh-command-controller";
 import { TanCommandController } from "./controllers/tan-command-controller";
 import { TodoCommandController } from "./controllers/todo-command-controller";
-import { imageReferenceHyperlink, setImageBlobWriter } from "@rva/tui/prompt/image-references";
+import { imageReferenceHyperlink, setImageBlobWriter } from "@reverse/tui/prompt/image-references";
 import { describeLoopCondition, evaluateLoopCondition, type LoopConditionVerdict } from "./loop-condition";
 import {
 	consumeLoopLimitIteration,
@@ -290,23 +290,23 @@ import {
 	isLoopLimitExhausted,
 	parseLoopArgs,
 } from "./loop-limit";
-import type { LoopConditionConfig, LoopLimitRuntime } from "@rva/tui/status-line/loop";
+import type { LoopConditionConfig, LoopLimitRuntime } from "@reverse/tui/status-line/loop";
 import { OAuthManualInputManager } from "./oauth-manual-input";
 import { formatPersistenceNotice } from "./persistence-failure";
-import { resolveComposerHint } from "@rva/tui/prompt/composer-hints";
+import { resolveComposerHint } from "@reverse/tui/prompt/composer-hints";
 import { hintUsage } from "../utils/usage-counter";
-import { getRunningSubagentBadgeAgentIds } from "@rva/tui/overlays/running-subagent-badge";
+import { getRunningSubagentBadgeAgentIds } from "@reverse/tui/overlays/running-subagent-badge";
 import {
 	type ObservableSession,
 	type SessionObserverChangeKind,
 	SessionObserverRegistry,
-} from "@rva/tui/overlays/session-observer-registry";
+} from "@reverse/tui/overlays/session-observer-registry";
 import { createSessionTeardown, type SessionTeardown } from "./session-teardown";
-import { sanitizeStatusText } from "@rva/tui/chrome/shared";
+import { sanitizeStatusText } from "@reverse/tui/chrome/shared";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "./skill-command";
-import { clearMermaidCache } from "@rva/tui/theme/mermaid-cache";
-import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@rva/tui/theme/shimmer";
-import type { Theme } from "@rva/tui/theme";
+import { clearMermaidCache } from "@reverse/tui/theme/mermaid-cache";
+import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@reverse/tui/theme/shimmer";
+import type { Theme } from "@reverse/tui/theme";
 import {
 	getEditorTheme,
 	getMarkdownTheme,
@@ -317,8 +317,8 @@ import {
 	startMacOSAppearanceReprobeFallback,
 	theme,
 	warmHighlighter,
-} from "@rva/tui/theme";
-import { getSlashCommandTypeIcon } from "@rva/tui/theme/tui-adapters";
+} from "@reverse/tui/theme";
+import { getSlashCommandTypeIcon } from "@reverse/tui/theme/tui-adapters";
 import type {
 	AgentHubOpenOptions,
 	CompactionQueuedMessage,
@@ -329,7 +329,7 @@ import type {
 	ShowStatusOptions,
 	SubmittedUserInput,
 } from "./types";
-import type { TodoItem, TodoPhase } from "@rva/tui/tools/todo";
+import type { TodoItem, TodoPhase } from "@reverse/tui/tools/todo";
 import { materializeImageChipLinks, UiHelpers } from "./utils/ui-helpers";
 
 import {

@@ -1,14 +1,14 @@
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import type { TUI } from "@rva/tui";
-import { AnnotationOverlay } from "@rva/tui/overlays/annotation-overlay";
+import * as vcs from "@reverse/natives/vcs";
+import type { TUI } from "@reverse/tui";
+import { AnnotationOverlay } from "@reverse/tui/overlays/annotation-overlay";
 import type { CustomCommandContext } from "../../../../extensibility/custom-commands/types";
 import type {
 	CodeReviewOverlayResult,
 	TextReviewOverlayResult,
 	TextReviewSource,
 	TextReviewSourceProvenance,
-} from "@rva/tui/overlays/annotation-types";
+} from "@reverse/tui/overlays/annotation-types";
 import type { ResolvedReviewTarget } from "../review/target";
 import { getEditorCommand, openEditorOnPath, openInEditor } from "../../../../utils/external-editor";
 

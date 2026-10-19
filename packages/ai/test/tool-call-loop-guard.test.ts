@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { AssistantMessage, ToolCall, ToolResultMessage } from "@rva/ai";
-import { ToolCallLoopGuard } from "@rva/ai/utils/tool-call-loop-guard";
-import { INTENT_FIELD } from "@rva/wire";
+import type { AssistantMessage, ToolCall, ToolResultMessage } from "@reverse/ai";
+import { ToolCallLoopGuard } from "@reverse/ai/utils/tool-call-loop-guard";
+import { INTENT_FIELD } from "@reverse/wire";
 
 const zeroUsage = {
 	input: 0,

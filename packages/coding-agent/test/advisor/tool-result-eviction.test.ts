@@ -4,7 +4,7 @@
 // results from reviews before the latest one are blanked, and the cut is the
 // one that actually pays for the prompt-cache rewrite it forces.
 import { describe, expect, it } from "bun:test";
-import { type AgentMessage, Tokenizer } from "@rva/agent";
+import { type AgentMessage, Tokenizer } from "@reverse/agent";
 
 import { evictStaleToolResults } from "../../src/advisor/tool-result-eviction";
 

@@ -1,4 +1,4 @@
-import { Snowflake } from "@rva/utils";
+import { Snowflake } from "@reverse/utils";
 import { type CompactionEntry, CURRENT_SESSION_VERSION, type FileEntry, type SessionHeader } from "./session-entries";
 
 /** Generate a unique short ID (8 hex chars, collision-checked) */

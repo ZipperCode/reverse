@@ -7,11 +7,11 @@
  * state, while the advisor config overlay embeds it as a plain "pick one
  * model" list.
  */
-import { ThinkingLevel } from "@rva/agent";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { getEffectiveTokenCost, getModelPricingStatus, modelsAreEqual } from "@rva/catalog/models";
-import { modelKind, type ModelKind, type ModelPricingStatus } from "@rva/catalog/types";
+import { ThinkingLevel } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { getEffectiveTokenCost, getModelPricingStatus, modelsAreEqual } from "@reverse/catalog/models";
+import { modelKind, type ModelKind, type ModelPricingStatus } from "@reverse/catalog/types";
 import type { Component } from "../tui";
 import { FuzzyCorpus, fuzzyRank } from "../fuzzy";
 import { Input } from "../components/input";
@@ -19,7 +19,7 @@ import { ScrollView } from "../components/scroll-view";
 import { matchesKey } from "../keys";
 import type { SgrMouseEvent } from "../mouse";
 import { replaceTabs, truncateToWidth, visibleWidth } from "../utils";
-import { formatNumber, sanitizeText } from "@rva/utils";
+import { formatNumber, sanitizeText } from "@reverse/utils";
 import {
 	AUTO_THINKING,
 	type ConfiguredThinkingLevel,
@@ -37,14 +37,7 @@ import {
 } from "../keybinding-matchers";
 import { MenuSelection } from "../components/menu-selection";
 import { clampScrollOffset, scrollOffsetForRow } from "../components/scroll-viewport";
-import type {
-	TspPickerColumn,
-	TspPickerGroup,
-	TspPickerItem,
-	TspPickerMark,
-	TspSpan,
-	TspText,
-} from "@rva/wire";
+import type { TspPickerColumn, TspPickerGroup, TspPickerItem, TspPickerMark, TspSpan, TspText } from "@reverse/wire";
 import { col, md, node, row, span, text } from "../native/describe";
 import { pickerFuzzyHits } from "../native/picker";
 import type { NativeChild, NativeNode, NativeUiEvent } from "../native/node";

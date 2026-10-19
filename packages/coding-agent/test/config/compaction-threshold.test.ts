@@ -2,25 +2,25 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import path from "node:path";
-import { resolveThresholdTokens } from "@rva/agent/compaction";
-import type { Model } from "@rva/ai";
-import { getProjectAgentDir } from "@rva/utils";
+import { resolveThresholdTokens } from "@reverse/agent/compaction";
+import type { Model } from "@reverse/ai";
+import { getProjectAgentDir } from "@reverse/utils";
 import {
 	matchModelCompactionThreshold,
 	parseCompactionPointInput,
 	validateAgentCompactionThresholdOverrides,
-} from "@rva/coding-agent/config/compaction-threshold";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { cfgCompactionModelThresholds } from "@rva/coding-agent/session/context-settings";
+} from "@reverse/coding-agent/config/compaction-threshold";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { cfgCompactionModelThresholds } from "@reverse/coding-agent/session/context-settings";
 import {
 	describeModelCompactionPoint,
 	planModelCompactionPoint,
 	previewModelCompactionPoint,
 	resolveModelCompactionSettings,
 	setModelCompactionPoint,
-} from "@rva/coding-agent/session/model-compaction-threshold";
-import { compactionThresholdSettings, createSubagentSettings } from "@rva/coding-agent/task/executor";
-import { cfgTaskAgentCompactionThresholdOverrides } from "@rva/coding-agent/task/settings";
+} from "@reverse/coding-agent/session/model-compaction-threshold";
+import { compactionThresholdSettings, createSubagentSettings } from "@reverse/coding-agent/task/executor";
+import { cfgTaskAgentCompactionThresholdOverrides } from "@reverse/coding-agent/task/settings";
 
 async function withConfigDirs(run: (dirs: { root: string; agentDir: string; cwd: string }) => Promise<void>) {
 	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-compaction-threshold-"));

@@ -23,7 +23,7 @@ import {
 	type TSchema,
 	toolWireSchema,
 	type UserMessage,
-} from "@rva/ai";
+} from "@reverse/ai";
 import {
 	type Dialect,
 	encodeInbandToolHistory,
@@ -31,17 +31,17 @@ import {
 	renderInbandToolPrompt,
 	renderToolExamples,
 	wrapInbandToolStream,
-} from "@rva/ai/dialect";
-import * as AIError from "@rva/ai/error";
-import { appendDuplicateSuffix, MAX_TOOL_CALL_ID_LENGTH } from "@rva/ai/providers/transform-messages";
+} from "@reverse/ai/dialect";
+import * as AIError from "@reverse/ai/error";
+import { appendDuplicateSuffix, MAX_TOOL_CALL_ID_LENGTH } from "@reverse/ai/providers/transform-messages";
 import {
 	type CursorExecResolvedCarrier,
 	copyCursorExecResolved,
 	getStreamingPartialJson,
 	kCursorExecResolved,
-} from "@rva/ai/utils/block-symbols";
-import { schemaDefinesProperty } from "@rva/ai/utils/schema/json-schema-validator";
-import { stamp } from "@rva/ai/utils/schema/stamps";
+} from "@reverse/ai/utils/block-symbols";
+import { schemaDefinesProperty } from "@reverse/ai/utils/schema/json-schema-validator";
+import { stamp } from "@reverse/ai/utils/schema/stamps";
 import {
 	createHarmonyAuditEvent,
 	detectHarmonyLeakInAssistantMessage,
@@ -51,10 +51,10 @@ import {
 	isHarmonyLeakMitigationTarget,
 	recoverHarmonyToolCall,
 	signalListLabel,
-} from "@rva/ai/utils/harmony-leak";
-import { isDsmlLeakRecoveryTarget, removeDsmlToolMarkupLeak } from "@rva/ai/utils/dsml-leak";
-import { cloneJsonTree, logger, sanitizeText, structuredCloneJSON } from "@rva/utils";
-import { INTENT_FIELD } from "@rva/wire";
+} from "@reverse/ai/utils/harmony-leak";
+import { isDsmlLeakRecoveryTarget, removeDsmlToolMarkupLeak } from "@reverse/ai/utils/dsml-leak";
+import { cloneJsonTree, logger, sanitizeText, structuredCloneJSON } from "@reverse/utils";
+import { INTENT_FIELD } from "@reverse/wire";
 import { LiveSteeringChannel } from "./live-steering";
 import { agentPauseGate } from "./pause";
 import { type AgentRunCoverage, type AgentRunSummary, ToolCallBlockedError } from "./run-collector";

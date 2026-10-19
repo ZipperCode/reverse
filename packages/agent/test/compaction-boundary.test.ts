@@ -5,9 +5,9 @@ import {
 	createFileOps,
 	DEFAULT_COMPACTION_SETTINGS,
 	generateSummary,
-} from "@rva/agent/compaction";
-import type { Model } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/agent/compaction";
+import type { Model } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
 
 function getModel(): Model {
 	const model = getBundledModel("anthropic", "claude-sonnet-4-5");

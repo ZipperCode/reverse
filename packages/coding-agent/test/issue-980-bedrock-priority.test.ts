@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	resolveCliModel,
 	resolveModelFromSettings,
 	resolveModelRoleValue,
-} from "@rva/coding-agent/config/model-resolver";
-import { Settings } from "@rva/coding-agent/config/settings";
+} from "@reverse/coding-agent/config/model-resolver";
+import { Settings } from "@reverse/coding-agent/config/settings";
 
 function model(provider: string, id: string): Model<"anthropic-messages"> {
 	return buildModel({

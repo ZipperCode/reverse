@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { AssistantMessage, Context, FetchImpl, Model, ModelSpec } from "@rva/ai/types";
-import type { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { AssistantMessage, Context, FetchImpl, Model, ModelSpec } from "@reverse/ai/types";
+import type { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
 
 const context: Context = {
 	systemPrompt: ["Stay concise."],

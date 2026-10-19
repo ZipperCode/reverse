@@ -1,4 +1,4 @@
-import { isRetryableError, isUnexpectedSocketCloseMessage } from "@rva/utils";
+import { isRetryableError, isUnexpectedSocketCloseMessage } from "@reverse/utils";
 import {
 	CODEX_HTTP_BODY_READ_ERROR_PATTERN,
 	isRetryableStreamEnvelopeError,

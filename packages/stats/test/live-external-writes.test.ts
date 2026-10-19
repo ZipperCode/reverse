@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { StatsLive } from "@rva/stats/live";
-import type { LiveStatus } from "@rva/stats/shared-types";
-import { getStatsDbPath } from "@rva/utils";
+import { StatsLive } from "@reverse/stats/live";
+import type { LiveStatus } from "@reverse/stats/shared-types";
+import { getStatsDbPath } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-live-external-");

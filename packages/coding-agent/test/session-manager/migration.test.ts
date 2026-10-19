@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { FileEntry } from "@rva/coding-agent/session/session-entries";
-import { migrateSessionEntries } from "@rva/coding-agent/session/session-migrations";
+import type { FileEntry } from "@reverse/coding-agent/session/session-entries";
+import { migrateSessionEntries } from "@reverse/coding-agent/session/session-migrations";
 
 describe("migrateSessionEntries", () => {
 	it("should add id/parentId to v1 entries", () => {

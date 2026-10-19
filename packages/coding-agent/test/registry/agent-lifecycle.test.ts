@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, MAIN_AGENT_ID } from "@rva/coding-agent/registry/agent-registry";
-import { registerPersistedSubagents } from "@rva/coding-agent/registry/persisted-agents";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { TempDir } from "@rva/utils";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry, MAIN_AGENT_ID } from "@reverse/coding-agent/registry/agent-registry";
+import { registerPersistedSubagents } from "@reverse/coding-agent/registry/persisted-agents";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { TempDir } from "@reverse/utils";
 
 interface SessionStub {
 	session: AgentSession;

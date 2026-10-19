@@ -1,19 +1,19 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { ThinkingLevel } from "@rva/agent";
-import { getBundledModel } from "@rva/catalog/models";
-import { type Args, parseArgs } from "@rva/coding-agent/cli/args";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import type { ScopedModel } from "@rva/coding-agent/config/model-resolver";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { buildSessionOptions } from "@rva/coding-agent/main";
-import { type CreateAgentSessionOptions, createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { CURRENT_SESSION_VERSION, type SessionHeader } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { ThinkingLevel } from "@reverse/agent";
+import { getBundledModel } from "@reverse/catalog/models";
+import { type Args, parseArgs } from "@reverse/coding-agent/cli/args";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import type { ScopedModel } from "@reverse/coding-agent/config/model-resolver";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { buildSessionOptions } from "@reverse/coding-agent/main";
+import { type CreateAgentSessionOptions, createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { CURRENT_SESSION_VERSION, type SessionHeader } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 const OPENAI_TEST_MODEL = getBundledModel("openai", "gpt-4o-mini");
 

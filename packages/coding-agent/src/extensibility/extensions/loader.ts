@@ -4,9 +4,9 @@
 import type * as fs1 from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import * as zod from "@rva/omptype/zod";
-import type { ThinkingLevel } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import * as zod from "@reverse/omptype/zod";
+import type { ThinkingLevel } from "@reverse/agent";
 import type {
 	ImageContent,
 	Model,
@@ -15,9 +15,9 @@ import type {
 	ServiceTierFamily,
 	TextContent,
 	TSchema,
-} from "@rva/ai";
-import { isBuiltinComposerStyle, type KeyId } from "@rva/tui";
-import { hasFsCode, isEacces, isEnoent, logger } from "@rva/utils";
+} from "@reverse/ai";
+import { isBuiltinComposerStyle, type KeyId } from "@reverse/tui";
+import { hasFsCode, isEacces, isEnoent, logger } from "@reverse/utils";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";
 import { type Hook, hookCapability } from "../../capability/hook";
 import { isServiceTierFamily, isServiceTierForFamily } from "../../config/service-tier";
@@ -38,7 +38,7 @@ import { installLegacyPiSpecifierShim, loadLegacyPiModule } from "../plugins/leg
 import { getAllPluginExtensionPaths } from "../plugins/loader";
 
 import { resolvePath, withHostGuard } from "../utils";
-import type { ComposerShapeDefinition } from "@rva/tui/overlays/composer-shape-registry";
+import type { ComposerShapeDefinition } from "@reverse/tui/overlays/composer-shape-registry";
 import type {
 	AssistantThinkingRenderer,
 	Extension,

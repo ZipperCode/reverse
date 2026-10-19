@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import type { AssistantMessage, AssistantMessageEvent, Context, FetchImpl, Model, Usage } from "@rva/ai/types";
-import { streamSimple } from "@rva/ai/stream";
+import type { AssistantMessage, AssistantMessageEvent, Context, FetchImpl, Model, Usage } from "@reverse/ai/types";
+import { streamSimple } from "@reverse/ai/stream";
 import { encodeBedrockFrame as encodeBedrockTestFrame } from "../../ai/test/helpers/bedrock-stream";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { isRecord } from "@rva/utils";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { isRecord } from "@reverse/utils";
 import { CacheWarmer, type CacheWarmStream, type CacheWarmingRefreshEnd } from "../src/session/cache-warmer";
 
 const PROMPT_TOKENS = 100_000;

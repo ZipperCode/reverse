@@ -10,8 +10,8 @@ import type {
 	ToolCall,
 	ToolResultMessage,
 	UserMessage,
-} from "@rva/ai";
-import { isRecord } from "@rva/utils";
+} from "@reverse/ai";
+import { isRecord } from "@reverse/utils";
 import { readForeignJsonRecords } from "./foreign-session-jsonl";
 import type { ForeignSessionInfo, ForeignSessionStore } from "./foreign-session-store";
 import type { CompactionEntry, ModelChangeEntry, SessionEntry, SessionMessageEntry } from "./session-entries";

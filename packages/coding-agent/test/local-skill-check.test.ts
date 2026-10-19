@@ -31,16 +31,10 @@ describe("rva skill check", () => {
 		tempProject = await fs.mkdtemp(path.join(os.tmpdir(), "rva-skill-check-project-"));
 		const userConfigDir = path.join(tempHome, ".rva", "agent");
 		await fs.mkdir(userConfigDir, { recursive: true });
-		await Bun.write(
-			path.join(userConfigDir, "config.yml"),
-			"disabledProviders:\n  - builtin-skills\n",
-		);
+		await Bun.write(path.join(userConfigDir, "config.yml"), "disabledProviders:\n  - builtin-skills\n");
 		const projectConfigDir = path.join(tempProject, ".rva");
 		await fs.mkdir(projectConfigDir, { recursive: true });
-		await Bun.write(
-			path.join(projectConfigDir, "config.yml"),
-			"disabledProviders:\n  - builtin-skills\n",
-		);
+		await Bun.write(path.join(projectConfigDir, "config.yml"), "disabledProviders:\n  - builtin-skills\n");
 	});
 
 	afterEach(async () => {

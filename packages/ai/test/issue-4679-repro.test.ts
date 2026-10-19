@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildAnthropicClientOptions, streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { Context, Model, ModelSpec, TJsonSchema, Tool } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { buildAnthropicClientOptions, streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { Context, Model, ModelSpec, TJsonSchema, Tool } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const STRUCTURED_OUTPUTS_BETA = "structured-outputs-2025-12-15";
 

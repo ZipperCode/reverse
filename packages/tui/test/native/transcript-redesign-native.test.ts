@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { setTranscriptActionHandler, type TranscriptAction } from "@rva/tui/chat/transcript-actions";
-import { UserMessageComponent } from "@rva/tui/chat/user-message";
-import { StatusNotice } from "@rva/tui/chrome/status-notice";
-import { initTheme } from "@rva/tui/theme";
-import type { TspNode } from "@rva/wire";
+import type { AssistantMessage } from "@reverse/ai";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { setTranscriptActionHandler, type TranscriptAction } from "@reverse/tui/chat/transcript-actions";
+import { UserMessageComponent } from "@reverse/tui/chat/user-message";
+import { StatusNotice } from "@reverse/tui/chrome/status-notice";
+import { initTheme } from "@reverse/tui/theme";
+import type { TspNode } from "@reverse/wire";
 import { TspHarness } from "./tsp-harness";
 
 beforeAll(async () => {

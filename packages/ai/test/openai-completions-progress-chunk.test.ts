@@ -1,11 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import {
-	isOpenAICompletionsProgressChunk,
-	streamOpenAICompletions,
-} from "@rva/ai/providers/openai-completions";
-import type { Context, FetchImpl, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
+import { isOpenAICompletionsProgressChunk, streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, FetchImpl, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const openAICompletionsModel = {
 	...(getBundledModel("openai", "gpt-4o-mini") as Model<"openai-completions">),

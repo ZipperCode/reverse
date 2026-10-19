@@ -11,11 +11,11 @@
  * rendered success or error output initialize it explicitly.
  */
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
-import { runPluginCommand } from "@rva/coding-agent/cli/plugin-cli";
-import { PluginManager } from "@rva/coding-agent/extensibility/plugins/manager";
-import type { InstalledPluginSummary } from "@rva/coding-agent/extensibility/plugins/marketplace";
-import { MarketplaceManager } from "@rva/coding-agent/extensibility/plugins/marketplace";
-import { initTheme } from "@rva/tui/theme";
+import { runPluginCommand } from "@reverse/coding-agent/cli/plugin-cli";
+import { PluginManager } from "@reverse/coding-agent/extensibility/plugins/manager";
+import type { InstalledPluginSummary } from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import { MarketplaceManager } from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import { initTheme } from "@reverse/tui/theme";
 
 describe("runPluginCommand({ action: 'uninstall', flags: { dryRun } })", () => {
 	beforeEach(async () => {

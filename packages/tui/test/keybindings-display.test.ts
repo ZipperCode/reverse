@@ -6,8 +6,8 @@ import {
 	getDefaultPasteImageKeys,
 	KeybindingsManager,
 	setKeyHintPlatform,
-} from "@rva/tui/app-keybindings";
-import { initTheme, setSymbolPreset } from "@rva/tui/theme/theme";
+} from "@reverse/tui/app-keybindings";
+import { initTheme, setSymbolPreset } from "@reverse/tui/theme/theme";
 
 describe("KeybindingsManager.getDisplayString", () => {
 	beforeEach(() => setKeyHintPlatform("linux"));

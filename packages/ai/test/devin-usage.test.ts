@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { streamDevin } from "@rva/ai/providers/devin";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamDevin } from "@reverse/ai/providers/devin";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	GetChatMessageResponseSchema,
 	GetUserJwtResponseSchema,
 	ModelUsageStatsSchema,
 	StopReason,
-} from "@rva/catalog/discovery/devin-proto";
-import { create, toBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/devin-proto";
+import { create, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 function frameConnectMessage(payload: Uint8Array): Uint8Array {
 	const out = new Uint8Array(5 + payload.length);

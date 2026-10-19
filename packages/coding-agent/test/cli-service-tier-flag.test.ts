@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { buildSessionOptions } from "@rva/coding-agent/main";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { buildSessionOptions } from "@reverse/coding-agent/main";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 describe("--service-tier", () => {
 	it("parses supported OpenAI tiers without leaking the value into the prompt", () => {

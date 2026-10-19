@@ -8,8 +8,8 @@
  * identity (e.g. Anthropic's resize memo) stay warm.
  */
 
-import type { Context, ImageContent, Message, Model, TextContent } from "@rva/ai";
-import { modelMatchesHost } from "@rva/catalog/hosts";
+import type { Context, ImageContent, Message, Model, TextContent } from "@reverse/ai";
+import { modelMatchesHost } from "@reverse/catalog/hosts";
 
 /** Responses/Chat APIs whose `image_url` accepts arbitrary https URLs. */
 const URL_CAPABLE_OPENAI_APIS: Record<string, true> = {

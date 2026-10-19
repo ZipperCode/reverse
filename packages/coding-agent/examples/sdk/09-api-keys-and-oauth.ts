@@ -10,7 +10,7 @@ import {
 	discoverModels,
 	ModelRegistry,
 	SessionManager,
-} from "@rva/coding-agent";
+} from "@reverse/coding-agent";
 
 // Default: discoverAuthStorage() uses ~/.omp/agent/agent.db
 // discoverModels() loads built-in + custom models from ~/.omp/agent/models.json

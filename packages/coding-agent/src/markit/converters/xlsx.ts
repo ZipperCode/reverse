@@ -1,8 +1,8 @@
 // Adapted from markit-ai (MIT). See ../NOTICE.
 
-import { XMLParser } from "@rva/utils/xml";
+import { XMLParser } from "@reverse/utils/xml";
 import type { ConversionResult, Converter, StreamInfo } from "../types";
-import { ZipPackage } from "@rva/utils/ar";
+import { ZipPackage } from "@reverse/utils/ar";
 
 const EXTENSIONS = [".xlsx"];
 const MIMETYPES = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];

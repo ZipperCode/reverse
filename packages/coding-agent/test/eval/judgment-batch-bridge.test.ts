@@ -1,8 +1,8 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { Api, AssistantMessage, ImageContent, Model } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { TempDir } from "@rva/utils";
+import type { Api, AssistantMessage, ImageContent, Model } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { TempDir } from "@reverse/utils";
 import { $ } from "bun";
 import { AsyncJobManager } from "../../src/async";
 import { ModelRegistry } from "../../src/config/model-registry";

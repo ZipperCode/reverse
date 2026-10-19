@@ -12,7 +12,7 @@
  * double-loaded through legacy conventions.
  */
 import * as path from "node:path";
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 import { readFile } from "../capability/fs";
 import { isContainedResolved, realpathIfExists, resolveContainedPath } from "./contained-path";
 import { registerPluginCacheInvalidator } from "./helpers";

@@ -11,12 +11,12 @@ const COPILOT_PREMIUM_MULTIPLIERS: Record<string, number> = {
 
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { discoverAuthStorage } from "@rva/ai/auth-broker/discover";
-import type { OAuthAccess } from "@rva/ai/auth-storage";
-import type { OAuthProvider } from "@rva/ai/oauth/types";
-import { getGitLabDuoModels } from "@rva/ai/providers/gitlab-duo";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { $env } from "@rva/utils";
+import { discoverAuthStorage } from "@reverse/ai/auth-broker/discover";
+import type { OAuthAccess } from "@reverse/ai/auth-storage";
+import type { OAuthProvider } from "@reverse/ai/oauth/types";
+import { getGitLabDuoModels } from "@reverse/ai/providers/gitlab-duo";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { $env } from "@reverse/utils";
 import { buildModel } from "../src/build";
 import { isRetiredProvider } from "../src/compat/behavior";
 import { collapseVariants } from "../src/compat/collapse";

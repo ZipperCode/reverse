@@ -2,13 +2,13 @@
  * Run onboarding setup or install dependencies for optional features.
  */
 
-import { APP_NAME } from "@rva/utils";
-import { Args, CliUsageError, Command, Flags } from "@rva/utils/cli";
+import { APP_NAME } from "@reverse/utils";
+import { Args, CliUsageError, Command, Flags } from "@reverse/utils/cli";
 import { parseArgs } from "../cli/args";
 import { setupHelp as commandHelp } from "../cli/command-help";
 import { runSetupCommand, type SetupCommandArgs, type SetupComponent } from "../cli/setup-cli";
 import { runRootCommand } from "../main";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 const COMPONENTS: SetupComponent[] = ["python", "speech", "reverse"];
 

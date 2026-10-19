@@ -1,5 +1,5 @@
 /**
- * Lightweight protobuf (.proto) parser and TypeScript code generator for @rva/catalog.
+ * Lightweight protobuf (.proto) parser and TypeScript code generator for @reverse/catalog.
  *
  * Generates type-safe schema definitions and message types using the discovery/protobuf runtime codecs.
  */

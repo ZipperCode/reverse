@@ -1,4 +1,4 @@
-import { getAgentDir, getDotenvEnvValues, logger } from "@rva/utils";
+import { getAgentDir, getDotenvEnvValues, logger } from "@reverse/utils";
 import { builtinCredentialSecretEntries, collectEnvSecrets, loadSecrets } from "../secrets";
 import { CREDENTIAL_PREFIX_RULES } from "../secrets/patterns";
 

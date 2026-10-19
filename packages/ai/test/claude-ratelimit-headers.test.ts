@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { UsageLimit, UsageReport } from "@rva/ai/usage";
-import { parseClaudeRateLimitHeaders } from "@rva/ai/usage/claude";
+import type { UsageLimit, UsageReport } from "@reverse/ai/usage";
+import { parseClaudeRateLimitHeaders } from "@reverse/ai/usage/claude";
 
 const NOW = 1_780_400_000_000;
 const BROKER_OAUTH_HEADERS = {

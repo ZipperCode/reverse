@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AssistantMessage, ImageContent } from "@rva/ai";
-import type { TspKind, TspSpan } from "@rva/wire";
+import type { AssistantMessage, ImageContent } from "@reverse/ai";
+import type { TspKind, TspSpan } from "@reverse/wire";
 import { AssistantMessageComponent } from "../src/chat/assistant-message";
 import { BashExecutionComponent } from "../src/chat/bash-execution";
 import { ReadToolGroupComponent } from "../src/chat/read-tool-group";

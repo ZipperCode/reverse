@@ -9,7 +9,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAgentDir, isEnoent, logger, parseFrontmatter } from "@rva/utils";
+import { getAgentDir, isEnoent, logger, parseFrontmatter } from "@reverse/utils";
 import { registerProvider } from "../capability";
 import { type Skill, type SkillFrontmatter, skillCapability } from "../capability/skill";
 import type { LoadContext, LoadResult } from "../capability/types";

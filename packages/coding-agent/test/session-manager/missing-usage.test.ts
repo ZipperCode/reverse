@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage } from "@rva/ai";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import type { AssistantMessage } from "@reverse/ai";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 async function writeSessionWithoutUsage(dir: string): Promise<string> {
 	const file = path.join(dir, "no-usage.jsonl");

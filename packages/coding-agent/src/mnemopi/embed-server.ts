@@ -12,7 +12,7 @@
  * is SIGKILLed when an embed wedges, on idle exit, and on shutdown, so the
  * native finalizer never runs anywhere.
  */
-import { setProcessName } from "@rva/utils";
+import { setProcessName } from "@reverse/utils";
 import { type JsonLineReply, JsonLineServer } from "../subprocess/jsonl-server";
 import { MnemopiEmbedClient, spawnMnemopiEmbedWorker } from "./embed-client";
 import {

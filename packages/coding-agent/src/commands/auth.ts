@@ -17,10 +17,10 @@ import {
 	REMOTE_REFRESH_SENTINEL,
 	resolveCredentialIdentityKey,
 	SqliteAuthCredentialStore,
-} from "@rva/ai";
-import { getAgentDbPath, isEnoent, isRecord } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
-import { Args, CliUsageError, Command } from "@rva/utils/cli";
+} from "@reverse/ai";
+import { getAgentDbPath, isEnoent, isRecord } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
+import { Args, CliUsageError, Command } from "@reverse/utils/cli";
 import { authHelp as commandHelp } from "../cli/command-help";
 import { resolveAuthBrokerConfig } from "../session/auth-broker-config";
 

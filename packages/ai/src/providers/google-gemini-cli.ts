@@ -5,15 +5,15 @@
  */
 import { randomBytes, randomUUID } from "node:crypto";
 import { scheduler } from "node:timers/promises";
-import { type } from "@rva/omptype";
-import { calculateCost } from "@rva/catalog/models";
+import { type } from "@reverse/omptype";
+import { calculateCost } from "@reverse/catalog/models";
 import {
 	ensureAntigravityVersion,
 	getAntigravityModelWireProfile,
 	getAntigravityUserAgent,
 	getGeminiCliHeaders,
-} from "@rva/catalog/wire/gemini-headers";
-import { extractHttpStatusFromError, fetchWithRetry, readSseJson } from "@rva/utils";
+} from "@reverse/catalog/wire/gemini-headers";
+import { extractHttpStatusFromError, fetchWithRetry, readSseJson } from "@reverse/utils";
 import * as AIError from "../error";
 import type {
 	Api,

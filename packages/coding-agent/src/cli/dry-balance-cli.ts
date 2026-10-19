@@ -10,12 +10,12 @@ import type {
 	OAuthAccess,
 	OAuthAccessResolution,
 	SimpleStreamOptions,
-} from "@rva/ai";
-import { streamSimple } from "@rva/ai";
-import { replaceTabs, truncateToWidth } from "@rva/tui";
-import { SPINNER_FRAMES } from "@rva/tui/theme/symbols";
-import { formatDuration, getProjectDir } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+} from "@reverse/ai";
+import { streamSimple } from "@reverse/ai";
+import { replaceTabs, truncateToWidth } from "@reverse/tui";
+import { SPINNER_FRAMES } from "@reverse/tui/theme/symbols";
+import { formatDuration, getProjectDir } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import {
 	formatModelString,

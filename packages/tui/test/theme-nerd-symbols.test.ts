@@ -2,8 +2,8 @@ import { afterEach, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getThemeByName } from "@rva/tui/theme";
-import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@rva/utils";
+import { getThemeByName } from "@reverse/tui/theme";
+import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@reverse/utils";
 
 const DARK_THEME_PATH = path.join(import.meta.dir, "..", "src", "theme", "dark.json");
 

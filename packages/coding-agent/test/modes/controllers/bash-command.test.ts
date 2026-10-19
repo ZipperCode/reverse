@@ -2,12 +2,12 @@ import { beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { BashResult } from "@rva/coding-agent/exec/bash-executor";
-import { BashExecutionComponent } from "@rva/tui/chat/bash-execution";
-import { CommandController } from "@rva/coding-agent/modes/controllers/command-controller";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { BashResult } from "@reverse/coding-agent/exec/bash-executor";
+import { BashExecutionComponent } from "@reverse/tui/chat/bash-execution";
+import { CommandController } from "@reverse/coding-agent/modes/controllers/command-controller";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 function createContainer() {
 	return {

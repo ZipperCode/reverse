@@ -1,4 +1,4 @@
-import { CliUsageError, Command } from "@rva/utils/cli";
+import { CliUsageError, Command } from "@reverse/utils/cli";
 import { predictHelp as commandHelp } from "../cli/command-help";
 import { runPredictCompare } from "../cli/predict-cli";
 

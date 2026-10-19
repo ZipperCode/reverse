@@ -3,9 +3,9 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { HistoryStorage } from "@rva/coding-agent/session/history-storage";
-import { recordSessionTitle, resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import { getHistoryDbPath, removeSyncWithRetries, setAgentDir } from "@rva/utils";
+import { HistoryStorage } from "@reverse/coding-agent/session/history-storage";
+import { recordSessionTitle, resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { getHistoryDbPath, removeSyncWithRetries, setAgentDir } from "@reverse/utils";
 
 /**
  * Quarantining a corrupt history.db unlinks the file and its sidecars, then

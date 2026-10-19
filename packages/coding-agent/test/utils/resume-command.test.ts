@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { resumeCommand } from "@rva/coding-agent/utils/resume-command";
-import { APP_NAME, getActiveProfile, setProfile } from "@rva/utils/dirs";
+import { resumeCommand } from "@reverse/coding-agent/utils/resume-command";
+import { APP_NAME, getActiveProfile, setProfile } from "@reverse/utils/dirs";
 
 describe("resumeCommand", () => {
 	const originalProfile = getActiveProfile();

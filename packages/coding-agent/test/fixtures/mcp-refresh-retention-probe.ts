@@ -1,9 +1,9 @@
-import { Agent } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { MCPTool } from "@rva/coding-agent/mcp/tool-bridge";
-import type { MCPServerConnection, MCPToolDefinition } from "@rva/coding-agent/mcp/types";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { SessionTools, type SessionToolsHost } from "@rva/coding-agent/session/session-tools";
+import { Agent } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { MCPTool } from "@reverse/coding-agent/mcp/tool-bridge";
+import type { MCPServerConnection, MCPToolDefinition } from "@reverse/coding-agent/mcp/types";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { SessionTools, type SessionToolsHost } from "@reverse/coding-agent/session/session-tools";
 
 interface V8HeapSnapshot {
 	snapshot: {

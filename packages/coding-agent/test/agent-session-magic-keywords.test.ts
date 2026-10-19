@@ -2,21 +2,21 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import { Effort } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import * as autoThinkingClassifier from "@rva/coding-agent/auto-thinking/classifier";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { AUTO_THINKING } from "@rva/tui/thinking";
-import { removeWithRetries } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import { Effort } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import * as autoThinkingClassifier from "@reverse/coding-agent/auto-thinking/classifier";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
+import { removeWithRetries } from "@reverse/utils";
 
-import { cfgMagicKeyword, cfgMagicKeywordsEnabled } from "@rva/coding-agent/modes/settings";
-import { cfgTaskDisabledAgents } from "@rva/coding-agent/task/settings";
+import { cfgMagicKeyword, cfgMagicKeywordsEnabled } from "@reverse/coding-agent/modes/settings";
+import { cfgTaskDisabledAgents } from "@reverse/coding-agent/task/settings";
 
 const mockTaskTool: AgentTool = {
 	name: "task",

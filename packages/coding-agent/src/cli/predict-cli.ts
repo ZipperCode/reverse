@@ -17,19 +17,19 @@ import {
 	replaceTabs,
 	truncateToWidth,
 	TUI,
-} from "@rva/tui";
-import { formatKeyHint } from "@rva/tui/app-keybindings";
-import { col, compact, keyed, node, row, span, text } from "@rva/tui/native/describe";
-import { Memo } from "@rva/tui/native/memo";
-import type { NativeNode, NativeUiEvent } from "@rva/tui/native/node";
-import { actionBar, actionButton } from "@rva/tui/native/overlay";
+} from "@reverse/tui";
+import { formatKeyHint } from "@reverse/tui/app-keybindings";
+import { col, compact, keyed, node, row, span, text } from "@reverse/tui/native/describe";
+import { Memo } from "@reverse/tui/native/memo";
+import type { NativeNode, NativeUiEvent } from "@reverse/tui/native/node";
+import { actionBar, actionButton } from "@reverse/tui/native/overlay";
 import {
 	type WordCompletionEngine,
 	WordCompletionProvider,
 	type WordPredictionBackend,
-} from "@rva/tui/prompt/word-completion";
-import chalk from "@rva/utils/chalk";
-import type { TspSpan } from "@rva/wire";
+} from "@reverse/tui/prompt/word-completion";
+import chalk from "@reverse/utils/chalk";
+import type { TspSpan } from "@reverse/wire";
 import { closeDaemonClients } from "../launch/client";
 import type { TextPredictMethod } from "../predict/protocol";
 import { closeTextPrediction, requestTextPrediction } from "../predict/client";

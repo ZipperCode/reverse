@@ -13,7 +13,7 @@ import type {
 	TextGenerationStringOutput,
 	StoppingCriteria as TransformersStoppingCriteria,
 } from "@huggingface/transformers";
-import { getTinyModelsCacheDir, logger, setProcessName } from "@rva/utils";
+import { getTinyModelsCacheDir, logger, setProcessName } from "@reverse/utils";
 import {
 	errorMessage,
 	errorText,

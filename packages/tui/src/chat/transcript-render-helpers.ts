@@ -4,9 +4,9 @@
  * transcript rows from persisted message entries; holding the row construction
  * here keeps the two byte-for-byte identical.
  */
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import { type Component } from "../tui";
-import { formatBytes, formatDuration } from "@rva/utils";
+import { formatBytes, formatDuration } from "@reverse/utils";
 import type { JobSnapshot } from "../tools/wait";
 import type { DaemonSnapshot } from "../tools/daemon";
 import { type CustomMessage, type FileMentionMessage, resolveAbortLabel, shouldRenderAbortReason } from "./messages";

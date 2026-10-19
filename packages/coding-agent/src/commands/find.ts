@@ -2,7 +2,7 @@
  * Semantic search from the shell: `omp find "<query>" [path]`.
  */
 
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { findHelp as commandHelp } from "../cli/command-help";
 import { runFindCommand } from "../cli/find-cli";
 

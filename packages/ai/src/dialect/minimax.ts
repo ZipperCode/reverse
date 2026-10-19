@@ -1,4 +1,4 @@
-import { escapeXmlText } from "@rva/utils";
+import { escapeXmlText } from "@reverse/utils";
 import type { Message, ToolCall } from "../types";
 import {
 	ANTHROPIC_THINKING_TAG_PREFIXES,

@@ -1,9 +1,9 @@
-import { type } from "@rva/omptype";
-import type { AgentToolResult, ToolApprovalDecision } from "@rva/agent";
-import type { ModelCost } from "@rva/catalog/types";
-import type { ExtensionAskDialogResult } from "@rva/tui/overlays/ask-dialog";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { untilAborted } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentToolResult, ToolApprovalDecision } from "@reverse/agent";
+import type { ModelCost } from "@reverse/catalog/types";
+import type { ExtensionAskDialogResult } from "@reverse/tui/overlays/ask-dialog";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { untilAborted } from "@reverse/utils";
 import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";
 import { cfgRatchetEnabled } from "../tools/settings";
 import ratchetDocumentation from "../prompts/tools/ratchet.md" with { type: "text" };

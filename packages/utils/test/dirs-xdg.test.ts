@@ -10,8 +10,8 @@ import {
 	getSkillDescriptionsDbPath,
 	setAgentDir,
 	setProfile,
-} from "@rva/utils/dirs";
-import { Snowflake } from "@rva/utils/snowflake";
+} from "@reverse/utils/dirs";
+import { Snowflake } from "@reverse/utils/snowflake";
 
 const ENV_KEYS = [
 	"REVERSE_PROFILE",

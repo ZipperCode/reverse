@@ -4,9 +4,9 @@ import {
 	createLoopLimitRuntime,
 	isLoopDurationExpired,
 	parseLoopArgs,
-} from "@rva/coding-agent/modes/loop-limit";
-import type { BuiltinSlashCommandRuntime } from "@rva/coding-agent/slash-commands/builtin-registry";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
+} from "@reverse/coding-agent/modes/loop-limit";
+import type { BuiltinSlashCommandRuntime } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
 
 describe("/loop slash command", () => {
 	test("forwards a bare limit argument verbatim", async () => {

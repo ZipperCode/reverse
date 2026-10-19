@@ -1,15 +1,15 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import type { Message } from "@rva/ai";
-import { type GeneratedProvider, getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { CompactionMethod } from "@rva/coding-agent/session/compaction-methods";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { cfgCompaction } from "@rva/coding-agent/session/context-settings";
+import { Agent } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { Message } from "@reverse/ai";
+import { type GeneratedProvider, getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { CompactionMethod } from "@reverse/coding-agent/session/compaction-methods";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { cfgCompaction } from "@reverse/coding-agent/session/context-settings";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 
 const UNRENDERABLE_SNAPCOMPACT_TEXT = "\uE000\uE001\uE002\uE003\uE004\uE005\uE006\uE007\uE008\uE009";

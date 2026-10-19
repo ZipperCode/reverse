@@ -2,27 +2,22 @@ import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Tokenizer } from "@rva/agent";
-import type {
-	ResetCreditAccountStatus,
-	ResetCreditRedeemOutcome,
-	ResetCreditTarget,
-	UsageReport,
-} from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { PluginManager } from "@rva/coding-agent/extensibility/plugins";
-import { MarketplaceManager } from "@rva/coding-agent/extensibility/plugins/marketplace";
-import type { AgentSession, AsyncJobTree } from "@rva/coding-agent/session/agent-session";
-import type { SessionDumpArchive } from "@rva/coding-agent/session/session-dump-format";
-import type { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { executeAcpBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/acp-builtins";
-import { getProjectDir, removeWithRetries, setProjectDir } from "@rva/utils";
-import { initTheme } from "@rva/tui/theme";
+import { Tokenizer } from "@reverse/agent";
+import type { ResetCreditAccountStatus, ResetCreditRedeemOutcome, ResetCreditTarget, UsageReport } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { PluginManager } from "@reverse/coding-agent/extensibility/plugins";
+import { MarketplaceManager } from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import type { AgentSession, AsyncJobTree } from "@reverse/coding-agent/session/agent-session";
+import type { SessionDumpArchive } from "@reverse/coding-agent/session/session-dump-format";
+import type { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { executeAcpBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/acp-builtins";
+import { getProjectDir, removeWithRetries, setProjectDir } from "@reverse/utils";
+import { initTheme } from "@reverse/tui/theme";
 
-import { cfgBrowserEnabled, cfgBrowserHeadless } from "@rva/coding-agent/tools/browser/settings";
-import { cfgExtendedContext } from "@rva/coding-agent/session/context-settings";
-import { cfgMemoryBackend } from "@rva/coding-agent/memory-backend/settings";
-import { cfgWorktreeCleanSource } from "@rva/coding-agent/task/settings";
+import { cfgBrowserEnabled, cfgBrowserHeadless } from "@reverse/coding-agent/tools/browser/settings";
+import { cfgExtendedContext } from "@reverse/coding-agent/session/context-settings";
+import { cfgMemoryBackend } from "@reverse/coding-agent/memory-backend/settings";
+import { cfgWorktreeCleanSource } from "@reverse/coding-agent/task/settings";
 
 interface FakeAcpBuiltinSession {
 	fastMode: boolean;
@@ -1530,7 +1525,7 @@ describe("wave 5 — adapters and polish", () => {
 	it("/mcp add foo --url https://example.com --token X --scope project: outputs success or propagates write error", async () => {
 		// Uses project scope so it writes to /tmp/project/.omp/mcp.json which test infra controls.
 		// We verify the command either reports success or a meaningful error (not a parse error).
-		const mcpModule = await import("@rva/coding-agent/mcp/config-writer");
+		const mcpModule = await import("@reverse/coding-agent/mcp/config-writer");
 		const spy = spyOn(mcpModule, "addMCPServer").mockResolvedValue(undefined);
 		try {
 			const { output, runtime } = createRuntime();
@@ -1568,7 +1563,7 @@ describe("wave 5 — adapters and polish", () => {
 
 	// /ssh add — spy on addSSHHost
 	it("/ssh add foo --host x --user y --scope user: calls addSSHHost", async () => {
-		const sshModule = await import("@rva/coding-agent/ssh/config-writer");
+		const sshModule = await import("@reverse/coding-agent/ssh/config-writer");
 		const spy = spyOn(sshModule, "addSSHHost").mockResolvedValue(undefined);
 		try {
 			const { output, runtime } = createRuntime();
@@ -1658,7 +1653,7 @@ describe("wave 5 — adapters and polish", () => {
 
 	// /marketplace discover bulleted list
 	it("/marketplace discover: output is bulleted with '  - ' token", async () => {
-		const { MarketplaceManager } = await import("@rva/coding-agent/extensibility/plugins/marketplace");
+		const { MarketplaceManager } = await import("@reverse/coding-agent/extensibility/plugins/marketplace");
 		const discoverSpy = spyOn(MarketplaceManager.prototype, "listAvailablePlugins").mockResolvedValue([
 			{ name: "hello", version: "1.0.0", description: "A greeting plugin" } as never,
 			{ name: "world", version: "2.0.0", description: undefined } as never,

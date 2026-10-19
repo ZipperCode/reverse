@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Editor } from "@rva/tui/components/editor";
-import { node } from "@rva/tui/native/describe";
-import type { NativeNode } from "@rva/tui/native/node";
-import type { Component } from "@rva/tui/tui";
+import { Editor } from "@reverse/tui/components/editor";
+import { node } from "@reverse/tui/native/describe";
+import type { NativeNode } from "@reverse/tui/native/node";
+import type { Component } from "@reverse/tui/tui";
 import { defaultEditorTheme } from "../test-themes";
 import { TspHarness } from "./tsp-harness";
 

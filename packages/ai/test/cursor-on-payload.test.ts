@@ -5,11 +5,11 @@
 // buildGrpcRequest is exercised directly (the transport is HTTP/2), and the
 // serialized run request is decoded back from the wire bytes.
 import { describe, expect, it } from "bun:test";
-import { buildGrpcRequest } from "@rva/ai/providers/cursor";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { AgentClientMessageSchema } from "@rva/catalog/discovery/cursor-proto";
-import { fromBinary } from "@rva/catalog/discovery/protobuf";
+import { buildGrpcRequest } from "@reverse/ai/providers/cursor";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { AgentClientMessageSchema } from "@reverse/catalog/discovery/cursor-proto";
+import { fromBinary } from "@reverse/catalog/discovery/protobuf";
 
 const model: Model<"cursor-agent"> = buildModel({
 	id: "cursor-composer-2.5",

@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { LoginDialogComponent } from "@rva/tui/overlays/login-dialog";
-import { initTheme } from "@rva/tui/theme";
-import * as openModule from "@rva/coding-agent/utils/open";
-import type { TUI } from "@rva/tui";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { LoginDialogComponent } from "@reverse/tui/overlays/login-dialog";
+import { initTheme } from "@reverse/tui/theme";
+import * as openModule from "@reverse/coding-agent/utils/open";
+import type { TUI } from "@reverse/tui";
 
-import { cfgTuiHyperlinks } from "@rva/coding-agent/modes/settings";
+import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
 
 beforeAll(async () => {
 	resetSettingsForTest();

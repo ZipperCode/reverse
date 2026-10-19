@@ -1,19 +1,19 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	type CfgAppliedChange,
 	type CfgChangeRequest,
 	CfgProtocolHandler,
 	setCfgApprovalHost,
-} from "@rva/coding-agent/internal-urls/cfg-protocol";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
-import type { ToolSession } from "@rva/coding-agent/tools";
+} from "@reverse/coding-agent/internal-urls/cfg-protocol";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 
-import { cfgAdvisorEnabled, cfgAdvisorSyncBacklog } from "@rva/coding-agent/advisor/settings";
-import { cfgEditFuzzyMatch } from "@rva/coding-agent/edit/settings";
-import { cfgModelRoles } from "@rva/coding-agent/config/model-settings";
-import { cfgSearxngEndpoint } from "@rva/coding-agent/web/settings";
-import type { InternalWriteResult } from "@rva/coding-agent/internal-urls/types";
+import { cfgAdvisorEnabled, cfgAdvisorSyncBacklog } from "@reverse/coding-agent/advisor/settings";
+import { cfgEditFuzzyMatch } from "@reverse/coding-agent/edit/settings";
+import { cfgModelRoles } from "@reverse/coding-agent/config/model-settings";
+import { cfgSearxngEndpoint } from "@reverse/coding-agent/web/settings";
+import type { InternalWriteResult } from "@reverse/coding-agent/internal-urls/types";
 
 function sessionWith(settings: Settings, caller: Partial<ToolSession> = {}): ToolSession {
 	return { settings, hasUI: true, settingsApproval: true, taskDepth: 0, ...caller } as unknown as ToolSession;

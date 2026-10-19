@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { Agent, AgentMessage } from "@rva/agent";
-import type { Message } from "@rva/ai";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { buildAsyncResultBatchMessage } from "@rva/coding-agent/session/async-job-delivery";
-import { IrcBridge, type IrcBridgeHost } from "@rva/coding-agent/session/irc-bridge";
-import { convertToLlm, wrapSteeringForModel } from "@rva/coding-agent/session/messages";
+import type { Agent, AgentMessage } from "@reverse/agent";
+import type { Message } from "@reverse/ai";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { buildAsyncResultBatchMessage } from "@reverse/coding-agent/session/async-job-delivery";
+import { IrcBridge, type IrcBridgeHost } from "@reverse/coding-agent/session/irc-bridge";
+import { convertToLlm, wrapSteeringForModel } from "@reverse/coding-agent/session/messages";
 
 // Markup an agent writes that is not a harness tag; it must reach the model as written.
 const CODE = "keep `Array<string>`, `a && b` and <placeholder> as written";

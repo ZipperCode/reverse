@@ -1,4 +1,4 @@
-import type { MCPContent, MCPImageContent, MCPResourceContent, MCPTextContent } from "@rva/tui/tools/mcp";
+import type { MCPContent, MCPImageContent, MCPResourceContent, MCPTextContent } from "@reverse/tui/tools/mcp";
 /**
  * MCP (Model Context Protocol) type definitions.
  *

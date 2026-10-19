@@ -2,11 +2,11 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort } from "@rva/catalog/effort";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { getBundledModels } from "@rva/catalog/models";
-import { helmcodeModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, Model } from "@rva/catalog/types";
+import { Effort } from "@reverse/catalog/effort";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { getBundledModels } from "@reverse/catalog/models";
+import { helmcodeModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, Model } from "@reverse/catalog/types";
 
 /** helmcode.com/docs/models "Controlling reasoning"; host class ladders would send `xhigh`. */
 const DEEPSEEK_LADDER = [Effort.Minimal, Effort.Low, Effort.Medium, Effort.High, Effort.Max];

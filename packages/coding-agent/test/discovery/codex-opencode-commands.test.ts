@@ -2,16 +2,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import { type SlashCommand, slashCommandCapability } from "@rva/coding-agent/capability/slash-command";
-import { resetSettingsForTest } from "@rva/coding-agent/config/settings";
-import { loadCapability } from "@rva/coding-agent/discovery";
-import { commandInspectorData, commandPreview } from "@rva/tui/overlays/extensions/inspector-model";
-import { InspectorPanel } from "@rva/tui/overlays/extensions/inspector-panel";
-import { applyFilter } from "@rva/tui/overlays/extensions/state-manager";
-import type { Extension } from "@rva/tui/overlays/extensions/types";
-import { initTheme } from "@rva/tui/theme";
-import { removeWithRetries } from "@rva/utils";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { type SlashCommand, slashCommandCapability } from "@reverse/coding-agent/capability/slash-command";
+import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { loadCapability } from "@reverse/coding-agent/discovery";
+import { commandInspectorData, commandPreview } from "@reverse/tui/overlays/extensions/inspector-model";
+import { InspectorPanel } from "@reverse/tui/overlays/extensions/inspector-panel";
+import { applyFilter } from "@reverse/tui/overlays/extensions/state-manager";
+import type { Extension } from "@reverse/tui/overlays/extensions/types";
+import { initTheme } from "@reverse/tui/theme";
+import { removeWithRetries } from "@reverse/utils";
 
 const COMMAND_FILE = `---
 description: Deploy a service

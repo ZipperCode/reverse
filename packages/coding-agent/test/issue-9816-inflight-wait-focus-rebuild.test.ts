@@ -12,18 +12,18 @@
  * delivered through the newly installed subscription.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, ToolResultMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { SessionFocusController } from "@rva/coding-agent/modes/controllers/session-focus-controller";
-import { initTheme } from "@rva/tui/theme";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, MAIN_AGENT_ID } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import type { SessionContext } from "@rva/coding-agent/session/session-context";
-import type { AgentProgress, TaskToolDetails } from "@rva/tui/tools/task";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, ToolResultMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { SessionFocusController } from "@reverse/coding-agent/modes/controllers/session-focus-controller";
+import { initTheme } from "@reverse/tui/theme";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry, MAIN_AGENT_ID } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import type { SessionContext } from "@reverse/coding-agent/session/session-context";
+import type { AgentProgress, TaskToolDetails } from "@reverse/tui/tools/task";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 const usage = {

@@ -2,19 +2,19 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import {
 	type AzureOpenAIResponsesOptions,
 	streamAzureOpenAIResponses,
-} from "@rva/ai/providers/azure-openai-responses";
+} from "@reverse/ai/providers/azure-openai-responses";
 import {
 	buildParams,
 	type OpenAIResponsesOptions,
 	streamOpenAIResponses,
-} from "@rva/ai/providers/openai-responses";
-import { stream as streamModel, streamSimple } from "@rva/ai/stream";
-import type { Context, FetchImpl, Model, ProviderSessionState, SimpleStreamOptions } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { classifyModel } from "@rva/catalog/compat/taxonomy";
+} from "@reverse/ai/providers/openai-responses";
+import { stream as streamModel, streamSimple } from "@reverse/ai/stream";
+import type { Context, FetchImpl, Model, ProviderSessionState, SimpleStreamOptions } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { classifyModel } from "@reverse/catalog/compat/taxonomy";
 
-import { getBundledModel } from "@rva/catalog/models";
+import { getBundledModel } from "@reverse/catalog/models";
 import { withEnv } from "./helpers";
 
 interface ResponsesCompatTestSpec {

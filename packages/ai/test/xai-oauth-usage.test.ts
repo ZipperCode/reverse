@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { buildXAICliBillingUrl } from "@rva/ai/oauth/xai-oauth";
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchParams } from "@rva/ai/usage";
-import { xaiOauthRankingStrategy, xaiOauthUsageProvider } from "@rva/ai/usage/xai-oauth";
+import { buildXAICliBillingUrl } from "@reverse/ai/oauth/xai-oauth";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchParams } from "@reverse/ai/usage";
+import { xaiOauthRankingStrategy, xaiOauthUsageProvider } from "@reverse/ai/usage/xai-oauth";
 import { isUsageLimitReached, reserveUsageLimits } from "../src/auth/usage-report";
 
 const USER_ID = "cf12ecb5-cca4-4ba0-9f02-298071a2d052";

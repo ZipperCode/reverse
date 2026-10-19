@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as url from "node:url";
-import { TERMINAL } from "@rva/tui";
-import { fileUriForTerminal } from "@rva/tui/render/hyperlink";
+import { TERMINAL } from "@reverse/tui";
+import { fileUriForTerminal } from "@reverse/tui/render/hyperlink";
 import { extractUriScheme, InternalUrlRouter, parseInternalUrl, type ResolveContext } from "./index";
 import { expandPath } from "../tools/path-utils";
 

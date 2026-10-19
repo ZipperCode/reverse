@@ -1,4 +1,4 @@
-import { extractRetryHint } from "@rva/utils/fetch-retry";
+import { extractRetryHint } from "@reverse/utils/fetch-retry";
 
 /**
  * Rate limit reason classification and backoff calculation utilities.

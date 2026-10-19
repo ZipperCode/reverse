@@ -1,7 +1,7 @@
 /**
  * Regression for the Windows `bun install -g` update path: when an `omp`
  * process is running, bun cannot overwrite a locked
- * `node_modules/@rva/natives/native/pi_natives.win32-x64.node` during
+ * `node_modules/@reverse/natives/native/pi_natives.win32-x64.node` during
  * package update and silently keeps the old binary next to the new ESM
  * wrapper. The next launch then throws `<sym> is not a function` deep inside
  * tool execution (see Discord report, 2026-05-14).
@@ -33,9 +33,9 @@ import {
 } from "../native/loader-state.js";
 import packageJson from "../package.json" with { type: "json" };
 
-const winNodeModulesNativeDir = "C:\\Users\\Admin\\node_modules\\@rva\\natives\\native";
+const winNodeModulesNativeDir = "C:\\Users\\Admin\\node_modules\\@reverse\\natives\\native";
 const winWorkspaceNativeDir = "C:\\Users\\Admin\\dev\\rev\\packages\\natives\\native";
-const posixNodeModulesNativeDir = "/home/u/proj/node_modules/@rva/natives/native";
+const posixNodeModulesNativeDir = "/home/u/proj/node_modules/@reverse/natives/native";
 
 describe("windows native addon staging", () => {
 	it("stages only on Windows node_modules installs", () => {
@@ -117,8 +117,8 @@ describe("windows native addon staging", () => {
 	});
 
 	it("classifies only Windows node_modules paths case-insensitively", () => {
-		const leafPackageDir = "/tmp/node_modules/@rva/natives-darwin-arm64";
-		const uppercaseNodeModulesNativeDir = "/tmp/NODE_MODULES/@rva/natives/native";
+		const leafPackageDir = "/tmp/node_modules/@reverse/natives-darwin-arm64";
+		const uppercaseNodeModulesNativeDir = "/tmp/NODE_MODULES/@reverse/natives/native";
 		const variantCacheKey = "__PI_NATIVE_VARIANT_CACHE";
 		const previousVariantCache = process.env[variantCacheKey];
 		try {
@@ -131,7 +131,7 @@ describe("windows native addon staging", () => {
 			const installed = initLoaderContext({
 				platform: "linux",
 				isCompiledBinary: false,
-				nativeDir: "/tmp/node_modules/@rva/natives/native",
+				nativeDir: "/tmp/node_modules/@reverse/natives/native",
 				leafPackageDir,
 			});
 			const uppercaseWorkspace = initLoaderContext({

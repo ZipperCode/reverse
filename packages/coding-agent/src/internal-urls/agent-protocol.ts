@@ -20,9 +20,9 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import { fuzzyFilter } from "@rva/tui/fuzzy";
-import { formatDuration, isEnoent, prompt } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { fuzzyFilter } from "@reverse/tui/fuzzy";
+import { formatDuration, isEnoent, prompt } from "@reverse/utils";
 import { type AgentRef, AgentRegistry } from "../registry/agent-registry";
 import { ensurePersistedRoster } from "../registry/persisted-agents";
 import { executeSend, isIrcEnabled } from "../irc/messaging";

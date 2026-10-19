@@ -8,7 +8,7 @@
  * the leaf lands ON it so the skill stays on the active branch.
  */
 import { describe, expect, it } from "bun:test";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@rva/coding-agent/session/messages";
+import { SKILL_PROMPT_MESSAGE_TYPE } from "@reverse/coding-agent/session/messages";
 import { assistantMsg, createTestSession, userMsg } from "./utilities";
 
 const BODY = "<skill>huge expanded skill body</skill>";

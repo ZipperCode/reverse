@@ -1,5 +1,5 @@
-import { buildModel } from "@rva/catalog/build";
-import { calculateUsageCost } from "@rva/catalog/models";
+import { buildModel } from "@reverse/catalog/build";
+import { calculateUsageCost } from "@reverse/catalog/models";
 import { describe, expect, it, spyOn } from "bun:test";
 import {
 	type ApiKeyResolveContext,
@@ -15,9 +15,9 @@ import {
 	renderJudgmentState,
 	type TextBackend,
 	TextJudge,
-} from "@rva/ai";
-import type { ImageContent } from "@rva/ai/types";
-import { ConfigurationError, ValidationError } from "@rva/ai/error";
+} from "@reverse/ai";
+import type { ImageContent } from "@reverse/ai/types";
+import { ConfigurationError, ValidationError } from "@reverse/ai/error";
 import { withEnv } from "./helpers";
 
 const LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;

@@ -25,9 +25,9 @@ import {
 	resolveCacheRetention,
 	type SimpleStreamOptions,
 	type Usage,
-} from "@rva/ai";
-import { calculateCost } from "@rva/catalog/models";
-import { isAnthropicOAuthToken } from "@rva/catalog/utils";
+} from "@reverse/ai";
+import { calculateCost } from "@reverse/catalog/models";
+import { isAnthropicOAuthToken } from "@reverse/catalog/utils";
 import type { CacheWarmingDecisionEvent, CacheWarmingDecisionEventResult } from "../extensibility/shared-events";
 
 export type { CacheWarmingDecisionEvent, CacheWarmingDecisionEventResult };

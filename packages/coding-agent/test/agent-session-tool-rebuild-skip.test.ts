@@ -1,27 +1,27 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent, type AgentMessage, type AgentTool } from "@rva/agent";
-import type { Message, Model } from "@rva/ai";
-import { createMockModel, type MockResponseSource } from "@rva/ai/providers/mock";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CustomTool } from "@rva/coding-agent/extensibility/custom-tools/types";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import type { Skill } from "@rva/coding-agent/extensibility/skills";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { type CustomMessage, convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionMaintenance } from "@rva/coding-agent/session/session-maintenance";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
+import type { Message, Model } from "@reverse/ai";
+import { createMockModel, type MockResponseSource } from "@reverse/ai/providers/mock";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CustomTool } from "@reverse/coding-agent/extensibility/custom-tools/types";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import type { Skill } from "@reverse/coding-agent/extensibility/skills";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { type CustomMessage, convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionMaintenance } from "@reverse/coding-agent/session/session-maintenance";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	collectMountedMCPToolRoutes,
 	projectMountedMCPXdevGuidance,
-} from "@rva/coding-agent/session/session-tools";
-import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@rva/coding-agent/tools/xdev";
-import { logger } from "@rva/utils";
+} from "@reverse/coding-agent/session/session-tools";
+import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@reverse/coding-agent/tools/xdev";
+import { logger } from "@reverse/utils";
 
-import { cfgSkillful } from "@rva/coding-agent/session/settings";
-import { cfgStartupQuiet } from "@rva/coding-agent/modes/settings";
-import { cfgToolsXdevDocs, cfgToolsXdevInlineDevices } from "@rva/coding-agent/tools/settings";
+import { cfgSkillful } from "@reverse/coding-agent/session/settings";
+import { cfgStartupQuiet } from "@reverse/coding-agent/modes/settings";
+import { cfgToolsXdevDocs, cfgToolsXdevInlineDevices } from "@reverse/coding-agent/tools/settings";
 
 // Cache-stability invariant: when MCP servers reconnect with byte-identical tool
 // definitions, `refreshMCPTools` must not rebuild the system prompt. A rebuild

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { postmortem } from "@rva/utils";
+import { postmortem } from "@reverse/utils";
 
 const uncaughtIpcChildFlag = "--uncaught-ipc-epipe-child";
 const stdoutDisconnectChildFlag = "--stdout-disconnect-child";

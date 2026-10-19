@@ -5,9 +5,9 @@
  * - `omp -p "prompt"` - text output
  * - `omp --mode json "prompt"` - JSON event stream
  */
-import type { AgentMessage } from "@rva/agent";
-import type { ImageContent } from "@rva/ai";
-import { $flag, logger, postmortem, sanitizeText } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { ImageContent } from "@reverse/ai";
+import { $flag, logger, postmortem, sanitizeText } from "@reverse/utils";
 import type { MCPManager } from "../mcp/manager";
 import { resolveMCPTimeoutMs } from "../mcp/timeout";
 import { type AgentSession, type AgentSessionEvent, SHUTDOWN_CONSOLIDATE_BUDGET_MS } from "../session/agent-session";

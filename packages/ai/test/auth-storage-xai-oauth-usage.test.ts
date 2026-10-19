@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type AuthCredentialStore, AuthStorage, type StoredAuthCredential } from "@rva/ai/auth-storage";
-import type { UsageFetchParams, UsageProvider, UsageReport } from "@rva/ai/usage";
+import { type AuthCredentialStore, AuthStorage, type StoredAuthCredential } from "@reverse/ai/auth-storage";
+import type { UsageFetchParams, UsageProvider, UsageReport } from "@reverse/ai/usage";
 import { defaultRankingStrategy } from "../src/usage/registry";
 import { withEnv } from "./helpers";
 

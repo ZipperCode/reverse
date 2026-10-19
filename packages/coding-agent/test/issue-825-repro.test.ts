@@ -19,10 +19,10 @@
  */
 
 import { beforeAll, describe, expect, mock, test } from "bun:test";
-import { AgentBusyError } from "@rva/agent";
-import { initTheme } from "@rva/tui/theme";
-import type { CompactionQueuedMessage, InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
+import { AgentBusyError } from "@reverse/agent";
+import { initTheme } from "@reverse/tui/theme";
+import type { CompactionQueuedMessage, InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
 
 beforeAll(() => {
 	initTheme();

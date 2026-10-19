@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import * as path from "node:path";
-import type { Api, Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { litellmModelManagerOptions } from "@rva/catalog/provider-models";
-import { modelKind } from "@rva/catalog/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { TempDir } from "@rva/utils";
+import type { Api, Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { litellmModelManagerOptions } from "@reverse/catalog/provider-models";
+import { modelKind } from "@reverse/catalog/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { TempDir } from "@reverse/utils";
 
 const probePath = path.join(import.meta.dir, "fixtures", "model-registry-construction-build-probe.ts");
 

@@ -1,5 +1,5 @@
-import { deriveClaudeDeviceId } from "@rva/ai";
-import { getInstallId } from "@rva/utils";
+import { deriveClaudeDeviceId } from "@reverse/ai";
+import { getInstallId } from "@reverse/utils";
 import type { AuthStorage } from "./auth-storage";
 
 /**

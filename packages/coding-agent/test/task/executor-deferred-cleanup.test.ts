@@ -13,14 +13,14 @@
  * teardown and a zero grace, so no wall-clock timers are needed.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import type { LoadExtensionsResult } from "@rva/coding-agent/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { runSubprocess } from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
+import type { AssistantMessage } from "@reverse/ai";
+import type { LoadExtensionsResult } from "@reverse/coding-agent/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { runSubprocess } from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 const baseAgent: AgentDefinition = { name: "task", description: "test", systemPrompt: "test", source: "bundled" };

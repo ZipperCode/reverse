@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import * as path from "node:path";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { TempDir } from "@rva/utils";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { TempDir } from "@reverse/utils";
 
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 

@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
-import { type ExtensionModule, extensionModuleCapability } from "@rva/coding-agent/capability/extension-module";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { getCapability, initializeWithSettings } from "@rva/coding-agent/discovery";
+import { type ExtensionModule, extensionModuleCapability } from "@reverse/coding-agent/capability/extension-module";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { getCapability, initializeWithSettings } from "@reverse/coding-agent/discovery";
 import {
 	discoverAndLoadExtensions,
 	discoverExtensionPaths,
 	loadExtensions,
-} from "@rva/coding-agent/extensibility/extensions/loader";
-import { discoverSessionExtensionPaths } from "@rva/coding-agent/sdk";
-import { getProjectAgentDir, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/extensions/loader";
+import { discoverSessionExtensionPaths } from "@reverse/coding-agent/sdk";
+import { getProjectAgentDir, TempDir } from "@reverse/utils";
 import { filterUserScoped } from "./utils/filter-user-extensions";
 
 describe("extensions discovery", () => {

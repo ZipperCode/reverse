@@ -1,23 +1,17 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import {
-	Agent,
-	type AgentMessage,
-	type AgentTool,
-	type AgentTurnEndContext,
-	type StreamFn,
-} from "@rva/agent";
-import type { AssistantMessage, Context, ToolResultMessage } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { finalizeSubagentLifecycle } from "@rva/coding-agent/task/executor";
-import { TempDir } from "@rva/utils";
-import type { AdvisorConfig } from "@rva/tui/overlays/advisor-config";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentMessage, type AgentTool, type AgentTurnEndContext, type StreamFn } from "@reverse/agent";
+import type { AssistantMessage, Context, ToolResultMessage } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { finalizeSubagentLifecycle } from "@reverse/coding-agent/task/executor";
+import { TempDir } from "@reverse/utils";
+import type { AdvisorConfig } from "@reverse/tui/overlays/advisor-config";
 import { AdvisorLoopGuard } from "../src/advisor/loop-guard";
 import { cfgAdvisorReviewInterval } from "../src/advisor/settings";
 import { activateTodoTool, createInMemoryAuthStorage } from "./helpers/agent-session-setup";

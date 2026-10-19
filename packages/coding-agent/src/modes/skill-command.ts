@@ -1,4 +1,4 @@
-import type { ImageContent, TextContent } from "@rva/ai";
+import type { ImageContent, TextContent } from "@reverse/ai";
 import { buildSkillPromptMessage, getSkillSlashCommandName, parseSkillInvocation } from "../extensibility/skills";
 import { type CustomMessage, SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "../session/messages";
 import type { InteractiveModeContext } from "./types";

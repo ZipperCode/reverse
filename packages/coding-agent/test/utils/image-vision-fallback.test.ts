@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Api, AssistantMessage, completeSimple, Model } from "@rva/ai";
-import type { ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { Api, AssistantMessage, completeSimple, Model } from "@reverse/ai";
+import type { ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	type DescribeAttachedImagesDeps,
 	describeAttachedImagesForTextModel,
-} from "@rva/coding-agent/utils/image-vision-fallback";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/utils/image-vision-fallback";
+import { removeWithRetries } from "@reverse/utils";
 
 // 1x1 transparent PNG.
 const TINY_PNG_BASE64 =

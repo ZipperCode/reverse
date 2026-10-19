@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { STREAMING_REVEAL_FRAME_MS } from "@rva/coding-agent/modes/controllers/streaming-reveal";
+import { STREAMING_REVEAL_FRAME_MS } from "@reverse/coding-agent/modes/controllers/streaming-reveal";
 import {
 	decodeStreamedToolArgs,
 	streamingStringKeysForTool,
 	ToolArgsRevealController,
-} from "@rva/coding-agent/modes/controllers/tool-args-reveal";
-import { STREAMING_JSON_PARSE_MIN_GROWTH } from "@rva/utils";
+} from "@reverse/coding-agent/modes/controllers/tool-args-reveal";
+import { STREAMING_JSON_PARSE_MIN_GROWTH } from "@reverse/utils";
 
 class RecordingArgsComponent {
 	frames: Array<Record<string, unknown>> = [];

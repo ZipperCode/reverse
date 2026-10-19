@@ -2,10 +2,10 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import { RpcClient } from "@rva/coding-agent/modes/rpc/rpc-client";
-import type { RpcPromptResultFrame } from "@rva/coding-agent/modes/rpc/rpc-types";
-import { removeWithRetries } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { RpcClient } from "@reverse/coding-agent/modes/rpc/rpc-client";
+import type { RpcPromptResultFrame } from "@reverse/coding-agent/modes/rpc/rpc-types";
+import { removeWithRetries } from "@reverse/utils";
 import { ONE_PIXEL_PNG as PNG, waitForFile } from "./helpers/skill-image-vision";
 
 function submissionOrder(messages: AgentMessage[]): string[] {

@@ -6,11 +6,11 @@
  * separator while every later gap stayed single (#11103).
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { StatusLineComponent } from "@rva/tui/status-line";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { StatusLineComponent } from "@reverse/tui/status-line";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 
 beforeAll(async () => {
 	resetSettingsForTest();

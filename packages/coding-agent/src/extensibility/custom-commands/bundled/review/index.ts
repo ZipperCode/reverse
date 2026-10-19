@@ -1,5 +1,5 @@
-import { replaceTabs, TRUNCATE_LENGTHS, truncateToWidth } from "@rva/tui/render/render-utils";
-import { prompt } from "@rva/utils";
+import { replaceTabs, TRUNCATE_LENGTHS, truncateToWidth } from "@reverse/tui/render/render-utils";
+import { prompt } from "@reverse/utils";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";
 import reviewCustomRequestTemplate from "../../../../prompts/review-custom-request.md" with { type: "text" };

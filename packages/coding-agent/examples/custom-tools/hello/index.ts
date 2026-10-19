@@ -1,4 +1,4 @@
-import type { CustomToolFactory } from "@rva/coding-agent";
+import type { CustomToolFactory } from "@reverse/coding-agent";
 
 const factory: CustomToolFactory = pi => ({
 	name: "hello",

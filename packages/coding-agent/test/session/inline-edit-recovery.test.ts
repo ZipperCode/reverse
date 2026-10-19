@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
+import type { AssistantMessage } from "@reverse/ai";
 import { recoverInlineSloppyEdit } from "../../src/session/inline-edit-recovery";
 
 const usage: AssistantMessage["usage"] = {

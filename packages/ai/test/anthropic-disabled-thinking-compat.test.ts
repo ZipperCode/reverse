@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { AnthropicCompat, AssistantMessage, Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { AnthropicCompat, AssistantMessage, Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 
 /**
  * A direct Anthropic model carrying the disabled-thinking dialect a KDL route

@@ -1,22 +1,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type InputItem, transformRequestBody } from "@rva/ai/providers/openai-codex/request-transformer";
+import { type InputItem, transformRequestBody } from "@reverse/ai/providers/openai-codex/request-transformer";
 import {
 	buildTransformedCodexRequestBody,
 	convertCodexResponsesMessages,
 	resetOpenAICodexHistoryAfterCompaction,
 	streamOpenAICodexResponses,
-} from "@rva/ai/providers/openai-codex-responses";
-import { isOpenAIResponsesProgressEvent } from "@rva/ai/providers/openai-shared";
-import { configureCredentialRedaction } from "@rva/ai/providers/transform-messages";
+} from "@reverse/ai/providers/openai-codex-responses";
+import { isOpenAIResponsesProgressEvent } from "@reverse/ai/providers/openai-shared";
+import { configureCredentialRedaction } from "@reverse/ai/providers/transform-messages";
 import type {
 	CodexCompactionRequestContext,
 	Context,
 	FetchImpl,
 	ModelSpec,
 	ProviderSessionState,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import * as piUtils from "@rva/utils";
+} from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import * as piUtils from "@reverse/utils";
 import { createCodexModel } from "./helpers";
 
 beforeAll(() => configureCredentialRedaction(true));

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { TaskTool, taskSchema } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import { getTaskSchema } from "@rva/coding-agent/task/types";
-import { oneLineLabel } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import { type } from "@reverse/omptype";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { TaskTool, taskSchema } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import { getTaskSchema } from "@reverse/coding-agent/task/types";
+import { oneLineLabel } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 
 // Contract: the task tool's wire shape is flat `{ name?, agent?, task, isolated? }`
 // (batch: `{ context, tasks[] }` of the same items). `agent` defaults to the

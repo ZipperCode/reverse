@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { keywordInProse, maskNonProse } from "@rva/tui/prompt/markdown-prose";
+import { keywordInProse, maskNonProse } from "@reverse/tui/prompt/markdown-prose";
 
 const ORCHESTRATE = /\borchestrate\b/i;
 

@@ -3,8 +3,8 @@
 import {
 	type CompactionSettings as EngineCompactionSettings,
 	shouldUseProviderNativeCompaction,
-} from "@rva/agent/compaction";
-import type { Model } from "@rva/ai";
+} from "@reverse/agent/compaction";
+import type { Model } from "@reverse/ai";
 import type { CompactionSettings } from "./context-settings";
 
 /** Choices presented by the ordered compaction-method setting. */

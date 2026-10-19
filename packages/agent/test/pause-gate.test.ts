@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { agentLoop, agentPauseGate } from "@rva/agent";
-import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@rva/agent/types";
-import type { Message } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
+import { type } from "@reverse/omptype";
+import { agentLoop, agentPauseGate } from "@reverse/agent";
+import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@reverse/agent/types";
+import type { Message } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import { createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

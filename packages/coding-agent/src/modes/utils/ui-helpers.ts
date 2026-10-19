@@ -1,44 +1,43 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, ImageContent, Usage } from "@rva/ai";
-import { getStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { type Component, Spacer, Text } from "@rva/tui";
-import { StatusNotice } from "@rva/tui/chrome/status-notice";
-import { QueuedMessagesBand } from "@rva/tui/prompt/queued-messages";
-import { logger } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, ImageContent, Usage } from "@reverse/ai";
+import { getStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { type Component, Spacer, Text } from "@reverse/tui";
+import { StatusNotice } from "@reverse/tui/chrome/status-notice";
+import { QueuedMessagesBand } from "@reverse/tui/prompt/queued-messages";
+import { logger } from "@reverse/utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { InternalUrlRouter } from "../../internal-urls";
 import { settings } from "../../config/settings";
-import { createAdvisorMessageCard } from "@rva/tui/chat/advisor-message";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { readMediaPath } from "@rva/tui/native/blobs";
-import { createBackgroundTanDispatchBlock } from "@rva/tui/chat/background-tan-message";
-import { BashExecutionComponent } from "@rva/tui/chat/bash-execution";
-import { detectCacheInvalidation } from "@rva/tui/chat/cache-invalidation-marker";
-import { ServedModelTracker } from "@rva/tui/chat/served-model-marker";
+import { createAdvisorMessageCard } from "@reverse/tui/chat/advisor-message";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { readMediaPath } from "@reverse/tui/native/blobs";
+import { createBackgroundTanDispatchBlock } from "@reverse/tui/chat/background-tan-message";
+import { BashExecutionComponent } from "@reverse/tui/chat/bash-execution";
+import { detectCacheInvalidation } from "@reverse/tui/chat/cache-invalidation-marker";
+import { ServedModelTracker } from "@reverse/tui/chat/served-model-marker";
 import {
 	BranchSummaryMessageComponent,
 	CompactionSummaryMessageComponent,
 	createHandoffSummaryMessageComponent,
-} from "@rva/tui/chat/compaction-summary-message";
-import { CustomMessageComponent } from "@rva/tui/chat/custom-message";
-import { DynamicBorder } from "@rva/tui/chrome/dynamic-border";
-import { EvalExecutionComponent } from "@rva/tui/chat/eval-execution";
+} from "@reverse/tui/chat/compaction-summary-message";
+import { CustomMessageComponent } from "@reverse/tui/chat/custom-message";
+import { EvalExecutionComponent } from "@reverse/tui/chat/eval-execution";
 import {
 	type LateDiagnosticsFile,
 	LateDiagnosticsMessageComponent,
 	routeLateDiagnostics,
-} from "@rva/tui/chat/late-diagnostics-message";
+} from "@reverse/tui/chat/late-diagnostics-message";
 import {
 	groupedReadUsageCallIds,
 	ReadToolGroupComponent,
 	readArgsCollapseIntoGroup,
-} from "@rva/tui/chat/read-tool-group";
-import { SkillMessageComponent } from "@rva/tui/chat/skill-message";
-import { StrippedToolCallsPlaceholder } from "@rva/tui/chat/stripped-tool-calls-placeholder";
-import { imageContent, textContent } from "@rva/tui/chat/transcript-entry";
-import { ToolActivityContainer } from "@rva/tui/chrome/tool-activity";
+} from "@reverse/tui/chat/read-tool-group";
+import { SkillMessageComponent } from "@reverse/tui/chat/skill-message";
+import { StrippedToolCallsPlaceholder } from "@reverse/tui/chat/stripped-tool-calls-placeholder";
+import { imageContent, textContent } from "@reverse/tui/chat/transcript-entry";
+import { ToolActivityContainer } from "@reverse/tui/chrome/tool-activity";
 import {
 	isSettledJobFrame,
 	parksAsBackground,
@@ -46,18 +45,18 @@ import {
 	ToolExecutionComponent,
 	type ToolExecutionHandle,
 	toolRenderName,
-} from "@rva/tui/chat/tool-execution";
-import { TranscriptBlock, TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { createUsageRowBlock, turnElapsedMs } from "@rva/tui/overlays/usage-row";
-import { UserMessageComponent } from "@rva/tui/chat/user-message";
+} from "@reverse/tui/chat/tool-execution";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { createUsageRowBlock, turnElapsedMs } from "@reverse/tui/overlays/usage-row";
+import { UserMessageComponent } from "@reverse/tui/chat/user-message";
 import { decodeStreamedToolArgs, streamingStringKeysForTool } from "../../modes/controllers/tool-args-reveal";
 import {
 	materializeImageReferenceLinks,
 	materializeImageReferenceLinksSync,
-} from "@rva/tui/prompt/image-references";
-import { normalizeBlobExtension } from "@rva/tui/prompt/image-format";
-import { imageAttachmentSource } from "@rva/tui/prompt/image-source";
-import { theme } from "@rva/tui/theme";
+} from "@reverse/tui/prompt/image-references";
+import { normalizeBlobExtension } from "@reverse/tui/prompt/image-format";
+import { imageAttachmentSource } from "@reverse/tui/prompt/image-source";
+import { theme } from "@reverse/tui/theme";
 import type {
 	CompactionQueuedMessage,
 	InteractiveModeContext,
@@ -82,7 +81,7 @@ import {
 	createAssistantMessageComponent,
 	getAssistantMessageLinkTargets,
 	refreshAssistantMessageLinkTargets,
-} from "@rva/tui/prompt/interactive-context-helpers";
+} from "@reverse/tui/prompt/interactive-context-helpers";
 import {
 	assistantHasVisibleContent,
 	assistantUsageIsBilled,
@@ -93,7 +92,7 @@ import {
 	normalizeToolArgs,
 	resolveAssistantErrorPresentation,
 	splitAssistantMessageToolTimeline,
-} from "@rva/tui/chat/transcript-render-helpers";
+} from "@reverse/tui/chat/transcript-render-helpers";
 
 import {
 	cfgComposerRecallClearedDrafts,
@@ -1169,7 +1168,6 @@ export class UiHelpers {
 		const content = [new Spacer(1), text];
 		this.ctx.present(options?.hideWithToolActivity ? new ToolActivityContainer(content) : content);
 	}
-
 
 	updatePendingMessagesDisplay(): void {
 		this.ctx.pendingMessagesContainer.disposeChildren();

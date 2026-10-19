@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { KeybindingsManager, setKeyHintPlatform } from "@rva/tui/app-keybindings";
-import { setKeybindings } from "@rva/tui";
+import { KeybindingsManager, setKeyHintPlatform } from "@reverse/tui/app-keybindings";
+import { setKeybindings } from "@reverse/tui";
 import { stripVTControlCharacters } from "node:util";
-import type { DescribeContext, NativeChild, NativeNode } from "@rva/tui/native/node";
-import { setNativeRendering } from "@rva/tui/native/state";
-import { MCPAddWizard, type MCPAddWizardConfig, type MCPAddWizardDeps } from "@rva/tui/overlays/mcp-add-wizard";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
+import type { DescribeContext, NativeChild, NativeNode } from "@reverse/tui/native/node";
+import { setNativeRendering } from "@reverse/tui/native/state";
+import { MCPAddWizard, type MCPAddWizardConfig, type MCPAddWizardDeps } from "@reverse/tui/overlays/mcp-add-wizard";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 
 const CX: DescribeContext = { cols: 100, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 const ENTER = "\r";

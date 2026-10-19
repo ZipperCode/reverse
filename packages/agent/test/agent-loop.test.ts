@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import { Agent } from "@reverse/agent";
 import {
 	agentLoop,
 	agentLoopContinue,
 	agentLoopDetailed,
 	TERMINAL_TOOL_RESULT_ABORT_REASON,
 	TOOL_INTERRUPT_ABORT_REASON,
-} from "@rva/agent/agent-loop";
-import { SpeculativeOperationCoordinator } from "@rva/agent/speculative-execution";
+} from "@reverse/agent/agent-loop";
+import { SpeculativeOperationCoordinator } from "@reverse/agent/speculative-execution";
 import type {
 	AgentContext,
 	AgentEvent,
@@ -18,19 +18,19 @@ import type {
 	AgentToolContext,
 	SpeculativePhysicalOutcome,
 	ToolCallContext,
-} from "@rva/agent/types";
-import { ASIDE_MESSAGE_COMMIT, ASIDE_MESSAGE_DISCARD, SPECULATIVE_STREAM_SESSION } from "@rva/agent/types";
-import type { AssistantMessage, AssistantMessageEvent, Context, Message, ToolResultMessage } from "@rva/ai";
-import { createMockModel, type MockResponse } from "@rva/ai/providers/mock";
-import { transformMessages } from "@rva/ai/providers/transform-messages";
-import { kCursorExecResolved, setStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import type { HarmonyDetection } from "@rva/ai/utils/harmony-leak";
-import * as harmonyLeak from "@rva/ai/utils/harmony-leak";
-import { INTENT_FIELD } from "@rva/wire";
+} from "@reverse/agent/types";
+import { ASIDE_MESSAGE_COMMIT, ASIDE_MESSAGE_DISCARD, SPECULATIVE_STREAM_SESSION } from "@reverse/agent/types";
+import type { AssistantMessage, AssistantMessageEvent, Context, Message, ToolResultMessage } from "@reverse/ai";
+import { createMockModel, type MockResponse } from "@reverse/ai/providers/mock";
+import { transformMessages } from "@reverse/ai/providers/transform-messages";
+import { kCursorExecResolved, setStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import type { HarmonyDetection } from "@reverse/ai/utils/harmony-leak";
+import * as harmonyLeak from "@reverse/ai/utils/harmony-leak";
+import { INTENT_FIELD } from "@reverse/wire";
 import { createAssistantMessage, createHarmonyMitigationModel, createUserMessage } from "./helpers";
 
-declare module "@rva/agent/types" {
+declare module "@reverse/agent/types" {
 	interface CustomAgentMessages {
 		advisor: {
 			role: "custom";
@@ -7445,7 +7445,7 @@ describe("agentLoop streaming snapshots", () => {
 
 describe("agentLoop kCursorExecResolved (issue #4348)", () => {
 	it("skips execute for a toolCall block marked as already run by Cursor's exec channel", async () => {
-		const { kCursorExecResolved } = await import("@rva/ai/utils/block-symbols");
+		const { kCursorExecResolved } = await import("@reverse/ai/utils/block-symbols");
 
 		const toolSchema = type({ command: "string" });
 		let executeCalls = 0;
@@ -7536,7 +7536,7 @@ describe("agentLoop kCursorExecResolved (issue #4348)", () => {
 	it("still runs a normal, unmarked toolCall block in the same turn", async () => {
 		// Guards against the filter over-matching: a mixed turn where only
 		// SOME blocks are Cursor-resolved must still execute the unmarked one.
-		const { kCursorExecResolved } = await import("@rva/ai/utils/block-symbols");
+		const { kCursorExecResolved } = await import("@reverse/ai/utils/block-symbols");
 
 		const toolSchema = type({ value: "string" });
 		const executed: string[] = [];

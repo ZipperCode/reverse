@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { TUI } from "@rva/tui";
+import { TUI } from "@reverse/tui";
 import { CleanseBoardModel } from "../src/apps/cleanse-board";
 import { showGitOverlay } from "../src/apps/git/git-tui";
 import type { AssetFileContents, ChangedFile, GitTuiModel } from "../src/apps/git/state";
@@ -8,7 +8,7 @@ import { TspHarness } from "./native/tsp-harness";
 import type { PsScope, PsScopeReport } from "../src/apps/ps-data";
 import { type PsTopHost, PsTopComponent } from "../src/apps/ps-top";
 import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
-import { TSP_KINDS, type TspKind } from "@rva/wire";
+import { TSP_KINDS, type TspKind } from "@reverse/wire";
 import type { DaemonSnapshot, DaemonSpec } from "../src/tools/daemon";
 import { VirtualTerminal } from "./virtual-terminal";
 

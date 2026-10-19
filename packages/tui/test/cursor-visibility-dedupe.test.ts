@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { setTerminalHeadless } from "@rva/utils";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { setTerminalHeadless } from "@reverse/utils";
 
 // ProcessTerminal dedupes cursor-visibility writes: hideCursor()/showCursor()
 // skip the ?25l/?25h escape when the terminal already holds that state. The

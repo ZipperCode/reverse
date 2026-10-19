@@ -17,8 +17,8 @@
 import { afterEach, beforeEach } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { closeDb } from "@rva/stats/db";
-import { getAgentDir, setAgentDir, TempDir } from "@rva/utils";
+import { closeDb } from "@reverse/stats/db";
+import { getAgentDir, setAgentDir, TempDir } from "@reverse/utils";
 
 const XDG_KEYS = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;
 

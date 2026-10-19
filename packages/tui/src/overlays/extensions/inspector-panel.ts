@@ -6,7 +6,7 @@
  * kind-specific surface → contents → boring config.
  */
 import * as os from "node:os";
-import type { TspSpan, TspText } from "@rva/wire";
+import type { TspSpan, TspText } from "@reverse/wire";
 import type { Component } from "../../tui";
 import { code, col, compact, keyed, kv, node, span, stableKey, text } from "../../native/describe";
 import type { NativeChild, NativeNode } from "../../native/node";

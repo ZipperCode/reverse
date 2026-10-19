@@ -1,10 +1,10 @@
-import { runExperimentToolRenderer } from "@rva/tui/tools/autoresearch";
+import { runExperimentToolRenderer } from "@reverse/tui/tools/autoresearch";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import * as vcs from "@rva/natives/vcs";
+import { type } from "@reverse/omptype";
+import * as vcs from "@reverse/natives/vcs";
 
-import { formatBytes, procmgr } from "@rva/utils";
+import { formatBytes, procmgr } from "@reverse/utils";
 import { Settings } from "../../config/settings";
 import { executeBash } from "../../exec/bash-executor";
 import type { ToolDefinition } from "../../extensibility/extensions";
@@ -15,7 +15,7 @@ import {
 	TailBuffer,
 	type TruncationResult,
 	truncateTail,
-} from "@rva/tui/tools/streaming-output";
+} from "@reverse/tui/tools/streaming-output";
 
 import { parseWorkDirDirtyPaths } from "../git";
 import {
@@ -25,14 +25,14 @@ import {
 	tryGitPrefix,
 	tryGitStatus,
 } from "../helpers";
-import { formatNum } from "@rva/tui/tools/autoresearch";
-import { formatElapsed } from "@rva/tui/apps/autoresearch-data";
+import { formatNum } from "@reverse/tui/tools/autoresearch";
+import { formatElapsed } from "@reverse/tui/apps/autoresearch-data";
 import { buildExperimentState } from "../state";
 import { quotePosixArgument } from "../../utils/shell-quote";
 import { openAutoresearchStorageIfExists } from "../storage";
 import type { AutoresearchToolFactoryOptions } from "../types";
-import type { ASIData, RunDetails, RunExperimentProgressDetails } from "@rva/tui/tools/autoresearch";
-import { DEFAULT_HARNESS_COMMAND, HARNESS_FILENAME } from "@rva/tui/tools/autoresearch";
+import type { ASIData, RunDetails, RunExperimentProgressDetails } from "@reverse/tui/tools/autoresearch";
+import { DEFAULT_HARNESS_COMMAND, HARNESS_FILENAME } from "@reverse/tui/tools/autoresearch";
 
 const runExperimentSchema = type({
 	"timeout_seconds?": type("number").describe("timeout in seconds (default 600)"),

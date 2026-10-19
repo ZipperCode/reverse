@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { EditTool, getEditStore } from "@rva/coding-agent/edit";
-import { type EditToolDetails } from "@rva/tui/tools/edit";
-import type { EditMode } from "@rva/tui/tools/edit";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { removeWithRetries } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool, getEditStore } from "@reverse/coding-agent/edit";
+import { type EditToolDetails } from "@reverse/tui/tools/edit";
+import type { EditMode } from "@reverse/tui/tools/edit";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { removeWithRetries } from "@reverse/utils";
 
 function makeSession(cwd: string, settings: Record<string, unknown> = {}): ToolSession {
 	return {

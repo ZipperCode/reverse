@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { cfgRetryFallbackChains } from "@rva/coding-agent/session/settings";
-import { handleTwitter } from "@rva/coding-agent/web/scrapers/twitter";
-import { parseXUrl, type XTarget } from "@rva/coding-agent/web/x";
+import type { AuthStorage } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { cfgRetryFallbackChains } from "@reverse/coding-agent/session/settings";
+import { handleTwitter } from "@reverse/coding-agent/web/scrapers/twitter";
+import { parseXUrl, type XTarget } from "@reverse/coding-agent/web/x";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { asGlobalFetch } from "../helpers/fetch-mock";
 

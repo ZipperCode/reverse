@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { renderDemotedThinking } from "@rva/ai/dialect";
-import { convertMessages } from "@rva/ai/providers/openai-completions";
-import type { AssistantMessage, Model, ModelSpec, ThinkingContent, ToolCall } from "@rva/ai/types";
-import { removeDsmlToolMarkupLeak } from "@rva/ai/utils/dsml-leak";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModel } from "@rva/catalog/models";
+import { renderDemotedThinking } from "@reverse/ai/dialect";
+import { convertMessages } from "@reverse/ai/providers/openai-completions";
+import type { AssistantMessage, Model, ModelSpec, ThinkingContent, ToolCall } from "@reverse/ai/types";
+import { removeDsmlToolMarkupLeak } from "@reverse/ai/utils/dsml-leak";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModel } from "@reverse/catalog/models";
 
 interface OpenAICompletionAssistantWireMessage {
 	role: "assistant";

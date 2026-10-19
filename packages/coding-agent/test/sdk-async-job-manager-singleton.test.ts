@@ -2,14 +2,14 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession, type ExtensionFactory } from "@rva/coding-agent/sdk";
-import type { AsyncJobSnapshot } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession, type ExtensionFactory } from "@reverse/coding-agent/sdk";
+import type { AsyncJobSnapshot } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 describe("AsyncJobManager ownership across concurrent top-level sessions", () => {
 	const tempDirs: string[] = [];

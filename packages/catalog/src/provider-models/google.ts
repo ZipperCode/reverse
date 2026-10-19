@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { isExcludedModel } from "../compat/behavior";
 import { reviewedCollapseTable } from "../compat/collapse";
 import { classifyModel } from "../compat/taxonomy";
@@ -29,7 +29,7 @@ export interface GoogleAntigravityAccount {
 	accessToken: string;
 	/**
 	 * Credential identity recorded in {@link ModelSpec.accountAccess} for every
-	 * model this account serves (see `oauthAccountKey` in `@rva/ai`).
+	 * model this account serves (see `oauthAccountKey` in `@reverse/ai`).
 	 * When any account lacks one, no model records per-account access.
 	 */
 	accountKey?: string;

@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { inflateSync } from "node:zlib";
-import { $which, isEnoent, logger } from "@rva/utils";
+import { $which, isEnoent, logger } from "@reverse/utils";
 
 /** Default cap on a single `direnv` invocation. The first export for a devenv
  *  `.envrc` can build a shell; callers may raise this via `bash.direnvLoadTimeoutMs`. */

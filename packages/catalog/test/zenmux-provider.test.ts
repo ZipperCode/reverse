@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { zenmuxModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@rva/catalog/types";
+import { zenmuxModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@reverse/catalog/types";
 
 const originalZenMuxApiKey = Bun.env.ZENMUX_API_KEY;
 

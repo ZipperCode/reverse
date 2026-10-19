@@ -1,4 +1,4 @@
-import { HeaderGenerator } from "@rva/utils/headers";
+import { HeaderGenerator } from "@reverse/utils/headers";
 
 const generator = new HeaderGenerator({
 	browserListQuery: "last 3 versions",

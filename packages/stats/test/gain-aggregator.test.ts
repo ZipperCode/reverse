@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { initDb, insertMessageStats } from "@rva/stats/db";
-import { dedupeProjects, getGainDashboardStats, normalizeProjectPath } from "@rva/stats/gain-aggregator";
-import type { MessageStats } from "@rva/stats/types";
-import { getStatsDbPath } from "@rva/utils";
+import { initDb, insertMessageStats } from "@reverse/stats/db";
+import { dedupeProjects, getGainDashboardStats, normalizeProjectPath } from "@reverse/stats/gain-aggregator";
+import type { MessageStats } from "@reverse/stats/types";
+import { getStatsDbPath } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-gain-");

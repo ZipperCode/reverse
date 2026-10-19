@@ -10,8 +10,8 @@
  * in the session), deterministic per `(date, cwd)`, so the bytes are stable
  * for the lifetime of a session/day and refresh automatically at midnight.
  */
-import type { Context, Message, UserMessage } from "@rva/ai";
-import { prompt } from "@rva/utils";
+import type { Context, Message, UserMessage } from "@reverse/ai";
+import { prompt } from "@reverse/utils";
 import dateCwdReminderTemplate from "../prompts/system/date-cwd-reminder.md" with { type: "text" };
 
 /** Renders the reminder text for the given local calendar date and cwd. */

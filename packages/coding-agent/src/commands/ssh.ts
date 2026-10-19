@@ -2,10 +2,10 @@
  * Manage SSH host configurations.
  */
 
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { sshHelp as commandHelp } from "../cli/command-help";
 import { runSSHCommand, type SSHAction, type SSHCommandArgs } from "../cli/ssh-cli";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 const ACTIONS: SSHAction[] = ["add", "remove", "list"];
 

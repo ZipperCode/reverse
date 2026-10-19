@@ -9,7 +9,7 @@
  * {@link SKILL_TOOL_CATALOG}; an unknown id is probed but never yields a hint.
  */
 import * as path from "node:path";
-import { isRecord, $which, type WhichOptions, WhichCachePolicy } from "@rva/utils";
+import { isRecord, $which, type WhichOptions, WhichCachePolicy } from "@reverse/utils";
 import type { SkillFrontmatter } from "../capability/skill";
 import { expandEnvVarsDeep } from "../discovery/helpers";
 import { expandTilde } from "../tools/path-utils";

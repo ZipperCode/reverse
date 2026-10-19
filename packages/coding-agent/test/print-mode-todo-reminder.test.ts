@@ -1,15 +1,15 @@
 import { afterEach, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { runPrintMode } from "@rva/coding-agent/modes/print-mode";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { USER_TODO_EDIT_CUSTOM_TYPE } from "@rva/coding-agent/tools/todo";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { runPrintMode } from "@reverse/coding-agent/modes/print-mode";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { USER_TODO_EDIT_CUSTOM_TYPE } from "@reverse/coding-agent/tools/todo";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 afterEach(() => vi.restoreAllMocks());
 

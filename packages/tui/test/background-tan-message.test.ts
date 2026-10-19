@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { createBackgroundTanDispatchBlock } from "@rva/tui/chat/background-tan-message";
-import { initTheme } from "@rva/tui/theme";
-import { BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE, type CustomMessage } from "@rva/tui/chat/messages";
+import { createBackgroundTanDispatchBlock } from "@reverse/tui/chat/background-tan-message";
+import { initTheme } from "@reverse/tui/theme";
+import { BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE, type CustomMessage } from "@reverse/tui/chat/messages";
 
 function dispatchMessage(details: { jobId: string; work: string; sessionFile: string }): CustomMessage<unknown> {
 	return {

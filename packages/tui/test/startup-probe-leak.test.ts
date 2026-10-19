@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { type Component, CURSOR_MARKER } from "@rva/tui";
+import { type Component, CURSOR_MARKER } from "@reverse/tui";
 import {
 	createProcessTerminalRenderHarness,
 	type ProcessTerminalRenderHarness,

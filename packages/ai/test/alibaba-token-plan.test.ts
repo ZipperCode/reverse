@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { resolveOpenAIRequestSetup } from "@rva/ai/providers/openai-shared";
-import { getOAuthProviders } from "@rva/ai/registry/oauth";
-import type { OAuthController } from "@rva/ai/oauth/types";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { getBundledModel } from "@rva/catalog/models";
+import { resolveOpenAIRequestSetup } from "@reverse/ai/providers/openai-shared";
+import { getOAuthProviders } from "@reverse/ai/registry/oauth";
+import type { OAuthController } from "@reverse/ai/oauth/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { getBundledModel } from "@reverse/catalog/models";
 
 function registeredLogin(options: OAuthController) {
 	const login = getProviderDefinition("alibaba-token-plan")?.login;

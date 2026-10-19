@@ -1,10 +1,10 @@
 /**
- * ArkType compatibility facade — `@rva/omptype/ark`.
+ * ArkType compatibility facade — `@reverse/omptype/ark`.
  *
  * Lets code written against arktype keep its imports and names while running
  * on the omptype lazy-JIT runtime: swap `from "arktype"` for
- * `from "@rva/omptype/ark"` and nothing else changes. New code should
- * import `@rva/omptype` directly.
+ * `from "@reverse/omptype/ark"` and nothing else changes. New code should
+ * import `@reverse/omptype` directly.
  *
  * Compatibility affordance: `ArkError` / `ArkErrors` alias `OmpError` /
  * `OmpErrors`. All schema builders, including recursive `scope()`, are

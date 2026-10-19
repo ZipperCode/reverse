@@ -1,17 +1,17 @@
 import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	type ModelHubCallbacks,
 	ModelHubComponent,
 	resetProviderAutoRefreshGuard,
-} from "@rva/tui/overlays/model-hub";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { TUI } from "@rva/tui";
+} from "@reverse/tui/overlays/model-hub";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { TUI } from "@reverse/tui";
 
 // Issue #2761: implicit local providers (ollama, llama.cpp, lm-studio) used to
 // get a sidebar tab even when nothing was listening on their endpoint. The hub

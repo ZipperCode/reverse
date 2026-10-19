@@ -1,14 +1,14 @@
 import { afterEach, expect, it, spyOn } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { createMockModel, type MockResponseSource } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { convertToLlm, type CustomMessage } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { createMockModel, type MockResponseSource } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { convertToLlm, type CustomMessage } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { ONE_PIXEL_PNG as PNG, VISION_DESCRIPTION_SSE } from "./helpers/skill-image-vision";
 

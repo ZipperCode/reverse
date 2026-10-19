@@ -1,4 +1,4 @@
-import type { Api, Model, ToolChoice } from "@rva/ai";
+import type { Api, Model, ToolChoice } from "@reverse/ai";
 
 /**
  * Build a provider-aware tool choice that targets one specific tool when supported.

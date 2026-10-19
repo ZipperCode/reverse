@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { getKeybindings, setKeybindings, type TUI } from "@rva/tui";
-import type { NativeChild, NativeNode } from "@rva/tui/native/node";
-import { AnnotationOverlay } from "@rva/tui/overlays/annotation-overlay";
-import type { CodeReviewOverlayResult, ReviewDiffFile } from "@rva/tui/overlays/annotation-types";
-import { PlanReviewOverlay } from "@rva/tui/overlays/plan-review-overlay";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { getKeybindings, setKeybindings, type TUI } from "@reverse/tui";
+import type { NativeChild, NativeNode } from "@reverse/tui/native/node";
+import { AnnotationOverlay } from "@reverse/tui/overlays/annotation-overlay";
+import type { CodeReviewOverlayResult, ReviewDiffFile } from "@reverse/tui/overlays/annotation-types";
+import { PlanReviewOverlay } from "@reverse/tui/overlays/plan-review-overlay";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
 
 const ENTER = "\r";
 

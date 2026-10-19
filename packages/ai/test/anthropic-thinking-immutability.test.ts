@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@rva/ai/providers/anthropic";
-import type { AssistantMessage, Model, UserMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { removeDsmlToolMarkupLeak } from "@rva/ai/utils/dsml-leak";
+import { convertAnthropicMessages } from "@reverse/ai/providers/anthropic";
+import type { AssistantMessage, Model, UserMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { removeDsmlToolMarkupLeak } from "@reverse/ai/utils/dsml-leak";
 
 const model: Model<"anthropic-messages"> = buildModel({
 	api: "anthropic-messages",

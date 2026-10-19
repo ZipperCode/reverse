@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import type { Message, Model } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionMaintenance } from "@rva/coding-agent/session/session-maintenance";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import type { Message, Model } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionMaintenance } from "@reverse/coding-agent/session/session-maintenance";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 function createPrefixBindingModel(): Model<"anthropic-messages"> {
 	return buildModel({

@@ -1,10 +1,10 @@
 import { spyOn } from "bun:test";
 import * as path from "node:path";
-import * as buildModule from "@rva/catalog/build";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { TempDir } from "@rva/utils";
+import * as buildModule from "@reverse/catalog/build";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { TempDir } from "@reverse/utils";
 
 const tempDir = TempDir.createSync("@model-registry-lazy-probe-");
 const authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));

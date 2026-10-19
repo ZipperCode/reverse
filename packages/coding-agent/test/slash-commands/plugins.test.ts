@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, test, spyOn, vi } from "bun:te
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { EffectiveExtensionRoots } from "@rva/coding-agent/capability/types";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { loadSkills } from "@rva/coding-agent/extensibility/skills";
-import { writeInstalledPluginsRegistry } from "@rva/coding-agent/extensibility/plugins/marketplace";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import * as piUtils from "@rva/utils";
-import { removeWithRetries } from "@rva/utils";
+import type { EffectiveExtensionRoots } from "@reverse/coding-agent/capability/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { loadSkills } from "@reverse/coding-agent/extensibility/skills";
+import { writeInstalledPluginsRegistry } from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import * as piUtils from "@reverse/utils";
+import { removeWithRetries } from "@reverse/utils";
 
 const ROOTS: EffectiveExtensionRoots = { explicit: [], mode: "merge", configured: [], configuredLevel: "user" };
 

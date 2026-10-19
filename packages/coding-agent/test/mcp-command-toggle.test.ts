@@ -2,10 +2,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SourceMeta } from "@rva/coding-agent/capability/types";
-import type { MCPServerConfig } from "@rva/coding-agent/mcp/types";
-import { MCPCommandController } from "@rva/coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@rva/tui/theme";
+import type { SourceMeta } from "@reverse/coding-agent/capability/types";
+import type { MCPServerConfig } from "@reverse/coding-agent/mcp/types";
+import { MCPCommandController } from "@reverse/coding-agent/modes/controllers/mcp-command-controller";
+import { initTheme } from "@reverse/tui/theme";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -13,7 +13,7 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { createInteractiveModeContext, createMcpManagerStub } from "./helpers/interactive-mode-context";
 
 const originalProjectDir = getProjectDir();

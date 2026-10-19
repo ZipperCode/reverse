@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { streamBedrock } from "@rva/ai/providers/amazon-bedrock";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 // Amazon Nova streams reasoningContent natively (with no signature — Nova never
 // sends one), but rejects that same unsigned reasoningContent when it is echoed

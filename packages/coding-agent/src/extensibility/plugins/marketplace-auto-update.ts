@@ -1,4 +1,4 @@
-import { getProjectDir, logger } from "@rva/utils";
+import { getProjectDir, logger } from "@reverse/utils";
 
 type MarketplaceAutoUpdateMode = "off" | "notify" | "auto";
 

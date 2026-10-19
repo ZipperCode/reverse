@@ -4,7 +4,7 @@
  * theme's own canvas, and filled pill buttons pick their label contrast from
  * the button color's luminance.
  */
-import { colorLuma, hexToRgb, rgbToHex } from "@rva/utils/color";
+import { colorLuma, hexToRgb, rgbToHex } from "@reverse/utils/color";
 import { colorToAnsi } from "../../theme/color";
 import { theme } from "../../theme/theme";
 

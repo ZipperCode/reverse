@@ -2,23 +2,23 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn, vi } from 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@rva/ai";
-import { closeModelCache } from "@rva/catalog/model-cache";
-import { getBundledModel } from "@rva/catalog/models";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { LocalProtocolHandler } from "@rva/coding-agent/internal-urls/local-protocol";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import * as secrets from "@rva/coding-agent/secrets";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { VibeSessionRegistry } from "@rva/coding-agent/vibe/runtime";
-import { getSessionsDir, removeSyncWithRetries, Snowflake } from "@rva/utils";
-import { CONFIG_DIR_NAME, getActiveProfile, getConfigRootDir, setProfile } from "@rva/utils/dirs";
+import type { AssistantMessage } from "@reverse/ai";
+import { closeModelCache } from "@reverse/catalog/model-cache";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { LocalProtocolHandler } from "@reverse/coding-agent/internal-urls/local-protocol";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import * as secrets from "@reverse/coding-agent/secrets";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { VibeSessionRegistry } from "@reverse/coding-agent/vibe/runtime";
+import { getSessionsDir, removeSyncWithRetries, Snowflake } from "@reverse/utils";
+import { CONFIG_DIR_NAME, getActiveProfile, getConfigRootDir, setProfile } from "@reverse/utils/dirs";
 
 function createTtsrRule(name: string): Rule {
 	return {
@@ -447,7 +447,10 @@ describe("createAgentSession session storage isolation", () => {
 			}
 
 			fs.mkdirSync(path.join(cwd, CONFIG_DIR_NAME), { recursive: true });
-			fs.writeFileSync(path.join(cwd, CONFIG_DIR_NAME, "secrets.yml"), `- type: plain\n  content: ${configuredSecret}\n`);
+			fs.writeFileSync(
+				path.join(cwd, CONFIG_DIR_NAME, "secrets.yml"),
+				`- type: plain\n  content: ${configuredSecret}\n`,
+			);
 
 			const withSecrets = await createAgentSession(commonOptions);
 			try {

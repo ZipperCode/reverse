@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { Skill } from "@rva/coding-agent/extensibility/skills";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { BashTool } from "@rva/coding-agent/tools/bash";
-import { Shell } from "@rva/natives";
-import { getThemeByName } from "@rva/tui/theme";
-import { bashToolRenderer } from "@rva/tui/tools/bash";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { Skill } from "@reverse/coding-agent/extensibility/skills";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
+import { Shell } from "@reverse/natives";
+import { getThemeByName } from "@reverse/tui/theme";
+import { bashToolRenderer } from "@reverse/tui/tools/bash";
 
 afterEach(() => {
 	mock.restore();

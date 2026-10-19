@@ -1,14 +1,14 @@
 import { afterEach, expect, it, vi } from "bun:test";
-import { AuthStorage } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/loader";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { runSubprocess } from "@rva/coding-agent/task/executor";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
+import { AuthStorage } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/loader";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { runSubprocess } from "@reverse/coding-agent/task/executor";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 const authStorages: AuthStorage[] = [];

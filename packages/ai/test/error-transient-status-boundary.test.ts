@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import * as AIError from "@rva/ai/error";
+import * as AIError from "@reverse/ai/error";
 
 /**
  * The transient classifier matches bare HTTP status codes in error text. Those

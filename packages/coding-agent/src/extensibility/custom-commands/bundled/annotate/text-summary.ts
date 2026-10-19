@@ -1,5 +1,5 @@
-import { completeSimple } from "@rva/ai";
-import { prompt } from "@rva/utils";
+import { completeSimple } from "@reverse/ai";
+import { prompt } from "@reverse/utils";
 import type { CustomCommandContext } from "../../../../extensibility/custom-commands/types";
 import summaryPrompt from "./prompts/text-summary.md" with { type: "text" };
 import { normalizeTextReviewContextSummary } from "./text-review";

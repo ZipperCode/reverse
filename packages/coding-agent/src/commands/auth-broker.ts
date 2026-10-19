@@ -2,7 +2,7 @@
  * `omp auth-broker` — manage the omp credential vault.
  */
 
-import { Args, Command, Flags, renderCommandHelp } from "@rva/utils/cli";
+import { Args, Command, Flags, renderCommandHelp } from "@reverse/utils/cli";
 import {
 	AUTH_BROKER_ACTIONS,
 	type AuthBrokerAction,
@@ -10,7 +10,7 @@ import {
 	runAuthBrokerCommand,
 } from "../cli/auth-broker-cli";
 import { authBrokerHelp as commandHelp } from "../cli/command-help";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 export default class AuthBroker extends Command {
 	static description = commandHelp.description;

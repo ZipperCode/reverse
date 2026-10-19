@@ -1,8 +1,8 @@
-import { Tokenizer } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { estimateToolSchemaTokens } from "@rva/tui/status-line/context-usage";
-import { buildSystemPrompt } from "@rva/coding-agent/system-prompt";
-import { createTools, type Tool, type ToolSession } from "@rva/coding-agent/tools";
+import { Tokenizer } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { estimateToolSchemaTokens } from "@reverse/tui/status-line/context-usage";
+import { buildSystemPrompt } from "@reverse/coding-agent/system-prompt";
+import { createTools, type Tool, type ToolSession } from "@reverse/coding-agent/tools";
 
 function bytes(s: string): number {
 	return Buffer.byteLength(s, "utf-8");

@@ -1,15 +1,15 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
-import type { ServiceTier, Usage } from "@rva/ai";
+import type { ServiceTier, Usage } from "@reverse/ai";
 import {
 	calculateUncachedInputCost,
 	calculateUsageCost,
 	type GeneratedProvider,
 	getBundledModel,
 	hasRecurringTariff,
-} from "@rva/catalog/models";
-import type { ModelCost } from "@rva/catalog/types";
-import { getConfigRootDir, getStatsDbPath, VERSION } from "@rva/utils";
+} from "@reverse/catalog/models";
+import type { ModelCost } from "@reverse/catalog/types";
+import { getConfigRootDir, getStatsDbPath, VERSION } from "@reverse/utils";
 import { classifyAgentType, type ParseSessionResult, type SessionParserState } from "./parser";
 import { ensureRollupSchema, getDailyActivityFromRollup } from "./rollup";
 import type {
@@ -860,7 +860,7 @@ export function completeSessionSync(reconcile: boolean): void {
  * Insert message stats into the database.
  *
  * Forked / branched sessions (see `SessionManager.fork()` and
- * `createBranchedSession()` in `@rva/coding-agent`) deep-copy a parent
+ * `createBranchedSession()` in `@reverse/coding-agent`) deep-copy a parent
  * session's entries into a new JSONL — same `entry_id`, `timestamp`, `model`,
  * `provider`, token counts, and `responseId`. The `UNIQUE(session_file,
  * entry_id)` constraint alone keys each row by file, so without the guard

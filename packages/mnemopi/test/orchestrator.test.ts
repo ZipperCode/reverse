@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type BeamMemoryState, initBeam, type RecallResult } from "@rva/mnemopi/core/beam";
-import { orchestrateRecall } from "@rva/mnemopi/core/orchestrator";
-import { PolyphonicRecallEngine } from "@rva/mnemopi/core/polyphonic-recall";
-import { closeQuietly, openDatabase } from "@rva/mnemopi/db";
+import { type BeamMemoryState, initBeam, type RecallResult } from "@reverse/mnemopi/core/beam";
+import { orchestrateRecall } from "@reverse/mnemopi/core/orchestrator";
+import { PolyphonicRecallEngine } from "@reverse/mnemopi/core/polyphonic-recall";
+import { closeQuietly, openDatabase } from "@reverse/mnemopi/db";
 
 interface FakeBeam extends BeamMemoryState {
 	linearCalls: number;

@@ -6,9 +6,9 @@
  * checkout records the commit, branch, and a hash of its uncommitted diff, because its
  * version string stays the same across every unreleased commit and local edit.
  */
-import type { VcsGitRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { $env, isCompiledBinary, isRecord, logger, VERSION } from "@rva/utils";
+import type { VcsGitRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { $env, isCompiledBinary, isRecord, logger, VERSION } from "@reverse/utils";
 import type { SessionEntry } from "./session-entries";
 
 export interface RuntimeIdentity {

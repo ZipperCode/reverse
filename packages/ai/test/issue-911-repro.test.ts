@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 function createSseResponse(events: unknown[]): Response {
 	const payload = `${events

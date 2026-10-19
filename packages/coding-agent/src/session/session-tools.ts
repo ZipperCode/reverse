@@ -1,8 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { Agent, AgentMessage, AgentTool, AgentToolContext } from "@rva/agent";
-import type { Model } from "@rva/ai";
-import { resolveDelegationBias } from "@rva/catalog/compat/delegation";
-import { isRecord, logger, prompt, stringProperty, structuredCloneJSON, untilAborted } from "@rva/utils";
+import type { Agent, AgentMessage, AgentTool, AgentToolContext } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
+import { resolveDelegationBias } from "@reverse/catalog/compat/delegation";
+import { isRecord, logger, prompt, stringProperty, structuredCloneJSON, untilAborted } from "@reverse/utils";
 import { reset as resetCapabilities } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldInlineToolDescriptors } from "../config/inline-tool-descriptors-mode";
@@ -16,11 +16,11 @@ import { type EvalPreludeDefinition, evalPreludeSummary } from "../eval/preludes
 import { ExtensionToolWrapper } from "../extensibility/extensions/wrapper";
 import { loadSkills, type Skill, type SkillWarning, setActiveSkills } from "../extensibility/skills";
 import { type LocalProtocolOptions } from "../internal-urls";
-import { stripXdUrlPrefix, XD_URL_PREFIX } from "@rva/tui/tools/xd-url";
+import { stripXdUrlPrefix, XD_URL_PREFIX } from "@reverse/tui/tools/xd-url";
 import { deduplicateMCPToolsByName, resolveMCPToolAlias } from "../mcp/tool-bridge";
 import { resolveMemoryBackend } from "../memory-backend/resolve";
 import { MEMORY_BACKEND_TOOL_NAMES } from "../memory-backend/tool-names";
-import { invalidateToolSchemaMetadata } from "@rva/tui/status-line/context-usage";
+import { invalidateToolSchemaMetadata } from "@reverse/tui/status-line/context-usage";
 import type { MemoryBackendStartOptions, MemoryPromptPreparation } from "../memory-backend/types";
 import type { AgentDefinition } from "../task/types";
 import evalPreludeNoticePrompt from "../prompts/system/eval-prelude-notice.md" with { type: "text" };
@@ -33,9 +33,9 @@ import { wrapToolWithMetaNotice } from "../tools/output-meta";
 import { isFilesystemSourcePath } from "../tools/path-utils";
 import { supportsExternalThinking } from "../tools/think";
 import { ToolAbortError } from "../tools/tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { isMountableUnderXdev, listXdevTools, type XdevState, xdevDocsFor, xdevEntries } from "../tools/xdev";
-import { type EditMode } from "@rva/tui/tools/edit";
+import { type EditMode } from "@reverse/tui/tools/edit";
 import { resolveEditMode } from "../utils/edit-mode";
 import {
 	extractPermissionLocations,

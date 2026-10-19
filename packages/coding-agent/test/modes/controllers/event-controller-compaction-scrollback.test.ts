@@ -10,12 +10,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session-events";
-import { CommandController } from "@rva/coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { initTheme } from "@rva/tui/theme";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session-events";
+import { CommandController } from "@reverse/coding-agent/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { initTheme } from "@reverse/tui/theme";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 function compactionResultEvent(): AgentSessionEvent {

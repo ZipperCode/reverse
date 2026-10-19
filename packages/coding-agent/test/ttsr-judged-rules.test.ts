@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { Agent, AgentEvent } from "@rva/agent";
-import type { AssistantMessage, Judge, JudgmentRequest, NoulAnswer } from "@rva/ai";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import type { Settings } from "@rva/coding-agent/config/settings";
-import { JUDGED_CONTENT_MAX_TOKENS, TtsrManager } from "@rva/coding-agent/export/ttsr";
-import type { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TtsrCoordinator, type TtsrCoordinatorHost } from "@rva/coding-agent/session/ttsr-coordinator";
-import { countTokens, Encoding } from "@rva/natives";
+import type { Agent, AgentEvent } from "@reverse/agent";
+import type { AssistantMessage, Judge, JudgmentRequest, NoulAnswer } from "@reverse/ai";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import type { Settings } from "@reverse/coding-agent/config/settings";
+import { JUDGED_CONTENT_MAX_TOKENS, TtsrManager } from "@reverse/coding-agent/export/ttsr";
+import type { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TtsrCoordinator, type TtsrCoordinatorHost } from "@reverse/coding-agent/session/ttsr-coordinator";
+import { countTokens, Encoding } from "@reverse/natives";
 
 function judgedRule(name: string, fields: Partial<Rule>): Rule {
 	return {

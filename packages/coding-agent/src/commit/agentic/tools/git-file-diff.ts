@@ -1,5 +1,5 @@
-import { type } from "@rva/omptype";
-import * as vcs from "@rva/natives/vcs";
+import { type } from "@reverse/omptype";
+import * as vcs from "@reverse/natives/vcs";
 import type { CommitAgentState } from "../../../commit/agentic/state";
 import type { CustomTool } from "../../../extensibility/custom-tools/types";
 

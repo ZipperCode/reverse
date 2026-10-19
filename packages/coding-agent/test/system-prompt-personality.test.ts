@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Personality } from "@rva/coding-agent/session/settings";
-import { buildSystemPrompt } from "@rva/coding-agent/system-prompt";
-import { getAgentDir, removeSyncWithRetries, setAgentDir } from "@rva/utils";
+import type { Personality } from "@reverse/coding-agent/session/settings";
+import { buildSystemPrompt } from "@reverse/coding-agent/system-prompt";
+import { getAgentDir, removeSyncWithRetries, setAgentDir } from "@reverse/utils";
 
 const EMPTY_TREE = {
 	rootPath: "",

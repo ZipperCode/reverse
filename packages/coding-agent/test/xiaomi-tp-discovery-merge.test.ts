@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { invalidateCommandConfig } from "@rva/coding-agent/config/resolve-config-value";
-import { mergeDiscoveredModel } from "@rva/coding-agent/config/model-registry";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { invalidateCommandConfig } from "@reverse/coding-agent/config/resolve-config-value";
+import { mergeDiscoveredModel } from "@reverse/coding-agent/config/model-registry";
 
 /**
  * Regression for v15.2.4 tp- key bug: when Xiaomi `tp-` token-plan keys hit

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildResponsesInput } from "@rva/ai/providers/openai-shared";
-import type { Context, ImageContent, ModelSpec, TextContent } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
+import type { Context, ImageContent, ModelSpec, TextContent } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const model = buildModel({
 	id: "test-vision",

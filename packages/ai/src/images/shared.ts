@@ -1,5 +1,5 @@
-import type { FetchImpl, Model, Usage } from "@rva/catalog/types";
-import { base64ImageDataFailureReason, isRecord, parseImageMetadata, USER_AGENT } from "@rva/utils";
+import type { FetchImpl, Model, Usage } from "@reverse/catalog/types";
+import { base64ImageDataFailureReason, isRecord, parseImageMetadata, USER_AGENT } from "@reverse/utils";
 import type { ApiKey } from "../auth-retry";
 import { withAuth } from "../auth-retry";
 import * as AIError from "../error";

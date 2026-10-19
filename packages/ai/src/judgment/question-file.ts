@@ -19,7 +19,7 @@
  * renderQuestion(QUESTIONS.order, { column: "latency" });
  * ```
  */
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 import type { ChoiceQuestion, NoulQuestion, Question, Questions, ScoreQuestion } from "./types";
 
 /** One question as a JSON question file writes it; {@link QuestionFor} gives its kind. */

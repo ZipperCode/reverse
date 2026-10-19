@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { resolvePromptCacheKey } from "@rva/ai/auth-gateway/http";
+import { resolvePromptCacheKey } from "@reverse/ai/auth-gateway/http";
 
 describe("resolvePromptCacheKey", () => {
 	it("prefers body.prompt_cache_key over everything else", () => {

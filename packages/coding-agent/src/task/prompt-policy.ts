@@ -1,4 +1,4 @@
-import { type DelegationBias, resolveDelegationBias } from "@rva/catalog/compat/delegation";
+import { type DelegationBias, resolveDelegationBias } from "@reverse/catalog/compat/delegation";
 import type { ToolSession } from "..";
 
 /**

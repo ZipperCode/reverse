@@ -1,21 +1,21 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import type { Model } from "@rva/ai";
-import { Agent } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { CustomMessage } from "@rva/coding-agent/session/messages";
-import { expandModelMentionTags } from "@rva/tui/prompt/model-mention-syntax";
+import type { Model } from "@reverse/ai";
+import { Agent } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { CustomMessage } from "@reverse/coding-agent/session/messages";
+import { expandModelMentionTags } from "@reverse/tui/prompt/model-mention-syntax";
 import {
 	MODEL_MENTION_ENTRY_TYPE,
 	ModelMentionRegistry,
 	readModelMentions,
-} from "@rva/coding-agent/session/model-mentions";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { getBundledAgent } from "@rva/coding-agent/task/agents";
+} from "@reverse/coding-agent/session/model-mentions";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getBundledAgent } from "@reverse/coding-agent/task/agents";
 
 function model(provider: string, id: string, name: string): Model {
 	return buildModel({

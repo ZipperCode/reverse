@@ -1,8 +1,8 @@
 import { Database, type Statement } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type AgentTelemetry, instrumentedCompleteSimple } from "@rva/agent";
-import type { Api, Model } from "@rva/ai";
+import { type AgentTelemetry, instrumentedCompleteSimple } from "@reverse/agent";
+import type { Api, Model } from "@reverse/ai";
 import {
 	getAgentDir,
 	getSkillDescriptionsDbPath,
@@ -11,7 +11,7 @@ import {
 	logger,
 	postmortem,
 	prompt,
-} from "@rva/utils";
+} from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, parseModelPattern, resolveRoleSelection } from "../config/model-resolver";
 import type { Settings } from "../config/settings";

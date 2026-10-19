@@ -2,20 +2,20 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, spyOn } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { disableUserSource, enableUserSource } from "@rva/coding-agent/capability";
-import { type Skill as CapabilitySkill, skillCapability } from "@rva/coding-agent/capability/skill";
-import { getCapability } from "@rva/coding-agent/discovery";
-import { getWslWindowsHomeCandidate, runHostProbe } from "@rva/coding-agent/discovery/agents";
+import { disableUserSource, enableUserSource } from "@reverse/coding-agent/capability";
+import { type Skill as CapabilitySkill, skillCapability } from "@reverse/coding-agent/capability/skill";
+import { getCapability } from "@reverse/coding-agent/discovery";
+import { getWslWindowsHomeCandidate, runHostProbe } from "@reverse/coding-agent/discovery/agents";
 import {
 	type LoadSkillsResult,
 	loadSkills,
 	loadSkillsFromDir,
 	parseSkillInvocation,
-} from "@rva/coding-agent/extensibility/skills";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
-import { SkillProtocolHandler } from "@rva/coding-agent/internal-urls/skill-protocol";
-import { CombinedAutocompleteProvider } from "@rva/tui/autocomplete";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/skills";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
+import { SkillProtocolHandler } from "@reverse/coding-agent/internal-urls/skill-protocol";
+import { CombinedAutocompleteProvider } from "@reverse/tui/autocomplete";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@reverse/utils";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");

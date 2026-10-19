@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { createMemoryRuntimeContext, resolveMemoryBackend } from "@rva/coding-agent/memory-backend";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { createMemoryRuntimeContext, resolveMemoryBackend } from "@reverse/coding-agent/memory-backend";
 
 describe("resolveMemoryBackend", () => {
 	beforeEach(() => {

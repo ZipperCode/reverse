@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Buffer } from "node:buffer";
-import { copyToClipboard } from "@rva/coding-agent/utils/clipboard";
-import * as natives from "@rva/natives/clipboard";
+import { copyToClipboard } from "@reverse/coding-agent/utils/clipboard";
+import * as natives from "@reverse/natives/clipboard";
 import { type ActiveTerminalHarness, startActiveTerminal } from "../helpers/active-terminal";
 
 const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");

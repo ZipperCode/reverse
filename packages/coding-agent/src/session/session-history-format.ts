@@ -6,10 +6,10 @@
  * result pairs collapsed to single lines, thinking elided, custom messages
  * as one-liners. No system prompt, no tool catalog, no config sections.
  */
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@rva/ai";
-import { countNewlines, escapeXmlText } from "@rva/utils";
-import { INTENT_FIELD } from "@rva/wire";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@reverse/ai";
+import { countNewlines, escapeXmlText } from "@reverse/utils";
+import { INTENT_FIELD } from "@reverse/wire";
 import type {
 	BashExecutionMessage,
 	BranchSummaryMessage,
@@ -19,7 +19,7 @@ import type {
 	HookMessage,
 	PythonExecutionMessage,
 } from "./messages";
-import { truncateMiddle } from "@rva/tui/tools/streaming-output";
+import { truncateMiddle } from "@reverse/tui/tools/streaming-output";
 
 export interface HistoryFormatOptions {
 	/** Optional H1 prepended to the transcript. */

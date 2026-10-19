@@ -6,10 +6,10 @@
  * the split diff pane, and the staging/commit actions the sidebar triggers.
  */
 import * as path from "node:path";
-import type { VcsGitRepo, VcsNumstatEntry } from "@rva/natives";
-import { DiffSide, DiffStream, type DiffStreamProgress, rasterizeSvg } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { BINARY_SNIFF_BYTES, isEnoent, isProbablyBinaryHeader } from "@rva/utils";
+import type { VcsGitRepo, VcsNumstatEntry } from "@reverse/natives";
+import { DiffSide, DiffStream, type DiffStreamProgress, rasterizeSvg } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { BINARY_SNIFF_BYTES, isEnoent, isProbablyBinaryHeader } from "@reverse/utils";
 import type { NumstatEntry } from "../../commit/types";
 import {
 	DIFF_CONTEXT_LINES,
@@ -21,7 +21,7 @@ import {
 	type FileContents,
 	type FileStreamUpdate,
 	type MediaRef,
-} from "@rva/tui/apps/git/state";
+} from "@reverse/tui/apps/git/state";
 
 /** SHA of git's canonical empty tree: diff base for a root commit. */
 const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";

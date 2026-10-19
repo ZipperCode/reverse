@@ -3,14 +3,14 @@ import {
 	disposeAllKernelSessions,
 	disposeKernelSessionsByOwner,
 	executePython,
-} from "@rva/coding-agent/eval/py/executor";
+} from "@reverse/coding-agent/eval/py/executor";
 import type {
 	KernelExecuteResult,
 	KernelShutdownResult,
 	PythonKernel as PythonKernelInstance,
-} from "@rva/coding-agent/eval/py/kernel";
-import * as pythonKernel from "@rva/coding-agent/eval/py/kernel";
-import { PythonKernel } from "@rva/coding-agent/eval/py/kernel";
+} from "@reverse/coding-agent/eval/py/kernel";
+import * as pythonKernel from "@reverse/coding-agent/eval/py/kernel";
+import { PythonKernel } from "@reverse/coding-agent/eval/py/kernel";
 
 const OK_RESULT: KernelExecuteResult = {
 	status: "ok",

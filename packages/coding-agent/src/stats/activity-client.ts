@@ -1,4 +1,4 @@
-import type { DailyActivityPoint } from "@rva/stats/shared-types";
+import type { DailyActivityPoint } from "@reverse/stats/shared-types";
 import {
 	createUnavailableWorker,
 	createWorkerHandle,

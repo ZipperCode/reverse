@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type BtwHistoryRecord, BtwHistoryStore, getBtwCopyText } from "@rva/coding-agent/session/btw-history";
-import { acquireFileLock, withFileLock } from "@rva/utils";
+import { type BtwHistoryRecord, BtwHistoryStore, getBtwCopyText } from "@reverse/coding-agent/session/btw-history";
+import { acquireFileLock, withFileLock } from "@reverse/utils";
 
 describe("BtwHistoryStore", () => {
 	let directory: string;

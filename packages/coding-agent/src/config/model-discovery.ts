@@ -5,16 +5,16 @@
  * `discoverModelsByProviderType` with a `DiscoveryContext`; built-in provider
  * discovery lives in pi-catalog's provider-models.
  */
-import { type ApiKey, withAuth } from "@rva/ai/auth-retry";
-import { getAppleFoundationModelsAvailability } from "@rva/ai/providers/apple-foundation-models";
-import type { Api, FetchImpl, Model, RemoteCompactionConfig } from "@rva/ai/types";
-import { buildDiscoveredModel, buildModel } from "@rva/catalog/build";
+import { type ApiKey, withAuth } from "@reverse/ai/auth-retry";
+import { getAppleFoundationModelsAvailability } from "@reverse/ai/providers/apple-foundation-models";
+import type { Api, FetchImpl, Model, RemoteCompactionConfig } from "@reverse/ai/types";
+import { buildDiscoveredModel, buildModel } from "@reverse/catalog/build";
 import {
 	getBundledModelReferenceIndex,
 	inheritReferenceThinking,
 	resolveModelReference,
 	stripBracketedModelIdAffixes,
-} from "@rva/catalog/identity";
+} from "@reverse/catalog/identity";
 import {
 	fetchLiteLLMRichModels,
 	fetchLmStudioNativeModelMetadata,
@@ -22,9 +22,9 @@ import {
 	OPENAI_COMPAT_DISCOVERY_DEFAULT_CONTEXT_WINDOW,
 	OPENAI_COMPAT_DISCOVERY_DEFAULT_MAX_TOKENS,
 	resolveLiteLLMApi,
-} from "@rva/catalog/provider-models/openai-compat";
-import type { KindApiKind, ModelSpec, OpenAICompat } from "@rva/catalog/types";
-import { isRecord } from "@rva/utils";
+} from "@reverse/catalog/provider-models/openai-compat";
+import type { KindApiKind, ModelSpec, OpenAICompat } from "@reverse/catalog/types";
+import { isRecord } from "@reverse/utils";
 import type { ProviderDiscovery } from "./models-config-schema";
 
 // Default cap on `max_tokens` for auto-discovered models that do not advertise

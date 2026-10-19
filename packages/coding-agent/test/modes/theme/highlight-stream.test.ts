@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { Markdown } from "@rva/tui";
+import { Markdown } from "@reverse/tui";
 import { Settings } from "../../../src/config/settings";
-import { getMarkdownTheme, getThemeByName, setThemeInstance } from "@rva/tui/theme";
+import { getMarkdownTheme, getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 
 beforeAll(async () => {
 	await Settings.init({ inMemory: true });

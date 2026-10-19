@@ -2,23 +2,23 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@rva/ai";
+import { AuthStorage } from "@reverse/ai";
 import type {
 	BlobBrokerDoctorResponse,
 	BlobBrokerProbeResponse,
 	BlobBrokerPurgeRequest,
 	BlobBrokerPurgeResponse,
 	BlobBrokerStatus,
-} from "@rva/coding-agent/blob-broker/protocol";
-import { ProviderFileCache } from "@rva/coding-agent/blob-broker/provider-file-types";
+} from "@reverse/coding-agent/blob-broker/protocol";
+import { ProviderFileCache } from "@reverse/coding-agent/blob-broker/provider-file-types";
 import {
 	type ImagesCliDependencies,
 	type ImagesCommandArgs,
 	type ImagesResolvedConfig,
 	runImagesCommand,
-} from "@rva/coding-agent/cli/images-cli";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { FetchImpl } from "@rva/utils";
+} from "@reverse/coding-agent/cli/images-cli";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { FetchImpl } from "@reverse/utils";
 
 interface CapturedRequest {
 	readonly method: string;

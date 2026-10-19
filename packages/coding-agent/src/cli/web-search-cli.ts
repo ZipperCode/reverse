@@ -4,11 +4,11 @@
  * Handles `omp q`/`omp web-search` subcommands for testing web search models.
  */
 
-import { APP_NAME, getProjectDir } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { APP_NAME, getProjectDir } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { Settings } from "../config/settings";
-import { initTheme, theme } from "@rva/tui/theme";
-import { renderSearchResult } from "@rva/tui/tools/web-search";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { renderSearchResult } from "@reverse/tui/tools/web-search";
 import { runSearchQuery, type SearchQueryParams } from "../web/search/index";
 
 export interface SearchCommandArgs {

@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { COMPOSER_DEFAULTS, Composer } from "@rva/tui/prompt/composer";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { initTheme } from "@rva/tui/theme";
-import { Container, type Component } from "@rva/tui";
+import { COMPOSER_DEFAULTS, Composer } from "@reverse/tui/prompt/composer";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { initTheme } from "@reverse/tui/theme";
+import { Container, type Component } from "@reverse/tui";
 import { VirtualTerminal } from "./virtual-terminal";
-import { routeViewportClick, type ViewportClickSpan } from "@rva/tui/prompt/composer";
+import { routeViewportClick, type ViewportClickSpan } from "@reverse/tui/prompt/composer";
 
 function span(start: number, end: number, ids: string[]): ViewportClickSpan {
 	return { start, end, candidates: () => ids };

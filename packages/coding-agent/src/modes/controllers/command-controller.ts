@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CompactionCancelledError, type CompactionOutcome } from "@rva/agent/compaction";
+import { CompactionCancelledError, type CompactionOutcome } from "@reverse/agent/compaction";
 import {
 	getEnvApiKey,
 	getProviderDetails,
@@ -9,20 +9,11 @@ import {
 	resolveUsedFraction,
 	type UsageLimit,
 	type UsageReport,
-} from "@rva/ai";
-import {
-	type Component,
-	Loader,
-	Markdown,
-	padding,
-	Spacer,
-	Text,
-	visibleWidth,
-	wrapTextWithAnsi,
-} from "@rva/tui";
-import { formatDuration, logger, Snowflake, sanitizeText } from "@rva/utils";
-import { getActiveProfile, getConfigDirName } from "@rva/utils/dirs";
-import { classifyTerminalMultiplexer } from "@rva/tui/terminal-multiplexer";
+} from "@reverse/ai";
+import { type Component, Loader, Markdown, padding, Spacer, Text, visibleWidth, wrapTextWithAnsi } from "@reverse/tui";
+import { formatDuration, logger, Snowflake, sanitizeText } from "@reverse/utils";
+import { getActiveProfile, getConfigDirName } from "@reverse/utils/dirs";
+import { classifyTerminalMultiplexer } from "@reverse/tui/terminal-multiplexer";
 import { shouldEnableAppendOnlyContext } from "../../config/append-only-context-mode";
 import { type BashResult, isPersistentShellCdCommand } from "../../exec/bash-executor";
 import { parseExportArgs } from "../../export/html/args";
@@ -38,24 +29,23 @@ import {
 	summarizeMentalModel,
 } from "../../hindsight";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../../memory-backend";
-import { BashExecutionComponent, bashPtyViewport } from "@rva/tui/chat/bash-execution";
-import { appKey } from "@rva/tui/chrome/keybinding-hints";
-import { BorderedLoader } from "@rva/tui/overlays/bordered-loader";
-import { EvalExecutionComponent } from "@rva/tui/chat/eval-execution";
-import { MoveOverlay, type MoveOverlayResult } from "@rva/tui/overlays/move-overlay";
+import { BashExecutionComponent, bashPtyViewport } from "@reverse/tui/chat/bash-execution";
+import { appKey } from "@reverse/tui/chrome/keybinding-hints";
+import { EvalExecutionComponent } from "@reverse/tui/chat/eval-execution";
+import { MoveOverlay, type MoveOverlayResult } from "@reverse/tui/overlays/move-overlay";
 import { moveDirectorySource } from "../move-directory-source";
-import { getMarkdownTheme, getSymbolTheme, theme, type Theme } from "@rva/tui/theme";
+import { getMarkdownTheme, getSymbolTheme, theme, type Theme } from "@reverse/tui/theme";
 import type { InteractiveModeContext } from "../../modes/types";
-import { ContextUsageView, contextUsageHead } from "@rva/tui/status-line/context-usage";
-import type { OverlayHandle } from "@rva/tui";
-import { ReportPanel } from "@rva/tui/overlays/report-panel";
-import type { TspText } from "@rva/wire";
+import { ContextUsageView, contextUsageHead } from "@reverse/tui/status-line/context-usage";
+import type { OverlayHandle } from "@reverse/tui";
+import { ReportPanel } from "@reverse/tui/overlays/report-panel";
+import type { TspText } from "@reverse/wire";
 import { computeSessionContextBreakdown } from "../../session/context-usage-runtime";
-import { buildHotkeysMarkdown, HotkeysSheetComponent } from "@rva/tui/hotkeys-markdown";
-import { isNativeRendering } from "@rva/tui/native/state";
-import { buildToolsMarkdown } from "@rva/tui/prompt/tools-markdown";
+import { buildHotkeysMarkdown, HotkeysSheetComponent } from "@reverse/tui/hotkeys-markdown";
+import { isNativeRendering } from "@reverse/tui/native/state";
+import { buildToolsMarkdown } from "@reverse/tui/prompt/tools-markdown";
 import type { AsyncJobSnapshotItem } from "../../session/agent-session";
-import { buildJobTree, jobTreeGuide, jobTreeIndent } from "@rva/tui/overlays/job-tree";
+import { buildJobTree, jobTreeGuide, jobTreeIndent } from "@reverse/tui/overlays/job-tree";
 import type { AuthStorage, OAuthAccountIdentity } from "../../session/auth-storage";
 import type { CompactMode } from "../../session/compact-modes";
 import {
@@ -79,13 +69,13 @@ import {
 	formatCodexUsageReportLabel,
 	limitMatchesActiveAccount,
 } from "../../slash-commands/helpers/active-oauth-account";
-import { formatProviderName } from "@rva/tui/chrome/format";
-import { formatCompactQuota } from "@rva/tui/overlays/advisor-config";
+import { formatProviderName } from "@reverse/tui/chrome/format";
+import { formatCompactQuota } from "@reverse/tui/overlays/advisor-config";
 import { resolveTernPane } from "../../tools/browser/tern/kind";
 import { TernError, type TernErrorKind, TernSocketClient } from "../../tools/browser/tern/wire";
 import { outputMeta } from "../../tools/output-meta";
 import { resolveToCwd, stripOuterDoubleQuotes } from "../../tools/path-utils";
-import { replaceTabs, truncateToWidth } from "@rva/tui/render/render-utils";
+import { replaceTabs, truncateToWidth } from "@reverse/tui/render/render-utils";
 import {
 	getChangelogPath,
 	parseChangelog,
@@ -102,9 +92,9 @@ import {
 	collapseSharedUsageReports,
 	formatLimitTitle,
 	summarizeUsageResetCredits,
-} from "@rva/tui/overlays/usage-display";
-import { formatRemainingOnlyTotal, isUsedOnlyAbsoluteAmount } from "@rva/tui/prompt/usage-amounts";
-import type { UnavailableUsageAccount } from "@rva/tui/overlays/usage-dashboard";
+} from "@reverse/tui/overlays/usage-display";
+import { formatRemainingOnlyTotal, isUsedOnlyAbsoluteAmount } from "@reverse/tui/prompt/usage-amounts";
+import type { UnavailableUsageAccount } from "@reverse/tui/overlays/usage-dashboard";
 
 import { cfgTerminalShowImages } from "../settings";
 import { cfgProviderAppendOnlyContext } from "../../session/settings";
@@ -364,7 +354,7 @@ export class CommandController {
 		try {
 			// Lazy: the stats dashboard (server + sqlite) loads on demand only,
 			// matching src/cli/stats-cli.ts, to keep CLI startup fast.
-			const { formatStatsDashboardUrl, startServer } = await import("@rva/stats");
+			const { formatStatsDashboardUrl, startServer } = await import("@reverse/stats");
 			const { hostname, port } = await startServer();
 			const url = `${formatStatsDashboardUrl(hostname, port)}/#/traces?s=${encodeURIComponent(sessionFile)}`;
 			this.openInBrowser(url);
@@ -465,7 +455,6 @@ export class CommandController {
 			);
 		}
 	}
-
 
 	async handleSessionCommand(): Promise<void> {
 		const stats = this.ctx.session.getSessionStats();

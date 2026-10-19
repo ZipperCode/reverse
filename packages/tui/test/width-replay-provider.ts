@@ -1,4 +1,4 @@
-import type { TerminalFramePlan, TerminalFrameProvider, ViewportSize } from "@rva/tui";
+import type { TerminalFramePlan, TerminalFrameProvider, ViewportSize } from "@reverse/tui";
 
 /**
  * Frame provider for resize-replay tests: streams a history batch plus an

@@ -1,8 +1,8 @@
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
-import type { VcsGitRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { $env, getProjectDir, isEnoent, prompt } from "@rva/utils";
+import type { VcsGitRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { $env, getProjectDir, isEnoent, prompt } from "@reverse/utils";
 import { applyChangelogProposals } from "../../commit/changelog";
 import { detectChangelogBoundaries } from "../../commit/changelog/detect";
 import { parseUnreleasedSection } from "../../commit/changelog/parse";

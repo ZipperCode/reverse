@@ -14,7 +14,7 @@ import { Buffer } from "node:buffer";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries, VERSION } from "@rva/utils";
+import { removeWithRetries, VERSION } from "@reverse/utils";
 import { lookup } from "../../src/config/registry";
 import { Settings } from "../../src/config/settings";
 import {
@@ -36,8 +36,8 @@ import {
 	writeLastChangelogVersion,
 } from "../../src/utils/changelog";
 
-import { cfgStartupChangelogMode } from "@rva/coding-agent/modes/settings";
-import { CURRENT_SETUP_VERSION } from "@rva/tui/setup/setup-version";
+import { cfgStartupChangelogMode } from "@reverse/coding-agent/modes/settings";
+import { CURRENT_SETUP_VERSION } from "@reverse/tui/setup/setup-version";
 
 const CURRENT_VERSION = "2.0.0";
 const repoRoot = path.resolve(import.meta.dir, "..", "..", "..", "..");

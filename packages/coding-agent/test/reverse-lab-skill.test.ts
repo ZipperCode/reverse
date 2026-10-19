@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
-import { loadSkills, resetActiveSkillsForTests, setActiveSkills } from "@rva/coding-agent/extensibility/skills";
-import { checkToolRequirements, missingRequirementNotice } from "@rva/coding-agent/extensibility/skill-requirements";
-import { getMcpServices } from "@rva/coding-agent/extensibility/mcp-service-catalog";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
-import { SkillProtocolHandler } from "@rva/coding-agent/internal-urls/skill-protocol";
+import { loadSkills, resetActiveSkillsForTests, setActiveSkills } from "@reverse/coding-agent/extensibility/skills";
+import {
+	checkToolRequirements,
+	missingRequirementNotice,
+} from "@reverse/coding-agent/extensibility/skill-requirements";
+import { getMcpServices } from "@reverse/coding-agent/extensibility/mcp-service-catalog";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
+import { SkillProtocolHandler } from "@reverse/coding-agent/internal-urls/skill-protocol";
 
 const repoRoot = path.resolve(import.meta.dir, "../../..");
 

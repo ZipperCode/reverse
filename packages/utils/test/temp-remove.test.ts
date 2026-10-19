@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries, removeWithRetries } from "@rva/utils/temp";
+import { removeSyncWithRetries, removeWithRetries } from "@reverse/utils/temp";
 
 // Retries are Windows-only by design (`shouldRetryRemove` gates on
 // `process.platform === "win32"`), so the locked-removal path only exists there.

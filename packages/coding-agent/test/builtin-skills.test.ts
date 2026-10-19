@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAllProvidersInfo, resetCapabilityForTests, setDisabledProviders } from "@rva/coding-agent/capability";
+import { getAllProvidersInfo, resetCapabilityForTests, setDisabledProviders } from "@reverse/coding-agent/capability";
 import {
 	BUILTIN_SKILL_REFERENCES,
 	BUILTIN_SKILL_SOURCES,
 	BUILTIN_SKILLS_PROVIDER_ID,
-} from "@rva/coding-agent/discovery/builtin-skills";
-import { loadSkills, resetActiveSkillsForTests, setActiveSkills } from "@rva/coding-agent/extensibility/skills";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
-import { SkillProtocolHandler } from "@rva/coding-agent/internal-urls/skill-protocol";
+} from "@reverse/coding-agent/discovery/builtin-skills";
+import { loadSkills, resetActiveSkillsForTests, setActiveSkills } from "@reverse/coding-agent/extensibility/skills";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
+import { SkillProtocolHandler } from "@reverse/coding-agent/internal-urls/skill-protocol";
 
 const repoRoot = path.resolve(import.meta.dir, "../../..");
 const bundledRoot = path.join(import.meta.dir, "../src/discovery/builtin-skills");

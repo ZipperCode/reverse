@@ -1,6 +1,6 @@
 /**
  * Compatibility shim for legacy extensions importing the package root of
- * `@rva/ai` (or one of its aliased scopes like `@earendil-works/pi-ai`
+ * `@reverse/ai` (or one of its aliased scopes like `@earendil-works/pi-ai`
  * or `@mariozechner/pi-ai`).
  *
  * pi-ai 15.1.0 removed the historical TypeBox root exports (`Type`, plus the
@@ -8,7 +8,7 @@
  * entrypoint. Legacy extensions still author parameter schemas as
  * `Type.Object({ ... })`, so this file is served by `legacy-pi-compat.ts` in
  * place of the real pi-ai entrypoint whenever a legacy extension imports the
- * bare package root. Subpath imports (`@rva/ai/oauth`, etc.)
+ * bare package root. Subpath imports (`@reverse/ai/oauth`, etc.)
  * continue to resolve directly against the bundled pi-ai package.
  *
  * The `Type` runtime and legacy `StringEnum()` helper are borrowed from the
@@ -27,17 +27,17 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	streamSimple,
-} from "@rva/ai";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { Effort } from "@rva/catalog/effort";
-import { clampThinkingLevelForModel, getSupportedEfforts } from "@rva/catalog/model-thinking";
+} from "@reverse/ai";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { Effort } from "@reverse/catalog/effort";
+import { clampThinkingLevelForModel, getSupportedEfforts } from "@reverse/catalog/model-thinking";
 import {
 	calculateCost,
 	getBundledModel,
 	getBundledModels,
 	getBundledProviders,
 	modelsAreEqual,
-} from "@rva/catalog/models";
+} from "@reverse/catalog/models";
 import { type TSchema, Type } from "./legacy-typebox";
 
 export interface StringEnumOptions<T extends string> {
@@ -130,13 +130,13 @@ export function isRetryableAssistantError(message: AssistantMessage): boolean {
 	return RETRYABLE_PROVIDER_ERROR_PATTERN.test(errorMessage);
 }
 
-export * from "@rva/ai";
+export * from "@reverse/ai";
 /**
  * Compatibility re-exports for catalog symbols that pi-ai historically exposed
  * from its own barrel prior to the `refactor(catalog)!: split model catalog
  * from pi-ai` change. Legacy extensions still import these from the pi-ai
  * root, so the shim bridges them through to their new home in
- * `@rva/catalog/models`. `getModel`/`getModels` are the historical
+ * `@reverse/catalog/models`. `getModel`/`getModels` are the historical
  * pi-ai names for `getBundledModel`/`getBundledModels`; the remaining symbols
  * kept their names across the move.
  */
@@ -166,7 +166,7 @@ export function anthropicMessagesApi() {
  *
  * Transient-failure retry (overload, rate-limit, 5xx) is the **caller's
  * responsibility**. Oneshot callers that collect the full result before acting
- * should wrap with `retryTransientCompletion` from `@rva/ai`.
+ * should wrap with `retryTransientCompletion` from `@reverse/ai`.
  */
 export function streamSimpleOpenAIResponses(
 	model: Model<"openai-responses">,
@@ -178,20 +178,20 @@ export function streamSimpleOpenAIResponses(
 /**
  * Compatibility re-exports for runtime helpers that upstream
  * `@earendil-works/pi-ai` exposed from its package root but omp's
- * `@rva/ai` barrel no longer forwards. Each symbol still exists in the
+ * `@reverse/ai` barrel no longer forwards. Each symbol still exists in the
  * host graph — only its root re-export was dropped — so bridging it here keeps
  * legacy extensions importing it from the pi-ai root resolving through Bun's
  * static named-export check (e.g. `omp plugin install pi-blackhole`).
  *
  * The error-classification predicate `isContextOverflow` (now under
- * `@rva/ai/error`) and the JSON-repair helpers (relocated to
- * `@rva/utils`) still exist in the host graph and are re-exported.
+ * `@reverse/ai/error`) and the JSON-repair helpers (relocated to
+ * `@reverse/utils`) still exist in the host graph and are re-exported.
  * Upstream pi-ai 1.x additionally exposes a transcript-replay module
  * (`src/utils/transcript.ts`, present since at least 1.0.2) that omp's fork
  * predates and has no equivalent of anywhere; that family is ported verbatim
  * in `legacy-pi-transcript.ts` (observed consumer:
  * `pi-optchat` importing `getCurrentSystemMessage`).
  */
-export { isContextOverflow } from "@rva/ai/error";
-export { parseJsonWithRepair, parseStreamingJson, repairJson } from "@rva/utils";
+export { isContextOverflow } from "@reverse/ai/error";
+export { parseJsonWithRepair, parseStreamingJson, repairJson } from "@reverse/utils";
 export * from "./legacy-pi-transcript";

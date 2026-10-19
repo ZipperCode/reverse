@@ -7,11 +7,11 @@
  * event — it must NOT silently complete with default stopReason='stop'.
  */
 import { describe, expect, it } from "bun:test";
-import type { ProxyAssistantMessageEvent } from "@rva/agent/proxy";
-import { type ProxyMessageEventStream, streamProxy } from "@rva/agent/proxy";
-import type { AssistantMessage, AssistantMessageEvent, Context, FetchImpl, Model, ToolCall } from "@rva/ai";
-import { getStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { buildModel } from "@rva/catalog/build";
+import type { ProxyAssistantMessageEvent } from "@reverse/agent/proxy";
+import { type ProxyMessageEventStream, streamProxy } from "@reverse/agent/proxy";
+import type { AssistantMessage, AssistantMessageEvent, Context, FetchImpl, Model, ToolCall } from "@reverse/ai";
+import { getStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { buildModel } from "@reverse/catalog/build";
 
 const mockModel: Model = buildModel({
 	id: "test-model",

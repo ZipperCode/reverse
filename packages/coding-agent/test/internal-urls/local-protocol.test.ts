@@ -7,8 +7,8 @@ import {
 	LocalProtocolHandler,
 	resolveLocalRoot,
 	resolveLocalUrlToPath,
-} from "@rva/coding-agent/internal-urls";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/internal-urls";
+import { removeWithRetries } from "@reverse/utils";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "local-protocol-"));

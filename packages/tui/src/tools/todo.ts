@@ -2,8 +2,8 @@ import type { ToolRenderer } from "./renderer";
 
 import type { Component } from "../index";
 import { Text } from "../index";
-import { sanitizeText } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { sanitizeText } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import type { RenderResultOptions } from "./renderer";
 import type { Theme } from "../theme/theme";
 
@@ -12,7 +12,7 @@ import { wrapTreeLine } from "../render/hanging-wrap";
 import { framedToolCard } from "../render/tool-card";
 
 import { formatErrorDetail, formatMoreItems, PREVIEW_LIMITS, pluralize, replaceTabs } from "../render/render-utils";
-import type { TspChecklistItem, TspChecklistPhase } from "@rva/wire";
+import type { TspChecklistItem, TspChecklistPhase } from "@reverse/wire";
 import { node } from "../native/describe";
 import { OwnerMemo } from "../native/memo";
 import { errorText, noteText, resultText } from "./native-view";

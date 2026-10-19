@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { classifyGatewayError } from "../../error/gateway";
 import * as transcriptions from "../../providers/transcriptions-server";
 import { transcribeAudio } from "../../transcription";

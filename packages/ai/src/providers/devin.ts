@@ -1,6 +1,6 @@
 import { gunzipSync, gzipSync } from "node:zlib";
 
-import { classifyModel } from "@rva/catalog/compat/taxonomy";
+import { classifyModel } from "@reverse/catalog/compat/taxonomy";
 import {
 	AssignModelRequestSchema,
 	AssignModelResponseSchema,
@@ -26,12 +26,12 @@ import {
 	type ModelAssignment,
 	PromptCacheOptionsSchema,
 	StopReason,
-} from "@rva/catalog/discovery/devin-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
-import { calculateCost } from "@rva/catalog/models";
-import { DEVIN_DEFAULT_BASE_URL, devinCliMetadata, devinWireMetadata } from "@rva/catalog/wire/devin";
-import { decodeDevinUnaryMessage } from "@rva/catalog/wire/devin-proto";
-import { isRecord, logger, parseStreamingJsonThrottled, sanitizeText } from "@rva/utils";
+} from "@reverse/catalog/discovery/devin-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
+import { calculateCost } from "@reverse/catalog/models";
+import { DEVIN_DEFAULT_BASE_URL, devinCliMetadata, devinWireMetadata } from "@reverse/catalog/wire/devin";
+import { decodeDevinUnaryMessage } from "@reverse/catalog/wire/devin-proto";
+import { isRecord, logger, parseStreamingJsonThrottled, sanitizeText } from "@reverse/utils";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";
 

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "bun:test";
-import { completionBudgetReport, GoalRuntime } from "@rva/coding-agent/goals/runtime";
-import type { Goal } from "@rva/tui/tools/goal";
-import type { GoalModeState, GoalTokenUsage } from "@rva/coding-agent/goals/state";
-import { GoalTool } from "@rva/coding-agent/goals/tools/goal-tool";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { resolveApproval } from "@rva/coding-agent/tools/approval";
+import { completionBudgetReport, GoalRuntime } from "@reverse/coding-agent/goals/runtime";
+import type { Goal } from "@reverse/tui/tools/goal";
+import type { GoalModeState, GoalTokenUsage } from "@reverse/coding-agent/goals/state";
+import { GoalTool } from "@reverse/coding-agent/goals/tools/goal-tool";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { resolveApproval } from "@reverse/coding-agent/tools/approval";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return {

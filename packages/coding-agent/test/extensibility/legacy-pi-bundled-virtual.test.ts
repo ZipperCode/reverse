@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { ptree, TempDir } from "@rva/utils";
+import { ptree, TempDir } from "@reverse/utils";
 
 describe("bundled extension modules", () => {
 	it("observes active host theme changes and native default/named exports", async () => {
@@ -8,8 +8,8 @@ describe("bundled extension modules", () => {
 		await Bun.write(
 			entry,
 			[
-				'import { theme } from "@rva/tui/theme";',
-				'import format, { double } from "@rva/utils/virtual-fixture";',
+				'import { theme } from "@reverse/tui/theme";',
+				'import format, { double } from "@reverse/utils/virtual-fixture";',
 				"export { theme };",
 				'export function render() { return theme.fg("accent", "extension"); }',
 				"export function describe(value) { return format(double(value)); }",
@@ -33,8 +33,8 @@ Bun.plugin({
 			loader: "object",
 			exports: {
 				BUNDLED_PI_MODULE_LOADERS: {
-					"@rva/tui/theme": async () => host,
-					"@rva/utils/virtual-fixture": async () => ({
+					"@reverse/tui/theme": async () => host,
+					"@reverse/utils/virtual-fixture": async () => ({
 						default: value => "value=" + value,
 						double: value => value * 2,
 					}),

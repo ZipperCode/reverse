@@ -1,15 +1,15 @@
-import type { ThinkingLevel } from "@rva/agent";
-import type { Model } from "@rva/ai";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
 import type { ModelRegistry } from "../config/model-registry";
 import { cfgModelRoles } from "../config/model-settings";
-import { formatModelSelectorValue, parseModelString } from "@rva/tui/overlays/model-selector";
+import { formatModelSelectorValue, parseModelString } from "@reverse/tui/overlays/model-selector";
 import { formatModelString, formatModelStringWithRouting } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import {
 	type ConfiguredThinkingLevel,
 	concreteThinkingLevel,
 	resolveThinkingLevelForModel,
-} from "@rva/tui/thinking";
+} from "@reverse/tui/thinking";
 import { resolveConfiguredModelPatterns, resolveModelRoleValue } from "../config/model-resolver";
 import { getRoleInfo, isKindRole } from "../config/model-roles";
 

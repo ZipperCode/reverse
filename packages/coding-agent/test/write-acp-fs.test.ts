@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { hashlineFileHash } from "@rva/natives";
-import type { AgentToolResult } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { resolveLocalUrlToPath } from "@rva/coding-agent/internal-urls";
-import type { PlanModeState } from "@rva/coding-agent/plan-mode/state";
-import type { ClientBridge } from "@rva/coding-agent/session/client-bridge";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { removeWithRetries } from "@rva/utils";
+import { hashlineFileHash } from "@reverse/natives";
+import type { AgentToolResult } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { resolveLocalUrlToPath } from "@reverse/coding-agent/internal-urls";
+import type { PlanModeState } from "@reverse/coding-agent/plan-mode/state";
+import type { ClientBridge } from "@reverse/coding-agent/session/client-bridge";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { removeWithRetries } from "@reverse/utils";
 
 const FILE_CONTENT = "bridge write content\n";
 

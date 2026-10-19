@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { TodoCommandController } from "@rva/coding-agent/modes/controllers/todo-command-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { type TodoPhase } from "@rva/tui/tools/todo";
-import { USER_TODO_EDIT_CUSTOM_TYPE } from "@rva/coding-agent/tools";
-import { removeWithRetries } from "@rva/utils";
+import { TodoCommandController } from "@reverse/coding-agent/modes/controllers/todo-command-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { type TodoPhase } from "@reverse/tui/tools/todo";
+import { USER_TODO_EDIT_CUSTOM_TYPE } from "@reverse/coding-agent/tools";
+import { removeWithRetries } from "@reverse/utils";
 
 function createContext(cwd: string, phases: TodoPhase[]): InteractiveModeContext {
 	return {

@@ -5,11 +5,11 @@
  * by providing authorization URL, token URL, and client credentials.
  */
 
-import type { OAuthCallbackFlowOptions } from "@rva/ai/oauth/callback-server";
-import { OAuthCallbackFlow } from "@rva/ai/oauth/callback-server";
-import type { OAuthController, OAuthCredentials } from "@rva/ai/oauth/types";
-import type { FetchImpl } from "@rva/ai/types";
-import { getActiveProfile } from "@rva/utils/dirs";
+import type { OAuthCallbackFlowOptions } from "@reverse/ai/oauth/callback-server";
+import { OAuthCallbackFlow } from "@reverse/ai/oauth/callback-server";
+import type { OAuthController, OAuthCredentials } from "@reverse/ai/oauth/types";
+import type { FetchImpl } from "@reverse/ai/types";
+import { getActiveProfile } from "@reverse/utils/dirs";
 import type { OAuthCredential } from "../session/auth-storage";
 import { buildWellKnownUrls } from "./oauth-discovery";
 

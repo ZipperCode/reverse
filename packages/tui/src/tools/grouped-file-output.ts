@@ -1,7 +1,7 @@
 import * as path from "node:path";
 
-import { buildPathTree, isUrlLikePath, type PathTreeInput, walkPathTree } from "@rva/utils";
-import type { TspTone } from "@rva/wire";
+import { buildPathTree, isUrlLikePath, type PathTreeInput, walkPathTree } from "@reverse/utils";
+import type { TspTone } from "@reverse/wire";
 import { code, col, keyed, span, text } from "../native/describe";
 import type { NativeNode } from "../native/node";
 import { formatHashlineHeader } from "./hashline-format";

@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@rva/agent";
-import { USELESS_NOTICE } from "@rva/agent/compaction/pruning";
-import type { Context } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { AdvisorOutputQuarantinedError, AdvisorRuntime } from "@rva/coding-agent/advisor/runtime";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { logger, TempDir } from "@rva/utils";
+import { Agent, type AgentMessage } from "@reverse/agent";
+import { USELESS_NOTICE } from "@reverse/agent/compaction/pruning";
+import type { Context } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { AdvisorOutputQuarantinedError, AdvisorRuntime } from "@reverse/coding-agent/advisor/runtime";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { logger, TempDir } from "@reverse/utils";
 
 /**
  * Regression: the per-turn supersede/useless prune pass rewrote the LIVE agent

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { attributeSubagentError } from "@rva/coding-agent/task/error-attribution";
+import { attributeSubagentError } from "@reverse/coding-agent/task/error-attribution";
 
 describe("attributeSubagentError", () => {
 	it("prefixes provider/model so misrouted subagent failures name their transport", () => {

@@ -19,7 +19,7 @@ describe("native addon embedding", () => {
 
 				await expect(
 					embeddedAddonFiles({ platform: "win32", arch: "arm64", nativeDir, version: "18.1.1" }),
-				).rejects.toThrow("does not carry the @rva/natives@18.1.1 version stamp");
+				).rejects.toThrow("does not carry the @reverse/natives@18.1.1 version stamp");
 			} finally {
 				await fs.rm(nativeDir, { recursive: true, force: true });
 			}

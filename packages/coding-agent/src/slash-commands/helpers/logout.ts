@@ -1,8 +1,8 @@
-import { getOAuthCredentialProvider } from "@rva/ai/oauth";
+import { getOAuthCredentialProvider } from "@reverse/ai/oauth";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { AuthStorage, OAuthAccountIdentity, StoredAuthCredential } from "../../session/auth-storage";
 
-import type { LogoutAccount } from "@rva/tui/overlays/logout-account-selector";
+import type { LogoutAccount } from "@reverse/tui/overlays/logout-account-selector";
 
 interface LogoutAccountOptions {
 	activeIdentity?: OAuthAccountIdentity;

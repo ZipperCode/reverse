@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { ImageContent, TextContent } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
+import type { AgentMessage } from "@reverse/agent";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import type {
 	ExtensionActions,
 	ExtensionCommandContextActions,
 	ExtensionContextActions,
 	ExtensionUIContext,
-} from "@rva/coding-agent/extensibility/extensions";
-import { ExtensionUiController } from "@rva/coding-agent/modes/controllers/extension-ui-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext, RenderSessionContextOptions } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import { buildSessionContext, type SessionContext } from "@rva/coding-agent/session/session-context";
-import type { CustomMessageEntry, SessionEntry } from "@rva/coding-agent/session/session-entries";
-import { Container } from "@rva/tui";
+} from "@reverse/coding-agent/extensibility/extensions";
+import { ExtensionUiController } from "@reverse/coding-agent/modes/controllers/extension-ui-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext, RenderSessionContextOptions } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import { buildSessionContext, type SessionContext } from "@reverse/coding-agent/session/session-context";
+import type { CustomMessageEntry, SessionEntry } from "@reverse/coding-agent/session/session-entries";
+import { Container } from "@reverse/tui";
 
 /**
  * Issue #1955: `sendMessage` with `display: true` renders twice during

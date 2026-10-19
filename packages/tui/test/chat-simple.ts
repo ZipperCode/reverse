@@ -1,15 +1,15 @@
 /**
  * Simple chat interface demo using tui.ts
  */
-import { CombinedAutocompleteProvider } from "@rva/tui/autocomplete";
-import { Editor } from "@rva/tui/components/editor";
-import { Loader } from "@rva/tui/components/loader";
-import { Markdown } from "@rva/tui/components/markdown";
-import { Text } from "@rva/tui/components/text";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { TUI } from "@rva/tui/tui";
-import { getProjectDir } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { CombinedAutocompleteProvider } from "@reverse/tui/autocomplete";
+import { Editor } from "@reverse/tui/components/editor";
+import { Loader } from "@reverse/tui/components/loader";
+import { Markdown } from "@reverse/tui/components/markdown";
+import { Text } from "@reverse/tui/components/text";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { TUI } from "@reverse/tui/tui";
+import { getProjectDir } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { defaultEditorTheme, defaultMarkdownTheme } from "./test-themes";
 
 // Create terminal

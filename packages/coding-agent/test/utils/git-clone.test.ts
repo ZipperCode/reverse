@@ -3,8 +3,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import * as vcs from "@rva/natives/vcs";
-import { removeWithRetries } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { removeWithRetries } from "@reverse/utils";
 
 // Regression coverage for #1589: `git.clone({ sha })` used to hardcode
 // `--depth 1`, producing a shallow clone whose object store never contained

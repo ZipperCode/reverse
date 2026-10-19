@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent } from "@rva/utils/fs-error";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { isEnoent } from "@reverse/utils/fs-error";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { JsStatusEvent } from "./types";
 
 export interface HelperOptions {

@@ -9,8 +9,8 @@
  * TSP terminal the SVG as an ```svg fence, which it draws in the palette it
  * shows. Either way a chart follows theme switches like the prose around it.
  */
-import { logger } from "@rva/utils";
-import type { Token, Tokens } from "@rva/utils/marked";
+import { logger } from "@reverse/utils";
+import type { Token, Tokens } from "@reverse/utils/marked";
 import { type ChartPlan, buildChart, planChart, shouldJudge, worthCharting } from "../charts/chart-plan";
 import { renderChartSvg } from "../charts/chart-svg";
 import { analyzeTable, type TableAnalysis } from "../charts/table-data";

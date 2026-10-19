@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { StreamRedactor } from "@rva/coding-agent/stream/redactor";
-import { logger } from "@rva/utils";
+import { StreamRedactor } from "@reverse/coding-agent/stream/redactor";
+import { logger } from "@reverse/utils";
 
 let redactor: StreamRedactor;
 let cwd: string;

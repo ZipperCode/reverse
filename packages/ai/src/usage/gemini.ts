@@ -1,5 +1,5 @@
-import { quotaTierFor } from "@rva/catalog/compat/behavior";
-import { getGeminiCliHeaders } from "@rva/catalog/wire/gemini-headers";
+import { quotaTierFor } from "@reverse/catalog/compat/behavior";
+import { getGeminiCliHeaders } from "@reverse/catalog/wire/gemini-headers";
 import type {
 	UsageAmount,
 	UsageFetchContext,

@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { type AgentMessage, Tokenizer } from "@rva/agent";
-import type { SessionEntry, SessionMessageEntry, ShakeConfig } from "@rva/agent/compaction";
+import { type AgentMessage, Tokenizer } from "@reverse/agent";
+import type { SessionEntry, SessionMessageEntry, ShakeConfig } from "@reverse/agent/compaction";
 import {
 	AGGRESSIVE_SHAKE_CONFIG,
 	applyShakeRegion,
 	applyShakeRegions,
 	collectShakeRegions,
 	RESCUE_SHAKE_CONFIG,
-} from "@rva/agent/compaction";
-import type { AssistantMessage, ImageContent, TextContent, ToolCall, ToolResultMessage } from "@rva/ai";
+} from "@reverse/agent/compaction";
+import type { AssistantMessage, ImageContent, TextContent, ToolCall, ToolResultMessage } from "@reverse/ai";
 import { convertMessageToLlm } from "../src/compaction/messages";
 
 const tokenizer = new Tokenizer();

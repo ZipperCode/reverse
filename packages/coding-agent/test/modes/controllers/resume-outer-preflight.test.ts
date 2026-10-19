@@ -1,16 +1,16 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import * as core from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import { createTools, type Tool } from "@rva/coding-agent/tools";
-import { TempDir } from "@rva/utils";
+import * as core from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import { createTools, type Tool } from "@reverse/coding-agent/tools";
+import { TempDir } from "@reverse/utils";
 
 beforeAll(async () => {
 	await initTheme();

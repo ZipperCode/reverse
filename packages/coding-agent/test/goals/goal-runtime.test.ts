@@ -5,10 +5,10 @@ import {
 	goalTokenDelta,
 	renderGoalPrompt,
 	renderTrustedObjective,
-} from "@rva/coding-agent/goals/runtime";
-import type { Goal } from "@rva/tui/tools/goal";
-import type { GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@rva/coding-agent/goals/state";
-import { escapeXmlText } from "@rva/utils";
+} from "@reverse/coding-agent/goals/runtime";
+import type { Goal } from "@reverse/tui/tools/goal";
+import type { GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@reverse/coding-agent/goals/state";
+import { escapeXmlText } from "@reverse/utils";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return {

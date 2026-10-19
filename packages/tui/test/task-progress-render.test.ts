@@ -2,13 +2,13 @@ import * as os from "node:os";
 import { setFeedModelBadgeEnabled } from "../src/render/render-utils";
 import { setShimmerMode } from "../src/theme/shimmer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type RenderResultOptions, ThinkingLevel } from "@rva/agent";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import { taskToolRenderer } from "@rva/tui/tools/task";
-import { getSubprocessToolRenderer } from "@rva/tui/tools/subprocess";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@rva/tui/tools/task";
-import { FEED_MODEL_BADGE_WIDTH } from "@rva/tui/render/render-utils";
-import { visibleWidth } from "@rva/tui";
+import { type RenderResultOptions, ThinkingLevel } from "@reverse/agent";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import { taskToolRenderer } from "@reverse/tui/tools/task";
+import { getSubprocessToolRenderer } from "@reverse/tui/tools/subprocess";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@reverse/tui/tools/task";
+import { FEED_MODEL_BADGE_WIDTH } from "@reverse/tui/render/render-utils";
+import { visibleWidth } from "@reverse/tui";
 
 function runningProgress(overrides: Partial<AgentProgress> = {}): AgentProgress {
 	return {

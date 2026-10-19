@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { TspKind } from "@rva/wire";
-import { describeWorkingRow, type WorkingRowSpec } from "@rva/tui/components/loader";
-import { SelectList } from "@rva/tui/components/select-list";
-import type { DescribeContext, NativeChild, NativeNode } from "@rva/tui/native/node";
-import { setNativeRendering } from "@rva/tui/native/state";
-import { COMPOSER_DEFAULTS, Composer } from "@rva/tui/prompt/composer";
-import { type ComposerNativeState, CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { QueuedMessagesBand } from "@rva/tui/prompt/queued-messages";
-import { createStartupStatusLine } from "@rva/tui/status-line/startup";
-import { getEditorTheme, getSelectListTheme, initTheme } from "@rva/tui/theme";
+import type { TspKind } from "@reverse/wire";
+import { describeWorkingRow, type WorkingRowSpec } from "@reverse/tui/components/loader";
+import { SelectList } from "@reverse/tui/components/select-list";
+import type { DescribeContext, NativeChild, NativeNode } from "@reverse/tui/native/node";
+import { setNativeRendering } from "@reverse/tui/native/state";
+import { COMPOSER_DEFAULTS, Composer } from "@reverse/tui/prompt/composer";
+import { type ComposerNativeState, CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { QueuedMessagesBand } from "@reverse/tui/prompt/queued-messages";
+import { createStartupStatusLine } from "@reverse/tui/status-line/startup";
+import { getEditorTheme, getSelectListTheme, initTheme } from "@reverse/tui/theme";
 import { TspHarness } from "./native/tsp-harness";
 import { VirtualTerminal } from "./virtual-terminal";
 

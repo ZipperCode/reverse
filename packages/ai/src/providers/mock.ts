@@ -6,7 +6,7 @@
  *
  * Usage:
  *
- *   import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
+ *   import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
  *
  *   // 1. Array of responses, one per call.
  *   const mock = createMockModel({
@@ -42,7 +42,7 @@
  *   expect(mock.calls).toHaveLength(2);
  */
 
-import { classifyModel } from "@rva/catalog/compat/taxonomy";
+import { classifyModel } from "@reverse/catalog/compat/taxonomy";
 import { registerCustomApi } from "../api-registry";
 import * as AIError from "../error";
 import type {

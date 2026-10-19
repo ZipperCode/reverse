@@ -7,12 +7,12 @@ import {
 	truncateToWidth as nativeTruncateToWidth,
 	wrapTextWithAnsi as nativeWrapTextWithAnsi,
 	type SliceResult,
-} from "@rva/natives";
-import { DEFAULT_TAB_WIDTH } from "@rva/utils";
+} from "@reverse/natives";
+import { DEFAULT_TAB_WIDTH } from "@reverse/utils";
 
-export { Ellipsis } from "@rva/natives";
+export { Ellipsis } from "@reverse/natives";
 
-export { DEFAULT_TAB_WIDTH } from "@rva/utils";
+export { DEFAULT_TAB_WIDTH } from "@reverse/utils";
 
 export type HangulCompatibilityJamoWidth = "platform" | "unicode" | 1 | 2;
 

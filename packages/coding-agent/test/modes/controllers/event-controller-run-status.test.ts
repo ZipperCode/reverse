@@ -4,15 +4,15 @@
  * move the run between `blocked` and `working`.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentTool } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { cfgToolsApproval } from "@rva/coding-agent/tools/settings";
-import * as runStatus from "@rva/coding-agent/utils/run-status";
-import { TERMINAL } from "@rva/tui";
-import { initTheme } from "@rva/tui/theme";
+import type { AgentTool } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { cfgToolsApproval } from "@reverse/coding-agent/tools/settings";
+import * as runStatus from "@reverse/coding-agent/utils/run-status";
+import { TERMINAL } from "@reverse/tui";
+import { initTheme } from "@reverse/tui/theme";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 beforeAll(() => {

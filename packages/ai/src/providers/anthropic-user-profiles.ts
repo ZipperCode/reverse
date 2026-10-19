@@ -1,4 +1,4 @@
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import { AnthropicHttpClient, type AnthropicClientOptions, type AnthropicRequestOptions } from "./anthropic-client";
 
 const USER_PROFILES_BETA = "user-profiles-2026-09-04";

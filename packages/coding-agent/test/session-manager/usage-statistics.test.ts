@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { buildSessionContext } from "@rva/coding-agent/session/session-context";
-import { resolveSessionLeafId } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { buildSessionContext } from "@reverse/coding-agent/session/session-context";
+import { resolveSessionLeafId } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 describe("SessionManager usage statistics", () => {
 	const modelUsage = {

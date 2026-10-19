@@ -7,22 +7,22 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME } from "@rva/utils/dirs";
-import { type } from "@rva/omptype";
-import type { AgentMessage } from "@rva/agent";
-import { buildOpenAiNativeHistory } from "@rva/agent/compaction";
-import type { AssistantMessage, Context, Message, TextContent } from "@rva/ai";
-import { convertMessages } from "@rva/ai/providers/google-shared";
-import { buildParams } from "@rva/ai/providers/openai-responses";
+import { CONFIG_DIR_NAME } from "@reverse/utils/dirs";
+import { type } from "@reverse/omptype";
+import type { AgentMessage } from "@reverse/agent";
+import { buildOpenAiNativeHistory } from "@reverse/agent/compaction";
+import type { AssistantMessage, Context, Message, TextContent } from "@reverse/ai";
+import { convertMessages } from "@reverse/ai/providers/google-shared";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
 import type {
 	ResponseFileSearchToolCall,
 	ResponseFunctionWebSearch,
 	ResponseInputItem,
 	ResponseToolSearchOutputItemParam,
-} from "@rva/ai/providers/openai-responses-wire";
-import { buildResponsesInput } from "@rva/ai/providers/openai-shared";
-import { isJsonSchemaValueValid } from "@rva/ai/utils/schema/json-schema-validator";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/ai/providers/openai-responses-wire";
+import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
+import { isJsonSchemaValueValid } from "@reverse/ai/utils/schema/json-schema-validator";
+import { getBundledModel } from "@reverse/catalog/models";
 import {
 	builtinCredentialSecretEntries,
 	collectEnvSecrets,
@@ -30,7 +30,7 @@ import {
 	getSecretPlaceholderKey,
 	getSecretPlaceholderKeySync,
 	loadSecrets,
-} from "@rva/coding-agent/secrets";
+} from "@reverse/coding-agent/secrets";
 import {
 	collectNativeReplayRegexSecretValues,
 	deobfuscateAssistantContent,
@@ -40,16 +40,16 @@ import {
 	obfuscateNativeReplay,
 	obfuscateProviderContext,
 	obfuscateToolArguments,
-} from "@rva/coding-agent/secrets/message-transform";
-import { type SecretEntry, SecretObfuscator } from "@rva/coding-agent/secrets/obfuscator";
+} from "@reverse/coding-agent/secrets/message-transform";
+import { type SecretEntry, SecretObfuscator } from "@reverse/coding-agent/secrets/obfuscator";
 import {
 	sanitizeSecretFriendlyName,
 	secretEntriesNeedPlaceholderKey,
 	secretEntryNeedsPlaceholderKey,
 	stripPendingSecretPlaceholderSuffix,
-} from "@rva/coding-agent/secrets/placeholder";
-import { compileSecretRegex } from "@rva/coding-agent/secrets/regex";
-import { getActiveProfile, getAgentDir, setProfile } from "@rva/utils/dirs";
+} from "@reverse/coding-agent/secrets/placeholder";
+import { compileSecretRegex } from "@reverse/coding-agent/secrets/regex";
+import { getActiveProfile, getAgentDir, setProfile } from "@reverse/utils/dirs";
 
 describe("compileSecretRegex", () => {
 	it("adds global flag when not provided", () => {

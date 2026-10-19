@@ -1,5 +1,5 @@
-import { type } from "@rva/omptype";
-import type { FetchImpl } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { FetchImpl } from "@reverse/utils";
 import { collapseVariants, type VariantCollapseTable } from "../compat/collapse";
 import { compareRevision, parseRevision } from "../compat/revision";
 import { classifyModel } from "../compat/taxonomy";

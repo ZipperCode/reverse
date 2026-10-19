@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ScrollView } from "@rva/tui/components/scroll-view";
-import { Ellipsis, visibleWidth } from "@rva/tui/utils";
+import { ScrollView } from "@reverse/tui/components/scroll-view";
+import { Ellipsis, visibleWidth } from "@reverse/tui/utils";
 
 const theme = {
 	track: () => "T",

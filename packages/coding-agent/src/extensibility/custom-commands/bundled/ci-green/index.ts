@@ -1,5 +1,5 @@
-import * as vcs from "@rva/natives/vcs";
-import { prompt } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { prompt } from "@reverse/utils";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";
 import ciGreenRequestTemplate from "../../../../prompts/ci-green-request.md" with { type: "text" };

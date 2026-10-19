@@ -6,28 +6,28 @@
  * behavior they have in the TUI.
  */
 import { afterAll, afterEach, beforeAll, expect, it, spyOn } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import { createMockModel, type MockModelOptions } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { ExtensionToolWrapper } from "@rva/coding-agent/extensibility/extensions/wrapper";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import { createMockModel, type MockModelOptions } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { ExtensionToolWrapper } from "@reverse/coding-agent/extensibility/extensions/wrapper";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
 import type {
 	ClientBridge,
 	ClientBridgePermissionOutcome,
 	ClientBridgePermissionToolCall,
-} from "@rva/coding-agent/session/client-bridge";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { BashTool } from "@rva/coding-agent/tools/bash";
-import { computerTurnInFlight, registerComputerController } from "@rva/coding-agent/tools/computer/supervisor";
-import { dispatchXdevTool, resolveMountedXdevExecutable, type XdevState } from "@rva/coding-agent/tools/xdev";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/client-bridge";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
+import { computerTurnInFlight, registerComputerController } from "@reverse/coding-agent/tools/computer/supervisor";
+import { dispatchXdevTool, resolveMountedXdevExecutable, type XdevState } from "@reverse/coding-agent/tools/xdev";
+import { TempDir } from "@reverse/utils";
 
 // ---------------------------------------------------------------------------
 // Shared setup

@@ -1,5 +1,5 @@
-import type { Model, ProviderResponseMetadata, RawSseEvent } from "@rva/ai";
-import { materializeString } from "@rva/utils";
+import type { Model, ProviderResponseMetadata, RawSseEvent } from "@reverse/ai";
+import { materializeString } from "@reverse/utils";
 
 const MAX_RAW_SSE_EVENTS = 1_000;
 const MAX_RAW_SSE_CHARS = 512_000;

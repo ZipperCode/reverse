@@ -1,4 +1,4 @@
-import { initTheme, theme } from "@rva/tui/theme";
+import { initTheme, theme } from "@reverse/tui/theme";
 
 // Initialize with dark theme explicitly
 Bun.env.COLORTERM = "truecolor";

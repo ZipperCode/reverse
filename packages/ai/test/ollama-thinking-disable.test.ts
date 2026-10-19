@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, Context, Tool, ToolResultMessage, Usage } from "@rva/ai";
-import { streamOllama } from "@rva/ai/providers/ollama";
-import { NON_VISION_IMAGE_PLACEHOLDER } from "@rva/ai/providers/vision-guard";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
+import type { AssistantMessage, Context, Tool, ToolResultMessage, Usage } from "@reverse/ai";
+import { streamOllama } from "@reverse/ai/providers/ollama";
+import { NON_VISION_IMAGE_PLACEHOLDER } from "@reverse/ai/providers/vision-guard";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
 
 interface OllamaChatMessagePayload {
 	thinking?: unknown;

@@ -7,10 +7,10 @@ import {
 	GLYPH_CONFIRMATION_CODEPOINT,
 	isPrivateUseCodepoint,
 	parseGlyphProtocolReply,
-} from "@rva/tui/glyph-protocol";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { setTerminalGlyphProtocol, TERMINAL } from "@rva/tui/terminal-capabilities";
-import { setTerminalHeadless } from "@rva/utils";
+} from "@reverse/tui/glyph-protocol";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { setTerminalGlyphProtocol, TERMINAL } from "@reverse/tui/terminal-capabilities";
+import { setTerminalHeadless } from "@reverse/utils";
 
 const SUPPORT_QUERY = "\x1b_25a1;s\x1b\\";
 const DA1_REPLY = "\x1b[?1;2c";

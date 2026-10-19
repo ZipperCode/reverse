@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { getTerminalId } from "@rva/tui/ttyid";
+import { getTerminalId } from "@reverse/tui/ttyid";
 
 const stdinIsTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
 const terminalEnvKeys = [

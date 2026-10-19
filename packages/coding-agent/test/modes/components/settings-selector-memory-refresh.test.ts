@@ -1,13 +1,13 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { loadHindsightConfig } from "@rva/coding-agent/hindsight/config";
-import { SettingsSelectorComponent } from "@rva/tui/overlays/settings-selector";
-import { createSettingsHost } from "@rva/coding-agent/config/settings-ui";
-import { createPluginSettingsHost } from "@rva/coding-agent/extensibility/plugins/settings-host";
-import { initTheme } from "@rva/tui/theme";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { loadHindsightConfig } from "@reverse/coding-agent/hindsight/config";
+import { SettingsSelectorComponent } from "@reverse/tui/overlays/settings-selector";
+import { createSettingsHost } from "@reverse/coding-agent/config/settings-ui";
+import { createPluginSettingsHost } from "@reverse/coding-agent/extensibility/plugins/settings-host";
+import { initTheme } from "@reverse/tui/theme";
 
-import { cfgHindsightApiToken } from "@rva/coding-agent/hindsight/settings";
-import { cfgMemoryBackend } from "@rva/coding-agent/memory-backend/settings";
+import { cfgHindsightApiToken } from "@reverse/coding-agent/hindsight/settings";
+import { cfgMemoryBackend } from "@reverse/coding-agent/memory-backend/settings";
 
 beforeAll(async () => {
 	await initTheme();

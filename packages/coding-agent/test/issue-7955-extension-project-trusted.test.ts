@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import type { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/types";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import type { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/types";
 
 function createRunner(): ExtensionRunner {
 	const runtime = {

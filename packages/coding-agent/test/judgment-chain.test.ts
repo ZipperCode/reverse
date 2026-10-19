@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { Database } from "bun:sqlite";
 import * as path from "node:path";
-import type { ChatUsageEvent } from "@rva/agent";
-import type { Api, AssistantMessage, ChoiceQuestion, ImageContent, Model, NoulQuestion } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { cfgModelRoles } from "@rva/coding-agent/config/model-settings";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ChainJudge, hasNativeJudge, JudgmentCache, journalJudgmentUsage } from "@rva/coding-agent/judgment";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { tinyModelClient } from "@rva/coding-agent/tiny/title-client";
-import { TempDir } from "@rva/utils";
+import type { ChatUsageEvent } from "@reverse/agent";
+import type { Api, AssistantMessage, ChoiceQuestion, ImageContent, Model, NoulQuestion } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { cfgModelRoles } from "@reverse/coding-agent/config/model-settings";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ChainJudge, hasNativeJudge, JudgmentCache, journalJudgmentUsage } from "@reverse/coding-agent/judgment";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { tinyModelClient } from "@reverse/coding-agent/tiny/title-client";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { asGlobalFetch } from "./helpers/fetch-mock";
 

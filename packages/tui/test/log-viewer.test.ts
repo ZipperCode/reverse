@@ -5,8 +5,8 @@ import {
 	DebugLogViewerModel,
 	LOAD_OLDER_LABEL,
 	SESSION_BOUNDARY_WARNING,
-} from "@rva/tui/apps/debug/log-viewer";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
+} from "@reverse/tui/apps/debug/log-viewer";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 
 beforeAll(async () => {
 	const theme = await getThemeByName("dark");

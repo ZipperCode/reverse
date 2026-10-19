@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
-import { supportsOutputTokenLimit } from "@rva/catalog/compat/output-limits";
-import { requiresNativeTools, requiresToolFreeHistoryForToolOptOut } from "@rva/catalog/compat/tools";
-import { getBundledModel, getBundledModels, type GeneratedProvider } from "@rva/catalog/models";
-import type { Model } from "@rva/catalog/types";
+import { supportsOutputTokenLimit } from "@reverse/catalog/compat/output-limits";
+import { requiresNativeTools, requiresToolFreeHistoryForToolOptOut } from "@reverse/catalog/compat/tools";
+import { getBundledModel, getBundledModels, type GeneratedProvider } from "@reverse/catalog/models";
+import type { Model } from "@reverse/catalog/types";
 
 function fixture(provider: GeneratedProvider, predicate?: (candidate: Model) => boolean): Model {
 	const models = getBundledModels(provider);

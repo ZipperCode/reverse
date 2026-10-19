@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { Type, type } from "@rva/omptype";
-import * as wireSchemas from "@rva/ai/auth-broker/wire-schemas";
+import { Type, type } from "@reverse/omptype";
+import * as wireSchemas from "@reverse/ai/auth-broker/wire-schemas";
 
 const REFRESHER = {
 	enabled: false,

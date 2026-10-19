@@ -5,10 +5,10 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAgentDir, getProjectAgentDir, getProjectDir, isEnoent } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { getAgentDir, getProjectAgentDir, getProjectDir, isEnoent } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { YAML } from "bun";
-import { theme } from "@rva/tui/theme";
+import { theme } from "@reverse/tui/theme";
 import { loadBundledAgents } from "../task/agents";
 import type { AgentDefinition } from "../task/types";
 

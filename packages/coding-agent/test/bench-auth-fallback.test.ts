@@ -9,15 +9,15 @@ import type {
 	AssistantMessageEventStream,
 	Model,
 	SimpleStreamOptions,
-} from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { resolveModelCacheProviderId } from "@rva/catalog/provider-models";
-import { type BenchSummary, runBenchCommand } from "@rva/coding-agent/cli/bench-cli";
-import { type BenchModelRegistry, resolveBenchTargets } from "@rva/coding-agent/cli/bench-runtime";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { getModelDbPath, TempDir } from "@rva/utils";
+} from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { resolveModelCacheProviderId } from "@reverse/catalog/provider-models";
+import { type BenchSummary, runBenchCommand } from "@reverse/coding-agent/cli/bench-cli";
+import { type BenchModelRegistry, resolveBenchTargets } from "@reverse/coding-agent/cli/bench-runtime";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { getModelDbPath, TempDir } from "@reverse/utils";
 
 function fakeModel(provider: string, id: string): Model<Api> {
 	return buildModel({

@@ -2,8 +2,8 @@ import { afterEach, expect, mock, spyOn, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __rewriteLegacyExtensionSourceForTests } from "@rva/coding-agent/extensibility/plugins/legacy-pi-compat";
-import { removeWithRetries } from "@rva/utils";
+import { __rewriteLegacyExtensionSourceForTests } from "@reverse/coding-agent/extensibility/plugins/legacy-pi-compat";
+import { removeWithRetries } from "@reverse/utils";
 
 const tempRoots: string[] = [];
 

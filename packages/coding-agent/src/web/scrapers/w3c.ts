@@ -1,4 +1,4 @@
-import { asRecord, tryParseJson } from "@rva/utils";
+import { asRecord, tryParseJson } from "@reverse/utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, htmlToBasicMarkdown, loadPage } from "./types";
 

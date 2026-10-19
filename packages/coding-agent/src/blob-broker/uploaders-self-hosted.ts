@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { getSafeProjectCwd } from "@rva/utils";
+import { getSafeProjectCwd } from "@reverse/utils";
 import { writeRemoteFile } from "../ssh/file-transfer";
 import type { BlobDestinationId } from "./destinations";
 import type { BlobUploader, BlobUploadRequest, RemoteDeleteAction } from "./publication";

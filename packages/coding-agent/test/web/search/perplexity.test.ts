@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@rva/ai";
-import { PerplexityProvider, searchPerplexity } from "@rva/coding-agent/web/search/providers/perplexity";
-import { getAvailableAuthMethods } from "@rva/coding-agent/web/search/providers/perplexity-auth";
+import type { AuthStorage, FetchImpl } from "@reverse/ai";
+import { PerplexityProvider, searchPerplexity } from "@reverse/coding-agent/web/search/providers/perplexity";
+import { getAvailableAuthMethods } from "@reverse/coding-agent/web/search/providers/perplexity-auth";
 
 const API_URL = "https://api.perplexity.ai/chat/completions";
 const RESPONSES_URL = "https://api.perplexity.ai/v1/responses";

@@ -1,14 +1,14 @@
 import { describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import {
 	DEFAULT_COMPACTION_SETTINGS,
 	findReadableCompactionIndex,
 	generateSummary,
 	type SessionEntry,
-} from "@rva/agent/compaction";
-import type { AssistantMessage, Model } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/agent/compaction";
+import type { AssistantMessage, Model } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
 
 function createAssistantMessage(text: string): AssistantMessage {
 	return {

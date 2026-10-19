@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils/temp";
-import { registerNativeBlob } from "@rva/tui/native/blobs";
-import { node } from "@rva/tui/native/describe";
-import type { NativeNode } from "@rva/tui/native/node";
-import type { Component } from "@rva/tui/tui";
+import { TempDir } from "@reverse/utils/temp";
+import { registerNativeBlob } from "@reverse/tui/native/blobs";
+import { node } from "@reverse/tui/native/describe";
+import type { NativeNode } from "@reverse/tui/native/node";
+import type { Component } from "@reverse/tui/tui";
 import { TspHarness } from "./tsp-harness";
 
 describe("native image blob lifetime", () => {

@@ -31,7 +31,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
-import { sanitizeText } from "@rva/utils";
+import { sanitizeText } from "@reverse/utils";
 import { sanitizeStatusText } from "../chrome/shared";
 import { getEditorTheme, getMarkdownTheme, getThemeEpoch, theme } from "../theme/theme";
 import {

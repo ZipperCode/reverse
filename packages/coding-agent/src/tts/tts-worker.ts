@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import type { ProgressInfo, RawAudio } from "@huggingface/transformers";
-import { ensureRuntimeInstalled, getTinyModelsCacheDir, resolveRuntimeModule } from "@rva/utils";
+import { ensureRuntimeInstalled, getTinyModelsCacheDir, resolveRuntimeModule } from "@reverse/utils";
 import {
 	errorMessage,
 	errorText,

@@ -1,4 +1,4 @@
-import type { ptree } from "@rva/utils";
+import type { ptree } from "@reverse/utils";
 
 export type DapMessage = DapRequestMessage | DapResponseMessage | DapEventMessage;
 export type DapSessionStatus = "launching" | "configuring" | "stopped" | "running" | "terminated";

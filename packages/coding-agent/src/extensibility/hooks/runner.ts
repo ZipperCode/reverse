@@ -1,8 +1,8 @@
 /**
  * Hook runner - executes hooks and manages their lifecycle.
  */
-import { type AgentMessage, isNonBlankContext, joinAdditionalContext } from "@rva/agent";
-import type { Model } from "@rva/ai";
+import { type AgentMessage, isNonBlankContext, joinAdditionalContext } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { SessionManager } from "../../session/session-manager";
 import { createNoOpUIContext } from "../utils";
@@ -406,7 +406,7 @@ export class HookRunner {
 	 */
 	async emitBeforeAgentStart(
 		prompt: string,
-		images?: import("@rva/ai").ImageContent[],
+		images?: import("@reverse/ai").ImageContent[],
 	): Promise<BeforeAgentStartEventResult | undefined> {
 		const ctx = this.#createContext();
 		let result: BeforeAgentStartEventResult | undefined;

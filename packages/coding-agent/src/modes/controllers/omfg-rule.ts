@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, Judge } from "@rva/ai";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, Judge } from "@reverse/ai";
 import { compileRuleCondition, type Rule } from "../../capability/rule";
 import { buildRuleFromMarkdown, createSourceMeta } from "../../discovery/helpers";
 import { judgeRules, TtsrManager, type TtsrOutput } from "../../export/ttsr";

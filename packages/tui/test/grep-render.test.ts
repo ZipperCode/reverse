@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
 import { applyHyperlinkSetting } from "../src/render/hyperlink";
-import { getThemeByName } from "@rva/tui/theme";
-import { sanitizeText } from "@rva/utils";
-import { grepToolRenderer } from "@rva/tui/tools/grep";
+import { getThemeByName } from "@reverse/tui/theme";
+import { sanitizeText } from "@reverse/utils";
+import { grepToolRenderer } from "@reverse/tui/tools/grep";
 
 function extractLinkUris(text: string): string[] {
 	return [...text.matchAll(/\x1b\]8;[^;]*;([^\x1b]+)\x1b\\/g)].map(match => match[1]!);

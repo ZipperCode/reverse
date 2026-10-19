@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { EditTool, getEditStore, type PatchParams } from "@rva/coding-agent/edit";
-import { formatHashlineHeader } from "@rva/tui/tools/hashline-format";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import type { EditMode } from "@rva/tui/tools/edit";
-import { removeWithRetries } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool, getEditStore, type PatchParams } from "@reverse/coding-agent/edit";
+import { formatHashlineHeader } from "@reverse/tui/tools/hashline-format";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import type { EditMode } from "@reverse/tui/tools/edit";
+import { removeWithRetries } from "@reverse/utils";
 
 const MODEL = "openai/gpt-5.6";
 const SOURCE = "export function value(): number {\n\treturn 1;\n}\n";

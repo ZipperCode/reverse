@@ -17,10 +17,10 @@ import {
 	type AgentTelemetryConfig,
 	instrumentedCompleteSimple,
 	resolveTelemetry,
-} from "@rva/agent";
-import { sendsImageInputOnWire } from "@rva/ai/providers/vision-guard";
-import type { Api, completeSimple, ImageContent, Model, TextContent } from "@rva/ai";
-import { logger, prompt, toError } from "@rva/utils";
+} from "@reverse/agent";
+import { sendsImageInputOnWire } from "@reverse/ai/providers/vision-guard";
+import type { Api, completeSimple, ImageContent, Model, TextContent } from "@reverse/ai";
+import { logger, prompt, toError } from "@reverse/utils";
 import { extractTextContent } from "../commit/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { expandRoleAlias, getModelMatchPreferences, resolveModelFromString } from "../config/model-resolver";

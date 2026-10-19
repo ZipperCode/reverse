@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai";
-import { type AuthBrokerServerHandle, startAuthBroker } from "@rva/ai/auth-broker";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { discoverAuthStorage } from "@rva/coding-agent/sdk";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { createAuthStorageSettingsSync } from "@rva/coding-agent/session/auth-broker-config";
-import { TempDir } from "@rva/utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai";
+import { type AuthBrokerServerHandle, startAuthBroker } from "@reverse/ai/auth-broker";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { discoverAuthStorage } from "@reverse/coding-agent/sdk";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { createAuthStorageSettingsSync } from "@reverse/coding-agent/session/auth-broker-config";
+import { TempDir } from "@reverse/utils";
 
-import { cfgAuthBrokerUrl } from "@rva/coding-agent/config/model-settings";
+import { cfgAuthBrokerUrl } from "@reverse/coding-agent/config/model-settings";
 
 const PROVIDER = "live-broker-test";
 const TOKEN = "live-broker-bearer";

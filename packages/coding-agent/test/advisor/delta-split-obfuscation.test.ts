@@ -2,7 +2,7 @@
 // secrets that ACTUALLY appear in rendered advisor context — toolResult
 // details.diff and custom message content — matching the old single-block path.
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 
 import { type AdvisorObfuscator, renderAdvisorDeltaChunks } from "../../src/advisor/delta-split";
 

@@ -1,4 +1,4 @@
-import { APP_NAME, getActiveProfile } from "@rva/utils";
+import { APP_NAME, getActiveProfile } from "@reverse/utils";
 
 /**
  * Build the shell command that resumes a session by id.

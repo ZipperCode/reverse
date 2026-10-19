@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	type ImageTokenization,
 	imageTokens,
 	resolveImageMaxEdge,
 	resolveImageTokenization,
-} from "@rva/catalog/compat/image-tokenization";
-import { getBundledModel } from "@rva/catalog/models";
-import { isRecord } from "@rva/utils/type-guards";
+} from "@reverse/catalog/compat/image-tokenization";
+import { getBundledModel } from "@reverse/catalog/models";
+import { isRecord } from "@reverse/utils/type-guards";
 import rules from "../src/compat/rules.json";
 
 const HIRES: ImageTokenization = { regime: "anthropic-patch", verified: true, maxEdge: 2576, maxTokens: 4784 };

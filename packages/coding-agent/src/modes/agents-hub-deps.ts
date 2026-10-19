@@ -1,10 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type { Model, ServiceTier } from "@rva/ai";
-import type { AgentsHubDeps } from "@rva/tui/overlays/agents-hub";
-import { shortenPath } from "@rva/tui/render/render-utils";
-import { isEnoent, prompt } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { Model, ServiceTier } from "@reverse/ai";
+import type { AgentsHubDeps } from "@reverse/tui/overlays/agents-hub";
+import { shortenPath } from "@reverse/tui/render/render-utils";
+import { isEnoent, prompt } from "@reverse/utils";
 import { YAML } from "bun";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { getConfigDirs } from "../config";

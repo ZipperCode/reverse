@@ -2,20 +2,14 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort } from "@rva/catalog/effort";
-import { buildModel } from "@rva/catalog/build";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { getBundledModels } from "@rva/catalog/models";
-import {
-	googleModelManagerOptions,
-	googleVertexModelManagerOptions,
-} from "@rva/catalog/provider-models/google";
-import {
-	MODELS_DEV_PROVIDER_DESCRIPTORS,
-	mapModelsDevToModels,
-} from "@rva/catalog/provider-models/openai-compat";
-import type { Api, ModelSpec } from "@rva/catalog/types";
+import { Effort } from "@reverse/catalog/effort";
+import { buildModel } from "@reverse/catalog/build";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { getBundledModels } from "@reverse/catalog/models";
+import { googleModelManagerOptions, googleVertexModelManagerOptions } from "@reverse/catalog/provider-models/google";
+import { MODELS_DEV_PROVIDER_DESCRIPTORS, mapModelsDevToModels } from "@reverse/catalog/provider-models/openai-compat";
+import type { Api, ModelSpec } from "@reverse/catalog/types";
 
 const googleVertexModelsDevPayload = {
 	"google-vertex": {

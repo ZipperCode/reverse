@@ -1,4 +1,4 @@
-import { CODEX_BASE_URL } from "@rva/catalog/wire/codex";
+import { CODEX_BASE_URL } from "@reverse/catalog/wire/codex";
 
 /**
  * Resolve the base URL for ChatGPT account-API requests (`wham/usage`,

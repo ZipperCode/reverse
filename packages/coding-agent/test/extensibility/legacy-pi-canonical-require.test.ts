@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 
 const SHIM_PATH = path.join(import.meta.dir, "../../src/extensibility/plugins/legacy-pi-compat.ts");
 const PACKAGE_DIR = path.join(import.meta.dir, "../..");
@@ -46,31 +46,31 @@ describe("legacy-pi specifier shim", () => {
 	});
 
 	it("resolves a canonical @oh-my-pi subpath that remaps to itself", async () => {
-		// Regression: the resolve hook matches `@rva/pi-*` as well as the
+		// Regression: the resolve hook matches `@reverse/pi-*` as well as the
 		// legacy scopes, so resolving the remapped specifier called
 		// `Bun.resolveSync` with a specifier this same hook matches. Bun
 		// re-entered the hook and re-prefixed the namespace on every pass until
 		// the import died as `NameTooLong reading "file:file:…"`, breaking every
-		// `require("@rva/ai/index.js")` first-use boundary — the
+		// `require("@reverse/ai/index.js")` first-use boundary — the
 		// `/login` provider selector among them.
-		const loaded = parseLoaded(await requireThroughShim("@rva/ai/index.js"));
+		const loaded = parseLoaded(await requireThroughShim("@reverse/ai/index.js"));
 		expect(loaded.pluginLocal).toBe(false);
 		expect(loaded.keys).toBeGreaterThan(1);
 	}, 30_000);
 
 	it("keeps a plugin's canonical subpath import on the host copy, not a plugin-local install", async () => {
-		// A plugin that ships its own `@rva/ai` must still share the host
+		// A plugin that ships its own `@reverse/ai` must still share the host
 		// singleton (split registries otherwise); only the host copy exposes more
 		// than the fixture's single marker export.
 		tempDir = TempDir.createSync("@pi-legacy-canonical-shadow-");
-		const localPackage = tempDir.join("node_modules/@rva/ai");
+		const localPackage = tempDir.join("node_modules/@reverse/ai");
 		await Bun.write(
 			path.join(localPackage, "package.json"),
-			JSON.stringify({ name: "@rva/ai", version: "0.0.0", main: "index.js" }),
+			JSON.stringify({ name: "@reverse/ai", version: "0.0.0", main: "index.js" }),
 		);
 		await Bun.write(path.join(localPackage, "index.js"), "module.exports = { PLUGIN_LOCAL_COPY: true };");
 		const pluginEntry = tempDir.join("plugin.cjs");
-		await Bun.write(pluginEntry, 'module.exports = require("@rva/ai/index.js");');
+		await Bun.write(pluginEntry, 'module.exports = require("@reverse/ai/index.js");');
 
 		const loaded = parseLoaded(await requireThroughShim(pluginEntry));
 		expect(loaded.pluginLocal).toBe(false);

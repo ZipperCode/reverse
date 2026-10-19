@@ -1,5 +1,5 @@
-import { $env, logger } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { $env, logger } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { $ } from "bun";
 import { Settings } from "../config/settings";
 import {

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { streamBedrock } from "@rva/ai/providers/amazon-bedrock";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
 import { withEnv } from "./helpers";
 
 interface CachePoint {

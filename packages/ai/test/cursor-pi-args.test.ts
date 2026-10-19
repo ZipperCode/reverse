@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import {
 	cursorExecReadPath,
 	cursorRawReadPath,

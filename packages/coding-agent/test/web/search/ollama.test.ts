@@ -1,10 +1,10 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@rva/ai";
-import type { FetchImpl } from "@rva/ai/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import type { SearchParams } from "@rva/coding-agent/web/search/providers/base";
-import { searchOllama } from "@rva/coding-agent/web/search/providers/ollama";
-import { parseSearchQuery } from "@rva/coding-agent/web/search/query";
+import type { AuthStorage } from "@reverse/ai";
+import type { FetchImpl } from "@reverse/ai/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import type { SearchParams } from "@reverse/coding-agent/web/search/providers/base";
+import { searchOllama } from "@reverse/coding-agent/web/search/providers/ollama";
+import { parseSearchQuery } from "@reverse/coding-agent/web/search/query";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const OLLAMA_SEARCH_URL = "https://ollama.com/api/web_search";

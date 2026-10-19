@@ -4,8 +4,8 @@
  * Automatically detects OAuth requirements from MCP server responses
  * and extracts authentication endpoints.
  */
-import * as AIError from "@rva/ai/error";
-import type { FetchImpl } from "@rva/ai/types";
+import * as AIError from "@reverse/ai/error";
+import type { FetchImpl } from "@reverse/ai/types";
 import { withTimeoutSignal } from "../utils/fetch-timeout";
 
 /** Per-request abort deadline for each OAuth discovery metadata fetch. */

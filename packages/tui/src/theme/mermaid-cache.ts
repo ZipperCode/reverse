@@ -1,6 +1,6 @@
-import type { MermaidRenderOptions } from "@rva/natives";
-import { LRUCache } from "@rva/utils/lru";
-import * as mermaidAscii from "@rva/utils/mermaid-ascii";
+import type { MermaidRenderOptions } from "@reverse/natives";
+import { LRUCache } from "@reverse/utils/lru";
+import * as mermaidAscii from "@reverse/utils/mermaid-ascii";
 
 /**
  * Options controlling how fenced Mermaid source is resolved to terminal ASCII.

@@ -6,7 +6,7 @@ import {
 	isVertexRawPredictUrl,
 	modelMatchesHost,
 	resolveVertexEndpointHost,
-} from "@rva/catalog/hosts";
+} from "@reverse/catalog/hosts";
 
 describe("hostMatchesUrl", () => {
 	test("matches OpenRouter URLs and rejects other or missing URLs", () => {

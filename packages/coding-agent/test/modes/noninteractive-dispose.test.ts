@@ -9,8 +9,8 @@
  */
 import * as path from "node:path";
 import { describe, expect, it, spyOn } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { postmortem, TempDir } from "@rva/utils";
+import type { AssistantMessage } from "@reverse/ai";
+import { postmortem, TempDir } from "@reverse/utils";
 import { Settings } from "../../src/config/settings";
 import { runPrintMode } from "../../src/modes/print-mode";
 import type { AgentSession } from "../../src/session/agent-session";

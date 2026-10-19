@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { assistantMsg, userMsg } from "../utilities";
 
 describe("SessionManager append and tree traversal", () => {

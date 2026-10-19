@@ -4,10 +4,10 @@ import {
 	type AuthCredentialStore,
 	AuthStorage,
 	type StoredAuthCredential,
-} from "@rva/ai/auth-storage";
-import { ProviderHttpError } from "@rva/ai/error";
-import type { UsageLimit, UsageReport } from "@rva/ai/usage";
-import * as claudeUsage from "@rva/ai/usage/claude";
+} from "@reverse/ai/auth-storage";
+import { ProviderHttpError } from "@reverse/ai/error";
+import type { UsageLimit, UsageReport } from "@reverse/ai/usage";
+import * as claudeUsage from "@reverse/ai/usage/claude";
 
 interface ObservableStore extends AuthCredentialStore {
 	cache: Map<string, { value: string; expiresAtSec: number }>;

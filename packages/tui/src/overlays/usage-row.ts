@@ -1,7 +1,7 @@
-import type { AssistantMessage, Usage } from "@rva/ai";
+import type { AssistantMessage, Usage } from "@reverse/ai";
 import { Container } from "../tui";
 import { Spacer } from "../components/spacer";
-import { formatDuration, formatNumber } from "@rva/utils";
+import { formatDuration, formatNumber } from "@reverse/utils";
 import { theme } from "../theme/theme";
 import { formatMetricRow, MetricRow, type MetricSpec } from "../components/metric";
 import { node, row, span, text } from "../native/describe";

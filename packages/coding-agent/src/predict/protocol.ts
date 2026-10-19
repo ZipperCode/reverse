@@ -8,7 +8,7 @@
  * response; responses may arrive out of order.
  */
 import * as path from "node:path";
-import { ipcEndpoint, type PredictedWord } from "@rva/natives";
+import { ipcEndpoint, type PredictedWord } from "@reverse/natives";
 export { TEXT_PREDICT_WORKER_ARG } from "../cli/worker-selectors";
 
 /** Global broker scope owning the daemon. */

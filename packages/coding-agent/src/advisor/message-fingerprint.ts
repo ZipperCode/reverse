@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 
 /**
  * Field-selective identity hash for an advisor-visible message.

@@ -1,7 +1,7 @@
-import { APP_NAME } from "@rva/utils/dirs";
+import { APP_NAME } from "@reverse/utils/dirs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { normalizeProfileName } from "@rva/utils/dirs";
+import { normalizeProfileName } from "@reverse/utils/dirs";
 import { quotePosixArgument } from "../utils/shell-quote";
 
 export type ProfileAliasShell = "bash" | "zsh" | "fish" | "powershell" | "pwsh";

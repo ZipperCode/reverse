@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { node, span } from "@rva/tui/native/describe";
-import type { DescribeContext, NativeNode } from "@rva/tui/native/node";
-import { nativeComponentId, Reconciler } from "@rva/tui/native/reconcile";
-import { TERMINAL } from "@rva/tui/terminal-capabilities";
-import { getSymbolPresetOverride, initThemeSync, theme } from "@rva/tui/theme";
-import type { Component } from "@rva/tui/tui";
-import type { TspNode } from "@rva/wire";
+import { node, span } from "@reverse/tui/native/describe";
+import type { DescribeContext, NativeNode } from "@reverse/tui/native/node";
+import { nativeComponentId, Reconciler } from "@reverse/tui/native/reconcile";
+import { TERMINAL } from "@reverse/tui/terminal-capabilities";
+import { getSymbolPresetOverride, initThemeSync, theme } from "@reverse/tui/theme";
+import type { Component } from "@reverse/tui/tui";
+import type { TspNode } from "@reverse/wire";
 import { TspHarness } from "./tsp-harness";
 
 const cx: DescribeContext = { cols: 80, reduceMotion: false, dark: true, supports: () => true, feature: () => true };

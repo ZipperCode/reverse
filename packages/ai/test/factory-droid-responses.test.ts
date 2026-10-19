@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { Effort } from "@rva/catalog/effort";
+import { type } from "@reverse/omptype";
+import { Effort } from "@reverse/catalog/effort";
 import { streamFactoryDroid } from "../src/providers/factory-droid";
 import type { Tool } from "../src/types";
 import { type CapturedRequest, captureFetch, factoryModel, responsesChunks, workosJwt } from "./helpers/factory-droid";

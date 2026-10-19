@@ -1,4 +1,4 @@
-import { hasTerminalMultiplexerSession } from "@rva/tui/terminal-multiplexer";
+import { hasTerminalMultiplexerSession } from "@reverse/tui/terminal-multiplexer";
 import { quotePosixArgvAsciiSafe } from "../../utils/shell-quote";
 import { launchError, nestedString, parseJson, runStep } from "./shared";
 import type {

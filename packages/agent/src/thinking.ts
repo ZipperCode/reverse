@@ -1,4 +1,4 @@
-import { Effort } from "@rva/catalog/effort";
+import { Effort } from "@reverse/catalog/effort";
 
 /**
  * Agent-local thinking selector.

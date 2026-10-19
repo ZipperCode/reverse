@@ -1,10 +1,6 @@
-import * as vcs from "@rva/natives/vcs";
-import type { TUI } from "@rva/tui";
-import {
-	type GitTuiHost,
-	runGitTui as runView,
-	showGitOverlay as showOverlay,
-} from "@rva/tui/apps/git/git-tui";
+import * as vcs from "@reverse/natives/vcs";
+import type { TUI } from "@reverse/tui";
+import { type GitTuiHost, runGitTui as runView, showGitOverlay as showOverlay } from "@reverse/tui/apps/git/git-tui";
 import { generateGitCommit } from "../commit/conventional/service";
 import { aiStage } from "./git-tui/ai-stage";
 import { AvatarLoader } from "./git-tui/avatar";

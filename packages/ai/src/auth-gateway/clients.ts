@@ -21,7 +21,7 @@
  * the old restriction until they finish, and only then is it lifted. A
  * version's requests share that session's account pin.
  */
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 import type { SessionRestrictionLease, SessionsApi } from "../auth/types";
 import type { Api, Model } from "../types";
 

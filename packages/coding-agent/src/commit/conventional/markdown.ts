@@ -1,4 +1,4 @@
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 import type { CommitType, ConventionalAnalysis, ConventionalCommit, ConventionalDetail } from "../types";
 import { canonicalCommitType, coerceCommitType, conventionalAnalysis, conventionalCommit } from "./commit-types";
 import { codePointLength, sliceCodePoints } from "./text";

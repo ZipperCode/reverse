@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { complete } from "@rva/ai/stream";
-import type { Api, AssistantMessage, Context, Message, Model, Tool, ToolResultMessage } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { type } from "@reverse/omptype";
+import { complete } from "@reverse/ai/stream";
+import type { Api, AssistantMessage, Context, Message, Model, Tool, ToolResultMessage } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 import { e2eApiKey } from "./oauth";
 
 // Tool for testing

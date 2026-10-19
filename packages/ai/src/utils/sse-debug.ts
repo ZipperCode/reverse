@@ -1,4 +1,4 @@
-import type { ServerSentEvent } from "@rva/utils";
+import type { ServerSentEvent } from "@reverse/utils";
 import type { RawSseEvent } from "../types";
 
 type RawSseObserver = (event: RawSseEvent) => void;

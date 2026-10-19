@@ -1,5 +1,5 @@
-import { runProviderSetupWizard as runProviderWizard } from "@rva/tui/setup/lazy";
-import type { SetupHost, SetupScene } from "@rva/tui/setup/scenes/types";
+import { runProviderSetupWizard as runProviderWizard } from "@reverse/tui/setup/lazy";
+import type { SetupHost, SetupScene } from "@reverse/tui/setup/scenes/types";
 import {
 	ALL_SCENES,
 	CURRENT_SETUP_VERSION,
@@ -7,7 +7,7 @@ import {
 	type RunSetupWizardOptions,
 	selectSetupScenes as selectScenes,
 	type SetupSceneSelectionOptions,
-} from "@rva/tui/setup/wizard";
+} from "@reverse/tui/setup/wizard";
 import type { Settings } from "../config/settings";
 import { captureBrowserSession } from "../utils/browser-session";
 import { copyToClipboard } from "../utils/clipboard";
@@ -25,8 +25,8 @@ import {
 import { cfgDisabledProviders, cfgModelRoleStorage } from "../config/model-settings";
 
 export { ALL_SCENES, CURRENT_SETUP_VERSION };
-export type { SetupScene, SetupSceneHost } from "@rva/tui/setup/scenes/types";
-export { runStartupSplash } from "@rva/tui/setup/startup-splash";
+export type { SetupScene, SetupSceneHost } from "@reverse/tui/setup/scenes/types";
+export { runStartupSplash } from "@reverse/tui/setup/startup-splash";
 
 /** Bind application preferences and runtime effects to the setup presentation. */
 export function createSetupHost(ctx: InteractiveModeContext): SetupHost {

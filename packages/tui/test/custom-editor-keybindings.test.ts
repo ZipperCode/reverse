@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { getKeybindings, setKeybindings } from "@rva/tui";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { getEditorTheme, initTheme } from "@rva/tui/theme";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { getKeybindings, setKeybindings } from "@reverse/tui";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { getEditorTheme, initTheme } from "@reverse/tui/theme";
 
 describe("CustomEditor keybindings", () => {
 	beforeAll(async () => {

@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, ImageContent } from "@rva/ai";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, ImageContent } from "@reverse/ai";
 import { MAGIC_KEYWORDS } from "../modes/magic-keywords";
 import type { RestoredQueuedMessage } from "./agent-session-types";
 import { type CustomMessage, readQueueChipText } from "./messages";

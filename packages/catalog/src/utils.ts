@@ -1,6 +1,6 @@
-import { type FetchImpl, wrapFetchForExtraCa } from "@rva/utils/tls-fetch";
+import { type FetchImpl, wrapFetchForExtraCa } from "@reverse/utils/tls-fetch";
 
-export { isRecord } from "@rva/utils/type-guards";
+export { isRecord } from "@reverse/utils/type-guards";
 
 /**
  * Fetch implementation for catalog discovery probes: the caller's override

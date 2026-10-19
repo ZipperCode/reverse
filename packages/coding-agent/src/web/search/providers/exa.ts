@@ -6,8 +6,8 @@
  * Requests per-result summaries via `contents.summary` and synthesizes
  * them into a combined `answer` string on the SearchResponse.
  */
-import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@rva/ai";
-import { $env, asRecord } from "@rva/utils";
+import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@reverse/ai";
+import { $env, asRecord } from "@reverse/utils";
 import { settings } from "../../../config/settings";
 import { readMcpJsonRpcResponse } from "../../../mcp/json-rpc";
 import type { SearchResponse, SearchSource } from "../types";

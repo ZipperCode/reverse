@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { seedModels } from "@rva/catalog/compat/providers";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { openrouterModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
+import { buildModel } from "@reverse/catalog/build";
+import { seedModels } from "@reverse/catalog/compat/providers";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { openrouterModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
 
 const CHAT_PAYLOAD = {
 	data: [

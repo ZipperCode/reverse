@@ -7,8 +7,8 @@
  * `omp session moved <session> --to <label>` marks the copy left behind stale
  * so resuming it forks instead of continuing it.
  */
-import chalk from "@rva/utils/chalk";
-import { Args, CliUsageError, Command, Flags } from "@rva/utils/cli";
+import chalk from "@reverse/utils/chalk";
+import { Args, CliUsageError, Command, Flags } from "@reverse/utils/cli";
 import { sessionHelp as commandHelp } from "../cli/command-help";
 import { resolveSessionFileArg } from "../cli/session-arg";
 import { SessionMoveRefusedError } from "../session/session-manager";

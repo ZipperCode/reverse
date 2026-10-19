@@ -2,18 +2,18 @@ import { Database, type Statement } from "bun:sqlite";
 import { afterEach, beforeEach, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { mnemopiBackend } from "@rva/coding-agent/mnemopi/backend";
-import { extendRecallWithLegacyBanks, type MnemopiBackendConfig } from "@rva/coding-agent/mnemopi/config";
-import * as content from "@rva/coding-agent/hindsight/content";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { mnemopiBackend } from "@reverse/coding-agent/mnemopi/backend";
+import { extendRecallWithLegacyBanks, type MnemopiBackendConfig } from "@reverse/coding-agent/mnemopi/config";
+import * as content from "@reverse/coding-agent/hindsight/content";
 import {
 	loadMnemopi,
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@rva/coding-agent/mnemopi/state";
-import { resetMemoryForTests } from "@rva/mnemopi";
-import { currentLoopPhase, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/mnemopi/state";
+import { resetMemoryForTests } from "@reverse/mnemopi";
+import { currentLoopPhase, TempDir } from "@reverse/utils";
 
 // State construction uses the same preloaded, synchronous facade as memory-tools.test.ts.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);

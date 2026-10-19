@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { skillPromptTitleInput, titleTextFromSkillPrompt } from "@rva/tui/chat/skill-title-input";
+import { skillPromptTitleInput, titleTextFromSkillPrompt } from "@reverse/tui/chat/skill-title-input";
 import { formatTitleConversationContext } from "../../src/tiny/message-preproc";
 
 describe("skillPromptTitleInput", () => {

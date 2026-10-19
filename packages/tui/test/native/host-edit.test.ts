@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Editor } from "@rva/tui/components/editor";
-import { Input } from "@rva/tui/components/input";
-import type { NativeTextEdit } from "@rva/tui/native/node";
+import { Editor } from "@reverse/tui/components/editor";
+import { Input } from "@reverse/tui/components/input";
+import type { NativeTextEdit } from "@reverse/tui/native/node";
 import { defaultEditorTheme } from "../test-themes";
 import { TspHarness } from "./tsp-harness";
 

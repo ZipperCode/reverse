@@ -1,7 +1,7 @@
 import type { Stats } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getDocumentConversionCacheDir, isEnoent, logger } from "@rva/utils";
+import { getDocumentConversionCacheDir, isEnoent, logger } from "@reverse/utils";
 import packageJson from "../../package.json" with { type: "json" };
 
 /**

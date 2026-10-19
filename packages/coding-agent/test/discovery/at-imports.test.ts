@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import { expandAtImports, MAX_AT_IMPORT_DEPTH } from "@rva/coding-agent/discovery/at-imports";
-import { removeWithRetries } from "@rva/utils";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { expandAtImports, MAX_AT_IMPORT_DEPTH } from "@reverse/coding-agent/discovery/at-imports";
+import { removeWithRetries } from "@reverse/utils";
 
 /**
  * Behavior contract for the @-import expander used by every AGENTS.md /

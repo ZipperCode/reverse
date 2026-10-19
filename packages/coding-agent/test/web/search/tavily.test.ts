@@ -1,12 +1,12 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@rva/ai";
-import type { FetchImpl } from "@rva/ai/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
+import type { AuthStorage } from "@reverse/ai";
+import type { FetchImpl } from "@reverse/ai/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import {
 	buildRequestBody,
 	searchTavily,
 	type TavilySearchParams,
-} from "@rva/coding-agent/web/search/providers/tavily";
+} from "@reverse/coding-agent/web/search/providers/tavily";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const catalogAuthStorage = createInMemoryAuthStorage();

@@ -1,15 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { renderDemotedThinking } from "@rva/ai/dialect";
-import { convertAnthropicMessages } from "@rva/ai/providers/anthropic";
-import type {
-	AssistantMessage,
-	Message,
-	Model,
-	ModelSpec,
-	ToolResultMessage,
-	UserMessage,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { renderDemotedThinking } from "@reverse/ai/dialect";
+import { convertAnthropicMessages } from "@reverse/ai/providers/anthropic";
+import type { AssistantMessage, Message, Model, ModelSpec, ToolResultMessage, UserMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 /**
  * Cross-model `anthropic-messages` continuations must preserve the prior

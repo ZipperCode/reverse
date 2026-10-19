@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import * as prompt from "@rva/utils/prompt";
+import * as prompt from "@reverse/utils/prompt";
 
 const FULL = { renderPhase: "pre-render", replaceAsciiSymbols: true, normalizeRfc2119: true } as const;
 

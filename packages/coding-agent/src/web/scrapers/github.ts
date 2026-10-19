@@ -1,4 +1,4 @@
-import { $env, ptree, USER_AGENT } from "@rva/utils";
+import { $env, ptree, USER_AGENT } from "@reverse/utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, formatMediaDuration, loadPage } from "./types";
 

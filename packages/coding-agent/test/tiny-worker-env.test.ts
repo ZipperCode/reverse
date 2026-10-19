@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { ipcEndpoint } from "@rva/natives";
-import { sharedWorkerLogPath } from "@rva/coding-agent/subprocess/shared-worker";
-import { nativeLibraryPathOverlay, workerEnvFromParent } from "@rva/coding-agent/subprocess/worker-client";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { cfgProvidersTinyModelDevice } from "@rva/coding-agent/session/settings";
-import { tinyWorkerEnvOverlay } from "@rva/coding-agent/tiny/title-client";
-import { tinyWorkerName } from "@rva/coding-agent/tiny/title-protocol";
+import { ipcEndpoint } from "@reverse/natives";
+import { sharedWorkerLogPath } from "@reverse/coding-agent/subprocess/shared-worker";
+import { nativeLibraryPathOverlay, workerEnvFromParent } from "@reverse/coding-agent/subprocess/worker-client";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { cfgProvidersTinyModelDevice } from "@reverse/coding-agent/session/settings";
+import { tinyWorkerEnvOverlay } from "@reverse/coding-agent/tiny/title-client";
+import { tinyWorkerName } from "@reverse/coding-agent/tiny/title-protocol";
 
 describe("workerEnvFromParent", () => {
 	it("drops inherited git repo-location overrides but keeps an explicit overlay", () => {

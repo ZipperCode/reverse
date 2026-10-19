@@ -1,4 +1,4 @@
-import type { RenderScheduler, RenderTimer } from "@rva/tui/tui";
+import type { RenderScheduler, RenderTimer } from "@reverse/tui/tui";
 import type { VirtualTerminal } from "./virtual-terminal";
 
 /**

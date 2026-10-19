@@ -1,13 +1,9 @@
-import { getProjectDir } from "@rva/utils";
-import {
-	type CleanseTargetChoice,
-	pickCleanseTarget,
-	promptCleanseRequest,
-} from "@rva/tui/apps/cleanse-picker";
-import { shortenPath } from "@rva/tui/render/render-utils";
+import { getProjectDir } from "@reverse/utils";
+import { type CleanseTargetChoice, pickCleanseTarget, promptCleanseRequest } from "@reverse/tui/apps/cleanse-picker";
+import { shortenPath } from "@reverse/tui/render/render-utils";
 import { type CleanseAgentHooks, type CleanseAgentRuntime, createCleanseAgentRuntime } from "./agent";
 import { groupDiagnosticsByFile } from "./balance";
-import { type CleanseStatusBoard, createCleanseStatusBoard } from "@rva/tui/apps/cleanse-board";
+import { type CleanseStatusBoard, createCleanseStatusBoard } from "@reverse/tui/apps/cleanse-board";
 import {
 	buildCustomCleanseSuite,
 	type CleanseCheckerDescriptor,

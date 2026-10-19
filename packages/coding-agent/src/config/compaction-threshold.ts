@@ -1,4 +1,4 @@
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 
 /**
  * One `task.agentCompactionThresholdOverrides` or `compaction.modelThresholds`

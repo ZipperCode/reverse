@@ -11,12 +11,12 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { expandPromptTemplate, type PromptTemplate } from "@rva/coding-agent/config/prompt-templates";
-import { expandSlashCommand, type FileSlashCommand } from "@rva/coding-agent/extensibility/slash-commands";
-import { AgentRegistry, MAIN_AGENT_ID } from "@rva/coding-agent/registry/agent-registry";
-import { collectIrcPeerRoster } from "@rva/coding-agent/task/executor";
-import { parseCommandArgs, substituteArgs } from "@rva/coding-agent/utils/command-args";
-import { prompt } from "@rva/utils";
+import { expandPromptTemplate, type PromptTemplate } from "@reverse/coding-agent/config/prompt-templates";
+import { expandSlashCommand, type FileSlashCommand } from "@reverse/coding-agent/extensibility/slash-commands";
+import { AgentRegistry, MAIN_AGENT_ID } from "@reverse/coding-agent/registry/agent-registry";
+import { collectIrcPeerRoster } from "@reverse/coding-agent/task/executor";
+import { parseCommandArgs, substituteArgs } from "@reverse/coding-agent/utils/command-args";
+import { prompt } from "@reverse/utils";
 
 // ============================================================================
 // substituteArgs

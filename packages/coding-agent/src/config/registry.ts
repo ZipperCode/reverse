@@ -23,8 +23,8 @@
  * Declaration order is significant: the settings panel lists a tab's settings in registration order
  * (sections follow `TAB_GROUPS`), and `config/all-settings.ts` imports every domain in that order.
  */
-import { logger, parseFlag } from "@rva/utils";
-import type { AnyUiMetadata, SubmenuOption, UiBase } from "@rva/tui/overlays/settings-defs";
+import { logger, parseFlag } from "@reverse/utils";
+import type { AnyUiMetadata, SubmenuOption, UiBase } from "@reverse/tui/overlays/settings-defs";
 import type { SettingProvenance, Settings } from "./settings";
 
 // ═══════════════════════════════════════════════════════════════════════════

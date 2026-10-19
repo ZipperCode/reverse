@@ -1,8 +1,8 @@
-import { type } from "@rva/omptype";
-import type { AgentMessage } from "@rva/agent";
-import { completeSimple, Effort, type Model, retryTransientCompletion } from "@rva/ai";
-import { clampThinkingLevelForModel } from "@rva/catalog/model-thinking";
-import { logger, prompt } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentMessage } from "@reverse/agent";
+import { completeSimple, Effort, type Model, retryTransientCompletion } from "@reverse/ai";
+import { clampThinkingLevelForModel } from "@reverse/catalog/model-thinking";
+import { logger, prompt } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue, resolveRoleSelection } from "../config/model-resolver";
 import type { Settings } from "../config/settings";

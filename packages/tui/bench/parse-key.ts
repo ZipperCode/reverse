@@ -1,4 +1,4 @@
-import { parseKey as nativeParseKey } from "@rva/natives";
+import { parseKey as nativeParseKey } from "@reverse/natives";
 import * as native from "../src/keys";
 import { makeBench } from "./_harness";
 import * as js from "./_jskey";

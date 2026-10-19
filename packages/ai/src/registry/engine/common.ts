@@ -9,8 +9,8 @@ import type {
 	CompiledCredentialMap,
 	CompiledOAuthRequest,
 	CompiledUserinfo,
-} from "@rva/catalog/compat/types";
-import { $env } from "@rva/utils";
+} from "@reverse/catalog/compat/types";
+import { $env } from "@reverse/utils";
 import * as AIError from "../../error";
 import type { FetchImpl } from "../../types";
 import { HOOKS } from "../hooks";

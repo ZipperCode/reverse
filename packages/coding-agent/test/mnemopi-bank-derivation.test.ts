@@ -3,8 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { computeMnemopiBankScope, extendRecallWithLegacyBanks } from "@rva/coding-agent/mnemopi/config";
-import { removeWithRetries, TempDir } from "@rva/utils";
+import { computeMnemopiBankScope, extendRecallWithLegacyBanks } from "@reverse/coding-agent/mnemopi/config";
+import { removeWithRetries, TempDir } from "@reverse/utils";
 
 // Set up a fixture filesystem we can reuse across the two regression
 // suites — same shape as `~/.omp/memories/mnemopi/` on a real install.

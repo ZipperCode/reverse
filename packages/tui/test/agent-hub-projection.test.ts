@@ -5,9 +5,9 @@ import {
 	aggregateMetrics,
 	hubFallbackStatsSession,
 	hubRowMetrics,
-} from "@rva/tui/overlays/agent-hub-projection";
+} from "@reverse/tui/overlays/agent-hub-projection";
 import type { ObservableSession } from "../src/overlays/session-observer-registry";
-import type { AgentRecordLike } from "@rva/tui/overlays/agent-hub-types";
+import type { AgentRecordLike } from "@reverse/tui/overlays/agent-hub-types";
 
 function assistant(output: number, cost = output / 1000) {
 	return {

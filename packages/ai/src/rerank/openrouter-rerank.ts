@@ -1,6 +1,6 @@
-import { type } from "@rva/omptype";
-import { calculateCost } from "@rva/catalog/models";
-import type { Api, FetchImpl, Model, Usage } from "@rva/catalog/types";
+import { type } from "@reverse/omptype";
+import { calculateCost } from "@reverse/catalog/models";
+import type { Api, FetchImpl, Model, Usage } from "@reverse/catalog/types";
 import { type ApiKey, withAuth } from "../auth-retry";
 import * as AIError from "../error";
 import type { RerankRequest, RerankResult } from "./types";

@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { QueryCache } from "@rva/mnemopi/core/query-cache";
-import { expandQuery, getSynonyms, normalizeQuery } from "@rva/mnemopi/core/synonyms";
+import { QueryCache } from "@reverse/mnemopi/core/query-cache";
+import { expandQuery, getSynonyms, normalizeQuery } from "@reverse/mnemopi/core/synonyms";
 
 const openCaches: QueryCache[] = [];
 

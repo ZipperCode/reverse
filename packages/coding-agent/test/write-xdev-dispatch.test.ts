@@ -2,18 +2,18 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type { AgentTool } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as themeModule from "@rva/tui/theme";
-import { ToolChoiceQueue } from "@rva/coding-agent/session/tool-choice-queue";
-import { createTools, type Tool, type ToolSession } from "@rva/coding-agent/tools";
-import { requiresApproval, resolveApproval } from "@rva/coding-agent/tools/approval";
-import { Text } from "@rva/tui";
-import { githubToolRenderer } from "@rva/tui/tools/github";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { type WriteRenderContext, writeToolRenderer } from "@rva/tui/tools/write";
+import { type } from "@reverse/omptype";
+import type { AgentTool } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as themeModule from "@reverse/tui/theme";
+import { ToolChoiceQueue } from "@reverse/coding-agent/session/tool-choice-queue";
+import { createTools, type Tool, type ToolSession } from "@reverse/coding-agent/tools";
+import { requiresApproval, resolveApproval } from "@reverse/coding-agent/tools/approval";
+import { Text } from "@reverse/tui";
+import { githubToolRenderer } from "@reverse/tui/tools/github";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { type WriteRenderContext, writeToolRenderer } from "@reverse/tui/tools/write";
 import {
 	dispatchXdevTool,
 	listXdevTools,
@@ -26,10 +26,10 @@ import {
 	xdevDocs,
 	xdevDocsAll,
 	xdevEntries,
-} from "@rva/coding-agent/tools/xdev";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/tools/xdev";
+import { removeWithRetries } from "@reverse/utils";
 
-import { cfgToolsXdev, cfgToolsXdevDocs } from "@rva/coding-agent/tools/settings";
+import { cfgToolsXdev, cfgToolsXdevDocs } from "@reverse/coding-agent/tools/settings";
 
 /**
  * Mirrors `ToolExecutionComponent#buildRenderContext`: the host state's own

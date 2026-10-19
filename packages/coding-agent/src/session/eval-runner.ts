@@ -1,5 +1,5 @@
-import type { Agent } from "@rva/agent";
-import { logger } from "@rva/utils";
+import type { Agent } from "@reverse/agent";
+import { logger } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import { disposeVmContextsByOwner } from "../eval/js/context-manager";
 import { namespaceSessionId as namespacePythonSessionId } from "../eval/py";

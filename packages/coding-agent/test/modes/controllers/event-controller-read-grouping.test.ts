@@ -13,18 +13,18 @@
  * one-entry block).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, ImageContent } from "@rva/ai";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { ReadToolGroupComponent } from "@rva/tui/chat/read-tool-group";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { type Component, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@rva/tui";
+import type { AssistantMessage, ImageContent } from "@reverse/ai";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { type Component, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@reverse/tui";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
-import { cfgDisplayShowTokenUsage, cfgTerminalShowImages } from "@rva/coding-agent/modes/settings";
+import { cfgDisplayShowTokenUsage, cfgTerminalShowImages } from "@reverse/coding-agent/modes/settings";
 
 beforeAll(async () => {
 	await initTheme(false, undefined, undefined, "dark", "light");

@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import type { AgentMessage, AgentTool } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import type { AgentMessage, AgentTool } from "@reverse/agent";
 import {
 	createCompactionSummaryMessage,
 	defaultConvertToLlm,
 	generateHandoff,
 	generateHandoffFromContext,
-} from "@rva/agent/compaction";
-import { ThinkingLevel } from "@rva/agent/thinking";
-import type { AssistantMessage, Model, ToolCall } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { Effort } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/agent/compaction";
+import { ThinkingLevel } from "@reverse/agent/thinking";
+import type { AssistantMessage, Model, ToolCall } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { Effort } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
 
 function createAssistantMessage(content: AssistantMessage["content"]): AssistantMessage {
 	return {

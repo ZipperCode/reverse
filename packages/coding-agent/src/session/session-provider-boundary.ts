@@ -1,10 +1,10 @@
 /** Provider-facing message, image, secret, and stream normalization for a session. */
 
-import type { Agent, AgentMessage } from "@rva/agent";
-import type { CompactionPreparation } from "@rva/agent/compaction";
-import type { AssistantMessage, ImageContent, Message, Model, SimpleStreamOptions, TextContent } from "@rva/ai";
-import { isRecord, logger } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+import type { Agent, AgentMessage } from "@reverse/agent";
+import type { CompactionPreparation } from "@reverse/agent/compaction";
+import type { AssistantMessage, ImageContent, Message, Model, SimpleStreamOptions, TextContent } from "@reverse/ai";
+import { isRecord, logger } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
@@ -13,9 +13,9 @@ import { deobfuscateSessionContext, obfuscateMessages } from "../secrets/message
 import type { SecretObfuscator } from "../secrets/obfuscator";
 import { stripPendingSecretPlaceholderSuffix } from "../secrets/placeholder";
 import { normalizeModelContextImages } from "../utils/image-loading";
-import { imageAttachmentSource } from "@rva/tui/prompt/image-source";
+import { imageAttachmentSource } from "@reverse/tui/prompt/image-source";
 import { describeAttachedImagesForTextModel, shouldDescribeImagesForTextModel } from "../utils/image-vision-fallback";
-import { blobExtensionForImageMimeType } from "@rva/tui/prompt/image-format";
+import { blobExtensionForImageMimeType } from "@reverse/tui/prompt/image-format";
 import { type CustomMessage, convertToLlm } from "./messages";
 import { IMAGE_ATTACHMENT_DESCRIPTION_TYPE } from "./queued-messages";
 import type { SessionContext, TranscriptSessionContextOptions } from "./session-context";

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { getEditorTheme, initTheme } from "@rva/tui/theme";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { getEditorTheme, initTheme } from "@reverse/tui/theme";
 
 const ESC = "\x1b";
 

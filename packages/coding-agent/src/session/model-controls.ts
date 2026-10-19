@@ -1,21 +1,21 @@
-import { type Agent, ThinkingLevel } from "@rva/agent";
-import type { Model, ProviderSessionState, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@rva/ai";
+import { type Agent, ThinkingLevel } from "@reverse/agent";
+import type { Model, ProviderSessionState, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@reverse/ai";
 import {
 	Effort,
 	realizesPriorityServiceTier,
 	resolveModelServiceTier,
 	serviceTierFamily,
 	shouldSendServiceTier,
-} from "@rva/ai";
+} from "@reverse/ai";
 import {
 	clearAnthropicFastModeFallback,
 	isAnthropicFastModeFallbackDisabled,
-} from "@rva/ai/providers/anthropic-state";
-import { isFireworksFastModelId } from "@rva/catalog/fireworks-model-id";
-import { THINKING_EFFORTS } from "@rva/catalog/effort";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { modelsAreEqual } from "@rva/catalog/models";
-import { logger } from "@rva/utils";
+} from "@reverse/ai/providers/anthropic-state";
+import { isFireworksFastModelId } from "@reverse/catalog/fireworks-model-id";
+import { THINKING_EFFORTS } from "@reverse/catalog/effort";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { modelsAreEqual } from "@reverse/catalog/models";
+import { logger } from "@reverse/utils";
 import { classifyDifficulty } from "../auto-thinking/classifier";
 import type { ModelRegistry } from "../config/model-registry";
 import {
@@ -28,7 +28,7 @@ import {
 import { getKnownRoleIds } from "../config/model-roles";
 import { buildServiceTierByFamily } from "../config/service-tier";
 import type { Settings } from "../config/settings";
-import { containsMagicKeyword } from "@rva/tui/prompt/magic-keywords";
+import { containsMagicKeyword } from "@reverse/tui/prompt/magic-keywords";
 import type { MagicKeywordId } from "../modes/magic-keywords";
 import {
 	AUTO_THINKING,
@@ -40,8 +40,8 @@ import {
 	resolveThinkingLevelForModel,
 	shouldDisableReasoning,
 	toReasoningEffort,
-} from "@rva/tui/thinking";
-import type { EditMode } from "@rva/tui/tools/edit";
+} from "@reverse/tui/thinking";
+import type { EditMode } from "@reverse/tui/tools/edit";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ModelCycleResult, ResolvedRoleModel, RoleModelCycle, RoleModelCycleResult } from "./agent-session-types";
 import { formatRoleModelValue, resolveRoleModelFull } from "./role-models";

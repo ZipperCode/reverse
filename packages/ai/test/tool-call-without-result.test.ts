@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { complete } from "@rva/ai/stream";
-import type { Api, Context, Model, OptionsForApi, Tool } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { type } from "@reverse/omptype";
+import { complete } from "@reverse/ai/stream";
+import type { Api, Context, Model, OptionsForApi, Tool } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 import { e2eApiKey, resolveApiKey } from "./oauth";
 
 // Resolve OAuth tokens at module level (async, runs before tests)

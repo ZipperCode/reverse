@@ -1,15 +1,15 @@
-import { logExperimentToolRenderer } from "@rva/tui/tools/autoresearch";
+import { logExperimentToolRenderer } from "@reverse/tui/tools/autoresearch";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import * as vcs from "@rva/natives/vcs";
+import { type } from "@reverse/omptype";
+import * as vcs from "@reverse/natives/vcs";
 
 import type { ToolDefinition } from "../../extensibility/extensions";
 
 import { computeRunModifiedPaths, getCurrentAutoresearchBranch, parseWorkDirDirtyPaths } from "../git";
 import { ensureNumericMetricMap, mergeAsi, pathMatchesSpec, sanitizeAsi, tryGitPrefix, tryGitStatus } from "../helpers";
-import { formatNum } from "@rva/tui/tools/autoresearch";
-import { currentResults, findBaselineSecondary } from "@rva/tui/apps/autoresearch-data";
+import { formatNum } from "@reverse/tui/tools/autoresearch";
+import { currentResults, findBaselineSecondary } from "@reverse/tui/apps/autoresearch-data";
 import { buildExperimentState, computeConfidence, findBestKeptMetric } from "../state";
 import { openAutoresearchStorageIfExists, type SessionRow } from "../storage";
 import type {
@@ -18,7 +18,7 @@ import type {
 	ExperimentState,
 	LogDetails,
 	NumericMetricMap,
-} from "@rva/tui/tools/autoresearch";
+} from "@reverse/tui/tools/autoresearch";
 import type { AutoresearchToolFactoryOptions } from "../types";
 
 const EXPERIMENT_TOOL_NAMES = ["init_experiment", "run_experiment", "log_experiment", "update_notes"];

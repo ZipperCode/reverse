@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import * as AIError from "@rva/ai/error";
-import { streamGoogle } from "@rva/ai/providers/google";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import * as AIError from "@reverse/ai/error";
+import { streamGoogle } from "@reverse/ai/providers/google";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 // Google reuses 429 for an account billing ceiling (replays identically forever)
 // and for a per-minute throttle (retry is correct). Only `error.status` plus the

@@ -1,5 +1,5 @@
-import type { ImageContent } from "@rva/ai";
-import type { AgentTool } from "@rva/agent";
+import type { ImageContent } from "@reverse/ai";
+import type { AgentTool } from "@reverse/agent";
 import { Box } from "../components/box";
 import { SPINNER_ADVANCE_MS } from "../components/loader";
 import { Image } from "../components/image";
@@ -8,7 +8,7 @@ import { Text } from "../components/text";
 import { getImageDimensions, ImageProtocol, imageFallback, TERMINAL } from "../terminal-capabilities";
 import { type Component, Container, type TUI } from "../tui";
 import { truncateToWidth } from "../utils";
-import { getProjectDir, isRecord, logger, sanitizeText } from "@rva/utils";
+import { getProjectDir, isRecord, logger, sanitizeText } from "@reverse/utils";
 import type { Theme } from "../theme/theme";
 import { ensureThemeSync, getThemeEpoch, theme } from "../theme/theme";
 import {
@@ -20,7 +20,7 @@ import {
 	toolRenderers,
 } from "../tools/index";
 import { describeDefaultToolExecution, formatDefaultToolExecution } from "../tools/default-renderer";
-import { INTENT_FIELD, type TspCardStatus, type TspPreview, type TspText, type TspTone } from "@rva/wire";
+import { INTENT_FIELD, type TspCardStatus, type TspPreview, type TspText, type TspTone } from "@reverse/wire";
 import { card, col, EMPTY_NODE, node, span, text, withHidden } from "../native/describe";
 import {
 	type DescribeContext,

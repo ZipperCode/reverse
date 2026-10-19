@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import {
 	extractCodeBlocks,
 	extractLastCommand,
 	extractLastLink,
 	extractLinks,
 	extractQuoteBlocks,
-} from "@rva/tui/overlays/copy-targets";
+} from "@reverse/tui/overlays/copy-targets";
 
 function assistantCalls(toolCalls: Array<{ name: string; arguments: Record<string, unknown> }>): AgentMessage {
 	return {

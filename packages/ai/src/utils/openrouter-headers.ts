@@ -1,4 +1,4 @@
-import { APP_NAME, APP_URL, USER_AGENT } from "@rva/utils";
+import { APP_NAME, APP_URL, USER_AGENT } from "@reverse/utils";
 
 export function getOpenRouterHeaders(): Record<string, string> {
 	return {

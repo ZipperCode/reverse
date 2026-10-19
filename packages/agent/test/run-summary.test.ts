@@ -7,19 +7,19 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { agentLoop, agentLoopDetailed } from "@rva/agent/agent-loop";
+import { type } from "@reverse/omptype";
+import { agentLoop, agentLoopDetailed } from "@reverse/agent/agent-loop";
 import {
 	type AgentRunSummary,
 	aggregateAgentRunCoverage,
 	aggregateAgentRunSummaries,
 	emptyAgentRunCoverage,
 	emptyAgentRunSummary,
-} from "@rva/agent/run-collector";
-import { EXECUTE_TOOL_STATUS_ATTR, GenAIAttr, OmpGenAIAggregateAttr } from "@rva/agent/telemetry";
-import type { AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "@rva/agent/types";
-import type { AssistantMessage, Message } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
+} from "@reverse/agent/run-collector";
+import { EXECUTE_TOOL_STATUS_ATTR, GenAIAttr, OmpGenAIAggregateAttr } from "@reverse/agent/telemetry";
+import type { AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "@reverse/agent/types";
+import type { AssistantMessage, Message } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import type {
 	AttributeValue,
 	Context as OtelContext,

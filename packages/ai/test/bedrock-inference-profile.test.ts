@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { streamBedrock } from "@rva/ai/providers/amazon-bedrock";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 import { removeWithRetries } from "../../utils/src/temp";
 import { withEnv } from "./helpers";
 

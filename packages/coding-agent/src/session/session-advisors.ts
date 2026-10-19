@@ -10,7 +10,7 @@ import {
 	type StreamFn,
 	TERMINAL_TOOL_RESULT_ABORT_REASON,
 	ThinkingLevel,
-} from "@rva/agent";
+} from "@reverse/agent";
 import {
 	canReplayRemoteCompaction,
 	type CompactionResult,
@@ -25,7 +25,7 @@ import {
 	type SessionMessageEntry,
 	shouldCompact,
 	shouldUseProviderNativeCompaction,
-} from "@rva/agent/compaction";
+} from "@reverse/agent/compaction";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -35,13 +35,13 @@ import type {
 	ProviderSessionState,
 	ServiceTier,
 	SimpleStreamOptions,
-} from "@rva/ai";
-import { isUsageLimitOutcome, resolveModelServiceTier, streamSimple } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { extractProviderRetryHint } from "@rva/ai/utils/retry-after";
-import { modelsAreEqual } from "@rva/catalog/models";
-import { extractHttpStatusFromError, logger, prompt } from "@rva/utils";
-import type { AdvisorConfig } from "@rva/tui/overlays/advisor-config";
+} from "@reverse/ai";
+import { isUsageLimitOutcome, resolveModelServiceTier, streamSimple } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { extractProviderRetryHint } from "@reverse/ai/utils/retry-after";
+import { modelsAreEqual } from "@reverse/catalog/models";
+import { extractHttpStatusFromError, logger, prompt } from "@reverse/utils";
+import type { AdvisorConfig } from "@reverse/tui/overlays/advisor-config";
 import {
 	ADVISOR_DEFAULT_BUDGET_PER_UPDATE,
 	ADVISOR_DEFAULT_TOOL_NAMES,
@@ -86,7 +86,7 @@ import { serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/s
 import type { Settings } from "../config/settings";
 import { CursorExecHandlers, type CursorMcpResourceAdapter } from "../cursor";
 import { bridgeToolMap } from "../cursor-bridge-tools";
-import { estimateContextToolSchemaTokens } from "@rva/tui/status-line/context-usage";
+import { estimateContextToolSchemaTokens } from "@reverse/tui/status-line/context-usage";
 import type { PlanModeState } from "../plan-mode/state";
 import advisorBoundaryGuidance from "../prompts/advisor/boundary-guidance.md" with { type: "text" };
 import advisorSystemPrompt from "../prompts/advisor/system.md" with { type: "text" };
@@ -98,7 +98,7 @@ import {
 	shouldDisableReasoning,
 	toReasoningEffort,
 	automaticThinkingLevel,
-} from "@rva/tui/thinking";
+} from "@reverse/tui/thinking";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ClientBridge } from "./client-bridge";
 import { resolveCompactionMethodOrder, resolveMethodSettings } from "./compaction-methods";

@@ -1,13 +1,13 @@
 import * as path from "node:path";
-import type { ApiKeyResolver, FetchImpl, ResolvedApiKey, UsageProvider } from "@rva/ai";
-import { type AuthApiKeyOptions, oauthAccountKey } from "@rva/ai/auth-storage";
-import { registerCustomApi, unregisterCustomApis } from "@rva/ai/api-registry";
-import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProviders } from "@rva/ai/oauth";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@rva/ai/oauth/types";
-import { setCodexAttestationProvider } from "@rva/ai/providers/openai-codex-attestation";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
-import { OAuthRefreshUnavailableError } from "@rva/ai/error";
+import type { ApiKeyResolver, FetchImpl, ResolvedApiKey, UsageProvider } from "@reverse/ai";
+import { type AuthApiKeyOptions, oauthAccountKey } from "@reverse/ai/auth-storage";
+import { registerCustomApi, unregisterCustomApis } from "@reverse/ai/api-registry";
+import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProviders } from "@reverse/ai/oauth";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@reverse/ai/oauth/types";
+import { setCodexAttestationProvider } from "@reverse/ai/providers/openai-codex-attestation";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
+import { OAuthRefreshUnavailableError } from "@reverse/ai/error";
 import type {
 	Api,
 	Context,
@@ -16,24 +16,24 @@ import type {
 	RemoteCompactionConfig,
 	SimpleStreamOptions,
 	ThinkingConfig,
-} from "@rva/ai/types";
-import type { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildDiscoveredModel, buildModel } from "@rva/catalog/build";
-import { collapseBuiltVariants } from "@rva/catalog/compat/collapse";
+} from "@reverse/ai/types";
+import type { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildDiscoveredModel, buildModel } from "@reverse/catalog/build";
+import { collapseBuiltVariants } from "@reverse/catalog/compat/collapse";
 import {
 	clampCodexContextWindow,
 	clampsContextOverride,
 	resolveMaxContextWindow,
-} from "@rva/catalog/compat/context-window";
-import { applyCatalogMetrics, CatalogMetricsIndex } from "@rva/catalog/identity/metrics";
-import { getModelCacheWriteStats, readModelCache } from "@rva/catalog/model-cache";
+} from "@reverse/catalog/compat/context-window";
+import { applyCatalogMetrics, CatalogMetricsIndex } from "@reverse/catalog/identity/metrics";
+import { getModelCacheWriteStats, readModelCache } from "@reverse/catalog/model-cache";
 import {
 	createModelManager,
 	fingerprintStaticModels,
 	type ModelManagerOptions,
 	type ModelRefreshStrategy,
-} from "@rva/catalog/model-manager";
-import { getBundledModels, getBundledProviders } from "@rva/catalog/models";
+} from "@reverse/catalog/model-manager";
+import { getBundledModels, getBundledProviders } from "@reverse/catalog/models";
 import {
 	googleAntigravityModelManagerOptions,
 	googleGeminiCliModelManagerOptions,
@@ -44,11 +44,11 @@ import {
 	PROVIDER_DESCRIPTORS,
 	resolveModelCacheProviderId,
 	resolveOllamaModelCacheProviderId,
-} from "@rva/catalog/provider-models";
-import { toModelSpec } from "@rva/catalog/provider-models/bundled-references";
-import { apiServesKind, modelKind, type ModelKind } from "@rva/catalog/types";
-import { isOfficialCodexApiUrl } from "@rva/catalog/wire/codex";
-import { getAgentDir, isBunTestRuntime, logger, wrapFetchForExtraCa } from "@rva/utils";
+} from "@reverse/catalog/provider-models";
+import { toModelSpec } from "@reverse/catalog/provider-models/bundled-references";
+import { apiServesKind, modelKind, type ModelKind } from "@reverse/catalog/types";
+import { isOfficialCodexApiUrl } from "@reverse/catalog/wire/codex";
+import { getAgentDir, isBunTestRuntime, logger, wrapFetchForExtraCa } from "@reverse/utils";
 import { resolveProviderModelReference } from "../config/model-resolver";
 import { generateCodexAttestation } from "../live/attestation";
 import { redactUrlForLog } from "../mcp/json-rpc";

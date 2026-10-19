@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { JsonLexer, QUOTE } from "@rva/utils/json-lexer";
-import { parseStreamingJson } from "@rva/utils/json-parse";
+import { JsonLexer, QUOTE } from "@reverse/utils/json-lexer";
+import { parseStreamingJson } from "@reverse/utils/json-parse";
 
 afterEach(() => {
 	vi.restoreAllMocks();

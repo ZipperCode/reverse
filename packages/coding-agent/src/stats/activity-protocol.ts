@@ -7,7 +7,7 @@
  * for the whole load when it ran inline. See `activity-client.ts` for the
  * spawn/kill glue.
  */
-import type { DailyActivityPoint } from "@rva/stats/shared-types";
+import type { DailyActivityPoint } from "@reverse/stats/shared-types";
 import type { WorkerLogMessage } from "../subprocess/worker-client";
 
 export { STATS_ACTIVITY_WORKER_ARG } from "../cli/worker-selectors";

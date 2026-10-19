@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getThemeByName } from "@rva/tui/theme";
-import { recallToolRenderer, reflectToolRenderer, retainToolRenderer } from "@rva/tui/tools/memory";
-import { sanitizeText } from "@rva/utils";
+import { getThemeByName } from "@reverse/tui/theme";
+import { recallToolRenderer, reflectToolRenderer, retainToolRenderer } from "@reverse/tui/tools/memory";
+import { sanitizeText } from "@reverse/utils";
 
 const themePromise = getThemeByName("dark");
 

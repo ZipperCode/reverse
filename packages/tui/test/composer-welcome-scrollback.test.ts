@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, expect, it, vi } from "bun:test";
-import { Composer } from "@rva/tui/prompt/composer";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { initTheme } from "@rva/tui/theme";
-import { Text } from "@rva/tui";
+import { Composer } from "@reverse/tui/prompt/composer";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { initTheme } from "@reverse/tui/theme";
+import { Text } from "@reverse/tui";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";

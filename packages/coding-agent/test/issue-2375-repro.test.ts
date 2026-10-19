@@ -17,12 +17,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { chipLabel } from "@rva/tui/prompt/composer-attachments";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { $which } from "@rva/utils";
+import type { ImageContent } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { chipLabel } from "@reverse/tui/prompt/composer-attachments";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { $which } from "@reverse/utils";
 
 // A clipboard with no image on it — the deterministic default for the
 // not-found assertions so a real screenshot on the dev's clipboard cannot

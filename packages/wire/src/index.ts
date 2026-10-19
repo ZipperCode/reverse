@@ -1,7 +1,7 @@
 /**
  * Shared wire types for the omp collab live-session protocol.
  *
- * Dependency-free JSON shapes produced by `@rva/coding-agent`
+ * Dependency-free JSON shapes produced by `@reverse/coding-agent`
  * (`src/collab/protocol.ts` and friends). Browser and test clients import this
  * package instead of depending on the coding-agent runtime; conformance is
  * asserted type-only in `packages/coding-agent/test/collab/web-wire.types.ts`.
@@ -205,7 +205,6 @@ export interface ContextUsage {
 	contextWindow: number | null;
 	percent: number | null;
 }
-
 
 /** Debounced footer snapshot broadcast by the host. */
 export interface SessionState {

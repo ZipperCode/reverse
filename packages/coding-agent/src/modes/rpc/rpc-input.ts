@@ -1,4 +1,4 @@
-import { readLines } from "@rva/utils";
+import { readLines } from "@reverse/utils";
 
 /**
  * Claims Bun's singleton stdin reader immediately and exposes a separately readable stream.

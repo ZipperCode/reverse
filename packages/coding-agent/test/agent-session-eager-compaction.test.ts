@@ -1,22 +1,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentMessage, type AgentTool } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import type { Model, TextContent } from "@rva/ai";
-import * as codexResponses from "@rva/ai/providers/openai-codex-responses";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TodoTool, type ToolSession, USER_TODO_EDIT_CUSTOM_TYPE } from "@rva/coding-agent/tools";
-import { TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { Model, TextContent } from "@reverse/ai";
+import * as codexResponses from "@reverse/ai/providers/openai-codex-responses";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TodoTool, type ToolSession, USER_TODO_EDIT_CUSTOM_TYPE } from "@reverse/coding-agent/tools";
+import { TempDir } from "@reverse/utils";
 
-import { cfgTodoEnabled } from "@rva/coding-agent/tools/settings";
+import { cfgTodoEnabled } from "@reverse/coding-agent/tools/settings";
 
 // Re-injecting eager preludes after compaction: the first-message preludes are the
 // oldest messages, so compaction summarizes them away and the agent silently loses

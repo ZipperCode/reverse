@@ -10,9 +10,9 @@
  * that fails before its reply starts moves on to the next candidate. Serving
  * ends when stdin does.
  */
-import type { Api, Model } from "@rva/ai";
-import { createAuthGatewayRouter, serveAuthGatewayStdio } from "@rva/ai/auth-gateway";
-import { getProjectDir, isRecord, logger, postmortem, VERSION } from "@rva/utils";
+import type { Api, Model } from "@reverse/ai";
+import { createAuthGatewayRouter, serveAuthGatewayStdio } from "@reverse/ai/auth-gateway";
+import { getProjectDir, isRecord, logger, postmortem, VERSION } from "@reverse/utils";
 import { ModelRegistry } from "../config/model-registry";
 import { formatModelStringWithRouting, normalizeModelPatternList, resolveCliModel } from "../config/model-resolver";
 import { Settings } from "../config/settings";

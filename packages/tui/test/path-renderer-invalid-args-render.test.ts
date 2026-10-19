@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { editToolRenderer } from "@rva/tui/tools/edit";
-import { getThemeByName, initTheme, type Theme } from "@rva/tui/theme";
-import { readToolRenderer } from "@rva/tui/tools/read";
-import { writeToolRenderer } from "@rva/tui/tools/write";
-import type { Component } from "@rva/tui";
+import { editToolRenderer } from "@reverse/tui/tools/edit";
+import { getThemeByName, initTheme, type Theme } from "@reverse/tui/theme";
+import { readToolRenderer } from "@reverse/tui/tools/read";
+import { writeToolRenderer } from "@reverse/tui/tools/write";
+import type { Component } from "@reverse/tui";
 
 interface InvalidPathCase {
 	readonly name: string;

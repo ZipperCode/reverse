@@ -1,7 +1,7 @@
-import type { AgentMessage } from "@rva/agent";
-import type { ImageContent, TextContent } from "@rva/ai";
-import { stringProperty } from "@rva/utils";
-import { stripXdUrlPrefix } from "@rva/tui/tools/xd-url";
+import type { AgentMessage } from "@reverse/agent";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import { stringProperty } from "@reverse/utils";
+import { stripXdUrlPrefix } from "@reverse/tui/tools/xd-url";
 import type { CompletedRewindState } from "../tools/checkpoint";
 import { writeDeviceDispatch } from "../tools/resolve";
 import type { SessionEntry } from "./session-entries";

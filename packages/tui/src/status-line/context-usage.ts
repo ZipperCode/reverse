@@ -1,14 +1,14 @@
-import type { AgentMessage, Tokenizer } from "@rva/agent";
-import type { CompactionSettings } from "@rva/agent/compaction";
-import { effectiveReserveTokens, resolveThresholdTokens } from "@rva/agent/compaction";
-import type { Tool as AiTool, Model } from "@rva/ai";
-import { renderToolExamples } from "@rva/ai/dialect";
-import { toolWireSchema } from "@rva/ai/utils/schema";
-import { formatNumber } from "@rva/utils";
+import type { AgentMessage, Tokenizer } from "@reverse/agent";
+import type { CompactionSettings } from "@reverse/agent/compaction";
+import { effectiveReserveTokens, resolveThresholdTokens } from "@reverse/agent/compaction";
+import type { Tool as AiTool, Model } from "@reverse/ai";
+import { renderToolExamples } from "@reverse/ai/dialect";
+import { toolWireSchema } from "@reverse/ai/utils/schema";
+import { formatNumber } from "@reverse/utils";
 import type { Theme, ThemeColor } from "../theme";
 import { Container } from "../tui";
 import { Text } from "../components/text";
-import type { TspSpan, TspText } from "@rva/wire";
+import type { TspSpan, TspText } from "@reverse/wire";
 import type { DescribeContext, NativeNode } from "../native/node";
 import { col, node, row, span, text } from "../native/describe";
 

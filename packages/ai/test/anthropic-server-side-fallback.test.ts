@@ -16,9 +16,9 @@
  *     otherwise it drops the marker and keeps one model's reasoning.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { convertAnthropicMessages, streamAnthropic } from "@rva/ai/providers/anthropic";
-import { AnthropicMessages } from "@rva/ai/providers/anthropic-client";
-import type { MessageParam } from "@rva/ai/providers/anthropic-wire";
+import { convertAnthropicMessages, streamAnthropic } from "@reverse/ai/providers/anthropic";
+import { AnthropicMessages } from "@reverse/ai/providers/anthropic-client";
+import type { MessageParam } from "@reverse/ai/providers/anthropic-wire";
 import type {
 	AssistantMessage,
 	Context,
@@ -26,8 +26,8 @@ import type {
 	Model,
 	ProviderSessionState,
 	ToolResultMessage,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const fableModel: Model<"anthropic-messages"> = buildModel({
 	id: "claude-fable-5",

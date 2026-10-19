@@ -1,7 +1,7 @@
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 import annotationsTemplate from "./prompts/annotations.md" with { type: "text" };
 import reviewRequestTemplate from "../../../../prompts/review-request.md" with { type: "text" };
-import type { CodeReviewAnnotation } from "@rva/tui/overlays/annotation-types";
+import type { CodeReviewAnnotation } from "@reverse/tui/overlays/annotation-types";
 import { getRecommendedReviewAgentCount, getReviewDiffPreview, type ReviewDiffSnapshot } from "./diff";
 import type { ResolvedReviewTarget } from "./target";
 

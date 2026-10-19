@@ -1,4 +1,4 @@
-import type { RenderScheduler } from "@rva/tui/tui";
+import type { RenderScheduler } from "@reverse/tui/tui";
 import type { VirtualTerminal } from "./virtual-terminal";
 
 export class StressRenderScheduler implements RenderScheduler {

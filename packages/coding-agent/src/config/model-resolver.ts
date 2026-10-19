@@ -4,7 +4,7 @@ import {
 	splitThinkingSuffix,
 	parseModelString,
 	splitUpstreamRouting,
-} from "@rva/tui/overlays/model-selector";
+} from "@reverse/tui/overlays/model-selector";
 /**
  * Model resolution, scoping, and initial selection.
  *
@@ -22,22 +22,22 @@ import {
  *   CLI flags, scope globs — onto that pipeline.
  */
 
-import { ThinkingLevel } from "@rva/agent";
-import type { ModelRoleLookup } from "@rva/tui/overlays/model-browser";
-import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { resolveBareVariantSelector, resolveVariantSelector } from "@rva/catalog/compat/collapse";
-import { providerEntry } from "@rva/catalog/compat/providers";
-import { collapseVariantId, stripThinkingVariantSuffix } from "@rva/catalog/compat/taxonomy";
-import { modelMatchesHost } from "@rva/catalog/hosts";
-import { buildModelProviderPriorityRank } from "@rva/catalog/identity";
-import { clampThinkingLevelForModel } from "@rva/catalog/model-thinking";
-import { type GeneratedProvider, getBundledModels, modelsAreEqual } from "@rva/catalog/models";
-import { modelKind } from "@rva/catalog/types";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@rva/catalog/provider-models";
-import { fuzzyMatch } from "@rva/tui";
-import { logger } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { ThinkingLevel } from "@reverse/agent";
+import type { ModelRoleLookup } from "@reverse/tui/overlays/model-browser";
+import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveBareVariantSelector, resolveVariantSelector } from "@reverse/catalog/compat/collapse";
+import { providerEntry } from "@reverse/catalog/compat/providers";
+import { collapseVariantId, stripThinkingVariantSuffix } from "@reverse/catalog/compat/taxonomy";
+import { modelMatchesHost } from "@reverse/catalog/hosts";
+import { buildModelProviderPriorityRank } from "@reverse/catalog/identity";
+import { clampThinkingLevelForModel } from "@reverse/catalog/model-thinking";
+import { type GeneratedProvider, getBundledModels, modelsAreEqual } from "@reverse/catalog/models";
+import { modelKind } from "@reverse/catalog/types";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@reverse/catalog/provider-models";
+import { fuzzyMatch } from "@reverse/tui";
+import { logger } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import {
 	AUTO_THINKING,
@@ -45,7 +45,7 @@ import {
 	concreteThinkingLevel,
 	parseConfiguredThinkingLevel,
 	resolveThinkingLevelForModel,
-} from "@rva/tui/thinking";
+} from "@reverse/tui/thinking";
 import { isAuthenticated, kNoAuth, type ModelRegistry } from "./model-registry";
 import {
 	DEFAULT_MODEL_ROLE_ALIAS,

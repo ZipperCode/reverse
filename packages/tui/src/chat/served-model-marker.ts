@@ -1,5 +1,5 @@
-import type { AssistantMessage } from "@rva/ai";
-import { classifyModel } from "@rva/catalog/identity";
+import type { AssistantMessage } from "@reverse/ai";
+import { classifyModel } from "@reverse/catalog/identity";
 import { MessageDividerComponent } from "../chrome/message-divider";
 import { theme } from "../theme";
 

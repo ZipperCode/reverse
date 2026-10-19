@@ -16,12 +16,12 @@ import {
 	type FetchImpl,
 	type Usage,
 	withOAuthAccess,
-} from "@rva/ai";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import { buildModel } from "@rva/catalog/build";
-import type { Model, ModelSpec } from "@rva/catalog/types";
-import { $env, asRecord, readSseJson } from "@rva/utils";
+} from "@reverse/ai";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import { buildModel } from "@reverse/catalog/build";
+import type { Model, ModelSpec } from "@reverse/catalog/types";
+import { $env, asRecord, readSseJson } from "@reverse/utils";
 import type { PerplexityRequest, PerplexitySearchResult } from "../../../web/search/types";
 import type { SearchCitation, SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";

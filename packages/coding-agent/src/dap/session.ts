@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import * as timers from "node:timers/promises";
-import { logger, ptree, untilAborted } from "@rva/utils";
+import { logger, ptree, untilAborted } from "@reverse/utils";
 import { NON_INTERACTIVE_ENV } from "../exec/non-interactive-env";
 import { DapClient } from "./client";
 import { type UniversalDynamicEvent, normalizeDapEvent } from "../reverse-runtime-session/dynamic-events";
@@ -1929,7 +1929,9 @@ export class DapSessionManager {
 	} {
 		const session = sessionId
 			? this.#sessions.get(sessionId)
-			: (this.#activeSessionId ? this.#sessions.get(this.#activeSessionId) : undefined);
+			: this.#activeSessionId
+				? this.#sessions.get(this.#activeSessionId)
+				: undefined;
 		if (!session) {
 			return { sessionId: sessionId ?? "", events: [], total: 0 };
 		}

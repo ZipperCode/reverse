@@ -5,7 +5,7 @@
  *
  * @example
  * ```ts
- * import { isEnoent, isFsError } from "@rva/utils";
+ * import { isEnoent, isFsError } from "@reverse/utils";
  *
  * try {
  *     return await Bun.file(path).text();

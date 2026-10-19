@@ -30,13 +30,13 @@ import {
 	type OAuthProvider,
 	PROVIDER_REGISTRY,
 	SqliteAuthCredentialStore,
-} from "@rva/ai";
-import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@rva/ai/auth-broker";
-import { refreshOAuthToken } from "@rva/ai/oauth";
-import type { OAuthCredentials } from "@rva/ai/oauth/types";
-import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, logger, VERSION } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
-import { setTransports as setLoggerTransports } from "@rva/utils/logger";
+} from "@reverse/ai";
+import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@reverse/ai/auth-broker";
+import { refreshOAuthToken } from "@reverse/ai/oauth";
+import type { OAuthCredentials } from "@reverse/ai/oauth/types";
+import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, logger, VERSION } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
+import { setTransports as setLoggerTransports } from "@reverse/utils/logger";
 import { $ } from "bun";
 import { refreshManagedMcpOAuthCredential } from "../mcp/oauth-credentials";
 import { isManagedMCPOAuthCredentialId, mcpOAuthServerUrlFromCredentialId } from "../mcp/oauth-flow";

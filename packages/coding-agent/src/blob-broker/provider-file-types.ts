@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { OmpErrors, type } from "@rva/omptype";
-import type { ProviderFileReference } from "@rva/ai";
-import { isEnoent } from "@rva/utils";
+import { OmpErrors, type } from "@reverse/omptype";
+import type { ProviderFileReference } from "@reverse/ai";
+import { isEnoent } from "@reverse/utils";
 import type { RemoteDeleteAction } from "./publication";
 
 /** Model providers whose official APIs support reusable uploaded-file references. */

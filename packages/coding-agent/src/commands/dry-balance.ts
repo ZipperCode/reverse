@@ -1,4 +1,4 @@
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { dryBalanceHelp as commandHelp } from "../cli/command-help";
 import { runDryBalanceCommand } from "../cli/dry-balance-cli";
 

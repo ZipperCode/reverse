@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { visibleWidth } from "@rva/natives";
+import { visibleWidth } from "@reverse/natives";
 import {
 	detectKittyUnicodePlaceholdersSupport,
 	encodeKittyPlaceholderGrid,
@@ -8,7 +8,7 @@ import {
 	KITTY_PLACEHOLDER_MAX_CELLS,
 	kittyPlaceholdersFit,
 	renderKittyPlaceholderLines,
-} from "@rva/tui/kitty-graphics";
+} from "@reverse/tui/kitty-graphics";
 
 const ORIGINAL_TMUX = Bun.env.TMUX;
 

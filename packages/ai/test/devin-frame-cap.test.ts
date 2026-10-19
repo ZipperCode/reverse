@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { streamDevin } from "@rva/ai/providers/devin";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { GetUserJwtResponseSchema } from "@rva/catalog/discovery/devin-proto";
-import { create, toBinary } from "@rva/catalog/discovery/protobuf";
+import { streamDevin } from "@reverse/ai/providers/devin";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { GetUserJwtResponseSchema } from "@reverse/catalog/discovery/devin-proto";
+import { create, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 /**
  * Regression for #4228: a Devin Connect frame header advertising an outsized

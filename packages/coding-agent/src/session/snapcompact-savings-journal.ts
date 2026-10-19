@@ -19,8 +19,8 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Model } from "@rva/ai";
-import { getStatsDbPath, isEnoent, logger } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import { getStatsDbPath, isEnoent, logger } from "@reverse/utils";
 
 export interface SnapcompactSavingsRecord {
 	/** Epoch milliseconds when the swap was applied. */

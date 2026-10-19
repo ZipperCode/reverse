@@ -1,7 +1,7 @@
 import type { Component } from "../tui";
 import { Text } from "../components/text";
 import { visibleWidth } from "../utils";
-import { formatAge } from "@rva/utils";
+import { formatAge } from "@reverse/utils";
 import { shimmerEnabled, shimmerText } from "../theme/shimmer";
 import type { Theme } from "../theme/theme";
 import { Ellipsis, Hasher, type RenderCache, renderStatusLine, renderTreeList, truncateToWidth } from "../render/index";
@@ -26,7 +26,7 @@ import {
 import type { StructuredSubagentOutput } from "./task";
 import type { RenderResultOptions, ToolRenderer, ToolActivitySummary } from "./renderer";
 import type { IrcDeliveryReceipt, IrcMessage } from "./irc";
-import type { TspSpan } from "@rva/wire";
+import type { TspSpan } from "@reverse/wire";
 import { card as cardNode, compact, elapsed, md, node, row, span, text } from "../native/describe";
 import type { NativeNode } from "../native/node";
 import { OwnerMemo } from "../native/memo";

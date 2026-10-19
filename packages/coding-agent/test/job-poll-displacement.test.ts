@@ -11,17 +11,17 @@
  *    poll from the transcript; any other tool seals it in place.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { ToolExecutionComponent, type ToolExecutionHandle } from "@rva/tui/chat/tool-execution";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { cfgDisplayShowTokenUsage } from "@rva/coding-agent/modes/settings";
-import { ChatTranscriptBuilder } from "@rva/tui/chat/chat-transcript-builder";
-import { createUsageRowBlock } from "@rva/tui/overlays/usage-row";
-import { initTheme } from "@rva/tui/theme";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@rva/coding-agent/session/session-context";
-import type { Component, TUI } from "@rva/tui";
+import type { AgentMessage } from "@reverse/agent";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { ToolExecutionComponent, type ToolExecutionHandle } from "@reverse/tui/chat/tool-execution";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { cfgDisplayShowTokenUsage } from "@reverse/coding-agent/modes/settings";
+import { ChatTranscriptBuilder } from "@reverse/tui/chat/chat-transcript-builder";
+import { createUsageRowBlock } from "@reverse/tui/overlays/usage-row";
+import { initTheme } from "@reverse/tui/theme";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { SessionContext } from "@reverse/coding-agent/session/session-context";
+import type { Component, TUI } from "@reverse/tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 const uiStub = { requestRender() {}, requestComponentRender() {} } as unknown as TUI;

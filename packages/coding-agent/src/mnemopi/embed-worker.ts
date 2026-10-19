@@ -9,7 +9,7 @@
  * #1606/#1607) never runs in any process.
  */
 
-import { defaultLocalModelInitializer, type StandardEmbeddingModel } from "@rva/mnemopi/core";
+import { defaultLocalModelInitializer, type StandardEmbeddingModel } from "@reverse/mnemopi/core";
 import type { MnemopiEmbedModelId, MnemopiEmbedTransport, MnemopiEmbedWorkerInbound } from "./embed-protocol";
 
 interface LoadedModel {

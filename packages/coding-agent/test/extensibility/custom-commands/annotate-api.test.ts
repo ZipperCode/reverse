@@ -1,24 +1,24 @@
 import { afterEach, beforeAll, describe, expect, it, spyOn, vi } from "bun:test";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { ExtensionContext } from "@rva/coding-agent/extensibility/extensions/types";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { ExtensionContext } from "@reverse/coding-agent/extensibility/extensions/types";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import {
 	type AnnotationContext,
 	createAnnotationsAPI,
-} from "@rva/coding-agent/extensibility/custom-commands/bundled/annotate/api";
-import * as fullscreen from "@rva/coding-agent/extensibility/custom-commands/bundled/annotate/fullscreen";
-import * as review from "@rva/coding-agent/extensibility/custom-commands/bundled/review";
-import { createResolvedReviewTarget } from "@rva/coding-agent/extensibility/custom-commands/bundled/review/target";
-import type { SendUserMessageOptions } from "@rva/coding-agent/session/agent-session";
-import type { SessionMessageEntry } from "@rva/coding-agent/session/session-entries";
-import { initTheme } from "@rva/tui/theme";
+} from "@reverse/coding-agent/extensibility/custom-commands/bundled/annotate/api";
+import * as fullscreen from "@reverse/coding-agent/extensibility/custom-commands/bundled/annotate/fullscreen";
+import * as review from "@reverse/coding-agent/extensibility/custom-commands/bundled/review";
+import { createResolvedReviewTarget } from "@reverse/coding-agent/extensibility/custom-commands/bundled/review/target";
+import type { SendUserMessageOptions } from "@reverse/coding-agent/session/agent-session";
+import type { SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
+import { initTheme } from "@reverse/tui/theme";
 
 const DIFF = `diff --git a/src/value.ts b/src/value.ts
 --- a/src/value.ts

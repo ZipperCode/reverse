@@ -1,13 +1,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { Agent } from "@rva/agent";
-import type { CompactionPreparation } from "@rva/agent/compaction";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { CompactionEntry } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { Agent } from "@reverse/agent";
+import type { CompactionPreparation } from "@reverse/agent/compaction";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { CompactionEntry } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 // A hook-supplied native compaction that covers only the history before the
 // kept tail must persist its replay boundary, or the rebuilt context drops the

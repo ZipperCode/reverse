@@ -2,7 +2,7 @@
  * Hierarchical tree list rendering helper.
  */
 
-import type { TspTreeNode } from "@rva/wire";
+import type { TspTreeNode } from "@reverse/wire";
 import { styledSpans } from "../native/spans";
 import { node, span } from "../native/describe";
 import type { NativeNode } from "../native/node";

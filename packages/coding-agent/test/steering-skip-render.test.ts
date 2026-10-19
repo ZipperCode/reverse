@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { getThemeByName, initTheme } from "@rva/tui/theme";
-import { formatStatusIcon } from "@rva/tui/render/render-utils";
-import { TUI } from "@rva/tui";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { getThemeByName, initTheme } from "@reverse/tui/theme";
+import { formatStatusIcon } from "@reverse/tui/render/render-utils";
+import { TUI } from "@reverse/tui";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 beforeAll(async () => {

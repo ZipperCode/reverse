@@ -2,15 +2,15 @@
  * Shared types and utilities for web-fetch handlers
  */
 import { scheduler } from "node:timers/promises";
-import { ptree } from "@rva/utils";
-import type TurndownService from "@rva/utils/turndown";
+import { ptree } from "@reverse/utils";
+import type TurndownService from "@reverse/utils/turndown";
 
 import type { ModelRegistry } from "../../config/model-registry";
 import type { AgentStorage } from "../../session/agent-storage";
 import { ToolAbortError } from "../../tools/tool-errors";
 import { decodeBody, readBodyCapped } from "../response-body";
 
-export { formatNumber } from "@rva/utils";
+export { formatNumber } from "@reverse/utils";
 
 export interface RenderResult {
 	url: string;

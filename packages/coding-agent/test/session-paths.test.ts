@@ -7,10 +7,10 @@ import {
 	hasPositiveMovedProjectEvidence,
 	readCwdIdentity,
 	writeTerminalBreadcrumb,
-} from "@rva/coding-agent/session/session-paths";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage, MemorySessionStorage } from "@rva/coding-agent/session/session-storage";
-import { getTerminalId } from "@rva/tui";
+} from "@reverse/coding-agent/session/session-paths";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage, MemorySessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { getTerminalId } from "@reverse/tui";
 import {
 	getAgentDir,
 	getCustomSessionFilesDir,
@@ -18,7 +18,7 @@ import {
 	getTerminalSessionsDir,
 	hashPath,
 	setAgentDir,
-} from "@rva/utils";
+} from "@reverse/utils";
 
 const cleanup: string[] = [];
 

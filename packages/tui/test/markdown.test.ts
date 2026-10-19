@@ -7,14 +7,14 @@ import {
 	Markdown,
 	speculativeStreamingSource,
 	renderInlineMarkdown,
-} from "@rva/tui/components/markdown";
-import { setTerminalTextSizing, TERMINAL } from "@rva/tui/terminal-capabilities";
-import { loadTheme } from "@rva/tui/theme/loader";
-import { getSymbolTheme, setThemeInstance } from "@rva/tui/theme/theme";
-import { type Component, TUI } from "@rva/tui/tui";
-import { visibleWidth } from "@rva/tui/utils";
-import { Chalk } from "@rva/utils/chalk";
-import { mathStartIndex } from "@rva/utils/math-delimiters";
+} from "@reverse/tui/components/markdown";
+import { setTerminalTextSizing, TERMINAL } from "@reverse/tui/terminal-capabilities";
+import { loadTheme } from "@reverse/tui/theme/loader";
+import { getSymbolTheme, setThemeInstance } from "@reverse/tui/theme/theme";
+import { type Component, TUI } from "@reverse/tui/tui";
+import { visibleWidth } from "@reverse/tui/utils";
+import { Chalk } from "@reverse/utils/chalk";
+import { mathStartIndex } from "@reverse/utils/math-delimiters";
 import { defaultMarkdownTheme } from "./test-themes.js";
 import { VirtualTerminal } from "./virtual-terminal.js";
 

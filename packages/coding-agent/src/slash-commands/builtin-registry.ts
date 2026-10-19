@@ -1,5 +1,5 @@
 import { clearSubmittedText } from "./helpers/draft";
-import type { AutocompleteItem } from "@rva/tui";
+import type { AutocompleteItem } from "@reverse/tui";
 import { BUILTIN_COLLABORATION_SLASH_COMMANDS } from "./builtin-collaboration";
 import {
 	buildArgumentCompletions,

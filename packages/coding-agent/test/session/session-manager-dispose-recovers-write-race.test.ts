@@ -30,9 +30,9 @@ import {
 	IndexedSessionStorage,
 	type SessionStorageBackend,
 	type SessionStorageIndexEntry,
-} from "@rva/coding-agent/session/indexed-session-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { MemorySessionStorage, SessionWriteConflictError } from "@rva/coding-agent/session/session-storage";
+} from "@reverse/coding-agent/session/indexed-session-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { MemorySessionStorage, SessionWriteConflictError } from "@reverse/coding-agent/session/session-storage";
 
 /** Real-shape indexed backend: local index is set synchronously by the
  * caller (`IndexedSessionStorage`) before this backend is ever invoked, so no

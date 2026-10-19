@@ -12,7 +12,7 @@ import {
 	stripMemoryTags,
 	stripRetentionProtocolMarkers,
 	truncateRecallQuery,
-} from "@rva/coding-agent/hindsight/content";
+} from "@reverse/coding-agent/hindsight/content";
 
 describe("stripMemoryTags", () => {
 	it("removes both <memories> and legacy memory blocks", () => {

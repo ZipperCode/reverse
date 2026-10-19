@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { YieldGate } from "@rva/agent/utils/yield";
+import { YieldGate } from "@reverse/agent/utils/yield";
 
 const YIELD_INTERVAL_MS = 50;
 

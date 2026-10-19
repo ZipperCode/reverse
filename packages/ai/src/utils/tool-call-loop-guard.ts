@@ -1,4 +1,4 @@
-import { INTENT_FIELD } from "@rva/wire";
+import { INTENT_FIELD } from "@reverse/wire";
 import type { AssistantMessage, ToolCall, ToolResultMessage } from "../types";
 
 const LEGACY_INTENT_FIELD = "__intent";

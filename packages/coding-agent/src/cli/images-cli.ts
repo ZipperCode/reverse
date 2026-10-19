@@ -1,9 +1,9 @@
 import { constants as fsConstants } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai";
-import { getBundledModels } from "@rva/catalog";
-import { $which, type FetchImpl, formatBytes, getAgentDbPath, isEnoent } from "@rva/utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai";
+import { getBundledModels } from "@reverse/catalog";
+import { $which, type FetchImpl, formatBytes, getAgentDbPath, isEnoent } from "@reverse/utils";
 import {
 	queryBlobBrokerDoctor,
 	queryBlobBrokerProbe,

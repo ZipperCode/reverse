@@ -21,8 +21,8 @@ import {
 	SqlSessionStorage,
 	type SqlSessionStorageClient,
 	type SqlSessionStorageResult,
-} from "@rva/coding-agent/session/sql-session-storage";
-import { SessionWriteConflictError } from "@rva/coding-agent/session/session-storage";
+} from "@reverse/coding-agent/session/sql-session-storage";
+import { SessionWriteConflictError } from "@reverse/coding-agent/session/session-storage";
 
 interface FakeRow {
 	content: string;

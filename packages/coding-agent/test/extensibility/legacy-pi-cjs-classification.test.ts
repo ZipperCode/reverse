@@ -2,8 +2,8 @@ import { afterAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadLegacyPiModule } from "@rva/coding-agent/extensibility/plugins/legacy-pi-compat";
-import { removeWithRetries } from "@rva/utils";
+import { loadLegacyPiModule } from "@reverse/coding-agent/extensibility/plugins/legacy-pi-compat";
+import { removeWithRetries } from "@reverse/utils";
 
 const tempRoots: string[] = [];
 

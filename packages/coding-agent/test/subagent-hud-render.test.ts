@@ -7,35 +7,35 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent, ThinkingLevel } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { resetHangulCompatibilityJamoWidthForTests, setHangulCompatibilityJamoWidth } from "@rva/tui";
-import { PINNED_HUD_TOGGLE_ID } from "@rva/tui/prompt/composer";
+import { Agent, ThinkingLevel } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { resetHangulCompatibilityJamoWidthForTests, setHangulCompatibilityJamoWidth } from "@reverse/tui";
+import { PINNED_HUD_TOGGLE_ID } from "@reverse/tui/prompt/composer";
 import {
 	InteractiveMode,
 	layoutPinnedHud,
 	nextSubagentPreviewTickMs,
 	renderSubagentHudLines,
 	SubagentHudComponent,
-} from "@rva/coding-agent/modes/interactive-mode";
-import { type ObservableSession, SessionObserverRegistry } from "@rva/tui/overlays/session-observer-registry";
-import { initTheme, theme } from "@rva/tui/theme";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { type AgentProgress } from "@rva/tui/tools/task";
+} from "@reverse/coding-agent/modes/interactive-mode";
+import { type ObservableSession, SessionObserverRegistry } from "@reverse/tui/overlays/session-observer-registry";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { type AgentProgress } from "@reverse/tui/tools/task";
 import {
 	type SubagentLifecyclePayload,
 	type SubagentProgressPayload,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@rva/coding-agent/task";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/task";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
 
-import { cfgDisplaySubagentLivePreview } from "@rva/coding-agent/modes/settings";
-import { cfgTaskShowResolvedModelBadge } from "@rva/coding-agent/task/settings";
+import { cfgDisplaySubagentLivePreview } from "@reverse/coding-agent/modes/settings";
+import { cfgTaskShowResolvedModelBadge } from "@reverse/coding-agent/task/settings";
 
 function makeSession(overrides: Partial<ObservableSession> & { id: string }): ObservableSession {
 	return {

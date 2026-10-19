@@ -16,12 +16,12 @@ import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { runPluginCommand } from "@rva/coding-agent/cli/plugin-cli";
-import { PluginManager } from "@rva/coding-agent/extensibility/plugins/manager";
-import { MarketplaceManager } from "@rva/coding-agent/extensibility/plugins/marketplace";
-import type { InstalledPlugin } from "@rva/coding-agent/extensibility/plugins/types";
-import * as piUtils from "@rva/utils";
-import { removeWithRetries } from "@rva/utils";
+import { runPluginCommand } from "@reverse/coding-agent/cli/plugin-cli";
+import { PluginManager } from "@reverse/coding-agent/extensibility/plugins/manager";
+import { MarketplaceManager } from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import type { InstalledPlugin } from "@reverse/coding-agent/extensibility/plugins/types";
+import * as piUtils from "@reverse/utils";
+import { removeWithRetries } from "@reverse/utils";
 
 const FAKE_INSTALLED: InstalledPlugin = {
 	name: "kimi-datasource",

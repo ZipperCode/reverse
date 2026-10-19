@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, initTheme } from "@rva/tui/theme";
-import { renderStatusLine } from "@rva/tui/render";
-import { sanitizeText } from "@rva/utils";
+import { getThemeByName, initTheme } from "@reverse/tui/theme";
+import { renderStatusLine } from "@reverse/tui/render";
+import { sanitizeText } from "@reverse/utils";
 
 beforeAll(async () => {
 	await initTheme();

@@ -7,9 +7,9 @@
 import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { WorkProfile } from "@rva/natives";
-import { APP_NAME, getLogPath, getLogsDir, getReportsDir, isEnoent, localDay, logger } from "@rva/utils";
-import { writeArchive } from "@rva/utils/ar";
+import type { WorkProfile } from "@reverse/natives";
+import { APP_NAME, getLogPath, getLogsDir, getReportsDir, isEnoent, localDay, logger } from "@reverse/utils";
+import { writeArchive } from "@reverse/utils/ar";
 import type { CpuProfile, MemoryStats } from "./profiler";
 import { collectSystemInfo, sanitizeEnv } from "./system-info";
 

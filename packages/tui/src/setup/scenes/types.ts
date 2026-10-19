@@ -1,5 +1,5 @@
-import type { AuthStorage, Model } from "@rva/ai";
-import type { OAuthBrowserSessionRequest } from "@rva/ai/oauth/types";
+import type { AuthStorage, Model } from "@reverse/ai";
+import type { OAuthBrowserSessionRequest } from "@reverse/ai/oauth/types";
 import type { SgrMouseEvent } from "../../mouse";
 import type { ComposerPreviewStatusSource } from "../../overlays/composer-shape-preview";
 import type { ComposerShape } from "../../overlays/composer-shape-registry";

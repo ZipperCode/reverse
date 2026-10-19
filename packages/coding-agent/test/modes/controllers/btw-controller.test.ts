@@ -1,19 +1,19 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, Usage } from "@rva/ai";
+import type { AssistantMessage, Usage } from "@reverse/ai";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { BtwHistoryPanel } from "@rva/tui/overlays/btw-history-panel";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { BtwHistoryStore } from "@rva/coding-agent/session/btw-history";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { BtwPanelComponent } from "@rva/tui/overlays/btw-panel";
-import { BtwController } from "@rva/coding-agent/modes/controllers/btw-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import * as clipboard from "@rva/coding-agent/utils/clipboard";
-import { Container, replaceTabs, type TUI } from "@rva/tui";
-import type { NativeChild, NativeNode } from "@rva/tui/native/node";
+import { BtwHistoryPanel } from "@reverse/tui/overlays/btw-history-panel";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { BtwHistoryStore } from "@reverse/coding-agent/session/btw-history";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { BtwPanelComponent } from "@reverse/tui/overlays/btw-panel";
+import { BtwController } from "@reverse/coding-agent/modes/controllers/btw-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import * as clipboard from "@reverse/coding-agent/utils/clipboard";
+import { Container, replaceTabs, type TUI } from "@reverse/tui";
+import type { NativeChild, NativeNode } from "@reverse/tui/native/node";
 
 const usage: Usage = {
 	input: 0,

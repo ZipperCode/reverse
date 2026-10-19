@@ -1,4 +1,4 @@
-import { Snowflake } from "@rva/utils";
+import { Snowflake } from "@reverse/utils";
 import { InternalUrlRouter } from "../../internal-urls";
 import type {
 	InternalResource,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
+import type { AssistantMessage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
 
 function message(overrides: Partial<AssistantMessage> = {}): AssistantMessage {
 	return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, Container } from "@rva/tui";
+import { type Component, Container } from "@reverse/tui";
 
 function inert(dispose?: () => void): Component {
 	return { render: () => [], invalidate: () => {}, dispose };

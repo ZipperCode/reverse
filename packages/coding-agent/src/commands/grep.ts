@@ -2,11 +2,11 @@
  * Test grep tool.
  */
 
-import { GrepOutputMode } from "@rva/natives";
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { GrepOutputMode } from "@reverse/natives";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { grepHelp as commandHelp } from "../cli/command-help";
 import { type GrepCommandArgs, runGrepCommand } from "../cli/grep-cli";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 export default class Grep extends Command {
 	static description = commandHelp.description;

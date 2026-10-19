@@ -7,9 +7,9 @@ import {
 	type TtsrCommandArgs,
 	type TtsrScanArgs,
 	type TtsrTestArgs,
-} from "@rva/coding-agent/cli/ttsr-cli";
-import { resetSettingsForTest } from "@rva/coding-agent/config/settings";
-import { getProjectAgentDir, getProjectDir, removeSyncWithRetries, setProjectDir } from "@rva/utils";
+} from "@reverse/coding-agent/cli/ttsr-cli";
+import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { getProjectAgentDir, getProjectDir, removeSyncWithRetries, setProjectDir } from "@reverse/utils";
 
 let testTmpDir: string;
 

@@ -28,8 +28,8 @@ import type {
 	AnthropicSlowModeRetry,
 	AnthropicSlowModeSignal,
 	Model,
-} from "@rva/ai";
-import { logger } from "@rva/utils";
+} from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import type { AuthStorage } from "./auth-storage";
 import type { UsageLimitState } from "./usage-limit";
 

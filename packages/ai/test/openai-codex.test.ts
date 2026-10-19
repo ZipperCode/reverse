@@ -1,13 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import {
-	createOpenAICodexAuthorizationUrl,
-	formatOpenAICodexTokenEndpointError,
-} from "@rva/ai/oauth/openai-codex";
-import { type RequestBody, transformRequestBody } from "@rva/ai/providers/openai-codex/request-transformer";
-import { CodexApiError, parseCodexError } from "@rva/ai/providers/openai-codex/response-handler";
-import { convertOpenAICodexResponsesTools } from "@rva/ai/providers/openai-codex-responses";
-import type { Tool } from "@rva/ai/types";
-import { OPENAI_HEADER_VALUES } from "@rva/catalog/wire/codex";
+import { createOpenAICodexAuthorizationUrl, formatOpenAICodexTokenEndpointError } from "@reverse/ai/oauth/openai-codex";
+import { type RequestBody, transformRequestBody } from "@reverse/ai/providers/openai-codex/request-transformer";
+import { CodexApiError, parseCodexError } from "@reverse/ai/providers/openai-codex/response-handler";
+import { convertOpenAICodexResponsesTools } from "@reverse/ai/providers/openai-codex-responses";
+import type { Tool } from "@reverse/ai/types";
+import { OPENAI_HEADER_VALUES } from "@reverse/catalog/wire/codex";
 import { createCodexModel } from "./helpers";
 
 const DEFAULT_PROMPT_PREFIX =

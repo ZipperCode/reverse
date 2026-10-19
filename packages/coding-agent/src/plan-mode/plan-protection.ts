@@ -1,4 +1,4 @@
-import { getReadToolPath, type ProtectedToolContext } from "@rva/agent/compaction/tool-protection";
+import { getReadToolPath, type ProtectedToolContext } from "@reverse/agent/compaction/tool-protection";
 import { InternalUrlRouter } from "../internal-urls/router";
 
 /** Canonical plan alias every session's `local://` root resolves. */

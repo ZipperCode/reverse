@@ -2,17 +2,17 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createSpeculativeToolExecutionConfig } from "@rva/coding-agent/speculation/host";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { removeWithRetries } from "@rva/utils";
-import { cfgTaskSpeculativeLaunch } from "@rva/coding-agent/task/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createSpeculativeToolExecutionConfig } from "@reverse/coding-agent/speculation/host";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { removeWithRetries } from "@reverse/utils";
+import { cfgTaskSpeculativeLaunch } from "@reverse/coding-agent/task/settings";
 
 import {
 	cfgToolsSpeculativeExecutionEnabled,
 	cfgToolsSpeculativeExecutionMaxInFlight,
-} from "@rva/coding-agent/tools/settings";
+} from "@reverse/coding-agent/tools/settings";
 
 const temporaryDirectories: string[] = [];
 

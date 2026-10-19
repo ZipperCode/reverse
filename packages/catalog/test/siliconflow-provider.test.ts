@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { getBundledModelReferenceIndex } from "@rva/catalog/identity/bundled";
-import { resolveModelReference } from "@rva/catalog/identity/reference";
-import { providerEntry } from "@rva/catalog/compat/providers";
+import { getBundledModelReferenceIndex } from "@reverse/catalog/identity/bundled";
+import { resolveModelReference } from "@reverse/catalog/identity/reference";
+import { providerEntry } from "@reverse/catalog/compat/providers";
 import {
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	siliconflowCnModelManagerOptions,
 	siliconflowModelManagerOptions,
-} from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@rva/catalog/types";
+} from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@reverse/catalog/types";
 
 const MODELS_DEV_STUB_PAYLOAD = {
 	siliconflow: {

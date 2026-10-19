@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { AsyncJobType } from "@rva/coding-agent/async";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { StatusLineComponent } from "@rva/tui/status-line";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { initTheme, theme } from "@rva/tui/theme";
-import type { AsyncJobSnapshotItem } from "@rva/coding-agent/session/agent-session";
+import type { AsyncJobType } from "@reverse/coding-agent/async";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { StatusLineComponent } from "@reverse/tui/status-line";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { initTheme, theme } from "@reverse/tui/theme";
+import type { AsyncJobSnapshotItem } from "@reverse/coding-agent/session/agent-session";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 import { StatusLineTestComponents } from "./helpers/status-line";
 

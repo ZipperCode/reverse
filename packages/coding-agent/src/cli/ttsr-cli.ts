@@ -15,9 +15,9 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { AstMatchStrictness, astMatch, FileType, type GlobMatch, glob } from "@rva/natives";
-import chalk from "@rva/utils/chalk";
-import { getProjectDir } from "@rva/utils/dirs";
+import { AstMatchStrictness, astMatch, FileType, type GlobMatch, glob } from "@reverse/natives";
+import chalk from "@reverse/utils/chalk";
+import { getProjectDir } from "@reverse/utils/dirs";
 import {
 	BUILTIN_DEFAULTS_PROVIDER_ID,
 	compileRuleCondition,

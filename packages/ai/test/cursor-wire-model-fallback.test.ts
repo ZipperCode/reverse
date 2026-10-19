@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as http2 from "node:http2";
-import { streamCursor } from "@rva/ai/providers/cursor";
-import type { AssistantMessage, Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamCursor } from "@reverse/ai/providers/cursor";
+import type { AssistantMessage, Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	AgentClientMessageSchema,
 	type AgentRunRequest,
@@ -16,9 +16,9 @@ import {
 	ReadArgsSchema,
 	TextDeltaUpdateSchema,
 	TurnEndedUpdateSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
-import type { ModelSpec } from "@rva/catalog/types";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 const CONNECT_END_STREAM_FLAG = 0b00000010;
 

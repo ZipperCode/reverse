@@ -1,9 +1,9 @@
 import { mkdirSync } from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as nodePath from "node:path";
-import { type ApiKey, getOpenRouterHeaders, withAuth } from "@rva/ai";
-import { ProviderHttpError } from "@rva/ai/error";
-import { hostMatchesUrl } from "@rva/catalog/hosts";
+import { type ApiKey, getOpenRouterHeaders, withAuth } from "@reverse/ai";
+import { ProviderHttpError } from "@reverse/ai/error";
+import { hostMatchesUrl } from "@reverse/catalog/hosts";
 import {
 	$env,
 	$flag,
@@ -12,8 +12,8 @@ import {
 	getFastembedCacheDir,
 	logger,
 	withLoopPhase,
-} from "@rva/utils";
-import { LRUCache } from "@rva/utils/lru";
+} from "@reverse/utils";
+import { LRUCache } from "@reverse/utils/lru";
 import type { EmbeddingModel } from "fastembed";
 import { loadFastembed } from "./fastembed-runtime";
 import {

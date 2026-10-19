@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { convertToLlm, normalizeCustomMessagePayload } from "@rva/coding-agent/session/messages";
-import { buildSessionContext } from "@rva/coding-agent/session/session-context";
-import type { CustomMessageEntry, SessionEntry } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import type { AgentMessage } from "@reverse/agent";
+import { convertToLlm, normalizeCustomMessagePayload } from "@reverse/coding-agent/session/messages";
+import { buildSessionContext } from "@reverse/coding-agent/session/session-context";
+import type { CustomMessageEntry, SessionEntry } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 describe("bare custom_message recovery", () => {
 	it("drops poisoned custom messages before LLM conversion", () => {

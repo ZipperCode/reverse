@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
+import { getProviderDefinition } from "@reverse/ai/registry";
 
 const loginLiteLLM = getProviderDefinition("litellm")?.login;
 if (!loginLiteLLM) throw new Error("LiteLLM login is not registered");

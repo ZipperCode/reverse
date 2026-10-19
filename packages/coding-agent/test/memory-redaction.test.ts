@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	redactMemorySecrets,
 	redactMemoryTextFields,
 	redactRememberWrite,
-} from "@rva/coding-agent/memory-backend/redact";
-import { loadMnemopiConfig } from "@rva/coding-agent/mnemopi/config";
-import { loadMnemopi, loadMnemopiCore, MnemopiSessionState } from "@rva/coding-agent/mnemopi/state";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/memory-backend/redact";
+import { loadMnemopiConfig } from "@reverse/coding-agent/mnemopi/config";
+import { loadMnemopi, loadMnemopiCore, MnemopiSessionState } from "@reverse/coding-agent/mnemopi/state";
+import { TempDir } from "@reverse/utils";
 
 const NPM_TOKEN = `npm_${"a1B2c3D4e5F6g7H8i9J0kLmNoPqRsTuVwXy".slice(0, 36)}`;
 const AWS_KEY = "AKIAIOSFODNN7EXAMPLE";

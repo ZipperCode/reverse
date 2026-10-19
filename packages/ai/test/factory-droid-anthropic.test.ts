@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { type } from "@reverse/omptype";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 import { streamAnthropic } from "../src/providers/anthropic";
 import { streamFactoryDroid } from "../src/providers/factory-droid";
 import type { AnthropicFallbackCreditHandle, AssistantMessage, Message } from "../src/types";

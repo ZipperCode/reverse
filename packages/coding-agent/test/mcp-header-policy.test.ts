@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { setGeneratedHeader } from "@rva/coding-agent/mcp/transports/header-policy";
-import { HttpTransport } from "@rva/coding-agent/mcp/transports/http";
+import { setGeneratedHeader } from "@reverse/coding-agent/mcp/transports/header-policy";
+import { HttpTransport } from "@reverse/coding-agent/mcp/transports/http";
 
 const REQUEST_TIMEOUT_MS = 1_000;
 

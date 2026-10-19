@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { hasFsCode, isEexist, isEnoent, logger, toError } from "@rva/utils";
+import { hasFsCode, isEexist, isEnoent, logger, toError } from "@reverse/utils";
 
 /**
  * Publish a staged sibling file atomically, preserving an existing destination

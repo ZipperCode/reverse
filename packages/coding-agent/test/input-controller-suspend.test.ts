@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
 
 interface SuspendCtx {
 	ctx: InteractiveModeContext;

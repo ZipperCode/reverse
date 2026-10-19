@@ -25,14 +25,14 @@ import {
 	Snowflake,
 	TempDir,
 	VERSION,
-} from "@rva/utils";
+} from "@reverse/utils";
 import {
 	type ArchiveMemberContent,
 	ArchiveError,
 	formatArchivePathForError,
 	readArchiveEntries,
 	writeArchive,
-} from "@rva/utils/ar";
+} from "@reverse/utils/ar";
 import transferArrivedTemplate from "../prompts/session/transfer-arrived.md" with { type: "text" };
 import transferDepartedTemplate from "../prompts/session/transfer-departed.md" with { type: "text" };
 import transferStaleForkTemplate from "../prompts/session/transfer-stale-fork.md" with { type: "text" };

@@ -13,15 +13,15 @@ import {
 	type SimpleStreamOptions,
 	type StopReason,
 	type ToolCall,
-} from "@rva/ai";
+} from "@reverse/ai";
 import {
 	clearStreamingPartialJson,
 	kStreamingPartialJson,
 	type StreamingPartialJsonCarrier,
 	setStreamingPartialJson,
-} from "@rva/ai/utils/block-symbols";
-import { parseToolCallArguments } from "@rva/ai/utils/tool-call-arguments";
-import { parseStreamingJsonThrottled, readSseJson } from "@rva/utils";
+} from "@reverse/ai/utils/block-symbols";
+import { parseToolCallArguments } from "@reverse/ai/utils/tool-call-arguments";
+import { parseStreamingJsonThrottled, readSseJson } from "@reverse/utils";
 
 // Event stream adapter for proxy SSE events
 export class ProxyMessageEventStream extends EventStream<AssistantMessageEvent, AssistantMessage> {

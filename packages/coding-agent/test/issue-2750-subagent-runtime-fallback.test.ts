@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { ThinkingLevel } from "@rva/agent";
-import type { Api, AssistantMessage, Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { RetryFallbackRole, ServingModel } from "@rva/coding-agent/session/retry-fallback-chains";
-import { TurnRecovery, type TurnRecoveryHost } from "@rva/coding-agent/session/turn-recovery";
-import { runSubprocess } from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { AgentProgress } from "@rva/tui/tools/task";
+import { ThinkingLevel } from "@reverse/agent";
+import type { Api, AssistantMessage, Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { RetryFallbackRole, ServingModel } from "@reverse/coding-agent/session/retry-fallback-chains";
+import { TurnRecovery, type TurnRecoveryHost } from "@reverse/coding-agent/session/turn-recovery";
+import { runSubprocess } from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { AgentProgress } from "@reverse/tui/tools/task";
 import { createSessionDefaults } from "./helpers/session-defaults";
 
-import { cfgRetryFallbackChains } from "@rva/coding-agent/session/settings";
+import { cfgRetryFallbackChains } from "@reverse/coding-agent/session/settings";
 
 function model(provider: string, id: string): Model<Api> {
 	return buildModel({

@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, expect, test } from "bun:test";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import type { TspPickerGroup, TspPickerProps } from "@rva/wire";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import type { TspPickerGroup, TspPickerProps } from "@reverse/wire";
 import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
 import { ModelHubComponent, type ModelHubRegistry, type ModelHubSource } from "../src/overlays/model-hub";
 import { ModelPickerComponent } from "../src/overlays/model-picker";

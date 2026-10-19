@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { completeSimple, stream } from "@rva/ai";
-import { buildAnthropicClientOptions } from "@rva/ai/providers/anthropic";
-import { resolveOpenAIRequestSetup } from "@rva/ai/providers/openai-shared";
-import type { Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { USER_AGENT } from "@rva/utils";
+import { completeSimple, stream } from "@reverse/ai";
+import { buildAnthropicClientOptions } from "@reverse/ai/providers/anthropic";
+import { resolveOpenAIRequestSetup } from "@reverse/ai/providers/openai-shared";
+import type { Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { USER_AGENT } from "@reverse/utils";
 
 const OPENCODE_SESSION_HEADER = "x-opencode-session";
 

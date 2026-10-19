@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { executeAcpBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/acp-builtins";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import type { SlashCommandRuntime } from "@rva/coding-agent/slash-commands/types";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { executeAcpBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/acp-builtins";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import type { SlashCommandRuntime } from "@reverse/coding-agent/slash-commands/types";
 
 function createRuntime(didRetry: boolean) {
 	const retry = vi.fn(async () => didRetry);

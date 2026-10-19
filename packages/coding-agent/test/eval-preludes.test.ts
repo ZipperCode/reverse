@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentToolContext, AgentToolResult } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@rva/coding-agent/eval";
-import { getEnabledEvalPreludes, invokeEvalPrelude } from "@rva/coding-agent/eval";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import type { AgentToolContext, AgentToolResult } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { EvalPreludeDefinition } from "@reverse/coding-agent/eval";
+import { getEnabledEvalPreludes, invokeEvalPrelude } from "@reverse/coding-agent/eval";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 
 function makeSession(getEvalPreludes: () => EvalPreludeDefinition[]): ToolSession {
 	return {

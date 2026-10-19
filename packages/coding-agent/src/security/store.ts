@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { getSecurityProjectDir, isEnoent } from "@rva/utils";
-import { withFileLock } from "@rva/utils/file-lock";
+import * as vcs from "@reverse/natives/vcs";
+import { getSecurityProjectDir, isEnoent } from "@reverse/utils";
+import { withFileLock } from "@reverse/utils/file-lock";
 import { compareSecurityLineage } from "./comparison";
 import type {
 	SecurityComparisonReport,

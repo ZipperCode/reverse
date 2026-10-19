@@ -1,4 +1,4 @@
-import { tryParseJson, USER_AGENT } from "@rva/utils";
+import { tryParseJson, USER_AGENT } from "@reverse/utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, loadPage } from "./types";
 

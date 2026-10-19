@@ -1,5 +1,5 @@
-import { type Model, resolveModelServiceTier, type ServiceTier, shouldSendServiceTier } from "@rva/ai";
-import type { ModelHubSource } from "@rva/tui/overlays/model-hub";
+import { type Model, resolveModelServiceTier, type ServiceTier, shouldSendServiceTier } from "@reverse/ai";
+import type { ModelHubSource } from "@reverse/tui/overlays/model-hub";
 import { findActiveModelPreset, getModelPresetNames } from "../config/model-presets";
 import { resolveModelRoleValue, rolePriorityDefaults } from "../config/model-resolver";
 import { getKnownRoleIds, getRoleInfo } from "../config/model-roles";

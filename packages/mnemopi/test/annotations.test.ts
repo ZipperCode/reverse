@@ -10,8 +10,8 @@ import {
 	filterFacts,
 	initAnnotations,
 	queryAnnotations,
-} from "@rva/mnemopi/core/annotations";
-import { openDatabase } from "@rva/mnemopi/db";
+} from "@reverse/mnemopi/core/annotations";
+import { openDatabase } from "@reverse/mnemopi/db";
 
 const cleanup: string[] = [];
 

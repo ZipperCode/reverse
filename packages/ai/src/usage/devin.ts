@@ -19,10 +19,10 @@ import {
 	type PlanStatus,
 	TeamsTier,
 	type Timestamp,
-} from "@rva/catalog/discovery/devin-proto";
-import { create, toBinary } from "@rva/catalog/discovery/protobuf";
-import { DEVIN_DEFAULT_BASE_URL, devinCliMetadata, devinWireMetadata } from "@rva/catalog/wire/devin";
-import { decodeDevinUnaryMessage } from "@rva/catalog/wire/devin-proto";
+} from "@reverse/catalog/discovery/devin-proto";
+import { create, toBinary } from "@reverse/catalog/discovery/protobuf";
+import { DEVIN_DEFAULT_BASE_URL, devinCliMetadata, devinWireMetadata } from "@reverse/catalog/wire/devin";
+import { decodeDevinUnaryMessage } from "@reverse/catalog/wire/devin-proto";
 import type {
 	UsageAmount,
 	UsageCredential,

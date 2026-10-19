@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { getThemeByName } from "@rva/tui/theme";
-import { findToolRenderer, type FindToolDetails } from "@rva/tui/tools/find";
-import { sanitizeText } from "@rva/utils";
+import { getThemeByName } from "@reverse/tui/theme";
+import { findToolRenderer, type FindToolDetails } from "@reverse/tui/tools/find";
+import { sanitizeText } from "@reverse/utils";
 import { applyHyperlinkSetting } from "../src/render/hyperlink";
 
 function extractLinkUris(text: string): string[] {

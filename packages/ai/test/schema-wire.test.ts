@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import type { Tool } from "@rva/ai/types";
+import { type } from "@reverse/omptype";
+import type { Tool } from "@reverse/ai/types";
 import {
 	adaptSchemaForStrict,
 	normalizeEmptySchemas,
 	stripSchemaDescriptions,
 	stripToolDescriptions,
 	toolWireSchema,
-} from "@rva/ai/utils/schema";
+} from "@reverse/ai/utils/schema";
 
 // ---------------------------------------------------------------------------
 // normalizeEmptySchemas — provider-agnostic post-pipeline normalization

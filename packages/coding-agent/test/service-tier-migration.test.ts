@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ServiceTierByFamily } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
+import type { ServiceTierByFamily } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
 import {
 	resolveAgentServiceTierOverride,
 	validateAgentServiceTierOverrides,
-} from "@rva/coding-agent/config/service-tier";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { getProjectAgentDir, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/config/service-tier";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { getProjectAgentDir, TempDir } from "@reverse/utils";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
@@ -19,7 +19,7 @@ import {
 	cfgTierGoogle,
 	cfgTierOpenai,
 	cfgTierSubagent,
-} from "@rva/coding-agent/session/settings";
+} from "@reverse/coding-agent/session/settings";
 
 function requiredBundledModel(provider: "openai-codex" | "anthropic" | "google", id: string) {
 	const model = getBundledModel(provider, id);

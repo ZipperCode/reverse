@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import {
 	Agent,
 	AgentBusyError,
@@ -8,11 +8,11 @@ import {
 	ThinkingLevel,
 	TOOL_RESULT_ADDITIONAL_CONTEXT,
 	type ToolResultWithAdditionalContext,
-} from "@rva/agent";
-import type { Context, SimpleStreamOptions, ToolResultMessage } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { kCursorExecResolved } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+} from "@reverse/agent";
+import type { Context, SimpleStreamOptions, ToolResultMessage } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { kCursorExecResolved } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import { createAssistantMessage, createUserMessage } from "./helpers";
 
 describe("Agent", () => {

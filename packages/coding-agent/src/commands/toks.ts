@@ -4,10 +4,10 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as natives from "@rva/natives";
-import { formatBytes, pluralize } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
-import { Args, CliUsageError, Command, Flags } from "@rva/utils/cli";
+import * as natives from "@reverse/natives";
+import { formatBytes, pluralize } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
+import { Args, CliUsageError, Command, Flags } from "@reverse/utils/cli";
 import { toksHelp as commandHelp } from "../cli/command-help";
 
 /** Display name and served model lines per native encoding; `Record` keeps it exhaustive. */

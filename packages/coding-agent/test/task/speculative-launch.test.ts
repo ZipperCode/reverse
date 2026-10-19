@@ -11,19 +11,19 @@
  *    extension lifecycle handlers.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentToolCall, SpeculativeOperationSink } from "@rva/agent";
-import { AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { createSpeculativeToolExecutionConfig } from "@rva/coding-agent/speculation/host";
-import { TaskTool } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import { BatchArgsScanner, type TaskLaunchSession } from "@rva/coding-agent/task/speculative-launch";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import type { SingleResult } from "@rva/tui/tools/task";
+import type { AgentToolCall, SpeculativeOperationSink } from "@reverse/agent";
+import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { createSpeculativeToolExecutionConfig } from "@reverse/coding-agent/speculation/host";
+import { TaskTool } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import { BatchArgsScanner, type TaskLaunchSession } from "@reverse/coding-agent/task/speculative-launch";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import type { SingleResult } from "@reverse/tui/tools/task";
 
 const taskAgent: AgentDefinition = {
 	name: "task",

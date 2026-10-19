@@ -1,9 +1,9 @@
 /**
  * CustomToolAdapter wraps CustomTool instances into AgentTool for use with the agent.
  */
-import type { AgentTool, AgentToolUpdateCallback, ToolLoadMode } from "@rva/agent";
-import type { Static, TSchema } from "@rva/ai";
-import type { Theme } from "@rva/tui/theme";
+import type { AgentTool, AgentToolUpdateCallback, ToolLoadMode } from "@reverse/agent";
+import type { Static, TSchema } from "@reverse/ai";
+import type { Theme } from "@reverse/tui/theme";
 import { defaultLoadModeForToolName } from "../../tools/essential-tools";
 import { applyToolProxy } from "../tool-proxy";
 import type { CustomTool, CustomToolContext } from "./types";

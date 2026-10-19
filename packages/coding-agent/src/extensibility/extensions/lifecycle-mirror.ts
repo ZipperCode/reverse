@@ -25,8 +25,8 @@
  * `awaitingAsyncWork: true`. Older hosts omit these flags and such settles
  * map without them, matching the pre-flag notification.
  */
-import { logger } from "@rva/utils";
-import type { AgentMessage } from "@rva/agent";
+import { logger } from "@reverse/utils";
+import type { AgentMessage } from "@reverse/agent";
 import type { AgentSessionEvent } from "../../session/agent-session";
 import type { ExtensionRunner } from "./runner";
 import type {

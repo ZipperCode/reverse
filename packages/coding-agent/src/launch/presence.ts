@@ -1,7 +1,7 @@
 import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger, postmortem } from "@rva/utils";
+import { isEnoent, logger, postmortem } from "@reverse/utils";
 import { canonicalProjectDir, daemonRuntimeDir } from "./paths";
 
 const CLIENTS_DIR = "clients";

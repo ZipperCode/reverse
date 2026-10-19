@@ -2,16 +2,16 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getProviderDashboardStats, getProviderWindowStats } from "@rva/stats/aggregator";
-import { initDb, insertMessageStats } from "@rva/stats/db";
-import type { MessageStats } from "@rva/stats/types";
+import { getProviderDashboardStats, getProviderWindowStats } from "@reverse/stats/aggregator";
+import { initDb, insertMessageStats } from "@reverse/stats/db";
+import type { MessageStats } from "@reverse/stats/types";
 import {
 	computeUsageWindowStats,
 	readUsageSnapshots,
 	sumFleetTokens,
 	type UsageSnapshotRow,
-} from "@rva/stats/usage-windows";
-import { getAgentDbPath } from "@rva/utils";
+} from "@reverse/stats/usage-windows";
+import { getAgentDbPath } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-providers-");

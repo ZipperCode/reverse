@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { ipcEndpoint } from "@rva/natives";
-import { getDaemonRuntimeDir, hasFsCode, isEacces, isEisdir, isEnoent } from "@rva/utils";
+import { ipcEndpoint } from "@reverse/natives";
+import { getDaemonRuntimeDir, hasFsCode, isEacces, isEisdir, isEnoent } from "@reverse/utils";
 
 /** Resolve the private runtime directory shared by omp processes in one project directory. */
 export { getDaemonRuntimeDir as daemonRuntimeDir };

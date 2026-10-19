@@ -1,5 +1,5 @@
 {
-  "name": "@rva/utils",
+  "name": "@reverse/utils",
   "version": "18.11.2",
   "description": "Shared utilities for pi packages",
   "keywords": [
@@ -54,7 +54,7 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@rva/natives": "catalog:"
+    "@reverse/natives": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

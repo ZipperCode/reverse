@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { applyOpenAIResponsesServiceTierCost } from "@rva/ai/providers/openai-shared";
-import { buildModel } from "@rva/catalog/build";
+import type { AssistantMessage } from "@reverse/ai";
+import { applyOpenAIResponsesServiceTierCost } from "@reverse/ai/providers/openai-shared";
+import { buildModel } from "@reverse/catalog/build";
 
 // The standard (non-Codex) Responses path bills the tier OpenAI actually served:
 // flex is half price, priority (Fast mode) is 2x, and ultrafast is 6x on the

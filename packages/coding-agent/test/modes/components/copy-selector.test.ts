@@ -6,13 +6,13 @@
  * their blocks.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { CopySelectorComponent, type CopyPickSource } from "@rva/tui/overlays/copy-selector";
-import { initTheme, theme } from "@rva/tui/theme";
-import type { SessionMessageEntry } from "@rva/coding-agent/session/session-entries";
-import { setKeybindings, type TUI } from "@rva/tui";
+import type { AgentMessage } from "@reverse/agent";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { CopySelectorComponent, type CopyPickSource } from "@reverse/tui/overlays/copy-selector";
+import { initTheme, theme } from "@reverse/tui/theme";
+import type { SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
+import { setKeybindings, type TUI } from "@reverse/tui";
 
 const UP = "\x1b[A";
 const LEFT = "\x1b[D";

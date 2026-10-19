@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, TextContent } from "@rva/ai";
-import { assistantMessageLinkTargets } from "@rva/tui/prompt/interactive-context-helpers";
+import type { AssistantMessage, TextContent } from "@reverse/ai";
+import { assistantMessageLinkTargets } from "@reverse/tui/prompt/interactive-context-helpers";
 
 function assistant(block: TextContent): AssistantMessage {
 	return {

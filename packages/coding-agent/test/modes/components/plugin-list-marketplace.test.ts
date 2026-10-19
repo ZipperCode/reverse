@@ -1,22 +1,22 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as os from "node:os";
 import { stripVTControlCharacters } from "node:util";
-import { PluginManager } from "@rva/coding-agent/extensibility/plugins";
+import { PluginManager } from "@reverse/coding-agent/extensibility/plugins";
 import {
 	type InstalledPluginSummary,
 	MarketplaceManager,
 	parsePluginId,
-} from "@rva/coding-agent/extensibility/plugins/marketplace";
-import { createPluginSettingsHost } from "@rva/coding-agent/extensibility/plugins/settings-host";
-import type { InstalledPlugin } from "@rva/coding-agent/extensibility/plugins/types";
+} from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import { createPluginSettingsHost } from "@reverse/coding-agent/extensibility/plugins/settings-host";
+import type { InstalledPlugin } from "@reverse/coding-agent/extensibility/plugins/types";
 import {
 	type InstalledPluginSummary as MarketplaceSettingsPlugin,
 	MarketplacePluginDetailComponent,
 	PluginListComponent,
 	type PluginListEntry,
 	PluginSettingsComponent,
-} from "@rva/tui/overlays/plugin-settings";
-import { initTheme } from "@rva/tui/theme";
+} from "@reverse/tui/overlays/plugin-settings";
+import { initTheme } from "@reverse/tui/theme";
 
 beforeAll(async () => {
 	await initTheme();

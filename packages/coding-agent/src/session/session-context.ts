@@ -1,13 +1,9 @@
-import type { AgentMessage } from "@rva/agent";
-import { customMessageEntryMessage, isUserRequestEntry } from "@rva/tui/chat/transcript-entry";
-import { getAnthropicCompactionPayload, isTurnStartEntry } from "@rva/agent/compaction";
-import {
-	coerceServiceTierByFamily,
-	type OpenAIResponsesHistoryPayload,
-	type ServiceTierByFamily,
-} from "@rva/ai";
-import * as snapcompact from "@rva/snapcompact";
-import { isRecord } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { customMessageEntryMessage, isUserRequestEntry } from "@reverse/tui/chat/transcript-entry";
+import { getAnthropicCompactionPayload, isTurnStartEntry } from "@reverse/agent/compaction";
+import { coerceServiceTierByFamily, type OpenAIResponsesHistoryPayload, type ServiceTierByFamily } from "@reverse/ai";
+import * as snapcompact from "@reverse/snapcompact";
+import { isRecord } from "@reverse/utils";
 import {
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,

@@ -1,6 +1,6 @@
-import type { ImageContent } from "@rva/ai";
-import type { EvalLanguage, EvalStatusEvent } from "@rva/tui/tools/eval";
-import { isRecord } from "@rva/utils/type-guards";
+import type { ImageContent } from "@reverse/ai";
+import type { EvalLanguage, EvalStatusEvent } from "@reverse/tui/tools/eval";
+import { isRecord } from "@reverse/utils/type-guards";
 
 /** Kernel-defined tool metadata exposed to task subagents. */
 export interface EvalToolDescriptor {

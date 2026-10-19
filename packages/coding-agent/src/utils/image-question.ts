@@ -1,7 +1,7 @@
-import { instrumentedCompleteSimple, resolveTelemetry } from "@rva/agent";
-import { sendsImageInputOnWire } from "@rva/ai/providers/vision-guard";
-import { type Api, type AssistantMessage, completeSimple, type Model, type Usage } from "@rva/ai";
-import { prompt } from "@rva/utils";
+import { instrumentedCompleteSimple, resolveTelemetry } from "@reverse/agent";
+import { sendsImageInputOnWire } from "@reverse/ai/providers/vision-guard";
+import { type Api, type AssistantMessage, completeSimple, type Model, type Usage } from "@reverse/ai";
+import { prompt } from "@reverse/utils";
 import { extractTextContent } from "../commit/utils";
 import {
 	expandRoleAlias,
@@ -10,9 +10,9 @@ import {
 	resolveModelFromString,
 } from "../config/model-resolver";
 import imageQuestionSystemPromptTemplate from "../prompts/tools/image-question-system.md" with { type: "text" };
-import { concreteThinkingLevel, resolveThinkingLevelForModel, toReasoningEffort } from "@rva/tui/thinking";
+import { concreteThinkingLevel, resolveThinkingLevelForModel, toReasoningEffort } from "@reverse/tui/thinking";
 import type { ToolSession } from "../tools";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { LoadedImageInput } from "./image-loading";
 
 import { cfgImagesBlockImages } from "../modes/settings";

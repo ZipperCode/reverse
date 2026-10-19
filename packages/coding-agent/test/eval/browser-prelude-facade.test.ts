@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { disposeAllVmContexts } from "@rva/coding-agent/eval/js/context-manager";
-import { executeJs } from "@rva/coding-agent/eval/js/executor";
-import type { EvalPreludeDefinition } from "@rva/coding-agent/eval/preludes";
-import { disposeAllKernelSessions, executePython } from "@rva/coding-agent/eval/py/executor";
-import type { ToolSession } from "@rva/coding-agent/sdk";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { disposeAllVmContexts } from "@reverse/coding-agent/eval/js/context-manager";
+import { executeJs } from "@reverse/coding-agent/eval/js/executor";
+import type { EvalPreludeDefinition } from "@reverse/coding-agent/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@reverse/coding-agent/eval/py/executor";
+import type { ToolSession } from "@reverse/coding-agent/sdk";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
 import { chromiumAvailable } from "../tools/chromium-probe";
 
 interface FacadeResponse {

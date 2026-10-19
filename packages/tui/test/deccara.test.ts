@@ -6,7 +6,7 @@ import {
 	detectRectangularSgrSupport,
 	encodeDeccara,
 	planDeccaraFills,
-} from "@rva/tui";
+} from "@reverse/tui";
 
 // Truecolor background open token used throughout the integration tests.
 const BG_OPEN = "\x1b[48;2;10;20;30m";

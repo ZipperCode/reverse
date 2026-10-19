@@ -2,10 +2,9 @@ import { describe, expect, it } from "bun:test";
 import {
 	InternalUrlRouter,
 	ReverseProtocolHandler,
-	reverseDocFilename,
 	reverseDocRel,
 	parseInternalUrl,
-} from "@rva/coding-agent/internal-urls";
+} from "@reverse/coding-agent/internal-urls";
 
 describe("ReverseProtocolHandler", () => {
 	it("registers reverse on InternalUrlRouter and rejects legacy rva", () => {

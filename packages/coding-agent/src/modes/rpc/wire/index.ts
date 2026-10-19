@@ -13,7 +13,7 @@
  * `rpc-types.ts` stays the server's hand-written view; the conformance test in
  * `test/rpc-wire` keeps the generated TypeScript types and it in agreement.
  */
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import { type RpcCommandSpec, rpcCommands } from "./commands";
 import { messageDefs, modelDefs } from "./content";
 import { doc, type WireDefs } from "./dsl";

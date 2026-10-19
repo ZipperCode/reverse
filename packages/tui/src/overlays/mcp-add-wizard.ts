@@ -6,10 +6,10 @@
 import { Container, matchesKey, replaceTabs, Spacer, Text, truncateToWidth, wrapTextWithAnsi } from "../index";
 import type { Component } from "../tui";
 import * as path from "node:path";
-import { getMCPConfigPath, getProjectDir } from "@rva/utils";
+import { getMCPConfigPath, getProjectDir } from "@reverse/utils";
 import { shortenPath } from "../render/render-utils";
 import { getSelectListTheme, theme } from "../theme/theme";
-import type { TspText } from "@rva/wire";
+import type { TspText } from "@reverse/wire";
 import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { formatKeyHint } from "../app-keybindings";
 import { boundKeys, editorKey, editorKeys, interruptKey } from "../chrome/keybinding-hints";

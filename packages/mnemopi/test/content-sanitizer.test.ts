@@ -11,7 +11,7 @@ import {
 	sanitizeContent,
 	shannonEntropy,
 	storeBlob,
-} from "@rva/mnemopi/core/content-sanitizer";
+} from "@reverse/mnemopi/core/content-sanitizer";
 
 const ORIGINAL_BLOB_DIR = process.env.MNEMOPI_BLOB_DIR;
 

@@ -7,16 +7,16 @@ import {
 	renderGalleryState,
 	renderGallerySurfaceSections,
 	resolveFixture,
-} from "@rva/coding-agent/cli/gallery-cli";
+} from "@reverse/coding-agent/cli/gallery-cli";
 import {
 	type GalleryFixture,
 	getComposerGalleryInventory,
 	getSegmentGalleryInventory,
-} from "@rva/coding-agent/cli/gallery-fixtures";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { initTheme, theme } from "@rva/tui/theme";
-import { toolRenderers } from "@rva/tui/tools";
-import { writeToolRenderer } from "@rva/tui/tools/write";
+} from "@reverse/coding-agent/cli/gallery-fixtures";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { toolRenderers } from "@reverse/tui/tools";
+import { writeToolRenderer } from "@reverse/tui/tools/write";
 
 beforeAll(async () => {
 	resetSettingsForTest();

@@ -4,8 +4,8 @@ import * as path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip, createGzip } from "node:zlib";
-import { withStatsSyncLock } from "@rva/stats/aggregator";
-import { isCompressScratchPath } from "@rva/stats/parser";
+import { withStatsSyncLock } from "@reverse/stats/aggregator";
+import { isCompressScratchPath } from "@reverse/stats/parser";
 import {
 	formatBytes,
 	getAgentDir,
@@ -22,7 +22,7 @@ import {
 	normalizePathForComparison,
 	readLines,
 	type FileLockHandle,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { Settings } from "../config/settings";
 import type { Setting } from "../config/registry";
 

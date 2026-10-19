@@ -15,10 +15,10 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { AuthStorage } from "@rva/ai";
-import { runModelsListing } from "@rva/coding-agent/cli/models-cli";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { getProjectAgentDir, TempDir } from "@rva/utils";
+import { AuthStorage } from "@reverse/ai";
+import { runModelsListing } from "@reverse/coding-agent/cli/models-cli";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { getProjectAgentDir, TempDir } from "@reverse/utils";
 
 let tmp: TempDir;
 let extPath: string;

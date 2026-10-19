@@ -6,7 +6,7 @@
 import type { Loader } from "../components/loader";
 import { Text } from "../components/text";
 import { Container, type TUI } from "../tui";
-import { sanitizeText } from "@rva/utils";
+import { sanitizeText } from "@reverse/utils";
 import { highlightCode, theme } from "../theme/theme";
 import type { OutputArtifactError } from "../tools/streaming-output";
 import type { TruncationMeta } from "../tools/output-meta";

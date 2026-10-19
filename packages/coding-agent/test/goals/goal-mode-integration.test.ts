@@ -1,23 +1,23 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { ImageContent, Model } from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import * as vcs from "@rva/natives/vcs";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { GoalTool } from "@rva/coding-agent/goals/tools/goal-tool";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import type { SubmittedUserInput } from "@rva/coding-agent/modes/types";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { normalizeCustomMessagePayload } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import { createTools, type Tool, type ToolSession } from "@rva/coding-agent/tools";
-import type { TodoPhase } from "@rva/tui/tools/todo";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import type { ImageContent, Model } from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import * as vcs from "@reverse/natives/vcs";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { GoalTool } from "@reverse/coding-agent/goals/tools/goal-tool";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import type { SubmittedUserInput } from "@reverse/coding-agent/modes/types";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { normalizeCustomMessagePayload } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import { createTools, type Tool, type ToolSession } from "@reverse/coding-agent/tools";
+import type { TodoPhase } from "@reverse/tui/tools/todo";
+import { TempDir } from "@reverse/utils";
 
 function createToolSession(cwd: string, settings: Settings, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

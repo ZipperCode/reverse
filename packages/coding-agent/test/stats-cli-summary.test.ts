@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { closeDb } from "@rva/stats";
-import { getAgentDir, getSessionsDir, setAgentDir, TempDir } from "@rva/utils";
+import { closeDb } from "@reverse/stats";
+import { getAgentDir, getSessionsDir, setAgentDir, TempDir } from "@reverse/utils";
 import { runStatsCommand } from "../src/cli/stats-cli";
 
 const XDG_KEYS = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;

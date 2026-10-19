@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamSimple } from "@rva/ai/stream";
-import type { Context, FetchImpl, Model, ProviderResponseMetadata } from "@rva/ai/types";
-import { normalizeProviderResponse, notifyProviderResponse } from "@rva/ai/utils/provider-response";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Context, FetchImpl, Model, ProviderResponseMetadata } from "@reverse/ai/types";
+import { normalizeProviderResponse, notifyProviderResponse } from "@reverse/ai/utils/provider-response";
+import { getBundledModel } from "@reverse/catalog/models";
 
 describe("provider response metadata", () => {
 	it("normalizes response status, headers, and request id", () => {

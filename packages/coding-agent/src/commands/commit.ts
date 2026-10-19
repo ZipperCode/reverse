@@ -2,12 +2,12 @@
  * Generate and optionally push a commit with changelog updates.
  */
 
-import { postmortem } from "@rva/utils";
-import { Command, Flags } from "@rva/utils/cli";
+import { postmortem } from "@reverse/utils";
+import { Command, Flags } from "@reverse/utils/cli";
 import { commitHelp as commandHelp } from "../cli/command-help";
 import { CommitAbortedError, runCommitCommand } from "../commit";
 import type { CommitCommandArgs } from "../commit/types";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 export default class Commit extends Command {
 	static description = commandHelp.description;

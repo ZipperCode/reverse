@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 
 const SHARED_CWD = "/tmp/input-controller-internal-url-caller";
 

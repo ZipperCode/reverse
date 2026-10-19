@@ -1,4 +1,4 @@
-import { type ToolCall, validateToolArguments } from "@rva/ai";
+import { type ToolCall, validateToolArguments } from "@reverse/ai";
 import type { AgentTool } from "./types";
 
 /**

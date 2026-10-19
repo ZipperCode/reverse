@@ -1,6 +1,6 @@
-import type { Component, TUI } from "@rva/tui";
-import { theme } from "@rva/tui/theme";
-import { hsvToRgb, type RGB } from "@rva/utils";
+import type { Component, TUI } from "@reverse/tui";
+import { theme } from "@reverse/tui/theme";
+import { hsvToRgb, type RGB } from "@reverse/utils";
 import type { SttTarget } from "./stt-controller";
 
 /** The cursor surface of a text input that push-to-talk paints its mic glyph onto. */

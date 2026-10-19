@@ -1,5 +1,5 @@
-import { USER_AGENT, getInstallId } from "@rva/utils";
-import * as logger from "@rva/utils/logger";
+import { USER_AGENT, getInstallId } from "@reverse/utils";
+import * as logger from "@reverse/utils/logger";
 import { toClinePassPublicModelId } from "../cline-pass-model-id";
 import {
 	apiRouteExactModelIds,

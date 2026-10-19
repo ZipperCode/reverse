@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchContext, UsageFetchParams } from "@rva/ai/usage";
-import { clinePassUsageProvider } from "@rva/ai/usage/cline-pass";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchContext, UsageFetchParams } from "@reverse/ai/usage";
+import { clinePassUsageProvider } from "@reverse/ai/usage/cline-pass";
 
 const CREDENTIAL: UsageFetchParams["credential"] = {
 	type: "api_key",

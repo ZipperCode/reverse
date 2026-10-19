@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { AuthStorage, type OAuthCredential, type ResetCreditTarget } from "@rva/ai/auth-storage";
-import { claudeUsageProvider } from "@rva/ai/usage/claude";
-import { isRecord } from "@rva/ai/utils";
+import { AuthStorage, type OAuthCredential, type ResetCreditTarget } from "@reverse/ai/auth-storage";
+import { claudeUsageProvider } from "@reverse/ai/usage/claude";
+import { isRecord } from "@reverse/ai/utils";
 
 interface ResetPost {
 	path: string;

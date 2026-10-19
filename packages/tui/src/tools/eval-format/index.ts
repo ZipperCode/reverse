@@ -1,4 +1,4 @@
-import { LRUCache } from "@rva/utils/lru";
+import { LRUCache } from "@reverse/utils/lru";
 import type { EvalLanguage } from "../eval";
 import { formatJavaScriptForDisplay } from "./javascript";
 import { formatPythonForDisplay } from "./python";

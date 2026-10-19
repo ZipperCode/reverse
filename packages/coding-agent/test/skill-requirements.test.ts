@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { WhichCachePolicy, type WhichOptions } from "@rva/utils";
-import { validateAgentSkillFrontmatter } from "@rva/coding-agent/discovery/agent-plugin-format";
+import { WhichCachePolicy, type WhichOptions } from "@reverse/utils";
+import { validateAgentSkillFrontmatter } from "@reverse/coding-agent/discovery/agent-plugin-format";
 import {
 	checkToolRequirements,
 	missingRequirementNotice,
 	readSkillRequirements,
 	type SkillRequirementWhich,
-} from "@rva/coding-agent/extensibility/skill-requirements";
-import { SKILL_TOOL_CATALOG } from "@rva/coding-agent/extensibility/skill-tool-catalog";
+} from "@reverse/coding-agent/extensibility/skill-requirements";
+import { SKILL_TOOL_CATALOG } from "@reverse/coding-agent/extensibility/skill-tool-catalog";
 
 function whichFrom(found: Readonly<Record<string, string | null>>): SkillRequirementWhich {
 	return command => found[command] ?? null;

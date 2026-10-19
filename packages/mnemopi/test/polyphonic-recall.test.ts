@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { type BeamMemoryState, initBeam } from "@rva/mnemopi/core/beam";
-import { PolyphonicRecallEngine, polyphonicRecall } from "@rva/mnemopi/core/polyphonic-recall";
-import { closeQuietly, openDatabase } from "@rva/mnemopi/db";
-import { currentLoopPhase } from "@rva/utils";
+import { type BeamMemoryState, initBeam } from "@reverse/mnemopi/core/beam";
+import { PolyphonicRecallEngine, polyphonicRecall } from "@reverse/mnemopi/core/polyphonic-recall";
+import { closeQuietly, openDatabase } from "@reverse/mnemopi/db";
+import { currentLoopPhase } from "@reverse/utils";
 
 function makeBeam(): BeamMemoryState {
 	const db = openDatabase(":memory:", { create: true, readwrite: true });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
 import {
 	buildReplanTitleContext,
 	type CustomMessage,

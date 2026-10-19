@@ -5,7 +5,7 @@
  * cleaned content.
  */
 
-import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@rva/ai";
+import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@reverse/ai";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";

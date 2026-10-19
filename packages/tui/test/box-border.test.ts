@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Box, type BoxBorder, Text } from "@rva/tui";
+import { Box, type BoxBorder, Text } from "@reverse/tui";
 
 const CHARS: BoxBorder["chars"] = {
 	topLeft: "+",

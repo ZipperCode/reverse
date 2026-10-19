@@ -7,11 +7,11 @@ import type {
 	AssistantMessageEventStream,
 	Context,
 	Model,
-} from "@rva/ai";
-import type { BenchModelRegistry } from "@rva/coding-agent/cli/bench-runtime";
-import { runIfBenchCommand } from "@rva/coding-agent/if-bench";
-import { applyActions, initialArray, makeActions } from "@rva/coding-agent/if-bench/actions";
-import { assessResponse, buildTurnPrompt } from "@rva/coding-agent/if-bench/protocol";
+} from "@reverse/ai";
+import type { BenchModelRegistry } from "@reverse/coding-agent/cli/bench-runtime";
+import { runIfBenchCommand } from "@reverse/coding-agent/if-bench";
+import { applyActions, initialArray, makeActions } from "@reverse/coding-agent/if-bench/actions";
+import { assessResponse, buildTurnPrompt } from "@reverse/coding-agent/if-bench/protocol";
 
 const LENGTH = 24;
 const NYA_MAX = 8;

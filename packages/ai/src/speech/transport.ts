@@ -1,6 +1,6 @@
-import { calculateCost } from "@rva/catalog/models";
-import type { Api, Model, Usage } from "@rva/catalog/types";
-import { USER_AGENT } from "@rva/utils";
+import { calculateCost } from "@reverse/catalog/models";
+import type { Api, Model, Usage } from "@reverse/catalog/types";
+import { USER_AGENT } from "@reverse/utils";
 import { withAuth } from "../auth-retry";
 import * as AIError from "../error";
 import { SPEECH_FORMAT_MIME_TYPES, type SpeechFormat, type SpeechOptions, type SpeechResult } from "./types";

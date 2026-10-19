@@ -1,4 +1,4 @@
-import type { Api, Model } from "@rva/catalog/types";
+import type { Api, Model } from "@reverse/catalog/types";
 import * as AIError from "../error";
 import { transcribeOpenAI, type TranscriptionOptions } from "./openai-transcriptions";
 import type { TranscriptionRequest, TranscriptionResult } from "./types";

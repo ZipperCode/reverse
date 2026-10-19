@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { Effort } from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { parseAgentFields } from "@rva/coding-agent/discovery/helpers";
-import { resolveBuiltinToolPlan, type ToolSession } from "@rva/coding-agent/tools";
-import { AUTO_THINKING } from "@rva/tui/thinking";
+import { Effort } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { parseAgentFields } from "@reverse/coding-agent/discovery/helpers";
+import { resolveBuiltinToolPlan, type ToolSession } from "@reverse/coding-agent/tools";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
 
 describe("parseAgentFields", () => {
 	test("rejects the reserved `main` and `sub` agent definition names", () => {

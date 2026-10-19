@@ -12,13 +12,13 @@
  */
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionFactory } from "@rva/coding-agent/extensibility/extensions";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionFactory } from "@reverse/coding-agent/extensibility/extensions";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 const PROVIDER = "tan-fixture-gw";
 const MODEL_ID = "tan-fixture-model";

@@ -7,17 +7,17 @@
  * the depth it reaches before it either loses the array or drops the cat sound,
  * which makes the two failure modes separable from a single reply.
  */
-import { streamSimple } from "@rva/ai";
-import chalk from "@rva/utils/chalk";
+import { streamSimple } from "@reverse/ai";
+import chalk from "@reverse/utils/chalk";
 import {
 	type BenchRuntime,
 	createDefaultBenchRuntime,
 	resolveBenchTargets,
 	type StreamSimpleFn,
 } from "../cli/bench-runtime";
-import type { LiveBoardOutput } from "@rva/tui/chrome/live-board";
+import type { LiveBoardOutput } from "@reverse/tui/chrome/live-board";
 import { initialArray } from "./actions";
-import { createIfBenchBoard, formatIfBenchScoreboard } from "@rva/tui/apps/if-bench-board";
+import { createIfBenchBoard, formatIfBenchScoreboard } from "@reverse/tui/apps/if-bench-board";
 import { DEFAULT_NYA_MAX } from "./protocol";
 import { type IfBenchSummary, runIfBench } from "./runner";
 

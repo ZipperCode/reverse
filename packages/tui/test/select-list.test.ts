@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { SelectList, type SelectListTheme } from "@rva/tui/components/select-list";
-import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@rva/tui/keybindings";
-import type { SgrMouseEvent } from "@rva/tui/mouse";
-import { visibleWidth } from "@rva/tui/utils";
+import { SelectList, type SelectListTheme } from "@reverse/tui/components/select-list";
+import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@reverse/tui/keybindings";
+import type { SgrMouseEvent } from "@reverse/tui/mouse";
+import { visibleWidth } from "@reverse/tui/utils";
 
 const testTheme = {
 	selectedPrefix: (text: string) => text,

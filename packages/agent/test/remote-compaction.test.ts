@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { ThinkingLevel, Tokenizer } from "@rva/agent";
+import { ThinkingLevel, Tokenizer } from "@reverse/agent";
 import {
 	type CompactionPreparation,
 	compact,
@@ -9,7 +9,7 @@ import {
 	NativeCompactionError,
 	prepareCompaction,
 	type SessionEntry,
-} from "@rva/agent/compaction";
+} from "@reverse/agent/compaction";
 import {
 	buildCompactionV2Request,
 	buildOpenAiNativeHistory,
@@ -22,15 +22,15 @@ import {
 	shouldUseCompactionV2Streaming,
 	shouldUseOpenAiRemoteCompaction,
 	trimRemoteCompactionInputToContextWindow,
-} from "@rva/agent/compaction/openai";
-import * as ai from "@rva/ai";
-import { NO_AUTH_SENTINEL } from "@rva/ai/auth-retry";
-import * as AIError from "@rva/ai/error";
-import { clearAwsCredentialCache } from "@rva/ai/providers/aws-credentials";
+} from "@reverse/agent/compaction/openai";
+import * as ai from "@reverse/ai";
+import { NO_AUTH_SENTINEL } from "@reverse/ai/auth-retry";
+import * as AIError from "@reverse/ai/error";
+import { clearAwsCredentialCache } from "@reverse/ai/providers/aws-credentials";
 import {
 	buildTransformedCodexRequestBody,
 	getOpenAICodexTransportDetails,
-} from "@rva/ai/providers/openai-codex-responses";
+} from "@reverse/ai/providers/openai-codex-responses";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -39,11 +39,11 @@ import type {
 	ProviderSessionState,
 	ToolResultMessage,
 	UserMessage,
-} from "@rva/ai/types";
-import { __resetProxyCache } from "@rva/ai/utils/proxy";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
-import * as piUtils from "@rva/utils";
+} from "@reverse/ai/types";
+import { __resetProxyCache } from "@reverse/ai/utils/proxy";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
+import * as piUtils from "@reverse/utils";
 
 const { isRecord } = piUtils;
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";

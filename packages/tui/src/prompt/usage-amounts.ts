@@ -1,4 +1,4 @@
-import { resolveUsedFraction, type UsageLimit } from "@rva/ai/usage";
+import { resolveUsedFraction, type UsageLimit } from "@reverse/ai/usage";
 
 /**
  * Formatting for usage limits that carry an absolute amount but no fraction,

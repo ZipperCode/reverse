@@ -1,5 +1,5 @@
 import { heapStats } from "bun:jsc";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 const manager = SessionManager.inMemory();
 

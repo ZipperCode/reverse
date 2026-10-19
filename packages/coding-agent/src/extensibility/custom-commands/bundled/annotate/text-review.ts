@@ -1,7 +1,7 @@
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 import { markdownFenceFor } from "../../../../utils/markdown-fence";
 import textReviewTemplate from "./prompts/text-review.md" with { type: "text" };
-import type { TextReviewAnnotation, TextReviewSource } from "@rva/tui/overlays/annotation-types";
+import type { TextReviewAnnotation, TextReviewSource } from "@reverse/tui/overlays/annotation-types";
 
 const SHORT_SOURCE_CHARACTER_LIMIT = 1000;
 

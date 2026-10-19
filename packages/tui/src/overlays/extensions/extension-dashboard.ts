@@ -18,7 +18,7 @@
  * Expand / Close actions; without `picker` it describes a page with the same
  * parts. Pointer events run the key paths above.
  */
-import type { TspPickerAction, TspPickerColumn, TspPickerScope } from "@rva/wire";
+import type { TspPickerAction, TspPickerColumn, TspPickerScope } from "@reverse/wire";
 import type { Component } from "../../tui";
 import { col, keyed, node, span, text } from "../../native/describe";
 import { Memo } from "../../native/memo";
@@ -31,7 +31,7 @@ import { SplitPane, type SplitPaneHit } from "../../components/layout/split-pane
 import { Stack } from "../../components/layout/stack";
 import { ScrollView } from "../../components/scroll-view";
 import { TabBar, type Tab } from "../../components/tab-bar";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { getTabBarTheme } from "../../chrome/shared";
 import { theme } from "../../theme";
 import {

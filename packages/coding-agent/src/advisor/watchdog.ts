@@ -1,12 +1,12 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { CONFIG_DIR_NAME, getAgentDir, isEnoent, logger, prompt } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { CONFIG_DIR_NAME, getAgentDir, isEnoent, logger, prompt } from "@reverse/utils";
 import { expandAtImports } from "../discovery/at-imports";
 import activeRepoWatchdogTemplate from "../prompts/advisor/active-repo-watchdog.md" with { type: "text" };
 import contextFilesTemplate from "../prompts/advisor/context-files.md" with { type: "text" };
 import memoryContextTemplate from "../prompts/advisor/memory-context.md" with { type: "text" };
-import type { ActiveRepoContext } from "@rva/tui/status-line/host";
+import type { ActiveRepoContext } from "@reverse/tui/status-line/host";
 import { normalizePromptPath } from "../utils/prompt-path";
 
 export function formatActiveRepoWatchdogPrompt(activeRepoContext: ActiveRepoContext): string {

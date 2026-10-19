@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import * as AIError from "@rva/ai/error";
-import { streamGoogle } from "@rva/ai/providers/google";
-import type { GoogleGeminiCliOptions } from "@rva/ai/providers/google-gemini-cli";
-import { buildGoogleGenerateContentParams, mapGoogleUsage } from "@rva/ai/providers/google-shared";
-import { streamGoogleVertex } from "@rva/ai/providers/google-vertex";
-import { parseRequest as parsePiNativeRequest } from "@rva/ai/providers/pi-native-server";
-import { streamSimple } from "@rva/ai/stream";
-import type { ApiOptionsMap, AssistantMessageEvent, Context, FetchImpl, Model, Tool } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import * as AIError from "@reverse/ai/error";
+import { streamGoogle } from "@reverse/ai/providers/google";
+import type { GoogleGeminiCliOptions } from "@reverse/ai/providers/google-gemini-cli";
+import { buildGoogleGenerateContentParams, mapGoogleUsage } from "@reverse/ai/providers/google-shared";
+import { streamGoogleVertex } from "@reverse/ai/providers/google-vertex";
+import { parseRequest as parsePiNativeRequest } from "@reverse/ai/providers/pi-native-server";
+import { streamSimple } from "@reverse/ai/stream";
+import type { ApiOptionsMap, AssistantMessageEvent, Context, FetchImpl, Model, Tool } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const CACHE_NAME = "cachedContents/caller-owned-corpus-abc";
 const VERTEX_CACHE_NAME = "projects/demo-project/locations/us-central1/cachedContents/caller-owned-corpus-abc";

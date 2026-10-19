@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage, type CompactionSummaryMessage } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import { calculateContextTokens, resolveThresholdTokens } from "@rva/agent/compaction";
-import { buildOpenAiNativeHistory } from "@rva/agent/compaction/openai";
-import type { AssistantMessage, Model, OpenAIResponsesHistoryPayload } from "@rva/ai";
-import { convertAnthropicMessages } from "@rva/ai/providers/anthropic";
-import { createMockModel, type MockModel, registerMockApi } from "@rva/ai/providers/mock";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { estimateToolSchemaTokens } from "@rva/tui/status-line/context-usage";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { Agent, type AgentMessage, type CompactionSummaryMessage } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import { calculateContextTokens, resolveThresholdTokens } from "@reverse/agent/compaction";
+import { buildOpenAiNativeHistory } from "@reverse/agent/compaction/openai";
+import type { AssistantMessage, Model, OpenAIResponsesHistoryPayload } from "@reverse/ai";
+import { convertAnthropicMessages } from "@reverse/ai/providers/anthropic";
+import { createMockModel, type MockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { estimateToolSchemaTokens } from "@reverse/tui/status-line/context-usage";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { asGlobalFetch } from "./helpers/fetch-mock";
 
@@ -22,7 +22,7 @@ import {
 	cfgCompaction,
 	cfgCompactionKeepRecentTokens,
 	cfgCompactionThresholdTokens,
-} from "@rva/coding-agent/session/context-settings";
+} from "@reverse/coding-agent/session/context-settings";
 
 const CONTEXT_WINDOW = 372_000;
 const CACHE_READ_TOKENS = 371_200;

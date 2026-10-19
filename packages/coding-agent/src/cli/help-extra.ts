@@ -1,6 +1,6 @@
-import "@rva/utils/env";
-import chalk from "@rva/utils/chalk";
-import { APP_NAME, CONFIG_DIR_NAME } from "@rva/utils/dirs";
+import "@reverse/utils/env";
+import chalk from "@reverse/utils/chalk";
+import { APP_NAME, CONFIG_DIR_NAME } from "@reverse/utils/dirs";
 
 export function getExtraHelpText(): string {
 	return `${chalk.bold("Environment Variables:")}

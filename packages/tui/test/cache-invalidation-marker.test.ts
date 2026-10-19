@@ -1,10 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { Usage } from "@rva/ai/types";
-import {
-	CacheInvalidationMarkerComponent,
-	detectCacheInvalidation,
-} from "@rva/tui/chat/cache-invalidation-marker";
-import { initTheme } from "@rva/tui/theme";
+import type { Usage } from "@reverse/ai/types";
+import { CacheInvalidationMarkerComponent, detectCacheInvalidation } from "@reverse/tui/chat/cache-invalidation-marker";
+import { initTheme } from "@reverse/tui/theme";
 
 function usage(parts: { input?: number; cacheRead?: number; cacheWrite?: number; output?: number }): Usage {
 	const input = parts.input ?? 0;

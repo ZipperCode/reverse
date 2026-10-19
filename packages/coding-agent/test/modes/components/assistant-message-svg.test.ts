@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { ImageBudget, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@rva/tui";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { initTheme } from "@rva/tui/theme";
+import type { AssistantMessage } from "@reverse/ai";
+import { ImageBudget, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@reverse/tui";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { initTheme } from "@reverse/tui/theme";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 const FIGURE = "<svg viewBox='0 0 80 20'><rect width='80' height='20' fill='var(--accent)'/></svg>";

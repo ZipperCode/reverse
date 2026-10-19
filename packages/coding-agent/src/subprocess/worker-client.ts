@@ -14,8 +14,8 @@ import {
 	stripWindowsExtendedLengthPathPrefix,
 	WhichCachePolicy,
 	workerHostEntry,
-} from "@rva/utils";
-import { stripGitRepoLocationEnv } from "@rva/utils/env";
+} from "@reverse/utils";
+import { stripGitRepoLocationEnv } from "@reverse/utils/env";
 import type { Subprocess } from "bun";
 
 /**

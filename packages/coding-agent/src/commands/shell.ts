@@ -2,10 +2,10 @@
  * Interactive shell console.
  */
 
-import { Command, Flags } from "@rva/utils/cli";
+import { Command, Flags } from "@reverse/utils/cli";
 import { shellHelp as commandHelp } from "../cli/command-help";
 import { runShellCommand, type ShellCommandArgs } from "../cli/shell-cli";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 export default class Shell extends Command {
 	static description = commandHelp.description;

@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { buildModel } from "@rva/catalog/build";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { resolveModelCacheProviderId } from "@rva/catalog/provider-models";
-import { getModelDbPath, TempDir } from "@rva/utils";
+import { buildModel } from "@reverse/catalog/build";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { resolveModelCacheProviderId } from "@reverse/catalog/provider-models";
+import { getModelDbPath, TempDir } from "@reverse/utils";
 
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 

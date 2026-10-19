@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as desktopNotify from "@rva/tui/desktop-notify";
-import { ProcessTerminal } from "@rva/tui/terminal";
+import * as desktopNotify from "@reverse/tui/desktop-notify";
+import { ProcessTerminal } from "@reverse/tui/terminal";
 import {
 	getTerminalInfo,
 	isOsc99Supported,
@@ -8,9 +8,9 @@ import {
 	setOsc99Supported,
 	TERMINAL,
 	wrapTmuxPassthrough,
-} from "@rva/tui/terminal-capabilities";
-import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@rva/tui/terminal-multiplexer";
-import { setTerminalHeadless } from "@rva/utils";
+} from "@reverse/tui/terminal-capabilities";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@reverse/tui/terminal-multiplexer";
+import { setTerminalHeadless } from "@reverse/utils";
 
 const stdinIsTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
 const stdoutIsTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");

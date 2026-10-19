@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
+import type { AssistantMessage } from "@reverse/ai";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
 import {
 	BlockUnitCounter,
 	buildDisplayMessage,
@@ -10,9 +10,9 @@ import {
 	STREAMING_REVEAL_FRAME_MS,
 	StreamingRevealController,
 	visibleUnits,
-} from "@rva/coding-agent/modes/controllers/streaming-reveal";
-import { initTheme } from "@rva/tui/theme";
-import { getSegmenter } from "@rva/tui";
+} from "@reverse/coding-agent/modes/controllers/streaming-reveal";
+import { initTheme } from "@reverse/tui/theme";
+import { getSegmenter } from "@reverse/tui";
 
 beforeAll(async () => {
 	await initTheme(false);

@@ -1,4 +1,4 @@
-import type { Api, FetchImpl, Model, Usage } from "@rva/catalog/types";
+import type { Api, FetchImpl, Model, Usage } from "@reverse/catalog/types";
 import type { ApiKey } from "../auth-retry";
 
 export interface ImageInput {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { detectTerminalId, getTerminalInfo } from "@rva/tui/terminal-capabilities";
+import { detectTerminalId, getTerminalInfo } from "@reverse/tui/terminal-capabilities";
 
 function jamoWidthFor(env: NodeJS.ProcessEnv): "platform" | "unicode" | 1 | 2 {
 	return getTerminalInfo(detectTerminalId(env)).hangulJamoWidth;

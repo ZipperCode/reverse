@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
-import { type } from "@rva/omptype";
-import { Effort } from "@rva/catalog/effort";
+import { type } from "@reverse/omptype";
+import { Effort } from "@reverse/catalog/effort";
 import { streamFactoryDroid } from "../src/providers/factory-droid";
 import type { Message, Model } from "../src/types";
 import {

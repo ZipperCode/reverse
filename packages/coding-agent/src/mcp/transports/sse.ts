@@ -1,5 +1,5 @@
-import * as AIError from "@rva/ai/error";
-import { logger, postmortem, readSseEvents } from "@rva/utils";
+import * as AIError from "@reverse/ai/error";
+import { logger, postmortem, readSseEvents } from "@reverse/utils";
 import type {
 	JsonRpcError,
 	JsonRpcMessage,

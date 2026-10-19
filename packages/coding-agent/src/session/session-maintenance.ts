@@ -10,7 +10,7 @@ import {
 	type StreamFn,
 	type ThinkingLevel,
 	Tokenizer,
-} from "@rva/agent";
+} from "@reverse/agent";
 import {
 	AGGRESSIVE_SHAKE_CONFIG,
 	AUTO_HANDOFF_THRESHOLD_FOCUS,
@@ -45,15 +45,15 @@ import {
 	shouldCompact,
 	shouldUseProviderNativeCompaction,
 	upsertFileOperations,
-} from "@rva/agent/compaction";
+} from "@reverse/agent/compaction";
 import {
 	DEFAULT_PRUNE_CONFIG,
 	type PruneResult,
 	pruneSupersededToolResults,
 	pruneToolOutputs,
 	readToolSupersedeKey,
-} from "@rva/agent/compaction/pruning";
-import type { ProtectedToolMatcher } from "@rva/agent/compaction/tool-protection";
+} from "@reverse/agent/compaction/pruning";
+import type { ProtectedToolMatcher } from "@reverse/agent/compaction/tool-protection";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -61,13 +61,13 @@ import type {
 	Message,
 	Model,
 	ProviderSessionState,
-} from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { openAIResponsesReplaysNativeHistory } from "@rva/ai/providers/openai-responses";
-import { resolvePromptCacheLookback } from "@rva/catalog/compat/prompt-cache-lookback";
-import { modelsAreEqual } from "@rva/catalog/models";
-import { isRecord, logger, prompt, Snowflake } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+} from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { openAIResponsesReplaysNativeHistory } from "@reverse/ai/providers/openai-responses";
+import { resolvePromptCacheLookback } from "@reverse/catalog/compat/prompt-cache-lookback";
+import { modelsAreEqual } from "@reverse/catalog/models";
+import { isRecord, logger, prompt, Snowflake } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 import { writeArtifact } from "./artifacts";
 import type { ModelRegistry } from "../config/model-registry";
 import { CHAT_MODEL_ROLE_IDS } from "../config/model-roles";
@@ -77,11 +77,11 @@ import type { CompactOptions, ContextUsage } from "../extensibility/extensions/t
 import type { GoalModeState } from "../goals/state";
 import { resolveMemoryBackend } from "../memory-backend/resolve";
 import type { MemoryBackendOperationContext } from "../memory-backend/types";
-import { customMessageEntryMessage } from "@rva/tui/chat/transcript-entry";
-import { computeNonMessageTokens, type NonMessageTokenSource } from "@rva/tui/status-line/context-usage";
+import { customMessageEntryMessage } from "@reverse/tui/chat/transcript-entry";
+import { computeNonMessageTokens, type NonMessageTokenSource } from "@reverse/tui/status-line/context-usage";
 import { createPlanReadMatcher } from "../plan-mode/plan-protection";
 import { isCompleteReadResult } from "../tools/read-supersede";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ContextUsageBreakdown, HandoffResult, SessionHandoffOptions } from "./agent-session-types";
 import { findCompactMode } from "./compact-modes";

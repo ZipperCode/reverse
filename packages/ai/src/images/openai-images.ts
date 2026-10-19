@@ -1,4 +1,4 @@
-import type { Model } from "@rva/catalog/types";
+import type { Model } from "@reverse/catalog/types";
 import * as AIError from "../error";
 import { resolveXaiBaseUrl } from "../providers/xai-base-url";
 import {

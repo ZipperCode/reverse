@@ -1034,7 +1034,7 @@
 
 ### Breaking Changes
 
-- Removed the `inlineMathSpanEnd` and `mathStartIndex` exports; the math delimiter grammar now lives in `@rva/utils/math-delimiters`.
+- Removed the `inlineMathSpanEnd` and `mathStartIndex` exports; the math delimiter grammar now lives in `@reverse/utils/math-delimiters`.
 
 ### Fixed
 
@@ -2403,7 +2403,7 @@
 
 ### Added
 
-- Restored the `Key` runtime helper on `@rva/tui` to mirror upstream `@mariozechner/pi-tui`'s surface. `Key.enter`, `Key.escape`, `Key.tab`, … return the canonical key-name strings; modifier methods (`Key.ctrl(k)`, `Key.shift(k)`, `Key.ctrlShift(k)`, etc.) build precisely-typed `KeyId` literals like `"ctrl+c"`. Pure runtime convenience for typed key-id construction — plugins built against the upstream package surface that import `Key` (e.g. `@plannotator/pi-extension`, `@juicesharp/rpiv-ask-user-question`) load again now that the specifier shim remaps them onto this package.
+- Restored the `Key` runtime helper on `@reverse/tui` to mirror upstream `@mariozechner/pi-tui`'s surface. `Key.enter`, `Key.escape`, `Key.tab`, … return the canonical key-name strings; modifier methods (`Key.ctrl(k)`, `Key.shift(k)`, `Key.ctrlShift(k)`, etc.) build precisely-typed `KeyId` literals like `"ctrl+c"`. Pure runtime convenience for typed key-id construction — plugins built against the upstream package surface that import `Key` (e.g. `@plannotator/pi-extension`, `@juicesharp/rpiv-ask-user-question`) load again now that the specifier shim remaps them onto this package.
 
 ## [15.0.1] - 2026-05-14
 
@@ -2484,7 +2484,7 @@
 - Simplified cache key computation in Box component by removing intermediate hash updates and consolidating hash operations
 - Wrapped native text utility functions (`sliceWithWidth`, `truncateToWidth`, `wrapTextWithAnsi`, `extractSegments`) to automatically pass the current default tab width, simplifying the API for consumers
 - Added `getIndentationNoescape` wrapper that uses `process.cwd()` as the project root for relative file paths
-- Re-export `getDefaultTabWidth`, `getIndentation`, and `setDefaultTabWidth` from `@rva/utils`; native text helpers still receive tab width via wrappers that read the JS default
+- Re-export `getDefaultTabWidth`, `getIndentation`, and `setDefaultTabWidth` from `@reverse/utils`; native text helpers still receive tab width via wrappers that read the JS default
 
 ## [13.16.1] - 2026-03-27
 

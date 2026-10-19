@@ -16,7 +16,7 @@
  * - skills: <name>/SKILL.md in .github/skills/ (GitHub Agent Skills layout)
  */
 import * as path from "node:path";
-import { parseFrontmatter } from "@rva/utils";
+import { parseFrontmatter } from "@reverse/utils";
 import { isUserSourceEnabled, registerProvider } from "../capability";
 import { type ContextFile, contextFileCapability } from "../capability/context-file";
 import { readFile } from "../capability/fs";

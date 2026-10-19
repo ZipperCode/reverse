@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { isContextOverflow } from "@rva/ai/error";
+import { type } from "@reverse/omptype";
+import { isContextOverflow } from "@reverse/ai/error";
 import {
 	buildGitLabDuoWorkflowApprovalStartRequest,
 	buildGitLabDuoWorkflowCreateBody,
@@ -26,8 +26,8 @@ import {
 	runGitLabDuoWorkflowSocket,
 	streamGitLabDuoWorkflow,
 	traceGitLabDuoWorkflow,
-} from "@rva/ai/providers/gitlab-duo-workflow";
-import { configureCredentialRedaction } from "@rva/ai/providers/transform-messages";
+} from "@reverse/ai/providers/gitlab-duo-workflow";
+import { configureCredentialRedaction } from "@reverse/ai/providers/transform-messages";
 import type {
 	AssistantMessage,
 	Context,
@@ -37,11 +37,11 @@ import type {
 	ProviderSessionState,
 	Tool,
 	ToolResultMessage,
-} from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
-import { extractHttpStatusFromError } from "@rva/utils";
+} from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
+import { extractHttpStatusFromError } from "@reverse/utils";
 
 beforeAll(() => configureCredentialRedaction(true));
 afterAll(() => configureCredentialRedaction(false));

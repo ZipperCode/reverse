@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { closeModelCache } from "@rva/catalog/model-cache";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@rva/utils";
+import { closeModelCache } from "@reverse/catalog/model-cache";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@reverse/utils";
 import { runSearchCommand } from "../../../src/cli/web-search-cli";
 
-import { cfgRetryFallbackChains } from "@rva/coding-agent/session/settings";
+import { cfgRetryFallbackChains } from "@reverse/coding-agent/session/settings";
 
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const originalOmpProfile = process.env.OMP_PROFILE;

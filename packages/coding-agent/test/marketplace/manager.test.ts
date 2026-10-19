@@ -3,18 +3,18 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { listRvaExtensionRoots } from "@rva/coding-agent/discovery/rva-extension-roots";
-import { getEnabledPlugins } from "@rva/coding-agent/extensibility/plugins/loader";
-import { PluginManager } from "@rva/coding-agent/extensibility/plugins/manager";
+import { listRvaExtensionRoots } from "@reverse/coding-agent/discovery/rva-extension-roots";
+import { getEnabledPlugins } from "@reverse/coding-agent/extensibility/plugins/loader";
+import { PluginManager } from "@reverse/coding-agent/extensibility/plugins/manager";
 import {
 	getCachedPluginPath,
 	MarketplaceManager,
 	readInstalledPluginsRegistry,
 	readMarketplacesRegistry,
 	writeMarketplacesRegistry,
-} from "@rva/coding-agent/extensibility/plugins/marketplace";
-import * as piUtils from "@rva/utils";
-import { CONFIG_DIR_NAME, removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import * as piUtils from "@reverse/utils";
+import { CONFIG_DIR_NAME, removeSyncWithRetries } from "@reverse/utils";
 
 // Minimal marketplace fixture, built once into a temp dir (see beforeAll). It carries only
 // what these tests assert — one plugin entry plus a plugin.json whose version takes precedence

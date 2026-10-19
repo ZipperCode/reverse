@@ -11,9 +11,9 @@
  */
 import { describe, expect, it } from "bun:test";
 
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { OAuthController } from "@rva/ai/registry/oauth/types";
-import type { FetchImpl } from "@rva/catalog/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { OAuthController } from "@reverse/ai/registry/oauth/types";
+import type { FetchImpl } from "@reverse/catalog/types";
 
 const loginFireworks = getProviderDefinition("fireworks")?.login;
 if (!loginFireworks) throw new Error("Fireworks login is not registered");

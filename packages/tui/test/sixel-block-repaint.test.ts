@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import * as natives from "@rva/natives";
-import { TUI } from "@rva/tui";
-import { Image } from "@rva/tui/components/image";
-import { Text } from "@rva/tui/components/text";
+import * as natives from "@reverse/natives";
+import { TUI } from "@reverse/tui";
+import { Image } from "@reverse/tui/components/image";
+import { Text } from "@reverse/tui/components/text";
 import {
 	type CellDimensions,
 	getCellDimensions,
@@ -10,7 +10,7 @@ import {
 	setCellDimensions,
 	setTerminalImageProtocol,
 	TERMINAL,
-} from "@rva/tui/terminal-capabilities";
+} from "@reverse/tui/terminal-capabilities";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 
 withoutTerminalMultiplexer();

@@ -2,24 +2,24 @@ import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { Skill } from "@rva/coding-agent/extensibility/skills";
-import * as skillsModule from "@rva/coding-agent/extensibility/skills";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@rva/coding-agent/session/agent-session";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@rva/coding-agent/session/messages";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import { runSubprocess } from "@rva/coding-agent/task/executor";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { Skill } from "@reverse/coding-agent/extensibility/skills";
+import * as skillsModule from "@reverse/coding-agent/extensibility/skills";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@reverse/coding-agent/session/agent-session";
+import { SKILL_PROMPT_MESSAGE_TYPE } from "@reverse/coding-agent/session/messages";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import { runSubprocess } from "@reverse/coding-agent/task/executor";
 import {
 	isReverseTask,
 	resolveAutoloadSkills,
 	REVERSE_TASK_AUTOLOAD_SKILLS,
 	runStructuredSubagent,
-} from "@rva/coding-agent/task/structured-subagent";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
+} from "@reverse/coding-agent/task/structured-subagent";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ function createSessionResult(session: AgentSession): CreateAgentSessionResult {
 	return {
 		session,
 		extensionsResult:
-			{} as unknown as import("@rva/coding-agent/extensibility/extensions/types").LoadExtensionsResult,
+			{} as unknown as import("@reverse/coding-agent/extensibility/extensions/types").LoadExtensionsResult,
 		setToolUIContext: () => {},
 		eventBus: new EventBus(),
 	};
@@ -101,7 +101,7 @@ describe("autoloadSkills in executor", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@rva/coding-agent/config/model-registry").ModelRegistry,
+		} as unknown as import("@reverse/coding-agent/config/model-registry").ModelRegistry,
 		enableLsp: false,
 	};
 

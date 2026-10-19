@@ -3,8 +3,8 @@
  * Standard Gemini models only (gemini-2.0-flash, gemini-2.5-*)
  */
 
-import { getGeminiCliHeaders } from "@rva/catalog/wire/gemini-headers";
-import { $env } from "@rva/utils";
+import { getGeminiCliHeaders } from "@reverse/catalog/wire/gemini-headers";
+import { $env } from "@reverse/utils";
 import * as AIError from "../../error";
 import { extractGoogleValidationUrl, formatGoogleValidationRequiredMessage } from "../../utils/google-validation";
 import type { AfterExchangeHook } from "../hooks/types";

@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import * as path from "node:path";
-import type { Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { readModelCache, writeModelCache } from "@rva/catalog/model-cache";
-import { fingerprintStaticModels } from "@rva/catalog/model-manager";
-import * as catalogModels from "@rva/catalog/models";
-import { mergeDiscoveredModel } from "@rva/coding-agent/config/model-patch";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { TempDir } from "@rva/utils";
+import type { Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { readModelCache, writeModelCache } from "@reverse/catalog/model-cache";
+import { fingerprintStaticModels } from "@reverse/catalog/model-manager";
+import * as catalogModels from "@reverse/catalog/models";
+import { mergeDiscoveredModel } from "@reverse/coding-agent/config/model-patch";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { TempDir } from "@reverse/utils";
 
 function fixtureModel(id = "merge-fixture"): Model<"openai-completions"> {
 	return buildModel({

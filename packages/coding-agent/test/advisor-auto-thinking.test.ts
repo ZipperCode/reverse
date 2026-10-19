@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Agent, ThinkingLevel } from "@rva/agent";
-import { Effort, type Model } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { AUTO_THINKING, toReasoningEffort } from "@rva/tui/thinking";
+import { Agent, ThinkingLevel } from "@reverse/agent";
+import { Effort, type Model } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { AUTO_THINKING, toReasoningEffort } from "@reverse/tui/thinking";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // `auto` is a session-level selector: the per-turn difficulty classifier runs

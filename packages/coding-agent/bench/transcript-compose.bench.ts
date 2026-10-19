@@ -12,11 +12,11 @@
  * is an export path and intentionally renders committed blocks.
  */
 
-import type { AssistantMessage } from "@rva/ai";
+import type { AssistantMessage } from "@reverse/ai";
 import { Settings } from "../src/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { initTheme } from "@rva/tui/theme";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { initTheme } from "@reverse/tui/theme";
 
 const WIDTH = 100;
 const SIZES = [500, 5000, 50_000];

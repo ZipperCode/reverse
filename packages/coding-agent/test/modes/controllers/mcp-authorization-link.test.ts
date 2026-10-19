@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { MCPAuthorizationLinkPrompt } from "@rva/coding-agent/modes/controllers/mcp-command-controller";
-import { initTheme } from "@rva/tui/theme";
-import { visibleWidth } from "@rva/tui";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { MCPAuthorizationLinkPrompt } from "@reverse/coding-agent/modes/controllers/mcp-command-controller";
+import { initTheme } from "@reverse/tui/theme";
+import { visibleWidth } from "@reverse/tui";
 
-import { cfgTuiHyperlinks } from "@rva/coding-agent/modes/settings";
+import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
 
 const OSC = "\x1b]";
 const BEL = "\x07";

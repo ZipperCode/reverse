@@ -1,7 +1,7 @@
 import { scheduler } from "node:timers/promises";
-import { type } from "@rva/omptype";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { calculateCost } from "@rva/catalog/models";
+import { type } from "@reverse/omptype";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { calculateCost } from "@reverse/catalog/models";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
@@ -11,7 +11,7 @@ import {
 	isOfficialCodexApiUrl,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@rva/catalog/wire/codex";
+} from "@reverse/catalog/wire/codex";
 import {
 	$env,
 	$flag,
@@ -23,7 +23,7 @@ import {
 	readSseJson,
 	structuredCloneJSON,
 	USER_AGENT,
-} from "@rva/utils";
+} from "@reverse/utils";
 import * as AIError from "../error";
 import { parseToolCallArguments, replayableToolCallArguments } from "../utils/tool-call-arguments";
 import { getEnvApiKey } from "../env-api-key";

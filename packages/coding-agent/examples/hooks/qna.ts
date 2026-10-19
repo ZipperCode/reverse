@@ -6,9 +6,9 @@
  * 2. Shows a spinner while extracting (hides editor)
  * 3. Loads the result into the editor for user to fill in answers
  */
-import { complete, type UserMessage } from "@rva/ai";
-import { BorderedLoader } from "@rva/coding-agent";
-import type { HookAPI } from "@rva/coding-agent/extensibility/hooks";
+import { complete, type UserMessage } from "@reverse/ai";
+import { BorderedLoader } from "@reverse/coding-agent";
+import type { HookAPI } from "@reverse/coding-agent/extensibility/hooks";
 
 const SYSTEM_PROMPT = `You are a question extractor. Given text from a conversation, extract any questions that need answering and format them for the user to fill in.
 

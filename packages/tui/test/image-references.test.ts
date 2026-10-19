@@ -11,7 +11,7 @@ import {
 	renderPlaceholders,
 	shiftImageMarkers,
 	skillChipLabel,
-} from "@rva/tui/prompt/composer-attachments";
+} from "@reverse/tui/prompt/composer-attachments";
 
 function capture(
 	text: string,

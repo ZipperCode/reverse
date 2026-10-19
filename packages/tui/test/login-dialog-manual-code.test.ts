@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TUI } from "@rva/tui";
-import { LoginDialogComponent } from "@rva/tui/overlays/login-dialog";
-import { initTheme } from "@rva/tui/theme";
+import type { TUI } from "@reverse/tui";
+import { LoginDialogComponent } from "@reverse/tui/overlays/login-dialog";
+import { initTheme } from "@reverse/tui/theme";
 
 /** Minimal TUI stub — the dialog only calls requestRender/setFocus. */
 function makeDialog(): LoginDialogComponent {

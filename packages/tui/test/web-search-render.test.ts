@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, initTheme } from "@rva/tui/theme";
-import { renderSearchResult, type SearchRenderDetails } from "@rva/tui/tools/web-search";
-import type { SearchResponse } from "@rva/tui/tools/web-search-types";
-import { sanitizeText } from "@rva/utils";
+import { getThemeByName, initTheme } from "@reverse/tui/theme";
+import { renderSearchResult, type SearchRenderDetails } from "@reverse/tui/tools/web-search";
+import type { SearchResponse } from "@reverse/tui/tools/web-search-types";
+import { sanitizeText } from "@reverse/utils";
 
 const ANSWER = [
 	"## Overview Heading",

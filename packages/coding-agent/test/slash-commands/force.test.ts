@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { seedModels } from "@rva/catalog/compat/providers";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import { buildNamedToolChoice } from "@rva/coding-agent/utils/tool-choice";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { seedModels } from "@reverse/catalog/compat/providers";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import { buildNamedToolChoice } from "@reverse/coding-agent/utils/tool-choice";
 
 function createRuntimeHarness(overrides?: { setForcedToolChoice?: (toolName: string) => void }) {
 	const setForcedToolChoice = vi.fn(overrides?.setForcedToolChoice ?? ((_toolName: string) => {}));

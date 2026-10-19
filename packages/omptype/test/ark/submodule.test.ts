@@ -7,7 +7,7 @@ import {
 	scope,
 	type Type,
 	type,
-} from "@rva/omptype/ark";
+} from "@reverse/omptype/ark";
 import type { Eq } from "./type-assert";
 
 describe("submodule", () => {

@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type ContextFile, contextFileCapability } from "@rva/coding-agent/capability/context-file";
-import type { LoadContext } from "@rva/coding-agent/capability/types";
-import { loadCapability } from "@rva/coding-agent/discovery";
-import { loadClaudeMd } from "@rva/coding-agent/discovery/claude-md";
-import { removeSyncWithRetries } from "@rva/utils";
+import { type ContextFile, contextFileCapability } from "@reverse/coding-agent/capability/context-file";
+import type { LoadContext } from "@reverse/coding-agent/capability/types";
+import { loadCapability } from "@reverse/coding-agent/discovery";
+import { loadClaudeMd } from "@reverse/coding-agent/discovery/claude-md";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 function writeClaude(filePath: string, content: string): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });

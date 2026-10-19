@@ -9,8 +9,8 @@ import {
 	setTerminalSessionSource,
 	setTerminalTitleSpinnerStyle,
 	setTerminalTitleState,
-} from "@rva/coding-agent/utils/title-generator";
-import { setTerminalHeadless } from "@rva/utils";
+} from "@reverse/coding-agent/utils/title-generator";
+import { setTerminalHeadless } from "@reverse/utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
 const LABEL = "my-project";

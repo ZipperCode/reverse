@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as themeModule from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { Component } from "@rva/tui";
-import { Text } from "@rva/tui";
+import * as themeModule from "@reverse/tui/theme";
+import { Text } from "@reverse/tui";
 
 /**
  * Regression for issue #6337: a status message presented while the auto-theme
@@ -18,10 +15,6 @@ import { Text } from "@rva/tui";
 function fgPrefix(color: "accent" | "muted" | "warning"): string {
 	const styled = themeModule.theme.fg(color, "\u0001");
 	return styled.slice(0, styled.indexOf("\u0001"));
-}
-
-function isSingleComponent(component: Component | readonly Component[]): component is Component {
-	return !Array.isArray(component);
 }
 
 describe("lazy status color re-resolves on theme switch", () => {

@@ -14,11 +14,11 @@ import { afterEach, beforeEach, describe, expect, setSystemTime, test, vi } from
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import * as oauthFlow from "@rva/coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@rva/coding-agent/mcp/types";
-import { removeWithRetries } from "@rva/utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import * as oauthFlow from "@reverse/coding-agent/mcp/oauth-flow";
+import type { MCPServerConfig } from "@reverse/coding-agent/mcp/types";
+import { removeWithRetries } from "@reverse/utils";
 
 const CREDENTIAL_ID = "mcp_oauth_test_1908";
 const TOKEN_URL = "https://example.com/oauth/token";

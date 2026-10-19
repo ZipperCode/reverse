@@ -1,6 +1,6 @@
-import { formatDuration } from "@rva/tui/render/render-utils";
-import type { DaemonSnapshot } from "@rva/tui/tools/daemon";
-import { logger } from "@rva/utils";
+import { formatDuration } from "@reverse/tui/render/render-utils";
+import type { DaemonSnapshot } from "@reverse/tui/tools/daemon";
+import { logger } from "@reverse/utils";
 import type { AsyncJob } from "../async";
 import {
 	agentStaleNote,
@@ -19,7 +19,7 @@ import {
 	serviceStatus,
 	stopService,
 } from "../launch/services";
-import type { ProcReadDetails } from "@rva/tui/tools/proc-render";
+import type { ProcReadDetails } from "@reverse/tui/tools/proc-render";
 import procPromptDoc from "../prompts/internal-urls/proc.md" with { type: "text" };
 import type { ToolSession } from "../tools";
 import type {

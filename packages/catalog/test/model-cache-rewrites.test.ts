@@ -3,12 +3,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@rva/catalog/build";
-import { getModelCacheWriteStats, readModelCache, writeModelCache } from "@rva/catalog/model-cache";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { type GeneratedProvider, getBundledModels, getBundledProviders } from "@rva/catalog/models";
-import { modelsDevCatalogFallback } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, Model, ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getModelCacheWriteStats, readModelCache, writeModelCache } from "@reverse/catalog/model-cache";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { type GeneratedProvider, getBundledModels, getBundledProviders } from "@reverse/catalog/models";
+import { modelsDevCatalogFallback } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, Model, ModelSpec } from "@reverse/catalog/types";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const TTL_MS = 24 * 60 * 60 * 1000;

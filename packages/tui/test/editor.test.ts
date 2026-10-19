@@ -3,18 +3,11 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import {
-	type ComposerStyle,
-	CURSOR_MARKER,
-	Editor,
-	type EditorTheme,
-	registerComposerStyle,
-	TUI,
-} from "@rva/tui";
-import { CombinedAutocompleteProvider } from "@rva/tui/autocomplete";
-import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@rva/tui/keybindings";
-import { setKittyProtocolActive } from "@rva/tui/keys";
-import { visibleWidth } from "@rva/tui/utils";
+import { type ComposerStyle, CURSOR_MARKER, Editor, type EditorTheme, registerComposerStyle, TUI } from "@reverse/tui";
+import { CombinedAutocompleteProvider } from "@reverse/tui/autocomplete";
+import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS } from "@reverse/tui/keybindings";
+import { setKittyProtocolActive } from "@reverse/tui/keys";
+import { visibleWidth } from "@reverse/tui/utils";
 import { defaultEditorTheme } from "./test-themes";
 import { VirtualTerminal } from "./virtual-terminal";
 

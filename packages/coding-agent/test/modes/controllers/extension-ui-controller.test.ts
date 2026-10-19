@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
-import { Agent } from "@rva/agent";
+import { Agent } from "@reverse/agent";
 import { stripVTControlCharacters } from "node:util";
-import { type Component, Container, isFocusable, type OverlayOptions, setKeybindings } from "@rva/tui";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
+import { type Component, Container, isFocusable, type OverlayOptions, setKeybindings } from "@reverse/tui";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
 import type { ExtensionAskDialogQuestion, ExtensionUIContext } from "../../../src/extensibility/extensions";
-import { AskDialogComponent } from "@rva/tui/overlays/ask-dialog";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { HookEditorComponent } from "@rva/tui/overlays/hook-editor";
+import { AskDialogComponent } from "@reverse/tui/overlays/ask-dialog";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { HookEditorComponent } from "@reverse/tui/overlays/hook-editor";
 import { ExtensionUiController } from "../../../src/modes/controllers/extension-ui-controller";
 import { InputController } from "../../../src/modes/controllers/input-controller";
-import { getEditorTheme, getThemeByName, setThemeInstance } from "@rva/tui/theme";
+import { getEditorTheme, getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 import type { InteractiveModeContext } from "../../../src/modes/types";
 
 afterEach(() => {

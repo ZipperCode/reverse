@@ -11,13 +11,13 @@
  *   and every wire value fits the server field.
  * - Open unions (messages, assistant events) are pinned by discriminator set.
  */
-import type { AgentMessage } from "@rva/agent";
-import type { CompactionResult } from "@rva/agent/compaction";
-import type { AssistantMessageEvent, ImageContent, Model, Usage } from "@rva/ai";
-import type { BashResult } from "@rva/coding-agent/exec/bash-executor";
-import type { GoalModeState } from "@rva/coding-agent/goals/state";
-import type { RpcGoalResult } from "@rva/coding-agent/modes/rpc/rpc-goal";
-import type { RpcMessagesPage } from "@rva/coding-agent/modes/rpc/rpc-messages";
+import type { AgentMessage } from "@reverse/agent";
+import type { CompactionResult } from "@reverse/agent/compaction";
+import type { AssistantMessageEvent, ImageContent, Model, Usage } from "@reverse/ai";
+import type { BashResult } from "@reverse/coding-agent/exec/bash-executor";
+import type { GoalModeState } from "@reverse/coding-agent/goals/state";
+import type { RpcGoalResult } from "@reverse/coding-agent/modes/rpc/rpc-goal";
+import type { RpcMessagesPage } from "@reverse/coding-agent/modes/rpc/rpc-messages";
 import type {
 	RpcAbortAndRestoreQueueResult,
 	RpcAgentSessionEventFrame,
@@ -54,16 +54,16 @@ import type {
 	RpcSubagentMessagesResult,
 	RpcSubagentProgressFrame,
 	RpcSubagentSnapshot,
-} from "@rva/coding-agent/modes/rpc/rpc-types";
-import type * as Wire from "@rva/coding-agent/modes/rpc/wire/rpc-wire.generated";
-import type { RestoredQueuedMessage } from "@rva/coding-agent/session/agent-session-types";
-import type { SessionStats } from "@rva/coding-agent/session/agent-session";
-import type { BtwHistoryRecord, BtwHistoryTurn } from "@rva/coding-agent/session/btw-history";
-import type { UsageLimitState } from "@rva/coding-agent/session/usage-limit";
-import type { ContextUsage } from "@rva/tui/status-line/types";
-import type { LogoutAccount } from "@rva/tui/overlays/logout-account-selector";
-import type { Goal } from "@rva/tui/tools/goal";
-import type { TodoItem, TodoPhase } from "@rva/tui/tools/todo";
+} from "@reverse/coding-agent/modes/rpc/rpc-types";
+import type * as Wire from "@reverse/coding-agent/modes/rpc/wire/rpc-wire.generated";
+import type { RestoredQueuedMessage } from "@reverse/coding-agent/session/agent-session-types";
+import type { SessionStats } from "@reverse/coding-agent/session/agent-session";
+import type { BtwHistoryRecord, BtwHistoryTurn } from "@reverse/coding-agent/session/btw-history";
+import type { UsageLimitState } from "@reverse/coding-agent/session/usage-limit";
+import type { ContextUsage } from "@reverse/tui/status-line/types";
+import type { LogoutAccount } from "@reverse/tui/overlays/logout-account-selector";
+import type { Goal } from "@reverse/tui/tools/goal";
+import type { TodoItem, TodoPhase } from "@reverse/tui/tools/todo";
 
 type Assert<T extends true> = T;
 type Leaf = string | number | boolean | null;

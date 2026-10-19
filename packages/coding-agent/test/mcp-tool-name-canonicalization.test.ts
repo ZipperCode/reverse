@@ -3,9 +3,9 @@ import {
 	canonicalMCPToolNameCandidates,
 	createMCPToolName,
 	resolveMCPToolAlias,
-} from "@rva/coding-agent/mcp/tool-bridge";
-import { resolveMountedXdevExecutable, type XdevState } from "@rva/coding-agent/tools/xdev";
-import type { Tool } from "@rva/coding-agent/tools/index";
+} from "@reverse/coding-agent/mcp/tool-bridge";
+import { resolveMountedXdevExecutable, type XdevState } from "@reverse/coding-agent/tools/xdev";
+import type { Tool } from "@reverse/coding-agent/tools/index";
 
 // `createMCPToolName` joins the sanitized server and tool with a SINGLE
 // underscore, but the harness identifies itself to the model as Claude Code,

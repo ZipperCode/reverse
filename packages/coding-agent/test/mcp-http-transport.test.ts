@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { connectToServer } from "@rva/coding-agent/mcp/client";
-import { MCPTransportError } from "@rva/coding-agent/mcp/errors";
-import { analyzeAuthError } from "@rva/coding-agent/mcp/oauth-discovery";
-import { HttpTransport } from "@rva/coding-agent/mcp/transports/http";
-import { postmortem } from "@rva/utils";
+import { connectToServer } from "@reverse/coding-agent/mcp/client";
+import { MCPTransportError } from "@reverse/coding-agent/mcp/errors";
+import { analyzeAuthError } from "@reverse/coding-agent/mcp/oauth-discovery";
+import { HttpTransport } from "@reverse/coding-agent/mcp/transports/http";
+import { postmortem } from "@reverse/utils";
 
 const encoder = new TextEncoder();
 const REQUEST_TIMEOUT_MS = 50;

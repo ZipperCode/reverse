@@ -10,13 +10,13 @@ import {
 	resolveExecHandler,
 	streamCursor,
 	type ToolCallState,
-} from "@rva/ai/providers/cursor";
-import { streamCursor as lazyStreamCursor, setCursorProviderModule } from "@rva/ai/providers/register-builtins";
-import type { AssistantMessage, Context, CursorExecHandlers, Model, ToolResultMessage } from "@rva/ai/types";
-import { kCursorExecResolved } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
-import type { McpResult, ReadResult } from "@rva/catalog/discovery/cursor-proto";
+} from "@reverse/ai/providers/cursor";
+import { streamCursor as lazyStreamCursor, setCursorProviderModule } from "@reverse/ai/providers/register-builtins";
+import type { AssistantMessage, Context, CursorExecHandlers, Model, ToolResultMessage } from "@reverse/ai/types";
+import { kCursorExecResolved } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
+import type { McpResult, ReadResult } from "@reverse/catalog/discovery/cursor-proto";
 import {
 	type AgentRunRequest,
 	AgentServerMessageSchema,
@@ -33,9 +33,9 @@ import {
 	ReadResultSchema,
 	ReadSuccessSchema,
 	ShellArgsSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, encodeJsonValue } from "@rva/catalog/discovery/protobuf";
-import { logger } from "@rva/utils";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, encodeJsonValue } from "@reverse/catalog/discovery/protobuf";
+import { logger } from "@reverse/utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

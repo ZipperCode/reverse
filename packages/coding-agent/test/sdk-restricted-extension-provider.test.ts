@@ -3,22 +3,18 @@ import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { type AssistantMessage, createAssistantMessageEventStream, getCustomApi, type ToolCall } from "@rva/ai";
-import { runCommitAgentSession } from "@rva/coding-agent/commit/agentic/agent";
-import * as commitTools from "@rva/coding-agent/commit/agentic/tools";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { initializeExtensions } from "@rva/coding-agent/modes/runtime-init";
-import {
-	type CreateAgentSessionOptions,
-	createAgentSession,
-	type ExtensionFactory,
-} from "@rva/coding-agent/sdk";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { __resetDirsFromEnvForTests, removeSyncWithRetries, setAgentDir, Snowflake } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { type AssistantMessage, createAssistantMessageEventStream, getCustomApi, type ToolCall } from "@reverse/ai";
+import { runCommitAgentSession } from "@reverse/coding-agent/commit/agentic/agent";
+import * as commitTools from "@reverse/coding-agent/commit/agentic/tools";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { initializeExtensions } from "@reverse/coding-agent/modes/runtime-init";
+import { type CreateAgentSessionOptions, createAgentSession, type ExtensionFactory } from "@reverse/coding-agent/sdk";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { __resetDirsFromEnvForTests, removeSyncWithRetries, setAgentDir, Snowflake } from "@reverse/utils";
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -29,7 +25,7 @@ function restoreEnv(key: string, value: string | undefined): void {
 }
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-import { cfgExtensionHandlersToolCallTimeoutMs } from "@rva/coding-agent/extensibility/settings";
+import { cfgExtensionHandlersToolCallTimeoutMs } from "@reverse/coding-agent/extensibility/settings";
 
 const providerName = "restricted-session-provider";
 const modelId = "restricted-session-model";

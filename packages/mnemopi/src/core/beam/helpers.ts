@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { logger, withLoopPhase } from "@rva/utils";
+import { logger, withLoopPhase } from "@reverse/utils";
 import { generateId as generateTimedId, sha256Hex16, stableMemoryId } from "../../util/ids";
 import { cjkFtsTerms, containsSpacelessCjk, ftsQueryTerms, hasCjk, isCjkChar, recallTokens } from "../../util/regex";
 import { currentEmbeddingModel, embed } from "../embeddings";

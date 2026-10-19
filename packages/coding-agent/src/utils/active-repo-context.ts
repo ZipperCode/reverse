@@ -2,9 +2,9 @@ import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
 
-import * as vcs from "@rva/natives/vcs";
+import * as vcs from "@reverse/natives/vcs";
 
-import type { ActiveRepoContext } from "@rva/tui/status-line/host";
+import type { ActiveRepoContext } from "@reverse/tui/status-line/host";
 
 function compareEntryNames(left: fs.Dirent, right: fs.Dirent): number {
 	if (left.name < right.name) return -1;

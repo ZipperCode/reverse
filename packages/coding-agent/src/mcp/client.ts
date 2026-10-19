@@ -5,7 +5,7 @@
  */
 import * as path from "node:path";
 import * as url from "node:url";
-import { getProjectDir, logger, untilAborted, withTimeout } from "@rva/utils";
+import { getProjectDir, logger, untilAborted, withTimeout } from "@reverse/utils";
 import { describeMCPTimeout, isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "./timeout";
 import { createHttpTransport } from "./transports/http";
 import { LegacySseConnectionTimeoutError, createSseTransport } from "./transports/sse";

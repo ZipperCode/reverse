@@ -1,4 +1,4 @@
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { JsRuntime, type RuntimeCallIdentity, type RuntimeHooks, shadowSnapshotDigest } from "./shared/runtime";
 import type {
 	RunErrorPayload,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { convertMessages } from "@rva/ai/providers/openai-completions";
-import { NON_VISION_IMAGE_PLACEHOLDER } from "@rva/ai/providers/vision-guard";
-import type { AssistantMessage, Context, Model, ToolResultMessage, Usage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import type { ResolvedOpenAICompat } from "@rva/catalog/types";
+import { convertMessages } from "@reverse/ai/providers/openai-completions";
+import { NON_VISION_IMAGE_PLACEHOLDER } from "@reverse/ai/providers/vision-guard";
+import type { AssistantMessage, Context, Model, ToolResultMessage, Usage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { ResolvedOpenAICompat } from "@reverse/catalog/types";
 
 const emptyUsage: Usage = {
 	input: 0,

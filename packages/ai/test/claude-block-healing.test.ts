@@ -4,9 +4,9 @@ import {
 	type AuthCredentialStore,
 	AuthStorage,
 	type StoredAuthCredential,
-} from "@rva/ai/auth-storage";
-import type { UsageLimit, UsageProvider, UsageReport } from "@rva/ai/usage";
-import { claudeRankingStrategy } from "@rva/ai/usage/claude";
+} from "@reverse/ai/auth-storage";
+import type { UsageLimit, UsageProvider, UsageReport } from "@reverse/ai/usage";
+import { claudeRankingStrategy } from "@reverse/ai/usage/claude";
 
 /**
  * A reactive Fable 429 blocks the credential until the reset that error

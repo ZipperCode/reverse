@@ -1,15 +1,15 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { Container } from "@rva/tui";
+import { Container } from "@reverse/tui";
 import {
 	pickRecentFocusableAgentId,
 	SessionFocusController,
-} from "@rva/coding-agent/modes/controllers/session-focus-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, MAIN_AGENT_ID, type AgentRef } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import { initTheme } from "@rva/tui/theme";
+} from "@reverse/coding-agent/modes/controllers/session-focus-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry, MAIN_AGENT_ID, type AgentRef } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import { initTheme } from "@reverse/tui/theme";
 
 interface SessionStub {
 	session: AgentSession;

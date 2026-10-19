@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { TabBar, type TabBarTheme } from "@rva/tui/components/tab-bar";
-import { visibleWidth } from "@rva/tui/utils";
+import { TabBar, type TabBarTheme } from "@reverse/tui/components/tab-bar";
+import { visibleWidth } from "@reverse/tui/utils";
 
 const ansiTheme: TabBarTheme = {
 	label: text => text,

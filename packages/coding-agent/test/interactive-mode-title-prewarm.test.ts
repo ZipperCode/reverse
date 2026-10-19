@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { tinyTitleClient } from "@rva/coding-agent/tiny/title-client";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { tinyTitleClient } from "@reverse/coding-agent/tiny/title-client";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // Issue #6462: the first submit used to spawn the local tiny-title worker

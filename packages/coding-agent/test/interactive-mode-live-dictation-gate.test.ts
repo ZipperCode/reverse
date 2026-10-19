@@ -1,17 +1,17 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { LiveCommandController } from "@rva/coding-agent/modes/controllers/live-command-controller";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { STTController } from "@rva/coding-agent/stt";
-import { cfgSttEnabled } from "@rva/coding-agent/stt/settings";
-import { initTheme } from "@rva/tui/theme";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { LiveCommandController } from "@reverse/coding-agent/modes/controllers/live-command-controller";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { STTController } from "@reverse/coding-agent/stt";
+import { cfgSttEnabled } from "@reverse/coding-agent/stt/settings";
+import { initTheme } from "@reverse/tui/theme";
+import { TempDir } from "@reverse/utils";
 
 describe("InteractiveMode live mode vs. composer dictation", () => {
 	let tempDir: TempDir;

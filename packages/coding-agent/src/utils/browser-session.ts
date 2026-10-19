@@ -1,10 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { LoginCancelledError } from "@rva/ai/error";
-import type { OAuthBrowserSessionRequest } from "@rva/ai/oauth/types";
-import { logger, withTimeout } from "@rva/utils";
-import { untilAborted } from "@rva/utils/abortable";
+import { LoginCancelledError } from "@reverse/ai/error";
+import type { OAuthBrowserSessionRequest } from "@reverse/ai/oauth/types";
+import { logger, withTimeout } from "@reverse/utils";
+import { untilAborted } from "@reverse/utils/abortable";
 import type { Browser } from "puppeteer-core";
 import { gracefulKillTreeOnce } from "../tools/browser/attach";
 import { ensureChromiumExecutable, loadPuppeteer, removeUserDataDir } from "../tools/browser/launch";

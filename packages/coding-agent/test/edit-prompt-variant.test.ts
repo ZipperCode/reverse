@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { editDescription } from "@rva/natives";
-import { resolveEditToolDescription } from "@rva/coding-agent/edit";
+import { editDescription } from "@reverse/natives";
+import { resolveEditToolDescription } from "@reverse/coding-agent/edit";
 
 describe("resolveEditToolDescription", () => {
 	test("renders the compact prompt for models whose catalog policy selects it", () => {

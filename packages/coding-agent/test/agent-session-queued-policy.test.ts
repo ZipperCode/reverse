@@ -1,37 +1,37 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { setImmediate } from "node:timers/promises";
-import { Type } from "@rva/omptype/typebox";
-import { Agent, type AgentMessage, type AgentTool } from "@rva/agent";
-import type { Context, ImageContent } from "@rva/ai";
-import { createMockModel, type MockResponseSource } from "@rva/ai/providers/mock";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import type { BeforeAgentStartEvent, Extension } from "@rva/coding-agent/extensibility/extensions/types";
-import { HindsightApi } from "@rva/coding-agent/hindsight/client";
-import { loadHindsightConfig } from "@rva/coding-agent/hindsight/config";
-import { HindsightSessionState } from "@rva/coding-agent/hindsight/state";
-import * as memoryBackend from "@rva/coding-agent/memory-backend";
-import type { MemoryBackend } from "@rva/coding-agent/memory-backend/types";
-import { loadMnemopiConfig } from "@rva/coding-agent/mnemopi/config";
+import { Type } from "@reverse/omptype/typebox";
+import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
+import type { Context, ImageContent } from "@reverse/ai";
+import { createMockModel, type MockResponseSource } from "@reverse/ai/providers/mock";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import type { BeforeAgentStartEvent, Extension } from "@reverse/coding-agent/extensibility/extensions/types";
+import { HindsightApi } from "@reverse/coding-agent/hindsight/client";
+import { loadHindsightConfig } from "@reverse/coding-agent/hindsight/config";
+import { HindsightSessionState } from "@reverse/coding-agent/hindsight/state";
+import * as memoryBackend from "@reverse/coding-agent/memory-backend";
+import type { MemoryBackend } from "@reverse/coding-agent/memory-backend/types";
+import { loadMnemopiConfig } from "@reverse/coding-agent/mnemopi/config";
 import {
 	getMnemopiSessionState,
 	loadMnemopi,
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@rva/coding-agent/mnemopi/state";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AgentSessionConfig } from "@rva/coding-agent/session/agent-session-types";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { SessionProviderBoundary } from "@rva/coding-agent/session/session-provider-boundary";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/mnemopi/state";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AgentSessionConfig } from "@reverse/coding-agent/session/agent-session-types";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { SessionProviderBoundary } from "@reverse/coding-agent/session/session-provider-boundary";
+import { TempDir } from "@reverse/utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
-import { cfgMnemopiInjectionTokenLimit } from "@rva/coding-agent/mnemopi/settings";
+import { cfgMnemopiInjectionTokenLimit } from "@reverse/coding-agent/mnemopi/settings";
 
 const BASE = ["base identity", "base tools"];
 

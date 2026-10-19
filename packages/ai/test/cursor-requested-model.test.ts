@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { streamCursor } from "@rva/ai/providers/cursor";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { cursorModelParameters } from "@rva/catalog/compat/behavior";
-import type { AgentRunRequest } from "@rva/catalog/discovery/cursor-proto";
-import { Effort } from "@rva/catalog/effort";
+import { streamCursor } from "@reverse/ai/providers/cursor";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { cursorModelParameters } from "@reverse/catalog/compat/behavior";
+import type { AgentRunRequest } from "@reverse/catalog/discovery/cursor-proto";
+import { Effort } from "@reverse/catalog/effort";
 
 function cursorModel(id: string, overrides?: Partial<Model<"cursor-agent">>): Model<"cursor-agent"> {
 	return {

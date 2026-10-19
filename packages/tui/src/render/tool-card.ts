@@ -1,4 +1,4 @@
-import type { TspSpan, TspText } from "@rva/wire";
+import type { TspSpan, TspText } from "@reverse/wire";
 import { Text } from "../components/text";
 import { compactText, rowsText, styledSpans } from "../native/spans";
 import { sameItems } from "../native/memo";

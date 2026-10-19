@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { TraversalError, type Type, type } from "@rva/omptype/ark";
+import { TraversalError, type Type, type } from "@reverse/omptype/ark";
 
 import assert = require("node:assert/strict");
 

@@ -8,15 +8,15 @@ import {
 	handleServerMessage,
 	processInteractionUpdate,
 	type ToolCallState,
-} from "@rva/ai/providers/cursor";
+} from "@reverse/ai/providers/cursor";
 import type {
 	AssistantMessage,
 	CursorExecHandlers,
 	CursorToolResultHandler,
 	ToolResultMessage,
-} from "@rva/ai/types";
-import { kCursorExecResolved, kStreamingBlockKind } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+} from "@reverse/ai/types";
+import { kCursorExecResolved, kStreamingBlockKind } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import {
 	AgentClientMessageSchema,
 	AgentServerMessageSchema,
@@ -27,8 +27,8 @@ import {
 	ReadArgsSchema,
 	ToolCallSchema,
 	WriteArgsSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary } from "@reverse/catalog/discovery/protobuf";
 
 const EDIT_ID = "tool_7aef3020-f275-4579-887c-34106e146f7";
 const ENVELOPE_ID = "call-edit-1";

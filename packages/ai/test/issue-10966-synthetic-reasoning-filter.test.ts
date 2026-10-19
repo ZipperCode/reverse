@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import type { AssistantMessage, Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import type { AssistantMessage, Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const cost = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import type { Context, ImageContent, ModelSpec, TextContent } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { toModelSpec } from "@rva/catalog/provider-models/bundled-references";
-import { decorateContextImages } from "@rva/coding-agent/blob-broker/context-images";
+import type { Context, ImageContent, ModelSpec, TextContent } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { toModelSpec } from "@reverse/catalog/provider-models/bundled-references";
+import { decorateContextImages } from "@reverse/coding-agent/blob-broker/context-images";
 import {
 	capArchiveFrameBytes,
 	clampProviderContextImageBytes,
 	clampProviderContextImages,
-} from "@rva/coding-agent/session/provider-image-budget";
+} from "@reverse/coding-agent/session/provider-image-budget";
 
 const UMANS_MODEL = buildModel({
 	id: "umans-glm-5.2",

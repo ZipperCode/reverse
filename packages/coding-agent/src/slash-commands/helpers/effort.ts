@@ -1,5 +1,5 @@
 import type { AgentSession } from "../../session/agent-session";
-import { type ConfiguredThinkingLevel, parseCliThinkingLevel } from "@rva/tui/thinking";
+import { type ConfiguredThinkingLevel, parseCliThinkingLevel } from "@reverse/tui/thinking";
 
 /** Text shown when the active model has no thinking dial. */
 export function noThinkingMessage(session: AgentSession): string {

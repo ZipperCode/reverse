@@ -1,10 +1,10 @@
-import type { ResolvedThinkingLevel } from "@rva/agent/thinking";
+import type { ResolvedThinkingLevel } from "@reverse/agent/thinking";
 import type { ConfiguredThinkingLevel } from "./render/render-utils";
-import { ThinkingLevel } from "@rva/agent/thinking";
-import { Effort, THINKING_EFFORTS } from "@rva/catalog/effort";
-import { clampThinkingLevelForModel, getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { modelsAreEqual } from "@rva/catalog/models";
-import type { Model } from "@rva/catalog/types";
+import { ThinkingLevel } from "@reverse/agent/thinking";
+import { Effort, THINKING_EFFORTS } from "@reverse/catalog/effort";
+import { clampThinkingLevelForModel, getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { modelsAreEqual } from "@reverse/catalog/models";
+import type { Model } from "@reverse/catalog/types";
 /** Thinking selectors accepted by CLI inputs, in display order. */
 export const CLI_THINKING_LEVELS: readonly ConfiguredThinkingLevel[] = ["off", ...THINKING_EFFORTS, "auto"];
 

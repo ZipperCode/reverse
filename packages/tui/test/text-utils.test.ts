@@ -1,11 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-	encodeTextSized,
-	extractSegments,
-	sliceWithWidth,
-	truncateToWidth,
-	visibleWidth,
-} from "@rva/tui/utils";
+import { encodeTextSized, extractSegments, sliceWithWidth, truncateToWidth, visibleWidth } from "@reverse/tui/utils";
 
 describe("text utils", () => {
 	it("ignores OSC hyperlinks in visible width", () => {

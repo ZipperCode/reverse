@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import * as AIError from "@rva/ai/error";
-import { streamGoogle } from "@rva/ai/providers/google";
-import { streamGoogleGeminiCli } from "@rva/ai/providers/google-gemini-cli";
-import { streamGoogleVertex } from "@rva/ai/providers/google-vertex";
-import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import * as AIError from "@reverse/ai/error";
+import { streamGoogle } from "@reverse/ai/providers/google";
+import { streamGoogleGeminiCli } from "@reverse/ai/providers/google-gemini-cli";
+import { streamGoogleVertex } from "@reverse/ai/providers/google-vertex";
+import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 // A Gemini turn that finishes with `finishReason: STOP` but carries only an empty text part —
 // the well-known "empty response" failure. Delivered as-is, the agent receives a blank message

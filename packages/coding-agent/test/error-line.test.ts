@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeErrorLine } from "@rva/tui/chrome/error-block";
-import { TRUNCATE_LENGTHS } from "@rva/tui/render/render-utils";
+import { sanitizeErrorLine } from "@reverse/tui/chrome/error-block";
+import { TRUNCATE_LENGTHS } from "@reverse/tui/render/render-utils";
 
 describe("safe error lines", () => {
 	it("shortens multiple quoted home paths without splitting a home directory containing spaces", () => {

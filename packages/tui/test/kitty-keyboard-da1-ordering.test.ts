@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { Component } from "@rva/tui";
-import { TERMINAL } from "@rva/tui/terminal-capabilities";
+import type { Component } from "@reverse/tui";
+import { TERMINAL } from "@reverse/tui/terminal-capabilities";
 import {
 	createProcessTerminalRenderHarness,
 	type ProcessTerminalRenderHarness,

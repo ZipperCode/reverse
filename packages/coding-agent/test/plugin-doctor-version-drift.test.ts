@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { PluginManager } from "@rva/coding-agent/extensibility/plugins/manager";
-import type { PluginRuntimeState } from "@rva/coding-agent/extensibility/plugins/types";
-import * as piUtils from "@rva/utils";
-import { removeWithRetries } from "@rva/utils";
+import { PluginManager } from "@reverse/coding-agent/extensibility/plugins/manager";
+import type { PluginRuntimeState } from "@reverse/coding-agent/extensibility/plugins/types";
+import * as piUtils from "@reverse/utils";
+import { removeWithRetries } from "@reverse/utils";
 
 // Regression for #11090: `omp-plugins.lock.json` can diverge from the package
 // version in node_modules. `plugin doctor` must surface the stale copy instead

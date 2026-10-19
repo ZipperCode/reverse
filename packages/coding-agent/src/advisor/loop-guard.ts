@@ -1,7 +1,7 @@
-import type { AgentMessage, AgentTurnEndContext } from "@rva/agent";
-import type { UserMessage } from "@rva/ai";
-import { ToolCallLoopGuard } from "@rva/ai/utils/tool-call-loop-guard";
-import { logger } from "@rva/utils";
+import type { AgentMessage, AgentTurnEndContext } from "@reverse/agent";
+import type { UserMessage } from "@reverse/ai";
+import { ToolCallLoopGuard } from "@reverse/ai/utils/tool-call-loop-guard";
+import { logger } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import { renderToolCallLoopRedirect } from "../session/tool-call-loop-redirect";
 

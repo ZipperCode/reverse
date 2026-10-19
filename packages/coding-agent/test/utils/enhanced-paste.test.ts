@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { EnhancedPasteController } from "@rva/coding-agent/utils/enhanced-paste";
+import { EnhancedPasteController } from "@reverse/coding-agent/utils/enhanced-paste";
 
 const ST = "\x1b\\";
 const BEL = "\x07";

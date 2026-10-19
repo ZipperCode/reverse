@@ -14,11 +14,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@rva/catalog/provider-models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { pickDefaultAvailableModel } from "@rva/coding-agent/config/model-resolver";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { Snowflake } from "@rva/utils";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@reverse/catalog/provider-models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { pickDefaultAvailableModel } from "@reverse/coding-agent/config/model-resolver";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { Snowflake } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("issue #9967 default model with ambient Bedrock credentials", () => {

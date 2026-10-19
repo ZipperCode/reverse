@@ -7,7 +7,7 @@
  * `stream_options.include_obfuscation`) — does not trip 400s on shapes we simply ignore.
  */
 
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import type {
 	ChatCompletionContentPart,
 	ChatCompletionCreateParams,

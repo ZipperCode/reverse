@@ -1,13 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
-import type { ImageContent } from "@rva/ai";
-import { BlobStore } from "@rva/coding-agent/session/blob-store";
-import type { SessionMessageEntry } from "@rva/coding-agent/session/session-entries";
-import {
-	resolveBlobRefsInEntries,
-	resolveBlobRefsInEntriesSync,
-} from "@rva/coding-agent/session/session-loader";
-import { TempDir } from "@rva/utils";
+import type { ImageContent } from "@reverse/ai";
+import { BlobStore } from "@reverse/coding-agent/session/blob-store";
+import type { SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
+import { resolveBlobRefsInEntries, resolveBlobRefsInEntriesSync } from "@reverse/coding-agent/session/session-loader";
+import { TempDir } from "@reverse/utils";
 
 function image(data: string): ImageContent {
 	return { type: "image", data, mimeType: "image/png" };

@@ -1,14 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { Markdown } from "@rva/tui";
+import { Markdown } from "@reverse/tui";
 import { Settings } from "../../../src/config/settings";
-import { fgAnsi } from "@rva/tui/theme/color";
-import { createTheme, getBuiltinThemes } from "@rva/tui/theme/loader";
-import {
-	getMarkdownTheme,
-	getThemeByName,
-	setMarkdownMermaidRendering,
-	setThemeInstance,
-} from "@rva/tui/theme";
+import { fgAnsi } from "@reverse/tui/theme/color";
+import { createTheme, getBuiltinThemes } from "@reverse/tui/theme/loader";
+import { getMarkdownTheme, getThemeByName, setMarkdownMermaidRendering, setThemeInstance } from "@reverse/tui/theme";
 import { buildSystemPrompt } from "../../../src/system-prompt";
 
 const workspaceTree = {

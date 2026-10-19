@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { Context } from "@rva/ai";
-import { streamOllama } from "@rva/ai/providers/ollama";
-import { buildModel } from "@rva/catalog/build";
+import type { Context } from "@reverse/ai";
+import { streamOllama } from "@reverse/ai/providers/ollama";
+import { buildModel } from "@reverse/catalog/build";
 
 function createOllamaModel() {
 	return buildModel({

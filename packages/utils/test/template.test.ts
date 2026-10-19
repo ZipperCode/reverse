@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import * as prompt from "@rva/utils/prompt";
-import { create, type HelperOptions, SafeString } from "@rva/utils/template";
+import * as prompt from "@reverse/utils/prompt";
+import { create, type HelperOptions, SafeString } from "@reverse/utils/template";
 import fileOperations from "./fixtures/template/file-operations.md" with { type: "text" };
 import frontmatter from "./fixtures/template/frontmatter.md" with { type: "text" };
 import identifierTask from "./fixtures/template/identifier-task.md" with { type: "text" };

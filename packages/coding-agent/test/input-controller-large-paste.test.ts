@@ -1,4 +1,4 @@
-import { removeWithRetries } from "@rva/utils";
+import { removeWithRetries } from "@reverse/utils";
 /**
  * Large-paste menu: when a paste reaches the configured `paste.largeMenuThreshold` line count,
  * the editor's `onLargePaste` hook routes through `InputController.handleLargePaste`, which offers
@@ -10,11 +10,11 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { getEditorTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { getEditorTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 function createContext(options?: {
 	threshold?: number;

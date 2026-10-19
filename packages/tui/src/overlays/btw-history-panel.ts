@@ -34,7 +34,7 @@ import { bottomBorder, row, topBorder } from "../chrome/overlay-box";
 import { padToWidth } from "../render/utils";
 import { SplitPane } from "../components/layout/split-pane";
 import { clampSelection, contentRowWidth, padLinesToHeight, renderScrollableList } from "../chrome/selector-helpers";
-import type { TspScrollBy, TspSpan } from "@rva/wire";
+import type { TspScrollBy, TspSpan } from "@reverse/wire";
 import type { NativeChild, NativeNode, NativeScroll, NativeUiEvent } from "../native/node";
 import { col, md, node, span, text } from "../native/describe";
 import { actionBar, actionButton } from "../native/overlay";

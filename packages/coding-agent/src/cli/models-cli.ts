@@ -11,13 +11,13 @@
  * `ls`/`find` use the cache when fresh (`online-if-uncached`); only `refresh`
  * forces the network (`online`).
  */
-import type { Api, Effort, Model } from "@rva/ai";
-import { sendsImageInputOnWire } from "@rva/ai/providers/vision-guard";
-import { getEffectiveTokenCost, getModelPricingStatus } from "@rva/catalog/models";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { type ModelKind, type ModelPricingStatus, modelKind } from "@rva/catalog/types";
-import { formatNumber, getProjectDir } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import type { Api, Effort, Model } from "@reverse/ai";
+import { sendsImageInputOnWire } from "@reverse/ai/providers/vision-guard";
+import { getEffectiveTokenCost, getModelPricingStatus } from "@reverse/catalog/models";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { type ModelKind, type ModelPricingStatus, modelKind } from "@reverse/catalog/types";
+import { formatNumber, getProjectDir } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import type { ConfigError } from "../config/config-file";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { PsScope } from "@rva/tui/apps/ps-data";
-import { TempDir } from "@rva/utils";
+import type { PsScope } from "@reverse/tui/apps/ps-data";
+import { TempDir } from "@reverse/utils";
 import { collectScope } from "../../src/cli/ps-data";
 import { startDaemonBrokerFromEnvironment } from "../../src/launch/broker";
 import { createDaemonBrokerClient } from "../../src/launch/client";

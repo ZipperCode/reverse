@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { isAssistantMessageLine } from "@rva/coding-agent/session/session-entries";
-import type { SessionStatus } from "@rva/coding-agent/session/session-listing";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { MemorySessionStorage } from "@rva/coding-agent/session/session-storage";
+import { isAssistantMessageLine } from "@reverse/coding-agent/session/session-entries";
+import type { SessionStatus } from "@reverse/coding-agent/session/session-listing";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { MemorySessionStorage } from "@reverse/coding-agent/session/session-storage";
 const SESSION_DIR = "/sessions/status-proj";
 
 function line(obj: unknown): string {

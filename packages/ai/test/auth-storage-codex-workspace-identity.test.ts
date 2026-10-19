@@ -23,9 +23,9 @@ import {
 	AuthStorage,
 	SqliteAuthCredentialStore,
 	type StoredAuthCredential,
-} from "@rva/ai/auth-storage";
-import type { UsageReport } from "@rva/ai/usage";
-import * as codexUsage from "@rva/ai/usage/openai-codex";
+} from "@reverse/ai/auth-storage";
+import type { UsageReport } from "@reverse/ai/usage";
+import * as codexUsage from "@reverse/ai/usage/openai-codex";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const EMAIL = "shared@example.com";

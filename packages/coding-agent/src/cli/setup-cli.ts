@@ -4,20 +4,20 @@
  * Handles `omp setup` for onboarding and `omp setup <component>` for optional dependencies.
  */
 import * as path from "node:path";
-import { APP_NAME, getProjectDir, getPythonEnvDir } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
-import { formatKeyHint } from "@rva/tui/key-hint-format";
+import { APP_NAME, getProjectDir, getPythonEnvDir } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
+import { formatKeyHint } from "@reverse/tui/key-hint-format";
 import { Settings } from "../config/settings";
 import { ModelRegistry } from "../config/model-registry";
 import { resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";
 import { checkPythonKernelAvailability } from "../eval/py/kernel";
 import { discoverAuthStorage } from "../sdk";
-import { theme } from "@rva/tui/theme";
+import { theme } from "@reverse/tui/theme";
 import { downloadSttModel, isSttModelCached } from "../stt/downloader";
 import { isSttModelKey, STT_MODEL_OPTIONS } from "../stt/models";
 import { downloadTtsModel, isTtsLocalModelKey, isTtsModelCached, TTS_LOCAL_MODELS } from "../tts";
-import { selectSetupModel } from "@rva/tui/apps/setup-model-picker";
+import { selectSetupModel } from "@reverse/tui/apps/setup-model-picker";
 import { handleReverseSetup } from "./setup-reverse";
 
 import { cfgPythonInterpreter } from "../eval/settings";

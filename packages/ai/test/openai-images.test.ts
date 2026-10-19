@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
 import { generateOpenAIImage } from "../src/images/openai-images";
 import type { FetchImpl } from "../src/types";
 

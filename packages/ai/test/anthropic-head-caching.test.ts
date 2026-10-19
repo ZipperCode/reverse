@@ -13,11 +13,11 @@
  * a 400 so the request short-circuits.
  */
 import { describe, expect, it } from "bun:test";
-import type { MessageCreateParams, TextBlockParam } from "@rva/ai/providers/anthropic-wire";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { AssistantMessage, CacheRetention, Context, Message, Model, ModelSpec } from "@rva/ai/types";
-import { markPerCallContextMessage } from "@rva/ai/utils/block-symbols";
-import { buildModel } from "@rva/catalog/build";
+import type { MessageCreateParams, TextBlockParam } from "@reverse/ai/providers/anthropic-wire";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { AssistantMessage, CacheRetention, Context, Message, Model, ModelSpec } from "@reverse/ai/types";
+import { markPerCallContextMessage } from "@reverse/ai/utils/block-symbols";
+import { buildModel } from "@reverse/catalog/build";
 
 const MODEL_SPEC: ModelSpec<"anthropic-messages"> = {
 	id: "claude-sonnet-4-5",

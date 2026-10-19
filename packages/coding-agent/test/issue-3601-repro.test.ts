@@ -23,12 +23,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { getEditorTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import type { ImageContent } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { getEditorTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 const BRACKETED_PASTE_START = "\x1b[200~";
 const BRACKETED_PASTE_END = "\x1b[201~";

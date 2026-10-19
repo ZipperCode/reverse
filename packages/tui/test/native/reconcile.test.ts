@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { TspDocument } from "@rva/tui/native/apply";
-import { node } from "@rva/tui/native/describe";
-import type { DescribeContext, NativeChild, NativeNode } from "@rva/tui/native/node";
-import { type NativeRegions, nativeComponentId, Reconciler } from "@rva/tui/native/reconcile";
-import { settleNative } from "@rva/tui/native/settle";
-import type { Component } from "@rva/tui/tui";
-import type { TspKind, TspOp } from "@rva/wire";
+import { TspDocument } from "@reverse/tui/native/apply";
+import { node } from "@reverse/tui/native/describe";
+import type { DescribeContext, NativeChild, NativeNode } from "@reverse/tui/native/node";
+import { type NativeRegions, nativeComponentId, Reconciler } from "@reverse/tui/native/reconcile";
+import { settleNative } from "@reverse/tui/native/settle";
+import type { Component } from "@reverse/tui/tui";
+import type { TspKind, TspOp } from "@reverse/wire";
 
 const cx: DescribeContext = { cols: 60, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 

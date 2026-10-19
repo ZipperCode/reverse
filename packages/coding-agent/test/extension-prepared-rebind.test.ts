@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { bindPreparedExtensions, loadExtensions } from "@rva/coding-agent/extensibility/extensions/loader";
-import type { ExtensionAPI } from "@rva/coding-agent/extensibility/extensions/types";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
+import { bindPreparedExtensions, loadExtensions } from "@reverse/coding-agent/extensibility/extensions/loader";
+import type { ExtensionAPI } from "@reverse/coding-agent/extensibility/extensions/types";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
 
 const temporaryDirectories: string[] = [];
 

@@ -1,4 +1,4 @@
-import { authPolicyFor } from "@rva/catalog/compat/auth";
+import { authPolicyFor } from "@reverse/catalog/compat/auth";
 import { resolveUsedFraction } from "../usage";
 import type {
 	CredentialRankingContext,

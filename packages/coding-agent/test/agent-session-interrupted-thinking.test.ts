@@ -1,24 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { Api, AssistantMessage, Model, ThinkingContent } from "@rva/ai";
-import { type GeneratedProvider, getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import { Agent } from "@reverse/agent";
+import type { Api, AssistantMessage, Model, ThinkingContent } from "@reverse/ai";
+import { type GeneratedProvider, getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import {
 	type CustomMessage,
 	convertToLlm,
 	INTERRUPTED_THINKING_MESSAGE_TYPE,
 	USER_INTERRUPT_LABEL,
-} from "@rva/coding-agent/session/messages";
-import type { SessionEntry } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/messages";
+import type { SessionEntry } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const REASONING_TEXT = "I have partly reasoned through the implementation and should preserve this.";

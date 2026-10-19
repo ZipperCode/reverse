@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamGoogleGeminiCli } from "@rva/ai/providers/google-gemini-cli";
-import type { Context, ImageContent, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamGoogleGeminiCli } from "@reverse/ai/providers/google-gemini-cli";
+import type { Context, ImageContent, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const RED_1X1_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";

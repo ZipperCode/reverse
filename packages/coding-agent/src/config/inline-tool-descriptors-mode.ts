@@ -1,4 +1,4 @@
-import { classifyModel } from "@rva/catalog/identity";
+import { classifyModel } from "@reverse/catalog/identity";
 
 /**
  * Resolves whether full tool descriptors should be inlined into the system

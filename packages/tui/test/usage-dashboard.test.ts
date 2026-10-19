@@ -1,15 +1,15 @@
 import * as os from "node:os";
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { DailyActivityPoint, UnavailableUsageAccount } from "@rva/tui/overlays/usage-dashboard";
-import type { UsageReport } from "@rva/ai";
+import type { DailyActivityPoint, UnavailableUsageAccount } from "@reverse/tui/overlays/usage-dashboard";
+import type { UsageReport } from "@reverse/ai";
 import {
 	buildHeatmapLayout,
 	buildProviderCards,
 	formatActivityErrorDetail,
 	UsageDashboardComponent,
-} from "@rva/tui/overlays/usage-dashboard";
-import { initTheme, theme } from "@rva/tui/theme";
-import { visibleWidth } from "@rva/tui/utils";
+} from "@reverse/tui/overlays/usage-dashboard";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { visibleWidth } from "@reverse/tui/utils";
 
 function day(day: string, cost: number, requests = 1): DailyActivityPoint {
 	return { day, cost, requests };

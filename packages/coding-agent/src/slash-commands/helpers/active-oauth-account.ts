@@ -1,6 +1,6 @@
-import type { UsageLimit, UsageReport } from "@rva/ai";
+import type { UsageLimit, UsageReport } from "@reverse/ai";
 import type { OAuthAccountIdentity } from "../../session/auth-storage";
-import { sanitizeText } from "@rva/utils";
+import { sanitizeText } from "@reverse/utils";
 
 /** Codex's orgName is the login-time plan, not a workspace name. */
 export function codexUsagePlan(report: UsageReport): string | undefined {

@@ -20,7 +20,7 @@ import {
 	IndexedSessionStorage,
 	type SessionStorageBackend,
 	type SessionStorageIndexEntry,
-} from "@rva/coding-agent/session/indexed-session-storage";
+} from "@reverse/coding-agent/session/indexed-session-storage";
 
 function deferred<T = void>() {
 	let resolve!: (value: T) => void;

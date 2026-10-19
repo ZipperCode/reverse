@@ -1,4 +1,4 @@
-import { tryParseJson } from "@rva/utils";
+import { tryParseJson } from "@reverse/utils";
 import type { SpecialHandler } from "./types";
 import { buildResult, formatIsoDate, formatNumber, loadPage } from "./types";
 

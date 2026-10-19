@@ -7,31 +7,31 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import { Agent } from "@rva/agent";
-import type { Usage } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { ChatTranscriptBuilder } from "@rva/tui/chat/chat-transcript-builder";
-import { formatUsageRow } from "@rva/tui/overlays/usage-row";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme, theme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import type { SessionContext } from "@rva/coding-agent/session/session-context";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { Container, type TUI } from "@rva/tui";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { Agent } from "@reverse/agent";
+import type { Usage } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { ChatTranscriptBuilder } from "@reverse/tui/chat/chat-transcript-builder";
+import { formatUsageRow } from "@reverse/tui/overlays/usage-row";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme, theme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import type { SessionContext } from "@reverse/coding-agent/session/session-context";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { Container, type TUI } from "@reverse/tui";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
-import { cfgDisplayShowTokenUsage, cfgDisplayShowTurnTime } from "@rva/coding-agent/modes/settings";
+import { cfgDisplayShowTokenUsage, cfgDisplayShowTurnTime } from "@reverse/coding-agent/modes/settings";
 
 // 60s of elapsed: 30s between the prompt and the final response's creation,
 // plus a 30s provider request — formatDuration renders this as "1m".

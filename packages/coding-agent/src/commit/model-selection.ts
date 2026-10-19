@@ -1,5 +1,5 @@
-import type { ThinkingLevel } from "@rva/agent";
-import type { Api, ApiKey, Model } from "@rva/ai";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Api, ApiKey, Model } from "@reverse/ai";
 import type { ApiKeyResolverRegistry } from "../config/api-key-resolver";
 import {
 	getModelMatchPreferences,
@@ -11,7 +11,7 @@ import {
 import { CHAT_MODEL_ROLE_IDS } from "../config/model-roles";
 import type { Settings } from "../config/settings";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
-import { concreteThinkingLevel } from "@rva/tui/thinking";
+import { concreteThinkingLevel } from "@reverse/tui/thinking";
 
 export interface ResolvedCommitModel {
 	model: Model<Api>;

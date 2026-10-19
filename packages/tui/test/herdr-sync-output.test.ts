@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { TUI } from "@rva/tui";
-import type { PrivateModeReportHandler } from "@rva/tui/terminal";
+import { TUI } from "@reverse/tui";
+import type { PrivateModeReportHandler } from "@reverse/tui/terminal";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 import { VirtualTerminal } from "./virtual-terminal";
 

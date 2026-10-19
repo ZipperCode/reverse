@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { sanitizeHookStatusText, sanitizeStatusText } from "@rva/tui/chrome/shared";
+import { sanitizeHookStatusText, sanitizeStatusText } from "@reverse/tui/chrome/shared";
 
 const ESCAPE_FIXTURE =
 	"prefix " +

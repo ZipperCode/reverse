@@ -1,14 +1,14 @@
 import * as fs from "node:fs/promises";
 import http2 from "node:http2";
-import { cursorModelParameters } from "@rva/catalog/compat/behavior";
-import { isCursorMaxModeWireId } from "@rva/catalog/compat/collapse";
-import { classifyModel, collapseVariantId } from "@rva/catalog/compat/taxonomy";
+import { cursorModelParameters } from "@reverse/catalog/compat/behavior";
+import { isCursorMaxModeWireId } from "@reverse/catalog/compat/collapse";
+import { classifyModel, collapseVariantId } from "@reverse/catalog/compat/taxonomy";
 import type {
 	ConversationStep,
 	CursorRule,
 	McpToolDefinition,
 	RequestedModel_ModelParameterbytes,
-} from "@rva/catalog/discovery/cursor-proto";
+} from "@reverse/catalog/discovery/cursor-proto";
 import {
 	CURSOR_BIDI_APPEND_PATH,
 	CURSOR_CLIENT_VERSION,
@@ -16,7 +16,7 @@ import {
 	CURSOR_RUN_PATH,
 	CURSOR_RUN_SSE_PATH,
 	cursorClientHeaders,
-} from "@rva/catalog/wire/cursor";
+} from "@reverse/catalog/wire/cursor";
 import {
 	AgentClientMessageSchema,
 	AgentConversationTurnStructureSchema,
@@ -161,7 +161,7 @@ import {
 	WriteShellStdinErrorSchema,
 	WriteShellStdinResultSchema,
 	WriteSuccessSchema,
-} from "@rva/catalog/discovery/cursor-proto";
+} from "@reverse/catalog/discovery/cursor-proto";
 import {
 	create,
 	decodeJsonValue,
@@ -170,19 +170,12 @@ import {
 	type JsonValue,
 	toBinary,
 	toJson,
-} from "@rva/catalog/discovery/protobuf";
-import { THINKING_EFFORTS } from "@rva/catalog/effort";
-import { calculateCost } from "@rva/catalog/models";
-import {
-	$env,
-	isRecord,
-	logger,
-	parseJsonWithRepair,
-	parseStreamingJsonThrottled,
-	sanitizeText,
-} from "@rva/utils";
-import { classifyJsonPrefix } from "@rva/utils/json-parse";
-import { LRUCache } from "@rva/utils/lru";
+} from "@reverse/catalog/discovery/protobuf";
+import { THINKING_EFFORTS } from "@reverse/catalog/effort";
+import { calculateCost } from "@reverse/catalog/models";
+import { $env, isRecord, logger, parseJsonWithRepair, parseStreamingJsonThrottled, sanitizeText } from "@reverse/utils";
+import { classifyJsonPrefix } from "@reverse/utils/json-parse";
+import { LRUCache } from "@reverse/utils/lru";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";
 import type {

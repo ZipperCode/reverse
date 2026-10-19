@@ -4,8 +4,8 @@
  * Prompts for confirmation before destructive session actions (clear, switch, branch).
  * Demonstrates how to cancel session events using the before_* events.
  */
-import type { SessionBeforeSwitchEvent, SessionMessageEntry } from "@rva/coding-agent";
-import type { HookAPI } from "@rva/coding-agent/extensibility/hooks";
+import type { SessionBeforeSwitchEvent, SessionMessageEntry } from "@reverse/coding-agent";
+import type { HookAPI } from "@reverse/coding-agent/extensibility/hooks";
 
 export default function (pi: HookAPI) {
 	pi.on("session_before_switch", async (event: SessionBeforeSwitchEvent, ctx) => {

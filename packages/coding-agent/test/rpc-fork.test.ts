@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@rva/agent";
-import { parseSessionEntries, type SessionHeader } from "@rva/coding-agent";
-import { RpcClient } from "@rva/coding-agent/modes/rpc/rpc-client";
-import { removeWithRetries, withTimeout } from "@rva/utils";
+import { ThinkingLevel } from "@reverse/agent";
+import { parseSessionEntries, type SessionHeader } from "@reverse/coding-agent";
+import { RpcClient } from "@reverse/coding-agent/modes/rpc/rpc-client";
+import { removeWithRetries, withTimeout } from "@reverse/utils";
 import { rejectionOf } from "./helpers/rejection";
 
 async function readSessionFile(sessionFile: string): Promise<{ header: SessionHeader; messageIds: string[] }> {

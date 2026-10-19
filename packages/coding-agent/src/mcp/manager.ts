@@ -6,8 +6,8 @@
  */
 import * as path from "node:path";
 import * as url from "node:url";
-import type { TSchema } from "@rva/ai";
-import { logger, untilAborted } from "@rva/utils";
+import type { TSchema } from "@reverse/ai";
+import { logger, untilAborted } from "@reverse/utils";
 import type { EffectiveExtensionRoots, SourceMeta } from "../capability/types";
 import { resolveConfigValue } from "../config/resolve-config-value";
 import type { CustomTool } from "../extensibility/custom-tools/types";
@@ -43,7 +43,7 @@ import type { MCPStoredOAuthCredential } from "./oauth-flow";
 import type { McpConnectionStatusEvent } from "./startup-events";
 import { resolveMCPStartupTimeoutMs } from "./timeout";
 
-import type { MCPToolDetails } from "@rva/tui/tools/mcp";
+import type { MCPToolDetails } from "@reverse/tui/tools/mcp";
 import { DeferredMCPTool, MCPTool } from "./tool-bridge";
 import type { MCPToolCache } from "./tool-cache";
 import { setGeneratedHeader } from "./transports/header-policy";

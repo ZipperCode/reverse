@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { encode } from "@rva/mnemopi/core/aaak";
+import { encode } from "@reverse/mnemopi/core/aaak";
 import {
 	classifyBatch,
 	classifyMemory,
@@ -7,7 +7,7 @@ import {
 	getTypePriority,
 	MemoryType,
 	shouldConsolidate,
-} from "@rva/mnemopi/core/typed-memory";
+} from "@reverse/mnemopi/core/typed-memory";
 
 describe("typed memory classification", () => {
 	it("classifies the Python integration test cases", () => {

@@ -5,14 +5,14 @@ import * as path from "node:path";
 import type { SegmentContext } from "../src/status-line/segments";
 import { renderSegment } from "../src/status-line/segments";
 import { initTheme, theme } from "../src/theme";
-import { getWindowsShortPath } from "@rva/natives/path";
+import { getWindowsShortPath } from "@reverse/natives/path";
 import {
 	__resetProjectDirCacheForTests,
 	getProjectDir,
 	pathIsWithin,
 	removeSyncWithRetries,
 	setProjectDir,
-} from "@rva/utils";
+} from "@reverse/utils";
 
 const originalProjectDir = getProjectDir();
 const SCRATCH_ROOT_PREFIXES: readonly string[] = [

@@ -10,8 +10,8 @@
  * every per-agent knob is picked instead of memorized.
  */
 
-import type { Model } from "@rva/ai";
-import type { TspPickerAction, TspPickerColumn, TspPickerItem, TspPickerScope, TspSpan } from "@rva/wire";
+import type { Model } from "@reverse/ai";
+import type { TspPickerAction, TspPickerColumn, TspPickerItem, TspPickerScope, TspSpan } from "@reverse/wire";
 import {
 	type Component,
 	Editor,

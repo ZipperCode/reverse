@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@rva/agent";
+import { ThinkingLevel } from "@reverse/agent";
 import type { SegmentContext } from "../src/status-line/segments";
 import { renderSegment } from "../src/status-line/segments";
 import { initTheme, theme } from "../src/theme";

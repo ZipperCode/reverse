@@ -1,12 +1,12 @@
-import type { Agent, AgentMessage } from "@rva/agent";
+import type { Agent, AgentMessage } from "@reverse/agent";
 import {
 	calculatePromptTokens,
 	findTranscriptUsageAnchor,
 	isTranscriptUsageAnchor,
 	type SessionMessageEntry,
-} from "@rva/agent/compaction";
-import type { AssistantMessage, Model, ProviderResponseMetadata, Usage } from "@rva/ai";
-import { isRecord } from "@rva/utils";
+} from "@reverse/agent/compaction";
+import type { AssistantMessage, Model, ProviderResponseMetadata, Usage } from "@reverse/ai";
+import { isRecord } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 
@@ -16,7 +16,7 @@ import {
 	computeNonMessageTokens,
 	estimateContextToolSchemaTokens,
 	type NonMessageTokenSource,
-} from "@rva/tui/status-line/context-usage";
+} from "@reverse/tui/status-line/context-usage";
 import type { ContextUsageBreakdown, SessionStats } from "./agent-session-types";
 import { getLatestCompactionEntry } from "./session-context";
 import type { SessionEntry } from "./session-entries";

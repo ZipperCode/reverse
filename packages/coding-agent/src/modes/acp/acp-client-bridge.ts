@@ -11,7 +11,7 @@ import type {
 	ClientCapabilities,
 	RequestPermissionRequest,
 	ToolCallUpdate,
-} from "@rva/utils/acp";
+} from "@reverse/utils/acp";
 import type {
 	ClientBridge,
 	ClientBridgeCapabilities,

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, Message, Model, Usage } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { toModelSpec } from "@rva/catalog/provider-models/bundled-references";
-import { INTENT_FIELD } from "@rva/wire";
+import type { AssistantMessage, Message, Model, Usage } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { toModelSpec } from "@reverse/catalog/provider-models/bundled-references";
+import { INTENT_FIELD } from "@reverse/wire";
 import * as snapcompact from "../src";
 
 // Small frames keep render time negligible. Legacy 5x8 shape: 320px → 64 cols

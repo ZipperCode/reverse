@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { loadMnemopiConfig, type MnemopiBackendConfig } from "@rva/coding-agent/mnemopi/config";
-import { getMemoriesDir } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { loadMnemopiConfig, type MnemopiBackendConfig } from "@reverse/coding-agent/mnemopi/config";
+import { getMemoriesDir } from "@reverse/utils";
 
 // `mnemopi.embeddingVariant` selects the concrete local embedding model, while an
 // explicit `mnemopi.embeddingModel` is an advanced override that wins. Scoping is

@@ -1,14 +1,14 @@
 import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@rva/catalog/models";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ModelHubComponent } from "@rva/tui/overlays/model-hub";
-import { SessionSelectorComponent } from "@rva/tui/overlays/session-selector";
-import { initTheme } from "@rva/tui/theme";
-import type { SessionInfo } from "@rva/coding-agent/session/session-listing";
-import { setKeybindings, type TUI } from "@rva/tui";
+import { getBundledModel } from "@reverse/catalog/models";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ModelHubComponent } from "@reverse/tui/overlays/model-hub";
+import { SessionSelectorComponent } from "@reverse/tui/overlays/session-selector";
+import { initTheme } from "@reverse/tui/theme";
+import type { SessionInfo } from "@reverse/coding-agent/session/session-listing";
+import { setKeybindings, type TUI } from "@reverse/tui";
 
 beforeAll(() => {
 	initTheme();

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { SingleResult, TaskToolDetails } from "@rva/tui/tools/task";
-import { taskToolRenderer } from "@rva/tui/tools/task";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { SingleResult, TaskToolDetails } from "@reverse/tui/tools/task";
+import { taskToolRenderer } from "@reverse/tui/tools/task";
 
 // Regression for PR #11343 review: sanitizing the isolation artifact rows
 // (shortenPath + width bound) dropped the `Patch:` / `Branch:` /

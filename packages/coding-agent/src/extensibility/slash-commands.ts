@@ -1,6 +1,6 @@
-import { parseFrontmatter, prompt } from "@rva/utils";
+import { parseFrontmatter, prompt } from "@reverse/utils";
 import { slashCommandCapability } from "../capability/slash-command";
-import { slashCommandFrontmatterDisplay } from "@rva/tui/overlays/extensions/inspector-model";
+import { slashCommandFrontmatterDisplay } from "@reverse/tui/overlays/extensions/inspector-model";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { appendInlineArgsFallback, templateUsesInlineArgPlaceholders } from "../config/prompt-templates";
 import type { SlashCommand } from "../discovery";

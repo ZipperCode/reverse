@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import type { MCPServerConfig } from "@rva/coding-agent/mcp/types";
-import { removeSyncWithRetries } from "@rva/utils";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import type { MCPServerConfig } from "@reverse/coding-agent/mcp/types";
+import { removeSyncWithRetries } from "@reverse/utils";
 import { CUSTOM_NOTIFICATION_METHOD, CUSTOM_NOTIFICATION_PAYLOAD } from "./fixtures/notifications-mcp";
 
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "notifications-mcp.ts");

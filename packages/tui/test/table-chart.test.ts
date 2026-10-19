@@ -1,28 +1,22 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import {
-	buildChart,
-	type ChartKind,
-	type ChartPlan,
-	planChart,
-	worthCharting,
-} from "@rva/tui/charts/chart-plan";
-import { renderChartSvg } from "@rva/tui/charts/chart-svg";
-import { analyzeTable, parseCell } from "@rva/tui/charts/table-data";
-import { svgFigurePalette } from "@rva/tui/chat/svg-figure";
-import { prepareSvg } from "@rva/tui/chat/svg-source";
+import type { AssistantMessage } from "@reverse/ai";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { buildChart, type ChartKind, type ChartPlan, planChart, worthCharting } from "@reverse/tui/charts/chart-plan";
+import { renderChartSvg } from "@reverse/tui/charts/chart-svg";
+import { analyzeTable, parseCell } from "@reverse/tui/charts/table-data";
+import { svgFigurePalette } from "@reverse/tui/chat/svg-figure";
+import { prepareSvg } from "@reverse/tui/chat/svg-source";
 import {
 	lookupTableChart,
 	setTableCharts,
 	splitTableCharts,
 	type TableChartPlanner,
-} from "@rva/tui/chat/table-chart";
-import { lexDocument } from "@rva/tui/components/markdown";
-import { trimBlankEdges } from "@rva/tui/chrome/transcript-container";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@rva/tui/terminal-capabilities";
-import { initTheme } from "@rva/tui/theme";
-import type { Tokens } from "@rva/utils/marked";
+} from "@reverse/tui/chat/table-chart";
+import { lexDocument } from "@reverse/tui/components/markdown";
+import { trimBlankEdges } from "@reverse/tui/chrome/transcript-container";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@reverse/tui/terminal-capabilities";
+import { initTheme } from "@reverse/tui/theme";
+import type { Tokens } from "@reverse/utils/marked";
 
 function table(markdown: string): Tokens.Table {
 	const token = lexDocument(markdown).find((entry): entry is Tokens.Table => entry.type === "table");

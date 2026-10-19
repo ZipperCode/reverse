@@ -1,4 +1,4 @@
-import { preferredDialect } from "@rva/catalog/identity";
+import { preferredDialect } from "@reverse/catalog/identity";
 import { getDialectDefinition } from "./factory";
 
 /**

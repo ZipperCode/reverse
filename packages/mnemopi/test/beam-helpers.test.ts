@@ -19,7 +19,7 @@ import {
 	recencyDecay,
 	temporalBoost,
 	workingMemoryVecSearch,
-} from "@rva/mnemopi/core/beam/helpers";
+} from "@reverse/mnemopi/core/beam/helpers";
 
 describe("beam helper ids, weights, and metadata", () => {
 	it("generates unique timed ids and deterministic stable ids", () => {

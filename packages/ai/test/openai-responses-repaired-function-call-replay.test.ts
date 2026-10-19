@@ -1,10 +1,10 @@
 import { expect, it } from "bun:test";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import type { ResponseStreamEvent } from "@rva/ai/providers/openai-responses-wire";
-import { processResponsesStream } from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Model, ModelSpec, ToolResultMessage } from "@rva/ai/types";
-import { createOpenAIResponsesHistoryPayload } from "@rva/ai/utils";
-import { buildModel } from "@rva/catalog/build";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import type { ResponseStreamEvent } from "@reverse/ai/providers/openai-responses-wire";
+import { processResponsesStream } from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Model, ModelSpec, ToolResultMessage } from "@reverse/ai/types";
+import { createOpenAIResponsesHistoryPayload } from "@reverse/ai/utils";
+import { buildModel } from "@reverse/catalog/build";
 
 const model: Model<"openai-responses"> = buildModel({
 	id: "anthropic/claude-sonnet-5.5",

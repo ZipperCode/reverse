@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { buildSystemPrompt as buildSdkSystemPrompt } from "@rva/coding-agent/sdk";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { buildSystemPrompt as buildSdkSystemPrompt } from "@reverse/coding-agent/sdk";
 import {
 	buildSystemPrompt,
 	buildSystemPromptToolMetadata,
 	DEFAULT_SYSTEM_PROMPT_TOOL_NAMES,
 	projectSystemPromptToolMetadata,
 	type SystemPromptToolMetadata,
-} from "@rva/coding-agent/system-prompt";
-import { createTools, type Tool, type ToolSession } from "@rva/coding-agent/tools";
+} from "@reverse/coding-agent/system-prompt";
+import { createTools, type Tool, type ToolSession } from "@reverse/coding-agent/tools";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
 const EMPTY_TREE = {

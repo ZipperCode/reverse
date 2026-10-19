@@ -5,10 +5,10 @@
  * a summary of the branch being left so context isn't lost.
  */
 
-import type { Api, ApiKey, AssistantMessage, Context, Model, SimpleStreamOptions } from "@rva/ai";
-import { preferredDialect } from "@rva/catalog/identity";
-import { prompt } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+import type { Api, ApiKey, AssistantMessage, Context, Model, SimpleStreamOptions } from "@reverse/ai";
+import { preferredDialect } from "@reverse/catalog/identity";
+import { prompt } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import { Tokenizer } from "../tokenizer";
 import type { AgentMessage } from "../types";

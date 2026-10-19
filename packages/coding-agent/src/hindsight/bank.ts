@@ -21,8 +21,8 @@
  */
 
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { logger } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { logger } from "@reverse/utils";
 import type { HindsightApi } from "./client";
 import type { HindsightConfig } from "./config";
 

@@ -1,5 +1,5 @@
-import { Input, ProcessTerminal, Text, TUI } from "@rva/tui";
-import { fatal } from "@rva/utils/postmortem";
+import { Input, ProcessTerminal, Text, TUI } from "@reverse/tui";
+import { fatal } from "@reverse/utils/postmortem";
 
 const tui = new TUI(new ProcessTerminal(), false);
 const input = new Input();

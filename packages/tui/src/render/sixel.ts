@@ -1,4 +1,4 @@
-import { $env, $flag } from "@rva/utils";
+import { $env, $flag } from "@reverse/utils";
 
 const SIXEL_START_REGEX = /\x1bP(?:[0-9;]*)q/u;
 const SIXEL_END_SEQUENCE = "\x1b\\";

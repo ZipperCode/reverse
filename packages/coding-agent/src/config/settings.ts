@@ -26,9 +26,9 @@ import {
 	logger,
 	MAIN_CONFIG_FILENAMES,
 	procmgr,
-} from "@rva/utils";
-import { withFileLock } from "@rva/utils/file-lock";
-import { isLightTheme } from "@rva/tui/theme/theme";
+} from "@reverse/utils";
+import { withFileLock } from "@reverse/utils/file-lock";
+import { isLightTheme } from "@reverse/tui/theme/theme";
 import { JSONC, YAML } from "bun";
 import { invalidate as invalidateCapabilityFsCache } from "../capability/fs";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
@@ -39,7 +39,7 @@ import { type CompactionMethod, DEFAULT_COMPACTION_METHOD_ORDER } from "../sessi
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import { replaceFileAtomically } from "../utils/atomic-file";
 import { isRegisteredSearchEngine } from "../web/search/provider";
-import { stringifyYamlConfig } from "@rva/utils/yaml-config";
+import { stringifyYamlConfig } from "@reverse/utils/yaml-config";
 import {
 	type AnySetting,
 	all as allSettings,
@@ -671,7 +671,8 @@ export class Settings {
 		this.#cwd = path.normalize(options.cwd ?? getProjectDir());
 		this.#agentDir = path.normalize(options.agentDir ?? getAgentDir());
 		this.#configPath = options.inMemory ? null : path.join(this.#agentDir, MAIN_CONFIG_FILENAMES[0]);
-		const configFiles = (process.env.REVERSE_CONFIG_FILES || process.env.PI_CONFIG_FILES)?.split(path.delimiter).filter(Boolean) ?? [];
+		const configFiles =
+			(process.env.REVERSE_CONFIG_FILES || process.env.PI_CONFIG_FILES)?.split(path.delimiter).filter(Boolean) ?? [];
 		if (options.configFiles) configFiles.push(...options.configFiles);
 		this.#configFiles = configFiles.map(file => path.resolve(this.#cwd, expandTilde(file)));
 		this.#persist = !options.inMemory && options.readOnly !== true;

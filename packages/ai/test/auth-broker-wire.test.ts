@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@rva/ai";
+import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@reverse/ai";
 import {
 	AUTH_BROKER_CAPABILITIES_HEADER,
 	AUTH_BROKER_CAPABILITY_CODEX_METER_BLOCK_SCOPES,
@@ -14,9 +14,9 @@ import {
 	type SnapshotResponse,
 	type SnapshotStreamEvent,
 	startAuthBroker,
-} from "@rva/ai/auth-broker";
-import * as oauthUtils from "@rva/ai/registry/oauth";
-import { logger } from "@rva/utils";
+} from "@reverse/ai/auth-broker";
+import * as oauthUtils from "@reverse/ai/registry/oauth";
+import { logger } from "@reverse/utils";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const ANTHROPIC_ENV = ["ANTHROPIC_API_KEY", "ANTHROPIC_OAUTH_TOKEN"] as const;

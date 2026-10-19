@@ -3,13 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { YAML } from "bun";
-import { AuthStorage } from "@rva/ai";
-import { postOpenAIStream } from "@rva/ai/utils/openai-http";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { fetchDiscoveredProviderModels } from "@rva/coding-agent/config/model-discovery";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { saveCustomProvider } from "@rva/coding-agent/config/custom-provider-writer";
-import { CustomProviderWizard, type CustomProviderWizardOutput } from "@rva/tui/overlays/custom-provider-wizard";
+import { AuthStorage } from "@reverse/ai";
+import { postOpenAIStream } from "@reverse/ai/utils/openai-http";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { fetchDiscoveredProviderModels } from "@reverse/coding-agent/config/model-discovery";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { saveCustomProvider } from "@reverse/coding-agent/config/custom-provider-writer";
+import { CustomProviderWizard, type CustomProviderWizardOutput } from "@reverse/tui/overlays/custom-provider-wizard";
 
 describe("custom provider e2e wizard + loopback agent call", () => {
 	test("wizard saves config and credentials, reloads registry, and authorizes real loopback request", async () => {

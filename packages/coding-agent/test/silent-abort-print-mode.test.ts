@@ -6,16 +6,16 @@
  * (and exit with code 1). This test verifies the guard skips silent-abort.
  */
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { runPrintMode } from "@rva/coding-agent/modes/print-mode";
+import type { AssistantMessage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { runPrintMode } from "@reverse/coding-agent/modes/print-mode";
 import {
 	type AgentSession,
 	type AgentSessionDisposeOptions,
 	SHUTDOWN_CONSOLIDATE_BUDGET_MS,
-} from "@rva/coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@rva/coding-agent/session/messages";
+} from "@reverse/coding-agent/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@reverse/coding-agent/session/messages";
 import * as telemetryExport from "../src/telemetry-export";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {

@@ -1,5 +1,5 @@
 import { TERMINAL } from "../terminal-capabilities";
-import { hexToOklch, hueDistance, oklchCusp, oklchToHex, relativeLuminance } from "@rva/utils";
+import { hexToOklch, hueDistance, oklchCusp, oklchToHex, relativeLuminance } from "@reverse/utils";
 
 /**
  * Derive a stable 32-bit hash from a string using djb2.

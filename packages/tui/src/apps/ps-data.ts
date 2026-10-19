@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { formatDuration } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { formatDuration } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import type { DaemonSnapshot, DaemonSpec, DaemonState } from "../tools/daemon";
 
 /** One broker scope: a project runtime dir or a machine-global service dir. */

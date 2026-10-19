@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { Agent } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import { type CompactionPreparation, resolveThresholdTokens, shouldCompact } from "@rva/agent/compaction";
-import type { AssistantMessage } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { TempDir } from "@rva/utils";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { runPrintMode } from "@rva/coding-agent/modes/print-mode";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { CompactionEntry } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { INCOMPLETE_RECOVERY_MAX_RETRIES } from "@rva/coding-agent/session/session-maintenance";
+import { Agent } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import { type CompactionPreparation, resolveThresholdTokens, shouldCompact } from "@reverse/agent/compaction";
+import type { AssistantMessage } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { TempDir } from "@reverse/utils";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { runPrintMode } from "@reverse/coding-agent/modes/print-mode";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { CompactionEntry } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { INCOMPLETE_RECOVERY_MAX_RETRIES } from "@reverse/coding-agent/session/session-maintenance";
 import * as telemetryExport from "../src/telemetry-export";
 
 import {
@@ -30,7 +30,7 @@ import {
 	cfgCompactionThresholdPercent,
 	cfgCompactionThresholdTokens,
 	cfgContextPromotionEnabled,
-} from "@rva/coding-agent/session/context-settings";
+} from "@reverse/coding-agent/session/context-settings";
 
 it("clamps a reserve exceeding the window for small-window threshold recovery bands", () => {
 	const settings = {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { convertMessages } from "@rva/ai/providers/google-shared";
-import type { Context, Model, ToolCall, Usage } from "@rva/ai/types";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { getBundledModel } from "@rva/catalog/models";
-import type { ModelSpec } from "@rva/catalog/types";
+import { convertMessages } from "@reverse/ai/providers/google-shared";
+import type { Context, Model, ToolCall, Usage } from "@reverse/ai/types";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 const ZERO_USAGE: Usage = {
 	input: 0,

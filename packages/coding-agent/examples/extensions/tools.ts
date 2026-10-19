@@ -8,9 +8,9 @@
  * 1. Copy this file to ~/.omp/agent/extensions/ (legacy: ~/.pi/agent/extensions/) or your project's .omp/extensions/
  * 2. Use /tools to open the tool selector
  */
-import type { ExtensionAPI, ExtensionContext } from "@rva/coding-agent";
-import { getSettingsListTheme } from "@rva/coding-agent";
-import { Container, type SettingItem, SettingsList } from "@rva/tui";
+import type { ExtensionAPI, ExtensionContext } from "@reverse/coding-agent";
+import { getSettingsListTheme } from "@reverse/coding-agent";
+import { Container, type SettingItem, SettingsList } from "@reverse/tui";
 
 // State persisted to session
 interface ToolsState {

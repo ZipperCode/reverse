@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { type RpcAgentProcess, RpcClient } from "@rva/coding-agent/modes/rpc/rpc-client";
+import { type RpcAgentProcess, RpcClient } from "@reverse/coding-agent/modes/rpc/rpc-client";
 
 describe("RpcClient.start", () => {
 	test("rejects when RPC process exits immediately", async () => {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import MODELS_JSON from "@rva/catalog/models.json" with { type: "json" };
-import { providerEntry } from "@rva/catalog/compat/providers";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@rva/catalog/provider-models/descriptors";
-import { buildXaiOAuthStaticSeed } from "@rva/catalog/provider-models/openai-compat";
-import type { Api, ModelSpec } from "@rva/catalog/types";
+import MODELS_JSON from "@reverse/catalog/models.json" with { type: "json" };
+import { providerEntry } from "@reverse/catalog/compat/providers";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@reverse/catalog/provider-models/descriptors";
+import { buildXaiOAuthStaticSeed } from "@reverse/catalog/provider-models/openai-compat";
+import type { Api, ModelSpec } from "@reverse/catalog/types";
 
 // Pins the invariant: bundled `models.json` carries every entry the runtime
 // xai-oauth KDL seed (surfaced via buildXaiOAuthStaticSeed) emits. Without

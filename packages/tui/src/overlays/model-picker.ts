@@ -4,7 +4,7 @@
  * Model entries switch the current session only; a search beginning with `@`
  * exposes the configured ctrl+p quick roles.
  */
-import type { Model } from "@rva/ai";
+import type { Model } from "@reverse/ai";
 import { addKeyAliases, canonicalKeyId } from "../keybindings";
 import { type KeyId, parseKey } from "../keys";
 import type { Component, TUI } from "../tui";
@@ -26,7 +26,7 @@ import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 import { card, compact, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { CLOSE_ACTION, picker, pickerAction, pickerEvent } from "../native/picker";
-import type { TspPickerProps } from "@rva/wire";
+import type { TspPickerProps } from "@reverse/wire";
 import { actionHint, hintsRow, type NativeHint } from "../native/overlay";
 
 /** Configured role resolved to a concrete model. */

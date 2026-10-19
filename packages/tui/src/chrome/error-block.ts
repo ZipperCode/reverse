@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "../utils";
-import { sanitizeText } from "@rva/utils";
+import { sanitizeText } from "@reverse/utils";
 import { expandKeyHint, shortenEmbeddedPaths, TRUNCATE_LENGTHS } from "../render/render-utils";
 import { theme } from "../theme/index";
 /** Indent for every row after the first, so continuations hang under the prefix. */

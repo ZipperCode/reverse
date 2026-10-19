@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { getProjectAgentDir, removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { getProjectAgentDir, removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
-import { cfgCompactionEnabled } from "@rva/coding-agent/session/context-settings";
-import { cfgEnabledModels, cfgModelRoleStorage } from "@rva/coding-agent/config/model-settings";
+import { cfgCompactionEnabled } from "@reverse/coding-agent/session/context-settings";
+import { cfgEnabledModels, cfgModelRoleStorage } from "@reverse/coding-agent/config/model-settings";
 
 it("applies project role mutations over active runtime overrides", () => {
 	const settings = Settings.isolated({});

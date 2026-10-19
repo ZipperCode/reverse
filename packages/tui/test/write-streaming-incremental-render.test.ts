@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as themeModule from "@rva/tui/theme";
-import { writeToolRenderer } from "@rva/tui/tools/write";
-import type { HighlightStream } from "@rva/natives";
+import * as themeModule from "@reverse/tui/theme";
+import { writeToolRenderer } from "@reverse/tui/tools/write";
+import type { HighlightStream } from "@reverse/natives";
 
 const stripAnsi = (s: string): string => s.replace(/\[[0-9;]*m/g, "");
 const hasLine = (lines: readonly string[], n: number): boolean =>

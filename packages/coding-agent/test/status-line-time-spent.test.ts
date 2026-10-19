@@ -12,12 +12,12 @@
  *   window so `/clear` and fresh-session flows zero the meter.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { StatusLineComponent } from "@rva/tui/status-line";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import type { SegmentContext } from "@rva/tui/status-line/segments";
-import { renderSegment } from "@rva/tui/status-line/segments";
-import { initTheme } from "@rva/tui/theme";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { StatusLineComponent } from "@reverse/tui/status-line";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import type { SegmentContext } from "@reverse/tui/status-line/segments";
+import { renderSegment } from "@reverse/tui/status-line/segments";
+import { initTheme } from "@reverse/tui/theme";
 import { StatusLineTestComponents } from "./helpers/status-line";
 
 const statusLines = new StatusLineTestComponents();

@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { buildSpecializationAdvisory, TaskTool } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { SingleResult } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { buildSpecializationAdvisory, TaskTool } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { SingleResult } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 
 // Contract: the task tool appends an advisory (never a rejection) steering the
 // spawner toward more specific agent types when one call resolves ≥2 items to

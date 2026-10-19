@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getNativeBlob } from "@rva/tui/native/blobs";
-import type { DescribeContext, NativeNode } from "@rva/tui/native/node";
-import { SnapcompactShapePreview } from "@rva/tui/overlays/snapcompact-shape-preview";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { ShapeTarget } from "@rva/snapcompact";
+import { getNativeBlob } from "@reverse/tui/native/blobs";
+import type { DescribeContext, NativeNode } from "@reverse/tui/native/node";
+import { SnapcompactShapePreview } from "@reverse/tui/overlays/snapcompact-shape-preview";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { ShapeTarget } from "@reverse/snapcompact";
 
 const CX: DescribeContext = { cols: 100, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 /** Cursor fits Claude images into 1024×1024, so every variant's frame is capped there. */

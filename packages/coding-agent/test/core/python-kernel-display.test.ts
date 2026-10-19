@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderKernelDisplay } from "@rva/coding-agent/eval/py/kernel";
+import { renderKernelDisplay } from "@reverse/coding-agent/eval/py/kernel";
 
 describe("PythonKernel display rendering", () => {
 	it("normalizes text/plain output and returns no display outputs", async () => {

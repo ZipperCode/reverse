@@ -1,11 +1,11 @@
 import type { Mock } from "bun:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as AIError from "@rva/ai/error";
-import { getProviderDefinition } from "@rva/ai/registry";
-import * as nativeSchemeCallback from "@rva/ai/registry/oauth/native-scheme-callback";
-import type { NativeSchemeCallbackReceiver } from "@rva/ai/registry/oauth/native-scheme-callback";
-import type { OAuthCredentials, OAuthController } from "@rva/ai/registry/oauth/types";
-import type { FetchImpl } from "@rva/ai/types";
+import * as AIError from "@reverse/ai/error";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import * as nativeSchemeCallback from "@reverse/ai/registry/oauth/native-scheme-callback";
+import type { NativeSchemeCallbackReceiver } from "@reverse/ai/registry/oauth/native-scheme-callback";
+import type { OAuthCredentials, OAuthController } from "@reverse/ai/registry/oauth/types";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const CLIENT_ID = "client_P8X5CMWmlaRO9gyO-KSqtg";
 const AUTHORIZE_URL = "https://chat.z.ai/api/oauth/authorize";

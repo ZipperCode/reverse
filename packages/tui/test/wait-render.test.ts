@@ -5,10 +5,10 @@
  * passes through unchanged.
  */
 import { beforeAll, describe, expect, it } from "bun:test";
-import { initTheme, theme } from "@rva/tui/theme";
-import { prompt } from "@rva/utils";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { prompt } from "@reverse/utils";
 import taskSummaryTemplate from "../../coding-agent/src/prompts/tools/task-summary.md" with { type: "text" };
-import { waitToolRenderer } from "@rva/tui/tools/wait";
+import { waitToolRenderer } from "@reverse/tui/tools/wait";
 
 function renderLines(resultText: string): string {
 	const result = {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { LoopWatchdog } from "@rva/tui/loop-watchdog";
+import { LoopWatchdog } from "@reverse/tui/loop-watchdog";
 import {
 	currentLoopPhase,
 	logger,
@@ -7,7 +7,7 @@ import {
 	pushLoopPhase,
 	resetLoopPhaseWindow,
 	takeLoopPhaseAttribution,
-} from "@rva/utils";
+} from "@reverse/utils";
 
 /**
  * Contract: LoopWatchdog turns event-loop lag into exactly one

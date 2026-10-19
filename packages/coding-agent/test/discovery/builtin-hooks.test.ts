@@ -3,11 +3,11 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import { type Hook, hookCapability } from "@rva/coding-agent/capability/hook";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { initializeWithSettings, loadCapability } from "@rva/coding-agent/discovery";
-import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeWithRetries, setAgentDir } from "@rva/utils";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { type Hook, hookCapability } from "@reverse/coding-agent/capability/hook";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { initializeWithSettings, loadCapability } from "@reverse/coding-agent/discovery";
+import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeWithRetries, setAgentDir } from "@reverse/utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
 const HOOK_SOURCE = `export default function(pi) {
@@ -46,7 +46,6 @@ describe("native hook discovery", () => {
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
 	let originalOmpProfileEnv: string | undefined;
-	let originalPiProfileEnv: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();

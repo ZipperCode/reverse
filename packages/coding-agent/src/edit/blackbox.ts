@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { ToolSession } from "../tools";
-import type { EditMode } from "@rva/tui/tools/edit";
+import type { EditMode } from "@reverse/tui/tools/edit";
 
 import { cfgEditBlackboxEnabled } from "./settings";
 

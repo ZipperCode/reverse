@@ -1,13 +1,13 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { AssistantThinkingRenderer } from "@rva/coding-agent/extensibility/extensions";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { clearMermaidCache } from "@rva/tui/theme/mermaid-cache";
-import { initTheme } from "@rva/tui/theme";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL, Text } from "@rva/tui";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { AssistantThinkingRenderer } from "@reverse/coding-agent/extensibility/extensions";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { clearMermaidCache } from "@reverse/tui/theme/mermaid-cache";
+import { initTheme } from "@reverse/tui/theme";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL, Text } from "@reverse/tui";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 

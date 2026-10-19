@@ -1,5 +1,5 @@
-import { postmortem } from "@rva/utils";
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { postmortem } from "@reverse/utils";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { runCleanseCommand } from "../cleanse";
 import { cleanseHelp as commandHelp } from "../cli/command-help";
 import { CliUsageError } from "../cli/usage-error";

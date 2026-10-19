@@ -3,16 +3,16 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { shouldSendServiceTier } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { fetchCodexModels } from "@rva/catalog/discovery/codex";
-import { Effort } from "@rva/catalog/effort";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { openaiCodexModelManagerOptions } from "@rva/catalog/provider-models/special";
-import { modelKind, type ModelSpec } from "@rva/catalog/types";
-import { resolveProviderModelReference } from "@rva/coding-agent/config/model-resolver";
+import { shouldSendServiceTier } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { fetchCodexModels } from "@reverse/catalog/discovery/codex";
+import { Effort } from "@reverse/catalog/effort";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { openaiCodexModelManagerOptions } from "@reverse/catalog/provider-models/special";
+import { modelKind, type ModelSpec } from "@reverse/catalog/types";
+import { resolveProviderModelReference } from "@reverse/coding-agent/config/model-resolver";
 
 describe("Codex model discovery", () => {
 	it("normalizes optional maximum context windows separately from the default window", async () => {

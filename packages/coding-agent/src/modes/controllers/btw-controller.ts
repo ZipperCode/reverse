@@ -1,6 +1,6 @@
-import type { AssistantMessage } from "@rva/ai";
-import { type OverlayHandle, replaceTabs } from "@rva/tui";
-import { logger, toError, withTimeout } from "@rva/utils";
+import type { AssistantMessage } from "@reverse/ai";
+import { type OverlayHandle, replaceTabs } from "@reverse/tui";
+import { logger, toError, withTimeout } from "@reverse/utils";
 import {
 	type BtwHistoryRecord,
 	type BtwHistoryTurn,
@@ -9,11 +9,11 @@ import {
 	getBtwLatestTurn,
 } from "../../session/btw-history";
 import { beginBtwTurn, patchLatestBtwTurn, runBtwTurn } from "../../session/btw-turn";
-import { TRUNCATE_LENGTHS } from "@rva/tui/render/render-utils";
+import { TRUNCATE_LENGTHS } from "@reverse/tui/render/render-utils";
 import { copyToClipboard } from "../../utils/clipboard";
-import { BtwHistoryPanel } from "@rva/tui/overlays/btw-history-panel";
-import { BtwPanelComponent } from "@rva/tui/overlays/btw-panel";
-import { sanitizeErrorLine } from "@rva/tui/chrome/error-block";
+import { BtwHistoryPanel } from "@reverse/tui/overlays/btw-history-panel";
+import { BtwPanelComponent } from "@reverse/tui/overlays/btw-panel";
+import { sanitizeErrorLine } from "@reverse/tui/chrome/error-block";
 import type { InteractiveModeContext } from "../types";
 
 interface BtwRequest {

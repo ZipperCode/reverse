@@ -1,6 +1,6 @@
 import { isSettingsInitialized, Settings, settings } from "./settings";
 import { cfgLanguage } from "../modes/settings";
-import { resolveEffectiveLocale, type SupportedLocale } from "@rva/utils/i18n";
+import { resolveEffectiveLocale, type SupportedLocale } from "@reverse/utils/i18n";
 
 let cachedReadOnlySettings: Settings | undefined;
 

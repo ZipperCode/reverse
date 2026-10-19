@@ -1,4 +1,4 @@
-import type { Effort } from "@rva/catalog/effort";
+import type { Effort } from "@reverse/catalog/effort";
 import type { AuthGatewayClient } from "./clients";
 import type {
 	AssistantMessage,

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 import "./setup";
-import { configureRecallFeatures } from "@rva/mnemopi/config";
-import { BeamMemory } from "@rva/mnemopi/core/beam";
-import type { EpisodicGraph, RelatedMemory } from "@rva/mnemopi/core/episodic-graph";
-import { Mnemopi } from "@rva/mnemopi/core/memory";
+import { configureRecallFeatures } from "@reverse/mnemopi/config";
+import { BeamMemory } from "@reverse/mnemopi/core/beam";
+import type { EpisodicGraph, RelatedMemory } from "@reverse/mnemopi/core/episodic-graph";
+import { Mnemopi } from "@reverse/mnemopi/core/memory";
 import { transaction } from "../src/db";
 
 const previousProactive = process.env.MNEMOPI_PROACTIVE_LINKING;

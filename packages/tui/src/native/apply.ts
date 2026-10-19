@@ -7,7 +7,7 @@
  *
  * Used by tests, the debug server's `doc` op, and the TSP test harness.
  */
-import { TSP_KINDS, TSP_TEXT_KINDS, type TspFrame, type TspKind, type TspNode, type TspOp } from "@rva/wire";
+import { TSP_KINDS, TSP_TEXT_KINDS, type TspFrame, type TspKind, type TspNode, type TspOp } from "@reverse/wire";
 
 /** One rejected op. */
 export interface TspApplyError {

@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { ThinkingLevel } from "@rva/agent";
-import type { ImageContent } from "@rva/ai";
+import { ThinkingLevel } from "@reverse/agent";
+import type { ImageContent } from "@reverse/ai";
 import {
 	type AutocompleteProvider,
 	type Component,
@@ -9,42 +9,42 @@ import {
 	parseSgrMouse,
 	type PasteOptions,
 	type SlashCommand,
-} from "@rva/tui";
-import { isEnoent, logger, postmortem, sanitizeText } from "@rva/utils";
-import { formatDoubleTap } from "@rva/tui/app-keybindings";
-import { appKey, editorKey } from "@rva/tui/chrome/keybinding-hints";
+} from "@reverse/tui";
+import { isEnoent, logger, postmortem, sanitizeText } from "@reverse/utils";
+import { formatDoubleTap } from "@reverse/tui/app-keybindings";
+import { appKey, editorKey } from "@reverse/tui/chrome/keybinding-hints";
 import { formatModelRoleAlias, roleCandidatePool } from "../../config/model-roles";
 import { resolveModelRoleValue } from "../../config/model-resolver";
 import { isSettingsInitialized, settings } from "../../config/settings";
 import { InternalUrlRouter, resolveLocalRoot } from "../../internal-urls";
-import { ApprovalDialogComponent } from "@rva/tui/overlays/approval-dialog";
-import { AskDialogComponent } from "@rva/tui/overlays/ask-dialog";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { extractImagePathFromText } from "@rva/tui/prompt/custom-editor";
-import { HistorySearchComponent } from "@rva/tui/overlays/history-search";
-import { HookEditorComponent } from "@rva/tui/overlays/hook-editor";
-import { ReadToolGroupComponent } from "@rva/tui/chat/read-tool-group";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { TreeSelectorComponent } from "@rva/tui/overlays/tree-selector";
+import { ApprovalDialogComponent } from "@reverse/tui/overlays/approval-dialog";
+import { AskDialogComponent } from "@reverse/tui/overlays/ask-dialog";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { extractImagePathFromText } from "@reverse/tui/prompt/custom-editor";
+import { HistorySearchComponent } from "@reverse/tui/overlays/history-search";
+import { HookEditorComponent } from "@reverse/tui/overlays/hook-editor";
+import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
 import {
 	chipLabel,
 	compactImageMarkers,
 	formatVisionMarker,
 	shiftImageMarkers,
-} from "@rva/tui/prompt/composer-attachments";
-import { expandEmoticons } from "@rva/tui/prompt/emoji-autocomplete";
-import { setCachedImageDimensions } from "@rva/tui/prompt/image-references";
-import { createPromptActionAutocompleteProvider } from "@rva/tui/prompt/prompt-action-autocomplete";
-import { createModelMentionSource } from "@rva/tui/prompt/model-mention-autocomplete";
+} from "@reverse/tui/prompt/composer-attachments";
+import { expandEmoticons } from "@reverse/tui/prompt/emoji-autocomplete";
+import { setCachedImageDimensions } from "@reverse/tui/prompt/image-references";
+import { createPromptActionAutocompleteProvider } from "@reverse/tui/prompt/prompt-action-autocomplete";
+import { createModelMentionSource } from "@reverse/tui/prompt/model-mention-autocomplete";
 import { createModelBrowserSource } from "../model-browser-source";
-import { parseQueueShorthand, splitQueuedMessages } from "@rva/tui/prompt/queue-input";
+import { parseQueueShorthand, splitQueuedMessages } from "@reverse/tui/prompt/queue-input";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "../../modes/skill-command";
 import type { InteractiveModeContext, SubmittedUserInput } from "../../modes/types";
 import manualContinuePrompt from "../../prompts/system/manual-continue.md" with { type: "text" };
 import { AgentRegistry } from "../../registry/agent-registry";
 import type { RestoredQueuedMessage } from "../../session/agent-session-types";
 import { USER_INTERRUPT_LABEL } from "../../session/messages";
-import { PINNED_HUD_TOGGLE_ID } from "@rva/tui/prompt/composer";
+import { PINNED_HUD_TOGGLE_ID } from "@reverse/tui/prompt/composer";
 import { pickRecentFocusableAgentId } from "./session-focus-controller";
 import { executeBuiltinSlashCommand, lookupBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
 import { restoreDetachedDraft } from "../../slash-commands/helpers/draft";
@@ -52,7 +52,7 @@ import { parseSlashCommand, parseSubcommand } from "../../slash-commands/helpers
 import { isTinyLocalModelKey } from "../../tiny/models";
 import { tinyTitleClient } from "../../tiny/title-client";
 import { resolveReadPath } from "../../tools/path-utils";
-import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@rva/tui/render/render-utils";
+import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@reverse/tui/render/render-utils";
 import { vocalizer } from "../../tts/vocalizer";
 import {
 	copyToClipboard,
@@ -66,11 +66,11 @@ import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 import { resendProgramStatus } from "../../utils/run-status";
 import { loadImageInput } from "../../utils/image-loading";
 import { materializeImageChipLinks } from "../utils/ui-helpers";
-import { ensureSupportedImageInput, ImageInputTooLargeError } from "@rva/tui/chat/image-loading";
-import { type ImageAttachmentSource, tagImageAttachmentSource } from "@rva/tui/prompt/image-source";
-import { blobExtensionForImageMimeType } from "@rva/tui/prompt/image-format";
+import { ensureSupportedImageInput, ImageInputTooLargeError } from "@reverse/tui/chat/image-loading";
+import { type ImageAttachmentSource, tagImageAttachmentSource } from "@reverse/tui/prompt/image-source";
+import { blobExtensionForImageMimeType } from "@reverse/tui/prompt/image-format";
 import { VideoError, buildVideoContactSheetPng, probeVideo } from "../../utils/video";
-import { isVideoPath } from "@rva/tui/prompt/video";
+import { isVideoPath } from "@reverse/tui/prompt/video";
 import { resizeImage } from "../../utils/image-resize";
 
 import { cfgCycleOrder } from "../../config/model-settings";
@@ -1708,7 +1708,6 @@ export class InputController {
 			detachedText?: string;
 		},
 	): Promise<void> {
-
 		const splitMessages = splitQueuedMessages(text);
 		if (splitMessages.length === 0 && !options.images?.length) {
 			if (options.detachedText === undefined) this.ctx.editor.clearDraft();

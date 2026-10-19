@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { Api } from "@rva/ai";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import type { ModelSpec } from "@rva/catalog/types";
+import type { Api } from "@reverse/ai";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 function spec(provider: string, api: Api, id: string): ModelSpec {
 	return {

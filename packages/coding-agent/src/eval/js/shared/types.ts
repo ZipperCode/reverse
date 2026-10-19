@@ -1,4 +1,4 @@
-import type { ImageContent } from "@rva/ai";
+import type { ImageContent } from "@reverse/ai";
 
 /**
  * Structured status payload emitted by helpers (`read`, `write`, `env`, etc.) and the

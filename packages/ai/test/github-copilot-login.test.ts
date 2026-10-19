@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { getOAuthApiKey } from "@rva/ai/registry/oauth";
-import { loginGitHubCopilot } from "@rva/ai/registry/oauth/github-copilot";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { getOAuthApiKey } from "@reverse/ai/registry/oauth";
+import { loginGitHubCopilot } from "@reverse/ai/registry/oauth/github-copilot";
 
 const FAST_POLL_OPTIONS = { pollIntervalFloorMs: 0, pollIntervalScaleMs: 1 } as const;
 

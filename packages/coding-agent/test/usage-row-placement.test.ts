@@ -4,20 +4,20 @@
  * assistant turns retain a standalone row below their visible content/tools.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { ChatTranscriptBuilder } from "@rva/tui/chat/chat-transcript-builder";
-import { ReadToolGroupComponent } from "@rva/tui/chat/read-tool-group";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@rva/coding-agent/session/session-context";
-import { Container, TUI } from "@rva/tui";
-import { formatNumber } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { ChatTranscriptBuilder } from "@reverse/tui/chat/chat-transcript-builder";
+import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { SessionContext } from "@reverse/coding-agent/session/session-context";
+import { Container, TUI } from "@reverse/tui";
+import { formatNumber } from "@reverse/utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
-import { cfgDisplayShowTokenUsage } from "@rva/coding-agent/modes/settings";
+import { cfgDisplayShowTokenUsage } from "@reverse/coding-agent/modes/settings";
 
 // 4242 → "4.2K": distinctive enough not to collide with a read group's render.
 const USAGE_INPUT = 4242;

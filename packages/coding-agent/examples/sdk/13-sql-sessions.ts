@@ -18,7 +18,7 @@
  * if you need those off-host too.
  */
 
-import { createAgentSession, SessionManager, SqlSessionStorage } from "@rva/coding-agent";
+import { createAgentSession, SessionManager, SqlSessionStorage } from "@reverse/coding-agent";
 import { SQL } from "bun";
 
 // Pick one — Bun.SQL auto-detects the dialect from the URL scheme.

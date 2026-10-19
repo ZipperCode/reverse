@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import type { McpConnectionStatusEvent } from "@rva/coding-agent/mcp/startup-events";
-import type { MCPServerConfig } from "@rva/coding-agent/mcp/types";
-import { removeSyncWithRetries } from "@rva/utils";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import type { McpConnectionStatusEvent } from "@reverse/coding-agent/mcp/startup-events";
+import type { MCPServerConfig } from "@reverse/coding-agent/mcp/types";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "many-tools-mcp.ts");
 const BUN_EXEC = process.execPath;

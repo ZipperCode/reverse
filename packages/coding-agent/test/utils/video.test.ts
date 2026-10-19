@@ -10,7 +10,7 @@ import {
 	parseVideoSelector,
 	parseVideoTimestamp,
 	splitVideoReadTarget,
-} from "@rva/coding-agent/utils/video";
+} from "@reverse/coding-agent/utils/video";
 
 describe("parseVideoSelector", () => {
 	it("reads a bare integer as a frame index", () => {

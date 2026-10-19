@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { agentLoop } from "@rva/agent/agent-loop";
-import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@rva/agent/types";
-import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
+import { type } from "@reverse/omptype";
+import { agentLoop } from "@reverse/agent/agent-loop";
+import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@reverse/agent/types";
+import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import { createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

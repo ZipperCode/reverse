@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import { type CustomTool, toolCapability } from "@rva/coding-agent/capability/tool";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { initializeWithSettings, loadCapability } from "@rva/coding-agent/discovery";
-import { clearClaudePluginRootsCache } from "@rva/coding-agent/discovery/helpers";
-import { discoverCustomToolPaths, loadCustomTools } from "@rva/coding-agent/extensibility/custom-tools/loader";
-import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeWithRetries, setAgentDir } from "@rva/utils";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { type CustomTool, toolCapability } from "@reverse/coding-agent/capability/tool";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { initializeWithSettings, loadCapability } from "@reverse/coding-agent/discovery";
+import { clearClaudePluginRootsCache } from "@reverse/coding-agent/discovery/helpers";
+import { discoverCustomToolPaths, loadCustomTools } from "@reverse/coding-agent/extensibility/custom-tools/loader";
+import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeWithRetries, setAgentDir } from "@reverse/utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
 function toolSource(name: string): string {
@@ -28,7 +28,6 @@ describe("native executable custom tool discovery", () => {
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
 	let originalOmpProfileEnv: string | undefined;
-	let originalPiProfileEnv: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();

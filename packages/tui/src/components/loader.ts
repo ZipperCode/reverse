@@ -1,4 +1,4 @@
-import type { TspProps } from "@rva/wire";
+import type { TspProps } from "@reverse/wire";
 import { formatTooltipKey } from "../key-hint-format";
 import type { KeyId } from "../keys";
 import { elapsed, kbd, keyed, node, row, span, text } from "../native/describe";

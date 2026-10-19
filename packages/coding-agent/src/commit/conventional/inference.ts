@@ -1,7 +1,7 @@
-import type { ThinkingLevel } from "@rva/agent";
-import type { Api, ApiKey, AuthStorage, Model } from "@rva/ai";
-import { completeSimple } from "@rva/ai";
-import { toReasoningEffort } from "@rva/tui/thinking";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Api, ApiKey, AuthStorage, Model } from "@reverse/ai";
+import { completeSimple } from "@reverse/ai";
+import { toReasoningEffort } from "@reverse/tui/thinking";
 import type { ResolvedCommitModel } from "../model-selection";
 import { extractTextContent } from "../utils";
 import { type CommitInferenceCache, computeCommitCacheKey } from "./cache";

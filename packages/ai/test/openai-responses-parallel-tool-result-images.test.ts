@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { convertCodexResponsesMessages } from "@rva/ai/providers/openai-codex-responses";
-import type { ResponseInput } from "@rva/ai/providers/openai-responses-wire";
-import { buildResponsesInput } from "@rva/ai/providers/openai-shared";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { convertCodexResponsesMessages } from "@reverse/ai/providers/openai-codex-responses";
+import type { ResponseInput } from "@reverse/ai/providers/openai-responses-wire";
+import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const genericModel = buildModel({
 	id: "moonshotai/kimi-k3",

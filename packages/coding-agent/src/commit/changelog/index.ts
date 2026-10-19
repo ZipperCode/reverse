@@ -1,8 +1,8 @@
 import * as path from "node:path";
-import type { ThinkingLevel } from "@rva/agent";
-import type { Api, ApiKey, Model } from "@rva/ai";
-import * as vcs from "@rva/natives/vcs";
-import { logger } from "@rva/utils";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Api, ApiKey, Model } from "@reverse/ai";
+import * as vcs from "@reverse/natives/vcs";
+import { logger } from "@reverse/utils";
 import { CHANGELOG_CATEGORIES } from "../../commit/types";
 import { renderStat } from "../utils";
 import { detectChangelogBoundaries } from "./detect";

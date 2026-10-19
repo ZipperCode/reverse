@@ -5,9 +5,9 @@
  */
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
-import { Shell } from "@rva/natives";
-import { APP_NAME, getProjectDir } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { Shell } from "@reverse/natives";
+import { APP_NAME, getProjectDir } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { Settings } from "../config/settings";
 import { buildMinimizerOptions } from "../exec/bash-executor";
 import { cfgShellMinimizer } from "../exec/settings";

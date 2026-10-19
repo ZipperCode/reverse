@@ -1,14 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { Effort } from "@rva/catalog/effort";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { seedModels } from "@rva/catalog/compat/providers";
-import { providerEntry } from "@rva/catalog/compat/providers";
-import {
-	metaModelManagerOptions,
-	museCodeModelManagerOptions,
-} from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ThinkingConfig } from "@rva/catalog/types";
+import { Effort } from "@reverse/catalog/effort";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { seedModels } from "@reverse/catalog/compat/providers";
+import { providerEntry } from "@reverse/catalog/compat/providers";
+import { metaModelManagerOptions, museCodeModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ThinkingConfig } from "@reverse/catalog/types";
 
 const MUSE_SPARK_THINKING: ThinkingConfig = {
 	mode: "effort",

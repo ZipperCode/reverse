@@ -11,7 +11,7 @@ import {
 	resolveTelemetry,
 	type StreamFn,
 	type ThinkingLevel,
-} from "@rva/agent";
+} from "@reverse/agent";
 import type {
 	Context,
 	CredentialDisabledEvent,
@@ -23,24 +23,24 @@ import type {
 	ServiceTier,
 	ServiceTierByFamily,
 	SimpleStreamOptions,
-} from "@rva/ai";
-import { resolveApiKeyOnce } from "@rva/ai/auth-retry";
-import type { DiscoverAuthStorageOptions } from "@rva/ai/auth-broker/discover";
-import type { Dialect } from "@rva/ai/dialect";
-import { prewarmOpenAICodexResponses } from "@rva/ai/providers/openai-codex-responses";
-import { isOpenAICodexWebSocketPreferred } from "@rva/ai/providers/openai-codex-transport";
-import { withCredentialRedaction } from "@rva/ai/providers/transform-messages";
-import { resolveCatalogPolicy } from "@rva/catalog/compat/catalog-policy";
-import { FALLBACK_DIALECT, preferredDialect } from "@rva/catalog/identity";
-import type { Component } from "@rva/tui";
-import { $env } from "@rva/utils/env";
-import { getAgentDir, getModelDbPath, getProjectDir } from "@rva/utils/dirs";
-import * as logger from "@rva/utils/logger";
-import * as postmortem from "@rva/utils/postmortem";
-import * as prompt from "@rva/utils/prompt";
-import { Snowflake } from "@rva/utils/snowflake";
-import { INTENT_FIELD } from "@rva/wire";
-import { DEFAULT_FRAME_DATA_BYTES_BUDGET, frameDataBytesBudget } from "@rva/snapcompact";
+} from "@reverse/ai";
+import { resolveApiKeyOnce } from "@reverse/ai/auth-retry";
+import type { DiscoverAuthStorageOptions } from "@reverse/ai/auth-broker/discover";
+import type { Dialect } from "@reverse/ai/dialect";
+import { prewarmOpenAICodexResponses } from "@reverse/ai/providers/openai-codex-responses";
+import { isOpenAICodexWebSocketPreferred } from "@reverse/ai/providers/openai-codex-transport";
+import { withCredentialRedaction } from "@reverse/ai/providers/transform-messages";
+import { resolveCatalogPolicy } from "@reverse/catalog/compat/catalog-policy";
+import { FALLBACK_DIALECT, preferredDialect } from "@reverse/catalog/identity";
+import type { Component } from "@reverse/tui";
+import { $env } from "@reverse/utils/env";
+import { getAgentDir, getModelDbPath, getProjectDir } from "@reverse/utils/dirs";
+import * as logger from "@reverse/utils/logger";
+import * as postmortem from "@reverse/utils/postmortem";
+import * as prompt from "@reverse/utils/prompt";
+import { Snowflake } from "@reverse/utils/snowflake";
+import { INTENT_FIELD } from "@reverse/wire";
+import { DEFAULT_FRAME_DATA_BYTES_BUDGET, frameDataBytesBudget } from "@reverse/snapcompact";
 import {
 	discoverAdvisorConfigs,
 	discoverWatchdogFiles,
@@ -81,7 +81,7 @@ import {
 	resolveSessionModelSelector,
 	sessionModelDiscoveryProviders,
 } from "./config/model-resolver";
-import { formatModelSelectorValue, parseModelString } from "@rva/tui/overlays/model-selector";
+import { formatModelSelectorValue, parseModelString } from "@reverse/tui/overlays/model-selector";
 import { loadPromptTemplates as loadPromptTemplatesInternal, type PromptTemplate } from "./config/prompt-templates";
 import { buildServiceTierByFamily } from "./config/service-tier";
 import { bindEffects, combine } from "./config/registry";
@@ -97,7 +97,7 @@ import { disposeVmContextsByOwner } from "./eval/js/context-manager";
 import { getEnabledEvalPreludes, type EvalPreludeDefinition } from "./eval/preludes";
 import { disposeAllKernelSessions, disposeKernelSessionsByOwner } from "./eval/py/executor";
 import { defaultEvalSessionId } from "./eval/session-id";
-import type { EditMode } from "@rva/tui/tools/edit";
+import type { EditMode } from "@reverse/tui/tools/edit";
 import {
 	type CustomCommandsLoadResult,
 	type LoadedCustomCommand,
@@ -143,7 +143,7 @@ import {
 import { type FileSlashCommand, loadSlashCommands as loadSlashCommandsInternal } from "./extensibility/slash-commands";
 import type { HindsightSessionState } from "./hindsight/state";
 import { LocalProtocolHandler, type LocalProtocolOptions } from "./internal-urls";
-import { stripXdUrlPrefix } from "@rva/tui/tools/xd-url";
+import { stripXdUrlPrefix } from "@reverse/tui/tools/xd-url";
 import { setSharedLspEnabled } from "./lsp/client";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "./lsp/startup-events";
 import {
@@ -156,7 +156,7 @@ import {
 	type MCPToolsLoadResult,
 	shouldFilterBrowserMCPForPrelude,
 } from "./mcp";
-import { parseMCPToolName } from "@rva/tui/tools/mcp";
+import { parseMCPToolName } from "@reverse/tui/tools/mcp";
 import { MCP_CONNECTION_STATUS_EVENT_CHANNEL, type McpConnectionStatusEvent } from "./mcp/startup-events";
 import { resolveMCPToolAlias } from "./mcp/tool-bridge";
 import { createSessionMemoryRuntimeContext, resolveMemoryBackend } from "./memory-backend";
@@ -245,7 +245,7 @@ import { AgentOutputManager } from "./task/output-manager";
 import { wrapStreamFnWithProviderConcurrency } from "./task/provider-concurrency";
 import { sessionDelegationBias } from "./task/prompt-policy";
 import { isScoutSpawnable } from "./task/spawn-policy";
-import type { StructuredSubagentSchemaMode } from "@rva/tui/tools/task";
+import type { StructuredSubagentSchemaMode } from "@reverse/tui/tools/task";
 import {
 	AUTO_THINKING,
 	type ConfiguredThinkingLevel,
@@ -257,7 +257,7 @@ import {
 	shouldDisableReasoning,
 	toReasoningEffort,
 	automaticThinkingLevel,
-} from "@rva/tui/thinking";
+} from "@reverse/tui/thinking";
 import {
 	BashTool,
 	BUILTIN_TOOLS,
@@ -307,7 +307,7 @@ import { ttsTool } from "./tools/tts";
 import { resolveActiveRepoContext } from "./utils/active-repo-context";
 import { EventBus } from "./utils/event-bus";
 import { normalizeProviderContextImagesForModel } from "./utils/image-loading";
-import { formatLocalCalendarDate } from "@rva/tui/chrome/local-date";
+import { formatLocalCalendarDate } from "@reverse/tui/chrome/local-date";
 import { normalizePromptPath } from "./utils/prompt-path";
 import { buildNamedToolChoice } from "./utils/tool-choice";
 import { VibeSessionRegistry } from "./vibe/runtime";
@@ -1692,7 +1692,7 @@ export function createAutoLearnCaptureRunner(
  * const { session } = await createAgentSession();
  *
  * // With explicit model
- * import { getModel } from '@rva/ai';
+ * import { getModel } from '@reverse/ai';
  * const { session } = await createAgentSession({
  *   model: getModel('anthropic', 'claude-opus-4-5'),
  *   thinkingLevel: 'high',

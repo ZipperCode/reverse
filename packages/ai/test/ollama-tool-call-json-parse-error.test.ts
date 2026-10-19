@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import * as AIError from "@rva/ai/error";
-import { streamOllama } from "@rva/ai/providers/ollama";
-import type { Context, Model } from "@rva/ai/types";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
+import * as AIError from "@reverse/ai/error";
+import { streamOllama } from "@reverse/ai/providers/ollama";
+import type { Context, Model } from "@reverse/ai/types";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
 
 const model: Model<"ollama-chat"> = buildModel({
 	id: "qwen3.6-coder:27b",

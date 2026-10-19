@@ -3,14 +3,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { StatusLineComponent, type StatusLineSettings } from "@rva/tui/status-line";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { STATUS_LINE_PRESETS } from "@rva/tui/status-line/presets";
-import { initTheme, theme } from "@rva/tui/theme";
-import { visibleWidth } from "@rva/tui";
-import * as vcs from "@rva/natives/vcs";
-import { removeSyncWithRetries, setProjectDir } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { StatusLineComponent, type StatusLineSettings } from "@reverse/tui/status-line";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { STATUS_LINE_PRESETS } from "@reverse/tui/status-line/presets";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { visibleWidth } from "@reverse/tui";
+import * as vcs from "@reverse/natives/vcs";
+import { removeSyncWithRetries, setProjectDir } from "@reverse/utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 import { StatusLineTestComponents } from "./helpers/status-line";
 
@@ -19,7 +19,7 @@ import {
 	cfgStatusLineLeftSegments,
 	cfgStatusLinePreset,
 	cfgStatusLineRightSegments,
-} from "@rva/coding-agent/modes/settings";
+} from "@reverse/coding-agent/modes/settings";
 
 let settingsState: SettingsTestState | undefined;
 let projectDir = "";

@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { type Api, Effort, type Model } from "@rva/ai";
-import { type GeneratedProvider, getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { type Api, Effort, type Model } from "@reverse/ai";
+import { type GeneratedProvider, getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
-import { cfgDisabledProviders } from "@rva/coding-agent/config/model-settings";
+import { cfgDisabledProviders } from "@reverse/coding-agent/config/model-settings";
 
 function bundled(provider: GeneratedProvider, id: string): Model<Api> {
 	const model = getBundledModel(provider, id);

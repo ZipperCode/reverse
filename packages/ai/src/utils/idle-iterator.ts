@@ -1,4 +1,4 @@
-import { $env } from "@rva/utils";
+import { $env } from "@reverse/utils";
 import * as AIError from "../error";
 import type { LocalWorkSource } from "./event-stream";
 

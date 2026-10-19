@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import type { TspAgentProps, TspChecklistProps } from "@rva/wire";
+import type { TspAgentProps, TspChecklistProps } from "@reverse/wire";
 import type { NativeChild, NativeNode } from "../src/native/node";
 import { setNativeRendering } from "../src/native/state";
 import type { AgentProgress, TaskToolDetails } from "../src/tools/task";

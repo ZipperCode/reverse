@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { readArchiveEntries, writeArchive } from "@rva/utils/ar";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { readArchiveEntries, writeArchive } from "@reverse/utils/ar";
 
 // A read-only step that mis-dispatches `read` as `write` passes the full read
 // expression (`src/foo.tsx:1-260:raw`) as the target. Because a literal colon

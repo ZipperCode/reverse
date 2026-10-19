@@ -9,7 +9,7 @@
  *   ]);
  * }
  */
-import type { TspKind, TspProps, TspSpan, TspText } from "@rva/wire";
+import type { TspKind, TspProps, TspSpan, TspText } from "@reverse/wire";
 import type { NativeChild, NativeNode } from "./node";
 
 /** A node of any kind. */

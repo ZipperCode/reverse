@@ -1,15 +1,15 @@
 import { beforeAll, beforeEach, describe, expect, afterEach, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { formatKeyHint, KeybindingsManager } from "@rva/tui/app-keybindings";
-import { getKeybindings, setKeybindings, type TUI } from "@rva/tui";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import { AnnotationOverlay, type AnnotationOverlayCallbacks } from "@rva/tui/overlays/annotation-overlay";
+import { formatKeyHint, KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { getKeybindings, setKeybindings, type TUI } from "@reverse/tui";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import { AnnotationOverlay, type AnnotationOverlayCallbacks } from "@reverse/tui/overlays/annotation-overlay";
 import type {
 	CodeReviewOverlayResult,
 	ReviewDiffFile,
 	TextReviewOverlayResult,
 	TextReviewSource,
-} from "@rva/tui/overlays/annotation-types";
+} from "@reverse/tui/overlays/annotation-types";
 import type { NativeUiEvent } from "../src/native/node";
 import { sliceByColumn, visibleWidth } from "../src/utils";
 

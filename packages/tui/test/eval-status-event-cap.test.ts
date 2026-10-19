@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, type Theme } from "@rva/tui/theme";
+import { getThemeByName, type Theme } from "@reverse/tui/theme";
 import {
 	type EvalStatusEvent,
 	type EvalToolDetails,
@@ -7,7 +7,7 @@ import {
 	MAX_STATUS_EVENTS,
 	recordStatusEvent,
 	type StatusEventLog,
-} from "@rva/tui/tools/eval";
+} from "@reverse/tui/tools/eval";
 
 /**
  * A cell that calls a helper in a loop emits one status event per call. The

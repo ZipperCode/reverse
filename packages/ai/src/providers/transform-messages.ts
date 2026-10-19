@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { carriesReasoning } from "@rva/catalog/compat/reasoning-carry";
+import { carriesReasoning } from "@reverse/catalog/compat/reasoning-carry";
 import { renderDemotedThinking } from "../dialect/demotion";
 import type {
 	Api,

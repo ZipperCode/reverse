@@ -7,8 +7,8 @@
  * it had before.
  */
 import { describe, expect, it } from "bun:test";
-import { OutlineRowCache } from "@rva/tui/chat/transcript-outline";
-import type { Component } from "@rva/tui";
+import { OutlineRowCache } from "@reverse/tui/chat/transcript-outline";
+import type { Component } from "@reverse/tui";
 
 /** A child that honors the render contract: same array until its rows change. */
 function child(initial: string): Component & { update(text: string): void; strips: number } {

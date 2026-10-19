@@ -1,4 +1,4 @@
-import type { Api, Model } from "@rva/catalog/types";
+import type { Api, Model } from "@reverse/catalog/types";
 import * as AIError from "../error";
 import { rerankOpenRouter, type RerankOptions } from "./openrouter-rerank";
 import type { RerankRequest, RerankResult } from "./types";

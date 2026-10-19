@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { SessionAccountSelectorComponent } from "@rva/tui/overlays/session-account-selector";
-import { initTheme } from "@rva/tui/theme";
-import { toSessionPinAccounts } from "@rva/coding-agent/slash-commands/helpers/session-pin";
+import { SessionAccountSelectorComponent } from "@reverse/tui/overlays/session-account-selector";
+import { initTheme } from "@reverse/tui/theme";
+import { toSessionPinAccounts } from "@reverse/coding-agent/slash-commands/helpers/session-pin";
 
 beforeAll(async () => {
 	await initTheme();

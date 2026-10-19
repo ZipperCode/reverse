@@ -3,7 +3,7 @@
  * index modules): session-id namespacing and projection of
  * executor results into the ExecutorBackend result shape.
  */
-import type { OutputArtifactError } from "@rva/tui/tools/streaming-output";
+import type { OutputArtifactError } from "@reverse/tui/tools/streaming-output";
 import type { ExecutorBackendResult } from "./backend";
 import type { EvalDisplayOutput } from "./types";
 

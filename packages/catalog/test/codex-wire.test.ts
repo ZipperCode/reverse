@@ -5,7 +5,7 @@ import {
 	getCodexResidency,
 	JWT_CLAIM_PATH,
 	OPENAI_HEADERS,
-} from "@rva/catalog/wire/codex";
+} from "@reverse/catalog/wire/codex";
 
 function codexToken(auth: Record<string, unknown>): string {
 	const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" }), "utf8").toString("base64url");

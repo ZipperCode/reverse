@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@rva/agent";
-import { isRecord } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { isRecord } from "@reverse/utils";
 
 const DEFAULT_RPC_MESSAGE_PAGE_LIMIT = 100;
 const MAX_RPC_MESSAGE_PAGE_LIMIT = 256;

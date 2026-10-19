@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { lookup } from "@rva/coding-agent/config/registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { loadExtensions } from "@rva/coding-agent/extensibility/extensions/loader";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { TempDir } from "@rva/utils";
+import { lookup } from "@reverse/coding-agent/config/registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { loadExtensions } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { TempDir } from "@reverse/utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "../helpers/settings-test-state";
 
 // Issue #13326: 18.3 removed `settings.override(path, value)`. Extensions reach the
-// replacement through the `@rva/coding-agent/config/registry` subpath
+// replacement through the `@reverse/coding-agent/config/registry` subpath
 // (documented in docs/extensions.md § Runtime setting overrides); the override only
 // lands if that import resolves to the host's registry, not a second copy.
 const EXTENSION_SOURCE = `
-import { lookup } from "@rva/coding-agent/config/registry";
+import { lookup } from "@reverse/coding-agent/config/registry";
 
 export default function (pi) {
 	const recap = lookup("recap.enabled");

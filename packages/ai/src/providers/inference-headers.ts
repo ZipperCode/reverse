@@ -1,6 +1,6 @@
 /** Shared inference request identity headers. */
 
-import { APP_NAME, APP_URL, USER_AGENT } from "@rva/utils";
+import { APP_NAME, APP_URL, USER_AGENT } from "@reverse/utils";
 
 /** Options controlling provider and protocol inference headers. */
 export interface InferenceHeaderOptions {

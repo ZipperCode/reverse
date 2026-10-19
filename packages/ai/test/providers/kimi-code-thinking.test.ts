@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@rva/catalog";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { kimiCodeModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { ModelSpec } from "@rva/catalog/types";
+import { getBundledModel } from "@reverse/catalog";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { kimiCodeModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { ModelSpec } from "@reverse/catalog/types";
 import type { MessageCreateParamsStreaming } from "../../src/providers/anthropic-wire";
 import { type KimiApiFormat, type KimiOptions, streamKimi } from "../../src/providers/kimi";
 import { streamOpenAIAnthropicShim } from "../../src/providers/openai-anthropic-shim";

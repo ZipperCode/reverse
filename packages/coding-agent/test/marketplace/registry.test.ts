@@ -7,7 +7,7 @@ import type {
 	InstalledPluginsRegistry,
 	MarketplaceRegistryEntry,
 	MarketplacesRegistry,
-} from "@rva/coding-agent/extensibility/plugins/marketplace";
+} from "@reverse/coding-agent/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
 	addMarketplaceEntry,
@@ -22,8 +22,8 @@ import {
 	removeMarketplaceEntry,
 	writeInstalledPluginsRegistry,
 	writeMarketplacesRegistry,
-} from "@rva/coding-agent/extensibility/plugins/marketplace";
-import { removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 // ── ID helpers ───────────────────────────────────────────────────────
 

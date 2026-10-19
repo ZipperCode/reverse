@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { formatTaskResultSummary } from "@rva/coding-agent/task/result-summary";
-import type { SingleResult } from "@rva/tui/tools/task";
+import { formatTaskResultSummary } from "@reverse/coding-agent/task/result-summary";
+import type { SingleResult } from "@reverse/tui/tools/task";
 
 function settledResult(output: string): SingleResult {
 	return {

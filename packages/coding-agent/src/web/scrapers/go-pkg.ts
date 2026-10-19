@@ -1,4 +1,4 @@
-import { tryParseJson } from "@rva/utils";
+import { tryParseJson } from "@reverse/utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, htmlToBasicMarkdown, loadPage } from "./types";
 
@@ -96,7 +96,7 @@ export const handleGoPkg: SpecialHandler = async (
 			});
 		}
 
-		const { parseHTML } = await import("@rva/utils/dom");
+		const { parseHTML } = await import("@reverse/utils/dom");
 		const doc = parseHTML(pageResult.content).document;
 
 		// Extract actual module path from breadcrumb or header

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
 import {
 	type AnthropicSlowModeFailure,
 	type AnthropicSlowModeHooks,
 	type AnthropicSlowModeRetry,
 	type AnthropicSlowModeSignal,
 	parseAnthropicSlowModeHeaders,
-} from "@rva/ai/providers/anthropic-slow-mode";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/providers/anthropic-slow-mode";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import { withOfficialAnthropicEndpoint } from "./helpers";
 
 withOfficialAnthropicEndpoint();

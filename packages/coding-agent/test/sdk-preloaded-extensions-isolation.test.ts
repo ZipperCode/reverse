@@ -15,13 +15,13 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { LoadExtensionsResult } from "@rva/coding-agent/extensibility/extensions/types";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { removeSyncWithRetries } from "@rva/utils";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { LoadExtensionsResult } from "@reverse/coding-agent/extensibility/extensions/types";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { removeSyncWithRetries } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("createAgentSession preloadedExtensions isolation (issue #2190)", () => {

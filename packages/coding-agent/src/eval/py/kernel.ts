@@ -8,7 +8,7 @@
  * timeout.
  */
 import * as path from "node:path";
-import { $flag, isBunTestRuntime, logger, Snowflake } from "@rva/utils";
+import { $flag, isBunTestRuntime, logger, Snowflake } from "@reverse/utils";
 import { Settings } from "../../config/settings";
 import {
 	BaseKernel,

@@ -1,10 +1,6 @@
 import { expect, test } from "bun:test";
-import {
-	RpcInputDispatcher,
-	type RpcInputFrameDeps,
-	RpcUserInputGate,
-} from "@rva/coding-agent/modes/rpc/rpc-mode";
-import type { RpcCommand, RpcResponse } from "@rva/coding-agent/modes/rpc/rpc-types";
+import { RpcInputDispatcher, type RpcInputFrameDeps, RpcUserInputGate } from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import type { RpcCommand, RpcResponse } from "@reverse/coding-agent/modes/rpc/rpc-types";
 
 const flush = () => new Promise<void>(resolve => setImmediate(resolve));
 

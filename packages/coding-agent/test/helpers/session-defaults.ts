@@ -1,4 +1,4 @@
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 
 /** Spread first in a session fake; keep state and behavior overrides on the fake itself. */
 export function createSessionDefaults() {

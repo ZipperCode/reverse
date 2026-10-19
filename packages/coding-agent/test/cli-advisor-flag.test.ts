@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseArgs } from "@rva/coding-agent/cli/args";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
 
 describe("parseArgs — --advisor flag", () => {
 	it("parses --advisor in any position", () => {

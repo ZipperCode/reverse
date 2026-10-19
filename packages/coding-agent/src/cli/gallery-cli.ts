@@ -7,13 +7,13 @@
  * rendered output to stdout. It exists for visual QA of tool renderers without
  * having to provoke each state through a live agent session.
  */
-import type { AgentTool } from "@rva/agent";
-import type { TUI } from "@rva/tui";
-import { getProjectDir } from "@rva/utils";
+import type { AgentTool } from "@reverse/agent";
+import type { TUI } from "@reverse/tui";
+import { getProjectDir } from "@reverse/utils";
 import { Settings } from "../config/settings";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { initTheme, theme } from "@rva/tui/theme";
-import { toolRenderers } from "@rva/tui/tools";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { toolRenderers } from "@reverse/tui/tools";
 import {
 	type GalleryFixture,
 	type GalleryPreviewEntry,

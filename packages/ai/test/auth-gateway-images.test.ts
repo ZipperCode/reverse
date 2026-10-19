@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { generateImage } from "@rva/ai/images";
-import { buildModel } from "@rva/catalog/build";
-import type { Api, FetchImpl, Model } from "@rva/catalog/types";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { generateImage } from "@reverse/ai/images";
+import { buildModel } from "@reverse/catalog/build";
+import type { Api, FetchImpl, Model } from "@reverse/catalog/types";
 import { toDataUrl } from "../src/images/shared";
 
 const IMAGE_DATA = Buffer.from("gateway-image").toString("base64");

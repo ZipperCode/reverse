@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentState } from "@rva/agent";
-import { APP_NAME, isEnoent } from "@rva/utils";
-import { getResolvedThemeColors, getThemeExportColors } from "@rva/tui/theme";
+import type { AgentState } from "@reverse/agent";
+import { APP_NAME, isEnoent } from "@reverse/utils";
+import { getResolvedThemeColors, getThemeExportColors } from "@reverse/tui/theme";
 import type { SessionEntry, SessionHeader } from "../../session/session-entries";
 import { SessionManager } from "../../session/session-manager";
 import { collectSubSessions, type SubSession } from "../../session/sub-sessions";

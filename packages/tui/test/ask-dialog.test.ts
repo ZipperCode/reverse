@@ -1,11 +1,11 @@
-import type { ImageContent } from "@rva/ai";
+import type { ImageContent } from "@reverse/ai";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import type { ExtensionAskDialogQuestion } from "@rva/tui/overlays/ask-dialog";
-import { AskDialogComponent } from "@rva/tui/overlays/ask-dialog";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import { setKeybindings } from "@rva/tui";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import type { ExtensionAskDialogQuestion } from "@reverse/tui/overlays/ask-dialog";
+import { AskDialogComponent } from "@reverse/tui/overlays/ask-dialog";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import { setKeybindings } from "@reverse/tui";
 
 const DOWN = "\x1b[B";
 const UP = "\x1b[A";

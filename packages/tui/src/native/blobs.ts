@@ -8,7 +8,7 @@
  * references it.
  */
 import * as url from "node:url";
-import type { TspProps } from "@rva/wire";
+import type { TspProps } from "@reverse/wire";
 import { resolveImageOptions } from "../render/render-utils";
 import { getImageDimensions } from "../terminal-capabilities";
 import { node } from "./describe";

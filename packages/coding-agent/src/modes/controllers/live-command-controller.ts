@@ -1,14 +1,14 @@
-import type { AssistantMessage } from "@rva/ai";
-import { logger } from "@rva/utils";
+import type { AssistantMessage } from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import { LiveSessionController, type LiveSessionControllerOptions, type LiveTranscript } from "../../live/controller";
 import { LIVE_MODEL } from "../../live/protocol";
-import { LiveVisualizer } from "@rva/tui/apps/live-visualizer";
+import { LiveVisualizer } from "@reverse/tui/apps/live-visualizer";
 import { vocalizer } from "../../tts/vocalizer";
-import type { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import type { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { theme } from "@rva/tui/theme";
+import type { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import type { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { theme } from "@reverse/tui/theme";
 import type { InteractiveModeContext } from "../types";
-import { createAssistantMessageComponent } from "@rva/tui/prompt/interactive-context-helpers";
+import { createAssistantMessageComponent } from "@reverse/tui/prompt/interactive-context-helpers";
 
 import { cfgLiveVoice } from "../../live/settings";
 

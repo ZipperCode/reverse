@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { StdoutStallWatchdog } from "@rva/tui/terminal";
+import { StdoutStallWatchdog } from "@reverse/tui/terminal";
 
 // The TUI must bound a never-draining stdout consumer (#6854) without killing a
 // single large-but-draining frame — a `--resume` transcript repaint of many

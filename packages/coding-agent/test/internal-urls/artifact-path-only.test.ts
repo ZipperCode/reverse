@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ArtifactProtocolHandler } from "@rva/coding-agent/internal-urls/artifact-protocol";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
+import { ArtifactProtocolHandler } from "@reverse/coding-agent/internal-urls/artifact-protocol";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
 import {
 	registerArtifactsDir,
 	resetRegisteredArtifactDirsForTests,
-} from "@rva/coding-agent/internal-urls/registry-helpers";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
-import { InternalUrlFilesystem } from "@rva/coding-agent/internal-urls/url-filesystem";
-import { resolveToolSearchScope } from "@rva/coding-agent/tools/path-utils";
+} from "@reverse/coding-agent/internal-urls/registry-helpers";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
+import { InternalUrlFilesystem } from "@reverse/coding-agent/internal-urls/url-filesystem";
+import { resolveToolSearchScope } from "@reverse/coding-agent/tools/path-utils";
 
 /**
  * Path consumers (search/grep, the bash shell filesystem) only need the artifact's

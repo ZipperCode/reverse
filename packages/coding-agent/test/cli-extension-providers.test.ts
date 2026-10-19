@@ -16,14 +16,14 @@
 
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
-import { AuthStorage } from "@rva/ai";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { getModelMatchPreferences, resolveCliModel } from "@rva/coding-agent/config/model-resolver";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { buildSessionOptions } from "@rva/coding-agent/main";
-import { loadCliExtensionProviders } from "@rva/coding-agent/sdk";
-import { TempDir } from "@rva/utils";
+import { AuthStorage } from "@reverse/ai";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { getModelMatchPreferences, resolveCliModel } from "@reverse/coding-agent/config/model-resolver";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { buildSessionOptions } from "@reverse/coding-agent/main";
+import { loadCliExtensionProviders } from "@reverse/coding-agent/sdk";
+import { TempDir } from "@reverse/utils";
 
 let tmp: TempDir;
 let extPath: string;
@@ -95,7 +95,16 @@ test("buildSessionOptions defers model resolution when provider and model are se
 	try {
 		const settings = await Settings.init({ inMemory: true, cwd: tmp.path() });
 		const modelRegistry = new ModelRegistry(authStorage);
-		const parsed = parseArgs(["-p", "--provider", "bench-gw", "--model", "bench-model", "--no-extensions", "-e", extPath]);
+		const parsed = parseArgs([
+			"-p",
+			"--provider",
+			"bench-gw",
+			"--model",
+			"bench-model",
+			"--no-extensions",
+			"-e",
+			extPath,
+		]);
 		const options = await buildSessionOptions(parsed, [], undefined, modelRegistry, settings);
 		expect(options.modelPattern).toBe("bench-gw/bench-model");
 		expect(options.model).toBeUndefined();

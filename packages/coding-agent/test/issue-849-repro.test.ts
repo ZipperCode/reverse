@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { buildSessionContext } from "@rva/coding-agent/session/session-context";
+import type { AssistantMessage } from "@reverse/ai";
+import { buildSessionContext } from "@reverse/coding-agent/session/session-context";
 import type {
 	ModelChangeEntry,
 	SessionEntry,
 	SessionMessageEntry,
-} from "@rva/coding-agent/session/session-entries";
+} from "@reverse/coding-agent/session/session-entries";
 
 /**
  * Issue #849: After a user explicitly switches to gpt-5.5, the session reverts

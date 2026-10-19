@@ -5,14 +5,14 @@
  * appending to that tree for the life of the process.
  */
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { parseArgs, type Args } from "@rva/coding-agent/cli/args";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { runRootCommand } from "@rva/coding-agent/main";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { logger, postmortem, TempDir } from "@rva/utils";
+import { parseArgs, type Args } from "@reverse/coding-agent/cli/args";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { runRootCommand } from "@reverse/coding-agent/main";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { logger, postmortem, TempDir } from "@reverse/utils";
 
 const tempDirs: TempDir[] = [];
 

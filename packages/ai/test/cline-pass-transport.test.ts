@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context, FetchImpl, Model, Tool, Usage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, FetchImpl, Model, Tool, Usage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModel } from "@reverse/catalog/models";
 
 /**
  * Mirrors what `fetchClinePassModels` produces for a free-bucket entry with a

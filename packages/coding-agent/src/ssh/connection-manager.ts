@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { $which, getRemoteHostDir, getSshControlDir, isEnoent, logger, postmortem, ptree } from "@rva/utils";
+import { $which, getRemoteHostDir, getSshControlDir, isEnoent, logger, postmortem, ptree } from "@reverse/utils";
 import { assertOwnerPrivateDir } from "../utils/owner-private-dir";
 import { buildSshTarget, sanitizeHostName } from "./utils";
 

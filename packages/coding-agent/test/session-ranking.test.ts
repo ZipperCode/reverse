@@ -2,11 +2,11 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import { gzipSync } from "node:zlib";
-import { runGcCommand } from "@rva/coding-agent/cli/gc-cli";
-import { mergeSessionRanking, rankSessionSearchMatches } from "@rva/tui/overlays/session-selector";
-import { listSessions, type SessionInfo } from "@rva/coding-agent/session/session-listing";
-import { MemorySessionStorage } from "@rva/coding-agent/session/session-storage";
-import { getHistoryDbPath, getSessionsDir, TempDir } from "@rva/utils";
+import { runGcCommand } from "@reverse/coding-agent/cli/gc-cli";
+import { mergeSessionRanking, rankSessionSearchMatches } from "@reverse/tui/overlays/session-selector";
+import { listSessions, type SessionInfo } from "@reverse/coding-agent/session/session-listing";
+import { MemorySessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { getHistoryDbPath, getSessionsDir, TempDir } from "@reverse/utils";
 
 function makeSession(id: string, overrides: Partial<SessionInfo> = {}): SessionInfo {
 	return {

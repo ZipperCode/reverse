@@ -5,7 +5,7 @@ import {
 	routeSgrMouseInput,
 	type SelectListMouseTarget,
 	type SgrMouseEvent,
-} from "@rva/tui/mouse";
+} from "@reverse/tui/mouse";
 
 describe("parseSgrMouse", () => {
 	it("returns null for non-mouse input", () => {

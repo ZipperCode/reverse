@@ -6,7 +6,7 @@ import {
 	getStreamIdleTimeoutMs,
 	iterateWithIdleTimeout,
 	iterateWithTerminalGrace,
-} from "@rva/ai/utils/idle-iterator";
+} from "@reverse/ai/utils/idle-iterator";
 
 /**
  * Per-provider fallback overrides on the stream-watchdog helpers.

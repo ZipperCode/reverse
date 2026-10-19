@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { ModelDownloadActivity, type ModelLoadProgressEvent } from "../downloads/model-downloads";
 import { tinyModelEnvKey } from "../tiny/title-client";
 import { safeSend } from "../utils/ipc";

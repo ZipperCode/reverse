@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { YieldTool } from "@rva/coding-agent/tools/yield";
-import { attachIrcWakeTurnMonitor } from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { YieldTool } from "@reverse/coding-agent/tools/yield";
+import { attachIrcWakeTurnMonitor } from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 function toolSession(overrides: Partial<ToolSession> = {}): ToolSession {

@@ -1,4 +1,4 @@
-import type { DiffStreamProgress, DiffStreamResult } from "@rva/natives";
+import type { DiffStreamProgress, DiffStreamResult } from "@reverse/natives";
 
 /** Context lines retained around each exact streamed hunk. */
 export const DIFF_CONTEXT_LINES = 3;

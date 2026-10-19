@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { getMarkdownTheme, initTheme } from "@rva/tui/theme";
+import { getMarkdownTheme, initTheme } from "@reverse/tui/theme";
 import {
 	applyHyperlinkSetting,
 	fileHyperlink,
@@ -10,8 +10,8 @@ import {
 	uriHyperlink,
 	urlHyperlink,
 	urlHyperlinkAlways,
-} from "@rva/tui/render/hyperlink";
-import * as terminalCaps from "@rva/tui";
+} from "@reverse/tui/render/hyperlink";
+import * as terminalCaps from "@reverse/tui";
 
 // OSC 8 sequence markers
 const OSC = "\x1b]";

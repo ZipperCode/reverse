@@ -7,8 +7,8 @@
  * owner instead of a parallel session-id registry.
  */
 
-import type { AgentMessage } from "@rva/agent";
-import { logger, prompt } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { logger, prompt } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import { memoryToolRefs } from "../memory-backend/tool-names";
 import type { MemoryBackend, MemoryBackendStartOptions, MemoryPromptPreparation } from "../memory-backend/types";

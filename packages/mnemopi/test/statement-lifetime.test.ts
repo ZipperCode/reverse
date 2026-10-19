@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AnnotationStore } from "@rva/mnemopi/core/annotations";
-import { BeamMemory } from "@rva/mnemopi/core/beam";
+import { AnnotationStore } from "@reverse/mnemopi/core/annotations";
+import { BeamMemory } from "@reverse/mnemopi/core/beam";
 
 const cleanup: string[] = [];
 

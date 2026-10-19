@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { AssistantMessage } from "@rva/ai";
-import { renderSegment } from "@rva/tui/status-line/segments";
-import type { SegmentContext } from "@rva/tui/status-line/types";
-import { initTheme } from "@rva/tui/theme";
-import { calculateTokensPerSecond } from "@rva/coding-agent/utils/token-rate";
+import type { AssistantMessage } from "@reverse/ai";
+import { renderSegment } from "@reverse/tui/status-line/segments";
+import type { SegmentContext } from "@reverse/tui/status-line/types";
+import { initTheme } from "@reverse/tui/theme";
+import { calculateTokensPerSecond } from "@reverse/coding-agent/utils/token-rate";
 
 beforeAll(async () => {
 	await initTheme();

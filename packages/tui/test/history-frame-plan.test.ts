@@ -7,7 +7,7 @@ import {
 	type TerminalFrameProvider,
 	TUI,
 	type ViewportSize,
-} from "@rva/tui";
+} from "@reverse/tui";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 import { WidthReplayProvider } from "./width-replay-provider";

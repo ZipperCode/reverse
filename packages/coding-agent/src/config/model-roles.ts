@@ -2,15 +2,15 @@
  * Built-in model roles and role metadata helpers.
  */
 
-import { modelKind, type Model } from "@rva/catalog/types";
+import { modelKind, type Model } from "@reverse/catalog/types";
 import {
 	KIND_ROLE_IDS,
 	MODEL_ROLE_IDS,
 	type ModelBrowserRegistry,
 	type ModelBrowserRoleInfo,
 	type ModelRole,
-} from "@rva/tui/overlays/model-browser";
-import { isValidThemeColor } from "@rva/tui/theme";
+} from "@reverse/tui/overlays/model-browser";
+import { isValidThemeColor } from "@reverse/tui/theme";
 import type { Settings } from "./settings";
 
 import { cfgCycleOrder, cfgModelTags } from "./model-settings";
@@ -29,8 +29,8 @@ export function formatModelRoleAlias(role: string): string {
 	return `${MODEL_ROLE_ALIAS_PREFIX}${role}`;
 }
 
-export type { ModelRole } from "@rva/tui/overlays/model-browser";
-export { CHAT_MODEL_ROLE_IDS, KIND_ROLE_IDS, MODEL_ROLE_IDS } from "@rva/tui/overlays/model-browser";
+export type { ModelRole } from "@reverse/tui/overlays/model-browser";
+export { CHAT_MODEL_ROLE_IDS, KIND_ROLE_IDS, MODEL_ROLE_IDS } from "@reverse/tui/overlays/model-browser";
 
 export type ModelRoleInfo = ModelBrowserRoleInfo;
 

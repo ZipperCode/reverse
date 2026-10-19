@@ -7,13 +7,8 @@
  * names, and the system prompt lists schemes from {@link ProtocolHandler.promptDoc}.
  */
 
-import type {
-	AgentToolContext,
-	AgentToolUpdateCallback,
-	ToolApprovalDecision,
-	ToolTier,
-} from "@rva/agent";
-import type { ImageContent, TextContent } from "@rva/ai";
+import type { AgentToolContext, AgentToolUpdateCallback, ToolApprovalDecision, ToolTier } from "@reverse/agent";
+import type { ImageContent, TextContent } from "@reverse/ai";
 import type { Settings } from "../config/settings";
 import type { Rule } from "../capability/rule";
 import type { Skill } from "../extensibility/skills";
@@ -21,10 +16,10 @@ import type { AgentRegistry } from "../registry/agent-registry";
 import type { LocalProtocolOptions } from "./local-protocol";
 import type { SessionEntry } from "../session/session-entries";
 import type { ToolSession } from "../tools";
-import type { CoordinationDetails } from "@rva/tui/tools/wait";
-import type { ProcReadDetails, ProcWriteDetails } from "@rva/tui/tools/proc-render";
-import type { CfgReadDetails, CfgWriteDetails } from "@rva/tui/tools/cfg-render";
-import type { XdevRenderDispatch } from "@rva/tui/tools/xdev";
+import type { CoordinationDetails } from "@reverse/tui/tools/wait";
+import type { ProcReadDetails, ProcWriteDetails } from "@reverse/tui/tools/proc-render";
+import type { CfgReadDetails, CfgWriteDetails } from "@reverse/tui/tools/cfg-render";
+import type { XdevRenderDispatch } from "@reverse/tui/tools/xdev";
 
 /** Transcript-only render state a handler write attaches to the `write` tool result. */
 export interface InternalWriteDetails {

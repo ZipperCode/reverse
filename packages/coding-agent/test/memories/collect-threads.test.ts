@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { collectThreads } from "@rva/coding-agent/memories";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { collectThreads } from "@reverse/coding-agent/memories";
 
 function makeFakeSession(sessionDir: string): AgentSession {
 	return {

@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { removeWithRetries } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { removeWithRetries } from "@reverse/utils";
 import { $ } from "bun";
 
 const gitInitHelp = await $`git init -h`.quiet().nothrow().text();

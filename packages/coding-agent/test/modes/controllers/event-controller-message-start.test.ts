@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { ImageContent, UserMessage } from "@rva/ai";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { CustomMessage } from "@rva/coding-agent/session/messages";
-import type { Component } from "@rva/tui";
+import type { ImageContent, UserMessage } from "@reverse/ai";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { CustomMessage } from "@reverse/coding-agent/session/messages";
+import type { Component } from "@reverse/tui";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 beforeAll(() => {

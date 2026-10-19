@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent } from "@rva/agent";
-import { agentLoop } from "@rva/agent/agent-loop";
+import { type } from "@reverse/omptype";
+import { Agent } from "@reverse/agent";
+import { agentLoop } from "@reverse/agent/agent-loop";
 import type {
 	AgentContext,
 	AgentEvent,
@@ -10,10 +10,10 @@ import type {
 	AgentTool,
 	AgentToolContext,
 	StreamFn,
-} from "@rva/agent/types";
-import type { LiveSteering, Message } from "@rva/ai";
-import { createMockModel, type MockResponse } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+} from "@reverse/agent/types";
+import type { LiveSteering, Message } from "@reverse/ai";
+import { createMockModel, type MockResponse } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import { createUserMessage } from "./helpers";
 
 /** Marks user text so tests can see the provider received the converted view. */

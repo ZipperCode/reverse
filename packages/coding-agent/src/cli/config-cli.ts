@@ -5,8 +5,8 @@
  * The settings registry (`config/registry.ts`) is the source of truth for available settings.
  */
 
-import { APP_NAME, getAgentDir, isRecord } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { APP_NAME, getAgentDir, isRecord } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { orderedSettings } from "../config/all-settings";
 import { type AnySetting, lookup } from "../config/registry";
 import { Settings, settings } from "../config/settings";
@@ -61,7 +61,7 @@ function cliText(key: string, vars?: Record<string, string>): string {
 			return key;
 	}
 }
-import { theme } from "@rva/tui/theme";
+import { theme } from "@reverse/tui/theme";
 import { initXdg } from "./commands/init-xdg";
 
 // =============================================================================
@@ -361,7 +361,11 @@ async function handleSet(key: string | undefined, value: string | undefined, fla
 		console.log(JSON.stringify({ key: def.path, value: saved, ...shadow?.json }));
 		return;
 	}
-	console.log(chalk.green(`${theme.status.success} ${cliText("cli.config.setSuccess", { path: def.path, value: formatValue(saved) })}`));
+	console.log(
+		chalk.green(
+			`${theme.status.success} ${cliText("cli.config.setSuccess", { path: def.path, value: formatValue(saved) })}`,
+		),
+	);
 	if (shadow) console.log(chalk.yellow(`${theme.status.warning} ${shadow.message}`));
 }
 
@@ -440,7 +444,9 @@ async function handleReset(key: string | undefined, flags: { json?: boolean }): 
 		console.log(JSON.stringify(redacted ? { key: def.path, redacted: true } : { key: def.path, value }));
 	} else {
 		console.log(
-			chalk.green(`${theme.status.success} ${cliText("cli.config.resetSuccess", { path: def.path, value: redacted ? REDACTED : formatValue(value) })}`),
+			chalk.green(
+				`${theme.status.success} ${cliText("cli.config.resetSuccess", { path: def.path, value: redacted ? REDACTED : formatValue(value) })}`,
+			),
 		);
 	}
 }
@@ -448,4 +454,3 @@ async function handleReset(key: string | undefined, flags: { json?: boolean }): 
 function handlePath(): void {
 	console.log(getAgentDir());
 }
-

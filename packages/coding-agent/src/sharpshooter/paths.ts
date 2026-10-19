@@ -11,7 +11,7 @@
  */
 
 import * as path from "node:path";
-import { getMemoriesDir } from "@rva/utils";
+import { getMemoriesDir } from "@reverse/utils";
 import { projectBankSegment } from "../mnemopi/config";
 import type { SharpshooterState } from "./types";
 

@@ -1,17 +1,17 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import type { ExtensionEvent } from "@rva/coding-agent/extensibility/extensions/types";
-import type { AgentEndEvent } from "@rva/coding-agent/extensibility/shared-events";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TodoTool, type ToolSession } from "@rva/coding-agent/tools";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import type { ExtensionEvent } from "@reverse/coding-agent/extensibility/extensions/types";
+import type { AgentEndEvent } from "@reverse/coding-agent/extensibility/shared-events";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TodoTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /**

@@ -16,7 +16,7 @@
  * the item id and `action` with an action id (plus `value` for
  * `scope`/`tab`/`strip`). {@link pickerEvent} folds them into one shape.
  */
-import type { TspPickerAction, TspPickerItem, TspPickerProps } from "@rva/wire";
+import type { TspPickerAction, TspPickerItem, TspPickerProps } from "@reverse/wire";
 import type { KeyName } from "../key-hint-format";
 import { getKeybindings, type Keybinding } from "../keybindings";
 import type { Input } from "../components/input";

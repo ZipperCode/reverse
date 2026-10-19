@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { AssistantMessage, Context, Message, Model } from "@rva/ai";
-import { transformMessages } from "@rva/ai/providers/transform-messages";
-import { getBundledModel } from "@rva/catalog/models";
+import type { AssistantMessage, Context, Message, Model } from "@reverse/ai";
+import { transformMessages } from "@reverse/ai/providers/transform-messages";
+import { getBundledModel } from "@reverse/catalog/models";
 import {
 	fitOutputTokensToContextWindow,
 	MESSAGE_FRAMING_TOKENS,

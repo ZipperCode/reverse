@@ -5,10 +5,10 @@
  * instead of failing the caller; {@link describeDaemon} instead reports when
  * absence could not be established.
  */
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { throwIfAborted } from "../tools/tool-errors";
 import { type DaemonBrokerClient, DaemonBrokerRejectedError } from "./client";
-import type { DaemonSnapshot } from "@rva/tui/tools/daemon";
+import type { DaemonSnapshot } from "@reverse/tui/tools/daemon";
 
 const DEFAULT_READY_TIMEOUT_MS = 30_000;
 const STOP_TIMEOUT_MS = 5_000;

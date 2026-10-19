@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import { FENCE_RE } from "../render/render-utils";
 
 // Small per-mode MRU memo for formatThinkingForDisplay. During a streaming

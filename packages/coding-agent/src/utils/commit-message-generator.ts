@@ -2,17 +2,17 @@
  * Generate commit messages from diffs using a smol, fast model.
  * Follows the same pattern as title-generator.ts.
  */
-import type { ThinkingLevel } from "@rva/agent";
-import type { Api, Model } from "@rva/ai";
-import { completeSimple, retryTransientCompletion } from "@rva/ai";
-import { logger, prompt } from "@rva/utils";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Api, Model } from "@reverse/ai";
+import { completeSimple, retryTransientCompletion } from "@reverse/ai";
+import { logger, prompt } from "@reverse/utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import commitSystemPrompt from "../prompts/system/commit-message-system.md" with { type: "text" };
-import { concreteThinkingLevel, toReasoningEffort } from "@rva/tui/thinking";
+import { concreteThinkingLevel, toReasoningEffort } from "@reverse/tui/thinking";
 
 const COMMIT_SYSTEM_PROMPT = prompt.render(commitSystemPrompt);
 const MAX_DIFF_CHARS = 4000;

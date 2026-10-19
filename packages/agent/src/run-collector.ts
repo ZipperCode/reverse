@@ -15,7 +15,7 @@
  * produced a result message).
  */
 
-import type { AssistantMessage, Model, StopReason } from "@rva/ai";
+import type { AssistantMessage, Model, StopReason } from "@reverse/ai";
 import type { Span } from "@opentelemetry/api";
 
 /** Terminal status reported by an `execute_tool` span. */

@@ -11,8 +11,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent } from "@rva/utils";
-import { LRUCache } from "@rva/utils/lru";
+import { isEnoent } from "@reverse/utils";
+import { LRUCache } from "@reverse/utils/lru";
 import artifactDoc from "../prompts/internal-urls/artifact.md" with { type: "text" };
 import { artifactsDirsFromRegistry } from "./registry-helpers";
 import type {

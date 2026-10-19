@@ -6,15 +6,15 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls";
-import { resetRegisteredArtifactDirsForTests } from "@rva/coding-agent/internal-urls/registry-helpers";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { CURRENT_SESSION_VERSION } from "@rva/coding-agent/session/session-entries";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { TempDir } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls";
+import { resetRegisteredArtifactDirsForTests } from "@reverse/coding-agent/internal-urls/registry-helpers";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { CURRENT_SESSION_VERSION } from "@reverse/coding-agent/session/session-entries";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { TempDir } from "@reverse/utils";
 
 let tempDir: TempDir;
 let rootSessionFile: string;

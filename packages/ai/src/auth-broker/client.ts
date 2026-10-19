@@ -6,8 +6,8 @@
  * `/v1/healthz` require a bearer token.
  */
 
-import { type } from "@rva/omptype";
-import { readSseEvents } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { readSseEvents } from "@reverse/utils";
 import type { AuthCredential, DisabledCredentialSummary, OAuthRefreshReason } from "../auth-storage";
 import type {
 	ClientUsageReportRequest,

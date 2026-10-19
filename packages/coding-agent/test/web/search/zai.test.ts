@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { searchZai, ZaiProvider } from "@rva/coding-agent/web/search/providers/zai";
+import type { FetchImpl } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { searchZai, ZaiProvider } from "@reverse/coding-agent/web/search/providers/zai";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();

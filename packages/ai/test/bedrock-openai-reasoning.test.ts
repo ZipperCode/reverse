@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 import { streamSimple } from "../src/stream";
 
 // Bedrock hosts the GPT-5.x SKUs behind OpenAI's own request schema. It rejects

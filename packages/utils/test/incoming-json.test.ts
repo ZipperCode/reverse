@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { IncomingDoc, IncomingJsonError, rescannedMembers } from "@rva/utils/incoming-json";
-import { parseJsonWithRepair } from "@rva/utils/json-parse";
+import { IncomingDoc, IncomingJsonError, rescannedMembers } from "@reverse/utils/incoming-json";
+import { parseJsonWithRepair } from "@reverse/utils/json-parse";
 
 /** Whether `promise` is still unsettled after the microtask queue and one macrotask drain. */
 async function pending(promise: Promise<unknown>): Promise<boolean> {

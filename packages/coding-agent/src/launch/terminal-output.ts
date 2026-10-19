@@ -1,6 +1,6 @@
-import { logger } from "@rva/utils";
-import xterm, { type Terminal as XtermTerminal } from "@rva/utils/vterm";
-import { readTerminalRows } from "@rva/tui/tools/terminal-output";
+import { logger } from "@reverse/utils";
+import xterm, { type Terminal as XtermTerminal } from "@reverse/utils/vterm";
+import { readTerminalRows } from "@reverse/tui/tools/terminal-output";
 import { DAEMON_PTY_COLUMNS, DAEMON_PTY_ROWS } from "./protocol";
 
 const VIRTUAL_SCROLLBACK_ROWS = 4_096;

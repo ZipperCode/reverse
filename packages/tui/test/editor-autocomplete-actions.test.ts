@@ -7,8 +7,8 @@ import {
 	type AutocompleteProvider,
 	CombinedAutocompleteProvider,
 	findLeadingSlashCommandStart,
-} from "@rva/tui/autocomplete";
-import { Editor } from "@rva/tui/components/editor";
+} from "@reverse/tui/autocomplete";
+import { Editor } from "@reverse/tui/components/editor";
 import { defaultEditorTheme } from "./test-themes";
 
 function onceAutocompleteUpdate(editor: Editor): Promise<void> {

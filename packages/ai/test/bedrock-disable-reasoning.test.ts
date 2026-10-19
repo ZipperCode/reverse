@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { streamSimple } from "@rva/ai/stream";
-import type { Context, Model, SimpleStreamOptions } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Context, Model, SimpleStreamOptions } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 
 function budgetModel(): Model<"bedrock-converse-stream"> {
 	return buildModel({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
+import { getProviderDefinition } from "@reverse/ai/registry";
 
 const loginExa = getProviderDefinition("exa")?.login;
 if (!loginExa) throw new Error("Exa login is not registered");

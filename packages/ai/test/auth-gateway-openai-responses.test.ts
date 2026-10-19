@@ -2,16 +2,16 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@rva/ai/api-registry";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
-import { encodeResponse, encodeStream, parseRequest } from "@rva/ai/providers/openai-responses-server";
-import { buildResponsesInput } from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Context, ModelSpec } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { clearCustomApis } from "@reverse/ai/api-registry";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import { encodeResponse, encodeStream, parseRequest } from "@reverse/ai/providers/openai-responses-server";
+import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Context, ModelSpec } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 
 function zeroUsage(): AssistantMessage["usage"] {
 	return {

@@ -1,30 +1,30 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool, ThinkingLevel } from "@rva/agent";
-import { type Api, Effort, type Model } from "@rva/ai";
-import { createMockModel, type MockResponse } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { CustomToolAdapter } from "@rva/coding-agent/extensibility/custom-tools/wrapper";
-import { DeferredMCPTool } from "@rva/coding-agent/mcp/tool-bridge";
-import { dispatchXdevTool, type XdevDispatch, type XdevState } from "@rva/coding-agent/tools/xdev";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool, ThinkingLevel } from "@reverse/agent";
+import { type Api, Effort, type Model } from "@reverse/ai";
+import { createMockModel, type MockResponse } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { CustomToolAdapter } from "@reverse/coding-agent/extensibility/custom-tools/wrapper";
+import { DeferredMCPTool } from "@reverse/coding-agent/mcp/tool-bridge";
+import { dispatchXdevTool, type XdevDispatch, type XdevState } from "@reverse/coding-agent/tools/xdev";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	cfgPrewalkEnabled,
 	cfgRetryBaseDelayMs,
 	cfgRetryFallbackChains,
 	cfgRetryFallbackRevertPolicy,
-} from "@rva/coding-agent/session/settings";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@rva/coding-agent/slash-commands/types";
-import { AUTO_THINKING } from "@rva/tui/thinking";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/settings";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@reverse/coding-agent/slash-commands/types";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 

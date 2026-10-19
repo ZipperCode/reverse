@@ -1,13 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import {
-	getProjectDir,
-	getProjectPromptsDir,
-	getPromptsDir,
-	logger,
-	parseFrontmatter,
-	prompt,
-} from "@rva/utils";
+import { getProjectDir, getProjectPromptsDir, getPromptsDir, logger, parseFrontmatter, prompt } from "@reverse/utils";
 import { jtdToTypeScript } from "../tools/jtd-to-typescript";
 import { parseCommandArgs, substituteArgs } from "../utils/command-args";
 

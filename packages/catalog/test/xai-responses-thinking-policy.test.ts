@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@rva/catalog/effort";
-import {
-	MODELS_DEV_PROVIDER_DESCRIPTORS,
-	mapModelsDevToModels,
-} from "@rva/catalog/provider-models/openai-compat";
+import { Effort } from "@reverse/catalog/effort";
+import { MODELS_DEV_PROVIDER_DESCRIPTORS, mapModelsDevToModels } from "@reverse/catalog/provider-models/openai-compat";
 import { applyGeneratedModelPolicies } from "../scripts/generated-policies";
 
 const XAI_MODELS_DEV_FIXTURE = {

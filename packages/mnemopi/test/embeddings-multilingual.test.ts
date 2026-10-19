@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { embeddingDimFor, isApiModel } from "@rva/mnemopi/core/embeddings";
+import { embeddingDimFor, isApiModel } from "@reverse/mnemopi/core/embeddings";
 
 function withEnvValue<T>(key: string, value: string | undefined, fn: () => T): T {
 	const previous = process.env[key];

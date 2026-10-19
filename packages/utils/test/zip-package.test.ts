@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { ArchiveError, encodeArchive, ZipPackage } from "@rva/utils/ar";
+import { ArchiveError, encodeArchive, ZipPackage } from "@reverse/utils/ar";
 
 describe("ZipPackage", () => {
 	it("caps the bytes inflated across all member reads, not just per member", async () => {

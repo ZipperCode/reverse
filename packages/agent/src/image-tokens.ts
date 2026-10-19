@@ -1,11 +1,11 @@
-import type { ImageContent } from "@rva/ai";
+import type { ImageContent } from "@reverse/ai";
 import {
 	type ImageSize,
 	type ImageTokenization,
 	imageTokens,
 	resolveImageTokenization,
-} from "@rva/catalog/compat/image-tokenization";
-import { parseImageMetadata } from "@rva/utils";
+} from "@reverse/catalog/compat/image-tokenization";
+import { parseImageMetadata } from "@reverse/utils";
 
 /**
  * Dimension-based image token estimates shared by the local context counter

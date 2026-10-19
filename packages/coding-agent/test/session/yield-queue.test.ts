@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { type AgentMessage, ASIDE_MESSAGE_COMMIT } from "@rva/agent";
-import { YieldQueue } from "@rva/coding-agent/session/yield-queue";
+import { type AgentMessage, ASIDE_MESSAGE_COMMIT } from "@reverse/agent";
+import { YieldQueue } from "@reverse/coding-agent/session/yield-queue";
 
 type Entry = {
 	id: string;

@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
-import type { Api, Model, OAuthAccess } from "@rva/ai";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { type DryBalanceModelRegistry, runDryBalanceCommand } from "@rva/coding-agent/cli/dry-balance-cli";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { Api, Model, OAuthAccess } from "@reverse/ai";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { type DryBalanceModelRegistry, runDryBalanceCommand } from "@reverse/coding-agent/cli/dry-balance-cli";
+import { Settings } from "@reverse/coding-agent/config/settings";
 
 function fakeModel(provider: string, id: string): Model<Api> {
 	return {

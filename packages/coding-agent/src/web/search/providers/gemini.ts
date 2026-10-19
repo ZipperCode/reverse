@@ -16,12 +16,12 @@ import {
 	type OAuthAccess,
 	withAuth,
 	withOAuthAccess,
-} from "@rva/ai";
-import { clampThinkingLevelForModel, resolveWireModelId } from "@rva/catalog/model-thinking";
-import { parseCloudflareCredential } from "@rva/catalog/wire/cloudflare";
-import { getAntigravityUserAgent, getGeminiCliHeaders } from "@rva/catalog/wire/gemini-headers";
-import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@rva/tui/thinking";
-import { fetchWithRetry, USER_AGENT } from "@rva/utils";
+} from "@reverse/ai";
+import { clampThinkingLevelForModel, resolveWireModelId } from "@reverse/catalog/model-thinking";
+import { parseCloudflareCredential } from "@reverse/catalog/wire/cloudflare";
+import { getAntigravityUserAgent, getGeminiCliHeaders } from "@reverse/catalog/wire/gemini-headers";
+import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@reverse/tui/thinking";
+import { fetchWithRetry, USER_AGENT } from "@reverse/utils";
 
 import type { SearchCitation, SearchResponse, SearchSource } from "../types";
 import type { ModelRegistry } from "../../../config/model-registry";

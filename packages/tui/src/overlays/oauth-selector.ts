@@ -1,6 +1,6 @@
-import type { CredentialsApi, KeysApi } from "@rva/ai";
-import { getOAuthProviders } from "@rva/ai/oauth";
-import type { OAuthProviderInfo } from "@rva/ai/oauth/types";
+import type { CredentialsApi, KeysApi } from "@reverse/ai";
+import { getOAuthProviders } from "@reverse/ai/oauth";
+import type { OAuthProviderInfo } from "@reverse/ai/oauth/types";
 import {
 	Container,
 	extractPrintableText,
@@ -17,13 +17,13 @@ import { OverlayPanel } from "../chrome/overlay-box";
 import { Input } from "../components/input";
 import { MenuSelection } from "../components/menu-selection";
 import { centeredViewportRange } from "../components/scroll-viewport";
-import type { TspPickerItem, TspSpan, TspTone } from "@rva/wire";
+import type { TspPickerItem, TspSpan, TspTone } from "@reverse/wire";
 import { node, span, text } from "../native/describe";
 import type { DescribeContext, NativeNode, NativeUiEvent } from "../native/node";
 import { CLOSE_ACTION, dockedPicker, PICKER_KEY, pickerAction, pickerEvent, pickerQuery } from "../native/picker";
 import { overlayCard } from "../native/overlay";
 import { isNativeRendering } from "../native/state";
-import { resolveEffectiveLocale, type SupportedLocale } from "@rva/utils/i18n";
+import { resolveEffectiveLocale, type SupportedLocale } from "@reverse/utils/i18n";
 
 const OAUTH_SELECTOR_MAX_VISIBLE = 10;
 

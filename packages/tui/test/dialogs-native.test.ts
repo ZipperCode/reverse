@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { setKeybindings, type Component, type TerminalFrameProvider, type TUI } from "@rva/tui";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { setKeybindings, type Component, type TerminalFrameProvider, type TUI } from "@reverse/tui";
 import { stripVTControlCharacters } from "node:util";
-import { md } from "@rva/tui/native/describe";
-import type { DescribeContext, NativeChild, NativeNode, NativeSurfaceProvider } from "@rva/tui/native/node";
-import { AskDialogComponent, type ExtensionAskDialogQuestion } from "@rva/tui/overlays/ask-dialog";
-import { APPROVE_ARM_MS, ApprovalDialogComponent } from "@rva/tui/overlays/approval-dialog";
-import { LoginDialogComponent } from "@rva/tui/overlays/login-dialog";
-import { PlanReviewOverlay } from "@rva/tui/overlays/plan-review-overlay";
-import { setNativeRendering } from "@rva/tui/native/state";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
+import { md } from "@reverse/tui/native/describe";
+import type { DescribeContext, NativeChild, NativeNode, NativeSurfaceProvider } from "@reverse/tui/native/node";
+import { AskDialogComponent, type ExtensionAskDialogQuestion } from "@reverse/tui/overlays/ask-dialog";
+import { APPROVE_ARM_MS, ApprovalDialogComponent } from "@reverse/tui/overlays/approval-dialog";
+import { LoginDialogComponent } from "@reverse/tui/overlays/login-dialog";
+import { PlanReviewOverlay } from "@reverse/tui/overlays/plan-review-overlay";
+import { setNativeRendering } from "@reverse/tui/native/state";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 import { TspHarness } from "./native/tsp-harness";
 
 const ENTER = "\n";

@@ -14,13 +14,13 @@
  * same append path over the host's byte-capped transcript reads.
  */
 import type * as fs from "node:fs";
-import type { AgentTool } from "@rva/agent";
-import type { TspSpan, TspTone } from "@rva/wire";
+import type { AgentTool } from "@reverse/agent";
+import type { TspSpan, TspTone } from "@reverse/wire";
 import type { Component, TUI } from "../tui";
 import { Editor } from "../components/editor";
 import { matchesKey } from "../keys";
 import { routeSgrMouseInput } from "../mouse";
-import { formatDuration, formatNumber, logger } from "@rva/utils";
+import { formatDuration, formatNumber, logger } from "@reverse/utils";
 import { formatKeyHint, formatKeyHints, type KeyId } from "../app-keybindings";
 import { editorKey } from "../chrome/keybinding-hints";
 import type { MessageRenderer } from "../chat/extension-types";

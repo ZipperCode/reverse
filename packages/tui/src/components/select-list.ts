@@ -1,4 +1,4 @@
-import { popLoopPhase, pushLoopPhase } from "@rva/utils";
+import { popLoopPhase, pushLoopPhase } from "@reverse/utils";
 import { Input } from "./input";
 import { getMenuWindow, MenuSelection } from "./menu-selection";
 import { getKeybindings } from "../keybindings";
@@ -7,7 +7,7 @@ import { type MouseRoutable, routeSelectListMouse, type SgrMouseEvent } from "..
 import { col, node, span } from "../native/describe";
 import { sameItems, sameProps } from "../native/memo";
 import { plainLine } from "../native/spans";
-import type { TspProps } from "@rva/wire";
+import type { TspProps } from "@reverse/wire";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import type { SymbolTheme } from "../symbols";
 import type { Component } from "../tui";

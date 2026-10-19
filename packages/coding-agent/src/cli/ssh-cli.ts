@@ -4,8 +4,8 @@
  * Handles `omp ssh <command>` subcommands for SSH host configuration management.
  */
 
-import { getSSHConfigPath } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { getSSHConfigPath } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { addSSHHost, readSSHConfigFile, removeSSHHost, type SSHHostConfig } from "../ssh/config-writer";
 
 // =============================================================================

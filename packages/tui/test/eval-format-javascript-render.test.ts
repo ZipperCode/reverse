@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatJavaScriptForDisplay } from "@rva/tui/tools/eval-format/javascript";
+import { formatJavaScriptForDisplay } from "@reverse/tui/tools/eval-format/javascript";
 
 describe("formatJavaScriptForDisplay", () => {
 	it("expands compact control flow and keeps short objects and arrays inline", () => {

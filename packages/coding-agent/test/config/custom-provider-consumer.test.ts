@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { YAML } from "bun";
-import { AuthStorage } from "@rva/ai";
-import { Terminal as VirtualTerminal } from "@rva/utils/vterm";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resolveModelsConfigPath, saveCustomProvider } from "@rva/coding-agent/config/custom-provider-writer";
+import { AuthStorage } from "@reverse/ai";
+import { Terminal as VirtualTerminal } from "@reverse/utils/vterm";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resolveModelsConfigPath, saveCustomProvider } from "@reverse/coding-agent/config/custom-provider-writer";
 
 function tempDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

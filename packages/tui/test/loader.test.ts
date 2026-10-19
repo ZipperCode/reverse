@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, setSystemTime, spyOn, vi } from "bun:test";
-import { Container, TUI } from "@rva/tui";
-import { Loader, type LoaderMessageColorFn } from "@rva/tui/components/loader";
-import { visibleWidth } from "@rva/tui/utils";
+import { Container, TUI } from "@reverse/tui";
+import { Loader, type LoaderMessageColorFn } from "@reverse/tui/components/loader";
+import { visibleWidth } from "@reverse/tui/utils";
 import { VirtualTerminal } from "./virtual-terminal";
 
 describe("Loader component", () => {

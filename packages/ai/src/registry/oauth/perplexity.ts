@@ -3,7 +3,7 @@
  * or HTTP email OTP (including authenticator challenges).
  */
 import * as os from "node:os";
-import { $env } from "@rva/utils";
+import { $env } from "@reverse/utils";
 import { $, Cookie, CookieMap } from "bun";
 import * as AIError from "../../error";
 import type { OAuthController, OAuthCredentials } from "./types";

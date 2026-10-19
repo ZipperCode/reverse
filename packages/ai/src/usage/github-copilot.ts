@@ -4,8 +4,8 @@
  * Normalizes Copilot quota usage into the shared UsageReport schema.
  */
 
-import { toBoolean, toNumber } from "@rva/catalog/utils";
-import { COPILOT_GITHUB_HEADERS } from "@rva/catalog/wire/github-copilot";
+import { toBoolean, toNumber } from "@reverse/catalog/utils";
+import { COPILOT_GITHUB_HEADERS } from "@reverse/catalog/wire/github-copilot";
 import * as AIError from "../error";
 import type {
 	UsageAmount,

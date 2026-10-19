@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import { USER_AGENT } from "@rva/utils";
+import type { FetchImpl } from "@reverse/ai/types";
+import { USER_AGENT } from "@reverse/utils";
 import { opencodeGoRankingStrategy, opencodeGoUsageProvider } from "../src/usage/opencode-go";
 
 const DEFAULT_USAGE_URL = "https://opencode.ai/zen/go/v1/usage";

@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 
 const DEFAULT_MCP_TIMEOUT_MS = 30_000;
 const MCP_TIMEOUT_ENV = "OMP_MCP_TIMEOUT_MS";

@@ -4,7 +4,7 @@
  * on every host, and readers without one fall back to the rule for the wire
  * API carrying the request (`rules/providers/image-tokenization.kdl`).
  */
-import { isRecord } from "@rva/utils/type-guards";
+import { isRecord } from "@reverse/utils/type-guards";
 import { classifyModel } from "../identity";
 import { resolveCascade } from "./cascade";
 import type { ModelIdentity } from "./types";

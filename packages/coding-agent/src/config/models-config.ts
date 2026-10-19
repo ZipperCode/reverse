@@ -2,11 +2,11 @@
  * Custom model/provider config file handle and validation.
  */
 
-import type { FluentType } from "@rva/omptype";
-import type { Api, ModelSpec } from "@rva/ai/types";
-import { AXES } from "@rva/catalog/compat/axes";
-import { type ModelKind, servedKinds } from "@rva/catalog/types";
-import { isRecord, once } from "@rva/utils";
+import type { FluentType } from "@reverse/omptype";
+import type { Api, ModelSpec } from "@reverse/ai/types";
+import { AXES } from "@reverse/catalog/compat/axes";
+import { type ModelKind, servedKinds } from "@reverse/catalog/types";
+import { isRecord, once } from "@reverse/utils";
 import { ConfigFile } from "./config-file";
 import type { ModelsConfig, ProviderAuthMode, ProviderDiscovery } from "./models-config-schema";
 import { getModelsConfigSchema, getModelsConfigSchemaBundle } from "./models-config-schema-bundle";

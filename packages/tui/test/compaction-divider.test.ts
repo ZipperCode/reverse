@@ -7,10 +7,10 @@
  */
 
 import { beforeAll, describe, expect, it } from "bun:test";
-import { createCompactionSummaryMessage } from "@rva/agent/compaction";
-import type { ImageContent } from "@rva/ai";
-import { CompactionSummaryMessageComponent } from "@rva/tui/chat/compaction-summary-message";
-import { initTheme } from "@rva/tui/theme";
+import { createCompactionSummaryMessage } from "@reverse/agent/compaction";
+import type { ImageContent } from "@reverse/ai";
+import { CompactionSummaryMessageComponent } from "@reverse/tui/chat/compaction-summary-message";
+import { initTheme } from "@reverse/tui/theme";
 
 beforeAll(() => {
 	initTheme();

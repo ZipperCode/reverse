@@ -1,6 +1,6 @@
 /** Schema-independent display definitions for the settings overlay. */
 import type { SymbolKey } from "../theme/symbols";
-import type { SupportedLocale } from "@rva/utils/i18n";
+import type { SupportedLocale } from "@reverse/utils/i18n";
 import { TUI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN";
 
 export type SettingTab =
@@ -59,7 +59,6 @@ export const TAB_LEADS: Record<SettingTab, string> = {
 	tasks: "Modes, subagents, isolation and custom commands.",
 	providers: "Services, provider protocols, timeouts and privacy.",
 };
-
 
 /** Get localized tab metadata */
 export function getTabMetadata(tab: SettingTab, locale?: SupportedLocale): TabMetadata {

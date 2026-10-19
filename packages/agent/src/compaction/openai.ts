@@ -15,19 +15,19 @@
  *   with `{ summary, shortSummary? }`.
  */
 
-import { attach, create, Flag, ProviderHttpError } from "@rva/ai/error";
-import { getCodexAttestationHeader } from "@rva/ai/providers/openai-codex-attestation";
-import { createOpenAICodexCompactionRequestContext } from "@rva/ai/providers/openai-codex-compaction";
-import { applyCodexResponsesLiteShape } from "@rva/ai/providers/openai-codex/request-transformer";
-import { createOpenAICodexCompatibilityMetadata } from "@rva/ai/providers/openai-codex-responses";
-import { applySessionHeader } from "@rva/ai/providers/inference-headers";
+import { attach, create, Flag, ProviderHttpError } from "@reverse/ai/error";
+import { getCodexAttestationHeader } from "@reverse/ai/providers/openai-codex-attestation";
+import { createOpenAICodexCompactionRequestContext } from "@reverse/ai/providers/openai-codex-compaction";
+import { applyCodexResponsesLiteShape } from "@reverse/ai/providers/openai-codex/request-transformer";
+import { createOpenAICodexCompatibilityMetadata } from "@reverse/ai/providers/openai-codex-responses";
+import { applySessionHeader } from "@reverse/ai/providers/inference-headers";
 import {
 	encodeResponsesToolResultOutput,
 	hoistInterleavedResponsesToolBatchMessages,
 	parseAzureDeploymentNameMap,
 	parseTextSignature,
-} from "@rva/ai/providers/openai-shared";
-import { transformMessages } from "@rva/ai/providers/transform-messages";
+} from "@reverse/ai/providers/openai-shared";
+import { transformMessages } from "@reverse/ai/providers/transform-messages";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -35,7 +35,7 @@ import type {
 	Message,
 	Model,
 	ProviderSessionState,
-} from "@rva/ai/types";
+} from "@reverse/ai/types";
 import {
 	dropMalformedOpenAIResponsesToolCalls,
 	getOpenAIResponsesHistoryItems,
@@ -43,9 +43,9 @@ import {
 	normalizeResponsesToolCallId,
 	stripOpenAIResponsesOutputOnlyStatusesForReplay,
 	truncateResponseItemId,
-} from "@rva/ai/utils";
-import { captureOpenAIHttpError } from "@rva/ai/utils/openai-http";
-import { isBedrockOpenAIUrl } from "@rva/catalog/hosts";
+} from "@reverse/ai/utils";
+import { captureOpenAIHttpError } from "@reverse/ai/utils/openai-http";
+import { isBedrockOpenAIUrl } from "@reverse/catalog/hosts";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
@@ -53,8 +53,8 @@ import {
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@rva/catalog/wire/codex";
-import { $env, isRecord, logger, prompt, ptree, stringifyJson, structuredCloneJSON } from "@rva/utils";
+} from "@reverse/catalog/wire/codex";
+import { $env, isRecord, logger, prompt, ptree, stringifyJson, structuredCloneJSON } from "@reverse/utils";
 import { dataUrlImageSize } from "../image-tokens";
 import { Tokenizer } from "../tokenizer";
 import { appendAzureApiVersion, resolveAzureOpenAiBaseUrl } from "./azure-openai-endpoint";

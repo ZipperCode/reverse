@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
-import * as lsp from "@rva/coding-agent/lsp";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { removeWithRetries } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
+import * as lsp from "@reverse/coding-agent/lsp";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { removeWithRetries } from "@reverse/utils";
 
 function makeSession(cwd: string): ToolSession {
 	return {

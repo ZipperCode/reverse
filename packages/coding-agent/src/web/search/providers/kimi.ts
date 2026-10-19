@@ -7,8 +7,8 @@
  * `MOONSHOT_SEARCH_API_KEY` / `KIMI_SEARCH_API_KEY`), not `MOONSHOT_API_KEY`.
  * Endpoint: POST https://api.kimi.com/coding/v1/search
  */
-import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@rva/ai";
-import { $env } from "@rva/utils";
+import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@reverse/ai";
+import { $env } from "@reverse/utils";
 
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
+import * as vcs from "@reverse/natives/vcs";
 import { $ } from "bun";
 
 describe("git show byte stream", () => {

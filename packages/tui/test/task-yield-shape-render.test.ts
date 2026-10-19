@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@rva/tui/tools/task";
-import { taskToolRenderer } from "@rva/tui/tools/task";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@reverse/tui/tools/task";
+import { taskToolRenderer } from "@reverse/tui/tools/task";
 
 // Regression for #1987: when a subagent stores a non-array value in
 // `extractedToolData.yield`, the renderer cast it to `Array<{ data }>` and

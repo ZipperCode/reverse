@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { Theme } from "@rva/tui/theme";
-import { setShimmerMode, shimmerSegments, shimmerText } from "@rva/tui/theme/shimmer";
+import type { Theme } from "@reverse/tui/theme";
+import { setShimmerMode, shimmerSegments, shimmerText } from "@reverse/tui/theme/shimmer";
 
 const testTheme = {
 	bold(text: string): string {

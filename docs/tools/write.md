@@ -6,7 +6,7 @@
 - Entry: `packages/coding-agent/src/tools/write.ts`
 - Model-facing prompt: `packages/coding-agent/src/prompts/tools/write.md`
 - Key collaborators:
-  - `packages/utils/src/ar` (`@rva/utils/ar`) — archive selector parsing, member loading, and serialization; the write tool supplies the atomic temp-file/rename boundary.
+  - `packages/utils/src/ar` (`@reverse/utils/ar`) — archive selector parsing, member loading, and serialization; the write tool supplies the atomic temp-file/rename boundary.
   - `packages/coding-agent/src/tools/sqlite-reader.ts` — detect SQLite paths and perform row insert/update/delete.
   - `packages/coding-agent/src/tools/conflict-detect.ts` / `conflict-uri.ts` — register/validate conflict regions, expand side tokens, and resolve writes through the internal URL handler.
   - `packages/coding-agent/src/internal-urls/router.ts` / `packages/coding-agent/src/tools/xdev.ts` — writable internal resources and `xd://` tool-device dispatch.

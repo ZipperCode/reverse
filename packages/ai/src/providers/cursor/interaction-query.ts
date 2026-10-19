@@ -19,9 +19,9 @@ import {
 	WebFetchRequestResponseSchema,
 	WebSearchRequestResponse_ApprovedSchema,
 	WebSearchRequestResponseSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, toBinary } from "@rva/catalog/discovery/protobuf";
-import { $env, logger } from "@rva/utils";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, toBinary } from "@reverse/catalog/discovery/protobuf";
+import { $env, logger } from "@reverse/utils";
 import { frameConnectMessage } from "../connect-frame";
 
 const NOT_IMPLEMENTED_SUFFIX = "not implemented by this client";

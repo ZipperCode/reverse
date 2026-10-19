@@ -1,15 +1,15 @@
 import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { beforeAll, describe, expect, type Mock, test, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ModelPickerComponent, type ModelPickerOptions } from "@rva/tui/overlays/model-picker";
-import { resolveSegmentPalette } from "@rva/tui/chrome/segment-track";
-import { getThemeByName, setThemeInstance, theme } from "@rva/tui/theme";
-import type { ResolvedRoleModel } from "@rva/coding-agent/session/agent-session";
-import type { TUI } from "@rva/tui";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ModelPickerComponent, type ModelPickerOptions } from "@reverse/tui/overlays/model-picker";
+import { resolveSegmentPalette } from "@reverse/tui/chrome/segment-track";
+import { getThemeByName, setThemeInstance, theme } from "@reverse/tui/theme";
+import type { ResolvedRoleModel } from "@reverse/coding-agent/session/agent-session";
+import type { TUI } from "@reverse/tui";
 
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();

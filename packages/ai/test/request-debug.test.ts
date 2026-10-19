@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis, registerCustomApi } from "@rva/ai/api-registry";
-import { stream, streamSimple } from "@rva/ai/stream";
-import type { AssistantMessage, FetchImpl, Model, ModelSpec } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { transportFetch } from "@rva/ai/utils/transport-fetch";
-import { buildModel } from "@rva/catalog/build";
+import { clearCustomApis, registerCustomApi } from "@reverse/ai/api-registry";
+import { stream, streamSimple } from "@reverse/ai/stream";
+import type { AssistantMessage, FetchImpl, Model, ModelSpec } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { transportFetch } from "@reverse/ai/utils/transport-fetch";
+import { buildModel } from "@reverse/catalog/build";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const enc = new TextEncoder();

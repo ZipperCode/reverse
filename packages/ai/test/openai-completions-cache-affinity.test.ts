@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { type OpenAICompletionsOptions, streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamSimple } from "@rva/ai/stream";
-import type { AssistantMessage, Context, FetchImpl, Model, SimpleStreamOptions, Usage } from "@rva/ai/types";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { getBundledModel } from "@rva/catalog/models";
+import { type OpenAICompletionsOptions, streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamSimple } from "@reverse/ai/stream";
+import type { AssistantMessage, Context, FetchImpl, Model, SimpleStreamOptions, Usage } from "@reverse/ai/types";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const context: Context = { messages: [{ role: "user", content: "hello", timestamp: 0 }] };
 

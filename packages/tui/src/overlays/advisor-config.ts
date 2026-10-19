@@ -15,10 +15,10 @@
  * {@link WatchdogConfigDoc} and only touches disk + the live advisors via the host
  * `save` callback.
  */
-import type { ThinkingLevel } from "@rva/agent";
-import { type Model, resolveUsedFraction, type UsageLimit, type UsageReport } from "@rva/ai";
-import { formatDuration } from "@rva/utils";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
+import type { ThinkingLevel } from "@reverse/agent";
+import { type Model, resolveUsedFraction, type UsageLimit, type UsageReport } from "@reverse/ai";
+import { formatDuration } from "@reverse/utils";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
 import {
 	type Component,
 	Input,
@@ -48,7 +48,7 @@ import { bottomBorder, divider, dividerSplit, PanelRows, row, topBorder, topBord
 import { isLayoutMouseRoutable } from "../components/layout/geometry";
 import { SplitPane } from "../components/layout/split-pane";
 import { Stack } from "../components/layout/stack";
-import type { TspPrefsProps, TspPrefsRow, TspSpan } from "@rva/wire";
+import type { TspPrefsProps, TspPrefsRow, TspSpan } from "@reverse/wire";
 import { col, node, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { actionBar, actionButton, actionHint, hintsRow, type NativeHint, overlayCard } from "../native/overlay";

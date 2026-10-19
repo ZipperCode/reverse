@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type OAuthCredential, type UsageProvider, resolvedApiKeyBearer, withAuth } from "@rva/ai";
-import * as oauth from "@rva/ai/oauth";
-import type { OAuthCredentials, OAuthProviderId } from "@rva/ai/oauth/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { type OAuthCredential, type UsageProvider, resolvedApiKeyBearer, withAuth } from "@reverse/ai";
+import * as oauth from "@reverse/ai/oauth";
+import type { OAuthCredentials, OAuthProviderId } from "@reverse/ai/oauth/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { createApiKeyResolver } from "../src/config/api-key-resolver";
 
 describe("AuthStorage account rotation", () => {

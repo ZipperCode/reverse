@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { pickWeightedTip, WelcomeComponent } from "@rva/tui/prompt/welcome";
-import { initTheme, theme } from "@rva/tui/theme";
-import { visibleWidth } from "@rva/tui";
+import { pickWeightedTip, WelcomeComponent } from "@reverse/tui/prompt/welcome";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { visibleWidth } from "@reverse/tui";
 
 describe("WelcomeComponent", () => {
 	beforeAll(async () => {

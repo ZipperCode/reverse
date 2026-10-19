@@ -19,22 +19,22 @@
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage } from "@rva/agent";
-import { effectiveReserveTokens, prepareCompaction, resolveThresholdTokens } from "@rva/agent/compaction";
-import { base64ImageSize } from "@rva/agent/image-tokens";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { toModelSpec } from "@rva/catalog/provider-models/bundled-references";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import { encodeRpcFrame, MAX_RPC_FRAME_BYTES } from "@rva/coding-agent/modes/rpc/rpc-frame";
-import { computeNonMessageTokens } from "@rva/tui/status-line/context-usage";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { cfgSnapcompactShape } from "@rva/coding-agent/session/context-settings";
-import * as snapcompact from "@rva/snapcompact";
+import { Agent, type AgentMessage } from "@reverse/agent";
+import { effectiveReserveTokens, prepareCompaction, resolveThresholdTokens } from "@reverse/agent/compaction";
+import { base64ImageSize } from "@reverse/agent/image-tokens";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { toModelSpec } from "@reverse/catalog/provider-models/bundled-references";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import { encodeRpcFrame, MAX_RPC_FRAME_BYTES } from "@reverse/coding-agent/modes/rpc/rpc-frame";
+import { computeNonMessageTokens } from "@reverse/tui/status-line/context-usage";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { cfgSnapcompactShape } from "@reverse/coding-agent/session/context-settings";
+import * as snapcompact from "@reverse/snapcompact";
 
 describe("AgentSession snapcompact frame-budget sizing", () => {
 	let session: AgentSession;

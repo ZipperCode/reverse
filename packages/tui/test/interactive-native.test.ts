@@ -1,17 +1,17 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { TspListProps } from "@rva/wire";
-import { CountdownTimer } from "@rva/tui/chrome/countdown-timer";
-import { Editor } from "@rva/tui/components/editor";
-import { Input } from "@rva/tui/components/input";
-import { Loader, type LoaderMessageColorFn } from "@rva/tui/components/loader";
-import { type SelectItem, SelectList } from "@rva/tui/components/select-list";
-import { type SettingItem, SettingsList } from "@rva/tui/components/settings-list";
-import type { DescribeContext, NativeNode } from "@rva/tui/native/node";
-import { setNativeRendering } from "@rva/tui/native/state";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { setMagicKeywords } from "@rva/tui/prompt/magic-keywords";
-import { getEditorTheme, getSelectListTheme, getSettingsListTheme, initTheme } from "@rva/tui/theme";
-import type { TUI } from "@rva/tui";
+import type { TspListProps } from "@reverse/wire";
+import { CountdownTimer } from "@reverse/tui/chrome/countdown-timer";
+import { Editor } from "@reverse/tui/components/editor";
+import { Input } from "@reverse/tui/components/input";
+import { Loader, type LoaderMessageColorFn } from "@reverse/tui/components/loader";
+import { type SelectItem, SelectList } from "@reverse/tui/components/select-list";
+import { type SettingItem, SettingsList } from "@reverse/tui/components/settings-list";
+import type { DescribeContext, NativeNode } from "@reverse/tui/native/node";
+import { setNativeRendering } from "@reverse/tui/native/state";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { setMagicKeywords } from "@reverse/tui/prompt/magic-keywords";
+import { getEditorTheme, getSelectListTheme, getSettingsListTheme, initTheme } from "@reverse/tui/theme";
+import type { TUI } from "@reverse/tui";
 
 const cx: DescribeContext = { cols: 80, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 

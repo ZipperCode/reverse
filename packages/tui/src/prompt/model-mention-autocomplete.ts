@@ -1,4 +1,4 @@
-import type { Model } from "@rva/ai";
+import type { Model } from "@reverse/ai";
 import type { AutocompleteItem } from "../index";
 import type { ModelBrowserRegistry, ModelBrowserSource } from "../overlays/model-browser";
 import { modelMentionDisplayName } from "./model-mention-syntax";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { CURSOR_MARKER, type Component, type Focusable, TUI, type TuiPaint } from "@rva/tui";
+import { CURSOR_MARKER, type Component, type Focusable, TUI, type TuiPaint } from "@reverse/tui";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";

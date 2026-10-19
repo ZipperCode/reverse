@@ -1,7 +1,7 @@
 /**
  * Host-side handler for the eval `agent()` helper.
  */
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import { MAIN_AGENT_ID } from "../registry/agent-registry";
 import { createEvalCustomTools, describeEvalTools } from "../task/eval-tools";
 import {
@@ -13,10 +13,10 @@ import {
 	type StructuredSubagentIsolationControls,
 	type StructuredSubagentResult,
 } from "../task/structured-subagent";
-import type { AgentProgress, SingleResult, StructuredSubagentSchemaMode } from "@rva/tui/tools/task";
-import type { NestedRepoPatch } from "@rva/tui/tools/task";
+import type { AgentProgress, SingleResult, StructuredSubagentSchemaMode } from "@reverse/tui/tools/task";
+import type { NestedRepoPatch } from "@reverse/tui/tools/task";
 import type { ToolSession } from "../tools";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { JsStatusEvent } from "./js/shared/types";
 
 /** Synthetic bridge name reserved for the `agent()` helper across both runtimes. */

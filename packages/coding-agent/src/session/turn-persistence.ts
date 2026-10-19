@@ -17,7 +17,7 @@
  * the persistence-ordering logic is unit-testable without standing up an
  * `AgentSession`.
  */
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 
 /**
  * Stable identity for messages that pass through {@link AgentSession}'s

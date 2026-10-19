@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { $which, isRecord, ptree, sanitizeText } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { $which, isRecord, ptree, sanitizeText } from "@reverse/utils";
 import { CLEANSE_PARSER_KINDS, CleanseStreamParser, type CleanseParserKind, parseCleanseDiagnostics } from "./parsers";
 import type { CleanseCheckResult, CleanseDiagnostic, CleanseDiagnosticReport, SkippedCleanseCheck } from "./types";
 

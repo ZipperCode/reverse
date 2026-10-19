@@ -15,10 +15,10 @@ import {
 	shouldUseAnthropicNativeCompaction,
 	shouldUseProviderNativeCompaction,
 	withAnthropicCompactionPreserveData,
-} from "@rva/agent/compaction";
-import type { AgentMessage } from "@rva/agent";
-import * as ai from "@rva/ai";
-import * as AIError from "@rva/ai/error";
+} from "@reverse/agent/compaction";
+import type { AgentMessage } from "@reverse/agent";
+import * as ai from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
 import type {
 	AnthropicRequestControls,
 	AssistantMessage,
@@ -27,12 +27,12 @@ import type {
 	Model,
 	SimpleStreamOptions,
 	Usage,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModel } from "@rva/catalog/models";
-import type { ModelSpec } from "@rva/catalog/types";
-import * as snapcompact from "@rva/snapcompact";
+} from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { ModelSpec } from "@reverse/catalog/types";
+import * as snapcompact from "@reverse/snapcompact";
 
 const ZERO_USAGE: Usage = {
 	input: 0,

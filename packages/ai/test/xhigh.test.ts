@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { stream } from "@rva/ai/stream";
-import type { Context, Model } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { stream } from "@reverse/ai/stream";
+import type { Context, Model } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 import { e2eApiKey } from "./oauth";
 
 function makeContext(): Context {

@@ -1,7 +1,7 @@
-import * as native from "@rva/natives";
+import * as native from "@reverse/natives";
 import { TERMINAL } from "../index";
 import type { EditorInlineReplacement, EditorTextAssistProvider, EditorWordReplacements } from "../components/editor";
-import { logger, withTimeout } from "@rva/utils";
+import { logger, withTimeout } from "@reverse/utils";
 import { isMagicKeyword } from "./magic-keywords";
 import { maskNonProse } from "./markdown-prose";
 import { isProseWord, lineContext, ProseSource, type SpellingDecorationContext } from "./prose-gate";

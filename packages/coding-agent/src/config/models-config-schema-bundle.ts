@@ -1,6 +1,6 @@
-import { type NarrowContext, type } from "@rva/omptype";
-import { MODEL_KINDS, RUNNER_API_KINDS } from "@rva/catalog/types";
-import { once } from "@rva/utils";
+import { type NarrowContext, type } from "@reverse/omptype";
+import { MODEL_KINDS, RUNNER_API_KINDS } from "@reverse/catalog/types";
+import { once } from "@reverse/utils";
 
 function validateMaxContextWindow(
 	value: { maxContextWindow?: number; contextWindow?: number },

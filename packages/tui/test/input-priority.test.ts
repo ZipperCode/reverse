@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { type Component, type RenderScheduler, TUI } from "@rva/tui";
+import { type Component, type RenderScheduler, TUI } from "@reverse/tui";
 import { VirtualTerminal } from "./virtual-terminal";
-import { BtwHistoryPanel } from "@rva/tui/overlays/btw-history-panel";
-import type { BtwHistoryRecord } from "@rva/tui/overlays/btw-history";
-import { Input } from "@rva/tui/components/input";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { SPACE_HOLD_MECHANICAL_RUN, SPACE_HOLD_RELEASE_MS } from "@rva/tui/space-hold";
-import { getEditorTheme, initTheme } from "@rva/tui/theme";
+import { BtwHistoryPanel } from "@reverse/tui/overlays/btw-history-panel";
+import type { BtwHistoryRecord } from "@reverse/tui/overlays/btw-history";
+import { Input } from "@reverse/tui/components/input";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { SPACE_HOLD_MECHANICAL_RUN, SPACE_HOLD_RELEASE_MS } from "@reverse/tui/space-hold";
+import { getEditorTheme, initTheme } from "@reverse/tui/theme";
 
 class BlockingDoubleInterruptComponent implements Component {
 	interruptsHandled = 0;

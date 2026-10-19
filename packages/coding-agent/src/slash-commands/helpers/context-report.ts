@@ -1,6 +1,6 @@
 import { computeSessionContextBreakdown } from "../../session/context-usage-runtime";
 import type { SlashCommandRuntime } from "../types";
-import { renderAsciiBar } from "@rva/tui/chrome/format";
+import { renderAsciiBar } from "@reverse/tui/chrome/format";
 
 /**
  * Build the `/context` ACP-mode text. Tries the rich breakdown first

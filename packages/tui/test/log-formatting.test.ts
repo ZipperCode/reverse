@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { formatDebugLogExpandedLines, parseDebugLogTimestampMs } from "@rva/tui/apps/debug/log-formatting";
-import { sanitizeDisplayText } from "@rva/tui/overlays/extensions/display-text";
-import { truncateToWidth } from "@rva/tui/utils";
+import { formatDebugLogExpandedLines, parseDebugLogTimestampMs } from "@reverse/tui/apps/debug/log-formatting";
+import { sanitizeDisplayText } from "@reverse/tui/overlays/extensions/display-text";
+import { truncateToWidth } from "@reverse/tui/utils";
 
 describe("log display text", () => {
 	it("strips ANSI codes and carriage returns", () => {

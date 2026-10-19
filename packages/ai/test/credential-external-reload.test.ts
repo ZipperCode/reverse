@@ -4,7 +4,7 @@ import {
 	type AuthCredentialStore,
 	AuthStorage,
 	type StoredAuthCredential,
-} from "@rva/ai/auth-storage";
+} from "@reverse/ai/auth-storage";
 
 /**
  * A session that is already running must see credentials another process

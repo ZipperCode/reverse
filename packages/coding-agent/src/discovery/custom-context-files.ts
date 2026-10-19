@@ -7,8 +7,8 @@
  * checkout, which the normal walk never reaches.
  */
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { getAgentDir } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { getAgentDir } from "@reverse/utils";
 import { boundSettings, registerProvider } from "../capability";
 import { type ContextFile, contextFileCapability } from "../capability/context-file";
 import { readFile } from "../capability/fs";

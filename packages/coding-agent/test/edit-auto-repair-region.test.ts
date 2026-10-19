@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { computeRepairRegion } from "@rva/coding-agent/edit/auto-repair";
+import { computeRepairRegion } from "@reverse/coding-agent/edit/auto-repair";
 
 /** `count` functions, blank-line separated so each edited return line is its own hunk. */
 function source(count: number, edit: (index: number) => string): string {

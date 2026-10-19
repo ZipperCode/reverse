@@ -48,4 +48,3 @@ export function resolveEffectiveLocale(configuredLanguage?: string | null): Supp
 	if (configuredLanguage) return normalizeLocale(configuredLanguage);
 	return DEFAULT_LOCALE;
 }
-

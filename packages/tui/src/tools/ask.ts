@@ -1,5 +1,5 @@
 import type { NativeToolHead, NativeToolView, ToolRenderer, ToolRenderResult } from "./renderer";
-import type { TspSpan } from "@rva/wire";
+import type { TspSpan } from "@reverse/wire";
 import { compact, md, node, row, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { OwnerMemo } from "../native/memo";

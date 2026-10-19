@@ -16,8 +16,8 @@ import {
 	classifyTerminalMultiplexer,
 	hasTerminalMultiplexerSession,
 	isInsideTerminalMultiplexer,
-} from "@rva/tui/terminal-capabilities";
-import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@rva/tui/terminal-multiplexer";
+} from "@reverse/tui/terminal-capabilities";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@reverse/tui/terminal-multiplexer";
 import { withFakeTmux } from "./helpers/fake-tmux";
 
 describe("hasTerminalMultiplexerSession", () => {
@@ -168,7 +168,7 @@ describe("tmux client terminal resolution", () => {
 				cmd: [
 					process.execPath,
 					"--eval",
-					`import { TERMINAL, TERMINAL_ID } from "@rva/tui/terminal-capabilities";
+					`import { TERMINAL, TERMINAL_ID } from "@reverse/tui/terminal-capabilities";
 console.log(JSON.stringify({ id: TERMINAL_ID, notifyProtocol: TERMINAL.notifyProtocol, imageProtocol: TERMINAL.imageProtocol }));`,
 				],
 				env: subprocessEnv({
@@ -352,7 +352,7 @@ describe("Warp terminal capabilities", () => {
 			cmd: [
 				process.execPath,
 				"--eval",
-				`import { ImageProtocol, TERMINAL, TERMINAL_ID } from "@rva/tui/terminal-capabilities";
+				`import { ImageProtocol, TERMINAL, TERMINAL_ID } from "@reverse/tui/terminal-capabilities";
 console.log(JSON.stringify({ id: TERMINAL_ID, imageProtocol: TERMINAL.imageProtocol, expected: ImageProtocol.Kitty }));`,
 			],
 			env,
@@ -488,7 +488,7 @@ describe("otty terminal capabilities", () => {
 			cmd: [
 				process.execPath,
 				"--eval",
-				`import { ImageProtocol, TERMINAL, TERMINAL_ID } from "@rva/tui/terminal-capabilities";
+				`import { ImageProtocol, TERMINAL, TERMINAL_ID } from "@reverse/tui/terminal-capabilities";
 console.log(JSON.stringify({ id: TERMINAL_ID, imageProtocol: TERMINAL.imageProtocol, expected: ImageProtocol.Kitty }));`,
 			],
 			env,
@@ -581,7 +581,7 @@ describe("Paseo embedder carve-out", () => {
 			cmd: [
 				process.execPath,
 				"--eval",
-				`import { ImageProtocol, TERMINAL, TERMINAL_ID } from "@rva/tui/terminal-capabilities";
+				`import { ImageProtocol, TERMINAL, TERMINAL_ID } from "@reverse/tui/terminal-capabilities";
 console.log(JSON.stringify({ id: TERMINAL_ID, imageProtocol: TERMINAL.imageProtocol, expected: ImageProtocol.Kitty }));`,
 			],
 			env,
@@ -610,7 +610,7 @@ console.log(JSON.stringify({ id: TERMINAL_ID, imageProtocol: TERMINAL.imageProto
 			cmd: [
 				process.execPath,
 				"--eval",
-				`import { ImageProtocol, TERMINAL, TERMINAL_ID } from "@rva/tui/terminal-capabilities";
+				`import { ImageProtocol, TERMINAL, TERMINAL_ID } from "@reverse/tui/terminal-capabilities";
 console.log(JSON.stringify({ id: TERMINAL_ID, imageProtocol: TERMINAL.imageProtocol, expected: ImageProtocol.Kitty }));`,
 			],
 			env,

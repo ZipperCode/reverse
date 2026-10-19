@@ -5,11 +5,11 @@
  * providers with provider-specific parameters exposed conditionally.
  */
 
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@rva/agent";
-import type { Api, AuthStorage, Model } from "@rva/ai";
-import { modelKind } from "@rva/catalog/types";
-import { formatAge, formatCount, prompt, truncate } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
+import type { Api, AuthStorage, Model } from "@reverse/ai";
+import { modelKind } from "@reverse/catalog/types";
+import { formatAge, formatCount, prompt, truncate } from "@reverse/utils";
 import { ModelRegistry } from "../../config/model-registry";
 import { type RoleChainCandidate, resolveModelRoleValue, resolveRoleChain } from "../../config/model-resolver";
 import { roleCandidatePool } from "../../config/model-roles";

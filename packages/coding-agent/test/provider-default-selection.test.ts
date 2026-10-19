@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import type { Api, Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { fetchCursorUsableModels } from "@rva/catalog/discovery/cursor";
+import type { Api, Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { fetchCursorUsableModels } from "@reverse/catalog/discovery/cursor";
 import {
 	AvailableModelsResponse_ModelDetailsSchema,
 	AvailableModelsResponseSchema,
 	GetDefaultModelForCliResponseSchema,
 	GetUsableModelsResponseSchema,
 	ModelDetailsSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { fetchDevinModels } from "@rva/catalog/discovery/devin";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { fetchDevinModels } from "@reverse/catalog/discovery/devin";
 import {
 	type ClientModelConfig,
 	ClientModelConfigSchema,
@@ -18,11 +18,11 @@ import {
 	ModelFamilyMetadataEntrySchema,
 	ModelFamilyMetadataSchema,
 	ModelFamilyMetadataValueSchema,
-} from "@rva/catalog/discovery/devin-proto";
-import { create, toBinary } from "@rva/catalog/discovery/protobuf";
-import { getBundledModel, getBundledModels } from "@rva/catalog/models";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@rva/catalog/provider-models";
-import { pickDefaultAvailableModel } from "@rva/coding-agent/config/model-resolver";
+} from "@reverse/catalog/discovery/devin-proto";
+import { create, toBinary } from "@reverse/catalog/discovery/protobuf";
+import { getBundledModel, getBundledModels } from "@reverse/catalog/models";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@reverse/catalog/provider-models";
+import { pickDefaultAvailableModel } from "@reverse/coding-agent/config/model-resolver";
 
 /** One `GetCliModelConfigs` row; `effort` files it as a lane of a server-declared family. */
 function devinConfig(

@@ -5,8 +5,8 @@
  * are joined here at render time — the same seam as {@link snapshotMcpRuntime}.
  */
 import * as path from "node:path";
-import { arkToWireSchema, isArkSchema } from "@rva/ai/utils/schema";
-import { normalizePathForComparison, parseFrontmatter } from "@rva/utils";
+import { arkToWireSchema, isArkSchema } from "@reverse/ai/utils/schema";
+import { normalizePathForComparison, parseFrontmatter } from "@reverse/utils";
 import {
 	sanitizeDisplayField,
 	sanitizeDisplayLine,

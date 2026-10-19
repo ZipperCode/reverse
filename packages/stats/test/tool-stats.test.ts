@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getToolDashboardStats, syncAllSessions } from "@rva/stats/aggregator";
-import { getFrustrationByModel, getRecentRequests, initDb, setFileOffset } from "@rva/stats/db";
-import { getToolStats, getToolStatsByModel } from "@rva/stats/rollup";
-import { parseSessionFile } from "@rva/stats/parser";
-import type { ToolUsageStats } from "@rva/stats/types";
-import { getSessionsDir } from "@rva/utils";
+import { getToolDashboardStats, syncAllSessions } from "@reverse/stats/aggregator";
+import { getFrustrationByModel, getRecentRequests, initDb, setFileOffset } from "@reverse/stats/db";
+import { getToolStats, getToolStatsByModel } from "@reverse/stats/rollup";
+import { parseSessionFile } from "@reverse/stats/parser";
+import type { ToolUsageStats } from "@reverse/stats/types";
+import { getSessionsDir } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-tool-stats-");

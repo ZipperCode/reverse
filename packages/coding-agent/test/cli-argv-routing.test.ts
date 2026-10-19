@@ -5,10 +5,10 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { resolveCliArgv } from "@rva/coding-agent/cli-commands";
-import { APP_NAME } from "@rva/utils/dirs";
-import { CliUsageError } from "@rva/utils/cli";
-import { runSkillCommand, type SkillAction } from "@rva/coding-agent/cli/skill-cli";
+import { resolveCliArgv } from "@reverse/coding-agent/cli-commands";
+import { APP_NAME } from "@reverse/utils/dirs";
+import { CliUsageError } from "@reverse/utils/cli";
+import { runSkillCommand, type SkillAction } from "@reverse/coding-agent/cli/skill-cli";
 
 describe("resolveCliArgv routes subcommands hidden behind leading global flags", () => {
 	test("`--approval-mode=yolo acp` dispatches the acp subcommand with the flag preserved", () => {

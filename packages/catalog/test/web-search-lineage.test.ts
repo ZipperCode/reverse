@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import type { Api, ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import type { Api, ModelSpec } from "@reverse/catalog/types";
 
 function proxyModel(id: string, api: Api): ModelSpec<Api> {
 	return {

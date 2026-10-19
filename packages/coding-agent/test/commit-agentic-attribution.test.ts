@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getBundledModel } from "@rva/catalog/models";
-import { runCommitAgentSession } from "@rva/coding-agent/commit/agentic/agent";
-import * as toolsModule from "@rva/coding-agent/commit/agentic/tools";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { PromptOptions } from "@rva/coding-agent/session/agent-session";
+import { getBundledModel } from "@reverse/catalog/models";
+import { runCommitAgentSession } from "@reverse/coding-agent/commit/agentic/agent";
+import * as toolsModule from "@reverse/coding-agent/commit/agentic/tools";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { PromptOptions } from "@reverse/coding-agent/session/agent-session";
 
 describe("commit agent prompt attribution", () => {
 	afterEach(() => {

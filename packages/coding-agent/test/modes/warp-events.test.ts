@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import * as terminalCapabilities from "@rva/tui/terminal-capabilities";
-import { VERSION } from "@rva/utils/dirs";
+import * as terminalCapabilities from "@reverse/tui/terminal-capabilities";
+import { VERSION } from "@reverse/utils/dirs";
 import type {
 	AgentEndEvent,
 	AgentStartEvent,

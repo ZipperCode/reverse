@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai";
-import { refreshStoredManagedMcpOAuthCredential } from "@rva/coding-agent/mcp/oauth-credentials";
-import type { MCPStoredOAuthCredential } from "@rva/coding-agent/mcp/oauth-flow";
-import { TempDir } from "@rva/utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai";
+import { refreshStoredManagedMcpOAuthCredential } from "@reverse/coding-agent/mcp/oauth-credentials";
+import type { MCPStoredOAuthCredential } from "@reverse/coding-agent/mcp/oauth-flow";
+import { TempDir } from "@reverse/utils";
 
 /** Capture the `resource` form field of the single refresh_token grant a helper call makes. */
 async function captureRefreshResource(

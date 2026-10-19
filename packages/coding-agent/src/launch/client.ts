@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { IpcConnection } from "@rva/natives";
-import { getGlobalDaemonRuntimeDir, isEexist, isEnoent, logger, postmortem } from "@rva/utils";
+import { IpcConnection } from "@reverse/natives";
+import { getGlobalDaemonRuntimeDir, isEexist, isEnoent, logger, postmortem } from "@reverse/utils";
 import { resolveWorkerSpawnCmd, workerEnvFromParent } from "../subprocess/worker-client";
 import { canonicalProjectDir, daemonBrokerEndpoint, daemonRuntimeDir } from "./paths";
 import {

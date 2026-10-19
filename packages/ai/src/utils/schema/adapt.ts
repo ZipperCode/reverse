@@ -1,4 +1,4 @@
-import { $flag } from "@rva/utils";
+import { $flag } from "@reverse/utils";
 import { upgradeJsonSchemaTo202012 } from "./draft";
 import { tryEnforceStrictSchema } from "./normalize";
 

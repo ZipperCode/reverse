@@ -1,4 +1,4 @@
-import type { FetchImpl, Usage } from "@rva/catalog/types";
+import type { FetchImpl, Usage } from "@reverse/catalog/types";
 import type { ApiKey } from "../auth-retry";
 
 export const SPEECH_FORMATS = ["mp3", "wav", "pcm", "opus", "aac", "flac"] as const;

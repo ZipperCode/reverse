@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 // Regression: a caller disabling reasoning (titles, tiny roles) sent Ollama the
 // lowest ladder effort "low", which Gemma 4 still thinks at (12-19 s per title).

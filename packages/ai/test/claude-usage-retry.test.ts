@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchContext } from "@rva/ai/usage";
-import { claudeUsageProvider } from "@rva/ai/usage/claude";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchContext } from "@reverse/ai/usage";
+import { claudeUsageProvider } from "@reverse/ai/usage/claude";
 
 const VALID_PAYLOAD = {
 	five_hour: { utilization: 42, resets_at: new Date(Date.now() + 5 * 60_000).toISOString() },

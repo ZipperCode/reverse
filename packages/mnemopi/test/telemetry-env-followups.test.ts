@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BeamMemory } from "@rva/mnemopi/core/beam";
+import { BeamMemory } from "@reverse/mnemopi/core/beam";
 
 const roots: string[] = [];
 

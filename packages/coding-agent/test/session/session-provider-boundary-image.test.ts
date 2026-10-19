@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Api, ImageContent, Model } from "@rva/ai";
-import type { ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { Api, ImageContent, Model } from "@reverse/ai";
+import type { ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	SessionProviderBoundary,
 	type SessionProviderBoundaryHost,
-} from "@rva/coding-agent/session/session-provider-boundary";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/session/session-provider-boundary";
+import { removeWithRetries } from "@reverse/utils";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";

@@ -17,7 +17,7 @@
  * @see ../../docs/extension-loading.md
  */
 import * as path from "node:path";
-import { logger, parseFrontmatter, tryParseJson } from "@rva/utils";
+import { logger, parseFrontmatter, tryParseJson } from "@reverse/utils";
 import { registerProvider } from "../capability";
 import { readDirEntries, readFile } from "../capability/fs";
 import { type Hook, hookCapability } from "../capability/hook";

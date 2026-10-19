@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadSlashCommands } from "@rva/coding-agent/extensibility/slash-commands";
+import { loadSlashCommands } from "@reverse/coding-agent/extensibility/slash-commands";
 
 describe("loadSlashCommands argument-hint", () => {
 	test("parses argument-hint frontmatter into FileSlashCommand.argumentHint", async () => {

@@ -7,9 +7,9 @@
 // `transformMessages` is the canonical sanitize boundary every provider passes
 // through, so the defensive filter lives there.
 import { describe, expect, it } from "bun:test";
-import { transformMessages } from "@rva/ai/providers/transform-messages";
-import type { AssistantMessage, Message, Model, ToolCall, ToolResultMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { transformMessages } from "@reverse/ai/providers/transform-messages";
+import type { AssistantMessage, Message, Model, ToolCall, ToolResultMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const model: Model<"anthropic-messages"> = buildModel({
 	api: "anthropic-messages",

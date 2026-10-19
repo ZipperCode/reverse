@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { TreeSelectorComponent } from "@rva/tui/overlays/tree-selector";
-import * as themeModule from "@rva/tui/theme";
-import type { SessionTreeNode } from "@rva/coding-agent/session/session-entries";
+import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
+import * as themeModule from "@reverse/tui/theme";
+import type { SessionTreeNode } from "@reverse/coding-agent/session/session-entries";
 
 interface AdvisorNoteFixture {
 	note: string;

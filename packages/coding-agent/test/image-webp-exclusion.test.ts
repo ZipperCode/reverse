@@ -1,15 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { Api, Message, Model } from "@rva/ai";
-import { buildResponsesInput } from "@rva/ai/providers/openai-shared";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModels } from "@rva/catalog/models";
-import type { CustomMessage } from "@rva/coding-agent/session/messages";
-import { SessionProviderBoundary } from "@rva/coding-agent/session/session-provider-boundary";
-import {
-	normalizeModelContextImages,
-	normalizeModelContextMessages,
-} from "@rva/coding-agent/utils/image-loading";
-import { modelLacksWebpSupport, webpExclusionForModel } from "@rva/tui/chat/image-loading";
+import type { Api, Message, Model } from "@reverse/ai";
+import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModels } from "@reverse/catalog/models";
+import type { CustomMessage } from "@reverse/coding-agent/session/messages";
+import { SessionProviderBoundary } from "@reverse/coding-agent/session/session-provider-boundary";
+import { normalizeModelContextImages, normalizeModelContextMessages } from "@reverse/coding-agent/utils/image-loading";
+import { modelLacksWebpSupport, webpExclusionForModel } from "@reverse/tui/chat/image-loading";
 
 // 1x1 red PNG seed, upscaled + re-encoded as WebP at test time so no binary
 // fixture is checked in. Bun.Image sniffs format from bytes.

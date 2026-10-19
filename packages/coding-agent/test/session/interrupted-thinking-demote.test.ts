@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { demoteInterruptedThinking } from "@rva/coding-agent/session/messages";
+import type { AssistantMessage } from "@reverse/ai";
+import { demoteInterruptedThinking } from "@reverse/coding-agent/session/messages";
 
 function demoteContent(content: AssistantMessage["content"]) {
 	return demoteInterruptedThinking({ content });

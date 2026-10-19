@@ -10,13 +10,13 @@
 
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { Usage } from "@rva/ai";
+import type { Usage } from "@reverse/ai";
 import {
 	RedisSessionStorage,
 	type RedisSessionStorageClient,
-} from "@rva/coding-agent/session/redis-session-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { SessionWriteConflictError } from "@rva/coding-agent/session/session-storage";
+} from "@reverse/coding-agent/session/redis-session-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { SessionWriteConflictError } from "@reverse/coding-agent/session/session-storage";
 
 interface FakeRedis extends RedisSessionStorageClient {
 	strings: Map<string, string>;

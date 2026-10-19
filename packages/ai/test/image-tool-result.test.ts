@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type { Api, Context, Model, Tool, ToolResultMessage } from "@rva/ai";
-import { complete } from "@rva/ai";
-import type { OptionsForApi } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { type } from "@reverse/omptype";
+import type { Api, Context, Model, Tool, ToolResultMessage } from "@reverse/ai";
+import { complete } from "@reverse/ai";
+import type { OptionsForApi } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 import { e2eApiKey, resolveApiKey } from "./oauth";
 
 // Resolve OAuth tokens at module level (async, runs before tests)

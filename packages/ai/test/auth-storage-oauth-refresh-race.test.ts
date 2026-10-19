@@ -8,8 +8,8 @@ import {
 	type CredentialDisabledEvent,
 	SqliteAuthCredentialStore,
 	type StoredAuthCredential,
-} from "@rva/ai/auth-storage";
-import * as oauthUtils from "@rva/ai/registry/oauth";
+} from "@reverse/ai/auth-storage";
+import * as oauthUtils from "@reverse/ai/registry/oauth";
 import { removeWithRetries } from "../../utils/src/temp";
 import { withEnv } from "./helpers";
 

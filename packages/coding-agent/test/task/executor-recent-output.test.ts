@@ -16,17 +16,17 @@
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import type { AssistantMessage, TextContent } from "@rva/ai";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { runSubprocess } from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import { TRUNCATE_LENGTHS } from "@rva/tui/render/render-utils";
-import type { AgentProgress } from "@rva/tui/tools/task";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
+import type { AssistantMessage, TextContent } from "@reverse/ai";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { runSubprocess } from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import { TRUNCATE_LENGTHS } from "@reverse/tui/render/render-utils";
+import type { AgentProgress } from "@reverse/tui/tools/task";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 const TAIL_BYTES = 8 * 1024;

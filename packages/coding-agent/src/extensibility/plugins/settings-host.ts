@@ -1,4 +1,4 @@
-import type { PluginSettingsHost } from "@rva/tui/overlays/plugin-settings";
+import type { PluginSettingsHost } from "@reverse/tui/overlays/plugin-settings";
 import { clearPluginRootsAndCaches, resolveOrDefaultProjectRegistryPath } from "../../discovery/helpers";
 import { PluginManager } from "./manager";
 import {

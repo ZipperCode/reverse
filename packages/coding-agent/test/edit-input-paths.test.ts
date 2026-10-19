@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { getEditInputPaths } from "@rva/tui/tools/edit";
+import { getEditInputPaths } from "@reverse/tui/tools/edit";
 
 it("keeps apply-patch targets when unchanged source contains a sloppy marker", () => {
 	const input = "*** Begin Patch\n*** Update File: target.txt\n@@\n <SM: example>\n-old\n+new\n*** End Patch";

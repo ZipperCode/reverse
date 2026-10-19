@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { Api, AuthStorage, Model } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { runSearchQuery } from "@rva/coding-agent/web/search";
-import * as provider from "@rva/coding-agent/web/search/provider";
-import { SearchProvider } from "@rva/coding-agent/web/search/provider";
-import type { SearchParams } from "@rva/coding-agent/web/search/providers/base";
-import type { SearchResponse } from "@rva/coding-agent/web/search/types";
+import type { Api, AuthStorage, Model } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { runSearchQuery } from "@reverse/coding-agent/web/search";
+import * as provider from "@reverse/coding-agent/web/search/provider";
+import { SearchProvider } from "@reverse/coding-agent/web/search/provider";
+import type { SearchParams } from "@reverse/coding-agent/web/search/providers/base";
+import type { SearchResponse } from "@reverse/coding-agent/web/search/types";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 /** Records each attempted `provider/id` and fails so the chain keeps walking. */

@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai";
 import {
 	type AuthBrokerServerHandle,
 	readAuthBrokerSnapshotCache,
 	type SnapshotResponse,
 	startAuthBroker,
 	writeAuthBrokerSnapshotCache,
-} from "@rva/ai/auth-broker";
-import { discoverAuthStorage } from "@rva/coding-agent/sdk";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/ai/auth-broker";
+import { discoverAuthStorage } from "@reverse/coding-agent/sdk";
+import { removeWithRetries } from "@reverse/utils";
 
 const ENV_KEYS = [
 	"OMP_AUTH_BROKER_URL",

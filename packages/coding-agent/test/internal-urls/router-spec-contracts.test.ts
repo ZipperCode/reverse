@@ -2,16 +2,16 @@ import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	type InternalResource,
 	InternalUrlRouter,
 	type ProtocolHandler,
 	type SchemeSpec,
-} from "@rva/coding-agent/internal-urls";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { resolveApproval } from "@rva/coding-agent/tools/approval";
-import { WriteTool } from "@rva/coding-agent/tools/write";
+} from "@reverse/coding-agent/internal-urls";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { resolveApproval } from "@reverse/coding-agent/tools/approval";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
 
 const resolveNothing = async (): Promise<InternalResource> => {
 	throw new Error("fixture:// never resolves");

@@ -11,9 +11,9 @@ import type {
 	Context,
 	Model,
 	SimpleStreamOptions,
-} from "@rva/ai";
-import { runBenchCommand } from "@rva/coding-agent/cli/bench-cli";
-import type { BenchModelRegistry } from "@rva/coding-agent/cli/bench-runtime";
+} from "@reverse/ai";
+import { runBenchCommand } from "@reverse/coding-agent/cli/bench-cli";
+import type { BenchModelRegistry } from "@reverse/coding-agent/cli/bench-runtime";
 
 const model = {
 	provider: "openai",

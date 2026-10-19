@@ -16,7 +16,7 @@ import {
 	type AgentTelemetryConfig,
 	recordJudgmentTelemetry,
 	resolveTelemetry,
-} from "@rva/agent";
+} from "@reverse/agent";
 import {
 	type Answer,
 	type AssistantMessage,
@@ -40,12 +40,12 @@ import {
 	TYPESAFE_PROVIDER,
 	tokenUsage,
 	type Usage,
-} from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { isEmbeddedImageContent } from "@rva/ai/images/shared";
-import { sendsImageInputOnWire } from "@rva/ai/providers/vision-guard";
-import { calculateCost } from "@rva/catalog/models";
-import { logger, prompt } from "@rva/utils";
+} from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { isEmbeddedImageContent } from "@reverse/ai/images/shared";
+import { sendsImageInputOnWire } from "@reverse/ai/providers/vision-guard";
+import { calculateCost } from "@reverse/catalog/models";
+import { logger, prompt } from "@reverse/utils";
 import { normalizeModelContextImages } from "../utils/image-loading";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelStringWithRouting, resolveRoleChain, type RoleChainCandidate } from "../config/model-resolver";

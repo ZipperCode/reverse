@@ -10,11 +10,11 @@
  * `--config` overlay, a project config in global mode, or the global config in
  * project mode) are reported back instead of being silently kept.
  */
-import type { Model } from "@rva/ai";
-import { ThinkingLevel } from "@rva/agent";
-import { THINKING_EFFORTS } from "@rva/catalog/effort";
-import { AUTO_THINKING, type ConfiguredThinkingLevel, parseConfiguredThinkingLevel } from "@rva/tui/thinking";
-import { isRecord } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import { ThinkingLevel } from "@reverse/agent";
+import { THINKING_EFFORTS } from "@reverse/catalog/effort";
+import { AUTO_THINKING, type ConfiguredThinkingLevel, parseConfiguredThinkingLevel } from "@reverse/tui/thinking";
+import { isRecord } from "@reverse/utils";
 import type { AgentSession } from "../session/agent-session";
 import { cfgDefaultThinkingLevel } from "../session/settings";
 import { pickDefaultAvailableModel, resolveModelRoleValue } from "./model-resolver";

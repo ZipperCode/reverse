@@ -2,19 +2,16 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type {
-	ExtensionAgentIdentity,
-	ExtensionFactory,
-} from "@rva/coding-agent/extensibility/extensions/types";
-import { type CreateAgentSessionOptions, createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import * as sessionAdvisors from "@rva/coding-agent/session/session-advisors";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { Snowflake } from "@rva/utils";
+import type { AgentTool } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionAgentIdentity, ExtensionFactory } from "@reverse/coding-agent/extensibility/extensions/types";
+import { type CreateAgentSessionOptions, createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import * as sessionAdvisors from "@reverse/coding-agent/session/session-advisors";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { Snowflake } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // Extensions need to know which agent they run in: the same factory is rebound to every

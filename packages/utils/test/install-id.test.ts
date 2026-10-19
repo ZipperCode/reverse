@@ -9,8 +9,8 @@ import {
 	getInstallId,
 	setAgentDir,
 	setProfile,
-} from "@rva/utils/dirs";
-import { Snowflake } from "@rva/utils/snowflake";
+} from "@reverse/utils/dirs";
+import { Snowflake } from "@reverse/utils/snowflake";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

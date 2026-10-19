@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
-import { TempDir } from "@rva/utils/temp";
+import { TempDir } from "@reverse/utils/temp";
 import { createJsonParsePlugin } from "../scripts/json-parse-plugin";
 
 describe("large JSON build assets", () => {

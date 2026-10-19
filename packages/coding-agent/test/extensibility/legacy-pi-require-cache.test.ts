@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 
 const probePath = path.resolve(import.meta.dir, "../fixtures/legacy-pi-require-cache-clear-probe.ts");
 const tempDirs: TempDir[] = [];

@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentTool } from "@rva/agent";
-import { Text } from "@rva/tui";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { initTheme } from "@rva/tui/theme";
-import type { XdevMountedRenderer, XdevMountedState } from "@rva/tui/tools/xdev";
+import type { AgentTool } from "@reverse/agent";
+import { Text } from "@reverse/tui";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { initTheme } from "@reverse/tui/theme";
+import type { XdevMountedRenderer, XdevMountedState } from "@reverse/tui/tools/xdev";
 
 /**
  * A `write xd://<tool>` card renders with the dispatched tool's own renderer,

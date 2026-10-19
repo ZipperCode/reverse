@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { LoadExtensionsResult } from "@rva/coding-agent/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { formatResultOutputFallback } from "@rva/coding-agent/task";
-import { runSubprocess } from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { LoadExtensionsResult } from "@reverse/coding-agent/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { formatResultOutputFallback } from "@reverse/coding-agent/task";
+import { runSubprocess } from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 /**

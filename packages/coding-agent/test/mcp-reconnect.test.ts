@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { createMCPJsonRpcError, MCPTransportError } from "@rva/coding-agent/mcp/errors";
-import type { MCPReconnect } from "@rva/coding-agent/mcp/tool-bridge";
+import { createMCPJsonRpcError, MCPTransportError } from "@reverse/coding-agent/mcp/errors";
+import type { MCPReconnect } from "@reverse/coding-agent/mcp/tool-bridge";
 import {
 	createLegacyMCPToolName,
 	createMCPToolName,
@@ -8,11 +8,11 @@ import {
 	deduplicateMCPToolsByName,
 	isRetriableConnectionError,
 	MCPTool,
-} from "@rva/coding-agent/mcp/tool-bridge";
-import type { MCPImageContent } from "@rva/tui/tools/mcp";
-import type { MCPServerConnection, MCPToolCallResult, MCPTransport } from "@rva/coding-agent/mcp/types";
-import { ToolAbortError } from "@rva/coding-agent/tools/tool-errors";
-import { logger } from "@rva/utils";
+} from "@reverse/coding-agent/mcp/tool-bridge";
+import type { MCPImageContent } from "@reverse/tui/tools/mcp";
+import type { MCPServerConnection, MCPToolCallResult, MCPTransport } from "@reverse/coding-agent/mcp/types";
+import { ToolAbortError } from "@reverse/coding-agent/tools/tool-errors";
+import { logger } from "@reverse/utils";
 
 // ---------------------------------------------------------------------------
 // Helpers

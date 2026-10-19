@@ -16,11 +16,11 @@
  * using the judge the omp host registered through `startServer`. Standalone
  * `omp-stats` has none and only shows the regex fallback.
  */
-import { type Judge, judgeQuestions, type Model } from "@rva/ai";
-import { compareRevision, parseRevision } from "@rva/catalog/compat/revision";
-import { classifyModel } from "@rva/catalog/compat/taxonomy";
-import { getEffectiveTokenCost } from "@rva/catalog/models";
-import { logger } from "@rva/utils";
+import { type Judge, judgeQuestions, type Model } from "@reverse/ai";
+import { compareRevision, parseRevision } from "@reverse/catalog/compat/revision";
+import { classifyModel } from "@reverse/catalog/compat/taxonomy";
+import { getEffectiveTokenCost } from "@reverse/catalog/models";
+import { logger } from "@reverse/utils";
 import { getTimeRangeConfig } from "./aggregator";
 import {
 	type FrustrationModelRow,

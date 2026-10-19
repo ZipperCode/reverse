@@ -2,17 +2,17 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock,
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@rva/ai";
-import { closeModelCache } from "@rva/catalog/model-cache";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import type { MCPStdioServerConfig } from "@rva/coding-agent/mcp/types";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
-import { getAgentDir, setAgentDir } from "@rva/utils/dirs";
+import { AuthStorage } from "@reverse/ai";
+import { closeModelCache } from "@reverse/catalog/model-cache";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import type { MCPStdioServerConfig } from "@reverse/coding-agent/mcp/types";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
+import { getAgentDir, setAgentDir } from "@reverse/utils/dirs";
 import {
 	BOUNDED_GUIDANCE_MODE,
 	BOUNDED_GUIDANCE_TOOL_COUNT,

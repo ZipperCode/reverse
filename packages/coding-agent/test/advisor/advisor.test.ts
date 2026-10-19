@@ -1,21 +1,21 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import { type AgentMessage, type AgentTelemetryConfig, Tokenizer } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import { type AgentMessage, type AgentTelemetryConfig, Tokenizer } from "@reverse/agent";
 import {
 	buildOpenAiNativeHistory,
 	createCompactionSummaryMessage,
 	defaultConvertToLlm,
-} from "@rva/agent/compaction";
-import type { AssistantMessage, ToolResultMessage } from "@rva/ai";
+} from "@reverse/agent/compaction";
+import type { AssistantMessage, ToolResultMessage } from "@reverse/ai";
 import type {
 	ResponseFileSearchToolCall,
 	ResponseFunctionWebSearch,
 	ResponseInput,
 	ResponseToolSearchOutputItemParam,
-} from "@rva/ai/providers/openai-responses-wire";
-import { buildResponsesInput } from "@rva/ai/providers/openai-shared";
-import * as AIError from "@rva/ai/error";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/ai/providers/openai-responses-wire";
+import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
+import * as AIError from "@reverse/ai/error";
+import { getBundledModel } from "@reverse/catalog/models";
 import {
 	AdviseTool,
 	type AdvisorAgent,
@@ -36,8 +36,8 @@ import {
 	quarantineAdvisorUnsafeOutput,
 	resolveAdvisorDeliveryChannel,
 } from "../../src/advisor";
-import { createAdvisorMessageCard } from "@rva/tui/chat/advisor-message";
-import { getThemeByName } from "@rva/tui/theme";
+import { createAdvisorMessageCard } from "@reverse/tui/chat/advisor-message";
+import { getThemeByName } from "@reverse/tui/theme";
 import { obfuscateMessages } from "../../src/secrets/message-transform";
 import { SecretObfuscator } from "../../src/secrets/obfuscator";
 import { getOpenAiRemoteCompactionPayload } from "../../src/session/session-context";

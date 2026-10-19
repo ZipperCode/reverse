@@ -8,7 +8,7 @@ import { embeddedAddon } from "./embedded-addon.js";
 import { bindingsHaveReleaseIdentity, bindingsReleaseVersion, containsVersionStamp } from "./version-sentinel.js";
 
 /**
- * Native addon loader for `@rva/natives`.
+ * Native addon loader for `@reverse/natives`.
  *
  * Owns every step between "Node imports `native/index.js`" and "the right
  * `pi_natives.<platform>-<arch>*.node` is required, validated, and returned":
@@ -74,7 +74,7 @@ function getNativesDir() {
 function resolveLeafPackageDir(platformTag) {
 	try {
 		const require_ = createRequire(import.meta.url);
-		return path.dirname(require_.resolve(`@rva/natives-${platformTag}/package.json`));
+		return path.dirname(require_.resolve(`@reverse/natives-${platformTag}/package.json`));
 	} catch {
 		return null;
 	}
@@ -123,7 +123,7 @@ export function getAddonFilenames({ tag, arch, variant }) {
  *
  * Windows-only safety net for `bun install -g` updates: when a previous `rva`
  * process is running, bun cannot overwrite the locked `.node` inside
- * `node_modules/@rva/natives/native/`, leaving an old binary next to a
+ * `node_modules/@reverse/natives/native/`, leaving an old binary next to a
  * newer `index.js` and producing `<sym> is not a function` crashes on the next
  * launch. Staging into the version-pinned cache:
  *   1. Gives every package version its own filesystem path, so concurrent rva
@@ -622,14 +622,14 @@ export function validateLoadedBindings(ctx, bindings, candidate) {
 	if (isCompatiblePreSentinelNativeAddon(bindings, diskHasExpectedStamp)) return;
 	if (residentVersion && diskHasExpectedStamp) {
 		throw new Error(
-			`Loaded ${candidate}, which reports @rva/natives@${residentVersion}, but this loader is ` +
+			`Loaded ${candidate}, which reports @reverse/natives@${residentVersion}, but this loader is ` +
 				`@${ctx.packageVersion}. rva was upgraded to ${ctx.packageVersion} while this session was running; ` +
 				`the ${residentVersion} addon is still resident in this process. Disk is already consistent — ` +
 				`restart rva to pick up ${ctx.packageVersion} (reinstalling changes nothing).`,
 		);
 	}
 	throw new Error(
-		`Loaded ${candidate} but it reports ${residentVersion ? `@rva/natives@${residentVersion}` : "no release version"}, ` +
+		`Loaded ${candidate} but it reports ${residentVersion ? `@reverse/natives@${residentVersion}` : "no release version"}, ` +
 			`not the @${ctx.packageVersion} this loader expects. The .node file on disk is from a different ` +
 			"release than this loader — reinstall to re-sync.",
 	);
@@ -660,7 +660,7 @@ function describeLoadedAddon(bindings, candidate, ctx) {
 }
 
 /**
- * The addon behind this process's `@rva/natives` exports.
+ * The addon behind this process's `@reverse/natives` exports.
  * @returns {{ path: string; version: string | null; packageVersion: string; stale: boolean } | null}
  */
 export function nativeAddonStatus() {
@@ -702,15 +702,15 @@ export function missingNativeExport(symbolName, addon = loadedAddon) {
  */
 export function missingNativeExportMessage(symbolName, addon = loadedAddon) {
 	const rebuild = "rebuild it with `bun run build:native`";
-	if (!addon) return `@rva/natives does not export \`${symbolName}\`; ${rebuild}.`;
+	if (!addon) return `@reverse/natives does not export \`${symbolName}\`; ${rebuild}.`;
 	if (!addon.stale) {
-		return `@rva/natives export \`${symbolName}\` is missing from ${addon.path}; ${rebuild}.`;
+		return `@reverse/natives export \`${symbolName}\` is missing from ${addon.path}; ${rebuild}.`;
 	}
 	const loaded = addon.version
-		? `the @rva/natives@${addon.version} addon`
+		? `the @reverse/natives@${addon.version} addon`
 		: "an addon without a release stamp";
 	return (
-		`@rva/natives export \`${symbolName}\` is missing: ${addon.path} is ${loaded}, not ` +
+		`@reverse/natives export \`${symbolName}\` is missing: ${addon.path} is ${loaded}, not ` +
 		`@${addon.packageVersion} — ${rebuild}.`
 	);
 }

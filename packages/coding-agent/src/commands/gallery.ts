@@ -2,7 +2,7 @@
  * Render every built-in tool's renderer across its lifecycle states.
  */
 
-import { Command, Flags } from "@rva/utils/cli";
+import { Command, Flags } from "@reverse/utils/cli";
 import { galleryHelp as commandHelp } from "../cli/command-help";
 import {
 	GALLERY_STATE_TOKENS,

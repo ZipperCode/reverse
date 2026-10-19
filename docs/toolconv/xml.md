@@ -160,7 +160,7 @@ Visible prose may appear before or between unwrapped invokes. Inside a recognize
 A direct API consumer can request DSML parsing:
 
 ```ts
-import { createInbandScanner } from "@rva/ai/dialect";
+import { createInbandScanner } from "@reverse/ai/dialect";
 
 const scanner = createInbandScanner("xml", {
   xmlTagset: "dsml",

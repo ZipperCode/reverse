@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentTool, type AsideMessage } from "@rva/agent";
-import type { AssistantMessage, TextContent, ToolCall } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import type { CustomMessage } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TodoTool, type ToolSession } from "@rva/coding-agent/tools";
-import { TempDir } from "@rva/utils";
+import { Agent, type AgentTool, type AsideMessage } from "@reverse/agent";
+import type { AssistantMessage, TextContent, ToolCall } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import type { CustomMessage } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TodoTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /**

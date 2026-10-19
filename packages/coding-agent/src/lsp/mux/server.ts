@@ -1,5 +1,5 @@
-import { type IpcConnection, IpcServer } from "@rva/natives";
-import { isRecord, logger, postmortem, ptree, setProcessName } from "@rva/utils";
+import { type IpcConnection, IpcServer } from "@reverse/natives";
+import { isRecord, logger, postmortem, ptree, setProcessName } from "@reverse/utils";
 import { encodeMessageFrame, MessageFramer } from "../../jsonrpc/message-framing";
 import type { LspJsonRpcId, LspJsonRpcNotification, LspJsonRpcRequest, LspJsonRpcResponse } from "../types";
 import {

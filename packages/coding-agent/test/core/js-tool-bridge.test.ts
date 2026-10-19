@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { callSessionTool } from "@rva/coding-agent/eval/js/tool-bridge";
-import type { EvalShadowCellSession } from "@rva/coding-agent/eval/speculation/cell-session";
-import { type TodoPhase } from "@rva/tui/tools/todo";
-import { TodoTool, type ToolSession } from "@rva/coding-agent/tools";
-import { INTENT_FIELD } from "@rva/wire";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { callSessionTool } from "@reverse/coding-agent/eval/js/tool-bridge";
+import type { EvalShadowCellSession } from "@reverse/coding-agent/eval/speculation/cell-session";
+import { type TodoPhase } from "@reverse/tui/tools/todo";
+import { TodoTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { INTENT_FIELD } from "@reverse/wire";
 
 function createTool(name: string, execute: AgentTool["execute"]): AgentTool {
 	return {

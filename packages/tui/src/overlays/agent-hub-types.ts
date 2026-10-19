@@ -1,5 +1,5 @@
-import type { AgentMessage, ThinkingLevel } from "@rva/agent";
-import type { Model } from "@rva/ai";
+import type { AgentMessage, ThinkingLevel } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
 
 /** Identity of the ambient main session in the agent roster. */
 export const MAIN_AGENT_ID = "Main";

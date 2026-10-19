@@ -1,13 +1,13 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { runRpcMode } from "@rva/coding-agent/modes/rpc/rpc-mode";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { runRpcMode } from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 // Real SDK session and RPC dispatch with a persisted session; only the model is scripted.
 // A main prompt containing "slow main" takes 3s to answer. The side channel is scripted at

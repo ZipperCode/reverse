@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import type { GoalModeState } from "@rva/coding-agent/goals/state";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import type { Component } from "@rva/tui";
-import { RecapNotice } from "@rva/tui/chat/recap-notice";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import type { GoalModeState } from "@reverse/coding-agent/goals/state";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import type { Component } from "@reverse/tui";
+import { RecapNotice } from "@reverse/tui/chat/recap-notice";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
-import { cfgCompactionIdleEnabled } from "@rva/coding-agent/session/context-settings";
-import { cfgRecapEnabled, cfgRecapIdleSeconds } from "@rva/coding-agent/modes/settings";
+import { cfgCompactionIdleEnabled } from "@reverse/coding-agent/session/context-settings";
+import { cfgRecapEnabled, cfgRecapIdleSeconds } from "@reverse/coding-agent/modes/settings";
 
 async function flushMicrotasks(): Promise<void> {
 	for (let i = 0; i < 10; i++) {

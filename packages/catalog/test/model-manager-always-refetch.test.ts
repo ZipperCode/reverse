@@ -9,8 +9,8 @@ import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createModelManager } from "@rva/catalog/model-manager";
-import { syntheticModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
+import { createModelManager } from "@reverse/catalog/model-manager";
+import { syntheticModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
 
 function payload(id: string) {
 	return {

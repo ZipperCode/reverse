@@ -5,8 +5,8 @@
  * (issue #6177). Non-error stops must not emit it.
  */
 import { afterAll, afterEach, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { logger } from "@rva/utils";
+import type { AssistantMessage } from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import { logProviderTurnError } from "../../src/session/messages";
 
 function makeMessage(overrides: Partial<AssistantMessage>): AssistantMessage {

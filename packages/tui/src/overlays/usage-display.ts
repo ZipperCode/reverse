@@ -1,4 +1,4 @@
-import type { UsageLimit, UsageReport, UsageResetCreditDetail, UsageResetCredits } from "@rva/ai";
+import type { UsageLimit, UsageReport, UsageResetCreditDetail, UsageResetCredits } from "@reverse/ai";
 
 /** Include the usage tier in a limit title unless its label already names it. */
 export function formatLimitTitle(limit: UsageLimit): string {

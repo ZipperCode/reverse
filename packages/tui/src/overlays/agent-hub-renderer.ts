@@ -1,11 +1,11 @@
-import { ThinkingLevel } from "@rva/agent";
-import type { TspSpan, TspTone } from "@rva/wire";
+import { ThinkingLevel } from "@reverse/agent";
+import type { TspSpan, TspTone } from "@reverse/wire";
 import { span } from "../native/describe";
 import { Ellipsis, visibleWidth } from "../utils";
 import { formatMetricRow } from "../components/metric";
 import { renderProgressBar } from "../components/progress-bar";
 import { renderTableRow } from "../components/table";
-import { formatDuration, formatNumber } from "@rva/utils";
+import { formatDuration, formatNumber } from "@reverse/utils";
 import type { ThemeColor } from "../theme/theme";
 import { type AgentRecordLike, type AgentStatus, MAIN_AGENT_ID } from "./agent-hub-types";
 import { parseThinkingLevel } from "../thinking";

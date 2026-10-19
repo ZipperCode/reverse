@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { Context } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { runPrintMode } from "@rva/coding-agent/modes/print-mode";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { createTools, type ToolSession } from "@rva/coding-agent/tools";
-import { Snowflake } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import type { Context } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { runPrintMode } from "@reverse/coding-agent/modes/print-mode";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { createTools, type ToolSession } from "@reverse/coding-agent/tools";
+import { Snowflake } from "@reverse/utils";
 
 // Regression for #8272: with plan.defaultOnStartup:true, a headless `omp -p`
 // used to arm plan mode before the initial prompt. The only headless plan-exit

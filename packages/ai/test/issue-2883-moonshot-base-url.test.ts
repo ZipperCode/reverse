@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { resolveOpenAIRequestSetup } from "@rva/ai/providers/openai-shared";
-import { getProviderDefinition } from "@rva/ai/registry/registry";
-import type { FetchImpl } from "@rva/ai/types";
+import { resolveOpenAIRequestSetup } from "@reverse/ai/providers/openai-shared";
+import { getProviderDefinition } from "@reverse/ai/registry/registry";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const loginMoonshot = getProviderDefinition("moonshot")!.login!;
 

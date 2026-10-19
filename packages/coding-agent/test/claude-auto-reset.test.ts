@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import type { OAuthAccountSummary, ResetCreditAccountStatus, UsageReport, UsageResetCredit } from "@rva/ai";
+import type { OAuthAccountSummary, ResetCreditAccountStatus, UsageReport, UsageResetCredit } from "@reverse/ai";
 import {
 	claudeResetStatusesFromReports,
 	planClaudeResetRedemptions,
 	type ClaudeResetPlanInput,
 	type ClaudeResetSkipReason,
-} from "@rva/coding-agent/session/claude-auto-reset";
+} from "@reverse/coding-agent/session/claude-auto-reset";
 
 const NOW = 1_700_000_040_000;
 const HOUR = 3_600_000;

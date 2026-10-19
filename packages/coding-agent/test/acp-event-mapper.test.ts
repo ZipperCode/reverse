@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import path from "node:path";
-import { type } from "@rva/omptype";
-import type { AgentSideConnection, SessionNotification } from "@rva/utils/acp";
+import { type } from "@reverse/omptype";
+import type { AgentSideConnection, SessionNotification } from "@reverse/utils/acp";
 
 const arkSessionNotification = type({
 	sessionId: "string",
@@ -13,18 +13,18 @@ const arkSessionNotification = type({
 	},
 });
 
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AcpAgent } from "@rva/coding-agent/modes/acp/acp-agent";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AcpAgent } from "@reverse/coding-agent/modes/acp/acp-agent";
 import {
 	buildToolCallStartUpdate,
 	mapAgentSessionEventToAcpSessionUpdates,
 	mapToolKind,
 	normalizeReplayToolArguments,
-} from "@rva/coding-agent/modes/acp/acp-event-mapper";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+} from "@reverse/coding-agent/modes/acp/acp-event-mapper";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { expectAcpStructure } from "./helpers/acp-schema";
 
 function makeAssistantMessage(text: string) {

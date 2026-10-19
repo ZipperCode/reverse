@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { getOAuthProviders } from "@rva/ai/registry/oauth";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
-import { streamSimple } from "@rva/ai/stream";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModels } from "@rva/catalog/models";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@rva/catalog/provider-models/descriptors";
-import { commandCodeModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@rva/catalog/types";
+import { getOAuthProviders } from "@reverse/ai/registry/oauth";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
+import { streamSimple } from "@reverse/ai/stream";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModels } from "@reverse/catalog/models";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@reverse/catalog/provider-models/descriptors";
+import { commandCodeModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@reverse/catalog/types";
 
 const originalPrimaryKey = Bun.env.COMMAND_CODE_API_KEY;
 const originalLegacyKey = Bun.env.COMMANDCODE_API_KEY;

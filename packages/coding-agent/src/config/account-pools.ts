@@ -1,6 +1,6 @@
-import type { AuthApiKeyOptions, AuthStorage, SessionRestrictionLease } from "@rva/ai/auth-storage";
-import type { Api, Model } from "@rva/ai/types";
-import { isRecord } from "@rva/utils";
+import type { AuthApiKeyOptions, AuthStorage, SessionRestrictionLease } from "@reverse/ai/auth-storage";
+import type { Api, Model } from "@reverse/ai/types";
+import { isRecord } from "@reverse/utils";
 import { type ApiKeyResolverModel, type ApiKeyResolverOptions, createApiKeyResolver } from "./api-key-resolver";
 import type { ModelRegistry } from "./model-registry";
 

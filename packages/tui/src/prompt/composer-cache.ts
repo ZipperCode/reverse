@@ -18,12 +18,12 @@
 import type { Database, Statement } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getComposerCacheDbPath } from "@rva/utils/dirs";
-import { isBunTestRuntime } from "@rva/utils/env";
-import * as logger from "@rva/utils/logger";
-import * as postmortem from "@rva/utils/postmortem";
-import { openSqliteDatabaseSync } from "@rva/utils/sqlite";
-import { isRecord } from "@rva/utils/type-guards";
+import { getComposerCacheDbPath } from "@reverse/utils/dirs";
+import { isBunTestRuntime } from "@reverse/utils/env";
+import * as logger from "@reverse/utils/logger";
+import * as postmortem from "@reverse/utils/postmortem";
+import { openSqliteDatabaseSync } from "@reverse/utils/sqlite";
+import { isRecord } from "@reverse/utils/type-guards";
 import type { ComposerPreferences, ComposerStatusCache } from "./composer";
 import { readStatusLineStartupData } from "../status-line/startup";
 import type { SymbolPreset } from "../theme/theme";

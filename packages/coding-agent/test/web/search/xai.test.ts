@@ -1,11 +1,11 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { generateOpenAIImage } from "@rva/ai/images/openai-images";
-import { resolveOpenAIRequestSetup } from "@rva/ai/providers/openai-shared";
-import type { FetchImpl } from "@rva/ai/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { buildModel } from "@rva/catalog/build";
-import type { SearchParams } from "@rva/coding-agent/web/search/providers/base";
-import { searchXAI } from "@rva/coding-agent/web/search/providers/xai";
+import { generateOpenAIImage } from "@reverse/ai/images/openai-images";
+import { resolveOpenAIRequestSetup } from "@reverse/ai/providers/openai-shared";
+import type { FetchImpl } from "@reverse/ai/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { buildModel } from "@reverse/catalog/build";
+import type { SearchParams } from "@reverse/coding-agent/web/search/providers/base";
+import { searchXAI } from "@reverse/coding-agent/web/search/providers/xai";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const SELECTED_MODEL_ID = "grok-selected-grounding";

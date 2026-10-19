@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { streamDevin } from "@rva/ai/providers/devin";
-import type { Context, Model, ToolCall } from "@rva/ai/types";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
+import { streamDevin } from "@reverse/ai/providers/devin";
+import type { Context, Model, ToolCall } from "@reverse/ai/types";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	ChatToolCallSchema,
 	GetChatMessageResponseSchema,
 	GetUserJwtResponseSchema,
 	StopReason,
-} from "@rva/catalog/discovery/devin-proto";
-import { create, toBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/devin-proto";
+import { create, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 function frameConnectMessage(payload: Uint8Array): Uint8Array {
 	const out = new Uint8Array(5 + payload.length);

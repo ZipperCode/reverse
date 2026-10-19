@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import {
 	RpcExtensionUserMessageTracker,
 	RpcPromptResults,
 	reportPromptResult,
-} from "@rva/coding-agent/modes/rpc/rpc-prompt-results";
+} from "@reverse/coding-agent/modes/rpc/rpc-prompt-results";
 import type { ExtensionActions } from "../src/extensibility/extensions/types";
 import { initializeExtensions } from "../src/modes/runtime-init";
 import type { AgentSession, AgentSessionEvent } from "../src/session/agent-session";

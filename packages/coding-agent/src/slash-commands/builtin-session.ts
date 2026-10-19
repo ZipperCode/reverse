@@ -1,5 +1,5 @@
 import { clearSubmittedText } from "./helpers/draft";
-import { getOAuthProviders } from "@rva/ai/oauth";
+import { getOAuthProviders } from "@reverse/ai/oauth";
 import { journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
 import type { AgentSession } from "../session/agent-session";
 import type { SessionOAuthAccountList } from "../session/agent-session-types";
@@ -12,11 +12,11 @@ import {
 } from "../utils/changelog";
 import { formatTokenCount, refreshStatusLine } from "./builtin-modes";
 import { buildContextReportText } from "./helpers/context-report";
-import { formatCoarseDuration } from "@rva/tui/chrome/format";
-import { truncateToWidth } from "@rva/tui/render/render-utils";
-import { buildJobTree, jobTreeGuide, jobTreeIndent } from "@rva/tui/overlays/job-tree";
-import { theme } from "@rva/tui/theme";
-import { sanitizeText } from "@rva/utils";
+import { formatCoarseDuration } from "@reverse/tui/chrome/format";
+import { truncateToWidth } from "@reverse/tui/render/render-utils";
+import { buildJobTree, jobTreeGuide, jobTreeIndent } from "@reverse/tui/overlays/job-tree";
+import { theme } from "@reverse/tui/theme";
+import { sanitizeText } from "@reverse/utils";
 import { handleMcpAcp } from "./helpers/mcp";
 import { markdownFenceFor } from "../utils/markdown-fence";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
@@ -27,7 +27,7 @@ import {
 	resolveResetUsageTarget,
 	toResetUsageAccounts,
 } from "./helpers/reset-usage";
-import type { ResetUsageAccount } from "@rva/tui/overlays/reset-usage-selector";
+import type { ResetUsageAccount } from "@reverse/tui/overlays/reset-usage-selector";
 import { matchSessionPinAccounts, toSessionPinAccounts } from "./helpers/session-pin";
 import {
 	launchStatsDashboard,
@@ -35,7 +35,7 @@ import {
 	type StatsDashboardArgs,
 	type StatsDashboardLaunchResult,
 } from "./helpers/stats-dashboard";
-import { StatsNotice } from "@rva/tui/overlays/stats-notice";
+import { StatsNotice } from "@reverse/tui/overlays/stats-notice";
 import { handleTodoAcp } from "./helpers/todo";
 import { buildUsageReportText } from "./helpers/usage-report";
 import type { SlashCommandRuntime, SlashCommandSpec } from "./types";

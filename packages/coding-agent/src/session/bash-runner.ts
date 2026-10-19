@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import type { Agent } from "@rva/agent";
-import { logger } from "@rva/utils";
+import type { Agent } from "@reverse/agent";
+import { logger } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import { type BashPtyOptions, type BashResult, executeBash as executeBashCommand } from "../exec/bash-executor";
 import type { ExtensionRunner } from "../extensibility/extensions";

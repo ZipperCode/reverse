@@ -1,4 +1,4 @@
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import { compareRevision, parseRevision } from "../compat/revision";
 import { classifyModel } from "../compat/taxonomy";
 import { getBundledModels } from "../models";

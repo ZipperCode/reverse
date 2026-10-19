@@ -39,7 +39,7 @@
  * followed by a re-seed.
  */
 
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { BankScope } from "./bank";
 import type {
 	HindsightApi,

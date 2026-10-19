@@ -1,5 +1,5 @@
-import { toNumber } from "@rva/catalog/utils";
-import { USER_AGENT } from "@rva/utils";
+import { toNumber } from "@reverse/catalog/utils";
+import { USER_AGENT } from "@reverse/utils";
 import type {
 	CredentialRankingStrategy,
 	UsageFetchContext,

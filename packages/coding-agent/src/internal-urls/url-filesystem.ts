@@ -18,7 +18,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ToolTier } from "@rva/agent";
+import type { ToolTier } from "@reverse/agent";
 import {
 	type ShellFilesystem,
 	ShellFsFileType,
@@ -28,8 +28,8 @@ import {
 	type ShellFsRequest,
 	ShellFsResolve,
 	type ShellFsResponse,
-} from "@rva/natives";
-import { isFsError } from "@rva/utils";
+} from "@reverse/natives";
+import { isFsError } from "@reverse/utils";
 import { TIER_RANK } from "../tools/approval";
 import { UrlContainmentError } from "./filesystem-resource";
 import { parseInternalUrl } from "./parse";

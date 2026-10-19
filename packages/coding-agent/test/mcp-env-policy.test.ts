@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import type { MCPServerConfig, MCPStdioServerConfig } from "@rva/coding-agent/mcp/types";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import type { MCPServerConfig, MCPStdioServerConfig } from "@reverse/coding-agent/mcp/types";
 
 function expectStdio(config: MCPServerConfig): MCPStdioServerConfig {
 	if (config.type === "http" || config.type === "sse") throw new Error("expected a stdio config");

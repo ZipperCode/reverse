@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { INTENT_FIELD } from "@rva/wire";
-import { formatArgsInline } from "@rva/tui/tools/json-tree";
+import { INTENT_FIELD } from "@reverse/wire";
+import { formatArgsInline } from "@reverse/tui/tools/json-tree";
 
 describe("formatArgsInline", () => {
 	test("a trailing scalar grows into the available width instead of a fixed cap", () => {

@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { streamBedrock } from "@rva/ai/providers/amazon-bedrock";
-import { crc32 } from "@rva/ai/providers/aws-eventstream";
-import type { Context, FetchImpl, Model, Tool } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { type } from "@reverse/omptype";
+import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
+import { crc32 } from "@reverse/ai/providers/aws-eventstream";
+import type { Context, FetchImpl, Model, Tool } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const originalSkipAuth = process.env.AWS_BEDROCK_SKIP_AUTH;
 

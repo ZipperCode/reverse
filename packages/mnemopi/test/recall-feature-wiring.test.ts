@@ -7,15 +7,15 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Mnemopi, type MnemopiOptions } from "@rva/mnemopi/core/memory";
+import { Mnemopi, type MnemopiOptions } from "@reverse/mnemopi/core/memory";
 import {
 	GRAPH_VOICE_MAX_DEPTH,
 	GRAPH_VOICE_MAX_RESULTS,
 	PolyphonicRecallEngine,
 	type VoiceRecallResult,
-} from "@rva/mnemopi/core/polyphonic-recall";
-import { VeracityConsolidator } from "@rva/mnemopi/core/veracity-consolidation";
-import { currentLoopPhase, logger } from "@rva/utils";
+} from "@reverse/mnemopi/core/polyphonic-recall";
+import { VeracityConsolidator } from "@reverse/mnemopi/core/veracity-consolidation";
+import { currentLoopPhase, logger } from "@reverse/utils";
 
 const roots: string[] = [];
 const open: Mnemopi[] = [];

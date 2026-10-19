@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { getDialectDefinition, renderDemotedThinking } from "@rva/ai/dialect";
-import { transformMessages } from "@rva/ai/providers/transform-messages";
-import type { Api, AssistantMessage, Message, Model, ModelSpec, UserMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { getDialectDefinition, renderDemotedThinking } from "@reverse/ai/dialect";
+import { transformMessages } from "@reverse/ai/providers/transform-messages";
+import type { Api, AssistantMessage, Message, Model, ModelSpec, UserMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 /**
  * Cross-provider model switches (e.g. Anthropic → Gemini mid-session) cannot

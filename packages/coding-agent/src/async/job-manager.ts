@@ -1,7 +1,7 @@
-import type { ImageContent } from "@rva/ai";
-import { logger } from "@rva/utils";
-import type { StructuredSubagentOutput } from "@rva/tui/tools/task";
-import type { OutputMeta } from "@rva/tui/tools/output-meta";
+import type { ImageContent } from "@reverse/ai";
+import { logger } from "@reverse/utils";
+import type { StructuredSubagentOutput } from "@reverse/tui/tools/task";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
 
 const DELIVERY_RETRY_BASE_MS = 500;
 const DELIVERY_RETRY_MAX_MS = 30_000;

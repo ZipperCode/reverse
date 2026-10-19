@@ -19,7 +19,7 @@ For packaged user-facing extension CLIs/features, see [`user-facing-packages.md`
 An extension is a TS/JS module exporting a default factory. Factories may initialize synchronously or return a promise:
 
 ```ts
-import type { ExtensionAPI } from "@rva/coding-agent";
+import type { ExtensionAPI } from "@reverse/coding-agent";
 
 export default function myExtension(pi: ExtensionAPI) {
   // register handlers/tools/commands/renderers
@@ -69,7 +69,7 @@ Important constraint from `loader.ts`:
 ## Quick start
 
 ```ts
-import type { ExtensionAPI } from "@rva/coding-agent";
+import type { ExtensionAPI } from "@reverse/coding-agent";
 
 export default function (pi: ExtensionAPI) {
   const z = pi.zod;
@@ -160,7 +160,7 @@ pi.registerProvider("my-gateway", {
 ```
 
 `pi.registerProvider(name, config)` can include an optional `usage` field containing a
-`UsageProvider` imported from `@rva/ai`. Its `fetchUsage` implementation receives the
+`UsageProvider` imported from `@reverse/ai`. Its `fetchUsage` implementation receives the
 normalized credential and returns a normalized `UsageReport`; the result is then handled
 by the host's AuthStorage cache, history, and usage displays just like built-in provider
 usage.
@@ -233,8 +233,8 @@ names are reserved), and `streamSimple` returns the canonical
 `AssistantMessageEventStream`; it does not need to be an HTTP endpoint:
 
 ```ts
-import { AssistantMessageEventStream } from "@rva/ai";
-import type { ExtensionAPI } from "@rva/coding-agent";
+import { AssistantMessageEventStream } from "@reverse/ai";
+import type { ExtensionAPI } from "@reverse/coding-agent";
 
 export default function (pi: ExtensionAPI) {
   pi.registerProvider("local-command", {
@@ -288,11 +288,11 @@ Also exposed:
 
 ### Runtime setting overrides
 
-Settings are addressed through typed registry handles (see "Definitions" in [config-usage.md](./config-usage.md#definitions-srcconfigregistryts)); the string-path `settings.get`/`set`/`override` methods were removed in 18.3. Extensions resolve a handle by id with `lookup(id)` (and enumerate them with `all()`) from the `@rva/coding-agent/config/registry` subpath, then pass `pi.pi.settings` as the scope:
+Settings are addressed through typed registry handles (see "Definitions" in [config-usage.md](./config-usage.md#definitions-srcconfigregistryts)); the string-path `settings.get`/`set`/`override` methods were removed in 18.3. Extensions resolve a handle by id with `lookup(id)` (and enumerate them with `all()`) from the `@reverse/coding-agent/config/registry` subpath, then pass `pi.pi.settings` as the scope:
 
 ```ts
-import type { ExtensionAPI } from "@rva/coding-agent";
-import { lookup } from "@rva/coding-agent/config/registry";
+import type { ExtensionAPI } from "@reverse/coding-agent";
+import { lookup } from "@reverse/coding-agent/config/registry";
 
 export default function (pi: ExtensionAPI) {
   const recap = lookup("recap.enabled");
@@ -740,7 +740,7 @@ with a permission error (`EPERM`/`EACCES`/`EROFS` — every other error, such as
 via `pi.registerFileWriteFallback` before giving up:
 
 ```ts
-import type { FileWriteFallbackHandler } from "@rva/coding-agent";
+import type { FileWriteFallbackHandler } from "@reverse/coding-agent";
 
 const writeThroughBroker: FileWriteFallbackHandler = async (req, ctx) => {
   // req: { dst: string; content: string; cause: unknown; sessionId: string | undefined }
@@ -909,7 +909,7 @@ Herdr, CMUX, and Orca are supported; screen and wmux remain recognized by the
 multiplexer taxonomy but are currently unsupported.
 
 Provider-specific session detection is centralized in
-`@rva/tui/terminal-multiplexer`, which registers one module per multiplexer.
+`@reverse/tui/terminal-multiplexer`, which registers one module per multiplexer.
 `hasTerminalMultiplexerSession(provider, env)` checks explicit session markers, while
 `classifyTerminalMultiplexer(env)` names the multiplexer hosting the process: session
 markers first, then a `tmux`/`screen` `TERM` fallback, then outer applications such as
@@ -1169,8 +1169,8 @@ for (const entry of ctx.sessionManager.getBranch()) {
 `registerComposerShape` adds an extension-owned input-editor layout to **Appearance → Composer Shape**. Register it from the extension factory; the renderer is used by the live editor and its settings preview.
 
 ```ts
-import type { ExtensionAPI } from "@rva/coding-agent";
-import type { ComposerStyle } from "@rva/tui";
+import type { ExtensionAPI } from "@reverse/coding-agent";
+import type { ComposerStyle } from "@reverse/tui";
 
 const dockStyle: ComposerStyle = {
   id: "acme-dock",
@@ -1253,7 +1253,7 @@ Used by interactive rendering when custom messages are displayed.
 ## Assistant thinking renderer
 
 ```ts
-import { Container, Text } from "@rva/tui";
+import { Container, Text } from "@reverse/tui";
 
 pi.registerAssistantThinkingRenderer((context, theme) => {
   const container = new Container();

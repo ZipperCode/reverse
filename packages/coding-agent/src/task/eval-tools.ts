@@ -1,5 +1,5 @@
-import type { AgentToolResult } from "@rva/agent";
-import { INTENT_FIELD } from "@rva/wire";
+import type { AgentToolResult } from "@reverse/agent";
+import { INTENT_FIELD } from "@reverse/wire";
 import { EvalKernelNotRunningError } from "../eval/executor-base";
 import { invokeJsTool } from "../eval/js/context-manager";
 import { resolveJsKernelIdentity } from "../eval/js";
@@ -8,7 +8,7 @@ import { resolvePythonKernelIdentity } from "../eval/py";
 import type { EvalToolDescriptor, EvalToolInvokeResult } from "../eval/types";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import type { ToolSession } from "../tools";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 
 import { cfgEvalToolsEnabled } from "../eval/settings";

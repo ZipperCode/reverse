@@ -1,4 +1,4 @@
-import { type IpcConnection, IpcServer } from "@rva/natives";
+import { type IpcConnection, IpcServer } from "@reverse/natives";
 import { type Component, isFocusable, type OverlayOptions, type TUI } from "./tui";
 import { plainText } from "./native/spans";
 

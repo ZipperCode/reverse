@@ -15,9 +15,9 @@
 
 import { beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { UsageReport } from "@rva/ai";
-import { renderUsageReports } from "@rva/coding-agent/modes/controllers/command-controller";
-import { initTheme, theme } from "@rva/tui/theme";
+import type { UsageReport } from "@reverse/ai";
+import { renderUsageReports } from "@reverse/coding-agent/modes/controllers/command-controller";
+import { initTheme, theme } from "@reverse/tui/theme";
 
 const HOUR = 3_600_000;
 

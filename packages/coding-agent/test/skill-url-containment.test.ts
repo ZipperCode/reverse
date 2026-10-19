@@ -2,11 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Skill } from "@rva/coding-agent/extensibility/skills";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
-import { SkillProtocolHandler } from "@rva/coding-agent/internal-urls/skill-protocol";
-import { InternalUrlFilesystem } from "@rva/coding-agent/internal-urls/url-filesystem";
-import { ShellFsOp, type ShellFsResponse } from "@rva/natives";
+import type { Skill } from "@reverse/coding-agent/extensibility/skills";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
+import { SkillProtocolHandler } from "@reverse/coding-agent/internal-urls/skill-protocol";
+import { InternalUrlFilesystem } from "@reverse/coding-agent/internal-urls/url-filesystem";
+import { ShellFsOp, type ShellFsResponse } from "@reverse/natives";
 
 let tempDir: string;
 let pluginRoot: string;

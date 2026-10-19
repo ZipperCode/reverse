@@ -4,9 +4,9 @@ import {
 	enhancedRecallEnabled,
 	polyphonicRecallEnabled,
 	proactiveLinkingEnabled,
-} from "@rva/mnemopi/config";
-import { polyphonicRecallIsEnabled } from "@rva/mnemopi/core/polyphonic-recall";
-import { isEnhancedRecallEnabled, isQueryCacheEnabled } from "@rva/mnemopi/core/query-cache";
+} from "@reverse/mnemopi/config";
+import { polyphonicRecallIsEnabled } from "@reverse/mnemopi/core/polyphonic-recall";
+import { isEnhancedRecallEnabled, isQueryCacheEnabled } from "@reverse/mnemopi/core/query-cache";
 
 afterEach(() => {
 	configureRecallFeatures({ polyphonicRecall: false, enhancedRecall: false, proactiveLinking: false });

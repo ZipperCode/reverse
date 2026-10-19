@@ -12,8 +12,8 @@
  * cells, and redrawn when the room it is shown in changes, so the terminal
  * places it 1:1: any resampling, even 0.99×, blurs every glyph edge.
  */
-import { rasterizeSvg } from "@rva/natives";
-import { hexToOklch, hueDistance, logger, oklchCusp, oklchToHex } from "@rva/utils";
+import { rasterizeSvg } from "@reverse/natives";
+import { hexToOklch, hueDistance, logger, oklchCusp, oklchToHex } from "@reverse/utils";
 import { Image, type ImageBudget, imageMaxColumns } from "../components/image";
 import { fencedCode, type Markdown } from "../components/markdown";
 import { type CellDimensions, getCellDimensions, getImageDimensions } from "../terminal-capabilities";

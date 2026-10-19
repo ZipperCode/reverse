@@ -1,20 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { ThinkingLevel } from "@rva/agent";
-import type { Api, AuthStorage, Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resolveModelScope } from "@rva/coding-agent/config/model-resolver";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Api, AuthStorage, Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resolveModelScope } from "@reverse/coding-agent/config/model-resolver";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	buildSessionOptions,
 	rebuildScopedModelsAfterDiscovery,
 	resolveScopedModels,
 	type ScopedModelSink,
 	toSessionScopedModels,
-} from "@rva/coding-agent/main";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/main";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 function model(id: string): Model<Api> {

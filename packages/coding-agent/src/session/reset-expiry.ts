@@ -3,16 +3,10 @@
  * will spend them first. Shared by `omp usage` and the TUI status line so both
  * warn about the accounts the salvage planners would act on.
  */
-import type {
-	UsageLimit,
-	UsageReport,
-	UsageResetCredit,
-	UsageResetCreditDetail,
-	UsageResetCredits,
-} from "@rva/ai";
-import { truncateToWidth } from "@rva/tui";
-import { bankedResetCreditExpiryMs } from "@rva/tui/overlays/usage-display";
-import { formatDuration, sanitizeText } from "@rva/utils";
+import type { UsageLimit, UsageReport, UsageResetCredit, UsageResetCreditDetail, UsageResetCredits } from "@reverse/ai";
+import { truncateToWidth } from "@reverse/tui";
+import { bankedResetCreditExpiryMs } from "@reverse/tui/overlays/usage-display";
+import { formatDuration, sanitizeText } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import { formatActiveAccountLabel, usageReportIdentity } from "../slash-commands/helpers/active-oauth-account";
 import { formatResetProviderName } from "../slash-commands/helpers/reset-usage";

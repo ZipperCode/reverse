@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import type { Effort } from "@rva/catalog/effort";
+import { type } from "@reverse/omptype";
+import type { Effort } from "@reverse/catalog/effort";
 import { streamFactoryDroid } from "../src/providers/factory-droid";
 import type { Context, Message } from "../src/types";
 import corpus from "./fixtures/factory-droid-native-requests.json" with { type: "json" };

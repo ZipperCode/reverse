@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@rva/omptype";
-import { Agent, type AgentMessage, RESCUE_SHAKE_CONFIG, Tokenizer } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import type { AssistantMessage, ImageContent, ToolResultMessage, UserMessage } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { formatShakeSummary } from "@rva/coding-agent/session/shake-types";
-import { TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentMessage, RESCUE_SHAKE_CONFIG, Tokenizer } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { AssistantMessage, ImageContent, ToolResultMessage, UserMessage } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { formatShakeSummary } from "@reverse/coding-agent/session/shake-types";
+import { TempDir } from "@reverse/utils";
 
 import {
 	cfgCompactionDropUseless,
@@ -22,7 +22,7 @@ import {
 	cfgCompactionThresholdPercent,
 	cfgCompactionThresholdTokens,
 	cfgContextPromotionEnabled,
-} from "@rva/coding-agent/session/context-settings";
+} from "@reverse/coding-agent/session/context-settings";
 
 const usage = {
 	input: 16,

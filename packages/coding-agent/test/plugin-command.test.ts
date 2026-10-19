@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import Plugin from "@rva/coding-agent/commands/plugin";
-import type { CliConfig } from "@rva/utils/cli";
+import Plugin from "@reverse/coding-agent/commands/plugin";
+import type { CliConfig } from "@reverse/utils/cli";
 
 const TEST_CONFIG: CliConfig = {
 	bin: "omp",

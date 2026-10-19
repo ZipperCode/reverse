@@ -5,16 +5,16 @@
  * any dimension that would eliminate every result.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { runSearchQuery } from "@rva/coding-agent/web/search";
-import type { SearchParams } from "@rva/coding-agent/web/search/provider";
-import * as provider from "@rva/coding-agent/web/search/provider";
-import type { SearchProviderId, SearchResponse, SearchSource } from "@rva/coding-agent/web/search/types";
+import type { AuthStorage } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { runSearchQuery } from "@reverse/coding-agent/web/search";
+import type { SearchParams } from "@reverse/coding-agent/web/search/provider";
+import * as provider from "@reverse/coding-agent/web/search/provider";
+import type { SearchProviderId, SearchResponse, SearchSource } from "@reverse/coding-agent/web/search/types";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
-import { cfgRetryFallbackChains } from "@rva/coding-agent/session/settings";
+import { cfgRetryFallbackChains } from "@reverse/coding-agent/session/settings";
 
 const SOURCES: SearchSource[] = [
 	{ title: "Docs page", url: "https://docs.example.com/guide" },

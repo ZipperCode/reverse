@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type { Message } from "@rva/ai";
-import { obfuscateMessages } from "@rva/coding-agent/secrets/message-transform";
-import { type SecretEntry, SecretObfuscator } from "@rva/coding-agent/secrets/obfuscator";
+import type { Message } from "@reverse/ai";
+import { obfuscateMessages } from "@reverse/coding-agent/secrets/message-transform";
+import { type SecretEntry, SecretObfuscator } from "@reverse/coding-agent/secrets/obfuscator";
 import {
 	SecretValueSet,
 	sanitizedLabelCollidesWithSecret,
 	sanitizeForCollisionCheck,
-} from "@rva/coding-agent/secrets/placeholder";
+} from "@reverse/coding-agent/secrets/placeholder";
 
 describe("SecretObfuscator batch scans", () => {
 	it("rescans a string after a mint earlier in the same batch resolves the placeholder key", () => {

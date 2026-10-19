@@ -10,7 +10,7 @@ import {
 	parseEnvFile,
 	setInteractiveHost,
 	stripGitRepoLocationEnv,
-} from "@rva/utils/env";
+} from "@reverse/utils/env";
 
 const tempDirs: string[] = [];
 const runtimeProbePath = path.join(import.meta.dir, "fixtures", "test-runtime-probe.ts");
@@ -335,8 +335,12 @@ describe("stripGitRepoLocationEnv", () => {
 
 describe("isBunTestRuntime", () => {
 	it("does not treat shared application env names as a test runner signal", async () => {
-		expect(await runRuntimeProbe({ NODE_ENV: "test", BUN_ENV: undefined, REVERSE_TEST_RUNTIME: undefined })).toBe(false);
-		expect(await runRuntimeProbe({ NODE_ENV: undefined, BUN_ENV: "test", REVERSE_TEST_RUNTIME: undefined })).toBe(false);
+		expect(await runRuntimeProbe({ NODE_ENV: "test", BUN_ENV: undefined, REVERSE_TEST_RUNTIME: undefined })).toBe(
+			false,
+		);
+		expect(await runRuntimeProbe({ NODE_ENV: undefined, BUN_ENV: "test", REVERSE_TEST_RUNTIME: undefined })).toBe(
+			false,
+		);
 	});
 
 	it("honors the private test runner signal", async () => {

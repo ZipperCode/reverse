@@ -1,6 +1,6 @@
-import { type Api, type AuthStorage, type Model, withAuth } from "@rva/ai";
-import { applySessionHeader } from "@rva/ai/providers/inference-headers";
-import { asRecord } from "@rva/utils";
+import { type Api, type AuthStorage, type Model, withAuth } from "@reverse/ai";
+import { applySessionHeader } from "@reverse/ai/providers/inference-headers";
+import { asRecord } from "@reverse/utils";
 import {
 	type SearchCitation,
 	SearchProviderError,

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { getDiagnosticsForFile } from "@rva/coding-agent/lsp/diagnostics";
-import type { Diagnostic, LinterClient, ServerConfig } from "@rva/coding-agent/lsp/types";
+import { getDiagnosticsForFile } from "@reverse/coding-agent/lsp/diagnostics";
+import type { Diagnostic, LinterClient, ServerConfig } from "@reverse/coding-agent/lsp/types";
 
 /**
  * Regression test for issue #4910: `edit` silently hangs forever on some

@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { CURSOR_MARKER, getKeybindings, setKeybindings } from "@rva/tui";
-import { setKittyProtocolActive } from "@rva/tui/keys";
+import type { ImageContent } from "@reverse/ai";
+import { CURSOR_MARKER, getKeybindings, setKeybindings } from "@reverse/tui";
+import { setKittyProtocolActive } from "@reverse/tui/keys";
 import { $ } from "bun";
-import { KeybindingsManager, getDefaultPasteImageKeys } from "@rva/tui/app-keybindings";
+import { KeybindingsManager, getDefaultPasteImageKeys } from "@reverse/tui/app-keybindings";
 import {
 	chipLabel,
 	COMPOSER_TOKEN_REGEX,
 	modelMentionChipLabel,
 	skillChipLabel,
-} from "@rva/tui/prompt/composer-attachments";
+} from "@reverse/tui/prompt/composer-attachments";
 import {
 	CustomEditor,
 	extractBracketedImagePastePaths,
@@ -17,14 +17,14 @@ import {
 	extractImagePastePathsFromText,
 	extractImagePathFromText,
 	extractPastePathsFromText,
-} from "@rva/tui/prompt/custom-editor";
+} from "@reverse/tui/prompt/custom-editor";
 import {
 	SPACE_HOLD_MECHANICAL_RUN,
 	SPACE_HOLD_RELEASE_MS,
 	SPACE_HOLD_STALL_SLACK_MS,
 	SPACE_REPEAT_MAX_GAP_MS,
-} from "@rva/tui/space-hold";
-import { getEditorTheme, initTheme, theme } from "@rva/tui/theme";
+} from "@reverse/tui/space-hold";
+import { getEditorTheme, initTheme, theme } from "@reverse/tui/theme";
 
 function makeEditor(holdEnabled = true) {
 	const editor = new CustomEditor(getEditorTheme());
@@ -82,7 +82,7 @@ function feedKeyGaps(editor: CustomEditor, key: string, gaps: number[]): void {
 }
 
 async function decorateInFreshProcess(text: string, imageLinks?: readonly string[]): Promise<string> {
-	const customEditorUrl = import.meta.resolve("@rva/tui/prompt/custom-editor");
+	const customEditorUrl = import.meta.resolve("@reverse/tui/prompt/custom-editor");
 	const script = `
 import { CustomEditor } from ${JSON.stringify(customEditorUrl)};
 const editor = new CustomEditor({});

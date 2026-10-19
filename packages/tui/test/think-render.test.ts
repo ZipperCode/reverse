@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, initTheme } from "@rva/tui/theme";
-import { thinkToolRenderer } from "@rva/tui/tools/think";
+import { getThemeByName, initTheme } from "@reverse/tui/theme";
+import { thinkToolRenderer } from "@reverse/tui/tools/think";
 
 beforeAll(async () => {
 	await initTheme();

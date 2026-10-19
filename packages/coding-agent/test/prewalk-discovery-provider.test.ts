@@ -16,18 +16,18 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { buildSessionOptions } from "@rva/coding-agent/main";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import type { FetchImpl } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { buildSessionOptions } from "@reverse/coding-agent/main";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-import { cfgPrewalkEnabled } from "@rva/coding-agent/session/settings";
+import { cfgPrewalkEnabled } from "@reverse/coding-agent/session/settings";
 
 describe("issue #11820 prewalk into a models.yml discovery provider target", () => {
 	let tempDir: string;

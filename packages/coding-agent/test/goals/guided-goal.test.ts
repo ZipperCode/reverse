@@ -1,19 +1,19 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, AgentBusyError } from "@rva/agent";
-import type { AssistantMessage, ImageContent } from "@rva/ai";
-import * as vcs from "@rva/natives/vcs";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { GoalTool } from "@rva/coding-agent/goals/tools/goal-tool";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { createTools, type Tool, type ToolSession } from "@rva/coding-agent/tools";
-import { TempDir } from "@rva/utils";
+import { Agent, type AgentMessage, AgentBusyError } from "@reverse/agent";
+import type { AssistantMessage, ImageContent } from "@reverse/ai";
+import * as vcs from "@reverse/natives/vcs";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { GoalTool } from "@reverse/coding-agent/goals/tools/goal-tool";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { createTools, type Tool, type ToolSession } from "@reverse/coding-agent/tools";
+import { TempDir } from "@reverse/utils";
 
 function createToolSession(cwd: string, settings: Settings, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

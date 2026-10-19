@@ -1,4 +1,4 @@
-# @rva/ai
+# @reverse/ai
 
 Unified LLM API with automatic model discovery, provider configuration, token and cost tracking, and simple context persistence and hand-off to other models mid-session.
 
@@ -90,13 +90,13 @@ Unified LLM API with automatic model discovery, provider configuration, token an
 ## Installation
 
 ```bash
-npm install @rva/ai
+npm install @reverse/ai
 ```
 
 ## Quick Start
 
 ```typescript
-import { getModel, stream, complete, Context, Tool, type } from "@rva/ai";
+import { getModel, stream, complete, Context, Tool, type } from "@reverse/ai";
 
 // Fully typed with auto-complete support for both providers and models
 const model = getModel("openai", "gpt-4o-mini");
@@ -225,7 +225,7 @@ Tools enable LLMs to interact with external systems. Omptype schemas provide typ
 ### Defining Tools
 
 ```typescript
-import { type Tool, type } from "@rva/ai";
+import { type Tool, type } from "@reverse/ai";
 
 const weatherTool: Tool = {
 	name: "get_weather",
@@ -348,7 +348,7 @@ When using `agentLoop`, tool arguments are automatically validated against their
 When implementing your own tool execution loop with `stream()` or `complete()`, use `validateToolCall` to validate arguments before passing them to your tools:
 
 ```typescript
-import { stream, validateToolCall, Tool } from "@rva/ai";
+import { stream, validateToolCall, Tool } from "@reverse/ai";
 
 const tools: Tool[] = [weatherTool, calculatorTool];
 const s = stream(model, { messages, tools });
@@ -402,7 +402,7 @@ Models with vision capabilities can process images. You can check if a model sup
 
 ```typescript
 import * as fs from "node:fs";
-import { getModel, complete } from "@rva/ai";
+import { getModel, complete } from "@reverse/ai";
 
 const model = getModel("openai", "gpt-4o-mini");
 
@@ -441,7 +441,7 @@ Many models support thinking/reasoning capabilities where they can show their in
 ### Unified Interface (streamSimple/completeSimple)
 
 ```typescript
-import { getModel, streamSimple, completeSimple } from "@rva/ai";
+import { getModel, streamSimple, completeSimple } from "@reverse/ai";
 
 // Many models across providers support thinking/reasoning
 const model = getModel("anthropic", "claude-sonnet-4-20250514");
@@ -483,7 +483,7 @@ for (const block of response.content) {
 For fine-grained control, use the provider-specific options:
 
 ```typescript
-import { getModel, complete } from "@rva/ai";
+import { getModel, complete } from "@reverse/ai";
 
 // OpenAI Reasoning (o1, o3, gpt-5)
 const openaiModel = getModel("openai", "gpt-5-mini");
@@ -572,7 +572,7 @@ If the provider discards partial output by returning an error message with empty
 The abort signal allows you to cancel in-progress requests. Aborted requests have `stopReason === 'aborted'`:
 
 ```typescript
-import { getModel, stream } from "@rva/ai";
+import { getModel, stream } from "@reverse/ai";
 
 const model = getModel("openai", "gpt-4o-mini");
 
@@ -673,7 +673,7 @@ A **provider** offers models through a specific API. For example:
 ### Querying Providers and Models
 
 ```typescript
-import { getProviders, getModels, getModel } from "@rva/ai";
+import { getProviders, getModels, getModel } from "@reverse/ai";
 
 // Get all available providers
 const providers = getProviders();
@@ -701,7 +701,7 @@ You can create custom models for local inference servers or custom endpoints.
 For local Ollama, `OLLAMA_API_KEY` is optional and mainly needed for authenticated/self-hosted gateways. `ollama` remains the local OpenAI-compatible runtime integration.
 
 ```typescript
-import { Model, stream } from "@rva/ai";
+import { Model, stream } from "@reverse/ai";
 
 // Example: local Ollama using the OpenAI-compatible API
 const ollamaModel: Model<"openai-completions"> = {
@@ -827,7 +827,7 @@ When messages from one provider are sent to a different provider, the library au
 ### Example: Multi-Provider Conversation
 
 ```typescript
-import { getModel, complete, Context } from "@rva/ai";
+import { getModel, complete, Context } from "@reverse/ai";
 
 // Start with Claude
 const claude = getModel("anthropic", "claude-sonnet-4-20250514");
@@ -874,7 +874,7 @@ This enables flexible workflows where you can:
 The `Context` object can be easily serialized and deserialized using standard JSON methods, making it simple to persist conversations, implement chat history, or transfer contexts between services:
 
 ```typescript
-import { Context, getModel, complete } from "@rva/ai";
+import { Context, getModel, complete } from "@reverse/ai";
 
 // Create and use a context
 const context: Context = {
@@ -909,7 +909,7 @@ const continuation = await complete(newModel, restored);
 The library supports browser environments. You must pass the API key explicitly since environment variables are not available in browsers:
 
 ```typescript
-import { getModel, complete } from "@rva/ai";
+import { getModel, complete } from "@reverse/ai";
 
 // API key must be passed explicitly in browser
 const model = getModel("anthropic", "claude-haiku-4-5-20251001");
@@ -1017,7 +1017,7 @@ const response = await complete(model, context, {
 ### Checking Environment Variables
 
 ```typescript
-import { getEnvApiKey } from "@rva/ai";
+import { getEnvApiKey } from "@reverse/ai";
 
 // Check if an API key is set in environment variables
 const key = getEnvApiKey("openai"); // checks OPENAI_API_KEY
@@ -1071,7 +1071,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 ```
 
 ```typescript
-import { getModel, complete } from "@rva/ai";
+import { getModel, complete } from "@reverse/ai";
 
 (async () => {
 	const model = getModel("google-vertex", "gemini-2.5-flash");
@@ -1118,7 +1118,7 @@ import {
 	getOAuthApiKey, // (provider, credentialsMap) => { newCredentials, apiKey } | null
 	type OAuthProvider,
 	type OAuthCredentials,
-} from "@rva/ai";
+} from "@reverse/ai";
 
 const provider = getProviderDefinition("openai-codex");
 const credentials = await provider?.login?.({
@@ -1129,7 +1129,7 @@ const credentials = await provider?.login?.({
 ### Login Flow Example
 
 ```typescript
-import { getProviderDefinition } from "@rva/ai";
+import { getProviderDefinition } from "@reverse/ai";
 import * as fs from "node:fs";
 
 const credentials = await getProviderDefinition("github-copilot")?.login?.({
@@ -1153,7 +1153,7 @@ fs.writeFileSync("credentials.json", JSON.stringify(auth, null, 2));
 Use `getOAuthApiKey()` to get an API key, automatically refreshing if expired:
 
 ```typescript
-import { getModel, complete, getOAuthApiKey } from "@rva/ai";
+import { getModel, complete, getOAuthApiKey } from "@reverse/ai";
 import * as fs from "node:fs";
 
 // Load your stored credentials

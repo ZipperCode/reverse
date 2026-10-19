@@ -3,12 +3,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import { resetSettingsForTest, Settings } from "../../../src/config/settings";
-import { SkillMessageComponent } from "@rva/tui/chat/skill-message";
-import { skillChipLabel } from "@rva/tui/prompt/composer-attachments";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
+import { SkillMessageComponent } from "@reverse/tui/chat/skill-message";
+import { skillChipLabel } from "@reverse/tui/prompt/composer-attachments";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
 import type { CustomMessage, SkillPromptDetails } from "../../../src/session/messages";
 
-import { cfgTuiHyperlinks } from "@rva/coding-agent/modes/settings";
+import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
 
 // Drop SGR colors and OSC 8 hyperlink wrappers so assertions see the visible text only.
 const strip = (lines: readonly string[]): string =>

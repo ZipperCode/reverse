@@ -1,4 +1,4 @@
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 import type { ExtensionUIContext } from "./types";
 
 /** Runs a dialog that waits for the user's answer, so its session can treat the time as the user's, not the agent's. */

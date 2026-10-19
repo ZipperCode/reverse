@@ -13,13 +13,13 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ThinkingLevel } from "@rva/agent";
-import type { Model } from "@rva/ai";
-import { getOAuthProviders } from "@rva/ai/oauth";
-import type { ImageContent } from "@rva/ai";
-import { toolWireSchema } from "@rva/ai/utils/schema";
-import { modelsAreEqual } from "@rva/catalog/models";
-import { $env, isRecord, logger, Snowflake, toError } from "@rva/utils";
+import { ThinkingLevel } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
+import { getOAuthProviders } from "@reverse/ai/oauth";
+import type { ImageContent } from "@reverse/ai";
+import { toolWireSchema } from "@reverse/ai/utils/schema";
+import { modelsAreEqual } from "@reverse/catalog/models";
+import { $env, isRecord, logger, Snowflake, toError } from "@reverse/utils";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import {
 	type ExtensionAskDialogQuestion,
@@ -39,14 +39,14 @@ import {
 	type Skill,
 	type SkillPromptInput,
 } from "../../extensibility/skills";
-import { type Theme, theme } from "@rva/tui/theme";
+import { type Theme, theme } from "@reverse/tui/theme";
 import { AgentLifecycleManager } from "../../registry/agent-lifecycle";
 import {
 	type WordCompletionEngine,
 	type WordCompletionMethod,
 	type WordCompletionQuery,
 	wordCompletionQuery,
-} from "@rva/tui/prompt/word-completion";
+} from "@reverse/tui/prompt/word-completion";
 import { requestTextPrediction, textPredictionBackend } from "../../predict/client";
 import { type AgentSession, SessionBusyError } from "../../session/agent-session";
 import type { RestoredQueuedMessage } from "../../session/agent-session-types";

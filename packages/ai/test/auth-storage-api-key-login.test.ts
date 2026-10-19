@@ -4,9 +4,9 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import * as envApiKey from "@rva/ai/env-api-key";
-import { serializeAlibabaTokenPlanCredential } from "@rva/catalog/wire/alibaba-token-plan";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import * as envApiKey from "@reverse/ai/env-api-key";
+import { serializeAlibabaTokenPlanCredential } from "@reverse/catalog/wire/alibaba-token-plan";
 import { removeWithRetries } from "../../utils/src/temp";
 
 function countCredentialRows(dbPath: string, provider: string): number {

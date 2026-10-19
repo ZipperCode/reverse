@@ -36,7 +36,7 @@ import { contentRowWidth, renderScrollableList } from "../chrome/selector-helper
 import { MenuSelection } from "../components/menu-selection";
 import { centeredViewportRange } from "../components/scroll-viewport";
 import type { KeyName } from "../key-hint-format";
-import type { TspPickerItem } from "@rva/wire";
+import type { TspPickerItem } from "@reverse/wire";
 import { col, keyed, node, span } from "../native/describe";
 import type { DescribeContext, NativeNode, NativeUiEvent } from "../native/node";
 import { actionHint, hintsRow, overlayCard } from "../native/overlay";

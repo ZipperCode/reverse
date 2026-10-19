@@ -14,15 +14,15 @@
  * redraw — that per-event recompute is what previously froze large sessions.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import type { ContextUsage } from "@rva/coding-agent/extensibility/extensions/types";
-import { StatusLineComponent } from "@rva/tui/status-line";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { initTheme, setSymbolPreset, theme } from "@rva/tui/theme";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { cfgCompactionThresholdPercent } from "@rva/coding-agent/session/context-settings";
-import { getSessionAccentAnsi } from "@rva/tui/theme/session-color";
-import { adjustHsv } from "@rva/utils";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import type { ContextUsage } from "@reverse/coding-agent/extensibility/extensions/types";
+import { StatusLineComponent } from "@reverse/tui/status-line";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { initTheme, setSymbolPreset, theme } from "@reverse/tui/theme";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { cfgCompactionThresholdPercent } from "@reverse/coding-agent/session/context-settings";
+import { getSessionAccentAnsi } from "@reverse/tui/theme/session-color";
+import { adjustHsv } from "@reverse/utils";
 import { StatusLineTestComponents } from "./helpers/status-line";
 
 import {
@@ -30,7 +30,7 @@ import {
 	cfgStatusLineLeftSegments,
 	cfgStatusLinePreset,
 	cfgStatusLineRightSegments,
-} from "@rva/coding-agent/modes/settings";
+} from "@reverse/coding-agent/modes/settings";
 
 const statusLines = new StatusLineTestComponents();
 beforeAll(async () => {

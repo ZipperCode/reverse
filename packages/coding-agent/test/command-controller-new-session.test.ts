@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { CommandController } from "@rva/coding-agent/modes/controllers/command-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { CommandController } from "@reverse/coding-agent/modes/controllers/command-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 beforeAll(async () => {
 	await initTheme(false);

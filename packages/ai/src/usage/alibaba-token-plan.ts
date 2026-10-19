@@ -1,8 +1,8 @@
-import { toNumber } from "@rva/catalog/utils";
+import { toNumber } from "@reverse/catalog/utils";
 import {
 	ALIBABA_TOKEN_PLAN_CN_BASE_URL,
 	parseAlibabaTokenPlanCredential,
-} from "@rva/catalog/wire/alibaba-token-plan";
+} from "@reverse/catalog/wire/alibaba-token-plan";
 import type {
 	CredentialRankingStrategy,
 	UsageFetchContext,

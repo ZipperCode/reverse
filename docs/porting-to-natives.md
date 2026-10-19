@@ -1,6 +1,6 @@
 # Porting Hot Paths to `pi-natives`
 
-This is the contributor path for moving a measured JS/TS hot path into `crates/pi-natives` and exposing it through `@rva/natives`.
+This is the contributor path for moving a measured JS/TS hot path into `crates/pi-natives` and exposing it through `@reverse/natives`.
 
 ## Decide whether to port
 
@@ -15,8 +15,8 @@ The package has no `packages/natives/src/<module>` wrapper layer. Its entrypoint
 - eager root: `native/index.js` with generated `native/index.d.ts`;
 - lazy desktop wrapper: `native/desktop.js` / `desktop.d.ts`;
 - lazy clipboard wrapper: `native/clipboard.js` / `clipboard.d.ts`;
-- lazy Windows-path wrapper: `native/path.js` / `path.d.ts` (`@rva/natives/path`); other platforms return the input unchanged without loading;
-- lazy vcs wrapper: `native/vcs.js` / `vcs.d.ts` (`@rva/natives/vcs`).
+- lazy Windows-path wrapper: `native/path.js` / `path.d.ts` (`@reverse/natives/path`); other platforms return the input unchanged without loading;
+- lazy vcs wrapper: `native/vcs.js` / `vcs.d.ts` (`@reverse/natives/vcs`).
 
 The VCS subpath exposes discovery and Git/Jujutsu operations through `git`,
 `repo`, `repoForDisplay`, `require`, `requireGit`, and `jj`, plus metadata,
@@ -85,7 +85,7 @@ Do not add a wrapper merely to rename a generated root export.
 
 ### 4. Migrate consumers cleanly
 
-- Import the generated root symbol or intentional lazy subpath from `@rva/natives`.
+- Import the generated root symbol or intentional lazy subpath from `@reverse/natives`.
 - Compare results and errors against the JS baseline on boundary cases.
 - Switch every intended caller and remove the obsolete implementation in the same change.
 - Keep user-facing policy and rendering in the consumer when the native primitive does not own it.

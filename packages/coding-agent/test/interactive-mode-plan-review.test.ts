@@ -1,39 +1,39 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent, AgentBusyError, ThinkingLevel } from "@rva/agent";
-import type { AssistantMessage, Usage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { resolveLocalUrlToPath } from "@rva/coding-agent/internal-urls";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import type { HookSelectorSlider } from "@rva/tui/overlays/hook-selector";
-import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@rva/tui/overlays/plan-review-overlay";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
+import { Agent, AgentBusyError, ThinkingLevel } from "@reverse/agent";
+import type { AssistantMessage, Usage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { resolveLocalUrlToPath } from "@reverse/coding-agent/internal-urls";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import type { HookSelectorSlider } from "@reverse/tui/overlays/hook-selector";
+import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@reverse/tui/overlays/plan-review-overlay";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
 import type {
 	Extension,
 	ExtensionContext,
 	ExtensionEvent,
 	PlanReviewRequestedEvent,
 	PlanReviewResolvedEvent,
-} from "@rva/coding-agent/extensibility/extensions";
-import { planSaveFileName } from "@rva/coding-agent/plan-mode/plan-autosave";
-import { initTheme } from "@rva/tui/theme";
-import type { SubmittedUserInput } from "@rva/coding-agent/modes/types";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { AUTO_THINKING } from "@rva/tui/thinking";
-import * as clipboard from "@rva/coding-agent/utils/clipboard";
-import { setKeybindings } from "@rva/tui";
-import { CONFIG_DIR_NAME, formatNumber, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/extensions";
+import { planSaveFileName } from "@reverse/coding-agent/plan-mode/plan-autosave";
+import { initTheme } from "@reverse/tui/theme";
+import type { SubmittedUserInput } from "@reverse/coding-agent/modes/types";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
+import * as clipboard from "@reverse/coding-agent/utils/clipboard";
+import { setKeybindings } from "@reverse/tui";
+import { CONFIG_DIR_NAME, formatNumber, TempDir } from "@reverse/utils";
 
-import { cfgPlanAutosave, cfgPlanAutosaveDir } from "@rva/coding-agent/plan-mode/settings";
+import { cfgPlanAutosave, cfgPlanAutosaveDir } from "@reverse/coding-agent/plan-mode/settings";
 
 /**
  * Matches the plan-approved synthetic-prompt dispatch. `#approvePlan` calls

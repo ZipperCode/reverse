@@ -4,7 +4,7 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent } from "@rva/utils";
+import { isEnoent } from "@reverse/utils";
 
 /** Read a token file; `null` when it is missing or blank. */
 export async function readTokenFile(file: string): Promise<string | null> {

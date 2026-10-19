@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getThemeByName } from "@rva/tui/theme";
-import { sanitizeText } from "@rva/utils";
-import { globToolRenderer } from "@rva/tui/tools/glob";
+import { getThemeByName } from "@reverse/tui/theme";
+import { sanitizeText } from "@reverse/utils";
+import { globToolRenderer } from "@reverse/tui/tools/glob";
 
 describe("globToolRenderer", () => {
 	it("indents inline glob output and avoids accent-colored success headers", async () => {

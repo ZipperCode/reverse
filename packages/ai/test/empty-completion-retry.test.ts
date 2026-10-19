@@ -4,9 +4,9 @@
  * so output is never duplicated.
  */
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, AssistantMessageEvent, Context, Usage } from "@rva/ai/types";
-import { MAX_EMPTY_COMPLETION_RETRIES, withReplaySafeStreamRetry } from "@rva/ai/utils/empty-completion-retry";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+import type { AssistantMessage, AssistantMessageEvent, Context, Usage } from "@reverse/ai/types";
+import { MAX_EMPTY_COMPLETION_RETRIES, withReplaySafeStreamRetry } from "@reverse/ai/utils/empty-completion-retry";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 
 const CTX = {} as Context;
 

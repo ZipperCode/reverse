@@ -1,15 +1,15 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
-import { PYTHON_PRELUDE } from "@rva/coding-agent/eval/py/prelude";
+import type { AgentTool, AgentToolResult } from "@reverse/agent";
+import { PYTHON_PRELUDE } from "@reverse/coding-agent/eval/py/prelude";
 import {
 	disposePyToolBridge,
 	ensurePyToolBridge,
 	registerPyToolBridge,
-} from "@rva/coding-agent/eval/py/tool-bridge";
-import type { EvalShadowCellSession } from "@rva/coding-agent/eval/speculation/cell-session";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { $which, isRecord } from "@rva/utils";
-import { INTENT_FIELD } from "@rva/wire";
+} from "@reverse/coding-agent/eval/py/tool-bridge";
+import type { EvalShadowCellSession } from "@reverse/coding-agent/eval/speculation/cell-session";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { $which, isRecord } from "@reverse/utils";
+import { INTENT_FIELD } from "@reverse/wire";
 
 interface FakeCall {
 	id: string;

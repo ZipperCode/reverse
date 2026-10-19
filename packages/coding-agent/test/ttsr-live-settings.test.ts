@@ -1,16 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import type { Api, Model, ModelSpec } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import type { Api, Model, ModelSpec } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
-import { cfgTtsrDisabledRules, cfgTtsrEnabled } from "@rva/coding-agent/export/ttsr-settings";
+import { cfgTtsrDisabledRules, cfgTtsrEnabled } from "@reverse/coding-agent/export/ttsr-settings";
 
 function buildLocalModel(): Model<Api> {
 	return buildModel({

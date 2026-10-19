@@ -12,24 +12,21 @@
  * helper itself is exercised directly.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ToolAbortError } from "@rva/coding-agent/tools/tool-errors";
-import { runSearchQuery } from "@rva/coding-agent/web/search";
-import * as provider from "@rva/coding-agent/web/search/provider";
-import { searchAnthropic } from "@rva/coding-agent/web/search/providers/anthropic";
-import type { SearchParams } from "@rva/coding-agent/web/search/providers/base";
-import { searchBrave } from "@rva/coding-agent/web/search/providers/brave";
-import { withHardTimeout } from "@rva/coding-agent/web/search/providers/utils";
-import { SearchProviderError } from "@rva/coding-agent/web/search/types";
-import { type SearchProviderId, type SearchResponse } from "@rva/coding-agent/web/search/types";
+import type { AuthStorage, FetchImpl } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ToolAbortError } from "@reverse/coding-agent/tools/tool-errors";
+import { runSearchQuery } from "@reverse/coding-agent/web/search";
+import * as provider from "@reverse/coding-agent/web/search/provider";
+import { searchAnthropic } from "@reverse/coding-agent/web/search/providers/anthropic";
+import type { SearchParams } from "@reverse/coding-agent/web/search/providers/base";
+import { searchBrave } from "@reverse/coding-agent/web/search/providers/brave";
+import { withHardTimeout } from "@reverse/coding-agent/web/search/providers/utils";
+import { SearchProviderError } from "@reverse/coding-agent/web/search/types";
+import { type SearchProviderId, type SearchResponse } from "@reverse/coding-agent/web/search/types";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
-import {
-	cfgProvidersWebSearchTimeoutSeconds,
-	cfgRetryFallbackChains,
-} from "@rva/coding-agent/session/settings";
+import { cfgProvidersWebSearchTimeoutSeconds, cfgRetryFallbackChains } from "@reverse/coding-agent/session/settings";
 
 const openAuthStorages: AuthStorage[] = [];
 

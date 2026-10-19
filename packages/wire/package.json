@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@rva/wire",
+  "name": "@reverse/wire",
   "version": "18.11.2",
   "description": "Shared wire protocol types for omp packages",
   "homepage": "https://omp.sh",

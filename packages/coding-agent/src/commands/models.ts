@@ -2,9 +2,9 @@
  * List, search, and refresh available models.
  */
 
-import { MODEL_KINDS, type ModelKind } from "@rva/catalog/types";
-import { APP_NAME } from "@rva/utils";
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { MODEL_KINDS, type ModelKind } from "@reverse/catalog/types";
+import { APP_NAME } from "@reverse/utils";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { modelsHelp as commandHelp } from "../cli/command-help";
 import { resolveModelsArgs, runModelsCommand } from "../cli/models-cli";
 

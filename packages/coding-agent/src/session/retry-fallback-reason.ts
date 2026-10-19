@@ -1,5 +1,5 @@
-import type { ModelUsageHealth } from "@rva/ai";
-import { formatDuration } from "@rva/utils";
+import type { ModelUsageHealth } from "@reverse/ai";
+import { formatDuration } from "@reverse/utils";
 
 /** Describe the health snapshot that actually caused a preflight switch. */
 export function describeUsageFallback(health: ModelUsageHealth, reservePercent: number): string {

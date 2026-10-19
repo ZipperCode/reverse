@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import { rewriteImports, wrapCode } from "@rva/coding-agent/eval/js/context-manager";
-import { indirectEval } from "@rva/coding-agent/eval/js/shared/indirect-eval";
+import { rewriteImports, wrapCode } from "@reverse/coding-agent/eval/js/context-manager";
+import { indirectEval } from "@reverse/coding-agent/eval/js/shared/indirect-eval";
 
 // Test fixtures embed user-supplied `import(...)` syntax that the rewriter must
 // transform. The strings are split so static-analysis heuristics don't read them

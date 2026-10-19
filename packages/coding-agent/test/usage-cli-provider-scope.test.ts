@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai";
-import { runUsageCommand } from "@rva/coding-agent/cli/usage-cli";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as sdkModule from "@rva/coding-agent/sdk";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai";
+import { runUsageCommand } from "@reverse/coding-agent/cli/usage-cli";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as sdkModule from "@reverse/coding-agent/sdk";
 
 let db: Database;
 let authStorage: AuthStorage;

@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent, resetThinkingSpeedTracker } from "@rva/tui/chat/assistant-message";
-import { initTheme } from "@rva/tui/theme";
-import { setTerminalImageProtocol, TERMINAL } from "@rva/tui";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent, resetThinkingSpeedTracker } from "@reverse/tui/chat/assistant-message";
+import { initTheme } from "@reverse/tui/theme";
+import { setTerminalImageProtocol, TERMINAL } from "@reverse/tui";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 

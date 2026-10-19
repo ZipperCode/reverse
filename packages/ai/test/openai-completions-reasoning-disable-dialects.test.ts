@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context, FetchImpl, Model, ModelSpec, OpenAICompat, Tool } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, FetchImpl, Model, ModelSpec, OpenAICompat, Tool } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
 
 // Each Chat Completions reasoning dialect carries "thinking is on" on a
 // different wire field. The `disableReasoningOnForcedToolChoice` /

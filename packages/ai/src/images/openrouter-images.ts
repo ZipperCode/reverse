@@ -1,4 +1,4 @@
-import type { Model } from "@rva/catalog/types";
+import type { Model } from "@reverse/catalog/types";
 import { decodeImageResponse, imageBaseUrl, postJson, toDataUrl } from "./shared";
 import type { ImageGenerationOptions, ImageGenerationRequest, ImageGenerationResult } from "./types";
 

@@ -1,11 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import {
-	RawSseDebugBuffer,
-	rawSseRecordLines,
-	resolveRawSseDebugBuffer,
-} from "@rva/tui/apps/debug/raw-sse-buffer";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { RawSseDebugBuffer, rawSseRecordLines, resolveRawSseDebugBuffer } from "@reverse/tui/apps/debug/raw-sse-buffer";
 
 const model: Model<"anthropic-messages"> = buildModel({
 	id: "claude-test",

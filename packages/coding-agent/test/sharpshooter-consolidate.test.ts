@@ -1,25 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import * as ai from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
+import * as ai from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	renderSharpshooterSessions,
 	runSharpshooterConsolidation,
-} from "@rva/coding-agent/sharpshooter/consolidate";
+} from "@reverse/coding-agent/sharpshooter/consolidate";
 import {
 	readSharpshooterState,
 	sharpshooterBankDir,
 	sharpshooterMemoryFilePath,
 	writeSharpshooterState,
-} from "@rva/coding-agent/sharpshooter/paths";
+} from "@reverse/coding-agent/sharpshooter/paths";
 import {
 	appendSharpshooterDelta,
 	listSharpshooterDeltas,
 	type SharpshooterSessionDeltas,
-} from "@rva/coding-agent/sharpshooter/queue";
-import type { SharpshooterDelta } from "@rva/coding-agent/sharpshooter/types";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/sharpshooter/queue";
+import type { SharpshooterDelta } from "@reverse/coding-agent/sharpshooter/types";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 interface Harness {

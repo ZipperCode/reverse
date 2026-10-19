@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Text, TUI } from "@rva/tui";
+import { Text, TUI } from "@reverse/tui";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 import { WidthReplayProvider } from "./width-replay-provider";

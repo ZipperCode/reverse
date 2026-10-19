@@ -1,12 +1,7 @@
-import { type AuthStorage, type OAuthAccess, withOAuthAccess } from "@rva/ai";
-import { getProxyForUrl, wrapFetchForProxy } from "@rva/ai/utils/proxy";
-import {
-	CODEX_BASE_URL,
-	CODEX_CLIENT_VERSION,
-	getCodexAccountId,
-	OPENAI_HEADERS,
-} from "@rva/catalog/wire/codex";
-import { LiveWebRtcPeer } from "@rva/natives";
+import { type AuthStorage, type OAuthAccess, withOAuthAccess } from "@reverse/ai";
+import { getProxyForUrl, wrapFetchForProxy } from "@reverse/ai/utils/proxy";
+import { CODEX_BASE_URL, CODEX_CLIENT_VERSION, getCodexAccountId, OPENAI_HEADERS } from "@reverse/catalog/wire/codex";
+import { LiveWebRtcPeer } from "@reverse/natives";
 import { generateCodexAttestation } from "./attestation";
 import {
 	buildLiveSessionPayload,

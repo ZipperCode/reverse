@@ -1,21 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import type { Api, Context, Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
+import type { Api, Context, Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	hashProviderFileContent,
 	ProviderFileCache,
 	type ProviderFileClient,
 	type ProviderFileHandle,
-} from "@rva/coding-agent/blob-broker/provider-file-types";
-import {
-	type ProviderFileClientFactory,
-	ProviderFileManager,
-} from "@rva/coding-agent/blob-broker/provider-files";
-import { createAnthropicFileClient } from "@rva/coding-agent/blob-broker/provider-files-anthropic";
-import { createGeminiProviderFileClient } from "@rva/coding-agent/blob-broker/provider-files-gemini";
-import { createOpenAIFileClient } from "@rva/coding-agent/blob-broker/provider-files-openai";
-import type { FetchImpl } from "@rva/coding-agent/blob-broker/uploader-runtime";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/blob-broker/provider-file-types";
+import { type ProviderFileClientFactory, ProviderFileManager } from "@reverse/coding-agent/blob-broker/provider-files";
+import { createAnthropicFileClient } from "@reverse/coding-agent/blob-broker/provider-files-anthropic";
+import { createGeminiProviderFileClient } from "@reverse/coding-agent/blob-broker/provider-files-gemini";
+import { createOpenAIFileClient } from "@reverse/coding-agent/blob-broker/provider-files-openai";
+import type { FetchImpl } from "@reverse/coding-agent/blob-broker/uploader-runtime";
+import { TempDir } from "@reverse/utils";
 
 interface RecordedRequest {
 	readonly url: string;

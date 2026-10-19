@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { disposeAllKernelSessions, executePythonWithKernel } from "@rva/coding-agent/eval/py/executor";
-import { DEFAULT_MAX_BYTES } from "@rva/tui/tools/streaming-output";
-import { TempDir } from "@rva/utils";
+import { disposeAllKernelSessions, executePythonWithKernel } from "@reverse/coding-agent/eval/py/executor";
+import { DEFAULT_MAX_BYTES } from "@reverse/tui/tools/streaming-output";
+import { TempDir } from "@reverse/utils";
 import { FakeKernel } from "./helpers";
 
 describe("executePythonWithKernel", () => {

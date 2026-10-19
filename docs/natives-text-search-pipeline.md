@@ -1,6 +1,6 @@
 # Natives Text/Search Pipeline
 
-This document maps the `@rva/natives` text/search/code surface from generated JS/TS exports to Rust N-API modules and back to JS result objects.
+This document maps the `@reverse/natives` text/search/code surface from generated JS/TS exports to Rust N-API modules and back to JS result objects.
 
 Terminology follows `docs/natives-architecture.md`:
 
@@ -232,7 +232,7 @@ These are pure, in-memory utilities.
 - `sliceWithWidth`: returns `{ text, width }` for a column slice; strict width enforcement defaults to `false`.
 - `extractSegments`: extracts before/after segments around an overlay while restoring ANSI state for the `after` segment.
 - `setHangulCompatJamoWidthOverride(value)` controls U+3131–U+318E width correction for client-terminal compatibility: `0` uses the platform fallback, `1` forces one cell, `2` forces two, and `3` follows Unicode width.
-- `sanitizeText` is not a native export. It lives in `@rva/utils` (`packages/utils/src/sanitize-text.ts`) and uses `Bun.stripANSI`, control-character removal, and malformed-surrogate cleanup.
+- `sanitizeText` is not a native export. It lives in `@reverse/utils` (`packages/utils/src/sanitize-text.ts`) and uses `Bun.stripANSI`, control-character removal, and malformed-surrogate cleanup.
 - `visibleWidth`: counts visible terminal cells using caller-supplied tab width. Width-sensitive exports clamp tab width to `1..16`; tabs occupy that fixed width rather than expanding to tab stops.
 - Text processing uses JS UTF-16 directly, with an ASCII fast path and grapheme segmentation for non-ASCII. OSC 66 scaled-text payloads contribute visible width instead of being treated as zero-width escapes.
 

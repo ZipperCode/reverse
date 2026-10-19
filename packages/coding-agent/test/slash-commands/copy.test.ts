@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import * as clipboard from "@rva/coding-agent/utils/clipboard";
-import * as opener from "@rva/coding-agent/utils/open";
+import type { AgentMessage } from "@reverse/agent";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import * as clipboard from "@reverse/coding-agent/utils/clipboard";
+import * as opener from "@reverse/coding-agent/utils/open";
 
 function assistantText(text: string): AgentMessage {
 	return { role: "assistant", content: [{ type: "text", text }] } as unknown as AgentMessage;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { gzipSync } from "node:zlib";
-import { decodeDocsIndex } from "@rva/coding-agent/internal-urls/docs-index";
+import { decodeDocsIndex } from "@reverse/coding-agent/internal-urls/docs-index";
 import { buildDocsIndexPayload } from "../../scripts/generate-docs-index";
 
 function embed(files: readonly string[], bodies: readonly string[]): string {

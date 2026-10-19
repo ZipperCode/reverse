@@ -1,12 +1,12 @@
-import type { AgentEvent, ThinkingLevel } from "@rva/agent";
-import type { CompactionResult } from "@rva/agent/compaction";
-import type { Effort } from "@rva/ai";
+import type { AgentEvent, ThinkingLevel } from "@reverse/agent";
+import type { CompactionResult } from "@reverse/agent/compaction";
+import type { Effort } from "@reverse/ai";
 import type { Rule } from "../capability/rule";
 import type { RetryErrorUpdate } from "../extensibility/shared-events";
-import type { Goal } from "@rva/tui/tools/goal";
+import type { Goal } from "@reverse/tui/tools/goal";
 import type { GoalModeState } from "../goals/state";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
-import type { TodoItem } from "@rva/tui/tools/todo";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
+import type { TodoItem } from "@reverse/tui/tools/todo";
 import type { CustomMessage } from "./messages";
 import type { CacheWarmingRefreshEnd, CacheWarmingRefreshStart } from "./cache-warmer";
 

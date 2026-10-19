@@ -2,18 +2,18 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 import {
 	buildSharpshooterEnvelope,
 	maybeStartSharpshooterExtraction,
-} from "@rva/coding-agent/sharpshooter/extract";
-import { listSharpshooterDeltas } from "@rva/coding-agent/sharpshooter/queue";
+} from "@reverse/coding-agent/sharpshooter/extract";
+import { listSharpshooterDeltas } from "@reverse/coding-agent/sharpshooter/queue";
 
 function message(role: "user" | "assistant", content: unknown): AgentMessage {
 	return { role, content, timestamp: Date.now() } as unknown as AgentMessage;

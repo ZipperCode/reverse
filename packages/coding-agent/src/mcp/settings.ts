@@ -2,7 +2,7 @@
  * Settings declared by this domain (see `config/registry.ts`). Declaration order is the
  * settings-panel order; `config/all-settings.ts` registers every domain.
  */
-import { setMcpRenderMarkdownResults } from "@rva/tui/tools/mcp";
+import { setMcpRenderMarkdownResults } from "@reverse/tui/tools/mcp";
 import { effect, register } from "../config/registry";
 
 // MCP

@@ -21,10 +21,10 @@ import { afterEach, beforeEach, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { validateJsonSchemaValue } from "@rva/ai/utils/schema/json-schema-validator";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import { loadAllMCPConfigs } from "@rva/coding-agent/mcp/config";
-import { CONFIG_DIR_NAME, getConfigRootDir, logger, removeWithRetries, setAgentDir } from "@rva/utils";
+import { validateJsonSchemaValue } from "@reverse/ai/utils/schema/json-schema-validator";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { loadAllMCPConfigs } from "@reverse/coding-agent/mcp/config";
+import { CONFIG_DIR_NAME, getConfigRootDir, logger, removeWithRetries, setAgentDir } from "@reverse/utils";
 import mcpSchema from "../../src/config/mcp-schema.json" with { type: "json" };
 
 const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;

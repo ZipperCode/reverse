@@ -22,10 +22,10 @@
 import { Database, type SQLQueryBindings, type Statement } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { isSqliteBusyError, sqliteFileIdentity, type SqliteFileIdentity } from "@rva/utils";
-import { getHistoryDbPath } from "@rva/utils/dirs";
-import { getDbBusyTimeoutMs } from "@rva/utils/env";
-import * as logger from "@rva/utils/logger";
+import { isSqliteBusyError, sqliteFileIdentity, type SqliteFileIdentity } from "@reverse/utils";
+import { getHistoryDbPath } from "@reverse/utils/dirs";
+import { getDbBusyTimeoutMs } from "@reverse/utils/env";
+import * as logger from "@reverse/utils/logger";
 
 const SESSION_INDEX_DDL = `
 CREATE TABLE IF NOT EXISTS session_titles (

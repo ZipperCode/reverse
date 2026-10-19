@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import type { Api, Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { kNoAuth } from "@rva/coding-agent/config/model-registry";
+import type { Api, Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { kNoAuth } from "@reverse/coding-agent/config/model-registry";
 import {
 	type ModelLookupRegistry,
 	resolveModelOverrideWithAuthFallback,
-} from "@rva/coding-agent/config/model-resolver";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
+} from "@reverse/coding-agent/config/model-resolver";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 
 /**
  * Regression test for #985.

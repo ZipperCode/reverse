@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
-import { stream, streamSimple } from "@rva/ai/stream";
-import type { Context, Tool } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { ollamaCloudModelManagerOptions } from "@rva/catalog/provider-models/ollama";
-import type { FetchImpl, Model } from "@rva/catalog/types";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
+import { stream, streamSimple } from "@reverse/ai/stream";
+import type { Context, Tool } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { ollamaCloudModelManagerOptions } from "@reverse/catalog/provider-models/ollama";
+import type { FetchImpl, Model } from "@reverse/catalog/types";
 
 const originalApiKey = Bun.env.OLLAMA_CLOUD_API_KEY;
 

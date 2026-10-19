@@ -1,5 +1,5 @@
 import * as url from "node:url";
-import type { ImageContent } from "@rva/ai";
+import type { ImageContent } from "@reverse/ai";
 import { BracketedPasteHandler } from "../bracketed-paste";
 import { BRACKETED_PASTE_END, BRACKETED_PASTE_START } from "../stdin-buffer";
 import {
@@ -41,7 +41,7 @@ import {
 import { type MacOSSpellingFeatures, MacOSSpellingProvider } from "./macos-spelling";
 import { TypingWordTracker } from "./typing-word";
 import { hasMagicKeyword, highlightMagicKeywords, magicKeywordRanges } from "./magic-keywords";
-import type { TspEditorDecoration, TspText } from "@rva/wire";
+import type { TspEditorDecoration, TspText } from "@reverse/wire";
 import { isNativeRendering } from "../native/state";
 import { isQueuedMessageList, parseQueueShorthand, QUEUE_LIST_MARKER_RE } from "./queue-input";
 import { type WordCompletionMethod, WordCompletionProvider } from "./word-completion";

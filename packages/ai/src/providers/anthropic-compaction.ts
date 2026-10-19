@@ -1,4 +1,4 @@
-import { isBedrockAnthropicRoute, isOfficialAnthropicApiUrl } from "@rva/catalog/compat/anthropic";
+import { isBedrockAnthropicRoute, isOfficialAnthropicApiUrl } from "@reverse/catalog/compat/anthropic";
 import type { Model } from "../types";
 import type { AnthropicMessagesClientLike } from "./anthropic-client";
 import { normalizeAnthropicBaseUrl, resolveDirectAnthropicBaseUrl } from "./anthropic-state";

@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import {
 	type CompactionPreparation,
 	compact,
 	createFileOps,
 	DEFAULT_COMPACTION_SETTINGS,
 	generateHandoff,
-} from "@rva/agent/compaction";
-import { ThinkingLevel } from "@rva/agent/thinking";
-import type { AssistantMessage, Model } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/agent/compaction";
+import { ThinkingLevel } from "@reverse/agent/thinking";
+import type { AssistantMessage, Model } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
 
 // Pins fix #1 of the compaction effort-override bug. Before this fix,
 // `generateHandoff` (and the three other compaction summarizers) hardcoded

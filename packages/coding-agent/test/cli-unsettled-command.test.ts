@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 
 // Regression: `omp config set collab.autoStart control` on a fresh Windows profile over WinRM
 // exited 0 with no output and never wrote config.yml. The CLI entry is a floating `runCli()`
@@ -78,10 +78,13 @@ async function runConfigSet(tempDir: TempDir, settingsInit: SettingsInitMode): P
 	delete env.XDG_CONFIG_HOME;
 	delete env.XDG_DATA_HOME;
 	delete env.XDG_STATE_HOME;
-	const proc = Bun.spawn(
-		[process.execPath, ...preloadArgs, cliEntry, "config", "set", "colorBlindMode", "true"],
-		{ cwd: tempDir.path(), env, stdin: "ignore", stdout: "pipe", stderr: "pipe" },
-	);
+	const proc = Bun.spawn([process.execPath, ...preloadArgs, cliEntry, "config", "set", "colorBlindMode", "true"], {
+		cwd: tempDir.path(),
+		env,
+		stdin: "ignore",
+		stdout: "pipe",
+		stderr: "pipe",
+	});
 	const [exitCode, stdout, stderr] = await Promise.all([
 		proc.exited,
 		new Response(proc.stdout).text(),

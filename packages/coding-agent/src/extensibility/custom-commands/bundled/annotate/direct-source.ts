@@ -1,6 +1,6 @@
 import type { CustomCommandContext } from "../../../../extensibility/custom-commands/types";
 import { resolveReadPath } from "../../../../tools/path-utils";
-import type { TextReviewSource } from "@rva/tui/overlays/annotation-types";
+import type { TextReviewSource } from "@reverse/tui/overlays/annotation-types";
 
 /**
  * Read one regular text file without trimming or otherwise rewriting its bytes.

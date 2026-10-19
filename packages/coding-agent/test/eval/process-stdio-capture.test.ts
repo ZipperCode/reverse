@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { JsRuntime, type RuntimeHooks } from "@rva/coding-agent/eval/js/shared/runtime";
-import type { JsDisplayOutput } from "@rva/coding-agent/eval/js/shared/types";
+import { JsRuntime, type RuntimeHooks } from "@reverse/coding-agent/eval/js/shared/runtime";
+import type { JsDisplayOutput } from "@reverse/coding-agent/eval/js/shared/types";
 
 function makeRuntime(): { runtime: JsRuntime; hooks: RuntimeHooks; texts: string[] } {
 	const texts: string[] = [];

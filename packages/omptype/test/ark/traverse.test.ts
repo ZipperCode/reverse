@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { scope, type } from "@rva/omptype/ark";
+import { scope, type } from "@reverse/omptype/ark";
 
 it("divisible", () => {
 	const T = type("number%2");

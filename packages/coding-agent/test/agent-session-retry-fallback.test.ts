@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import { createCompactionSummaryMessage } from "@rva/agent/compaction";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import { createCompactionSummaryMessage } from "@reverse/agent/compaction";
 import {
 	type AnthropicFallbackCreditHandle,
 	type Api,
@@ -14,36 +14,33 @@ import {
 	type ModelUsageHealth,
 	type ProviderSessionState,
 	type ToolCall,
-} from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { createMockModel, type MockResponse } from "@rva/ai/providers/mock";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { parseModelString } from "@rva/tui/overlays/model-selector";
-import { parseModelPattern } from "@rva/coding-agent/config/model-resolver";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { editVariantForModel } from "@rva/coding-agent/utils/edit-mode";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { initTheme } from "@rva/tui/theme";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import {
-	type ServingModel,
-	validateRetryFallbackChains,
-} from "@rva/coding-agent/session/retry-fallback-chains";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { computerTurnInFlight, registerComputerController } from "@rva/coding-agent/tools/computer/supervisor";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
+} from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { createMockModel, type MockResponse } from "@reverse/ai/providers/mock";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { parseModelString } from "@reverse/tui/overlays/model-selector";
+import { parseModelPattern } from "@reverse/coding-agent/config/model-resolver";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { editVariantForModel } from "@reverse/coding-agent/utils/edit-mode";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { type ServingModel, validateRetryFallbackChains } from "@reverse/coding-agent/session/retry-fallback-chains";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { computerTurnInFlight, registerComputerController } from "@reverse/coding-agent/tools/computer/supervisor";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 
-import { cfgRetryUsageReservePolicy } from "@rva/coding-agent/session/settings";
+import { cfgRetryUsageReservePolicy } from "@reverse/coding-agent/session/settings";
 
 type AutoRetryStartEvent = Extract<AgentSessionEvent, { type: "auto_retry_start" }>;
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;

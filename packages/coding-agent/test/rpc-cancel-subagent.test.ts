@@ -2,23 +2,23 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { LoadExtensionsResult } from "@rva/coding-agent/extensibility/extensions/types";
-import { handleRpcCancelSubagent } from "@rva/coding-agent/modes/rpc/rpc-mode";
-import { RpcSubagentRegistry } from "@rva/coding-agent/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@rva/coding-agent/modes/rpc/rpc-types";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { runSubprocess } from "@rva/coding-agent/task/executor";
+import type { LoadExtensionsResult } from "@reverse/coding-agent/extensibility/extensions/types";
+import { handleRpcCancelSubagent } from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import { RpcSubagentRegistry } from "@reverse/coding-agent/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@reverse/coding-agent/modes/rpc/rpc-types";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { runSubprocess } from "@reverse/coding-agent/task/executor";
 import {
 	type AgentDefinition,
 	type SubagentLifecyclePayload,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
-} from "@rva/coding-agent/task/types";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/task/types";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 describe("handleRpcCancelSubagent", () => {
 	let registry: RpcSubagentRegistry;

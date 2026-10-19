@@ -1,4 +1,4 @@
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 /** Normalize explicit distribution requirements without accepting package-manager flags. */
 export function normalizePackageRequirements(requirements: readonly string[]): string[] {

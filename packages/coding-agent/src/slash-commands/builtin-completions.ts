@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AutocompleteItem } from "@rva/tui";
-import { getMCPConfigPath, getProjectDir, logger } from "@rva/utils";
+import type { AutocompleteItem } from "@reverse/tui";
+import { getMCPConfigPath, getProjectDir, logger } from "@reverse/utils";
 import { formatModelRoleAlias, getKnownRoleIds } from "../config/model-roles";
 import { cfgCycleOrder } from "../config/model-settings";
 import { readMCPConfigFile } from "../mcp/config-writer";
@@ -11,8 +11,8 @@ import { createModelBrowserSource } from "../modes/model-browser-source";
 import {
 	createModelMentionSource,
 	type ModelMentionCandidateSource,
-} from "@rva/tui/prompt/model-mention-autocomplete";
-import { getConfiguredThinkingLevelMetadata } from "@rva/tui/thinking";
+} from "@reverse/tui/prompt/model-mention-autocomplete";
+import { getConfiguredThinkingLevelMetadata } from "@reverse/tui/thinking";
 import { expandTilde } from "../tools/path-utils";
 import type { SubcommandDef, TuiSlashCommandRuntime } from "./types";
 

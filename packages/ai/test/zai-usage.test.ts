@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchContext, UsageFetchParams } from "@rva/ai/usage";
-import { zaiRankingStrategy, zaiUsageProvider } from "@rva/ai/usage/zai";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchContext, UsageFetchParams } from "@reverse/ai/usage";
+import { zaiRankingStrategy, zaiUsageProvider } from "@reverse/ai/usage/zai";
 
 function makeCredential(): UsageFetchParams["credential"] {
 	return {

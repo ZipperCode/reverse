@@ -1,4 +1,4 @@
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import { TOOL_TIMEOUTS } from "../tools/tool-timeouts";
 
 // =============================================================================

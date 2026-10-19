@@ -1,4 +1,4 @@
-import type { TerminalMultiplexer } from "@rva/tui/terminal-multiplexer";
+import type { TerminalMultiplexer } from "@reverse/tui/terminal-multiplexer";
 import { cmuxLaunchProvider } from "./cmux";
 import { herdrLaunchProvider } from "./herdr";
 import { orcaLaunchProvider } from "./orca";

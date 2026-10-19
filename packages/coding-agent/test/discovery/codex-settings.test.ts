@@ -2,15 +2,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import {
-	type Settings as SettingsCapabilityItem,
-	settingsCapability,
-} from "@rva/coding-agent/capability/settings";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { loadCapability } from "@rva/coding-agent/discovery";
-import { cfgPersonality } from "@rva/coding-agent/session/settings";
-import { removeWithRetries } from "@rva/utils";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { type Settings as SettingsCapabilityItem, settingsCapability } from "@reverse/coding-agent/capability/settings";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { loadCapability } from "@reverse/coding-agent/discovery";
+import { cfgPersonality } from "@reverse/coding-agent/session/settings";
+import { removeWithRetries } from "@reverse/utils";
 
 describe("Codex config.toml settings", () => {
 	let root = "";

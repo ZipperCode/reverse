@@ -7,9 +7,9 @@
  * model mid-session), where the gauge clamps to full while the context_pct
  * segment reports the raw percent.
  */
-import { StatusLineComponent } from "@rva/tui/status-line";
+import { StatusLineComponent } from "@reverse/tui/status-line";
 import { statusLineHost } from "../../modes/status-line-host";
-import { theme } from "@rva/tui/theme";
+import { theme } from "@reverse/tui/theme";
 import type { AgentSession } from "../../session/agent-session";
 import type { GalleryFixture, GalleryFixtureState } from "./types";
 

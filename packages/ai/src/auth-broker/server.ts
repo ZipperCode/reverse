@@ -10,8 +10,8 @@
  * the server only checks a bearer token against an allow-list per request.
  */
 
-import { type Type, type } from "@rva/omptype";
-import { logger } from "@rva/utils";
+import { type Type, type } from "@reverse/omptype";
+import { logger } from "@reverse/utils";
 import type { AuthCredentialSnapshotEntry, AuthStorage, StoredCredentialBlock } from "../auth-storage";
 import { parseBind } from "../utils/parse-bind";
 import { resolvePeer } from "../utils/resolve-peer";

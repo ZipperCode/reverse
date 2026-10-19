@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { streamBedrock } from "@rva/ai/providers/amazon-bedrock";
-import { streamSimple } from "@rva/ai/stream";
-import type { Context, SimpleStreamOptions } from "@rva/ai/types";
-import { Effort } from "@rva/catalog/effort";
-import { type } from "@rva/omptype";
+import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Context, SimpleStreamOptions } from "@reverse/ai/types";
+import { Effort } from "@reverse/catalog/effort";
+import { type } from "@reverse/omptype";
 import {
 	BEDROCK_TEST_CONTEXT,
 	type BedrockCapture,

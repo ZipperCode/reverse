@@ -4,14 +4,14 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
-import { withStatsSyncLock } from "@rva/stats/aggregator";
-import { type GcResult, runGcCommand } from "@rva/coding-agent/cli/gc-cli";
-import { compressMethod } from "@rva/coding-agent/cli/gc-compress";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { BlobStore, blobStagingPath } from "@rva/coding-agent/session/blob-store";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage, sessionStagingPath } from "@rva/coding-agent/session/session-storage";
+import { withStatsSyncLock } from "@reverse/stats/aggregator";
+import { type GcResult, runGcCommand } from "@reverse/coding-agent/cli/gc-cli";
+import { compressMethod } from "@reverse/coding-agent/cli/gc-compress";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { BlobStore, blobStagingPath } from "@reverse/coding-agent/session/blob-store";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage, sessionStagingPath } from "@reverse/coding-agent/session/session-storage";
 import {
 	CONFIG_DIR_NAME,
 	getAgentDir,
@@ -23,7 +23,7 @@ import {
 	hashPath,
 	setAgentDir,
 	setProjectDir,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { runCli } from "../src/cli";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

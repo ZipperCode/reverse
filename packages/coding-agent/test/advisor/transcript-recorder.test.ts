@@ -15,14 +15,14 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import {
 	ADVISOR_TRANSCRIPT_FILENAME,
 	AdvisorTranscriptRecorder,
 	advisorTranscriptFilename,
 	loadAdvisorTranscriptCosts,
-} from "@rva/coding-agent/advisor/transcript-recorder";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/advisor/transcript-recorder";
+import { removeWithRetries } from "@reverse/utils";
 
 interface AdvisorEntry {
 	type?: string;

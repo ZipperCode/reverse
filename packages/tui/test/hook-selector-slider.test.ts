@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { HookSelectorComponent, type HookSelectorSlider } from "@rva/tui/overlays/hook-selector";
-import { initTheme } from "@rva/tui/theme";
+import { HookSelectorComponent, type HookSelectorSlider } from "@reverse/tui/overlays/hook-selector";
+import { initTheme } from "@reverse/tui/theme";
 
 const LEFT = "\x1b[D";
 const RIGHT = "\x1b[C";

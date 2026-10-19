@@ -1,4 +1,4 @@
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 import analysisPrompt from "./prompts/analysis.md" with { type: "text" };
 import fastPrompt from "./prompts/fast.md" with { type: "text" };
 import mapPrompt from "./prompts/map.md" with { type: "text" };

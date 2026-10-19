@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { stream } from "@rva/ai/stream";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { COPILOT_API_HEADERS } from "@rva/catalog/wire/github-copilot";
+import { stream } from "@reverse/ai/stream";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { COPILOT_API_HEADERS } from "@reverse/catalog/wire/github-copilot";
 
 function makeCopilotResponsesModel(baseUrl: string): Model<"openai-responses"> {
 	return buildModel({

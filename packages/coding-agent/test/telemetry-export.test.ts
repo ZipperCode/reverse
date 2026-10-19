@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { fileURLToPath } from "node:url";
-import type { CostEstimatorContext } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { initTelemetryExport, isTelemetryExportEnabled } from "@rva/coding-agent/telemetry-export";
-import { estimateProviderCost } from "@rva/coding-agent/telemetry-export-otlp";
-import { cfgTelemetryOtlpExportEnabled } from "@rva/coding-agent/telemetry-settings";
+import type { CostEstimatorContext } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { initTelemetryExport, isTelemetryExportEnabled } from "@reverse/coding-agent/telemetry-export";
+import { estimateProviderCost } from "@reverse/coding-agent/telemetry-export-otlp";
+import { cfgTelemetryOtlpExportEnabled } from "@reverse/coding-agent/telemetry-settings";
 
 /**
  * Gating contract for the OTLP export bootstrap. These cases all short-circuit

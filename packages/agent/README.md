@@ -1,18 +1,18 @@
-# @rva/pi-agent
+# @reverse/pi-agent
 
-Stateful agent with tool execution and event streaming. Built on `@rva/ai`.
+Stateful agent with tool execution and event streaming. Built on `@reverse/ai`.
 
 ## Installation
 
 ```bash
-npm install @rva/pi-agent
+npm install @reverse/pi-agent
 ```
 
 ## Quick Start
 
 ```typescript
-import { Agent } from "@rva/pi-agent";
-import { getModel } from "@rva/ai";
+import { Agent } from "@reverse/pi-agent";
+import { getModel } from "@reverse/ai";
 
 const agent = new Agent({
 	initialState: {
@@ -260,7 +260,7 @@ remain separate. `replaceQueue("steering" | "followUp", messages)` replaces only
 Extend `AgentMessage` via declaration merging:
 
 ```typescript
-declare module "@rva/pi-agent" {
+declare module "@reverse/pi-agent" {
 	interface CustomAgentMessages {
 		notification: { role: "notification"; text: string; timestamp: number };
 	}
@@ -287,7 +287,7 @@ const agent = new Agent({
 Define tools using `AgentTool` with an omptype parameter schema.
 
 ```typescript
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 
 const readFileTool: AgentTool = {
 	name: "read_file",
@@ -333,7 +333,7 @@ Thrown errors are caught by the agent and reported to the LLM as tool errors wit
 For browser apps that proxy through a backend:
 
 ```typescript
-import { Agent, streamProxy } from "@rva/pi-agent";
+import { Agent, streamProxy } from "@reverse/pi-agent";
 
 const agent = new Agent({
 	streamFn: (model, context, options) =>
@@ -350,7 +350,7 @@ const agent = new Agent({
 For direct control without the Agent class:
 
 ```typescript
-import { agentLoop, agentLoopContinue } from "@rva/pi-agent";
+import { agentLoop, agentLoopContinue } from "@reverse/pi-agent";
 
 const context: AgentContext = {
 	systemPrompt: ["You are helpful."],
@@ -450,7 +450,7 @@ fold N summaries with `aggregateAgentRunSummaries` / `aggregateAgentRunCoverage`
 import {
 	aggregateAgentRunSummaries,
 	aggregateAgentRunCoverage,
-} from "@rva/pi-agent";
+} from "@reverse/pi-agent";
 
 const summaries: AgentRunSummary[] = [];
 const coverages: AgentRunCoverage[] = [];

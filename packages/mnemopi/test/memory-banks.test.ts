@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BankManager, bankDbPath, ValueError } from "@rva/mnemopi/core/banks";
+import { BankManager, bankDbPath, ValueError } from "@reverse/mnemopi/core/banks";
 
 describe("BankManager", () => {
 	it("creates, lists, renames, stats, and deletes isolated bank directories", () => {

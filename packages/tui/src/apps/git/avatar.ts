@@ -1,4 +1,4 @@
-import { hslToHex } from "@rva/utils/color";
+import { hslToHex } from "@reverse/utils/color";
 
 /** Cached author photos supplied by the command host. */
 export interface AvatarSource {

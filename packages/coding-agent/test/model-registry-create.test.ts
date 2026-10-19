@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ConfigFile } from "@rva/coding-agent/config/config-file";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { ModelsConfigSchema } from "@rva/coding-agent/config/models-config-schema";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { TempDir } from "@rva/utils";
+import { ConfigFile } from "@reverse/coding-agent/config/config-file";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { ModelsConfigSchema } from "@reverse/coding-agent/config/models-config-schema";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { TempDir } from "@reverse/utils";
 
 describe("ModelRegistry.create() factory (F6)", () => {
 	let tempDir: TempDir;

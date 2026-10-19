@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { Answer } from "@rva/ai";
-import { judgeRequest, planFromAnswers } from "@rva/coding-agent/auto-graph/planner";
-import { planChart } from "@rva/tui/charts/chart-plan";
-import { analyzeTable } from "@rva/tui/charts/table-data";
-import type { TableChartRequest } from "@rva/tui/chat/table-chart";
+import type { Answer } from "@reverse/ai";
+import { judgeRequest, planFromAnswers } from "@reverse/coding-agent/auto-graph/planner";
+import { planChart } from "@reverse/tui/charts/chart-plan";
+import { analyzeTable } from "@reverse/tui/charts/table-data";
+import type { TableChartRequest } from "@reverse/tui/chat/table-chart";
 
 /** A smart-mode request for a table given as rows of cells, header first. */
 function request(rows: string[][]): TableChartRequest {

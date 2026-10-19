@@ -1,5 +1,5 @@
-import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@rva/ai";
-import { isRecord, USER_AGENT } from "@rva/utils";
+import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@reverse/ai";
+import { isRecord, USER_AGENT } from "@reverse/utils";
 import { callMCP } from "../../../mcp/json-rpc";
 import type { SearchResponse } from "../types";
 import { SearchProviderError } from "../../../web/search/types";

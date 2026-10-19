@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspSpan } from "@rva/wire";
+import type { TspSpan } from "@reverse/wire";
 import { Box } from "../src/components/box";
 import { Disclosure } from "../src/components/disclosure";
 import { Markdown } from "../src/components/markdown";

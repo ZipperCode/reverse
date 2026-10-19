@@ -8,8 +8,8 @@
  * first field. The import surface is kept deliberately narrow so a TAB press
  * doesn't pay for the full agent boot.
  */
-import { type GeneratedProvider, getBundledModels, getBundledProviders } from "@rva/catalog/models";
-import { Command } from "@rva/utils/cli";
+import { type GeneratedProvider, getBundledModels, getBundledProviders } from "@reverse/catalog/models";
+import { Command } from "@reverse/utils/cli";
 import { completeHelp as commandHelp } from "../cli/command-help";
 import { SessionManager } from "../session/session-manager";
 

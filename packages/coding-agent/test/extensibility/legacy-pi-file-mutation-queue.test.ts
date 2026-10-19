@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { withFileMutationQueue } from "@rva/coding-agent/extensibility/legacy-pi-coding-agent-shim";
+import { withFileMutationQueue } from "@reverse/coding-agent/extensibility/legacy-pi-coding-agent-shim";
 
 /** Queue two operations on the given paths; the first blocks until released. Returns the observed event order. */
 async function runBlockedPair(first: string, second: string): Promise<{ beforeRelease: string[]; final: string[] }> {

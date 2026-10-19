@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { AssistantMessage, Context, Message } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { AssistantMessage, Context, Message } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 
 const MODEL = buildModel({
 	id: "claude-fable-5-1",

@@ -43,7 +43,7 @@ import {
 	TERMINAL_TOOL_RESULT_ABORT_REASON,
 	type ThinkingLevel,
 	type ToolChoiceDirective,
-} from "@rva/agent";
+} from "@reverse/agent";
 import {
 	type CompactionPreparation,
 	type CompactionResult,
@@ -51,7 +51,7 @@ import {
 	collectEntriesForBranchSummary,
 	generateBranchSummary,
 	type ShakeConfig,
-} from "@rva/agent/compaction";
+} from "@reverse/agent/compaction";
 import type {
 	AnthropicFallbackCreditHandle,
 	AssistantMessage,
@@ -78,17 +78,17 @@ import type {
 	ToolResultMessage,
 	UsageReport,
 	UserMessage,
-} from "@rva/ai";
-import { type Effort, serviceTierFamily, streamSimple } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { resetOpenAICodexHistoryAfterCompaction } from "@rva/ai/providers/openai-codex-responses";
-import { withCredentialRedaction } from "@rva/ai/providers/transform-messages";
-import { toolWireSchema } from "@rva/ai/utils/schema";
-import { resolveCatalogPolicy } from "@rva/catalog/compat/catalog-policy";
-import { supportsOutputTokenLimit } from "@rva/catalog/compat/output-limits";
-import { requiresNativeTools, requiresToolFreeHistoryForToolOptOut } from "@rva/catalog/compat/tools";
-import { modelsAreEqual } from "@rva/catalog/models";
-import { type EditStore, type PowerAssertion, type PowerAssertionOptions } from "@rva/natives";
+} from "@reverse/ai";
+import { type Effort, serviceTierFamily, streamSimple } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { resetOpenAICodexHistoryAfterCompaction } from "@reverse/ai/providers/openai-codex-responses";
+import { withCredentialRedaction } from "@reverse/ai/providers/transform-messages";
+import { toolWireSchema } from "@reverse/ai/utils/schema";
+import { resolveCatalogPolicy } from "@reverse/catalog/compat/catalog-policy";
+import { supportsOutputTokenLimit } from "@reverse/catalog/compat/output-limits";
+import { requiresNativeTools, requiresToolFreeHistoryForToolOptOut } from "@reverse/catalog/compat/tools";
+import { modelsAreEqual } from "@reverse/catalog/models";
+import { type EditStore, type PowerAssertion, type PowerAssertionOptions } from "@reverse/natives";
 import {
 	$env,
 	escapeXmlText,
@@ -105,11 +105,11 @@ import {
 	toError,
 	withTimeout,
 	withFileLock,
-} from "@rva/utils";
-import { writeArchive } from "@rva/utils/ar";
-import { frameDataBytesBudget, readerIncludesThinking } from "@rva/snapcompact";
-import type { AdvisorConfig } from "@rva/tui/overlays/advisor-config";
-import { formatUsageResetWindow } from "@rva/tui/overlays/usage-display";
+} from "@reverse/utils";
+import { writeArchive } from "@reverse/utils/ar";
+import { frameDataBytesBudget, readerIncludesThinking } from "@reverse/snapcompact";
+import type { AdvisorConfig } from "@reverse/tui/overlays/advisor-config";
+import { formatUsageResetWindow } from "@reverse/tui/overlays/usage-display";
 import { loadAdvisorTranscriptCosts } from "../advisor";
 import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, type AsyncJob, AsyncJobManager } from "../async";
 import { reset as resetCapabilities } from "../capability";
@@ -130,7 +130,7 @@ import { expandPromptTemplate, type PromptTemplate } from "../config/prompt-temp
 import { buildServiceTierByFamily, isServiceTierForFamily, serviceTierSettingToTier } from "../config/service-tier";
 import { combine, type SettingsScope } from "../config/registry";
 import type { Settings } from "../config/settings";
-import { RawSseDebugBuffer } from "@rva/tui/apps/debug/raw-sse-buffer";
+import { RawSseDebugBuffer } from "@reverse/tui/apps/debug/raw-sse-buffer";
 import { getEditStore } from "../edit/store";
 import { releaseCompletionHandles } from "../eval/completion-bridge";
 import { releaseJudgmentBatches } from "../eval/judgment-batch-bridge";
@@ -169,16 +169,16 @@ import type { GoalModeState, GoalTokenUsage } from "../goals/state";
 import type { HindsightSessionState } from "../hindsight/state";
 import { InternalUrlRouter, type LocalProtocolOptions } from "../internal-urls";
 import { type ChainJudge, hasNativeJudge, journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
-import type { IrcMessage } from "@rva/tui/tools/irc";
+import type { IrcMessage } from "@reverse/tui/tools/irc";
 import type { DaemonCompletionNotification } from "../launch/protocol";
 import { MEMORY_RECALL_CHANGES_MESSAGE_TYPE } from "../memory-backend/recall-entry";
 import { shutdownMnemopiEmbedClient } from "../mnemopi/embed-client";
 import { getMnemopiSessionState, type MnemopiSessionState, setMnemopiSessionState } from "../mnemopi/state";
 import { MAGIC_KEYWORDS, type MagicKeywordContext, type MagicKeywordId } from "../modes/magic-keywords";
-import { containsMagicKeyword } from "@rva/tui/prompt/magic-keywords";
-import { theme } from "@rva/tui/theme";
+import { containsMagicKeyword } from "@reverse/tui/prompt/magic-keywords";
+import { theme } from "@reverse/tui/theme";
 import { parseTurnBudget } from "../modes/turn-budget";
-import { computeNonMessageTokens } from "@rva/tui/status-line/context-usage";
+import { computeNonMessageTokens } from "@reverse/tui/status-line/context-usage";
 import { type PlanApprovalDetails, resolveApprovedPlan } from "../plan-mode/approved-plan";
 import { listPlanFiles, readPlanFile, resolvePlanFilePath } from "../plan-mode/plan-files";
 import { loadOverallPlanReference } from "../plan-mode/plan-handoff";
@@ -217,11 +217,11 @@ import {
 	parseConfiguredThinkingLevel,
 	shouldDisableReasoning,
 	toReasoningEffort,
-} from "@rva/tui/thinking";
+} from "@reverse/tui/thinking";
 import { isAttachmentOnlyTitleInput, isLowSignalTitleInput } from "../tiny/text";
 import type { ImageAttachmentEntry, ToolSession } from "../tools";
 import { resolveApproval } from "../tools/approval";
-import { type AskToolDetails } from "@rva/tui/tools/ask";
+import { type AskToolDetails } from "@reverse/tui/tools/ask";
 import { type AskToolInput, recoverAskQuestions } from "../tools/ask";
 import {
 	armIdleCloseForOwner,
@@ -245,16 +245,16 @@ import {
 	type PlanProposalHandler,
 	writeDeviceDispatch,
 } from "../tools/resolve";
-import { PROPOSE_DEVICE_NAME } from "@rva/tui/tools/resolve";
+import { PROPOSE_DEVICE_NAME } from "@reverse/tui/tools/resolve";
 import { supportsExternalThinking } from "../tools/think";
-import type { TodoPhase } from "@rva/tui/tools/todo";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { TodoPhase } from "@reverse/tui/tools/todo";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { AgentDefinition } from "../task/types";
-import type { ModelMention } from "@rva/tui/prompt/model-mention-syntax";
+import type { ModelMention } from "@reverse/tui/prompt/model-mention-syntax";
 import { ModelMentionRegistry } from "./model-mentions";
 import { parseCommandArgs } from "../utils/command-args";
-import type { EditMode } from "@rva/tui/tools/edit";
+import type { EditMode } from "@reverse/tui/tools/edit";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import { extractFileMentions, generateFileMentionMessages } from "../utils/file-mentions";
 import { normalizeModelContextImages } from "../utils/image-loading";
@@ -304,8 +304,8 @@ import type {
 import { writeArtifact } from "./artifacts";
 import { startPowerAssertion } from "./power-assertion-backend";
 import { renderAttachmentSourceNotice } from "./attachment-source-notice";
-import { formatArtifactErrorNotice, type OutputMeta, stripOutputNotice } from "@rva/tui/tools/output-meta";
-import { truncateMiddle } from "@rva/tui/tools/streaming-output";
+import { formatArtifactErrorNotice, type OutputMeta, stripOutputNotice } from "@reverse/tui/tools/output-meta";
+import { truncateMiddle } from "@reverse/tui/tools/streaming-output";
 import {
 	ASYNC_INLINE_RESULT_MAX_CHARS,
 	ASYNC_PREVIEW_MAX_CHARS,
@@ -424,7 +424,7 @@ import {
 import type { SessionContext, TranscriptSessionContextOptions } from "./session-context";
 import { buildSessionContext, getRestorableSessionModels, isTranscriptEntry } from "./session-context";
 import type { CacheWarmer, CacheWarmingMode, CacheWarmingStatus } from "./cache-warmer";
-import { isUserRequestEntry, transcriptEntryMessage, userTurnDraft } from "@rva/tui/chat/transcript-entry";
+import { isUserRequestEntry, transcriptEntryMessage, userTurnDraft } from "@reverse/tui/chat/transcript-entry";
 import { anonymizeSessionTranscripts } from "./session-anonymizer";
 import {
 	formatSessionDumpText,

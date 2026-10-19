@@ -3,7 +3,7 @@
  * rendering, and the session registry. Kept apart from `model-mentions.ts` so
  * the startup composer prepaint graph never loads the catalog or task agents.
  */
-import type { Model } from "@rva/ai";
+import type { Model } from "@reverse/ai";
 
 /** Whitespace-delimited token; groups are leading delimiter and selector. Reset lastIndex before reuse. */
 export const MODEL_MENTION_RE = /(^|\s)\^([^\s^]+)(?=\s|$)/g;

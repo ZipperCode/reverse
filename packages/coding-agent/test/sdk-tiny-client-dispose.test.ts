@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { Api, ModelSpec } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { type CreateAgentSessionOptions, createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { createSubagentSettings } from "@rva/coding-agent/task/executor";
-import * as titleClient from "@rva/coding-agent/tiny/title-client";
-import type { TinyWorkerRequest, TinyWorkerResponse } from "@rva/coding-agent/tiny/title-protocol";
-import { TempDir } from "@rva/utils";
+import type { Api, ModelSpec } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { type CreateAgentSessionOptions, createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { createSubagentSettings } from "@reverse/coding-agent/task/executor";
+import * as titleClient from "@reverse/coding-agent/tiny/title-client";
+import type { TinyWorkerRequest, TinyWorkerResponse } from "@reverse/coding-agent/tiny/title-protocol";
+import { TempDir } from "@reverse/utils";
 
 const modelSpec: ModelSpec<Api> = {
 	id: "tiny-client-dispose",

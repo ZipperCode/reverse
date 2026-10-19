@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { normalizeTools } from "@rva/agent/agent-loop";
-import type { AgentTool } from "@rva/agent/types";
-import { INTENT_FIELD } from "@rva/wire";
+import { type } from "@reverse/omptype";
+import { normalizeTools } from "@reverse/agent/agent-loop";
+import type { AgentTool } from "@reverse/agent/types";
+import { INTENT_FIELD } from "@reverse/wire";
 
 const toolSchema = type({
 	path: type("string").describe("where to read"),

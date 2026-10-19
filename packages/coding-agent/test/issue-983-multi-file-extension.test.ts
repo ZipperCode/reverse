@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAndLoadExtensions } from "@rva/coding-agent/extensibility/extensions/loader";
-import { removeWithRetries } from "@rva/utils";
+import { discoverAndLoadExtensions } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { removeWithRetries } from "@reverse/utils";
 
 const TOOL_NAME = "legacy-multi-file-tool";
 

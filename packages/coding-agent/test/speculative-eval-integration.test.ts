@@ -9,20 +9,20 @@ import {
 	agentLoop,
 	type SpeculativeOperationSink,
 	type SpeculativePhysicalOutcome,
-} from "@rva/agent";
-import type { AssistantMessage, Context, Message } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { setStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as jsContextManager from "@rva/coding-agent/eval/js/context-manager";
-import { disposeAllKernelSessions } from "@rva/coding-agent/eval/py/executor";
-import { EvalShadowCellSession } from "@rva/coding-agent/eval/speculation/cell-session";
-import { CodingAgentSpeculativeExecutionHost } from "@rva/coding-agent/speculation/host";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EvalTool } from "@rva/coding-agent/tools/eval";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/agent";
+import type { AssistantMessage, Context, Message } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { setStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as jsContextManager from "@reverse/coding-agent/eval/js/context-manager";
+import { disposeAllKernelSessions } from "@reverse/coding-agent/eval/py/executor";
+import { EvalShadowCellSession } from "@reverse/coding-agent/eval/speculation/cell-session";
+import { CodingAgentSpeculativeExecutionHost } from "@reverse/coding-agent/speculation/host";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EvalTool } from "@reverse/coding-agent/tools/eval";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { removeWithRetries } from "@reverse/utils";
 
 const temporaryDirectories: string[] = [];
 const pythonIt = process.env.PI_PYTHON_INTEGRATION === "1" ? it : it.skip;

@@ -1,4 +1,4 @@
-import { matchesKittySequence as nativeMatchesKittySequence } from "@rva/natives";
+import { matchesKittySequence as nativeMatchesKittySequence } from "@reverse/natives";
 import { parseKittySequence } from "../src/keys";
 
 const ITERATIONS = 2000;

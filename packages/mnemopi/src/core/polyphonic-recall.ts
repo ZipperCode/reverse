@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { logger, withLoopPhase } from "@rva/utils";
+import { logger, withLoopPhase } from "@reverse/utils";
 import { type Env, polyphonicRecallEnabled } from "../config";
 import { closeQuietly, type DatabasePath, openDatabase } from "../db";
 import { backfillConsolidatedFacts, ensureVeracityConsolidator } from "./beam/consolidate";

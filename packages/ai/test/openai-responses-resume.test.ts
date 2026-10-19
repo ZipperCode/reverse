@@ -3,9 +3,9 @@ import {
 	configureProviderStoreResponses,
 	pollOpenAIResponsesResultForCompletion,
 	streamOpenAIResponses,
-} from "@rva/ai/providers/openai-responses";
-import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/ai/providers/openai-responses";
+import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const SOCKET_CLOSE =
 	"The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()";

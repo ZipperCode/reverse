@@ -2,7 +2,7 @@
  * Tool output pruning utilities for compaction.
  */
 
-import type { ToolResultMessage } from "@rva/ai";
+import type { ToolResultMessage } from "@reverse/ai";
 import type { Tokenizer } from "../tokenizer";
 import type { AgentMessage, AgentToolCall } from "../types";
 import type { SessionEntry, SessionMessageEntry } from "./entries";

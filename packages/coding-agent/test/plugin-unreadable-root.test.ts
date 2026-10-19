@@ -2,9 +2,9 @@ import { afterEach, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearClaudePluginRootsCache } from "@rva/coding-agent/discovery/helpers";
-import { getEnabledPlugins } from "@rva/coding-agent/extensibility/plugins/loader";
-import { getPluginsDir, removeWithRetries } from "@rva/utils";
+import { clearClaudePluginRootsCache } from "@reverse/coding-agent/discovery/helpers";
+import { getEnabledPlugins } from "@reverse/coding-agent/extensibility/plugins/loader";
+import { getPluginsDir, removeWithRetries } from "@reverse/utils";
 
 const tempRoots: string[] = [];
 const restore: string[] = [];

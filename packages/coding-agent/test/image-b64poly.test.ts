@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 describe("Buffer.toBase64", async () => {
-	await import("@rva/coding-agent/utils/image-resize");
+	await import("@reverse/coding-agent/utils/image-resize");
 
 	it("should return a base64 string", () => {
 		const buffer = Buffer.from("Hello, world!");

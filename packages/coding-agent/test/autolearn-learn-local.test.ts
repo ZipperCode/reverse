@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	buildMemoryToolDeveloperInstructions,
 	getMemoryRoot,
 	refreshMemoryToolDeveloperInstructionsCacheAfterStartup,
 	saveLearnedLesson,
-} from "@rva/coding-agent/memories";
-import { localBackend } from "@rva/coding-agent/memory-backend/local-backend";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { LearnTool } from "@rva/coding-agent/tools/learn";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/memories";
+import { localBackend } from "@reverse/coding-agent/memory-backend/local-backend";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { LearnTool } from "@reverse/coding-agent/tools/learn";
+import { removeWithRetries } from "@reverse/utils";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 

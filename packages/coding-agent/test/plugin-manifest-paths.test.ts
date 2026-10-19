@@ -6,9 +6,9 @@ import {
 	resolvePluginExtensionPaths,
 	resolvePluginManifestEntries,
 	resolvePluginToolPaths,
-} from "@rva/coding-agent/extensibility/plugins/loader";
-import type { InstalledPlugin, PluginManifest } from "@rva/coding-agent/extensibility/plugins/types";
-import { removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/plugins/loader";
+import type { InstalledPlugin, PluginManifest } from "@reverse/coding-agent/extensibility/plugins/types";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 function makePlugin(pluginPath: string, manifest: PluginManifest): InstalledPlugin {
 	return {

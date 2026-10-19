@@ -6,7 +6,7 @@
  * - Trigger subprocess termination on completion
  * - Provide custom rendering for realtime/final display
  */
-import { registerSubprocessToolRenderer, type SubprocessToolRenderer } from "@rva/tui/tools/subprocess";
+import { registerSubprocessToolRenderer, type SubprocessToolRenderer } from "@reverse/tui/tools/subprocess";
 
 /** Event from subprocess tool execution (parsed from JSONL) */
 export interface SubprocessToolEvent {

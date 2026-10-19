@@ -7,14 +7,14 @@
  * #applyPlanModeModel() therefore has no thinking level to apply.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { Agent, ThinkingLevel } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { Agent, ThinkingLevel } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
-import { cfgModelRoles } from "@rva/coding-agent/config/model-settings";
+import { cfgModelRoles } from "@reverse/coding-agent/config/model-settings";
 
 describe("plan mode thinking level", () => {
 	let session: AgentSession;

@@ -7,14 +7,14 @@
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import { AnthropicMessages } from "@rva/ai/providers/anthropic-client";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import { AnthropicMessages } from "@reverse/ai/providers/anthropic-client";
 import {
 	servedModelFromAnthropicSignature,
 	servedModelFromOpenRouterReasoning,
-} from "@rva/ai/providers/anthropic-signature";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/providers/anthropic-signature";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 // Captured from OpenRouter → "Claude Platform on AWS" for anthropic/claude-opus-5 (2026-09-15).
 const OPUS_5_SIGNATURE =
@@ -42,7 +42,7 @@ describe("servedModelFromAnthropicSignature", () => {
 
 	it("rejects a length above signed 32-bit range without looping", () => {
 		const signature = Buffer.from([0x1a, 0x80, 0x80, 0x80, 0x80, 0x08]).toString("base64");
-		const module = import.meta.resolve("@rva/ai/providers/anthropic-signature");
+		const module = import.meta.resolve("@reverse/ai/providers/anthropic-signature");
 		// A synchronous parser loop cannot be interrupted by the test runner's timeout.
 		const result = spawnSync(
 			process.execPath,

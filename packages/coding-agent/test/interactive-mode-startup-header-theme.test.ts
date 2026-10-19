@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { StartupChangelogSelection } from "@rva/coding-agent/utils/changelog";
-import * as themeModule from "@rva/tui/theme";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { StartupChangelogSelection } from "@reverse/coding-agent/utils/changelog";
+import * as themeModule from "@reverse/tui/theme";
+import { TempDir } from "@reverse/utils";
 
 /**
  * The startup header is built once, while the auto theme may still be on its

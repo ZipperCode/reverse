@@ -1,6 +1,6 @@
 import * as http2 from "node:http2";
-import { type } from "@rva/omptype";
-import { slugify } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { slugify } from "@reverse/utils";
 import { collapseVariants, type EffortVariantFamily, reviewedVariantFamilyId } from "../compat/collapse";
 import { compareRevision, parseRevision } from "../compat/revision";
 import { resolveCatalogAxes, resolveModelPolicy } from "../compat/resolve";

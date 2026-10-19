@@ -1,34 +1,27 @@
 import { Database } from "bun:sqlite";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import type {
-	ApiKey,
-	AssistantMessage,
-	TextContent,
-	ThinkingContent,
-	ToolCall,
-	ToolResultMessage,
-} from "@rva/ai";
-import { unregisterCustomApis } from "@rva/ai/api-registry";
-import * as AIError from "@rva/ai/error";
-import { createMockModel, type MockResponse, registerMockApi } from "@rva/ai/providers/mock";
-import * as envApiKey from "@rva/ai/env-api-key";
-import * as aiStream from "@rva/ai/stream";
-import { kCursorExecResolved, kStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { SqliteAuthCredentialStore } from "@rva/coding-agent/session/auth-storage";
-import { opencodeGoUsageProvider } from "@rva/ai/usage/opencode-go";
-import { getBundledModel } from "@rva/catalog/models";
-import type { Model } from "@rva/catalog/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import type { ApiKey, AssistantMessage, TextContent, ThinkingContent, ToolCall, ToolResultMessage } from "@reverse/ai";
+import { unregisterCustomApis } from "@reverse/ai/api-registry";
+import * as AIError from "@reverse/ai/error";
+import { createMockModel, type MockResponse, registerMockApi } from "@reverse/ai/providers/mock";
+import * as envApiKey from "@reverse/ai/env-api-key";
+import * as aiStream from "@reverse/ai/stream";
+import { kCursorExecResolved, kStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { SqliteAuthCredentialStore } from "@reverse/coding-agent/session/auth-storage";
+import { opencodeGoUsageProvider } from "@reverse/ai/usage/opencode-go";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { Model } from "@reverse/catalog/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;

@@ -1,9 +1,9 @@
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import { writeTerminalSequence } from "@rva/tui/terminal";
-import { hasTerminalMultiplexerSession } from "@rva/tui/terminal-multiplexer";
-import { wrapTmuxPassthrough } from "@rva/tui/terminal-capabilities";
-import { VERSION } from "@rva/utils/dirs";
+import type { AgentMessage } from "@reverse/agent";
+import { writeTerminalSequence } from "@reverse/tui/terminal";
+import { hasTerminalMultiplexerSession } from "@reverse/tui/terminal-multiplexer";
+import { wrapTmuxPassthrough } from "@reverse/tui/terminal-capabilities";
+import { VERSION } from "@reverse/utils/dirs";
 import type { ExtensionContext, ExtensionFactory } from "../extensibility/extensions/types";
 import { isSilentAbort, isUserInterruptAbort, SKILL_PROMPT_MESSAGE_TYPE } from "../session/messages";
 

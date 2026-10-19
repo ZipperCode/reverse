@@ -1,14 +1,13 @@
-import type { AgentMessage } from "@rva/agent";
-import type { Component, OverlayHandle, TUI } from "@rva/tui";
-import { Container, Spacer, Text } from "@rva/tui";
-import { formatKeyHint, formatKeyHints, KeybindingsManager } from "@rva/tui/app-keybindings";
+import type { AgentMessage } from "@reverse/agent";
+import type { Component, OverlayHandle, TUI } from "@reverse/tui";
+import { Container, Spacer, Text } from "@reverse/tui";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
 import type {
 	CompactOptions,
 	ExtensionActions,
 	ExtensionApprovalPrompt,
 	ExtensionAskDialogQuestion,
 	ExtensionAskDialogResult,
-	ExtensionAskDialogResultItem,
 	ExtensionCommandContextActions,
 	ExtensionContextActions,
 	ExtensionCustomOptions,
@@ -24,22 +23,21 @@ import type {
 	TerminalInputHandler,
 } from "../../extensibility/extensions";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
-import { ApprovalDialogComponent } from "@rva/tui/overlays/approval-dialog";
+import { ApprovalDialogComponent } from "@reverse/tui/overlays/approval-dialog";
 import {
 	type AskDialogPrompt,
 	type AskDialogPromptValue,
 	AskDialogComponent,
 	normalizeDialogQuestions,
-} from "@rva/tui/overlays/ask-dialog";
-import { installExtensionComposerShape } from "@rva/tui/overlays/composer-shape-registry";
-import { EditorTopGap } from "@rva/tui/prompt/editor-top-gap";
-import { boundPromptTitle, HookEditorComponent, type HookEditorOptions } from "@rva/tui/overlays/hook-editor";
-import { HookInputComponent } from "@rva/tui/overlays/hook-input";
-import { HookSelectorComponent, type HookSelectorSlider } from "@rva/tui/overlays/hook-selector";
-import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, theme } from "@rva/tui/theme";
+} from "@reverse/tui/overlays/ask-dialog";
+import { installExtensionComposerShape } from "@reverse/tui/overlays/composer-shape-registry";
+import { EditorTopGap } from "@reverse/tui/prompt/editor-top-gap";
+import { HookEditorComponent, type HookEditorOptions } from "@reverse/tui/overlays/hook-editor";
+import { HookInputComponent } from "@reverse/tui/overlays/hook-input";
+import { HookSelectorComponent, type HookSelectorSlider } from "@reverse/tui/overlays/hook-selector";
+import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, theme } from "@reverse/tui/theme";
 import type { InteractiveModeContext, InteractiveSelectorDialogOptions } from "../../modes/types";
 import { normalizeCustomMessagePayload, USER_INTERRUPT_LABEL } from "../../session/messages";
-import { sanitizeCarriageReturns } from "@rva/tui/render/render-utils";
 import { setExtensionTerminalTitle, setSessionTerminalTitle } from "../../utils/title-generator";
 import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 import { launchTerminal } from "../../subprocess/terminal-launch";
@@ -49,10 +47,9 @@ const MAX_WIDGET_LINES = 10;
 const APPROVE_OPTION = "Approve";
 const DENY_OPTION = "Deny";
 
-
-const ASK_OTHER_OPTION = "Other (type your own)";
-const ASK_CHAT_OPTION = "Chat about this";
-const ASK_NEXT_OPTION = "Next →";
+const _ASK_OTHER_OPTION = "Other (type your own)";
+const _ASK_CHAT_OPTION = "Chat about this";
+const _ASK_NEXT_OPTION = "Next →";
 
 function withTerminalLauncher(uiContext: ExtensionUIContext, hasUI: boolean): ExtensionUIContext {
 	if (!hasUI || uiContext.openTerminal) return uiContext;
@@ -70,7 +67,6 @@ async function editDialogExternally(text: string): Promise<string | null> {
 	const command = getEditorCommand();
 	return command ? openInEditor(command, text) : null;
 }
-
 
 export class ExtensionUiController {
 	#extensionTerminalInputUnsubscribers = new Set<() => void>();
@@ -1134,9 +1130,8 @@ export class ExtensionUiController {
 		await this.ctx.sessionManager.setSessionName(name, "user");
 	}
 
-
 	#sendExtensionMessage: SendMessageHandler = (message, options) => {
-		const startsTurn =
+		const _startsTurn =
 			options?.triggerTurn === true ||
 			options?.deliverAs === "steer" ||
 			options?.deliverAs === "followUp" ||

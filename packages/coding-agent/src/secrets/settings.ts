@@ -2,7 +2,7 @@
  * Settings declared by this domain (see `config/registry.ts`). Declaration order is the
  * settings-panel order; `config/all-settings.ts` registers every domain.
  */
-import { configureCredentialRedaction } from "@rva/ai/providers/transform-messages";
+import { configureCredentialRedaction } from "@reverse/ai/providers/transform-messages";
 import { effect, register } from "../config/registry";
 
 // ────────────────────────────────────────────────────────────────────────

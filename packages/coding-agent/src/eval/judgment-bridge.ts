@@ -22,9 +22,9 @@ import type {
 	Question,
 	Questions,
 	ScoreQuestion,
-} from "@rva/ai";
-import { isRecord } from "@rva/utils";
-import { isEmbeddedImageContent } from "@rva/ai/images/shared";
+} from "@reverse/ai";
+import { isRecord } from "@reverse/utils";
+import { isEmbeddedImageContent } from "@reverse/ai/images/shared";
 import type { LoadedImageInput } from "../utils/image-loading";
 import { loadImageAttachmentInput, loadImageInput, loadSvgImageInput } from "../utils/image-loading";
 import {
@@ -34,7 +34,7 @@ import {
 	resolveJudge,
 	sharedJudgmentCache,
 } from "../judgment";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { withBridgeTimeoutPause } from "./bridge-timeout";
 import { type EvalCompletionBridgeOptions, evalRequestSlots } from "./completion-bridge";
 

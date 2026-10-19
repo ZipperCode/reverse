@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@rva/agent";
-import { ConcatSink, getBlobsDir, isEisdir, isEnoent, isEnotdir, parseJsonlLenient } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+import type { AgentMessage } from "@reverse/agent";
+import { ConcatSink, getBlobsDir, isEisdir, isEnoent, isEnotdir, parseJsonlLenient } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 import { Semaphore } from "../task/parallel";
 import {
 	BlobStore,

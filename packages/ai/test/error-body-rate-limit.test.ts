@@ -19,15 +19,15 @@
  * Envelopes that are not a recognised throttle must fall through untouched.
  */
 import { describe, expect, it } from "bun:test";
-import { processResponsesStream } from "@rva/ai/providers/openai-shared";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { AssistantMessage, Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { isAuthRetryableError } from "@rva/ai/error/auth-classify";
-import { classify, Flag, is, retriable } from "@rva/ai/error/flags";
-import { isUsageLimitOutcome } from "@rva/ai/error/rate-limit";
-import { ProviderHttpError } from "@rva/ai/error/classes";
-import { createInBandProviderError, createInBandProviderErrorFromText } from "@rva/ai/error/body-error";
+import { processResponsesStream } from "@reverse/ai/providers/openai-shared";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { AssistantMessage, Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { isAuthRetryableError } from "@reverse/ai/error/auth-classify";
+import { classify, Flag, is, retriable } from "@reverse/ai/error/flags";
+import { isUsageLimitOutcome } from "@reverse/ai/error/rate-limit";
+import { ProviderHttpError } from "@reverse/ai/error/classes";
+import { createInBandProviderError, createInBandProviderErrorFromText } from "@reverse/ai/error/body-error";
 import { minimaxTokenPlanOpenAIModel } from "./helpers";
 
 function createSseResponse(events: unknown[]): Response {

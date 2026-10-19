@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { SessionSelectorComponent } from "@rva/tui/overlays/session-selector";
-import { initTheme } from "@rva/tui/theme";
-import type { SessionInfo } from "@rva/coding-agent/session/session-listing";
-import { TUI } from "@rva/tui";
+import { SessionSelectorComponent } from "@reverse/tui/overlays/session-selector";
+import { initTheme } from "@reverse/tui/theme";
+import type { SessionInfo } from "@reverse/coding-agent/session/session-listing";
+import { TUI } from "@reverse/tui";
 import { StressRenderScheduler } from "../../../../tui/test/render-stress-scheduler";
 import { VirtualTerminal } from "../../../../tui/test/virtual-terminal";
 

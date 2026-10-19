@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { Effort } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { parseModelPattern, resolveCliModel } from "@rva/coding-agent/config/model-resolver";
+import { Effort } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { parseModelPattern, resolveCliModel } from "@reverse/coding-agent/config/model-resolver";
 
 // Issue #8800: a custom (models.yml) provider model whose literal id contains a
 // slash, e.g. "deepseek/deepseek-v4-flash", must resolve to the custom provider

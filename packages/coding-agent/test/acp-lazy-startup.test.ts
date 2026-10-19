@@ -1,14 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { lookup } from "@rva/coding-agent/config/registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAcpConnection } from "@rva/coding-agent/modes/acp/acp-mode";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { lookup } from "@reverse/coding-agent/config/registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAcpConnection } from "@reverse/coding-agent/modes/acp/acp-mode";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import {
 	type Client,
 	ClientSideConnection,
@@ -18,14 +18,11 @@ import {
 	type RequestPermissionRequest,
 	type RequestPermissionResponse,
 	type SessionNotification,
-} from "@rva/utils/acp";
+} from "@reverse/utils/acp";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-import { cfgAsyncEnabled, cfgAsyncMaxJobs } from "@rva/coding-agent/tools/settings";
-import {
-	cfgBashAutoBackgroundEnabled,
-	cfgBashAutoBackgroundThresholdMs,
-} from "@rva/coding-agent/exec/settings";
+import { cfgAsyncEnabled, cfgAsyncMaxJobs } from "@reverse/coding-agent/tools/settings";
+import { cfgBashAutoBackgroundEnabled, cfgBashAutoBackgroundThresholdMs } from "@reverse/coding-agent/exec/settings";
 
 const TEST_MODEL: Model = buildModel({
 	id: "claude-sonnet-4-20250514",
@@ -177,7 +174,7 @@ async function closeTransport(writable: WritableStream<unknown>): Promise<void> 
 
 describe("ACP lazy startup", () => {
 	it("applies schema defaults for ACP background jobs", async () => {
-		const { runRootCommand } = await import("@rva/coding-agent/main");
+		const { runRootCommand } = await import("@reverse/coding-agent/main");
 
 		type ObservedBackgroundSettings = {
 			asyncEnabled: boolean;
@@ -247,7 +244,7 @@ describe("ACP lazy startup", () => {
 		// configured value (caller, project, --config overlay, or global) with the
 		// schema default. The fix (re-)added an `isConfigured` guard so explicit
 		// configuration survives, and the schema default only fills holes.
-		const { runRootCommand } = await import("@rva/coding-agent/main");
+		const { runRootCommand } = await import("@reverse/coding-agent/main");
 
 		const explicit = {
 			"task.isolation.enabled": true,
@@ -423,8 +420,8 @@ describe("ACP lazy startup", () => {
 		const authStorage = createInMemoryAuthStorage();
 		try {
 			const settings = Settings.isolated({ "marketplace.autoUpdate": "off" });
-			const { runRootCommand } = await import("@rva/coding-agent/main");
-			const { createAgentSession } = await import("@rva/coding-agent/sdk");
+			const { runRootCommand } = await import("@reverse/coding-agent/main");
+			const { createAgentSession } = await import("@reverse/coding-agent/sdk");
 			let session: AgentSession | undefined;
 			let sessionHasUI: boolean | undefined;
 			let deferredUsageReserveConfirmation: boolean | undefined;

@@ -1,4 +1,4 @@
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 import { areJsonValuesEqual } from "./equality";
 import { epochNext, once } from "./stamps";
 

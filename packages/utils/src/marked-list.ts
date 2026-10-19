@@ -1,5 +1,5 @@
 /**
- * List-continuation grammar of `@rva/utils/marked`, for streaming
+ * List-continuation grammar of `@reverse/utils/marked`, for streaming
  * renderers that freeze a lexed prefix at blank-line boundaries (TUI and
  * collab web).
  *

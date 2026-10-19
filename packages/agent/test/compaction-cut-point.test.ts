@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
+import type { AssistantMessage } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
 import {
 	type BranchSummaryEntry,
 	type CustomMessageEntry,
@@ -8,8 +8,8 @@ import {
 	findCutPoint,
 	prepareCompaction,
 	type SessionMessageEntry,
-} from "@rva/agent/compaction";
-import { Tokenizer } from "@rva/agent/tokenizer";
+} from "@reverse/agent/compaction";
+import { Tokenizer } from "@reverse/agent/tokenizer";
 import { createAssistantMessage, createUserMessage } from "./helpers";
 
 const tokenizer = new Tokenizer();

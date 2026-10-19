@@ -8,8 +8,8 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type FileLockHandle, logger, readLines, untilAborted } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { type FileLockHandle, logger, readLines, untilAborted } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { Subprocess } from "bun";
 import { hostHasInheritableConsole, shouldHideKernelWindow } from "../eval/py/spawn-options";
 import { stageRunnerScript } from "../eval/runner-cache";

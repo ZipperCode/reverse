@@ -13,7 +13,7 @@ import {
 	serializeWatchdogConfig,
 	slugifyAdvisorName,
 } from "../../src/advisor/config";
-import type { WatchdogConfigDoc } from "@rva/tui/overlays/advisor-config";
+import type { WatchdogConfigDoc } from "@reverse/tui/overlays/advisor-config";
 
 describe("discoverAdvisorConfigs", () => {
 	let tmp: string;

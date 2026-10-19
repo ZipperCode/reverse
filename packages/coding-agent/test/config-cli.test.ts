@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { runConfigCommand } from "@rva/coding-agent/cli/config-cli";
-import { resetSettingsForTest } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { getConfigRootDir, setAgentDir, TempDir } from "@rva/utils";
+import { runConfigCommand } from "@reverse/coding-agent/cli/config-cli";
+import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { getConfigRootDir, setAgentDir, TempDir } from "@reverse/utils";
 
 let testAgentDir: TempDir | undefined;
 const originalAgentDir = process.env.REVERSE_CODING_AGENT_DIR;

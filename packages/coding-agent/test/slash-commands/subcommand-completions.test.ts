@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { BUILTIN_SLASH_COMMANDS } from "@rva/coding-agent/slash-commands/builtin-registry";
+import { BUILTIN_SLASH_COMMANDS } from "@reverse/coding-agent/slash-commands/builtin-registry";
 
 describe("declarative subcommand completion", () => {
 	it("gives the selected dropdown item the same ghost text as the closed-dropdown hint", async () => {

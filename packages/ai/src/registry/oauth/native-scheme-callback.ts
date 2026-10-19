@@ -1,4 +1,4 @@
-import { NativeOAuthCallback } from "@rva/natives";
+import { NativeOAuthCallback } from "@reverse/natives";
 
 /** Native callback lifetime exposed to the provider-independent OAuth flow. */
 export interface NativeSchemeCallbackReceiver {

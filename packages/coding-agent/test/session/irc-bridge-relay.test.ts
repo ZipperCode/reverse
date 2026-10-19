@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { IrcBridge, type IrcBridgeHost } from "@rva/coding-agent/session/irc-bridge";
-import type { CustomMessage } from "@rva/coding-agent/session/messages";
+import type { AgentMessage } from "@reverse/agent";
+import { IrcBridge, type IrcBridgeHost } from "@reverse/coding-agent/session/irc-bridge";
+import type { CustomMessage } from "@reverse/coding-agent/session/messages";
 
 function makeBridge() {
 	const woken: AgentMessage[][] = [];

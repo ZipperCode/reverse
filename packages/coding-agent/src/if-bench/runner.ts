@@ -8,23 +8,15 @@
  * broken turn is the score, because state is carried in the model's own last
  * reply and cannot be recovered once it drifts.
  */
-import type {
-	Api,
-	ApiKeyResolver,
-	AssistantMessage,
-	Context,
-	Message,
-	Model,
-	ProviderSessionState,
-} from "@rva/ai";
-import { logger } from "@rva/utils";
+import type { Api, ApiKeyResolver, AssistantMessage, Context, Message, Model, ProviderSessionState } from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import type { BenchRuntime, BenchTarget, StreamSimpleFn } from "../cli/bench-runtime";
-import { formatModelSelectorValue } from "@rva/tui/overlays/model-selector";
+import { formatModelSelectorValue } from "@reverse/tui/overlays/model-selector";
 import { formatModelString } from "../config/model-resolver";
-import { shouldDisableReasoning, toReasoningEffort } from "@rva/tui/thinking";
+import { shouldDisableReasoning, toReasoningEffort } from "@reverse/tui/thinking";
 import type { Action } from "./actions";
 import { applyActions, initialArray, makeActions } from "./actions";
-import type { IfBenchFailure, IfBenchObserver } from "@rva/tui/apps/if-bench-board";
+import type { IfBenchFailure, IfBenchObserver } from "@reverse/tui/apps/if-bench-board";
 import type { CatPlacement } from "./protocol";
 import { assessResponse, buildSystemPrompt, buildTurnPrompt } from "./protocol";
 

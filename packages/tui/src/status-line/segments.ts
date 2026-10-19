@@ -1,7 +1,7 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@rva/agent";
-import { getTimeBasedPricingPeriod } from "@rva/catalog/models";
+import { ThinkingLevel } from "@reverse/agent";
+import { getTimeBasedPricingPeriod } from "@reverse/catalog/models";
 import { SPINNER_ADVANCE_MS, TERMINAL } from "../index";
 import {
 	formatDuration,
@@ -9,7 +9,7 @@ import {
 	getProjectDir,
 	normalizePathForComparison,
 	relativePathWithinNormalizedRoot,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { type SymbolKey, type Theme, type ThemeColor, theme } from "../theme";
 import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "../render/render-utils";
 import { fileHyperlink } from "../render/hyperlink";
@@ -24,7 +24,7 @@ import {
 	getContextUsageThemeColor,
 	getContextUsageTone,
 } from "../chrome/context-thresholds";
-import type { TspSpan, TspTone } from "@rva/wire";
+import type { TspSpan, TspTone } from "@reverse/wire";
 import { node, span } from "../native/describe";
 import { thinkingLevelToken } from "../theme/theme-class";
 import type { StatusLineSession } from "./host";

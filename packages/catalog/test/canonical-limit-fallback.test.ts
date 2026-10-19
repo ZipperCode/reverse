@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { Api, ModelSpec, Provider } from "@rva/catalog/types";
+import type { Api, ModelSpec, Provider } from "@reverse/catalog/types";
 import { applyCanonicalLimitFallback } from "../scripts/generated-policies";
 
 function spec(overrides: {

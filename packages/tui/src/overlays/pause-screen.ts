@@ -11,7 +11,7 @@
  * Use case: freeze a busy session, hand-edit the repo, resume, then explain
  * the change via a normal steering message.
  */
-import { agentPauseGate } from "@rva/agent";
+import { agentPauseGate } from "@reverse/agent";
 import { type Component, matchesKey, type OverlayFocusOwner, type OverlayHandle, type OverlayOptions } from "../index";
 import { formatCoarseDuration } from "../chrome/format";
 import { centerLine } from "../utils";

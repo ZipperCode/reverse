@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { novitaModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
+import { novitaModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
 
 describe("Novita built-in provider", () => {
 	test("maps Novita model catalog metadata from the public OpenAI-compatible endpoint", async () => {

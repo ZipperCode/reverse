@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { AssistantMessage } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	PRINT_MODE_ADVISOR_DRAIN_TIMEOUT_MS,
 	PRINT_MODE_ERROR_ADVISOR_DRAIN_TIMEOUT_MS,
 	runPrintMode,
-} from "@rva/coding-agent/modes/print-mode";
-import type { PlanModeState } from "@rva/coding-agent/plan-mode/state";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { CREDENTIAL_DISABLED_NOTICE_SOURCE } from "@rva/coding-agent/session/credential-disabled-notice";
-import type { PlanProposalHandler } from "@rva/coding-agent/tools/resolve";
+} from "@reverse/coding-agent/modes/print-mode";
+import type { PlanModeState } from "@reverse/coding-agent/plan-mode/state";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { CREDENTIAL_DISABLED_NOTICE_SOURCE } from "@reverse/coding-agent/session/credential-disabled-notice";
+import type { PlanProposalHandler } from "@reverse/coding-agent/tools/resolve";
 
 function makeAssistantMessage(text: string): AssistantMessage {
 	const timestamp = Date.now();

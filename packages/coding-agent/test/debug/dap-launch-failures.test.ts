@@ -2,19 +2,19 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as dapModule from "@rva/coding-agent/dap";
-import { connectSocket, DapClient, waitForTcpServerListening } from "@rva/coding-agent/dap/client";
-import { DapSessionManager } from "@rva/coding-agent/dap/session";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as dapModule from "@reverse/coding-agent/dap";
+import { connectSocket, DapClient, waitForTcpServerListening } from "@reverse/coding-agent/dap/client";
+import { DapSessionManager } from "@reverse/coding-agent/dap/session";
 import type {
 	DapCapabilities,
 	DapClientState,
 	DapEventMessage,
 	DapResolvedAdapter,
-} from "@rva/coding-agent/dap/types";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { DebugTool } from "@rva/coding-agent/tools/debug";
-import { removeWithRetries, withTimeout } from "@rva/utils";
+} from "@reverse/coding-agent/dap/types";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { DebugTool } from "@reverse/coding-agent/tools/debug";
+import { removeWithRetries, withTimeout } from "@reverse/utils";
 
 const TEST_ADAPTER: DapResolvedAdapter = {
 	name: "lldb-dap",

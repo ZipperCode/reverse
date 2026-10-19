@@ -4,9 +4,9 @@
  * Handles `omp grep` subcommand for testing grep tool on Windows.
  */
 import * as path from "node:path";
-import { GrepOutputMode, grep } from "@rva/natives";
-import { APP_NAME } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { GrepOutputMode, grep } from "@reverse/natives";
+import { APP_NAME } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { expandPath } from "../tools/path-utils";
 
 export interface GrepCommandArgs {

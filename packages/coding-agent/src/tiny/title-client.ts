@@ -8,7 +8,7 @@
  * die on its own once idle. Prompt construction and title extraction live
  * here so both workers only ever see message-level `chat` requests.
  */
-import { $env, getTinyWorkerRuntimeDir, logger, prompt } from "@rva/utils";
+import { $env, getTinyWorkerRuntimeDir, logger, prompt } from "@reverse/utils";
 import packageJson from "../../package.json" with { type: "json" };
 import type { Setting } from "../config/registry";
 import { isSettingsInitialized, settings } from "../config/settings";

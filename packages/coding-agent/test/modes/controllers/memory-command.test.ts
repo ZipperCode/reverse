@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { CommandController } from "@rva/coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { CommandController } from "@reverse/coding-agent/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 function createMemoryContext(backend: string) {
 	const showWarning = vi.fn();

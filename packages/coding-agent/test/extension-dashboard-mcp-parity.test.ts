@@ -15,11 +15,17 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { initializeWithSettings, reset as resetDiscoveryCache } from "@rva/coding-agent/discovery";
-import { readMCPConfigFile, setMcpServerEnabled, setServerDisabled } from "@rva/coding-agent/mcp/config-writer";
-import { loadAllExtensions } from "@rva/coding-agent/modes/components/extensions/state-manager";
-import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, getMCPConfigPath, removeWithRetries, setAgentDir } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { initializeWithSettings, reset as resetDiscoveryCache } from "@reverse/coding-agent/discovery";
+import { readMCPConfigFile, setMcpServerEnabled, setServerDisabled } from "@reverse/coding-agent/mcp/config-writer";
+import { loadAllExtensions } from "@reverse/coding-agent/modes/components/extensions/state-manager";
+import {
+	__resetDirsFromEnvForTests,
+	CONFIG_DIR_NAME,
+	getMCPConfigPath,
+	removeWithRetries,
+	setAgentDir,
+} from "@reverse/utils";
 
 describe("loadAllExtensions MCP parity with /mcp list (issue #3827)", () => {
 	let projectDir = "";

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, readJsonl, TempDir } from "@rva/utils";
+import { CONFIG_DIR_NAME, readJsonl, TempDir } from "@reverse/utils";
 
 const cliEntry = path.resolve(import.meta.dir, "../src/cli.ts");
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { FetchImpl } from "@rva/ai/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const loginKilo = getProviderDefinition("kilo")?.login;
 if (!loginKilo) throw new Error("Kilo login is not registered");

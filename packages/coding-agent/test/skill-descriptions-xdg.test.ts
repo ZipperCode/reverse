@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as agentCore from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@rva/utils";
+import * as agentCore from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@reverse/utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";
 import {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@rva/ai/providers/anthropic";
-import type { AssistantMessage, Model, ModelSpec, ToolResultMessage, UserMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { convertAnthropicMessages } from "@reverse/ai/providers/anthropic";
+import type { AssistantMessage, Model, ModelSpec, ToolResultMessage, UserMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 /**
  * Issue #814: Z.AI returns 500

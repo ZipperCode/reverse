@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeResponsesToolCallId } from "@rva/ai/utils";
+import { normalizeResponsesToolCallId } from "@reverse/ai/utils";
 
 describe("normalizeResponsesToolCallId", () => {
 	it("preserves opaque call ids while truncating oversized item ids", () => {

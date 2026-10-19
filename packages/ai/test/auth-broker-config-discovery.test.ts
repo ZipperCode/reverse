@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAuthStorage, loadAuthAccountPolicyConfig, resolveAuthBrokerConfig } from "@rva/ai/auth-broker";
-import { type AuthAccountPolicies, DEFAULT_USAGE_RESERVE_PCT } from "@rva/ai/auth-storage";
-import { writeAuthBrokerSnapshotCache } from "@rva/ai/auth-broker/snapshot-cache";
-import type { SnapshotResponse } from "@rva/ai/auth-broker/types";
-import * as oauthUtils from "@rva/ai/registry/oauth";
+import { discoverAuthStorage, loadAuthAccountPolicyConfig, resolveAuthBrokerConfig } from "@reverse/ai/auth-broker";
+import { type AuthAccountPolicies, DEFAULT_USAGE_RESERVE_PCT } from "@reverse/ai/auth-storage";
+import { writeAuthBrokerSnapshotCache } from "@reverse/ai/auth-broker/snapshot-cache";
+import type { SnapshotResponse } from "@reverse/ai/auth-broker/types";
+import * as oauthUtils from "@reverse/ai/registry/oauth";
 import { removeWithRetries } from "../../utils/src/temp";
 import { withEnv } from "./helpers";
 

@@ -1,9 +1,9 @@
-import { getImageDimensions, TERMINAL } from "@rva/tui";
-import { Image } from "@rva/tui/components/image";
-import { Spacer } from "@rva/tui/components/spacer";
-import { Text } from "@rva/tui/components/text";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { TUI } from "@rva/tui/tui";
+import { getImageDimensions, TERMINAL } from "@reverse/tui";
+import { Image } from "@reverse/tui/components/image";
+import { Spacer } from "@reverse/tui/components/spacer";
+import { Text } from "@reverse/tui/components/text";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { TUI } from "@reverse/tui/tui";
 
 const testImagePath = Bun.argv[2] || "/tmp/test-image.png";
 

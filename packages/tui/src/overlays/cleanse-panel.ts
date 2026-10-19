@@ -6,7 +6,7 @@ import { theme } from "../theme/theme";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { StreamingPanelContent, type StreamingPanelPresentation } from "../chrome/streaming-panel";
 import { boundKeys, interruptKey } from "../chrome/keybinding-hints";
-import type { TspTone } from "@rva/wire";
+import type { TspTone } from "@reverse/wire";
 import type { DescribeContext, NativeNode } from "../native/node";
 import { col, node, span, text } from "../native/describe";
 import { hintsRow, type NativeHint, statusHintsRow } from "../native/overlay";

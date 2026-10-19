@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { $which, TempDir } from "@rva/utils";
+import { $which, TempDir } from "@reverse/utils";
 import { PYTHON_PRELUDE } from "../../../src/eval/py/prelude";
 import { artifactReadBridge } from "../../helpers/artifact-read-bridge";
 const pythonPath = Bun.env.PYTHON ?? ($which("python3") ? "python3" : "python");

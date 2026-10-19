@@ -8,7 +8,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger, postmortem } from "@rva/utils";
+import { isEnoent, logger, postmortem } from "@reverse/utils";
 import { asStrict } from "../providers/aws-sigv4";
 import type { SnapshotResponse } from "./types";
 

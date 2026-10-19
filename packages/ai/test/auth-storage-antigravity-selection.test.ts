@@ -13,10 +13,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import * as oauthUtils from "@rva/ai/registry/oauth";
-import type { OAuthCredentials } from "@rva/ai/registry/oauth/types";
-import type { UsageLimit, UsageProvider, UsageReport } from "@rva/ai/usage";
+import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import * as oauthUtils from "@reverse/ai/registry/oauth";
+import type { OAuthCredentials } from "@reverse/ai/registry/oauth/types";
+import type { UsageLimit, UsageProvider, UsageReport } from "@reverse/ai/usage";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const HOUR_MS = 60 * 60 * 1000;

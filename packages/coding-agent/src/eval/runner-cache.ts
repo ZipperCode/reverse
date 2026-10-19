@@ -9,7 +9,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { assertOwnerPrivateDir } from "../utils/owner-private-dir";
 
 // Memoized staged path per cache directory. The value is re-validated on every

@@ -1,6 +1,6 @@
-import { type } from "@rva/omptype";
-import { shortenPath } from "@rva/tui/render/render-utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { type } from "@reverse/omptype";
+import { shortenPath } from "@reverse/tui/render/render-utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { EvalPreludeDefinition } from "../eval/preludes";
 import archiveDocumentation from "../prompts/tools/archive.md" with { type: "text" };
 import type { ToolSession } from "../tools";

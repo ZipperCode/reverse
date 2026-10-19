@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { UserMessageComponent } from "@rva/tui/chat/user-message";
-import { setNativeRendering } from "@rva/tui/native/state";
-import { linkedImageText, setImageBlobWriter, transcriptImageLink } from "@rva/tui/prompt/image-references";
-import { applyHyperlinkSetting } from "@rva/tui/render/hyperlink";
-import { initTheme } from "@rva/tui/theme";
-import type { TspSpan } from "@rva/wire";
+import { UserMessageComponent } from "@reverse/tui/chat/user-message";
+import { setNativeRendering } from "@reverse/tui/native/state";
+import { linkedImageText, setImageBlobWriter, transcriptImageLink } from "@reverse/tui/prompt/image-references";
+import { applyHyperlinkSetting } from "@reverse/tui/render/hyperlink";
+import { initTheme } from "@reverse/tui/theme";
+import type { TspSpan } from "@reverse/wire";
 
 // 1x1 PNG
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";

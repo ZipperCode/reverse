@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Process } from "@rva/natives";
-import { TempDir } from "@rva/utils";
+import { Process } from "@reverse/natives";
+import { TempDir } from "@reverse/utils";
 import { Settings } from "../../src/config/settings";
 import { startDaemonBrokerFromEnvironment } from "../../src/launch/broker";
 import * as brokerClients from "../../src/launch/client";

@@ -5,9 +5,9 @@
  * validates generated rules against conversation history the same way.
  */
 import * as path from "node:path";
-import type { AgentTool } from "@rva/agent";
-import type { AssistantMessage, ToolCall } from "@rva/ai";
-import { isRecord } from "@rva/utils";
+import type { AgentTool } from "@reverse/agent";
+import type { AssistantMessage, ToolCall } from "@reverse/ai";
+import { isRecord } from "@reverse/utils";
 import type { TtsrMatchContext, TtsrOutput } from "../export/ttsr";
 
 /** Tool surface TTSR reads: identity plus the optional matcher hooks. */

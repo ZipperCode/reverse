@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { SttClient } from "@rva/coding-agent/stt/asr-client";
-import type { SttWorkerInbound, SttWorkerOutbound } from "@rva/coding-agent/stt/asr-protocol";
-import { TinyTitleClient } from "@rva/coding-agent/tiny/title-client";
-import type { TinyWorkerRequest, TinyWorkerResponse } from "@rva/coding-agent/tiny/title-protocol";
+import { SttClient } from "@reverse/coding-agent/stt/asr-client";
+import type { SttWorkerInbound, SttWorkerOutbound } from "@reverse/coding-agent/stt/asr-protocol";
+import { TinyTitleClient } from "@reverse/coding-agent/tiny/title-client";
+import type { TinyWorkerRequest, TinyWorkerResponse } from "@reverse/coding-agent/tiny/title-protocol";
 
 class FakeTinyWorker {
 	terminated = false;

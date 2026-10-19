@@ -1,5 +1,5 @@
 import type { Component } from "../tui";
-import { getProjectDir } from "@rva/utils";
+import { getProjectDir } from "@reverse/utils";
 import { highlightCode, type Theme } from "../theme/theme";
 import { renderStatusLine } from "../render/status-line";
 import { framedToolCard, type ToolCardSnapshot } from "../render/tool-card";
@@ -25,7 +25,7 @@ import type {
 	RenderResultOptions,
 	ToolRenderer,
 } from "./renderer";
-import { INTENT_FIELD, type TspTone } from "@rva/wire";
+import { INTENT_FIELD, type TspTone } from "@reverse/wire";
 import { plainText } from "../native/spans";
 import { resultText, runBox, runFoot, runInput, runOutput, type RunState } from "./native-view";
 

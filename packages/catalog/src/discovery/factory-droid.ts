@@ -1,4 +1,4 @@
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 import {
 	type FactoryDroidRegistryModel,
 	factoryDroidRegionalLimits,

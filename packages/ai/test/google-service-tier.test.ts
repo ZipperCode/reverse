@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamGoogle } from "@rva/ai/providers/google";
-import { streamGoogleVertex } from "@rva/ai/providers/google-vertex";
-import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamGoogle } from "@reverse/ai/providers/google";
+import { streamGoogleVertex } from "@reverse/ai/providers/google-vertex";
+import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const context: Context = { messages: [{ role: "user", content: "hi", timestamp: 1 }] };
 

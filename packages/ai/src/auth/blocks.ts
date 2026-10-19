@@ -1,4 +1,4 @@
-import { getAgentDbPath, logger } from "@rva/utils";
+import { getAgentDbPath, logger } from "@reverse/utils";
 import type { Provider } from "../types";
 import type { CredentialRankingContext, CredentialRankingStrategy, UsageReport } from "../usage";
 import type { RankingStrategyResolver } from "../usage/registry";

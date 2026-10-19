@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@rva/stats",
+  "name": "@reverse/stats",
   "version": "18.11.2",
   "description": "Local observability dashboard for omp AI usage statistics",
   "homepage": "https://omp.sh",
@@ -43,9 +43,9 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@rva/ai": "catalog:",
-    "@rva/catalog": "catalog:",
-    "@rva/utils": "catalog:",
+    "@reverse/ai": "catalog:",
+    "@reverse/catalog": "catalog:",
+    "@reverse/utils": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

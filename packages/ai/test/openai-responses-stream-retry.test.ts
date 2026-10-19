@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import { postOpenAIStream } from "@rva/ai/utils/openai-http";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import { postOpenAIStream } from "@reverse/ai/utils/openai-http";
 import type {
 	AssistantMessageEvent,
 	AssistantMessageEventStream,
@@ -8,8 +8,8 @@ import type {
 	FetchImpl,
 	Model,
 	ProviderSessionState,
-} from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const model = getBundledModel("openai", "gpt-5-mini") as Model<"openai-responses">;
 const firstUser = { role: "user" as const, content: "Read the file", timestamp: 1_000 };

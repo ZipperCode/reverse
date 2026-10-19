@@ -1,4 +1,4 @@
-import type { AssistantMessage, Message } from "@rva/ai";
+import type { AssistantMessage, Message } from "@reverse/ai";
 
 /** Detects API-level provider refusals that are terminal errors, not dialogue to replay. */
 export function isProviderRefusalMessage(message: AssistantMessage): boolean {

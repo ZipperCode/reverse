@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { isRecord, readJsonl, TempDir } from "@rva/utils";
-import { selectRpcEntries } from "@rva/coding-agent/modes/rpc/rpc-compat";
-import { RpcWordPredictor } from "@rva/coding-agent/modes/rpc/rpc-mode";
-import type { TextPrediction } from "@rva/coding-agent/predict/client";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage } from "@rva/coding-agent/session/session-storage";
-import type { SessionEntry, SessionTreeNode } from "@rva/coding-agent/session/session-entries";
+import { isRecord, readJsonl, TempDir } from "@reverse/utils";
+import { selectRpcEntries } from "@reverse/coding-agent/modes/rpc/rpc-compat";
+import { RpcWordPredictor } from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import type { TextPrediction } from "@reverse/coding-agent/predict/client";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage } from "@reverse/coding-agent/session/session-storage";
+import type { SessionEntry, SessionTreeNode } from "@reverse/coding-agent/session/session-entries";
 
 function customEntry(id: string, parentId: string | null): SessionEntry {
 	return { type: "custom", id, parentId, timestamp: new Date().toISOString(), customType: "probe" };

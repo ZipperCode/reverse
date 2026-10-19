@@ -63,8 +63,8 @@ import {
 	StopRequestResponseSchema,
 	SubagentStartRequestResponseSchema,
 	SubagentStopRequestResponseSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create } from "@reverse/catalog/discovery/protobuf";
 import type { ToolResultMessage } from "../../types";
 
 /**

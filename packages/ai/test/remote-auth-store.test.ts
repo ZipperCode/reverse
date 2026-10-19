@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@rva/ai";
+import { type } from "@reverse/omptype";
+import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@reverse/ai";
 import {
 	AuthBrokerClient,
 	type AuthBrokerServerHandle,
@@ -10,11 +10,11 @@ import {
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
 	startAuthBroker,
-} from "@rva/ai/auth-broker";
-import { snapshotResponseSchema } from "@rva/ai/auth-broker/wire-schemas";
-import * as oauthUtils from "@rva/ai/registry/oauth";
-import type { UsageLimit, UsageProvider, UsageReport } from "@rva/ai/usage";
-import * as claudeUsage from "@rva/ai/usage/claude";
+} from "@reverse/ai/auth-broker";
+import { snapshotResponseSchema } from "@reverse/ai/auth-broker/wire-schemas";
+import * as oauthUtils from "@reverse/ai/registry/oauth";
+import type { UsageLimit, UsageProvider, UsageReport } from "@reverse/ai/usage";
+import * as claudeUsage from "@reverse/ai/usage/claude";
 
 function requireLimit(report: UsageReport, id: string): UsageLimit {
 	const limit = report.limits.find(candidate => candidate.id === id);

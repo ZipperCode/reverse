@@ -1,4 +1,4 @@
-# @rva/natives
+# @reverse/natives
 
 Native Rust functionality via N-API.
 
@@ -22,7 +22,7 @@ that terminal protocol.
 ## Usage
 
 ```typescript
-import { encodeSixelAsync, grep, pdfToMarkdown } from "@rva/natives";
+import { encodeSixelAsync, grep, pdfToMarkdown } from "@reverse/natives";
 
 // Grep for a pattern
 const results = await grep({
@@ -51,7 +51,7 @@ console.log(pdf.markdown, pdf.pagesNeedingOcr);
 ### Lazy Windows path helpers
 
 Import `expandWindowsLongPath` and `getWindowsShortPath` from
-`@rva/natives/path` when importing a module must not load the native addon.
+`@reverse/natives/path` when importing a module must not load the native addon.
 The addon loads only when a helper is called on Windows; other platforms preserve
 the input path without loading it. These helpers change long/8.3 spellings without
 resolving symlinks or junctions.
@@ -68,7 +68,7 @@ bun run check
 
 ## Architecture
 
-`@rva/natives` publishes a small core package plus generated
+`@reverse/natives` publishes a small core package plus generated
 platform-specific optional dependency packages:
 
 ```
@@ -84,7 +84,7 @@ native/                  # Core loader files and local/CI native build outputs
   pi_natives.<platform>-<arch>-baseline.node # x64 baseline ISA (local/CI artifact)
   pi_natives.<platform>-<arch>.node          # non-x64 build artifact
 npm/<platform>-<arch>/   # Generated at publish time, not committed
-  package.json           # @rva/natives-<platform>-<arch>
+  package.json           # @reverse/natives-<platform>-<arch>
   *.node                 # Only that platform's addon binary or x64 ISA variants
 ```
 

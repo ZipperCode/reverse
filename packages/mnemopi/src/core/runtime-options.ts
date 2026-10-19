@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { Api, ApiKey, Model } from "@rva/ai";
+import type { Api, ApiKey, Model } from "@reverse/ai";
 
 export type MnemopiLlmCompletionTask = {
 	kind: "memory-extraction";

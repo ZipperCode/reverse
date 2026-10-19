@@ -1,7 +1,7 @@
-import { type FileDiagnosticsResult } from "@rva/tui/tools/lsp";
+import { type FileDiagnosticsResult } from "@reverse/tui/tools/lsp";
 import * as fs from "node:fs";
 import path from "node:path";
-import { logger, untilAborted } from "@rva/utils";
+import { logger, untilAborted } from "@reverse/utils";
 import { formatPathRelativeToCwd } from "../tools/path-utils";
 import { throwIfAborted } from "../tools/tool-errors";
 import { getOrCreateClient, sendRequest, supportsDocumentDiagnostics, waitForProjectLoaded } from "./client";

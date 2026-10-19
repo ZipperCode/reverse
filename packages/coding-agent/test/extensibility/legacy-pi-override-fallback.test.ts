@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	__resolveTypeBoxShimPath,
 	__validateLegacyPiPackageRootOverrides,
-} from "@rva/coding-agent/extensibility/plugins/legacy-pi-compat";
+} from "@reverse/coding-agent/extensibility/plugins/legacy-pi-compat";
 
 // Regression for issue #2168: in compiled-binary mode the package-root
 // override branch of `resolveCanonicalPiSpecifier` returned a bunfs path
@@ -22,23 +22,23 @@ import {
 describe("legacy pi compat package-root override validation (issue #2168)", () => {
 	it("drops overrides whose filesystem targets are missing on disk", () => {
 		const candidates = {
-			"@rva/ai": "/tmp/exists-ai.js",
-			"@rva/coding-agent": "/tmp/exists-shim.js",
-			"@rva/utils": "/$bunfs/root/packages/utils/src/index.js",
-			"@rva/tui": "/$bunfs/root/packages/tui/src/index.js",
+			"@reverse/ai": "/tmp/exists-ai.js",
+			"@reverse/coding-agent": "/tmp/exists-shim.js",
+			"@reverse/utils": "/$bunfs/root/packages/utils/src/index.js",
+			"@reverse/tui": "/$bunfs/root/packages/tui/src/index.js",
 		};
 		const missing = new Set(["/$bunfs/root/packages/utils/src/index.js", "/$bunfs/root/packages/tui/src/index.js"]);
 		const result = __validateLegacyPiPackageRootOverrides(candidates, p => !missing.has(p));
 		expect(result).toEqual({
-			"@rva/ai": "/tmp/exists-ai.js",
-			"@rva/coding-agent": "/tmp/exists-shim.js",
+			"@reverse/ai": "/tmp/exists-ai.js",
+			"@reverse/coding-agent": "/tmp/exists-shim.js",
 		});
 		// `pi-utils` and `pi-tui` are absent so the resolver falls through to
 		// `getResolvedSpecifier` (which throws under bunfs), which triggers
 		// the catch in `rewriteLegacyPiImports` that leaves the specifier
 		// unchanged for native `node_modules` resolution.
-		expect(result).not.toHaveProperty("@rva/utils");
-		expect(result).not.toHaveProperty("@rva/tui");
+		expect(result).not.toHaveProperty("@reverse/utils");
+		expect(result).not.toHaveProperty("@reverse/tui");
 	});
 
 	it("keeps virtual omp-legacy-pi-bundled: entries without touching the filesystem (issue #3423)", () => {
@@ -48,12 +48,12 @@ describe("legacy pi compat package-root override validation (issue #2168)", () =
 		// validator MUST short-circuit before any filesystem probe.
 		let probed = false;
 		const candidates = {
-			"@rva/ai": "omp-legacy-pi-bundled:@rva/ai",
-			"@rva/coding-agent": "omp-legacy-pi-bundled:@rva/coding-agent",
-			"@rva/agent": "omp-legacy-pi-bundled:@rva/agent",
-			"@rva/natives": "omp-legacy-pi-bundled:@rva/natives",
-			"@rva/tui": "omp-legacy-pi-bundled:@rva/tui",
-			"@rva/utils": "omp-legacy-pi-bundled:@rva/utils",
+			"@reverse/ai": "omp-legacy-pi-bundled:@reverse/ai",
+			"@reverse/coding-agent": "omp-legacy-pi-bundled:@reverse/coding-agent",
+			"@reverse/agent": "omp-legacy-pi-bundled:@reverse/agent",
+			"@reverse/natives": "omp-legacy-pi-bundled:@reverse/natives",
+			"@reverse/tui": "omp-legacy-pi-bundled:@reverse/tui",
+			"@reverse/utils": "omp-legacy-pi-bundled:@reverse/utils",
 		};
 		const result = __validateLegacyPiPackageRootOverrides(candidates, () => {
 			probed = true;
@@ -65,15 +65,15 @@ describe("legacy pi compat package-root override validation (issue #2168)", () =
 
 	it("mixes virtual and filesystem entries: virtuals always pass, filesystems gated", () => {
 		const candidates = {
-			"@rva/ai": "omp-legacy-pi-bundled:@rva/ai",
-			"@rva/coding-agent": "/dev/source/legacy-pi-coding-agent-shim.ts",
-			"@rva/tui": "/missing/path.ts",
+			"@reverse/ai": "omp-legacy-pi-bundled:@reverse/ai",
+			"@reverse/coding-agent": "/dev/source/legacy-pi-coding-agent-shim.ts",
+			"@reverse/tui": "/missing/path.ts",
 		};
 		const missing = new Set(["/missing/path.ts"]);
 		const result = __validateLegacyPiPackageRootOverrides(candidates, p => !missing.has(p));
 		expect(result).toEqual({
-			"@rva/ai": "omp-legacy-pi-bundled:@rva/ai",
-			"@rva/coding-agent": "/dev/source/legacy-pi-coding-agent-shim.ts",
+			"@reverse/ai": "omp-legacy-pi-bundled:@reverse/ai",
+			"@reverse/coding-agent": "/dev/source/legacy-pi-coding-agent-shim.ts",
 		});
 	});
 });

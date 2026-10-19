@@ -14,11 +14,11 @@
  */
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
-import { getDebugLogPath } from "@rva/utils/dirs";
-import { $flag } from "@rva/utils/env";
-import * as logger from "@rva/utils/logger";
-import * as postmortem from "@rva/utils/postmortem";
-import type { TspFrame, TspNode, TspText } from "@rva/wire";
+import { getDebugLogPath } from "@reverse/utils/dirs";
+import { $flag } from "@reverse/utils/env";
+import * as logger from "@reverse/utils/logger";
+import * as postmortem from "@reverse/utils/postmortem";
+import type { TspFrame, TspNode, TspText } from "@reverse/wire";
 import { DEFAULT_MAX_INLINE_IMAGES, ImageBudget } from "./components/image";
 import { TuiDebugServer } from "./debug-server";
 import { isKeyRelease, matchesKey } from "./keys";

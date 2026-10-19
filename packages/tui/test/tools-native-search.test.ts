@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspText } from "@rva/wire";
+import type { TspText } from "@reverse/wire";
 import { ReadToolGroupComponent } from "../src/chat/read-tool-group";
 import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
 import { initTheme } from "../src/theme";

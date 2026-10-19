@@ -7,10 +7,10 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@rva/agent";
-import type { Ellipsis } from "@rva/natives";
-import { expandWindowsLongPath, getWindowsShortPath } from "@rva/natives/path";
-import { pluralize, sanitizeText } from "@rva/utils";
+import { ThinkingLevel } from "@reverse/agent";
+import type { Ellipsis } from "@reverse/natives";
+import { expandWindowsLongPath, getWindowsShortPath } from "@reverse/natives/path";
+import { pluralize, sanitizeText } from "@reverse/utils";
 import { formatKeyHint, type KeyId } from "../app-keybindings";
 import { getKeybindings } from "../keybindings";
 import type { Theme } from "../theme/theme";
@@ -18,7 +18,7 @@ import type { Component } from "../tui";
 import { replaceTabs, sliceByColumn, truncateToWidth, visibleWidth } from "../utils";
 import { Hasher } from "./utils";
 
-export { Ellipsis } from "@rva/natives";
+export { Ellipsis } from "@reverse/natives";
 export { replaceTabs, truncateToWidth, wrapTextWithAnsi } from "../utils";
 
 /** A thinking selector configured as a concrete level or automatic selection. */
@@ -264,7 +264,7 @@ export function getDomain(url: string): string {
 // Formatting Utilities
 // =============================================================================
 
-export { formatAge, formatBytes, formatCount, formatDuration, formatNumber, pluralize } from "@rva/utils";
+export { formatAge, formatBytes, formatCount, formatDuration, formatNumber, pluralize } from "@reverse/utils";
 
 // =============================================================================
 // Theme Helper Utilities

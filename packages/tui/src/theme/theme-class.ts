@@ -1,6 +1,6 @@
-import { colorLuma, relativeLuminance } from "@rva/utils/color";
-import * as logger from "@rva/utils/logger";
-import chalk from "@rva/utils/chalk";
+import { colorLuma, relativeLuminance } from "@reverse/utils/color";
+import * as logger from "@reverse/utils/logger";
+import chalk from "@reverse/utils/chalk";
 import { bgAnsi, colorToAnsi, fgAnsi, resolveToHex } from "./color";
 import {
 	type ColorMode,

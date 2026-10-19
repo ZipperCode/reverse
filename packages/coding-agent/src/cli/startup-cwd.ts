@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { directoryExists, getProjectDir, normalizePathForComparison, setProjectDir } from "@rva/utils";
+import { directoryExists, getProjectDir, normalizePathForComparison, setProjectDir } from "@reverse/utils";
 import type { Args } from "./args";
 
 async function maybeAutoChdir(parsed: Args): Promise<void> {

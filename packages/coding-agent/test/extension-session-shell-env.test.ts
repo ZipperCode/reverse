@@ -8,16 +8,16 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { executeBash } from "@rva/coding-agent/exec/bash-executor";
-import { loadExtensions } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import type { ExtensionAgentIdentity } from "@rva/coding-agent/extensibility/extensions/types";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
-import { __resetShellConfigCacheForTests, getShellConfig } from "@rva/utils/procmgr";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { executeBash } from "@reverse/coding-agent/exec/bash-executor";
+import { loadExtensions } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import type { ExtensionAgentIdentity } from "@reverse/coding-agent/extensibility/extensions/types";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
+import { __resetShellConfigCacheForTests, getShellConfig } from "@reverse/utils/procmgr";
 
 const SUBAGENT: ExtensionAgentIdentity = { kind: "sub", id: "0-Task", name: "task", depth: 1, parentId: "Main" };
 

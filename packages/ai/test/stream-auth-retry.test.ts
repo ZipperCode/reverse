@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { ApiKeyResolution, ApiKeyResolveContext } from "@rva/ai";
-import { registerCustomApi, resolveApiKeyOnce, seedApiKeyResolver, unregisterCustomApis } from "@rva/ai";
-import { OAuthError, ProviderHttpError } from "@rva/ai/error";
-import { classify } from "@rva/ai/error/flags";
-import { streamSimple } from "@rva/ai/stream";
-import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions, Usage } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+import type { ApiKeyResolution, ApiKeyResolveContext } from "@reverse/ai";
+import { registerCustomApi, resolveApiKeyOnce, seedApiKeyResolver, unregisterCustomApis } from "@reverse/ai";
+import { OAuthError, ProviderHttpError } from "@reverse/ai/error";
+import { classify } from "@reverse/ai/error/flags";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions, Usage } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 
 const SOURCE_ID = "stream-auth-retry-test";
 const API = "stream-auth-retry-test" as Api;

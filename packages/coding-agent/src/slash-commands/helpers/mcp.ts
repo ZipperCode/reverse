@@ -1,5 +1,5 @@
-import * as AIError from "@rva/ai/error";
-import { getMCPConfigPath, logger } from "@rva/utils";
+import * as AIError from "@reverse/ai/error";
+import { getMCPConfigPath, logger } from "@reverse/utils";
 import { connectToServer, disconnectServer, listPrompts, listResources, listTools } from "../../mcp/client";
 import {
 	addMCPServer,

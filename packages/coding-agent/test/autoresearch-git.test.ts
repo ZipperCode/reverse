@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@rva/utils";
+import { removeWithRetries } from "@reverse/utils";
 import { ensureAutoresearchBranch } from "../src/autoresearch/git";
 import type { ExtensionAPI } from "../src/extensibility/extensions";
 

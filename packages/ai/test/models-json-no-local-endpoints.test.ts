@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Model } from "@rva/ai/types";
-import MODELS_JSON from "@rva/catalog/models.json" with { type: "json" };
+import type { Model } from "@reverse/ai/types";
+import MODELS_JSON from "@reverse/catalog/models.json" with { type: "json" };
 
 // Pins the invariant: the committed `models.json` must never carry a
 // local/self-hosted provider's catalog. Those providers default to an endpoint

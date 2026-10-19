@@ -2,7 +2,7 @@
  * ORCID handler for web-fetch
  */
 
-import { tryParseJson } from "@rva/utils";
+import { tryParseJson } from "@reverse/utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, loadPage } from "./types";
 

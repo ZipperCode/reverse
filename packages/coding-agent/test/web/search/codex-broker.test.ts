@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import { resolveCodexResponsesUrl } from "@rva/ai/providers/openai-codex-responses";
-import { CODEX_BASE_URL } from "@rva/catalog/wire/codex";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import type { SearchParams } from "@rva/coding-agent/web/search/providers/base";
-import { searchCodex } from "@rva/coding-agent/web/search/providers/codex";
+import type { FetchImpl } from "@reverse/ai/types";
+import { resolveCodexResponsesUrl } from "@reverse/ai/providers/openai-codex-responses";
+import { CODEX_BASE_URL } from "@reverse/catalog/wire/codex";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import type { SearchParams } from "@reverse/coding-agent/web/search/providers/base";
+import { searchCodex } from "@reverse/coding-agent/web/search/providers/codex";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 function makeSseResponse(): string {

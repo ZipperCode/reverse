@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
-import { getProjectDir, parseFrontmatter, prompt } from "@rva/utils";
+import { getProjectDir, parseFrontmatter, prompt } from "@reverse/utils";
 import {
 	isValidManagedSkillName,
 	MANAGED_SKILLS_PROVIDER_ID,
@@ -22,7 +22,7 @@ import {
 	type SkillFrontmatter,
 } from "../discovery";
 import { compareSkillOrder, scanSkillsFromDir } from "../discovery/helpers";
-import { allowsSkillTokens, SKILL_TOKEN_RE } from "@rva/tui/prompt/skill-tokens";
+import { allowsSkillTokens, SKILL_TOKEN_RE } from "@reverse/tui/prompt/skill-tokens";
 import autoloadTemplate from "../prompts/skills/autoload.md" with { type: "text" };
 import userInvocationTemplate from "../prompts/skills/user-invocation.md" with { type: "text" };
 import { SKILLSHARE_PROVIDER_ID } from "../discovery/skillshare";

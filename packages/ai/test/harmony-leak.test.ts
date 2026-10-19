@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, Model, ToolCall, Usage } from "@rva/ai";
+import type { AssistantMessage, Model, ToolCall, Usage } from "@reverse/ai";
 import {
 	createHarmonyAuditEvent,
 	detectHarmonyLeak,
@@ -8,9 +8,9 @@ import {
 	isHarmonyLeakMitigationTarget,
 	recoverHarmonyToolCall,
 	signalListLabel,
-} from "@rva/ai/utils/harmony-leak";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
+} from "@reverse/ai/utils/harmony-leak";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
 import corpus from "./fixtures/harmony-leak-corpus.json" with { type: "json" };
 
 interface CorpusPositive {

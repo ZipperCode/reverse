@@ -17,8 +17,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { countTokens, Encoding } from "@rva/natives";
-import { prompt } from "@rva/utils";
+import { countTokens, Encoding } from "@reverse/natives";
+import { prompt } from "@reverse/utils";
 import { loadBundledAgents } from "../packages/coding-agent/src/task/agents";
 import { isReadOnlyAgent } from "../packages/coding-agent/src/task/read-only-policy";
 

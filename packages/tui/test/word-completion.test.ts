@@ -3,7 +3,7 @@ import {
 	type WordCompletionEngine,
 	WordCompletionProvider,
 	type WordPredictionBackend,
-} from "@rva/tui/prompt/word-completion";
+} from "@reverse/tui/prompt/word-completion";
 
 interface Request {
 	before: string;

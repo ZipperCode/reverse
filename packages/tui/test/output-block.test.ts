@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { getThemeByName, initTheme } from "@rva/tui/theme";
-import { renderMarkdownCell } from "@rva/tui/render/code-cell";
-import { renderOutputBlock } from "@rva/tui/render/output-block";
-import { OverlayPanel, PanelRows } from "@rva/tui/chrome/overlay-box";
-import { visibleWidth } from "@rva/tui/utils";
+import { getThemeByName, initTheme } from "@reverse/tui/theme";
+import { renderMarkdownCell } from "@reverse/tui/render/code-cell";
+import { renderOutputBlock } from "@reverse/tui/render/output-block";
+import { OverlayPanel, PanelRows } from "@reverse/tui/chrome/overlay-box";
+import { visibleWidth } from "@reverse/tui/utils";
 
 describe("renderOutputBlock", () => {
 	beforeAll(async () => {

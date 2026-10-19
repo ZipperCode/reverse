@@ -14,14 +14,14 @@
  * silently reporting a successful no-op navigation (review on #5895).
  */
 import { describe, expect, it, vi } from "bun:test";
-import { Agent, AgentBusyError, type AgentToolResult } from "@rva/agent";
-import { getBundledModel } from "@rva/catalog/models";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import { SecretObfuscator } from "@rva/coding-agent/secrets/obfuscator";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { AskToolDetails } from "@rva/tui/tools/ask";
+import { Agent, AgentBusyError, type AgentToolResult } from "@reverse/agent";
+import { getBundledModel } from "@reverse/catalog/models";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import { SecretObfuscator } from "@reverse/coding-agent/secrets/obfuscator";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { AskToolDetails } from "@reverse/tui/tools/ask";
 
 const TEST_MODEL = getBundledModel("anthropic", "claude-sonnet-4-5")!;
 

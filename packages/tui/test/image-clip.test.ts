@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Image, ImageBudget } from "@rva/tui/components/image";
-import { getKittyGraphics, setKittyGraphics } from "@rva/tui/kitty-graphics";
+import { Image, ImageBudget } from "@reverse/tui/components/image";
+import { getKittyGraphics, setKittyGraphics } from "@reverse/tui/kitty-graphics";
 import {
 	type CellDimensions,
 	encodeKittyPlacementLine,
@@ -10,8 +10,8 @@ import {
 	setCellDimensions,
 	TERMINAL,
 	wrapTmuxPassthrough,
-} from "@rva/tui/terminal-capabilities";
-import { type HistoryBatch, TUI } from "@rva/tui/tui";
+} from "@reverse/tui/terminal-capabilities";
+import { type HistoryBatch, TUI } from "@reverse/tui/tui";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";

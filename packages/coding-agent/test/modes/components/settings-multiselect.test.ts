@@ -2,19 +2,19 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { SettingsSelectorComponent } from "@rva/tui/overlays/settings-selector";
-import { createSettingsHost } from "@rva/coding-agent/config/settings-ui";
-import { createPluginSettingsHost } from "@rva/coding-agent/extensibility/plugins/settings-host";
-import { initTheme } from "@rva/tui/theme";
-import { TspDocument } from "@rva/tui/native/apply";
-import { Reconciler } from "@rva/tui/native/reconcile";
-import type { TspNode } from "@rva/wire";
-import { getProjectAgentDir, removeWithRetries } from "@rva/utils";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { SettingsSelectorComponent } from "@reverse/tui/overlays/settings-selector";
+import { createSettingsHost } from "@reverse/coding-agent/config/settings-ui";
+import { createPluginSettingsHost } from "@reverse/coding-agent/extensibility/plugins/settings-host";
+import { initTheme } from "@reverse/tui/theme";
+import { TspDocument } from "@reverse/tui/native/apply";
+import { Reconciler } from "@reverse/tui/native/reconcile";
+import type { TspNode } from "@reverse/wire";
+import { getProjectAgentDir, removeWithRetries } from "@reverse/utils";
 
-import { cfgToolsIntentTracing } from "@rva/coding-agent/tools/settings";
-import { cfgContextFilesExtra } from "@rva/coding-agent/session/context-settings";
+import { cfgToolsIntentTracing } from "@reverse/coding-agent/tools/settings";
+import { cfgContextFilesExtra } from "@reverse/coding-agent/session/context-settings";
 
 beforeAll(async () => {
 	await initTheme();

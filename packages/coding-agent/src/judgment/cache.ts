@@ -19,9 +19,9 @@
 import type { Database, Statement } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Answer, JudgmentRequest, JudgmentResult, Question, Questions } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { isEmbeddedImageContent } from "@rva/ai/images/shared";
+import type { Answer, JudgmentRequest, JudgmentResult, Question, Questions } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { isEmbeddedImageContent } from "@reverse/ai/images/shared";
 import {
 	checkpointWal,
 	getJudgmentCacheDbPath,
@@ -30,7 +30,7 @@ import {
 	openSqliteDatabaseSync,
 	postmortem,
 	stableStringifyJson,
-} from "@rva/utils";
+} from "@reverse/utils";
 
 const SCHEMA = `
 PRAGMA journal_mode=WAL;

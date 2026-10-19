@@ -6,10 +6,10 @@ import {
 	handleServerMessage,
 	processInteractionUpdate,
 	type ToolCallState,
-} from "@rva/ai/providers/cursor";
-import type { AssistantMessage, CursorExecHandlers, ToolResultMessage } from "@rva/ai/types";
-import { kCursorExecResolved, setStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+} from "@reverse/ai/providers/cursor";
+import type { AssistantMessage, CursorExecHandlers, ToolResultMessage } from "@reverse/ai/types";
+import { kCursorExecResolved, setStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import {
 	type AgentClientMessage,
 	AgentClientMessageSchema,
@@ -66,8 +66,8 @@ import {
 	SubagentAwaitArgsSchema,
 	ToolCallSchema,
 	WebFetchAllowlistPrecheckArgsSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 /**
  * Drive one `ExecServerMessage` through the real dispatcher and decode every

@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { TreeSelectorComponent } from "@rva/tui/overlays/tree-selector";
-import * as themeModule from "@rva/tui/theme";
-import type { SessionEntry, SessionTreeNode } from "@rva/coding-agent/session/session-entries";
+import type { AgentMessage } from "@reverse/agent";
+import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
+import * as themeModule from "@reverse/tui/theme";
+import type { SessionEntry, SessionTreeNode } from "@reverse/coding-agent/session/session-entries";
 
 // Issue #8821 — a terminal that delivers Shift+Enter as a bare LF (iTerm2
 // legacy mapping, e.g. Claude Code's /terminal-setup) must not have the key

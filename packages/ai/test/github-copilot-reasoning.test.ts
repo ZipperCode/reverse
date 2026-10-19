@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { Context, Model } from "@rva/ai/types";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { Context, Model } from "@reverse/ai/types";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const testContext: Context = {
 	messages: [{ role: "user", content: "hello", timestamp: Date.now() }],

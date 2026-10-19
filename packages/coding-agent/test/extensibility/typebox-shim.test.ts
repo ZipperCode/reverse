@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { Tool } from "@rva/ai/types";
-import { isValidJsonSchema, toolWireSchema } from "@rva/ai/utils/schema";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { type TSchema, Type } from "@rva/coding-agent/extensibility/legacy-typebox";
+import type { Tool } from "@reverse/ai/types";
+import { isValidJsonSchema, toolWireSchema } from "@reverse/ai/utils/schema";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { type TSchema, Type } from "@reverse/coding-agent/extensibility/legacy-typebox";
 
 /**
  * Exercise the legacy `__validator` failure-marker contract independently of

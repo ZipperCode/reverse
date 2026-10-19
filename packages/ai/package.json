@@ -1,5 +1,5 @@
 {
-  "name": "@rva/ai",
+  "name": "@reverse/ai",
   "version": "18.11.2",
   "description": "Unified LLM API with automatic model discovery and provider configuration",
   "keywords": [
@@ -152,11 +152,11 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@rva/omptype": "catalog:",
-    "@rva/catalog": "catalog:",
-    "@rva/natives": "catalog:",
-    "@rva/utils": "catalog:",
-    "@rva/wire": "catalog:"
+    "@reverse/omptype": "catalog:",
+    "@reverse/catalog": "catalog:",
+    "@reverse/natives": "catalog:",
+    "@reverse/utils": "catalog:",
+    "@reverse/wire": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

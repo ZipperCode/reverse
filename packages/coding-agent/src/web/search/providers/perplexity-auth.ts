@@ -1,5 +1,5 @@
-import type { AuthStorage, OAuthAccess } from "@rva/ai";
-import { $env } from "@rva/utils";
+import type { AuthStorage, OAuthAccess } from "@reverse/ai";
+import { $env } from "@reverse/utils";
 
 export const PERPLEXITY_CHAT_BASE_URL = "https://api.perplexity.ai";
 export const PERPLEXITY_RESPONSES_BASE_URL = "https://api.perplexity.ai/v1";

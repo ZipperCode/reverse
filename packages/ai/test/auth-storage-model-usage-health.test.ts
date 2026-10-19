@@ -5,10 +5,10 @@ import {
 	type AuthCredentialStore,
 	AuthStorage,
 	type StoredAuthCredential,
-} from "@rva/ai/auth-storage";
-import type { CredentialRankingStrategy, UsageLimit, UsageProvider, UsageReport } from "@rva/ai/usage";
-import { claudeRankingStrategy } from "@rva/ai/usage/claude";
-import { logger } from "@rva/utils";
+} from "@reverse/ai/auth-storage";
+import type { CredentialRankingStrategy, UsageLimit, UsageProvider, UsageReport } from "@reverse/ai/usage";
+import { claudeRankingStrategy } from "@reverse/ai/usage/claude";
+import { logger } from "@reverse/utils";
 
 interface CacheEntry {
 	value: string;

@@ -9,8 +9,8 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@rva/agent";
-import type { Model, ToolExample } from "@rva/ai";
+} from "@reverse/agent";
+import type { Model, ToolExample } from "@reverse/ai";
 import {
 	EditSession,
 	editDescription,
@@ -23,11 +23,11 @@ import {
 	type EditUrlResolution,
 	type EditWriteRequest,
 	type EditWriteResponse,
-} from "@rva/natives";
-import { isEnoent, logger, prompt } from "@rva/utils";
+} from "@reverse/natives";
+import { isEnoent, logger, prompt } from "@reverse/utils";
 import { extractUriScheme, InternalUrlRouter, type ResolveContext, sessionResolveContext } from "../internal-urls";
 import { createLspWritethrough, flushLspWritethroughBatch, type WritethroughCallback, writethroughNoop } from "../lsp";
-import { type FileDiagnosticsResult } from "@rva/tui/tools/lsp";
+import { type FileDiagnosticsResult } from "@reverse/tui/tools/lsp";
 import { FileChangeType, notifyWorkspaceWatchedFiles } from "../lsp/client";
 import { DeferredDiagnostics } from "../lsp/deferred-diagnostics";
 import { getDiagnosticsLedger } from "../lsp/diagnostics-ledger";
@@ -46,14 +46,14 @@ import {
 	invalidateFsScanAfterWrite,
 } from "../tools/fs-cache-invalidation";
 import { outputMeta } from "../tools/output-meta";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { type EditMode } from "@rva/tui/tools/edit";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { type EditMode } from "@reverse/tui/tools/edit";
 import { resolveEditMode } from "../utils/edit-mode";
 import { attemptEditAutoRepair, type EditAutoRepairOutcome } from "./auto-repair";
 import { type AppliedEditSnapshot, createEditBlackboxRecorder } from "./blackbox";
 import hashlineCompactPrompt from "./hashline-compact.md" with { type: "text" };
 import { getLspBatchRequest } from "../lsp/batch";
-import { type EditToolDetails, type EditToolPerFileResult, type Operation } from "@rva/tui/tools/edit";
+import { type EditToolDetails, type EditToolPerFileResult, type Operation } from "@reverse/tui/tools/edit";
 import {
 	type ApplyPatchParams,
 	applyPatchSchema,
@@ -88,10 +88,10 @@ export type {
 	EditToolPerFileResult,
 	Operation,
 	PerFileDiffPreview,
-} from "@rva/tui/tools/edit";
+} from "@reverse/tui/tools/edit";
 export * from "./schemas";
 export * from "./store";
-export { type EditMode } from "@rva/tui/tools/edit";
+export { type EditMode } from "@reverse/tui/tools/edit";
 
 type TInput =
 	| typeof replaceEditSchema

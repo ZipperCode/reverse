@@ -3,8 +3,8 @@ import type { ServerWebSocket } from "bun";
 import {
 	getOpenAICodexTransportDetails,
 	streamOpenAICodexResponses,
-} from "@rva/ai/providers/openai-codex-responses";
-import type { Message, Model, ProviderSessionState } from "@rva/ai/types";
+} from "@reverse/ai/providers/openai-codex-responses";
+import type { Message, Model, ProviderSessionState } from "@reverse/ai/types";
 import { createCodexModel } from "./helpers";
 
 describe("provider routing session release", () => {

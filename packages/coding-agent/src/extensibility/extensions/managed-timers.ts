@@ -14,7 +14,7 @@
  * outstanding handle is `unref`'d (never keeps the process alive) and cleared
  * on session teardown via {@link clearAll}.
  */
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 
 /** Callback invoked when a managed timer's callback throws or rejects. */
 export type ManagedTimerErrorHandler = (event: string, error: string, stack?: string) => void;

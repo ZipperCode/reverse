@@ -4,9 +4,9 @@ import {
 	type CleanseParserKind,
 	CleanseStreamParser,
 	parseCleanseDiagnostics,
-} from "@rva/coding-agent/cleanse/parsers";
-import { diagnosticKey } from "@rva/coding-agent/cleanse/checkers";
-import type { CleanseDiagnostic } from "@rva/coding-agent/cleanse/types";
+} from "@reverse/coding-agent/cleanse/parsers";
+import { diagnosticKey } from "@reverse/coding-agent/cleanse/checkers";
+import type { CleanseDiagnostic } from "@reverse/coding-agent/cleanse/types";
 
 interface ParserFixture {
 	kind: CleanseParserKind;

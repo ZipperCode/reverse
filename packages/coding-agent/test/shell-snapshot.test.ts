@@ -3,8 +3,8 @@ import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { procmgr } from "@rva/utils";
-import { getOrCreateSnapshot, sanitizeSnapshotForBrush } from "@rva/coding-agent/utils/shell-snapshot";
+import { procmgr } from "@reverse/utils";
+import { getOrCreateSnapshot, sanitizeSnapshotForBrush } from "@reverse/coding-agent/utils/shell-snapshot";
 import fnEnvHelper from "../src/utils/shell-snapshot-fn-env.sh" with { type: "text" };
 
 // macOS ships bash at `/bin/bash`, not `/usr/bin/bash`; resolve a real bash the

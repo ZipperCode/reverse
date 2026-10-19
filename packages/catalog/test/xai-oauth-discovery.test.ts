@@ -1,9 +1,9 @@
 import { describe, expect, test, vi } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { xaiOAuthModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { xaiOAuthModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@reverse/catalog/types";
 
 // Regression for https://github.com/can1357/oh-my-pi/issues/12697: xAI's
 // OAuth /v1/models returns bare `{id}` rows with no reasoning, limits, or

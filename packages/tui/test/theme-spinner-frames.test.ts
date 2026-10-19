@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { sharedSpinnerFrame } from "@rva/tui/chat/tool-execution";
-import { SPINNER_ADVANCE_MS } from "@rva/tui/components/loader";
-import { getThemeByName } from "@rva/tui/theme";
-import { getConfigRootDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@rva/utils";
+import { sharedSpinnerFrame } from "@reverse/tui/chat/tool-execution";
+import { SPINNER_ADVANCE_MS } from "@reverse/tui/components/loader";
+import { getThemeByName } from "@reverse/tui/theme";
+import { getConfigRootDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@reverse/utils";
 
 // Path of the built-in dark theme JSON, used as a known-valid base we can
 // extend with custom `symbols.spinnerFrames` shapes.

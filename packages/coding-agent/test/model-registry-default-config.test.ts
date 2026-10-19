@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ModelRegistry, type ProviderConfigInput } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { getAgentDir, setAgentDir, TempDir } from "@rva/utils";
-import type { Model } from "@rva/catalog/types";
-import type { SimpleStreamOptions } from "@rva/ai";
+import { ModelRegistry, type ProviderConfigInput } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { getAgentDir, setAgentDir, TempDir } from "@reverse/utils";
+import type { Model } from "@reverse/catalog/types";
+import type { SimpleStreamOptions } from "@reverse/ai";
 import { CacheWarmer, getPromptCacheTtlMs } from "../src/session/cache-warmer";
 
 const originalAgentDir = getAgentDir();

@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import type { AuthGatewayServerHandle } from "@rva/ai/auth-gateway/types";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { decodeGatewayJobId, encodeGatewayJobId } from "@rva/ai/providers/video-server";
-import { buildModel } from "@rva/catalog/build";
-import type { Api, FetchImpl, Model, ModelSpec } from "@rva/catalog/types";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import type { AuthGatewayServerHandle } from "@reverse/ai/auth-gateway/types";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { decodeGatewayJobId, encodeGatewayJobId } from "@reverse/ai/providers/video-server";
+import { buildModel } from "@reverse/catalog/build";
+import type { Api, FetchImpl, Model, ModelSpec } from "@reverse/catalog/types";
 
 const VIDEO_BYTES = new Uint8Array([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70]);
 

@@ -1,12 +1,8 @@
-import {
-	HARNESS_FILENAME,
-	DEFAULT_HARNESS_COMMAND,
-	type InitExperimentDetails,
-} from "@rva/tui/tools/autoresearch";
-import { initExperimentToolRenderer } from "@rva/tui/tools/autoresearch";
+import { HARNESS_FILENAME, DEFAULT_HARNESS_COMMAND, type InitExperimentDetails } from "@reverse/tui/tools/autoresearch";
+import { initExperimentToolRenderer } from "@reverse/tui/tools/autoresearch";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import * as vcs from "@rva/natives/vcs";
+import { type } from "@reverse/omptype";
+import * as vcs from "@reverse/natives/vcs";
 
 import type { ToolDefinition } from "../../extensibility/extensions";
 

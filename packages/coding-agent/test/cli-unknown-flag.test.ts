@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { parseArgs, reportUnrecognizedFlags } from "@rva/coding-agent/cli/args";
-import { applyExtensionFlags } from "@rva/coding-agent/cli/extension-flags";
+import { parseArgs, reportUnrecognizedFlags } from "@reverse/coding-agent/cli/args";
+import { applyExtensionFlags } from "@reverse/coding-agent/cli/extension-flags";
 
 // Regression coverage for issue #2459: `omp --list-models` (a stale flag) was
 // silently consumed as a prompt instead of failing fast — the agent started a

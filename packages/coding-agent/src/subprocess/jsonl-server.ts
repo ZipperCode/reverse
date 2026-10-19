@@ -1,5 +1,5 @@
-import { type IpcConnection, IpcServer } from "@rva/natives";
-import { logger, postmortem } from "@rva/utils";
+import { type IpcConnection, IpcServer } from "@reverse/natives";
+import { logger, postmortem } from "@reverse/utils";
 
 /** Writes one JSON line back to the connection a request arrived on. */
 export interface JsonLineReply<Res> {

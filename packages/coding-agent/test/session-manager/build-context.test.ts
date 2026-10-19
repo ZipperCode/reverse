@@ -1,7 +1,7 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { defaultConvertToLlm } from "@rva/agent/compaction";
-import type { AssistantMessage } from "@rva/ai";
-import { buildSessionContext } from "@rva/coding-agent/session/session-context";
+import { defaultConvertToLlm } from "@reverse/agent/compaction";
+import type { AssistantMessage } from "@reverse/ai";
+import { buildSessionContext } from "@reverse/coding-agent/session/session-context";
 import type {
 	BranchSummaryEntry,
 	CompactionEntry,
@@ -9,8 +9,8 @@ import type {
 	SessionEntry,
 	SessionMessageEntry,
 	ThinkingLevelChangeEntry,
-} from "@rva/coding-agent/session/session-entries";
-import * as snapcompact from "@rva/snapcompact";
+} from "@reverse/coding-agent/session/session-entries";
+import * as snapcompact from "@reverse/snapcompact";
 
 function msg(id: string, parentId: string | null, role: "user" | "assistant", text: string): SessionMessageEntry {
 	const base = { type: "message" as const, id, parentId, timestamp: "2025-01-01T00:00:00Z" };

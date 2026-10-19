@@ -6,22 +6,17 @@
 
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } from "@rva/agent";
-import { AgentBusyError, EventLoopKeepalive, recordHandoff, resolveTelemetry } from "@rva/agent";
-import type { Api, Model, ServiceTierByFamily, Usage } from "@rva/ai";
-import { isRecord, logger, popLoopPhase, prompt, pushLoopPhase, sanitizeText, untilAborted } from "@rva/utils";
+import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } from "@reverse/agent";
+import { AgentBusyError, EventLoopKeepalive, recordHandoff, resolveTelemetry } from "@reverse/agent";
+import type { Api, Model, ServiceTierByFamily, Usage } from "@reverse/ai";
+import { isRecord, logger, popLoopPhase, prompt, pushLoopPhase, sanitizeText, untilAborted } from "@reverse/utils";
 import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, AsyncJobError, AsyncJobManager, type AsyncJobRunResult } from "../async";
 import type { Rule } from "../capability/rule";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { ModelRegistry } from "../config/model-registry";
-import { formatModelSelectorValue } from "@rva/tui/overlays/model-selector";
-import {
-	previewLine,
-	replaceTabs,
-	shortenToolArgumentPaths,
-	TRUNCATE_LENGTHS,
-} from "@rva/tui/render/render-utils";
-import { type EditMode, getEditInputPaths } from "@rva/tui/tools/edit";
+import { formatModelSelectorValue } from "@reverse/tui/overlays/model-selector";
+import { previewLine, replaceTabs, shortenToolArgumentPaths, TRUNCATE_LENGTHS } from "@reverse/tui/render/render-utils";
+import { type EditMode, getEditInputPaths } from "@reverse/tui/tools/edit";
 import {
 	formatModelStringWithRouting,
 	resolveAgentAdvisorRolePattern,
@@ -78,18 +73,18 @@ import { ASYNC_RESULT_MESSAGE_TYPE } from "../session/async-job-delivery";
 import type { AuthStorage } from "../session/auth-storage";
 import { SKILL_PROMPT_MESSAGE_TYPE } from "../session/messages";
 import { hasConversationalHistory, SessionManager } from "../session/session-manager";
-import { truncateTail } from "@rva/tui/tools/streaming-output";
+import { truncateTail } from "@reverse/tui/tools/streaming-output";
 import {
 	type ConfiguredThinkingLevel,
 	prewalkWouldBeNoop,
 	resolveTaskEffortLevel,
 	type TaskEffort,
-} from "@rva/tui/thinking";
+} from "@reverse/tui/thinking";
 import type { ContextFileEntry, ToolSession } from "../tools";
 import { resolveEvalBackends } from "../tools/eval-backends";
 import { isIrcEnabled } from "../irc/messaging";
-import { LIST_STATUS_ORDER } from "@rva/tui/tools/irc";
-import { DEFAULT_PEER_ROSTER_LIMIT } from "@rva/tui/tools/irc";
+import { LIST_STATUS_ORDER } from "@reverse/tui/tools/irc";
+import { DEFAULT_PEER_ROSTER_LIMIT } from "@reverse/tui/tools/irc";
 import { normalizeSchema } from "../tools/jtd-to-json-schema";
 import { buildOutputValidator, summarizeValidationFailure } from "../tools/output-schema-validator";
 import { ToolAbortError } from "../tools/tool-errors";
@@ -122,9 +117,9 @@ import {
 	type StructuredSubagentSchemaSource,
 	type TaskToolDetails,
 	type YieldItem,
-} from "@rva/tui/tools/task";
+} from "@reverse/tui/tools/task";
 import { yieldSectionShapes } from "./yield-assembly";
-import { assembleYieldResult } from "@rva/tui/tools/task-yield-assembly";
+import { assembleYieldResult } from "@reverse/tui/tools/task-yield-assembly";
 import {
 	cfgTaskPrewalk,
 	cfgTaskAgentPrewalk,
@@ -154,7 +149,7 @@ import {
 	cfgCompactionThresholdTokens,
 } from "../session/context-settings";
 
-export type { YieldItem } from "@rva/tui/tools/task";
+export type { YieldItem } from "@reverse/tui/tools/task";
 
 const TASK_ABORT_CLEANUP_GRACE_MS = 10_000;
 

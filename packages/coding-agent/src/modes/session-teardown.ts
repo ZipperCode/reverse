@@ -9,7 +9,7 @@
  * Extracted (rather than inlined into `InteractiveMode`) so the callback body
  * is directly unit-testable without instantiating the full TUI stack.
  */
-import { logger, type postmortem } from "@rva/utils";
+import { logger, type postmortem } from "@reverse/utils";
 
 /** Dependencies the teardown captures at construction time. */
 export interface SessionTeardownDeps {

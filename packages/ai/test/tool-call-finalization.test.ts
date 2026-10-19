@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamBedrock } from "@rva/ai/providers/amazon-bedrock";
-import { streamAppleFoundationModels } from "@rva/ai/providers/apple-foundation-models";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
-import * as natives from "@rva/natives";
+import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
+import { streamAppleFoundationModels } from "@reverse/ai/providers/apple-foundation-models";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
+import * as natives from "@reverse/natives";
 import { BEDROCK_TEST_CONTEXT, bedrockEvent, bedrockTestModel } from "./helpers/bedrock-stream";
 
 const raw = '{"path":"repaired.txt","content":"hello';

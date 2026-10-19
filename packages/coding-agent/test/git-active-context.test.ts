@@ -6,8 +6,8 @@ import * as path from "node:path";
 import {
 	resolveActiveRepoContext,
 	resolveActiveRepoContextSync,
-} from "@rva/coding-agent/utils/active-repo-context";
-import type { ActiveRepoContext } from "@rva/tui/status-line/host";
+} from "@reverse/coding-agent/utils/active-repo-context";
+import type { ActiveRepoContext } from "@reverse/tui/status-line/host";
 
 const itWithSymlinkPrivilege = process.platform === "win32" ? it.skip : it;
 

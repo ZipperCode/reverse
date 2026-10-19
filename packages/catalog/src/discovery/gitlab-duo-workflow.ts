@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import { seedModels } from "../compat/providers";
 import type { FetchImpl, ModelSpec } from "../types";
 import { discoveryFetch, isRecord } from "../utils";

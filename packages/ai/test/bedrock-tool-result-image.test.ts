@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamBedrock } from "@rva/ai/providers/amazon-bedrock";
-import type { AssistantMessage, Context, Model, ToolResultMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
+import type { AssistantMessage, Context, Model, ToolResultMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const PNG_DATA = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
 

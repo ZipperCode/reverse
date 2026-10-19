@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { Tokenizer } from "@rva/agent";
+import { Tokenizer } from "@reverse/agent";
 import {
 	countResponsesHistoryTokens,
 	trimRemoteCompactionInputToContextWindow,
-} from "@rva/agent/compaction/openai";
-import { estimateImageTokens } from "@rva/agent/image-tokens";
-import type { Model, UserMessage } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/agent/compaction/openai";
+import { estimateImageTokens } from "@reverse/agent/image-tokens";
+import type { Model, UserMessage } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 /** Base64 PNG whose IHDR declares `width`x`height`; the pixel data is irrelevant to sizing. */
 function pngWithSize(width: number, height: number): string {

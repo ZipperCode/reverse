@@ -7,14 +7,14 @@ import {
 	IndexedSessionStorage,
 	type SessionStorageBackend,
 	type SessionStorageIndexEntry,
-} from "@rva/coding-agent/session/indexed-session-storage";
+} from "@reverse/coding-agent/session/indexed-session-storage";
 import {
 	FileSessionStorage,
 	SessionLockError,
 	SessionWriteConflictError,
 	type WriteTextAtomicOptions,
-} from "@rva/coding-agent/session/session-storage";
-import { type SessionTitleUpdate, serializeTitleSlot } from "@rva/coding-agent/session/session-title-slot";
+} from "@reverse/coding-agent/session/session-storage";
+import { type SessionTitleUpdate, serializeTitleSlot } from "@reverse/coding-agent/session/session-title-slot";
 
 class ControlledTitleUpdateBackend implements SessionStorageBackend {
 	readonly #sessionPath: string;

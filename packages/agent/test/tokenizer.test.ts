@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import type { Api, AssistantMessage, Model, ProviderSessionState } from "@rva/ai";
-import { convertCodexResponsesMessages } from "@rva/ai/providers/openai-codex-responses";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import { getBundledModel } from "@rva/catalog/models";
-import * as natives from "@rva/natives";
+import type { Api, AssistantMessage, Model, ProviderSessionState } from "@reverse/ai";
+import { convertCodexResponsesMessages } from "@reverse/ai/providers/openai-codex-responses";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import { getBundledModel } from "@reverse/catalog/models";
+import * as natives from "@reverse/natives";
 import { Agent } from "../src/agent";
 import type { SessionMessageEntry } from "../src/compaction/entries";
 import { applyShakeRegions, collectShakeRegions, RESCUE_SHAKE_CONFIG } from "../src/compaction/shake";

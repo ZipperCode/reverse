@@ -1,15 +1,15 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { realpathSync } from "node:fs";
 import { symlink, unlink } from "node:fs/promises";
-import type { AuthStorage } from "@rva/ai";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { buildSessionOptions } from "@rva/coding-agent/main";
-import { loadSessionExtensions } from "@rva/coding-agent/sdk";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
+import type { AuthStorage } from "@reverse/ai";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { buildSessionOptions } from "@reverse/coding-agent/main";
+import { loadSessionExtensions } from "@reverse/coding-agent/sdk";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 let tempDir: TempDir;

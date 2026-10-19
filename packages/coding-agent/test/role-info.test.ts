@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { getRoleInfo } from "@rva/coding-agent/config/model-roles";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { getRoleInfo } from "@reverse/coding-agent/config/model-roles";
+import { Settings } from "@reverse/coding-agent/config/settings";
 
 function makeModel(id: string, metadata: Partial<Pick<Model, "api" | "kind" | "webSearch">> = {}): Model {
 	return buildModel({

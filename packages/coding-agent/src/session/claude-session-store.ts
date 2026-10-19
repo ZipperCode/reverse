@@ -10,8 +10,8 @@ import type {
 	ToolResultMessage,
 	Usage,
 	UserMessage,
-} from "@rva/ai";
-import { isRecord, parseJsonlLenient } from "@rva/utils";
+} from "@reverse/ai";
+import { isRecord, parseJsonlLenient } from "@reverse/utils";
 import { resolveClaudePaths } from "../config/claude-paths";
 import { collectForeignJsonRecords, type ForeignJsonRecord, readForeignJsonRecords } from "./foreign-session-jsonl";
 import type { ForeignSessionInfo, ForeignSessionStore } from "./foreign-session-store";

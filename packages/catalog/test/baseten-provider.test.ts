@@ -2,12 +2,12 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { readModelCache } from "@rva/catalog/model-cache";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { basetenModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { readModelCache } from "@reverse/catalog/model-cache";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { basetenModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@reverse/catalog/types";
 
 describe("Baseten provider discovery", () => {
 	test("discovers Baseten models with custom metadata", async () => {

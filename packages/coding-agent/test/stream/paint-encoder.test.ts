@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { StreamPaintEncoder } from "@rva/coding-agent/stream/paint-encoder";
-import { StreamRedactor } from "@rva/coding-agent/stream/redactor";
+import { StreamPaintEncoder } from "@reverse/coding-agent/stream/paint-encoder";
+import { StreamRedactor } from "@reverse/coding-agent/stream/redactor";
 
 const SIZE = { columns: 40, rows: 2 };
 

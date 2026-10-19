@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { streamAzureOpenAIResponses } from "@rva/ai/providers/azure-openai-responses";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { Context, FetchImpl, Model, ProviderSessionState } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { streamAzureOpenAIResponses } from "@reverse/ai/providers/azure-openai-responses";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { Context, FetchImpl, Model, ProviderSessionState } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 
 const testContext: Context = {
 	messages: [{ role: "user", content: "hello", timestamp: 0 }],

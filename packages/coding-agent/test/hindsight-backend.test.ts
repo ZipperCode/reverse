@@ -8,16 +8,16 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
+import type { AgentMessage } from "@reverse/agent";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import {
 	hindsightBackend,
 	rebindMemoryBackendForCwd,
 	reloadMentalModelsForSession,
-} from "@rva/coding-agent/hindsight/backend";
-import { HindsightApi } from "@rva/coding-agent/hindsight/client";
-import { HindsightRetainQueue, type HindsightSessionState } from "@rva/coding-agent/hindsight/state";
-import type { AgentSessionEventListener } from "@rva/coding-agent/session/agent-session";
+} from "@reverse/coding-agent/hindsight/backend";
+import { HindsightApi } from "@reverse/coding-agent/hindsight/client";
+import { HindsightRetainQueue, type HindsightSessionState } from "@reverse/coding-agent/hindsight/state";
+import type { AgentSessionEventListener } from "@reverse/coding-agent/session/agent-session";
 
 import {
 	cfgHindsightBankId,
@@ -26,7 +26,7 @@ import {
 	cfgHindsightRecallBudget,
 	cfgHindsightRetainMission,
 	cfgHindsightScoping,
-} from "@rva/coding-agent/hindsight/settings";
+} from "@reverse/coding-agent/hindsight/settings";
 
 interface FakeSessionDeps {
 	sessionId: string | null;

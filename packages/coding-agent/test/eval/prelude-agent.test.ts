@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as vm from "node:vm";
-import { TempDir } from "@rva/utils/temp";
+import { TempDir } from "@reverse/utils/temp";
 import { createHelpers } from "../../src/eval/js/shared/helpers";
 import { JAVASCRIPT_PRELUDE_SOURCE } from "../../src/eval/js/shared/prelude";
 import { artifactReadBridge } from "../helpers/artifact-read-bridge";

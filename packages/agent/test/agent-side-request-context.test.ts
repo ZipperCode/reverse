@@ -1,9 +1,9 @@
 import { describe, expect, it, mock } from "bun:test";
-import { type } from "@rva/omptype";
-import type { AssistantMessage, Context } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
+import { type } from "@reverse/omptype";
+import type { AssistantMessage, Context } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
 import { Agent } from "../src/agent";
 import type { AgentTool } from "../src/types";
 

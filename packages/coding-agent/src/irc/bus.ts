@@ -9,8 +9,8 @@
  * boundary (see AgentSession.deliverIrcMessage).
  */
 
-import { type IrcDeliveryReceipt, type IrcMessage } from "@rva/tui/tools/irc";
-import { logger, Snowflake } from "@rva/utils";
+import { type IrcDeliveryReceipt, type IrcMessage } from "@reverse/tui/tools/irc";
+import { logger, Snowflake } from "@reverse/utils";
 import { AgentLifecycleManager } from "../registry/agent-lifecycle";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { CustomMessage } from "../session/messages";

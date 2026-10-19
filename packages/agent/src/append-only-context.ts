@@ -15,8 +15,8 @@
  */
 
 import type { AgentTool } from "./types";
-import type { Context, Message, Tool } from "@rva/ai";
-import { toolWireSchema } from "@rva/ai";
+import type { Context, Message, Tool } from "@reverse/ai";
+import { toolWireSchema } from "@reverse/ai";
 import { normalizeTools } from "./agent-loop";
 import { messageEstimateVersion } from "./compaction/message-cache";
 import type { AgentContext, AgentMessage } from "./types";

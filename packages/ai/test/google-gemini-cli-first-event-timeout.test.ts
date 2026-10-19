@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "bun:test";
-import { streamGoogleGeminiCli } from "@rva/ai/providers/google-gemini-cli";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamGoogleGeminiCli } from "@reverse/ai/providers/google-gemini-cli";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const ANTIGRAVITY_DAILY_ENDPOINT = "https://daily-cloudcode-pa.googleapis.com";
 const ANTIGRAVITY_SANDBOX_ENDPOINT = "https://daily-cloudcode-pa.sandbox.googleapis.com";

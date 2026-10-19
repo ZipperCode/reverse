@@ -2,10 +2,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import { afterEach, describe, expect, it } from "bun:test";
-import { TERMINAL, setTerminalHyperlinks } from "@rva/tui";
-import { applyHyperlinkSetting } from "@rva/tui/render/hyperlink";
-import * as themeModule from "@rva/tui/theme";
-import { writeToolRenderer } from "@rva/tui/tools/write";
+import { TERMINAL, setTerminalHyperlinks } from "@reverse/tui";
+import { applyHyperlinkSetting } from "@reverse/tui/render/hyperlink";
+import * as themeModule from "@reverse/tui/theme";
+import { writeToolRenderer } from "@reverse/tui/tools/write";
 
 const ORIGINAL_HYPERLINKS = TERMINAL.hyperlinks;
 const ORIGINAL_TERMINAL_ID = Object.getOwnPropertyDescriptor(TERMINAL, "id");

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { startAuthGateway, type AuthGatewayServerHandle } from "@rva/ai/auth-gateway";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { getBundledModel } from "@rva/catalog/models";
-import type { FetchImpl, Model } from "@rva/catalog/types";
+import { startAuthGateway, type AuthGatewayServerHandle } from "@reverse/ai/auth-gateway";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { FetchImpl, Model } from "@reverse/catalog/types";
 
 interface UpstreamCall {
 	url: string;

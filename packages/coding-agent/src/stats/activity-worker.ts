@@ -5,8 +5,8 @@
  * `/usage` heatmap load so the synchronous SQLite work never runs on the TUI
  * thread; the parent SIGKILLs the child once `done` arrives.
  */
-import { syncAllSessions } from "@rva/stats/aggregator";
-import { getDailyActivity } from "@rva/stats/db";
+import { syncAllSessions } from "@reverse/stats/aggregator";
+import { getDailyActivity } from "@reverse/stats/db";
 import type { StatsActivityTransport, StatsActivityWorkerInbound } from "./activity-protocol";
 
 async function handleLoad(

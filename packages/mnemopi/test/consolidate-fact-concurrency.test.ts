@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { VeracityConsolidator } from "@rva/mnemopi/core/veracity-consolidation";
-import { closeQuietly } from "@rva/mnemopi/db";
+import { VeracityConsolidator } from "@reverse/mnemopi/core/veracity-consolidation";
+import { closeQuietly } from "@reverse/mnemopi/db";
 
 function withDb<T>(fn: (path: string, cons: VeracityConsolidator) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "mnemopi-veracity-concurrency-"));

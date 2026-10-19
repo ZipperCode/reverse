@@ -2,9 +2,9 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { syncAllSessions } from "@rva/stats/aggregator";
-import { closeDb, getFileOffset, getFrustrationOverall, initDb } from "@rva/stats/db";
-import { getAgentDir, getStatsDbPath } from "@rva/utils";
+import { syncAllSessions } from "@reverse/stats/aggregator";
+import { closeDb, getFileOffset, getFrustrationOverall, initDb } from "@reverse/stats/db";
+import { getAgentDir, getStatsDbPath } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-behavior-backfill-");

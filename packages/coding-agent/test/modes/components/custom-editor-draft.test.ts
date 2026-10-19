@@ -1,13 +1,13 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { chipLabel } from "@rva/tui/prompt/composer-attachments";
-import { getEditorTheme, initTheme } from "@rva/tui/theme";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import type { ImageContent } from "@reverse/ai";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { chipLabel } from "@reverse/tui/prompt/composer-attachments";
+import { getEditorTheme, initTheme } from "@reverse/tui/theme";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
-import { cfgComposerRecallClearedDrafts } from "@rva/coding-agent/modes/settings";
+import { cfgComposerRecallClearedDrafts } from "@reverse/coding-agent/modes/settings";
 
 const image: ImageContent = { type: "image", data: "aGVsbG8=", mimeType: "image/png" };
 

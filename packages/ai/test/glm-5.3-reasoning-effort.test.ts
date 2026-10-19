@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { Effort, type FetchImpl } from "@rva/ai";
-import { streamSimple } from "@rva/ai/stream";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
+import { Effort, type FetchImpl } from "@reverse/ai";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 // GLM-5.3 replaces GLM-5.2's host-specific reasoning_effort dialects with a
 // single uniform wire-exact low/high/max ladder on every host, and thinking can

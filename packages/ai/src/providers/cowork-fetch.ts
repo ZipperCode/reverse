@@ -3,7 +3,7 @@ import * as https from "node:https";
 import * as stream from "node:stream";
 import * as tls from "node:tls";
 import * as zlib from "node:zlib";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { FetchImpl } from "../types";
 
 /** `host/path` for logging; query strings can carry keys. */

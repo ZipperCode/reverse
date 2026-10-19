@@ -1,7 +1,7 @@
 /**
  * Discover and report skills resolved for a directory.
  */
-import { Args, CliUsageError, Command, Flags } from "@rva/utils/cli";
+import { Args, CliUsageError, Command, Flags } from "@reverse/utils/cli";
 import { skillHelp as commandHelp } from "../cli/command-help";
 import { runSkillCommand, SKILL_ACTIONS, SKILL_USAGE, type SkillAction } from "../cli/skill-cli";
 

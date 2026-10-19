@@ -1,8 +1,8 @@
-import type { ASIData, NumericMetricMap, ExperimentState } from "@rva/tui/tools/autoresearch";
-import type { AgentToolResult } from "@rva/agent";
+import type { ASIData, NumericMetricMap, ExperimentState } from "@reverse/tui/tools/autoresearch";
+import type { AgentToolResult } from "@reverse/agent";
 import type { ExtensionAPI, ExtensionContext } from "../extensibility/extensions";
 import type { SessionEntry } from "../session/session-entries";
-import type { DashboardController } from "@rva/tui/apps/autoresearch-dashboard";
+import type { DashboardController } from "@reverse/tui/apps/autoresearch-dashboard";
 
 export interface PendingRunSummary {
 	command: string;

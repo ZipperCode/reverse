@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
-import { type AssistantMessageEventStream, clearCustomApis, getCustomApi } from "@rva/ai";
-import { getOAuthProvider } from "@rva/ai/oauth";
-import { buildModel } from "@rva/catalog/build";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@rva/catalog/provider-models";
-import { ModelRegistry, type ProviderConfigInput } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { TempDir } from "@rva/utils";
+import { type AssistantMessageEventStream, clearCustomApis, getCustomApi } from "@reverse/ai";
+import { getOAuthProvider } from "@reverse/ai/oauth";
+import { buildModel } from "@reverse/catalog/build";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@reverse/catalog/provider-models";
+import { ModelRegistry, type ProviderConfigInput } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { TempDir } from "@reverse/utils";
 
 describe("ModelRegistry runtime source cleanup", () => {
 	let authStorage: AuthStorage;

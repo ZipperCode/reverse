@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentOutputManager } from "@rva/coding-agent/task/output-manager";
-import { PINNED_HUD_TOGGLE_ID } from "@rva/tui/prompt/composer";
-import { TempDir } from "@rva/utils";
+import { AgentOutputManager } from "@reverse/coding-agent/task/output-manager";
+import { PINNED_HUD_TOGGLE_ID } from "@reverse/tui/prompt/composer";
+import { TempDir } from "@reverse/utils";
 
 // Contract: subagent output ids are the requested name, used verbatim the first
 // time and suffixed (`-2`, `-3`, …) only when the same name recurs. A parent

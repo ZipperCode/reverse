@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { serializeConversation } from "@rva/agent/compaction/utils";
-import type { Message } from "@rva/ai";
+import { serializeConversation } from "@reverse/agent/compaction/utils";
+import type { Message } from "@reverse/ai";
 
 describe("serializeConversation", () => {
 	it("truncates long tool results in serialized summaries", () => {

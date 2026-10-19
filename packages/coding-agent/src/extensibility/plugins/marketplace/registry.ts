@@ -15,9 +15,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { getPluginsDir, isEnoent, logger, tryParseJson } from "@rva/utils";
+import { getPluginsDir, isEnoent, logger, tryParseJson } from "@reverse/utils";
 
-export { getMarketplacesRegistryPath } from "@rva/utils";
+export { getMarketplacesRegistryPath } from "@reverse/utils";
 
 import type {
 	InstalledPluginEntry,

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { streamSimple } from "@rva/ai";
-import type { Api, Context, FetchImpl, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamSimple } from "@reverse/ai";
+import type { Api, Context, FetchImpl, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const context: Context = { messages: [{ role: "user", content: "Hello", timestamp: 0 }] };
 

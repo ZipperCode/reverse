@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type ContextFile, contextFileCapability } from "@rva/coding-agent/capability/context-file";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { initializeWithSettings, loadCapability } from "@rva/coding-agent/discovery";
-import { isShadowedExtension } from "@rva/tui/overlays/extensions/types";
-import { loadAllExtensions } from "@rva/coding-agent/modes/components/extensions/state-manager";
-import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeWithRetries, setAgentDir } from "@rva/utils";
+import { type ContextFile, contextFileCapability } from "@reverse/coding-agent/capability/context-file";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { initializeWithSettings, loadCapability } from "@reverse/coding-agent/discovery";
+import { isShadowedExtension } from "@reverse/tui/overlays/extensions/types";
+import { loadAllExtensions } from "@reverse/coding-agent/modes/components/extensions/state-manager";
+import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeWithRetries, setAgentDir } from "@reverse/utils";
 
 function restoreEnvValue(key: string, value: string | undefined): void {
 	if (value === undefined) {

@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAgentDir, isEnoent, withLoopPhase } from "@rva/utils";
+import { getAgentDir, isEnoent, withLoopPhase } from "@reverse/utils";
 import { getMemoryRoot } from "../memories";
 import { getMnemopiSessionState, type MnemopiScopedMemoryHit, type MnemopiSessionState } from "../mnemopi/state";
 import memoryDoc from "../prompts/internal-urls/memory.md" with { type: "text" };

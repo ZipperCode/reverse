@@ -1,5 +1,5 @@
-import type { PythonKernelExecutor } from "@rva/coding-agent/eval/py/executor";
-import type { KernelExecuteOptions, KernelExecuteResult } from "@rva/coding-agent/eval/py/kernel";
+import type { PythonKernelExecutor } from "@reverse/coding-agent/eval/py/executor";
+import type { KernelExecuteOptions, KernelExecuteResult } from "@reverse/coding-agent/eval/py/kernel";
 
 export class FakeKernel implements PythonKernelExecutor {
 	private result: KernelExecuteResult;

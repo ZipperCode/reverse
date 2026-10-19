@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Snowflake } from "@rva/utils/snowflake";
+import { Snowflake } from "@reverse/utils/snowflake";
 
 const EPOCH = Snowflake.EPOCH_TIMESTAMP;
 const MAX_SEQ = Snowflake.MAX_SEQUENCE;

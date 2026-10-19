@@ -4,7 +4,7 @@ import {
 	DEFAULT_COMPACTION_SETTINGS,
 	prepareCompaction,
 	type SessionEntry,
-} from "@rva/agent/compaction";
+} from "@reverse/agent/compaction";
 import { createAssistantMessage, createUserMessage } from "./helpers";
 
 let seq = 0;

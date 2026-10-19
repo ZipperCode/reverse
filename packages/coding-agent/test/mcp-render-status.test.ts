@@ -1,17 +1,17 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AgentTool } from "@rva/agent";
-import type { TSchema } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { renderMCPResult } from "@rva/tui/tools/mcp";
-import { DeferredMCPTool, MCPTool } from "@rva/coding-agent/mcp/tool-bridge";
-import { type MCPToolDetails } from "@rva/tui/tools/mcp";
-import type { MCPServerConnection, MCPToolDefinition, MCPTransport } from "@rva/coding-agent/mcp/types";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { theme as activeTheme, getThemeByName, initTheme } from "@rva/tui/theme";
-import { type OutputMeta } from "@rva/tui/tools/output-meta";
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
-import { formatStatusIcon } from "@rva/tui/render/render-utils";
-import { TUI } from "@rva/tui";
+import type { AgentTool } from "@reverse/agent";
+import type { TSchema } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { renderMCPResult } from "@reverse/tui/tools/mcp";
+import { DeferredMCPTool, MCPTool } from "@reverse/coding-agent/mcp/tool-bridge";
+import { type MCPToolDetails } from "@reverse/tui/tools/mcp";
+import type { MCPServerConnection, MCPToolDefinition, MCPTransport } from "@reverse/coding-agent/mcp/types";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { theme as activeTheme, getThemeByName, initTheme } from "@reverse/tui/theme";
+import { type OutputMeta } from "@reverse/tui/tools/output-meta";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
+import { formatStatusIcon } from "@reverse/tui/render/render-utils";
+import { TUI } from "@reverse/tui";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 beforeAll(async () => {

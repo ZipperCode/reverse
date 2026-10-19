@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { getBundledModel } from "@rva/catalog/models";
-import type { Model } from "@rva/catalog/types";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { Model } from "@reverse/catalog/types";
 import { renderSegment } from "../src/status-line/segments";
 import type { SegmentContext } from "../src/status-line/types";
 import { initTheme } from "../src/theme";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils/temp";
+import { TempDir } from "@reverse/utils/temp";
 import { resolveEvalUrlRoots } from "../../src/eval/backend";
 import { createHelpers, type HelperContext } from "../../src/eval/js/shared/helpers";
 import type { ToolSession } from "../../src/tools";

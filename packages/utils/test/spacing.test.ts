@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getProjectDir, setProjectDir } from "@rva/utils/dirs";
-import { Snowflake } from "@rva/utils/snowflake";
-import { getEditorConfigFormatting } from "@rva/utils/tab-spacing";
+import { getProjectDir, setProjectDir } from "@reverse/utils/dirs";
+import { Snowflake } from "@reverse/utils/snowflake";
+import { getEditorConfigFormatting } from "@reverse/utils/tab-spacing";
 
 describe("getEditorConfigFormatting", () => {
 	let tempDir = "";

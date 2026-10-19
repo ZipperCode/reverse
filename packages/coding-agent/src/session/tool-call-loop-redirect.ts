@@ -1,5 +1,5 @@
-import type { RepeatedToolCallDetection } from "@rva/ai/utils/tool-call-loop-guard";
-import { prompt } from "@rva/utils";
+import type { RepeatedToolCallDetection } from "@reverse/ai/utils/tool-call-loop-guard";
+import { prompt } from "@reverse/utils";
 import toolCallLoopRedirectTemplate from "../prompts/system/tool-call-loop-redirect.md" with { type: "text" };
 
 export const TOOL_CALL_LOOP_REDIRECT_TYPE = "tool-call-loop-redirect";

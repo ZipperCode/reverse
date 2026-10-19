@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { LateDiagnosticsMessageComponent } from "@rva/tui/chat/late-diagnostics-message";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
+import { LateDiagnosticsMessageComponent } from "@reverse/tui/chat/late-diagnostics-message";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 
 const darkTheme = await getThemeByName("dark");
 

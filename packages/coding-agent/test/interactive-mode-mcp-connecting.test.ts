@@ -1,22 +1,22 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
+import { Agent } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import {
 	formatMCPConnectionStatusMessage,
 	MCP_CONNECTION_STATUS_EVENT_CHANNEL,
 	type McpConnectionStatusEvent,
-} from "@rva/coding-agent/mcp/startup-events";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { logger, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/mcp/startup-events";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { logger, TempDir } from "@reverse/utils";
 
-import { cfgStartupQuiet } from "@rva/coding-agent/modes/settings";
+import { cfgStartupQuiet } from "@reverse/coding-agent/modes/settings";
 
 /**
  * Behavioral wiring guard for MCP startup status (mirrors

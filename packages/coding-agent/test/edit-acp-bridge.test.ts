@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { hashlineFileHash } from "@rva/natives";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
-import { type EditToolDetails } from "@rva/tui/tools/edit";
-import { resolveLocalUrlToPath } from "@rva/coding-agent/internal-urls";
-import type { PlanModeState } from "@rva/coding-agent/plan-mode/state";
-import type { ClientBridge } from "@rva/coding-agent/session/client-bridge";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { removeWithRetries } from "@rva/utils";
+import { hashlineFileHash } from "@reverse/natives";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
+import { type EditToolDetails } from "@reverse/tui/tools/edit";
+import { resolveLocalUrlToPath } from "@reverse/coding-agent/internal-urls";
+import type { PlanModeState } from "@reverse/coding-agent/plan-mode/state";
+import type { ClientBridge } from "@reverse/coding-agent/session/client-bridge";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { removeWithRetries } from "@reverse/utils";
 
 interface SessionOptions {
 	bridge?: ClientBridge;

@@ -1,11 +1,4 @@
-import type {
-	Agent,
-	AgentMessage,
-	AgentTool,
-	AgentToolContext,
-	StreamFn,
-	ThinkingLevel,
-} from "@rva/agent";
+import type { Agent, AgentMessage, AgentTool, AgentToolContext, StreamFn, ThinkingLevel } from "@reverse/agent";
 import type {
 	AssistantMessage,
 	Context,
@@ -18,9 +11,9 @@ import type {
 	ServiceTierByFamily,
 	SimpleStreamOptions,
 	ToolChoice,
-} from "@rva/ai";
-import type { postmortem } from "@rva/utils";
-import type { AdvisorConfig } from "@rva/tui/overlays/advisor-config";
+} from "@reverse/ai";
+import type { postmortem } from "@reverse/utils";
+import type { AdvisorConfig } from "@reverse/tui/overlays/advisor-config";
 import type { AsyncJob, AsyncJobDeliveryState, AsyncJobManager } from "../async";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { AgentDefinition } from "../task/types";
@@ -30,7 +23,7 @@ import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import type { SkillsSettings } from "../extensibility/settings";
 import type { CursorMcpResourceAdapter } from "../cursor";
-import type { RawSseDebugBuffer } from "@rva/tui/apps/debug/raw-sse-buffer";
+import type { RawSseDebugBuffer } from "@reverse/tui/apps/debug/raw-sse-buffer";
 import type { EvalPreludeDefinition } from "../eval/preludes";
 import type { TtsrManager } from "../export/ttsr";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
@@ -42,7 +35,7 @@ import type { SkillDescriptionCatalog } from "../extensibility/skill-description
 import type { Skill, SkillWarning } from "../extensibility/skills";
 import type { FileSlashCommand } from "../extensibility/slash-commands";
 import type { SecretObfuscator } from "../secrets/obfuscator";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
 import type { ToolSession } from "../tools";
 import type { XdevState } from "../tools/xdev";
 import type { CodexAutoRedeemCoordinator } from "./codex-auto-reset";
@@ -514,8 +507,8 @@ export interface RoleModelCycleResult {
 	role: string;
 }
 
-import type { ResolvedRoleModel } from "@rva/tui/overlays/model-picker";
-export type { ResolvedRoleModel } from "@rva/tui/overlays/model-picker";
+import type { ResolvedRoleModel } from "@reverse/tui/overlays/model-picker";
+export type { ResolvedRoleModel } from "@reverse/tui/overlays/model-picker";
 
 /** Resolvable role models and the currently active index. */
 export interface RoleModelCycle {

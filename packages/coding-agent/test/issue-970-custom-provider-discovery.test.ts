@@ -4,16 +4,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { buildModel } from "@rva/catalog/build";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import type { ModelRegistry, ProviderDiscoveryState } from "@rva/coding-agent/config/model-registry";
-import { ModelRegistry as ModelRegistryImpl } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ModelHubComponent } from "@rva/tui/overlays/model-hub";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { TUI } from "@rva/tui";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { buildModel } from "@reverse/catalog/build";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import type { ModelRegistry, ProviderDiscoveryState } from "@reverse/coding-agent/config/model-registry";
+import { ModelRegistry as ModelRegistryImpl } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ModelHubComponent } from "@reverse/tui/overlays/model-hub";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { TUI } from "@reverse/tui";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 function normalizeRenderedText(text: string): string {
 	return stripVTControlCharacters(text).replace(/\s+/g, " ").trim();

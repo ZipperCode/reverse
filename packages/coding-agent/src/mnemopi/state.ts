@@ -1,10 +1,10 @@
 import { dirname } from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type * as MnemopiNs from "@rva/mnemopi";
-import type { Mnemopi, RecallResult } from "@rva/mnemopi";
-import type * as MnemopiCoreNs from "@rva/mnemopi/core";
-import type { LocalModelInitializer } from "@rva/mnemopi/core";
-import { logger, prompt, toError, withLoopPhase } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type * as MnemopiNs from "@reverse/mnemopi";
+import type { Mnemopi, RecallResult } from "@reverse/mnemopi";
+import type * as MnemopiCoreNs from "@reverse/mnemopi/core";
+import type { LocalModelInitializer } from "@reverse/mnemopi/core";
+import { logger, prompt, toError, withLoopPhase } from "@reverse/utils";
 import {
 	composeRecallQuery,
 	prepareEmbeddableRetentionTranscript,
@@ -59,7 +59,7 @@ function installLocalModelInitializer(setInitializer: (initializer: LocalModelIn
 }
 
 /**
- * Lazily load `@rva/mnemopi` (memoized) and route fastembed loads
+ * Lazily load `@reverse/mnemopi` (memoized) and route fastembed loads
  * through the machine-shared embedding server. The override is installed once
  * — before any consumer gets the chance to call `embed()` — so
  * `onnxruntime-node`'s NAPI constructor + finalizer never run inside the
@@ -69,16 +69,16 @@ function installLocalModelInitializer(setInitializer: (initializer: LocalModelIn
  */
 export async function loadMnemopi(): Promise<typeof MnemopiNs> {
 	if (!mnemopiMod) {
-		mnemopiMod = await import("@rva/mnemopi");
+		mnemopiMod = await import("@reverse/mnemopi");
 		installLocalModelInitializer(mnemopiMod.setLocalModelInitializer);
 	}
 	return mnemopiMod;
 }
 
-/** Lazily load `@rva/mnemopi/core` (memoized). */
+/** Lazily load `@reverse/mnemopi/core` (memoized). */
 export async function loadMnemopiCore(): Promise<typeof MnemopiCoreNs> {
 	if (!mnemopiCoreMod) {
-		mnemopiCoreMod = await import("@rva/mnemopi/core");
+		mnemopiCoreMod = await import("@reverse/mnemopi/core");
 		installLocalModelInitializer(mnemopiCoreMod.setLocalModelInitializer);
 	}
 	return mnemopiCoreMod;

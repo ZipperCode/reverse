@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { visibleWidth } from "@rva/tui";
+import { visibleWidth } from "@reverse/tui";
 import { Settings } from "../../../src/config/settings";
-import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@rva/tui/overlays/plan-save-overlay";
-import { getThemeByName, setThemeInstance, type Theme, theme } from "@rva/tui/theme";
+import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@reverse/tui/overlays/plan-save-overlay";
+import { getThemeByName, setThemeInstance, type Theme, theme } from "@reverse/tui/theme";
 
 describe("PlanSaveOverlay", () => {
 	let uiTheme: Theme;

@@ -1,15 +1,15 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { PASTE_CODE_LOGIN_PROVIDERS } from "@rva/ai/registry";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { PASTE_CODE_LOGIN_PROVIDERS } from "@reverse/ai/registry";
 import {
 	getOAuthProviders,
 	refreshOAuthToken,
 	registerOAuthProvider,
 	unregisterOAuthProviders,
-} from "@rva/ai/registry/oauth";
-import type { OAuthCredentials, OAuthProvider } from "@rva/ai/registry/oauth/types";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
+} from "@reverse/ai/registry/oauth";
+import type { OAuthCredentials, OAuthProvider } from "@reverse/ai/registry/oauth/types";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
 
 const FIXTURE_SOURCE = "provider-registry-test";
 const ENV_KEYS = [

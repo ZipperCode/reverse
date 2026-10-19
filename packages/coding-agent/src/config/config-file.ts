@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { OmpErrors, type Type } from "@rva/omptype";
-import { getAgentDir, isEnoent, logger, stringifyYamlConfig } from "@rva/utils";
+import { OmpErrors, type Type } from "@reverse/omptype";
+import { getAgentDir, isEnoent, logger, stringifyYamlConfig } from "@reverse/utils";
 import { JSONC, YAML } from "bun";
 
 /** Minimal subset of the AJV ConfigSchemaError shape this module actually relies on. */

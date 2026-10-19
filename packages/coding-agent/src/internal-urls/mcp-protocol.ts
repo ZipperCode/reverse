@@ -1,4 +1,4 @@
-import { untilAborted, withTimeout } from "@rva/utils";
+import { untilAborted, withTimeout } from "@reverse/utils";
 import { MCPManager } from "../mcp/manager";
 import type { MCPResourceReadResult } from "../mcp/types";
 import mcpDoc from "../prompts/internal-urls/mcp.md" with { type: "text" };

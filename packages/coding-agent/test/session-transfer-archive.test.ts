@@ -3,20 +3,20 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@rva/ai";
-import { BlobStore, isBlobRef } from "@rva/coding-agent/session/blob-store";
-import type { FileEntry, SessionHeader } from "@rva/coding-agent/session/session-entries";
-import { resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import { findSessionFiles } from "@rva/coding-agent/session/session-listing";
-import { loadEntriesFromFile, resolveBlobRefsInEntries } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import type { ImageContent } from "@reverse/ai";
+import { BlobStore, isBlobRef } from "@reverse/coding-agent/session/blob-store";
+import type { FileEntry, SessionHeader } from "@reverse/coding-agent/session/session-entries";
+import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { findSessionFiles } from "@reverse/coding-agent/session/session-listing";
+import { loadEntriesFromFile, resolveBlobRefsInEntries } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	packSession,
 	SESSION_TRANSFER_MESSAGE_TYPE,
 	unpackSession,
-} from "@rva/coding-agent/session/session-transfer";
-import { getBlobsDir, getConfigRootDir, setAgentDir } from "@rva/utils";
-import { readArchiveEntries, writeArchive } from "@rva/utils/ar";
+} from "@reverse/coding-agent/session/session-transfer";
+import { getBlobsDir, getConfigRootDir, setAgentDir } from "@reverse/utils";
+import { readArchiveEntries, writeArchive } from "@reverse/utils/ar";
 import { makeAssistantMessage } from "./session-manager/helpers";
 
 const IMAGE_DATA = Buffer.alloc(4096, 7).toString("base64");

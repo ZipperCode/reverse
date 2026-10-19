@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FileEntry } from "@rva/coding-agent/session/session-entries";
-import * as sessionLoader from "@rva/coding-agent/session/session-loader";
-import { serializeTitleSlot } from "@rva/coding-agent/session/session-title-slot";
+import type { FileEntry } from "@reverse/coding-agent/session/session-entries";
+import * as sessionLoader from "@reverse/coding-agent/session/session-loader";
+import { serializeTitleSlot } from "@reverse/coding-agent/session/session-title-slot";
 
 // Parity contract for the ≥8MiB streaming loader (now Bun.JSONL-based): it must
 // produce the SAME entries + titleSlot as the common-path parser

@@ -11,8 +11,8 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getBundledModel, type GeneratedProvider } from "@rva/catalog/models";
-import { getSessionsDir, isEnoent } from "@rva/utils";
+import { getBundledModel, type GeneratedProvider } from "@reverse/catalog/models";
+import { getSessionsDir, isEnoent } from "@reverse/utils";
 import { initDb, isScheduledCatalogModel } from "./db";
 import { extractFolderFromPath, parseAllSessionEntries, resolveUsageTotal } from "./parser";
 import { getSessionRollups } from "./rollup";

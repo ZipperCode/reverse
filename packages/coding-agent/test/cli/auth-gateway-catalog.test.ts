@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { AuthStorage } from "@rva/ai";
-import { getBundledModels } from "@rva/catalog/models";
-import { modelKind } from "@rva/catalog/types";
-import { TempDir } from "@rva/utils";
+import { AuthStorage } from "@reverse/ai";
+import { getBundledModels } from "@reverse/catalog/models";
+import { modelKind } from "@reverse/catalog/types";
+import { TempDir } from "@reverse/utils";
 import {
 	createSerializedRebuilder,
 	gatewayRoutableModels,

@@ -1,21 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import * as bashExecutor from "@rva/coding-agent/exec/bash-executor";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import { createBashTool } from "@rva/coding-agent/extensibility/legacy-pi-coding-agent-shim";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import * as bashExecutor from "@reverse/coding-agent/exec/bash-executor";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import { createBashTool } from "@reverse/coding-agent/extensibility/legacy-pi-coding-agent-shim";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-import { cfgShellPath } from "@rva/coding-agent/exec/settings";
+import { cfgShellPath } from "@reverse/coding-agent/exec/settings";
 
 const bashResult = {
 	output: "old-output",

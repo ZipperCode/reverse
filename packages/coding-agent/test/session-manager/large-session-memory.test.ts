@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@rva/catalog/models";
-import { listSessions } from "@rva/coding-agent/session/session-listing";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { MemorySessionStorage } from "@rva/coding-agent/session/session-storage";
-import * as snapcompact from "@rva/snapcompact";
+import { getBundledModel } from "@reverse/catalog/models";
+import { listSessions } from "@reverse/coding-agent/session/session-listing";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { MemorySessionStorage } from "@reverse/coding-agent/session/session-storage";
+import * as snapcompact from "@reverse/snapcompact";
 
 class CountingMemorySessionStorage extends MemorySessionStorage {
 	writeTextSyncCalls = 0;

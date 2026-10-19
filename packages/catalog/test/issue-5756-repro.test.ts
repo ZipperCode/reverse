@@ -11,12 +11,12 @@
  * (K3 does NOT accept the K2.x binary `thinking: { type }` block).
  */
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { moonshotModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { ModelSpec } from "@rva/catalog/types";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { moonshotModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 function moonshotModelsResponse(): Response {
 	const body = {

@@ -18,8 +18,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { WORKER_CONNECTION_CLOSED } from "@rva/coding-agent/subprocess/shared-worker";
-import { connectTinyWorker, onnxLaunch, smokeTestTinyTitleWorker } from "@rva/coding-agent/tiny/title-client";
+import { WORKER_CONNECTION_CLOSED } from "@reverse/coding-agent/subprocess/shared-worker";
+import { connectTinyWorker, onnxLaunch, smokeTestTinyTitleWorker } from "@reverse/coding-agent/tiny/title-client";
 
 describe("issue #1606 — tiny model lives in an isolated process", () => {
 	it("ping/pongs through the spawned worker process and tears it down cleanly", async () => {

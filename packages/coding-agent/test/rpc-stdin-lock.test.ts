@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { isRecord, readJsonl } from "@rva/utils";
+import { isRecord, readJsonl } from "@reverse/utils";
 
 async function expectRpcOwnsStdin(): Promise<void> {
 	const cliPath = path.join(import.meta.dir, "..", "src", "cli.ts");

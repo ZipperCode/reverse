@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { node } from "@rva/tui/native/describe";
-import type { NativeNode } from "@rva/tui/native/node";
-import { initThemeSync, setTheme } from "@rva/tui/theme";
-import { loadThemeSync } from "@rva/tui/theme/loader";
-import type { Component } from "@rva/tui/tui";
+import { node } from "@reverse/tui/native/describe";
+import type { NativeNode } from "@reverse/tui/native/node";
+import { initThemeSync, setTheme } from "@reverse/tui/theme";
+import { loadThemeSync } from "@reverse/tui/theme/loader";
+import type { Component } from "@reverse/tui/tui";
 import { TspHarness } from "./tsp-harness";
 
 class Described implements Component {

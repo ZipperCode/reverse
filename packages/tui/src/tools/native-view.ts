@@ -5,7 +5,7 @@
  */
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { TspSpan, TspText, TspTone } from "@rva/wire";
+import type { TspSpan, TspText, TspTone } from "@reverse/wire";
 import { ansi, code, compact, keyed, node, row, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { type ParsedDiagnostic, parseDiagnosticMessage, shortenPath } from "../render/render-utils";

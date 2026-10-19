@@ -1,3 +1,3 @@
-import { isBunTestRuntime } from "@rva/utils/env";
+import { isBunTestRuntime } from "@reverse/utils/env";
 
 process.stdout.write(JSON.stringify(isBunTestRuntime()));

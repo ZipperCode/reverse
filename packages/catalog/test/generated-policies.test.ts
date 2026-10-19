@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@rva/catalog/effort";
-import type { Api, Model, ModelSpec, Provider } from "@rva/catalog/types";
+import { Effort } from "@reverse/catalog/effort";
+import type { Api, Model, ModelSpec, Provider } from "@reverse/catalog/types";
 import {
 	applyGeneratedModelPolicies,
 	applyOllamaCloudOutputCap,

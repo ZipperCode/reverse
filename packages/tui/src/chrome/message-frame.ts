@@ -8,7 +8,7 @@
  * in full.
  */
 
-import type { TextContent } from "@rva/ai";
+import type { TextContent } from "@reverse/ai";
 import { Box } from "../components/box";
 import { Markdown } from "../components/markdown";
 import { Spacer } from "../components/spacer";

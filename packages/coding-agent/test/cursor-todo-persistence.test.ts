@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { AgentEvent } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { CursorExecHandlers } from "@rva/coding-agent/cursor";
-import { initTheme, theme } from "@rva/tui/theme";
-import { getLatestTodoPhasesFromEntries, USER_TODO_EDIT_CUSTOM_TYPE } from "@rva/coding-agent/tools/todo";
-import { type TodoPhase, todoToolRenderer } from "@rva/tui/tools/todo";
+import type { AgentEvent } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { CursorExecHandlers } from "@reverse/coding-agent/cursor";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { getLatestTodoPhasesFromEntries, USER_TODO_EDIT_CUSTOM_TYPE } from "@reverse/coding-agent/tools/todo";
+import { type TodoPhase, todoToolRenderer } from "@reverse/tui/tools/todo";
 import { buildSessionContext } from "../src/session/session-context";
 import type { SessionEntry } from "../src/session/session-entries";
 

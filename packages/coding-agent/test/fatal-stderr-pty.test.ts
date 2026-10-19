@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Terminal as VirtualTerminal } from "@rva/utils/vterm";
+import { Terminal as VirtualTerminal } from "@reverse/utils/vterm";
 
 const COLUMNS = 120;
 const ROWS = 30;

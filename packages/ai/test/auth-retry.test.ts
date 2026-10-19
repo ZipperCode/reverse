@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ApiKeyResolveContext, OAuthAccess, OAuthAccessSource } from "@rva/ai";
+import type { ApiKeyResolveContext, OAuthAccess, OAuthAccessSource } from "@reverse/ai";
 import {
 	AUTH_RETRY_MAX_ATTEMPTS,
 	isApiKeyResolver,
@@ -7,8 +7,8 @@ import {
 	resolveApiKeyOnce,
 	withAuth,
 	withOAuthAccess,
-} from "@rva/ai";
-import { OAuthError, ProviderHttpError } from "@rva/ai/error";
+} from "@reverse/ai";
+import { OAuthError, ProviderHttpError } from "@reverse/ai/error";
 
 function authError(status = 401): Error & { status: number } {
 	return Object.assign(new Error(`${status} authentication_error`), { status });

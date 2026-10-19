@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@rva/mnemopi",
+  "name": "@reverse/mnemopi",
   "version": "18.11.2",
   "description": "Local SQLite memory engine for omp agents",
   "homepage": "https://omp.sh",
@@ -43,10 +43,10 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@rva/ai": "catalog:",
-    "@rva/catalog": "catalog:",
-    "@rva/natives": "catalog:",
-    "@rva/utils": "catalog:"
+    "@reverse/ai": "catalog:",
+    "@reverse/catalog": "catalog:",
+    "@reverse/natives": "catalog:",
+    "@reverse/utils": "catalog:"
   },
   "peerDependencies": {
     "fastembed": "3.0.0",

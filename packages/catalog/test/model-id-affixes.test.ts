@@ -4,7 +4,7 @@ import {
 	getLongestModelLikeIdSegment,
 	getModelLikeIdSegments,
 	stripBracketedModelIdAffixes,
-} from "@rva/catalog/identity/id";
+} from "@reverse/catalog/identity/id";
 
 describe("getModelLikeIdSegments", () => {
 	test("keeps only family-prefixed segments that carry a digit, deduped", () => {

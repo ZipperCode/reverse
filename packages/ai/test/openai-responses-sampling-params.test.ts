@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamSimple } from "@rva/ai/stream";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 function mockSseFetch(): { fetchMock: FetchImpl; captured: Record<string, unknown> } {
 	const captured: Record<string, unknown> = {};

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { Tokenizer } from "@rva/agent";
-import type { SessionMessageEntry } from "@rva/agent/compaction/entries";
-import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@rva/agent/compaction/pruning";
-import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@rva/agent/compaction/shake";
-import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@rva/ai";
+import { Tokenizer } from "@reverse/agent";
+import type { SessionMessageEntry } from "@reverse/agent/compaction/entries";
+import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@reverse/agent/compaction/pruning";
+import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@reverse/agent/compaction/shake";
+import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@reverse/ai";
 
 const tokenizer = new Tokenizer();
 

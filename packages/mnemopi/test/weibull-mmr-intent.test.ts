@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { mmrRerank } from "@rva/mnemopi/core/mmr";
-import { adjustWeights, classifyIntent } from "@rva/mnemopi/core/query-intent";
-import { DEFAULT_HALFLIFE_HOURS, weibullBoost, weibullDecayFactor } from "@rva/mnemopi/core/weibull";
+import { mmrRerank } from "@reverse/mnemopi/core/mmr";
+import { adjustWeights, classifyIntent } from "@reverse/mnemopi/core/query-intent";
+import { DEFAULT_HALFLIFE_HOURS, weibullBoost, weibullDecayFactor } from "@reverse/mnemopi/core/weibull";
 
 describe("Weibull decay", () => {
 	it("keeps stable profile memories longer than fast request memories", () => {

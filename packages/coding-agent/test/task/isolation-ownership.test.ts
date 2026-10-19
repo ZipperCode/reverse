@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import * as natives from "@rva/natives";
-import { needsNativeTeardown } from "@rva/coding-agent/task/isolation-ownership";
+import * as natives from "@reverse/natives";
+import { needsNativeTeardown } from "@reverse/coding-agent/task/isolation-ownership";
 
 const { IsoBackendKind } = natives;
 

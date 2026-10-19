@@ -2,8 +2,8 @@ import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { applyCatalogCorrections, buildModel } from "@rva/catalog/build";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
+import { applyCatalogCorrections, buildModel } from "@reverse/catalog/build";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
 import {
 	calculateCost,
 	calculateUncachedInputCost,
@@ -12,9 +12,9 @@ import {
 	getBundledModels,
 	getNextTimeBasedPricingTransition,
 	getTimeBasedPricingPeriod,
-} from "@rva/catalog/models";
-import type { ModelCost, ModelSpec, Usage } from "@rva/catalog/types";
-import { Effort } from "@rva/catalog/effort";
+} from "@reverse/catalog/models";
+import type { ModelCost, ModelSpec, Usage } from "@reverse/catalog/types";
+import { Effort } from "@reverse/catalog/effort";
 import { isTimeBasedCost, materializeTimeBasedCost } from "../src/pricing";
 
 function spec(id = "deepseek-v4-flash", provider = "deepseek"): ModelSpec<"openai-completions"> {

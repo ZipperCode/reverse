@@ -1,4 +1,4 @@
-import { encodeSixelAsync } from "@rva/natives";
+import { encodeSixelAsync } from "@reverse/natives";
 import { getKittyGraphics } from "../kitty-graphics";
 import {
 	encodeSixelNow,

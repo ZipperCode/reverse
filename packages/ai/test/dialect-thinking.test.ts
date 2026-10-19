@@ -5,7 +5,7 @@ import {
 	getDialectDefinition,
 	type InbandScanEvent,
 	type InbandScannerOptions,
-} from "@rva/ai/dialect";
+} from "@reverse/ai/dialect";
 
 function scan(
 	dialect: Dialect,

@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { clearCustomApis } from "@rva/ai/api-registry";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
-import { streamSimple } from "@rva/ai/stream";
-import type { AssistantMessage, Context, CursorExecHandlers, ToolCall, ToolResultMessage } from "@rva/ai/types";
-import { getStreamingPartialJson, setStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { applyGlyphCodec, decodeGlyphText, encodeGlyphText } from "@rva/ai/utils/glyph-codec";
-import { buildModel } from "@rva/catalog/build";
-import { PiEditExecArgsSchema, PiEditReplacementSchema } from "@rva/catalog/discovery/cursor-proto";
-import { create } from "@rva/catalog/discovery/protobuf";
+import { clearCustomApis } from "@reverse/ai/api-registry";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import { streamSimple } from "@reverse/ai/stream";
+import type { AssistantMessage, Context, CursorExecHandlers, ToolCall, ToolResultMessage } from "@reverse/ai/types";
+import { getStreamingPartialJson, setStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { applyGlyphCodec, decodeGlyphText, encodeGlyphText } from "@reverse/ai/utils/glyph-codec";
+import { buildModel } from "@reverse/catalog/build";
+import { PiEditExecArgsSchema, PiEditReplacementSchema } from "@reverse/catalog/discovery/cursor-proto";
+import { create } from "@reverse/catalog/discovery/protobuf";
 
 const ZERO_USAGE: AssistantMessage["usage"] = {
 	input: 0,

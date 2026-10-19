@@ -1,14 +1,10 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { Effort, type Context } from "@rva/ai";
-import {
-	clearGitLabDuoDirectAccessCache,
-	getGitLabDuoModels,
-	streamGitLabDuo,
-} from "@rva/ai/providers/gitlab-duo";
-import * as registerBuiltins from "@rva/ai/providers/register-builtins";
-import { apiRouteFor } from "@rva/catalog/compat/behavior";
-import { getBundledModel } from "@rva/catalog/models";
-import { resolveGitLabDuoModelIdentity } from "@rva/catalog/provider-models";
+import { Effort, type Context } from "@reverse/ai";
+import { clearGitLabDuoDirectAccessCache, getGitLabDuoModels, streamGitLabDuo } from "@reverse/ai/providers/gitlab-duo";
+import * as registerBuiltins from "@reverse/ai/providers/register-builtins";
+import { apiRouteFor } from "@reverse/catalog/compat/behavior";
+import { getBundledModel } from "@reverse/catalog/models";
+import { resolveGitLabDuoModelIdentity } from "@reverse/catalog/provider-models";
 
 const context: Context = {
 	systemPrompt: ["You are helpful."],

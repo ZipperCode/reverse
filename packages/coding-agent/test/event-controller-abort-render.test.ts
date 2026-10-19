@@ -17,15 +17,15 @@
  *         persisted reason survives and the shared presentation renders nothing.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import { resolveAssistantErrorPresentation } from "@rva/tui/chat/transcript-render-helpers";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@rva/coding-agent/session/messages";
+import type { AssistantMessage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import { resolveAssistantErrorPresentation } from "@reverse/tui/chat/transcript-render-helpers";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@reverse/coding-agent/session/messages";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 function makeAssistantMessage(overrides: Partial<AssistantMessage> = {}): AssistantMessage {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Text } from "@rva/tui/components/text";
+import { Text } from "@reverse/tui/components/text";
 
 describe("Text component", () => {
 	it("reports whether setText changed the stored text", () => {

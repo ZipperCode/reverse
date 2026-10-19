@@ -46,7 +46,7 @@
 
 ## Side Effects
 - Purely read-only; never executes target code, never runs arbitrary shell commands, and never mutates filesystem files.
-- Direct parsing of `.asar` and `.zip` archives via `@rva/utils/ar` without temporary disk unpacking.
+- Direct parsing of `.asar` and `.zip` archives via `@reverse/utils/ar` without temporary disk unpacking.
 
 ## Tool Attributes
 - `approval`: `"read"`

@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
+import type { AgentMessage } from "@reverse/agent";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
 
 function buildContext(): InteractiveModeContext {
 	const chatContainer = new TranscriptContainer();

@@ -1,8 +1,8 @@
-import type { AgentOptions } from "@rva/agent";
-import type { OAuthAccessResolution, OAuthRefreshReason } from "@rva/ai";
-import type { ApiKeyResolver } from "@rva/ai/auth-retry";
-import * as AIError from "@rva/ai/error";
-import { getProviderDefinition } from "@rva/ai/registry";
+import type { AgentOptions } from "@reverse/agent";
+import type { OAuthAccessResolution, OAuthRefreshReason } from "@reverse/ai";
+import type { ApiKeyResolver } from "@reverse/ai/auth-retry";
+import * as AIError from "@reverse/ai/error";
+import { getProviderDefinition } from "@reverse/ai/registry";
 import type { AuthStorage } from "../session/auth-storage";
 import type { SecurityAccountRef, SecurityAuthRef } from "./contracts";
 

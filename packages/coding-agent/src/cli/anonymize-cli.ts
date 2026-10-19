@@ -4,7 +4,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getProjectDir, isEnoent, pathIsWithin } from "@rva/utils";
+import { getProjectDir, isEnoent, pathIsWithin } from "@reverse/utils";
 import { ANONYMIZED_REVIEW_NOTE, anonymizeSessionTranscripts } from "../session/session-anonymizer";
 import type { SessionEntry, SessionHeader } from "../session/session-entries";
 import { loadSessionFile } from "../session/session-loader";

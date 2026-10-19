@@ -1,16 +1,16 @@
-import type { AssistantMessage, Model } from "@rva/ai";
-import { isColdReplayableResponsesTurn } from "@rva/ai/providers/openai-shared";
-import { shouldDropTruncatedThinkingOnlyAssistant } from "@rva/ai/providers/transform-messages";
+import type { AssistantMessage, Model } from "@reverse/ai";
+import { isColdReplayableResponsesTurn } from "@reverse/ai/providers/openai-shared";
+import { shouldDropTruncatedThinkingOnlyAssistant } from "@reverse/ai/providers/transform-messages";
 import {
 	getOpenAIResponsesHistoryItems,
 	sanitizeOpenAIResponsesAssistantHistoryItemsForReplay,
-} from "@rva/ai/utils";
-import { resolveThinkingReplayTokens, type ThinkingReplayTokens } from "@rva/catalog/compat/thinking-replay";
-import type { ModelTokenizer } from "@rva/catalog/types";
-import * as natives from "@rva/natives";
-import { materializeString, stringifyJson } from "@rva/utils";
-import { LRUCache } from "@rva/utils/lru";
-import * as snapcompact from "@rva/snapcompact";
+} from "@reverse/ai/utils";
+import { resolveThinkingReplayTokens, type ThinkingReplayTokens } from "@reverse/catalog/compat/thinking-replay";
+import type { ModelTokenizer } from "@reverse/catalog/types";
+import * as natives from "@reverse/natives";
+import { materializeString, stringifyJson } from "@reverse/utils";
+import { LRUCache } from "@reverse/utils/lru";
+import * as snapcompact from "@reverse/snapcompact";
 import { isEstimateCacheable, messageEstimateVersion } from "./compaction/message-cache";
 import { base64ImageSize, estimateImageTokens, type ImageDetail, type ImageSize } from "./image-tokens";
 import type { AgentMessage } from "./types";

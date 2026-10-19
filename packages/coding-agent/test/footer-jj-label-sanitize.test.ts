@@ -4,13 +4,13 @@
  * at the cache boundary, mirroring the status-line jj label path.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { FooterComponent } from "@rva/tui/status-line/footer";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { initTheme } from "@rva/tui/theme";
-import type { VcsRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { getProjectDir, setProjectDir } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { FooterComponent } from "@reverse/tui/status-line/footer";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { initTheme } from "@reverse/tui/theme";
+import type { VcsRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { getProjectDir, setProjectDir } from "@reverse/utils";
 
 const originalProjectDir = getProjectDir();
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, setSystemTime } from "bun:test";
-import type { FetchImpl } from "@rva/catalog/types";
-import { ensureAntigravityVersion } from "@rva/catalog/wire/gemini-headers";
+import type { FetchImpl } from "@reverse/catalog/types";
+import { ensureAntigravityVersion } from "@reverse/catalog/wire/gemini-headers";
 
 const RETRY_WINDOW_MS = 10 * 60_000;
 // The lookup state is process-wide; every test starts on a fresh clock past any

@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { postmortem } from "@rva/utils";
+import { postmortem } from "@reverse/utils";
 
 const postmortemModuleUrl = pathToFileURL(join(import.meta.dir, "../src/index.ts")).href;
 

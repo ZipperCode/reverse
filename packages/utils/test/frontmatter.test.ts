@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { parseFrontmatter } from "@rva/utils";
-import * as logger from "@rva/utils/logger";
+import { parseFrontmatter } from "@reverse/utils";
+import * as logger from "@reverse/utils/logger";
 
 describe("parseFrontmatter", () => {
 	afterEach(() => {

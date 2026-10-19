@@ -1,19 +1,19 @@
 import { afterEach, expect, it, vi } from "bun:test";
-import type { Model } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import { AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import * as sdk from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import * as settingsStream from "@rva/coding-agent/session/settings-stream-fn";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { VibeSessionRegistry } from "@rva/coding-agent/vibe/runtime";
-import { TempDir } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import * as sdk from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import * as settingsStream from "@reverse/coding-agent/session/settings-stream-fn";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { VibeSessionRegistry } from "@reverse/coding-agent/vibe/runtime";
+import { TempDir } from "@reverse/utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

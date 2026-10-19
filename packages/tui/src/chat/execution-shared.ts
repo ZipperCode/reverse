@@ -17,7 +17,7 @@ import { DynamicBorder } from "../chrome/dynamic-border";
 import { Ellipsis, truncateToWidth, visibleWidth } from "../utils";
 import { interruptKey } from "../chrome/keybinding-hints";
 import { DEFAULT_TERMINAL_PREVIEW_LINES, expandKeyHint } from "../render/render-utils";
-import type { TspCardStatus, TspSpan, TspText, TspTone } from "@rva/wire";
+import type { TspCardStatus, TspSpan, TspText, TspTone } from "@reverse/wire";
 import { card, node, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { runBox, runFoot, runInput, runOutput, type RunState } from "../tools/native-view";

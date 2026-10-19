@@ -3,24 +3,24 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import { Effort } from "@rva/ai";
-import { clearCustomApis } from "@rva/ai/api-registry";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
-import { __providerInFlightForTesting, streamSimple } from "@rva/ai/stream";
-import type { Context } from "@rva/ai/types";
+import { Effort } from "@reverse/ai";
+import { clearCustomApis } from "@reverse/ai/api-registry";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import { __providerInFlightForTesting, streamSimple } from "@reverse/ai/stream";
+import type { Context } from "@reverse/ai/types";
 import {
 	__physicalTargetSegmentsForTesting,
 	resetSettingsForTest,
 	Settings,
-} from "@rva/coding-agent/config/settings";
-import { bindEffects } from "@rva/coding-agent/config/registry";
+} from "@reverse/coding-agent/config/settings";
+import { bindEffects } from "@reverse/coding-agent/config/registry";
 
-import * as discovery from "@rva/coding-agent/discovery";
-import { editVariantForModel } from "@rva/coding-agent/utils/edit-mode";
+import * as discovery from "@reverse/coding-agent/discovery";
+import { editVariantForModel } from "@reverse/coding-agent/utils/edit-mode";
 import MODEL_PRIO from "../src/priority.json" with { type: "json" };
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { getAgentDbPath, getProjectAgentDir, logger, TempDir } from "@rva/utils";
-import * as fileLock from "@rva/utils/file-lock";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { getAgentDbPath, getProjectAgentDir, logger, TempDir } from "@reverse/utils";
+import * as fileLock from "@reverse/utils/file-lock";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 import {
@@ -32,8 +32,8 @@ import {
 	cfgSetupVersion,
 	cfgStatusLineLeftSegments,
 	cfgSpellingAutocomplete,
-} from "@rva/coding-agent/modes/settings";
-import { cfgExtensions } from "@rva/coding-agent/extensibility/settings";
+} from "@reverse/coding-agent/modes/settings";
+import { cfgExtensions } from "@reverse/coding-agent/extensibility/settings";
 import {
 	cfgProvidersMaxInFlightRequests,
 	cfgPowerSleepPrevention,
@@ -43,11 +43,9 @@ import {
 	cfgDefaultThinkingLevel,
 	cfgInlineToolDescriptors,
 	cfgRetryModelFallback,
-} from "@rva/coding-agent/session/settings";
+} from "@reverse/coding-agent/session/settings";
 import {
 	cfgToolsXdev,
-	cfgTodoReminders,
-	cfgTodoRemindersMax,
 	cfgGlobEnabled,
 	cfgFindEnabled,
 	cfgGrepEnabled,
@@ -56,7 +54,7 @@ import {
 	cfgTodoEager,
 	cfgComputerEnabled,
 	cfgImagesQuestionTimeoutMs,
-} from "@rva/coding-agent/tools/settings";
+} from "@reverse/coding-agent/tools/settings";
 import {
 	cfgTaskEager,
 	cfgIsolationBackend,
@@ -64,18 +62,15 @@ import {
 	cfgTaskMaxConcurrency,
 	cfgTaskEnableEffort,
 	cfgTaskAgentModelOverrides,
-} from "@rva/coding-agent/task/settings";
-import { cfgMnemopiDbPath, cfgMnemopiScoping } from "@rva/coding-agent/mnemopi/settings";
-import { cfgMemoryBackend } from "@rva/coding-agent/memory-backend/settings";
-import { cfgHindsightBankId, cfgHindsightScoping } from "@rva/coding-agent/hindsight/settings";
-import { cfgEditMode } from "@rva/coding-agent/edit/settings";
-import { cfgExaEnabled } from "@rva/coding-agent/web/settings";
-import {
-	cfgCompactionMethodOrder,
-	cfgSnapcompactSystemPrompt,
-} from "@rva/coding-agent/session/context-settings";
-import { cfgModelRoles, cfgDisabledProviders, cfgEnabledModels } from "@rva/coding-agent/config/model-settings";
-import { cfgShellPath } from "@rva/coding-agent/exec/settings";
+} from "@reverse/coding-agent/task/settings";
+import { cfgMnemopiDbPath, cfgMnemopiScoping } from "@reverse/coding-agent/mnemopi/settings";
+import { cfgMemoryBackend } from "@reverse/coding-agent/memory-backend/settings";
+import { cfgHindsightBankId, cfgHindsightScoping } from "@reverse/coding-agent/hindsight/settings";
+import { cfgEditMode } from "@reverse/coding-agent/edit/settings";
+import { cfgExaEnabled } from "@reverse/coding-agent/web/settings";
+import { cfgCompactionMethodOrder, cfgSnapcompactSystemPrompt } from "@reverse/coding-agent/session/context-settings";
+import { cfgModelRoles, cfgDisabledProviders, cfgEnabledModels } from "@reverse/coding-agent/config/model-settings";
+import { cfgShellPath } from "@reverse/coding-agent/exec/settings";
 
 /** Lets microtask-coalesced setting listeners run. */
 const tick = () => Promise.resolve();
@@ -2418,7 +2413,6 @@ describe("Settings", () => {
 			expect(cfgFindEnabled.get(settings)).toBe("on");
 			expect(cfgGlobEnabled.get(settings)).toBe(false);
 		});
-
 
 		it("drops dead BM25-discovery keys and leaves tools.xdev at its default", async () => {
 			await writeSettings({

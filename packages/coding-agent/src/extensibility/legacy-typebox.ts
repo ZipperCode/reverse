@@ -1,15 +1,15 @@
-import { type } from "@rva/omptype";
-import { IR_BRAND } from "@rva/omptype/ir";
+import { type } from "@reverse/omptype";
+import { IR_BRAND } from "@reverse/omptype/ir";
 import {
 	type AnySchema,
 	type ObjectOpts,
 	Type as OmpType,
 	type TypeBuilder as OmpTypeBuilder,
 	type TUnsafe,
-} from "@rva/omptype/typebox";
-import { upgradeJsonSchemaTo202012, validateJsonSchemaValue } from "@rva/ai/utils/schema";
+} from "@reverse/omptype/typebox";
+import { upgradeJsonSchemaTo202012, validateJsonSchemaValue } from "@reverse/ai/utils/schema";
 
-export * from "@rva/omptype/typebox";
+export * from "@reverse/omptype/typebox";
 
 const VALIDATION_FAILURE = Symbol("omp.typebox.validationFailure");
 

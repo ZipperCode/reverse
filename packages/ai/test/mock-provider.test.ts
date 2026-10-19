@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createMockModel, MOCK_API, type MockHandler, streamMock } from "@rva/ai/providers/mock";
-import type { AssistantMessage, AssistantMessageEvent, Context, ToolCall } from "@rva/ai/types";
+import { createMockModel, MOCK_API, type MockHandler, streamMock } from "@reverse/ai/providers/mock";
+import type { AssistantMessage, AssistantMessageEvent, Context, ToolCall } from "@reverse/ai/types";
 
 function emptyContext(): Context {
 	return {

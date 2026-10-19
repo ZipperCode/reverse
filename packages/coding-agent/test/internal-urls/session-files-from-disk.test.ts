@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils";
-import { registerArtifactsDir, sessionFilesFromDisk } from "@rva/coding-agent/internal-urls/registry-helpers";
+import { TempDir } from "@reverse/utils";
+import { registerArtifactsDir, sessionFilesFromDisk } from "@reverse/coding-agent/internal-urls/registry-helpers";
 
 const cleanups: Array<() => void> = [];
 

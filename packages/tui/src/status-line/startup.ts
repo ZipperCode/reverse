@@ -13,9 +13,9 @@
  * statusLine.attachToEditor(editor, getComposerStyle(shape));
  * ```
  */
-import type { ThinkingLevel } from "@rva/agent";
-import type { Model } from "@rva/catalog/types";
-import { isRecord } from "@rva/utils/type-guards";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Model } from "@reverse/catalog/types";
+import { isRecord } from "@reverse/utils/type-guards";
 import { parseThinkingLevel } from "../thinking";
 import { StatusLineComponent } from "./component";
 import type { CompactionBoundaries } from "./context-usage";

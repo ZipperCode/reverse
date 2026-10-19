@@ -13,12 +13,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadCapability } from "@rva/coding-agent/capability";
-import { clearCache } from "@rva/coding-agent/capability/fs";
-import type { Skill } from "@rva/coding-agent/capability/skill";
-import { removeSyncWithRetries } from "@rva/utils";
-import "@rva/coding-agent/capability/skill";
-import "@rva/coding-agent/discovery/github";
+import { loadCapability } from "@reverse/coding-agent/capability";
+import { clearCache } from "@reverse/coding-agent/capability/fs";
+import type { Skill } from "@reverse/coding-agent/capability/skill";
+import { removeSyncWithRetries } from "@reverse/utils";
+import "@reverse/coding-agent/capability/skill";
+import "@reverse/coding-agent/discovery/github";
 
 function writeSkill(root: string, name: string, description: string | null): void {
 	const skillDir = path.join(root, name);

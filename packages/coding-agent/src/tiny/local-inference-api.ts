@@ -6,9 +6,9 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	type Usage,
-} from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { registerCustomApi } from "@rva/ai/api-registry";
+} from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { registerCustomApi } from "@reverse/ai/api-registry";
 import { isTinyLocalModelKey } from "./models";
 import { tinyModelClient } from "./title-client";
 import type { TinyChatMessage } from "./title-protocol";

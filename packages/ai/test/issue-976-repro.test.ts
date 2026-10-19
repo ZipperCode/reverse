@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildRequest } from "@rva/ai/providers/google-gemini-cli";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { buildRequest } from "@reverse/ai/providers/google-gemini-cli";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 function createModel(): Model<"google-gemini-cli"> {
 	return buildModel({

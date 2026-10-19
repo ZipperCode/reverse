@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { MCPConnectionTimeoutError, connectToServer, listTools } from "@rva/coding-agent/mcp/client";
-import { isRetriableConnectionError } from "@rva/coding-agent/mcp/tool-bridge";
-import type { JsonRpcMessage } from "@rva/coding-agent/mcp/types";
-import { withTimeout } from "@rva/utils";
+import { MCPConnectionTimeoutError, connectToServer, listTools } from "@reverse/coding-agent/mcp/client";
+import { isRetriableConnectionError } from "@reverse/coding-agent/mcp/tool-bridge";
+import type { JsonRpcMessage } from "@reverse/coding-agent/mcp/types";
+import { withTimeout } from "@reverse/utils";
 
 const encoder = new TextEncoder();
 let server: Bun.Server<undefined> | null = null;

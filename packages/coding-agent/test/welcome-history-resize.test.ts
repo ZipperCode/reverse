@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { COMPOSER_DEFAULTS, Composer } from "@rva/tui/prompt/composer";
-import { initTheme } from "@rva/tui/theme";
-import { type Component, Container, type RenderScheduler, visibleWidth } from "@rva/tui";
-import { Image } from "@rva/tui/components/image";
-import { getKittyGraphics, setKittyGraphics } from "@rva/tui/kitty-graphics";
-import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@rva/tui/terminal-capabilities";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { COMPOSER_DEFAULTS, Composer } from "@reverse/tui/prompt/composer";
+import { initTheme } from "@reverse/tui/theme";
+import { type Component, Container, type RenderScheduler, visibleWidth } from "@reverse/tui";
+import { Image } from "@reverse/tui/components/image";
+import { getKittyGraphics, setKittyGraphics } from "@reverse/tui/kitty-graphics";
+import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@reverse/tui/terminal-capabilities";
 import { VirtualRenderScheduler } from "../../tui/test/virtual-render-scheduler";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { withoutTerminalMultiplexer } from "../../tui/test/helpers/terminal-multiplexer";

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { ImageProtocol, TERMINAL } from "@rva/tui";
-import { visibleWidth } from "@rva/tui/utils";
-import * as caShim from "@rva/coding-agent/extensibility/legacy-pi-coding-agent-shim";
-import * as tuiShim from "@rva/coding-agent/extensibility/legacy-pi-tui-shim";
+import { ImageProtocol, TERMINAL } from "@reverse/tui";
+import { visibleWidth } from "@reverse/tui/utils";
+import * as caShim from "@reverse/coding-agent/extensibility/legacy-pi-coding-agent-shim";
+import * as tuiShim from "@reverse/coding-agent/extensibility/legacy-pi-tui-shim";
 
 // Upstream pi-coding-agent exports `parseSkillBlock` from its package root
 // (src/core/agent-session.ts) and upstream pi-tui exports `compositeTuiLine`

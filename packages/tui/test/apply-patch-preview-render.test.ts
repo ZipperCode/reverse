@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { type EditRenderContext, editToolRenderer, type PerFileDiffPreview } from "@rva/tui/tools/edit";
-import * as themeModule from "@rva/tui/theme";
+import { type EditRenderContext, editToolRenderer, type PerFileDiffPreview } from "@reverse/tui/tools/edit";
+import * as themeModule from "@reverse/tui/theme";
 
 let uiTheme: themeModule.Theme;
 

@@ -12,24 +12,24 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls";
 import {
 	formatCurrentBranchFullHistory,
 	HistoryProtocolHandler,
-} from "@rva/coding-agent/internal-urls/history-protocol";
+} from "@reverse/coding-agent/internal-urls/history-protocol";
 import {
 	registerArtifactsDir,
 	resetRegisteredArtifactDirsForTests,
-} from "@rva/coding-agent/internal-urls/registry-helpers";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { CURRENT_SESSION_VERSION, type SessionEntry } from "@rva/coding-agent/session/session-entries";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/internal-urls/registry-helpers";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { CURRENT_SESSION_VERSION, type SessionEntry } from "@reverse/coding-agent/session/session-entries";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { removeWithRetries } from "@reverse/utils";
 
-import { cfgCompactionExperimentalContextManagement } from "@rva/coding-agent/session/context-settings";
+import { cfgCompactionExperimentalContextManagement } from "@reverse/coding-agent/session/context-settings";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "history-protocol-"));

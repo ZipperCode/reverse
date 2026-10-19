@@ -6,7 +6,7 @@
  * multi-hour quota window instead of pausing.
  */
 import { describe, expect, it } from "bun:test";
-import { planAdvisorUsageLimitWait } from "@rva/coding-agent/session/session-advisors";
+import { planAdvisorUsageLimitWait } from "@reverse/coding-agent/session/session-advisors";
 
 const NOW = 1_000_000;
 const RETRY = { enabled: true, baseDelayMs: 500, maxDelayMs: 5 * 60 * 1000, maxRetries: 10 };

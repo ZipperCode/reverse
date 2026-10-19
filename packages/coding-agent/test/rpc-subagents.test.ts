@@ -2,17 +2,17 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@rva/ai";
-import { RpcClient } from "@rva/coding-agent/modes/rpc/rpc-client";
+import type { ImageContent } from "@reverse/ai";
+import { RpcClient } from "@reverse/coding-agent/modes/rpc/rpc-client";
 import {
 	handleRpcSessionChange,
 	type RpcSessionChangeCommand,
 	type RpcSessionChangeResult,
 	type RpcSessionChangeSession,
-} from "@rva/coding-agent/modes/rpc/rpc-mode";
-import { RpcSubagentRegistry, readRpcSubagentTranscript } from "@rva/coding-agent/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@rva/coding-agent/modes/rpc/rpc-types";
-import { type AgentProgress } from "@rva/tui/tools/task";
+} from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import { RpcSubagentRegistry, readRpcSubagentTranscript } from "@reverse/coding-agent/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@reverse/coding-agent/modes/rpc/rpc-types";
+import { type AgentProgress } from "@reverse/tui/tools/task";
 import {
 	type SubagentEventPayload,
 	type SubagentLifecyclePayload,
@@ -20,9 +20,9 @@ import {
 	TASK_SUBAGENT_EVENT_CHANNEL,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@rva/coding-agent/task";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/task";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 const tempPaths: string[] = [];
 

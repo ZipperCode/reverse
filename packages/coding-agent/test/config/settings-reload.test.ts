@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { acquireFileLock, getProjectAgentDir, logger, TempDir } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { acquireFileLock, getProjectAgentDir, logger, TempDir } from "@reverse/utils";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "../helpers/settings-test-state";
 
-import { cfgEditModelVariants } from "@rva/coding-agent/edit/settings";
-import { cfgCompactionEnabled } from "@rva/coding-agent/session/context-settings";
-import { cfgProvidersMaxInFlightRequests, cfgTemperature } from "@rva/coding-agent/session/settings";
+import { cfgEditModelVariants } from "@reverse/coding-agent/edit/settings";
+import { cfgCompactionEnabled } from "@reverse/coding-agent/session/context-settings";
+import { cfgProvidersMaxInFlightRequests, cfgTemperature } from "@reverse/coding-agent/session/settings";
 
 describe("Settings layer refresh", () => {
 	let state: SettingsTestState | undefined;

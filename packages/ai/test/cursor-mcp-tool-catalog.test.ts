@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { buildMcpToolDefinitions } from "@rva/ai/providers/cursor";
-import type { Tool, TSchema } from "@rva/ai/types";
-import { isJsonSchemaValueValid, sanitizeSchemaForCursor, toolWireSchema } from "@rva/ai/utils/schema";
-import { decodeJsonValue } from "@rva/catalog/discovery/protobuf";
+import { buildMcpToolDefinitions } from "@reverse/ai/providers/cursor";
+import type { Tool, TSchema } from "@reverse/ai/types";
+import { isJsonSchemaValueValid, sanitizeSchemaForCursor, toolWireSchema } from "@reverse/ai/utils/schema";
+import { decodeJsonValue } from "@reverse/catalog/discovery/protobuf";
 
 const tool = (name: string, parameters: TSchema = { type: "object", properties: {} }): Tool => ({
 	name,

@@ -3,9 +3,9 @@ import {
 	convertAnthropicMessages,
 	streamAnthropic,
 	supportsAnthropicCompaction,
-} from "@rva/ai/providers/anthropic";
-import type { AssistantMessage, Context, Model, ModelSpec, UserMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/providers/anthropic";
+import type { AssistantMessage, Context, Model, ModelSpec, UserMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import { withEnv, withOfficialAnthropicEndpoint } from "./helpers";
 
 const spec: ModelSpec<"anthropic-messages"> = {

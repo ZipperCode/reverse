@@ -4,13 +4,13 @@
  * in UiHelpers.truncateTranscriptFromMessage.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { Component } from "@rva/tui";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { Component } from "@reverse/tui";
 
 beforeEach(async () => {
 	resetSettingsForTest();

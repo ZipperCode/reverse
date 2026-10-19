@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 
-import type { FetchImpl } from "@rva/ai/types";
-import { resolveUsedFraction, type UsageFetchContext, type UsageFetchParams } from "@rva/ai/usage";
-import { charmHyperUsageProvider } from "@rva/ai/usage/charm-hyper";
+import type { FetchImpl } from "@reverse/ai/types";
+import { resolveUsedFraction, type UsageFetchContext, type UsageFetchParams } from "@reverse/ai/usage";
+import { charmHyperUsageProvider } from "@reverse/ai/usage/charm-hyper";
 
 function makeCredential(): UsageFetchParams["credential"] {
 	return {

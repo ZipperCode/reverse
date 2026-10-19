@@ -2,11 +2,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, mock, spyOn, test }
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { runPluginCommand } from "@rva/coding-agent/cli/plugin-cli";
-import { PluginManager } from "@rva/coding-agent/extensibility/plugins/manager";
-import { initTheme } from "@rva/tui/theme";
-import * as piUtils from "@rva/utils";
-import { removeWithRetries } from "@rva/utils";
+import { runPluginCommand } from "@reverse/coding-agent/cli/plugin-cli";
+import { PluginManager } from "@reverse/coding-agent/extensibility/plugins/manager";
+import { initTheme } from "@reverse/tui/theme";
+import * as piUtils from "@reverse/utils";
+import { removeWithRetries } from "@reverse/utils";
 
 beforeAll(async () => {
 	await initTheme(false);

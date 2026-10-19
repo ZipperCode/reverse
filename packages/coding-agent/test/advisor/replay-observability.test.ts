@@ -5,8 +5,8 @@
 // emits a structured debug event, and the delivered-prefix path reports which
 // message diverged and which fields changed.
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { logger } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { logger } from "@reverse/utils";
 
 import {
 	type AdvisorAgent,

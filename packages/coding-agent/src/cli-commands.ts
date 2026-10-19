@@ -8,8 +8,8 @@
  * `launch` — see #1496 for the original "args silently leak to the LLM"
  * regression that motivated the split.
  */
-import type { CommandEntry } from "@rva/utils/cli";
-import { APP_NAME } from "@rva/utils/dirs";
+import type { CommandEntry } from "@reverse/utils/cli";
+import { APP_NAME } from "@reverse/utils/dirs";
 import * as commandHelp from "./cli/command-help";
 import { loadEffectiveSettings } from "./config/persisted-locale";
 import {
@@ -315,23 +315,15 @@ function leadingCandidateWord(argv: readonly string[]): string | undefined {
 }
 
 const RESERVED_TOP_LEVEL_WORDS: Record<string, string> = {
-	extensions:
-		`\`${APP_NAME} extensions\` is not a management command. Use \`${APP_NAME} plugin list\` / \`${APP_NAME} plugin install\`, or run \`${APP_NAME} launch extensions\` if you meant to send "extensions" as a prompt.`,
+	extensions: `\`${APP_NAME} extensions\` is not a management command. Use \`${APP_NAME} plugin list\` / \`${APP_NAME} plugin install\`, or run \`${APP_NAME} launch extensions\` if you meant to send "extensions" as a prompt.`,
 	list: `\`${APP_NAME} list\` is not a top-level command. Use \`${APP_NAME} plugin list\` to list installed plugins, or run \`${APP_NAME} launch list\` if you meant to send "list" as a prompt.`,
-	remove:
-		`\`${APP_NAME} remove\` is not a top-level command. Use \`${APP_NAME} plugin uninstall <name>\` to remove a plugin, or run \`${APP_NAME} launch remove\` if you meant to send "remove" as a prompt.`,
-	uninstall:
-		`\`${APP_NAME} uninstall\` is not a top-level command. Use \`${APP_NAME} plugin uninstall <name@marketplace>\` to remove a plugin, or run \`${APP_NAME} launch uninstall\` if you meant to send "uninstall" as a prompt.`,
-	marketplace:
-		`\`${APP_NAME} marketplace\` is not a top-level command. Use \`${APP_NAME} plugin marketplace <add|remove|update|list>\` to manage marketplaces, or run \`${APP_NAME} launch marketplace\` if you meant to send "marketplace" as a prompt.`,
-	discover:
-		`\`${APP_NAME} discover\` is not a top-level command. Use \`${APP_NAME} plugin discover [marketplace]\` to browse available plugins, or run \`${APP_NAME} launch discover\` if you meant to send "discover" as a prompt.`,
-	upgrade:
-		`\`${APP_NAME} upgrade\` is not a top-level command. Use \`${APP_NAME} plugin upgrade [name]\` to upgrade plugins, or run \`${APP_NAME} launch upgrade\` if you meant to send "upgrade" as a prompt.`,
-	enable:
-		`\`${APP_NAME} enable\` is not a top-level command. Use \`${APP_NAME} plugin enable <name@marketplace>\` to enable a plugin, or run \`${APP_NAME} launch enable\` if you meant to send "enable" as a prompt.`,
-	disable:
-		`\`${APP_NAME} disable\` is not a top-level command. Use \`${APP_NAME} plugin disable <name@marketplace>\` to disable a plugin, or run \`${APP_NAME} launch disable\` if you meant to send "disable" as a prompt.`,
+	remove: `\`${APP_NAME} remove\` is not a top-level command. Use \`${APP_NAME} plugin uninstall <name>\` to remove a plugin, or run \`${APP_NAME} launch remove\` if you meant to send "remove" as a prompt.`,
+	uninstall: `\`${APP_NAME} uninstall\` is not a top-level command. Use \`${APP_NAME} plugin uninstall <name@marketplace>\` to remove a plugin, or run \`${APP_NAME} launch uninstall\` if you meant to send "uninstall" as a prompt.`,
+	marketplace: `\`${APP_NAME} marketplace\` is not a top-level command. Use \`${APP_NAME} plugin marketplace <add|remove|update|list>\` to manage marketplaces, or run \`${APP_NAME} launch marketplace\` if you meant to send "marketplace" as a prompt.`,
+	discover: `\`${APP_NAME} discover\` is not a top-level command. Use \`${APP_NAME} plugin discover [marketplace]\` to browse available plugins, or run \`${APP_NAME} launch discover\` if you meant to send "discover" as a prompt.`,
+	upgrade: `\`${APP_NAME} upgrade\` is not a top-level command. Use \`${APP_NAME} plugin upgrade [name]\` to upgrade plugins, or run \`${APP_NAME} launch upgrade\` if you meant to send "upgrade" as a prompt.`,
+	enable: `\`${APP_NAME} enable\` is not a top-level command. Use \`${APP_NAME} plugin enable <name@marketplace>\` to enable a plugin, or run \`${APP_NAME} launch enable\` if you meant to send "enable" as a prompt.`,
+	disable: `\`${APP_NAME} disable\` is not a top-level command. Use \`${APP_NAME} plugin disable <name@marketplace>\` to disable a plugin, or run \`${APP_NAME} launch disable\` if you meant to send "disable" as a prompt.`,
 };
 
 // Sub-actions that make `omp marketplace <sub>` unambiguously a management

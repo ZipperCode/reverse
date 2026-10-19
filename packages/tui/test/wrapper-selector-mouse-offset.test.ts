@@ -1,12 +1,12 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { Effort } from "@rva/ai";
-import { PluginSelectorComponent } from "@rva/tui/overlays/plugin-selector";
-import { QueueModeSelectorComponent } from "@rva/tui/overlays/queue-mode-selector";
-import { ThemeSelectorComponent } from "@rva/tui/overlays/theme-selector";
-import { ThinkingSelectorComponent } from "@rva/tui/overlays/thinking-selector";
-import { initTheme } from "@rva/tui/theme";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
-import type { SgrMouseEvent } from "@rva/tui";
+import { Effort } from "@reverse/ai";
+import { PluginSelectorComponent } from "@reverse/tui/overlays/plugin-selector";
+import { QueueModeSelectorComponent } from "@reverse/tui/overlays/queue-mode-selector";
+import { ThemeSelectorComponent } from "@reverse/tui/overlays/theme-selector";
+import { ThinkingSelectorComponent } from "@reverse/tui/overlays/thinking-selector";
+import { initTheme } from "@reverse/tui/theme";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
+import type { SgrMouseEvent } from "@reverse/tui";
 
 beforeAll(async () => {
 	await initTheme();

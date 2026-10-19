@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildAnthropicClientOptions, streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { buildAnthropicClientOptions, streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 /**
  * Repro for #6510 — every Claude (`anthropic-messages`) model on the

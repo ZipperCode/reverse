@@ -10,29 +10,29 @@
  * - interactive mode stacks each factory on top of the built-in editor provider.
  *
  * NOTE: imports are relative (`../src/...`) so the tests exercise this checkout
- * even when `node_modules/@rva/coding-agent` resolves elsewhere.
+ * even when `node_modules/@reverse/coding-agent` resolves elsewhere.
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import { type Api, Effort, type Model } from "@rva/ai";
-import type { AutocompleteProvider } from "@rva/tui";
-import { logger, TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import { type Api, Effort, type Model } from "@reverse/ai";
+import type { AutocompleteProvider } from "@reverse/tui";
+import { logger, TempDir } from "@reverse/utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { resetSettingsForTest, Settings } from "../src/config/settings";
 import { loadExtensions } from "../src/extensibility/extensions/loader";
 import { ExtensionRunner } from "../src/extensibility/extensions/runner";
 import { InteractiveMode } from "../src/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 import { AgentSession } from "../src/session/agent-session";
 import { AuthStorage } from "../src/session/auth-storage";
 import { SessionManager } from "../src/session/session-manager";
 
-import { cfgStartupQuiet } from "@rva/coding-agent/modes/settings";
+import { cfgStartupQuiet } from "@reverse/coding-agent/modes/settings";
 
 function makeTool(name: string): AgentTool {
 	return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { startCpuProfile } from "@rva/coding-agent/debug/profiler";
+import { startCpuProfile } from "@reverse/coding-agent/debug/profiler";
 
 describe("startCpuProfile", () => {
 	// Regression: `node:v8` `setFlagsFromString` throws on Bun

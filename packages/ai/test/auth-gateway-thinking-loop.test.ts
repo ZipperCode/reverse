@@ -3,12 +3,12 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { clearCustomApis } from "@rva/ai/api-registry";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { ProviderHttpError } from "@rva/ai/error";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
-import { THINKING_LOOP_ERROR_MARKER } from "@rva/ai/utils/thinking-loop";
+import { clearCustomApis } from "@reverse/ai/api-registry";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { ProviderHttpError } from "@reverse/ai/error";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import { THINKING_LOOP_ERROR_MARKER } from "@reverse/ai/utils/thinking-loop";
 
 /** A degenerate near-duplicate reasoning loop (the gemini-3.5-flash shape). */
 function loopThinking(): string {

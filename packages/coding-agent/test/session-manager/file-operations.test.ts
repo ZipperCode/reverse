@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FileEntry, SessionHeader } from "@rva/coding-agent/session/session-entries";
-import { findMostRecentSession, resolveResumableSession } from "@rva/coding-agent/session/session-listing";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import type { FileEntry, SessionHeader } from "@reverse/coding-agent/session/session-entries";
+import { findMostRecentSession, resolveResumableSession } from "@reverse/coding-agent/session/session-listing";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	getConfigRootDir,
 	getSessionsDir,
@@ -13,7 +13,7 @@ import {
 	resolveEquivalentPath,
 	Snowflake,
 	setAgentDir,
-} from "@rva/utils";
+} from "@reverse/utils";
 
 const OLDER_MTIME = new Date("2000-01-01T00:00:00.000Z");
 const NEWER_MTIME = new Date("2000-01-01T00:00:01.000Z");

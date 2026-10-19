@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Editor } from "@rva/tui/components/editor";
+import { Editor } from "@reverse/tui/components/editor";
 import { defaultEditorTheme } from "./test-themes";
 
 const ESC = "\x1b";

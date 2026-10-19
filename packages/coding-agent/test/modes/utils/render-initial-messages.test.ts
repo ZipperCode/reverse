@@ -12,19 +12,19 @@
  */
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, ImageContent, Usage } from "@rva/ai";
-import { kStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext, RenderSessionContextOptions } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { SessionContext, StrippedToolCallsMarker } from "@rva/coding-agent/session/session-context";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@rva/tui";
-import { TempDir } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, ImageContent, Usage } from "@reverse/ai";
+import { kStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext, RenderSessionContextOptions } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { SessionContext, StrippedToolCallsMarker } from "@reverse/coding-agent/session/session-context";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { type Component, Container, Image, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@reverse/tui";
+import { TempDir } from "@reverse/utils";
 
 beforeAll(() => {
 	initTheme();

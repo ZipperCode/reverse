@@ -16,16 +16,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import * as titleGenerator from "@rva/coding-agent/utils/title-generator";
-import { TERMINAL } from "@rva/tui";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import * as titleGenerator from "@reverse/coding-agent/utils/title-generator";
+import { TERMINAL } from "@reverse/tui";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
-import { cfgCompletionNotify, cfgErrorNotify } from "@rva/coding-agent/modes/settings";
+import { cfgCompletionNotify, cfgErrorNotify } from "@reverse/coding-agent/modes/settings";
 
 const originalWarpProtocolVersion = process.env.WARP_CLI_AGENT_PROTOCOL_VERSION;
 

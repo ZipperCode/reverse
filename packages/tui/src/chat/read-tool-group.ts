@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { AssistantMessage, Usage } from "@rva/ai";
+import type { AssistantMessage, Usage } from "@reverse/ai";
 import { type Component } from "../tui";
 import { Container } from "../tui";
 import { Text } from "../components/text";
@@ -22,8 +22,8 @@ import { canonicalizeMessage } from "./thinking-display";
 import { internalUrlSchemeSpec, splitUrlScheme } from "../tools/url-scheme-host";
 import type { ToolExecutionHandle } from "./tool-execution";
 import { formatUsageRow } from "../overlays/usage-row";
-import { formatCount } from "@rva/utils";
-import type { TspCardStatus, TspSpan, TspText } from "@rva/wire";
+import { formatCount } from "@reverse/utils";
+import type { TspCardStatus, TspSpan, TspText } from "@reverse/wire";
 import type { NativeToolHead } from "../tools/renderer";
 import { card, code, keyed, md, node, span, text, withHidden } from "../native/describe";
 import {

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getBundledModel } from "@rva/catalog/models";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { MemorySessionStorage, type WriteTextAtomicOptions } from "@rva/coding-agent/session/session-storage";
-import { parseJsonlLenient, TempDir } from "@rva/utils";
+import { getBundledModel } from "@reverse/catalog/models";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { MemorySessionStorage, type WriteTextAtomicOptions } from "@reverse/coding-agent/session/session-storage";
+import { parseJsonlLenient, TempDir } from "@reverse/utils";
 
 const tempDirs: TempDir[] = [];
 

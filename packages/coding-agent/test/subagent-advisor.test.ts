@@ -6,14 +6,14 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentRegistry, MAIN_AGENT_ID } from "@rva/coding-agent/registry/agent-registry";
-import { registerPersistedSubagents } from "@rva/coding-agent/registry/persisted-agents";
-import { CURRENT_SESSION_VERSION } from "@rva/coding-agent/session/session-entries";
-import { createSubagentSettings } from "@rva/coding-agent/task/executor";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentRegistry, MAIN_AGENT_ID } from "@reverse/coding-agent/registry/agent-registry";
+import { registerPersistedSubagents } from "@reverse/coding-agent/registry/persisted-agents";
+import { CURRENT_SESSION_VERSION } from "@reverse/coding-agent/session/session-entries";
+import { createSubagentSettings } from "@reverse/coding-agent/task/executor";
 
-import { cfgAdvisorEnabled } from "@rva/coding-agent/advisor/settings";
-import { cfgTaskAgentAdvisor, cfgTaskAgentPrewalk } from "@rva/coding-agent/task/settings";
+import { cfgAdvisorEnabled } from "@reverse/coding-agent/advisor/settings";
+import { cfgTaskAgentAdvisor, cfgTaskAgentPrewalk } from "@reverse/coding-agent/task/settings";
 
 describe("per-agent settings migrations", () => {
 	let agentDir = "";

@@ -15,11 +15,11 @@ import {
 	getGlobalDaemonRuntimeRoot,
 	getProjectDir,
 	isEnoent,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { createDaemonBrokerClient, type DaemonBrokerClient } from "../launch/client";
 import { canonicalProjectDir, daemonRuntimeDir, readDaemonScopeMeta, readStoredDaemonRecord } from "../launch/paths";
 import { readLiveDaemonBrokerPid } from "../launch/presence";
-import type { DaemonSnapshot, DaemonSpec } from "@rva/tui/tools/daemon";
+import type { DaemonSnapshot, DaemonSpec } from "@reverse/tui/tools/daemon";
 import {
 	formatCommand,
 	TERMINAL_STATES,
@@ -27,7 +27,7 @@ import {
 	type PsDaemonRow,
 	type PsScopeReport,
 	type PsTarget,
-} from "@rva/tui/apps/ps-data";
+} from "@reverse/tui/apps/ps-data";
 import { parseDaemonSnapshot, parseDaemonSpec } from "../launch/protocol";
 
 const PROJECT_SCOPE_KEY = /^[0-9a-f]{16}$/;

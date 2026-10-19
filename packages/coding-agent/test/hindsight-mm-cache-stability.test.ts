@@ -5,17 +5,13 @@
  */
 
 import { describe, expect, it, vi } from "bun:test";
-import type {
-	HindsightApi,
-	MentalModelListResponse,
-	MentalModelSummary,
-} from "@rva/coding-agent/hindsight/client";
-import type { HindsightConfig } from "@rva/coding-agent/hindsight/config";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { renderMentalModelsBlock } from "@rva/coding-agent/hindsight/mental-models";
-import type { AgentSessionEventListener } from "@rva/coding-agent/session/agent-session";
-import { HindsightSessionState } from "@rva/coding-agent/hindsight/state";
-import { SessionMemory, type SessionMemoryHost } from "@rva/coding-agent/session/session-memory";
+import type { HindsightApi, MentalModelListResponse, MentalModelSummary } from "@reverse/coding-agent/hindsight/client";
+import type { HindsightConfig } from "@reverse/coding-agent/hindsight/config";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { renderMentalModelsBlock } from "@reverse/coding-agent/hindsight/mental-models";
+import type { AgentSessionEventListener } from "@reverse/coding-agent/session/agent-session";
+import { HindsightSessionState } from "@reverse/coding-agent/hindsight/state";
+import { SessionMemory, type SessionMemoryHost } from "@reverse/coding-agent/session/session-memory";
 
 function makeConfig(overrides: Partial<HindsightConfig> = {}): HindsightConfig {
 	return {

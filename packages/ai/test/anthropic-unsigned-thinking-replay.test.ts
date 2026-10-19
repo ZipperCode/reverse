@@ -1,15 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { renderDemotedThinking } from "@rva/ai/dialect";
-import { convertAnthropicMessages, streamAnthropic } from "@rva/ai/providers/anthropic";
-import type {
-	AssistantMessage,
-	Message,
-	Model,
-	ModelSpec,
-	ToolResultMessage,
-	UserMessage,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { renderDemotedThinking } from "@reverse/ai/dialect";
+import { convertAnthropicMessages, streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { AssistantMessage, Message, Model, ModelSpec, ToolResultMessage, UserMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 /**
  * Regression: Anthropic-compatible reasoning endpoints often emit `thinking`

@@ -2,11 +2,11 @@ import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { RenderResultOptions } from "../src/tools/renderer";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import { bashToolRenderer, formatBackgroundNotice } from "@rva/tui/tools/bash";
-import { previewWindowRows } from "@rva/tui/render/render-utils";
-import { ImageProtocol, TERMINAL } from "@rva/tui";
-import { sanitizeText } from "@rva/utils";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import { bashToolRenderer, formatBackgroundNotice } from "@reverse/tui/tools/bash";
+import { previewWindowRows } from "@reverse/tui/render/render-utils";
+import { ImageProtocol, TERMINAL } from "@reverse/tui";
+import { sanitizeText } from "@reverse/utils";
 
 type MutableTerminalInfo = {
 	imageProtocol: ImageProtocol | null;

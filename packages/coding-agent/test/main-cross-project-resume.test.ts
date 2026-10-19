@@ -11,24 +11,24 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type Args, parseArgs } from "@rva/coding-agent/cli/args";
-import * as modelResolverModule from "@rva/coding-agent/config/model-resolver";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as pluginHelpers from "@rva/coding-agent/discovery/helpers";
-import { createSessionManager, runRootCommand } from "@rva/coding-agent/main";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { SessionHeader } from "@rva/coding-agent/session/session-entries";
-import type { SessionInfo } from "@rva/coding-agent/session/session-listing";
-import * as sessionListingModule from "@rva/coding-agent/session/session-listing";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { type Args, parseArgs } from "@reverse/coding-agent/cli/args";
+import * as modelResolverModule from "@reverse/coding-agent/config/model-resolver";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as pluginHelpers from "@reverse/coding-agent/discovery/helpers";
+import { createSessionManager, runRootCommand } from "@reverse/coding-agent/main";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { SessionHeader } from "@reverse/coding-agent/session/session-entries";
+import type { SessionInfo } from "@reverse/coding-agent/session/session-listing";
+import * as sessionListingModule from "@reverse/coding-agent/session/session-listing";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	__resetDirsFromEnvForTests,
 	getProjectDir,
 	normalizePathForComparison,
 	setAgentDir,
 	setProjectDir,
-} from "@rva/utils";
+} from "@reverse/utils";
 
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const originalPiProfile = process.env.PI_PROFILE;

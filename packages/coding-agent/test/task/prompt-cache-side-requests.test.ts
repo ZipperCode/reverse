@@ -1,17 +1,17 @@
 import { afterEach, expect, it, vi } from "bun:test";
-import type { Model } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { buildTransformedCodexRequestBody } from "@rva/ai/providers/openai-codex-responses";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import { getBundledModel } from "@rva/catalog/models";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import * as settingsStream from "@rva/coding-agent/session/settings-stream-fn";
-import { TempDir } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { buildTransformedCodexRequestBody } from "@reverse/ai/providers/openai-codex-responses";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import { getBundledModel } from "@reverse/catalog/models";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import * as settingsStream from "@reverse/coding-agent/session/settings-stream-fn";
+import { TempDir } from "@reverse/utils";
 
 interface Request {
 	stage: string;

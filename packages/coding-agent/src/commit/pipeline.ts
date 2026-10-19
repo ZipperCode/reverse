@@ -1,5 +1,5 @@
-import * as vcs from "@rva/natives/vcs";
-import { getProjectDir } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { getProjectDir } from "@reverse/utils";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { cfgCommitChangelogMaxDiffChars } from "./settings";

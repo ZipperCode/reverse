@@ -1,7 +1,7 @@
 /**
  * OTLP telemetry export bootstrap.
  *
- * omp's agent core (`@rva/agent`) emits OpenTelemetry GenAI
+ * omp's agent core (`@reverse/agent`) emits OpenTelemetry GenAI
  * spans through the global `@opentelemetry/api` tracer, and exposes run-level
  * callbacks for metrics/log pipelines. This module resolves the standard
  * `OTEL_*` env contract (endpoint, exporter selection, protocol,
@@ -13,8 +13,8 @@
  * `OTEL_EXPORTER_OTLP*_PROTOCOL` of `grpc` or `http/json` declines rather than
  * misrouting protobuf payloads.
  */
-import type { AgentTelemetryConfig } from "@rva/agent";
-import { logger } from "@rva/utils";
+import type { AgentTelemetryConfig } from "@reverse/agent";
+import { logger } from "@reverse/utils";
 
 /** Whether the model registered under a provider id and requested model id has known pricing. */
 export type TelemetryModelPricingResolver = (providerId: string, modelId: string) => boolean;

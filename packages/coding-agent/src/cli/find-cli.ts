@@ -2,9 +2,9 @@
  * `omp find`: run the semantic `find` tool's cascade from the shell. Same
  * search as the tool, printed as a ranked, colored digest (or JSON).
  */
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes, formatDuration, formatNumber } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes, formatDuration, formatNumber } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { InternalUrlFilesystem, isUrlPath } from "../internal-urls/url-filesystem";
 import { openStandaloneJudge } from "../judgment/standalone";
 import { formatPathRelativeToCwd, resolveSearchResultPath } from "../tools/path-utils";

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 
 interface ProbeResult {
 	retainedHeapNodes: number;

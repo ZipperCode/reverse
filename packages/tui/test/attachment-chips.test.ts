@@ -1,12 +1,12 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { AttachmentChipsBand } from "@rva/tui/prompt/attachment-chips";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { chipLabel } from "@rva/tui/prompt/composer-attachments";
-import { getEditorTheme, initTheme } from "@rva/tui/theme";
-import { ImageBudget } from "@rva/tui";
-import { setKittyGraphics } from "@rva/tui/kitty-graphics";
-import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@rva/tui/terminal-capabilities";
-import { visibleWidth } from "@rva/tui/utils";
+import { AttachmentChipsBand } from "@reverse/tui/prompt/attachment-chips";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { chipLabel } from "@reverse/tui/prompt/composer-attachments";
+import { getEditorTheme, initTheme } from "@reverse/tui/theme";
+import { ImageBudget } from "@reverse/tui";
+import { setKittyGraphics } from "@reverse/tui/kitty-graphics";
+import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@reverse/tui/terminal-capabilities";
+import { visibleWidth } from "@reverse/tui/utils";
 
 // 2x2 red PNG — real header so the band's dimension probe decodes 2x2.
 const TINY_PNG =

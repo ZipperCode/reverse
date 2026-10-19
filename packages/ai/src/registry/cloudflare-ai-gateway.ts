@@ -1,13 +1,13 @@
-import { buildModel } from "@rva/catalog/build";
-import { apiRouteFor } from "@rva/catalog/compat/behavior";
-import { parseCloudflareCredential } from "@rva/catalog/wire/cloudflare";
+import { buildModel } from "@reverse/catalog/build";
+import { apiRouteFor } from "@reverse/catalog/compat/behavior";
+import { parseCloudflareCredential } from "@reverse/catalog/wire/cloudflare";
 import {
 	CLOUDFLARE_AI_GATEWAY_ANTHROPIC_BASE_URL,
 	CLOUDFLARE_AI_GATEWAY_BASE_URL,
 	CLOUDFLARE_AI_GATEWAY_COMPAT_BASE_URL,
 	CLOUDFLARE_AI_GATEWAY_OPENAI_BASE_URL,
-} from "@rva/catalog/wire/cloudflare-ai-gateway";
-import { $env } from "@rva/utils";
+} from "@reverse/catalog/wire/cloudflare-ai-gateway";
+import { $env } from "@reverse/utils";
 import { NO_AUTH_SENTINEL } from "../auth-retry";
 import * as AIError from "../error";
 import type { Api, Model } from "../types";

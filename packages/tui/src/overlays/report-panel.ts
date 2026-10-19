@@ -1,4 +1,4 @@
-import type { TspScrollBy, TspText } from "@rva/wire";
+import type { TspScrollBy, TspText } from "@reverse/wire";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { editorKey } from "../chrome/keybinding-hints";
 import { Ellipsis } from "../index";

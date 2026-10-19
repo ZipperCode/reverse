@@ -1,9 +1,9 @@
-import type { AssistantMessage, ImageContent, MessageAttribution, TextContent } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
+import type { AssistantMessage, ImageContent, MessageAttribution, TextContent } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
 import type { OutputMeta } from "../tools/output-meta";
-import type { BranchSummaryMessage, CompactionSummaryMessage } from "@rva/agent/compaction/messages";
+import type { BranchSummaryMessage, CompactionSummaryMessage } from "@reverse/agent/compaction/messages";
 
-declare module "@rva/agent" {
+declare module "@reverse/agent" {
 	interface CustomAgentMessages {
 		bashExecution: BashExecutionMessage;
 		pythonExecution: PythonExecutionMessage;
@@ -14,7 +14,7 @@ declare module "@rva/agent" {
 		fileMention: FileMentionMessage;
 	}
 }
-export type { BranchSummaryMessage, CompactionSummaryMessage } from "@rva/agent/compaction/messages";
+export type { BranchSummaryMessage, CompactionSummaryMessage } from "@reverse/agent/compaction/messages";
 
 export const SKILL_PROMPT_MESSAGE_TYPE = "skill-prompt";
 

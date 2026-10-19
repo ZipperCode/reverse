@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { streamSimple } from "@rva/ai/stream";
-import type { Context, Model, SimpleStreamOptions } from "@rva/ai/types";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Context, Model, SimpleStreamOptions } from "@reverse/ai/types";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModel } from "@reverse/catalog/models";
 import { Type } from "@sinclair/typebox";
 
 const context: Context = {

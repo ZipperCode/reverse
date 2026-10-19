@@ -9,24 +9,24 @@
  * another memory store, a context reset, or a branch that edits the first prompt.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { HindsightApi } from "@rva/coding-agent/hindsight/client";
-import type { HindsightConfig } from "@rva/coding-agent/hindsight/config";
-import { HindsightSessionState } from "@rva/coding-agent/hindsight/state";
-import { MEMORY_RECALL_CHANGES_MESSAGE_TYPE } from "@rva/coding-agent/memory-backend/recall-entry";
-import type { MemoryPromptPreparation } from "@rva/coding-agent/memory-backend/types";
-import { mnemopiBackend } from "@rva/coding-agent/mnemopi/backend";
-import { loadMnemopiConfig } from "@rva/coding-agent/mnemopi/config";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { HindsightApi } from "@reverse/coding-agent/hindsight/client";
+import type { HindsightConfig } from "@reverse/coding-agent/hindsight/config";
+import { HindsightSessionState } from "@reverse/coding-agent/hindsight/state";
+import { MEMORY_RECALL_CHANGES_MESSAGE_TYPE } from "@reverse/coding-agent/memory-backend/recall-entry";
+import type { MemoryPromptPreparation } from "@reverse/coding-agent/memory-backend/types";
+import { mnemopiBackend } from "@reverse/coding-agent/mnemopi/backend";
+import { loadMnemopiConfig } from "@reverse/coding-agent/mnemopi/config";
 import {
 	getMnemopiSessionState,
 	loadMnemopi,
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@rva/coding-agent/mnemopi/state";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { clipRecallContent } from "@rva/mnemopi";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/mnemopi/state";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { clipRecallContent } from "@reverse/mnemopi";
+import { TempDir } from "@reverse/utils";
 
 // Mnemopi is lazy-loaded at runtime; preload it for synchronous state construction.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);

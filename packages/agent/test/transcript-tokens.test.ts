@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { Tokenizer } from "@rva/agent";
+import { Tokenizer } from "@reverse/agent";
 import {
 	estimateTranscriptTokens,
 	findTranscriptUsageAnchor,
 	isTranscriptUsageAnchor,
-} from "@rva/agent/compaction";
-import type { AgentMessage } from "@rva/agent/types";
-import type { AssistantMessage, Usage } from "@rva/ai";
+} from "@reverse/agent/compaction";
+import type { AgentMessage } from "@reverse/agent/types";
+import type { AssistantMessage, Usage } from "@reverse/ai";
 
 const tokenizer = new Tokenizer();
 

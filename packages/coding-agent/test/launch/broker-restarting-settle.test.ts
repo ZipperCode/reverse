@@ -6,12 +6,12 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Process } from "@rva/natives";
-import { TempDir } from "@rva/utils";
+import { Process } from "@reverse/natives";
+import { TempDir } from "@reverse/utils";
 import { type DaemonBrokerStartOptions, startDaemonBrokerFromEnvironment } from "../../src/launch/broker";
 import { createDaemonBrokerClient, type DaemonBrokerClient } from "../../src/launch/client";
 import { DAEMON_IDLE_GRACE_ENV, DAEMON_PROJECT_DIR_ENV, DAEMON_RUNTIME_DIR_ENV } from "../../src/launch/protocol";
-import { type DaemonSnapshot } from "@rva/tui/tools/daemon";
+import { type DaemonSnapshot } from "@reverse/tui/tools/daemon";
 
 const RESTART_BACKOFF_BASE_MS = 250;
 const INITIAL_RESTART_DELAY_MS = RESTART_BACKOFF_BASE_MS * 2;

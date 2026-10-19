@@ -9,9 +9,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@rva/catalog/build";
-import { readModelCache, writeModelCache } from "@rva/catalog/model-cache";
-import type { Model } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { readModelCache, writeModelCache } from "@reverse/catalog/model-cache";
+import type { Model } from "@reverse/catalog/types";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const TTL_MS = 24 * 60 * 60 * 1000;

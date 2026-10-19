@@ -11,12 +11,12 @@
  */
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
-import { parseArgs, type Args } from "@rva/coding-agent/cli/args";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { runRootCommand } from "@rva/coding-agent/main";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { TempDir, postmortem } from "@rva/utils";
+import { parseArgs, type Args } from "@reverse/coding-agent/cli/args";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { runRootCommand } from "@reverse/coding-agent/main";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { TempDir, postmortem } from "@reverse/utils";
 import type { AgentSession } from "../src/session/agent-session";
 import { SessionManager } from "../src/session/session-manager";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Process } from "@rva/natives";
+import { Process } from "@reverse/natives";
 
 const FIXTURE = path.join(import.meta.dir, "fixtures", "parent-watchdog-orphan.ts");
 

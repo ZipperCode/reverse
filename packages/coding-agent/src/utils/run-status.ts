@@ -9,9 +9,9 @@
  * the full status. omp only writes the root record; teardown and opting out
  * send `state=clear` so no stale record outlives the session.
  */
-import { writeTerminalSequence } from "@rva/tui";
-import { truncateLineBytes } from "@rva/tui/tools/streaming-output";
-import { APP_NAME, isTerminalHeadless, sanitizeText } from "@rva/utils";
+import { writeTerminalSequence } from "@reverse/tui";
+import { truncateLineBytes } from "@reverse/tui/tools/streaming-output";
+import { APP_NAME, isTerminalHeadless, sanitizeText } from "@reverse/utils";
 import { setTerminalTitleState, type TerminalTitleState } from "./title-generator";
 
 /** What a blocked run waits on: an approval prompt or an `ask` question. */

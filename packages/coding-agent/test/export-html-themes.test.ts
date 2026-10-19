@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { generateThemeStyles, generateThemeVars, parseExportArgs } from "@rva/coding-agent/export/html";
+import { generateThemeStyles, generateThemeVars, parseExportArgs } from "@reverse/coding-agent/export/html";
 
 describe("HTML export themes", () => {
 	it("bundles dark, light, and auto-following web themes", async () => {

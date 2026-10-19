@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { countUserTurns, extractMessages } from "@rva/coding-agent/hindsight/transcript";
-import { stripImagesFromMessage } from "@rva/coding-agent/session/messages";
-import type { SessionMessageEntry } from "@rva/coding-agent/session/session-entries";
+import type { AgentMessage } from "@reverse/agent";
+import { countUserTurns, extractMessages } from "@reverse/coding-agent/hindsight/transcript";
+import { stripImagesFromMessage } from "@reverse/coding-agent/session/messages";
+import type { SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
 
 describe("countUserTurns", () => {
 	it("recounts a user message after its images are stripped in place", () => {

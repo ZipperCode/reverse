@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { BeamMemory } from "@rva/mnemopi/core/beam";
-import { storeFactStrings } from "@rva/mnemopi/core/beam/consolidate";
+import { BeamMemory } from "@reverse/mnemopi/core/beam";
+import { storeFactStrings } from "@reverse/mnemopi/core/beam/consolidate";
 
 type TestBeam = BeamMemory;
 

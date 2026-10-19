@@ -1,15 +1,9 @@
 import { clearSubmittedText } from "./helpers/draft";
-import { Spacer } from "@rva/tui";
-import { APP_NAME, formatAge } from "@rva/utils";
-import { formatKeyHint } from "@rva/tui/app-keybindings";
+import { formatKeyHint } from "@reverse/tui/app-keybindings";
 import { settings } from "../config/settings";
 import { parseExportArgs } from "../export/html/args";
-import { theme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "../modes/types";
-import { sanitizeDisplayLine } from "@rva/tui/overlays/extensions/display-text";
-import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "@rva/tui/overlays/copy-targets";
+import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "@reverse/tui/overlays/copy-targets";
 import { restartBrowserForModeChange } from "../tools/browser";
-import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@rva/tui/render/render-utils";
 import { openPath } from "../utils/open";
 import { copyToClipboard } from "../utils/clipboard";
 import { refreshStatusLine } from "./builtin-modes";
@@ -174,7 +168,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			try {
 				// Lazy: the stats dashboard (server + sqlite) loads on demand only,
 				// matching src/cli/stats-cli.ts, to keep CLI startup fast.
-				const { formatStatsDashboardUrl, startServer } = await import("@rva/stats");
+				const { formatStatsDashboardUrl, startServer } = await import("@reverse/stats");
 				const { hostname, port } = await startServer();
 				const url = `${formatStatsDashboardUrl(hostname, port)}/#/traces?s=${encodeURIComponent(sessionFile)}`;
 				await runtime.output(url);

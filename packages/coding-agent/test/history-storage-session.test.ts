@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { HistoryStorage } from "@rva/coding-agent/session/history-storage";
-import { TempDir } from "@rva/utils";
+import { HistoryStorage } from "@reverse/coding-agent/session/history-storage";
+import { TempDir } from "@reverse/utils";
 
 let tempDir: TempDir | null = null;
 

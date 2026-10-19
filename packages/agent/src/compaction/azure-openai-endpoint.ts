@@ -1,5 +1,5 @@
-import type { Model } from "@rva/ai";
-import { $env } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import { $env } from "@reverse/utils";
 
 const DEFAULT_AZURE_API_VERSION = "v1";
 

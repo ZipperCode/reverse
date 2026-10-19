@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as vm from "node:vm";
-import { OAuthCallbackFlow } from "@rva/ai/registry/oauth/callback-server";
-import type { OAuthAuthInfo, OAuthCredentials } from "@rva/ai/registry/oauth/types";
-import { parseHTML } from "@rva/utils/dom";
+import { OAuthCallbackFlow } from "@reverse/ai/registry/oauth/callback-server";
+import type { OAuthAuthInfo, OAuthCredentials } from "@reverse/ai/registry/oauth/types";
+import { parseHTML } from "@reverse/utils/dom";
 
 /**
  * Regression harness for #4418 — the `/launch` route the callback server hosts

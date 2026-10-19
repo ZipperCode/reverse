@@ -1,10 +1,10 @@
-import { TERMINAL } from "@rva/tui";
-import { isNativeRendering } from "@rva/tui/native/state";
-import { resolveEffectiveLocale, type SupportedLocale } from "@rva/utils/i18n";
-import { TUI_TRANSLATIONS_ZH_CN } from "@rva/tui/i18n/zh-CN";
+import { TERMINAL } from "@reverse/tui";
+import { isNativeRendering } from "@reverse/tui/native/state";
+import { resolveEffectiveLocale, type SupportedLocale } from "@reverse/utils/i18n";
+import { TUI_TRANSLATIONS_ZH_CN } from "@reverse/tui/i18n/zh-CN";
 import { SETTING_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/settings";
 import { cfgLanguage, cfgTuiVimMode } from "../modes/settings";
-import { SETTING_TABS, type SettingsDisplayEntry, type SettingsHost } from "@rva/tui/overlays/settings-defs";
+import { SETTING_TABS, type SettingsDisplayEntry, type SettingsHost } from "@reverse/tui/overlays/settings-defs";
 import { isSettingsInitialized, Settings, settings } from "./settings";
 import { orderedSettings } from "./all-settings";
 import { type AnySetting, lookup } from "./registry";
@@ -62,7 +62,6 @@ function envNote(setting: AnySetting, locale: SupportedLocale): string {
  * is never pre-filled or written to config); descriptions note an active environment variable.
  */
 export function createSettingsHost(): SettingsHost {
-	const entries: SettingsDisplayEntry[] = [];
 	const resolveLanguage = (): SupportedLocale => {
 		const raw = isSettingsInitialized() ? cfgLanguage.get(settings) : undefined;
 		return resolveEffectiveLocale(raw);

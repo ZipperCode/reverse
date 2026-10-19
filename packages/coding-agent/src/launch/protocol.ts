@@ -4,7 +4,7 @@ import {
 	type DaemonReadySpec,
 	type DaemonSpec,
 	type DaemonSnapshot,
-} from "@rva/tui/tools/daemon";
+} from "@reverse/tui/tools/daemon";
 /**
  * Cross-process daemon broker protocol shared by the tool, client, and broker.
  */

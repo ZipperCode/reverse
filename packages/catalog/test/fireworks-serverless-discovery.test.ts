@@ -9,10 +9,10 @@
  * surface automatically with no catalog edits.
  */
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { fireworksModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { fireworksModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@reverse/catalog/types";
 
 function jsonResponse(body: unknown): Response {
 	return new Response(JSON.stringify(body), {

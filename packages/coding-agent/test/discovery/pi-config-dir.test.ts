@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { LoadContext } from "@rva/coding-agent/capability/types";
-import { getConfigDirs } from "@rva/coding-agent/config";
-import { resolveClaudePaths } from "@rva/coding-agent/config/claude-paths";
-import { getUserPath } from "@rva/coding-agent/discovery/helpers";
-import { getAgentDir } from "@rva/utils";
+import type { LoadContext } from "@reverse/coding-agent/capability/types";
+import { getConfigDirs } from "@reverse/coding-agent/config";
+import { resolveClaudePaths } from "@reverse/coding-agent/config/claude-paths";
+import { getUserPath } from "@reverse/coding-agent/discovery/helpers";
+import { getAgentDir } from "@reverse/utils";
 
 describe("REVERSE_CONFIG_DIR", () => {
 	const original = process.env.REVERSE_CONFIG_DIR;

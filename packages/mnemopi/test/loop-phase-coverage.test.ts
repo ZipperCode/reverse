@@ -1,8 +1,8 @@
 import { Database, type Statement } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { Mnemopi } from "@rva/mnemopi/core/memory";
-import { resetEmbeddingProviderForTests, setEmbeddingProviderForTests } from "@rva/mnemopi/core/embeddings";
-import { currentLoopPhase, TempDir } from "@rva/utils";
+import { Mnemopi } from "@reverse/mnemopi/core/memory";
+import { resetEmbeddingProviderForTests, setEmbeddingProviderForTests } from "@reverse/mnemopi/core/embeddings";
+import { currentLoopPhase, TempDir } from "@reverse/utils";
 
 let checking = false;
 let monitoredExecutions = 0;

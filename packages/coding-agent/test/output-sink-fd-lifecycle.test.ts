@@ -2,12 +2,12 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getThemeByName } from "@rva/tui/theme";
-import { OutputSink } from "@rva/tui/tools/streaming-output";
-import { bashToolRenderer } from "@rva/tui/tools/bash";
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
-import { outputMeta } from "@rva/coding-agent/tools/output-meta";
-import { removeWithRetries, sanitizeText } from "@rva/utils";
+import { getThemeByName } from "@reverse/tui/theme";
+import { OutputSink } from "@reverse/tui/tools/streaming-output";
+import { bashToolRenderer } from "@reverse/tui/tools/bash";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
+import { outputMeta } from "@reverse/coding-agent/tools/output-meta";
+import { removeWithRetries, sanitizeText } from "@reverse/utils";
 
 const createdTempDirs: string[] = [];
 

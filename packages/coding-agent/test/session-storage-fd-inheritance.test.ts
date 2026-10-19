@@ -21,9 +21,9 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Shell } from "@rva/natives";
-import { RotatingFileSink } from "@rva/utils/logger/rotating-file";
-import { removeWithRetries } from "@rva/utils";
+import { Shell } from "@reverse/natives";
+import { RotatingFileSink } from "@reverse/utils/logger/rotating-file";
+import { removeWithRetries } from "@reverse/utils";
 import { FileSessionStorage } from "../src/session/session-storage";
 
 const ROOTS: string[] = [];

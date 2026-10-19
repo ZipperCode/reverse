@@ -6,27 +6,27 @@
  * target identical to the starting model).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { Model } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { LoadExtensionsResult } from "@rva/coding-agent/extensibility/extensions/types";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@rva/coding-agent/session/agent-session";
-import { TaskTool } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import { runSubprocess } from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { SingleResult } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
+import type { Model } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { LoadExtensionsResult } from "@reverse/coding-agent/extensibility/extensions/types";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@reverse/coding-agent/session/agent-session";
+import { TaskTool } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import { runSubprocess } from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { SingleResult } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
-import { cfgTaskAgentPrewalk, cfgTaskPrewalk } from "@rva/coding-agent/task/settings";
+import { cfgTaskAgentPrewalk, cfgTaskPrewalk } from "@reverse/coding-agent/task/settings";
 
 function yieldEmittingSession(
 	initialTools: string[] = ["read", "yield"],

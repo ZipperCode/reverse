@@ -1,16 +1,16 @@
-import type { Api, Model, ModelSpec, RemoteCompactionConfig } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getVariantAliasSources, resolveVariantSelector } from "@rva/catalog/compat/collapse";
+import type { Api, Model, ModelSpec, RemoteCompactionConfig } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getVariantAliasSources, resolveVariantSelector } from "@reverse/catalog/compat/collapse";
 import {
 	getBundledModelReferenceIndex,
 	inheritReferenceThinking,
 	resolveModelReference,
-} from "@rva/catalog/identity";
-import { runnerApiKind } from "@rva/catalog/types";
-import { logger } from "@rva/utils";
+} from "@reverse/catalog/identity";
+import { runnerApiKind } from "@reverse/catalog/types";
+import { logger } from "@reverse/utils";
 import { type ConfigHeaderResolver, type ConfigHeaderSource, createConfigHeaderResolver } from "./resolve-config-value";
 import { type ModelPatch, mergeCompat, mergeRemoteCompactionConfig } from "./model-patch";
-import { parseModelString } from "@rva/tui/overlays/model-selector";
+import { parseModelString } from "@reverse/tui/overlays/model-selector";
 import type { ModelOverride, ProviderAuthMode } from "./models-config-schema";
 export interface CustomModelDefinitionLike extends ModelPatch {
 	id: string;

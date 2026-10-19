@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { handleToolCall, TOOLS } from "@rva/mnemopi/mcp-tools";
+import { handleToolCall, TOOLS } from "@reverse/mnemopi/mcp-tools";
 
 let dataDir: string;
 

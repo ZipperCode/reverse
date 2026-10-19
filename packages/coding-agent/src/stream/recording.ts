@@ -21,8 +21,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { TUI } from "@rva/tui";
-import { isEnoent } from "@rva/utils";
+import type { TUI } from "@reverse/tui";
+import { isEnoent } from "@reverse/utils";
 import { STREAM_FLUSH_INTERVAL_MS, StreamPaintEncoder } from "./paint-encoder";
 import { isDimension, isSessionFrame, type StreamScreenFrame } from "./protocol";
 import type { StreamRedactor } from "./redactor";

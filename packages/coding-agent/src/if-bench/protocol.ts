@@ -7,8 +7,8 @@
  * The cat directive rotates through the start, middle, and end of the user turn
  * so a model cannot succeed by only attending to the prompt's edges.
  */
-import { prompt } from "@rva/utils";
-import type { IfBenchFailure } from "@rva/tui/apps/if-bench-board";
+import { prompt } from "@reverse/utils";
+import type { IfBenchFailure } from "@reverse/tui/apps/if-bench-board";
 import type { Action } from "./actions";
 import { encodeAction } from "./actions";
 import catDirectiveTemplate from "./prompts/cat-directive.md" with { type: "text" };

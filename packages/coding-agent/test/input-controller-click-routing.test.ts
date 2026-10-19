@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { PINNED_HUD_TOGGLE_ID } from "@rva/tui/prompt/composer";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { SpaceHoldGesture } from "@rva/tui/space-hold";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { PINNED_HUD_TOGGLE_ID } from "@reverse/tui/prompt/composer";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { SpaceHoldGesture } from "@reverse/tui/space-hold";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 
-import { cfgTuiMouse } from "@rva/coding-agent/modes/settings";
+import { cfgTuiMouse } from "@reverse/coding-agent/modes/settings";
 
 const ESC = String.fromCharCode(27);
 // SGR click on viewport row 2 (1-based y=3): the pinned expander row when the

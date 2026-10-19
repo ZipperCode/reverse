@@ -16,7 +16,7 @@
  * const { accepted } = await pump.finish(); // after the terminal event
  * ```
  */
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { LiveSteering, UserMessage } from "../../types";
 import type { InputItem } from "./request-transformer";
 

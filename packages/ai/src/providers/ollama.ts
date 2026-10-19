@@ -1,5 +1,5 @@
-import { calculateCost } from "@rva/catalog/models";
-import { fetchWithRetry, parseStreamingJson, readJsonl } from "@rva/utils";
+import { calculateCost } from "@reverse/catalog/models";
+import { fetchWithRetry, parseStreamingJson, readJsonl } from "@reverse/utils";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";
 import { getEnvApiKey } from "../env-api-key";

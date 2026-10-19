@@ -1,8 +1,8 @@
 import { afterEach, expect, test, vi } from "bun:test";
-import { AuthStorage, REMOTE_REFRESH_SENTINEL } from "@rva/ai";
-import { AuthBrokerClient, RemoteAuthCredentialStore } from "@rva/ai/auth-broker";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import type { UsageReport } from "@rva/ai/usage";
+import { AuthStorage, REMOTE_REFRESH_SENTINEL } from "@reverse/ai";
+import { AuthBrokerClient, RemoteAuthCredentialStore } from "@reverse/ai/auth-broker";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import type { UsageReport } from "@reverse/ai/usage";
 
 afterEach(() => {
 	vi.restoreAllMocks();

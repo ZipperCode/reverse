@@ -2,18 +2,18 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { generateThemeVars } from "@rva/coding-agent/export/html";
-import { defaultThemes } from "@rva/tui/theme/defaults";
-import { createTheme, getBuiltinThemes } from "@rva/tui/theme/loader";
+import { generateThemeVars } from "@reverse/coding-agent/export/html";
+import { defaultThemes } from "@reverse/tui/theme/defaults";
+import { createTheme, getBuiltinThemes } from "@reverse/tui/theme/loader";
 import {
 	getEditorTheme,
 	getResolvedThemeColors,
 	getThemeByName,
 	isLightTheme,
 	setThemeInstance,
-} from "@rva/tui/theme";
-import { Editor } from "@rva/tui";
-import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@rva/utils";
+} from "@reverse/tui/theme";
+import { Editor } from "@reverse/tui";
+import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@reverse/utils";
 
 function createBaseThemes() {
 	const builtins = getBuiltinThemes();

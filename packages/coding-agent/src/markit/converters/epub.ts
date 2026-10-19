@@ -1,9 +1,9 @@
 // Adapted from markit-ai (MIT). See ../NOTICE.
 
-import { XMLParser } from "@rva/utils/xml";
+import { XMLParser } from "@reverse/utils/xml";
 import { createTurndown, normalizeTablesHtml } from "../../utils/turndown";
 import type { ConversionResult, Converter, StreamInfo } from "../types";
-import { ZipPackage } from "@rva/utils/ar";
+import { ZipPackage } from "@reverse/utils/ar";
 
 const EXTENSIONS = [".epub"];
 const MIMETYPES = ["application/epub", "application/epub+zip", "application/x-epub+zip"];

@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import {
 	createHandoffSummaryMessageComponent,
 	HandoffSummaryMessageComponent,
-} from "@rva/tui/chat/compaction-summary-message";
-import { initTheme } from "@rva/tui/theme";
-import type { CustomMessage } from "@rva/coding-agent/session/messages";
+} from "@reverse/tui/chat/compaction-summary-message";
+import { initTheme } from "@reverse/tui/theme";
+import type { CustomMessage } from "@reverse/coding-agent/session/messages";
 
 beforeAll(async () => {
 	resetSettingsForTest();

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { DescribeContext, NativeChild, NativeNode } from "@rva/tui/native/node";
-import { type LogoutAccount, LogoutAccountSelectorComponent } from "@rva/tui/overlays/logout-account-selector";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
+import type { DescribeContext, NativeChild, NativeNode } from "@reverse/tui/native/node";
+import { type LogoutAccount, LogoutAccountSelectorComponent } from "@reverse/tui/overlays/logout-account-selector";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 
 const DOWN = "\x1b[B";
 const genericCx: DescribeContext = {

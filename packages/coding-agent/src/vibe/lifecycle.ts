@@ -1,4 +1,4 @@
-import { type VibeCli } from "@rva/tui/tools/vibe";
+import { type VibeCli } from "@reverse/tui/tools/vibe";
 /**
  * Vibe session lifecycle vocabulary: the persisted `vibe-session-lifecycle`
  * custom-entry schema and its parser.

@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { getEditorTheme, initTheme } from "@rva/tui/theme";
-import { StdinBuffer } from "@rva/tui/stdin-buffer";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { getEditorTheme, initTheme } from "@reverse/tui/theme";
+import { StdinBuffer } from "@reverse/tui/stdin-buffer";
 
 /**
  * Regression for #3857.

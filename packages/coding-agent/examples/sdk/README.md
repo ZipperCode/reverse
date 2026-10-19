@@ -29,7 +29,7 @@ npx tsx examples/sdk/01-minimal.ts
 ## Quick Reference
 
 ```typescript
-import { getModel } from "@rva/ai";
+import { getModel } from "@reverse/ai";
 import {
 	AuthStorage,
 	createAgentSession,
@@ -47,7 +47,7 @@ import {
 	BUILTIN_TOOLS,
 	HIDDEN_TOOLS,
 	createTools,
-} from "@rva/coding-agent";
+} from "@reverse/coding-agent";
 
 // Auth and models setup
 const authStorage = discoverAuthStorage();

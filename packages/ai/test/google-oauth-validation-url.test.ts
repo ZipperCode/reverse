@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { googleGeminiCliProjectHook } from "@rva/ai/oauth/google-gemini-cli";
-import { extractGoogleValidationUrl } from "@rva/ai/utils/google-validation";
+import { googleGeminiCliProjectHook } from "@reverse/ai/oauth/google-gemini-cli";
+import { extractGoogleValidationUrl } from "@reverse/ai/utils/google-validation";
 
 const VALIDATION_URL = "https://accounts.google.com/signin/continue?sarp=1&scc=1&plt=AKgnsbtTOKEN";
 

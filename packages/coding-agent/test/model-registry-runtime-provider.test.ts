@@ -10,12 +10,12 @@ import {
 	type FetchImpl,
 	getCustomApi,
 	type Model,
-} from "@rva/ai";
-import { getOAuthProviders, unregisterOAuthProviders } from "@rva/ai/oauth";
-import type { OAuthCredentials } from "@rva/ai/oauth/types";
-import { ModelRegistry, type ProviderConfigInput } from "@rva/coding-agent/config/model-registry";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { logger, removeSyncWithRetries, Snowflake } from "@rva/utils";
+} from "@reverse/ai";
+import { getOAuthProviders, unregisterOAuthProviders } from "@reverse/ai/oauth";
+import type { OAuthCredentials } from "@reverse/ai/oauth/types";
+import { ModelRegistry, type ProviderConfigInput } from "@reverse/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { logger, removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 describe("ModelRegistry runtime provider registration", () => {
 	let tempDir: string;

@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { getProviderDefinition } from "@rva/ai/registry";
-import * as kimiOauth from "@rva/ai/registry/oauth/kimi";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import * as kimiOauth from "@reverse/ai/registry/oauth/kimi";
 import { removeWithRetries } from "../../utils/src/temp";
 
 afterEach(() => {

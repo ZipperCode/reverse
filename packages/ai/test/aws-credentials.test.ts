@@ -6,8 +6,8 @@ import {
 	clearAwsCredentialCache,
 	resolveAwsCredentials,
 	tokenizeCredentialProcessCommand,
-} from "@rva/ai/providers/aws-credentials";
-import type { FetchImpl } from "@rva/ai/types";
+} from "@reverse/ai/providers/aws-credentials";
+import type { FetchImpl } from "@reverse/ai/types";
 import { removeWithRetries } from "../../utils/src/temp";
 import { waitForDelayOrAbort } from "./helpers";
 

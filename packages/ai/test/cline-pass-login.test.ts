@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { FetchImpl } from "@rva/ai/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const loginClinePass = getProviderDefinition("cline-pass")?.login;
 if (!loginClinePass) throw new Error("ClinePass login is not registered");

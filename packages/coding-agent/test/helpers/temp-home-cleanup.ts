@@ -1,4 +1,4 @@
-import { removeSyncWithRetries } from "@rva/utils";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 export interface TempHomeState {
 	tempDir: string;

@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { describe, expect, it } from "bun:test";
-import { colorToAnsi, detectColorMode } from "@rva/tui/theme/color";
+import { colorToAnsi, detectColorMode } from "@reverse/tui/theme/color";
 
 describe("theme color mode", () => {
 	it("emits 256-color SGR for macOS Terminal.app", () => {

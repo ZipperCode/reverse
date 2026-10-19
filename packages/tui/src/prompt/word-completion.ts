@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { EditorTextAssistProvider } from "../components/editor";
 import { maskNonProse } from "./markdown-prose";
 import { isProseWord, lineContext, ProseSource } from "./prose-gate";

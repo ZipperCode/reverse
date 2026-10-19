@@ -1,4 +1,4 @@
-import { $env, $flag } from "@rva/utils";
+import { $env, $flag } from "@reverse/utils";
 import type { Model } from "../types";
 
 /** Read the optional process-wide Codex WebSocket override. */

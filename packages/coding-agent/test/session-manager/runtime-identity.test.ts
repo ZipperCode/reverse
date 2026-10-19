@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import * as runtimeIdentity from "@rva/coding-agent/session/runtime-identity";
-import type { SessionEntry } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import * as runtimeIdentity from "@reverse/coding-agent/session/runtime-identity";
+import type { SessionEntry } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 const BUILD_A: runtimeIdentity.RuntimeIdentity = { version: "1.0.0", commit: "a".repeat(40), branch: "will/a" };
 const BUILD_B: runtimeIdentity.RuntimeIdentity = { ...BUILD_A, diff: "beef" };

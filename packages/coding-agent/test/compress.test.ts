@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { resolveCliArgv } from "@rva/coding-agent/cli-commands";
-import { resolveCompressTargets, runCompressCommand } from "@rva/coding-agent/compress/index";
-import { CompressProtocol } from "@rva/coding-agent/compress/protocol";
+import { resolveCliArgv } from "@reverse/coding-agent/cli-commands";
+import { resolveCompressTargets, runCompressCommand } from "@reverse/coding-agent/compress/index";
+import { CompressProtocol } from "@reverse/coding-agent/compress/protocol";
 
 const SOURCE = "The timeout parameter defaults to thirty seconds when no value is supplied by the caller.";
 const PACKAGE_ROOT = path.join(import.meta.dir, "..");

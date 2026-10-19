@@ -1,4 +1,4 @@
-import { ThinkingLevel } from "@rva/agent/thinking";
+import { ThinkingLevel } from "@reverse/agent/thinking";
 import { AUTO_THINKING, type ConfiguredThinkingLevel, parseThinkingLevel } from "../thinking";
 
 /** Opt-in selectors that can otherwise be literal model-id suffixes. */

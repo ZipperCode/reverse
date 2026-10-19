@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { PROVIDER_DESCRIPTORS } from "@rva/catalog/provider-models";
+import { PROVIDER_DESCRIPTORS } from "@reverse/catalog/provider-models";
 
 describe("catalog provider descriptors", () => {
 	test("every descriptor has a default model and a factory that preserves provider identity", () => {

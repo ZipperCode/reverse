@@ -1,11 +1,11 @@
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, prompt } from "@rva/utils";
+import { CONFIG_DIR_NAME, prompt } from "@reverse/utils";
 import { invalidate as invalidateCapabilityCache } from "../../capability";
 import type { Rule } from "../../capability/rule";
 import omfgUserPrompt from "../../prompts/system/omfg-user.md" with { type: "text" };
 import { TtsrToolInspector } from "../../session/ttsr-outputs";
-import { shortenPath } from "@rva/tui/render/render-utils";
-import { OmfgPanelComponent } from "@rva/tui/overlays/omfg-panel";
+import { shortenPath } from "@reverse/tui/render/render-utils";
+import { OmfgPanelComponent } from "@reverse/tui/overlays/omfg-panel";
 import type { InteractiveModeContext } from "../types";
 import {
 	buildOmfgRuleForPath,

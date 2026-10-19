@@ -1,11 +1,11 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { Text } from "@rva/tui";
-import { TempDir } from "@rva/utils";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { Text } from "@reverse/tui";
+import { TempDir } from "@reverse/utils";
 
 type Harness = {
 	mode: InteractiveMode;

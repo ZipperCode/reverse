@@ -2,8 +2,8 @@
  * Draw a session's entire thread through the production transcript pipeline.
  */
 
-import { postmortem } from "@rva/utils";
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { postmortem } from "@reverse/utils";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { renderHelp as commandHelp } from "../cli/command-help";
 import { runRenderCommand } from "../cli/render-cli";
 import { CliUsageError } from "../cli/usage-error";

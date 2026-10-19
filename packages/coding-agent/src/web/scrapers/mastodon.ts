@@ -1,4 +1,4 @@
-import { tryParseJson, untilAborted } from "@rva/utils";
+import { tryParseJson, untilAborted } from "@reverse/utils";
 import type { LoadPageResult, RenderResult, SpecialHandler } from "./types";
 import { buildResult, formatNumber, htmlToBasicMarkdown, loadPage } from "./types";
 import { isConclusiveProbeStatus, PlatformProbeCache } from "./utils";

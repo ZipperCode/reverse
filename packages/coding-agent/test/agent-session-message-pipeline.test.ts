@@ -6,7 +6,7 @@ import {
 	AppendOnlyContextManager,
 	type StreamFn,
 	ThinkingLevel,
-} from "@rva/agent";
+} from "@reverse/agent";
 import {
 	type Api,
 	type Context,
@@ -19,34 +19,34 @@ import {
 	type SimpleStreamOptions,
 	type TextContent,
 	type ToolCall,
-} from "@rva/ai";
-import { streamSimple } from "@rva/ai/stream";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@rva/coding-agent/extensibility/extensions/loader";
+} from "@reverse/ai";
+import { streamSimple } from "@reverse/ai/stream";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
 import {
 	ExtensionRunner,
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
-} from "@rva/coding-agent/extensibility/extensions/runner";
-import { RegisteredToolAdapter } from "@rva/coding-agent/extensibility/extensions/wrapper";
-import { initializeExtensions } from "@rva/coding-agent/modes/runtime-init";
-import * as memoryBackend from "@rva/coding-agent/memory-backend";
-import { MEMORY_RECALL_CHANGES_MESSAGE_TYPE } from "@rva/coding-agent/memory-backend/recall-entry";
-import type { MemoryBackend } from "@rva/coding-agent/memory-backend/types";
-import { type MnemopiSessionState, setMnemopiSessionState } from "@rva/coding-agent/mnemopi/state";
-import { createAgentSession, type ExtensionContext, type ExtensionFactory } from "@rva/coding-agent/sdk";
-import { obfuscateProviderContext, SecretObfuscator } from "@rva/coding-agent/secrets";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm, wrapSteeringForModel } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/extensions/runner";
+import { RegisteredToolAdapter } from "@reverse/coding-agent/extensibility/extensions/wrapper";
+import { initializeExtensions } from "@reverse/coding-agent/modes/runtime-init";
+import * as memoryBackend from "@reverse/coding-agent/memory-backend";
+import { MEMORY_RECALL_CHANGES_MESSAGE_TYPE } from "@reverse/coding-agent/memory-backend/recall-entry";
+import type { MemoryBackend } from "@reverse/coding-agent/memory-backend/types";
+import { type MnemopiSessionState, setMnemopiSessionState } from "@reverse/coding-agent/mnemopi/state";
+import { createAgentSession, type ExtensionContext, type ExtensionFactory } from "@reverse/coding-agent/sdk";
+import { obfuscateProviderContext, SecretObfuscator } from "@reverse/coding-agent/secrets";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm, wrapSteeringForModel } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 function createAgent(): Agent {

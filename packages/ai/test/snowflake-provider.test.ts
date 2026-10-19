@@ -1,14 +1,14 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import * as AIError from "@rva/ai/error";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { getOAuthApiKey } from "@rva/ai/registry/oauth";
-import { loginSnowflake, refreshSnowflakeToken } from "@rva/ai/registry/oauth/snowflake";
-import type { OAuthController, OAuthCredentials } from "@rva/ai/registry/oauth/types";
-import { normalizeSnowflakeAccountUrl } from "@rva/ai/registry/snowflake";
-import { stream } from "@rva/ai/stream";
-import type { Context, FetchImpl } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import * as AIError from "@reverse/ai/error";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { getOAuthApiKey } from "@reverse/ai/registry/oauth";
+import { loginSnowflake, refreshSnowflakeToken } from "@reverse/ai/registry/oauth/snowflake";
+import type { OAuthController, OAuthCredentials } from "@reverse/ai/registry/oauth/types";
+import { normalizeSnowflakeAccountUrl } from "@reverse/ai/registry/snowflake";
+import { stream } from "@reverse/ai/stream";
+import type { Context, FetchImpl } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 import { withEnv } from "./helpers";
 
 const ACCOUNT = "https://myorg-acct.snowflakecomputing.com";

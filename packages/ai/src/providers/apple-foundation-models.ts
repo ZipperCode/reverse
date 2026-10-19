@@ -9,9 +9,9 @@
  * Tool calls are returned, not executed, so the agent loop runs them and
  * resumes by sending their outputs in the next request.
  */
-import type { Effort } from "@rva/catalog/effort";
-import { appleFmAvailability, appleFmCancel, appleFmGenerate } from "@rva/natives";
-import { parseStreamingJsonThrottled } from "@rva/utils";
+import type { Effort } from "@reverse/catalog/effort";
+import { appleFmAvailability, appleFmCancel, appleFmGenerate } from "@reverse/natives";
+import { parseStreamingJsonThrottled } from "@reverse/utils";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";
 import type {

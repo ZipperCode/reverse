@@ -1,4 +1,4 @@
-import { stringifyJson as stringifyJsonValue } from "@rva/utils";
+import { stringifyJson as stringifyJsonValue } from "@reverse/utils";
 import type { AssistantMessage, Message, ToolCall, ToolResultMessage } from "../types";
 import { buildArgShapes, type ToolArgShape } from "./coercion";
 import type { DialectRenderOptions, DialectToolResult } from "./types";

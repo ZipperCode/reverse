@@ -10,7 +10,7 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import { logger, ptree } from "@rva/utils";
+import { logger, ptree } from "@reverse/utils";
 import { daemonClientForProject } from "../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../launch/ensure";
 import { daemonRuntimeDir } from "../launch/paths";

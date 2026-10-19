@@ -1,5 +1,5 @@
-import type { Api, AuthStorage, FetchImpl, Model } from "@rva/ai";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
+import type { Api, AuthStorage, FetchImpl, Model } from "@reverse/ai";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
 import type { ModelRegistry } from "../../../config/model-registry";
 import type { StructuredQuery } from "../query";
 import type { SearchProviderId, SearchResponse } from "../types";

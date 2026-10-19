@@ -8,10 +8,10 @@ import {
 	type AgentToolUpdateCallback,
 	isNonBlankContext,
 	type ToolLoadMode,
-} from "@rva/agent";
-import type { ComputerSafetyCheck, ImageContent, Static, TextContent, TSchema } from "@rva/ai";
-import { prompt, sanitizeText, untilAborted } from "@rva/utils";
-import type { Theme } from "@rva/tui/theme";
+} from "@reverse/agent";
+import type { ComputerSafetyCheck, ImageContent, Static, TextContent, TSchema } from "@reverse/ai";
+import { prompt, sanitizeText, untilAborted } from "@reverse/utils";
+import type { Theme } from "@reverse/tui/theme";
 import nativeDelegationTemplate from "../../prompts/tools/native-delegation.md" with { type: "text" };
 import {
 	denyError,

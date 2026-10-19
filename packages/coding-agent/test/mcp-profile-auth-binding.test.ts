@@ -10,13 +10,13 @@
  */
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import { removeManagedMcpOAuthCredential } from "@rva/coding-agent/mcp/oauth-credentials";
-import * as oauthFlow from "@rva/coding-agent/mcp/oauth-flow";
-import { mcpOAuthCredentialId } from "@rva/coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@rva/coding-agent/mcp/types";
-import { getActiveProfile, setProfile } from "@rva/utils/dirs";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import { removeManagedMcpOAuthCredential } from "@reverse/coding-agent/mcp/oauth-credentials";
+import * as oauthFlow from "@reverse/coding-agent/mcp/oauth-flow";
+import { mcpOAuthCredentialId } from "@reverse/coding-agent/mcp/oauth-flow";
+import type { MCPServerConfig } from "@reverse/coding-agent/mcp/types";
+import { getActiveProfile, setProfile } from "@reverse/utils/dirs";
 
 const SERVER_URL = "https://mcp.example.com/mcp";
 const URL_KEY_ID = mcpOAuthCredentialId(SERVER_URL);

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { processFileArguments } from "@rva/coding-agent/cli/file-processor";
-import { removeSyncWithRetries } from "@rva/utils";
+import { processFileArguments } from "@reverse/coding-agent/cli/file-processor";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 // 1x1 red PNG image as base64 (smallest valid PNG)
 const TINY_PNG_BASE64 =

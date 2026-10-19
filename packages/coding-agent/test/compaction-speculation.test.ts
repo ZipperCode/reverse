@@ -1,19 +1,19 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import type { AssistantMessage, Context, Model, UserMessage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { CompactionMethod } from "@rva/coding-agent/session/compaction-methods";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionMaintenance, type SessionMaintenanceHost } from "@rva/coding-agent/session/session-maintenance";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import * as snapcompactModule from "@rva/snapcompact";
+import { Agent, type AgentMessage } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { AssistantMessage, Context, Model, UserMessage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { CompactionMethod } from "@reverse/coding-agent/session/compaction-methods";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionMaintenance, type SessionMaintenanceHost } from "@reverse/coding-agent/session/session-maintenance";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import * as snapcompactModule from "@reverse/snapcompact";
 
-import { cfgCompactionMethodOrder } from "@rva/coding-agent/session/context-settings";
+import { cfgCompactionMethodOrder } from "@reverse/coding-agent/session/context-settings";
 
 const CONTEXT_WINDOW = 100_000;
 const THRESHOLD = 50_000;

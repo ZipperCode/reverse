@@ -5,8 +5,8 @@
  * (see `cli/completion-gen.ts`), so it never drifts from the actual CLI surface.
  */
 
-import { APP_NAME, postmortem, VERSION } from "@rva/utils";
-import { Args, type CliConfig, Command, type CommandCtor } from "@rva/utils/cli";
+import { APP_NAME, postmortem, VERSION } from "@reverse/utils";
+import { Args, type CliConfig, Command, type CommandCtor } from "@reverse/utils/cli";
 import { completionsHelp as commandHelp } from "../cli/command-help";
 import { buildSpec, generateCompletion, type Shell } from "../cli/completion-gen";
 import { commands } from "../cli-commands";

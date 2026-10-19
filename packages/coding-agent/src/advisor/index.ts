@@ -1,5 +1,5 @@
 export * from "./advise-tool";
-export type { AdvisorConfig, AdvisorConfigScope, WatchdogConfigDoc } from "@rva/tui/overlays/advisor-config";
+export type { AdvisorConfig, AdvisorConfigScope, WatchdogConfigDoc } from "@reverse/tui/overlays/advisor-config";
 export * from "./config";
 export * from "./emission-guard";
 export * from "./loop-guard";

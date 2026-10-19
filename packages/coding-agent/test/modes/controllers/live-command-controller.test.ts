@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { LiveSessionController } from "@rva/coding-agent/live/controller";
-import { LiveVisualizer } from "@rva/tui/apps/live-visualizer";
-import { LiveCommandController } from "@rva/coding-agent/modes/controllers/live-command-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { LiveSessionController } from "@reverse/coding-agent/live/controller";
+import { LiveVisualizer } from "@reverse/tui/apps/live-visualizer";
+import { LiveCommandController } from "@reverse/coding-agent/modes/controllers/live-command-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 /** Fake InteractiveModeContext plus typed capture channels for focus/mount traffic. */
 interface ContextHarness {

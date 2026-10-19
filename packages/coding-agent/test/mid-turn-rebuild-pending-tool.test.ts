@@ -13,19 +13,19 @@
  *    live region with a spinner that can never resolve.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, ToolResultMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@rva/coding-agent/session/session-context";
-import { TERMINAL } from "@rva/tui";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, ToolResultMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { SessionContext } from "@reverse/coding-agent/session/session-context";
+import { TERMINAL } from "@reverse/tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
-import { cfgTerminalShowImages } from "@rva/coding-agent/modes/settings";
+import { cfgTerminalShowImages } from "@reverse/coding-agent/modes/settings";
 
 const usage = {
 	input: 1,

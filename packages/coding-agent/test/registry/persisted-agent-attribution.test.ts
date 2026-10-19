@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { registerPersistedSubagents } from "@rva/coding-agent/registry/persisted-agents";
-import { TempDir } from "@rva/utils";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { registerPersistedSubagents } from "@reverse/coding-agent/registry/persisted-agents";
+import { TempDir } from "@reverse/utils";
 
 const SONNET = { provider: "anthropic", model: "claude-sonnet-5" };
 const SOL = { provider: "openai-codex", model: "gpt-5.6-sol" };

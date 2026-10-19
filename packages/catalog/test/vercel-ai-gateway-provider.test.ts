@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { vercelAiGatewayModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
+import { vercelAiGatewayModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
 
 describe("Vercel AI Gateway provider", () => {
 	test("caps meta/muse-spark-1.2-contributor output allowance to 131072 while preserving context window", async () => {

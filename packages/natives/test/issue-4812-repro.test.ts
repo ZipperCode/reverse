@@ -19,8 +19,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { validateLoadedBindings } from "../native/loader-state.js";
 
-const unusedCandidate =
-	"/home/u/.bun/install/global/node_modules/@rva/natives-linux-x64/pi_natives.linux-x64.node";
+const unusedCandidate = "/home/u/.bun/install/global/node_modules/@reverse/natives-linux-x64/pi_natives.linux-x64.node";
 
 async function withCandidate(contents: string, test: (candidate: string) => void) {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-natives-sentinel-"));

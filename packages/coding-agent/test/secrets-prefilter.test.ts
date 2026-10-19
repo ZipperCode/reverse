@@ -8,8 +8,8 @@
  * and the regex pass was the dominant synchronous cost in a long session.
  */
 import { describe, expect, it } from "bun:test";
-import { builtinCredentialSecretEntries } from "@rva/coding-agent/secrets";
-import { type SecretEntry, SecretObfuscator } from "@rva/coding-agent/secrets/obfuscator";
+import { builtinCredentialSecretEntries } from "@reverse/coding-agent/secrets";
+import { type SecretEntry, SecretObfuscator } from "@reverse/coding-agent/secrets/obfuscator";
 
 const KEY = "prefilter-test-key";
 

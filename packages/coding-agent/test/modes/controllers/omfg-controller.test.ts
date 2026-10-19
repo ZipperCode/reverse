@@ -2,15 +2,15 @@ import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:t
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, Usage } from "@rva/ai";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { OmfgController } from "@rva/coding-agent/modes/controllers/omfg-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { Container, type TUI } from "@rva/tui";
-import { CONFIG_DIR_NAME, removeWithRetries } from "@rva/utils";
-import { clearCache, readDirEntries } from "@rva/coding-agent/capability/fs";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, Usage } from "@reverse/ai";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { OmfgController } from "@reverse/coding-agent/modes/controllers/omfg-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { Container, type TUI } from "@reverse/tui";
+import { CONFIG_DIR_NAME, removeWithRetries } from "@reverse/utils";
+import { clearCache, readDirEntries } from "@reverse/coding-agent/capability/fs";
 
 const PROJECT_OPTION = "This project (.omp/rules)";
 
@@ -175,7 +175,9 @@ describe("OmfgController", () => {
 		expect(harness.container.children).toHaveLength(0);
 		expect(signal?.aborted).toBe(true);
 		expect(controller.hasActiveRequest()).toBe(false);
-		expect(await Bun.file(path.join(harness.projectDir, CONFIG_DIR_NAME, "rules", "ts-no-any.md")).exists()).toBe(false);
+		expect(await Bun.file(path.join(harness.projectDir, CONFIG_DIR_NAME, "rules", "ts-no-any.md")).exists()).toBe(
+			false,
+		);
 	});
 
 	it("invalidates the discovery cache after saving so rediscovery observes the new rule", async () => {

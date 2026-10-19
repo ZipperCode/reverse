@@ -5,7 +5,7 @@ import {
 	levenshteinDistance,
 	REGEX_EXTRACTION_MAX_INPUT_CHARS,
 	similarity,
-} from "@rva/mnemopi/core/entities";
+} from "@reverse/mnemopi/core/entities";
 
 describe("entity utilities", () => {
 	it("computes edit distance with empty and unicode strings", () => {

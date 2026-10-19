@@ -9,17 +9,17 @@
  * and binary files are staged whole.
  */
 import * as path from "node:path";
-import { judgeQuestions } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import type { VcsHunkSelection } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { isEnoent, logger } from "@rva/utils";
+import { judgeQuestions } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import type { VcsHunkSelection } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { isEnoent, logger } from "@reverse/utils";
 import { parseFileDiffs, parseFileHunks } from "../../commit/git/diff";
 import { openStandaloneJudge } from "../../judgment/standalone";
 import questionFile from "../../prompts/judge/git-stage.json" with { type: "json" };
 import { mapWithConcurrencyLimitAllSettled } from "../../task/parallel";
-import type { ChangedFile } from "@rva/tui/apps/git/state";
-import type { AiStageOutcome } from "@rva/tui/apps/git/git-tui";
+import type { ChangedFile } from "@reverse/tui/apps/git/state";
+import type { AiStageOutcome } from "@reverse/tui/apps/git/git-tui";
 
 /** Judgments in flight at once; System One requests are stateless, so the tree is classified as one wave. */
 const CONCURRENCY = 64;

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { ArtifactManager } from "@rva/coding-agent/session/artifacts";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { ArtifactManager } from "@reverse/coding-agent/session/artifacts";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 interface RetentionProbeResult {
 	baselineBytes: number;

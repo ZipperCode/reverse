@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { safeSend } from "@rva/coding-agent/utils/ipc";
+import { safeSend } from "@reverse/coding-agent/utils/ipc";
 
 /**
  * Contract for issue #2997: `safeSend` wraps `Subprocess.send()` so neither a

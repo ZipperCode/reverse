@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as BedrockProvider from "@rva/ai/providers/amazon-bedrock";
-import { setBedrockProviderModule, streamBedrock } from "@rva/ai/providers/register-builtins";
-import type { AssistantMessage, Context, Model } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { iterateWithIdleTimeout } from "@rva/ai/utils/idle-iterator";
-import { buildModel } from "@rva/catalog/build";
+import * as BedrockProvider from "@reverse/ai/providers/amazon-bedrock";
+import { setBedrockProviderModule, streamBedrock } from "@reverse/ai/providers/register-builtins";
+import type { AssistantMessage, Context, Model } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { iterateWithIdleTimeout } from "@reverse/ai/utils/idle-iterator";
+import { buildModel } from "@reverse/catalog/build";
 
 // Issue #4593: the generic lazy stream watchdog treats "no AssistantMessageEvent"
 // as "provider stalled". During a Cursor exec-channel round-trip the server is

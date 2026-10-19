@@ -1,13 +1,10 @@
-import {
-	getOAuthProviders as rootGetOAuthProviders,
-	refreshOAuthToken as rootRefreshOAuthToken,
-} from "@rva/ai";
+import { getOAuthProviders as rootGetOAuthProviders, refreshOAuthToken as rootRefreshOAuthToken } from "@reverse/ai";
 import {
 	getOAuthProviders as oauthGetOAuthProviders,
 	refreshOAuthToken as oauthRefreshOAuthToken,
-} from "@rva/ai/registry/oauth";
-import "@rva/ai/providers/anthropic";
-import "@rva/ai/auth-storage";
+} from "@reverse/ai/registry/oauth";
+import "@reverse/ai/providers/anthropic";
+import "@reverse/ai/auth-storage";
 
 const publicExports = [rootGetOAuthProviders, rootRefreshOAuthToken, oauthGetOAuthProviders, oauthRefreshOAuthToken];
 

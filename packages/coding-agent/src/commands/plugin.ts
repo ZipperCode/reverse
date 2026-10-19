@@ -2,10 +2,10 @@
  * Manage plugins (install, uninstall, list, etc.).
  */
 
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { pluginHelp as commandHelp } from "../cli/command-help";
 import { type PluginAction, type PluginCommandArgs, runPluginCommand } from "../cli/plugin-cli";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 const ACTIONS: PluginAction[] = [
 	"install",

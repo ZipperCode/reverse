@@ -28,9 +28,9 @@
  * serves them over HTTP behind bearer auth, `stdio.ts` over JSON lines.
  */
 
-import { Effort } from "@rva/catalog/effort";
-import { type ModelKind, modelKind } from "@rva/catalog/types";
-import { logger } from "@rva/utils";
+import { Effort } from "@reverse/catalog/effort";
+import { type ModelKind, modelKind } from "@reverse/catalog/types";
+import { logger } from "@reverse/utils";
 import { classifyGatewayError } from "../error/gateway";
 import * as anthropicMessages from "../providers/anthropic-messages-server";
 import * as openaiChat from "../providers/openai-chat-server";

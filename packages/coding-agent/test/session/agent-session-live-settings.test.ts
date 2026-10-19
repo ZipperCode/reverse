@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 import {
 	cfgIncludeWorkspaceTree,
@@ -17,11 +17,11 @@ import {
 	cfgTemperature,
 	cfgTierOpenai,
 	cfgTopP,
-} from "@rva/coding-agent/session/settings";
-import { cfgTtsrEnabled } from "@rva/coding-agent/export/ttsr-settings";
-import { cfgToolsFormat } from "@rva/coding-agent/session/context-settings";
-import { cfgInterruptMode } from "@rva/coding-agent/modes/settings";
-import { cfgSteeringMode } from "@rva/coding-agent/modes/settings";
+} from "@reverse/coding-agent/session/settings";
+import { cfgTtsrEnabled } from "@reverse/coding-agent/export/ttsr-settings";
+import { cfgToolsFormat } from "@reverse/coding-agent/session/context-settings";
+import { cfgInterruptMode } from "@reverse/coding-agent/modes/settings";
+import { cfgSteeringMode } from "@reverse/coding-agent/modes/settings";
 
 describe("AgentSession live settings", () => {
 	const tempDirs: string[] = [];

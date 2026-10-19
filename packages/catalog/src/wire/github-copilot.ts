@@ -4,7 +4,7 @@ import { isRecord } from "../utils";
 /**
  * GitHub Copilot wire metadata: API-key envelope parsing and endpoint
  * derivation shared by catalog discovery and the pi-ai OAuth flow. The device
- * login / token refresh flow lives in `@rva/ai`'s registry.
+ * login / token refresh flow lives in `@reverse/ai`'s registry.
  */
 
 const COPILOT_CLI_VERSION = "1.0.82";

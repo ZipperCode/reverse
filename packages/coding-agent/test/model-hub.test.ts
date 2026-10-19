@@ -4,26 +4,26 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { ThinkingLevel } from "@rva/agent";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import type { ModelKind } from "@rva/catalog/types";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { ThinkingLevel } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { ModelKind } from "@reverse/catalog/types";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	type ModelHubCallbacks,
 	ModelHubComponent,
 	type ModelHubOptions,
 	resetProviderAutoRefreshGuard,
-} from "@rva/tui/overlays/model-hub";
-import { getThemeByName, setThemeInstance, theme } from "@rva/tui/theme";
-import { AUTO_THINKING } from "@rva/tui/thinking";
-import type { TUI } from "@rva/tui";
+} from "@reverse/tui/overlays/model-hub";
+import { getThemeByName, setThemeInstance, theme } from "@reverse/tui/theme";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
+import type { TUI } from "@reverse/tui";
 
-import { cfgCycleOrder, cfgModelPresets } from "@rva/coding-agent/config/model-settings";
-import { cfgRetryFallbackChains } from "@rva/coding-agent/session/settings";
-import { CONFIG_DIR_NAME } from "@rva/utils/dirs";
+import { cfgCycleOrder, cfgModelPresets } from "@reverse/coding-agent/config/model-settings";
+import { cfgRetryFallbackChains } from "@reverse/coding-agent/session/settings";
+import { CONFIG_DIR_NAME } from "@reverse/utils/dirs";
 
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();

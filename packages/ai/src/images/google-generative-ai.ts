@@ -1,4 +1,4 @@
-import type { Model } from "@rva/catalog/types";
+import type { Model } from "@reverse/catalog/types";
 import { withAuth } from "../auth-retry";
 import * as AIError from "../error";
 import { errorMessage, ImageApiError, imageBaseUrl, modelHeaders, usageFromWire, validateImageInput } from "./shared";

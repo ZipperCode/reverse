@@ -8,13 +8,13 @@ import {
 	registerOAuthProvider,
 	SqliteAuthCredentialStore,
 	unregisterOAuthProviders,
-} from "@rva/ai";
+} from "@reverse/ai";
 import {
 	AuthBrokerClient,
 	type AuthBrokerServerHandle,
 	RemoteAuthCredentialStore,
 	startAuthBroker,
-} from "@rva/ai/auth-broker";
+} from "@reverse/ai/auth-broker";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const DISABLE_CAUSE =

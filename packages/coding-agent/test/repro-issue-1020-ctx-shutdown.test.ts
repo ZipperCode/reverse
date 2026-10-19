@@ -4,10 +4,10 @@ import type {
 	ExtensionCommandContextActions,
 	ExtensionContextActions,
 	ExtensionUIContext,
-} from "@rva/coding-agent/extensibility/extensions";
-import { ExtensionUiController } from "@rva/coding-agent/modes/controllers/extension-ui-controller";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+} from "@reverse/coding-agent/extensibility/extensions";
+import { ExtensionUiController } from "@reverse/coding-agent/modes/controllers/extension-ui-controller";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 async function createHost(initializeUi: boolean) {
 	let actions: ExtensionContextActions | undefined;

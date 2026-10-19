@@ -9,15 +9,15 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import type { LoadExtensionsResult } from "@rva/coding-agent/extensibility/extensions/types";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@rva/coding-agent/session/agent-session";
-import { runSubprocess } from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import type { LoadExtensionsResult } from "@reverse/coding-agent/extensibility/extensions/types";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@reverse/coding-agent/session/agent-session";
+import { runSubprocess } from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 function createMockSession(onPrompt: (params: { emit: (event: AgentSessionEvent) => void }) => void): AgentSession {

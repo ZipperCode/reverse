@@ -1,10 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { SelectorController } from "@rva/coding-agent/modes/controllers/selector-controller";
-import type { Component, OverlayHandle, OverlayOptions, TUI } from "@rva/tui";
-import { AgentsHubComponent } from "@rva/tui/overlays/agents-hub";
-import * as activityClient from "@rva/coding-agent/stats/activity-client";
-import * as themeModule from "@rva/tui/theme";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { SelectorController } from "@reverse/coding-agent/modes/controllers/selector-controller";
+import type { Component, OverlayHandle, OverlayOptions, TUI } from "@reverse/tui";
+import { AgentsHubComponent } from "@reverse/tui/overlays/agents-hub";
+import * as activityClient from "@reverse/coding-agent/stats/activity-client";
+import * as themeModule from "@reverse/tui/theme";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 /** The overlay members of `ui` the single-instance guard reads and drives. */

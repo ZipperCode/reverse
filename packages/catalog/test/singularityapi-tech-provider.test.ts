@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { getOAuthProviders } from "@rva/ai/registry/oauth";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
-import { buildModel } from "@rva/catalog/build";
-import { isCatalogDescriptor, resolveModelCacheProviderId } from "@rva/catalog/provider-models";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@rva/catalog/provider-models/descriptors";
-import { singularityApiTechModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@rva/catalog/types";
+import { getOAuthProviders } from "@reverse/ai/registry/oauth";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
+import { buildModel } from "@reverse/catalog/build";
+import { isCatalogDescriptor, resolveModelCacheProviderId } from "@reverse/catalog/provider-models";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@reverse/catalog/provider-models/descriptors";
+import { singularityApiTechModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@reverse/catalog/types";
 import {
 	SINGULARITYAPI_DEV_API_BASE_URL,
 	SINGULARITYAPI_TECH_API_BASE_URL,
 	normalizeSingularityApiBaseUrl,
-} from "@rva/catalog/wire/singularityapi";
+} from "@reverse/catalog/wire/singularityapi";
 
 const originalKey = Bun.env.SINGULARITYAPI_TECH_API_KEY;
 

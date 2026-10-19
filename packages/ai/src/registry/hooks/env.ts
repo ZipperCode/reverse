@@ -3,7 +3,7 @@
  * than a fixed variable list (Foundry mode, AWS credential chains, Vertex ADC).
  */
 import * as fs from "node:fs";
-import { $env, $pickenv } from "@rva/utils";
+import { $env, $pickenv } from "@reverse/utils";
 import { userAdcPath } from "../../providers/google-auth";
 import { isFoundryEnabled } from "../../utils/foundry";
 import { resolveAwsRegistryApiKey } from "../aws";

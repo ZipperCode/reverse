@@ -1,16 +1,16 @@
-import { type AgentMessage, type AgentToolResult, ThinkingLevel } from "@rva/agent";
-import type { CompactionOutcome } from "@rva/agent/compaction";
-import type { Model, PASTE_CODE_LOGIN_PROVIDERS as PasteCodeLoginProviders, UsageReport } from "@rva/ai";
+import { type AgentMessage, type AgentToolResult, ThinkingLevel } from "@reverse/agent";
+import type { CompactionOutcome } from "@reverse/agent/compaction";
+import type { Model, PASTE_CODE_LOGIN_PROVIDERS as PasteCodeLoginProviders, UsageReport } from "@reverse/ai";
 import type {
 	getOAuthCredentialProvider as GetOAuthCredentialProvider,
 	getOAuthProviders as GetOAuthProviders,
-} from "@rva/ai/oauth";
-import type { OAuthProvider } from "@rva/ai/oauth/types";
-import * as vcs from "@rva/natives/vcs";
-import type { Component, OverlayHandle } from "@rva/tui";
-import { Loader, Spacer, Text } from "@rva/tui";
-import { formatKeyHint } from "@rva/tui/app-keybindings";
-import { appKey, editorKey } from "@rva/tui/chrome/keybinding-hints";
+} from "@reverse/ai/oauth";
+import type { OAuthProvider } from "@reverse/ai/oauth/types";
+import * as vcs from "@reverse/natives/vcs";
+import type { Component, OverlayHandle } from "@reverse/tui";
+import { Loader, Spacer, Text } from "@reverse/tui";
+import { formatKeyHint } from "@reverse/tui/app-keybindings";
+import { appKey, editorKey } from "@reverse/tui/chrome/keybinding-hints";
 import {
 	getAgentDbPath,
 	getAgentDir,
@@ -18,7 +18,7 @@ import {
 	logger,
 	normalizePathForComparison,
 	sanitizeText,
-} from "@rva/utils";
+} from "@reverse/utils";
 import {
 	ADVISOR_DEFAULT_TOOL_NAMES,
 	discoverAdvisorConfigs,
@@ -27,7 +27,7 @@ import {
 	saveWatchdogConfigFile,
 } from "../../advisor";
 import { reset as resetCapabilities } from "../../capability";
-import type { AdvisorConfigScope } from "@rva/tui/overlays/advisor-config";
+import type { AdvisorConfigScope } from "@reverse/tui/overlays/advisor-config";
 import { showGitOverlay } from "../../cli/git-tui";
 import { formatLoginIdentity } from "../../cli/oauth-terminal";
 import {
@@ -39,13 +39,13 @@ import {
 	saveModelPreset,
 } from "../../config/model-presets";
 import { resolveAdvisorRoleSelection, resolveModelRoleValue } from "../../config/model-resolver";
-import { formatModelSelectorValue } from "@rva/tui/overlays/model-selector";
+import { formatModelSelectorValue } from "@reverse/tui/overlays/model-selector";
 import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
-import { CustomProviderWizard } from "@rva/tui/overlays/custom-provider-wizard";
+import { CustomProviderWizard } from "@reverse/tui/overlays/custom-provider-wizard";
 import { saveCustomProvider } from "../../config/custom-provider-writer";
 import { fetchDiscoveredProviderModels } from "../../config/model-discovery";
-import { resolveEffectiveLocale } from "@rva/utils/i18n";
+import { resolveEffectiveLocale } from "@reverse/utils/i18n";
 import { createSettingsHost } from "../../config/settings-ui";
 import { createPluginSettingsHost } from "../../extensibility/plugins/settings-host";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
@@ -56,7 +56,7 @@ import {
 	getPluginsCacheDir,
 	MarketplaceManager,
 } from "../../extensibility/plugins/marketplace";
-import { getAvailableThemes, getSymbolTheme, previewTheme, theme } from "@rva/tui/theme";
+import { getAvailableThemes, getSymbolTheme, previewTheme, theme } from "@reverse/tui/theme";
 import type { AgentHubOpenOptions, InteractiveModeContext } from "../../modes/types";
 import type { SessionOAuthAccountList } from "../../session/agent-session-types";
 import type { ResetCreditAccountStatus, ResetCreditRedeemOutcome } from "../../session/auth-storage";
@@ -69,14 +69,14 @@ import {
 import type { ForeignSessionInfo, ForeignSessionSource } from "../../session/foreign-session-store";
 import { previewModelCompactionPoint, setModelCompactionPoint } from "../../session/model-compaction-threshold";
 import { isTranscriptEntry, type TranscriptEntry } from "../../session/session-context";
-import { isUserRequestEntry } from "@rva/tui/chat/transcript-entry";
+import { isUserRequestEntry } from "@reverse/tui/chat/transcript-entry";
 import type { SessionEntry, SessionTreeNode } from "../../session/session-entries";
 import { readSessionInfo, type SessionInfo } from "../../session/session-listing";
 import { SessionManager } from "../../session/session-manager";
 import { loadPinnedSessionIds } from "../../session/session-pins";
 import { FileSessionStorage } from "../../session/session-storage";
 import { listLogoutAccounts, logoutCredential } from "../../slash-commands/helpers/logout";
-import type { LogoutAccount } from "@rva/tui/overlays/logout-account-selector";
+import type { LogoutAccount } from "@reverse/tui/overlays/logout-account-selector";
 import { describeRedeemOutcome, toResetUsageAccounts } from "../../slash-commands/helpers/reset-usage";
 import { toSessionPinAccounts } from "../../slash-commands/helpers/session-pin";
 import {
@@ -91,48 +91,51 @@ import {
 	type ConfiguredThinkingLevel,
 	concreteThinkingLevel,
 	parseConfiguredThinkingLevel,
-} from "@rva/tui/thinking";
+} from "@reverse/tui/thinking";
 import type { ToolSession } from "../../tools";
 import { AskTool, type AskToolInput } from "../../tools/ask";
-import { type AskToolDetails } from "@rva/tui/tools/ask";
-import { sanitizeDisplayWarnings, shortenPath } from "@rva/tui/render/render-utils";
+import { type AskToolDetails } from "@reverse/tui/tools/ask";
+import { sanitizeDisplayWarnings, shortenPath } from "@reverse/tui/render/render-utils";
 import { ToolAbortError } from "../../tools/tool-errors";
 import { captureBrowserSession } from "../../utils/browser-session";
 import { copyToClipboard } from "../../utils/clipboard";
 import { openPath } from "../../utils/open";
 import { setSessionTerminalTitle } from "../../utils/title-generator";
-import { getAssistantMessageLinkTargets } from "@rva/tui/prompt/interactive-context-helpers";
-import { type AdvisorConfigDeps, AdvisorConfigOverlayComponent } from "@rva/tui/overlays/advisor-config";
+import { getAssistantMessageLinkTargets } from "@reverse/tui/prompt/interactive-context-helpers";
+import { type AdvisorConfigDeps, AdvisorConfigOverlayComponent } from "@reverse/tui/overlays/advisor-config";
 import { createAgentsHubDeps } from "../agents-hub-deps";
 import { getEditorCommand, openInEditor } from "../../utils/external-editor";
-import { collapseSharedUsageReports } from "@rva/tui/overlays/usage-display";
+import { collapseSharedUsageReports } from "@reverse/tui/overlays/usage-display";
 import { limitMatchesActiveAccount } from "../../slash-commands/helpers/active-oauth-account";
-import { AgentHubOverlayComponent } from "@rva/tui/overlays/agent-hub";
+import { AgentHubOverlayComponent } from "@reverse/tui/overlays/agent-hub";
 import { createAgentHubRuntime } from "../agent-hub-runtime";
-import { AgentsHubComponent } from "@rva/tui/overlays/agents-hub";
-import { CopySelectorComponent } from "@rva/tui/overlays/copy-selector";
-import { ExtensionDashboard } from "@rva/tui/overlays/extensions/extension-dashboard";
-import { listLiveToolRecords, liveToolRecordFromSession } from "@rva/tui/overlays/extensions/live-tool-session";
+import { AgentsHubComponent } from "@reverse/tui/overlays/agents-hub";
+import { CopySelectorComponent } from "@reverse/tui/overlays/copy-selector";
+import { ExtensionDashboard } from "@reverse/tui/overlays/extensions/extension-dashboard";
+import { listLiveToolRecords, liveToolRecordFromSession } from "@reverse/tui/overlays/extensions/live-tool-session";
 import { createExtensionDashboardRuntime } from "../components/extensions/dashboard-runtime";
-import { HistorySearchComponent } from "@rva/tui/overlays/history-search";
-import type { LoginDialogComponent as LoginDialogComponentType } from "@rva/tui/overlays/login-dialog";
-import type { LogoutAccountSelectorComponent as LogoutAccountSelectorComponentType } from "@rva/tui/overlays/logout-account-selector";
-import type { ModelHubComponent as ModelHubComponentType, ModelRoleSelectionScope } from "@rva/tui/overlays/model-hub";
+import { HistorySearchComponent } from "@reverse/tui/overlays/history-search";
+import type { LoginDialogComponent as LoginDialogComponentType } from "@reverse/tui/overlays/login-dialog";
+import type { LogoutAccountSelectorComponent as LogoutAccountSelectorComponentType } from "@reverse/tui/overlays/logout-account-selector";
+import type {
+	ModelHubComponent as ModelHubComponentType,
+	ModelRoleSelectionScope,
+} from "@reverse/tui/overlays/model-hub";
 import { createModelBrowserSource } from "../model-browser-source";
-import type { ModelPickerComponent as ModelPickerComponentType } from "@rva/tui/overlays/model-picker";
-import type { OAuthSelectorComponent as OAuthSelectorComponentType } from "@rva/tui/overlays/oauth-selector";
-import { PluginSelectorComponent } from "@rva/tui/overlays/plugin-selector";
-import { type ResetUsageAccount, ResetUsageSelectorComponent } from "@rva/tui/overlays/reset-usage-selector";
-import { type BranchVariantPath, RewindSelectorComponent } from "@rva/tui/overlays/rewind-selector";
-import { SessionAccountSelectorComponent } from "@rva/tui/overlays/session-account-selector";
-import { SessionSelectorComponent, type SessionSelectorOptions } from "@rva/tui/overlays/session-selector";
-import { SettingsSelectorComponent } from "@rva/tui/overlays/settings-selector";
-import { TranscriptBlock } from "@rva/tui/chrome/transcript-container";
-import { TreeSelectorComponent } from "@rva/tui/overlays/tree-selector";
-import { ThinkingSelectorComponent } from "@rva/tui/overlays/thinking-selector";
-import { UsageDashboardComponent } from "@rva/tui/overlays/usage-dashboard";
+import type { ModelPickerComponent as ModelPickerComponentType } from "@reverse/tui/overlays/model-picker";
+import type { OAuthSelectorComponent as OAuthSelectorComponentType } from "@reverse/tui/overlays/oauth-selector";
+import { PluginSelectorComponent } from "@reverse/tui/overlays/plugin-selector";
+import { type ResetUsageAccount, ResetUsageSelectorComponent } from "@reverse/tui/overlays/reset-usage-selector";
+import { type BranchVariantPath, RewindSelectorComponent } from "@reverse/tui/overlays/rewind-selector";
+import { SessionAccountSelectorComponent } from "@reverse/tui/overlays/session-account-selector";
+import { SessionSelectorComponent, type SessionSelectorOptions } from "@reverse/tui/overlays/session-selector";
+import { SettingsSelectorComponent } from "@reverse/tui/overlays/settings-selector";
+import { TranscriptBlock } from "@reverse/tui/chrome/transcript-container";
+import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
+import { ThinkingSelectorComponent } from "@reverse/tui/overlays/thinking-selector";
+import { UsageDashboardComponent } from "@reverse/tui/overlays/usage-dashboard";
 import { renderUsageReports } from "./command-controller";
-import type { SessionObserverRegistry } from "@rva/tui/overlays/session-observer-registry";
+import type { SessionObserverRegistry } from "@reverse/tui/overlays/session-observer-registry";
 
 import { cfgAdvisorSyncBacklog } from "../../advisor/settings";
 import { cfgBranchSummaryEnabled } from "../../session/context-settings";
@@ -162,8 +165,8 @@ interface ModelOverlayModules {
 /** Synchronous first-use boundary for model overlays; key callbacks require immediate mounting. */
 function loadModelOverlayComponents(): ModelOverlayModules {
 	return {
-		ModelHubComponent: require("@rva/tui/overlays/model-hub.js").ModelHubComponent,
-		ModelPickerComponent: require("@rva/tui/overlays/model-picker.js").ModelPickerComponent,
+		ModelHubComponent: require("@reverse/tui/overlays/model-hub.js").ModelHubComponent,
+		ModelPickerComponent: require("@reverse/tui/overlays/model-picker.js").ModelPickerComponent,
 	};
 }
 
@@ -179,13 +182,13 @@ interface ProviderAuthUiModules {
 /** Synchronous first-use boundary for provider auth catalog and dialog components. */
 function loadProviderAuthUi(): ProviderAuthUiModules {
 	return {
-		PASTE_CODE_LOGIN_PROVIDERS: require("@rva/ai/index.js").PASTE_CODE_LOGIN_PROVIDERS,
-		getOAuthProviders: require("@rva/ai/registry/oauth/index.js").getOAuthProviders,
-		getOAuthCredentialProvider: require("@rva/ai/registry/oauth/index.js").getOAuthCredentialProvider,
-		LoginDialogComponent: require("@rva/tui/overlays/login-dialog.js").LoginDialogComponent,
-		LogoutAccountSelectorComponent: require("@rva/tui/overlays/logout-account-selector.js")
+		PASTE_CODE_LOGIN_PROVIDERS: require("@reverse/ai/index.js").PASTE_CODE_LOGIN_PROVIDERS,
+		getOAuthProviders: require("@reverse/ai/registry/oauth/index.js").getOAuthProviders,
+		getOAuthCredentialProvider: require("@reverse/ai/registry/oauth/index.js").getOAuthCredentialProvider,
+		LoginDialogComponent: require("@reverse/tui/overlays/login-dialog.js").LoginDialogComponent,
+		LogoutAccountSelectorComponent: require("@reverse/tui/overlays/logout-account-selector.js")
 			.LogoutAccountSelectorComponent,
-		OAuthSelectorComponent: require("@rva/tui/overlays/oauth-selector.js").OAuthSelectorComponent,
+		OAuthSelectorComponent: require("@reverse/tui/overlays/oauth-selector.js").OAuthSelectorComponent,
 	};
 }
 

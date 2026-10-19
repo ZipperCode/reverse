@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
-import type { AssistantMessage } from "@rva/ai";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/coding-agent/session/auth-storage";
-import { TodoTool } from "@rva/coding-agent/tools";
+import type { AssistantMessage } from "@reverse/ai";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/coding-agent/session/auth-storage";
+import { TodoTool } from "@reverse/coding-agent/tools";
 
 /**
  * Shared factory for building a minimal mock `AssistantMessage`

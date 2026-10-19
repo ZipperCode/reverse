@@ -6,8 +6,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { setKittyProtocolActive } from "@rva/tui/keys";
-import { StdinBuffer } from "@rva/tui/stdin-buffer";
+import { setKittyProtocolActive } from "@reverse/tui/keys";
+import { StdinBuffer } from "@reverse/tui/stdin-buffer";
 
 describe("StdinBuffer", () => {
 	let buffer: StdinBuffer;

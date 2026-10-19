@@ -1,7 +1,7 @@
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 
 /**
- * High-performance, zero-builder protobuf wire codecs for @rva/catalog.
+ * High-performance, zero-builder protobuf wire codecs for @reverse/catalog.
  *
  * Schemas are declared as static IR descriptors with near-zero module load overhead
  * and lazy compilation on first encode/decode/create invocation.

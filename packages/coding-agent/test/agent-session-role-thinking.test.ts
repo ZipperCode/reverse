@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { Effort } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import * as autoThinkingClassifier from "@rva/coding-agent/auto-thinking/classifier";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { AUTO_THINKING, clampAutoThinkingEffort, resolveProvisionalAutoLevel } from "@rva/tui/thinking";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { Effort } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import * as autoThinkingClassifier from "@reverse/coding-agent/auto-thinking/classifier";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SKILL_PROMPT_MESSAGE_TYPE } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { AUTO_THINKING, clampAutoThinkingEffort, resolveProvisionalAutoLevel } from "@reverse/tui/thinking";
+import { TempDir } from "@reverse/utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
-import { cfgDefaultThinkingLevel } from "@rva/coding-agent/session/settings";
+import { cfgDefaultThinkingLevel } from "@reverse/coding-agent/session/settings";
 
 describe("AgentSession role model thinking behavior", () => {
 	let tempDir: TempDir;

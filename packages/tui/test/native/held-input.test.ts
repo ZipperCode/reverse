@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { getCellDimensions, setCellDimensions } from "@rva/tui/terminal-capabilities";
-import type { Component } from "@rva/tui/tui";
+import { getCellDimensions, setCellDimensions } from "@reverse/tui/terminal-capabilities";
+import type { Component } from "@reverse/tui/tui";
 import { TspHarness } from "./tsp-harness";
 
 /** Focused component recording every keystroke the TUI hands it. */

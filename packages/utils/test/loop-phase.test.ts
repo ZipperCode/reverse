@@ -6,7 +6,7 @@ import {
 	resetLoopPhaseWindow,
 	takeLoopPhaseAttribution,
 	withLoopPhase,
-} from "@rva/utils";
+} from "@reverse/utils";
 
 // The stack and attribution window are process-global; isolate every case.
 function drain(): void {

@@ -1,12 +1,12 @@
-import { type } from "@rva/omptype";
-import type { ThinkingLevel } from "@rva/agent";
-import type { Api, ApiKey, AssistantMessage, Model } from "@rva/ai";
-import { completeSimple, retryTransientCompletion, validateToolCall } from "@rva/ai";
-import { prompt } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Api, ApiKey, AssistantMessage, Model } from "@reverse/ai";
+import { completeSimple, retryTransientCompletion, validateToolCall } from "@reverse/ai";
+import { prompt } from "@reverse/utils";
 import changelogSystemPrompt from "../../commit/prompts/changelog-system.md" with { type: "text" };
 import changelogUserPrompt from "../../commit/prompts/changelog-user.md" with { type: "text" };
 import type { ChangelogGenerationResult } from "../../commit/types";
-import { toReasoningEffort } from "@rva/tui/thinking";
+import { toReasoningEffort } from "@reverse/tui/thinking";
 import { extractTextContent, extractToolCall, parseJsonPayload } from "../utils";
 
 // Build the changelog entry schema with arktype

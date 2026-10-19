@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { DescribeContext } from "@rva/tui/native/node";
-import { WidthAwareText } from "@rva/tui/render/width-aware-text";
+import type { DescribeContext } from "@reverse/tui/native/node";
+import { WidthAwareText } from "@reverse/tui/render/width-aware-text";
 
 function makeCx(cols: number): DescribeContext {
 	return {

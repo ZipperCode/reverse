@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { type AuthCredentialStore, AuthStorage } from "@rva/ai/auth-storage";
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchParams } from "@rva/ai/usage";
-import { minimaxCodeUsageProvider } from "@rva/ai/usage/minimax-code";
+import { type AuthCredentialStore, AuthStorage } from "@reverse/ai/auth-storage";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchParams } from "@reverse/ai/usage";
+import { minimaxCodeUsageProvider } from "@reverse/ai/usage/minimax-code";
 
 const INTERVAL_START = 1_785_009_600_000;
 const INTERVAL_END = 1_785_024_000_000;

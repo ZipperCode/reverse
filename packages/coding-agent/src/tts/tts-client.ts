@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import {
 	type ModelWorkerMessage,
 	ModelWorkerHost,

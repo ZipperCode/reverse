@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createAbortSourceTracker } from "@rva/ai/utils/abort";
+import { createAbortSourceTracker } from "@reverse/ai/utils/abort";
 
 /**
  * Defends the contract `AssistantMessageEventStream` providers depend on: caller

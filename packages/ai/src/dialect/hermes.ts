@@ -1,4 +1,4 @@
-import { parseJsonWithRepair, parseStreamingJson } from "@rva/utils";
+import { parseJsonWithRepair, parseStreamingJson } from "@reverse/utils";
 import type { Message, ToolCall } from "../types";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";
 import { asRecord, mintToolCallId, partialSuffixOverlapAny } from "./coercion";

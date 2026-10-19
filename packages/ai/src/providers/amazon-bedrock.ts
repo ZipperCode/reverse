@@ -10,10 +10,10 @@
  * only AWS's own regional host is re-pointed at the resolved region. SigV4 unaffected.
  */
 
-import type { Effort } from "@rva/catalog/effort";
-import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@rva/catalog/model-thinking";
-import { calculateCost } from "@rva/catalog/models";
-import { $flag, fetchWithRetry, logger, parseStreamingJsonThrottled, USER_AGENT } from "@rva/utils";
+import type { Effort } from "@reverse/catalog/effort";
+import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@reverse/catalog/model-thinking";
+import { calculateCost } from "@reverse/catalog/models";
+import { $flag, fetchWithRetry, logger, parseStreamingJsonThrottled, USER_AGENT } from "@reverse/utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";

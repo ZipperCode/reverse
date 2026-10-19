@@ -2,19 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@rva/ai/api-registry";
+import { clearCustomApis } from "@reverse/ai/api-registry";
 import {
 	type AuthGatewayClient,
 	type AuthGatewayServerHandle,
 	hashAuthGatewayToken,
 	parseAuthGatewayClients,
 	startAuthGateway,
-} from "@rva/ai/auth-gateway";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { ProviderHttpError } from "@rva/ai/error";
-import { createMockModel, type MockModel, registerMockApi } from "@rva/ai/providers/mock";
-import * as oauthUtils from "@rva/ai/registry/oauth";
-import type { Api, Model } from "@rva/ai/types";
+} from "@reverse/ai/auth-gateway";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { ProviderHttpError } from "@reverse/ai/error";
+import { createMockModel, type MockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import * as oauthUtils from "@reverse/ai/registry/oauth";
+import type { Api, Model } from "@reverse/ai/types";
 
 const GATEWAY_TOKEN = "gateway-token";
 const CI_TOKEN = "ci-token";

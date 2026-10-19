@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { TreeSelectorComponent } from "@rva/tui/overlays/tree-selector";
-import * as themeModule from "@rva/tui/theme";
-import type { SessionEntry, SessionTreeNode } from "@rva/coding-agent/session/session-entries";
+import type { AgentMessage } from "@reverse/agent";
+import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
+import * as themeModule from "@reverse/tui/theme";
+import type { SessionEntry, SessionTreeNode } from "@reverse/coding-agent/session/session-entries";
 
 let counter = 0;
 function makeMessageNode(message: AgentMessage, parentId: string | null = null, label?: string): SessionTreeNode {

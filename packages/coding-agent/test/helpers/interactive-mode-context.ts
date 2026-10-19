@@ -31,20 +31,20 @@
  * that also import the module-level `settings` need the global initialized.
  */
 import { vi } from "bun:test";
-import { isSettingsInitialized, Settings, settings } from "@rva/coding-agent/config/settings";
-import type { MCPManager } from "@rva/coding-agent/mcp/manager";
-import type { MCPServerConnection } from "@rva/coding-agent/mcp/types";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { ServedModelTracker } from "@rva/tui/chat/served-model-marker";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { OAuthManualInputManager } from "@rva/coding-agent/modes/oauth-manual-input";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TokenRateMeter } from "@rva/coding-agent/utils/token-rate";
-import { type Component, Container } from "@rva/tui";
+import { isSettingsInitialized, Settings, settings } from "@reverse/coding-agent/config/settings";
+import type { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import type { MCPServerConnection } from "@reverse/coding-agent/mcp/types";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { ServedModelTracker } from "@reverse/tui/chat/served-model-marker";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { OAuthManualInputManager } from "@reverse/coding-agent/modes/oauth-manual-input";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TokenRateMeter } from "@reverse/coding-agent/utils/token-rate";
+import { type Component, Container } from "@reverse/tui";
 
-import { cfgTerminalShowImages } from "@rva/coding-agent/modes/settings";
+import { cfgTerminalShowImages } from "@reverse/coding-agent/modes/settings";
 
 type AnyFn = (...args: never[]) => unknown;
 

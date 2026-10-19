@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { removeWithRetries } from "@rva/utils";
+import { removeWithRetries } from "@reverse/utils";
 import {
 	__resetProfileSnapshotForTests,
 	APP_NAME,
@@ -13,8 +13,8 @@ import {
 	setAgentDir,
 	setProfile,
 	VERSION,
-} from "@rva/utils/dirs";
-import { Snowflake } from "@rva/utils/snowflake";
+} from "@reverse/utils/dirs";
+import { Snowflake } from "@reverse/utils/snowflake";
 import { runCli } from "../src/cli";
 import * as profileAliasCli from "../src/cli/profile-alias";
 

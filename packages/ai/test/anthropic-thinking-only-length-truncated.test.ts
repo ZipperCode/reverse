@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@rva/ai/providers/anthropic";
-import { transformMessages } from "@rva/ai/providers/transform-messages";
-import type { AssistantMessage, Message, Model, UserMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { convertAnthropicMessages } from "@reverse/ai/providers/anthropic";
+import { transformMessages } from "@reverse/ai/providers/transform-messages";
+import type { AssistantMessage, Message, Model, UserMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 /**
  * Regression test for: "messages.X.content.Y: `thinking` or `redacted_thinking` blocks in

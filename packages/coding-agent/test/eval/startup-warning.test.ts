@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as pyKernel from "@rva/coding-agent/eval/py/kernel";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as pyKernel from "@reverse/coding-agent/eval/py/kernel";
 import {
 	resolveFirstLaunchPythonEvalWarning,
 	resolvePythonEvalWarning,
-} from "@rva/coding-agent/eval/startup-warning";
+} from "@reverse/coding-agent/eval/startup-warning";
 
 const FIX_HINT = "Install Python 3.8+ or set python.interpreter, then verify with `omp setup python --check`.";
 const CWD = "/tmp/eval-startup-warning";

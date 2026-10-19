@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPTransportError } from "@rva/coding-agent/mcp/errors";
-import { resolveStdioSpawnCommand, StdioTransport, writeFrame } from "@rva/coding-agent/mcp/transports/stdio";
-import { removeWithRetries } from "@rva/utils";
+import { MCPTransportError } from "@reverse/coding-agent/mcp/errors";
+import { resolveStdioSpawnCommand, StdioTransport, writeFrame } from "@reverse/coding-agent/mcp/transports/stdio";
+import { removeWithRetries } from "@reverse/utils";
 
 describe("resolveStdioSpawnCommand", () => {
 	it("resolves bare Windows commands through PATHEXT and wraps .cmd shims with cmd.exe", async () => {

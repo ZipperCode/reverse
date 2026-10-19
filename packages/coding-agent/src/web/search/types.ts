@@ -1,7 +1,7 @@
-import type { WebSearchGrounding } from "@rva/catalog/types";
-import type { SearchProviderId, SearchResponse } from "@rva/tui/tools/web-search-types";
+import type { WebSearchGrounding } from "@reverse/catalog/types";
+import type { SearchProviderId, SearchResponse } from "@reverse/tui/tools/web-search-types";
 
-export * from "@rva/tui/tools/web-search-types";
+export * from "@reverse/tui/tools/web-search-types";
 
 export interface SearchResultDetails {
 	response: SearchResponse;

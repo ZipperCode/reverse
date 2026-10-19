@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getManagedSkillsDir } from "@rva/coding-agent/autolearn/managed-skills";
-import { disableUserSource, enableUserSource } from "@rva/coding-agent/capability";
-import "@rva/coding-agent/discovery";
-import { loadSkills } from "@rva/coding-agent/extensibility/skills";
-import { removeWithRetries } from "@rva/utils";
-import { getAgentDir, setAgentDir } from "@rva/utils/dirs";
+import { getManagedSkillsDir } from "@reverse/coding-agent/autolearn/managed-skills";
+import { disableUserSource, enableUserSource } from "@reverse/coding-agent/capability";
+import "@reverse/coding-agent/discovery";
+import { loadSkills } from "@reverse/coding-agent/extensibility/skills";
+import { removeWithRetries } from "@reverse/utils";
+import { getAgentDir, setAgentDir } from "@reverse/utils/dirs";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 
 async function writeSkill(dir: string, name: string, description: string): Promise<void> {

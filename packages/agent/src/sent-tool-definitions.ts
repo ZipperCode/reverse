@@ -1,4 +1,4 @@
-import type { Message, Tool } from "@rva/ai";
+import type { Message, Tool } from "@reverse/ai";
 
 /**
  * Last wire definition this Agent sent for each tool name, so a provider that keeps

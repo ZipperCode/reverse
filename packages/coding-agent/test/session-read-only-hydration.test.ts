@@ -1,18 +1,11 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import * as path from "node:path";
-import { BlobStore } from "@rva/coding-agent/session/blob-store";
-import type {
-	CompactionEntry,
-	FileEntry,
-	SessionMessageEntry,
-} from "@rva/coding-agent/session/session-entries";
-import { formatSessionHistoryMarkdown } from "@rva/coding-agent/session/session-history-format";
-import {
-	loadSessionMessagesReadOnly,
-	resolveBlobRefsInEntries,
-} from "@rva/coding-agent/session/session-loader";
-import { TempDir } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+import { BlobStore } from "@reverse/coding-agent/session/blob-store";
+import type { CompactionEntry, FileEntry, SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
+import { formatSessionHistoryMarkdown } from "@reverse/coding-agent/session/session-history-format";
+import { loadSessionMessagesReadOnly, resolveBlobRefsInEntries } from "@reverse/coding-agent/session/session-loader";
+import { TempDir } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 
 const timestamp = new Date(0).toISOString();
 const header = { type: "session", version: 3, id: "session", timestamp, cwd: "/tmp" };

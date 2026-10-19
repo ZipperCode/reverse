@@ -8,7 +8,7 @@ import {
 	type RawHttpRequestDump,
 	rewriteClinePassError,
 	shouldDumpRejectedRequest,
-} from "@rva/ai/utils/http-inspector";
+} from "@reverse/ai/utils/http-inspector";
 
 class HttpError extends Error {
 	constructor(

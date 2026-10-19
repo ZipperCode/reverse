@@ -1,13 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import {
-	type AutoresearchDashboardRuntime,
-	createDashboardController,
-} from "@rva/tui/apps/autoresearch-dashboard";
-import type { DescribeContext, NativeChild, NativeNode } from "@rva/tui/native/node";
-import { getThemeByName } from "@rva/tui/theme";
-import type { ExperimentResult, ExperimentState } from "@rva/tui/tools/autoresearch";
-import type { Component } from "@rva/tui/tui";
-import type { TspText } from "@rva/wire";
+import { type AutoresearchDashboardRuntime, createDashboardController } from "@reverse/tui/apps/autoresearch-dashboard";
+import type { DescribeContext, NativeChild, NativeNode } from "@reverse/tui/native/node";
+import { getThemeByName } from "@reverse/tui/theme";
+import type { ExperimentResult, ExperimentState } from "@reverse/tui/tools/autoresearch";
+import type { Component } from "@reverse/tui/tui";
+import type { TspText } from "@reverse/wire";
 
 const cx: DescribeContext = { cols: 120, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 

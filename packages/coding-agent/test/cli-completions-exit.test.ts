@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { postmortem } from "@rva/utils";
+import { postmortem } from "@reverse/utils";
 import Completions from "../src/commands/completions";
 
 describe("Completions command exit contract", () => {

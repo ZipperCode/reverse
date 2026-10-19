@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type { Message, UserMessage } from "@rva/ai";
-import { logger } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { Message, UserMessage } from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import { visitEntriesFromFileStream } from "../session/session-loader";
 import { SessionManager } from "../session/session-manager";
 import { fingerprintMessage } from "./message-fingerprint";

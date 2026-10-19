@@ -192,7 +192,9 @@ describe("RVA relay isolation & fingerprint verification", () => {
 			]);
 
 			expect(exitCodeOk).toBe(0);
-			expect(stdoutOk).toContain(`rva browser relay already running on http://127.0.0.1:${realRelay.port}; nothing to do.`);
+			expect(stdoutOk).toContain(
+				`rva browser relay already running on http://127.0.0.1:${realRelay.port}; nothing to do.`,
+			);
 		} finally {
 			await fs.rm(tempDir, { recursive: true, force: true });
 		}

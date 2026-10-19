@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { detectMacOSAppearance, MacAppearanceObserver } from "@rva/natives";
+import { detectMacOSAppearance, MacAppearanceObserver } from "@reverse/natives";
 import type { Terminal, TerminalAppearance } from "../terminal";
-import { colorLuma } from "@rva/utils/color";
-import { getCustomThemesDir } from "@rva/utils/dirs";
-import * as logger from "@rva/utils/logger";
+import { colorLuma } from "@reverse/utils/color";
+import { getCustomThemesDir } from "@reverse/utils/dirs";
+import * as logger from "@reverse/utils/logger";
 import { terminalMultiplexerSessions } from "../terminal-multiplexer";
 import { setActiveSymbolTheme } from "./active-symbols";
 import { ansi256ToHex, resolveThemeColors, resolveVarRefs } from "./color";

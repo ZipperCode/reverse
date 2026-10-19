@@ -1,17 +1,17 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it, spyOn } from "bun:test";
-import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@rva/stats/db";
+import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@reverse/stats/db";
 import {
 	getCostTimeSeries,
 	getOverallStats,
 	getSessionRollups,
 	getStatsByModel,
 	getStatsByProvider,
-} from "@rva/stats/rollup";
-import type { MessageStats } from "@rva/stats/types";
-import * as catalogModels from "@rva/catalog/models";
-import { getBundledModel, getBundledModels } from "@rva/catalog/models";
-import { getStatsDbPath, VERSION } from "@rva/utils";
+} from "@reverse/stats/rollup";
+import type { MessageStats } from "@reverse/stats/types";
+import * as catalogModels from "@reverse/catalog/models";
+import { getBundledModel, getBundledModels } from "@reverse/catalog/models";
+import { getStatsDbPath, VERSION } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-db-");

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { ThinkingLevel } from "@rva/agent";
-import * as ai from "@rva/ai";
-import { Effort, type Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { classifyDifficulty } from "@rva/coding-agent/auto-thinking/classifier";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { ThinkingLevel } from "@reverse/agent";
+import * as ai from "@reverse/ai";
+import { Effort, type Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { classifyDifficulty } from "@reverse/coding-agent/auto-thinking/classifier";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	AUTO_THINKING,
 	clampAutoThinkingEffort,
@@ -15,9 +15,9 @@ import {
 	parseThinkingLevel,
 	resolveProvisionalAutoLevel,
 	resolveTaskEffortLevel,
-} from "@rva/tui/thinking";
-import type { TinyMemoryLocalModelKey } from "@rva/coding-agent/tiny/models";
-import { tinyModelClient } from "@rva/coding-agent/tiny/title-client";
+} from "@reverse/tui/thinking";
+import type { TinyMemoryLocalModelKey } from "@reverse/coding-agent/tiny/models";
+import { tinyModelClient } from "@reverse/coding-agent/tiny/title-client";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("auto thinking classifier helpers", () => {

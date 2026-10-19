@@ -1,6 +1,6 @@
-import type { AgentMessage, ThinkingLevel } from "@rva/agent";
-import type { Tool, UsageLimit, UsageReport } from "@rva/ai";
-import type { Model } from "@rva/catalog/types";
+import type { AgentMessage, ThinkingLevel } from "@reverse/agent";
+import type { Tool, UsageLimit, UsageReport } from "@reverse/ai";
+import type { Model } from "@reverse/catalog/types";
 import type { CompactionBoundaries } from "./context-usage";
 import type { StatusLineSettings, StatusResetExpiry } from "./types";
 

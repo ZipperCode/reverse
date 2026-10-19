@@ -5,8 +5,8 @@ import * as path from "node:path";
 import { handleSkillList, runSkillsCommand } from "../../src/cli/skill-list";
 import { resetSettingsForTest } from "../../src/config/settings";
 import { AgentStorage } from "../../src/session/agent-storage";
-import { CONFIG_DIR_NAME, getAgentDir, removeWithRetries, setAgentDir, Snowflake } from "@rva/utils";
-import { CliUsageError } from "@rva/utils/cli";
+import { CONFIG_DIR_NAME, getAgentDir, removeWithRetries, setAgentDir, Snowflake } from "@reverse/utils";
+import { CliUsageError } from "@reverse/utils/cli";
 
 // Every test below discovers skills through the real capability loader, which
 // walks `os.homedir()` and `getAgentDir()` for user-level providers (native

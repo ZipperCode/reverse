@@ -685,16 +685,8 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 				"/opt/homebrew/bin",
 				...UNIX_SEARCH_PATHS,
 			],
-			linux: [
-				"/opt/ghidra/support",
-				"/usr/share/ghidra/support",
-				...UNIX_SEARCH_PATHS,
-			],
-			win32: [
-				"C:/ghidra/support",
-				"${LOCALAPPDATA}/Programs/ghidra/support",
-				"~/ghidra/support",
-			],
+			linux: ["/opt/ghidra/support", "/usr/share/ghidra/support", ...UNIX_SEARCH_PATHS],
+			win32: ["C:/ghidra/support", "${LOCALAPPDATA}/Programs/ghidra/support", "~/ghidra/support"],
 		},
 		secondary: ["java"],
 		installHints: {
@@ -704,7 +696,8 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		},
 		manualUrl: "https://ghidra-sre.org/",
 		manualInstructions: {
-			darwin: "Install via 'brew install --cask ghidra' or extract release zip and set GHIDRA_INSTALL_DIR (requires JDK 17+).",
+			darwin:
+				"Install via 'brew install --cask ghidra' or extract release zip and set GHIDRA_INSTALL_DIR (requires JDK 17+).",
 			linux: "Install via package manager or extract release zip to /opt/ghidra and set GHIDRA_INSTALL_DIR (requires JDK 17+).",
 			win32: "Install via 'choco install ghidra' or extract release zip and set GHIDRA_INSTALL_DIR (requires JDK 17+).",
 		},
@@ -738,7 +731,8 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			canonical: "analyzeHeadless <project_dir> <project_name> -import <binary> -readOnly",
 			whenToUse: "Headless binary analysis, decompilation, and batch reverse engineering when IDA is unavailable.",
 			prerequisites: ["ghidra"],
-			outputLimits: "Query specific functions or bounded export regions; avoid dumping entire binary listings into context.",
+			outputLimits:
+				"Query specific functions or bounded export regions; avoid dumping entire binary listings into context.",
 			fallback: "r2_inspect or native triage for lightweight inspection.",
 			examples: [
 				{
@@ -1127,11 +1121,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			"Emulate Android ARM32 and ARM64 native JNI libraries (.so) on the host JVM via Maven Java test harness (manual integration required)",
 		optional: true,
 		binaries: ["unidbg"],
-		envPaths: [
-			{ env: "UNIDBG_HOME", suffix: "/bin" },
-			{ env: "UNIDBG_HOME" },
-			{ env: "UNIDBG_ROOT" },
-		],
+		envPaths: [{ env: "UNIDBG_HOME", suffix: "/bin" }, { env: "UNIDBG_HOME" }, { env: "UNIDBG_ROOT" }],
 		searchPaths: {
 			darwin: ["~/.unidbg", "/usr/local/share/unidbg", "~/unidbg", ...UNIX_SEARCH_PATHS],
 			linux: ["~/.unidbg", "/opt/unidbg", "~/unidbg", ...UNIX_SEARCH_PATHS],
@@ -1176,13 +1166,11 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		id: "bundletool",
 		name: "bundletool (Android App Bundle tool)",
 		category: "android",
-		description: "Inspect Android App Bundles (.aab), extract APKs, and convert AAB containers to standalone APK sets",
+		description:
+			"Inspect Android App Bundles (.aab), extract APKs, and convert AAB containers to standalone APK sets",
 		optional: true,
 		binaries: ["bundletool", "bundletool.jar"],
-		envPaths: [
-			{ env: "BUNDLETOOL_HOME", suffix: "/bin" },
-			{ env: "BUNDLETOOL_HOME" },
-		],
+		envPaths: [{ env: "BUNDLETOOL_HOME", suffix: "/bin" }, { env: "BUNDLETOOL_HOME" }],
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
@@ -1252,10 +1240,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			"Convert Android .dex Dalvik executable bytecode into standard Java .class/.jar files for decompilation",
 		optional: true,
 		binaries: ["d2j-dex2jar", "dex2jar", "d2j-dex2jar.sh", "d2j-dex2jar.bat"],
-		envPaths: [
-			{ env: "DEX2JAR_HOME", suffix: "/bin" },
-			{ env: "DEX2JAR_HOME" },
-		],
+		envPaths: [{ env: "DEX2JAR_HOME", suffix: "/bin" }, { env: "DEX2JAR_HOME" }],
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
@@ -1318,14 +1303,10 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		id: "baksmali",
 		name: "baksmali (Dalvik bytecode disassembler)",
 		category: "android",
-		description:
-			"Disassemble Android Dalvik Executable (DEX) bytecode into precise human-readable smali assembly",
+		description: "Disassemble Android Dalvik Executable (DEX) bytecode into precise human-readable smali assembly",
 		optional: true,
 		binaries: ["baksmali", "smali"],
-		envPaths: [
-			{ env: "SMALI_HOME", suffix: "/bin" },
-			{ env: "SMALI_HOME" },
-		],
+		envPaths: [{ env: "SMALI_HOME", suffix: "/bin" }, { env: "SMALI_HOME" }],
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
@@ -1339,8 +1320,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		},
 		manualUrl: "https://github.com/google/smali/releases",
 		manualInstructions: {
-			darwin:
-				"Download baksmali.jar from GitHub releases and wrap it in an executable script in /usr/local/bin.",
+			darwin: "Download baksmali.jar from GitHub releases and wrap it in an executable script in /usr/local/bin.",
 			linux: "Download baksmali.jar from GitHub releases and wrap it in an executable script in /usr/local/bin.",
 			win32: "Download baksmali.jar from GitHub releases and wrap it in a baksmali.bat script in PATH.",
 		},
@@ -1388,18 +1368,13 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		id: "scrcpy",
 		name: "scrcpy (Android screen mirroring and control)",
 		category: "android",
-		description:
-			"Low-latency display and control of physical Android devices over USB or TCP/IP without root",
+		description: "Low-latency display and control of physical Android devices over USB or TCP/IP without root",
 		optional: true,
 		binaries: ["scrcpy"],
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
-			win32: [
-				"${LOCALAPPDATA}/Programs/scrcpy",
-				"~/AppData/Local/Programs/scrcpy",
-				"${ProgramFiles}/scrcpy",
-			],
+			win32: ["${LOCALAPPDATA}/Programs/scrcpy", "~/AppData/Local/Programs/scrcpy", "${ProgramFiles}/scrcpy"],
 		},
 		secondary: ["adb"],
 		installHints: {
@@ -2093,7 +2068,8 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		},
 		manualUrl: "https://www.sqlite.org/",
 		manualInstructions: {
-			darwin: "Install via 'brew install sqlite' or download precompiled binaries from https://www.sqlite.org/download.html.",
+			darwin:
+				"Install via 'brew install sqlite' or download precompiled binaries from https://www.sqlite.org/download.html.",
 			linux: "Install via 'apt install sqlite3' or your distribution's package manager.",
 			win32: "Install via 'winget install SQLite.SQLite' or download sqlite-tools from https://www.sqlite.org/download.html.",
 		},
@@ -2196,10 +2172,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		description: "Java runtime environment required to run Android reverse-engineering tools (JADX, Apktool, Unidbg)",
 		optional: true,
 		binaries: ["java"],
-		envPaths: [
-			{ env: "JAVA_HOME", suffix: "/bin" },
-			{ env: "JAVA_HOME" },
-		],
+		envPaths: [{ env: "JAVA_HOME", suffix: "/bin" }, { env: "JAVA_HOME" }],
 		searchPaths: {
 			darwin: ["/Library/Java/JavaVirtualMachines/*/Contents/Home/bin", ...UNIX_SEARCH_PATHS],
 			linux: ["/usr/lib/jvm/*/bin", ...UNIX_SEARCH_PATHS],
@@ -2311,7 +2284,8 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		prerequisites: ["java"],
 		fallbacks: ["frida", "readelf", "radare2"],
 		setupCommand: "reverse setup reverse unidbg",
-		postInstallInvocation: "Manual Maven Java harness integration required (git clone https://github.com/zhkl0228/unidbg, implement McpToolkit or test harness with JavaVM/DalvikModule, run with Maven)",
+		postInstallInvocation:
+			"Manual Maven Java harness integration required (git clone https://github.com/zhkl0228/unidbg, implement McpToolkit or test harness with JavaVM/DalvikModule, run with Maven)",
 	},
 	apk_unpacking: {
 		id: "apk_unpacking",
@@ -2442,8 +2416,7 @@ const COMMON_FALLBACK_TOOLS: Record<string, true> = {
 
 export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions = {}): ReverseCapabilityStatus[] {
 	const platform =
-		options.platform ??
-		(process.platform === "win32" ? "win32" : process.platform === "darwin" ? "darwin" : "linux");
+		options.platform ?? (process.platform === "win32" ? "win32" : process.platform === "darwin" ? "darwin" : "linux");
 	const toolMap: Record<
 		string,
 		{
@@ -2502,14 +2475,13 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 				const isConnected = fromService.connection === "connected";
 				const isReady = prereqsReady && isConfigured && isEnabled && isConnected;
 
-				const toolStatus: "ready" | "configured" | "unconfigured" | "missing" =
-					isReady
-						? "ready"
-						: !prereqsReady
-							? "missing"
-							: isConfigured
-								? "configured"
-								: "unconfigured";
+				const toolStatus: "ready" | "configured" | "unconfigured" | "missing" = isReady
+					? "ready"
+					: !prereqsReady
+						? "missing"
+						: isConfigured
+							? "configured"
+							: "unconfigured";
 
 				toolRefs.push({
 					id: fromService.id,

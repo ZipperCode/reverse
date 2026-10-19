@@ -5,8 +5,8 @@ import {
 	getCustomApi,
 	registerCustomApi,
 	unregisterCustomApis,
-} from "@rva/ai/api-registry";
-import type { AssistantMessageEventStream } from "@rva/ai/types";
+} from "@reverse/ai/api-registry";
+import type { AssistantMessageEventStream } from "@reverse/ai/types";
 
 afterEach(() => {
 	clearCustomApis();

@@ -1,4 +1,4 @@
-import { toNumber } from "@rva/catalog/utils";
+import { toNumber } from "@reverse/catalog/utils";
 import type { UsageAmount, UsageStatus } from "../usage";
 
 /** Milliseconds in one hour. */

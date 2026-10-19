@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { TRUNCATE_LENGTHS } from "@rva/tui/render/render-utils";
-import type { Component } from "@rva/tui";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { TRUNCATE_LENGTHS } from "@reverse/tui/render/render-utils";
+import type { Component } from "@reverse/tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 beforeAll(async () => {

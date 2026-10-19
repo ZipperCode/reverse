@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { IpcConnection } from "@rva/natives";
+import { IpcConnection } from "@reverse/natives";
 import { type Component, Input, Text, TUI, type TuiDebugTreeNode } from "../src";
 import { VirtualTerminal } from "./virtual-terminal";
 

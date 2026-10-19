@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { CompactionCancelledError, type CompactionResult } from "@rva/agent/compaction";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { CommandController } from "@rva/coding-agent/modes/controllers/command-controller";
-import { getThemeByName, setThemeInstance, type Theme, theme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { Container, Spacer } from "@rva/tui";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
+import { CompactionCancelledError, type CompactionResult } from "@reverse/agent/compaction";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { CommandController } from "@reverse/coding-agent/modes/controllers/command-controller";
+import { getThemeByName, setThemeInstance, type Theme, theme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { Container, Spacer } from "@reverse/tui";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
 
 /**
  * Contract under test: `CommandController.executeCompaction` must not leak

@@ -7,24 +7,24 @@
  * compaction item as replacement history.
  */
 
-import type { Api, CodexCompactionContext, FetchImpl, Model, ProviderSessionState } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { createOpenAICodexCompactionRequestContext } from "@rva/ai/providers/openai-codex-compaction";
-import { applyCodexResponsesLiteShape } from "@rva/ai/providers/openai-codex/request-transformer";
+import type { Api, CodexCompactionContext, FetchImpl, Model, ProviderSessionState } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { createOpenAICodexCompactionRequestContext } from "@reverse/ai/providers/openai-codex-compaction";
+import { applyCodexResponsesLiteShape } from "@reverse/ai/providers/openai-codex/request-transformer";
 import {
 	createOpenAICodexCompatibilityMetadata,
 	openCodexCompactionEventStream,
 	type OpenAICodexCompactionBody,
 	type OpenAICodexCompatibilityMetadata,
-} from "@rva/ai/providers/openai-codex-responses";
+} from "@reverse/ai/providers/openai-codex-responses";
 import {
 	getOpenAIPromptCacheKey,
 	getOpenAIResponsesRoutingSessionId,
 	parseAzureDeploymentNameMap,
 	resolveOpenAIRequestSetup,
-} from "@rva/ai/providers/openai-shared";
-import { captureOpenAIHttpError } from "@rva/ai/utils/openai-http";
-import { isBedrockOpenAIUrl } from "@rva/catalog/hosts";
+} from "@reverse/ai/providers/openai-shared";
+import { captureOpenAIHttpError } from "@reverse/ai/utils/openai-http";
+import { isBedrockOpenAIUrl } from "@reverse/catalog/hosts";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
@@ -32,8 +32,8 @@ import {
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@rva/catalog/wire/codex";
-import { $env, isUnexpectedSocketCloseMessage, logger, ptree, stringifyJson } from "@rva/utils";
+} from "@reverse/catalog/wire/codex";
+import { $env, isUnexpectedSocketCloseMessage, logger, ptree, stringifyJson } from "@reverse/utils";
 import { appendAzureApiVersion, resolveAzureOpenAiBaseUrl } from "./azure-openai-endpoint";
 import { prepareBedrockCompactionRequest } from "./bedrock";
 

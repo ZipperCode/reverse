@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { cfgEditFuzzyMatch } from "@rva/coding-agent/edit/settings";
-import { type EditMode } from "@rva/tui/tools/edit";
-import { type EditModeSessionLike, resolveEditMode } from "@rva/coding-agent/utils/edit-mode";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { cfgEditFuzzyMatch } from "@reverse/coding-agent/edit/settings";
+import { type EditMode } from "@reverse/tui/tools/edit";
+import { type EditModeSessionLike, resolveEditMode } from "@reverse/coding-agent/utils/edit-mode";
 
 const originalEditVariant = Bun.env.PI_EDIT_VARIANT;
 const originalStrictEditMode = Bun.env.PI_STRICT_EDIT_MODE;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { EpisodicGraph, type GraphEdge } from "@rva/mnemopi/core/episodic-graph";
-import { closeQuietly, openDatabase } from "@rva/mnemopi/db";
+import { EpisodicGraph, type GraphEdge } from "@reverse/mnemopi/core/episodic-graph";
+import { closeQuietly, openDatabase } from "@reverse/mnemopi/db";
 
 function withGraph<T>(fn: (graph: EpisodicGraph) => T): T {
 	const db = openDatabase(":memory:");

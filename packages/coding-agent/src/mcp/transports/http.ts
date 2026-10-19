@@ -5,8 +5,8 @@
  * The negotiated protocol revision is carried in the `MCP-Protocol-Version`
  * header on every request (see `MCP_PROTOCOL_VERSION`).
  */
-import * as AIError from "@rva/ai/error";
-import { isRecord, logger, postmortem, readSseEvents, readSseJson, untilAborted } from "@rva/utils";
+import * as AIError from "@reverse/ai/error";
+import { isRecord, logger, postmortem, readSseEvents, readSseJson, untilAborted } from "@reverse/utils";
 import type {
 	JsonRpcError,
 	JsonRpcMessage,

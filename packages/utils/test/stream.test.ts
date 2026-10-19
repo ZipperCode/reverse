@@ -8,7 +8,7 @@ import {
 	readSseJson,
 	readSseJsonOrText,
 	type ServerSentEvent,
-} from "@rva/utils/stream";
+} from "@reverse/utils/stream";
 
 const encoder = new TextEncoder();
 

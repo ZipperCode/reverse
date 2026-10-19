@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { parseArgs, validateGoalLaunch, validateGoalStartup } from "@rva/coding-agent/cli/args";
-import { CliUsageError } from "@rva/coding-agent/cli/usage-error";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createSessionManager, runRootCommand } from "@rva/coding-agent/main";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { setInteractiveHost, TempDir } from "@rva/utils";
+import { parseArgs, validateGoalLaunch, validateGoalStartup } from "@reverse/coding-agent/cli/args";
+import { CliUsageError } from "@reverse/coding-agent/cli/usage-error";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createSessionManager, runRootCommand } from "@reverse/coding-agent/main";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { setInteractiveHost, TempDir } from "@reverse/utils";
 
 const cliEntry = path.resolve(import.meta.dir, "../src/cli.ts");
 

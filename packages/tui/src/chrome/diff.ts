@@ -1,6 +1,6 @@
-import { diffWords } from "@rva/natives";
-import { DEFAULT_TAB_WIDTH, sanitizeText } from "@rva/utils";
-import type { TspDiffHunk, TspProps } from "@rva/wire";
+import { diffWords } from "@reverse/natives";
+import { DEFAULT_TAB_WIDTH, sanitizeText } from "@reverse/utils";
+import type { TspDiffHunk, TspProps } from "@reverse/wire";
 import { theme as activeTheme, getLanguageFromPath, highlightCode, type Theme } from "../theme/index";
 import { type CodeFrameMarker, formatCodeFrameLine, replaceTabs, shortenPath } from "../render/render-utils";
 import { node } from "../native/describe";

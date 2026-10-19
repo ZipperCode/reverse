@@ -1,22 +1,18 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type { ImageContent, TextContent } from "@rva/ai";
-import { BlobStore, isBlobRef, lazyImageDataSync, parseBlobRef } from "@rva/coding-agent/session/blob-store";
-import type {
-	CompactionEntry,
-	FileEntry,
-	SessionMessageEntry,
-} from "@rva/coding-agent/session/session-entries";
-import { resolveBlobRefsInEntries } from "@rva/coding-agent/session/session-loader";
+import type { AgentMessage } from "@reverse/agent";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import { BlobStore, isBlobRef, lazyImageDataSync, parseBlobRef } from "@reverse/coding-agent/session/blob-store";
+import type { CompactionEntry, FileEntry, SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
+import { resolveBlobRefsInEntries } from "@reverse/coding-agent/session/session-loader";
 import {
 	forgetExternalizedImages,
 	prepareEntryForPersistence,
-} from "@rva/coding-agent/session/session-persistence";
-import { TempDir } from "@rva/utils";
-import type { Archive } from "@rva/snapcompact";
-import * as snapcompact from "@rva/snapcompact";
+} from "@reverse/coding-agent/session/session-persistence";
+import { TempDir } from "@reverse/utils";
+import type { Archive } from "@reverse/snapcompact";
+import * as snapcompact from "@reverse/snapcompact";
 
 type ImagePayload = { data: string; mimeType: string; type?: "image" };
 type ToolResultMessage = Extract<AgentMessage, { role: "toolResult" }>;

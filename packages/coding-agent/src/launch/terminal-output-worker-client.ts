@@ -1,4 +1,4 @@
-import { workerHostEntry } from "@rva/utils/worker-host";
+import { workerHostEntry } from "@reverse/utils/worker-host";
 import type { TerminalOutputOptions } from "./terminal-output";
 import {
 	TERMINAL_OUTPUT_WORKER_ARG,

@@ -2,19 +2,19 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as cleanseAgent from "@rva/coding-agent/cleanse/agent";
-import * as cleanseCheckers from "@rva/coding-agent/cleanse/checkers";
-import { runCleanseCommand } from "@rva/coding-agent/cleanse/index";
-import { runCleanseLoop } from "@rva/coding-agent/cleanse/loop";
-import { type CleanseParserKind, parseCleanseDiagnostics } from "@rva/coding-agent/cleanse/parsers";
+import * as cleanseAgent from "@reverse/coding-agent/cleanse/agent";
+import * as cleanseCheckers from "@reverse/coding-agent/cleanse/checkers";
+import { runCleanseCommand } from "@reverse/coding-agent/cleanse/index";
+import { runCleanseLoop } from "@reverse/coding-agent/cleanse/loop";
+import { type CleanseParserKind, parseCleanseDiagnostics } from "@reverse/coding-agent/cleanse/parsers";
 import type {
 	CleanseAgentOutcome,
 	CleanseAssignment,
 	CleanseDiagnostic,
 	CleanseDiagnosticReport,
-} from "@rva/coding-agent/cleanse/types";
-import { createProgressReporter } from "@rva/coding-agent/cli/progress-reporter";
-import { resolveCliArgv } from "@rva/coding-agent/cli-commands";
+} from "@reverse/coding-agent/cleanse/types";
+import { createProgressReporter } from "@reverse/coding-agent/cli/progress-reporter";
+import { resolveCliArgv } from "@reverse/coding-agent/cli-commands";
 
 afterEach(() => {
 	vi.restoreAllMocks();

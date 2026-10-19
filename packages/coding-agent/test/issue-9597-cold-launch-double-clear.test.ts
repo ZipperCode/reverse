@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { ComposerPreferences } from "@rva/tui/prompt/composer";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { ComposerPreferences } from "@reverse/tui/prompt/composer";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
 import {
 	beginStartupComposer,
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
-} from "@rva/coding-agent/modes/startup-composer";
-import { initTheme } from "@rva/tui/theme";
+} from "@reverse/coding-agent/modes/startup-composer";
+import { initTheme } from "@reverse/tui/theme";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { assistantMsg, createTestSession, userMsg } from "./utilities";
 
@@ -22,7 +22,7 @@ import {
 	cfgTuiImeSafeCursor,
 	cfgTuiMaxInlineImages,
 	cfgTuiResizeScrollback,
-} from "@rva/coding-agent/modes/settings";
+} from "@reverse/coding-agent/modes/settings";
 
 // Every destructive reset emits one erase-scrollback (ED3). Count that
 // operation without coupling this regression to the ED2/ED3 ordering.

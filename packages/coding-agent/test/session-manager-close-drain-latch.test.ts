@@ -3,8 +3,8 @@ import {
 	IndexedSessionStorage,
 	type SessionStorageBackend,
 	type SessionStorageIndexEntry,
-} from "@rva/coding-agent/session/indexed-session-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+} from "@reverse/coding-agent/session/indexed-session-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 /**
  * Backend that accepts every lookup but fails the fire-and-forget publish.

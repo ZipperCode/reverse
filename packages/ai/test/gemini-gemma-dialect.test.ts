@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ToolCall } from "@rva/ai";
-import { createInbandScanner, type Dialect, getDialectDefinition, type InbandScanEvent } from "@rva/ai/dialect";
+import type { ToolCall } from "@reverse/ai";
+import { createInbandScanner, type Dialect, getDialectDefinition, type InbandScanEvent } from "@reverse/ai/dialect";
 
 function scan(dialect: Dialect, text: string, charByChar = false): InbandScanEvent[] {
 	const scanner = createInbandScanner(dialect);

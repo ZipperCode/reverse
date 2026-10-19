@@ -1,5 +1,5 @@
-import { type ApiKey, type FetchImpl, withAuth } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
+import { type ApiKey, type FetchImpl, withAuth } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
 
 import { getDiagnostics } from "./diagnostics";
 import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_TEMPLATE } from "./prompts";

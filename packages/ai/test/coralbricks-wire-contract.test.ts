@@ -8,11 +8,11 @@
  * rates.
  */
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModels } from "@rva/catalog/models";
-import { coralbricksModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModels } from "@reverse/catalog/models";
+import { coralbricksModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
 
 const CORALBRICKS_BASE_URL = "https://inference.coralbricks.ai/v1";
 

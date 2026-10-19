@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { CustomToolContext } from "@rva/coding-agent/extensibility/custom-tools";
-import { DeferredMCPTool, MCPTool, type MCPToolDefinition } from "@rva/coding-agent/mcp";
-import type { MCPServerConnection } from "@rva/coding-agent/mcp/types";
-import { TempDir } from "@rva/utils";
-import { INTENT_FIELD } from "@rva/wire";
+import type { CustomToolContext } from "@reverse/coding-agent/extensibility/custom-tools";
+import { DeferredMCPTool, MCPTool, type MCPToolDefinition } from "@reverse/coding-agent/mcp";
+import type { MCPServerConnection } from "@reverse/coding-agent/mcp/types";
+import { TempDir } from "@reverse/utils";
+import { INTENT_FIELD } from "@reverse/wire";
 import { createMockConnection, createMockTransport } from "./mcp-test-utils";
 
 type CapturedRequest = {

@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
-import type { Api, AssistantMessage, Context, Message, Model, ModelSpec } from "@rva/ai";
-import { clearCustomApis, registerCustomApi } from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { DateCwdReminderInjector, renderDateCwdReminder } from "@rva/coding-agent/session/date-cwd-reminder";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { formatLocalCalendarDate } from "@rva/tui/chrome/local-date";
-import { normalizePromptPath } from "@rva/coding-agent/utils/prompt-path";
-import { TempDir } from "@rva/utils";
+import type { Api, AssistantMessage, Context, Message, Model, ModelSpec } from "@reverse/ai";
+import { clearCustomApis, registerCustomApi } from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { DateCwdReminderInjector, renderDateCwdReminder } from "@reverse/coding-agent/session/date-cwd-reminder";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { formatLocalCalendarDate } from "@reverse/tui/chrome/local-date";
+import { normalizePromptPath } from "@reverse/coding-agent/utils/prompt-path";
+import { TempDir } from "@reverse/utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 describe("date-cwd-reminder", () => {

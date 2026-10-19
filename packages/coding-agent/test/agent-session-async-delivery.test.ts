@@ -7,34 +7,34 @@
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { ImageContent } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import type { AsyncJob } from "@rva/coding-agent/async/job-manager";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { DaemonCompletionNotification } from "@rva/coding-agent/launch/protocol";
-import { buildAsyncResultBlock } from "@rva/tui/chat/transcript-render-helpers";
-import { initTheme } from "@rva/tui/theme";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { ArtifactManager } from "@rva/coding-agent/session/artifacts";
+import { Agent } from "@reverse/agent";
+import type { ImageContent } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import type { AsyncJob } from "@reverse/coding-agent/async/job-manager";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { DaemonCompletionNotification } from "@reverse/coding-agent/launch/protocol";
+import { buildAsyncResultBlock } from "@reverse/tui/chat/transcript-render-helpers";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { ArtifactManager } from "@reverse/coding-agent/session/artifacts";
 import {
 	buildAsyncResultBatchMessage,
 	type AsyncResultDetails,
 	type AsyncResultEntry,
-} from "@rva/coding-agent/session/async-job-delivery";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm, type CustomMessage } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+} from "@reverse/coding-agent/session/async-job-delivery";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm, type CustomMessage } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { BashTool } from "@rva/coding-agent/tools/bash";
-import { type OutputMeta } from "@rva/tui/tools/output-meta";
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { TempDir } from "@rva/utils";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
+import { type OutputMeta } from "@reverse/tui/tools/output-meta";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { TempDir } from "@reverse/utils";
 function observeAsyncResultEnqueue(session: AgentSession): Promise<void> {
 	const queued = Promise.withResolvers<void>();
 	const enqueue = session.yieldQueue.enqueueWithReceipt.bind(session.yieldQueue);

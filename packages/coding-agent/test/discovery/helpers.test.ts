@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache } from "@rva/coding-agent/capability/fs";
-import type { LoadContext } from "@rva/coding-agent/capability/types";
-import { loadFilesFromDir } from "@rva/coding-agent/discovery/helpers";
-import { parseFrontmatter, removeSyncWithRetries } from "@rva/utils";
+import { clearCache } from "@reverse/coding-agent/capability/fs";
+import type { LoadContext } from "@reverse/coding-agent/capability/types";
+import { loadFilesFromDir } from "@reverse/coding-agent/discovery/helpers";
+import { parseFrontmatter, removeSyncWithRetries } from "@reverse/utils";
 
 describe("parseFrontmatter", () => {
 	const parse = (content: string) => parseFrontmatter(content, { source: "tests:frontmatter", level: "off" });

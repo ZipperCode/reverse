@@ -12,12 +12,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Model } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { startMemoryStartupTask } from "@rva/coding-agent/memories";
-import * as memoryStorage from "@rva/coding-agent/memories/storage";
-import { getAgentDbPath, logger, Snowflake, TempDir } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { startMemoryStartupTask } from "@reverse/coding-agent/memories";
+import * as memoryStorage from "@reverse/coding-agent/memories/storage";
+import { getAgentDbPath, logger, Snowflake, TempDir } from "@reverse/utils";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 
 interface SessionLike {

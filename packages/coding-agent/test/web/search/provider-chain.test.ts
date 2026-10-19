@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resolveModelRoleValue, resolveRoleChain } from "@rva/coding-agent/config/model-resolver";
-import { roleCandidatePool } from "@rva/coding-agent/config/model-roles";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { getSearchProvider } from "@rva/coding-agent/web/search/provider";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resolveModelRoleValue, resolveRoleChain } from "@reverse/coding-agent/config/model-resolver";
+import { roleCandidatePool } from "@reverse/coding-agent/config/model-roles";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { getSearchProvider } from "@reverse/coding-agent/web/search/provider";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const originalPerplexityApiKey = process.env.PERPLEXITY_API_KEY;

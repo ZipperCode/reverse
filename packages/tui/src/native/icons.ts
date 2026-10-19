@@ -9,7 +9,7 @@
  * is dropped. Applied once, centrally, to every `TspText` field of a node's
  * props before they go on the wire.
  */
-import type { TspKind, TspSpan, TspText } from "@rva/wire";
+import type { TspKind, TspSpan, TspText } from "@reverse/wire";
 
 const PUA = /[\u{E000}-\u{F8FF}\u{F0000}-\u{FFFFD}\u{100000}-\u{10FFFD}]/u;
 const PUA_RUNS = /[\u{E000}-\u{F8FF}\u{F0000}-\u{FFFFD}\u{100000}-\u{10FFFD}]+/gu;

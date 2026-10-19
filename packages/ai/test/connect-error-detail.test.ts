@@ -3,7 +3,7 @@ import {
 	formatConnectEndStreamError,
 	hasRetryableCursorErrorDetail,
 	summarizeConnectErrorDetails,
-} from "@rva/ai/providers/connect-error-detail";
+} from "@reverse/ai/providers/connect-error-detail";
 
 describe("formatConnectEndStreamError", () => {
 	it("keeps the legacy prefix for a plain code/message error", () => {

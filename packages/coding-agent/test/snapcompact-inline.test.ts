@@ -7,16 +7,16 @@ import type {
 	Model,
 	TextContent,
 	ToolResultMessage,
-} from "@rva/ai";
-import { transformMessages } from "@rva/ai/providers/transform-messages";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai";
+import { transformMessages } from "@reverse/ai/providers/transform-messages";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	estimateInlineSavings,
 	planInlineSwaps,
 	type SnapcompactInlineOptions,
 	SnapcompactInlineTransformer,
-} from "@rva/coding-agent/session/snapcompact-inline";
-import * as snapcompact from "@rva/snapcompact";
+} from "@reverse/coding-agent/session/snapcompact-inline";
+import * as snapcompact from "@reverse/snapcompact";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 /**

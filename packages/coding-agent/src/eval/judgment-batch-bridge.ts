@@ -16,13 +16,13 @@
  * batch survives kernel resets (`attach(id)`) until `close()` or its owner
  * session releases it.
  */
-import type { ImageContent, JudgmentState, Question } from "@rva/ai";
-import { isRecord, logger, Snowflake } from "@rva/utils";
-import { formatCost } from "@rva/tui/overlays/agent-hub-renderer";
+import type { ImageContent, JudgmentState, Question } from "@reverse/ai";
+import { isRecord, logger, Snowflake } from "@reverse/utils";
+import { formatCost } from "@reverse/tui/overlays/agent-hub-renderer";
 import type { ChainJudge } from "../judgment";
 import { MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { ToolSession } from "../tools";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { withBridgeTimeoutPause } from "./bridge-timeout";
 import { EVAL_HANDLE_CONCURRENCY, evalRequestSlots } from "./completion-bridge";
 import { JUDGMENT_BATCH_PROGRESS_EVENT_CHANNEL, type JudgmentBatchProgress } from "./judgment-batch-events";

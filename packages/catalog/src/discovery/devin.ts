@@ -1,4 +1,4 @@
-import { logger, slugify } from "@rva/utils";
+import { logger, slugify } from "@reverse/utils";
 import { collapseVariants, type EffortVariantFamily } from "../compat/collapse";
 import { Effort, THINKING_EFFORTS } from "../effort";
 import type { DevinCompat, FetchImpl, ModelCost, ModelSpec } from "../types";

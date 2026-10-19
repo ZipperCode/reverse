@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { CodexResetFireworksEvent } from "@rva/tui/overlays/codex-reset-fireworks";
-import { StatusLineComponent } from "@rva/tui/status-line";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { CodexResetFireworksEvent } from "@reverse/tui/overlays/codex-reset-fireworks";
+import { StatusLineComponent } from "@reverse/tui/status-line";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 
-import { cfgTuiCodexResetFireworks } from "@rva/coding-agent/modes/settings";
+import { cfgTuiCodexResetFireworks } from "@reverse/coding-agent/modes/settings";
 
 async function flushMicrotasks(): Promise<void> {
 	await Promise.resolve();

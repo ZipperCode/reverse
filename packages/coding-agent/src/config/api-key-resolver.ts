@@ -1,8 +1,8 @@
-import { type ApiKeyResolution, type ApiKeyResolver, markAfterSiblingWait } from "@rva/ai/auth-retry";
-import * as AIError from "@rva/ai/error";
-import { isUsageLimitOutcome } from "@rva/ai/error/rate-limit";
-import type { AuthApiKeyOptions, AuthStorage } from "@rva/ai/auth-storage";
-import type { Api, Model } from "@rva/ai/types";
+import { type ApiKeyResolution, type ApiKeyResolver, markAfterSiblingWait } from "@reverse/ai/auth-retry";
+import * as AIError from "@reverse/ai/error";
+import { isUsageLimitOutcome } from "@reverse/ai/error/rate-limit";
+import type { AuthApiKeyOptions, AuthStorage } from "@reverse/ai/auth-storage";
+import type { Api, Model } from "@reverse/ai/types";
 
 /** Model slice accepted by the model-form `resolver(model, sessionId)` overload. */
 export type ApiKeyResolverModel = Pick<Model<Api>, "provider" | "baseUrl" | "id">;

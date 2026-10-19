@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { $which } from "@rva/utils";
+import { $which } from "@reverse/utils";
 
 const pythonPath = Bun.env.PYTHON ?? $which("python3") ?? $which("python");
 const runnerPath = path.resolve(import.meta.dir, "../../../src/eval/py/runner.py");

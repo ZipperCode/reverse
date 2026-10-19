@@ -1,8 +1,8 @@
 import * as os from "node:os";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { AudioCapture } from "@rva/natives";
-import { prompt } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { AudioCapture } from "@reverse/natives";
+import { prompt } from "@reverse/utils";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionEvent } from "../session/agent-session-events";
 import { LIVE_DELEGATION_MESSAGE_TYPE } from "../session/messages";
@@ -16,7 +16,7 @@ import {
 	type LiveServerEvent,
 } from "./protocol";
 import { CodexLiveTransport } from "./transport";
-import type { LivePhase } from "@rva/tui/apps/live-visualizer";
+import type { LivePhase } from "@reverse/tui/apps/live-visualizer";
 import { DEFAULT_LIVE_VOICE } from "./voices";
 
 const OUTPUT_ACTIVE_LEVEL = 0.015;

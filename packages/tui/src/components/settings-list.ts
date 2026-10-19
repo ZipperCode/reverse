@@ -1,13 +1,13 @@
 import { formatKeyHint } from "../app-keybindings";
 import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 import { tuiHint } from "../overlays/settings-defs";
-import type { SupportedLocale } from "@rva/utils/i18n";
+import type { SupportedLocale } from "@reverse/utils/i18n";
 import { fuzzyFilter } from "../fuzzy";
 import { getKeybindings } from "../keybindings";
 import { extractPrintableText } from "../keys";
 import type { MouseRoutable, SgrMouseEvent } from "../mouse";
-import { slugify } from "@rva/utils";
-import type { TspPrefsControl, TspPrefsRow, TspPrefsSection, TspProps, TspSpan } from "@rva/wire";
+import { slugify } from "@reverse/utils";
+import type { TspPrefsControl, TspPrefsRow, TspPrefsSection, TspProps, TspSpan } from "@reverse/wire";
 import { col, node, span } from "../native/describe";
 import { sameItems, sameProps } from "../native/memo";
 import { plainLine, plainText } from "../native/spans";
@@ -705,8 +705,10 @@ export class SettingsList implements Component {
 			filter: this.#filterQuery.trim() || undefined,
 			empty:
 				this.#items.length === 0
-					? (this.#options.emptyText ?? tuiHint("settings.noSettings", this.#options.locale, "No settings available"))
-					: (this.#options.emptyMatchText ?? tuiHint("settings.empty", this.#options.locale, "No matching settings")),
+					? (this.#options.emptyText ??
+						tuiHint("settings.noSettings", this.#options.locale, "No settings available"))
+					: (this.#options.emptyMatchText ??
+						tuiHint("settings.empty", this.#options.locale, "No matching settings")),
 			max:
 				typeof cachedMax === "object" && cachedMax.lines === this.#maxVisible
 					? cachedMax
@@ -832,7 +834,12 @@ export class SettingsList implements Component {
 			if (this.#shouldRenderSearchStatus()) {
 				lines.push(this.#renderSearchStatus(width));
 			}
-			lines.push(this.#theme.hint(this.#options.emptyMatchText ?? `  ${tuiHint("settings.empty", this.#options.locale, "No matching settings")}`));
+			lines.push(
+				this.#theme.hint(
+					this.#options.emptyMatchText ??
+						`  ${tuiHint("settings.empty", this.#options.locale, "No matching settings")}`,
+				),
+			);
 			lines.push("");
 			const editKey = editorKey("tui.editor.deleteCharBackward");
 			const cancelKey = editorKey("tui.select.cancel");

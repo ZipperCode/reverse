@@ -14,10 +14,10 @@ import {
 	hasResolvableTranscript,
 	registerArtifactsDir,
 	resetRegisteredArtifactDirsForTests,
-} from "@rva/coding-agent/internal-urls/registry-helpers";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/internal-urls/registry-helpers";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { removeWithRetries } from "@reverse/utils";
 
 function fakeLiveSession(): AgentSession {
 	return { messages: [] } as unknown as AgentSession;

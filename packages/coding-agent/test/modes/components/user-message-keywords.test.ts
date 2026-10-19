@@ -1,20 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import type { AgentMessage } from "@rva/agent";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { MAGIC_KEYWORDS } from "@rva/coding-agent/modes/magic-keywords";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { UserMessageComponent } from "@rva/tui/chat/user-message";
-import { chipLabel, modelChipStyle, modelMentionChipLabel } from "@rva/tui/prompt/composer-attachments";
-import { imageReferenceHyperlink } from "@rva/tui/prompt/image-references";
-import { setMagicKeywords } from "@rva/tui/prompt/magic-keywords";
-import { getEditorTheme, initTheme, theme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import { Container } from "@rva/tui";
+import type { AgentMessage } from "@reverse/agent";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { MAGIC_KEYWORDS } from "@reverse/coding-agent/modes/magic-keywords";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { UserMessageComponent } from "@reverse/tui/chat/user-message";
+import { chipLabel, modelChipStyle, modelMentionChipLabel } from "@reverse/tui/prompt/composer-attachments";
+import { imageReferenceHyperlink } from "@reverse/tui/prompt/image-references";
+import { setMagicKeywords } from "@reverse/tui/prompt/magic-keywords";
+import { getEditorTheme, initTheme, theme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import { Container } from "@reverse/tui";
 
-import { cfgTuiHyperlinks } from "@rva/coding-agent/modes/settings";
+import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
 
 beforeAll(async () => {
 	resetSettingsForTest();

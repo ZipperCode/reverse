@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { readImageMetadata, removeSyncWithRetries } from "@rva/utils";
+import { readImageMetadata, removeSyncWithRetries } from "@reverse/utils";
 import { loadImageAttachmentInput, loadImageInput } from "../src/utils/image-loading";
-import { InvalidImageDataError } from "@rva/tui/chat/image-loading";
+import { InvalidImageDataError } from "@reverse/tui/chat/image-loading";
 
 describe("readImageMetadata", () => {
 	let testDir: string;

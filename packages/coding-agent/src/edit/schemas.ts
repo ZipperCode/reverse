@@ -1,4 +1,4 @@
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 
 export const replaceEditSchema = type({
 	path: "string",

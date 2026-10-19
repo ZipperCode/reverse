@@ -12,18 +12,18 @@
  */
 import { describe, expect, it } from "bun:test";
 import { gunzipSync } from "node:zlib";
-import { streamDevin } from "@rva/ai/providers/devin";
-import { convertMessages } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import { stream } from "@rva/ai/stream";
-import type { Api, AssistantMessage, Message, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamDevin } from "@reverse/ai/providers/devin";
+import { convertMessages } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import { stream } from "@reverse/ai/stream";
+import type { Api, AssistantMessage, Message, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	GetChatMessageRequestSchema,
 	GetChatMessageResponseSchema,
 	GetUserJwtResponseSchema,
-} from "@rva/catalog/discovery/devin-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/devin-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 const TRACE = "Earlier reasoning: read foo.ts, then patch bar().";
 const THINK = `<think>\n${TRACE}\n</think>`;

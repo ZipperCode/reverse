@@ -2,8 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { extractFileMentions, generateFileMentionMessages } from "@rva/coding-agent/utils/file-mentions";
-import { removeWithRetries } from "@rva/utils";
+import { extractFileMentions, generateFileMentionMessages } from "@reverse/coding-agent/utils/file-mentions";
+import { removeWithRetries } from "@reverse/utils";
 
 const tempDirs: string[] = [];
 

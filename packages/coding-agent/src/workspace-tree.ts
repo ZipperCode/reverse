@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import { FileType, type GlobMatch, listWorkspace } from "@rva/natives";
-import { sanitizeDisplayWarning, TRUNCATE_LENGTHS, truncateToWidth } from "@rva/tui/render/render-utils";
-import { formatAge, formatBytes } from "@rva/utils";
+import { FileType, type GlobMatch, listWorkspace } from "@reverse/natives";
+import { sanitizeDisplayWarning, TRUNCATE_LENGTHS, truncateToWidth } from "@reverse/tui/render/render-utils";
+import { formatAge, formatBytes } from "@reverse/utils";
 
 /** Defaults for the workspace tree shown in the system prompt. */
 const WORKSPACE_DEFAULTS = {

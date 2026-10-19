@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { getOAuthProviders } from "@rva/ai/registry/oauth";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
-import { buildModel } from "@rva/catalog/build";
-import { normalizeCharmHyperBaseUrl } from "@rva/catalog/wire/charm-hyper";
-import { isCatalogDescriptor, resolveModelCacheProviderId } from "@rva/catalog/provider-models";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@rva/catalog/provider-models/descriptors";
-import { charmHyperModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@rva/catalog/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { getOAuthProviders } from "@reverse/ai/registry/oauth";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
+import { buildModel } from "@reverse/catalog/build";
+import { normalizeCharmHyperBaseUrl } from "@reverse/catalog/wire/charm-hyper";
+import { isCatalogDescriptor, resolveModelCacheProviderId } from "@reverse/catalog/provider-models";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@reverse/catalog/provider-models/descriptors";
+import { charmHyperModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@reverse/catalog/types";
 
 /**
  * Rows mirror live `https://hyper.charm.land/v1/models` payloads: the display

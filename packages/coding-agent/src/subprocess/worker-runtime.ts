@@ -8,7 +8,7 @@ import {
 	installRuntimeModuleResolver,
 	isCompiledBinary,
 	resolveRuntimeModule,
-} from "@rva/utils";
+} from "@reverse/utils";
 import packageJson from "../../package.json" with { type: "json" };
 
 /**

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type DownloadActivity, onDownloadActivity } from "@rva/coding-agent/downloads/activity";
-import { ModelDownloadActivity } from "@rva/coding-agent/downloads/model-downloads";
+import { type DownloadActivity, onDownloadActivity } from "@reverse/coding-agent/downloads/activity";
+import { ModelDownloadActivity } from "@reverse/coding-agent/downloads/model-downloads";
 
 function record(): { activities: DownloadActivity[]; stop: () => void } {
 	const activities: DownloadActivity[] = [];

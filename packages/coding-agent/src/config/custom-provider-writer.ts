@@ -1,12 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { YAML } from "bun";
-import type { Api } from "@rva/ai";
-import type { AuthStorage } from "@rva/ai";
-import { getBundledProviders } from "@rva/catalog";
-import { OmpErrors } from "@rva/omptype";
-import { getAgentDir, withFileLock } from "@rva/utils";
-import { stringifyYamlConfig } from "@rva/utils/yaml-config";
+import type { Api } from "@reverse/ai";
+import type { AuthStorage } from "@reverse/ai";
+import { getBundledProviders } from "@reverse/catalog";
+import { OmpErrors } from "@reverse/omptype";
+import { getAgentDir, withFileLock } from "@reverse/utils";
+import { stringifyYamlConfig } from "@reverse/utils/yaml-config";
 import { replaceFileAtomically } from "../utils/atomic-file";
 import type { ModelRegistry } from "./model-registry";
 import { ModelsConfigFile, validateProviderConfiguration } from "./models-config";

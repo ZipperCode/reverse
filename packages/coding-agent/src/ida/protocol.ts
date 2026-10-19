@@ -5,8 +5,8 @@
  * broker (so it shows up in `omp ps`). The daemon is an omp worker (`host.ts`) that owns the
  * IDB lock and one Python worker, and serves NDJSON requests on {@link idaHostEndpoint}.
  */
-import { ipcEndpoint } from "@rva/natives";
-import { type } from "@rva/omptype";
+import { ipcEndpoint } from "@reverse/natives";
+import { type } from "@reverse/omptype";
 export { IDA_HOST_WORKER_ARG } from "../cli/worker-selectors";
 
 /** Environment key carrying the JSON {@link IdaHostConfig} for the daemon. */

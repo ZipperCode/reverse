@@ -17,9 +17,9 @@
  * - history://<agentId> - Concise markdown transcript of that agent
  * - history://current/full - Full, caller-bound current branch history (experimental)
  */
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { LRUCache } from "@rva/utils/lru";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { LRUCache } from "@reverse/utils/lru";
 import type { AgentRef } from "../registry/agent-registry";
 import { AgentRegistry } from "../registry/agent-registry";
 import { ensurePersistedRoster } from "../registry/persisted-agents";

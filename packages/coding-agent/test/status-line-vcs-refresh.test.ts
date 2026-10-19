@@ -16,14 +16,14 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { StatusLineSettings } from "@rva/tui/status-line";
-import { StatusLineComponent } from "@rva/tui/status-line";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { initTheme } from "@rva/tui/theme";
-import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { getProjectDir, setProjectDir } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { StatusLineSettings } from "@reverse/tui/status-line";
+import { StatusLineComponent } from "@reverse/tui/status-line";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { initTheme } from "@reverse/tui/theme";
+import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { getProjectDir, setProjectDir } from "@reverse/utils";
 
 type GitStatus = { staged: number; unstaged: number; untracked: number };
 

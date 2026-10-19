@@ -1,6 +1,6 @@
-import { sanitizeText } from "@rva/utils";
+import { sanitizeText } from "@reverse/utils";
 import type { InternalResource } from "../internal-urls";
-import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, truncateHead } from "@rva/tui/tools/streaming-output";
+import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, truncateHead } from "@reverse/tui/tools/streaming-output";
 
 export interface SecurityResourceOptions {
 	url: string;

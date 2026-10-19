@@ -16,9 +16,9 @@ import type {
 	TextContent,
 	ToolResultMessage,
 	UserMessage,
-} from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { dropUnreadableContextImages } from "@rva/coding-agent/session/provider-image-budget";
+} from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { dropUnreadableContextImages } from "@reverse/coding-agent/session/provider-image-budget";
 
 /**
  * 1x1 PNG whose chunk framing does not land exactly on `IEND`, yet every

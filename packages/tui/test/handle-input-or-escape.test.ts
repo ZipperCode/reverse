@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { handleInputOrEscape } from "@rva/tui/overlays/plugin-settings";
-import { setKittyProtocolActive } from "@rva/tui";
+import { handleInputOrEscape } from "@reverse/tui/overlays/plugin-settings";
+import { setKittyProtocolActive } from "@reverse/tui";
 
 afterEach(() => {
 	setKittyProtocolActive(false);

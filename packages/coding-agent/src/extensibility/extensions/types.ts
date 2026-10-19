@@ -14,7 +14,7 @@ import {
 	type ExtensionWidgetContent,
 	type MessageRenderer,
 	type AssistantThinkingRenderer,
-} from "@rva/tui/chat/extension-types";
+} from "@reverse/tui/chat/extension-types";
 export {
 	type ExtensionUiComponent,
 	type ExtensionUiComponentFactory,
@@ -23,10 +23,10 @@ export {
 	type MessageRenderer,
 	type AssistantThinkingRenderContext,
 	type AssistantThinkingRenderer,
-} from "@rva/tui/chat/extension-types";
-import type { type as ArkType } from "@rva/omptype";
-import type * as TypeBox from "@rva/omptype/typebox";
-import type * as zod from "@rva/omptype/zod";
+} from "@reverse/tui/chat/extension-types";
+import type { type as ArkType } from "@reverse/omptype";
+import type * as TypeBox from "@reverse/omptype/typebox";
+import type * as zod from "@reverse/omptype/zod";
 import type {
 	AgentMessage,
 	AgentToolResult,
@@ -34,10 +34,10 @@ import type {
 	ThinkingLevel,
 	ToolApproval,
 	ToolLoadMode,
-} from "@rva/agent";
-import type { CompactionResult } from "@rva/agent/compaction";
-import type { ContextUsage } from "@rva/tui/status-line/types";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
+} from "@reverse/agent";
+import type { CompactionResult } from "@reverse/agent/compaction";
+import type { ContextUsage } from "@reverse/tui/status-line/types";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
 import type {
 	Api,
 	AssistantMessage,
@@ -56,8 +56,8 @@ import type {
 	TextContent,
 	TSchema,
 	UsageProvider,
-} from "@rva/ai";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@rva/ai/oauth/types";
+} from "@reverse/ai";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@reverse/ai/oauth/types";
 import type {
 	AutocompleteItem,
 	AutocompleteProvider,
@@ -67,34 +67,34 @@ import type {
 	OverlayHandle,
 	OverlayOptions,
 	TUI,
-} from "@rva/tui";
-import type { logger as PiLogger } from "@rva/utils";
-import type { KeybindingsManager } from "@rva/tui/app-keybindings";
-import type { ComposerShapeDefinition } from "@rva/tui/overlays/composer-shape-registry";
-import type { CodeReviewAnnotation, TextReviewAnnotation } from "@rva/tui/overlays/annotation-types";
-export type { ComposerShapeDefinition } from "@rva/tui/overlays/composer-shape-registry";
+} from "@reverse/tui";
+import type { logger as PiLogger } from "@reverse/utils";
+import type { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import type { ComposerShapeDefinition } from "@reverse/tui/overlays/composer-shape-registry";
+import type { CodeReviewAnnotation, TextReviewAnnotation } from "@reverse/tui/overlays/annotation-types";
+export type { ComposerShapeDefinition } from "@reverse/tui/overlays/composer-shape-registry";
 import type { ModelRegistry } from "../../config/model-registry";
-import type { EditToolDetails } from "@rva/tui/tools/edit";
+import type { EditToolDetails } from "@reverse/tui/tools/edit";
 import type { PythonResult } from "../../eval/py/executor";
 import type { BashResult } from "../../exec/bash-executor";
 import type { ExecOptions, ExecResult } from "../../exec/exec";
 import type * as PiCodingAgent from "../../index";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
 import type { MemoryRuntimeContext } from "../../memory-backend";
-import type { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import type { Theme } from "@rva/tui/theme";
-import type { NativeToolView } from "@rva/tui/tools/renderer";
+import type { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import type { Theme } from "@reverse/tui/theme";
+import type { NativeToolView } from "@reverse/tui/tools/renderer";
 import type { AsyncJobSnapshot, SendUserMessageOptions } from "../../session/agent-session";
 import type { EphemeralTurnOptions, EphemeralTurnResult } from "../../session/agent-session-types";
 import type { CompactMode } from "../../session/compact-modes";
 import type { CustomMessagePayload } from "../../session/messages";
 import type { ReadonlySessionManager, SessionManager } from "../../session/session-manager";
 import type { BashToolInput, GlobToolInput, GrepToolInput, ReadToolInput, WriteToolInput } from "../../tools";
-import type { GlobToolDetails } from "@rva/tui/tools/glob";
-import type { GrepToolDetails } from "@rva/tui/tools/grep";
-import type { ReadToolDetails } from "@rva/tui/tools/read";
+import type { GlobToolDetails } from "@reverse/tui/tools/glob";
+import type { GrepToolDetails } from "@reverse/tui/tools/grep";
+import type { ReadToolDetails } from "@reverse/tui/tools/read";
 import type { ApprovalMode } from "../../tools/approval";
-import type { BashToolDetails } from "@rva/tui/tools/bash";
+import type { BashToolDetails } from "@reverse/tui/tools/bash";
 import type { FileDeleteFallbackHandler, FileWriteFallbackHandler } from "../../tools/file-write-fallback";
 import type { EventBus } from "../../utils/event-bus";
 import type {
@@ -139,8 +139,8 @@ import type {
 import type { SlashCommandInfo } from "../slash-commands";
 import type { TerminalLaunchRequest, TerminalLaunchResult } from "../../subprocess/terminal-launch";
 
-export type { OverlayHandle, OverlayOptions } from "@rva/tui";
-export type { AppKeybinding, KeybindingsManager } from "@rva/tui/app-keybindings";
+export type { OverlayHandle, OverlayOptions } from "@reverse/tui";
+export type { AppKeybinding, KeybindingsManager } from "@reverse/tui/app-keybindings";
 export type { ExecOptions, ExecResult } from "../../exec/exec";
 export type { AgentToolResult, AgentToolUpdateCallback };
 
@@ -159,7 +159,7 @@ import type {
 	ExtensionAskDialogQuestion,
 	ExtensionAskDialogResult,
 	ExtensionAskDialogSubmitResult,
-} from "@rva/tui/overlays/ask-dialog";
+} from "@reverse/tui/overlays/ask-dialog";
 export type {
 	ExtensionAskDialogOption,
 	ExtensionAskDialogQuestion,
@@ -167,7 +167,7 @@ export type {
 	ExtensionAskDialogSubmitResult,
 	ExtensionAskDialogChatResult,
 	ExtensionAskDialogResult,
-} from "@rva/tui/overlays/ask-dialog";
+} from "@reverse/tui/overlays/ask-dialog";
 
 export function getExtensionUISelectOptionLabel(option: ExtensionUISelectItem): string {
 	return typeof option === "string" ? option : option.label;

@@ -12,11 +12,11 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getProjectDir, prompt, sanitizeText } from "@rva/utils";
+import { getProjectDir, prompt, sanitizeText } from "@reverse/utils";
 import { createProgressReporter } from "../cli/progress-reporter";
 import type { AgentSession } from "../session/agent-session";
 import { mapWithConcurrencyLimitAllSettled } from "../task/parallel";
-import { shortenPath } from "@rva/tui/render/render-utils";
+import { shortenPath } from "@reverse/tui/render/render-utils";
 import requestPrompt from "./prompts/request.md" with { type: "text" };
 import reviewPrompt from "./prompts/review.md" with { type: "text" };
 import { CompressProtocol } from "./protocol";

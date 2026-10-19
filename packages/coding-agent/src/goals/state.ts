@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@rva/agent";
-import { stableStringifyJson } from "@rva/utils";
-import { type Goal } from "@rva/tui/tools/goal";
+import type { AgentMessage } from "@reverse/agent";
+import { stableStringifyJson } from "@reverse/utils";
+import { type Goal } from "@reverse/tui/tools/goal";
 import type { UsageStatistics } from "../session/session-entries";
 
 export interface GoalModeState {

@@ -8,14 +8,14 @@ import type {
 	ArchiveRecap,
 	ArchiveSession,
 	ArchiveSessionDetail,
-} from "@rva/coding-agent/archive/archive";
-import { createArchivePrelude } from "@rva/coding-agent/archive/prelude-definition";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { HistoryStorage } from "@rva/coding-agent/session/history-storage";
-import { recordSessionRecap, resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import { sessionDirForCwd } from "@rva/coding-agent/session/session-paths";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@rva/utils";
+} from "@reverse/coding-agent/archive/archive";
+import { createArchivePrelude } from "@reverse/coding-agent/archive/prelude-definition";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { HistoryStorage } from "@reverse/coding-agent/session/history-storage";
+import { recordSessionRecap, resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { sessionDirForCwd } from "@reverse/coding-agent/session/session-paths";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@reverse/utils";
 import { makeAssistantMessage } from "./session-manager/helpers";
 
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

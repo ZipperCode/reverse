@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import { transformRequestBody } from "@rva/ai/providers/openai-codex/request-transformer";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import { transformRequestBody } from "@reverse/ai/providers/openai-codex/request-transformer";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 import { createCodexModel } from "./helpers";
 
 // End-to-end guard for the first-class `max` reasoning tier: a user-requested

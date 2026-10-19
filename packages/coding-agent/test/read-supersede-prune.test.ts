@@ -2,18 +2,14 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AgentToolResult, Tokenizer } from "@rva/agent";
-import {
-	pruneSupersededToolResults,
-	readToolSupersedeKey,
-	type SessionEntry,
-} from "@rva/agent/compaction";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { isCompleteReadResult } from "@rva/coding-agent/tools/read-supersede";
-import type { ReadToolDetails } from "@rva/tui/tools/read";
-import { removeWithRetries } from "@rva/utils";
+import { type AgentToolResult, Tokenizer } from "@reverse/agent";
+import { pruneSupersededToolResults, readToolSupersedeKey, type SessionEntry } from "@reverse/agent/compaction";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { isCompleteReadResult } from "@reverse/coding-agent/tools/read-supersede";
+import type { ReadToolDetails } from "@reverse/tui/tools/read";
+import { removeWithRetries } from "@reverse/utils";
 
 // Real `ReadTool` results through the supersede pass with `isCompleteReadResult`,
 // so each completeness signal it relies on is exercised end to end.

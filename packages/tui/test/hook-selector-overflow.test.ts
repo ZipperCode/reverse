@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { HookSelectorComponent } from "@rva/tui/overlays/hook-selector";
-import { getThemeByName, setThemeInstance, theme } from "@rva/tui/theme";
-import { visibleWidth } from "@rva/tui";
+import { HookSelectorComponent } from "@reverse/tui/overlays/hook-selector";
+import { getThemeByName, setThemeInstance, theme } from "@reverse/tui/theme";
+import { visibleWidth } from "@reverse/tui";
 
 beforeAll(async () => {
 	const theme = await getThemeByName("dark");

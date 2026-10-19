@@ -15,21 +15,21 @@ import { afterEach, beforeEach, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import type { AssistantMessage, StopReason, ToolCall } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import type { AssistantMessage, StopReason, ToolCall } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 function createAssistantMessage(content: AssistantMessage["content"], stopReason: StopReason): AssistantMessage {
 	return {

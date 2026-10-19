@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as connectionManager from "@rva/coding-agent/ssh/connection-manager";
-import { removeWithRetries } from "@rva/utils";
+import * as connectionManager from "@reverse/coding-agent/ssh/connection-manager";
+import { removeWithRetries } from "@reverse/utils";
 
 async function withLooseKey<T>(run: (keyPath: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-ssh-key-"));

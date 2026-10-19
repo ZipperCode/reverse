@@ -19,18 +19,18 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, type OAuthCredential, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@rva/ai";
+import { AuthStorage, type OAuthCredential, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@reverse/ai";
 import {
 	AuthBrokerClient,
 	type AuthBrokerServerHandle,
 	RemoteAuthCredentialStore,
 	startAuthBroker,
-} from "@rva/ai/auth-broker";
-import { createBrokerAuthStorage } from "@rva/coding-agent/cli/auth-broker-cli";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import { mcpOAuthCredentialId } from "@rva/coding-agent/mcp/oauth-flow";
-import type { MCPServerConfig } from "@rva/coding-agent/mcp/types";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/ai/auth-broker";
+import { createBrokerAuthStorage } from "@reverse/coding-agent/cli/auth-broker-cli";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import { mcpOAuthCredentialId } from "@reverse/coding-agent/mcp/oauth-flow";
+import type { MCPServerConfig } from "@reverse/coding-agent/mcp/types";
+import { removeWithRetries } from "@reverse/utils";
 import type { Server } from "bun";
 
 const SERVER_URL = "https://mcp.granola.ai/mcp";

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import type { StreamFn } from "@rva/agent";
-import type { AssistantMessage, Context, Model } from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
-import { ImageUrlService } from "@rva/coding-agent/blob-broker/service";
-import { wrapStreamFnWithBlobUrlFallback } from "@rva/coding-agent/blob-broker/stream-fallback";
+import type { StreamFn } from "@reverse/agent";
+import type { AssistantMessage, Context, Model } from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
+import { ImageUrlService } from "@reverse/coding-agent/blob-broker/service";
+import { wrapStreamFnWithBlobUrlFallback } from "@reverse/coding-agent/blob-broker/stream-fallback";
 
 const model: Model = buildModel({
 	id: "gpt-4.1",

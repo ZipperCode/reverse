@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow } from "@rva/utils/dates";
+import { format, formatDistanceToNow } from "@reverse/utils/dates";
 import type { MessageStats } from "../types";
 
 /**

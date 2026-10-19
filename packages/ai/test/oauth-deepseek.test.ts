@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { OAuthController } from "@rva/ai/oauth/types";
-import type { FetchImpl } from "@rva/ai/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { OAuthController } from "@reverse/ai/oauth/types";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const loginDeepSeek = getProviderDefinition("deepseek")?.login;
 if (!loginDeepSeek) throw new Error("DeepSeek login is not registered");

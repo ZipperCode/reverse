@@ -3,7 +3,7 @@
  * `agent_end`) from "the session is done" (nothing live, queued, or running in
  * the background that could inject a message and wake it again).
  */
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { AgentSession, AgentSessionEvent } from "../../session/agent-session";
 import type { RpcSessionSettledFrame } from "./rpc-types";
 

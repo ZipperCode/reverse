@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry/registry";
-import type { FetchImpl } from "@rva/ai/types";
+import { getProviderDefinition } from "@reverse/ai/registry/registry";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const loginZenMux = getProviderDefinition("zenmux")!.login!;
 

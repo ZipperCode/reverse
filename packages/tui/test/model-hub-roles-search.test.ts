@@ -4,8 +4,8 @@
  * keys, and once a query is live, typing keeps editing it.
  */
 import { beforeAll, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import type { TspPickerProps } from "@rva/wire";
+import { buildModel } from "@reverse/catalog/build";
+import type { TspPickerProps } from "@reverse/wire";
 import type { DescribeContext } from "../src/native/node";
 import {
 	ModelHubComponent,

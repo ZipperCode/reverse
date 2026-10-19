@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { FileSessionStorage } from "@rva/coding-agent/session/session-storage";
-import { TempDir } from "@rva/utils";
+import { FileSessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { TempDir } from "@reverse/utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

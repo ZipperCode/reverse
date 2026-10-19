@@ -12,14 +12,14 @@
  * Throws on any failure (no judge, no key, unparseable output, abort/timeout);
  * the caller falls back to a concrete level and continues the turn.
  */
-import type { AgentTelemetryConfig } from "@rva/agent";
-import { type ChoiceQuestion, Effort, judgeQuestions, type Model, renderQuestion } from "@rva/ai";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
+import type { AgentTelemetryConfig } from "@reverse/agent";
+import { type ChoiceQuestion, Effort, judgeQuestions, type Model, renderQuestion } from "@reverse/ai";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import { type JudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
 import questionFile from "../prompts/judge/auto-thinking.json" with { type: "json" };
-import { clampAutoThinkingEffort } from "@rva/tui/thinking";
+import { clampAutoThinkingEffort } from "@reverse/tui/thinking";
 import { preprocessTinyMessage } from "../tiny/message-preproc";
 
 import { cfgProvidersAutoThinkingMaxEffort } from "../session/settings";

@@ -2,8 +2,8 @@
  * Log in to a model provider from the terminal.
  */
 
-import { APP_NAME } from "@rva/utils";
-import { Args, Command } from "@rva/utils/cli";
+import { APP_NAME } from "@reverse/utils";
+import { Args, Command } from "@reverse/utils/cli";
 import { loginHelp as commandHelp } from "../cli/command-help";
 import { runLoginCommand } from "../cli/login-cli";
 

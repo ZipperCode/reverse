@@ -10,12 +10,12 @@
  * a silent fallback to local credentials.
  */
 import { describe, expect, it, vi } from "bun:test";
-import { AuthBrokerError } from "@rva/ai/auth-broker";
-import { MissingApiKeyError } from "@rva/ai/error";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { runRootCommand } from "@rva/coding-agent/main";
-import { describeAuthBrokerStartupError } from "@rva/coding-agent/session/auth-broker-config";
-import { setInteractiveHost } from "@rva/utils";
+import { AuthBrokerError } from "@reverse/ai/auth-broker";
+import { MissingApiKeyError } from "@reverse/ai/error";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { runRootCommand } from "@reverse/coding-agent/main";
+import { describeAuthBrokerStartupError } from "@reverse/coding-agent/session/auth-broker-config";
+import { setInteractiveHost } from "@reverse/utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {

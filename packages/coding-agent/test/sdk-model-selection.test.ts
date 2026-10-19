@@ -2,33 +2,33 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort, type FetchImpl } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { getBundledModel } from "@rva/catalog/models";
-import { resolveModelCacheProviderId } from "@rva/catalog/provider-models";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@rva/catalog/provider-models/descriptors";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { ModelRegistry, type ProviderConfigInput } from "@rva/coding-agent/config/model-registry";
-import { getModelMatchPreferences, resolveModelScope } from "@rva/coding-agent/config/model-resolver";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { buildSessionOptions as buildCliSessionOptions } from "@rva/coding-agent/main";
-import { createAgentSession, type ExtensionFactory } from "@rva/coding-agent/sdk";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import { getBundledAgent } from "@rva/coding-agent/task/agents";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { Effort, type FetchImpl } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { getBundledModel } from "@reverse/catalog/models";
+import { resolveModelCacheProviderId } from "@reverse/catalog/provider-models";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@reverse/catalog/provider-models/descriptors";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { ModelRegistry, type ProviderConfigInput } from "@reverse/coding-agent/config/model-registry";
+import { getModelMatchPreferences, resolveModelScope } from "@reverse/coding-agent/config/model-resolver";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { buildSessionOptions as buildCliSessionOptions } from "@reverse/coding-agent/main";
+import { createAgentSession, type ExtensionFactory } from "@reverse/coding-agent/sdk";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import { getBundledAgent } from "@reverse/coding-agent/task/agents";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 import {
 	cfgCompactionModelThresholds,
 	cfgCompactionModelThresholdsEnabled,
-} from "@rva/coding-agent/session/context-settings";
-import { cfgRetryFallbackChains } from "@rva/coding-agent/session/settings";
+} from "@reverse/coding-agent/session/context-settings";
+import { cfgRetryFallbackChains } from "@reverse/coding-agent/session/settings";
 
 describe("createAgentSession deferred model pattern resolution", () => {
 	let tempDir: string;

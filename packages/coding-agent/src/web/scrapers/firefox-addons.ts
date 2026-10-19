@@ -1,4 +1,4 @@
-import { tryParseJson } from "@rva/utils";
+import { tryParseJson } from "@reverse/utils";
 import type { LocalizedText, RenderResult, SpecialHandler } from "./types";
 import { buildResult, formatNumber, getLocalizedText, htmlToBasicMarkdown, loadPage } from "./types";
 

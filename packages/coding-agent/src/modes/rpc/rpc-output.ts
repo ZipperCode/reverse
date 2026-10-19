@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import type { Writable } from "node:stream";
-import { logger, openCloexecSync, TempDir } from "@rva/utils";
+import { logger, openCloexecSync, TempDir } from "@reverse/utils";
 import type { BunFile } from "bun";
 
 const READ_BYTES = 64 * 1024;

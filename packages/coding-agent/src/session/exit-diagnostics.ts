@@ -1,5 +1,5 @@
-import { createSyntheticToolResultMessage, type AgentMessage } from "@rva/agent";
-import type { AssistantMessage, ToolResultMessage } from "@rva/ai";
+import { createSyntheticToolResultMessage, type AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, ToolResultMessage } from "@reverse/ai";
 import type { SessionEntry } from "./session-entries";
 
 export const TOOL_EXECUTION_START_CUSTOM_TYPE = "tool_execution_start";

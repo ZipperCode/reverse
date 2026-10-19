@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, isEnoent, ptree, withFileLock, writeRuntimeManifest } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { getAgentDir, isEnoent, ptree, withFileLock, writeRuntimeManifest } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { trackDownload } from "../../downloads/activity";
 import { resolveExecutablePath } from "../../subprocess/worker-client";
 import { normalizePackageRequirements } from "../package-requirements";

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { ConfigurationError } from "@rva/ai/error";
-import { OAuthCallbackFlow } from "@rva/ai/registry/oauth/callback-server";
-import type { OAuthCredentials } from "@rva/ai/registry/oauth/types";
+import { ConfigurationError } from "@reverse/ai/error";
+import { OAuthCallbackFlow } from "@reverse/ai/registry/oauth/callback-server";
+import type { OAuthCredentials } from "@reverse/ai/registry/oauth/types";
 
 /**
  * Minimal callback flow we can drive without a real authorization server.

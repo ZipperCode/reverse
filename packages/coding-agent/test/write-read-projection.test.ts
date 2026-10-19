@@ -2,18 +2,18 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@rva/agent";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
-import type { ProtocolHandler } from "@rva/coding-agent/internal-urls/types";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ClientBridge } from "@rva/coding-agent/session/client-bridge";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { wrapToolWithMetaNotice } from "@rva/coding-agent/tools/output-meta";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { readArchiveEntries, writeArchive } from "@rva/utils/ar";
+import type { AgentToolResult } from "@reverse/agent";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
+import type { ProtocolHandler } from "@reverse/coding-agent/internal-urls/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ClientBridge } from "@reverse/coding-agent/session/client-bridge";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { wrapToolWithMetaNotice } from "@reverse/coding-agent/tools/output-meta";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { readArchiveEntries, writeArchive } from "@reverse/utils/ar";
 
-import { cfgReadDefaultLimit } from "@rva/coding-agent/tools/settings";
+import { cfgReadDefaultLimit } from "@reverse/coding-agent/tools/settings";
 
 function createSession(cwd: string, bridge?: ClientBridge, editMode: "replace" | "hashline" = "replace"): ToolSession {
 	return {

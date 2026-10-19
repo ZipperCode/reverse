@@ -1,18 +1,18 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { Agent } from "@rva/agent";
-import type { CompactionPreparation } from "@rva/agent/compaction";
-import * as compactionModule from "@rva/agent/compaction";
-import type { AssistantMessage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionMaintenance } from "@rva/coding-agent/session/session-maintenance";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import type { AgentMessage } from "@reverse/agent";
+import { Agent } from "@reverse/agent";
+import type { CompactionPreparation } from "@reverse/agent/compaction";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { AssistantMessage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionMaintenance } from "@reverse/coding-agent/session/session-maintenance";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 /** Byte-limit 413s may be recoverable when older live history can be compacted. */
 

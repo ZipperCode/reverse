@@ -1,20 +1,20 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@rva/ai";
-import { Editor } from "@rva/tui";
+import type { AssistantMessage } from "@reverse/ai";
+import { Editor } from "@reverse/tui";
 import { Settings } from "../src/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { truncateToVisualLines } from "@rva/tui/chrome/visual-truncate";
-import { WelcomeComponent } from "@rva/tui/prompt/welcome";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { truncateToVisualLines } from "@reverse/tui/chrome/visual-truncate";
+import { WelcomeComponent } from "@reverse/tui/prompt/welcome";
 import {
 	BlockUnitCounter,
 	buildDisplayMessage,
 	nextStep,
 	visibleUnits,
 } from "../src/modes/controllers/streaming-reveal";
-import { getEditorTheme, initTheme } from "@rva/tui/theme";
+import { getEditorTheme, initTheme } from "@reverse/tui/theme";
 import type { ToolSession } from "../src/tools";
 import { ReadTool } from "../src/tools/read";
 

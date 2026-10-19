@@ -16,7 +16,7 @@ import {
 	isBetter,
 } from "./autoresearch-data";
 import { fmtNum, formatNum, type ExperimentResult, type ExperimentState } from "../tools/autoresearch";
-import type { TspScrollBy, TspSpan, TspTableColumn, TspText } from "@rva/wire";
+import type { TspScrollBy, TspSpan, TspTableColumn, TspText } from "@reverse/wire";
 import { card, col, elapsed, keyed, node, row, span, text } from "../native/describe";
 import type { DescribeContext, NativeNode, NativeScroll, NativeUiEvent } from "../native/node";
 import { actionBar, actionButton, hintsRow } from "../native/overlay";

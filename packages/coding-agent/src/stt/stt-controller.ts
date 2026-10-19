@@ -1,9 +1,9 @@
-import type { ApiKeyResolver } from "@rva/ai";
-import { transcribeAudio } from "@rva/ai/transcription";
-import type { Api, Model } from "@rva/catalog/types";
-import { AudioCapture } from "@rva/natives";
-import type { ModelBrowserRegistry } from "@rva/tui/overlays/model-browser";
-import { logger } from "@rva/utils";
+import type { ApiKeyResolver } from "@reverse/ai";
+import { transcribeAudio } from "@reverse/ai/transcription";
+import type { Api, Model } from "@reverse/catalog/types";
+import { AudioCapture } from "@reverse/natives";
+import type { ModelBrowserRegistry } from "@reverse/tui/overlays/model-browser";
+import { logger } from "@reverse/utils";
 import { resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";
 import { type Settings, settings } from "../config/settings";

@@ -6,16 +6,14 @@
  * - Config directory: `~/.reverse`
  * - Primary environment variables: `REVERSE_*` (e.g. `REVERSE_CONFIG_DIR`, `REVERSE_PROFILE`,
  *   `REVERSE_CODING_AGENT_DIR`).
- * - Transitional package scope: `@rva/*` is preserved across internal monorepo imports for
- *   stability while product identity, CLI commands (`reverse`, `reverse-memory`, `reverse-stats`),
- *   config roots, and environment variables are cut over to canonical `reverse`.
+ * - Package scope: canonical `@reverse/*` across all monorepo packages and imports.
  * - No migration promise for legacy `rva` aliases or environment variables.
  */
 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { expandWindowsLongPath } from "@rva/natives/path";
+import { expandWindowsLongPath } from "@reverse/natives/path";
 import { engines, version } from "../package.json" with { type: "json" };
 import { isEnoent, isEnotdir } from "./fs-error";
 
@@ -58,7 +56,7 @@ const WINDOWS_RESERVED_BASENAME_RE = /^(?:CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])(?:\
  * default (empty string, whitespace, or the explicit "default" sentinel) and
  * throws for syntactically invalid or platform-reserved names.
  *
- * Exported so consumers of `@rva/utils/dirs` (CLI bootstrap, tests,
+ * Exported so consumers of `@reverse/utils/dirs` (CLI bootstrap, tests,
  * downstream tools) can validate user input without re-deriving the rules.
  */
 export function normalizeProfileName(profile: string | undefined): string | undefined {
@@ -607,11 +605,7 @@ export function setProfile(profile: string | undefined): void {
 		// explicit override. Subsequent profile switches keep the original
 		// snapshot — the "pre-profile" baseline is the state before profiles
 		// entered the picture, not the state between two activations.
-		preProfileAgentDirEnv = resolvePreProfileAgentDir(
-			undefined,
-			getAgentDirEnv(),
-			readPiProfileFromEnvSafe(),
-		);
+		preProfileAgentDirEnv = resolvePreProfileAgentDir(undefined, getAgentDirEnv(), readPiProfileFromEnvSafe());
 	}
 	activeProfile = next;
 	if (activeProfile) {

@@ -1,4 +1,4 @@
-import { mathSpanAt } from "@rva/utils/math-delimiters";
+import { mathSpanAt } from "@reverse/utils/math-delimiters";
 import { TERMINAL } from "./terminal-capabilities";
 
 // LaTeX → Unicode/ANSI converter.

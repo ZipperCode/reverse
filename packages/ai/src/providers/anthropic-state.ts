@@ -1,5 +1,5 @@
-import { isOfficialAnthropicApiUrl } from "@rva/catalog/compat/anthropic";
-import { $env } from "@rva/utils";
+import { isOfficialAnthropicApiUrl } from "@reverse/catalog/compat/anthropic";
+import { $env } from "@reverse/utils";
 import type { Api, Model, ProviderSessionState } from "../types";
 import { isFoundryEnabled } from "../utils/foundry";
 

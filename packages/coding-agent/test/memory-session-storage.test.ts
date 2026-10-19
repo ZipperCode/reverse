@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { MemorySessionStorage } from "@rva/coding-agent/session/session-storage";
-import { serializeTitleSlot } from "@rva/coding-agent/session/session-title-slot";
+import { MemorySessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { serializeTitleSlot } from "@reverse/coding-agent/session/session-title-slot";
 
 describe("MemorySessionStorage indexed mirror", () => {
 	test("append builds the same content as a single writeTextSync of the join", async () => {

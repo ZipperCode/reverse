@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { calculateContextTokens, calculatePromptTokens } from "@rva/agent/compaction";
-import type { Usage } from "@rva/ai";
+import { calculateContextTokens, calculatePromptTokens } from "@reverse/agent/compaction";
+import type { Usage } from "@reverse/ai";
 
 function usage(overrides: Partial<Usage>): Usage {
 	return {

@@ -1,4 +1,4 @@
-import { fetchWithRetry } from "@rva/utils";
+import { fetchWithRetry } from "@reverse/utils";
 import type { ModelManagerOptions } from "../model-manager";
 import type { FetchImpl, ModelSpec } from "../types";
 import { discoveryFetch } from "../utils";

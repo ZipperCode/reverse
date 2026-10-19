@@ -23,23 +23,23 @@ import {
 	type Tool,
 	type Usage,
 	withAuth,
-} from "@rva/ai";
-import type { Dialect } from "@rva/ai/dialect";
-import * as AIError from "@rva/ai/error";
-import { createOpenAICodexCompactionRequestContext } from "@rva/ai/providers/openai-codex-compaction";
+} from "@reverse/ai";
+import type { Dialect } from "@reverse/ai/dialect";
+import * as AIError from "@reverse/ai/error";
+import { createOpenAICodexCompactionRequestContext } from "@reverse/ai/providers/openai-codex-compaction";
 import {
 	buildTransformedCodexRequestBody,
 	type OpenAICodexCompactionBody,
-} from "@rva/ai/providers/openai-codex-responses";
-import type { InputItem as CodexInputItem } from "@rva/ai/providers/openai-codex/request-transformer";
-import { convertTools } from "@rva/ai/providers/openai-responses";
-import { buildResponsesInput, resolveOpenAICompatPolicy } from "@rva/ai/providers/openai-shared";
-import { isSurvivingAssistant } from "@rva/ai/providers/transform-messages";
-import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@rva/ai/utils";
-import { preferredDialect } from "@rva/catalog/identity";
-import { clampThinkingLevelForModel } from "@rva/catalog/model-thinking";
-import { isRecord, logger, prompt } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+} from "@reverse/ai/providers/openai-codex-responses";
+import type { InputItem as CodexInputItem } from "@reverse/ai/providers/openai-codex/request-transformer";
+import { convertTools } from "@reverse/ai/providers/openai-responses";
+import { buildResponsesInput, resolveOpenAICompatPolicy } from "@reverse/ai/providers/openai-shared";
+import { isSurvivingAssistant } from "@reverse/ai/providers/transform-messages";
+import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@reverse/ai/utils";
+import { preferredDialect } from "@reverse/catalog/identity";
+import { clampThinkingLevelForModel } from "@reverse/catalog/model-thinking";
+import { isRecord, logger, prompt } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import { ThinkingLevel } from "../thinking";
 import { Tokenizer } from "../tokenizer";

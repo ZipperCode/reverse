@@ -1,8 +1,8 @@
-import { isRecord, ptree, tryParseJson } from "@rva/utils";
+import { isRecord, ptree, tryParseJson } from "@reverse/utils";
 
 export { isRecord };
 
-import { LRUCache } from "@rva/utils/lru";
+import { LRUCache } from "@reverse/utils/lru";
 import { ToolAbortError } from "../../tools/tool-errors";
 import { convertBufferWithMarkit } from "../../utils/markit";
 import type { LoadPageResult } from "./types";

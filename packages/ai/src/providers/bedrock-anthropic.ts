@@ -1,4 +1,4 @@
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 import { extractClaudeMetadataSessionId } from "./anthropic-identity";
 import { isBedrockRequestMetadataValue } from "./bedrock-request-metadata";
 

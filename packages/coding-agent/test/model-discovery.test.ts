@@ -3,29 +3,29 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl, Model } from "@rva/ai";
-import type { OAuthCredentials } from "@rva/ai/oauth/types";
-import { resolveOpenAIRequestSetup } from "@rva/ai/providers/openai-shared";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { writeModelCache } from "@rva/catalog/model-cache";
-import { getBundledModel } from "@rva/catalog/models";
-import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@rva/catalog/provider-models";
-import type { ModelKind, ModelSpec, OpenAICompat } from "@rva/catalog/types";
-import { CODEX_CLIENT_VERSION } from "@rva/catalog/wire/codex";
+import type { FetchImpl, Model } from "@reverse/ai";
+import type { OAuthCredentials } from "@reverse/ai/oauth/types";
+import { resolveOpenAIRequestSetup } from "@reverse/ai/providers/openai-shared";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { writeModelCache } from "@reverse/catalog/model-cache";
+import { getBundledModel } from "@reverse/catalog/models";
+import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@reverse/catalog/provider-models";
+import type { ModelKind, ModelSpec, OpenAICompat } from "@reverse/catalog/types";
+import { CODEX_CLIENT_VERSION } from "@reverse/catalog/wire/codex";
 import {
 	discoverLiteLLMModels,
 	discoverOllamaModels,
 	discoverOpenAIModelsList,
 	discoveryProbeTimeoutMs,
-} from "@rva/coding-agent/config/model-discovery";
-import { RUNTIME_DYNAMIC_MODEL_FETCH_TIMEOUT_MS } from "@rva/coding-agent/config/model-provider-discovery";
-import { kNoAuth, ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resolveCliModel } from "@rva/coding-agent/config/model-resolver";
-import { ProviderDiscoverySchema } from "@rva/coding-agent/config/models-config-schema";
-import { resetSettingsForTest } from "@rva/coding-agent/config/settings";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+} from "@reverse/coding-agent/config/model-discovery";
+import { RUNTIME_DYNAMIC_MODEL_FETCH_TIMEOUT_MS } from "@reverse/coding-agent/config/model-provider-discovery";
+import { kNoAuth, ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resolveCliModel } from "@reverse/coding-agent/config/model-resolver";
+import { ProviderDiscoverySchema } from "@reverse/coding-agent/config/models-config-schema";
+import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 describe("ModelRegistry runtime discovery", () => {
 	let tempDir: string;

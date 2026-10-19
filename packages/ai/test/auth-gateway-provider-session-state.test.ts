@@ -13,18 +13,18 @@ import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@rva/ai/api-registry";
+import { clearCustomApis } from "@reverse/ai/api-registry";
 import {
 	AUTH_GATEWAY_MAX_SESSION_STATES,
 	AuthGatewaySessionStateStore,
 	startAuthGateway,
-} from "@rva/ai/auth-gateway";
-import type { AuthGatewayServerHandle, AuthGatewaySessionStateRequest } from "@rva/ai/auth-gateway";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { ProviderHttpError } from "@rva/ai/error";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
-import type { Api, Context, Model, ProviderSessionState } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/auth-gateway";
+import type { AuthGatewayServerHandle, AuthGatewaySessionStateRequest } from "@reverse/ai/auth-gateway";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { ProviderHttpError } from "@reverse/ai/error";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import type { Api, Context, Model, ProviderSessionState } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import { withOfficialAnthropicEndpoint } from "./helpers";
 import { captureFetch, type CapturedRequest, completionsChunks, kimiK3 } from "./helpers/factory-droid";
 

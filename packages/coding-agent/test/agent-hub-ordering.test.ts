@@ -1,18 +1,18 @@
-import { createAgentHubRuntime } from "@rva/coding-agent/modes/agent-hub-runtime";
+import { createAgentHubRuntime } from "@reverse/coding-agent/modes/agent-hub-runtime";
 /**
  * Regression: the agent hub keeps its initial status/recency order while open,
  * regardless of heartbeats; newly spawned agents appear above existing rows.
  */
 import { afterEach, beforeAll, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { ThinkingLevel } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { IrcBus } from "@rva/coding-agent/irc/bus";
-import { type AgentHubDeps, AgentHubOverlayComponent } from "@rva/tui/overlays/agent-hub";
-import { SessionObserverRegistry } from "@rva/tui/overlays/session-observer-registry";
-import { initTheme, theme } from "@rva/tui/theme";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { visibleWidth } from "@rva/tui/utils";
+import { ThinkingLevel } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { IrcBus } from "@reverse/coding-agent/irc/bus";
+import { type AgentHubDeps, AgentHubOverlayComponent } from "@reverse/tui/overlays/agent-hub";
+import { SessionObserverRegistry } from "@reverse/tui/overlays/session-observer-registry";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { visibleWidth } from "@reverse/tui/utils";
 import { AgentActivityIndex, type AgentActivityRow } from "../src/activity";
 
 interface GeometryStub {

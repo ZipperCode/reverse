@@ -9,24 +9,24 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool, type StreamFn } from "@rva/agent";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { Skill } from "@rva/coding-agent/extensibility/skills";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import * as vcs from "@rva/natives/vcs";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm, VIBE_MODE_CONTEXT_MESSAGE_TYPE } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage, type WriteTextAtomicOptions } from "@rva/coding-agent/session/session-storage";
-import { VIBE_TOOL_NAMES } from "@rva/coding-agent/tools/vibe";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { VibeSessionRegistry } from "@rva/coding-agent/vibe/runtime";
-import { TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool, type StreamFn } from "@reverse/agent";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { Skill } from "@reverse/coding-agent/extensibility/skills";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import * as vcs from "@reverse/natives/vcs";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm, VIBE_MODE_CONTEXT_MESSAGE_TYPE } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage, type WriteTextAtomicOptions } from "@reverse/coding-agent/session/session-storage";
+import { VIBE_TOOL_NAMES } from "@reverse/coding-agent/tools/vibe";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { VibeSessionRegistry } from "@reverse/coding-agent/vibe/runtime";
+import { TempDir } from "@reverse/utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 function stubTool(name: string): AgentTool {

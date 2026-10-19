@@ -4,7 +4,7 @@
  * registers, and the byte-identical no-op loop guard. One store per
  * {@link ToolSession}; every {@link EditSession} the edit tool opens shares it.
  */
-import { EditStore } from "@rva/natives";
+import { EditStore } from "@reverse/natives";
 
 /** Owner of the lazily created per-session store. */
 export interface EditStoreOwner {

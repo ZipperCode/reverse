@@ -2,10 +2,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { unregisterCustomApis } from "@rva/ai/api-registry";
-import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { createMockModel, type MockResponseSource, registerMockApi } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
+import { unregisterCustomApis } from "@reverse/ai/api-registry";
+import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { createMockModel, type MockResponseSource, registerMockApi } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
 import { $ } from "bun";
 import { ModelRegistry } from "../../src/config/model-registry";
 import { Settings } from "../../src/config/settings";

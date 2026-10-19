@@ -1,12 +1,12 @@
 import { describe, expect, it, type Mock, vi } from "bun:test";
-import type { Agent, AgentEvent, AgentMessage } from "@rva/agent";
-import type { AssistantMessage, AssistantMessageEvent } from "@rva/ai";
-import type { Settings } from "@rva/coding-agent/config/settings";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { TtsrManager } from "@rva/coding-agent/export/ttsr";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session-events";
-import { TtsrCoordinator, type TtsrCoordinatorHost } from "@rva/coding-agent/session/ttsr-coordinator";
-import type { SessionManager } from "@rva/coding-agent/session/session-manager";
+import type { Agent, AgentEvent, AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, AssistantMessageEvent } from "@reverse/ai";
+import type { Settings } from "@reverse/coding-agent/config/settings";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { TtsrManager } from "@reverse/coding-agent/export/ttsr";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session-events";
+import { TtsrCoordinator, type TtsrCoordinatorHost } from "@reverse/coding-agent/session/ttsr-coordinator";
+import type { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 const CONDITION = "FORBIDDEN";
 

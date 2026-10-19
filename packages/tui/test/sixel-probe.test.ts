@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ImageProtocol, resolveImageProtocol, setTerminalImageProtocol, TERMINAL, TUI } from "@rva/tui";
+import { ImageProtocol, resolveImageProtocol, setTerminalImageProtocol, TERMINAL, TUI } from "@reverse/tui";
 import { VirtualTerminal } from "./virtual-terminal";
 import {
 	createProcessTerminalRenderHarness,

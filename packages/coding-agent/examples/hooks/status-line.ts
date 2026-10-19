@@ -4,7 +4,7 @@
  * Demonstrates ctx.ui.setStatus() for displaying persistent status text in the footer.
  * Shows plain-text turn progress across session and turn events.
  */
-import type { HookAPI } from "@rva/coding-agent/extensibility/hooks";
+import type { HookAPI } from "@reverse/coding-agent/extensibility/hooks";
 
 export default function (pi: HookAPI) {
 	let turnCount = 0;

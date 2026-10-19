@@ -1,8 +1,8 @@
-import type { AssistantMessage } from "@rva/ai";
-import { type Component, getSegmenter } from "@rva/tui";
-import { LRUCache } from "@rva/utils/lru";
-import { formatThinkingForDisplay, hasDisplayableThinking } from "@rva/tui/chat/thinking-display";
-import type { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
+import type { AssistantMessage } from "@reverse/ai";
+import { type Component, getSegmenter } from "@reverse/tui";
+import { LRUCache } from "@reverse/utils/lru";
+import { formatThinkingForDisplay, hasDisplayableThinking } from "@reverse/tui/chat/thinking-display";
+import type { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
 
 export const STREAMING_REVEAL_FRAME_MS = 1000 / 30;
 export const MIN_STEP = 3;

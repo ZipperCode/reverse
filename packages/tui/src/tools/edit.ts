@@ -2,10 +2,10 @@
  * Edit tool renderer.
  */
 
-import { type EditInspection, editInspect } from "@rva/natives";
+import { type EditInspection, editInspect } from "@reverse/natives";
 import type { Component } from "../tui";
 import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
-import { sanitizeText } from "@rva/utils";
+import { sanitizeText } from "@reverse/utils";
 import type { NativeToolHead, NativeToolView, RenderResultOptions, ToolRenderer } from "./renderer";
 import { code, compact, node, span } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";

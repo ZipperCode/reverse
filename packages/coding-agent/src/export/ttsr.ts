@@ -10,9 +10,9 @@
  * delivers a yes as a non-interrupting warning.
  */
 import * as path from "node:path";
-import type { Judge, JudgeOptions, NoulQuestion } from "@rva/ai";
-import { AstMatchStrictness, astMatch, countTokens, Encoding } from "@rva/natives";
-import { logger } from "@rva/utils";
+import type { Judge, JudgeOptions, NoulQuestion } from "@reverse/ai";
+import { AstMatchStrictness, astMatch, countTokens, Encoding } from "@reverse/natives";
+import { logger } from "@reverse/utils";
 import { compileRuleCondition, type Rule } from "../capability/rule";
 import { ensureGrammar } from "../utils/grammars";
 import type { TtsrSettings } from "./ttsr-settings";

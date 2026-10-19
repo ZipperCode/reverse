@@ -3,7 +3,7 @@
  * endpoint. Unrotated refresh tokens are preserved; identity fields the
  * response omits are left for the caller to merge from the stored row.
  */
-import type { CompiledAuthProvider, CompiledRefresh } from "@rva/catalog/compat/types";
+import type { CompiledAuthProvider, CompiledRefresh } from "@reverse/catalog/compat/types";
 import * as AIError from "../../error";
 import { claudeCodeSdkVersion } from "../../providers/claude-code-fingerprint";
 import type { OAuthCredentials } from "../oauth/types";

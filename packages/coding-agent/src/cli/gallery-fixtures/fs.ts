@@ -1,7 +1,7 @@
 // oxlint-disable no-template-curly-in-string -- sample source-code strings intentionally contain literal placeholders.
 // Gallery fixtures for the filesystem tools (read, write, glob).
-import type { Usage } from "@rva/ai";
-import { ReadToolGroupComponent } from "@rva/tui/chat/read-tool-group";
+import type { Usage } from "@reverse/ai";
+import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
 import type { GalleryFixture, GalleryFixtureState, GalleryResult } from "./types";
 
 const readSnippet = [

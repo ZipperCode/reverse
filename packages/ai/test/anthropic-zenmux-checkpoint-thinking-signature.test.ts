@@ -1,14 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@rva/ai/providers/anthropic";
-import type {
-	AssistantMessage,
-	Message,
-	Model,
-	ModelSpec,
-	ToolResultMessage,
-	UserMessage,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { convertAnthropicMessages } from "@reverse/ai/providers/anthropic";
+import type { AssistantMessage, Message, Model, ModelSpec, ToolResultMessage, UserMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 /**
  * End-to-end encoder contract for #4192. ZenMux's `anthropic-messages` route

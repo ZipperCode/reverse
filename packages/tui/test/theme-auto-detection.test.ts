@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as themeModule from "@rva/tui/theme";
-import * as nativesModule from "@rva/natives";
-import { type MacAppearanceObserver, MacOSAppearance } from "@rva/natives";
-import type { Terminal, TerminalAppearance } from "@rva/tui";
+import * as themeModule from "@reverse/tui/theme";
+import * as nativesModule from "@reverse/natives";
+import { type MacAppearanceObserver, MacOSAppearance } from "@reverse/natives";
+import type { Terminal, TerminalAppearance } from "@reverse/tui";
 
 const originalPlatform = process.platform;
 const originalColorfgbg = Bun.env.COLORFGBG;

@@ -2,8 +2,8 @@
  * List and clean up agent-managed git worktrees under `~/.omp/wt`.
  */
 
-import { getProjectDir } from "@rva/utils";
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { getProjectDir } from "@reverse/utils";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { worktreeHelp as commandHelp } from "../cli/command-help";
 import { addWorktree, clearWorktrees, listWorktrees } from "../cli/worktree-cli";
 import { Settings } from "../config/settings";

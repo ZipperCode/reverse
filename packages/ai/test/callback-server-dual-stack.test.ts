@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import { OAuthCallbackFlow } from "@rva/ai/registry/oauth/callback-server";
-import type { OAuthCredentials } from "@rva/ai/registry/oauth/types";
+import { OAuthCallbackFlow } from "@reverse/ai/registry/oauth/callback-server";
+import type { OAuthCredentials } from "@reverse/ai/registry/oauth/types";
 
 /**
  * Callback flow that records what `login()` advertised, so a test can assert on

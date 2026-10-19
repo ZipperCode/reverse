@@ -1,4 +1,4 @@
-import type { Usage } from "@rva/catalog/types";
+import type { Usage } from "@reverse/catalog/types";
 
 export interface RerankRequest {
 	query: string;

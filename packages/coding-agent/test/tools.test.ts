@@ -4,25 +4,25 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import * as zlib from "node:zlib";
-import type { AgentTool, AgentToolContext } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { BashTool } from "@rva/coding-agent/tools/bash";
-import { wrapToolWithMetaNotice } from "@rva/coding-agent/tools/output-meta";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import * as toolTimeouts from "@rva/coding-agent/tools/tool-timeouts";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { $which, removeSyncWithRetries, Snowflake } from "@rva/utils";
-import { openArchive, readArchiveEntries } from "@rva/utils/ar";
+import type { AgentTool, AgentToolContext } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
+import { wrapToolWithMetaNotice } from "@reverse/coding-agent/tools/output-meta";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import * as toolTimeouts from "@reverse/coding-agent/tools/tool-timeouts";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { $which, removeSyncWithRetries, Snowflake } from "@reverse/utils";
+import { openArchive, readArchiveEntries } from "@reverse/utils/ar";
 import { GlobTool } from "../src/tools/glob";
 import { DEFAULT_FILE_LIMIT, GrepTool, MULTI_FILE_PER_FILE_MATCHES } from "../src/tools/grep";
 
-import { cfgEditFuzzyMatch, cfgEditFuzzyThreshold } from "@rva/coding-agent/edit/settings";
-import { cfgReadDefaultLimit } from "@rva/coding-agent/tools/settings";
+import { cfgEditFuzzyMatch, cfgEditFuzzyThreshold } from "@reverse/coding-agent/edit/settings";
+import { cfgReadDefaultLimit } from "@reverse/coding-agent/tools/settings";
 
 // Helper to extract text from content blocks
 function getTextOutput(result: any): string {

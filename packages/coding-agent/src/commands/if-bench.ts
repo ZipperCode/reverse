@@ -1,4 +1,4 @@
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { ifBenchHelp as commandHelp } from "../cli/command-help";
 import { runIfBenchCommand } from "../if-bench";
 

@@ -1,4 +1,4 @@
-import { hostMatchesUrl } from "@rva/catalog/hosts";
+import { hostMatchesUrl } from "@reverse/catalog/hosts";
 
 /** Provider metadata needed to resolve append-only context mode. */
 export interface AppendOnlyContextModel {

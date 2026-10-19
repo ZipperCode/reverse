@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { readSessionHeaderId } from "@rva/coding-agent/session/session-loader";
-import { SessionManager, type SessionPersistenceNotice } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage, tryAcquireSessionLease } from "@rva/coding-agent/session/session-storage";
-import { TempDir } from "@rva/utils";
+import { readSessionHeaderId } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager, type SessionPersistenceNotice } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage, tryAcquireSessionLease } from "@reverse/coding-agent/session/session-storage";
+import { TempDir } from "@reverse/utils";
 
 const SESSION_MANAGER_MODULE = path.join(import.meta.dir, "../../src/session/session-manager.ts");
 

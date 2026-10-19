@@ -1,5 +1,5 @@
 import { InternalUrlRouter } from "../internal-urls/router";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 /** Shape forwarded from the plan-proposal handler to InteractiveMode's
  *  approval popup. Populated by the `xd://propose` dispatch when the agent

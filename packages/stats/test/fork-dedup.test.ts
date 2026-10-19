@@ -2,12 +2,12 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { syncAllSessions } from "@rva/stats/aggregator";
-import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@rva/stats/db";
-import { getOverallStats } from "@rva/stats/rollup";
-import * as parser from "@rva/stats/parser";
-import type { MessageStats } from "@rva/stats/types";
-import { getSessionsDir, getStatsDbPath } from "@rva/utils";
+import { syncAllSessions } from "@reverse/stats/aggregator";
+import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@reverse/stats/db";
+import { getOverallStats } from "@reverse/stats/rollup";
+import * as parser from "@reverse/stats/parser";
+import type { MessageStats } from "@reverse/stats/types";
+import { getSessionsDir, getStatsDbPath } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-fork-dedup-");

@@ -5,7 +5,7 @@
  * Supports automatic model discovery from endpoints with searchable multiselect,
  * displaying real metadata and omitting unknown limits from persistent config.
  */
-import type { Api } from "@rva/ai";
+import type { Api } from "@reverse/ai";
 import { formatKeyHint } from "../app-keybindings";
 import { boundKeys, editorKey, editorKeys } from "../chrome/keybinding-hints";
 import type { KeyName } from "../key-hint-format";
@@ -23,7 +23,7 @@ import { actionBar, actionButton } from "../native/overlay";
 import { ensureThemeSync, getSelectListTheme, theme } from "../theme/theme";
 import type { Focusable } from "../tui";
 import type { SgrMouseEvent } from "../mouse";
-import { resolveEffectiveLocale, type SupportedLocale } from "@rva/utils/i18n";
+import { resolveEffectiveLocale, type SupportedLocale } from "@reverse/utils/i18n";
 
 export interface CustomWizardModel {
 	id: string;

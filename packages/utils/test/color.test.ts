@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { colorLuma, hexToOklch, hslToHex, oklchToHex, relativeLuminance } from "@rva/utils/color";
+import { colorLuma, hexToOklch, hslToHex, oklchToHex, relativeLuminance } from "@reverse/utils/color";
 
 describe("relativeLuminance (WCAG, linearized sRGB)", () => {
 	it("hits the extremes", () => {

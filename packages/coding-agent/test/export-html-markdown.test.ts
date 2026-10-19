@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as vm from "node:vm";
-import { type Element, parseHTML } from "@rva/utils/dom";
+import { type Element, parseHTML } from "@reverse/utils/dom";
 
 const [templateHtml, templateJs, markedJs] = await Promise.all([
 	Bun.file(new URL("../src/export/html/template.html", import.meta.url)).text(),

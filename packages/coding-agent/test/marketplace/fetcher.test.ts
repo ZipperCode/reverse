@@ -6,9 +6,9 @@ import {
 	classifySource,
 	fetchMarketplace,
 	parseMarketplaceCatalog,
-} from "@rva/coding-agent/extensibility/plugins/marketplace";
-import * as vcs from "@rva/natives/vcs";
-import { removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import * as vcs from "@reverse/natives/vcs";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 // Fixture lives at test/marketplace/fixtures/valid-marketplace/
 const FIXTURE_DIR = path.join(import.meta.dir, "fixtures", "valid-marketplace");

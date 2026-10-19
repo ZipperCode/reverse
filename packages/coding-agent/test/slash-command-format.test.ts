@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as settingsModule from "@rva/coding-agent/config/settings";
-import type { Theme } from "@rva/tui/theme";
-import { renderAsciiBar } from "@rva/tui/chrome/format";
+import * as settingsModule from "@reverse/coding-agent/config/settings";
+import type { Theme } from "@reverse/tui/theme";
+import { renderAsciiBar } from "@reverse/tui/chrome/format";
 
 const testTheme = {
 	fg(color: Parameters<Theme["fg"]>[0], text: string): string {

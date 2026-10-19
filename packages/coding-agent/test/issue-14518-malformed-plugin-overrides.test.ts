@@ -2,10 +2,10 @@ import { afterEach, expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearClaudePluginRootsCache } from "@rva/coding-agent/discovery/helpers";
-import { getEnabledPlugins, getPluginSettings } from "@rva/coding-agent/extensibility/plugins/loader";
-import * as piUtils from "@rva/utils";
-import { CONFIG_DIR_NAME, getPluginsDir, logger, removeWithRetries } from "@rva/utils";
+import { clearClaudePluginRootsCache } from "@reverse/coding-agent/discovery/helpers";
+import { getEnabledPlugins, getPluginSettings } from "@reverse/coding-agent/extensibility/plugins/loader";
+import * as piUtils from "@reverse/utils";
+import { CONFIG_DIR_NAME, getPluginsDir, logger, removeWithRetries } from "@reverse/utils";
 
 // Issue #14518: a malformed or unreadable project plugin-overrides.json was
 // swallowed by the loader's loadProjectOverrides, so the file silently acted

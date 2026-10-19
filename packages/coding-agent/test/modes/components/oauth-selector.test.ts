@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { getOAuthProviders } from "@rva/ai/oauth";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { OAuthSelectorComponent } from "@rva/tui/overlays/oauth-selector";
-import { initTheme } from "@rva/tui/theme";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import { getOAuthProviders } from "@reverse/ai/oauth";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { OAuthSelectorComponent } from "@reverse/tui/overlays/oauth-selector";
+import { initTheme } from "@reverse/tui/theme";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 
-import { cfgDisabledProviders } from "@rva/coding-agent/config/model-settings";
+import { cfgDisabledProviders } from "@reverse/coding-agent/config/model-settings";
 
 beforeAll(async () => {
 	await initTheme();

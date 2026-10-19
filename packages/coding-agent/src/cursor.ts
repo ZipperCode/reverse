@@ -11,7 +11,7 @@ import {
 	TOOL_RESULT_ADDITIONAL_CONTEXT,
 	type ToolResultWithAdditionalContext,
 	validateAgentToolArguments,
-} from "@rva/agent";
+} from "@reverse/agent";
 import type {
 	CursorMcpCall,
 	CursorMcpResource,
@@ -20,7 +20,7 @@ import type {
 	CursorTodoSnapshot,
 	CursorExecHandlers as ICursorExecHandlers,
 	ToolResultMessage,
-} from "@rva/ai";
+} from "@reverse/ai";
 import {
 	cursorRawReadPath,
 	omitUndefinedArgs,
@@ -32,8 +32,8 @@ import {
 	piReadPath,
 	piTimeout,
 	shellTimeoutSeconds,
-} from "@rva/ai/providers/cursor-pi-args";
-import { sanitizeText } from "@rva/utils";
+} from "@reverse/ai/providers/cursor-pi-args";
+import { sanitizeText } from "@reverse/utils";
 import { cursorMcpPrefersReplaceEdit, normalizeCursorReplaceArgs } from "./cursor-bridge-tools";
 import type { MCPResourceReadResult } from "./mcp/types";
 import { resolveApproval, resolveApprovalFromContext } from "./tools/approval";
@@ -43,7 +43,7 @@ import {
 	resolveToCwd,
 	splitPathAndSelPreferringLiteral,
 } from "./tools/path-utils";
-import type { TodoPhase, TodoStatus } from "@rva/tui/tools/todo";
+import type { TodoPhase, TodoStatus } from "@reverse/tui/tools/todo";
 
 /** Phase used for Cursor-owned tasks with no local phase grouping. */
 const CURSOR_TODO_PHASE = "Tasks";

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { recallEnhanced } from "@rva/mnemopi/core/beam/recall";
-import { initBeam } from "@rva/mnemopi/core/beam/schema";
+import { recallEnhanced } from "@reverse/mnemopi/core/beam/recall";
+import { initBeam } from "@reverse/mnemopi/core/beam/schema";
 import {
 	exportToDict,
 	forgetWorking,
@@ -16,10 +16,10 @@ import {
 	scratchpadRead,
 	scratchpadWrite,
 	updateWorking,
-} from "@rva/mnemopi/core/beam/store";
-import type { BeamEvent, BeamMemoryState } from "@rva/mnemopi/core/beam/types";
-import { EpisodicGraph } from "@rva/mnemopi/core/episodic-graph";
-import { openDatabase } from "@rva/mnemopi/db";
+} from "@reverse/mnemopi/core/beam/store";
+import type { BeamEvent, BeamMemoryState } from "@reverse/mnemopi/core/beam/types";
+import { EpisodicGraph } from "@reverse/mnemopi/core/episodic-graph";
+import { openDatabase } from "@reverse/mnemopi/db";
 
 const states: BeamMemoryState[] = [];
 

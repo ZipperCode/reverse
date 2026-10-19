@@ -9,13 +9,13 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getCapability } from "@rva/coding-agent/capability";
-import { clearCache } from "@rva/coding-agent/capability/fs";
-import { type Rule, ruleCapability } from "@rva/coding-agent/capability/rule";
-import type { LoadContext } from "@rva/coding-agent/capability/types";
+import { getCapability } from "@reverse/coding-agent/capability";
+import { clearCache } from "@reverse/coding-agent/capability/fs";
+import { type Rule, ruleCapability } from "@reverse/coding-agent/capability/rule";
+import type { LoadContext } from "@reverse/coding-agent/capability/types";
 // Importing discovery registers all providers as a side effect.
-import { loadCapability } from "@rva/coding-agent/discovery";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@rva/utils";
+import { loadCapability } from "@reverse/coding-agent/discovery";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@reverse/utils";
 
 let tempDir: string;
 let home: string;

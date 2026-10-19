@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import {
-	DEFAULT_LOCALE,
-	getEnvLocale,
-	normalizeLocale,
-	resolveEffectiveLocale,
-	SUPPORTED_LOCALES,
-} from "../src/i18n";
+import { DEFAULT_LOCALE, getEnvLocale, normalizeLocale, resolveEffectiveLocale, SUPPORTED_LOCALES } from "../src/i18n";
 
 describe("utils/i18n", () => {
 	const savedEnv = process.env.REVERSE_LANG;

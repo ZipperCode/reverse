@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import * as AIError from "@rva/ai/error";
-import type { AssistantMessage } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+import * as AIError from "@reverse/ai/error";
+import type { AssistantMessage } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 
 function createPartial(text = ""): AssistantMessage {
 	return {

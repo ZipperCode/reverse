@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { parseReviewDiffSnapshot } from "@rva/coding-agent/extensibility/custom-commands/bundled/review/diff";
-import type { ReviewDiffRow, ReviewSourceRow } from "@rva/tui/overlays/annotation-types";
+import { parseReviewDiffSnapshot } from "@reverse/coding-agent/extensibility/custom-commands/bundled/review/diff";
+import type { ReviewDiffRow, ReviewSourceRow } from "@reverse/tui/overlays/annotation-types";
 
 function rowOfKind(rows: readonly ReviewDiffRow[], kind: "context" | "added" | "removed"): ReviewSourceRow;
 function rowOfKind(

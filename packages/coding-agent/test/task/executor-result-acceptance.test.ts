@@ -6,30 +6,26 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage } from "@rva/ai";
-import { AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls";
-import { resetRegisteredArtifactDirsForTests } from "@rva/coding-agent/internal-urls/registry-helpers";
-import { IrcBus } from "@rva/coding-agent/irc/bus";
-import type { LoadExtensionsResult } from "@rva/coding-agent/extensibility/extensions/types";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { AgentMessage } from "@rva/agent";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import {
-	attachIrcWakeTurnMonitor,
-	runSubagentFollowUpTurn,
-	runSubprocess,
-} from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { WaitTool } from "@rva/coding-agent/tools/wait";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
+import type { AssistantMessage } from "@reverse/ai";
+import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls";
+import { resetRegisteredArtifactDirsForTests } from "@reverse/coding-agent/internal-urls/registry-helpers";
+import { IrcBus } from "@reverse/coding-agent/irc/bus";
+import type { LoadExtensionsResult } from "@reverse/coding-agent/extensibility/extensions/types";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { AgentMessage } from "@reverse/agent";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { attachIrcWakeTurnMonitor, runSubagentFollowUpTurn, runSubprocess } from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { WaitTool } from "@reverse/coding-agent/tools/wait";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
 
 const AGENT_ID = "accepted-result";
 

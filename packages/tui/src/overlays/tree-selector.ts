@@ -1,4 +1,4 @@
-import { ThinkingLevel } from "@rva/agent";
+import { ThinkingLevel } from "@reverse/agent";
 import {
 	type Component,
 	Container,
@@ -10,7 +10,7 @@ import {
 	TruncatedText,
 	truncateToWidth,
 } from "../index";
-import { isRecord, sanitizeText } from "@rva/utils";
+import { isRecord, sanitizeText } from "@reverse/utils";
 /** Available session-tree display filters. */
 export const TREE_FILTER_MODES = ["default", "no-tools", "user-only", "labeled-only", "all"] as const;
 /** Session-tree display filter. */
@@ -58,7 +58,7 @@ import { TreeView, type TreeAncestor, type TreeRow } from "../components/tree-vi
 import { formatKeyHint, formatKeyHints } from "../app-keybindings";
 import { boundKeys, editorKey, editorKeys, interruptKey } from "../chrome/keybinding-hints";
 import { getKeybindings } from "../keybindings";
-import type { TspPickerItem, TspPickerProps, TspSpan, TspText } from "@rva/wire";
+import type { TspPickerItem, TspPickerProps, TspSpan, TspText } from "@reverse/wire";
 import type { ThemeColor } from "../theme/schema";
 import { col, keyed, node, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";

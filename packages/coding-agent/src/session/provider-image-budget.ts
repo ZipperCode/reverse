@@ -9,15 +9,15 @@ import type {
 	ToolResultMessage,
 	ToolResultProviderMetadata,
 	UserMessage,
-} from "@rva/ai";
-import { reachesOfficialEndpoint } from "@rva/ai";
-import { decodeDataUri } from "@rva/ai/providers/openai-data-uri";
-import { resolveInlineImageByteBudget } from "@rva/catalog/compat/request-size";
-import { isRecord } from "@rva/utils";
-import { LRUCache } from "@rva/utils/lru";
-import { capFrameDataBytes, frameDataBytesBudget, providerImageBudget } from "@rva/snapcompact";
+} from "@reverse/ai";
+import { reachesOfficialEndpoint } from "@reverse/ai";
+import { decodeDataUri } from "@reverse/ai/providers/openai-data-uri";
+import { resolveInlineImageByteBudget } from "@reverse/catalog/compat/request-size";
+import { isRecord } from "@reverse/utils";
+import { LRUCache } from "@reverse/utils/lru";
+import { capFrameDataBytes, frameDataBytesBudget, providerImageBudget } from "@reverse/snapcompact";
 import { supportsRemoteImageUrls } from "../blob-broker/context-images";
-import { imageDecodeFailureReason } from "@rva/tui/chat/image-loading";
+import { imageDecodeFailureReason } from "@reverse/tui/chat/image-loading";
 
 const IMAGE_OMISSION: TextContent = {
 	type: "text",

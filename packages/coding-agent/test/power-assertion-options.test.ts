@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { PowerAssertion } from "@rva/natives";
-import { logger } from "@rva/utils";
+import { PowerAssertion } from "@reverse/natives";
+import { logger } from "@reverse/utils";
 import { powerAssertionOptions } from "../src/session/agent-session";
 import { resetPowerBackendUnavailableForTests, startPowerAssertion } from "../src/session/power-assertion-backend";
 

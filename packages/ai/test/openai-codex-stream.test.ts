@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { completeSimple, streamSimple } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
+import { completeSimple, streamSimple } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
 import {
 	buildTransformedCodexRequestBody,
 	createOpenAICodexCompatibilityMetadata,
@@ -11,7 +11,7 @@ import {
 	prewarmOpenAICodexResponses,
 	resetOpenAICodexHistoryAfterCompaction,
 	streamOpenAICodexResponses,
-} from "@rva/ai/providers/openai-codex-responses";
+} from "@reverse/ai/providers/openai-codex-responses";
 import type {
 	CodexCompactionRequestContext,
 	Context,
@@ -19,12 +19,12 @@ import type {
 	Model,
 	ModelSpec,
 	ProviderSessionState,
-} from "@rva/ai/types";
-import { __resetProxyCache } from "@rva/ai/utils/proxy";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import * as piUtils from "@rva/utils";
+} from "@reverse/ai/types";
+import { __resetProxyCache } from "@reverse/ai/utils/proxy";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import * as piUtils from "@reverse/utils";
 import { withEnv } from "./helpers";
 
 const { getAgentDir, setAgentDir, TempDir } = piUtils;

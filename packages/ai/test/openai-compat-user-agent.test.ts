@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { Context, FetchImpl, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { USER_AGENT } from "@rva/utils";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { Context, FetchImpl, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { USER_AGENT } from "@reverse/utils";
 import { resolveOpenAIRequestSetup } from "../src/providers/openai-shared";
 
 const context: Context = {

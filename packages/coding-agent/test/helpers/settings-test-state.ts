@@ -1,7 +1,7 @@
 import { vi } from "bun:test";
-import { resetSettingsForTest } from "@rva/coding-agent/config/settings";
-import { isTuiTight, setTuiTight } from "@rva/tui";
-import { getAgentDir, getProjectDir, setAgentDir, setProjectDir } from "@rva/utils";
+import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { isTuiTight, setTuiTight } from "@reverse/tui";
+import { getAgentDir, getProjectDir, setAgentDir, setProjectDir } from "@reverse/utils";
 
 export interface SettingsTestState {
 	agentDir: string;

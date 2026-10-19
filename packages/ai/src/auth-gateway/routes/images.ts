@@ -1,5 +1,5 @@
-import { calculateCost } from "@rva/catalog/models";
-import { logger } from "@rva/utils";
+import { calculateCost } from "@reverse/catalog/models";
+import { logger } from "@reverse/utils";
 import { classifyGatewayError } from "../../error/gateway";
 import { generateImage } from "../../images";
 import { validateImageInput } from "../../images/shared";

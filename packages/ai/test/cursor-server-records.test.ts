@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as http2 from "node:http2";
-import { type CursorOptions, buildGrpcRequest, streamCursor } from "@rva/ai/providers/cursor";
-import type { AssistantMessage, Context, Message, Model, ToolResultMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { type CursorOptions, buildGrpcRequest, streamCursor } from "@reverse/ai/providers/cursor";
+import type { AssistantMessage, Context, Message, Model, ToolResultMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	type AgentClientMessage,
 	AgentClientMessageSchema,
@@ -27,8 +27,8 @@ import {
 	ToolCallSchema,
 	ToolCallStartedUpdateSchema,
 	TurnEndedUpdateSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 // Records as Cursor's server writes them for one Kimi K3 turn that read a file:
 // its reasoning names the server's own model, and the tool record is Cursor's.

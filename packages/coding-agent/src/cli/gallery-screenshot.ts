@@ -14,8 +14,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which } from "@rva/utils";
-import { theme } from "@rva/tui/theme";
+import { $which } from "@reverse/utils";
+import { theme } from "@reverse/tui/theme";
 import { quotePosixArgument } from "../utils/shell-quote";
 import type { GallerySection } from "./gallery-cli";
 

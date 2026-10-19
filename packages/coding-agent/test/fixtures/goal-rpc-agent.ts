@@ -1,14 +1,14 @@
 import * as path from "node:path";
-import { createMockModel, type MockResponse } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { cfgGoalContinuationModes } from "@rva/coding-agent/goals/settings";
-import { runRpcMode } from "@rva/coding-agent/modes/rpc/rpc-mode";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { cfgAsyncEnabled } from "@rva/coding-agent/tools/settings";
+import { createMockModel, type MockResponse } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { cfgGoalContinuationModes } from "@reverse/coding-agent/goals/settings";
+import { runRpcMode } from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { cfgAsyncEnabled } from "@reverse/coding-agent/tools/settings";
 
 // Real SDK session (goal tool registered as in production), RPC dispatch and goal
 // runtime; only the model is scripted.

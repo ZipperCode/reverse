@@ -12,7 +12,7 @@
  * {@link chatTextBackend}, or an on-device worker — so this file never
  * depends on chat transports.
  */
-import { escapeXmlAttribute, escapeXmlText, prompt } from "@rva/utils";
+import { escapeXmlAttribute, escapeXmlText, prompt } from "@reverse/utils";
 import { YAML } from "bun";
 import * as AIError from "../error";
 import type { ImageContent, Usage } from "../types";

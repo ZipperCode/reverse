@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { registerPersistedSubagents } from "@rva/coding-agent/registry/persisted-agents";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { CURRENT_SESSION_VERSION } from "@rva/coding-agent/session/session-entries";
-import { TempDir } from "@rva/utils";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { registerPersistedSubagents } from "@reverse/coding-agent/registry/persisted-agents";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { CURRENT_SESSION_VERSION } from "@reverse/coding-agent/session/session-entries";
+import { TempDir } from "@reverse/utils";
 
 function sessionHeader(id: string): string {
 	return JSON.stringify({

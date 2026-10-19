@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { Api, AssistantMessage, Model } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { Api, AssistantMessage, Model } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	classifyUnexpectedStop,
 	isUnexpectedStopCandidate,
-} from "@rva/coding-agent/session/unexpected-stop-classifier";
+} from "@reverse/coding-agent/session/unexpected-stop-classifier";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { asGlobalFetch } from "./helpers/fetch-mock";
 

@@ -1,6 +1,6 @@
 import * as path from "node:path";
 
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import {
 	attachSessionOwner,
 	type CancelledErrorClass,

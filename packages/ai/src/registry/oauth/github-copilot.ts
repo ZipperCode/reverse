@@ -12,7 +12,7 @@
  * github.com-registered OpenCode client.
  */
 import { scheduler } from "node:timers/promises";
-import { getBundledModels } from "@rva/catalog/models";
+import { getBundledModels } from "@reverse/catalog/models";
 import {
 	COPILOT_API_HEADERS,
 	COPILOT_CHAT_INTEGRATION_ID,
@@ -22,7 +22,7 @@ import {
 	normalizeCopilotIntegrationId,
 	normalizeDomain,
 	normalizeGitHubCopilotEnterpriseDomain,
-} from "@rva/catalog/wire/github-copilot";
+} from "@reverse/catalog/wire/github-copilot";
 import {
 	resolveCopilotIntegrationIdOverride,
 	wrapFetchForCopilotFallback,

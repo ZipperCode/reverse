@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { type BtwHistoryRecord, type BtwHistoryTurn, getBtwLatestTurn } from "@rva/tui/overlays/btw-history";
-import { acquireFileLock, type FileLockHandle, isEnoent, toError } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { type BtwHistoryRecord, type BtwHistoryTurn, getBtwLatestTurn } from "@reverse/tui/overlays/btw-history";
+import { acquireFileLock, type FileLockHandle, isEnoent, toError } from "@reverse/utils";
 import { replaceFileAtomically } from "../utils/atomic-file";
 
 export {
@@ -11,7 +11,7 @@ export {
 	getBtwCopyText,
 	getBtwLatestTurn,
 	getBtwTurns,
-} from "@rva/tui/overlays/btw-history";
+} from "@reverse/tui/overlays/btw-history";
 
 const turnFields = {
 	question: "string",

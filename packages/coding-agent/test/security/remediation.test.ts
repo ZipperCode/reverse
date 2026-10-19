@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { IsoBackendKind } from "@rva/natives";
+import { IsoBackendKind } from "@reverse/natives";
 import {
 	assertSecurityRemediationBaselineClean,
 	prepareSecurityRemediationWorkspace,

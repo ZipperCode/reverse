@@ -5,8 +5,8 @@ import {
 	type TerminalFrameProvider,
 	TUI,
 	type ViewportSize,
-} from "@rva/tui";
-import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@rva/tui/terminal-multiplexer";
+} from "@reverse/tui";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@reverse/tui/terminal-multiplexer";
 import { VirtualTerminal } from "./virtual-terminal";
 
 // Regression coverage for tmux pane zoom corrupting scrollback (duplication and

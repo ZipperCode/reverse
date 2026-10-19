@@ -16,7 +16,7 @@
   - `packages/coding-agent/src/utils/github.ts` — `gh` process wrapper (`github.run/json/text()`), non-interactive env, command deadline, bounded output capture.
   - `packages/coding-agent/src/tools/gh-common.ts` — shared helpers, current-repo resolution, result building.
   - `packages/coding-agent/src/utils/repo-lock.ts` — per-repo write serialization (`withRepoLock`).
-  - `@rva/natives/vcs` — git operations (`vcs.git()` / `vcs.requireGit()`: branch/worktree/config/push).
+  - `@reverse/natives/vcs` — git operations (`vcs.git()` / `vcs.requireGit()`: branch/worktree/config/push).
   - `packages/utils/src/dirs.ts` — base directory for dedicated PR worktrees.
   - `packages/coding-agent/src/sdk.ts` — session artifact allocation hook.
   - `packages/coding-agent/src/session/artifacts.ts` — artifact filename format `<id>.<toolType>.log`.
@@ -83,7 +83,7 @@ Most operations return a text result built by `buildTextResult()` in `packages/c
 5. Read-style ops (`repo_view`, `file_read`, `search_*`) fetch repository data and return text, image attachments, or formatted summaries. `file_read` uses the JSON contents API, decodes base64 file bytes, and returns supported images or strict UTF-8 text; binary files and responses without bytes get explanatory text. Single-issue and single-PR views resolve through the `issue://` / `pr://` internal URL schemes and their SQLite cache.
 6. PR diffs use `pr://<N>/diff` (changed files), `pr://<N>/diff/<i>` (one file, 1-indexed), or `pr://<N>/diff/all` (full unified diff) — see [read](read.md). All variants share the `pr-diff` cache row; a fresh fetch normally runs `gh pr diff`, with a files-API fallback for oversized aggregate diffs.
 7. `pr_checkout` resolves PR metadata first, then enters `withRepoLock()` (`packages/coding-agent/src/utils/repo-lock.ts`) before any git mutation so parallel checkout calls for the same primary repo do not race on shared `.git` state.
-8. `pr_push` reads PR head metadata back from git branch config, derives a refspec, pushes with `repository.push()` (`@rva/natives/vcs`), then invalidates the cached `pr://` rows for the pushed PR via `invalidateAllForNumber()` so the next `pr://` read reflects the push.
+8. `pr_push` reads PR head metadata back from git branch config, derives a refspec, pushes with `repository.push()` (`@reverse/natives/vcs`), then invalidates the cached `pr://` rows for the pushed PR via `invalidateAllForNumber()` so the next `pr://` read reflects the push.
 9. `pr_create` shells out once, then best-effort re-reads the created PR for a richer summary.
 10. `run_watch` chooses either run mode (`run` supplied) or commit mode (`run` omitted), polls GitHub Actions APIs every 3 seconds for the first minute and every 15 seconds after that, emits streaming updates, and may save a full failed-log artifact before returning.
 11. Final text goes through `toolResult().text(...)`; if `session.allocateOutputArtifact()` returns a slot, failed-log text is persisted with `Bun.write()`.
@@ -144,7 +144,7 @@ Branches:
 Worktree and metadata behavior:
 - Local branch name is always `pr-<number>`.
 - Worktree path is `getWorktreeDir("<number>-<repo-hash>")` = `path.join(getWorktreesDir(), "<number>-<repo-hash>")`, where `<number>` is the PR number and `<repo-hash>` is `hashPath(primaryRepoRoot)` (a 7-hex digest of the primary repo root). `getWorktreesDir()` resolves the base in this order: a valid `OMP_WORKTREE_DIR`, the applied `worktree.base` setting, then the profile/XDG-aware data-root default (normally `~/.omp/wt`). Both overrides expand a leading `~` and must resolve to an absolute path; an invalid relative value is ignored and resolution falls through. `resolveAvailableWorktreePath()` appends a `-2`/`-3`… suffix when the resulting path is already registered with git or present on disk.
-- Existing worktree detection is by branch ref `refs/heads/pr-<number>` from `repository.worktrees()` (`@rva/natives/vcs`).
+- Existing worktree detection is by branch ref `refs/heads/pr-<number>` from `repository.worktrees()` (`@reverse/natives/vcs`).
 - New worktree creation calls `repository.worktreeAdd(finalWorktreePath, localBranch, { detach: false, clone, backend }, signal)` after choosing an unused path. `clone` follows `worktree.clone` (default `true`); `backend` follows `isolation.backend` (default `"auto"`). Clone failure falls back to plain checkout with a warning; successful clone metadata appears as `clonedWith`.
 - For same-repo PRs, remote is `origin`. For cross-repo PRs, the tool resolves a clone URL for the head repo, reuses an existing remote with the same URL when possible, or creates `fork-<owner>` / `fork-<owner>-<n>`.
 - The branch push metadata is persisted with `git config` under the repository's shared `.git/config` as:
@@ -261,7 +261,7 @@ Watch flow:
   - `pr_push` uses git network transport to the configured remote.
 - Subprocesses / native bindings
   - All `gh` calls use `Bun.spawn(["gh", ...args])`.
-  - `pr_checkout` and `pr_push` invoke git operations via `@rva/natives/vcs` (`vcs.requireGit()`). Checkout mutations use in-process `withRepoLock()`; `pr_push` does not acquire that lock.
+  - `pr_checkout` and `pr_push` invoke git operations via `@reverse/natives/vcs` (`vcs.requireGit()`). Checkout mutations use in-process `withRepoLock()`; `pr_push` does not acquire that lock.
 - Session state (transcript, memory, jobs, checkpoints, registries)
   - `run_watch` consumes `session.allocateOutputArtifact()` when failed-job logs are persisted.
   - Returned `details` objects carry run/checkouts metadata for the renderer/UI.

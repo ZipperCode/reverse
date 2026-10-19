@@ -1,11 +1,11 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AgentMessage, type AgentTool, agentLoop } from "@rva/agent";
-import type { AssistantMessage, Context, Message } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { setStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+import { type AgentMessage, type AgentTool, agentLoop } from "@reverse/agent";
+import type { AssistantMessage, Context, Message } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { setStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import { Settings } from "../src/config/settings";
 import { disposeAllVmContexts } from "../src/eval/js/context-manager";
 import { CodingAgentSpeculativeExecutionHost } from "../src/speculation/host";

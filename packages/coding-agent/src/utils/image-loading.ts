@@ -6,12 +6,12 @@ import {
 	ImageInputTooLargeError,
 	InvalidImageDataError,
 	imageDecodeFailureReason,
-} from "@rva/tui/chat/image-loading";
+} from "@reverse/tui/chat/image-loading";
 import * as path from "node:path";
-import type { Context, ImageContent, Message, Model, ProviderPayload, TextContent } from "@rva/ai";
-import { rasterizeSvg } from "@rva/natives";
-import { isRecord, logger, readImageMetadata } from "@rva/utils";
-import { LRUCache } from "@rva/utils/lru";
+import type { Context, ImageContent, Message, Model, ProviderPayload, TextContent } from "@reverse/ai";
+import { rasterizeSvg } from "@reverse/natives";
+import { isRecord, logger, readImageMetadata } from "@reverse/utils";
+import { LRUCache } from "@reverse/utils/lru";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatDimensionNote, type ImageResizeOptions, resizeImage } from "./image-resize";
 

@@ -1,4 +1,4 @@
-import type { TspTableColumn, TspText } from "@rva/wire";
+import type { TspTableColumn, TspText } from "@reverse/wire";
 import { compactText, styleSpans } from "../native/spans";
 import { node } from "../native/describe";
 import type { DescribeContext, NativeNode } from "../native/node";

@@ -1,5 +1,5 @@
-import type { AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolApproval } from "@rva/agent";
-import { untilAborted } from "@rva/utils";
+import type { AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolApproval } from "@reverse/agent";
+import { untilAborted } from "@reverse/utils";
 import type { ToolSession } from "../tools";
 import { denyError, requestApproval, resolveApproval, resolveApprovalFromContext } from "../tools/approval";
 

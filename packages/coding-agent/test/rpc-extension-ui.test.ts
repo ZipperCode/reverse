@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { isRecord, readJsonl, TempDir } from "@rva/utils";
-import type { ExtensionAskDialogQuestion } from "@rva/coding-agent/extensibility/extensions";
+import { isRecord, readJsonl, TempDir } from "@reverse/utils";
+import type { ExtensionAskDialogQuestion } from "@reverse/coding-agent/extensibility/extensions";
 import {
 	type PendingExtensionRequest,
 	type RpcExtensionUIResponse,
 	requestRpcAskDialog,
 	requestRpcDialog,
 	requestRpcSelect,
-} from "@rva/coding-agent/modes/rpc/rpc-mode";
+} from "@reverse/coding-agent/modes/rpc/rpc-mode";
 
 function requireRequest(frame: object | undefined): { id: string } {
 	if (!frame || !("id" in frame)) {
@@ -43,7 +43,7 @@ const featuresQuestion: ExtensionAskDialogQuestion = {
  * context to the first user message); a tool result ends the turn.
  */
 const scriptedAskProvider = `
-import { createAssistantMessageEventStream } from "@rva/ai";
+import { createAssistantMessageEventStream } from "@reverse/ai";
 
 export default function (pi) {
 	pi.registerProvider("scripted", {

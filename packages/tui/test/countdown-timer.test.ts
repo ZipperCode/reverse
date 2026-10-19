@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { CountdownTimer } from "@rva/tui/chrome/countdown-timer";
+import { CountdownTimer } from "@reverse/tui/chrome/countdown-timer";
 
 describe("CountdownTimer", () => {
 	beforeEach(() => {

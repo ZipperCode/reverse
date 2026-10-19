@@ -1,7 +1,7 @@
-import { type UpdateNotesDetails } from "@rva/tui/tools/autoresearch";
-import { updateNotesToolRenderer } from "@rva/tui/tools/autoresearch";
-import { type } from "@rva/omptype";
-import * as vcs from "@rva/natives/vcs";
+import { type UpdateNotesDetails } from "@reverse/tui/tools/autoresearch";
+import { updateNotesToolRenderer } from "@reverse/tui/tools/autoresearch";
+import { type } from "@reverse/omptype";
+import * as vcs from "@reverse/natives/vcs";
 
 import type { ToolDefinition } from "../../extensibility/extensions";
 

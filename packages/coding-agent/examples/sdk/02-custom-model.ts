@@ -3,9 +3,9 @@
  *
  * Shows how to select a specific model and thinking level.
  */
-import { ThinkingLevel } from "@rva/agent";
-import { getModel } from "@rva/ai";
-import { createAgentSession, discoverAuthStorage, discoverModels } from "@rva/coding-agent";
+import { ThinkingLevel } from "@reverse/agent";
+import { getModel } from "@reverse/ai";
+import { createAgentSession, discoverAuthStorage, discoverModels } from "@reverse/coding-agent";
 
 // Set up auth storage and model registry
 const authStorage = await discoverAuthStorage();

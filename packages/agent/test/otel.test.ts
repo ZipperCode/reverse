@@ -6,8 +6,8 @@
  * lifecycle hook dispatch.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { agentLoop } from "@rva/agent/agent-loop";
+import { type } from "@reverse/omptype";
+import { agentLoop } from "@reverse/agent/agent-loop";
 import {
 	type AgentTelemetryConfig,
 	type ChatUsageEvent,
@@ -22,7 +22,7 @@ import {
 	recordManualChatTelemetry,
 	resolveTelemetry,
 	type TelemetryHookContext,
-} from "@rva/agent/telemetry";
+} from "@reverse/agent/telemetry";
 import type {
 	AgentContext,
 	AgentEvent,
@@ -30,10 +30,10 @@ import type {
 	AgentMessage,
 	AgentTool,
 	StreamFn,
-} from "@rva/agent/types";
-import type { Message } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream, type EventStream } from "@rva/ai/utils/event-stream";
+} from "@reverse/agent/types";
+import type { Message } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream, type EventStream } from "@reverse/ai/utils/event-stream";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import {

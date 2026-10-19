@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { isGitHubCopilotPolicyDenial } from "@rva/ai/error";
-import { rewriteCopilotError } from "@rva/ai/utils/http-inspector";
+import { isGitHubCopilotPolicyDenial } from "@reverse/ai/error";
+import { rewriteCopilotError } from "@reverse/ai/utils/http-inspector";
 
 function errorWithStatus(
 	status: number,

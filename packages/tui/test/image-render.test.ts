@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Image, ImageBudget } from "@rva/tui/components/image";
-import { getKittyGraphics, setKittyGraphics } from "@rva/tui/kitty-graphics";
+import { Image, ImageBudget } from "@reverse/tui/components/image";
+import { getKittyGraphics, setKittyGraphics } from "@reverse/tui/kitty-graphics";
 import {
 	type CellDimensions,
 	getCellDimensions,
@@ -9,7 +9,7 @@ import {
 	renderImage,
 	setCellDimensions,
 	TERMINAL,
-} from "@rva/tui/terminal-capabilities";
+} from "@reverse/tui/terminal-capabilities";
 
 type MutableTerminalInfo = {
 	imageProtocol: ImageProtocol | null;

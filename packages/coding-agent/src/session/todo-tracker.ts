@@ -1,12 +1,12 @@
-import type { Agent, AgentMessage, AgentTool } from "@rva/agent";
-import type { AssistantMessage, Message, Model, TextContent, ToolChoice } from "@rva/ai";
-import { isRecord, logger, prompt, stringProperty } from "@rva/utils";
+import type { Agent, AgentMessage, AgentTool } from "@reverse/agent";
+import type { AssistantMessage, Message, Model, TextContent, ToolChoice } from "@reverse/ai";
+import { isRecord, logger, prompt, stringProperty } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import eagerTaskPrompt from "../prompts/system/eager-task.md" with { type: "text" };
 import eagerTodoPrompt from "../prompts/system/eager-todo.md" with { type: "text" };
 import midRunTodoNudgePrompt from "../prompts/system/mid-run-todo-nudge.md" with { type: "text" };
 import { getLatestTodoPhasesFromEntries, isTodoPhase } from "../tools/todo";
-import { type TodoItem, type TodoPhase } from "@rva/tui/tools/todo";
+import { type TodoItem, type TodoPhase } from "@reverse/tui/tools/todo";
 import { buildNamedToolChoice } from "../utils/tool-choice";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { SessionManager } from "./session-manager";

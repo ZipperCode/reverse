@@ -2,12 +2,12 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	additionalWorkspaceDirectories,
 	normalizeSessionWorkspace,
-} from "@rva/coding-agent/session/session-workspace";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/session-workspace";
+import { TempDir } from "@reverse/utils";
 import { makeAssistantMessage } from "./helpers";
 
 describe("normalizeSessionWorkspace", () => {

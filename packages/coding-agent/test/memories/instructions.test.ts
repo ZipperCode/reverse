@@ -2,9 +2,9 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { buildMemoryToolDeveloperInstructions, getMemoryRoot } from "@rva/coding-agent/memories";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { buildMemoryToolDeveloperInstructions, getMemoryRoot } from "@reverse/coding-agent/memories";
+import { removeWithRetries } from "@reverse/utils";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-instructions-"));

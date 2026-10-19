@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { applyCatalogMetrics, CatalogMetricsIndex } from "@rva/catalog/identity/metrics";
-import type { Api, Model, ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { applyCatalogMetrics, CatalogMetricsIndex } from "@reverse/catalog/identity/metrics";
+import type { Api, Model, ModelSpec } from "@reverse/catalog/types";
 
 function model(provider: string, id: string, metrics?: { int?: number; tps?: number }): Model<Api> {
 	return buildModel({

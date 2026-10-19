@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isProviderRetryableError } from "@rva/ai/error";
+import { isProviderRetryableError } from "@reverse/ai/error";
 
 describe("isProviderRetryableError", () => {
 	it("retries known transient rate-limit errors", () => {

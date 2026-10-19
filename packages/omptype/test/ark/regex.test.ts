@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type Type, type } from "@rva/omptype/ark";
+import { type Type, type } from "@reverse/omptype/ark";
 import { regex } from "arkregex";
 import type { Eq } from "./type-assert";
 

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { IpcConnection, ipcEndpoint } from "@rva/natives";
+import { IpcConnection, ipcEndpoint } from "@reverse/natives";
 import { MessageFramer } from "../src/jsonrpc/message-framing";
 import {
 	MUX_CONNECT_METHOD,

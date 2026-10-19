@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { AppendOnlyContextManager, AppendOnlyLog, StablePrefix } from "@rva/agent/append-only-context";
-import { invalidateMessageCache } from "@rva/agent/compaction/message-cache";
-import type { AgentContext, AgentTool } from "@rva/agent/types";
-import type { Message, Tool, ToolExample } from "@rva/ai";
-import { INTENT_FIELD } from "@rva/wire";
+import { type } from "@reverse/omptype";
+import { AppendOnlyContextManager, AppendOnlyLog, StablePrefix } from "@reverse/agent/append-only-context";
+import { invalidateMessageCache } from "@reverse/agent/compaction/message-cache";
+import type { AgentContext, AgentTool } from "@reverse/agent/types";
+import type { Message, Tool, ToolExample } from "@reverse/ai";
+import { INTENT_FIELD } from "@reverse/wire";
 
 // ---------------------------------------------------------------------------
 // Helpers

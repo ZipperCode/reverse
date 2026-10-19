@@ -1,5 +1,5 @@
-import type { AssistantMessage, Model, Usage, UserMessage } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
+import type { AssistantMessage, Model, Usage, UserMessage } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
 
 /** Creates a Codex model whose provider policy enables Harmony leak mitigation. */
 export function createHarmonyMitigationModel(): Model<"openai-codex-responses"> {

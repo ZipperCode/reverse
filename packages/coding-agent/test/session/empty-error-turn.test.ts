@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { isEmptyErrorTurn, sanitizeAssistantForReparentedHistory } from "@rva/coding-agent/session/messages";
+import type { AssistantMessage } from "@reverse/ai";
+import { isEmptyErrorTurn, sanitizeAssistantForReparentedHistory } from "@reverse/coding-agent/session/messages";
 
 type Turn = Pick<AssistantMessage, "stopReason" | "content">;
 

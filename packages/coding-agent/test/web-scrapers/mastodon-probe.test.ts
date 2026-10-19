@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { handleDiscourse } from "@rva/coding-agent/web/scrapers/discourse";
-import { handleMastodon } from "@rva/coding-agent/web/scrapers/mastodon";
+import { handleDiscourse } from "@reverse/coding-agent/web/scrapers/discourse";
+import { handleMastodon } from "@reverse/coding-agent/web/scrapers/mastodon";
 
 type FetchArgs = Parameters<typeof fetch>;
 

@@ -8,7 +8,7 @@
  * `authStorage.getApiKey("anthropic", sessionId)` first, then pass the result
  * through {@link buildAnthropicAuthConfig} for header/URL shaping.
  */
-import { $env } from "@rva/utils";
+import { $env } from "@reverse/utils";
 import { buildAnthropicHeaders, mergeHeaders, resolveAnthropicCustomHeadersForBaseUrl } from "../providers/anthropic";
 import { normalizeAnthropicBaseUrl } from "../providers/anthropic-state";
 import { isFoundryEnabled } from "./foundry";

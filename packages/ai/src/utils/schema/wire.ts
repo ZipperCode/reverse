@@ -6,8 +6,8 @@
  * validators see the same JSON Schema dialect.
  */
 
-import type { Type } from "@rva/omptype";
-import { isRecord, structuredCloneJSON } from "@rva/utils";
+import type { Type } from "@reverse/omptype";
+import { isRecord, structuredCloneJSON } from "@reverse/utils";
 import type { Tool, TSchema } from "../../types";
 import { upgradeJsonSchemaTo202012 } from "./draft";
 import { stamp } from "./stamps";

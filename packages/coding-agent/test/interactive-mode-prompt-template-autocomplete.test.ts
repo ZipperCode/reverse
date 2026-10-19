@@ -8,21 +8,21 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import { type Api, Effort, type Model } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import type { PromptTemplate } from "@rva/coding-agent/config/prompt-templates";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { AutocompleteProvider } from "@rva/tui";
-import { TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import { type Api, Effort, type Model } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import type { PromptTemplate } from "@reverse/coding-agent/config/prompt-templates";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { AutocompleteProvider } from "@reverse/tui";
+import { TempDir } from "@reverse/utils";
 
-import { cfgStartupQuiet } from "@rva/coding-agent/modes/settings";
+import { cfgStartupQuiet } from "@reverse/coding-agent/modes/settings";
 
 function makeTool(name: string): AgentTool {
 	return {

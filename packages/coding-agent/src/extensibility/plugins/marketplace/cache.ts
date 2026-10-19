@@ -14,7 +14,7 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { isEnoent } from "@rva/utils";
+import { isEnoent } from "@reverse/utils";
 
 import { isValidNameSegment } from "./types";
 

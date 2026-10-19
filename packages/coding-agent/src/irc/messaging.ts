@@ -1,6 +1,6 @@
-import type { AgentToolResult } from "@rva/agent";
-import type { IrcMessage } from "@rva/tui/tools/irc";
-import type { CoordinationDetails } from "@rva/tui/tools/wait";
+import type { AgentToolResult } from "@reverse/agent";
+import type { IrcMessage } from "@reverse/tui/tools/irc";
+import type { CoordinationDetails } from "@reverse/tui/tools/wait";
 import type { Settings } from "../config/settings";
 import { IrcBus } from "./bus";
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";

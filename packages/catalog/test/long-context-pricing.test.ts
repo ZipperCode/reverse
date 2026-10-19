@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { calculateCost, getBundledModel } from "@rva/catalog/models";
-import type { Usage } from "@rva/catalog/types";
+import { calculateCost, getBundledModel } from "@reverse/catalog/models";
+import type { Usage } from "@reverse/catalog/types";
 
 function usage(fields: Pick<Usage, "input" | "output" | "cacheRead" | "cacheWrite">): Usage {
 	return {

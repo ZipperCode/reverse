@@ -13,7 +13,7 @@
  *
  * Run: bun packages/tui/bench/edit-preview.bench.ts
  */
-import { editInspect } from "@rva/natives";
+import { editInspect } from "@reverse/natives";
 import { getThemeByName } from "../src/theme";
 import { editToolRenderer } from "../src/tools/edit";
 

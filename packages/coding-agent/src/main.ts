@@ -6,11 +6,11 @@
  */
 import * as fsSync from "node:fs";
 import * as os from "node:os";
-import type { ThinkingLevel } from "@rva/agent/thinking";
-import { EventLoopKeepalive } from "@rva/agent/utils/yield";
-import type { ImageContent, Model } from "@rva/ai";
-import { getModelPricingStatus } from "@rva/catalog/models";
-import { isEnoent, isEnotdir } from "@rva/utils";
+import type { ThinkingLevel } from "@reverse/agent/thinking";
+import { EventLoopKeepalive } from "@reverse/agent/utils/yield";
+import type { ImageContent, Model } from "@reverse/ai";
+import { getModelPricingStatus } from "@reverse/catalog/models";
+import { isEnoent, isEnotdir } from "@reverse/utils";
 import {
 	APP_NAME,
 	directoryIsMissing,
@@ -19,12 +19,12 @@ import {
 	normalizePathForComparison,
 	setProjectDir,
 	VERSION,
-} from "@rva/utils/dirs";
-import { $env, isBunTestRuntime, isCompiledBinary, setInteractiveHost } from "@rva/utils/env";
-import * as logger from "@rva/utils/logger";
-import * as postmortem from "@rva/utils/postmortem";
-import { fuzzyFilter } from "@rva/tui/fuzzy";
-import chalk from "@rva/utils/chalk";
+} from "@reverse/utils/dirs";
+import { $env, isBunTestRuntime, setInteractiveHost } from "@reverse/utils/env";
+import * as logger from "@reverse/utils/logger";
+import * as postmortem from "@reverse/utils/postmortem";
+import { fuzzyFilter } from "@reverse/tui/fuzzy";
+import chalk from "@reverse/utils/chalk";
 import { reset as resetCapabilities } from "./capability";
 import {
 	type Args,
@@ -39,12 +39,12 @@ import {
 import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-flags";
 import { processFileArguments } from "./cli/file-processor";
 import { buildInitialMessage } from "./cli/initial-message";
-import { formatKeyHint } from "@rva/tui/app-keybindings";
-import type { SessionPickerOptions } from "@rva/tui/apps/session-picker";
+import { formatKeyHint } from "@reverse/tui/app-keybindings";
+import type { SessionPickerOptions } from "@reverse/tui/apps/session-picker";
 import { applyStartupCwd } from "./cli/startup-cwd";
 import { findConfigFile } from "./config";
 import { ModelRegistry } from "./config/model-registry";
-import { formatModelSelectorValue } from "@rva/tui/overlays/model-selector";
+import { formatModelSelectorValue } from "@reverse/tui/overlays/model-selector";
 import {
 	DEFAULT_PREWALK_TARGET,
 	disabledProviderIds,
@@ -79,9 +79,9 @@ import type { InteractiveMode } from "./modes/interactive-mode";
 import type { PrintModeOptions } from "./modes/print-mode";
 import type { RpcModeOptions } from "./modes/rpc/rpc-mode";
 import { claimRpcInput } from "./modes/rpc/rpc-input";
-import { CURRENT_SETUP_VERSION } from "@rva/tui/setup/setup-version";
+import { CURRENT_SETUP_VERSION } from "@reverse/tui/setup/setup-version";
 import type * as SetupWizardModule from "./modes/setup";
-import type { SetupScene } from "@rva/tui/setup/scenes/types";
+import type { SetupScene } from "@reverse/tui/setup/scenes/types";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "./modes/skill-command";
 import {
 	applyStartupComposerPreferences,
@@ -89,7 +89,7 @@ import {
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
 } from "./modes/startup-composer";
-import { ensureTheme, initTheme, stopThemeWatcher } from "@rva/tui/theme";
+import { ensureTheme, initTheme, stopThemeWatcher } from "@reverse/tui/theme";
 import type { SubmittedUserInput } from "./modes/types";
 import { createWarpEventBridgeExtension } from "./modes/warp-events";
 import { AgentLifecycleManager } from "./registry/agent-lifecycle";
@@ -128,9 +128,9 @@ import { type RestoreOutcome, restoreSession } from "./task/restore";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
 import { cfgTelemetryOtlpExportEnabled } from "./telemetry-settings";
 import { registerLocalInferenceApi } from "./tiny/local-inference-api";
-import { automaticThinkingLevel, concreteThinkingLevel, parseConfiguredThinkingLevel } from "@rva/tui/thinking";
+import { automaticThinkingLevel, concreteThinkingLevel, parseConfiguredThinkingLevel } from "@reverse/tui/thinking";
 import type { LspStartupServerInfo } from "./tools";
-import { sanitizeDisplayWarnings } from "@rva/tui/render/render-utils";
+import { sanitizeDisplayWarnings } from "@reverse/tui/render/render-utils";
 import {
 	getChangelogPath,
 	readLastChangelogVersion,
@@ -197,7 +197,7 @@ type SessionPicker = (
 /** Resume/import-only graph boundary; ordinary launches never construct a picker. */
 async function loadSessionPicker(): Promise<SessionPicker> {
 	const [{ selectSession }, { HistoryStorage }, { loadPinnedSessionIds }, { FileSessionStorage }] = await Promise.all([
-		import("@rva/tui/apps/session-picker"),
+		import("@reverse/tui/apps/session-picker"),
 		import("./session/history-storage"),
 		import("./session/session-pins"),
 		import("./session/session-storage"),
@@ -219,11 +219,6 @@ async function loadSessionPicker(): Promise<SessionPicker> {
 	};
 }
 
-/** Join-only graph boundary; the full built-in slash-command registry is otherwise unnecessary at startup. */
-async function loadBuiltinSlashCommandExecutor() {
-	return (await import("./slash-commands/builtin-registry")).executeBuiltinSlashCommand;
-}
-
 /** Missing-session-directory prompt boundary; ordinary launches do not need node:readline. */
 async function loadReadlineInterface() {
 	return (await import("node:readline/promises")).createInterface;
@@ -232,7 +227,6 @@ async function loadReadlineInterface() {
 export function writeStartupNotice(parsedArgs: Pick<Args, "mode">, text: string): void {
 	(parsedArgs.mode === "json" ? process.stderr : process.stdout).write(text);
 }
-
 
 // Protocol hosts inherit OMP's neutral defaults for settings declaring `protocolDefault`
 // instead of the local user's interactive preferences. The pin holds only while nothing
@@ -703,7 +697,6 @@ async function runInteractiveMode(
 		if (!resuming) {
 			await mode.maybeAutoCreateWorktree();
 		}
-
 	} catch (error) {
 		mode.stop();
 		throw error;
@@ -1421,7 +1414,10 @@ export async function buildSessionOptions(
 			options.modelPattern = parsed.model;
 		} else if (resolved.error) {
 			const hasExtensions = (parsed.extensions?.length ?? 0) > 0 || (parsed.trustedExtensions?.length ?? 0) > 0;
-			if ((!parsed.provider || hasExtensions) && ((resolved.configuredPatterns?.length ?? 0) > 0 || !parsed.model.includes(":"))) {
+			if (
+				(!parsed.provider || hasExtensions) &&
+				((resolved.configuredPatterns?.length ?? 0) > 0 || !parsed.model.includes(":"))
+			) {
 				// Model not found in built-in registry — defer resolution to after extensions load
 				// (extensions may register additional providers/models via registerProvider)
 				options.modelPattern = parsed.provider ? `${parsed.provider}/${parsed.model}` : parsed.model;

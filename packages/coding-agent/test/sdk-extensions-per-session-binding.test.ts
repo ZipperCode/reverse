@@ -15,9 +15,9 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadExtensions } from "@rva/coding-agent/extensibility/extensions";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { removeWithRetries } from "@rva/utils";
+import { loadExtensions } from "@reverse/coding-agent/extensibility/extensions";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { removeWithRetries } from "@reverse/utils";
 
 describe("loadExtensions per-session binding (#2190 review fix)", () => {
 	let tmp: string;

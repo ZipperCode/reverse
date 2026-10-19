@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getProjectAgentDir } from "@rva/utils";
+import { getProjectAgentDir } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 
 import { expandTilde } from "../tools/path-utils";

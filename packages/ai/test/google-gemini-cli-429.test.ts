@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractRetryHint } from "@rva/utils";
+import { extractRetryHint } from "@reverse/utils";
 
 describe("extractRetryHint – header parsing", () => {
 	it("reads retry-after header as seconds", () => {

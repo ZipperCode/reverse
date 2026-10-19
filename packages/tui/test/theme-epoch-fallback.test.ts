@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, getThemeEpoch, setTheme, setThemeInstance, type Theme } from "@rva/tui/theme";
+import { getThemeByName, getThemeEpoch, setTheme, setThemeInstance, type Theme } from "@reverse/tui/theme";
 
 /**
  * Contract: every change to the *active* theme bumps the theme epoch — including

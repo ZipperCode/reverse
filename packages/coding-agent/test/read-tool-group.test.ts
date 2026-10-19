@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
 // Installs the pi-tui scheme host that decides which reads collapse into the group.
-import "@rva/coding-agent/internal-urls/router";
+import "@reverse/coding-agent/internal-urls/router";
 
-import { ReadToolGroupComponent, readArgsCollapseIntoGroup } from "@rva/tui/chat/read-tool-group";
-import * as themeModule from "@rva/tui/theme";
-import { cfgReadToolResultPreview } from "@rva/coding-agent/tools/settings";
-import { cfgTuiHyperlinks } from "@rva/coding-agent/modes/settings";
+import { ReadToolGroupComponent, readArgsCollapseIntoGroup } from "@reverse/tui/chat/read-tool-group";
+import * as themeModule from "@reverse/tui/theme";
+import { cfgReadToolResultPreview } from "@reverse/coding-agent/tools/settings";
+import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
 
 function extractLinkUris(text: string): string[] {
 	return [...text.matchAll(/\x1b\]8;[^;]*;([^\x1b]+)\x1b\\/g)].map(match => match[1]!);

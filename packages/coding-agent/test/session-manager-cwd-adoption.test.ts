@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage } from "@rva/coding-agent/session/session-storage";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, TempDir } from "@rva/utils";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, TempDir } from "@reverse/utils";
 
 const tempDirs: TempDir[] = [];
 

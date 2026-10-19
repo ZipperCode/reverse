@@ -20,9 +20,9 @@
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import * as readline from "node:readline";
-import { $which, APP_NAME, getMCPConfigPath, getProjectDir, WhichCachePolicy, type WhichOptions } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
-import { theme } from "@rva/tui/theme";
+import { $which, APP_NAME, getMCPConfigPath, getProjectDir, WhichCachePolicy, type WhichOptions } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
+import { theme } from "@reverse/tui/theme";
 import { getEffectiveLocale } from "../config/persisted-locale";
 import {
 	SKILL_TOOL_CATALOG,

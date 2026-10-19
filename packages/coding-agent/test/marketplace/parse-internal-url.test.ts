@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
 
 // ── Basic parsing (URLs that new URL() handles fine) ─────────────────
 

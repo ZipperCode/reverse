@@ -2,7 +2,7 @@
  * Test web search models.
  */
 
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { searchHelp as commandHelp } from "../cli/command-help";
 import { runSearchCommand, type SearchCommandArgs } from "../cli/web-search-cli";
 

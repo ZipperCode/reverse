@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getRecentSessions } from "@rva/coding-agent/session/session-listing";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@rva/utils";
+import { getRecentSessions } from "@reverse/coding-agent/session/session-listing";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@reverse/utils";
 import { makeAssistantMessage } from "../session-manager/helpers";
 
 /**

@@ -8,7 +8,7 @@
  * the construction lives in one place rather than being repeated per callsite.
  */
 
-import type { AgentTool } from "@rva/agent";
+import type { AgentTool } from "@reverse/agent";
 import { EditTool } from "./edit";
 import type { ExtensionAgentIdentity, ExtensionRunner } from "./extensibility/extensions";
 import { ExtensionToolWrapper } from "./extensibility/extensions";

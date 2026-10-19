@@ -1,8 +1,8 @@
 import { clearSubmittedText } from "./helpers/draft";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { CompactionCancelledError } from "@rva/agent/compaction";
-import { logger, setProjectDir } from "@rva/utils";
+import { CompactionCancelledError } from "@reverse/agent/compaction";
+import { logger, setProjectDir } from "@reverse/utils";
 import { clearClaudePluginRootsCache } from "../discovery/helpers";
 import { rebindMemoryBackendForCwd } from "../hindsight/backend";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../memory-backend";

@@ -1,22 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { createAutoresearchExtension } from "@rva/coding-agent/autoresearch";
+import { createAutoresearchExtension } from "@reverse/coding-agent/autoresearch";
 import {
 	buildExperimentState,
 	computeConfidence,
 	findBestKeptMetric,
 	reconstructControlState,
-} from "@rva/coding-agent/autoresearch/state";
-import { AutoresearchStorage, closeAllAutoresearchStorages } from "@rva/coding-agent/autoresearch/storage";
-import type { ExperimentResult } from "@rva/tui/tools/autoresearch";
-import { findBaselineMetric, findBaselineRunNumber } from "@rva/tui/apps/autoresearch-data";
+} from "@reverse/coding-agent/autoresearch/state";
+import { AutoresearchStorage, closeAllAutoresearchStorages } from "@reverse/coding-agent/autoresearch/storage";
+import type { ExperimentResult } from "@reverse/tui/tools/autoresearch";
+import { findBaselineMetric, findBaselineRunNumber } from "@reverse/tui/apps/autoresearch-data";
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
 	RegisteredCommand,
-} from "@rva/coding-agent/extensibility/extensions";
-import type { VcsGitRepo, VcsGitRepoInfo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/extensions";
+import type { VcsGitRepo, VcsGitRepoInfo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { TempDir } from "@reverse/utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

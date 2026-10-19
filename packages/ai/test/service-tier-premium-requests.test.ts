@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { Api } from "@rva/ai/types";
+import type { Api } from "@reverse/ai/types";
 import {
 	coerceServiceTierByFamily,
 	getPremiumServiceTierRequests,
@@ -7,8 +7,8 @@ import {
 	resolveModelServiceTier,
 	serviceTierFamily,
 	shouldSendServiceTier,
-} from "@rva/ai/types";
-import { classifyModel } from "@rva/catalog/compat/taxonomy";
+} from "@reverse/ai/types";
+import { classifyModel } from "@reverse/catalog/compat/taxonomy";
 
 const m = (provider: string, api: Api, id: string) => ({
 	provider,

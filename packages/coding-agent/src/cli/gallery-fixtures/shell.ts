@@ -103,13 +103,13 @@ export const shellFixtures: Record<string, GalleryFixture> = {
 			content: [
 				{
 					type: "text",
-					text: ["@rva/coding-agent v0.42.0", "37 dependencies"].join("\n"),
+					text: ["@reverse/coding-agent v0.42.0", "37 dependencies"].join("\n"),
 				},
 			],
 			details: {
 				language: "python",
 				languages: ["python"],
-				jsonOutputs: [["@ai-sdk/anthropic", "@rva/ai", "@rva/tui"]],
+				jsonOutputs: [["@ai-sdk/anthropic", "@reverse/ai", "@reverse/tui"]],
 				cells: [
 					{
 						index: 0,
@@ -125,7 +125,7 @@ export const shellFixtures: Record<string, GalleryFixture> = {
 							'print(f"{len(deps)} dependencies")',
 							"display(sorted(deps)[:3])",
 						].join("\n"),
-						output: ["@rva/coding-agent v0.42.0", "37 dependencies"].join("\n"),
+						output: ["@reverse/coding-agent v0.42.0", "37 dependencies"].join("\n"),
 						status: "complete",
 						durationMs: 64,
 						exitCode: 0,

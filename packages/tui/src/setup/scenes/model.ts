@@ -1,5 +1,5 @@
-import type { Model } from "@rva/ai";
-import { modelKind } from "@rva/catalog/types";
+import type { Model } from "@reverse/ai";
+import { modelKind } from "@reverse/catalog/types";
 import type { SgrMouseEvent } from "../../mouse";
 import { Text } from "../../components/text";
 import { WizardStep } from "../../components/wizard-step";

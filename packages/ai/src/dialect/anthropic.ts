@@ -1,4 +1,4 @@
-import { escapeXmlText, parseJsonWithRepair } from "@rva/utils";
+import { escapeXmlText, parseJsonWithRepair } from "@reverse/utils";
 import type { Message, ToolCall } from "../types";
 import dialectPrompt from "./anthropic.md" with { type: "text" };
 import { buildArgShapes, buildStringArgsResolver, mintToolCallId } from "./coercion";

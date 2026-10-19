@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Editor } from "@rva/tui";
+import { Editor } from "@reverse/tui";
 import { defaultEditorTheme } from "./test-themes";
 
 describe("Editor atom table", () => {

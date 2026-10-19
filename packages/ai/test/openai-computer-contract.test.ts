@@ -1,26 +1,26 @@
 import { describe, expect, test } from "bun:test";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import {
 	buildTransformedCodexRequestBody,
 	convertCodexResponsesMessages,
 	convertOpenAICodexResponsesTools,
 	normalizeCodexToolChoice,
-} from "@rva/ai/providers/openai-codex-responses";
+} from "@reverse/ai/providers/openai-codex-responses";
 import {
 	buildParams,
 	convertTools,
 	mapOpenAIResponsesToolChoiceForTools,
-} from "@rva/ai/providers/openai-responses";
-import type { ResponseStreamEvent } from "@rva/ai/providers/openai-responses-wire";
+} from "@reverse/ai/providers/openai-responses";
+import type { ResponseStreamEvent } from "@reverse/ai/providers/openai-responses-wire";
 import {
 	appendResponsesToolResultMessages,
 	buildResponsesInput,
 	convertResponsesAssistantMessage,
 	processResponsesStream,
-} from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Context, Model, ModelSpec, Tool, ToolResultMessage } from "@rva/ai/types";
-import { sanitizeOpenAIResponsesHistoryItemsForReplay } from "@rva/ai/utils";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Context, Model, ModelSpec, Tool, ToolResultMessage } from "@reverse/ai/types";
+import { sanitizeOpenAIResponsesHistoryItemsForReplay } from "@reverse/ai/utils";
+import { buildModel } from "@reverse/catalog/build";
 
 function model<TApi extends "openai-responses" | "openai-codex-responses">(
 	api: TApi,

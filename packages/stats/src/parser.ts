@@ -11,9 +11,9 @@ import {
 	type ToolCall,
 	type ToolResultMessage,
 	type Usage,
-} from "@rva/ai";
-import { classifyModel } from "@rva/catalog/compat/taxonomy";
-import { getSessionsDir, isEnoent, readLines } from "@rva/utils";
+} from "@reverse/ai";
+import { classifyModel } from "@reverse/catalog/compat/taxonomy";
+import { getSessionsDir, isEnoent, readLines } from "@reverse/utils";
 import type {
 	AgentType,
 	MessageStatsInput,

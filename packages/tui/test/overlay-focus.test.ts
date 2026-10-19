@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, Container, type Focusable, type OverlayFocusOwner, TUI } from "@rva/tui";
-import type { Terminal, TerminalAppearance } from "@rva/tui/terminal";
+import { type Component, Container, type Focusable, type OverlayFocusOwner, TUI } from "@reverse/tui";
+import type { Terminal, TerminalAppearance } from "@reverse/tui/terminal";
 
 class MinimalTerminal implements Terminal {
 	columns = 80;

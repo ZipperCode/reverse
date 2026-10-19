@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { TspHello } from "@rva/tui/native/encode";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@rva/tui/terminal-multiplexer";
-import * as utils from "@rva/utils";
-import { setTerminalHeadless } from "@rva/utils";
-import * as logger from "@rva/utils/logger";
+import type { TspHello } from "@reverse/tui/native/encode";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@reverse/tui/terminal-multiplexer";
+import * as utils from "@reverse/utils";
+import { setTerminalHeadless } from "@reverse/utils";
+import * as logger from "@reverse/utils/logger";
 
 const DA1_REPLY = "\x1b[?1;2c";
 const HELLO_REPLY = '\x1b_tsp;r;{"r":"hello","v":1,"term":"tern","kinds":["col","text"],"credits":3,"future":1}\x1b\\';

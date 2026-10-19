@@ -1,5 +1,5 @@
-import { getOAuthProviders } from "@rva/ai/oauth";
-import type { OAuthPrompt } from "@rva/ai/oauth/types";
+import { getOAuthProviders } from "@reverse/ai/oauth";
+import type { OAuthPrompt } from "@reverse/ai/oauth/types";
 import { Container, getKeybindings, Spacer, Text, type TUI, wrapTextWithAnsi } from "../index";
 import { theme } from "../theme/theme";
 import { urlHyperlinkAlways, WidthAwareText } from "../render/index";

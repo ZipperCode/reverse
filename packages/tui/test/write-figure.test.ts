@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { ImageBudget } from "@rva/tui/components/image";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@rva/tui/terminal-capabilities";
-import { initTheme } from "@rva/tui/theme";
-import { writeToolRenderer } from "@rva/tui/tools/write";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { ImageBudget } from "@reverse/tui/components/image";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@reverse/tui/terminal-capabilities";
+import { initTheme } from "@reverse/tui/theme";
+import { writeToolRenderer } from "@reverse/tui/tools/write";
 
 const originalImageProtocol = TERMINAL.imageProtocol;
 const SVG = "<svg viewBox='0 0 160 40'><rect width='160' height='40' fill='#3b82f6'/></svg>";

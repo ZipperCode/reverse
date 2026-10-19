@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
-import { cosineSimilarityPairs } from "@rva/natives";
-import { logger } from "@rva/utils";
+import { cosineSimilarityPairs } from "@reverse/natives";
+import { logger } from "@reverse/utils";
 import * as embeddings from "./embeddings";
 import { cosineSimilarity } from "./vector-math";
 

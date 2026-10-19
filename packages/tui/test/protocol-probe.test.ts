@@ -4,9 +4,9 @@ import {
 	buildSampleImage,
 	encodeRgbPng,
 	ProtocolProbeComponent,
-} from "@rva/tui/apps/debug/protocol-probe";
-import { initTheme } from "@rva/tui/theme";
-import { getImageDimensions, ImageBudget, ImageProtocol, TERMINAL } from "@rva/tui";
+} from "@reverse/tui/apps/debug/protocol-probe";
+import { initTheme } from "@reverse/tui/theme";
+import { getImageDimensions, ImageBudget, ImageProtocol, TERMINAL } from "@reverse/tui";
 
 beforeAll(async () => {
 	// buildLargeTextLines styles the OSC 66 span through the global theme singleton.

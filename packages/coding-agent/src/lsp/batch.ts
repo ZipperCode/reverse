@@ -1,4 +1,4 @@
-import type { ToolCallContext } from "@rva/agent";
+import type { ToolCallContext } from "@reverse/agent";
 
 const LSP_BATCH_TOOLS = new Set(["edit", "write"]);
 

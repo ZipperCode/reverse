@@ -6,7 +6,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAgentDbPath, isEnoent, withFileLock } from "@rva/utils";
+import { getAgentDbPath, isEnoent, withFileLock } from "@reverse/utils";
 import type { ResetCreditAccountStatus, ResetCreditRedeemOutcome } from "./auth-storage";
 import { ATTEMPT_COOLDOWN_MS } from "./codex-auto-reset";
 

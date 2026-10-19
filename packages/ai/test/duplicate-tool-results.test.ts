@@ -3,9 +3,9 @@ import type {
 	ChatCompletionAssistantMessageParam,
 	ChatCompletionMessageParam,
 	ChatCompletionToolMessageParam,
-} from "@rva/ai/providers/openai-chat-wire";
-import { convertMessages } from "@rva/ai/providers/openai-completions";
-import { transformMessages } from "@rva/ai/providers/transform-messages";
+} from "@reverse/ai/providers/openai-chat-wire";
+import { convertMessages } from "@reverse/ai/providers/openai-completions";
+import { transformMessages } from "@reverse/ai/providers/transform-messages";
 import type {
 	Api,
 	AssistantMessage,
@@ -16,9 +16,9 @@ import type {
 	ToolCall,
 	ToolResultMessage,
 	UserMessage,
-} from "@rva/ai/types";
-import { normalizeToolCallId } from "@rva/ai/utils";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/types";
+import { normalizeToolCallId } from "@reverse/ai/utils";
+import { buildModel } from "@reverse/catalog/build";
 
 /**
  * Regression test for: "each tool_use must have a single result. Found multiple tool_result blocks with id"

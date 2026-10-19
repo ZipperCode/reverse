@@ -1,6 +1,6 @@
-import { type Api, type AuthStorage, type Model, withAuth } from "@rva/ai";
-import { resolveXaiBaseUrl, XAI_DEFAULT_BASE_URL } from "@rva/ai/providers/xai-base-url";
-import { buildModelProviderPriorityRank } from "@rva/catalog/identity";
+import { type Api, type AuthStorage, type Model, withAuth } from "@reverse/ai";
+import { resolveXaiBaseUrl, XAI_DEFAULT_BASE_URL } from "@reverse/ai/providers/xai-base-url";
+import { buildModelProviderPriorityRank } from "@reverse/catalog/identity";
 import type { ModelRegistry } from "../../../config/model-registry";
 import { pickDefaultAvailableModel, resolveRoleChain } from "../../../config/model-resolver";
 import { roleCandidatePool } from "../../../config/model-roles";

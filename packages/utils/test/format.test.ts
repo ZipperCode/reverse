@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatDuration } from "@rva/utils/format";
+import { formatDuration } from "@reverse/utils/format";
 
 describe("formatDuration", () => {
 	// Codex's wham/usage endpoint returns the prior window's reset_at until the

@@ -3,18 +3,18 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createSessionManager } from "@rva/coding-agent/main";
-import { resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createSessionManager } from "@reverse/coding-agent/main";
+import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	lastSessionTransfer,
 	markSessionMoved,
 	SESSION_TRANSFER_MESSAGE_TYPE,
-} from "@rva/coding-agent/session/session-transfer";
-import { getConfigRootDir, setAgentDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/session-transfer";
+import { getConfigRootDir, setAgentDir } from "@reverse/utils";
 import { makeAssistantMessage } from "./session-manager/helpers";
 
 describe("resuming a session that moved away", () => {

@@ -1,5 +1,5 @@
-import { APP_NAME } from "@rva/utils/dirs";
-import type { TspSpan } from "@rva/wire";
+import { APP_NAME } from "@reverse/utils/dirs";
+import type { TspSpan } from "@reverse/wire";
 import { formatDoubleTap, formatKeyHint, formatKeyHints, type KeyName } from "../app-keybindings";
 import { editorKey } from "../chrome/keybinding-hints";
 import { getKeybindings, type Keybinding } from "../keybindings";

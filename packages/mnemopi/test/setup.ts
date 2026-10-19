@@ -1,8 +1,8 @@
 import { afterEach, beforeEach } from "bun:test";
 
-import type { CompleteOptions, LlmBackend } from "@rva/mnemopi/core/llm-backends";
-import { resetHostLlmBackendForTests, setHostLlmBackend } from "@rva/mnemopi/core/llm-backends";
-import { resetDefaultInstanceForTests } from "@rva/mnemopi/core/memory";
+import type { CompleteOptions, LlmBackend } from "@reverse/mnemopi/core/llm-backends";
+import { resetHostLlmBackendForTests, setHostLlmBackend } from "@reverse/mnemopi/core/llm-backends";
+import { resetDefaultInstanceForTests } from "@reverse/mnemopi/core/memory";
 
 export function resetModuleStateForTests(): void {
 	resetDefaultInstanceForTests();

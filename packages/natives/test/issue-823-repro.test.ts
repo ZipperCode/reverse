@@ -125,8 +125,8 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 	});
 
 	it("prefers platform leaf package candidates ahead of core nativeDir candidates on npm installs", () => {
-		const leafPackageDir = "/app/node_modules/@rva/natives-linux-x64";
-		const nativeDir = "/app/node_modules/@rva/natives/native";
+		const leafPackageDir = "/app/node_modules/@reverse/natives-linux-x64";
+		const nativeDir = "/app/node_modules/@reverse/natives/native";
 		const candidates = resolveLoaderCandidates({
 			addonFilenames: getAddonFilenames({ tag: "linux-x64", arch: "x64", variant: "baseline" }),
 			isCompiledBinary: false,
@@ -145,8 +145,8 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 
 	it("keeps Windows staging ahead of leaf package and core nativeDir candidates", () => {
 		const versionedDir = "/home/u/.rva/natives/15.5.15";
-		const leafPackageDir = "/app/node_modules/@rva/natives-win32-x64";
-		const nativeDir = "/app/node_modules/@rva/natives/native";
+		const leafPackageDir = "/app/node_modules/@reverse/natives-win32-x64";
+		const nativeDir = "/app/node_modules/@reverse/natives/native";
 		const candidates = resolveLoaderCandidates({
 			addonFilenames: getAddonFilenames({ tag: "win32-x64", arch: "x64", variant: "baseline" }),
 			isCompiledBinary: false,

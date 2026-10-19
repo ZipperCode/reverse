@@ -1,7 +1,7 @@
 // Gallery fixtures for agentic orchestration (task, wait, goal, yield).
-import type { Usage } from "@rva/ai";
-import type { TaskToolDetails, YieldItem } from "@rva/tui/tools/task";
-import type { CoordinationDetails } from "@rva/tui/tools/wait";
+import type { Usage } from "@reverse/ai";
+import type { TaskToolDetails, YieldItem } from "@reverse/tui/tools/task";
+import type { CoordinationDetails } from "@reverse/tui/tools/wait";
 import type { GalleryFixture } from "./types";
 
 /** Message/activity timestamps are offsets from load time so gallery ages stay plausible. */

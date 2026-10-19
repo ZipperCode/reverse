@@ -1,4 +1,4 @@
-import type { Terminal, TerminalAppearance } from "@rva/tui/terminal";
+import type { Terminal, TerminalAppearance } from "@reverse/tui/terminal";
 import { CELL_U32, CellFlags, type GraphicsPlacement, KittyTerminal, loadModuleSync } from "kitty-vt-wasm";
 
 // ---------------------------------------------------------------------------

@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort } from "@rva/catalog/effort";
-import { resolveWireModelId } from "@rva/catalog/model-thinking";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest } from "@rva/coding-agent/config/settings";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { Effort } from "@reverse/catalog/effort";
+import { resolveWireModelId } from "@reverse/catalog/model-thinking";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 describe("Portkey gateway custom models", () => {
 	let tempDir: string;

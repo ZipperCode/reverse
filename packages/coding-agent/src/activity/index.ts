@@ -1,14 +1,14 @@
-import { activityOneLine, compareActivityRows } from "@rva/tui/overlays/agent-activity";
+import { activityOneLine, compareActivityRows } from "@reverse/tui/overlays/agent-activity";
 import type { Stats } from "node:fs";
 import * as fs from "node:fs/promises";
-import type { AgentActivityRow, AgentActivityQuery } from "@rva/tui/overlays/agent-activity";
+import type { AgentActivityRow, AgentActivityQuery } from "@reverse/tui/overlays/agent-activity";
 export type {
 	AgentActivityRow,
 	AgentActivityQuery,
 	AgentActivityKind,
 	AgentActivityStatus,
-} from "@rva/tui/overlays/agent-activity";
-export { activityRowsFromProgress } from "@rva/tui/overlays/agent-activity";
+} from "@reverse/tui/overlays/agent-activity";
+export { activityRowsFromProgress } from "@reverse/tui/overlays/agent-activity";
 
 export interface AgentActivityTranscript {
 	text: string;

@@ -2,11 +2,11 @@ import { afterAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@rva/utils";
+import { removeWithRetries } from "@reverse/utils";
 import {
 	installLegacyPiSpecifierShim,
 	loadLegacyPiModule,
-} from "@rva/coding-agent/extensibility/plugins/legacy-pi-compat";
+} from "@reverse/coding-agent/extensibility/plugins/legacy-pi-compat";
 
 // End-to-end resolution proof for the upstream-root bridges: legacy extensions
 // import the aliased package roots (`@earendil-works/pi-ai` etc.) and Bun's

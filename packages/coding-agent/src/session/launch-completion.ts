@@ -1,10 +1,10 @@
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 import type { DaemonCompletionNotification } from "../launch/protocol";
 import launchCompletionTemplate from "../prompts/session/launch-completion.md" with { type: "text" };
 import type { CustomMessage } from "./messages";
 
-import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "@rva/tui/chat/messages";
-export { LAUNCH_COMPLETION_MESSAGE_TYPE } from "@rva/tui/chat/messages";
+import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "@reverse/tui/chat/messages";
+export { LAUNCH_COMPLETION_MESSAGE_TYPE } from "@reverse/tui/chat/messages";
 
 /** One broker completion awaiting injection into its owning session. */
 export type LaunchCompletionEntry = DaemonCompletionNotification;

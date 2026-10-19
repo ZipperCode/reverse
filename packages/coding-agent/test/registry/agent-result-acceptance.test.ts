@@ -5,8 +5,8 @@
  * follow-up or wake turn never reports a previous run's acceptance.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 
 /** Minimal session: the registry only reads `isStreaming` for liveness corroboration. */
 function sessionStub(isStreaming: boolean): AgentSession {

@@ -14,7 +14,7 @@ import {
 	flushTelemetryExport,
 	initTelemetryExport,
 	isTelemetryExportEnabled,
-} from "@rva/coding-agent/telemetry-export";
+} from "@reverse/coding-agent/telemetry-export";
 import { trace } from "@opentelemetry/api";
 
 let body: Buffer | undefined;
@@ -44,7 +44,7 @@ if (!isTelemetryExportEnabled()) {
 	process.exit(2);
 }
 
-const span = trace.getTracer("@rva/agent").startSpan("agent.llm_call");
+const span = trace.getTracer("@reverse/agent").startSpan("agent.llm_call");
 span.setAttribute("gen_ai.request.model", "claude-haiku-4-5");
 span.end();
 

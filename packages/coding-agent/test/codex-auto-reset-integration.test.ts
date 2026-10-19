@@ -1,23 +1,23 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@rva/agent";
-import type { ResetCreditAccountStatus, ResetCreditTarget, UsageReport } from "@rva/ai";
-import * as envApiKey from "@rva/ai/env-api-key";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { createAcpExtensionUiContext } from "@rva/coding-agent/modes/acp/acp-agent";
-import { initializeExtensions } from "@rva/coding-agent/modes/runtime-init";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import { Agent } from "@reverse/agent";
+import type { ResetCreditAccountStatus, ResetCreditTarget, UsageReport } from "@reverse/ai";
+import * as envApiKey from "@reverse/ai/env-api-key";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { createAcpExtensionUiContext } from "@reverse/coding-agent/modes/acp/acp-agent";
+import { initializeExtensions } from "@reverse/coding-agent/modes/runtime-init";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import {
 	type CodexAutoRedeemCoordinator,
 	createCodexAutoRedeemCoordinator,
-} from "@rva/coding-agent/session/codex-auto-reset";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
-import type { AgentSideConnection, CreateElicitationRequest } from "@rva/utils/acp";
+} from "@reverse/coding-agent/session/codex-auto-reset";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
+import type { AgentSideConnection, CreateElicitationRequest } from "@reverse/utils/acp";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 import { getTestModel } from "./helpers/model-fixtures";
 

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { buildResponsesDeltaInput } from "@rva/ai/providers/openai-shared";
+import { buildResponsesDeltaInput } from "@reverse/ai/providers/openai-shared";
 import {
 	kStreamingArgumentsDone,
 	kStreamingBlockIndex,
 	kStreamingBlockKind,
 	kStreamingLastParseLen,
 	kStreamingPartialJson,
-} from "@rva/ai/utils/block-symbols";
+} from "@reverse/ai/utils/block-symbols";
 import type { ResponseInputItem } from "../src/providers/openai-responses-wire";
 
 // Both stateful callers store the previous request/response through

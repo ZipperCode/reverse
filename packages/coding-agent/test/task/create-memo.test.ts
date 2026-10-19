@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { refreshAgentDiscovery, TaskTool } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { refreshAgentDiscovery, TaskTool } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 
-import { cfgExtensions } from "@rva/coding-agent/extensibility/settings";
+import { cfgExtensions } from "@reverse/coding-agent/extensibility/settings";
 
 const TEST_AGENTS = [
 	{

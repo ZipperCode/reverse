@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, type Mock, spyOn } from "bun:test";
-import { initBeam } from "@rva/mnemopi/core/beam";
-import * as embeddings from "@rva/mnemopi/core/embeddings";
+import { initBeam } from "@reverse/mnemopi/core/beam";
+import * as embeddings from "@reverse/mnemopi/core/embeddings";
 import {
 	clusterBySimilarity,
 	cosineSimilarity,
@@ -9,7 +9,7 @@ import {
 	getResonanceLog,
 	harmonize,
 	recallBeliefs,
-} from "@rva/mnemopi/core/shmr";
+} from "@reverse/mnemopi/core/shmr";
 
 let embedSpy: Mock<typeof embeddings.embed> | null = null;
 

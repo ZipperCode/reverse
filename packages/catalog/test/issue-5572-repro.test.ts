@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { buildAnthropicClientOptions, streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { Context, TJsonSchema, Tool } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
+import { buildAnthropicClientOptions, streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { Context, TJsonSchema, Tool } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 const CUSTOM_MODEL_SPEC: ModelSpec<"anthropic-messages"> = {
 	id: "claude-haiku-4.5",

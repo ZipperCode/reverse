@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { renderWelcomeTip, WelcomeComponent } from "@rva/tui/prompt/welcome";
-import { initTheme, setSymbolPreset, setTheme, theme } from "@rva/tui/theme";
-import { visibleWidth } from "@rva/tui";
+import { renderWelcomeTip, WelcomeComponent } from "@reverse/tui/prompt/welcome";
+import { initTheme, setSymbolPreset, setTheme, theme } from "@reverse/tui/theme";
+import { visibleWidth } from "@reverse/tui";
 
 describe("renderWelcomeTip", () => {
 	beforeAll(async () => {

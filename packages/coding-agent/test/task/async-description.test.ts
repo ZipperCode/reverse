@@ -1,10 +1,10 @@
 import { afterEach, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { TaskTool } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import { cfgTaskMaxRecursionDepth } from "@rva/coding-agent/task/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { cfgAsyncEnabled } from "@rva/coding-agent/tools/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { TaskTool } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import { cfgTaskMaxRecursionDepth } from "@reverse/coding-agent/task/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { cfgAsyncEnabled } from "@reverse/coding-agent/tools/settings";
 
 afterEach(() => vi.restoreAllMocks());
 

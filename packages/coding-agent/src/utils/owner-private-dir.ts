@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 
 export interface OwnerPrivateDirStat {
 	isSymlink: boolean;

@@ -10,7 +10,7 @@ import * as executor from "../../src/task/executor";
 import type { EffectiveSubagentPolicy, StructuredSubagentResult } from "../../src/task/structured-subagent";
 import * as structured from "../../src/task/structured-subagent";
 import type { AgentDefinition } from "../../src/task/types";
-import type { SingleResult } from "@rva/tui/tools/task";
+import type { SingleResult } from "@reverse/tui/tools/task";
 import { WorkPool, WorkPoolRegistry } from "../../src/task/workpool";
 import type { ToolSession } from "../../src/tools";
 

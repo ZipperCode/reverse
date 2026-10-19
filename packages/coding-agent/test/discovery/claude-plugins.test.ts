@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import { disableUserSource, enableProvider, loadCapability } from "@rva/coding-agent/capability";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { disableUserSource, enableProvider, loadCapability } from "@reverse/coding-agent/capability";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
-} from "@rva/coding-agent/discovery/helpers";
-import type { Skill } from "@rva/coding-agent/capability/skill";
-import { loadSkills } from "@rva/coding-agent/extensibility/skills";
-import { loadAllExtensions } from "@rva/coding-agent/modes/components/extensions/state-manager";
-import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, logger, removeWithRetries, setAgentDir } from "@rva/utils";
-import "@rva/coding-agent/discovery/claude-plugins";
+} from "@reverse/coding-agent/discovery/helpers";
+import type { Skill } from "@reverse/coding-agent/capability/skill";
+import { loadSkills } from "@reverse/coding-agent/extensibility/skills";
+import { loadAllExtensions } from "@reverse/coding-agent/modes/components/extensions/state-manager";
+import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, logger, removeWithRetries, setAgentDir } from "@reverse/utils";
+import "@reverse/coding-agent/discovery/claude-plugins";
 
 describe("parseClaudePluginsRegistry", () => {
 	test("returns null for invalid JSON", () => {

@@ -1,14 +1,14 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, vi } from "bun:test";
 
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { convertMessages } from "@rva/ai/providers/openai-completions";
-import { getOAuthProviders } from "@rva/ai/registry/oauth";
-import type { AssistantMessage, ThinkingContent, ToolCall } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { xiaomiModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import { getBundledModels } from "@rva/catalog/models";
-import type { FetchImpl, Model } from "@rva/catalog/types";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { convertMessages } from "@reverse/ai/providers/openai-completions";
+import { getOAuthProviders } from "@reverse/ai/registry/oauth";
+import type { AssistantMessage, ThinkingContent, ToolCall } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { xiaomiModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import { getBundledModels } from "@reverse/catalog/models";
+import type { FetchImpl, Model } from "@reverse/catalog/types";
 
 const TP_KEY = "tp-ci1p8t1w4e1sbxgyc8v65tnrjbzro287igmvyf25van9mt76";
 const SGP_BASE_URL = "https://token-plan-sgp.xiaomimimo.com/v1";

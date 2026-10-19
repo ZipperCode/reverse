@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { buildFactoryDroidModel } from "@rva/catalog/discovery";
-import { Effort } from "@rva/catalog/effort";
+import { buildModel } from "@reverse/catalog/build";
+import { buildFactoryDroidModel } from "@reverse/catalog/discovery";
+import { Effort } from "@reverse/catalog/effort";
 import { streamFactoryDroid } from "../src/providers/factory-droid";
 import { streamSimple } from "../src/stream";
 import {

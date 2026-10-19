@@ -1,5 +1,5 @@
-import { $which } from "@rva/utils";
-import { theme } from "@rva/tui/theme";
+import { $which } from "@reverse/utils";
+import { theme } from "@reverse/tui/theme";
 import type { DoctorCheck } from "./types";
 
 export async function runDoctorChecks(): Promise<DoctorCheck[]> {

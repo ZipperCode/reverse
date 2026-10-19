@@ -1,6 +1,6 @@
-import type { UsageResetCreditDetail } from "@rva/ai";
+import type { UsageResetCreditDetail } from "@reverse/ai";
 import { Container, matchesKey, ScrollView, Spacer, Text, TruncatedText } from "../index";
-import { formatDuration, sanitizeText } from "@rva/utils";
+import { formatDuration, sanitizeText } from "@reverse/utils";
 import { theme } from "../theme/theme";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { OverlayPanel } from "../chrome/overlay-box";
@@ -13,7 +13,7 @@ import { node, span, text } from "../native/describe";
 import type { DescribeContext, NativeNode, NativeUiEvent } from "../native/node";
 import { actionHint, hintsRow, overlayCard } from "../native/overlay";
 import { CLOSE_ACTION, dockedPicker, PICKER_KEY, pickerAction, pickerEvent } from "../native/picker";
-import type { TspPickerItem, TspPickerProps, TspSpan } from "@rva/wire";
+import type { TspPickerItem, TspPickerProps, TspSpan } from "@reverse/wire";
 
 const RESET_SELECTOR_MAX_VISIBLE = 10;
 

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { ShowImagesSelectorComponent } from "@rva/tui/overlays/show-images-selector";
-import { initTheme } from "@rva/tui/theme";
-import type { SgrMouseEvent } from "@rva/tui";
+import { ShowImagesSelectorComponent } from "@reverse/tui/overlays/show-images-selector";
+import { initTheme } from "@reverse/tui/theme";
+import type { SgrMouseEvent } from "@reverse/tui";
 
 beforeAll(async () => {
 	await initTheme();

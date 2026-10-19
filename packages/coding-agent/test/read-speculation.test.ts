@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@rva/ai";
-import type { SpeculativeOperationContext } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { getEditStore } from "@rva/coding-agent/edit/store";
-import { CodingAgentSpeculativeExecutionHost } from "@rva/coding-agent/speculation/host";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { getConflictHistory } from "@rva/coding-agent/tools/conflict-detect";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { removeSyncWithRetries } from "@rva/utils";
+import type { ImageContent } from "@reverse/ai";
+import type { SpeculativeOperationContext } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { getEditStore } from "@reverse/coding-agent/edit/store";
+import { CodingAgentSpeculativeExecutionHost } from "@reverse/coding-agent/speculation/host";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { getConflictHistory } from "@reverse/coding-agent/tools/conflict-detect";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";

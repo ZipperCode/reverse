@@ -7,8 +7,8 @@
  * that tells the model the path. The model keeps `local://` references across
  * `/move`; chips for internal URLs instead use a stable blob copy.
  */
-import type { ImageContent } from "@rva/ai";
-import { isRecord } from "@rva/utils";
+import type { ImageContent } from "@reverse/ai";
+import { isRecord } from "@reverse/utils";
 
 /** How an image attachment's backing file entered the session. */
 export type ImageAttachmentSourceKind = "image" | "video";

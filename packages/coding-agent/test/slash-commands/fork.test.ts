@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 import {
 	BUILTIN_SLASH_COMMANDS,
 	executeBuiltinSlashCommand,
 	type BuiltinSlashCommandRuntime,
-} from "@rva/coding-agent/slash-commands/builtin-registry";
-import { CombinedAutocompleteProvider } from "@rva/tui/autocomplete";
-import { Editor } from "@rva/tui/components/editor";
-import { getEditorTheme } from "@rva/tui/theme";
+} from "@reverse/coding-agent/slash-commands/builtin-registry";
+import { CombinedAutocompleteProvider } from "@reverse/tui/autocomplete";
+import { Editor } from "@reverse/tui/components/editor";
+import { getEditorTheme } from "@reverse/tui/theme";
 
 function createRuntime() {
 	const handleForkCommand = vi.fn(async (_placement?: "pane" | "window") => undefined);

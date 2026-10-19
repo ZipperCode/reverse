@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { runConfigCommand } from "@rva/coding-agent/cli/config-cli";
-import { resetSettingsForTest } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { getConfigRootDir, setAgentDir, TempDir } from "@rva/utils";
-import { all, lookup } from "@rva/coding-agent/config/registry";
-import { getSettingDef } from "@rva/tui/overlays/settings-defs";
+import { runConfigCommand } from "@reverse/coding-agent/cli/config-cli";
+import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { getConfigRootDir, setAgentDir, TempDir } from "@reverse/utils";
+import { all, lookup } from "@reverse/coding-agent/config/registry";
+import { getSettingDef } from "@reverse/tui/overlays/settings-defs";
 import { createSettingsHost } from "../src/config/settings-ui";
 
 describe("credential settings", () => {

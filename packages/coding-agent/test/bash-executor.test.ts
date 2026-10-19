@@ -2,24 +2,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { ShellMinimizerSettings } from "@rva/coding-agent/exec/settings";
+import type { ImageContent } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { ShellMinimizerSettings } from "@reverse/coding-agent/exec/settings";
 import {
 	applyDirenvPreflight,
 	buildMinimizerOptions,
 	executeBash,
 	isPersistentShellCdCommand,
-} from "@rva/coding-agent/exec/bash-executor";
-import * as direnvModule from "@rva/coding-agent/exec/direnv";
-import { DEFAULT_MAX_BYTES } from "@rva/tui/tools/streaming-output";
-import * as shellSnapshot from "@rva/coding-agent/utils/shell-snapshot";
-import { encodeTerminalImage } from "@rva/coding-agent/utils/terminal-graphics";
-import type { Shell, ShellRunResult } from "@rva/natives";
-import * as piNatives from "@rva/natives";
-import { $which, removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/exec/bash-executor";
+import * as direnvModule from "@reverse/coding-agent/exec/direnv";
+import { DEFAULT_MAX_BYTES } from "@reverse/tui/tools/streaming-output";
+import * as shellSnapshot from "@reverse/coding-agent/utils/shell-snapshot";
+import { encodeTerminalImage } from "@reverse/coding-agent/utils/terminal-graphics";
+import type { Shell, ShellRunResult } from "@reverse/natives";
+import * as piNatives from "@reverse/natives";
+import { $which, removeSyncWithRetries } from "@reverse/utils";
 
-import { cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@rva/coding-agent/exec/settings";
+import { cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@reverse/coding-agent/exec/settings";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.

@@ -2,13 +2,10 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { dispatchRpcSkillPrompt, tryRunRpcSkillCommand } from "@rva/coding-agent/modes/rpc/rpc-mode";
-import {
-	RpcExtensionUserMessageTracker,
-	RpcPromptResults,
-} from "@rva/coding-agent/modes/rpc/rpc-prompt-results";
-import { type CustomMessage, SKILL_PROMPT_MESSAGE_TYPE } from "@rva/coding-agent/session/messages";
-import { removeWithRetries, Snowflake } from "@rva/utils";
+import { dispatchRpcSkillPrompt, tryRunRpcSkillCommand } from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import { RpcExtensionUserMessageTracker, RpcPromptResults } from "@reverse/coding-agent/modes/rpc/rpc-prompt-results";
+import { type CustomMessage, SKILL_PROMPT_MESSAGE_TYPE } from "@reverse/coding-agent/session/messages";
+import { removeWithRetries, Snowflake } from "@reverse/utils";
 
 describe("tryRunRpcSkillCommand", () => {
 	test("dispatches registered /skill commands as skill prompt messages", async () => {

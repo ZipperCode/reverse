@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as http2 from "node:http2";
-import { streamCursor } from "@rva/ai/providers/cursor";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamCursor } from "@reverse/ai/providers/cursor";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	AgentClientMessageSchema,
 	AgentServerMessageSchema,
@@ -13,8 +13,8 @@ import {
 	InteractionUpdateSchema,
 	TextDeltaUpdateSchema,
 	TurnEndedUpdateSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 // #8345: a server-side per-conversation rejection (bare resource_exhausted,
 // zero tokens) poisons the wire conversationId; the next attempt must rotate

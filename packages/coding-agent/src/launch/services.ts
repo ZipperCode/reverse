@@ -1,10 +1,10 @@
 /** Session-scoped service supervision through the shared project broker. */
 import * as path from "node:path";
-import { TERMINAL_STATES } from "@rva/tui/apps/ps-data";
-import type { DaemonSnapshot, DaemonSpec } from "@rva/tui/tools/daemon";
-import { formatDuration, replaceTabs } from "@rva/tui/render/render-utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { getDaemonRuntimeDir, logger, sanitizeText } from "@rva/utils";
+import { TERMINAL_STATES } from "@reverse/tui/apps/ps-data";
+import type { DaemonSnapshot, DaemonSpec } from "@reverse/tui/tools/daemon";
+import { formatDuration, replaceTabs } from "@reverse/tui/render/render-utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { getDaemonRuntimeDir, logger, sanitizeText } from "@reverse/utils";
 import { type DaemonBrokerClient, daemonClientForProject } from "./client";
 import { canonicalProjectDir } from "./paths";
 import type { DaemonOperation, DaemonRpcResult } from "./protocol";

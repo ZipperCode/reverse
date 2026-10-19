@@ -1,10 +1,10 @@
-import type { UsageLimit, UsageReport } from "@rva/ai";
-import { sanitizeText } from "@rva/utils";
+import type { UsageLimit, UsageReport } from "@reverse/ai";
+import { sanitizeText } from "@reverse/utils";
 import type { OAuthAccountIdentity } from "../../session/auth-storage";
-import { collapseSharedUsageReports, summarizeUsageResetCredits } from "@rva/tui/overlays/usage-display";
+import { collapseSharedUsageReports, summarizeUsageResetCredits } from "@reverse/tui/overlays/usage-display";
 import type { SlashCommandRuntime } from "../types";
 import { formatCodexUsageReportLabel, reportMatchesActiveAccount } from "./active-oauth-account";
-import { formatCoarseDuration, formatProviderName, renderAsciiBar } from "@rva/tui/chrome/format";
+import { formatCoarseDuration, formatProviderName, renderAsciiBar } from "@reverse/tui/chrome/format";
 
 function formatWindowSuffix(label: string, windowLabel: string | undefined): string {
 	if (!windowLabel) return "";

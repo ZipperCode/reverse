@@ -4,15 +4,15 @@
  * tool binaries, browsers, side runtimes). Both render through
  * {@link renderHudProgressRow} so they read as one HUD.
  */
-import { type Component, renderProgressBar, visibleWidth } from "@rva/tui";
-import { col, node, span, text } from "@rva/tui/native/describe";
-import type { NativeNode } from "@rva/tui/native/node";
-import type { TspSpan } from "@rva/wire";
-import { sanitizeStatusText } from "@rva/tui/chrome/shared";
-import { formatCost } from "@rva/tui/overlays/agent-hub-renderer";
-import { truncateToWidth } from "@rva/tui/render/render-utils";
-import { theme } from "@rva/tui/theme";
-import { formatBytes } from "@rva/utils";
+import { type Component, renderProgressBar, visibleWidth } from "@reverse/tui";
+import { col, node, span, text } from "@reverse/tui/native/describe";
+import type { NativeNode } from "@reverse/tui/native/node";
+import type { TspSpan } from "@reverse/wire";
+import { sanitizeStatusText } from "@reverse/tui/chrome/shared";
+import { formatCost } from "@reverse/tui/overlays/agent-hub-renderer";
+import { truncateToWidth } from "@reverse/tui/render/render-utils";
+import { theme } from "@reverse/tui/theme";
+import { formatBytes } from "@reverse/utils";
 import type { DownloadActivity } from "../downloads/activity";
 import type { JudgmentBatchProgress } from "../eval/judgment-batch-events";
 

@@ -1,4 +1,4 @@
-import type { AuthStorage } from "@rva/ai";
+import type { AuthStorage } from "@reverse/ai";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import type { QuerySyntax } from "../query";

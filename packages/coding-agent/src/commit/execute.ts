@@ -4,7 +4,7 @@
  * wrapper that keeps a requested `--push` honest.
  */
 
-import * as vcs from "@rva/natives/vcs";
+import * as vcs from "@reverse/natives/vcs";
 
 /**
  * A commit or push failure that has already been reported to the user with a

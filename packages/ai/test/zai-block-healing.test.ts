@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type AuthCredentialStore, AuthStorage, type StoredAuthCredential } from "@rva/ai/auth-storage";
-import type { UsageLimit, UsageProvider, UsageReport } from "@rva/ai/usage";
-import { zaiRankingStrategy } from "@rva/ai/usage/zai";
+import { type AuthCredentialStore, AuthStorage, type StoredAuthCredential } from "@reverse/ai/auth-storage";
+import type { UsageLimit, UsageProvider, UsageReport } from "@reverse/ai/usage";
+import { zaiRankingStrategy } from "@reverse/ai/usage/zai";
 
 function creditLimit(windowId: string, fraction: number): UsageLimit {
 	return {

@@ -5,8 +5,8 @@
  * {@link buildJobTree}) beside the selected one's status, command, facts
  * (cwd, live pids, exit code, artifact) and live output.
  */
-import type { TspSpan, TspTone } from "@rva/wire";
-import { formatDuration } from "@rva/utils";
+import type { TspSpan, TspTone } from "@reverse/wire";
+import { formatDuration } from "@reverse/utils";
 import type { Component } from "../tui";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { matchesKey } from "../keys";

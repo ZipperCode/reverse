@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { ModelsConfigFile } from "@rva/coding-agent/config/models-config";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { ModelsConfigFile } from "@reverse/coding-agent/config/models-config";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import { YAML } from "bun";
 
 interface HeapSnapshot {

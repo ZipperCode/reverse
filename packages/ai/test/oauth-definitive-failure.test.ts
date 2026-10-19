@@ -6,7 +6,7 @@
  * below are load-bearing, not cosmetic.
  */
 import { describe, expect, it } from "bun:test";
-import { isDefinitiveOAuthFailure } from "@rva/ai/error";
+import { isDefinitiveOAuthFailure } from "@reverse/ai/error";
 
 describe("isDefinitiveOAuthFailure", () => {
 	it("treats explicit dead-grant errors as definitive", () => {

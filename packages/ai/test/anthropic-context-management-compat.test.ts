@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 function makeModel(supportsContextManagement?: boolean): Model<"anthropic-messages"> {
 	return buildModel({

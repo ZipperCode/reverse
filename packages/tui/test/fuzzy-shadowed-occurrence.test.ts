@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { fuzzyFilter, fuzzyMatch } from "@rva/tui/fuzzy";
+import { fuzzyFilter, fuzzyMatch } from "@reverse/tui/fuzzy";
 
 describe("fuzzy scoring with a shadowed occurrence", () => {
 	it("keeps the whole-word bonus when an earlier word merely contains the query", () => {

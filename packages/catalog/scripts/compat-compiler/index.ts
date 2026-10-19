@@ -62,7 +62,7 @@ export async function compileCompatRules(rulesDir: string): Promise<CompiledComp
 
 /**
  * Source of the committed `src/compat/auth-ids.ts`: literal id unions derived
- * from the compiled auth stratum so `@rva/ai` keeps typed provider
+ * from the compiled auth stratum so `@reverse/ai` keeps typed provider
  * ids without importing the JSON as a const.
  */
 export function renderAuthIds(auth: CompiledAuth): string {

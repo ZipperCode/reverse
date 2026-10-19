@@ -1,25 +1,25 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { getBundledModel } from "@rva/catalog/models";
+import { getBundledModel } from "@reverse/catalog/models";
 import {
 	IndexedSessionStorage,
 	type SessionStorageBackend,
-} from "@rva/coding-agent/session/indexed-session-storage";
+} from "@reverse/coding-agent/session/indexed-session-storage";
 import {
 	SessionManager,
 	SessionPersistenceIndeterminateError,
 	type SessionPersistenceNotice,
-} from "@rva/coding-agent/session/session-manager";
+} from "@reverse/coding-agent/session/session-manager";
 import {
 	FileSessionStorage,
 	MemorySessionStorage,
 	type SessionStorageWriter,
 	type WriteTextAtomicOptions,
-} from "@rva/coding-agent/session/session-storage";
-import { TempDir } from "@rva/utils";
-import type { SessionEntry } from "@rva/coding-agent/session/session-entries";
-import type { SessionTitleUpdate } from "@rva/coding-agent/session/session-title-slot";
+} from "@reverse/coding-agent/session/session-storage";
+import { TempDir } from "@reverse/utils";
+import type { SessionEntry } from "@reverse/coding-agent/session/session-entries";
+import type { SessionTitleUpdate } from "@reverse/coding-agent/session/session-title-slot";
 
 interface DetachableWriter extends SessionStorageWriter {
 	detach(): void;

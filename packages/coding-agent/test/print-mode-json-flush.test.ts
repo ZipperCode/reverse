@@ -13,9 +13,9 @@
  * fires (so `process.exit` can't discard it), and the full record is delivered.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { runPrintMode } from "@rva/coding-agent/modes/print-mode";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { runPrintMode } from "@reverse/coding-agent/modes/print-mode";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
 
 interface FlushHarness {
 	session: AgentSession;

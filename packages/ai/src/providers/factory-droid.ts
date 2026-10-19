@@ -1,20 +1,20 @@
-import { buildModel } from "@rva/catalog/build";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	type FactoryDroidModelPolicy,
 	factoryDroidRegionalLimits,
 	resolveFactoryDroidPolicy,
 	resolveFactoryDroidRotation,
-} from "@rva/catalog/compat/factory-droid";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import type { RequestPolicy } from "@rva/catalog/compat/types";
-import type { Effort } from "@rva/catalog/effort";
+} from "@reverse/catalog/compat/factory-droid";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import type { RequestPolicy } from "@reverse/catalog/compat/types";
+import type { Effort } from "@reverse/catalog/effort";
 import {
 	FACTORY_DROID_CLIENT_VERSION,
 	type FactoryDroidWire,
 	factoryDroidClientHeaders,
 	factoryDroidWireBaseUrl,
 	resolveFactoryDroidInferenceRegion,
-} from "@rva/catalog/wire/factory-droid";
+} from "@reverse/catalog/wire/factory-droid";
 import { NO_AUTH_SENTINEL } from "../auth-retry";
 import type { OAuthRequestIdentity } from "../auth/types";
 import * as AIError from "../error";

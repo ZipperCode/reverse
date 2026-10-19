@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { applyAnthropicUsageExtras } from "@rva/ai/providers/anthropic";
-import { parseChunkUsage } from "@rva/ai/providers/openai-completions";
+import { applyAnthropicUsageExtras } from "@reverse/ai/providers/anthropic";
+import { parseChunkUsage } from "@reverse/ai/providers/openai-completions";
 import {
 	calculateOpenAIUsageAccounting,
 	populateResponsesUsageFromResponse,
-} from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Model, Usage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Model, Usage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const OPENAI_MODEL: Model<"openai-completions"> = buildModel({
 	id: "gpt-5",

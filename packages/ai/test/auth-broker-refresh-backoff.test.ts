@@ -2,19 +2,19 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore, withAuth, withOAuthAccess } from "@rva/ai";
+import { AuthStorage, SqliteAuthCredentialStore, withAuth, withOAuthAccess } from "@reverse/ai";
 import {
 	AuthBrokerClient,
 	AuthBrokerRefresher,
 	type AuthBrokerServerHandle,
 	RemoteAuthCredentialStore,
 	startAuthBroker,
-} from "@rva/ai/auth-broker";
-import { buildGatewayApiKeyResolver } from "@rva/ai/auth-gateway/dispatch";
-import { OAuthError } from "@rva/ai/error";
-import { registerOAuthProvider, unregisterOAuthProviders } from "@rva/ai/registry/oauth";
-import type { OAuthCredentials } from "@rva/ai/registry/oauth/types";
-import type { Api, Model } from "@rva/ai/types";
+} from "@reverse/ai/auth-broker";
+import { buildGatewayApiKeyResolver } from "@reverse/ai/auth-gateway/dispatch";
+import { OAuthError } from "@reverse/ai/error";
+import { registerOAuthProvider, unregisterOAuthProviders } from "@reverse/ai/registry/oauth";
+import type { OAuthCredentials } from "@reverse/ai/registry/oauth/types";
+import type { Api, Model } from "@reverse/ai/types";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const PROVIDER = "unit-broker-refresh-backoff";

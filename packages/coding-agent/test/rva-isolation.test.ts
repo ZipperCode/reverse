@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { getActiveProfile, normalizeProfileName } from "@rva/utils/dirs";
+import { getActiveProfile, normalizeProfileName } from "@reverse/utils/dirs";
 
 const repoRoot = path.resolve(import.meta.dir, "../../..");
 
@@ -321,14 +321,8 @@ process.stdout.write(JSON.stringify({
 		await fs.mkdir(projectReverse, { recursive: true });
 		await fs.mkdir(projectOmp, { recursive: true });
 
-		await fs.writeFile(
-			path.join(projectReverse, "config.yml"),
-			`extensions:\n  - ${rvaProjectExt}\n`,
-		);
-		await fs.writeFile(
-			path.join(projectOmp, "config.yml"),
-			`extensions:\n  - ${ompProjectExt}\n`,
-		);
+		await fs.writeFile(path.join(projectReverse, "config.yml"), `extensions:\n  - ${rvaProjectExt}\n`);
+		await fs.writeFile(path.join(projectOmp, "config.yml"), `extensions:\n  - ${ompProjectExt}\n`);
 
 		// Real discovery call: listRvaExtensionRoots
 		const result = await runProbe<{
@@ -356,10 +350,7 @@ process.stdout.write(JSON.stringify({
 		await fs.mkdir(workAgent, { recursive: true });
 		await fs.mkdir(defaultAgent, { recursive: true });
 
-		await fs.writeFile(
-			path.join(workAgent, "config.yml"),
-			"modelRoles:\n  default: anthropic/work-profile-model\n",
-		);
+		await fs.writeFile(path.join(workAgent, "config.yml"), "modelRoles:\n  default: anthropic/work-profile-model\n");
 		await fs.writeFile(
 			path.join(defaultAgent, "config.yml"),
 			"modelRoles:\n  default: anthropic/default-profile-model\n",

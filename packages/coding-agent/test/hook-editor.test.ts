@@ -1,12 +1,12 @@
-import type { ImageContent } from "@rva/ai";
+import type { ImageContent } from "@reverse/ai";
 import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { HookEditorComponent } from "@rva/tui/overlays/hook-editor";
-import type { DescribeContext } from "@rva/tui/native/node";
-import { ExtensionUiController } from "@rva/coding-agent/modes/controllers/extension-ui-controller";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { CURSOR_MARKER, isFocusable, setKeybindings, type TUI } from "@rva/tui";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { HookEditorComponent } from "@reverse/tui/overlays/hook-editor";
+import type { DescribeContext } from "@reverse/tui/native/node";
+import { ExtensionUiController } from "@reverse/coding-agent/modes/controllers/extension-ui-controller";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { CURSOR_MARKER, isFocusable, setKeybindings, type TUI } from "@reverse/tui";
 
 beforeAll(async () => {
 	const theme = await getThemeByName("dark");

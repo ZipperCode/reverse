@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { keyText } from "@rva/coding-agent/extensibility/legacy-pi-coding-agent-shim";
-import { getKeybindings, setKeybindings, type KeybindingsManager as TuiKeybindingsManager } from "@rva/tui";
-import { KeybindingsManager, setKeyHintPlatform } from "@rva/tui/app-keybindings";
+import { keyText } from "@reverse/coding-agent/extensibility/legacy-pi-coding-agent-shim";
+import { getKeybindings, setKeybindings, type KeybindingsManager as TuiKeybindingsManager } from "@reverse/tui";
+import { KeybindingsManager, setKeyHintPlatform } from "@reverse/tui/app-keybindings";
 
 describe("legacy keyText", () => {
 	let previous: TuiKeybindingsManager;

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { TempDir } from "@rva/utils";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { TempDir } from "@reverse/utils";
 
 describe("AgentStorage usage counters", () => {
 	let tempDir: TempDir | undefined;

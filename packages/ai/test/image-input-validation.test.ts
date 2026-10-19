@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { ValidationError } from "@rva/ai/error";
-import { buildModel } from "@rva/catalog/build";
-import type { Api, FetchImpl, Model } from "@rva/catalog/types";
+import { ValidationError } from "@reverse/ai/error";
+import { buildModel } from "@reverse/catalog/build";
+import type { Api, FetchImpl, Model } from "@reverse/catalog/types";
 import { generateAntigravityImage } from "../src/images/google-antigravity";
 import { generateGoogleImage } from "../src/images/google-generative-ai";
 import { generateOpenAIImage } from "../src/images/openai-images";

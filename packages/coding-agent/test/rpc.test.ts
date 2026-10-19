@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentEvent, AgentMessage } from "@rva/agent";
-import { type AssistantMessage, Effort, type TextContent } from "@rva/ai";
+import type { AgentEvent, AgentMessage } from "@reverse/agent";
+import { type AssistantMessage, Effort, type TextContent } from "@reverse/ai";
 import {
 	type CompactionEntry,
 	type FileEntry,
 	parseSessionEntries,
 	type SessionMessageEntry,
-} from "@rva/coding-agent";
-import { RpcClient } from "@rva/coding-agent/modes/rpc/rpc-client";
-import type { BashExecutionMessage } from "@rva/coding-agent/session/messages";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+} from "@reverse/coding-agent";
+import { RpcClient } from "@reverse/coding-agent/modes/rpc/rpc-client";
+import type { BashExecutionMessage } from "@reverse/coding-agent/session/messages";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { rejectionOf } from "./helpers/rejection";
 import { e2eApiKey } from "./utilities";
 

@@ -3,18 +3,18 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { parseCodexRateLimitHeaders } from "@rva/ai";
-import { openaiCodexUsageProvider } from "@rva/ai/usage/openai-codex";
+import { parseCodexRateLimitHeaders } from "@reverse/ai";
+import { openaiCodexUsageProvider } from "@reverse/ai/usage/openai-codex";
 import {
 	AuthBrokerClient,
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
 	startAuthBroker,
-} from "@rva/ai/auth-broker";
-import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import * as oauthUtils from "@rva/ai/registry/oauth";
-import type { OAuthCredentials } from "@rva/ai/registry/oauth/types";
-import type { UsageLimit, UsageProvider, UsageReport } from "@rva/ai/usage";
+} from "@reverse/ai/auth-broker";
+import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import * as oauthUtils from "@reverse/ai/registry/oauth";
+import type { OAuthCredentials } from "@reverse/ai/registry/oauth/types";
+import type { UsageLimit, UsageProvider, UsageReport } from "@reverse/ai/usage";
 import { OAuthRefresher } from "../src/auth/refresh";
 import { removeWithRetries } from "../../utils/src/temp";
 

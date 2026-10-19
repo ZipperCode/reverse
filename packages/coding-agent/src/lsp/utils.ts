@@ -1,9 +1,9 @@
-export { truncate } from "@rva/utils";
+export { truncate } from "@reverse/utils";
 
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { isEnoent } from "@rva/utils";
-import { type Theme, theme } from "@rva/tui/theme";
+import { isEnoent } from "@reverse/utils";
+import { type Theme, theme } from "@reverse/tui/theme";
 import { formatPathRelativeToCwd, resolveToCwd, specialFileKind } from "../tools/path-utils";
 import type {
 	CodeAction,
@@ -18,7 +18,7 @@ import type {
 	WorkspaceEdit,
 } from "./types";
 
-export { detectLanguageId } from "@rva/tui/lang-from-path";
+export { detectLanguageId } from "@reverse/tui/lang-from-path";
 
 /** Read a file's text, refusing FIFOs, devices and sockets, whose reads can block forever or never end. */
 export async function readTextFromDisk(filePath: string): Promise<string> {

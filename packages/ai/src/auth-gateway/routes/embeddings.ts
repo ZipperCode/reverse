@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { embed } from "../../embeddings";
 import { classifyGatewayError } from "../../error/gateway";
 import * as embeddings from "../../providers/embeddings-server";

@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import { renderResult, taskCardAgentIds } from "@rva/tui/tools/task";
-import { taskToolRenderer } from "@rva/tui/tools/task";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@rva/tui/tools/task";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import { renderResult, taskCardAgentIds } from "@reverse/tui/tools/task";
+import { taskToolRenderer } from "@reverse/tui/tools/task";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@reverse/tui/tools/task";
 
 const strip = (lines: readonly string[]): string =>
 	lines

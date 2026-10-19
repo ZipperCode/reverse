@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { ANTHROPIC_THINKING, streamSimple } from "@rva/ai/stream";
-import type { Context, FetchImpl, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { ANTHROPIC_THINKING, streamSimple } from "@reverse/ai/stream";
+import type { Context, FetchImpl, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 
 const context: Context = {
 	systemPrompt: ["Summarize the conversation."],

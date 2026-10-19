@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext, SubmittedUserInput } from "@rva/coding-agent/modes/types";
+import type { ImageContent } from "@reverse/ai";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext, SubmittedUserInput } from "@reverse/coding-agent/modes/types";
 
 type Attachments = Pick<SubmittedUserInput, "images" | "imageLinks">;
 

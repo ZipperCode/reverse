@@ -1,24 +1,24 @@
 import { combine, effect, register, type Setting } from "../config/registry";
 import type { Settings } from "../config/settings";
-import { formatKeyHint, formatKeyHints } from "@rva/tui/app-keybindings";
+import { formatKeyHint, formatKeyHints } from "@reverse/tui/app-keybindings";
 import { cfgReadToolResultPreview } from "../tools/settings";
 import { MAGIC_KEYWORDS, type MagicKeywordId } from "./magic-keywords";
-import { TREE_FILTER_MODES } from "@rva/tui/overlays/tree-selector";
+import { TREE_FILTER_MODES } from "@reverse/tui/overlays/tree-selector";
 import {
 	CONTEXT_LINE_MODE_VALUES,
 	CUSTOM_STATUS_LINE_DEFAULTS,
 	STATUS_LINE_PRESET_VALUES,
 	STATUS_LINE_SEGMENT_IDS,
 	STATUS_LINE_SEPARATOR_VALUES,
-} from "@rva/tui/status-line/schema";
-import { setChatTranscriptDisplayPreferences } from "@rva/tui/chat/display-preferences";
-import { setEditorGapComposerShape } from "@rva/tui/prompt/editor-top-gap";
-import { setEmojiAutocompleteEnabled } from "@rva/tui/prompt/prompt-action-autocomplete";
-import { WORD_COMPLETION_METHODS } from "@rva/tui/prompt/word-completion";
-import { applyHyperlinkSetting } from "@rva/tui/render/hyperlink";
-import { setInlineImageMaxColumns, setInlineImageMaxRows } from "@rva/tui/render/render-utils";
-import { setShimmerMode } from "@rva/tui/theme/shimmer";
-import { setAutoThemeMapping, setColorBlindMode, setSymbolPreset } from "@rva/tui/theme/theme";
+} from "@reverse/tui/status-line/schema";
+import { setChatTranscriptDisplayPreferences } from "@reverse/tui/chat/display-preferences";
+import { setEditorGapComposerShape } from "@reverse/tui/prompt/editor-top-gap";
+import { setEmojiAutocompleteEnabled } from "@reverse/tui/prompt/prompt-action-autocomplete";
+import { WORD_COMPLETION_METHODS } from "@reverse/tui/prompt/word-completion";
+import { applyHyperlinkSetting } from "@reverse/tui/render/hyperlink";
+import { setInlineImageMaxColumns, setInlineImageMaxRows } from "@reverse/tui/render/render-utils";
+import { setShimmerMode } from "@reverse/tui/theme/shimmer";
+import { setAutoThemeMapping, setColorBlindMode, setSymbolPreset } from "@reverse/tui/theme/theme";
 
 const EMPTY_UNKNOWN_RECORD: Record<string, unknown> = {};
 

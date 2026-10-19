@@ -7,15 +7,15 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	disposeAllKernelSessions,
 	executePython,
 	executePythonWithKernel,
-} from "@rva/coding-agent/eval/py/executor";
-import { PythonKernel } from "@rva/coding-agent/eval/py/kernel";
-import { filterEnv, resolvePythonRuntime } from "@rva/coding-agent/eval/py/runtime";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/eval/py/executor";
+import { PythonKernel } from "@reverse/coding-agent/eval/py/kernel";
+import { filterEnv, resolvePythonRuntime } from "@reverse/coding-agent/eval/py/runtime";
+import { TempDir } from "@reverse/utils";
 
 const SHOULD_RUN = Bun.env.PI_PYTHON_INTEGRATION === "1";
 const MATPLOTLIB_TEST_CWD = process.cwd();

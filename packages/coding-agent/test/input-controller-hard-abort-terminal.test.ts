@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { postmortem, setTerminalHeadless } from "@rva/utils";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { postmortem, setTerminalHeadless } from "@reverse/utils";
 
 // A Ctrl+C while shutdown() is still closing the session hard-exits through
 // postmortem.exitProcess(), which skips the postmortem cleanups — including the

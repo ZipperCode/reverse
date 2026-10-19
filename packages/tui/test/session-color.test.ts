@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { getThemeByName } from "@rva/tui/theme";
+import { getThemeByName } from "@reverse/tui/theme";
 
-import { getSessionAccentHex, type SessionAccentTheme } from "@rva/tui/theme/session-color";
-import { hexToOklch, oklchCusp, relativeLuminance } from "@rva/utils";
+import { getSessionAccentHex, type SessionAccentTheme } from "@reverse/tui/theme/session-color";
+import { hexToOklch, oklchCusp, relativeLuminance } from "@reverse/utils";
 
 const lum = (hex: string): number => relativeLuminance(hex) ?? 0;
 const contrast = (a: number, b: number): number => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);

@@ -1,19 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { convertAnthropicMessages, streamAnthropic } from "@rva/ai/providers/anthropic";
+import { convertAnthropicMessages, streamAnthropic } from "@reverse/ai/providers/anthropic";
 import {
 	AnthropicMessages,
 	type AnthropicMessagesClientLike,
 	type AnthropicRequestOptions,
-} from "@rva/ai/providers/anthropic-client";
+} from "@reverse/ai/providers/anthropic-client";
 import type {
 	ToolSearchToolResultBlockParam,
 	WebSearchToolResultBlockParam,
-} from "@rva/ai/providers/anthropic-wire";
-import type { AssistantMessageEvent, Context, Model, ModelSpec, ProviderSessionState } from "@rva/ai/types";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
-import { structuredCloneJSON } from "@rva/utils";
+} from "@reverse/ai/providers/anthropic-wire";
+import type { AssistantMessageEvent, Context, Model, ModelSpec, ProviderSessionState } from "@reverse/ai/types";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
+import { structuredCloneJSON } from "@reverse/utils";
 import { withEnv, withOfficialAnthropicEndpoint } from "./helpers";
 
 const model: Model<"anthropic-messages"> = buildModel({

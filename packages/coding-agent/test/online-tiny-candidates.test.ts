@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { getBundledModel } from "@rva/catalog/models";
-import { getRoleInfo } from "@rva/coding-agent/config/model-roles";
-import { formatModelStringWithRouting } from "@rva/coding-agent/config/model-resolver";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { getBundledModel } from "@reverse/catalog/models";
+import { getRoleInfo } from "@reverse/coding-agent/config/model-roles";
+import { formatModelStringWithRouting } from "@reverse/coding-agent/config/model-resolver";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	collectOnlineTinyCandidates,
 	expandOnlineTinyModelFallbacks,
-} from "@rva/coding-agent/tiny/online-candidates";
+} from "@reverse/coding-agent/tiny/online-candidates";
 
 const localTiny = getBundledModel("local", "lfm2.5-230m")!;
 const primary = getBundledModel("google", "gemini-3.5-flash")!;

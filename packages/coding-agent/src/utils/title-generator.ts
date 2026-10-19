@@ -13,13 +13,13 @@ import {
 	type Message,
 	type Model,
 	retryTransientCompletion,
-} from "@rva/ai";
-import { StreamMarkupHealing } from "@rva/ai/utils/stream-markup-healing";
-import { writeTerminalSequence } from "@rva/tui";
-import { isNativeRendering, onNativeRenderingChange } from "@rva/tui/native/state";
-import { theme } from "@rva/tui/theme";
-import { SPINNER_FRAMES } from "@rva/tui/theme/symbols";
-import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@rva/utils";
+} from "@reverse/ai";
+import { StreamMarkupHealing } from "@reverse/ai/utils/stream-markup-healing";
+import { writeTerminalSequence } from "@reverse/tui";
+import { isNativeRendering, onNativeRenderingChange } from "@reverse/tui/native/state";
+import { theme } from "@reverse/tui/theme";
+import { SPINNER_FRAMES } from "@reverse/tui/theme/symbols";
+import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 
 import { roleCandidatePool } from "../config/model-roles";

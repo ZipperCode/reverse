@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type AgentMessage, Tokenizer } from "@rva/agent";
+import { type AgentMessage, Tokenizer } from "@reverse/agent";
 import {
 	type CompactionSettings,
 	calculateContextTokens,
@@ -13,21 +13,21 @@ import {
 	prepareCompaction,
 	resolveThresholdTokens,
 	shouldCompact,
-} from "@rva/agent/compaction/compaction";
-import * as ai from "@rva/ai";
-import { encodeTextSignatureV1 } from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Model, ProviderPayload, Usage } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
-import { buildSessionContext } from "@rva/coding-agent/session/session-context";
+} from "@reverse/agent/compaction/compaction";
+import * as ai from "@reverse/ai";
+import { encodeTextSignatureV1 } from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Model, ProviderPayload, Usage } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
+import { buildSessionContext } from "@reverse/coding-agent/session/session-context";
 import type {
 	CompactionEntry,
 	ModelChangeEntry,
 	SessionEntry,
 	SessionMessageEntry,
 	ThinkingLevelChangeEntry,
-} from "@rva/coding-agent/session/session-entries";
-import { parseSessionEntries } from "@rva/coding-agent/session/session-loader";
-import { migrateSessionEntries } from "@rva/coding-agent/session/session-migrations";
+} from "@reverse/coding-agent/session/session-entries";
+import { parseSessionEntries } from "@reverse/coding-agent/session/session-loader";
+import { migrateSessionEntries } from "@reverse/coding-agent/session/session-migrations";
 import { mockFetch } from "./helpers/fetch-mock";
 import { e2eApiKey } from "./utilities";
 

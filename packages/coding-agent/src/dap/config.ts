@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isRecord, logger, WhichCachePolicy } from "@rva/utils";
+import { isRecord, logger, WhichCachePolicy } from "@reverse/utils";
 import { hasRootMarkers, parseConfigContent, resolveCommand } from "../lsp/config";
 import { type ConfigFileAdapter, configFileSources } from "../utils/config-file-sources";
 import DEFAULTS from "./defaults.json" with { type: "json" };

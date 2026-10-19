@@ -1,17 +1,17 @@
 import { afterEach, beforeAll, beforeEach, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Settings, settings } from "@rva/coding-agent/config/settings";
-import { createSettingsHost } from "@rva/coding-agent/config/settings-ui";
-import { createPluginSettingsHost } from "@rva/coding-agent/extensibility/plugins/settings-host";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { TempDir } from "@rva/utils";
-import { SettingsSelectorComponent } from "@rva/tui/overlays/settings-selector";
-import { initTheme } from "@rva/tui/theme";
+import { Settings, settings } from "@reverse/coding-agent/config/settings";
+import { createSettingsHost } from "@reverse/coding-agent/config/settings-ui";
+import { createPluginSettingsHost } from "@reverse/coding-agent/extensibility/plugins/settings-host";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { TempDir } from "@reverse/utils";
+import { SettingsSelectorComponent } from "@reverse/tui/overlays/settings-selector";
+import { initTheme } from "@reverse/tui/theme";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "../helpers/settings-test-state";
 
-import { cfgSearxngEndpoint } from "@rva/coding-agent/web/settings";
+import { cfgSearxngEndpoint } from "@reverse/coding-agent/web/settings";
 
 let state: SettingsTestState | undefined;
 let tempDir: TempDir;

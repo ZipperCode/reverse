@@ -7,16 +7,16 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AcpAgent } from "@rva/coding-agent/modes/acp/acp-agent";
-import { ACP_TERMINAL_AUTH_FLAG, prepareAcpTerminalAuthArgs } from "@rva/coding-agent/modes/acp/terminal-auth";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { getConfigRootDir, setAgentDir, VERSION } from "@rva/utils";
-import type { AgentSideConnection, InitializeRequest } from "@rva/utils/acp";
+import { type } from "@reverse/omptype";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AcpAgent } from "@reverse/coding-agent/modes/acp/acp-agent";
+import { ACP_TERMINAL_AUTH_FLAG, prepareAcpTerminalAuthArgs } from "@reverse/coding-agent/modes/acp/terminal-auth";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getConfigRootDir, setAgentDir, VERSION } from "@reverse/utils";
+import type { AgentSideConnection, InitializeRequest } from "@reverse/utils/acp";
 import { expectAcpStructure } from "./helpers/acp-schema";
 
 const arkInitializeResponse = type({

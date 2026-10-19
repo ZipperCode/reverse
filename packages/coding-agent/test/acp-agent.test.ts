@@ -2,32 +2,32 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AgentBusyError } from "@rva/agent";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import type { ExtensionUIContext } from "@rva/coding-agent/extensibility/extensions";
-import { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { resolveLocalUrlToPath } from "@rva/coding-agent/internal-urls";
+import { AgentBusyError } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import type { ExtensionUIContext } from "@reverse/coding-agent/extensibility/extensions";
+import { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { resolveLocalUrlToPath } from "@reverse/coding-agent/internal-urls";
 import {
 	ACP_BOOTSTRAP_RACE_GUARD_MS,
 	AcpAgent,
 	createAcpExtensionUiContext,
-} from "@rva/coding-agent/modes/acp/acp-agent";
-import type { PlanModeState } from "@rva/coding-agent/plan-mode/state";
+} from "@reverse/coding-agent/modes/acp/acp-agent";
+import type { PlanModeState } from "@reverse/coding-agent/plan-mode/state";
 import type {
 	AgentSession,
 	AgentSessionEvent,
 	UsageFallbackConfirmation,
-} from "@rva/coding-agent/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@rva/coding-agent/session/messages";
-import { resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TaskTool } from "@rva/coding-agent/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { CONFIG_DIR_NAME, getConfigRootDir, setAgentDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@reverse/coding-agent/session/messages";
+import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TaskTool } from "@reverse/coding-agent/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { CONFIG_DIR_NAME, getConfigRootDir, setAgentDir } from "@reverse/utils";
 import type {
 	AgentSideConnection,
 	ClientCapabilities,
@@ -36,7 +36,7 @@ import type {
 	PromptRequest,
 	SessionNotification,
 	Validator,
-} from "@rva/utils/acp";
+} from "@reverse/utils/acp";
 import {
 	RequestError,
 	zForkSessionResponse,
@@ -44,10 +44,10 @@ import {
 	zNewSessionResponse,
 	zPromptResponse,
 	zSessionNotification,
-} from "@rva/utils/acp";
+} from "@reverse/utils/acp";
 import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
-import { cfgPlanAutosave, cfgPlanAutosaveDir, cfgPlanEnabled } from "@rva/coding-agent/plan-mode/settings";
+import { cfgPlanAutosave, cfgPlanAutosaveDir, cfgPlanEnabled } from "@reverse/coding-agent/plan-mode/settings";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */
 function expectAcpStructure(schema: Validator<unknown>, value: unknown): void {

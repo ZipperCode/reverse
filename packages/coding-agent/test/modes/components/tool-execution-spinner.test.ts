@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest } from "@rva/coding-agent/config/settings";
-import { stopSharedSpinnerTicker, ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { SPINNER_ADVANCE_MS } from "@rva/tui/components/loader";
-import { initTheme } from "@rva/tui/theme";
-import type { TUI } from "@rva/tui";
+import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { stopSharedSpinnerTicker, ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { SPINNER_ADVANCE_MS } from "@reverse/tui/components/loader";
+import { initTheme } from "@reverse/tui/theme";
+import type { TUI } from "@reverse/tui";
 
 /**
  * Starts watching the shared spinner ticker; the returned probe reports whether

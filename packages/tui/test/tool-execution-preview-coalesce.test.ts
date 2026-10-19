@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import type { AgentTool } from "@rva/agent";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { initTheme } from "@rva/tui/theme";
-import type { TUI } from "@rva/tui";
+import type { AgentTool } from "@reverse/agent";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { initTheme } from "@reverse/tui/theme";
+import type { TUI } from "@reverse/tui";
 
 describe("native streaming edit previews", () => {
 	beforeAll(async () => {

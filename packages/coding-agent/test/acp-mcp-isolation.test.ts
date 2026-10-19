@@ -13,12 +13,12 @@
  */
 
 import { afterAll, describe, expect, it } from "bun:test";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAcpSessionFactory } from "@rva/coding-agent/main";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { CONFIG_DIR_NAME, TempDir } from "@rva/utils";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAcpSessionFactory } from "@reverse/coding-agent/main";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { CONFIG_DIR_NAME, TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();

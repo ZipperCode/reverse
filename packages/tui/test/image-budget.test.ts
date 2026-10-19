@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import * as natives from "@rva/natives";
-import { Container, TUI } from "@rva/tui";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { Image, ImageBudget } from "@rva/tui/components/image";
-import { Text } from "@rva/tui/components/text";
+import * as natives from "@reverse/natives";
+import { Container, TUI } from "@reverse/tui";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { Image, ImageBudget } from "@reverse/tui/components/image";
+import { Text } from "@reverse/tui/components/text";
 import {
 	encodeKittyVirtualPlacement,
 	getKittyGraphics,
 	KITTY_PLACEHOLDER,
 	setKittyGraphics,
-} from "@rva/tui/kitty-graphics";
+} from "@reverse/tui/kitty-graphics";
 import {
 	type CellDimensions,
 	encodeKitty,
@@ -22,7 +22,7 @@ import {
 	setCellDimensions,
 	TERMINAL,
 	wrapTmuxPassthrough,
-} from "@rva/tui/terminal-capabilities";
+} from "@reverse/tui/terminal-capabilities";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 
 withoutTerminalMultiplexer();

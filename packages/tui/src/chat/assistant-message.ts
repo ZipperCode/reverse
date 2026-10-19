@@ -1,4 +1,4 @@
-import type { AssistantMessage, ImageContent, TextContent } from "@rva/ai";
+import type { AssistantMessage, ImageContent, TextContent } from "@reverse/ai";
 import { type Component, Container } from "../tui";
 import { Image, type ImageBudget } from "../components/image";
 import { ImageProtocol, TERMINAL } from "../terminal-capabilities";
@@ -13,9 +13,9 @@ import {
 } from "../components/markdown";
 import { Spacer } from "../components/spacer";
 import { Text } from "../components/text";
-import { formatDuration, formatNumber } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
-import { LRUCache } from "@rva/utils/lru";
+import { formatDuration, formatNumber } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
+import { LRUCache } from "@reverse/utils/lru";
 import type { AssistantThinkingRenderer } from "./extension-types";
 import { ensureThemeSync, getMarkdownTheme, getMarkdownThemeWithLinkTargets, getThemeEpoch, theme } from "../theme";
 import { card, col, elapsed, node, span, text } from "../native/describe";

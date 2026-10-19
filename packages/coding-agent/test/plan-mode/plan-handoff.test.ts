@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { LocalProtocolOptions } from "@rva/coding-agent/internal-urls";
-import { loadOverallPlanReference } from "@rva/coding-agent/plan-mode/plan-handoff";
-import { removeWithRetries } from "@rva/utils";
+import type { LocalProtocolOptions } from "@reverse/coding-agent/internal-urls";
+import { loadOverallPlanReference } from "@reverse/coding-agent/plan-mode/plan-handoff";
+import { removeWithRetries } from "@reverse/utils";
 
 describe("loadOverallPlanReference", () => {
 	let tmpDir: string;

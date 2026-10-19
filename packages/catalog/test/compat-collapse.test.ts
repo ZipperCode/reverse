@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@rva/catalog/build";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	collapseBuiltVariants,
 	collapseVariants,
@@ -13,25 +13,22 @@ import {
 	resolveVariantSelector,
 	reviewedCollapseTable,
 	type VariantCollapseTable,
-} from "@rva/catalog/compat/collapse";
-import { stripThinkingVariantSuffix } from "@rva/catalog/compat/taxonomy";
-import {
-	ANTIGRAVITY_PRIMARY_ENDPOINT,
-	fetchAntigravityDiscoveryModels,
-} from "@rva/catalog/discovery/antigravity";
-import { Effort } from "@rva/catalog/effort";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
+} from "@reverse/catalog/compat/collapse";
+import { stripThinkingVariantSuffix } from "@reverse/catalog/compat/taxonomy";
+import { ANTIGRAVITY_PRIMARY_ENDPOINT, fetchAntigravityDiscoveryModels } from "@reverse/catalog/discovery/antigravity";
+import { Effort } from "@reverse/catalog/effort";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
 import {
 	defaultSupportedEffort,
 	mapEffortToGoogleThinkingLevel,
 	resolveWireModelId,
-} from "@rva/catalog/model-thinking";
-import { getBundledModel, getBundledModels } from "@rva/catalog/models";
+} from "@reverse/catalog/model-thinking";
+import { getBundledModel, getBundledModels } from "@reverse/catalog/models";
 import {
 	googleAntigravityModelManagerOptions,
 	googleGeminiCliModelManagerOptions,
-} from "@rva/catalog/provider-models/google";
-import type { ModelSpec } from "@rva/catalog/types";
+} from "@reverse/catalog/provider-models/google";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 function requireReviewedTable(provider: string): VariantCollapseTable {
 	const table = reviewedCollapseTable(provider);

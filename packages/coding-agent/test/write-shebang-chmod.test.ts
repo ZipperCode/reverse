@@ -2,10 +2,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { removeWithRetries } from "@reverse/utils";
 
 function createSession(cwd: string): ToolSession {
 	return {

@@ -1,6 +1,6 @@
 # SDK
 
-The SDK is the in-process integration surface for `@rva/coding-agent`.
+The SDK is the in-process integration surface for `@reverse/coding-agent`.
 Use it when you want direct access to agent state, event streaming, tool wiring, and session control from a Bun process.
 
 If you need cross-language/process isolation, use RPC mode instead.
@@ -8,7 +8,7 @@ If you need cross-language/process isolation, use RPC mode instead.
 ## Installation
 
 ```bash
-bun add @rva/coding-agent
+bun add @reverse/coding-agent
 ```
 
 Requires Bun 1.3.14 or newer. Before the first model-backed prompt, configure
@@ -18,7 +18,7 @@ available model, but prompting cannot.
 
 ## Entry points
 
-The package root, `@rva/coding-agent`, is the complete embedding surface. It includes `createAgentSession` and the focused `/sdk` exports, plus lower-level session, auth, model, mode, extension, and tool APIs.
+The package root, `@reverse/coding-agent`, is the complete embedding surface. It includes `createAgentSession` and the focused `/sdk` exports, plus lower-level session, auth, model, mode, extension, and tool APIs.
 
 Import these core embedding APIs from the package root:
 
@@ -32,12 +32,12 @@ Import these core embedding APIs from the package root:
 - Discovery helpers (`discoverExtensions`, `discoverSkills`, `discoverContextFiles`, `discoverPromptTemplates`, `discoverSlashCommands`, `discoverCustomTSCommands`, `discoverMCPServers`)
 - Tool factory surface (`createTools`, `BUILTIN_TOOLS`, tool classes)
 
-The narrower `@rva/coding-agent/sdk` subpath exports `createAgentSession`, its option/result types, `Settings`, `AgentRegistry`, discovery and system-prompt helpers, workspace-tree helpers, selected extension/MCP/tool types, and selected tool classes/factories. It does **not** export `SessionManager`, `AuthStorage`, or `ModelRegistry`; import those three from the package root as the examples below do.
+The narrower `@reverse/coding-agent/sdk` subpath exports `createAgentSession`, its option/result types, `Settings`, `AgentRegistry`, discovery and system-prompt helpers, workspace-tree helpers, selected extension/MCP/tool types, and selected tool classes/factories. It does **not** export `SessionManager`, `AuthStorage`, or `ModelRegistry`; import those three from the package root as the examples below do.
 
 ## Quick start (auto-discovery defaults)
 
 ```ts
-import { createAgentSession } from "@rva/coding-agent";
+import { createAgentSession } from "@reverse/coding-agent";
 
 const { session, modelFallbackMessage } = await createAgentSession();
 
@@ -105,7 +105,7 @@ only one `"Main"` identity per generation.
 ### File-backed (default)
 
 ```ts
-import { createAgentSession, SessionManager } from "@rva/coding-agent";
+import { createAgentSession, SessionManager } from "@reverse/coding-agent";
 
 const { session } = await createAgentSession({
   sessionManager: SessionManager.create(process.cwd()),
@@ -121,7 +121,7 @@ console.log(session.sessionFile); // absolute .jsonl path
 ### In-memory
 
 ```ts
-import { createAgentSession, SessionManager } from "@rva/coding-agent";
+import { createAgentSession, SessionManager } from "@reverse/coding-agent";
 
 const { session } = await createAgentSession({
   sessionManager: SessionManager.inMemory(),
@@ -137,7 +137,7 @@ console.log(session.sessionFile); // undefined
 ### Resume/open/list helpers
 
 ```ts
-import { SessionManager } from "@rva/coding-agent";
+import { SessionManager } from "@reverse/coding-agent";
 
 const recent = await SessionManager.continueRecent(process.cwd());
 const listed = await SessionManager.list(process.cwd());
@@ -160,7 +160,7 @@ import {
   discoverAuthStorage,
   ModelRegistry,
   SessionManager,
-} from "@rva/coding-agent";
+} from "@reverse/coding-agent";
 
 const authStorage = await discoverAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);
@@ -284,7 +284,7 @@ Call `await session.dispose()` when the embedder is completely done with a sessi
 `beginDispose()` is the synchronous admission barrier for wrappers that must await their own teardown before calling `dispose()`. Call it before the wrapper's first `await`; otherwise deferred work can enter the gap. It immediately marks the session disposed, cancels memory startup, title generation, and auto-learn capture, clears queued yield/asides, stops advisor runtime, detaches aside delivery, and rejects new eval executions. Deferred session work checks the disposed state and is dropped or skipped. `beginDispose()` is also idempotent, and the later `dispose()` call remains required to finish asynchronous cleanup.
 
 ```ts
-import type { AgentSession } from "@rva/coding-agent";
+import type { AgentSession } from "@reverse/coding-agent";
 
 async function closeEmbeddedSession(
   session: AgentSession,
@@ -444,7 +444,7 @@ import {
   ModelRegistry,
   SessionManager,
   Settings,
-} from "@rva/coding-agent";
+} from "@reverse/coding-agent";
 
 const authStorage = await discoverAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);

@@ -1,17 +1,17 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { createSubagentSettings } from "@rva/coding-agent/task/executor";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { createSubagentSettings } from "@reverse/coding-agent/task/executor";
+import { TempDir } from "@reverse/utils";
 
 const MODEL_PERF_FLUSH_DELAY_MS = 60_000;
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
@@ -394,7 +394,7 @@ describe("AgentStorage model perf aggregates", () => {
 				'import { Database } from "bun:sqlite";',
 				'import * as fs from "node:fs";',
 				'import * as path from "node:path";',
-				'import { getAgentDbPath, getStatsDbPath } from "@rva/utils";',
+				'import { getAgentDbPath, getStatsDbPath } from "@reverse/utils";',
 				`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
 				// A stale stats.db that never saw the live Astra turns.
 				"const statsPath = getStatsDbPath();",
@@ -455,7 +455,7 @@ describe("AgentStorage model perf aggregates", () => {
 				'import { Database } from "bun:sqlite";',
 				'import * as fs from "node:fs";',
 				'import * as path from "node:path";',
-				'import { getStatsDbPath } from "@rva/utils";',
+				'import { getStatsDbPath } from "@reverse/utils";',
 				`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
 				"const statsPath = getStatsDbPath();",
 				"fs.mkdirSync(path.dirname(statsPath), { recursive: true });",

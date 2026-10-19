@@ -25,23 +25,23 @@ import {
 	completeSimple,
 	type Model,
 	type OAuthRequestIdentity,
-} from "@rva/ai";
+} from "@reverse/ai";
 import {
 	AuthBrokerClient,
 	loadAuthBrokerAccountPool,
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
-} from "@rva/ai/auth-broker";
+} from "@reverse/ai/auth-broker";
 import {
 	type AuthGatewayClient,
 	DEFAULT_AUTH_GATEWAY_BIND,
 	parseAuthGatewayClients,
 	startAuthGateway,
-} from "@rva/ai/auth-gateway";
-import { type GeneratedProvider, getBundledModels, getEffectiveTokenCost } from "@rva/catalog/models";
-import { type ModelKind, modelKind } from "@rva/catalog/types";
-import { getConfigRootDir, logger, VERSION } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+} from "@reverse/ai/auth-gateway";
+import { type GeneratedProvider, getBundledModels, getEffectiveTokenCost } from "@reverse/catalog/models";
+import { type ModelKind, modelKind } from "@reverse/catalog/types";
+import { getConfigRootDir, logger, VERSION } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { cfgDisabledProviders } from "../config/model-settings";
 import { resolveProviderModelReference } from "../config/model-resolver";

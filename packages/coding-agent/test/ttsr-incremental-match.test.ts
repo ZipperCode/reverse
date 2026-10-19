@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { ToolCall } from "@rva/ai";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { TtsrManager, type TtsrMatchContext } from "@rva/coding-agent/export/ttsr";
-import { type TtsrTool, TtsrToolInspector } from "@rva/coding-agent/session/ttsr-outputs";
+import type { ToolCall } from "@reverse/ai";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { TtsrManager, type TtsrMatchContext } from "@reverse/coding-agent/export/ttsr";
+import { type TtsrTool, TtsrToolInspector } from "@reverse/coding-agent/session/ttsr-outputs";
 
 function rule(name: string, condition: string): Rule {
 	return {

@@ -9,9 +9,9 @@
  * worker first, saving when it has unsaved changes.
  */
 import * as fs from "node:fs";
-import { IpcConnection, IpcServer } from "@rva/natives";
-import { acquireFileLock, logger, postmortem, setProcessName } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { IpcConnection, IpcServer } from "@reverse/natives";
+import { acquireFileLock, logger, postmortem, setProcessName } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import {
 	errorMessage,
 	IDA_HOST_CONFIG_ENV,

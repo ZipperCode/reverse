@@ -1,4 +1,4 @@
-import type { TspSpan } from "@rva/wire";
+import type { TspSpan } from "@reverse/wire";
 import { type AppKeybinding, formatKeyHint, type KeybindingsManager, keyHintPlatform } from "./app-keybindings";
 import { Markdown } from "./components/markdown";
 import { matchesSelectCancel } from "./keybinding-matchers";

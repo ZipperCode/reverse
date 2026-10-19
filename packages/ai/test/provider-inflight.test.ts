@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@rva/catalog/models";
-import { clearCustomApis } from "@rva/ai/api-registry";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { clearCustomApis } from "@reverse/ai/api-registry";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
 import {
 	__providerInFlightForTesting,
 	configureProviderMaxInFlightRequests,
 	stream,
 	streamSimple,
-} from "@rva/ai/stream";
-import type { Context, Model, RawSseEvent } from "@rva/ai/types";
+} from "@reverse/ai/stream";
+import type { Context, Model, RawSseEvent } from "@reverse/ai/types";
 
 function context(): Context {
 	return {

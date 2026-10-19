@@ -7,7 +7,7 @@
  * full plaintext trace, and its identity pins one set of weights. A host whose
  * reasoning must neither be carried in nor out overrides it to `#false` in its
  * `rules/providers/*.kdl`. Whether the target host has a native slot for
- * earlier reasoning is derived by the request encoders in `@rva/ai`,
+ * earlier reasoning is derived by the request encoders in `@reverse/ai`,
  * not declared here.
  *
  * Resolved through the cascade on demand (like delegation bias) because

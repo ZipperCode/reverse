@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@rva/agent";
-import type { EvalStatusEvent, EvalToolDetails } from "@rva/tui/tools/eval";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import { evalToolRenderer } from "@rva/tui/tools/eval";
+import { ThinkingLevel } from "@reverse/agent";
+import type { EvalStatusEvent, EvalToolDetails } from "@reverse/tui/tools/eval";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import { evalToolRenderer } from "@reverse/tui/tools/eval";
 import {
 	isFeedModelBadgeEnabled,
 	setFeedModelBadgeEnabled,
 	thinkingLevelGlyph,
-} from "@rva/tui/render/render-utils";
-import { visibleWidth } from "@rva/tui";
+} from "@reverse/tui/render/render-utils";
+import { visibleWidth } from "@reverse/tui";
 
 /**
  * Defends the contract that `agent()` calls inside an eval cell surface as a

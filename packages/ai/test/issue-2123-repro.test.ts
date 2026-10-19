@@ -20,10 +20,10 @@
  * the strategy goes with them).
  */
 import { describe, expect, it } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { Context, Model, Tool } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { Context, Model, Tool } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 
 const OPUS_46_OAUTH: Model<"anthropic-messages"> = buildModel({
 	id: "claude-opus-4-6",

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { TruncatedText } from "@rva/tui/components/truncated-text";
-import { visibleWidth } from "@rva/tui/utils";
-import { Chalk } from "@rva/utils/chalk";
+import { TruncatedText } from "@reverse/tui/components/truncated-text";
+import { visibleWidth } from "@reverse/tui/utils";
+import { Chalk } from "@reverse/utils/chalk";
 
 // Force full color in CI so ANSI assertions are deterministic
 const chalk = new Chalk({ level: 3 });

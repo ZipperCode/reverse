@@ -7,9 +7,9 @@ import {
 	parseInternalUrl,
 	parseVaultUrl,
 	VaultProtocolHandler,
-} from "@rva/coding-agent/internal-urls";
-import * as vaultProtocol from "@rva/coding-agent/internal-urls/vault-protocol";
-import { $which, removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/internal-urls";
+import * as vaultProtocol from "@reverse/coding-agent/internal-urls/vault-protocol";
+import { $which, removeWithRetries } from "@reverse/utils";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vault-protocol-"));

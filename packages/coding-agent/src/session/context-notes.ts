@@ -1,4 +1,4 @@
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 import type { CustomEntry, SessionEntry } from "./session-entries";
 import contextNotesPrompt from "../prompts/system/context-notes.md" with { type: "text" };
 

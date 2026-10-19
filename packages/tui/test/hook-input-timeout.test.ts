@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 
 import { stripVTControlCharacters } from "node:util";
-import { HookInputComponent } from "@rva/tui/overlays/hook-input";
-import type { DescribeContext, NativeChild, NativeNode } from "@rva/tui/native/node";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { TUI } from "@rva/tui";
-import type { TspSpan } from "@rva/wire";
+import { HookInputComponent } from "@reverse/tui/overlays/hook-input";
+import type { DescribeContext, NativeChild, NativeNode } from "@reverse/tui/native/node";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { TUI } from "@reverse/tui";
+import type { TspSpan } from "@reverse/wire";
 
 const CX: DescribeContext = { cols: 100, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 

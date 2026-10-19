@@ -1,5 +1,5 @@
-import type { Model } from "@rva/ai";
-import { isAnthropicOAuthToken } from "@rva/catalog/utils";
+import type { Model } from "@reverse/ai";
+import { isAnthropicOAuthToken } from "@reverse/catalog/utils";
 import type { ProviderFileClient, ProviderFileHandle, ProviderFileUploadRequest } from "./provider-file-types";
 import type { FetchImpl } from "./uploader-runtime";
 

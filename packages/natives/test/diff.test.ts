@@ -10,7 +10,7 @@ import {
 	diffWords,
 	type PatchHunk,
 	structuredPatchHunks,
-} from "@rva/natives";
+} from "@reverse/natives";
 
 function applyHunks(oldText: string, hunks: PatchHunk[]): string {
 	if (hunks.length === 0) return oldText;

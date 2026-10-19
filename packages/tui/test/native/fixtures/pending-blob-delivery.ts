@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import * as fs from "node:fs/promises";
-import { TempDir } from "@rva/utils/temp";
+import { TempDir } from "@reverse/utils/temp";
 import { becomesCollectible, collectGarbage } from "../../gc";
 import { base64ImageNode, getNativeBlob } from "../../../src/native/blobs";
 import type { NativeNode } from "../../../src/native/node";

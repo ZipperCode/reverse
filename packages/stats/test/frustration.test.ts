@@ -6,9 +6,9 @@ import {
 	type Questions,
 	type ScoreAnswer,
 	tokenUsage,
-} from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { initDb, insertUserMessageStats, upsertFrustrationVerdicts } from "@rva/stats/db";
+} from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { initDb, insertUserMessageStats, upsertFrustrationVerdicts } from "@reverse/stats/db";
 import {
 	cancelFrustrationRun,
 	estimateFrustrationRun,
@@ -17,8 +17,8 @@ import {
 	type StatsJudge,
 	setStatsJudgeProvider,
 	startFrustrationRun,
-} from "@rva/stats/frustration";
-import type { UserMessageStats } from "@rva/stats/types";
+} from "@reverse/stats/frustration";
+import type { UserMessageStats } from "@reverse/stats/types";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-frustration-");

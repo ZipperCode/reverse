@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { HistorySearchComponent } from "@rva/tui/overlays/history-search";
-import { initTheme, theme } from "@rva/tui/theme";
-import type { HistoryEntry, HistoryStorage } from "@rva/coding-agent/session/history-storage";
+import { HistorySearchComponent } from "@reverse/tui/overlays/history-search";
+import { initTheme, theme } from "@reverse/tui/theme";
+import type { HistoryEntry, HistoryStorage } from "@reverse/coding-agent/session/history-storage";
 
 beforeAll(async () => {
 	await initTheme();

@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Context, Model, ModelSpec, Tool } from "@rva/ai";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { EditSession, EditStore, editDescription, type EditPolicy } from "@rva/natives";
-import { type } from "@rva/omptype";
+import type { Context, Model, ModelSpec, Tool } from "@reverse/ai";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { EditSession, EditStore, editDescription, type EditPolicy } from "@reverse/natives";
+import { type } from "@reverse/omptype";
 import { editDescriptionCompact } from "../src/edit/index";
 
 const WARMUP = 10;

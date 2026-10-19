@@ -14,7 +14,7 @@
  */
 
 import * as path from "node:path";
-import { USER_AGENT } from "@rva/utils";
+import { USER_AGENT } from "@reverse/utils";
 
 const REPO_ROOT = path.join(import.meta.dir, "..");
 const SEMVER_RE = /(\d+\.\d+\.\d+)/;

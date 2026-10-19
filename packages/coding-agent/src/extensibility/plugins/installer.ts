@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getAgentDir, getProjectDir } from "@rva/utils";
+import { getAgentDir, getProjectDir } from "@reverse/utils";
 import { runBunCli } from "./bun-cli";
 import { extractPackageName } from "./parser";
 import type { InstalledPlugin } from "./types";

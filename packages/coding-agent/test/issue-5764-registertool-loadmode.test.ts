@@ -6,18 +6,15 @@
  * / `write xd://<tool>`).
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { CustomToolAdapter } from "@rva/coding-agent/extensibility/custom-tools/wrapper";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { RegisteredToolAdapter } from "@rva/coding-agent/extensibility/extensions/wrapper";
-import { extensionToolSourceInfo } from "@rva/coding-agent/extensibility/extensions/loader";
-import { BUILTIN_TOOLS, type ToolSession } from "@rva/coding-agent/tools";
-import {
-	defaultLoadModeForToolName,
-	ESSENTIAL_BUILTIN_TOOL_NAMES,
-} from "@rva/coding-agent/tools/essential-tools";
-import { isMountableUnderXdev } from "@rva/coding-agent/tools/xdev";
+import { type } from "@reverse/omptype";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { CustomToolAdapter } from "@reverse/coding-agent/extensibility/custom-tools/wrapper";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { RegisteredToolAdapter } from "@reverse/coding-agent/extensibility/extensions/wrapper";
+import { extensionToolSourceInfo } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { BUILTIN_TOOLS, type ToolSession } from "@reverse/coding-agent/tools";
+import { defaultLoadModeForToolName, ESSENTIAL_BUILTIN_TOOL_NAMES } from "@reverse/coding-agent/tools/essential-tools";
+import { isMountableUnderXdev } from "@reverse/coding-agent/tools/xdev";
 
 function makeSession(): ToolSession {
 	return {

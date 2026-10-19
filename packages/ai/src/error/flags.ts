@@ -1,4 +1,4 @@
-import { isUnexpectedSocketCloseMessage } from "@rva/utils/fetch-retry";
+import { isUnexpectedSocketCloseMessage } from "@reverse/utils/fetch-retry";
 import type { Api, AssistantMessage, Usage } from "../types";
 import { AwsCredentialsError } from "./aws";
 import {

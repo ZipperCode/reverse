@@ -1,7 +1,7 @@
 import type { Component } from "../tui";
 import { Text } from "../components/text";
 import { describeShimmer, shimmerEnabled, shimmerText } from "../theme/shimmer";
-import type { TspCardStatus, TspSpan, TspTone } from "@rva/wire";
+import type { TspCardStatus, TspSpan, TspTone } from "@reverse/wire";
 import { compact, elapsed, node, row, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { OwnerMemo } from "../native/memo";

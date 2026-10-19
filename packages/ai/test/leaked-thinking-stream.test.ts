@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { stream } from "@rva/ai/stream";
+import { stream } from "@reverse/ai/stream";
 import type {
 	AnthropicServerToolContent,
 	AssistantMessage,
@@ -10,11 +10,11 @@ import type {
 	TextContent,
 	ThinkingContent,
 	ToolCall,
-} from "@rva/ai/types";
-import { getStreamingPartialJson, setStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { wrapLeakedThinkingStream } from "@rva/ai/utils/leaked-thinking-stream";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/types";
+import { getStreamingPartialJson, setStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { wrapLeakedThinkingStream } from "@reverse/ai/utils/leaked-thinking-stream";
+import { buildModel } from "@reverse/catalog/build";
 import { withOfficialAnthropicEndpoint } from "./helpers";
 
 /** Minimal assistant message; `content`/`stopReason` overridden per event. */

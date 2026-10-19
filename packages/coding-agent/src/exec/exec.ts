@@ -1,7 +1,7 @@
 /**
  * Shared command execution utilities for hooks and custom tools.
  */
-import { ptree } from "@rva/utils";
+import { ptree } from "@reverse/utils";
 
 /**
  * Options for executing shell commands.

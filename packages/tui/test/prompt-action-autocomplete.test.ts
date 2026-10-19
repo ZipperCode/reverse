@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { KeybindingsManager as AppKeybindingsManager, setKeyHintPlatform } from "@rva/tui/app-keybindings";
-import type { ModelBrowserItem } from "@rva/tui/overlays/model-browser";
-import { setInternalUrlCompletionHost } from "@rva/tui/prompt/internal-url-autocomplete";
-import { createPromptActionAutocompleteProvider } from "@rva/tui/prompt/prompt-action-autocomplete";
-import { getSelectListTheme, initTheme, theme } from "@rva/tui/theme";
-import { KeybindingsManager, SelectList, setKeybindings, TUI_KEYBINDINGS } from "@rva/tui";
+import { buildModel } from "@reverse/catalog/build";
+import { KeybindingsManager as AppKeybindingsManager, setKeyHintPlatform } from "@reverse/tui/app-keybindings";
+import type { ModelBrowserItem } from "@reverse/tui/overlays/model-browser";
+import { setInternalUrlCompletionHost } from "@reverse/tui/prompt/internal-url-autocomplete";
+import { createPromptActionAutocompleteProvider } from "@reverse/tui/prompt/prompt-action-autocomplete";
+import { getSelectListTheme, initTheme, theme } from "@reverse/tui/theme";
+import { KeybindingsManager, SelectList, setKeybindings, TUI_KEYBINDINGS } from "@reverse/tui";
 
 function modelMentionItem(provider: string, id: string, name: string): ModelBrowserItem {
 	return {

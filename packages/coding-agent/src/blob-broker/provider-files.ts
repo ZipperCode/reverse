@@ -1,5 +1,5 @@
-import type { Context, ImageContent, Model } from "@rva/ai";
-import { logger } from "@rva/utils";
+import type { Context, ImageContent, Model } from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import { contextHasImages, decorateContextProviderFiles } from "./context-images";
 import {
 	hashProviderFileContent,

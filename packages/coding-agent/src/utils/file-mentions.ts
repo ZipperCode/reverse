@@ -7,15 +7,15 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import type { EditStore } from "@rva/natives";
-import type { AgentMessage } from "@rva/agent";
-import type { ImageContent } from "@rva/ai";
-import { formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@rva/utils";
+import type { EditStore } from "@reverse/natives";
+import type { AgentMessage } from "@reverse/agent";
+import type { ImageContent } from "@reverse/ai";
+import { formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@reverse/utils";
 import {
 	formatHashlineHeader,
 	formatNumberedLines,
 	splitAddressableFileLines,
-} from "@rva/tui/tools/hashline-format";
+} from "@reverse/tui/tools/hashline-format";
 import { normalizeToLF } from "../edit/normalize";
 import type { FileMentionMessage } from "../session/messages";
 import {
@@ -23,11 +23,11 @@ import {
 	formatHeadTruncationNotice,
 	truncateHead,
 	truncateHeadBytes,
-} from "@rva/tui/tools/streaming-output";
+} from "@reverse/tui/tools/streaming-output";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatDimensionNote, resizeImage } from "./image-resize";
 import { VideoError, buildVideoContactSheetPng, formatVideoDetails, probeVideo, videoMimeForPath } from "./video";
-import { createVideoPreviewImage, isVideoPath } from "@rva/tui/prompt/video";
+import { createVideoPreviewImage, isVideoPath } from "@reverse/tui/prompt/video";
 
 /** Regex to match @filepath patterns in text */
 const FILE_MENTION_REGEX = /@(?:"([^"]+)"|'([^']+)'|([^\s@]+))/g;

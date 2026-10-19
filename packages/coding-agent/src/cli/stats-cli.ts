@@ -4,9 +4,9 @@
  * Handles `omp stats` subcommand for viewing AI usage statistics.
  */
 
-import { formatKeyHint } from "@rva/tui/key-hint-format";
-import { truncateToWidth } from "@rva/tui/utils";
-import chalk from "@rva/utils/chalk";
+import { formatKeyHint } from "@reverse/tui/key-hint-format";
+import { truncateToWidth } from "@reverse/tui/utils";
+import chalk from "@reverse/utils/chalk";
 import { openStandaloneJudge } from "../judgment/standalone";
 import { openPath } from "../utils/open";
 
@@ -78,7 +78,7 @@ export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 		refreshRollups,
 		startServer,
 		syncAllSessions,
-	} = await import("@rva/stats");
+	} = await import("@reverse/stats");
 
 	// One-shot reports need fully ingested, fully rolled-up data before printing.
 	if (cmd.json || cmd.summary) {

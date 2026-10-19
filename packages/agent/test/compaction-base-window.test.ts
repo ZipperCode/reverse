@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type CompactionSettings, resolveThresholdTokens } from "@rva/agent/compaction/compaction";
+import { type CompactionSettings, resolveThresholdTokens } from "@reverse/agent/compaction/compaction";
 
 const base: CompactionSettings = { enabled: true, thresholdPercent: -1, thresholdTokens: -1, keepRecentTokens: 20000 };
 const window = 1_000_000;

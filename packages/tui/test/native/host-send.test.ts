@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { encodeTspMessage } from "@rva/tui/native/encode";
-import { nativeComponentId } from "@rva/tui/native/reconcile";
-import { CustomEditor } from "@rva/tui/prompt/custom-editor";
-import { initTheme } from "@rva/tui/theme";
+import type { ImageContent } from "@reverse/ai";
+import { encodeTspMessage } from "@reverse/tui/native/encode";
+import { nativeComponentId } from "@reverse/tui/native/reconcile";
+import { CustomEditor } from "@reverse/tui/prompt/custom-editor";
+import { initTheme } from "@reverse/tui/theme";
 import { defaultEditorTheme } from "../test-themes";
 import { TspHarness } from "./tsp-harness";
 

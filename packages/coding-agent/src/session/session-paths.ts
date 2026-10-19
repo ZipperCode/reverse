@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { getTerminalId } from "@rva/tui/ttyid";
+import * as vcs from "@reverse/natives/vcs";
+import { getTerminalId } from "@reverse/tui/ttyid";
 import {
 	getCustomSessionFilesDir,
 	getSessionsDir,
@@ -11,9 +11,9 @@ import {
 	hashPath,
 	pathIsWithin,
 	resolveEquivalentPath,
-} from "@rva/utils/dirs";
-import { isEnoent } from "@rva/utils/fs-error";
-import * as logger from "@rva/utils/logger";
+} from "@reverse/utils/dirs";
+import { isEnoent } from "@reverse/utils/fs-error";
+import * as logger from "@reverse/utils/logger";
 import type { SessionStorage } from "./session-storage";
 
 const migratedSessionRoots = new Set<string>();

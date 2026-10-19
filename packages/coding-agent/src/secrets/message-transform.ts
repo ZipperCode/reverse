@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import type {
 	AnthropicCompactionPayload,
 	AssistantMessage,
@@ -7,8 +7,8 @@ import type {
 	Message,
 	ProviderPayload,
 	TextContent,
-} from "@rva/ai";
-import { isRecord } from "@rva/utils";
+} from "@reverse/ai";
+import { isRecord } from "@reverse/utils";
 import type { SessionContext } from "../session/session-context";
 import type { JsonValue, SecretObfuscator } from "./obfuscator";
 import { collectJsonRegexSecretValues, mapJsonStrings } from "./placeholder-scan";

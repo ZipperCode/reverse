@@ -1,4 +1,4 @@
-import { sanitizeText as currentSanitizeText } from "@rva/utils/sanitize-text";
+import { sanitizeText as currentSanitizeText } from "@reverse/utils/sanitize-text";
 import { makeBench } from "./_harness";
 
 const STRIP_RE = new RegExp(

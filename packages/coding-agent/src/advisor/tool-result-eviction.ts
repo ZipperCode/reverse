@@ -1,6 +1,6 @@
-import type { AgentMessage, Tokenizer } from "@rva/agent";
-import { invalidateMessageCache, MIN_PRUNE_TOKENS } from "@rva/agent/compaction";
-import type { ToolResultMessage } from "@rva/ai";
+import type { AgentMessage, Tokenizer } from "@reverse/agent";
+import { invalidateMessageCache, MIN_PRUNE_TOKENS } from "@reverse/agent/compaction";
+import type { ToolResultMessage } from "@reverse/ai";
 
 /**
  * Tools whose output the advisor can get back by calling them again. Anything

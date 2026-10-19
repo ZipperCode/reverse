@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { isFastembedModelCached } from "@rva/mnemopi/core/fastembed-model-cache";
-import { getFastembedCacheDir, getMnemopiEmbedRuntimeDir, logger, VERSION } from "@rva/utils";
+import { isFastembedModelCached } from "@reverse/mnemopi/core/fastembed-model-cache";
+import { getFastembedCacheDir, getMnemopiEmbedRuntimeDir, logger, VERSION } from "@reverse/utils";
 import { MNEMOPI_EMBED_SERVER_WORKER_ARG } from "../cli/worker-selectors";
 import { trackDownload } from "../downloads/activity";
 import {

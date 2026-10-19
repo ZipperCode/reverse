@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspPrefsProps } from "@rva/wire";
-import type { DescribeContext, NativeNode, NativeUiEvent } from "@rva/tui/native/node";
-import type { PluginSettingsHost } from "@rva/tui/overlays/plugin-settings";
-import type { SettingsDisplayEntry, SettingsHost } from "@rva/tui/overlays/settings-defs";
-import { SettingsSelectorComponent } from "@rva/tui/overlays/settings-selector";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
+import type { TspPrefsProps } from "@reverse/wire";
+import type { DescribeContext, NativeNode, NativeUiEvent } from "@reverse/tui/native/node";
+import type { PluginSettingsHost } from "@reverse/tui/overlays/plugin-settings";
+import type { SettingsDisplayEntry, SettingsHost } from "@reverse/tui/overlays/settings-defs";
+import { SettingsSelectorComponent } from "@reverse/tui/overlays/settings-selector";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 
 const ENTER = "\n";
 const DOWN = "\x1b[B";

@@ -1,6 +1,6 @@
-import type { AuthStorage } from "@rva/ai";
-import { untilAborted } from "@rva/utils";
-import { parseHTML } from "@rva/utils/dom";
+import type { AuthStorage } from "@reverse/ai";
+import { untilAborted } from "@reverse/utils";
+import { parseHTML } from "@reverse/utils/dom";
 import type { Page } from "puppeteer-core";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";

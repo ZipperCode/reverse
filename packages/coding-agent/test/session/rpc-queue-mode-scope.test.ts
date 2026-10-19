@@ -1,20 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { Model } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { applyRpcQueueModeCommand } from "@rva/coding-agent/modes/rpc/rpc-mode";
-import { SecretObfuscator } from "@rva/coding-agent/secrets";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { applyRpcQueueModeCommand } from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import { SecretObfuscator } from "@reverse/coding-agent/secrets";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
-import { cfgInterruptMode } from "@rva/coding-agent/modes/settings";
-import { cfgFollowUpMode } from "@rva/coding-agent/modes/settings";
-import { cfgSteeringMode } from "@rva/coding-agent/modes/settings";
+import { cfgInterruptMode } from "@reverse/coding-agent/modes/settings";
+import { cfgFollowUpMode } from "@reverse/coding-agent/modes/settings";
+import { cfgSteeringMode } from "@reverse/coding-agent/modes/settings";
 
 /**
  * Regression guard for #11555: the RPC queue-mode path (`persist: false`)

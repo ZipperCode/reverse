@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@rva/agent";
-import { Effort } from "@rva/ai";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { AUTO_THINKING } from "@rva/tui/thinking";
+import { ThinkingLevel } from "@reverse/agent";
+import { Effort } from "@reverse/ai";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
 
 describe("parseArgs — --hide-thinking flag", () => {
 	it("parses --hide-thinking with --thinking flag (both can coexist)", () => {

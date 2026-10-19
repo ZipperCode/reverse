@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
-import type { AgentHubDeps, AgentHubRemote } from "@rva/tui/overlays/agent-hub";
-import { type AgentCostSnapshot, aggregateCost } from "@rva/tui/overlays/agent-hub-projection";
-import type { AgentTranscriptSource } from "@rva/tui/overlays/agent-transcript-viewer";
-import type { ObservableSession, SessionObserverRegistry } from "@rva/tui/overlays/session-observer-registry";
+import type { AgentHubDeps, AgentHubRemote } from "@reverse/tui/overlays/agent-hub";
+import { type AgentCostSnapshot, aggregateCost } from "@reverse/tui/overlays/agent-hub-projection";
+import type { AgentTranscriptSource } from "@reverse/tui/overlays/agent-transcript-viewer";
+import type { ObservableSession, SessionObserverRegistry } from "@reverse/tui/overlays/session-observer-registry";
 import { AgentActivityIndex } from "../activity";
 import { getRoleInfo } from "../config/model-roles";
 import type { Settings } from "../config/settings";

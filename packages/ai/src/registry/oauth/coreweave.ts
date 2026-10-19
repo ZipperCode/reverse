@@ -1,5 +1,5 @@
-import { coreWeaveProjectHeaders } from "@rva/catalog/wire/coreweave";
-import { $env } from "@rva/utils";
+import { coreWeaveProjectHeaders } from "@reverse/catalog/wire/coreweave";
+import { $env } from "@reverse/utils";
 import * as AIError from "../../error";
 
 const PROJECT_PERSIST_INSTRUCTIONS =

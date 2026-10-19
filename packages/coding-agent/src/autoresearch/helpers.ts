@@ -1,5 +1,5 @@
-import * as vcs from "@rva/natives/vcs";
-import type { ASIData, ASIValue, NumericMetricMap } from "@rva/tui/tools/autoresearch";
+import * as vcs from "@reverse/natives/vcs";
+import type { ASIData, ASIValue, NumericMetricMap } from "@reverse/tui/tools/autoresearch";
 
 export const METRIC_LINE_PREFIX = "METRIC";
 export const ASI_LINE_PREFIX = "ASI";

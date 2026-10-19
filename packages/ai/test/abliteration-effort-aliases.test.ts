@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import type { Context, Model } from "@rva/ai/types";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModel } from "@rva/catalog/models";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import type { Context, Model } from "@reverse/ai/types";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const context: Context = { messages: [{ role: "user", content: "hello", timestamp: 0 }] };
 

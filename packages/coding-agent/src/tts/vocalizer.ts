@@ -37,8 +37,8 @@
  * questions); the event controller wires the per-session model source and
  * enhancer via {@link Vocalizer.setModelSource} and {@link Vocalizer.setEnhancer}.
  */
-import type { ModelBrowserRegistry } from "@rva/tui/overlays/model-browser";
-import { logger } from "@rva/utils";
+import type { ModelBrowserRegistry } from "@reverse/tui/overlays/model-browser";
+import { logger } from "@reverse/utils";
 import { resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";
 import { type Settings, settings } from "../config/settings";

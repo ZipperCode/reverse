@@ -1,6 +1,6 @@
 import * as net from "node:net";
 import * as tls from "node:tls";
-import * as logger from "@rva/utils/logger";
+import * as logger from "@reverse/utils/logger";
 import { AbortError } from "../error/abort";
 import { StreamTimeoutError, ValidationError } from "../error/validation";
 import type { FetchImpl } from "../types";
@@ -140,7 +140,13 @@ export function getProxyForProvider(provider: string): string | undefined {
 	const reverseKey = `REVERSE_PROXY_${normalized}`;
 	const piKey = `PI_PROXY_${normalized}`;
 	const value = Bun.env[reverseKey] || Bun.env[piKey] || Bun.env.REVERSE_PROXY || Bun.env.PI_PROXY;
-	const envKey = Bun.env[reverseKey] ? reverseKey : Bun.env[piKey] ? piKey : Bun.env.REVERSE_PROXY ? "REVERSE_PROXY" : "PI_PROXY";
+	const envKey = Bun.env[reverseKey]
+		? reverseKey
+		: Bun.env[piKey]
+			? piKey
+			: Bun.env.REVERSE_PROXY
+				? "REVERSE_PROXY"
+				: "PI_PROXY";
 	proxyCache.set(provider, value);
 	// Once per provider per process: a silently unproxied provider request is
 	// otherwise indistinguishable from a proxied one until the region block

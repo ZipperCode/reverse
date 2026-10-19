@@ -2,10 +2,10 @@
  * Shared utilities for compaction and branch summarization.
  */
 
-import type { Message, ToolCall } from "@rva/ai";
-import { type Dialect, getDialectDefinition } from "@rva/ai/dialect";
-import { escapeHarmonyControlTokens } from "@rva/ai/utils/harmony-leak";
-import { formatGroupedPaths, prompt, stringifyJson } from "@rva/utils";
+import type { Message, ToolCall } from "@reverse/ai";
+import { type Dialect, getDialectDefinition } from "@reverse/ai/dialect";
+import { escapeHarmonyControlTokens } from "@reverse/ai/utils/harmony-leak";
+import { formatGroupedPaths, prompt, stringifyJson } from "@reverse/utils";
 import type { AgentMessage } from "../types";
 import fileOperationsTemplate from "./prompts/file-operations.md" with { type: "text" };
 import summarizationSystemPrompt from "./prompts/summarization-system.md" with { type: "text" };

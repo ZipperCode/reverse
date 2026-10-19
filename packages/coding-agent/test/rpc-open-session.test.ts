@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import { openRpcSession, type RpcOpenSessionSession } from "@rva/coding-agent/modes/rpc/rpc-mode";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { getConfigRootDir, setAgentDir } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { openRpcSession, type RpcOpenSessionSession } from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getConfigRootDir, setAgentDir } from "@reverse/utils";
 import { makeAssistantMessage } from "./session-manager/helpers";
 
 /** AgentSession stand-in whose session transitions run against a real SessionManager. */

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { orderedSettings } from "@rva/coding-agent/config/all-settings";
-import { all, bindEffects, combine, effect, lookup } from "@rva/coding-agent/config/registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { logger, TempDir } from "@rva/utils";
+import { orderedSettings } from "@reverse/coding-agent/config/all-settings";
+import { all, bindEffects, combine, effect, lookup } from "@reverse/coding-agent/config/registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { logger, TempDir } from "@reverse/utils";
 import { YAML } from "bun";
 
 import {
@@ -12,13 +12,13 @@ import {
 	cfgTemperature,
 	cfgTopK,
 	cfgTopP,
-} from "@rva/coding-agent/session/settings";
-import { cfgSteeringMode } from "@rva/coding-agent/modes/settings";
-import { cfgEditFuzzyMatch, cfgEditModelVariants } from "@rva/coding-agent/edit/settings";
-import { cfgTaskMaxConcurrency } from "@rva/coding-agent/task/settings";
-import { cfgEvalPy } from "@rva/coding-agent/eval/settings";
-import { cfgModelRoles } from "@rva/coding-agent/config/model-settings";
-import { cfgSearxngBasicPassword, cfgSearxngEndpoint } from "@rva/coding-agent/web/settings";
+} from "@reverse/coding-agent/session/settings";
+import { cfgSteeringMode } from "@reverse/coding-agent/modes/settings";
+import { cfgEditFuzzyMatch, cfgEditModelVariants } from "@reverse/coding-agent/edit/settings";
+import { cfgTaskMaxConcurrency } from "@reverse/coding-agent/task/settings";
+import { cfgEvalPy } from "@reverse/coding-agent/eval/settings";
+import { cfgModelRoles } from "@reverse/coding-agent/config/model-settings";
+import { cfgSearxngBasicPassword, cfgSearxngEndpoint } from "@reverse/coding-agent/web/settings";
 
 const tick = () => Promise.resolve();
 

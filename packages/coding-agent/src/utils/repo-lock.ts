@@ -1,4 +1,4 @@
-import * as vcs from "@rva/natives/vcs";
+import * as vcs from "@reverse/natives/vcs";
 import { throwIfAborted } from "../tools/tool-errors";
 
 // Git uses O_EXCL lock files (`index.lock`, `packed-refs.lock`, …) with no

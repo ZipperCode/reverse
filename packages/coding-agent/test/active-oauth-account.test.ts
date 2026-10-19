@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { StoredAuthCredential, UsageLimit, UsageReport } from "@rva/ai";
+import type { StoredAuthCredential, UsageLimit, UsageReport } from "@reverse/ai";
 import {
 	limitMatchesActiveAccount,
 	reportMatchesActiveAccount,

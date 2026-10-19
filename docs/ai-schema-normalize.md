@@ -1,6 +1,6 @@
 # AI tool-schema normalization
 
-`@rva/ai` exposes shared schema normalization helpers that providers
+`@reverse/ai` exposes shared schema normalization helpers that providers
 consume before tools are sent on the wire. The shared walkers live in
 `packages/ai/src/utils/schema/normalize.ts`; native Anthropic tool normalization
 remains in `packages/ai/src/providers/anthropic.ts`. The operational contract is
@@ -15,7 +15,7 @@ Apple Foundation Models lowering lives in `foundation-models.ts`.
 
 ## Entry points
 
-All exports live under `@rva/ai/utils/schema`:
+All exports live under `@reverse/ai/utils/schema`:
 
 - `normalizeSchema(value, options)` — generic option-driven walker.
 - `normalizeSchemaForGoogle(value)` — Gemini / Vertex / Gemini CLI.

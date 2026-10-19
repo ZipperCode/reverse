@@ -2,10 +2,10 @@ import {
 	ANTIGRAVITY_PRIMARY_ENDPOINT,
 	ANTIGRAVITY_SANDBOX_ENDPOINT,
 	fetchAntigravityImageModel,
-} from "@rva/catalog/discovery/antigravity";
-import type { Model } from "@rva/catalog/types";
-import { getAntigravityUserAgent } from "@rva/catalog/wire/gemini-headers";
-import { readSseJson } from "@rva/utils";
+} from "@reverse/catalog/discovery/antigravity";
+import type { Model } from "@reverse/catalog/types";
+import { getAntigravityUserAgent } from "@reverse/catalog/wire/gemini-headers";
+import { readSseJson } from "@reverse/utils";
 import { withAuth } from "../auth-retry";
 import * as AIError from "../error";
 import { errorMessage, ImageApiError, usageFromWire, validateImageInput } from "./shared";

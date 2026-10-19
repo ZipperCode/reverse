@@ -14,9 +14,9 @@
  * estimate (`estimateInlineSavings`) so the two can never disagree.
  */
 
-import { Tokenizer } from "@rva/agent";
-import type { Context, ImageContent, Message, Model, TextContent, UserMessage } from "@rva/ai";
-import * as snapcompact from "@rva/snapcompact";
+import { Tokenizer } from "@reverse/agent";
+import type { Context, ImageContent, Message, Model, TextContent, UserMessage } from "@reverse/ai";
+import * as snapcompact from "@reverse/snapcompact";
 import type { SnapcompactFrameSink } from "../blob-broker/service";
 import contextFramesNote from "../prompts/system/snapcompact-context-frames-note.md" with { type: "text" };
 import contextStub from "../prompts/system/snapcompact-context-stub.md" with { type: "text" };
@@ -44,7 +44,7 @@ export type SnapcompactSavingsSink = (
 	model: Model,
 ) => void;
 
-// Per-deployment image-count budgets come from the catalog via @rva/snapcompact
+// Per-deployment image-count budgets come from the catalog via @reverse/snapcompact
 // (`providerImageBudget`): snapcompact frames are 1568px (<2000px) so
 // dimension/size limits never bind; only COUNT does. Once the budget is
 // spent by already-attached archive/system-prompt images, tool results ship

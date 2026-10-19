@@ -1,4 +1,4 @@
-import { ptree } from "@rva/utils";
+import { ptree } from "@reverse/utils";
 import {
 	TerminalLaunchError,
 	type TerminalLaunchCliResult,

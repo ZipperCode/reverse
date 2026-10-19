@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { slugify } from "@rva/utils";
+import { slugify } from "@reverse/utils";
 
 describe("slugify", () => {
 	it("lowercases ASCII and collapses non-alphanumeric runs into single dashes", () => {

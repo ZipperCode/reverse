@@ -2,7 +2,7 @@
  * Resolve auth-broker connection configuration for the local omp client.
  *
  * This is a thin coding-agent wrapper around the shared resolver in
- * `@rva/ai/auth-broker/discover` that preserves the process-lifetime
+ * `@reverse/ai/auth-broker/discover` that preserves the process-lifetime
  * memoization expected by the CLI and injects the full `resolveConfigValue`
  * (including `!command` config indirection) from coding-agent's config layer.
  *
@@ -20,11 +20,7 @@
  */
 
 import * as path from "node:path";
-import {
-	type AuthAccountPolicyConfig,
-	AuthBrokerError,
-	loadAuthAccountPolicyConfig,
-} from "@rva/ai/auth-broker";
+import { type AuthAccountPolicyConfig, AuthBrokerError, loadAuthAccountPolicyConfig } from "@reverse/ai/auth-broker";
 import {
 	type AuthBrokerClientConfig,
 	type DiscoverAuthStorageOptions,
@@ -32,9 +28,9 @@ import {
 	getAuthBrokerTokenFilePath,
 	openAuthCredentialStore,
 	resolveAuthBrokerConfig as resolveAuthBrokerConfigShared,
-} from "@rva/ai/auth-broker/discover";
-import { MissingApiKeyError } from "@rva/ai/error";
-import { getAgentDir, logger } from "@rva/utils";
+} from "@reverse/ai/auth-broker/discover";
+import { MissingApiKeyError } from "@reverse/ai/error";
+import { getAgentDir, logger } from "@reverse/utils";
 import { combine, type ScopeLike } from "../config/registry";
 import { resolveConfigValue } from "../config/resolve-config-value";
 import { Settings } from "../config/settings";

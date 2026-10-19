@@ -2,16 +2,16 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as ai from "@rva/ai";
-import { Effort, type Model } from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
+import * as ai from "@reverse/ai";
+import { Effort, type Model } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	buildMemoryToolDeveloperInstructions,
 	getMemoryRoot,
 	startMemoryStartupTask,
-} from "@rva/coding-agent/memories";
-import * as memoryStorage from "@rva/coding-agent/memories/storage";
-import { getAgentDbPath, Snowflake, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/memories";
+import * as memoryStorage from "@reverse/coding-agent/memories/storage";
+import { getAgentDbPath, Snowflake, TempDir } from "@reverse/utils";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 
 interface SessionFixture {

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { clearCopilotIntegrationCache } from "@rva/ai/providers/github-copilot-headers";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { Context, Model } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { clearCopilotIntegrationCache } from "@reverse/ai/providers/github-copilot-headers";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { Context, Model } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 afterEach(() => {
 	clearCopilotIntegrationCache();

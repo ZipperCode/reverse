@@ -1,17 +1,17 @@
-import type { Terminal } from "@rva/tui";
+import type { Terminal } from "@reverse/tui";
 import {
 	COMPOSER_DEFAULTS,
 	Composer,
 	type ComposerPreferences,
 	type ComposerWelcomeUpdate,
-} from "@rva/tui/prompt/composer";
+} from "@reverse/tui/prompt/composer";
 import {
 	type ComposerCache,
 	type ComposerThemePreferences,
 	sharedComposerCache,
-} from "@rva/tui/prompt/composer-cache";
-import { setMagicKeywords } from "@rva/tui/prompt/magic-keywords";
-import { initThemeSync } from "@rva/tui/theme";
+} from "@reverse/tui/prompt/composer-cache";
+import { setMagicKeywords } from "@reverse/tui/prompt/magic-keywords";
+import { initThemeSync } from "@reverse/tui/theme";
 import { MAGIC_KEYWORDS } from "./magic-keywords";
 
 /** Inputs available at the CLI prepaint boundary before command modules load. */

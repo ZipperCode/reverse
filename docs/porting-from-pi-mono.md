@@ -43,13 +43,13 @@ Upstream uses different package scopes. Replace them consistently.
 
 - Replace old scopes with the local scope used here.
 - Examples (adjust to match the actual packages you are porting):
-  - `@mariozechner/pi-coding-agent` → `@rva/coding-agent`
-  - `@mariozechner/pi-agent-core` → `@rva/agent`
-  - `@mariozechner/pi-tui` → `@rva/tui`
-  - `@mariozechner/pi-ai` → `@rva/ai`
-  - `@mariozechner/pi-utils` → `@rva/utils`
-- Some upstream packages publish under the `@earendil-works/*` scope instead of `@mariozechner/*`. Map it the same way (`@earendil-works/pi-coding-agent` → `@rva/coding-agent`, and so on).
-- The bare `typebox` package is not an `@rva/*` scope; do not rewrite it as one. See the Extensions divergence in section 15 for how tool-parameter schemas map.
+  - `@mariozechner/pi-coding-agent` → `@reverse/coding-agent`
+  - `@mariozechner/pi-agent-core` → `@reverse/agent`
+  - `@mariozechner/pi-tui` → `@reverse/tui`
+  - `@mariozechner/pi-ai` → `@reverse/ai`
+  - `@mariozechner/pi-utils` → `@reverse/utils`
+- Some upstream packages publish under the `@earendil-works/*` scope instead of `@mariozechner/*`. Map it the same way (`@earendil-works/pi-coding-agent` → `@reverse/coding-agent`, and so on).
+- The bare `typebox` package is not an `@reverse/*` scope; do not rewrite it as one. See the Extensions divergence in section 15 for how tool-parameter schemas map.
 
 ## 4) Use Bun APIs where they improve on Node
 
@@ -129,7 +129,7 @@ Treat `package.json` as a contract. Merge intentionally.
 - Do not introduce `any` unless required.
 - Avoid dynamic imports unless they are required for optional dependencies, startup cost, or runtime-only modules; prefer top-level imports otherwise.
 - Never build prompts in code; prompts are static `.md` files rendered with Handlebars.
-- In `packages/coding-agent`, use `logger` from `@rva/utils` for internal/runtime logging; CLI command files may use `console.*` for intentional user-facing output.
+- In `packages/coding-agent`, use `logger` from `@reverse/utils` for internal/runtime logging; CLI command files may use `console.*` for intentional user-facing output.
 - Use `Promise.withResolvers()` instead of `new Promise((resolve, reject) => ...)`.
 - Prefer ES `#` private fields for new encapsulated state. Constructor parameter properties already exist in current code and are acceptable; do not churn unrelated access modifiers while porting.
 - Prefer existing helpers and utilities over new ad-hoc code.
@@ -139,7 +139,7 @@ Treat `package.json` as a contract. Merge intentionally.
   - Heavy Node APIs should not be introduced casually; current source still uses selected Node APIs (`node:crypto`, `node:readline`, synchronous `node:fs`, and `child_process`) where they fit provider, CLI, or process-control semantics.
   - Lightweight Node APIs (`os.homedir`, `os.tmpdir`, `fs.mkdtempSync`, `path.*`) are kept.
   - CLI shebangs use `bun` (not `node`, not `tsx`).
-  - TypeScript packages generally use source files directly; `@rva/natives` exports generated native bindings from `packages/natives/native`.
+  - TypeScript packages generally use source files directly; `@reverse/natives` exports generated native bindings from `packages/natives/native`.
   - CI workflows run Bun for install/check/test.
 
 ## 8) Remove old compatibility layers
@@ -333,7 +333,7 @@ Our fork has architectural decisions that differ from upstream. **Do not port th
 
 | Upstream                                           | Our Fork                                                  | Reason                                        |
 | -------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------- |
-| `clipboard.ts` + `clipboard-image.ts` (tool files) | `packages/coding-agent/src/utils/clipboard.ts` backed by `@rva/natives` | Native implementation with a small TS wrapper |
+| `clipboard.ts` + `clipboard-image.ts` (tool files) | `packages/coding-agent/src/utils/clipboard.ts` backed by `@reverse/natives` | Native implementation with a small TS wrapper |
 
 ### Test Framework
 
@@ -370,7 +370,7 @@ them. Do not port upstream flat methods over this facade. See
 | `jiti` for TypeScript loading                                          | Bun loading through the existing `loadLegacyPiModule()` adapter (including legacy specifier rewriting)                                                                                                                                                                                                                                                                        |
 | `pkg.pi` manifest field                                                | `pkg.omp` preferred; fallback to `pkg.pi` remains                                                                                                                                                                                                                                            |
 | `StringEnum` from `pi-ai`                                              | `Type.Enum` from `pi.typebox`, or `pi.arktype.enumerated(...)`; `pi-ai` no longer exports `StringEnum`                                                                                                                                                                                       |
-| `formatSize` from `pi-coding-agent`                                    | `formatBytes` from `@rva/utils`                                                                                                                                                                                                                                                      |
+| `formatSize` from `pi-coding-agent`                                    | `formatBytes` from `@reverse/utils`                                                                                                                                                                                                                                                      |
 | Upstream resource/package/settings managers as the native architecture | Capability-based discovery (`loadCapability(...)`), session-scoped `Settings` instances, and `EventBus`; legacy extension imports of `DefaultResourceLoader`, `DefaultPackageManager`, and `SettingsManager` are compatibility shims in `legacy-pi-coding-agent-shim.ts`, not the native implementation |
 | `SettingsManager.create(cwd)` returns a synchronous manager with `getGlobalSettings()`/`getProjectSettings()` | The shim's `SettingsManager.create()` is synchronous and resolves the active extension session's `Settings`, then a live instance matching `cwd`/`agentDir`, or an isolated fallback; `Settings` exposes `getGlobalSettings()`/`getProjectSettings()` that deep-clone the raw global/project layers so extensions can read their own namespaced keys (#10397) |
 
@@ -379,7 +379,7 @@ them. Do not port upstream flat methods over this facade. See
 When porting, **skip** these files/features entirely:
 
 - `footer-data-provider.ts` — we use StatusLineComponent
-- `clipboard-image.ts` — image clipboard support is exposed through `packages/coding-agent/src/utils/clipboard.ts` backed by `@rva/natives`
+- `clipboard-image.ts` — image clipboard support is exposed through `packages/coding-agent/src/utils/clipboard.ts` backed by `@reverse/natives`
 - GitHub workflow files — we have our own CI
 - `models.generated.ts` — regenerate the local `packages/catalog/src/models.json` via `bun run gen:models`; provider/model/auth policy is authored in `packages/catalog/src/compat/rules/**/*.kdl`
 
@@ -389,7 +389,7 @@ These exist in our fork but not upstream. **Never overwrite:**
 
 - `StatusLineComponent` in interactive mode
 - Multi-credential auth with session affinity, usage-aware routing, and optional broker/gateway storage
-- `@rva/omptype` schemas and their provider-boundary JSON Schema normalization ([omptype-guide.md](./omptype-guide.md))
+- `@reverse/omptype` schemas and their provider-boundary JSON Schema normalization ([omptype-guide.md](./omptype-guide.md))
 - Capability-based discovery system (`defineCapability`, `registerProvider`, `loadCapability`, `skillCapability`, etc.)
 - MCP/Exa/SSH integrations
 - LSP writethrough for format-on-save

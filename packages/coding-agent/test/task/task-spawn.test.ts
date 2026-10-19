@@ -13,22 +13,22 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
-import { ThinkingLevel } from "@rva/agent";
-import { type AsyncJob, AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentsHubDeps } from "@rva/coding-agent/modes/agents-hub-deps";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { TaskTool } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import * as isolationRunner from "@rva/coding-agent/task/isolation-runner";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { AgentProgress, SingleResult, TaskParams } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { snapshotJobs } from "@rva/coding-agent/async/job-control";
-import { cfgTaskAgentModelOverrides, cfgTaskMaxConcurrency } from "@rva/coding-agent/task/settings";
+import { ThinkingLevel } from "@reverse/agent";
+import { type AsyncJob, AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentsHubDeps } from "@reverse/coding-agent/modes/agents-hub-deps";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { TaskTool } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import * as isolationRunner from "@reverse/coding-agent/task/isolation-runner";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { AgentProgress, SingleResult, TaskParams } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { snapshotJobs } from "@reverse/coding-agent/async/job-control";
+import { cfgTaskAgentModelOverrides, cfgTaskMaxConcurrency } from "@reverse/coding-agent/task/settings";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const taskAgent: AgentDefinition = {

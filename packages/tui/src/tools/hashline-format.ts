@@ -4,7 +4,7 @@ import {
 	hashlineFormatNumberedLines,
 	hashlineIsReadTruncationNotice,
 	hashlineStripPrefixes,
-} from "@rva/natives";
+} from "@reverse/natives";
 
 /** Opening delimiter of a hashline file header. */
 export const HL_FILE_PREFIX = "[";

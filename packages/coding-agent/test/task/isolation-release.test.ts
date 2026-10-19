@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import { runIsolatedSubprocess } from "@rva/coding-agent/task/isolation-runner";
-import * as worktreeModule from "@rva/coding-agent/task/worktree";
-import * as natives from "@rva/natives";
-import type { SingleResult } from "@rva/tui/tools/task";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import { runIsolatedSubprocess } from "@reverse/coding-agent/task/isolation-runner";
+import * as worktreeModule from "@reverse/coding-agent/task/worktree";
+import * as natives from "@reverse/natives";
+import type { SingleResult } from "@reverse/tui/tools/task";
 
 const tempRoots: string[] = [];
 

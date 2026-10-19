@@ -31,10 +31,10 @@ import {
 	type CompletionProbeInput,
 	REMOTE_REFRESH_SENTINEL,
 	type StoredAuthCredential,
-} from "@rva/ai/auth-storage";
-import type { UsageProvider } from "@rva/ai/usage";
-import * as claudeUsage from "@rva/ai/usage/claude";
-import { ollamaCloudUsageProvider } from "@rva/ai/usage/ollama";
+} from "@reverse/ai/auth-storage";
+import type { UsageProvider } from "@reverse/ai/usage";
+import * as claudeUsage from "@reverse/ai/usage/claude";
+import { ollamaCloudUsageProvider } from "@reverse/ai/usage/ollama";
 
 function oauthRow(id: number, email: string, opts?: { expired?: boolean }): StoredAuthCredential {
 	const credential: AuthCredential = {

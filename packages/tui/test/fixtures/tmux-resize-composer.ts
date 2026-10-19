@@ -1,9 +1,9 @@
 // Real ProcessTerminal + Composer retirement for the tmux height regression.
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { COMPOSER_DEFAULTS, Composer } from "@rva/tui/prompt/composer";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { CURSOR_MARKER } from "@rva/tui/tui";
-import { setTerminalHeadless } from "@rva/utils";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { COMPOSER_DEFAULTS, Composer } from "@reverse/tui/prompt/composer";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { CURSOR_MARKER } from "@reverse/tui/tui";
+import { setTerminalHeadless } from "@reverse/utils";
 
 class RecordingTerminal extends ProcessTerminal {
 	resets = 0;

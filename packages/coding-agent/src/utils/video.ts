@@ -8,11 +8,11 @@
  * anything timestamp-shaped is a seek position.
  */
 import * as path from "node:path";
-import { rasterizeSvg } from "@rva/natives";
-import { isVideoPath } from "@rva/tui/prompt/video";
-import { untilAborted } from "@rva/utils/abortable";
-import { TempDir } from "@rva/utils/temp";
-import { $which } from "@rva/utils/which";
+import { rasterizeSvg } from "@reverse/natives";
+import { isVideoPath } from "@reverse/tui/prompt/video";
+import { untilAborted } from "@reverse/utils/abortable";
+import { TempDir } from "@reverse/utils/temp";
+import { $which } from "@reverse/utils/which";
 
 const VIDEO_MIME_BY_EXT: Record<string, string> = {
 	".mp4": "video/mp4",

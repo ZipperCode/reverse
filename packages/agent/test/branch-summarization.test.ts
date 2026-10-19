@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { Tokenizer } from "@rva/agent";
+import { Tokenizer } from "@reverse/agent";
 import {
 	type GenerateBranchSummaryOptions,
 	generateBranchSummary,
 	prepareBranchEntries,
 	type SessionEntry,
-} from "@rva/agent/compaction";
-import type { AssistantMessage, Model, Usage } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
+} from "@reverse/agent/compaction";
+import type { AssistantMessage, Model, Usage } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const MODEL: Model = buildModel({
 	id: "mock-model",

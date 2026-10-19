@@ -2,13 +2,13 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@rva/catalog/build";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { calculateCost, getBundledModels } from "@rva/catalog/models";
-import { providerEntry } from "@rva/catalog/compat/providers";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@rva/catalog/provider-models/descriptors";
-import { xaiModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import { type ModelSpec, type Usage } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { calculateCost, getBundledModels } from "@reverse/catalog/models";
+import { providerEntry } from "@reverse/catalog/compat/providers";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@reverse/catalog/provider-models/descriptors";
+import { xaiModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import { type ModelSpec, type Usage } from "@reverse/catalog/types";
 import { applyPricingPeerFallback } from "../scripts/generated-policies";
 
 const XAI_RESPONSES_SPEC: ModelSpec<"openai-responses"> = {

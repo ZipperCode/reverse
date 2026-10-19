@@ -1,4 +1,4 @@
-import type { AvailableCommand } from "@rva/utils/acp";
+import type { AvailableCommand } from "@reverse/utils/acp";
 import { BUILTIN_SLASH_COMMANDS_INTERNAL, lookupBuiltinSlashCommand } from "./builtin-registry";
 import { parseSlashCommand } from "./helpers/parse";
 import type { AcpBuiltinSlashCommandResult, SlashCommandRuntime } from "./types";

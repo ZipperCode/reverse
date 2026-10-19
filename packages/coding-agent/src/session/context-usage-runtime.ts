@@ -1,12 +1,12 @@
-import { type CompactionSettings, resolveThresholdTokens } from "@rva/agent/compaction";
-import type { Model } from "@rva/ai";
+import { type CompactionSettings, resolveThresholdTokens } from "@reverse/agent/compaction";
+import type { Model } from "@reverse/ai";
 import {
 	computeCompactionBoundaries,
 	computeContextBreakdown,
 	type CompactionBoundaries,
 	type ContextBreakdown,
 	type ContextSavingsEstimate,
-} from "@rva/tui/status-line/context-usage";
+} from "@reverse/tui/status-line/context-usage";
 import type { ScopeLike } from "../config/registry";
 import type { AgentSession } from "./agent-session";
 import { resolveSpeculationMethod } from "./compaction-methods";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { loadSessionFile } from "@rva/coding-agent/session/session-loader";
-import { FileSessionStorage, MemorySessionStorage } from "@rva/coding-agent/session/session-storage";
-import { TempDir } from "@rva/utils";
+import { loadSessionFile } from "@reverse/coding-agent/session/session-loader";
+import { FileSessionStorage, MemorySessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { TempDir } from "@reverse/utils";
 
 /** Storage whose stat lags its content, simulating an interleaving appender. */
 class SkewedStorage extends MemorySessionStorage {

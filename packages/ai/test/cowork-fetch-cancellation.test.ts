@@ -3,8 +3,8 @@ import * as http from "node:http";
 import * as https from "node:https";
 import * as net from "node:net";
 import * as zlib from "node:zlib";
-import { coworkFetch } from "@rva/ai/providers/cowork-fetch";
-import * as AIError from "@rva/ai/error";
+import { coworkFetch } from "@reverse/ai/providers/cowork-fetch";
+import * as AIError from "@reverse/ai/error";
 
 class StubClientRequest extends http.ClientRequest {
 	constructor() {

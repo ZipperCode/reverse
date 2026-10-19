@@ -24,7 +24,7 @@
  */
 import * as os from "node:os";
 import * as path from "node:path";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { readFile } from "../capability/fs";
 
 /** Maximum number of recursive `@`-import hops. Matches Claude Code's documented cap. */

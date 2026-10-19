@@ -1,5 +1,5 @@
-import { toNumber } from "@rva/catalog/utils";
-import { $env } from "@rva/utils";
+import { toNumber } from "@reverse/catalog/utils";
+import { $env } from "@reverse/utils";
 import { getKimiCommonHeaders } from "../registry/oauth/kimi";
 import type {
 	CredentialRankingStrategy,

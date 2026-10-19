@@ -1,5 +1,5 @@
-import type { AssistantMessage, ToolCall } from "@rva/ai";
-import type { VcsNumstatEntry } from "@rva/natives";
+import type { AssistantMessage, ToolCall } from "@reverse/ai";
+import type { VcsNumstatEntry } from "@reverse/natives";
 import type { ChangelogCategory, ConventionalAnalysis, ConventionalDetail } from "./types";
 
 export function extractToolCall(message: AssistantMessage, name: string): ToolCall | undefined {

@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import {
 	describeLoopCondition,
 	evaluateLoopCondition,
 	type LoopConditionVerdict,
-} from "@rva/coding-agent/modes/loop-condition";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/modes/loop-condition";
+import { TempDir } from "@reverse/utils";
 
 describe("evaluateLoopCondition", () => {
 	let tempDir: TempDir;

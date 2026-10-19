@@ -7,9 +7,9 @@
  * the next session sees the models the credential unlocked.
  */
 import * as readline from "node:readline";
-import { getOAuthProviders } from "@rva/ai";
-import { APP_NAME, getAgentDbPath, getProjectDir } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { getOAuthProviders } from "@reverse/ai";
+import { APP_NAME, getAgentDbPath, getProjectDir } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";

@@ -16,7 +16,7 @@
 import { Buffer } from "node:buffer";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $envpos, isEnoent, logger } from "@rva/utils";
+import { $envpos, isEnoent, logger } from "@reverse/utils";
 import * as AIError from "../error";
 import type { FetchImpl } from "../types";
 import { raceWithSignal } from "../utils/abort";

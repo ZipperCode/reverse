@@ -11,7 +11,7 @@
  * [#3749](https://github.com/can1357/oh-my-pi/issues/3749)).
  */
 
-import type { StreamFn } from "@rva/agent";
+import type { StreamFn } from "@reverse/agent";
 import type { Setting } from "../config/registry";
 import type { Settings } from "../config/settings";
 

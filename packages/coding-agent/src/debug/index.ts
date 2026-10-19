@@ -5,7 +5,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as url from "node:url";
-import { getWorkProfile } from "@rva/natives";
+import { getWorkProfile } from "@reverse/natives";
 import {
 	isNotificationSuppressed,
 	Loader,
@@ -16,26 +16,26 @@ import {
 	TERMINAL,
 	type TerminalNotification,
 	Text,
-} from "@rva/tui";
-import { getSessionsDir } from "@rva/utils";
-import { editorKey } from "@rva/tui/chrome/keybinding-hints";
-import { DynamicBorder } from "@rva/tui/chrome/dynamic-border";
-import { OverlayPanel } from "@rva/tui/chrome/overlay-box";
-import { TranscriptBlock } from "@rva/tui/chrome/transcript-container";
-import { getSelectListTheme, getSymbolTheme, theme } from "@rva/tui/theme";
+} from "@reverse/tui";
+import { getSessionsDir } from "@reverse/utils";
+import { editorKey } from "@reverse/tui/chrome/keybinding-hints";
+import { DynamicBorder } from "@reverse/tui/chrome/dynamic-border";
+import { OverlayPanel } from "@reverse/tui/chrome/overlay-box";
+import { TranscriptBlock } from "@reverse/tui/chrome/transcript-container";
+import { getSelectListTheme, getSymbolTheme, theme } from "@reverse/tui/theme";
 import type { InteractiveModeContext } from "../modes/types";
-import { formatBytes } from "@rva/tui/render/render-utils";
+import { formatBytes } from "@reverse/tui/render/render-utils";
 import { openPath } from "../utils/open";
 import { copyToClipboard } from "../utils/clipboard";
-import { DebugLogViewerComponent } from "@rva/tui/apps/debug/log-viewer";
+import { DebugLogViewerComponent } from "@reverse/tui/apps/debug/log-viewer";
 import { collectMemoryStats, type ProfilerSession, startCpuProfile } from "./profiler";
-import { buildSampleImage, ProtocolProbeComponent } from "@rva/tui/apps/debug/protocol-probe";
-import { RawSseViewerComponent } from "@rva/tui/apps/debug/raw-sse";
-import { resolveRawSseDebugBuffer } from "@rva/tui/apps/debug/raw-sse-buffer";
+import { buildSampleImage, ProtocolProbeComponent } from "@reverse/tui/apps/debug/protocol-probe";
+import { RawSseViewerComponent } from "@reverse/tui/apps/debug/raw-sse";
+import { resolveRawSseDebugBuffer } from "@reverse/tui/apps/debug/raw-sse-buffer";
 import { getRemoteDebugger, type RemoteDebuggerInfo, startRemoteDebuggerServer } from "./remote-debugger";
 import { clearArtifactCache, createDebugLogSource, createReportBundle, getArtifactCacheStats } from "./report-bundle";
 import { collectSystemInfo, formatSystemInfo } from "./system-info";
-import { collectTerminalState, formatTerminalState } from "@rva/tui/apps/debug/terminal-info";
+import { collectTerminalState, formatTerminalState } from "@reverse/tui/apps/debug/terminal-info";
 
 /** Debug menu options */
 const DEBUG_MENU_ITEMS: SelectItem[] = [

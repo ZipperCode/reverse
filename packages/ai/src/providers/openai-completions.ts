@@ -1,16 +1,10 @@
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import type { Effort } from "@rva/catalog/effort";
-import { resolveWireModelId } from "@rva/catalog/model-thinking";
-import { calculateCost } from "@rva/catalog/models";
-import type { ResolvedOpenAICompat } from "@rva/catalog/types";
-import { clinePassClientHeaders } from "@rva/catalog/wire/cline-pass";
-import {
-	$env,
-	logger,
-	parseStreamingJson,
-	parseStreamingJsonThrottled,
-	type ServerSentEvent,
-} from "@rva/utils";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import type { Effort } from "@reverse/catalog/effort";
+import { resolveWireModelId } from "@reverse/catalog/model-thinking";
+import { calculateCost } from "@reverse/catalog/models";
+import type { ResolvedOpenAICompat } from "@reverse/catalog/types";
+import { clinePassClientHeaders } from "@reverse/catalog/wire/cline-pass";
+import { $env, logger, parseStreamingJson, parseStreamingJsonThrottled, type ServerSentEvent } from "@reverse/utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";

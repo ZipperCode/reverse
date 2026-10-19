@@ -2,7 +2,7 @@
  * Root command for the coding agent CLI.
  */
 
-import { Command } from "@rva/utils/cli";
+import { Command } from "@reverse/utils/cli";
 import { type Args as ParsedArgs, parseArgs, reportCliUsageError } from "../cli/args";
 import { prepareAcpTerminalAuthArgs } from "../modes/acp/terminal-auth";
 import { launchHelp } from "./launch-help";

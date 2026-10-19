@@ -1,4 +1,4 @@
-import type { Effort } from "@rva/catalog/effort";
+import type { Effort } from "@reverse/catalog/effort";
 import {
 	$flag,
 	cloneJsonTree,
@@ -6,7 +6,7 @@ import {
 	logger,
 	type ServerSentEvent,
 	structuredCloneJSON,
-} from "@rva/utils";
+} from "@reverse/utils";
 import * as AIError from "../error";
 import { getEnvApiKey } from "../env-api-key";
 import type {

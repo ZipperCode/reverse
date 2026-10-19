@@ -1,5 +1,5 @@
-import type { AuthStorage } from "@rva/ai";
-import { type Element, parseHTML } from "@rva/utils/dom";
+import type { AuthStorage } from "@reverse/ai";
+import { type Element, parseHTML } from "@reverse/utils/dom";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatScraperQuery } from "../query";

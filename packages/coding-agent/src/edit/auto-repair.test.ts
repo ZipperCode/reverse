@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseCodeStatus } from "@rva/natives";
+import { parseCodeStatus } from "@reverse/natives";
 import { computeRepairRegion, repairParseRegression } from "./auto-repair";
 
 const PATH = "/repo/src/sample.ts";

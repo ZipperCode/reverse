@@ -8,9 +8,9 @@
  */
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { getOAuthApiKey } from "@rva/ai/oauth";
-import type { OAuthCredentials, OAuthProvider } from "@rva/ai/oauth/types";
-import { $flag, getAgentDir, isEnoent } from "@rva/utils";
+import { getOAuthApiKey } from "@reverse/ai/oauth";
+import type { OAuthCredentials, OAuthProvider } from "@reverse/ai/oauth/types";
+import { $flag, getAgentDir, isEnoent } from "@reverse/utils";
 
 /**
  * E2E tests require explicit opt-in via E2E=1 environment variable.

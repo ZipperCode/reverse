@@ -1,4 +1,4 @@
-import type { AvailableCommand } from "@rva/utils/acp";
+import type { AvailableCommand } from "@reverse/utils/acp";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { SkillsSettings } from "../extensibility/settings";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";

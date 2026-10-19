@@ -1,4 +1,4 @@
-import { getSSHConfigPath } from "@rva/utils";
+import { getSSHConfigPath } from "@reverse/utils";
 import { reset as resetCapabilities } from "../../capability";
 import { addSSHHost, readSSHConfigFile, removeSSHHost, type SSHHostConfig } from "../../ssh/config-writer";
 import { parseCommandArgs } from "../../utils/command-args";

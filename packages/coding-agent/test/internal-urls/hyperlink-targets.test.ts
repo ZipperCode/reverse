@@ -4,23 +4,23 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { LocalProtocolHandler } from "@rva/coding-agent/internal-urls/local-protocol";
-import { getDocsDiskRoot } from "@rva/coding-agent/internal-urls/docs-index";
-import { resolveMarkdownLinkHrefs } from "@rva/coding-agent/internal-urls/hyperlink-targets";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { getMarkdownTheme, initTheme } from "@rva/tui/theme";
-import * as terminalCaps from "@rva/tui";
-import { isHyperlinkEnabled } from "@rva/tui/render/hyperlink";
-import { isFeedModelBadgeEnabled, resolveImageOptions } from "@rva/tui/render/render-utils";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { LocalProtocolHandler } from "@reverse/coding-agent/internal-urls/local-protocol";
+import { getDocsDiskRoot } from "@reverse/coding-agent/internal-urls/docs-index";
+import { resolveMarkdownLinkHrefs } from "@reverse/coding-agent/internal-urls/hyperlink-targets";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { getMarkdownTheme, initTheme } from "@reverse/tui/theme";
+import * as terminalCaps from "@reverse/tui";
+import { isHyperlinkEnabled } from "@reverse/tui/render/hyperlink";
+import { isFeedModelBadgeEnabled, resolveImageOptions } from "@reverse/tui/render/render-utils";
 
-import { cfgTaskShowResolvedModelBadge } from "@rva/coding-agent/task/settings";
+import { cfgTaskShowResolvedModelBadge } from "@reverse/coding-agent/task/settings";
 import {
 	cfgTuiHyperlinks,
 	cfgTuiMaxInlineImageColumns,
 	cfgTuiMaxInlineImageRows,
-} from "@rva/coding-agent/modes/settings";
+} from "@reverse/coding-agent/modes/settings";
 
 function extractAnyTerminatorLinkUri(text: string): string | undefined {
 	return text.match(/\x1b\]8;[^;]*;([^\x1b\x07]+)(?:\x1b\\|\x07)/)?.[1];

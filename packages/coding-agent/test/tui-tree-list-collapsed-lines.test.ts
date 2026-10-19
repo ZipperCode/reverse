@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { renderTreeList } from "@rva/tui/render/tree-list";
-import { truncateToWidth, visibleWidth } from "@rva/tui";
+import { renderTreeList } from "@reverse/tui/render/tree-list";
+import { truncateToWidth, visibleWidth } from "@reverse/tui";
 
 const stubTheme = {
 	fg: (_color: string, text: string) => text,

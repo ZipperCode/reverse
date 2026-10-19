@@ -11,13 +11,13 @@ import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { getManagedSkillsDir } from "@rva/coding-agent/autolearn/managed-skills";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { HindsightApi } from "@rva/coding-agent/hindsight/client";
-import type { HindsightConfig } from "@rva/coding-agent/hindsight/config";
-import { HindsightSessionState } from "@rva/coding-agent/hindsight/state";
-import { mnemopiBackend } from "@rva/coding-agent/mnemopi/backend";
-import { loadMnemopiConfig, type MnemopiBackendConfig } from "@rva/coding-agent/mnemopi/config";
+import { getManagedSkillsDir } from "@reverse/coding-agent/autolearn/managed-skills";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { HindsightApi } from "@reverse/coding-agent/hindsight/client";
+import type { HindsightConfig } from "@reverse/coding-agent/hindsight/config";
+import { HindsightSessionState } from "@reverse/coding-agent/hindsight/state";
+import { mnemopiBackend } from "@reverse/coding-agent/mnemopi/backend";
+import { loadMnemopiConfig, type MnemopiBackendConfig } from "@reverse/coding-agent/mnemopi/config";
 import {
 	getMnemopiScopedDbPaths,
 	getMnemopiSessionState,
@@ -25,17 +25,17 @@ import {
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@rva/coding-agent/mnemopi/state";
-import type { AgentSessionEventListener } from "@rva/coding-agent/session/agent-session";
-import type { Tool, ToolSession } from "@rva/coding-agent/tools/index";
-import { LearnTool } from "@rva/coding-agent/tools/learn";
-import { MemoryEditTool } from "@rva/coding-agent/tools/memory-edit";
-import { MemoryRecallTool } from "@rva/coding-agent/tools/memory-recall";
-import { MemoryReflectTool } from "@rva/coding-agent/tools/memory-reflect";
-import { MemoryRetainTool } from "@rva/coding-agent/tools/memory-retain";
-import { resetMemoryForTests } from "@rva/mnemopi";
-import { currentLoopPhase, logger, TempDir } from "@rva/utils";
-import { getAgentDir, setAgentDir } from "@rva/utils/dirs";
+} from "@reverse/coding-agent/mnemopi/state";
+import type { AgentSessionEventListener } from "@reverse/coding-agent/session/agent-session";
+import type { Tool, ToolSession } from "@reverse/coding-agent/tools/index";
+import { LearnTool } from "@reverse/coding-agent/tools/learn";
+import { MemoryEditTool } from "@reverse/coding-agent/tools/memory-edit";
+import { MemoryRecallTool } from "@reverse/coding-agent/tools/memory-recall";
+import { MemoryReflectTool } from "@reverse/coding-agent/tools/memory-reflect";
+import { MemoryRetainTool } from "@reverse/coding-agent/tools/memory-retain";
+import { resetMemoryForTests } from "@reverse/mnemopi";
+import { currentLoopPhase, logger, TempDir } from "@reverse/utils";
+import { getAgentDir, setAgentDir } from "@reverse/utils/dirs";
 
 // Mnemopi is lazy-loaded at runtime; preload it for synchronous state construction.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);

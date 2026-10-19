@@ -2,14 +2,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import type { MCPStdioServerConfig } from "@rva/coding-agent/mcp/types";
-import { ExtensionDashboard } from "@rva/tui/overlays/extensions/extension-dashboard";
-import { snapshotMcpRuntime } from "@rva/tui/overlays/extensions/mcp-runtime";
-import { createExtensionDashboardRuntime } from "@rva/coding-agent/modes/components/extensions/dashboard-runtime";
-import { initTheme } from "@rva/tui/theme";
-import { removeSyncWithRetries } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import type { MCPStdioServerConfig } from "@reverse/coding-agent/mcp/types";
+import { ExtensionDashboard } from "@reverse/tui/overlays/extensions/extension-dashboard";
+import { snapshotMcpRuntime } from "@reverse/tui/overlays/extensions/mcp-runtime";
+import { createExtensionDashboardRuntime } from "@reverse/coding-agent/modes/components/extensions/dashboard-runtime";
+import { initTheme } from "@reverse/tui/theme";
+import { removeSyncWithRetries } from "@reverse/utils";
 import { PROMPT_NAME, RESOURCE_NAME, RESOURCE_URI, TOOL_NAME } from "./fixtures/delayed-catalog-mcp";
 
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "delayed-catalog-mcp.ts");

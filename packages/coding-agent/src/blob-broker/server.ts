@@ -9,7 +9,7 @@
  */
 
 import * as fs from "node:fs";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { isUploaderKind, LocalBlobBackend } from "./broker";
 import {
 	BLOB_BROKER_CONFIG_ENV,

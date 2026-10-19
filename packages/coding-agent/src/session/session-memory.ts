@@ -1,7 +1,7 @@
 /** Session memory backend lifecycle and transcript resets. */
 
-import type { Agent, AgentTool } from "@rva/agent";
-import { logger } from "@rva/utils";
+import type { Agent, AgentTool } from "@reverse/agent";
+import { logger } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { all as allSettings, combine, type Derived } from "../config/registry";
 import type { Settings } from "../config/settings";

@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@rva/tui/tools/task";
-import { taskToolRenderer } from "@rva/tui/tools/task";
-import { formatDuration, formatNumber } from "@rva/utils";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@reverse/tui/tools/task";
+import { taskToolRenderer } from "@reverse/tui/tools/task";
+import { formatDuration, formatNumber } from "@reverse/utils";
 
 describe("task renderer: nested live rendering", () => {
 	beforeAll(async () => {

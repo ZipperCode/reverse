@@ -12,8 +12,8 @@
  * agent is still streaming: a long `write` is invisible in history until it
  * finishes, so without it the estimate stalls near 0% for minutes.
  */
-import { getStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { formatDuration, isInteractiveHost, logger, prompt } from "@rva/utils";
+import { getStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { formatDuration, isInteractiveHost, logger, prompt } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import completionProbePrompt from "../prompts/system/subagent-completion-probe.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";

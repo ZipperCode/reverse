@@ -1,4 +1,4 @@
-import { $env, type ServerSentEvent } from "@rva/utils";
+import { $env, type ServerSentEvent } from "@reverse/utils";
 import * as AIError from "../error";
 import { getEnvApiKey } from "../env-api-key";
 import type {

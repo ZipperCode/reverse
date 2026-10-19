@@ -4,10 +4,10 @@ import {
 	handleServerMessage,
 	processInteractionUpdate,
 	type ToolCallState,
-} from "@rva/ai/providers/cursor";
-import type { AssistantMessage } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import type { InteractionQuery, InteractionResponse } from "@rva/catalog/discovery/cursor-proto";
+} from "@reverse/ai/providers/cursor";
+import type { AssistantMessage } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import type { InteractionQuery, InteractionResponse } from "@reverse/catalog/discovery/cursor-proto";
 import {
 	type AgentClientMessage,
 	AgentClientMessageSchema,
@@ -15,8 +15,8 @@ import {
 	FetchArgsSchema,
 	InteractionQuerySchema,
 	WebFetchRequestQuerySchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 function cursorAssistantMessage(): AssistantMessage {
 	return {

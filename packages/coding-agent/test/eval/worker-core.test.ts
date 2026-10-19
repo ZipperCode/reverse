@@ -3,15 +3,15 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import { shadowSnapshotDigest } from "@rva/coding-agent/eval/js/shared/runtime";
-import { WorkerCore } from "@rva/coding-agent/eval/js/worker-core";
+import { shadowSnapshotDigest } from "@reverse/coding-agent/eval/js/shared/runtime";
+import { WorkerCore } from "@reverse/coding-agent/eval/js/worker-core";
 import type {
 	SessionSnapshot,
 	Transport,
 	WorkerInbound,
 	WorkerOutbound,
-} from "@rva/coding-agent/eval/js/worker-protocol";
-import { postmortem } from "@rva/utils";
+} from "@reverse/coding-agent/eval/js/worker-protocol";
+import { postmortem } from "@reverse/utils";
 
 interface WorkerHarness {
 	send(message: WorkerInbound): void;

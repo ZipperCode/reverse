@@ -4,7 +4,7 @@ import {
 	schemaNeedsDraft202012Upgrade,
 	stripSchemaDescriptions,
 	toolWireSchema,
-} from "@rva/ai/utils/schema";
+} from "@reverse/ai/utils/schema";
 
 it("normalizes frozen tool parameters without modifying caller-owned required fields", () => {
 	const parameters = Object.freeze({

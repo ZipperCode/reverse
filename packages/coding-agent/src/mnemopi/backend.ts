@@ -1,12 +1,12 @@
 import { rm } from "node:fs/promises";
 import * as path from "node:path";
-import { type ApiKeyResolver, completeSimple, retryTransientCompletion } from "@rva/ai";
-import { hostMatchesUrl } from "@rva/catalog/hosts";
-import type { Mnemopi } from "@rva/mnemopi";
-import type { MnemopiLlmCompleteOptions } from "@rva/mnemopi/core/runtime-options";
-import type * as MnemopiDiagnoseNs from "@rva/mnemopi/diagnose";
-import type { DiagnosticSummary } from "@rva/mnemopi/diagnose";
-import { logger, prompt, withLoopPhase } from "@rva/utils";
+import { type ApiKeyResolver, completeSimple, retryTransientCompletion } from "@reverse/ai";
+import { hostMatchesUrl } from "@reverse/catalog/hosts";
+import type { Mnemopi } from "@reverse/mnemopi";
+import type { MnemopiLlmCompleteOptions } from "@reverse/mnemopi/core/runtime-options";
+import type * as MnemopiDiagnoseNs from "@reverse/mnemopi/diagnose";
+import type { DiagnosticSummary } from "@reverse/mnemopi/diagnose";
+import { logger, prompt, withLoopPhase } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { roleCandidatePool } from "../config/model-roles";
 import { resolveRoleChain } from "../config/model-resolver";
@@ -25,7 +25,7 @@ import memoryExtractionPrompt from "../prompts/system/memory-extraction-system.m
 import mnemopiInstructions from "../prompts/system/mnemopi-instructions.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";
 import { tinyModelClient } from "../tiny/title-client";
-import { shortenPath } from "@rva/tui/render/render-utils";
+import { shortenPath } from "@reverse/tui/render/render-utils";
 import {
 	loadMnemopiConfig,
 	type MnemopiBackendConfig,
@@ -53,7 +53,7 @@ let mnemopiDiagnoseMod: typeof MnemopiDiagnoseNs | undefined;
 
 async function loadMnemopiDiagnose(): Promise<typeof MnemopiDiagnoseNs> {
 	if (!mnemopiDiagnoseMod) {
-		mnemopiDiagnoseMod = await import("@rva/mnemopi/diagnose");
+		mnemopiDiagnoseMod = await import("@reverse/mnemopi/diagnose");
 	}
 	return mnemopiDiagnoseMod;
 }

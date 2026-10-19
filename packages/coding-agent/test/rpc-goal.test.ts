@@ -2,19 +2,19 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { RpcClient } from "@rva/coding-agent/modes/rpc/rpc-client";
-import { RpcGoalController, type RpcGoalSession } from "@rva/coding-agent/modes/rpc/rpc-goal";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { RpcClient } from "@reverse/coding-agent/modes/rpc/rpc-client";
+import { RpcGoalController, type RpcGoalSession } from "@reverse/coding-agent/modes/rpc/rpc-goal";
 import {
 	isRpcSessionSettled,
 	RpcSessionSettleWatcher,
 	type RpcSettleSession,
 	watchedScheduledTurnProbe,
-} from "@rva/coding-agent/modes/rpc/rpc-session-settle";
-import type { RpcSessionState } from "@rva/coding-agent/modes/rpc/rpc-types";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import type { GoalModeState } from "@rva/coding-agent/goals/state";
-import { removeWithRetries, withTimeout } from "@rva/utils";
+} from "@reverse/coding-agent/modes/rpc/rpc-session-settle";
+import type { RpcSessionState } from "@reverse/coding-agent/modes/rpc/rpc-types";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import type { GoalModeState } from "@reverse/coding-agent/goals/state";
+import { removeWithRetries, withTimeout } from "@reverse/utils";
 
 function nextMacrotask(): Promise<void> {
 	const { promise, resolve } = Promise.withResolvers<void>();

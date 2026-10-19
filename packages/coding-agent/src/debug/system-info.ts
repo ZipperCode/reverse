@@ -3,7 +3,7 @@
  */
 
 import * as os from "node:os";
-import { formatBytes, getProjectDir, VERSION } from "@rva/utils";
+import { formatBytes, getProjectDir, VERSION } from "@reverse/utils";
 
 export interface SystemInfo {
 	os: string;

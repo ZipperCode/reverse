@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Agent, type AgentMessage, type AgentTool } from "@rva/agent";
-import type { AssistantMessage, TextContent, ToolCall } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession, type AgentSessionConfig } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { TodoTool } from "@rva/coding-agent/tools";
-import { setInteractiveHost, TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
+import type { AssistantMessage, TextContent, ToolCall } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession, type AgentSessionConfig } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { TodoTool } from "@reverse/coding-agent/tools";
+import { setInteractiveHost, TempDir } from "@reverse/utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 type ObservedPromptCall = {

@@ -1,11 +1,11 @@
-import { isRecord, sanitizeText } from "@rva/utils";
+import { isRecord, sanitizeText } from "@reverse/utils";
 import {
 	replaceTabs,
 	shortenEmbeddedPaths,
 	shortenPath,
 	TRUNCATE_LENGTHS,
 	truncateToWidth,
-} from "@rva/tui/render/render-utils";
+} from "@reverse/tui/render/render-utils";
 
 export const MCP_CONNECTION_STATUS_EVENT_CHANNEL = "mcp:connection-status";
 

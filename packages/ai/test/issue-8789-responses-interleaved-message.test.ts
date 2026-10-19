@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { ResponseInput } from "@rva/ai/providers/openai-responses-wire";
-import { buildResponsesInput } from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Context, ToolResultMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import type { ResponseInput } from "@reverse/ai/providers/openai-responses-wire";
+import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Context, ToolResultMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 // deepseek-v4-flash on opencode-go (Console Go) — the gateway from #8789 that
 // rejects an assistant message interleaved between a function_call batch and

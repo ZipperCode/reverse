@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createSessionTeardown } from "@rva/coding-agent/modes/session-teardown";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import { Agent } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createSessionTeardown } from "@reverse/coding-agent/modes/session-teardown";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import {
 	collectPendingToolCalls,
 	createInterruptedToolResults,
@@ -18,10 +18,10 @@ import {
 	SESSION_EXIT_CUSTOM_TYPE,
 	TOOL_EXECUTION_START_CUSTOM_TYPE,
 	type ToolExecutionStartData,
-} from "@rva/coding-agent/session/exit-diagnostics";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { postmortem, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/exit-diagnostics";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { postmortem, TempDir } from "@reverse/utils";
 
 const pendingAssistant: AssistantMessage = {
 	role: "assistant",

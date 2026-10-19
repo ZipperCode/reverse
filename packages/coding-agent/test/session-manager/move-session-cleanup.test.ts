@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { cleanupEmptyMoveSession, SessionManager } from "@rva/coding-agent/session/session-manager";
-import { getConfigRootDir, setAgentDir } from "@rva/utils";
+import { cleanupEmptyMoveSession, SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getConfigRootDir, setAgentDir } from "@reverse/utils";
 
 import { makeAssistantMessage } from "./helpers";
 

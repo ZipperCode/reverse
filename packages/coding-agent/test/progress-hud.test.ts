@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { DownloadActivity } from "@rva/coding-agent/downloads/activity";
-import { DownloadActivityHud } from "@rva/coding-agent/modes/progress-hud";
-import { initTheme } from "@rva/tui/theme";
+import type { DownloadActivity } from "@reverse/coding-agent/downloads/activity";
+import { DownloadActivityHud } from "@reverse/coding-agent/modes/progress-hud";
+import { initTheme } from "@reverse/tui/theme";
 
 beforeAll(async () => {
 	await initTheme(false);

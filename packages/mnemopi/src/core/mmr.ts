@@ -1,4 +1,4 @@
-import { mmrRerankIndices } from "@rva/natives";
+import { mmrRerankIndices } from "@reverse/natives";
 
 export interface MmrResult {
 	readonly content?: string;

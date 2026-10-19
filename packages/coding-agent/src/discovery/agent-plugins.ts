@@ -17,7 +17,7 @@
 import type { Dirent, Stats } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getPluginsDir, isEnoent, normalizeFrontmatterKeys, parseFrontmatter } from "@rva/utils";
+import { getPluginsDir, isEnoent, normalizeFrontmatterKeys, parseFrontmatter } from "@reverse/utils";
 import { registerProvider } from "../capability";
 import { readFile } from "../capability/fs";
 import { type MCPServer, mcpCapability } from "../capability/mcp";

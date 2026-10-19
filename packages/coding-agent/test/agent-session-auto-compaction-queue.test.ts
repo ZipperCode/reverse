@@ -1,21 +1,21 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { Agent, AgentBusyError } from "@rva/agent";
-import { CompactionCancelledError } from "@rva/agent/compaction";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import type { CompactOptions } from "@rva/coding-agent/extensibility/extensions/types";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import * as unexpectedStopClassifier from "@rva/coding-agent/session/unexpected-stop-classifier";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir, withTimeout } from "@rva/utils";
-import * as logger from "@rva/utils/logger";
+import { Agent, AgentBusyError } from "@reverse/agent";
+import { CompactionCancelledError } from "@reverse/agent/compaction";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import type { CompactOptions } from "@reverse/coding-agent/extensibility/extensions/types";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import * as unexpectedStopClassifier from "@reverse/coding-agent/session/unexpected-stop-classifier";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir, withTimeout } from "@reverse/utils";
+import * as logger from "@reverse/utils/logger";
 import { activateTodoTool } from "./helpers/agent-session-setup";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 
@@ -29,7 +29,7 @@ import {
 	cfgCompactionThresholdPercent,
 	cfgCompactionThresholdTokens,
 	cfgContextPromotionEnabled,
-} from "@rva/coding-agent/session/context-settings";
+} from "@reverse/coding-agent/session/context-settings";
 import {
 	cfgFeaturesUnexpectedStopDetection,
 	cfgRetryBaseDelayMs,
@@ -38,7 +38,7 @@ import {
 	cfgRetryMaxDelayMs,
 	cfgRetryMaxRetries,
 	cfgRetryModelFallback,
-} from "@rva/coding-agent/session/settings";
+} from "@reverse/coding-agent/session/settings";
 
 const runtimeSignalStoreKey = "__ompRuntimeSignals";
 

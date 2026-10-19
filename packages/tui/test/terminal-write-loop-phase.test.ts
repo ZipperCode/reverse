@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ProcessTerminal } from "@rva/tui/terminal";
+import { ProcessTerminal } from "@reverse/tui/terminal";
 import {
 	currentLoopPhase,
 	popLoopPhase,
 	resetLoopPhaseWindow,
 	setTerminalHeadless,
 	takeLoopPhaseAttribution,
-} from "@rva/utils";
+} from "@reverse/utils";
 
 // Without the off-thread output pump (Windows, or when the pump is unavailable),
 // ProcessTerminal writes block the event loop until the terminal drains. The

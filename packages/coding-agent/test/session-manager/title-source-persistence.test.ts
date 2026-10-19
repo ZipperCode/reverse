@@ -7,13 +7,13 @@ import {
 	SESSION_TITLE_SLOT_BYTES,
 	type SessionHeader,
 	TITLE_CHANGE_ENTRY_TYPE,
-} from "@rva/coding-agent/session/session-entries";
-import { resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage, type WriteTextAtomicOptions } from "@rva/coding-agent/session/session-storage";
-import type { SessionTitleUpdate } from "@rva/coding-agent/session/session-title-slot";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/session-entries";
+import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage, type WriteTextAtomicOptions } from "@reverse/coding-agent/session/session-storage";
+import type { SessionTitleUpdate } from "@reverse/coding-agent/session/session-title-slot";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@reverse/utils";
 
 import { makeAssistantMessage } from "./helpers";
 

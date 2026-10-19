@@ -1,6 +1,6 @@
 /**
  * Compatibility shim for legacy extensions importing the package root of
- * `@rva/coding-agent` (or one of its aliased scopes like
+ * `@reverse/coding-agent` (or one of its aliased scopes like
  * `@earendil-works/pi-coding-agent` or `@mariozechner/pi-coding-agent`).
  *
  * The coding-agent package's own barrel (`./src/index.ts`) cannot be listed
@@ -9,7 +9,7 @@
  * Routing legacy plugin imports through this sibling shim sidesteps that
  * conflict: bun bundles a distinct entry whose path differs from the CLI
  * entry, while still re-exporting the canonical surface so plugins observe
- * the same module identity as a direct `@rva/coding-agent` import.
+ * the same module identity as a direct `@reverse/coding-agent` import.
  */
 
 import { Database } from "bun:sqlite";
@@ -21,26 +21,26 @@ import {
 	type AgentToolUpdateCallback,
 	type MessageCountOptions,
 	Tokenizer,
-} from "@rva/agent";
-import { findCutPoint as computeCutPoint, type CutPointResult } from "@rva/agent/compaction";
-import type { SessionEntry as CompactionSessionEntry } from "@rva/agent/compaction/entries";
+} from "@reverse/agent";
+import { findCutPoint as computeCutPoint, type CutPointResult } from "@reverse/agent/compaction";
+import type { SessionEntry as CompactionSessionEntry } from "@reverse/agent/compaction/entries";
 import {
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,
 	createCustomMessage,
-} from "@rva/agent/compaction/messages";
-import { type AuthCredential, SqliteAuthCredentialStore, type TSchema } from "@rva/ai";
-import { piEscapeRegexLiteral, piJoinPath } from "@rva/ai/providers/cursor-pi-args";
-import { getKeybindings, type Keybinding, Text } from "@rva/tui";
+} from "@reverse/agent/compaction/messages";
+import { type AuthCredential, SqliteAuthCredentialStore, type TSchema } from "@reverse/ai";
+import { piEscapeRegexLiteral, piJoinPath } from "@reverse/ai/providers/cursor-pi-args";
+import { getKeybindings, type Keybinding, Text } from "@reverse/tui";
 import {
 	getAgentDbPath,
 	getAgentDir,
 	getProjectDir,
 	isCompiledBinary,
 	parseFrontmatter as parseOmpFrontmatter,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { getPackageDir as getOmpPackageDir } from "../config";
-import { formatKeyHints } from "@rva/tui/app-keybindings";
+import { formatKeyHints } from "@reverse/tui/app-keybindings";
 import type { PromptTemplate } from "../config/prompt-templates";
 import { findScopedSettings, Settings } from "../config/settings";
 import { EditTool } from "../edit";
@@ -58,18 +58,18 @@ import {
 	type TruncationResult,
 	truncateHead,
 	truncateTail,
-} from "@rva/tui/tools/streaming-output";
+} from "@reverse/tui/tools/streaming-output";
 import type { SessionEntry } from "../session/session-entries";
 import type { Tool, ToolSession } from "../tools";
 import { BashTool } from "../tools/bash";
 import { GlobTool } from "../tools/glob";
 import { GrepTool } from "../tools/grep";
 import { ReadTool } from "../tools/read";
-import { formatBytes } from "@rva/tui/render/render-utils";
+import { formatBytes } from "@reverse/tui/render/render-utils";
 import { WriteTool } from "../tools/write";
 import { resolveToCwd } from "../tools/path-utils";
 import { EventBus } from "../utils/event-bus";
-import { convertImageToPng } from "@rva/tui/chat/image-loading";
+import { convertImageToPng } from "@reverse/tui/chat/image-loading";
 import { discoverExtensionPaths, loadExtensionFromFactory, loadExtensions } from "./extensions";
 import { ExtensionRuntime } from "./extensions/loader";
 import type {
@@ -1484,10 +1484,10 @@ export function readStoredCredential(provider: string): AuthCredential | undefin
 }
 
 // Pi SDK path helpers. `export * from "../index"` above only forwards
-// `getAgentDir`; `getProjectDir` (a `@rva/utils` helper) and
+// `getAgentDir`; `getProjectDir` (a `@reverse/utils` helper) and
 // `getPackageDir` are absent from that barrel, so legacy extensions importing
 // either fail Bun's static export check during validation (issue #5968).
-export { getProjectDir } from "@rva/utils";
+export { getProjectDir } from "@reverse/utils";
 
 /**
  * Coding-agent package install directory, matching pi's string-valued
@@ -1510,10 +1510,10 @@ export function getPackageDir(): string {
 // Legacy pi's `@earendil-works/pi-coding-agent` re-exported `estimateTokens`,
 // `compact`, `serializeConversation`, and `calculateContextTokens` from its
 // package root (via `./core/compaction/index.ts`). In omp these live in
-// `@rva/agent/compaction`, and the coding-agent barrel below does
+// `@reverse/agent/compaction`, and the coding-agent barrel below does
 // not forward them, so legacy extensions importing them fail Bun's static
 // export check during validation (issues #6583, #7174, #7403, #10278).
-export { calculateContextTokens, compact, serializeConversation } from "@rva/agent/compaction";
+export { calculateContextTokens, compact, serializeConversation } from "@reverse/agent/compaction";
 
 const legacyTokenizer = new Tokenizer();
 
@@ -1530,7 +1530,7 @@ export function estimateTokens(message: AgentMessage, tokenizer?: Tokenizer, opt
 
 // Legacy pi's `@earendil-works/pi-coding-agent` also exported `findCutPoint` and
 // `sessionEntryToContextMessages` from its package root (upstream Pi 0.84.2
-// public API). In omp `findCutPoint` moved to `@rva/agent/compaction`
+// public API). In omp `findCutPoint` moved to `@reverse/agent/compaction`
 // AND grew a required `Tokenizer` parameter, and `sessionEntryToContextMessages`
 // has no canonical equivalent, so neither reaches the barrel below and legacy
 // extensions importing them (e.g. NVlabs/SoL-Pi's online-context-compact) fail
@@ -1598,14 +1598,14 @@ export function sessionEntryToContextMessages(entry: SessionEntry): AgentMessage
 
 // Same barrel gap for two more legacy package-root exports: pi re-exported the
 // `CONFIG_DIR_NAME` constant and the CLI parser `parseArgs`. In omp
-// `CONFIG_DIR_NAME` lives in `@rva/utils` and `parseArgs` in
+// `CONFIG_DIR_NAME` lives in `@reverse/utils` and `parseArgs` in
 // `../cli/args`, neither of which the barrel below forwards, so legacy
 // extensions importing either fail Bun's static export check during validation.
-export { CONFIG_DIR_NAME } from "@rva/utils";
+export { CONFIG_DIR_NAME } from "@reverse/utils";
 export { parseArgs } from "../cli/args";
 
 export * from "../index";
-export { formatBytes as formatSize } from "@rva/tui/render/render-utils";
+export { formatBytes as formatSize } from "@reverse/tui/render/render-utils";
 export { copyToClipboard } from "../utils/clipboard";
 export { Type } from "./legacy-typebox";
 

@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { isEnoent, isRecord, logger, untilAborted } from "@rva/utils";
+import { isEnoent, isRecord, logger, untilAborted } from "@reverse/utils";
 import type { BunFile } from "bun";
 import { isPermissionDeniedError, writeFileWithFallback } from "../tools/file-write-fallback";
 import {
@@ -23,7 +23,7 @@ import {
 	limitDiagnosticMessages,
 	type ServerVersionMap,
 } from "./diagnostics";
-import { type FileDiagnosticsResult, FileFormatResult } from "@rva/tui/tools/lsp";
+import { type FileDiagnosticsResult, FileFormatResult } from "@reverse/tui/tools/lsp";
 import { notifyFileSaved, splitServers, syncFileContent } from "./servers";
 import type { LspClient, ServerConfig } from "./types";
 import { summarizeDiagnosticMessages } from "./utils";

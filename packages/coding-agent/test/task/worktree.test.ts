@@ -16,10 +16,10 @@ import {
 	IsolationBaselineTooLargeError,
 	mergeTaskBranches,
 	parseIsolationBackend,
-} from "@rva/coding-agent/task/worktree";
-import * as natives from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { removeWithRetries, setWorktreesDir } from "@rva/utils";
+} from "@reverse/coding-agent/task/worktree";
+import * as natives from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { removeWithRetries, setWorktreesDir } from "@reverse/utils";
 
 const tempDirs: string[] = [];
 

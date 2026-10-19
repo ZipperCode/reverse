@@ -2,11 +2,11 @@
  * CLI argument parsing and help display
  */
 import * as path from "node:path";
-import { $env } from "@rva/utils/env";
-import { APP_NAME } from "@rva/utils/dirs";
-import chalk from "@rva/utils/chalk";
+import { $env } from "@reverse/utils/env";
+import { APP_NAME } from "@reverse/utils/dirs";
+import chalk from "@reverse/utils/chalk";
 import type { ServiceTierOpenAISettingValue } from "../config/service-tier";
-import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "@rva/tui/thinking";
+import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "@reverse/tui/thinking";
 import { BUILTIN_TOOL_NAMES, normalizeToolNames } from "../tools/builtin-names";
 import {
 	OPTIONAL_FLAGS,
@@ -192,7 +192,7 @@ export function validateGoalStartup(
 /**
  * Runtime dependencies the data-driven setters need. Constructed once at
  * module load and passed to every {@link STRING_SETTERS} call so the
- * setter table itself can stay free of `@rva/utils` runtime imports
+ * setter table itself can stay free of `@reverse/utils` runtime imports
  * (which would otherwise trip the profile bootstrap's env-init ordering).
  */
 const PARSE_DEPS: ParseDeps = {

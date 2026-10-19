@@ -2,10 +2,10 @@
  * Get the API key or OAuth token for a provider.
  */
 
-import { PROVIDER_REGISTRY } from "@rva/ai";
-import chalk from "@rva/utils/chalk";
-import { Args, Command, Flags } from "@rva/utils/cli";
-import { getActiveProfile } from "@rva/utils/dirs";
+import { PROVIDER_REGISTRY } from "@reverse/ai";
+import chalk from "@reverse/utils/chalk";
+import { Args, Command, Flags } from "@reverse/utils/cli";
+import { getActiveProfile } from "@reverse/utils/dirs";
 import { tokenHelp as commandHelp } from "../cli/command-help";
 import { isAuthenticated, ModelRegistry } from "../config/model-registry";
 import { refreshStoredManagedMcpOAuthCredential } from "../mcp/oauth-credentials";

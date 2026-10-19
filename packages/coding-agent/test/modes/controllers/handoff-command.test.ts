@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { CommandController } from "@rva/coding-agent/modes/controllers/command-controller";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { CommandController } from "@reverse/coding-agent/modes/controllers/command-controller";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 const keybindings = { getKeys: () => ["escape"] };
 

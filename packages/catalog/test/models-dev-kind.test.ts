@@ -3,7 +3,7 @@ import {
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	mapModelsDevToModels,
 	type ModelsDevProviderDescriptor,
-} from "@rva/catalog/provider-models/openai-compat";
+} from "@reverse/catalog/provider-models/openai-compat";
 
 function descriptorFor(providerId: string): ModelsDevProviderDescriptor {
 	const descriptor = MODELS_DEV_PROVIDER_DESCRIPTORS.find(candidate => candidate.providerId === providerId);

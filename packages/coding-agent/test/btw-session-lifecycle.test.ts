@@ -1,23 +1,23 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { SessionSelectorComponent } from "@rva/tui/overlays/session-selector";
-import { BtwController } from "@rva/coding-agent/modes/controllers/btw-controller";
-import { ExtensionUiController } from "@rva/coding-agent/modes/controllers/extension-ui-controller";
-import { SelectorController } from "@rva/coding-agent/modes/controllers/selector-controller";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { BtwHistoryStore } from "@rva/coding-agent/session/btw-history";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage } from "@rva/coding-agent/session/session-storage";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { SessionSelectorComponent } from "@reverse/tui/overlays/session-selector";
+import { BtwController } from "@reverse/coding-agent/modes/controllers/btw-controller";
+import { ExtensionUiController } from "@reverse/coding-agent/modes/controllers/extension-ui-controller";
+import { SelectorController } from "@reverse/coding-agent/modes/controllers/selector-controller";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { BtwHistoryStore } from "@reverse/coding-agent/session/btw-history";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { TempDir } from "@reverse/utils";
 
 function answer(text: string) {
 	const assistantMessage: AssistantMessage = {

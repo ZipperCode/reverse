@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { agentLoop } from "@rva/agent/agent-loop";
-import { SpeculativeOperationCoordinator } from "@rva/agent/speculative-execution";
-import type { AgentTool, AgentMessage, AgentContext, AgentLoopConfig } from "@rva/agent/types";
-import type { Message } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
+import { type } from "@reverse/omptype";
+import { agentLoop } from "@reverse/agent/agent-loop";
+import { SpeculativeOperationCoordinator } from "@reverse/agent/speculative-execution";
+import type { AgentTool, AgentMessage, AgentContext, AgentLoopConfig } from "@reverse/agent/types";
+import type { Message } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import { createUserMessage } from "./helpers";
 
 // Identity converter for tests - just passes through standard messages

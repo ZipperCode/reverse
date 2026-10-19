@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import { RpcClient } from "@rva/coding-agent/modes/rpc/rpc-client";
+import type { AgentMessage } from "@reverse/agent";
+import { RpcClient } from "@reverse/coding-agent/modes/rpc/rpc-client";
 import {
 	fitAbortAndRestoreQueueResponse,
 	fitRemoveQueuedMessageResponse,
-} from "@rva/coding-agent/modes/rpc/rpc-mode";
-import type { RpcPromptResultFrame, RpcResponse, RpcSessionState } from "@rva/coding-agent/modes/rpc/rpc-types";
-import { USER_INTERRUPT_LABEL } from "@rva/coding-agent/session/messages";
-import { isRecord, readJsonl, removeWithRetries, withTimeout } from "@rva/utils";
+} from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import type { RpcPromptResultFrame, RpcResponse, RpcSessionState } from "@reverse/coding-agent/modes/rpc/rpc-types";
+import { USER_INTERRUPT_LABEL } from "@reverse/coding-agent/session/messages";
+import { isRecord, readJsonl, removeWithRetries, withTimeout } from "@reverse/utils";
 import { rejectionOf } from "./helpers/rejection";
 
 describe("RPC queued-message editing", () => {

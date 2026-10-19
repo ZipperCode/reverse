@@ -4,14 +4,14 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Type } from "@rva/omptype/typebox";
-import type { AgentTool, AgentToolContext } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { HookRunner, type LoadedHook } from "@rva/coding-agent/extensibility/hooks";
-import { HookToolWrapper } from "@rva/coding-agent/extensibility/hooks/tool-wrapper";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { Type } from "@reverse/omptype/typebox";
+import type { AgentTool, AgentToolContext } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { HookRunner, type LoadedHook } from "@reverse/coding-agent/extensibility/hooks";
+import { HookToolWrapper } from "@reverse/coding-agent/extensibility/hooks/tool-wrapper";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 describe("HookToolWrapper tool_call contract", () => {
 	let sharedTempDir: TempDir;

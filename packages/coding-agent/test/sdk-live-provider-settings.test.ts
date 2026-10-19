@@ -1,22 +1,22 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { Api, Context, Model, ModelSpec, SimpleStreamOptions } from "@rva/ai";
-import { clearCustomApis, registerCustomApi } from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import type { Api, Context, Model, ModelSpec, SimpleStreamOptions } from "@reverse/ai";
+import { clearCustomApis, registerCustomApi } from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 import {
 	cfgProvidersKimiApiFormat,
 	cfgProvidersOpenaiWebsockets,
 	cfgThinkingBudgetsLow,
-} from "@rva/coding-agent/session/settings";
-import { cfgToolsFormat } from "@rva/coding-agent/session/context-settings";
+} from "@reverse/coding-agent/session/settings";
+import { cfgToolsFormat } from "@reverse/coding-agent/session/context-settings";
 
 describe("primary-agent provider settings changed mid-session", () => {
 	const sessions: Array<{ dispose(): Promise<void> }> = [];

@@ -1,4 +1,4 @@
-import TurndownService, { gfm } from "@rva/utils/turndown";
+import TurndownService, { gfm } from "@reverse/utils/turndown";
 
 type TurndownListParent = {
 	nodeName: string;

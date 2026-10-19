@@ -1,13 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { invalidateMessageCache } from "@rva/agent/compaction/message-cache";
-import { type AgentMessage, filterProviderReplayMessages } from "@rva/agent";
-import type { ImageContent, Message, TextContent } from "@rva/ai";
-import { inferCopilotInitiator } from "@rva/ai/providers/github-copilot-headers";
-import {
-	convertToLlm,
-	SKILL_PROMPT_MESSAGE_TYPE,
-	wrapSteeringForModel,
-} from "@rva/coding-agent/session/messages";
+import { invalidateMessageCache } from "@reverse/agent/compaction/message-cache";
+import { type AgentMessage, filterProviderReplayMessages } from "@reverse/agent";
+import type { ImageContent, Message, TextContent } from "@reverse/ai";
+import { inferCopilotInitiator } from "@reverse/ai/providers/github-copilot-headers";
+import { convertToLlm, SKILL_PROMPT_MESSAGE_TYPE, wrapSteeringForModel } from "@reverse/coding-agent/session/messages";
 
 function expectAttribution(message: Message | undefined, expected: "user" | "agent" | undefined): void {
 	expect(message).toBeDefined();

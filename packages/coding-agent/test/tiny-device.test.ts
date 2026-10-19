@@ -7,7 +7,7 @@ import {
 	tinyMlxSupported,
 	tinyModelDeviceLoadOrder,
 	tinyModelDeviceSettingToEnv,
-} from "@rva/coding-agent/tiny/device";
+} from "@reverse/coding-agent/tiny/device";
 
 describe("tiny model device selection", () => {
 	it("defaults to CPU-only inference on every platform", () => {

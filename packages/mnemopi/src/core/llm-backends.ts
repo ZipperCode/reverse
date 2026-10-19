@@ -1,4 +1,4 @@
-import type { FetchImpl } from "@rva/ai";
+import type { FetchImpl } from "@reverse/ai";
 
 export interface CompleteOptions {
 	maxTokens?: number;

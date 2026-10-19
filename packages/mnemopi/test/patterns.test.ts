@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { CompressionStats, MemoryCompressor, PatternDetector } from "@rva/mnemopi/core/patterns";
+import { CompressionStats, MemoryCompressor, PatternDetector } from "@reverse/mnemopi/core/patterns";
 
 describe("memory compression", () => {
 	it("reports savings and zero-size stats", () => {

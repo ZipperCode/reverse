@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SourceMeta } from "@rva/coding-agent/capability/types";
-import type { MCPServerConfig } from "@rva/coding-agent/mcp/types";
-import { collectMcpServerNames } from "@rva/coding-agent/modes/controllers/mcp-command-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { buildTuiBuiltinSlashCommands } from "@rva/coding-agent/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@rva/coding-agent/slash-commands/types";
+import type { SourceMeta } from "@reverse/coding-agent/capability/types";
+import type { MCPServerConfig } from "@reverse/coding-agent/mcp/types";
+import { collectMcpServerNames } from "@reverse/coding-agent/modes/controllers/mcp-command-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { buildTuiBuiltinSlashCommands } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@reverse/coding-agent/slash-commands/types";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -15,7 +15,7 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@rva/utils";
+} from "@reverse/utils";
 
 const originalProjectDir = getProjectDir();
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;

@@ -7,23 +7,23 @@
  */
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { ImageContent, TextContent } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { Skill } from "@rva/coding-agent/extensibility/skills";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { CompactionQueuedMessage, InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { Container } from "@rva/tui";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { Skill } from "@reverse/coding-agent/extensibility/skills";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { CompactionQueuedMessage, InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SKILL_PROMPT_MESSAGE_TYPE, type SkillPromptDetails } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { Container } from "@reverse/tui";
+import { TempDir } from "@reverse/utils";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
 type StubEditor = {

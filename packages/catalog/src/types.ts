@@ -1,9 +1,9 @@
 import type { ModelIdentity } from "./compat/types";
 import type { Effort } from "./effort";
 
-// Re-exported from @rva/utils so the whole workspace shares one
+// Re-exported from @reverse/utils so the whole workspace shares one
 // `fetch`-compatible signature (tls-fetch's wrappers produce/accept it).
-export type { FetchImpl } from "@rva/utils";
+export type { FetchImpl } from "@reverse/utils";
 export type { KnownProvider } from "./compat/provider-ids";
 
 export type KnownApi =

@@ -1,4 +1,4 @@
-import type { ToolChoice } from "@rva/ai";
+import type { ToolChoice } from "@reverse/ai";
 
 // ── Callback types ──────────────────────────────────────────────────────────
 

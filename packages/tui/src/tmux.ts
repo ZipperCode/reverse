@@ -1,5 +1,5 @@
-import { $which } from "@rva/utils";
-import { isBunTestRuntime } from "@rva/utils/env";
+import { $which } from "@reverse/utils";
+import { isBunTestRuntime } from "@reverse/utils/env";
 import { tmuxMultiplexer, wrapTmuxPassthrough } from "./multiplexers/tmux";
 
 export { wrapTmuxPassthrough } from "./multiplexers/tmux";

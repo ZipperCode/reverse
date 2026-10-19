@@ -11,8 +11,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Subprocess } from "bun";
-import { IpcConnection, ipcEndpoint } from "@rva/natives";
-import { logger } from "@rva/utils";
+import { IpcConnection, ipcEndpoint } from "@reverse/natives";
+import { logger } from "@reverse/utils";
 import type { RefCountedWorkerHandle } from "./worker-client";
 
 const CONNECT_TIMEOUT_MS = 3_000;

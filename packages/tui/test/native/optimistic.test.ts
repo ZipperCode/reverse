@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { md } from "@rva/tui/native/describe";
-import type { DescribeContext, NativeNode } from "@rva/tui/native/node";
-import { nativeComponentId } from "@rva/tui/native/reconcile";
-import { isNativeRendering } from "@rva/tui/native/state";
-import type { Component } from "@rva/tui/tui";
+import { md } from "@reverse/tui/native/describe";
+import type { DescribeContext, NativeNode } from "@reverse/tui/native/node";
+import { nativeComponentId } from "@reverse/tui/native/reconcile";
+import { isNativeRendering } from "@reverse/tui/native/state";
+import type { Component } from "@reverse/tui/tui";
 import { TspHarness } from "./tsp-harness";
 
 /** Markdown where the terminal renders it, else rows. */

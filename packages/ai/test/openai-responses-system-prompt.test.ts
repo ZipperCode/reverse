@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import { configureCredentialRedaction } from "@rva/ai/providers/transform-messages";
-import type { Context, FetchImpl, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import { configureCredentialRedaction } from "@reverse/ai/providers/transform-messages";
+import type { Context, FetchImpl, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
 
 beforeAll(() => configureCredentialRedaction(true));
 afterAll(() => configureCredentialRedaction(false));

@@ -12,10 +12,10 @@
 // 3. openai-responses: `response.completed` → `processResponsesStream`
 //    breaks immediately; no grace window involved.
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const completionsModel = {
 	...(getBundledModel("openai", "gpt-4o-mini") as Model<"openai-completions">),

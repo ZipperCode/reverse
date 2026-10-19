@@ -8,15 +8,15 @@
  * transcript window, so compaction does not roll the totals back.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { Agent } from "@rva/agent";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { initTheme } from "@rva/tui/theme";
-import { FooterComponent } from "@rva/tui/status-line/footer";
+import { Agent } from "@reverse/agent";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { initTheme } from "@reverse/tui/theme";
+import { FooterComponent } from "@reverse/tui/status-line/footer";
 
 beforeAll(async () => {
 	resetSettingsForTest();

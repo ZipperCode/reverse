@@ -1,4 +1,4 @@
-import type { TodoPhase } from "@rva/tui/tools/todo";
+import type { TodoPhase } from "@reverse/tui/tools/todo";
 import {
 	applyOpsToPhases,
 	getLatestTodoPhasesFromEntries,

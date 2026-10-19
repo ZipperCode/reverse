@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type AuthCredential, type OAuthCredential, SqliteAuthCredentialStore } from "@rva/ai";
+import { type AuthCredential, type OAuthCredential, SqliteAuthCredentialStore } from "@reverse/ai";
 import {
 	AuthTransferError,
 	exportAuthCredentials,
 	importAuthCredentials,
 	parseAuthExport,
-} from "@rva/coding-agent/commands/auth";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/commands/auth";
+import { TempDir } from "@reverse/utils";
 
 const API_KEY: AuthCredential = { type: "api_key", key: "sk-laptop" };
 const OAUTH: OAuthCredential = {

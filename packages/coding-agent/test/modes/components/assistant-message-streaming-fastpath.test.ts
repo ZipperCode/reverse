@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { trimBlankEdges } from "@rva/tui/chrome/transcript-container";
-import { initTheme } from "@rva/tui/theme";
-import { type Component, Container, Markdown } from "@rva/tui";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { trimBlankEdges } from "@reverse/tui/chrome/transcript-container";
+import { initTheme } from "@reverse/tui/theme";
+import { type Component, Container, Markdown } from "@reverse/tui";
 
 const W = 100;
 

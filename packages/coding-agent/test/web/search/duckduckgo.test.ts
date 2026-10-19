@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { localeToKl, searchDuckDuckGo } from "@rva/coding-agent/web/search/providers/duckduckgo";
-import { parseSearchQuery } from "@rva/coding-agent/web/search/query";
+import type { FetchImpl } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { localeToKl, searchDuckDuckGo } from "@reverse/coding-agent/web/search/providers/duckduckgo";
+import { parseSearchQuery } from "@reverse/coding-agent/web/search/query";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();

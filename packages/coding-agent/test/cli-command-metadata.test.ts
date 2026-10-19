@@ -5,7 +5,7 @@ import {
 	type CommandMetadata,
 	renderCommandHelp,
 	renderRootHelp,
-} from "@rva/utils/cli";
+} from "@reverse/utils/cli";
 import { commands } from "../src/cli-commands";
 
 function captureStdout(render: () => void): string {

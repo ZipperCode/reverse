@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { relativeLuminance } from "@rva/utils";
-import { resolveVarRefs } from "@rva/tui/theme/color";
-import { loadTheme, loadThemeJson } from "@rva/tui/theme/loader";
+import { relativeLuminance } from "@reverse/utils";
+import { resolveVarRefs } from "@reverse/tui/theme/color";
+import { loadTheme, loadThemeJson } from "@reverse/tui/theme/loader";
 
 /**
  * Regression test for #6334: markdown code fence header lines (mdCodeBlockBorder)

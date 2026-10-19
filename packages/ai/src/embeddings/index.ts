@@ -1,4 +1,4 @@
-import type { Api, Model } from "@rva/catalog/types";
+import type { Api, Model } from "@reverse/catalog/types";
 import * as AIError from "../error";
 import { embedOpenAI, type EmbeddingOptions } from "./openai-embeddings";
 import type { EmbeddingRequest, EmbeddingResult } from "./types";

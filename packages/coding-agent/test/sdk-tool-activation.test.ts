@@ -2,38 +2,38 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type { AgentTool, StreamFn } from "@rva/agent";
-import type { Model, ToolResultMessage } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CursorExecHandlers } from "@rva/coding-agent/cursor";
+import { type } from "@reverse/omptype";
+import type { AgentTool, StreamFn } from "@reverse/agent";
+import type { Model, ToolResultMessage } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CursorExecHandlers } from "@reverse/coding-agent/cursor";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
-} from "@rva/coding-agent/extensibility/extensions/runner";
-import { ExtensionToolWrapper } from "@rva/coding-agent/extensibility/extensions/wrapper";
-import type { MCPManager } from "@rva/coding-agent/mcp/manager";
-import * as memoryBackendModule from "@rva/coding-agent/memory-backend";
-import { initializeExtensions } from "@rva/coding-agent/modes/runtime-init";
+} from "@reverse/coding-agent/extensibility/extensions/runner";
+import { ExtensionToolWrapper } from "@reverse/coding-agent/extensibility/extensions/wrapper";
+import type { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import * as memoryBackendModule from "@reverse/coding-agent/memory-backend";
+import { initializeExtensions } from "@reverse/coding-agent/modes/runtime-init";
 import {
 	type CreateAgentSessionOptions,
 	type CustomTool,
 	createAgentSession,
 	discoverAuthStorage,
 	type ExtensionFactory,
-} from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { VIBE_TOOL_NAMES } from "@rva/coding-agent/tools/vibe";
-import { resetYieldTurnState } from "@rva/coding-agent/tools/yield";
-import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@rva/utils";
+} from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { VIBE_TOOL_NAMES } from "@reverse/coding-agent/tools/vibe";
+import { resetYieldTurnState } from "@reverse/coding-agent/tools/yield";
+import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@reverse/utils";
 
-import { cfgExternalThinking } from "@rva/coding-agent/session/settings";
-import { cfgPlanEnabled } from "@rva/coding-agent/plan-mode/settings";
-import { cfgToolsXdev } from "@rva/coding-agent/tools/settings";
+import { cfgExternalThinking } from "@reverse/coding-agent/session/settings";
+import { cfgPlanEnabled } from "@reverse/coding-agent/plan-mode/settings";
+import { cfgToolsXdev } from "@reverse/coding-agent/tools/settings";
 
 const toolActivationExtension: ExtensionFactory = pi => {
 	pi.registerTool({
@@ -2176,7 +2176,6 @@ describe("createAgentSession defaultInactive tool activation", () => {
 			await session.dispose();
 		}
 	});
-
 
 	it("ignores an inherited MCP manager when MCP is disabled", async () => {
 		const tempDir = makeTempDir();

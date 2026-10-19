@@ -13,7 +13,7 @@ import {
 	resetHangulCompatibilityJamoWidthForTests,
 	setHangulCompatibilityJamoWidth,
 	visibleWidth,
-} from "@rva/tui/utils";
+} from "@reverse/tui/utils";
 
 afterEach(() => {
 	resetHangulCompatibilityJamoWidthForTests();

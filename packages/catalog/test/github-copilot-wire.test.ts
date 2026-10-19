@@ -5,7 +5,7 @@ import {
 	normalizeGitHubCopilotApiEndpoint,
 	normalizeGitHubCopilotEnterpriseDomain,
 	parseGitHubCopilotApiKey,
-} from "@rva/catalog/wire/github-copilot";
+} from "@reverse/catalog/wire/github-copilot";
 
 describe("GitHub Copilot OAuth helpers", () => {
 	it("treats github.com as the public Copilot host", () => {

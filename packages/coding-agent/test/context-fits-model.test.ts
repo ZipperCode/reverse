@@ -7,12 +7,12 @@
  * the producing model still is.
  */
 import { describe, expect, it } from "bun:test";
-import { Agent, type AgentMessage } from "@rva/agent";
-import type { AssistantMessage, Model, ProviderSessionState } from "@rva/ai";
-import { convertCodexResponsesMessages } from "@rva/ai/providers/openai-codex-responses";
-import { getBundledModel } from "@rva/catalog/models";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { SessionMaintenance, type SessionMaintenanceHost } from "@rva/coding-agent/session/session-maintenance";
+import { Agent, type AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, Model, ProviderSessionState } from "@reverse/ai";
+import { convertCodexResponsesMessages } from "@reverse/ai/providers/openai-codex-responses";
+import { getBundledModel } from "@reverse/catalog/models";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { SessionMaintenance, type SessionMaintenanceHost } from "@reverse/coding-agent/session/session-maintenance";
 
 const active = getBundledModel<"openai-codex-responses">("openai-codex", "gpt-6.1-sol");
 // Same encoding, another model: it gets the turns re-encoded without their reasoning.

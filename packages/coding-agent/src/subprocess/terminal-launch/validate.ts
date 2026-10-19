@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import type { TerminalMultiplexer } from "@rva/tui/terminal-multiplexer";
+import type { TerminalMultiplexer } from "@reverse/tui/terminal-multiplexer";
 import { terminalLaunchCapabilities } from "./providers";
 import { launchError } from "./shared";
 import {

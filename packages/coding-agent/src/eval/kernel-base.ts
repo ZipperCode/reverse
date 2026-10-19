@@ -1,4 +1,4 @@
-import { logger, readLines, Snowflake } from "@rva/utils";
+import { logger, readLines, Snowflake } from "@reverse/utils";
 import type { Subprocess } from "bun";
 import { type KernelDisplayOutput, renderKernelDisplay } from "./py/display";
 import type { ShadowBarrier, ShadowControlNode, ShadowOperation } from "./speculation/types";

@@ -34,4 +34,4 @@ export type {
 	MCPImageContent,
 	MCPResourceContent,
 	MCPContent,
-} from "@rva/tui/tools/mcp";
+} from "@reverse/tui/tools/mcp";

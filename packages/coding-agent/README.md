@@ -1,4 +1,4 @@
-# @rva/coding-agent
+# @reverse/coding-agent
 
 Core implementation package for the `omp` coding agent in the `omp` monorepo.
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { convertCodexResponsesMessages } from "@rva/ai/providers/openai-codex-responses";
-import type { ResponseInput } from "@rva/ai/providers/openai-responses-wire";
-import { buildResponsesInput } from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Context, ToolResultMessage, UserMessage } from "@rva/ai/types";
-import { createOpenAIResponsesHistoryPayload } from "@rva/ai/utils";
-import { buildModel } from "@rva/catalog/build";
+import { convertCodexResponsesMessages } from "@reverse/ai/providers/openai-codex-responses";
+import type { ResponseInput } from "@reverse/ai/providers/openai-responses-wire";
+import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Context, ToolResultMessage, UserMessage } from "@reverse/ai/types";
+import { createOpenAIResponsesHistoryPayload } from "@reverse/ai/utils";
+import { buildModel } from "@reverse/catalog/build";
 import { createCodexModel } from "./helpers";
 
 // Literal Harmony analysis-channel marker. openai-codex/gpt-oss reject any

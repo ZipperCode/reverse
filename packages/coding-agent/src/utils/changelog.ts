@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { getLastChangelogVersionPath, isEnoent, logger } from "@rva/utils";
-import { Lexer } from "@rva/utils/marked";
+import { getLastChangelogVersionPath, isEnoent, logger } from "@reverse/utils";
+import { Lexer } from "@reverse/utils/marked";
 import type { BunFile } from "bun";
 import bundledChangelogPath from "../../CHANGELOG.md" with { type: "file" };
 import type { SettingValueOf } from "../config/registry";

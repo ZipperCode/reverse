@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { readTerminalBreadcrumbEntry } from "@rva/coding-agent/session/session-paths";
-import { getTerminalId } from "@rva/tui";
-import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@rva/utils";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { readTerminalBreadcrumbEntry } from "@reverse/coding-agent/session/session-paths";
+import { getTerminalId } from "@reverse/tui";
+import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@reverse/utils";
 
 import { makeAssistantMessage } from "./helpers";
 

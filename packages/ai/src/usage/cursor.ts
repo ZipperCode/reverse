@@ -1,6 +1,6 @@
-import { quotaTierFor } from "@rva/catalog/compat/behavior";
-import { CURSOR_DEFAULT_BASE_URL } from "@rva/catalog/wire/cursor";
-import { toNumber } from "@rva/catalog/utils";
+import { quotaTierFor } from "@reverse/catalog/compat/behavior";
+import { CURSOR_DEFAULT_BASE_URL } from "@reverse/catalog/wire/cursor";
+import { toNumber } from "@reverse/catalog/utils";
 import {
 	cursorSessionHeaders,
 	extractCursorAccessTokenUserId,

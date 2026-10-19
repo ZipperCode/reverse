@@ -11,7 +11,7 @@
  * - exchangeToken(): Exchange authorization code for tokens
  */
 import * as os from "node:os";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import * as AIError from "../../error";
 import * as nativeSchemeCallback from "./native-scheme-callback";
 import type { NativeSchemeCallbackReceiver } from "./native-scheme-callback";

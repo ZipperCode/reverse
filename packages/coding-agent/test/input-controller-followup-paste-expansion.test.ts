@@ -6,8 +6,8 @@
  * dropped (issue #3737).
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 interface PromptOptionsLike {
 	streamingBehavior?: "steer" | "followUp";

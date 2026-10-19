@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Agent } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
+import { Agent } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
 
 /**
  * Regression: a `steer` (or follow-up) queued on an empty transcript must be

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getSettingsListTheme, initTheme, theme } from "@rva/tui/theme";
+import { getSettingsListTheme, initTheme, theme } from "@reverse/tui/theme";
 
 beforeAll(async () => {
 	await initTheme();

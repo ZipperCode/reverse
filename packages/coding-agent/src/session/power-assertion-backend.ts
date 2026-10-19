@@ -1,5 +1,5 @@
-import { logger } from "@rva/utils";
-import { PowerAssertion, type PowerAssertionOptions } from "@rva/natives";
+import { logger } from "@reverse/utils";
+import { PowerAssertion, type PowerAssertionOptions } from "@reverse/natives";
 
 /**
  * Code prefix `PowerAssertion.start` puts on its error message on Linux when the

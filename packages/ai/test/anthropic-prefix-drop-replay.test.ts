@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import { AnthropicApiRequest, AnthropicMessages } from "@rva/ai/providers/anthropic-client";
-import type { AssistantMessage, Context, Message, Model, ProviderSessionState } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { logger } from "@rva/utils";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import { AnthropicApiRequest, AnthropicMessages } from "@reverse/ai/providers/anthropic-client";
+import type { AssistantMessage, Context, Message, Model, ProviderSessionState } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { logger } from "@reverse/utils";
 
 /**
  * A `drop_block` request whose replayed thinking the API reports as dropped

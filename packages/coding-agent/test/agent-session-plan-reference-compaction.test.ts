@@ -16,12 +16,12 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import type { TextContent } from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { TempDir } from "@rva/utils";
+import { Agent, type AgentMessage } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { TextContent } from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { TempDir } from "@reverse/utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";
 import { resolveLocalUrlToPath } from "../src/internal-urls";

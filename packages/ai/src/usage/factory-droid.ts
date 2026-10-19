@@ -1,7 +1,7 @@
-import { quotaTierFor } from "@rva/catalog/compat/behavior";
-import type { FetchImpl } from "@rva/catalog/types";
-import { toNumber } from "@rva/catalog/utils";
-import { factoryDroidApiBaseUrl, factoryDroidClientHeaders } from "@rva/catalog/wire/factory-droid";
+import { quotaTierFor } from "@reverse/catalog/compat/behavior";
+import type { FetchImpl } from "@reverse/catalog/types";
+import { toNumber } from "@reverse/catalog/utils";
+import { factoryDroidApiBaseUrl, factoryDroidClientHeaders } from "@reverse/catalog/wire/factory-droid";
 import { ProviderHttpError } from "../error";
 import type {
 	CredentialRankingContext,

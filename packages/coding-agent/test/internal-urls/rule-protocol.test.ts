@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { resetActiveRulesForTests, setActiveRules } from "@rva/coding-agent/capability/rule";
-import type { InternalUrl } from "@rva/coding-agent/internal-urls/types";
-import { RuleProtocolHandler } from "@rva/coding-agent/internal-urls/rule-protocol";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { resetActiveRulesForTests, setActiveRules } from "@reverse/coding-agent/capability/rule";
+import type { InternalUrl } from "@reverse/coding-agent/internal-urls/types";
+import { RuleProtocolHandler } from "@reverse/coding-agent/internal-urls/rule-protocol";
 
 function makeRule(name: string, content: string): Rule {
 	return {

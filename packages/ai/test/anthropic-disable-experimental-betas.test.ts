@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { type AnthropicOptions, streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { type AnthropicOptions, streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 import { withEnv } from "./helpers";
 
 const BINDING_BETA = "thinking-binding-controls-2026-08-01";

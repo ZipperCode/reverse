@@ -2,17 +2,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { AuthStorage } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
-import { cfgBashEnabled } from "@rva/coding-agent/exec/settings";
-import { cfgGithubEnabled, cfgGrepEnabled } from "@rva/coding-agent/tools/settings";
+import { cfgBashEnabled } from "@reverse/coding-agent/exec/settings";
+import { cfgGithubEnabled, cfgGrepEnabled } from "@reverse/coding-agent/tools/settings";
 
 // Tool-gating settings (`grep.enabled`, `*.enabled`, ...) must reconcile a live
 // session's tools and prompt instead of waiting for the next session.

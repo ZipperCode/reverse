@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { $which } from "@rva/utils";
+import { $which } from "@reverse/utils";
 
 interface RunnerFrame {
 	type?: string;

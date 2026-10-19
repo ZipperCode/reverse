@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Message, Usage } from "@rva/ai";
-import { getDialectDefinition } from "@rva/ai/dialect";
+import type { Message, Usage } from "@reverse/ai";
+import { getDialectDefinition } from "@reverse/ai/dialect";
 
 function usage(): Usage {
 	return {

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import type { TaskParams } from "@rva/tui/tools/task";
-import { taskToolRenderer } from "@rva/tui/tools/task";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import type { TaskParams } from "@reverse/tui/tools/task";
+import { taskToolRenderer } from "@reverse/tui/tools/task";
 
 describe("task renderer: streaming call preview", () => {
 	let theme: Theme;

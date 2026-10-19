@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "bun:test";
 import { checkReverseTools, detectPackageManagers, handleReverseSetup } from "../src/cli/setup-reverse";
-import { getReverseTool, getReverseTools, SKILL_TOOL_CATALOG, resolveReverseCapabilities } from "../src/extensibility/skill-tool-catalog";
+import {
+	getReverseTool,
+	getReverseTools,
+	SKILL_TOOL_CATALOG,
+	resolveReverseCapabilities,
+} from "../src/extensibility/skill-tool-catalog";
 import type { SkillRequirementWhich } from "../src/extensibility/skill-requirements";
 import { afterEach, beforeEach } from "bun:test";
 

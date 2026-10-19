@@ -1,7 +1,7 @@
-import { classifyModel } from "@rva/catalog/identity";
-import { $flag } from "@rva/utils";
+import { classifyModel } from "@reverse/catalog/identity";
+import { $flag } from "@reverse/utils";
 
-import type { EditMode } from "@rva/tui/tools/edit";
+import type { EditMode } from "@reverse/tui/tools/edit";
 import type { Settings } from "../config/settings";
 import { cfgEditMode, editModelVariants } from "../edit/settings";
 

@@ -1,8 +1,8 @@
 import { stripVTControlCharacters } from "node:util";
-import { ThinkingLevel } from "@rva/agent";
-import * as vcs from "@rva/natives/vcs";
+import { ThinkingLevel } from "@reverse/agent";
+import * as vcs from "@reverse/natives/vcs";
 import { type Component, padding, truncateToWidth, visibleWidth } from "../index";
-import { formatNumber, getProjectDir } from "@rva/utils";
+import { formatNumber, getProjectDir } from "@reverse/utils";
 import { theme } from "../theme";
 import type { FooterHost, FooterSession } from "./host";
 import { shortenPath } from "../render/render-utils";
@@ -15,7 +15,7 @@ import {
 	getContextUsageThemeColor,
 	getContextUsageTone,
 } from "../chrome/context-thresholds";
-import type { TspProps, TspSpan } from "@rva/wire";
+import type { TspProps, TspSpan } from "@reverse/wire";
 import type { NativeNode } from "../native/node";
 import { col, node, span } from "../native/describe";
 

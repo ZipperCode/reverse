@@ -69,7 +69,7 @@ The tool returns a single text block in `content[0].text` plus structured `detai
 7. Line-range selectors are validated after path/archive resolution. They are allowed only for single files (host files, archive members, or internal URL files); glob (including internal-URL glob)/directory line-range selectors error.
 8. `resolveToolSearchScope()` stats the resolved base through the URL filesystem to decide file vs directory behavior. A URL that fails carries its handler's diagnosis (`Cannot search artifact://9: Artifact 9 not found. Available: …`); a URL whose scheme needs a higher tier fails with the filesystem's approval error.
    File selectors filter match starts and context to the requested line ranges. Existing literal filenames such as `test:1-2` take precedence over selector parsing. Internal URLs also accept `:raw` / `:conflicts` as whole-resource searches, with any accompanying ranges retained; host paths accept line ranges only.
-9. It calls native `grep()` from `@rva/natives` with:
+9. It calls native `grep()` from `@reverse/natives` with:
    - `pattern`, `ignoreCase`, `multiline`, `gitignore`;
    - `hidden: true`;
    - `contextBefore` / `contextAfter` from settings;

@@ -7,9 +7,9 @@
 import type { Database, Statement } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { authPolicyFor } from "@rva/catalog/compat/auth";
-import { parseAlibabaTokenPlanCredential } from "@rva/catalog/wire/alibaba-token-plan";
-import { parseCloudflareCredential } from "@rva/catalog/wire/cloudflare";
+import { authPolicyFor } from "@reverse/catalog/compat/auth";
+import { parseAlibabaTokenPlanCredential } from "@reverse/catalog/wire/alibaba-token-plan";
+import { parseCloudflareCredential } from "@reverse/catalog/wire/cloudflare";
 import {
 	getAgentDbPath,
 	getDbBusyTimeoutMs,
@@ -17,7 +17,7 @@ import {
 	isSqliteCorruptionError,
 	logger,
 	openSqliteDatabase,
-} from "@rva/utils";
+} from "@reverse/utils";
 import type { AuthCredentialStore, CredentialRefreshLeaseFence } from "./store";
 import type {
 	AuthCredential,
@@ -119,7 +119,7 @@ const CREDENTIAL_BLOCK_SWEEP_INTERVAL_MS = 60_000;
 
 // SQLite error classifiers live in pi-utils so the credential store and the
 // model cache share one implementation; re-exported here to preserve the
-// pre-existing `@rva/ai/auth-storage` surface.
+// pre-existing `@reverse/ai/auth-storage` surface.
 export { isSqliteBusyError, isSqliteCorruptionError };
 
 function normalizeStoredAccountId(accountId: string | null | undefined): string | null {

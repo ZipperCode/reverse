@@ -1,5 +1,5 @@
 import { performance } from "node:perf_hooks";
-import { logger, resetLoopPhaseWindow, takeLoopPhaseAttribution } from "@rva/utils";
+import { logger, resetLoopPhaseWindow, takeLoopPhaseAttribution } from "@reverse/utils";
 
 export interface LoopWatchdogOptions {
 	/** How far ahead each probe tick is scheduled, in ms. Default 250. */

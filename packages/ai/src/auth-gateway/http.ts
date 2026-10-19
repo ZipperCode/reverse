@@ -6,7 +6,7 @@
  */
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 import * as os from "node:os";
-import { getInstallId } from "@rva/utils";
+import { getInstallId } from "@reverse/utils";
 import type { Api, Model } from "../types";
 import type { ClientUsageIdentity } from "../usage";
 
@@ -148,7 +148,7 @@ const PASSTHROUGH_HEADER_NAMES: Record<string, true> = {
 	"openai-organization": true,
 	"openai-project": true,
 	"openai-beta": true,
-	// Codex / ChatGPT-OAuth backend headers (see @rva/catalog/wire/codex).
+	// Codex / ChatGPT-OAuth backend headers (see @reverse/catalog/wire/codex).
 	// `session_id` and `conversation_id` thread the upstream session so prompt
 	// caching and per-conversation rate limiting work; `chatgpt-account-id` and
 	// `originator` identify the calling account and client surface.

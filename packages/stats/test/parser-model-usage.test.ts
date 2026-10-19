@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getRecentRequests, initDb, insertMessageStats } from "@rva/stats/db";
-import { parseSessionFile } from "@rva/stats/parser";
-import { handleApi } from "@rva/stats/server";
-import { getSessionsDir } from "@rva/utils";
+import { getRecentRequests, initDb, insertMessageStats } from "@reverse/stats/db";
+import { parseSessionFile } from "@reverse/stats/parser";
+import { handleApi } from "@reverse/stats/server";
+import { getSessionsDir } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-model-usage-");

@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, peekFile } from "@rva/utils";
-import { shortenPath } from "@rva/tui/render/render-utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { getAgentDir, peekFile } from "@reverse/utils";
+import { shortenPath } from "@reverse/tui/render/render-utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 /** Number of leading bytes needed by {@link isExecutableHeader} (a full 64-byte DOS header for PE). */
 export const EXECUTABLE_SNIFF_BYTES = 64;

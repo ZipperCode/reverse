@@ -1,5 +1,5 @@
-import { editInspect } from "@rva/natives";
-import { isRecord, stringProperty } from "@rva/utils";
+import { editInspect } from "@reverse/natives";
+import { isRecord, stringProperty } from "@reverse/utils";
 import { resolveToCwd } from "../tools/path-utils";
 import type { ClientBridgePermissionOption } from "./client-bridge";
 

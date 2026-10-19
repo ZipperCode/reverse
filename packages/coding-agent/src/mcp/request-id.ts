@@ -1,4 +1,4 @@
-import { Snowflake } from "@rva/utils";
+import { Snowflake } from "@reverse/utils";
 import type { MCPRequestIdFormat } from "./types";
 
 /**

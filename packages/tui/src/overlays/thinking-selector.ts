@@ -1,4 +1,4 @@
-import { THINKING_EFFORTS } from "@rva/catalog/effort";
+import { THINKING_EFFORTS } from "@reverse/catalog/effort";
 import { AUTO_THINKING, type ConfiguredThinkingLevel, getConfiguredThinkingLevelMetadata } from "../thinking";
 import { type SelectItem, SelectList, type SgrMouseEvent } from "../index";
 import { getSelectListTheme } from "../theme/theme";

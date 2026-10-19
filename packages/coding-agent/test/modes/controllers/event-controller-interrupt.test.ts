@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { vocalizer } from "@rva/coding-agent/tts/vocalizer";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { vocalizer } from "@reverse/coding-agent/tts/vocalizer";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 function createContext() {

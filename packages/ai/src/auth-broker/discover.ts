@@ -15,7 +15,7 @@ import {
 	isEnoent,
 	logger,
 	MAIN_CONFIG_FILENAMES,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { YAML } from "bun";
 import {
 	type AuthAccountPolicies,

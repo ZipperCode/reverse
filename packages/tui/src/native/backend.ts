@@ -26,7 +26,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as logger from "@rva/utils/logger";
+import * as logger from "@reverse/utils/logger";
 import {
 	TSP_DEFAULT_APC_LIMIT,
 	TSP_DEFAULT_CREDITS,
@@ -37,7 +37,7 @@ import {
 	type TspKind,
 	type TspNode,
 	type TspOp,
-} from "@rva/wire";
+} from "@reverse/wire";
 import type { Terminal } from "../terminal";
 import {
 	bindTheme,

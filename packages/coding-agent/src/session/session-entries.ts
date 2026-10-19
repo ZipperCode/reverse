@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import type {
 	ImageContent,
 	MessageAttribution,
@@ -6,8 +6,8 @@ import type {
 	StopReason,
 	TextContent,
 	Usage,
-} from "@rva/ai";
-import type { StructuredSubagentSchemaMode } from "@rva/tui/tools/task";
+} from "@reverse/ai";
+import type { StructuredSubagentSchemaMode } from "@reverse/tui/tools/task";
 import type { CompactionMethod } from "./compaction-methods";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { RetryFallbackRole } from "./retry-fallback-chains";
@@ -210,7 +210,7 @@ export interface TitleChangeEntry extends SessionEntryBase {
 	trigger?: string;
 }
 
-declare module "@rva/agent/compaction/entries" {
+declare module "@reverse/agent/compaction/entries" {
 	interface CustomCompactionSessionEntries {
 		titleChange: TitleChangeEntry;
 		credentialPin: CredentialPinEntry;

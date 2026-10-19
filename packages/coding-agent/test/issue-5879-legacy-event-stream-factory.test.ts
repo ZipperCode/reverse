@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { loadExtensions } from "@rva/coding-agent/extensibility/extensions/loader";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@rva/utils";
+import { loadExtensions } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@reverse/utils";
 
 describe("issue #5879: legacy provider compatibility", () => {
 	it("creates a fresh agent database while loading historical auth exports", async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
+import { type } from "@reverse/omptype";
+import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import { createAssistantMessage, createUserMessage } from "./helpers";
 
 function userTexts(messages: readonly AgentMessage[]): string[] {

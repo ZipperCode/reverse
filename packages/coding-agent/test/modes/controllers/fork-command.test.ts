@@ -2,11 +2,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { classifyTerminalMultiplexer, type TerminalMultiplexer } from "@rva/tui/terminal-multiplexer";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
-import { initTheme } from "@rva/tui/theme";
-import { CommandController } from "@rva/coding-agent/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { classifyTerminalMultiplexer, type TerminalMultiplexer } from "@reverse/tui/terminal-multiplexer";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
+import { initTheme } from "@reverse/tui/theme";
+import { CommandController } from "@reverse/coding-agent/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 import { Settings } from "../../../src/config/settings";
 import {
 	createTerminalLauncher,

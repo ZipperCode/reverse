@@ -1,4 +1,4 @@
-import type { MCPServerCapabilities, MCPServerConnection, MCPTransport } from "@rva/coding-agent/mcp/types";
+import type { MCPServerCapabilities, MCPServerConnection, MCPTransport } from "@reverse/coding-agent/mcp/types";
 
 export function createMockTransport(
 	responses: Map<string, unknown[]>,

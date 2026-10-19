@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AuthStorage } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { postmortem, removeSyncWithRetries, Snowflake } from "@rva/utils";
+import type { AuthStorage } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { postmortem, removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // Issue #15386: postmortem callbacks are process-global, so any registration a

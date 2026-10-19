@@ -1,10 +1,10 @@
-import { transcriptEntryMessage } from "@rva/tui/chat/transcript-entry";
-import { type CopyPickSource, CopySelectorComponent } from "@rva/tui/overlays/copy-selector";
-import { assistantText } from "@rva/tui/overlays/copy-targets";
+import { transcriptEntryMessage } from "@reverse/tui/chat/transcript-entry";
+import { type CopyPickSource, CopySelectorComponent } from "@reverse/tui/overlays/copy-selector";
+import { assistantText } from "@reverse/tui/overlays/copy-targets";
 import type { CustomCommandContext } from "../../../../extensibility/custom-commands/types";
 import { isTranscriptEntry } from "../../../../session/session-context";
 import type { SessionEntry } from "../../../../session/session-entries";
-import type { TextReviewSource } from "@rva/tui/overlays/annotation-types";
+import type { TextReviewSource } from "@reverse/tui/overlays/annotation-types";
 
 export type AnnotationSourceKind = "code-review" | "last" | "session" | "file" | "prompt";
 

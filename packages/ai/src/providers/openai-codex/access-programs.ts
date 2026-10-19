@@ -10,7 +10,7 @@
  * (account, model) pair for the rest of the process and the caller replays
  * the request without it.
  */
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { Model } from "../../types";
 import type { RequestBody } from "./request-transformer";
 

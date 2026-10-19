@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import type { AuthGatewayServerHandle } from "@rva/ai/auth-gateway/types";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { buildModel } from "@rva/catalog/build";
-import type { Api, FetchImpl, Model, ModelSpec } from "@rva/catalog/types";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import type { AuthGatewayServerHandle } from "@reverse/ai/auth-gateway/types";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { buildModel } from "@reverse/catalog/build";
+import type { Api, FetchImpl, Model, ModelSpec } from "@reverse/catalog/types";
 
 const AUDIO = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x01, 0x02, 0x03, 0x04]);
 const UPSTREAM_RESULT = {

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessageEvent } from "@rva/ai";
-import { MAX_RPC_FRAME_BYTES, RpcFrameEncoder } from "@rva/coding-agent/modes/rpc/rpc-frame";
-import { RpcSessionEventForwarder } from "@rva/coding-agent/modes/rpc/rpc-session-events";
-import type { RpcProjectedSessionEventFrame } from "@rva/coding-agent/modes/rpc/rpc-types";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessageEvent } from "@reverse/ai";
+import { MAX_RPC_FRAME_BYTES, RpcFrameEncoder } from "@reverse/coding-agent/modes/rpc/rpc-frame";
+import { RpcSessionEventForwarder } from "@reverse/coding-agent/modes/rpc/rpc-session-events";
+import type { RpcProjectedSessionEventFrame } from "@reverse/coding-agent/modes/rpc/rpc-types";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
 import { makeAssistantMessage } from "./session-manager/helpers";
 
 const reply = { role: "assistant", content: [] } as unknown as AgentMessage;

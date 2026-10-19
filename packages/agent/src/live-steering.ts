@@ -7,8 +7,8 @@
  * after that response, so the transcript matches what the model saw; anything
  * it declined is injected at the next boundary like ordinary steering.
  */
-import type { LiveSteerClaim, LiveSteering, UserMessage } from "@rva/ai";
-import { logger } from "@rva/utils";
+import type { LiveSteerClaim, LiveSteering, UserMessage } from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import type { AgentMessage } from "./types";
 
 /** Steering-queue access for one provider call, supplied by the agent loop. */

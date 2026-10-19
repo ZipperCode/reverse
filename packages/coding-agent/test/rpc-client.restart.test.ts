@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { RpcClient } from "@rva/coding-agent/modes/rpc/rpc-client";
-import { TempDir } from "@rva/utils";
+import { RpcClient } from "@reverse/coding-agent/modes/rpc/rpc-client";
+import { TempDir } from "@reverse/utils";
 import { rejectionOf } from "./helpers/rejection";
 
 const MOCK_AGENT = path.join(import.meta.dir, "fixtures", "mock-rpc-agent.ts");

@@ -8,16 +8,16 @@ import { afterEach, beforeEach, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getCapability } from "@rva/coding-agent/capability";
-import { type ContextFile, contextFileCapability } from "@rva/coding-agent/capability/context-file";
-import { clearCache } from "@rva/coding-agent/capability/fs";
-import { type Skill, skillCapability } from "@rva/coding-agent/capability/skill";
-import { type Rule, ruleCapability } from "@rva/coding-agent/capability/rule";
-import { type SystemPrompt, systemPromptCapability } from "@rva/coding-agent/capability/system-prompt";
-import type { LoadContext } from "@rva/coding-agent/capability/types";
+import { getCapability } from "@reverse/coding-agent/capability";
+import { type ContextFile, contextFileCapability } from "@reverse/coding-agent/capability/context-file";
+import { clearCache } from "@reverse/coding-agent/capability/fs";
+import { type Skill, skillCapability } from "@reverse/coding-agent/capability/skill";
+import { type Rule, ruleCapability } from "@reverse/coding-agent/capability/rule";
+import { type SystemPrompt, systemPromptCapability } from "@reverse/coding-agent/capability/system-prompt";
+import type { LoadContext } from "@reverse/coding-agent/capability/types";
 // Importing discovery registers all providers as a side effect.
-import "@rva/coding-agent/discovery";
-import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeSyncWithRetries, setAgentDir } from "@rva/utils";
+import "@reverse/coding-agent/discovery";
+import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeSyncWithRetries, setAgentDir } from "@reverse/utils";
 
 let tempDir: string;
 let home: string;
@@ -251,9 +251,9 @@ test("noncanonical home never becomes a native project config root", async () =>
 
 		expect(prompts.map(p => p.path)).toEqual([path.join(project, CONFIG_DIR_NAME, "SYSTEM.md")]);
 		expect(rules.filter(rule => rule.path === path.join(home, CONFIG_DIR_NAME, "RULES.md"))).toEqual([]);
-		expect(skills.filter(skill => skill.path === path.join(home, CONFIG_DIR_NAME, "skills", "operator", "SKILL.md"))).toEqual(
-			[],
-		);
+		expect(
+			skills.filter(skill => skill.path === path.join(home, CONFIG_DIR_NAME, "skills", "operator", "SKILL.md")),
+		).toEqual([]);
 	}
 
 	const atHome: LoadContext = { cwd: home, home: link, repoRoot: null };

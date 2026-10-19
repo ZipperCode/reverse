@@ -1,8 +1,8 @@
 // Regression coverage for issue #8383: `lsp reload` must re-send the configured
 // settings instead of an empty object.
 import { describe, expect, test } from "bun:test";
-import { reloadConfigurationParams } from "@rva/coding-agent/lsp/servers";
-import type { ServerConfig } from "@rva/coding-agent/lsp/types";
+import { reloadConfigurationParams } from "@reverse/coding-agent/lsp/servers";
+import type { ServerConfig } from "@reverse/coding-agent/lsp/types";
 
 const BASE_CONFIG: ServerConfig = {
 	command: "typescript-language-server",

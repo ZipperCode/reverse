@@ -4,7 +4,7 @@ A persistent per-install UUID shared across sessions and profiles. It supplies a
 
 ## API
 
-Exported from `@rva/utils` (`packages/utils/src/dirs.ts`):
+Exported from `@reverse/utils` (`packages/utils/src/dirs.ts`):
 
 | Symbol                                  | Purpose                                                                                                                           |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |

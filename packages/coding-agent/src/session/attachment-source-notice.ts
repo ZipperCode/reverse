@@ -1,6 +1,6 @@
-import type { ImageContent } from "@rva/ai";
-import { imageAttachmentSource } from "@rva/tui/prompt/image-source";
-import { prompt } from "@rva/utils";
+import type { ImageContent } from "@reverse/ai";
+import { imageAttachmentSource } from "@reverse/tui/prompt/image-source";
+import { prompt } from "@reverse/utils";
 import imageAttachmentPrompt from "../prompts/system/image-attachment.md" with { type: "text" };
 import videoAttachmentPrompt from "../prompts/system/video-attachment.md" with { type: "text" };
 import { IMAGE_ATTACHMENT_TYPE, VIDEO_ATTACHMENT_TYPE } from "./queued-messages";

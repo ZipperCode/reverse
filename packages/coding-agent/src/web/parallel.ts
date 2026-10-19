@@ -1,4 +1,4 @@
-import { type FetchImpl, getEnvApiKey } from "@rva/ai";
+import { type FetchImpl, getEnvApiKey } from "@reverse/ai";
 import type { AgentStorage } from "../session/agent-storage";
 import { findCredential, withHardTimeout } from "./search/providers/utils";
 

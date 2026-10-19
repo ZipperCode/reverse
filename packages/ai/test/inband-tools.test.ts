@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, Context, ToolCall, ToolResultMessage, Usage } from "@rva/ai";
-import { validateToolArguments } from "@rva/ai/utils/validation";
+import type { AssistantMessage, Context, ToolCall, ToolResultMessage, Usage } from "@reverse/ai";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
 import {
 	createInbandScanner,
 	type Dialect,
@@ -9,7 +9,7 @@ import {
 	getDialectDefinition,
 	type InbandScanEvent,
 	parseInbandToolMessage,
-} from "@rva/ai/dialect";
+} from "@reverse/ai/dialect";
 
 describe("final in-band JSON arguments", () => {
 	const raw = '{"path":"repaired.txt","content":"hello';

@@ -16,7 +16,7 @@ import {
 	Spacer,
 	Text,
 } from "../index";
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import { getSelectListTheme, getSettingsListTheme, theme } from "../theme/theme";
 import { shortenPath } from "../render/render-utils";
 import { OverlayPanel } from "../chrome/overlay-box";
@@ -26,7 +26,7 @@ import { type PrefsEditing, SettingsFormField, type SettingsList } from "../comp
 import { editorKey } from "../chrome/keybinding-hints";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { col, node, span, text } from "../native/describe";
-import type { TspPrefsControl, TspPrefsSection } from "@rva/wire";
+import type { TspPrefsControl, TspPrefsSection } from "@reverse/wire";
 import { actionHint, hintsRow, overlayCard } from "../native/overlay";
 
 const PLUGIN_SETTINGS_ROLE = "omp.overlay.plugin-settings";

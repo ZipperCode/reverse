@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { classifyModel, compareRevision, parseRevision } from "@rva/catalog/identity";
-import { getBundledModel } from "@rva/catalog/models";
-import type { ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { classifyModel, compareRevision, parseRevision } from "@reverse/catalog/identity";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { ModelSpec } from "@reverse/catalog/types";
 import { buildGeneratedModel } from "../scripts/generate-models";
 
 function bedrockSpec(

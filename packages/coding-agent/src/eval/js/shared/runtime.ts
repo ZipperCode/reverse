@@ -8,9 +8,9 @@ import * as util from "node:util";
 import * as vm from "node:vm";
 
 // Subpath imports only: the computer worker's readiness graph includes this runtime and must not
-// load pi_natives (verified under `--no-addons`); the `@rva/utils` barrel loads it eagerly.
-import * as logger from "@rva/utils/logger";
-import { isRecord } from "@rva/utils/type-guards";
+// load pi_natives (verified under `--no-addons`); the `@reverse/utils` barrel loads it eagerly.
+import * as logger from "@reverse/utils/logger";
+import { isRecord } from "@reverse/utils/type-guards";
 
 import { evalImageMetadata } from "../../types";
 import type { EvalPreludeSource } from "../worker-protocol";

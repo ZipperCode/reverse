@@ -5,9 +5,9 @@ import {
 	resendProgramStatus,
 	setProgramStatusEnabled,
 	setRunStatus,
-} from "@rva/coding-agent/utils/run-status";
-import * as titleGenerator from "@rva/coding-agent/utils/title-generator";
-import { APP_NAME, setTerminalHeadless } from "@rva/utils";
+} from "@reverse/coding-agent/utils/run-status";
+import * as titleGenerator from "@reverse/coding-agent/utils/title-generator";
+import { APP_NAME, setTerminalHeadless } from "@reverse/utils";
 
 // OSC 7501 Program Status Protocol reports, as the terminal parses them:
 // https://mitchellh.com/writing/program-status-osc7501

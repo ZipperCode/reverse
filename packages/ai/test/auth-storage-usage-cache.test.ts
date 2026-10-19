@@ -17,12 +17,12 @@ import {
 	type AuthCredentialStore,
 	AuthStorage,
 	type StoredAuthCredential,
-} from "@rva/ai/auth-storage";
-import { usageCacheIdentity } from "@rva/ai/auth/usage-cache";
-import type { UsageLimit, UsageProvider, UsageReport } from "@rva/ai/usage";
-import { alibabaTokenPlanUsageProvider } from "@rva/ai/usage/alibaba-token-plan";
-import * as claudeUsage from "@rva/ai/usage/claude";
-import { serializeAlibabaTokenPlanCredential } from "@rva/catalog/wire/alibaba-token-plan";
+} from "@reverse/ai/auth-storage";
+import { usageCacheIdentity } from "@reverse/ai/auth/usage-cache";
+import type { UsageLimit, UsageProvider, UsageReport } from "@reverse/ai/usage";
+import { alibabaTokenPlanUsageProvider } from "@reverse/ai/usage/alibaba-token-plan";
+import * as claudeUsage from "@reverse/ai/usage/claude";
+import { serializeAlibabaTokenPlanCredential } from "@reverse/catalog/wire/alibaba-token-plan";
 
 function anthropicReports(reports: UsageReport[] | null): UsageReport[] {
 	return (reports ?? []).filter(r => r.provider === "anthropic");

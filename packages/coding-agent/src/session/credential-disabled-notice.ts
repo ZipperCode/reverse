@@ -1,5 +1,5 @@
-import { type CredentialDisabledEvent, getOAuthProviders } from "@rva/ai";
-import { sanitizeText } from "@rva/utils";
+import { type CredentialDisabledEvent, getOAuthProviders } from "@reverse/ai";
+import { sanitizeText } from "@reverse/utils";
 
 /** `notice` source of an automatic credential disable; print mode writes these to stderr. */
 export const CREDENTIAL_DISABLED_NOTICE_SOURCE = "auth";

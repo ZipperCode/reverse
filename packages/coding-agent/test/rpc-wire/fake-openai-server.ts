@@ -20,7 +20,7 @@
  * - anything else → text `pong`
  */
 import * as path from "node:path";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 
 const chatRequestSchema = type({
 	"messages?": type({ role: "string", "content?": "unknown" }).array(),

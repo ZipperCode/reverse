@@ -7,13 +7,13 @@
  * args), `### Tool Result: <name>`, and the execution/summary sections.
  * `/dump all` renders each persisted subagent as its own `# Subagent: <path>` document.
  */
-import type { AgentMessage, ThinkingLevel } from "@rva/agent";
-import type { AssistantMessage, Model, ToolExample, TSchema } from "@rva/ai";
-import { renderDelimitedThinking, renderToolInventory } from "@rva/ai/dialect";
-import { formatDuration } from "@rva/utils";
-import { INTENT_FIELD } from "@rva/wire";
+import type { AgentMessage, ThinkingLevel } from "@reverse/agent";
+import type { AssistantMessage, Model, ToolExample, TSchema } from "@reverse/ai";
+import { renderDelimitedThinking, renderToolInventory } from "@reverse/ai/dialect";
+import { formatDuration } from "@reverse/utils";
+import { INTENT_FIELD } from "@reverse/wire";
 import { YAML } from "bun";
-import { canonicalizeMessage } from "@rva/tui/chat/thinking-display";
+import { canonicalizeMessage } from "@reverse/tui/chat/thinking-display";
 import {
 	type BashExecutionMessage,
 	type BranchSummaryMessage,

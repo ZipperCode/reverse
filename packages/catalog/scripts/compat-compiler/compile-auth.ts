@@ -1,7 +1,7 @@
 /**
  * Compiles `rules/auth/*.kdl` into {@link CompiledAuth}: one `auth "<id>"`
  * node per provider describing display metadata, env-var fallbacks and the
- * declarative login / refresh flow interpreted by `@rva/ai`'s
+ * declarative login / refresh flow interpreted by `@reverse/ai`'s
  * registry engines. `auth/_order.kdl` pins `/login` display order.
  */
 import type {

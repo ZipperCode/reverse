@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { resolveImageCountBudget, resolveInlineImageByteBudget } from "@rva/catalog/compat/request-size";
-import type { Api, Model } from "@rva/catalog/types";
-import { CODEX_BASE_URL } from "@rva/catalog/wire/codex";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveImageCountBudget, resolveInlineImageByteBudget } from "@reverse/catalog/compat/request-size";
+import type { Api, Model } from "@reverse/catalog/types";
+import { CODEX_BASE_URL } from "@reverse/catalog/wire/codex";
 
 /** The configured endpoint's classification; request-time env reroutes are pi-ai's to apply. */
 function configuredOfficial(model: Model): boolean {

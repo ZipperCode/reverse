@@ -2,9 +2,9 @@ import { expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { createMockModel } from "@rva/ai/providers/mock";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { createMockModel } from "@reverse/ai/providers/mock";
 
 test("model listing exposes one provider-qualified route per upstream model", async () => {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gw-model-list-"));

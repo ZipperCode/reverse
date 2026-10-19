@@ -4,10 +4,10 @@ import {
 	processInteractionUpdate,
 	type ToolCallState,
 	type UsageState,
-} from "@rva/ai/providers/cursor";
-import type { AssistantMessage, CursorTodoSnapshot, ToolResultMessage } from "@rva/ai/types";
-import { kCursorExecResolved } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+} from "@reverse/ai/providers/cursor";
+import type { AssistantMessage, CursorTodoSnapshot, ToolResultMessage } from "@reverse/ai/types";
+import { kCursorExecResolved } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import {
 	AgentServerMessageSchema,
 	InteractionUpdateSchema,
@@ -28,8 +28,8 @@ import {
 	UpdateTodosResultSchema,
 	UpdateTodosSuccessSchema,
 	UpdateTodosToolCallSchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
 
 /** One `todoSync` invocation, recorded verbatim. */
 interface SyncCall {

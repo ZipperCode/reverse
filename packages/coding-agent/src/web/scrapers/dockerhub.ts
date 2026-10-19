@@ -1,5 +1,5 @@
-import { tryParseJson } from "@rva/utils";
-import { formatBytes } from "@rva/tui/render/render-utils";
+import { tryParseJson } from "@reverse/utils";
+import { formatBytes } from "@reverse/tui/render/render-utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, formatIsoDate, formatNumber, loadPage } from "./types";
 

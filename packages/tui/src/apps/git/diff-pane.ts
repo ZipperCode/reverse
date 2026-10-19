@@ -13,12 +13,12 @@
  * the visible viewport brightened; clicking it seeks. Long lines either pan
  * horizontally (`←`/`→`) or soft-wrap when word wrap is enabled.
  */
-import type { DiffStreamResult, HighlightStream } from "@rva/natives";
-import { diffWords, structuredPatchHunks } from "@rva/natives";
+import type { DiffStreamResult, HighlightStream } from "@reverse/natives";
+import { diffWords, structuredPatchHunks } from "@reverse/natives";
 import { Image, type ImageBudget } from "../../components/image";
 import { clampScrollOffset, scrollOffsetForRow, viewportRange } from "../../components/scroll-viewport";
 import { centerLine, sliceWithWidth, truncateToWidth, visibleWidth } from "../../utils";
-import { formatBytes } from "@rva/utils";
+import { formatBytes } from "@reverse/utils";
 import { sanitizeDisplayText } from "../../overlays/extensions/display-text";
 import { getLanguageFromPath } from "../../lang-from-path";
 import { createHighlightStream, getThemeEpoch, theme } from "../../theme/theme";

@@ -1,19 +1,19 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import type { AgentTool } from "@rva/agent";
-import type { AssistantMessage, ToolCall, ToolResultMessage, Usage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { ReadToolGroupComponent } from "@rva/tui/chat/read-tool-group";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { type Component, TERMINAL } from "@rva/tui";
+import { type } from "@reverse/omptype";
+import type { AgentTool } from "@reverse/agent";
+import type { AssistantMessage, ToolCall, ToolResultMessage, Usage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { type Component, TERMINAL } from "@reverse/tui";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
-import { cfgTerminalShowImages } from "@rva/coding-agent/modes/settings";
+import { cfgTerminalShowImages } from "@reverse/coding-agent/modes/settings";
 
 const TOOL_CALL_A_ID = "toolu_mixed_text_order_a";
 const TOOL_CALL_B_ID = "toolu_mixed_text_order_b";

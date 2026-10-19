@@ -1,10 +1,10 @@
 import { clearSubmittedText, restoreDetachedDraft } from "./helpers/draft";
 import * as path from "node:path";
-import { AgentBusyError } from "@rva/agent";
-import { formatKeyHint } from "@rva/tui/app-keybindings";
-import { APP_NAME, prompt } from "@rva/utils";
-import { Markdown } from "@rva/tui";
-import { getMarkdownTheme } from "@rva/tui/theme";
+import { AgentBusyError } from "@reverse/agent";
+import { formatKeyHint } from "@reverse/tui/app-keybindings";
+import { APP_NAME, prompt } from "@reverse/utils";
+import { Markdown } from "@reverse/tui";
+import { getMarkdownTheme } from "@reverse/tui/theme";
 import {
 	checkReverseTools,
 	type ReverseCheckReport,
@@ -35,7 +35,7 @@ import { describeLoopLimitRuntime } from "../modes/loop-limit";
 import type { InteractiveModeContext } from "../modes/types";
 import ratchetKickoffPrompt from "../prompts/ratchet-kickoff.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";
-import { CLI_THINKING_LEVELS, getConfiguredThinkingLevelMetadata } from "@rva/tui/thinking";
+import { CLI_THINKING_LEVELS, getConfiguredThinkingLevelMetadata } from "@reverse/tui/thinking";
 import { noThinkingMessage, resolveThinkingArgument } from "./helpers/effort";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import { handleSecurityCommand } from "./helpers/security";

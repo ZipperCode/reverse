@@ -1,5 +1,5 @@
-import type { FetchImpl } from "@rva/ai";
-import { getProjectDir, untilAborted } from "@rva/utils";
+import type { FetchImpl } from "@reverse/ai";
+import { getProjectDir, untilAborted } from "@reverse/utils";
 import type { Page } from "puppeteer-core";
 import { applyStealthPatches, applyViewport } from "../../../tools/browser/launch";
 import { acquireBrowser, holdBrowser, releaseBrowser } from "../../../tools/browser/registry";

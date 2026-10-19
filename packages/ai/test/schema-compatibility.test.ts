@@ -6,7 +6,7 @@ import {
 	type SchemaCompatibilityResult,
 	validateSchemaCompatibility,
 	validateStrictSchemaEnforcement,
-} from "@rva/ai/utils/schema";
+} from "@reverse/ai/utils/schema";
 
 function hasRule(result: SchemaCompatibilityResult, rule: string): boolean {
 	return result.violations.some(violation => violation.rule === rule);

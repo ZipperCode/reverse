@@ -1,6 +1,6 @@
 import * as path from "node:path";
 
-import { escapeXmlText, prompt } from "@rva/utils";
+import { escapeXmlText, prompt } from "@reverse/utils";
 import evalStateContextPrompt from "../prompts/system/eval-state-context.md" with { type: "text" };
 import type { ToolSession } from "../tools";
 import { defaultEvalSessionId } from "./session-id";

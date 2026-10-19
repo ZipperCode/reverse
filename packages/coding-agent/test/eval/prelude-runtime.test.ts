@@ -1,14 +1,14 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { ImageContent, Message } from "@rva/ai";
-import { getBundledModels } from "@rva/catalog/models";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@rva/coding-agent/eval/preludes";
-import { executeJs } from "@rva/coding-agent/eval/js/executor";
-import { disposeAllVmContexts } from "@rva/coding-agent/eval/js/context-manager";
-import { disposeAllKernelSessions, executePython } from "@rva/coding-agent/eval/py/executor";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EvalTool } from "@rva/coding-agent/tools/eval";
-import { normalizeModelContextMessages } from "@rva/coding-agent/utils/image-loading";
+import type { ImageContent, Message } from "@reverse/ai";
+import { getBundledModels } from "@reverse/catalog/models";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { EvalPreludeDefinition } from "@reverse/coding-agent/eval/preludes";
+import { executeJs } from "@reverse/coding-agent/eval/js/executor";
+import { disposeAllVmContexts } from "@reverse/coding-agent/eval/js/context-manager";
+import { disposeAllKernelSessions, executePython } from "@reverse/coding-agent/eval/py/executor";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EvalTool } from "@reverse/coding-agent/tools/eval";
+import { normalizeModelContextMessages } from "@reverse/coding-agent/utils/image-loading";
 
 const IMAGE_DATA = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64");
 

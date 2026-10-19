@@ -4,7 +4,7 @@
  * intentional user-facing output.
  */
 import * as path from "node:path";
-import { APP_NAME, getBrowserRelayDir } from "@rva/utils";
+import { APP_NAME, getBrowserRelayDir } from "@reverse/utils";
 import { probeRelayServer } from "../tools/browser/relay/daemon";
 import backgroundJs from "../tools/browser/relay/extension-assets/background.js.txt" with { type: "text" };
 import licenseText from "../tools/browser/relay/extension-assets/LICENSE.txt" with { type: "text" };

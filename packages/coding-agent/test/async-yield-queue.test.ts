@@ -4,10 +4,10 @@ import {
 	ASIDE_MESSAGE_COMMIT,
 	ASIDE_MESSAGE_DISCARD,
 	type CommittableAsideMessage,
-} from "@rva/agent";
-import { type AsyncJob, AsyncJobManager, type AsyncJobType } from "@rva/coding-agent/async";
-import type { CustomMessage } from "@rva/coding-agent/session/messages";
-import { YieldQueue } from "@rva/coding-agent/session/yield-queue";
+} from "@reverse/agent";
+import { type AsyncJob, AsyncJobManager, type AsyncJobType } from "@reverse/coding-agent/async";
+import type { CustomMessage } from "@reverse/coding-agent/session/messages";
+import { YieldQueue } from "@reverse/coding-agent/session/yield-queue";
 
 type AsyncEntry = {
 	jobId: string;

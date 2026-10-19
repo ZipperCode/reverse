@@ -5,7 +5,7 @@
  * Endpoint: POST https://api.synthetic.new/v2/search
  */
 
-import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@rva/ai";
+import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@reverse/ai";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";

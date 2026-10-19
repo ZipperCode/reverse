@@ -18,8 +18,8 @@
  * 2. Use /plan to toggle plan mode on/off
  * 3. Or start in plan mode with --plan flag
  */
-import type { ExtensionAPI, ExtensionContext } from "@rva/coding-agent";
-import { Key } from "@rva/tui";
+import type { ExtensionAPI, ExtensionContext } from "@reverse/coding-agent";
+import { Key } from "@reverse/tui";
 
 // Read-only tools for plan mode
 const PLAN_MODE_TOOLS = ["read", "bash", "search", "find"];

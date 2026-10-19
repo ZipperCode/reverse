@@ -1,7 +1,7 @@
 import { inflateSync } from "node:zlib";
-import type { ImageContent } from "@rva/ai";
-import { decodeSixelToPngAsync } from "@rva/natives";
-import { MAX_IMAGE_INPUT_BYTES, convertImageToPng } from "@rva/tui/chat/image-loading";
+import type { ImageContent } from "@reverse/ai";
+import { decodeSixelToPngAsync } from "@reverse/natives";
+import { MAX_IMAGE_INPUT_BYTES, convertImageToPng } from "@reverse/tui/chat/image-loading";
 import { encodeRawPng, PNG_SIGNATURE } from "./png-encode";
 
 const ESC = "\x1b";

@@ -11,11 +11,11 @@
  *
  * The generated prompt appears as a draft in the editor for review/editing.
  */
-import { serializeConversation } from "@rva/agent/compaction";
-import { complete, type Message } from "@rva/ai";
-import type { SessionEntry } from "@rva/coding-agent";
-import { BorderedLoader, convertToLlm } from "@rva/coding-agent";
-import type { HookAPI } from "@rva/coding-agent/extensibility/hooks";
+import { serializeConversation } from "@reverse/agent/compaction";
+import { complete, type Message } from "@reverse/ai";
+import type { SessionEntry } from "@reverse/coding-agent";
+import { BorderedLoader, convertToLlm } from "@reverse/coding-agent";
+import type { HookAPI } from "@reverse/coding-agent/extensibility/hooks";
 
 const SYSTEM_PROMPT = `You are a context transfer assistant. Given a conversation history and the user's goal for a new thread, generate a focused prompt that:
 

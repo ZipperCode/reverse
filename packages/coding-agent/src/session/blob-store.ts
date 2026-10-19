@@ -1,9 +1,9 @@
-import { blobExtensionForImageMimeType, normalizeBlobExtension } from "@rva/tui/prompt/image-format";
+import { blobExtensionForImageMimeType, normalizeBlobExtension } from "@reverse/tui/prompt/image-format";
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import { isEexist, isEnoent, logger, Snowflake } from "@rva/utils";
-import type { LazyFrameData } from "@rva/snapcompact";
+import { isEexist, isEnoent, logger, Snowflake } from "@reverse/utils";
+import type { LazyFrameData } from "@reverse/snapcompact";
 
 const BLOB_PREFIX = "blob:sha256:";
 

@@ -1,6 +1,6 @@
-import { type } from "@rva/omptype";
-import { Effort } from "@rva/catalog/effort";
-import { logger } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Effort } from "@reverse/catalog/effort";
+import { logger } from "@reverse/utils";
 import { captureRequestHeaders, resolvePromptCacheKey } from "../auth-gateway/http";
 import * as AIError from "../error";
 import type {

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import type { ImageContent } from "@rva/ai";
-import { AsyncJobError, AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { buildAsyncResultBatchMessage } from "@rva/coding-agent/session/async-job-delivery";
+import type { ImageContent } from "@reverse/ai";
+import { AsyncJobError, AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { buildAsyncResultBatchMessage } from "@reverse/coding-agent/session/async-job-delivery";
 
 async function waitForJobEviction(manager: AsyncJobManager, jobId: string): Promise<void> {
 	const deadline = Date.now() + 2_000;

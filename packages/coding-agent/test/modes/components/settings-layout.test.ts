@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { all } from "@rva/coding-agent/config/registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { all } from "@reverse/coding-agent/config/registry";
 
-import { getSettingsForTab, SETTING_TABS, TAB_GROUPS } from "@rva/tui/overlays/settings-defs";
-import { createSettingsHost } from "@rva/coding-agent/config/settings-ui";
-import { createPluginSettingsHost } from "@rva/coding-agent/extensibility/plugins/settings-host";
-import { SettingsSelectorComponent } from "@rva/tui/overlays/settings-selector";
-import { initTheme, setTheme } from "@rva/tui/theme";
-import { cfgRetryUsageAwareFallback } from "@rva/coding-agent/session/settings";
-import { cfgAdvisorEnabled } from "@rva/coding-agent/advisor/settings";
+import { getSettingsForTab, SETTING_TABS, TAB_GROUPS } from "@reverse/tui/overlays/settings-defs";
+import { createSettingsHost } from "@reverse/coding-agent/config/settings-ui";
+import { createPluginSettingsHost } from "@reverse/coding-agent/extensibility/plugins/settings-host";
+import { SettingsSelectorComponent } from "@reverse/tui/overlays/settings-selector";
+import { initTheme, setTheme } from "@reverse/tui/theme";
+import { cfgRetryUsageAwareFallback } from "@reverse/coding-agent/session/settings";
+import { cfgAdvisorEnabled } from "@reverse/coding-agent/advisor/settings";
 
 beforeAll(async () => {
 	await initTheme();

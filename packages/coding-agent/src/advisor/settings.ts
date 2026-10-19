@@ -2,7 +2,7 @@
  * Settings declared by this domain (see `config/registry.ts`). Declaration order is the
  * settings-panel order; `config/all-settings.ts` registers every domain.
  */
-import { ADVISOR_REVIEW_MODES, ADVISOR_SYNC_BACKLOG_MODES } from "@rva/tui/overlays/advisor-config";
+import { ADVISOR_REVIEW_MODES, ADVISOR_SYNC_BACKLOG_MODES } from "@reverse/tui/overlays/advisor-config";
 import { register } from "../config/registry";
 import { ADVISOR_DEFAULT_BUDGET_PER_UPDATE } from "./emission-guard";
 

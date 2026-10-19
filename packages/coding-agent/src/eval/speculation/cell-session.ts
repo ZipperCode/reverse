@@ -4,7 +4,7 @@ import type {
 	SpeculativeChildHandle,
 	SpeculativeOperationSink,
 	ToolSpeculationStreamSession,
-} from "@rva/agent";
+} from "@reverse/agent";
 import type { ToolSession } from "../../tools";
 import { namespaceSessionId as namespaceJavaScriptSessionId } from "../js";
 import { shadowPlanIfPresent, snapshotVmContext } from "../js/context-manager";

@@ -13,8 +13,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Database } from "bun:sqlite";
-import { type PredictedWord, TextPredictor } from "@rva/natives";
-import { getHistoryDbPath, getPredictStateDir, isEnoent, logger, VERSION } from "@rva/utils";
+import { type PredictedWord, TextPredictor } from "@reverse/natives";
+import { getHistoryDbPath, getPredictStateDir, isEnoent, logger, VERSION } from "@reverse/utils";
 import { JsonLineServer } from "../subprocess/jsonl-server";
 import { openSqliteReadConnection } from "../tools/sqlite-reader";
 import { blendPredictions } from "./blend";

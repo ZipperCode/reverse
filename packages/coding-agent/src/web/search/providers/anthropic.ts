@@ -18,10 +18,10 @@ import {
 	resolveAnthropicMetadataUserId,
 	stripClaudeToolPrefix,
 	withAuth,
-} from "@rva/ai";
-import { buildAnthropicSystemBlocks, wrapFetchForCch } from "@rva/ai/providers/anthropic";
-import { compareRevision, parseRevision } from "@rva/catalog/identity";
-import { $env } from "@rva/utils";
+} from "@reverse/ai";
+import { buildAnthropicSystemBlocks, wrapFetchForCch } from "@reverse/ai/providers/anthropic";
+import { compareRevision, parseRevision } from "@reverse/catalog/identity";
+import { $env } from "@reverse/utils";
 import type { AnthropicApiResponse, AnthropicCitation } from "../../../web/search/types";
 import type { SearchCitation, SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";

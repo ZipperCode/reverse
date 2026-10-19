@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@rva/agent";
-import type { ToolCall } from "@rva/ai";
+import type { AgentMessage } from "@reverse/agent";
+import type { ToolCall } from "@reverse/ai";
 import { extractMarkdownLinks } from "../index";
 
 /** A fenced code block extracted from assistant markdown. */

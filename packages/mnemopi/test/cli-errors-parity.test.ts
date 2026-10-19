@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { cmdExport, cmdImport, cmdRemember, runCli } from "@rva/mnemopi/cli";
+import { cmdExport, cmdImport, cmdRemember, runCli } from "@reverse/mnemopi/cli";
 
 let root: string;
 

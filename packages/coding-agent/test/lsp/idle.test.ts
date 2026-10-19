@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { isIdleClient, sendRequest } from "@rva/coding-agent/lsp/client";
-import type { LspClient } from "@rva/coding-agent/lsp/types";
+import { isIdleClient, sendRequest } from "@reverse/coding-agent/lsp/client";
+import type { LspClient } from "@reverse/coding-agent/lsp/types";
 
 const IDLE_TIMEOUT_MS = 60_000;
 

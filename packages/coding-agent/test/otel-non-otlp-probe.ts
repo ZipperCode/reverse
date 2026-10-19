@@ -8,8 +8,8 @@ import {
 	flushTelemetryExport,
 	initTelemetryExport,
 	isTelemetryExportEnabled,
-} from "@rva/coding-agent/telemetry-export";
-import { logger } from "@rva/utils";
+} from "@reverse/coding-agent/telemetry-export";
+import { logger } from "@reverse/utils";
 import { metrics, trace } from "@opentelemetry/api";
 
 const received = new Set<string>();
@@ -40,10 +40,10 @@ process.env.OTEL_METRICS_EXPORTER = "console";
 await initTelemetryExport(true);
 const enabled = isTelemetryExportEnabled();
 
-const span = trace.getTracer("@rva/agent").startSpan("non-otlp-probe");
+const span = trace.getTracer("@reverse/agent").startSpan("non-otlp-probe");
 span.end();
 logger.error("non-OTLP probe");
-metrics.getMeter("@rva/coding-agent").createCounter("non_otlp_probe").add(1);
+metrics.getMeter("@reverse/coding-agent").createCounter("non_otlp_probe").add(1);
 await flushTelemetryExport();
 await server.stop(true);
 

@@ -1,7 +1,7 @@
 import { Box } from "../components/box";
 import { Spacer } from "../components/spacer";
 import { Text } from "../components/text";
-import type { TspPreview, TspText } from "@rva/wire";
+import type { TspPreview, TspText } from "@reverse/wire";
 import { type Component, Container } from "../tui";
 import { type ThemeColor, theme } from "../theme";
 import { card, node, text, withHidden } from "../native/describe";

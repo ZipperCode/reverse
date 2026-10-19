@@ -5,9 +5,9 @@
  * model-browser pick) persisting one agent's entry at a time.
  */
 import { beforeAll, describe, expect, test } from "bun:test";
-import { Effort } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import type { TspPickerProps } from "@rva/wire";
+import { Effort } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import type { TspPickerProps } from "@reverse/wire";
 import { AgentsHubComponent, type HubAgent, parseGeneratedAgentSpec } from "../src/overlays/agents-hub";
 import { initTheme } from "../src/theme";
 import type { TUI } from "../src/index";

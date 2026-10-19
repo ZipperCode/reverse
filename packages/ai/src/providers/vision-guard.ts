@@ -1,4 +1,4 @@
-import { $env } from "@rva/utils";
+import { $env } from "@reverse/utils";
 import type { Api, ImageContent, Model, TextContent } from "../types";
 
 export const NON_VISION_IMAGE_PLACEHOLDER = "[image omitted: model does not support vision]";

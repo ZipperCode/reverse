@@ -8,7 +8,7 @@ import {
 	SqliteAuthCredentialStore,
 	type ServiceTier,
 	type StoredAuthCredential,
-} from "@rva/ai";
+} from "@reverse/ai";
 import {
 	AsyncDrain,
 	checkpointWal,
@@ -19,7 +19,7 @@ import {
 	logger,
 	openSqliteDatabase,
 	postmortem,
-} from "@rva/utils";
+} from "@reverse/utils";
 import type { RawSettings as Settings } from "../config/settings";
 
 /** Row shape for settings table queries */
@@ -172,7 +172,7 @@ let cancelExitCleanup: (() => void) | undefined;
 
 /**
  * Unified SQLite storage for agent settings, model usage, and auth credentials.
- * Delegates auth credential operations to AuthCredentialStore from @rva/ai.
+ * Delegates auth credential operations to AuthCredentialStore from @reverse/ai.
  * Uses singleton pattern per database path; access via AgentStorage.open().
  */
 export class AgentStorage {

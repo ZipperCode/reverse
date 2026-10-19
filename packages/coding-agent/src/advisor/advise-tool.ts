@@ -1,6 +1,6 @@
-import { type } from "@rva/omptype";
-import { type AdvisorSeverity, type AdvisorNote } from "@rva/tui/chat/messages";
-export { type AdvisorSeverity, type AdvisorNote, type AdvisorMessageDetails } from "@rva/tui/chat/messages";
+import { type } from "@reverse/omptype";
+import { type AdvisorSeverity, type AdvisorNote } from "@reverse/tui/chat/messages";
+export { type AdvisorSeverity, type AdvisorNote, type AdvisorMessageDetails } from "@reverse/tui/chat/messages";
 import type {
 	AgentIdentity,
 	AgentTelemetryConfig,
@@ -8,8 +8,8 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@rva/agent";
-import { escapeXmlAttribute, escapeXmlText, logger } from "@rva/utils";
+} from "@reverse/agent";
+import { escapeXmlAttribute, escapeXmlText, logger } from "@reverse/utils";
 import adviseDescription from "../prompts/advisor/advise-tool.md" with { type: "text" };
 import { AdvisorEmissionGuard, type AdvisorSuppressionReason, normalizeAdvisorNote } from "./emission-guard";
 

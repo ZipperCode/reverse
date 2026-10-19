@@ -7,7 +7,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getProjectDir, readJsonl } from "@rva/utils";
+import { getProjectDir, readJsonl } from "@reverse/utils";
 import type { Subprocess } from "bun";
 import { hostHasInheritableConsole } from "../../eval/py/spawn-options";
 import type {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { AnthropicSlowModeFailure, AnthropicSlowModeHooks, AnthropicSlowModeSignal, Model } from "@rva/ai";
+import type { AnthropicSlowModeFailure, AnthropicSlowModeHooks, AnthropicSlowModeSignal, Model } from "@reverse/ai";
 import { Settings } from "../src/config/settings";
 import {
 	type AnthropicSlowModeController,

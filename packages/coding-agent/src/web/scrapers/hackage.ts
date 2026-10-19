@@ -1,4 +1,4 @@
-import { compareVersions, tryParseJson } from "@rva/utils";
+import { compareVersions, tryParseJson } from "@reverse/utils";
 import type { RenderResult, SpecialHandler } from "./types";
 import { buildResult, loadPage } from "./types";
 

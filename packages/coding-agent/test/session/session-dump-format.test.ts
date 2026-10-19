@@ -8,10 +8,10 @@
  * previous `<parameter>`-per-key JSON Schema dump dropped entirely.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import type { Model, Usage } from "@rva/ai";
-import { formatSessionDumpText, formatSubagentDumpText } from "@rva/coding-agent/session/session-dump-format";
-import { INTENT_FIELD } from "@rva/wire";
+import { type } from "@reverse/omptype";
+import type { Model, Usage } from "@reverse/ai";
+import { formatSessionDumpText, formatSubagentDumpText } from "@reverse/coding-agent/session/session-dump-format";
+import { INTENT_FIELD } from "@reverse/wire";
 
 const ZERO_USAGE: Usage = {
 	input: 0,

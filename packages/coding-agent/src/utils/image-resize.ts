@@ -1,6 +1,6 @@
 import { inflateSync } from "node:zlib";
-import type { ImageContent } from "@rva/ai";
-import { shortenPath } from "@rva/tui/render/render-utils";
+import type { ImageContent } from "@reverse/ai";
+import { shortenPath } from "@reverse/tui/render/render-utils";
 import { encodeRawPng } from "./png-encode";
 
 export interface ImageResizeOptions {

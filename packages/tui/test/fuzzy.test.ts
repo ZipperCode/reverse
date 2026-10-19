@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { fuzzyFilter, fuzzyMatch } from "@rva/tui/fuzzy";
+import { fuzzyFilter, fuzzyMatch } from "@reverse/tui/fuzzy";
 
 describe("fuzzyFilter", () => {
 	it("does not satisfy long tokens by scattering letters across unrelated words", () => {

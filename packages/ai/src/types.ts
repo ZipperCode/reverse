@@ -1,7 +1,7 @@
-export * from "@rva/catalog/effort";
-export * from "@rva/catalog/types";
+export * from "@reverse/catalog/effort";
+export * from "@reverse/catalog/types";
 
-import type { Type } from "@rva/omptype";
+import type { Type } from "@reverse/omptype";
 import type { AnthropicSlowModeHooks } from "./providers/anthropic-slow-mode";
 import type {
 	DeleteArgs,
@@ -33,9 +33,9 @@ import type {
 	ShellResult,
 	WriteArgs,
 	WriteResult,
-} from "@rva/catalog/discovery/cursor-proto";
-import type { Effort } from "@rva/catalog/effort";
-import type { Api, FetchImpl, KnownApi, Model, Provider, ThinkingBudgets, Usage } from "@rva/catalog/types";
+} from "@reverse/catalog/discovery/cursor-proto";
+import type { Effort } from "@reverse/catalog/effort";
+import type { Api, FetchImpl, KnownApi, Model, Provider, ThinkingBudgets, Usage } from "@reverse/catalog/types";
 import type { ApiKey } from "./auth-retry";
 import type { OAuthRequestIdentity } from "./auth/types";
 import type { BedrockOptions } from "./providers/amazon-bedrock";

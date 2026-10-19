@@ -4,11 +4,11 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@rva/agent";
-import type { ToolExample, TSchema } from "@rva/ai";
-import { renderToolInventory } from "@rva/ai/dialect";
-import type { DelegationBias } from "@rva/catalog/compat/delegation";
-import { $env, getAgentDir, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@rva/utils";
+import type { AgentTool } from "@reverse/agent";
+import type { ToolExample, TSchema } from "@reverse/ai";
+import { renderToolInventory } from "@reverse/ai/dialect";
+import type { DelegationBias } from "@reverse/catalog/compat/delegation";
+import { $env, getAgentDir, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@reverse/utils";
 import { contextFileCapability } from "./capability/context-file";
 import { systemPromptCapability } from "./capability/system-prompt";
 import { findConfigFile } from "./config";
@@ -30,8 +30,8 @@ import projectPromptTemplate from "./prompts/system/project-prompt.md" with { ty
 import systemPromptTemplate from "./prompts/system/system-prompt.md" with { type: "text" };
 import userAppendPromptTemplate from "./prompts/system/user-append.md" with { type: "text" };
 import { normalizeConcurrencyLimit } from "./task/parallel";
-import type { ActiveRepoContext } from "@rva/tui/status-line/host";
-import { XD_URL_PREFIX } from "@rva/tui/tools/xd-url";
+import type { ActiveRepoContext } from "@reverse/tui/status-line/host";
+import { XD_URL_PREFIX } from "@reverse/tui/tools/xd-url";
 import { resolveActiveRepoContext } from "./utils/active-repo-context";
 import { normalizePromptPath } from "./utils/prompt-path";
 import { AGENTS_MD_LIMIT, buildWorkspaceTree, type WorkspaceTree } from "./workspace-tree";

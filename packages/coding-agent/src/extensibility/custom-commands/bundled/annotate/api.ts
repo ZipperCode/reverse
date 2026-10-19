@@ -10,12 +10,12 @@ import type {
 	ExtensionContext,
 } from "../../../../extensibility/extensions/types";
 import type { SendUserMessageOptions } from "../../../../session/agent-session";
-import { splitTextLines } from "@rva/tui/overlays/annotation-overlay";
+import { splitTextLines } from "@reverse/tui/overlays/annotation-overlay";
 import type {
 	CodeReviewAnnotation,
 	TextReviewAnnotation,
 	TextReviewSource,
-} from "@rva/tui/overlays/annotation-types";
+} from "@reverse/tui/overlays/annotation-types";
 import { fetchPrReviewTarget, parseReviewPrRef } from "../review";
 import { assertReviewablePatchSize, buildCodeReviewFeedback } from "../review/prompt";
 import {

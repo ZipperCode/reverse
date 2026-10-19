@@ -1,12 +1,12 @@
 import * as fs from "node:fs";
 import * as tls from "node:tls";
-import { isAnthropicSigningProxyUrl, isOfficialAnthropicApiUrl } from "@rva/catalog/compat/anthropic";
-import { hostMatchesUrl, isVertexRawPredictUrl } from "@rva/catalog/hosts";
-import type { Effort } from "@rva/catalog/effort";
-import { mapEffortToAnthropicAdaptiveEffort } from "@rva/catalog/model-thinking";
-import { calculateCost, getBundledModel } from "@rva/catalog/models";
-import { isAnthropicOAuthToken } from "@rva/catalog/utils";
-import { parseGitHubCopilotApiKey } from "@rva/catalog/wire/github-copilot";
+import { isAnthropicSigningProxyUrl, isOfficialAnthropicApiUrl } from "@reverse/catalog/compat/anthropic";
+import { hostMatchesUrl, isVertexRawPredictUrl } from "@reverse/catalog/hosts";
+import type { Effort } from "@reverse/catalog/effort";
+import { mapEffortToAnthropicAdaptiveEffort } from "@reverse/catalog/model-thinking";
+import { calculateCost, getBundledModel } from "@reverse/catalog/models";
+import { isAnthropicOAuthToken } from "@reverse/catalog/utils";
+import { parseGitHubCopilotApiKey } from "@reverse/catalog/wire/github-copilot";
 import {
 	$env,
 	$flag,
@@ -15,7 +15,7 @@ import {
 	parseJsonWithRepair,
 	parseStreamingJsonThrottled,
 	readSseEvents,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { NO_AUTH_SENTINEL } from "../auth-retry";
 import { renderDemotedThinking } from "../dialect/demotion";
 import * as AIError from "../error";

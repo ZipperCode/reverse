@@ -1,5 +1,5 @@
-import type { Usage } from "@rva/ai";
-import { formatNumber } from "@rva/utils";
+import type { Usage } from "@reverse/ai";
+import { formatNumber } from "@reverse/utils";
 import { MessageDividerComponent } from "../chrome/message-divider";
 import { theme } from "../theme";
 

@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@rva/tui",
+  "name": "@reverse/tui",
   "version": "18.11.2",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
   "homepage": "https://omp.sh",
@@ -41,14 +41,14 @@
     "gen:glyphs": "bun scripts/gen-glyphs.ts"
   },
   "dependencies": {
-    "@rva/omptype": "catalog:",
-    "@rva/agent": "catalog:",
-    "@rva/ai": "catalog:",
-    "@rva/catalog": "catalog:",
-    "@rva/natives": "catalog:",
-    "@rva/utils": "catalog:",
-    "@rva/wire": "catalog:",
-    "@rva/snapcompact": "catalog:"
+    "@reverse/omptype": "catalog:",
+    "@reverse/agent": "catalog:",
+    "@reverse/ai": "catalog:",
+    "@reverse/catalog": "catalog:",
+    "@reverse/natives": "catalog:",
+    "@reverse/utils": "catalog:",
+    "@reverse/wire": "catalog:",
+    "@reverse/snapcompact": "catalog:"
   },
   "devDependencies": {
     "kitty-vt-wasm": "catalog:"

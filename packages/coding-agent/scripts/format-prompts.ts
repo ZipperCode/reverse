@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 /**
  * Format prompt files (mixed XML + Markdown + Handlebars).
  *

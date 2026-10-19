@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
-import type { FetchImpl } from "@rva/ai/types";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const originalYoloAutoApiKey = Bun.env.YOLO_AUTO_API_KEY;
 

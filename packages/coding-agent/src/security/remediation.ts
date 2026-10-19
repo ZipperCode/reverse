@@ -1,4 +1,4 @@
-import type { IsoBackendKind } from "@rva/natives";
+import type { IsoBackendKind } from "@reverse/natives";
 import type { IsolationHandle, WorktreeBaseline } from "../task/worktree";
 import { captureBaseline, cleanupIsolation, ensureIsolation, getRepoRoot } from "../task/worktree";
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { vllmModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@rva/catalog/types";
+import { vllmModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@reverse/catalog/types";
 
 describe("vLLM provider discovery", () => {
 	test("lights up the reasoning dial for Qwen 3.8+ despite silent /v1/models metadata", async () => {

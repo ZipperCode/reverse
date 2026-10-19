@@ -1,4 +1,4 @@
-import { isEnoent } from "@rva/utils";
+import { isEnoent } from "@reverse/utils";
 import { InternalUrlRouter, type LocalProtocolOptions } from "../internal-urls";
 
 /** The session's active plan, resolved for handoff into a subagent's context. */

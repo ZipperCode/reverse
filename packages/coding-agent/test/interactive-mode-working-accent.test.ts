@@ -1,16 +1,16 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme, theme } from "@rva/tui/theme";
-import { Loader, type WorkingRowSpec } from "@rva/tui";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import * as sessionColor from "@rva/tui/theme/session-color";
-import { adjustHsv, TempDir } from "@rva/utils";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { Loader, type WorkingRowSpec } from "@reverse/tui";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import * as sessionColor from "@reverse/tui/theme/session-color";
+import { adjustHsv, TempDir } from "@reverse/utils";
 
-import { cfgStatusLineSessionAccent } from "@rva/coding-agent/modes/settings";
+import { cfgStatusLineSessionAccent } from "@reverse/coding-agent/modes/settings";
 
 type Harness = {
 	mode: InteractiveMode;

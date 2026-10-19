@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
-import type { Api, ApiKey, Model } from "@rva/ai";
-import { popLoopPhase, pushLoopPhase, withLoopPhase } from "@rva/utils";
+import type { Api, ApiKey, Model } from "@reverse/ai";
+import { popLoopPhase, pushLoopPhase, withLoopPhase } from "@reverse/utils";
 
 import { dbPath as configuredDbPath } from "../config";
 import { closeQuietly } from "../db";

@@ -5,7 +5,7 @@ import type { AdvisorMessageDetails, AdvisorNote, AdvisorSeverity } from "./mess
 import { formatBadge, replaceTabs, type ToolUIColor, wrapTextWithAnsi } from "../render/render-utils";
 import { Ellipsis, truncateToWidth } from "../render";
 import { getThemeEpoch, type Theme } from "../theme";
-import type { TspSpan } from "@rva/wire";
+import type { TspSpan } from "@reverse/wire";
 import { card, span, text } from "../native/describe";
 import { type NativeNode, type NativeUiEvent, rootToggleExpanded } from "../native/node";
 import { plainText } from "../native/spans";

@@ -17,7 +17,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
+import { SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
 import { removeWithRetries } from "../../utils/src/temp";
 
 let tempDir = "";

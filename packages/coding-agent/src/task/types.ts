@@ -1,17 +1,17 @@
-import type { AgentSource } from "@rva/tui/tools/task";
+import type { AgentSource } from "@reverse/tui/tools/task";
 export {
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
-} from "@rva/tui/overlays/session-observer-registry";
+} from "@reverse/tui/overlays/session-observer-registry";
 export type {
 	SubagentProgressPayload,
 	SubagentLifecyclePayload,
-} from "@rva/tui/overlays/session-observer-registry";
-import { type BaseType, type } from "@rva/omptype";
-import { $env } from "@rva/utils";
+} from "@reverse/tui/overlays/session-observer-registry";
+import { type BaseType, type } from "@reverse/omptype";
+import { $env } from "@reverse/utils";
 
 import type { AgentSessionEvent } from "../session/agent-session";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
 
 const parseNumber = (value: string | undefined, defaultValue: number): number => {
 	if (value) {

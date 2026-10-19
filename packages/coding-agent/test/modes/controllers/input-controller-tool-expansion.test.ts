@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { cfgDisplayHideToolActivity } from "@rva/coding-agent/modes/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { cfgDisplayHideToolActivity } from "@reverse/coding-agent/modes/settings";
 
 describe("InputController tool output expansion", () => {
 	it("expands children and forces a full repaint so every live block re-renders", () => {

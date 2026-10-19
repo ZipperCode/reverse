@@ -20,10 +20,10 @@
 
 import { existsSync } from "node:fs";
 import * as path from "node:path";
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { installHelp as commandHelp } from "../cli/command-help";
 import { type PluginAction, type PluginCommandArgs, runPluginCommand } from "../cli/plugin-cli";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 /**
  * Heuristic used to decide whether `omp install <target>` should `link` a

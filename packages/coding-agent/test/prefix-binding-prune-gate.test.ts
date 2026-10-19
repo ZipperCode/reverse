@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Agent } from "@rva/agent";
-import { SUPERSEDED_NOTICE } from "@rva/agent/compaction/pruning";
-import type { AssistantMessage, Model, ToolResultMessage } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { Agent } from "@reverse/agent";
+import { SUPERSEDED_NOTICE } from "@reverse/agent/compaction/pruning";
+import type { AssistantMessage, Model, ToolResultMessage } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 const OLD_RESULT = "old file contents\n".repeat(100);
 const NEW_RESULT = "new file contents\n".repeat(100);

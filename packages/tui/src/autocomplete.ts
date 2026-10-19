@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fuzzyFind } from "@rva/natives";
-import { getProjectDir } from "@rva/utils";
+import { fuzzyFind } from "@reverse/natives";
+import { getProjectDir } from "@reverse/utils";
 
 const PATH_DELIMITERS = new Set([" ", "\t", '"', "'", "="]);
 

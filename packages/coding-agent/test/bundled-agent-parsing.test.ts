@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
+import { Effort } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	resolveAgentModelPatterns,
 	resolveAgentModelSelection,
 	resolveModelOverride,
-} from "@rva/coding-agent/config/model-resolver";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { getBundledAgent } from "@rva/coding-agent/task/agents";
-import { buildOutputValidator } from "@rva/coding-agent/tools/output-schema-validator";
-import { AUTO_THINKING } from "@rva/tui/thinking";
+} from "@reverse/coding-agent/config/model-resolver";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { getBundledAgent } from "@reverse/coding-agent/task/agents";
+import { buildOutputValidator } from "@reverse/coding-agent/tools/output-schema-validator";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
 
 describe("bundled agent parsing", () => {
 	it("defaults the task agent to the auto thinking selector", () => {

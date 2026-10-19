@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { getBundledModelReferenceIndex } from "@rva/catalog/identity";
+import { getBundledModelReferenceIndex } from "@reverse/catalog/identity";
 import {
 	DiscoveryHttpError,
 	fetchDiscoveredProviderModels,
 	isDiscoveryAuthRejection,
-} from "@rva/coding-agent/config/model-discovery";
+} from "@reverse/coding-agent/config/model-discovery";
 
 interface CapturedRequest {
 	url: string;

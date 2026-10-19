@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, setDefaultTimeout } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	disposeAllVmContexts,
 	executeInVmContext,
 	type JsEvalWorkerFactories,
 	type JsEvalWorkerHandle,
 	setJsEvalWorkerFactoriesForTests,
-} from "@rva/coding-agent/eval/js/context-manager";
-import type { WorkerInbound, WorkerOutbound } from "@rva/coding-agent/eval/js/worker-protocol";
-import type { ToolSession } from "@rva/coding-agent/tools";
+} from "@reverse/coding-agent/eval/js/context-manager";
+import type { WorkerInbound, WorkerOutbound } from "@reverse/coding-agent/eval/js/worker-protocol";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 
 setDefaultTimeout(2_000);
 

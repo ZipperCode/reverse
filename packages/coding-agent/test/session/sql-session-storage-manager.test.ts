@@ -8,10 +8,10 @@
 
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { Usage } from "@rva/ai";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { SqlSessionStorage, type SqlSessionStorageClient } from "@rva/coding-agent/session/sql-session-storage";
-import { SessionWriteConflictError } from "@rva/coding-agent/session/session-storage";
+import type { Usage } from "@reverse/ai";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { SqlSessionStorage, type SqlSessionStorageClient } from "@reverse/coding-agent/session/sql-session-storage";
+import { SessionWriteConflictError } from "@reverse/coding-agent/session/session-storage";
 import { SQL } from "bun";
 
 // Storage keys are platform paths; `/sessions/...` is only drive-relative on Windows,

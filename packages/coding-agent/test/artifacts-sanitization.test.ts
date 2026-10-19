@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ArtifactManager } from "@rva/coding-agent/session/artifacts";
-import { removeSyncWithRetries } from "@rva/utils";
+import { ArtifactManager } from "@reverse/coding-agent/session/artifacts";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 describe("ArtifactManager tool-type sanitization", () => {
 	const dirs: string[] = [];

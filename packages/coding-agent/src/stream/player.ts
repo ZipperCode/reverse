@@ -6,8 +6,8 @@
  * rows scroll into the terminal's native scrollback above it, so the output
  * stays inspectable after playback ends.
  */
-import { replaceTabs, truncateToWidth } from "@rva/tui";
-import type { StreamRow } from "@rva/wire";
+import { replaceTabs, truncateToWidth } from "@reverse/tui";
+import type { StreamRow } from "@reverse/wire";
 import { applyScreenFrame, type StreamScreen, type StreamScreenFrame } from "./protocol";
 import type { Recording } from "./recording";
 

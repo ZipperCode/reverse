@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { authHookNames, authProviders } from "@rva/catalog/compat/auth";
+import { authHookNames, authProviders } from "@reverse/catalog/compat/auth";
 import { HOOKS } from "../src/registry/hooks";
 import { PROVIDER_REGISTRY } from "../src/registry/registry";
 

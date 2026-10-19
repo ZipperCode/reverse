@@ -4,7 +4,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $env, $which, Snowflake } from "@rva/utils";
+import { $env, $which, Snowflake } from "@reverse/utils";
 
 /**
  * Returns the user's preferred editor command, or a platform default.

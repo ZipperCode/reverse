@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { seedModels } from "@rva/catalog/compat/providers";
-import { Effort } from "@rva/catalog/effort";
-import type { Api, ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { seedModels } from "@reverse/catalog/compat/providers";
+import { Effort } from "@reverse/catalog/effort";
+import type { Api, ModelSpec } from "@reverse/catalog/types";
 
 function seed(id: string): ModelSpec<Api> {
 	const spec = seedModels("snowflake").find(model => model.id === id);

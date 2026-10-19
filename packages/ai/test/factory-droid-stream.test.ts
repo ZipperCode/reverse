@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@rva/catalog/effort";
+import { Effort } from "@reverse/catalog/effort";
 import { streamSimple } from "../src/stream";
 import {
 	anthropicChunks,

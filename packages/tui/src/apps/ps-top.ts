@@ -14,14 +14,14 @@ import { renderTableRow, type TableColumn } from "../components/table";
 import { matchesKey } from "../keys";
 import { ProcessTerminal } from "../terminal";
 import { type Component, TUI } from "../tui";
-import type { TspSpan, TspText, TspTone } from "@rva/wire";
+import type { TspSpan, TspText, TspTone } from "@reverse/wire";
 import { col, compact, elapsed, keyed, node, row, span, stableKey, text } from "../native/describe";
 import type { NativeNode, NativeUiEvent } from "../native/node";
 import { actionBar, actionButton } from "../native/overlay";
 import { Memo } from "../native/memo";
 import { truncateToWidth } from "../utils";
-import { formatDuration } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { formatDuration } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import type { DaemonSnapshot, DaemonSpec } from "../tools/daemon";
 import {
 	collapseCommand,

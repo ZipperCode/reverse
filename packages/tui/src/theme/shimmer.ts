@@ -1,4 +1,4 @@
-import type { TspSpan } from "@rva/wire";
+import type { TspSpan } from "@reverse/wire";
 import { node } from "../native/describe";
 import type { NativeNode } from "../native/node";
 import { isNativeRendering } from "../native/state";

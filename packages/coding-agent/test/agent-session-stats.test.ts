@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent, type AgentTool } from "@rva/agent";
-import type { AssistantMessage, Message, Model, Usage, UserMessage } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
-import { estimateToolSchemaTokens } from "@rva/tui/status-line/context-usage";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentTool } from "@reverse/agent";
+import type { AssistantMessage, Message, Model, Usage, UserMessage } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
+import { estimateToolSchemaTokens } from "@reverse/tui/status-line/context-usage";
 
 describe("AgentSession session stats", () => {
 	let authStorage: AuthStorage;

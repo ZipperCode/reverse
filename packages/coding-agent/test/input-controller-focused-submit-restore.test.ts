@@ -6,9 +6,9 @@
  * image silently disappeared from the composer on retry.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import type { ImageContent } from "@reverse/ai";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 function createContext(opts: { pendingImages: ImageContent[]; pendingImageLinks?: (string | undefined)[] }) {
 	let editorText = "";

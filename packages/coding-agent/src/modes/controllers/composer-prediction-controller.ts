@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { logger, prompt, sanitizeText } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { logger, prompt, sanitizeText } from "@reverse/utils";
 import composerPredictionPrompt from "../../prompts/system/composer-prediction-user.md" with { type: "text" };
 import type { AgentSession } from "../../session/agent-session";
 import { cfgComposerPredictions } from "../settings";

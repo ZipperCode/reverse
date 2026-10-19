@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { buildGoogleGenerateContentParams } from "@rva/ai/providers/google-shared";
-import { mapGoogleToolChoice } from "@rva/ai/stream";
-import type { Context, Tool, ToolChoice } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { buildGoogleGenerateContentParams } from "@reverse/ai/providers/google-shared";
+import { mapGoogleToolChoice } from "@reverse/ai/stream";
+import type { Context, Tool, ToolChoice } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 describe("mapGoogleToolChoice (F7)", () => {
 	it("maps 'required' to 'any'", () => {

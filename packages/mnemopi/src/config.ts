@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { hostMatchesUrl } from "@rva/catalog/hosts";
+import { hostMatchesUrl } from "@reverse/catalog/hosts";
 import {
 	type Env,
 	envBool,

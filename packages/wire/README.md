@@ -1,14 +1,14 @@
-# @rva/wire
+# @reverse/wire
 
 Shared TypeScript wire contracts for omp collab live sessions.
 
-The package contains only JSON-safe protocol shapes and constants. It has no runtime dependencies and is consumed by both the host CLI (`@rva/coding-agent`) and browser guest (`@rva/tool-views`).
+The package contains only JSON-safe protocol shapes and constants. It has no runtime dependencies and is consumed by both the host CLI (`@reverse/coding-agent`) and browser guest (`@reverse/tool-views`).
 
 ## Exports
 
 ```ts
-import type { GuestFrame, HostFrame, SessionEntry } from "@rva/wire";
-import { COLLAB_PROTO, DEFAULT_RELAY_URL, ENVELOPE_HEADER_LENGTH } from "@rva/wire";
+import type { GuestFrame, HostFrame, SessionEntry } from "@reverse/wire";
+import { COLLAB_PROTO, DEFAULT_RELAY_URL, ENVELOPE_HEADER_LENGTH } from "@reverse/wire";
 ```
 
 Key groups:

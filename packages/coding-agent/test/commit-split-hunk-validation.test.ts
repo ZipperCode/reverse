@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { VcsGitRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
+import type { VcsGitRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
 import type { CommitAgentState } from "../src/commit/agentic/state";
 import { createSplitCommitTool } from "../src/commit/agentic/tools/split-commit";
 

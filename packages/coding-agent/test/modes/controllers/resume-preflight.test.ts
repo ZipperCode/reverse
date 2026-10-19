@@ -2,12 +2,12 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as SessionSelector from "@rva/tui/overlays/session-selector";
-import { SelectorController } from "@rva/coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import type { SessionInfo } from "@rva/coding-agent/session/session-listing";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import * as SessionSelector from "@reverse/tui/overlays/session-selector";
+import { SelectorController } from "@reverse/coding-agent/modes/controllers/selector-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import type { SessionInfo } from "@reverse/coding-agent/session/session-listing";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 beforeAll(async () => {
 	await initTheme();

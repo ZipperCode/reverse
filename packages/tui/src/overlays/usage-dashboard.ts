@@ -6,7 +6,7 @@
  * Enter flips into the classic full per-account report, scrollable in place.
  */
 import * as os from "node:os";
-import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@rva/ai";
+import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@reverse/ai";
 import {
 	type Component,
 	matchesKey,
@@ -17,7 +17,7 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "../index";
-import { colorLuma, formatDuration, hexToRgb, rgbToHex, sanitizeText } from "@rva/utils";
+import { colorLuma, formatDuration, hexToRgb, rgbToHex, sanitizeText } from "@reverse/utils";
 import { formatProviderName } from "../chrome/format";
 import {
 	collapseSharedUsageReports,
@@ -40,7 +40,7 @@ import {
 import { OverlayPanel, PanelDivider, PanelRows } from "../chrome/overlay-box";
 import { formatKeyHint } from "../app-keybindings";
 import { editorKey, editorKeys } from "../chrome/keybinding-hints";
-import type { TspSpan, TspTableColumn, TspText, TspTone } from "@rva/wire";
+import type { TspSpan, TspTableColumn, TspText, TspTone } from "@reverse/wire";
 import { col, elapsed, node, span, text } from "../native/describe";
 import { type DescribeContext, leafKey, type NativeChild, type NativeNode, type NativeUiEvent } from "../native/node";
 import { actionBar, actionButton } from "../native/overlay";

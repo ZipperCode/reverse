@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { clearCustomApis, registerCustomApi } from "@rva/ai/api-registry";
-import { type OpenAICompletionsOptions, streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamSimple } from "@rva/ai/stream";
-import type { Api, Context, FetchImpl, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { clearCustomApis, registerCustomApi } from "@reverse/ai/api-registry";
+import { type OpenAICompletionsOptions, streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Api, Context, FetchImpl, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const CUSTOM_OPENAI_API = "issue-12562-openai-wrapper";
 

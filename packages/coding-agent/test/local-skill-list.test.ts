@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { APP_NAME } from "@rva/utils/dirs";
+import { APP_NAME } from "@reverse/utils/dirs";
 
 const repoRoot = path.resolve(import.meta.dir, "../../..");
 const cliEntry = path.join(repoRoot, "packages/coding-agent/src/cli.ts");
@@ -110,38 +110,34 @@ describe("Local skills discovery & CLI command routing", () => {
 		expect(stderrInstall).toContain("Expected action to be one of: list, check");
 	});
 
-	it(
-		"rejects 7 removed commands in naked, args, and flag-prefixed forms while allowing explicit launch",
-		async () => {
-			const removed = ["collab", "join", "share", "stream", "clip", "grievances", "update"] as const;
+	it("rejects 7 removed commands in naked, args, and flag-prefixed forms while allowing explicit launch", async () => {
+		const removed = ["collab", "join", "share", "stream", "clip", "grievances", "update"] as const;
 
-			for (const cmd of removed) {
-				const expectedError = `\`${APP_NAME} ${cmd}\` is not available; use \`${APP_NAME} launch\` for a prompt.`;
+		for (const cmd of removed) {
+			const expectedError = `\`${APP_NAME} ${cmd}\` is not available; use \`${APP_NAME} launch\` for a prompt.`;
 
-				// 1. Naked command
-				const procNaked = runCli([cmd]);
-				const [stderrNaked, codeNaked] = await Promise.all([new Response(procNaked.stderr).text(), procNaked.exited]);
-				expect(codeNaked).toBe(1);
-				expect(stderrNaked).toContain(expectedError);
+			// 1. Naked command
+			const procNaked = runCli([cmd]);
+			const [stderrNaked, codeNaked] = await Promise.all([new Response(procNaked.stderr).text(), procNaked.exited]);
+			expect(codeNaked).toBe(1);
+			expect(stderrNaked).toContain(expectedError);
 
-				// 2. Command with arguments
-				const procArgs = runCli([cmd, "arg1", "--flag"]);
-				const [stderrArgs, codeArgs] = await Promise.all([new Response(procArgs.stderr).text(), procArgs.exited]);
-				expect(codeArgs).toBe(1);
-				expect(stderrArgs).toContain(expectedError);
+			// 2. Command with arguments
+			const procArgs = runCli([cmd, "arg1", "--flag"]);
+			const [stderrArgs, codeArgs] = await Promise.all([new Response(procArgs.stderr).text(), procArgs.exited]);
+			expect(codeArgs).toBe(1);
+			expect(stderrArgs).toContain(expectedError);
 
-				// 3. Command behind leading launch flags
-				const procPrefixed = runCli(["--cwd", tempProject, cmd]);
-				const [stderrPrefixed, codePrefixed] = await Promise.all([
-					new Response(procPrefixed.stderr).text(),
-					procPrefixed.exited,
-				]);
-				expect(codePrefixed).toBe(1);
-				expect(stderrPrefixed).toContain(expectedError);
-			}
-		},
-		45_000,
-	);
+			// 3. Command behind leading launch flags
+			const procPrefixed = runCli(["--cwd", tempProject, cmd]);
+			const [stderrPrefixed, codePrefixed] = await Promise.all([
+				new Response(procPrefixed.stderr).text(),
+				procPrefixed.exited,
+			]);
+			expect(codePrefixed).toBe(1);
+			expect(stderrPrefixed).toContain(expectedError);
+		}
+	}, 45_000);
 
 	it("installs local extension packages modifying only isolated plugin collection", async () => {
 		// Create a local plugin package directory

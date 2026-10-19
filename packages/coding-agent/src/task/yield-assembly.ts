@@ -1,7 +1,7 @@
 /** Derives per-label output-schema section shapes for incremental yield assembly. */
-import { dereferenceJsonSchema } from "@rva/ai/utils/schema";
-import type { YieldSectionShapes } from "@rva/tui/tools/task-yield-assembly";
-import { isRecord } from "@rva/utils";
+import { dereferenceJsonSchema } from "@reverse/ai/utils/schema";
+import type { YieldSectionShapes } from "@reverse/tui/tools/task-yield-assembly";
+import { isRecord } from "@reverse/utils";
 import { buildOutputValidator } from "../tools/output-schema-validator";
 
 /** True when `value` is a JSON-schema node whose instances are arrays. */

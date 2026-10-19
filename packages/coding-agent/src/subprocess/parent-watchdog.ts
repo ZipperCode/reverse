@@ -1,4 +1,4 @@
-import { workerHostEntry } from "@rva/utils/worker-host";
+import { workerHostEntry } from "@reverse/utils/worker-host";
 import { PARENT_WATCHDOG_WORKER_ARG } from "../cli/worker-selectors";
 
 /**

@@ -1,4 +1,4 @@
-import { LRUCache } from "@rva/utils/lru";
+import { LRUCache } from "@reverse/utils/lru";
 import {
 	Lexer,
 	Marked,
@@ -7,7 +7,7 @@ import {
 	type TokenizerThis,
 	type Tokens,
 	type TokensList,
-} from "@rva/utils/marked";
+} from "@reverse/utils/marked";
 import {
 	type MathBlockOpener,
 	type MathOpener,
@@ -19,8 +19,8 @@ import {
 	mathSpanAt,
 	mathSpanInContext,
 	mathStartIndex,
-} from "@rva/utils/math-delimiters";
-import { listMayContinueAt } from "@rva/utils/marked-list";
+} from "@reverse/utils/math-delimiters";
+import { listMayContinueAt } from "@reverse/utils/marked-list";
 import { latexToBlock } from "../latex-block";
 import { isBareMathEnvironment, latexToUnicode } from "../latex-to-unicode";
 import { plainText } from "../native/spans";
@@ -1002,7 +1002,7 @@ const customHrExtension: TokenizerAndRendererExtension = {
 	},
 };
 
-// Delimiters come from `@rva/utils/math-delimiters`; rendering policy stays here.
+// Delimiters come from `@reverse/utils/math-delimiters`; rendering policy stays here.
 const mathExtension: TokenizerAndRendererExtension = {
 	name: "math",
 	level: "inline",

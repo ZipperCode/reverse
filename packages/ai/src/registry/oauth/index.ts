@@ -2,7 +2,7 @@
 // High-level API
 // ============================================================================
 
-import { authPolicyFor } from "@rva/catalog/compat/auth";
+import { authPolicyFor } from "@reverse/catalog/compat/auth";
 import * as AIError from "../../error";
 import { jwtExpiryMs, NEVER_EXPIRES } from "../engine/common";
 import { getProviderDefinition, PROVIDER_REGISTRY } from "../registry";

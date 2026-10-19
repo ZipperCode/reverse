@@ -7,7 +7,7 @@
  * subagent's sandbox from a crashed run's leftover instead of deleting both.
  */
 import * as path from "node:path";
-import * as natives from "@rva/natives";
+import * as natives from "@reverse/natives";
 import { $ } from "bun";
 
 const { IsoBackendKind } = natives;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context, FetchImpl } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, FetchImpl } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 // Issue #9433: the openai-completions consumer threw
 // `OpenAI completions stream closed before a finish_reason was received` whenever

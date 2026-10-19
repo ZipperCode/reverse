@@ -5,7 +5,7 @@
  * reasoning history), which previously produced multi-GB transcripts.
  */
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
+import type { AssistantMessage } from "@reverse/ai";
 import { printableEvent } from "../../src/modes/print-mode";
 import type { AgentSessionEvent } from "../../src/session/agent-session";
 

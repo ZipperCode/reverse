@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { LogoutAccountSelectorComponent } from "@rva/tui/overlays/logout-account-selector";
-import { initTheme } from "@rva/tui/theme";
-import type { StoredAuthCredential } from "@rva/coding-agent/session/auth-storage";
-import { toLogoutAccounts } from "@rva/coding-agent/slash-commands/helpers/logout";
+import { LogoutAccountSelectorComponent } from "@reverse/tui/overlays/logout-account-selector";
+import { initTheme } from "@reverse/tui/theme";
+import type { StoredAuthCredential } from "@reverse/coding-agent/session/auth-storage";
+import { toLogoutAccounts } from "@reverse/coding-agent/slash-commands/helpers/logout";
 
 beforeAll(async () => {
 	await initTheme();

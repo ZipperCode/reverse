@@ -3,15 +3,15 @@
  *
  * Handles /ssh subcommands for managing SSH host configurations.
  */
-import { getProjectDir, getSSHConfigPath } from "@rva/utils";
-import { Text } from "@rva/tui";
-import { shortenPath } from "@rva/tui/render/render-utils";
+import { getProjectDir, getSSHConfigPath } from "@reverse/utils";
+import { Text } from "@reverse/tui";
+import { shortenPath } from "@reverse/tui/render/render-utils";
 import { reset as resetCapabilities } from "../../capability";
 import { type SSHHost, sshCapability } from "../../capability/ssh";
 import { loadCapability } from "../../discovery";
 import { addSSHHost, readSSHConfigFile, removeSSHHost, type SSHHostConfig } from "../../ssh/config-writer";
 import { parseCommandArgs } from "../../utils/command-args";
-import { theme } from "@rva/tui/theme";
+import { theme } from "@reverse/tui/theme";
 import type { InteractiveModeContext } from "../types";
 import {
 	groupBySource,

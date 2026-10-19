@@ -6,10 +6,10 @@
  * the event loop alive until the threshold expires; the fix clears it, so the
  * process must exit promptly. The parent test measures wall-clock exit time.
  */
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { BashTool } from "@rva/coding-agent/tools/bash";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
 
 const THRESHOLD_MS = 30_000;
 

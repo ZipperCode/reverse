@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@rva/ai/api-registry";
-import { createAuthGatewayRouter, serveAuthGatewayStdio } from "@rva/ai/auth-gateway";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
+import { clearCustomApis } from "@reverse/ai/api-registry";
+import { createAuthGatewayRouter, serveAuthGatewayStdio } from "@reverse/ai/auth-gateway";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
 
 /** Serves `lines` through `route`; the parsed output lines. */
 async function serve(lines: string[], route: (req: Request) => Promise<Response>): Promise<unknown[]> {

@@ -6,8 +6,8 @@
  * dies with its parent instead of lingering as a PPID-1 orphan (issue #14340).
  */
 import { parentPort } from "node:worker_threads";
-import type * as Natives from "@rva/natives";
-import { consumeWorkerInbox } from "@rva/utils/worker-host";
+import type * as Natives from "@reverse/natives";
+import { consumeWorkerInbox } from "@reverse/utils/worker-host";
 
 const POLL_INTERVAL_MS = 250;
 
@@ -30,7 +30,7 @@ async function watch(parentPid: number): Promise<void> {
 	try {
 		if (!process.env.PI_TEST_NO_NATIVES) {
 			// Dynamic: PI_TEST_NO_NATIVES hosts must never load the addon.
-			natives = await import("@rva/natives");
+			natives = await import("@reverse/natives");
 			// Null when pidfd_open is blocked (pre-5.3 kernels, restrictive
 			// seccomp) even for a live parent; the probes below cover that.
 			parent = natives.Process.fromPid(parentPid);

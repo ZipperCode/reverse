@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { SpaceHoldGesture } from "@rva/tui/space-hold";
-import type { InteractiveModeContext, SubmittedUserInput } from "@rva/coding-agent/modes/types";
-import { USER_INTERRUPT_LABEL } from "@rva/coding-agent/session/messages";
-import { vocalizer } from "@rva/coding-agent/tts/vocalizer";
-import * as logger from "@rva/utils/logger";
+import type { ImageContent } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { SpaceHoldGesture } from "@reverse/tui/space-hold";
+import type { InteractiveModeContext, SubmittedUserInput } from "@reverse/coding-agent/modes/types";
+import { USER_INTERRUPT_LABEL } from "@reverse/coding-agent/session/messages";
+import { vocalizer } from "@reverse/coding-agent/tts/vocalizer";
+import * as logger from "@reverse/utils/logger";
 
-import { cfgDoubleEscapeAction } from "@rva/coding-agent/modes/settings";
+import { cfgDoubleEscapeAction } from "@reverse/coding-agent/modes/settings";
 
 type Spy = Mock<(...args: unknown[]) => unknown>;
 type StartPendingSubmissionSpy = Mock<InteractiveModeContext["startPendingSubmission"]>;

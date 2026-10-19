@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { resolvePromptCacheLookback } from "@rva/catalog/compat/prompt-cache-lookback";
+import { buildModel } from "@reverse/catalog/build";
+import { resolvePromptCacheLookback } from "@reverse/catalog/compat/prompt-cache-lookback";
 
 const base = {
 	reasoning: true,

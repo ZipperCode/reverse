@@ -4,16 +4,16 @@ import {
 	handleServerMessage,
 	processInteractionUpdate,
 	type ToolCallState,
-} from "@rva/ai/providers/cursor";
-import type { AssistantMessage } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+} from "@reverse/ai/providers/cursor";
+import type { AssistantMessage } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import {
 	AgentServerMessageSchema,
 	ConversationStateStructureSchema,
 	ConversationTokenDetailsSchema,
 	type InteractionUpdate,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary } from "@reverse/catalog/discovery/protobuf";
 
 /**
  * Live `AgentServerMessage` frame captured from a Cursor turn: `turn_ended`

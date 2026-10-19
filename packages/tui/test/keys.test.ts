@@ -6,8 +6,8 @@ import {
 	matchesRawBackspace,
 	parseKey,
 	setKittyProtocolActive,
-} from "@rva/tui/keys";
-import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@rva/tui/terminal-multiplexer";
+} from "@reverse/tui/keys";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@reverse/tui/terminal-multiplexer";
 
 describe("matchesKey", () => {
 	it("matches ctrl+letter sequences", () => {

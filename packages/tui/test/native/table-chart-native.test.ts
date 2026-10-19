@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { setTableCharts } from "@rva/tui/chat/table-chart";
-import { setNativeRendering } from "@rva/tui/native/state";
-import { initTheme, setTheme } from "@rva/tui/theme";
+import type { AssistantMessage } from "@reverse/ai";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { setTableCharts } from "@reverse/tui/chat/table-chart";
+import { setNativeRendering } from "@reverse/tui/native/state";
+import { initTheme, setTheme } from "@reverse/tui/theme";
 import { TspHarness } from "./tsp-harness";
 
 const ANSWER = `Where the time goes:

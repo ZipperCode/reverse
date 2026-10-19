@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { getProjectAgentDir, TempDir } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { getProjectAgentDir, TempDir } from "@reverse/utils";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
-import { cfgAutocompleteMaxVisible } from "@rva/coding-agent/modes/settings";
+import { cfgAutocompleteMaxVisible } from "@reverse/coding-agent/modes/settings";
 
 describe("autocompleteMaxVisible setting", () => {
 	let settingsState: SettingsTestState | undefined;

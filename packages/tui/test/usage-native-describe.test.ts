@@ -1,12 +1,12 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { UsageReport } from "@rva/ai";
-import type { NativeChild, NativeNode } from "@rva/tui/native/node";
-import { SessionInfoOverlay } from "@rva/tui/overlays/session-info-overlay";
-import { UsageDashboardComponent } from "@rva/tui/overlays/usage-dashboard";
-import { createUsageRowBlock } from "@rva/tui/overlays/usage-row";
-import { computeContextBreakdown, ContextUsageView } from "@rva/tui/status-line/context-usage";
-import { DEFAULT_COMPACTION_SETTINGS } from "@rva/agent/compaction";
-import { initTheme, theme } from "@rva/tui/theme";
+import type { UsageReport } from "@reverse/ai";
+import type { NativeChild, NativeNode } from "@reverse/tui/native/node";
+import { SessionInfoOverlay } from "@reverse/tui/overlays/session-info-overlay";
+import { UsageDashboardComponent } from "@reverse/tui/overlays/usage-dashboard";
+import { createUsageRowBlock } from "@reverse/tui/overlays/usage-row";
+import { computeContextBreakdown, ContextUsageView } from "@reverse/tui/status-line/context-usage";
+import { DEFAULT_COMPACTION_SETTINGS } from "@reverse/agent/compaction";
+import { initTheme, theme } from "@reverse/tui/theme";
 
 const cx = { cols: 100, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 /** An older terminal without the data-first kinds. */

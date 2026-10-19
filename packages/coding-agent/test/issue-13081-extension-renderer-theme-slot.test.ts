@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { Component } from "@rva/tui";
-import { Text } from "@rva/tui";
-import { getThemeByName, type Theme } from "@rva/tui/theme";
+import type { Component } from "@reverse/tui";
+import { Text } from "@reverse/tui";
+import { getThemeByName, type Theme } from "@reverse/tui/theme";
 import { ExtensionRuntime, loadExtensionFromFactory } from "../src/extensibility/extensions/loader";
 import { ExtensionRunner } from "../src/extensibility/extensions/runner";
 import type { ToolRenderResultOptions } from "../src/extensibility/extensions/types";

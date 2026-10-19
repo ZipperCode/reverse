@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { BashExecutionComponent } from "@rva/tui/chat/bash-execution";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import type { TUI } from "@rva/tui";
+import { BashExecutionComponent } from "@reverse/tui/chat/bash-execution";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import type { TUI } from "@reverse/tui";
 
 const ui = { requestRender: () => {}, requestComponentRender: () => {} } as unknown as TUI;
 

@@ -1,23 +1,23 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { convertOpenAICodexResponsesTools } from "@rva/ai/providers/openai-codex-responses";
-import { isJsonSchemaValueValid } from "@rva/ai/utils/schema";
-import { validateToolCall } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { convertOpenAICodexResponsesTools } from "@reverse/ai/providers/openai-codex-responses";
+import { isJsonSchemaValueValid } from "@reverse/ai/utils/schema";
+import { validateToolCall } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	CONTEXT_NOTES_ENTRY_TYPE,
 	getContextNotes,
 	MAX_CONTEXT_NOTES_BYTES,
-} from "@rva/coding-agent/session/context-notes";
-import type { ContextNotesEntry } from "@rva/coding-agent/session/context-notes";
-import type { CustomEntry, ResetBoundaryEntry, SessionEntry } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { ContextNotesTool, NewContextTool } from "@rva/coding-agent/tools/context-notes";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/context-notes";
+import type { ContextNotesEntry } from "@reverse/coding-agent/session/context-notes";
+import type { CustomEntry, ResetBoundaryEntry, SessionEntry } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { ContextNotesTool, NewContextTool } from "@reverse/coding-agent/tools/context-notes";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
+import { TempDir } from "@reverse/utils";
 
-import { cfgCompactionExperimentalContextManagement } from "@rva/coding-agent/session/context-settings";
+import { cfgCompactionExperimentalContextManagement } from "@reverse/coding-agent/session/context-settings";
 
 const NOW = "2026-09-04T00:00:00.000Z";
 

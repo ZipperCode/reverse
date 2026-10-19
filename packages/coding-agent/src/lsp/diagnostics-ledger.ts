@@ -1,4 +1,4 @@
-import type { FileDiagnosticsResult } from "@rva/tui/tools/lsp";
+import type { FileDiagnosticsResult } from "@reverse/tui/tools/lsp";
 import { summarizeDiagnosticMessages } from "./utils";
 
 const DIAGNOSTIC_LOCATION_PREFIX_RE = /^.*?:\d+:\d+\s+/;

@@ -9,9 +9,9 @@
  * model into the worker's cache.
  */
 
-import { getProjectDir } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { getProjectDir } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { sayHelp as commandHelp } from "../cli/command-help";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";

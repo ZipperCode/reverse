@@ -14,8 +14,8 @@
  * A URL that wrapped across terminal rows therefore needs neither a careful
  * mouse selection nor cmd-click.
  */
-import type { AgentTool } from "@rva/agent";
-import type { TspPickerColumn, TspPickerItem, TspPickerProps, TspText } from "@rva/wire";
+import type { AgentTool } from "@reverse/agent";
+import type { TspPickerColumn, TspPickerItem, TspPickerProps, TspText } from "@reverse/wire";
 import { type Component, matchesKey, routeSgrMouseInput, type TUI, truncateToWidth, visibleWidth } from "../index";
 import type { MessageRenderer } from "../chat/extension-types";
 import {

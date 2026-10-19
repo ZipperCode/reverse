@@ -1,7 +1,7 @@
-import type { Dialect as CatalogDialect } from "@rva/catalog/identity";
+import type { Dialect as CatalogDialect } from "@reverse/catalog/identity";
 import type { Context, Message, ToolCall } from "../types";
 
-export type { Dialect } from "@rva/catalog/identity";
+export type { Dialect } from "@reverse/catalog/identity";
 
 export type InbandScanEvent =
 	| { type: "text"; text: string }

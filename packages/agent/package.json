@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@rva/agent",
+  "name": "@reverse/agent",
   "version": "18.11.2",
   "description": "General-purpose agent with transport abstraction, state management, and attachment support",
   "homepage": "https://omp.sh",
@@ -38,16 +38,16 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@rva/ai": "catalog:",
-    "@rva/catalog": "catalog:",
-    "@rva/natives": "catalog:",
-    "@rva/utils": "catalog:",
-    "@rva/wire": "catalog:",
-    "@rva/snapcompact": "catalog:",
+    "@reverse/ai": "catalog:",
+    "@reverse/catalog": "catalog:",
+    "@reverse/natives": "catalog:",
+    "@reverse/utils": "catalog:",
+    "@reverse/wire": "catalog:",
+    "@reverse/snapcompact": "catalog:",
     "@opentelemetry/api": "catalog:"
   },
   "devDependencies": {
-    "@rva/omptype": "catalog:",
+    "@reverse/omptype": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@types/bun": "catalog:"

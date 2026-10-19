@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { authPolicyFor } from "@rva/catalog/compat/auth";
+import { authPolicyFor } from "@reverse/catalog/compat/auth";
 
 describe("Google OAuth callback hostname", () => {
 	it("uses 127.0.0.1 to avoid IPv6 and proxy delays", () => {

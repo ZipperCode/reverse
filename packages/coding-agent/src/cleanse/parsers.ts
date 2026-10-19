@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { isRecord, sanitizeText } from "@rva/utils";
+import { isRecord, sanitizeText } from "@reverse/utils";
 import type { CleanseDiagnostic, CleanseSeverity } from "./types";
 
 /** Machine and fallback output formats understood by cleanse. */

@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { withFileLockSync } from "@rva/utils/file-lock";
+import { withFileLockSync } from "@reverse/utils/file-lock";
 
 const sessionPath = process.argv[2];
 const deleteAttemptPath = process.argv[3];

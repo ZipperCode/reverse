@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { Markdown } from "@rva/tui/components/markdown";
-import { visibleWidth, wrapTextWithAnsi } from "@rva/tui/utils";
-import { Chalk } from "@rva/utils/chalk";
+import { Markdown } from "@reverse/tui/components/markdown";
+import { visibleWidth, wrapTextWithAnsi } from "@reverse/tui/utils";
+import { Chalk } from "@reverse/utils/chalk";
 import { defaultMarkdownTheme } from "./test-themes.js";
 
 const WIDTH = 40;

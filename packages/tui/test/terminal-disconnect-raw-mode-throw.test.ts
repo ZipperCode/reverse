@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { setTerminalHeadless } from "@rva/utils";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { setTerminalHeadless } from "@reverse/utils";
 
 // Regression: a recycled terminal pane (Muxy's "terminal offline" sweep, a
 // dropped ssh session) revokes the pty. stdin EOFs, the disconnect path runs,

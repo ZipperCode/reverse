@@ -10,15 +10,15 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Api, Model, ModelSpec } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { CONFIG_DIR_NAME, getConfigRootDir, setAgentDir, TempDir } from "@rva/utils";
+import type { Api, Model, ModelSpec } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { CONFIG_DIR_NAME, getConfigRootDir, setAgentDir, TempDir } from "@reverse/utils";
 
 function buildLocalModel(api: string): Model<Api> {
 	return buildModel({
@@ -86,7 +86,9 @@ async function expectStickyRuleReload(
 	// Project scope: nearest `.omp/RULES.md` walking up from cwd.
 	if (opts.scope === "user") setAgentDir(tempDir.path());
 	const rulesMd =
-		opts.scope === "user" ? path.join(tempDir.path(), "RULES.md") : path.join(tempDir.path(), CONFIG_DIR_NAME, "RULES.md");
+		opts.scope === "user"
+			? path.join(tempDir.path(), "RULES.md")
+			: path.join(tempDir.path(), CONFIG_DIR_NAME, "RULES.md");
 	if (opts.seedInitial) {
 		await fs.mkdir(path.dirname(rulesMd), { recursive: true });
 		await fs.writeFile(rulesMd, original);

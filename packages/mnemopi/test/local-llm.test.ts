@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
-import {
-	CallableLlmBackend,
-	resetHostLlmBackendForTests,
-	setHostLlmBackend,
-} from "@rva/mnemopi/core/llm-backends";
+import type { FetchImpl } from "@reverse/ai";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import { CallableLlmBackend, resetHostLlmBackendForTests, setHostLlmBackend } from "@reverse/mnemopi/core/llm-backends";
 import {
 	buildHostPrompt,
 	callRemoteLlm,
@@ -14,10 +10,10 @@ import {
 	complete,
 	llmAvailable,
 	summarizeMemories,
-} from "@rva/mnemopi/core/local-llm";
-import { Mnemopi } from "@rva/mnemopi/core/memory";
-import { withMnemopiRuntimeOptions } from "@rva/mnemopi/core/runtime-options";
-import { TempDir } from "@rva/utils";
+} from "@reverse/mnemopi/core/local-llm";
+import { Mnemopi } from "@reverse/mnemopi/core/memory";
+import { withMnemopiRuntimeOptions } from "@reverse/mnemopi/core/runtime-options";
+import { TempDir } from "@reverse/utils";
 
 const OLD_ENV = { ...process.env };
 

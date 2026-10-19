@@ -2,12 +2,12 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getOverviewStats } from "@rva/stats/aggregator";
-import { initDb, insertMessageStats } from "@rva/stats/db";
-import { getStatsByAgentType } from "@rva/stats/rollup";
-import { classifyAgentType } from "@rva/stats/parser";
-import type { AgentType, MessageStats } from "@rva/stats/types";
-import { getConfigRootDir, getSessionsDir, getStatsDbPath } from "@rva/utils";
+import { getOverviewStats } from "@reverse/stats/aggregator";
+import { initDb, insertMessageStats } from "@reverse/stats/db";
+import { getStatsByAgentType } from "@reverse/stats/rollup";
+import { classifyAgentType } from "@reverse/stats/parser";
+import type { AgentType, MessageStats } from "@reverse/stats/types";
+import { getConfigRootDir, getSessionsDir, getStatsDbPath } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-agent-type-");

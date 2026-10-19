@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, getConfigAgentDirName, getProjectDir } from "@rva/utils";
+import { CONFIG_DIR_NAME, getConfigAgentDirName, getProjectDir } from "@reverse/utils";
 import { isUserSourceEnabled } from "./capability";
 import { resolveClaudePaths } from "./config/claude-paths";
 import { expandTilde } from "./tools/path-utils";

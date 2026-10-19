@@ -1,6 +1,6 @@
-import { buildModel } from "@rva/catalog/build";
-import { apiRouteFor } from "@rva/catalog/compat/behavior";
-import { getGitLabDuoModels, resolveGitLabDuoModelIdentity } from "@rva/catalog/provider-models";
+import { buildModel } from "@reverse/catalog/build";
+import { apiRouteFor } from "@reverse/catalog/compat/behavior";
+import { getGitLabDuoModels, resolveGitLabDuoModelIdentity } from "@reverse/catalog/provider-models";
 import * as AIError from "../error";
 import { ANTHROPIC_THINKING, mapAnthropicToolChoice } from "../stream";
 import type { Api, Context, FetchImpl, Model, ModelSpec, SimpleStreamOptions } from "../types";

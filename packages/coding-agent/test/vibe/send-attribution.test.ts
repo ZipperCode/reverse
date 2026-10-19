@@ -7,15 +7,15 @@
  * reads as something the human typed.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { ExecutorOptions } from "@rva/coding-agent/task/executor";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import type { SingleResult } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { VibeSessionRegistry } from "@rva/coding-agent/vibe/runtime";
+import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { ExecutorOptions } from "@reverse/coding-agent/task/executor";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import type { SingleResult } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { VibeSessionRegistry } from "@reverse/coding-agent/vibe/runtime";
 
 const ATTRIBUTION_OWNER = "vibe-parent";
 

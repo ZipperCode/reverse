@@ -5,12 +5,12 @@
  * when a woken subagent re-yields, so a parent reads the same shape (status,
  * preview, `agent://` pointer) regardless of which path delivered it.
  */
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { AgentRegistry } from "../registry/agent-registry";
 import { escapeHarnessTags } from "../session/harness-tags";
-import { formatBytes, formatDuration } from "@rva/tui/render/render-utils";
-import type { SingleResult } from "@rva/tui/tools/task";
+import { formatBytes, formatDuration } from "@reverse/tui/render/render-utils";
+import type { SingleResult } from "@reverse/tui/tools/task";
 
 /** Inline preview budget before the envelope points at `agent://<id>` instead. */
 const FULL_OUTPUT_THRESHOLD = 5000;

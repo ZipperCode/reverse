@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { factRecall, formatContext, recall, recallEnhanced } from "@rva/mnemopi/core/beam/recall";
-import { initBeam } from "@rva/mnemopi/core/beam/schema";
-import { invalidate } from "@rva/mnemopi/core/beam/store";
-import type { BeamMemoryState } from "@rva/mnemopi/core/beam/types";
-import { currentLoopPhase } from "@rva/utils";
+import { factRecall, formatContext, recall, recallEnhanced } from "@reverse/mnemopi/core/beam/recall";
+import { initBeam } from "@reverse/mnemopi/core/beam/schema";
+import { invalidate } from "@reverse/mnemopi/core/beam/store";
+import type { BeamMemoryState } from "@reverse/mnemopi/core/beam/types";
+import { currentLoopPhase } from "@reverse/utils";
 
 type TestBeam = BeamMemoryState & { close(): void };
 

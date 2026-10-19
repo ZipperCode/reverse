@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { ReadToolGroupComponent } from "@rva/tui/chat/read-tool-group";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import * as themeModule from "@rva/tui/theme";
-import type { Component } from "@rva/tui";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import * as themeModule from "@reverse/tui/theme";
+import type { Component } from "@reverse/tui";
 
-import { cfgTuiHyperlinks } from "@rva/coding-agent/modes/settings";
+import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
 
 /** Minimal transcript block whose finalized state is fixed at construction. */
 class StubBlock implements Component {

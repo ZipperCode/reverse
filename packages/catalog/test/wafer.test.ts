@@ -7,11 +7,11 @@
  * catalog contract and the case-sensitive id pass-through against the wire.
  */
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { createModelManager } from "@rva/catalog/model-manager";
-import { getBundledModel } from "@rva/catalog/models";
-import { waferServerlessModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { createModelManager } from "@reverse/catalog/model-manager";
+import { getBundledModel } from "@reverse/catalog/models";
+import { waferServerlessModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
 
 function sseResponse(events: unknown[]): Response {
 	const payload = `${events.map(e => `data: ${typeof e === "string" ? e : JSON.stringify(e)}`).join("\n\n")}\n\n`;

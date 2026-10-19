@@ -1,5 +1,5 @@
-import type { Model } from "@rva/ai";
-import type { SessionState, TspSpan, TspTone } from "@rva/wire";
+import type { Model } from "@reverse/ai";
+import type { SessionState, TspSpan, TspTone } from "@reverse/wire";
 import type { NativeNode, NativeUiEvent } from "../native/node";
 import type { ContextLineMode, StatusLinePreset, StatusLineSegmentId, StatusLineSeparatorStyle } from "./schema";
 import type { ActiveRepoContext, StatusLineSession } from "./host";

@@ -3,9 +3,9 @@
  * text-only assistant turn promised to act and then ended. The judge comes
  * from the live `judge` role chain resolved by {@link resolveJudge}.
  */
-import type { AgentTelemetryConfig } from "@rva/agent";
-import { type AssistantMessage, type JudgmentState, judgeQuestions, type Model } from "@rva/ai";
-import { logger } from "@rva/utils";
+import type { AgentTelemetryConfig } from "@reverse/agent";
+import { type AssistantMessage, type JudgmentState, judgeQuestions, type Model } from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import { type JudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";

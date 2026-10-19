@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { Effort, type FetchImpl } from "@rva/ai";
-import { streamSimple } from "@rva/ai/stream";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { resolveVariantSelector } from "@rva/catalog/compat/collapse";
-import { fetchAntigravityDiscoveryModels } from "@rva/catalog/discovery/antigravity";
-import type { ModelSpec } from "@rva/catalog/types";
+import { Effort, type FetchImpl } from "@reverse/ai";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveVariantSelector } from "@reverse/catalog/compat/collapse";
+import { fetchAntigravityDiscoveryModels } from "@reverse/catalog/discovery/antigravity";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 interface CapturedRequestBody {
 	model?: string;

@@ -1,4 +1,4 @@
-import { $which } from "@rva/utils";
+import { $which } from "@reverse/utils";
 
 /** Portable command that rejects credential prompts without assuming an FHS layout. */
 export const REJECT_PROMPT_COMMAND = $which("false") ?? "false";

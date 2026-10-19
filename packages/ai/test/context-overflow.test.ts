@@ -14,12 +14,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { ChildProcess } from "node:child_process";
 import { execSync, spawn } from "node:child_process";
-import { isContextOverflow as originalIsContextOverflow } from "@rva/ai/error";
-import { complete } from "@rva/ai/stream";
-import type { AssistantMessage, Context, Model, Usage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { $which } from "@rva/utils";
+import { isContextOverflow as originalIsContextOverflow } from "@reverse/ai/error";
+import { complete } from "@reverse/ai/stream";
+import type { AssistantMessage, Context, Model, Usage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { $which } from "@reverse/utils";
 
 function isContextOverflow(message: AssistantMessage, contextWindow: number | null): boolean {
 	return originalIsContextOverflow(message, contextWindow ?? 0);

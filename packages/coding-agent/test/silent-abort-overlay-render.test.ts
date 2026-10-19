@@ -1,4 +1,4 @@
-import { agentTranscriptSource } from "@rva/coding-agent/modes/agent-hub-runtime";
+import { agentTranscriptSource } from "@reverse/coding-agent/modes/agent-hub-runtime";
 /**
  * Regression: the agent-hub chat transcript must not render SILENT_ABORT_MARKER verbatim.
  *
@@ -12,15 +12,15 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as AIError from "@rva/ai/error";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AgentTranscriptViewer } from "@rva/tui/overlays/agent-transcript-viewer";
-import type { ObservableSession } from "@rva/tui/overlays/session-observer-registry";
-import { initTheme } from "@rva/tui/theme";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { SILENT_ABORT_MARKER } from "@rva/coding-agent/session/messages";
-import type { TUI } from "@rva/tui";
-import { removeSyncWithRetries } from "@rva/utils";
+import * as AIError from "@reverse/ai/error";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AgentTranscriptViewer } from "@reverse/tui/overlays/agent-transcript-viewer";
+import type { ObservableSession } from "@reverse/tui/overlays/session-observer-registry";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { SILENT_ABORT_MARKER } from "@reverse/coding-agent/session/messages";
+import type { TUI } from "@reverse/tui";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 const SESSION_ID = "test-session-1";
 
@@ -38,7 +38,7 @@ function makeSubagentRegistry(sessions: ObservableSession[]) {
 		onChange: () => () => {},
 		setMainSession: () => {},
 		getActiveSubagentCount: () => sessions.filter(s => s.status === "active").length,
-	} as unknown as import("@rva/tui/overlays/session-observer-registry").SessionObserverRegistry;
+	} as unknown as import("@reverse/tui/overlays/session-observer-registry").SessionObserverRegistry;
 }
 
 function makeViewer(sessionFile: string, observed: ObservableSession[]): AgentTranscriptViewer {

@@ -4,7 +4,7 @@ import {
 	callHostLlm,
 	resetHostLlmBackendForTests,
 	setHostLlmBackend,
-} from "@rva/mnemopi/core/llm-backends";
+} from "@reverse/mnemopi/core/llm-backends";
 
 afterEach(() => resetHostLlmBackendForTests());
 

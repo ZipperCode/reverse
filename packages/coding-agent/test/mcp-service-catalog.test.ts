@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getMCPConfigPath } from "@rva/utils";
+import { getMCPConfigPath } from "@reverse/utils";
 import { checkReverseTools, handleReverseSetup } from "../src/cli/setup-reverse";
 import {
 	MCP_CONFIG_PATH_HINT,

@@ -3,12 +3,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { YAML } from "bun";
-import { AuthStorage } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import {
-	saveCustomProvider,
-	validateCustomProviderInput,
-} from "@rva/coding-agent/config/custom-provider-writer";
+import { AuthStorage } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { saveCustomProvider, validateCustomProviderInput } from "@reverse/coding-agent/config/custom-provider-writer";
 
 describe("custom-provider-writer", () => {
 	test("validateCustomProviderInput rejects invalid inputs", () => {

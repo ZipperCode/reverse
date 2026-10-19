@@ -1,4 +1,4 @@
-import type { FetchImpl } from "@rva/utils";
+import type { FetchImpl } from "@reverse/utils";
 
 /**
  * Build a User-Agent string that identifies as Gemini CLI to unlock higher rate limits.

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { BeamMemory } from "@rva/mnemopi/core/beam";
+import { BeamMemory } from "@reverse/mnemopi/core/beam";
 
 const beams: BeamMemory[] = [];
 

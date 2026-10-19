@@ -9,17 +9,17 @@ import type {
 	ProviderSessionState,
 	ToolResultMessage,
 	Usage,
-} from "@rva/ai/types";
-import { createOpenAIResponsesHistoryPayload } from "@rva/ai/utils";
-import type { Model } from "@rva/catalog/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { SessionEntry, SessionMessageEntry } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+} from "@reverse/ai/types";
+import { createOpenAIResponsesHistoryPayload } from "@reverse/ai/utils";
+import type { Model } from "@reverse/catalog/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { SessionEntry, SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { getTestModel } from "./helpers/model-fixtures";
 
 const openaiModel = getTestModel("openai", model => model.api === "openai-responses" && model.reasoning);

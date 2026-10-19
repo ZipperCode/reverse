@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { clearAwsCredentialCache } from "@rva/ai/providers/aws-credentials";
-import type { AnthropicOptions } from "@rva/ai/providers/anthropic";
-import { stream } from "@rva/ai/stream";
-import type { Context, Model, ModelSpec, TJsonSchema } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { clearAwsCredentialCache } from "@reverse/ai/providers/aws-credentials";
+import type { AnthropicOptions } from "@reverse/ai/providers/anthropic";
+import { stream } from "@reverse/ai/stream";
+import type { Context, Model, ModelSpec, TJsonSchema } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import { withEnv, withOfficialAnthropicEndpoint } from "./helpers";
 
 const RUNTIME_URL = "https://bedrock-runtime.us-east-1.amazonaws.com/anthropic";

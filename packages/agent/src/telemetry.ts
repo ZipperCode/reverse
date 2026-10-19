@@ -38,7 +38,7 @@ import {
 	shouldSendServiceTier,
 	type ToolChoice,
 	type Usage,
-} from "@rva/ai";
+} from "@reverse/ai";
 import {
 	type Attributes,
 	type AttributeValue,
@@ -54,7 +54,7 @@ import type { AgentTool } from "./types";
 import { EventLoopKeepalive } from "./utils/yield";
 
 /** Default tracer name. Override via {@link AgentTelemetryConfig.tracerName}. */
-export const DEFAULT_TRACER_NAME = "@rva/agent";
+export const DEFAULT_TRACER_NAME = "@reverse/agent";
 
 /** Env var matching the OTEL semconv content-capture toggle. */
 const CONTENT_CAPTURE_ENV = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT";
@@ -1799,7 +1799,7 @@ export interface InstrumentedChatSpanOptions {
 	readonly attributes?: Attributes;
 	/**
 	 * Override for the underlying {@link completeSimple} call. Defaults to
-	 * `completeSimple` from `@rva/ai`. Use to retain a test injection
+	 * `completeSimple` from `@reverse/ai`. Use to retain a test injection
 	 * seam while still going through the chat-span lifecycle.
 	 */
 	readonly completeImpl?: <TApi extends Api>(

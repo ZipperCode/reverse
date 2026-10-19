@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
-import type { AgentToolUpdateCallback } from "@rva/agent";
-import { formatBytes, materializeString, sanitizeText } from "@rva/utils";
+import type { AgentToolUpdateCallback } from "@reverse/agent";
+import { formatBytes, materializeString, sanitizeText } from "@reverse/utils";
 import { sanitizeWithOptionalSixelPassthrough } from "../render/sixel";
 
 // =============================================================================

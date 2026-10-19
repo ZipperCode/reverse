@@ -1,21 +1,21 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@rva/agent";
-import { type Api, type AssistantMessage, type Context, Effort, type ImageContent, type Model } from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { type CreateAgentSessionResult, createAgentSession } from "@rva/coding-agent/sdk";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { getRestorableSessionModels } from "@rva/coding-agent/session/session-context";
-import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { encodeRawPng } from "@rva/coding-agent/utils/png-encode";
-import { AUTO_THINKING } from "@rva/tui/thinking";
-import { TempDir } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+import { Agent, type AgentMessage } from "@reverse/agent";
+import { type Api, type AssistantMessage, type Context, Effort, type ImageContent, type Model } from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { type CreateAgentSessionResult, createAgentSession } from "@reverse/coding-agent/sdk";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { getRestorableSessionModels } from "@reverse/coding-agent/session/session-context";
+import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { encodeRawPng } from "@reverse/coding-agent/utils/png-encode";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
+import { TempDir } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 describe("AgentSession model persistence", () => {

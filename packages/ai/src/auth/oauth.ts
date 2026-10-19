@@ -1,4 +1,4 @@
-import { untilAborted } from "@rva/utils";
+import { untilAborted } from "@reverse/utils";
 import * as AIError from "../error";
 import { getProviderDefinition, PASTE_CODE_LOGIN_PROVIDERS } from "../registry";
 import { getOAuthProvider } from "../registry/oauth";

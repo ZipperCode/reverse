@@ -2,15 +2,15 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, spyOn, test, vi } from "bun:test";
-import type { FetchImpl, Model } from "@rva/ai";
-import { type GeneratedProvider, getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CustomToolContext } from "@rva/coding-agent/extensibility/custom-tools/types";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { resolveSpeechCandidates, ttsTool } from "@rva/coding-agent/tools/tts";
-import { ttsClient } from "@rva/coding-agent/tts/tts-client";
+import type { FetchImpl, Model } from "@reverse/ai";
+import { type GeneratedProvider, getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CustomToolContext } from "@reverse/coding-agent/extensibility/custom-tools/types";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { resolveSpeechCandidates, ttsTool } from "@reverse/coding-agent/tools/tts";
+import { ttsClient } from "@reverse/coding-agent/tts/tts-client";
 
 function requireModel(provider: GeneratedProvider, id: string): Model {
 	const model = getBundledModel(provider, id);

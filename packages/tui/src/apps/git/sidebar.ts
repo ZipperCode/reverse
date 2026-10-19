@@ -20,7 +20,7 @@ import { matchesKey } from "../../keys";
 import { col, compact, item, keyed, list, node, row, span, stableKey, text } from "../../native/describe";
 import { Memo } from "../../native/memo";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../../native/node";
-import type { TspProps, TspSpan } from "@rva/wire";
+import type { TspProps, TspSpan } from "@reverse/wire";
 import { TERMINAL } from "../../terminal-capabilities";
 import { truncateToWidth, visibleWidth } from "../../utils";
 import { getEditorTheme, theme } from "../../theme/theme";

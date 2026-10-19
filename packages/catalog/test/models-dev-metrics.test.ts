@@ -1,8 +1,5 @@
 import { expect, test } from "bun:test";
-import {
-	mapModelsDevToModels,
-	MODELS_DEV_PROVIDER_DESCRIPTORS,
-} from "@rva/catalog/provider-models/openai-compat";
+import { mapModelsDevToModels, MODELS_DEV_PROVIDER_DESCRIPTORS } from "@reverse/catalog/provider-models/openai-compat";
 
 test("models.dev metrics survive catalog mapping", () => {
 	const models = mapModelsDevToModels(

@@ -4,7 +4,7 @@
  * always, and Google's Cloud Code Assist wire when resolved policy declares
  * the host's limits (`max-image-dimension` / `max-image-payload-bytes`).
  */
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { Context, ImageContent, Message, Model, TextContent } from "../types";
 
 const ANTHROPIC_MANY_IMAGE_THRESHOLD = 20;

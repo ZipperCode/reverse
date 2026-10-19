@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 
-import { getProjectDir, logger, Snowflake } from "@rva/utils";
-import type { OutputArtifactError } from "@rva/tui/tools/streaming-output";
+import { getProjectDir, logger, Snowflake } from "@reverse/utils";
+import type { OutputArtifactError } from "@reverse/tui/tools/streaming-output";
 import type { ToolSession } from "../../tools";
 import {
 	buildManagedKernelEnv,

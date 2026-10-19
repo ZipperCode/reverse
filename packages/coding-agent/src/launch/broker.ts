@@ -3,16 +3,11 @@ import * as fs from "node:fs/promises";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { FileLock, IpcConnection, IpcServer, Process, type PtyRunResult, PtySession } from "@rva/natives";
-import { isEnoent, isRecord, logger, postmortem, procmgr, sanitizeText, setProcessName } from "@rva/utils";
-import { TerminalQueryResponder } from "@rva/utils/vterm";
+import { FileLock, IpcConnection, IpcServer, Process, type PtyRunResult, PtySession } from "@reverse/natives";
+import { isEnoent, isRecord, logger, postmortem, procmgr, sanitizeText, setProcessName } from "@reverse/utils";
+import { TerminalQueryResponder } from "@reverse/utils/vterm";
 import { hostHasInheritableConsole } from "../eval/py/spawn-options";
-import {
-	truncateHead,
-	truncateHeadBytes,
-	truncateTail,
-	truncateTailBytes,
-} from "@rva/tui/tools/streaming-output";
+import { truncateHead, truncateHeadBytes, truncateTail, truncateTailBytes } from "@reverse/tui/tools/streaming-output";
 import { workerEnvFromParent } from "../subprocess/worker-client";
 import {
 	DAEMON_META_FILE,
@@ -21,7 +16,7 @@ import {
 	readStoredDaemonRecord,
 	writeDaemonScopeMeta,
 } from "./paths";
-import type { DaemonReadySpec, DaemonSnapshot, DaemonSpec } from "@rva/tui/tools/daemon";
+import type { DaemonReadySpec, DaemonSnapshot, DaemonSpec } from "@reverse/tui/tools/daemon";
 import { hasLiveDaemonProjectPresence, pruneDeadDaemonRuntimeDirs } from "./presence";
 import {
 	DAEMON_IDLE_GRACE_ENV,

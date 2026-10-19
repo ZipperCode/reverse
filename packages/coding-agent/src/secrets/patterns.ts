@@ -1,4 +1,4 @@
-import { SENSITIVE_TOKEN_RE } from "@rva/ai/providers/transform-messages";
+import { SENSITIVE_TOKEN_RE } from "@reverse/ai/providers/transform-messages";
 
 export interface CredentialPattern {
 	/** Model-visible friendly label for reversible placeholders. */

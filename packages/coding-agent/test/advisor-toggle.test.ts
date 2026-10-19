@@ -1,22 +1,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent, type AgentMessage } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import type { AssistantMessage, Model } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { getBundledModel } from "@rva/catalog/models";
-import { loadAdvisorTranscriptCosts } from "@rva/coding-agent/advisor/transcript-recorder";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { __resetDirsFromEnvForTests, getProjectAgentDir, setAgentDir, TempDir } from "@rva/utils";
+import { Agent, type AgentMessage } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { AssistantMessage, Model } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { getBundledModel } from "@reverse/catalog/models";
+import { loadAdvisorTranscriptCosts } from "@reverse/coding-agent/advisor/transcript-recorder";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { __resetDirsFromEnvForTests, getProjectAgentDir, setAgentDir, TempDir } from "@reverse/utils";
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -28,8 +28,8 @@ function restoreEnv(key: string, value: string | undefined): void {
 import * as advisorModule from "../src/advisor";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-import { cfgAdvisorEnabled, cfgAdvisorMaxNotesPerUpdate } from "@rva/coding-agent/advisor/settings";
-import { cfgCompactionKeepRecentTokens } from "@rva/coding-agent/session/context-settings";
+import { cfgAdvisorEnabled, cfgAdvisorMaxNotesPerUpdate } from "@reverse/coding-agent/advisor/settings";
+import { cfgCompactionKeepRecentTokens } from "@reverse/coding-agent/session/context-settings";
 
 describe("AgentSession advisor toggle", () => {
 	let authStorage: AuthStorage;

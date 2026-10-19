@@ -1,4 +1,4 @@
-import { isRecord, readLines } from "@rva/utils";
+import { isRecord, readLines } from "@reverse/utils";
 
 /** One readable object record from a foreign JSONL transcript. */
 export interface ForeignJsonRecord {

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { providerEntry } from "@rva/catalog/compat/providers";
-import { moonshotModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@rva/catalog/types";
-import { $pickenv } from "@rva/utils";
+import { providerEntry } from "@reverse/catalog/compat/providers";
+import { moonshotModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@reverse/catalog/types";
+import { $pickenv } from "@reverse/utils";
 
 const MODELS_DEV_URL = "https://catalog.stencil.so/models.json.zstd";
 

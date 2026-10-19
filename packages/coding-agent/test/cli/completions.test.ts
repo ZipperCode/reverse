@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildSpec, type CompletionSpec, generateCompletion } from "@rva/coding-agent/cli/completion-gen";
-import { generateLiveCompletion } from "@rva/coding-agent/commands/completions";
-import type { CliConfig, CommandCtor } from "@rva/utils/cli";
-import { APP_NAME } from "@rva/utils/dirs";
+import { buildSpec, type CompletionSpec, generateCompletion } from "@reverse/coding-agent/cli/completion-gen";
+import { generateLiveCompletion } from "@reverse/coding-agent/commands/completions";
+import type { CliConfig, CommandCtor } from "@reverse/utils/cli";
+import { APP_NAME } from "@reverse/utils/dirs";
 
 // A compact synthetic spec exercising every value-source kind and an aliased
 // subcommand. The generators are pure functions of this shape, so pinning their

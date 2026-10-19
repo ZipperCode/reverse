@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { Model, ServiceTierByFamily } from "@rva/ai";
-import { resolveAgentServiceTierOverride } from "@rva/coding-agent/config/service-tier";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession, type ExtensionFactory } from "@rva/coding-agent/sdk";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir, withTimeout } from "@rva/utils";
+import type { Model, ServiceTierByFamily } from "@reverse/ai";
+import { resolveAgentServiceTierOverride } from "@reverse/coding-agent/config/service-tier";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession, type ExtensionFactory } from "@reverse/coding-agent/sdk";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir, withTimeout } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const runtimeProviderExtension: ExtensionFactory = pi => {

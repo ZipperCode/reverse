@@ -1,7 +1,7 @@
 /**
  * Defines lazy proxy properties on a wrapper so it forwards to the underlying tool.
  */
-import { isArkSchema } from "@rva/ai/utils/schema";
+import { isArkSchema } from "@reverse/ai/utils/schema";
 
 export function applyToolProxy<TTool extends object>(tool: TTool, wrapper: object): void {
 	const visited = new Set<PropertyKey>();

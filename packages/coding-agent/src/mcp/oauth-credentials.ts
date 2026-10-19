@@ -1,7 +1,7 @@
-import { REMOTE_REFRESH_SENTINEL, type StoredOAuthRefreshResult } from "@rva/ai";
-import { isDefinitiveOAuthFailure } from "@rva/ai/error";
-import type { OAuthCredentials } from "@rva/ai/oauth/types";
-import { getActiveProfile } from "@rva/utils/dirs";
+import { REMOTE_REFRESH_SENTINEL, type StoredOAuthRefreshResult } from "@reverse/ai";
+import { isDefinitiveOAuthFailure } from "@reverse/ai/error";
+import type { OAuthCredentials } from "@reverse/ai/oauth/types";
+import { getActiveProfile } from "@reverse/utils/dirs";
 import { expandEnvVarsDeep } from "../discovery/helpers";
 import type { AuthStorage } from "../session/auth-storage";
 import {

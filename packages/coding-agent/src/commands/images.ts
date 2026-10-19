@@ -1,6 +1,6 @@
 /** Inspect and maintain image publication backends. */
 
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { imagesHelp as commandHelp } from "../cli/command-help";
 import { IMAGES_ACTIONS, type ImagesAction, type ImagesCommandArgs, runImagesCommand } from "../cli/images-cli";
 

@@ -21,11 +21,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPManager, type MCPReconnectPolicy } from "@rva/coding-agent/mcp/manager";
-import type { McpConnectionStatusEvent } from "@rva/coding-agent/mcp/startup-events";
-import type { MCPTool } from "@rva/coding-agent/mcp/tool-bridge";
-import type { MCPHttpServerConfig } from "@rva/coding-agent/mcp/types";
-import { removeSyncWithRetries } from "@rva/utils";
+import { MCPManager, type MCPReconnectPolicy } from "@reverse/coding-agent/mcp/manager";
+import type { McpConnectionStatusEvent } from "@reverse/coding-agent/mcp/startup-events";
+import type { MCPTool } from "@reverse/coding-agent/mcp/tool-bridge";
+import type { MCPHttpServerConfig } from "@reverse/coding-agent/mcp/types";
+import { removeSyncWithRetries } from "@reverse/utils";
 import { type FlakyHttpMcpServer, startFlakyHttpMcpServer } from "./fixtures/flaky-http-mcp";
 
 /** Short ladder, fast schedule: three attempts per reconnect, retries at 20/40/80/80… ms. */

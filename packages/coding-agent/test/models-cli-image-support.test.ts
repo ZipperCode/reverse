@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { Api, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { MODEL_KINDS, modelKind, type ModelKind } from "@rva/catalog/types";
-import { renderProviderModels } from "@rva/coding-agent/cli/models-cli";
-import Models from "@rva/coding-agent/commands/models";
-import type { CliConfig } from "@rva/utils/cli";
+import type { Api, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { MODEL_KINDS, modelKind, type ModelKind } from "@reverse/catalog/types";
+import { renderProviderModels } from "@reverse/coding-agent/cli/models-cli";
+import Models from "@reverse/coding-agent/commands/models";
+import type { CliConfig } from "@reverse/utils/cli";
 
 const TEST_CONFIG: CliConfig = { bin: "omp", version: "test", commands: new Map() };
 

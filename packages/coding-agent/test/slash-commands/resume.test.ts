@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { listAllSessions, resolveResumableSession } from "@rva/coding-agent/session/session-listing";
-import { computeDefaultSessionDir } from "@rva/coding-agent/session/session-paths";
-import { FileSessionStorage } from "@rva/coding-agent/session/session-storage";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import { __resetDirsFromEnvForTests, APP_NAME, getConfigRootDir, refreshDirsFromEnv, setAgentDir } from "@rva/utils";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { listAllSessions, resolveResumableSession } from "@reverse/coding-agent/session/session-listing";
+import { computeDefaultSessionDir } from "@reverse/coding-agent/session/session-paths";
+import { FileSessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import { __resetDirsFromEnvForTests, APP_NAME, getConfigRootDir, setAgentDir } from "@reverse/utils";
 
 let tempDir: string;
 const originalAgentDir = process.env.REVERSE_CODING_AGENT_DIR ?? process.env.PI_CODING_AGENT_DIR;

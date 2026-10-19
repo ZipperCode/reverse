@@ -11,8 +11,8 @@
  * entry count, but it cannot duplicate or misorder rows the way incremental
  * component reuse could.
  */
-import type { AgentMessage, AgentTool } from "@rva/agent";
-import type { Usage } from "@rva/ai";
+import type { AgentMessage, AgentTool } from "@reverse/agent";
+import type { Usage } from "@reverse/ai";
 import { type Component, type TUI } from "../tui";
 import type { AdvisorMessageDetails } from "./messages";
 import { chatTranscriptDisplayPreferences as displayPreferences } from "./display-preferences";

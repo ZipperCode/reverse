@@ -1,4 +1,4 @@
-import type { AuthStorage, UsageReport } from "@rva/ai";
+import type { AuthStorage, UsageReport } from "@reverse/ai";
 
 /** Identity slice of a stored credential, for "every account" coverage. */
 export interface UsageAccountIdentity {

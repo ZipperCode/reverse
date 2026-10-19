@@ -1,8 +1,8 @@
 import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { BashExecutionComponent } from "@rva/tui/chat/bash-execution";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import type { TUI } from "@rva/tui";
-import { visibleWidth } from "@rva/tui";
+import { BashExecutionComponent } from "@reverse/tui/chat/bash-execution";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import type { TUI } from "@reverse/tui";
+import { visibleWidth } from "@reverse/tui";
 
 const MAX_DISPLAY_LINE_CHARS = 4000;
 let darkTheme: Theme;

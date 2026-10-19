@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { AgentTool } from "@rva/agent";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { initTheme } from "@rva/tui/theme";
-import { Text, type TUI } from "@rva/tui";
+import type { AgentTool } from "@reverse/agent";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { initTheme } from "@reverse/tui/theme";
+import { Text, type TUI } from "@reverse/tui";
 
 /**
  * Contract under test (tool-result render memoization):

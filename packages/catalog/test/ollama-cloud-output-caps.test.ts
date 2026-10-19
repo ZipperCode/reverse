@@ -1,7 +1,7 @@
 import { expect, test, vi } from "bun:test";
-import { streamSimple } from "@rva/ai/stream";
-import { ollamaCloudModelManagerOptions } from "@rva/catalog/provider-models/ollama";
-import type { FetchImpl, Model } from "@rva/catalog/types";
+import { streamSimple } from "@reverse/ai/stream";
+import { ollamaCloudModelManagerOptions } from "@reverse/catalog/provider-models/ollama";
+import type { FetchImpl, Model } from "@reverse/catalog/types";
 
 const cloudModel: Model<"ollama-chat"> = {
 	id: "deepseek-v4-flash",

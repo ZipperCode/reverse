@@ -1,8 +1,8 @@
-import type { AgentTool, AgentToolResult, AgentToolUpdateCallback, ToolLoadMode } from "@rva/agent";
-import type { Static, TSchema } from "@rva/ai";
-import { Snowflake } from "@rva/utils";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback, ToolLoadMode } from "@reverse/agent";
+import type { Static, TSchema } from "@reverse/ai";
+import { Snowflake } from "@reverse/utils";
 import { applyToolProxy } from "../../extensibility/tool-proxy";
-import type { Theme } from "@rva/tui/theme";
+import type { Theme } from "@reverse/tui/theme";
 import { defaultLoadModeForToolName } from "../../tools/essential-tools";
 import type {
 	RpcHostToolCallRequest,

@@ -13,8 +13,8 @@
  * headless paths and tests that never load a counter never open agent.db.
  */
 
-import { logger } from "@rva/utils";
-import type { ComposerHintId } from "@rva/tui/prompt/composer-hints";
+import { logger } from "@reverse/utils";
+import type { ComposerHintId } from "@reverse/tui/prompt/composer-hints";
 import { AgentStorage, type UsageKind } from "../session/agent-storage";
 
 /** Process-wide use counts for one {@link UsageKind}, keyed by `Name`. */

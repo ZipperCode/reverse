@@ -9,9 +9,9 @@ import {
 	sanitizeSkillName,
 	toSkillFrontmatter,
 	writeManagedSkill,
-} from "@rva/coding-agent/autolearn/managed-skills";
-import { parseFrontmatter, removeWithRetries } from "@rva/utils";
-import { getAgentDir, setAgentDir } from "@rva/utils/dirs";
+} from "@reverse/coding-agent/autolearn/managed-skills";
+import { parseFrontmatter, removeWithRetries } from "@reverse/utils";
+import { getAgentDir, setAgentDir } from "@reverse/utils/dirs";
 
 describe("managed-skills primitives", () => {
 	let tempHome: string;

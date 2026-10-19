@@ -1,10 +1,10 @@
 import { describe, expect, test, vi } from "bun:test";
-import { type Api, Effort, type Model, type ModelSpec } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@rva/catalog/provider-models";
-import { logger } from "@rva/utils";
-import { parseModelString } from "@rva/tui/overlays/model-selector";
+import { type Api, Effort, type Model, type ModelSpec } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@reverse/catalog/provider-models";
+import { logger } from "@reverse/utils";
+import { parseModelString } from "@reverse/tui/overlays/model-selector";
 import {
 	expandRoleAlias,
 	extractExplicitThinkingSelector,
@@ -29,9 +29,9 @@ import {
 	resolveRoleChain,
 	rolePriorityDefaults,
 	resolveProviderModelReference,
-} from "@rva/coding-agent/config/model-resolver";
-import { DEFAULT_MODEL_ROLE_ALIAS, LEGACY_MODEL_ROLE_ALIAS_PREFIX } from "@rva/coding-agent/config/model-roles";
-import { Settings } from "@rva/coding-agent/config/settings";
+} from "@reverse/coding-agent/config/model-resolver";
+import { DEFAULT_MODEL_ROLE_ALIAS, LEGACY_MODEL_ROLE_ALIAS_PREFIX } from "@reverse/coding-agent/config/model-roles";
+import { Settings } from "@reverse/coding-agent/config/settings";
 
 // Mock models for testing
 const mockModels: Model<"anthropic-messages">[] = [

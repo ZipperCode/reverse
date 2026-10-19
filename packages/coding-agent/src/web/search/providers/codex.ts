@@ -4,8 +4,8 @@
  * Uses the configured Codex Responses transport for proxy/API-key setups and
  * the official ChatGPT backend for OAuth logins.
  */
-import { type Api, type AuthStorage, type FetchImpl, type Model, withAuth, withOAuthAccess } from "@rva/ai";
-import { resolveCodexResponsesUrl } from "@rva/ai/providers/openai-codex-responses";
+import { type Api, type AuthStorage, type FetchImpl, type Model, withAuth, withOAuthAccess } from "@reverse/ai";
+import { resolveCodexResponsesUrl } from "@reverse/ai/providers/openai-codex-responses";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
@@ -13,8 +13,8 @@ import {
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@rva/catalog/wire/codex";
-import { readSseJson, USER_AGENT } from "@rva/utils";
+} from "@reverse/catalog/wire/codex";
+import { readSseJson, USER_AGENT } from "@reverse/utils";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery } from "../query";

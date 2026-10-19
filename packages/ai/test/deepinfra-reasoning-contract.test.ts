@@ -19,10 +19,10 @@
  *    missing reasoning must fall back to the empty string.
  */
 import { describe, expect, it } from "bun:test";
-import { convertMessages, streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { AssistantMessage, Context, FetchImpl, Model, ThinkingContent, ToolCall } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { convertMessages, streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { AssistantMessage, Context, FetchImpl, Model, ThinkingContent, ToolCall } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 
 const DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai";
 

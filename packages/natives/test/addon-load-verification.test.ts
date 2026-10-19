@@ -103,22 +103,21 @@ describe("verifyHostAddonLoads", () => {
 	test("requires the loaded addon to report the version stamped into it", async () => {
 		expect(existsSync(hostAddon)).toBe(true);
 		expect(hasVersionStampSlot(readFileSync(hostAddon))).toBe(true);
-			const directory = await mkdtemp(path.join(tmpdir(), "rva-addon-load-"));
-			const addon = path.join(directory, path.basename(hostAddon));
-			try {
-				await copyFile(hostAddon, addon);
-				await stampNativeVersion(addon, "0.0.0-probe");
+		const directory = await mkdtemp(path.join(tmpdir(), "rva-addon-load-"));
+		const addon = path.join(directory, path.basename(hostAddon));
+		try {
+			await copyFile(hostAddon, addon);
+			await stampNativeVersion(addon, "0.0.0-probe");
 
-				expect(await failureOf(verifyHostAddonLoads(addon, undefined, "0.0.0-probe"))).toBeUndefined();
-				const mismatch = await failureOf(verifyHostAddonLoads(addon, undefined, "9.9.9"));
-				expect(mismatch instanceof Error ? mismatch.message : "").toContain(
-					'addon reports build version "0.0.0-probe", expected "9.9.9"',
-				);
-			} finally {
-				await rm(directory, { recursive: true, force: true });
-			}
-		},
-	);
+			expect(await failureOf(verifyHostAddonLoads(addon, undefined, "0.0.0-probe"))).toBeUndefined();
+			const mismatch = await failureOf(verifyHostAddonLoads(addon, undefined, "9.9.9"));
+			expect(mismatch instanceof Error ? mismatch.message : "").toContain(
+				'addon reports build version "0.0.0-probe", expected "9.9.9"',
+			);
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
+	});
 
 	// A FIFO with no writer blocks the loader's open() forever: a stand-in for
 	// an addon whose init hangs. Windows has no FIFOs.

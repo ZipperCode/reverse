@@ -1,5 +1,5 @@
-import type { ToolTier } from "@rva/agent";
-import { parseStreamingJson } from "@rva/utils";
+import type { ToolTier } from "@reverse/agent";
+import { parseStreamingJson } from "@reverse/utils";
 import { type Component, Container, Text } from "../index";
 import type { Theme } from "../theme/theme";
 import { replaceTabs } from "../render/render-utils";

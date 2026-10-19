@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
 
 beforeEach(async () => {
 	resetSettingsForTest();

@@ -5,9 +5,9 @@
  * progress update and the owner's progress closures live as long as the signal.
  */
 import { expect, it } from "bun:test";
-import type { AgentToolResult } from "@rva/agent";
-import { SpawnRun } from "@rva/coding-agent/task/spawn-run";
-import type { TaskToolDetails } from "@rva/tui/tools/task";
+import type { AgentToolResult } from "@reverse/agent";
+import { SpawnRun } from "@reverse/coding-agent/task/spawn-run";
+import type { TaskToolDetails } from "@reverse/tui/tools/task";
 
 const permit = { acquire: async () => {}, release: () => {} };
 const done = { content: [{ type: "text", text: "done" }] } as AgentToolResult<TaskToolDetails>;

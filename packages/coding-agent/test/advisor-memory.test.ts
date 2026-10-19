@@ -1,17 +1,17 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
-import type { Model } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { getMemoryRoot } from "@rva/coding-agent/memories";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { sharpshooterMemoryFilePath } from "@rva/coding-agent/sharpshooter/paths";
-import { getAgentDir, setAgentDir, TempDir } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { getMemoryRoot } from "@reverse/coding-agent/memories";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { sharpshooterMemoryFilePath } from "@reverse/coding-agent/sharpshooter/paths";
+import { getAgentDir, setAgentDir, TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("advisor memory context", () => {

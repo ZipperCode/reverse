@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as natives from "@rva/natives";
-import { clearWorktrees } from "@rva/coding-agent/cli/worktree-cli";
+import * as natives from "@reverse/natives";
+import { clearWorktrees } from "@reverse/coding-agent/cli/worktree-cli";
 import {
 	ISOLATION_OWNER_FILE,
 	RETAINED_BACKEND_FILE,
 	writeIsolationOwner,
 	writeRetainedBackend,
-} from "@rva/coding-agent/task/isolation-ownership";
-import { setWorktreesDir } from "@rva/utils";
+} from "@reverse/coding-agent/task/isolation-ownership";
+import { setWorktreesDir } from "@reverse/utils";
 
 /**
  * Regression for #6761: `omp worktree clear` (no `--all`) must delete only

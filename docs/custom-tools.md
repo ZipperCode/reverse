@@ -70,7 +70,7 @@ CustomTool.execute(toolCallId, params, onUpdate, ctx, signal)
 A custom tool module must export a function (default export preferred):
 
 ```ts
-import type { CustomToolFactory } from "@rva/coding-agent";
+import type { CustomToolFactory } from "@reverse/coding-agent";
 
 const factory: CustomToolFactory = (pi) => ({
   name: "repo_stats",
@@ -135,7 +135,7 @@ From `types.ts` and `loader.ts`:
 - `arktype`: injected omptype `type(...)` builder
 - `zod`: injected Zod-compatible omptype builder
 - `typebox`: compatibility shim for legacy TypeBox-style schemas
-- `pi`: injected `@rva/coding-agent` exports
+- `pi`: injected `@reverse/coding-agent` exports
 - `pushPendingAction(action)`: stage a preview action that is finalized by writing a plain-text reason to `xd://resolve` or `xd://reject`
 
 The loader starts with a no-op UI context and `hasUI: false`. Library hosts can

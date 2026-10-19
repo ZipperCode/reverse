@@ -10,11 +10,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache } from "@rva/coding-agent/capability/fs";
-import type { LoadContext } from "@rva/coding-agent/capability/types";
-import { getProjectPathCandidates } from "@rva/coding-agent/discovery/agents";
-import { scanSkillsFromDir } from "@rva/coding-agent/discovery/helpers";
-import { removeSyncWithRetries } from "@rva/utils";
+import { clearCache } from "@reverse/coding-agent/capability/fs";
+import type { LoadContext } from "@reverse/coding-agent/capability/types";
+import { getProjectPathCandidates } from "@reverse/coding-agent/discovery/agents";
+import { scanSkillsFromDir } from "@reverse/coding-agent/discovery/helpers";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 const PROVIDER_ID = "agents";
 

@@ -1,9 +1,9 @@
 import { describe, expect, it, mock } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentTool } from "@rva/agent";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { TempDir } from "@rva/utils";
+import type { AgentTool } from "@reverse/agent";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { TempDir } from "@reverse/utils";
 import { Settings } from "../../src/config/settings";
 import { CursorExecHandlers } from "../../src/cursor";
 import { prepareEvalSource } from "../../src/eval/input";

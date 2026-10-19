@@ -1,5 +1,5 @@
-import { logger } from "@rva/utils";
-import { LRUCache } from "@rva/utils/lru";
+import { logger } from "@reverse/utils";
+import { LRUCache } from "@reverse/utils/lru";
 import { getEnvApiKey } from "../env-api-key";
 import type { AuthCredential, OAuthCredential, SessionRestrictionLease, SessionsApi } from "./types";
 import type { AuthCredentialStore } from "./store";

@@ -1,4 +1,4 @@
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import type { SpinnerFramesOverride } from "./symbols";
 import type { ThemeJson } from "./schema";
 

@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { NativeJudge, type ImageContent, type JudgmentRequest } from "@rva/ai";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import { buildGatewayApiKeyResolver } from "@rva/ai/auth-gateway/dispatch";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import type { FetchImpl, ModelSpec } from "@rva/catalog/types";
+import { NativeJudge, type ImageContent, type JudgmentRequest } from "@reverse/ai";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import { buildGatewayApiKeyResolver } from "@reverse/ai/auth-gateway/dispatch";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { FetchImpl, ModelSpec } from "@reverse/catalog/types";
 
 const REQUEST = {
 	state: "Help! My payouts have been failing for 3 days.",

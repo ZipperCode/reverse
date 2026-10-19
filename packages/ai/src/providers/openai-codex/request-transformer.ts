@@ -1,6 +1,6 @@
-import { Effort } from "@rva/catalog/effort";
-import { requireSupportedEffort } from "@rva/catalog/model-thinking";
-import { $env } from "@rva/utils";
+import { Effort } from "@reverse/catalog/effort";
+import { requireSupportedEffort } from "@reverse/catalog/model-thinking";
+import { $env } from "@reverse/utils";
 import type { Model } from "../../types";
 import { mapOpenAIReasoningEffort } from "../openai-shared";
 

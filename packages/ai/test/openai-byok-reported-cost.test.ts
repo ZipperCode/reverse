@@ -6,8 +6,8 @@
 // `cost` alone used to drop the spend (verified live 2026-10-02 on
 // openrouter/openai/gpt-6.1-sol: cost=0, is_byok=true, upstream=6.6e-05).
 import { describe, expect, it } from "bun:test";
-import { applyProviderReportedCost } from "@rva/ai/providers/openai-shared";
-import type { Model, Usage } from "@rva/ai/types";
+import { applyProviderReportedCost } from "@reverse/ai/providers/openai-shared";
+import type { Model, Usage } from "@reverse/ai/types";
 
 const openRouterModel: Pick<Model, "provider"> = { provider: "openrouter" };
 const openAiModel: Pick<Model, "provider"> = { provider: "openai" };

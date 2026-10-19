@@ -8,7 +8,7 @@
  * the final shipped behavior belongs in release notes.
  *
  * For every non-empty `[Unreleased]` section this script hands the whole section
- * to a small model (default `openai-codex/gpt-5.6-luna` via `@rva/ai`),
+ * to a small model (default `openai-codex/gpt-5.6-luna` via `@reverse/ai`),
  * and asks for a complete replacement grouped by changelog category. The model
  * returns structured sections/items; markdown is rendered locally so only the
  * Unreleased section changes and formatting stays deterministic.
@@ -31,10 +31,10 @@
 
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { type } from "@rva/omptype";
-import { type Api, completeSimple, Effort, type Model, type Tool, type ToolCall } from "@rva/ai";
-import { discoverAuthStorage } from "@rva/ai/auth-broker";
-import { type GeneratedProvider, getBundledModel } from "@rva/catalog/models";
+import { type } from "@reverse/omptype";
+import { type Api, completeSimple, Effort, type Model, type Tool, type ToolCall } from "@reverse/ai";
+import { discoverAuthStorage } from "@reverse/ai/auth-broker";
+import { type GeneratedProvider, getBundledModel } from "@reverse/catalog/models";
 import {
 	type ChangelogDocument,
 	changelogPaths,

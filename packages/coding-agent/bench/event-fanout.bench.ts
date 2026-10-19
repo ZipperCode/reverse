@@ -1,5 +1,5 @@
-import { Agent, type AgentEvent } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
+import { Agent, type AgentEvent } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";
 import { ExtensionRuntime, loadExtensionFromFactory } from "../src/extensibility/extensions/loader";

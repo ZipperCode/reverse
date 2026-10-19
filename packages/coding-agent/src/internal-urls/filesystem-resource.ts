@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { hasFsCode, isEnoent, isEnotdir } from "@rva/utils";
-import { isMarkdownPath } from "@rva/tui/lang-from-path";
+import { hasFsCode, isEnoent, isEnotdir } from "@reverse/utils";
+import { isMarkdownPath } from "@reverse/tui/lang-from-path";
 import type { InternalResource } from "./types";
 
 /** Resource content type inferred from a file extension: markdown, JSON, or plain text. */

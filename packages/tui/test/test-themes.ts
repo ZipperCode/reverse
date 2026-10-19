@@ -1,8 +1,8 @@
 /**
  * Default themes for TUI tests using chalk
  */
-import type { EditorTheme, MarkdownTheme, SelectListTheme, SymbolTheme } from "@rva/tui";
-import { Chalk } from "@rva/utils/chalk";
+import type { EditorTheme, MarkdownTheme, SelectListTheme, SymbolTheme } from "@reverse/tui";
+import { Chalk } from "@reverse/utils/chalk";
 
 const chalk = new Chalk({ level: 3 });
 

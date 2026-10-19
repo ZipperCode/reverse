@@ -1,5 +1,5 @@
-import { type GeneratedProvider, getBundledModels } from "@rva/catalog/models";
-import { type Model, modelKind } from "@rva/catalog/types";
+import { type GeneratedProvider, getBundledModels } from "@reverse/catalog/models";
+import { type Model, modelKind } from "@reverse/catalog/types";
 
 /** Select a bundled chat model by behavior so tests survive catalog roster changes. */
 export function getTestModel(provider: GeneratedProvider, matches?: (model: Model) => boolean): Model {

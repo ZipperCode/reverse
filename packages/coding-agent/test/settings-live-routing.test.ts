@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai";
-import { resolveAgentModelSelection } from "@rva/coding-agent/config/model-resolver";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { createAuthStorageSettingsSync } from "@rva/coding-agent/session/auth-broker-config";
-import { getRetryFallbackChains } from "@rva/coding-agent/session/retry-fallback-chains";
-import { cfgRetryUsageReservePct } from "@rva/coding-agent/session/settings";
-import { cfgTaskAgentModelOverrides } from "@rva/coding-agent/task/settings";
-import { logger, TempDir } from "@rva/utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai";
+import { resolveAgentModelSelection } from "@reverse/coding-agent/config/model-resolver";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { createAuthStorageSettingsSync } from "@reverse/coding-agent/session/auth-broker-config";
+import { getRetryFallbackChains } from "@reverse/coding-agent/session/retry-fallback-chains";
+import { cfgRetryUsageReservePct } from "@reverse/coding-agent/session/settings";
+import { cfgTaskAgentModelOverrides } from "@reverse/coding-agent/task/settings";
+import { logger, TempDir } from "@reverse/utils";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, Usage } from "@rva/ai";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { vocalizer } from "@rva/coding-agent/tts/vocalizer";
+import type { AssistantMessage, Usage } from "@reverse/ai";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { vocalizer } from "@reverse/coding-agent/tts/vocalizer";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
 
-import { cfgSpeechEnabled, cfgSpeechMode } from "@rva/coding-agent/tts/settings";
+import { cfgSpeechEnabled, cfgSpeechMode } from "@reverse/coding-agent/tts/settings";
 
 function zeroUsage(): Usage {
 	return {

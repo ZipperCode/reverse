@@ -12,7 +12,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getSessionsDir, logger } from "@rva/utils";
+import { getSessionsDir, logger } from "@reverse/utils";
 import { syncAllSessions } from "./aggregator";
 import { getDataVersion, initDb } from "./db";
 import { isCompressScratchPath } from "./parser";

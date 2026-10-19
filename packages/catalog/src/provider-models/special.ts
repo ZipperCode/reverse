@@ -1,4 +1,4 @@
-import { logger, once } from "@rva/utils";
+import { logger, once } from "@reverse/utils";
 import { buildModel } from "../build";
 import { apiRouteFor } from "../compat/behavior";
 import { providerEntry, seedModels } from "../compat/providers";

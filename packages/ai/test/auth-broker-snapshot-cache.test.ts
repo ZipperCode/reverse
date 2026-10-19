@@ -8,7 +8,7 @@ import {
 	type SnapshotResponse,
 	scheduleAuthBrokerSnapshotCacheWrite,
 	writeAuthBrokerSnapshotCache,
-} from "@rva/ai/auth-broker";
+} from "@reverse/ai/auth-broker";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const TOKEN = "broker-cache-token";

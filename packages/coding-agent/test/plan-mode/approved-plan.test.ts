@@ -5,8 +5,8 @@ import {
 	planFileUrlForSlug,
 	resolveApprovedPlan,
 	resolvePlanTitle,
-} from "@rva/coding-agent/plan-mode/approved-plan";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
+} from "@reverse/coding-agent/plan-mode/approved-plan";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
 
 describe("planFileUrlForSlug", () => {
 	it("maps a slug to its local plan URL", () => {

@@ -1,14 +1,14 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { UserMessageComponent } from "@rva/tui/chat/user-message";
+import type { AssistantMessage } from "@reverse/ai";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { UserMessageComponent } from "@reverse/tui/chat/user-message";
 import {
 	TranscriptContainer,
 	type TranscriptStableRow,
 	trimBlankEdges,
-} from "@rva/tui/chrome/transcript-container";
-import { initTheme } from "@rva/tui/theme";
-import type { Component } from "@rva/tui";
+} from "@reverse/tui/chrome/transcript-container";
+import { initTheme } from "@reverse/tui/theme";
+import type { Component } from "@reverse/tui";
 
 class Block implements Component {
 	#rows: string[];

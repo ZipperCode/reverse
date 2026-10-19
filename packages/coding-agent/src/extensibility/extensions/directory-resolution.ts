@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { hasFsCode, isEacces, isEnoent, isRecord } from "@rva/utils";
+import { hasFsCode, isEacces, isEnoent, isRecord } from "@reverse/utils";
 
 /** Selected extension files and whether a manifest suppresses convention fallback. */
 export interface ExtensionDirectoryResolution {

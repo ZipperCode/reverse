@@ -1,18 +1,18 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { AuthStorage } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { initializeWithSettings } from "@rva/coding-agent/discovery";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { AuthStorage } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { initializeWithSettings } from "@reverse/coding-agent/discovery";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
-import { cfgAdvisorEnabled } from "@rva/coding-agent/advisor/settings";
-import { cfgDisabledExtensions } from "@rva/coding-agent/extensibility/settings";
+import { cfgAdvisorEnabled } from "@reverse/coding-agent/advisor/settings";
+import { cfgDisabledExtensions } from "@reverse/coding-agent/extensibility/settings";
 
 const INITIAL_CONTEXT = "reload-context-initial-marker";
 const UPDATED_CONTEXT = "reload-context-updated-marker";

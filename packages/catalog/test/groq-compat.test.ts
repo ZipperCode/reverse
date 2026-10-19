@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModel } from "@rva/catalog/models";
-import type { ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 /**
  * Groq validates request properties strictly: an assistant turn carrying

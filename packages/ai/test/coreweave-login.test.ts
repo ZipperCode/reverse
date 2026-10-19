@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { FetchImpl } from "@rva/ai/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const loginCoreWeave = getProviderDefinition("coreweave")?.login;
 if (!loginCoreWeave) throw new Error("CoreWeave login is not registered");

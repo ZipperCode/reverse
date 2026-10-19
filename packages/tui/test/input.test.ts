@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { CURSOR_MARKER } from "@rva/tui";
-import { Input } from "@rva/tui/components/input";
-import { SPACE_HOLD_MECHANICAL_RUN } from "@rva/tui/space-hold";
-import { setKittyProtocolActive } from "@rva/tui/keys";
+import { CURSOR_MARKER } from "@reverse/tui";
+import { Input } from "@reverse/tui/components/input";
+import { SPACE_HOLD_MECHANICAL_RUN } from "@reverse/tui/space-hold";
+import { setKittyProtocolActive } from "@reverse/tui/keys";
 import {
 	resetHangulCompatibilityJamoWidthForTests,
 	setHangulCompatibilityJamoWidth,
 	visibleWidth,
-} from "@rva/tui/utils";
-import { DEFAULT_TAB_WIDTH } from "@rva/utils";
+} from "@reverse/tui/utils";
+import { DEFAULT_TAB_WIDTH } from "@reverse/utils";
 
 function renderedWidth(input: Input, width: number): number {
 	const [line] = input.render(width);

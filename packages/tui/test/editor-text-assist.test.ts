@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Editor, type EditorTextAssistProvider } from "@rva/tui";
+import { Editor, type EditorTextAssistProvider } from "@reverse/tui";
 import { defaultEditorTheme } from "./test-themes";
 
 describe("Editor text assistance", () => {

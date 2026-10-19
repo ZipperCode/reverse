@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { ImageContent, Model } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import * as snapcompact from "@rva/snapcompact";
+import type { ImageContent, Model } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import * as snapcompact from "@reverse/snapcompact";
 import { Agent } from "../src/agent";
 import { createCompactionSummaryMessage, defaultConvertToLlm } from "../src/compaction/messages";
 import { base64ImageSize } from "../src/image-tokens";

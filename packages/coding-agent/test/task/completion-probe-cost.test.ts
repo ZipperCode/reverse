@@ -1,15 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@rva/agent";
-import type { AssistantMessage, Model, Usage } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { registerPersistedSubagents } from "@rva/coding-agent/registry/persisted-agents";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { startCompletionProbe } from "@rva/coding-agent/task/completion-probe";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import type { AssistantMessage, Model, Usage } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { registerPersistedSubagents } from "@reverse/coding-agent/registry/persisted-agents";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { startCompletionProbe } from "@reverse/coding-agent/task/completion-probe";
+import { TempDir } from "@reverse/utils";
 import * as path from "node:path";
 import { mkdir } from "node:fs/promises";
 

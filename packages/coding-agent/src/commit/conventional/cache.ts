@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Usage } from "@rva/ai";
+import type { Usage } from "@reverse/ai";
 
 const SCHEMA_VERSION = 3;
 const PRUNE_DIVISOR = 64;

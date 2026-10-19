@@ -18,16 +18,16 @@
  *    and reports the failed spawn.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { TaskTool } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { SingleResult, TaskParams, TaskToolDetails } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { TaskTool } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { SingleResult, TaskParams, TaskToolDetails } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 
 const taskAgent: AgentDefinition = {
 	name: "task",

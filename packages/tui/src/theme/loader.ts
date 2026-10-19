@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { adjustHsv } from "@rva/utils/color";
-import { getCustomThemesDir } from "@rva/utils/dirs";
-import { isEnoent } from "@rva/utils/fs-error";
+import { adjustHsv } from "@reverse/utils/color";
+import { getCustomThemesDir } from "@reverse/utils/dirs";
+import { isEnoent } from "@reverse/utils/fs-error";
 import { detectColorMode, resolveThemeColors } from "./color";
 import darkThemeJson from "./dark.json" with { type: "json" };
 import { defaultThemes } from "./defaults";

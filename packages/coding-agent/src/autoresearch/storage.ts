@@ -1,9 +1,9 @@
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { getAutoresearchDbPath, getAutoresearchProjectDir, logger } from "@rva/utils";
-import type { ASIData, ExperimentStatus, MetricDirection, NumericMetricMap } from "@rva/tui/tools/autoresearch";
+import * as vcs from "@reverse/natives/vcs";
+import { getAutoresearchDbPath, getAutoresearchProjectDir, logger } from "@reverse/utils";
+import type { ASIData, ExperimentStatus, MetricDirection, NumericMetricMap } from "@reverse/tui/tools/autoresearch";
 
 /**
  * Encode an absolute project path into a single filesystem-safe segment.

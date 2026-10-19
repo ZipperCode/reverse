@@ -19,8 +19,8 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { FileLock as NativeFileLock } from "@rva/natives";
-import { FileSessionStorage, SessionLockError } from "@rva/coding-agent/session/session-storage";
+import { FileLock as NativeFileLock } from "@reverse/natives";
+import { FileSessionStorage, SessionLockError } from "@reverse/coding-agent/session/session-storage";
 
 /** Mirrors the OS-gate sidecar derived in `#withPublishLock`. */
 function osGatePath(lockPath: string): string {

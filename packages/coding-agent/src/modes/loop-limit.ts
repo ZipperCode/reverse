@@ -1,5 +1,5 @@
 import { readShellWord } from "../tools/shell-tokenize";
-import type { LoopConditionConfig, LoopLimitRuntime } from "@rva/tui/status-line/loop";
+import type { LoopConditionConfig, LoopLimitRuntime } from "@reverse/tui/status-line/loop";
 
 export type LoopLimitConfig =
 	| {

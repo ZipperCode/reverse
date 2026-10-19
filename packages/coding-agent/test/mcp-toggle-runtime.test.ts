@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { CustomTool } from "@rva/coding-agent/extensibility/custom-tools/types";
-import { applyMcpToggleRuntime } from "@rva/coding-agent/modes/components/extensions/mcp-runtime";
+import type { CustomTool } from "@reverse/coding-agent/extensibility/custom-tools/types";
+import { applyMcpToggleRuntime } from "@reverse/coding-agent/modes/components/extensions/mcp-runtime";
 
 function stubCustomTool(name: string): CustomTool {
 	return {

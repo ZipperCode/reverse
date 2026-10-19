@@ -20,8 +20,8 @@ import type {
 	CostEstimate,
 	CostEstimatorContext,
 	ToolStatus,
-} from "@rva/agent";
-import { logger, postmortem } from "@rva/utils";
+} from "@reverse/agent";
+import { logger, postmortem } from "@reverse/utils";
 import {
 	type Attributes,
 	type AttributeValue,
@@ -172,7 +172,7 @@ export async function registerProviders(signalConfig: TelemetrySignalConfig): Pr
 			readers: [new PeriodicExportingMetricReader({ exporter })],
 		});
 		metrics.setGlobalMeterProvider(meterProvider);
-		metricRecorder = new AgentMetricRecorder(metrics.getMeter("@rva/coding-agent"));
+		metricRecorder = new AgentMetricRecorder(metrics.getMeter("@reverse/coding-agent"));
 	}
 
 	if (signalConfig.log) {
@@ -182,7 +182,7 @@ export async function registerProviders(signalConfig: TelemetrySignalConfig): Pr
 			processors: [new BatchLogRecordProcessor({ exporter })],
 		});
 		logs.setGlobalLoggerProvider(logProvider);
-		otelLogger = logProvider.getLogger("@rva/coding-agent");
+		otelLogger = logProvider.getLogger("@reverse/coding-agent");
 		unregisterLogSink = logger.registerLogSink(event => {
 			emitOtelLog(event.level, event.message, logAttributesFromContext(event.context), "omp.log", event.timestamp);
 		});

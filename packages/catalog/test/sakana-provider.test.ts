@@ -2,15 +2,15 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getOAuthProviders } from "@rva/ai/registry/oauth";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
-import { Effort } from "@rva/catalog/effort";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { getBundledModels } from "@rva/catalog/models";
-import { seedModels } from "@rva/catalog/compat/providers";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@rva/catalog/provider-models/descriptors";
-import { sakanaModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec, ResolvedOpenAIResponsesCompat } from "@rva/catalog/types";
+import { getOAuthProviders } from "@reverse/ai/registry/oauth";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
+import { Effort } from "@reverse/catalog/effort";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { getBundledModels } from "@reverse/catalog/models";
+import { seedModels } from "@reverse/catalog/compat/providers";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@reverse/catalog/provider-models/descriptors";
+import { sakanaModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec, ResolvedOpenAIResponsesCompat } from "@reverse/catalog/types";
 
 const ORIGINAL_ENV = {
 	SAKANA_API_KEY: Bun.env.SAKANA_API_KEY,

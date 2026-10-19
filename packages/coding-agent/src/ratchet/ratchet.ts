@@ -12,9 +12,9 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { calculateUsageCost } from "@rva/catalog/models";
-import type { ModelCost, Usage } from "@rva/catalog/types";
-import { CONFIG_DIR_NAME, isEnoent, isRecord } from "@rva/utils";
+import { calculateUsageCost } from "@reverse/catalog/models";
+import type { ModelCost, Usage } from "@reverse/catalog/types";
+import { CONFIG_DIR_NAME, isEnoent, isRecord } from "@reverse/utils";
 
 export const RATCHET_ROOT = path.join(CONFIG_DIR_NAME, "ratchet");
 export const RATCHET_STAGES = ["inputs", "grader", "plan"] as const;

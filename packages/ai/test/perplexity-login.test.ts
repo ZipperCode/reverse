@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { LoginCancelledError, OAuthError, ProviderHttpError } from "@rva/ai/error";
-import type { OAuthCredentials, OAuthController } from "@rva/ai/registry/oauth/types";
-import type { FetchImpl } from "@rva/ai/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { LoginCancelledError, OAuthError, ProviderHttpError } from "@reverse/ai/error";
+import type { OAuthCredentials, OAuthController } from "@reverse/ai/registry/oauth/types";
+import type { FetchImpl } from "@reverse/ai/types";
 import { withEnv } from "./helpers";
 
 type CapturedRequest = {

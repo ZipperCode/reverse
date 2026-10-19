@@ -4,7 +4,7 @@ import {
 	type AgentMessage,
 	isSyntheticToolResultMessage,
 	type ThinkingLevel,
-} from "@rva/agent";
+} from "@reverse/agent";
 import type {
 	AssistantMessage,
 	AssistantRetryRecovery,
@@ -16,15 +16,15 @@ import type {
 	TextContent,
 	ToolChoice,
 	AnthropicFallbackCreditHandle,
-} from "@rva/ai";
-import { calculateRateLimitBackoffMs, parseRateLimitReason } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { extractProviderRetryHint } from "@rva/ai/utils/retry-after";
-import { fallbackCreditTargets } from "@rva/catalog/compat/fallback-credit";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { isFireworksFastModelId, toFireworksBaseModelId } from "@rva/catalog/fireworks-model-id";
-import { modelsAreEqual } from "@rva/catalog/models";
-import { isUnexpectedSocketCloseMessage, logger, prompt, sleepLong } from "@rva/utils";
+} from "@reverse/ai";
+import { calculateRateLimitBackoffMs, parseRateLimitReason } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { extractProviderRetryHint } from "@reverse/ai/utils/retry-after";
+import { fallbackCreditTargets } from "@reverse/catalog/compat/fallback-credit";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { isFireworksFastModelId, toFireworksBaseModelId } from "@reverse/catalog/fireworks-model-id";
+import { modelsAreEqual } from "@reverse/catalog/models";
+import { isUnexpectedSocketCloseMessage, logger, prompt, sleepLong } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelStringWithRouting, resolveModelOverride } from "../config/model-resolver";
 
@@ -41,8 +41,8 @@ import {
 	clampThinkingLevelToCeiling,
 	modelSupportsEffortCeiling,
 	resolveThinkingLevelForModel,
-} from "@rva/tui/thinking";
-import type { EditMode } from "@rva/tui/tools/edit";
+} from "@reverse/tui/thinking";
+import type { EditMode } from "@reverse/tui/tools/edit";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ResetRecoveryResult } from "./codex-auto-reset";
 import type {

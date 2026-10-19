@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { isPidRunning } from "@rva/utils/procmgr";
+import { isPidRunning } from "@reverse/utils/procmgr";
 import { runCli } from "../src/cli";
 
 // The worker-host re-entry seam dispatches any `__omp_worker_*` selector to

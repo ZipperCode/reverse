@@ -1,11 +1,11 @@
 import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { CURSOR_MARKER, type TUI } from "@rva/tui";
-import { AnnotationOverlay } from "@rva/tui/overlays/annotation-overlay";
-import type { TextReviewSource } from "@rva/tui/overlays/annotation-types";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import { visibleWidth } from "@rva/tui/utils";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { CURSOR_MARKER, type TUI } from "@reverse/tui";
+import { AnnotationOverlay } from "@reverse/tui/overlays/annotation-overlay";
+import type { TextReviewSource } from "@reverse/tui/overlays/annotation-types";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import { visibleWidth } from "@reverse/tui/utils";
 
 const WIDTH = 40;
 // AnnotationOverlay reserves four frame cells and the editor prompt gutter reserves two more.

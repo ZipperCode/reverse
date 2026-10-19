@@ -8,16 +8,16 @@
  * (can1357/oh-my-pi#3639).
  */
 import { describe, expect, it } from "bun:test";
-import type { StreamFn } from "@rva/agent";
-import { type Context, type Model, type SimpleStreamOptions, streamSimple } from "@rva/ai";
-import { configureProviderStoreResponses } from "@rva/ai/providers/openai-responses";
-import type { FetchImpl } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { bindEffects } from "@rva/coding-agent/config/registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { cfgProvidersMuseCodeStoreResponses } from "@rva/coding-agent/session/settings";
-import { createSettingsAwareStreamFn } from "@rva/coding-agent/session/settings-stream-fn";
+import type { StreamFn } from "@reverse/agent";
+import { type Context, type Model, type SimpleStreamOptions, streamSimple } from "@reverse/ai";
+import { configureProviderStoreResponses } from "@reverse/ai/providers/openai-responses";
+import type { FetchImpl } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { bindEffects } from "@reverse/coding-agent/config/registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { cfgProvidersMuseCodeStoreResponses } from "@reverse/coding-agent/session/settings";
+import { createSettingsAwareStreamFn } from "@reverse/coding-agent/session/settings-stream-fn";
 
 function captureBase(): { fn: StreamFn; calls: Array<{ options?: SimpleStreamOptions }> } {
 	const calls: Array<{ options?: SimpleStreamOptions }> = [];

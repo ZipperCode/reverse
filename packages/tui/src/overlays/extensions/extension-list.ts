@@ -5,7 +5,7 @@
  * that toggles the entire provider. All items below are dimmed when the
  * master switch is off.
  */
-import type { TspPickerGroup, TspPickerItem, TspProps, TspSpan, TspTone } from "@rva/wire";
+import type { TspPickerGroup, TspPickerItem, TspProps, TspSpan, TspTone } from "@reverse/wire";
 import type { Component } from "../../tui";
 import { node, span, stableKey } from "../../native/describe";
 import type { NativeNode } from "../../native/node";

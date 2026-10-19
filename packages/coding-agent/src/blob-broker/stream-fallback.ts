@@ -4,10 +4,10 @@
  * consumer-facing stream single and ordered.
  */
 
-import type { StreamFn } from "@rva/agent";
-import type { Context } from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { logger } from "@rva/utils";
+import type { StreamFn } from "@reverse/agent";
+import type { Context } from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { logger } from "@reverse/utils";
 import { clampProviderContextImageBytes } from "../session/provider-image-budget";
 import { contextHasImageUrls, contextHasProviderFiles } from "./context-images";
 import type { ImageUrlService } from "./service";

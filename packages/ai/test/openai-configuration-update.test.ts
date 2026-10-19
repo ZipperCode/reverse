@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { buildTransformedCodexRequestBody } from "@rva/ai/providers/openai-codex-responses";
+import { buildTransformedCodexRequestBody } from "@reverse/ai/providers/openai-codex-responses";
 import {
 	createOpenAIEffortControlState,
 	planStableOpenAIEffort,
-} from "@rva/ai/providers/openai-configuration-update";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { Context, FetchImpl, Model, ProviderSessionState } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
-import * as piUtils from "@rva/utils";
+} from "@reverse/ai/providers/openai-configuration-update";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { Context, FetchImpl, Model, ProviderSessionState } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
+import * as piUtils from "@reverse/utils";
 import { createCodexModel } from "./helpers";
 
 /** Loose wire item for planner tests: replayed items carry output-only `status`/`id`. */

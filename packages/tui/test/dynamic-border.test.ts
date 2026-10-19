@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { DynamicBorder } from "@rva/tui/chrome/dynamic-border";
-import { getThemeByName, setThemeInstance, theme } from "@rva/tui/theme";
+import { DynamicBorder } from "@reverse/tui/chrome/dynamic-border";
+import { getThemeByName, setThemeInstance, theme } from "@reverse/tui/theme";
 
 const componentPath = path.resolve(import.meta.dir, "../src/chrome/dynamic-border.ts");
 

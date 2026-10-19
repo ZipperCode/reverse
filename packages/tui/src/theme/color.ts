@@ -1,4 +1,4 @@
-import { paletteToRgb, rgbToHex } from "@rva/utils/color";
+import { paletteToRgb, rgbToHex } from "@reverse/utils/color";
 import { detectTerminalId, getTerminalInfo } from "../terminal-capabilities";
 import type { ColorMode, ColorValue } from "./schema";
 

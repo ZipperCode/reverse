@@ -29,8 +29,8 @@ const bundleDir = path.join(tempRoot, "bundle");
 const compiledPath = path.join(tempRoot, "compiled-template-probe");
 let bundlePath: string;
 const bundledDependencyStubs: Record<string, string> = {
-	"@rva/utils": 'export const APP_NAME = "omp"; export const isEnoent = () => false;',
-	"@rva/tui/theme":
+	"@reverse/utils": 'export const APP_NAME = "omp"; export const isEnoent = () => false;',
+	"@reverse/tui/theme":
 		"export const getResolvedThemeColors = async () => ({}); export const getThemeExportColors = async () => ({});",
 	"../../session/sub-sessions": "export const collectSubSessions = async () => ({});",
 	"../../session/session-manager":

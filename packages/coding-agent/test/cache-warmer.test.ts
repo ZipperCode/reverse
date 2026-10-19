@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import type { AssistantMessage, AssistantMessageEvent, SimpleStreamOptions, Usage } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import type { Model } from "@rva/catalog/types";
+import type { AssistantMessage, AssistantMessageEvent, SimpleStreamOptions, Usage } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import type { Model } from "@reverse/catalog/types";
 import {
 	CacheWarmer,
 	type CacheWarmerDeps,

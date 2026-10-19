@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AgentMessage, agentLoop } from "@rva/agent";
-import type { AssistantMessage, Context, Message } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { CodingAgentSpeculativeExecutionHost } from "@rva/coding-agent/speculation/host";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { removeWithRetries } from "@rva/utils";
+import { type AgentMessage, agentLoop } from "@reverse/agent";
+import type { AssistantMessage, Context, Message } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { CodingAgentSpeculativeExecutionHost } from "@reverse/coding-agent/speculation/host";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { removeWithRetries } from "@reverse/utils";
 
 const temporaryDirectories: string[] = [];
 

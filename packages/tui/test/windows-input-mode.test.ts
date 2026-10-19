@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Editor, type Component } from "@rva/tui";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { matchesAppFollowUp } from "@rva/tui/keybinding-matchers";
-import { setKeybindings } from "@rva/tui/keybindings";
-import { matchesKey } from "@rva/tui/keys";
-import { Win32InputModeDecoder, Win32PasteMarkerNormalizer } from "@rva/tui/windows-input-mode";
+import { Editor, type Component } from "@reverse/tui";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { matchesAppFollowUp } from "@reverse/tui/keybinding-matchers";
+import { setKeybindings } from "@reverse/tui/keybindings";
+import { matchesKey } from "@reverse/tui/keys";
+import { Win32InputModeDecoder, Win32PasteMarkerNormalizer } from "@reverse/tui/windows-input-mode";
 import {
 	createProcessTerminalRenderHarness,
 	type ProcessTerminalRenderHarness,

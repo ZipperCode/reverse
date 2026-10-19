@@ -5,7 +5,7 @@
  * - rule://<name> - Reads rule content
  */
 import * as fs from "node:fs/promises";
-import { isEnoent } from "@rva/utils";
+import { isEnoent } from "@reverse/utils";
 import { getActiveRules, type Rule } from "../capability/rule";
 import ruleDoc from "../prompts/internal-urls/rule.md" with { type: "text" };
 import type {

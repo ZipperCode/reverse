@@ -2,12 +2,12 @@
  * Manage configuration settings.
  */
 
-import { Args, Command, Flags } from "@rva/utils/cli";
+import { Args, Command, Flags } from "@reverse/utils/cli";
 import { getEffectiveLocale } from "../config/persisted-locale";
 import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
 import { configHelp as commandHelp } from "../cli/command-help";
 import { type ConfigAction, type ConfigCommandArgs, runConfigCommand } from "../cli/config-cli";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 function helpStr(key: string, fallback: string): string {
 	return getEffectiveLocale() === "zh-CN" ? (CLI_TRANSLATIONS_ZH_CN[key] ?? fallback) : fallback;

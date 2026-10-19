@@ -1,4 +1,4 @@
-import type { AssistantMessage, ServiceTier, ServiceTierByFamily, StopReason, Usage } from "@rva/ai";
+import type { AssistantMessage, ServiceTier, ServiceTierByFamily, StopReason, Usage } from "@reverse/ai";
 import type { AgentType } from "./shared-types";
 
 export * from "./shared-types";

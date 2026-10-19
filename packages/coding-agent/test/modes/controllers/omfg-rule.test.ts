@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, Judge, JudgmentRequest, NoulAnswer, Usage } from "@rva/ai";
-import type { Rule } from "@rva/coding-agent/capability/rule";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, Judge, JudgmentRequest, NoulAnswer, Usage } from "@reverse/ai";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
 import {
 	historyOutputs,
 	type ParsedGeneratedRule,
@@ -9,8 +9,8 @@ import {
 	sanitizeRuleName,
 	validateParsedRuleAgainstAssistantHistory,
 	validateRuleAgainstAssistantHistory,
-} from "@rva/coding-agent/modes/controllers/omfg-rule";
-import { TtsrToolInspector } from "@rva/coding-agent/session/ttsr-outputs";
+} from "@reverse/coding-agent/modes/controllers/omfg-rule";
+import { TtsrToolInspector } from "@reverse/coding-agent/session/ttsr-outputs";
 
 const usage: Usage = {
 	input: 0,

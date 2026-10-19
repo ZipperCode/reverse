@@ -8,12 +8,12 @@
 //    input on the stored content block and drop the transient `partialJson`
 //    accumulation buffer, mirroring the function_call branch.
 import { describe, expect, test } from "bun:test";
-import type { ResponseStreamEvent } from "@rva/ai/providers/openai-responses-wire";
-import { processResponsesStream } from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Model } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
+import type { ResponseStreamEvent } from "@reverse/ai/providers/openai-responses-wire";
+import { processResponsesStream } from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Model } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
 
 function makeModel(): Model<"openai-responses"> {
 	return buildModel({

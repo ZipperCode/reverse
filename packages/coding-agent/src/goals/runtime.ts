@@ -1,8 +1,8 @@
-import { escapeXmlText, prompt, Snowflake } from "@rva/utils";
+import { escapeXmlText, prompt, Snowflake } from "@reverse/utils";
 import goalBudgetLimitPrompt from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
 import goalContinuationPrompt from "../prompts/goals/goal-continuation.md" with { type: "text" };
 import goalModeActivePrompt from "../prompts/goals/goal-mode-active.md" with { type: "text" };
-import type { Goal } from "@rva/tui/tools/goal";
+import type { Goal } from "@reverse/tui/tools/goal";
 import type { GoalBudgetSteering, GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "./state";
 
 export interface GoalRuntimeHost {

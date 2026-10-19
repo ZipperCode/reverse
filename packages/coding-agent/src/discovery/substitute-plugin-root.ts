@@ -10,9 +10,7 @@ const REVERSE_VAR = "$" + "{REVERSE_PLUGIN_ROOT}";
 
 export function substitutePluginRoot<T>(value: T, rootPath: string): T {
 	if (typeof value === "string") {
-		return value
-			.replaceAll(CLAUDE_VAR, rootPath)
-			.replaceAll(REVERSE_VAR, rootPath) as T;
+		return value.replaceAll(CLAUDE_VAR, rootPath).replaceAll(REVERSE_VAR, rootPath) as T;
 	}
 	if (Array.isArray(value)) {
 		return value.map(v => substitutePluginRoot(v, rootPath)) as T;

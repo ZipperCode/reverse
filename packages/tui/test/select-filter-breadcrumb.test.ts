@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { type SelectItem, SelectList, type SelectListTheme } from "@rva/tui";
-import { currentLoopPhase, popLoopPhase, resetLoopPhaseWindow } from "@rva/utils";
+import { type SelectItem, SelectList, type SelectListTheme } from "@reverse/tui";
+import { currentLoopPhase, popLoopPhase, resetLoopPhaseWindow } from "@reverse/utils";
 
 // Observe the phase inside the actual fuzzy-filter work, not after it returns.
 function drain(): void {

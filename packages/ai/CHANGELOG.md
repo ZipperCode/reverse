@@ -6,7 +6,7 @@
 
 ### Breaking Changes
 
-- `resolveGatewayApiKey` and `buildGatewayApiKeyResolver` (`@rva/ai/auth-gateway`) take the request's route options (`{ storage, client? }`) instead of an `AuthStorage`, their resolver callback receives the resolved credential, and `resolveGatewayAccount` takes that credential ([#15900](https://github.com/can1357/oh-my-pi/pull/15900) by [@alphastorm](https://github.com/alphastorm))
+- `resolveGatewayApiKey` and `buildGatewayApiKeyResolver` (`@reverse/ai/auth-gateway`) take the request's route options (`{ storage, client? }`) instead of an `AuthStorage`, their resolver callback receives the resolved credential, and `resolveGatewayAccount` takes that credential ([#15900](https://github.com/can1357/oh-my-pi/pull/15900) by [@alphastorm](https://github.com/alphastorm))
 
 ### Added
 
@@ -76,7 +76,7 @@
 
 ### Breaking Changes
 
-- `isOfficialCodexApiUrl` moved from `@rva/ai` to `@rva/catalog/wire/codex`, next to `CODEX_BASE_URL`, so the catalog's compat resolver classifies Codex endpoints with the same check ([#15434](https://github.com/can1357/oh-my-pi/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
+- `isOfficialCodexApiUrl` moved from `@reverse/ai` to `@reverse/catalog/wire/codex`, next to `CODEX_BASE_URL`, so the catalog's compat resolver classifies Codex endpoints with the same check ([#15434](https://github.com/can1357/oh-my-pi/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
 
 ### Added
 
@@ -263,7 +263,7 @@
 
 ### Breaking Changes
 
-- The environment API-key helpers (`getEnvApiKey`, `getEnvApiKeyName`, and `listProvidersWithEnvKey`) are no longer exported from `@rva/ai/stream`; import them from `@rva/ai` or `@rva/ai/env-api-key` instead.
+- The environment API-key helpers (`getEnvApiKey`, `getEnvApiKeyName`, and `listProvidersWithEnvKey`) are no longer exported from `@reverse/ai/stream`; import them from `@reverse/ai` or `@reverse/ai/env-api-key` instead.
 - `TranscriptionRequest.audio` now accepts `Uint8Array | Blob`. Consumers must handle `Blob` values when reading transcription requests.
 
 ### Changed
@@ -589,7 +589,7 @@
 
 ### Breaking Changes
 
-- Anthropic streaming and provider request helpers must now be imported from `@rva/ai/providers/anthropic` instead of the package root.
+- Anthropic streaming and provider request helpers must now be imported from `@reverse/ai/providers/anthropic` instead of the package root.
 - Moved the public `NO_AUTH_SENTINEL` export from `providers/openai-shared` to `auth-retry`.
 
 ### Fixed
@@ -1255,7 +1255,7 @@
 
 ### Breaking Changes
 
-- Removed the `zod` dependency and `z`/`ZodType` re-exports. Tool schemas now use `omptype` `type()` schemas, with Zod-style authoring still available via `@rva/omptype/zod`.
+- Removed the `zod` dependency and `z`/`ZodType` re-exports. Tool schemas now use `omptype` `type()` schemas, with Zod-style authoring still available via `@reverse/omptype/zod`.
 
 ## [17.2.9] - 2026-08-05
 
@@ -1272,7 +1272,7 @@
 
 ### Changed
 
-- Replaced `arktype` with `@rva/omptype` for schema validation, delivering up to 100x faster schema construction and 60-100x faster validation while maintaining full compatibility with existing `type`/`Type` exports and the `isArkSchema` contract.
+- Replaced `arktype` with `@reverse/omptype` for schema validation, delivering up to 100x faster schema construction and 60-100x faster validation while maintaining full compatibility with existing `type`/`Type` exports and the `isArkSchema` contract.
 
 ### Fixed
 
@@ -1330,7 +1330,7 @@
 
 ### Added
 
-- Added support for the `gmi-cloud` provider registry, including API-key paste login validation and integration with `@rva/catalog`.
+- Added support for the `gmi-cloud` provider registry, including API-key paste login validation and integration with `@reverse/catalog`.
 
 ### Changed
 
@@ -2108,7 +2108,7 @@
 
 ### Breaking Changes
 
-- Removed the `@rva/ai/utils/json-parse` module. The JSON repair and parsing helpers (`repairJson`, `parseJsonWithRepair`, `parseStreamingJson`, `parseStreamingJsonThrottled`) have been moved to `@rva/utils` to be shared across utilities.
+- Removed the `@reverse/ai/utils/json-parse` module. The JSON repair and parsing helpers (`repairJson`, `parseJsonWithRepair`, `parseStreamingJson`, `parseStreamingJsonThrottled`) have been moved to `@reverse/utils` to be shared across utilities.
 
 ### Added
 
@@ -2166,7 +2166,7 @@
 
 ### Fixed
 
-- Restored the `pollOAuthDeviceCodeFlow` export from `@rva/ai/oauth` so legacy provider extensions can reuse the host OAuth device-code poller. ([#3508](https://github.com/can1357/oh-my-pi/issues/3508))
+- Restored the `pollOAuthDeviceCodeFlow` export from `@reverse/ai/oauth` so legacy provider extensions can reuse the host OAuth device-code poller. ([#3508](https://github.com/can1357/oh-my-pi/issues/3508))
 
 ## [16.1.20] - 2026-06-25
 

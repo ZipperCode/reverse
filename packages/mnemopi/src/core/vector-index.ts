@@ -1,4 +1,4 @@
-import { vectorIndexTopK } from "@rva/natives";
+import { vectorIndexTopK } from "@reverse/natives";
 
 export interface ExactVectorSearchHit<TId> {
 	id: TId;

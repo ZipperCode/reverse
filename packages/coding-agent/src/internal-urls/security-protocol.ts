@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { sanitizeText } from "@rva/utils";
+import { sanitizeText } from "@reverse/utils";
 import { isSettingsInitialized, settings } from "../config/settings";
 
 import securityDoc from "../prompts/internal-urls/security.md" with { type: "text" };

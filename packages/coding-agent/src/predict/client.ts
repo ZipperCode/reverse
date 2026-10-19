@@ -1,7 +1,7 @@
 /**
  * Client half of the machine-global text-prediction daemon.
  *
- * The composer's word-completion provider (`@rva/tui/prompt/word-completion`)
+ * The composer's word-completion provider (`@reverse/tui/prompt/word-completion`)
  * reaches the daemon through {@link textPredictionBackend}. The first request
  * starts the daemon under the `text-predict` global broker when nothing is
  * listening; one connection per process then carries every request. Failures never
@@ -10,9 +10,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { IpcConnection, ipcEndpoint, type PredictedWord } from "@rva/natives";
-import type { WordCompletionEngine, WordPredictionBackend } from "@rva/tui/prompt/word-completion";
-import { getAgentDir, logger, ptree, VERSION } from "@rva/utils";
+import { IpcConnection, ipcEndpoint, type PredictedWord } from "@reverse/natives";
+import type { WordCompletionEngine, WordPredictionBackend } from "@reverse/tui/prompt/word-completion";
+import { getAgentDir, logger, ptree, VERSION } from "@reverse/utils";
 import { daemonClientForGlobal } from "../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../launch/ensure";
 import { resolveWorkerSpawnCmd, SMOKE_TEST_TIMEOUT_MS, workerEnvFromParent } from "../subprocess/worker-client";

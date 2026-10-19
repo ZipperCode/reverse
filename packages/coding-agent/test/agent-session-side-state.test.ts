@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent, type StreamFn, ThinkingLevel } from "@rva/agent";
-import type { Context, FetchImpl, Message, Model, ProviderSessionState } from "@rva/ai";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import { getBundledModel } from "@rva/catalog/models";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { type } from "@reverse/omptype";
+import { Agent, type StreamFn, ThinkingLevel } from "@reverse/agent";
+import type { Context, FetchImpl, Message, Model, ProviderSessionState } from "@reverse/ai";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import { getBundledModel } from "@reverse/catalog/models";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 const model = getBundledModel("openai", "gpt-5-mini") as Model<"openai-responses">;
 

@@ -22,9 +22,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import type { MCPStdioServerConfig } from "@rva/coding-agent/mcp/types";
-import { removeSyncWithRetries } from "@rva/utils";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import type { MCPStdioServerConfig } from "@reverse/coding-agent/mcp/types";
+import { removeSyncWithRetries } from "@reverse/utils";
 import { MANY_TOOL_COUNT, manyToolName } from "./fixtures/many-tools-mcp";
 
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "many-tools-mcp.ts");

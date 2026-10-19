@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { Settings } from "../../../../src/config/settings";
-import { StatusLineComponent } from "@rva/tui/status-line/component";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { loadTheme } from "@rva/tui/theme/loader";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
+import { StatusLineComponent } from "@reverse/tui/status-line/component";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { loadTheme } from "@reverse/tui/theme/loader";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 import type { AgentSession } from "../../../../src/session/agent-session";
 import { StatusLineTestComponents } from "../../../helpers/status-line";
 

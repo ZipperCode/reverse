@@ -3,8 +3,8 @@
  */
 
 import { scheduler } from "node:timers/promises";
-import { calculateCost } from "@rva/catalog/models";
-import { readSseJson, type SseEventObserver } from "@rva/utils";
+import { calculateCost } from "@reverse/catalog/models";
+import { readSseJson, type SseEventObserver } from "@reverse/utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import { ThinkingFenceStripper } from "../dialect/thinking-fence-strip";
 import * as AIError from "../error";

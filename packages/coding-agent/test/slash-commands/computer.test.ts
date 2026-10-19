@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { executeAcpBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/acp-builtins";
-import { cfgComputerEnabled } from "@rva/coding-agent/tools/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { executeAcpBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/acp-builtins";
+import { cfgComputerEnabled } from "@reverse/coding-agent/tools/settings";
 
 function acpRuntime(
 	options: { enabled?: boolean; available?: boolean; display?: string; maxWidth?: number; maxHeight?: number } = {},

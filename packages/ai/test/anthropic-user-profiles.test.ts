@@ -2,12 +2,12 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { AnthropicApiError } from "@rva/ai/providers/anthropic-client";
-import { AnthropicUserProfilesClient, type UserProfile } from "@rva/ai/providers/anthropic-user-profiles";
-import type { Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { AnthropicApiError } from "@reverse/ai/providers/anthropic-client";
+import { AnthropicUserProfilesClient, type UserProfile } from "@reverse/ai/providers/anthropic-user-profiles";
+import type { Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const profile: UserProfile = {
 	type: "user_profile",

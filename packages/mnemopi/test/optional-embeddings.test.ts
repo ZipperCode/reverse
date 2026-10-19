@@ -7,10 +7,10 @@ import {
 	resetEmbeddingProviderForTests,
 	setEmbeddingProviderForTests,
 	setLocalModelInitializerForTests,
-} from "@rva/mnemopi/core/embeddings";
-import { Mnemopi } from "@rva/mnemopi/core/memory";
-import { withMnemopiRuntimeOptions } from "@rva/mnemopi/core/runtime-options";
-import { getFastembedCacheDir } from "@rva/utils";
+} from "@reverse/mnemopi/core/embeddings";
+import { Mnemopi } from "@reverse/mnemopi/core/memory";
+import { withMnemopiRuntimeOptions } from "@reverse/mnemopi/core/runtime-options";
+import { getFastembedCacheDir } from "@reverse/utils";
 import packageJson from "../package.json" with { type: "json" };
 
 const ENV_KEYS = [

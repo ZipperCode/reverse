@@ -1,4 +1,4 @@
-import { USER_AGENT, getInstallId } from "@rva/utils";
+import { USER_AGENT, getInstallId } from "@reverse/utils";
 import { ProviderHttpError } from "../error";
 import type {
 	CredentialRankingStrategy,

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { ChatBlock, type ChatBlockHost } from "@rva/tui/chrome/chat-block";
-import type { Component } from "@rva/tui";
+import { ChatBlock, type ChatBlockHost } from "@reverse/tui/chrome/chat-block";
+import type { Component } from "@reverse/tui";
 
 /** Concrete subclass exposing the protected lifecycle seams for assertions. */
 class TestBlock extends ChatBlock {

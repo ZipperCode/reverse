@@ -3,15 +3,15 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { visibleWidth } from "@rva/tui";
+import { visibleWidth } from "@reverse/tui";
 import { Settings } from "../../../src/config/settings";
-import { MoveOverlay, type MoveOverlayResult } from "@rva/tui/overlays/move-overlay";
+import { MoveOverlay, type MoveOverlayResult } from "@reverse/tui/overlays/move-overlay";
 import {
 	moveDirectorySource,
 	resolveExistingDirectory,
 	resolveMovePath,
 } from "../../../src/modes/move-directory-source";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
 
 // Strip SGR colors so assertions see visible text only.
 const stripAnsi = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, "");

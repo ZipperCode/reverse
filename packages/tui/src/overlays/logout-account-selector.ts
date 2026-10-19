@@ -9,7 +9,7 @@ import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 import { node, span } from "../native/describe";
 import type { DescribeContext, NativeNode, NativeUiEvent } from "../native/node";
 import { CLOSE_ACTION, dockedPicker, PICKER_KEY, pickerAction, pickerEvent } from "../native/picker";
-import type { TspPickerItem } from "@rva/wire";
+import type { TspPickerItem } from "@reverse/wire";
 import { actionHint, hintsRow, overlayCard } from "../native/overlay";
 
 const LOGOUT_SELECTOR_MAX_VISIBLE = 10;

@@ -1,13 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type {
-	ImageContent,
-	Message,
-	MessageAttribution,
-	ServiceTierByFamily,
-	TextContent,
-	Usage,
-} from "@rva/ai";
+import type { ImageContent, Message, MessageAttribution, ServiceTierByFamily, TextContent, Usage } from "@reverse/ai";
 import {
 	directoryIsEnterable,
 	directoryIsMissing,
@@ -23,9 +16,9 @@ import {
 	pathIsWithin,
 	stringifyJson,
 	toError,
-} from "@rva/utils";
-import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "@rva/tui/tools/task";
-import * as snapcompact from "@rva/snapcompact";
+} from "@reverse/utils";
+import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "@reverse/tui/tools/task";
+import * as snapcompact from "@reverse/snapcompact";
 import { moveFileAcrossDevices } from "../utils/atomic-file";
 import { ArtifactManager } from "./artifacts";
 import { type BlobPutOptions, type BlobPutResult, BlobStore, lazyImageDataSync } from "./blob-store";

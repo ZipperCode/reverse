@@ -1,5 +1,5 @@
-import { enclosingBlockBoundaries, warmBlockParse } from "@rva/natives";
-import { logger } from "@rva/utils";
+import { enclosingBlockBoundaries, warmBlockParse } from "@reverse/natives";
+import { logger } from "@reverse/utils";
 import { ensureGrammar } from "./grammars";
 
 const OPEN_TO_CLOSE: Record<string, string> = {

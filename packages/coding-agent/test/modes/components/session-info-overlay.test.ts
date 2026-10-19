@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { type Component, type OverlayHandle, setKeybindings, TUI, visibleWidth } from "@rva/tui";
-import type { Terminal, TerminalAppearance } from "@rva/tui/terminal";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
+import { type Component, type OverlayHandle, setKeybindings, TUI, visibleWidth } from "@reverse/tui";
+import type { Terminal, TerminalAppearance } from "@reverse/tui/terminal";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
 import { Settings } from "../../../src/config/settings";
-import { SessionInfoOverlay } from "@rva/tui/overlays/session-info-overlay";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
+import { SessionInfoOverlay } from "@reverse/tui/overlays/session-info-overlay";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
 
 class MinimalTerminal implements Terminal {
 	columns = 80;

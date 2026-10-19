@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { resolveJudgmentQuestionsMax } from "@rva/catalog/compat/judgment-questions";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveJudgmentQuestionsMax } from "@reverse/catalog/compat/judgment-questions";
 
 const base = {
 	reasoning: false,

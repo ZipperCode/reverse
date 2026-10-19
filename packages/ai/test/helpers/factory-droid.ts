@@ -1,8 +1,8 @@
 import { mock } from "bun:test";
-import type { AssistantMessage, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { type FactoryDroidRegistryModel, factoryDroidRegistry } from "@rva/catalog/compat/factory-droid";
-import { buildFactoryDroidModel } from "@rva/catalog/discovery";
+import type { AssistantMessage, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { type FactoryDroidRegistryModel, factoryDroidRegistry } from "@reverse/catalog/compat/factory-droid";
+import { buildFactoryDroidModel } from "@reverse/catalog/discovery";
 
 /** One captured request: URL, lowercased headers, and the parsed JSON body. */
 export interface CapturedRequest {

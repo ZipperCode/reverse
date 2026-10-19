@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@rva/coding-agent";
+import type { ExtensionAPI } from "@reverse/coding-agent";
 
 export default function myPlugin(pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {

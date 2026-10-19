@@ -10,11 +10,11 @@
  * through {@link InternalUrlRouter.normalize}.
  */
 import * as path from "node:path";
-import type { ToolApprovalDecision, ToolTier } from "@rva/agent";
-import { setInternalUrlCompletionHost } from "@rva/tui/prompt/internal-url-autocomplete";
-import { splitInternalUrlSel } from "@rva/tui/tools/read";
-import { setInternalUrlSchemeHost, splitUrlScheme } from "@rva/tui/tools/url-scheme-host";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { ToolApprovalDecision, ToolTier } from "@reverse/agent";
+import { setInternalUrlCompletionHost } from "@reverse/tui/prompt/internal-url-autocomplete";
+import { splitInternalUrlSel } from "@reverse/tui/tools/read";
+import { setInternalUrlSchemeHost, splitUrlScheme } from "@reverse/tui/tools/url-scheme-host";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ToolSession } from "../tools";
 import { TIER_RANK } from "../tools/approval";
 import { AgentProtocolHandler } from "./agent-protocol";

@@ -1,20 +1,20 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent, type AgentMessage, type AgentTool } from "@rva/agent";
-import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@rva/ai";
-import { streamGoogle } from "@rva/ai/providers/google";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { ResponseInput, ResponseOutputItem } from "@rva/ai/providers/openai-responses-wire";
-import { createOpenAIResponsesHistoryPayload } from "@rva/ai/utils";
-import { buildModel } from "@rva/catalog/build";
-import { AutoLearnController, buildAutoLearnInstructions } from "@rva/coding-agent/autolearn/controller";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAutoLearnCaptureRunner } from "@rva/coding-agent/sdk";
-import type { AgentSession, AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
+import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@reverse/ai";
+import { streamGoogle } from "@reverse/ai/providers/google";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { ResponseInput, ResponseOutputItem } from "@reverse/ai/providers/openai-responses-wire";
+import { createOpenAIResponsesHistoryPayload } from "@reverse/ai/utils";
+import { buildModel } from "@reverse/catalog/build";
+import { AutoLearnController, buildAutoLearnInstructions } from "@reverse/coding-agent/autolearn/controller";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAutoLearnCaptureRunner } from "@reverse/coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
 
-import { cfgAutolearnEnabled } from "@rva/coding-agent/autolearn/settings";
+import { cfgAutolearnEnabled } from "@reverse/coding-agent/autolearn/settings";
 
 class FakeSession {
 	readonly listeners: Array<(event: AgentSessionEvent) => void> = [];

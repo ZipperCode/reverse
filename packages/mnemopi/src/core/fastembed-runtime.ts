@@ -7,7 +7,7 @@ import {
 	logger,
 	type RuntimeInstallSpec,
 	resolveRuntimeModule,
-} from "@rva/utils";
+} from "@reverse/utils";
 import type * as Fastembed from "fastembed";
 import packageManifest from "../../package.json" with { type: "json" };
 

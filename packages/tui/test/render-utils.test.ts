@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@rva/agent";
-import * as natives from "@rva/natives/path";
-import { KeybindingsManager, setKeyHintPlatform } from "@rva/tui/app-keybindings";
-import { getThemeByName, initTheme, type Theme, theme } from "@rva/tui/theme";
+import { ThinkingLevel } from "@reverse/agent";
+import * as natives from "@reverse/natives/path";
+import { KeybindingsManager, setKeyHintPlatform } from "@reverse/tui/app-keybindings";
+import { getThemeByName, initTheme, type Theme, theme } from "@reverse/tui/theme";
 import {
 	dedupeParseErrors,
 	expandKeyHint,
@@ -26,13 +26,13 @@ import {
 	shortenToolArgumentPaths,
 	TRUNCATE_LENGTHS,
 	truncateDiffByHunk,
-} from "@rva/tui/render/render-utils";
+} from "@reverse/tui/render/render-utils";
 import {
 	DEFAULT_TAB_WIDTH,
 	getKeybindings,
 	setKeybindings,
 	type KeybindingsManager as TuiKeybindingsManager,
-} from "@rva/tui";
+} from "@reverse/tui";
 
 describe("embedded home path normalization", () => {
 	it("shortens every adjacent home path in path lists", () => {

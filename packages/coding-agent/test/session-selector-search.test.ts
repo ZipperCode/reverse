@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { rankSessionSearchMatches, SessionSelectorComponent } from "@rva/tui/overlays/session-selector";
-import { initTheme } from "@rva/tui/theme";
-import type { SessionInfo } from "@rva/coding-agent/session/session-listing";
+import { rankSessionSearchMatches, SessionSelectorComponent } from "@reverse/tui/overlays/session-selector";
+import { initTheme } from "@reverse/tui/theme";
+import type { SessionInfo } from "@reverse/coding-agent/session/session-listing";
 
 /**
  * Contracts of the session picker's incremental search engine: a keystroke

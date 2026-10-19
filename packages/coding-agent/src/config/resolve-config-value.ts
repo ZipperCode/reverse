@@ -1,5 +1,5 @@
-import { executeShell } from "@rva/natives";
-import { $envExact, directoryIsEnterable, getProjectDir, logger, ptree, untilAborted } from "@rva/utils";
+import { executeShell } from "@reverse/natives";
+import { $envExact, directoryIsEnterable, getProjectDir, logger, ptree, untilAborted } from "@reverse/utils";
 
 const COMMAND_FAILURE_RETRY_MS = 30_000;
 const commandResultCache = new Map<string, string>();

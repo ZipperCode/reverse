@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { Message, Model } from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { AgentMessage } from "@reverse/agent";
+import type { Message, Model } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	ComposerPredictionController,
 	parseComposerPrediction,
-} from "@rva/coding-agent/modes/controllers/composer-prediction-controller";
-import type { EphemeralTurnOptions, EphemeralTurnResult } from "@rva/coding-agent/session/agent-session-types";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+} from "@reverse/coding-agent/modes/controllers/composer-prediction-controller";
+import type { EphemeralTurnOptions, EphemeralTurnResult } from "@reverse/coding-agent/session/agent-session-types";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 describe("parseComposerPrediction", () => {
 	it("normalizes a reply to the single line the composer shows", () => {

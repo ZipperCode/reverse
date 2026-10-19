@@ -4,20 +4,20 @@
  * turns and the archive's text, planned within 60% of the trigger.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import type { Model } from "@rva/ai";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { toModelSpec } from "@rva/catalog/provider-models/bundled-references";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { computeNonMessageTokens } from "@rva/tui/status-line/context-usage";
-import * as snapcompact from "@rva/snapcompact";
+import { Agent, type AgentMessage } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { Model } from "@reverse/ai";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { toModelSpec } from "@reverse/catalog/provider-models/bundled-references";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { computeNonMessageTokens } from "@reverse/tui/status-line/context-usage";
+import * as snapcompact from "@reverse/snapcompact";
 import { rejectionOf } from "./helpers/rejection";
 
 const SHARE = 0.5;

@@ -1,4 +1,4 @@
-import { sanitizeDisplayWarnings } from "@rva/tui/render/render-utils";
+import { sanitizeDisplayWarnings } from "@reverse/tui/render/render-utils";
 import type { Args } from "../cli/args";
 import type { Settings } from "../config/settings";
 import { checkPythonKernelAvailability } from "./py/kernel";

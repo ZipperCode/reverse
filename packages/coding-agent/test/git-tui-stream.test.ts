@@ -2,20 +2,20 @@ import { beforeAll, describe, expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as natives from "@rva/natives";
-import { DiffSide, DiffStream } from "@rva/natives";
-import { sanitizeText } from "@rva/utils";
+import * as natives from "@reverse/natives";
+import { DiffSide, DiffStream } from "@reverse/natives";
+import { sanitizeText } from "@reverse/utils";
 import { $ } from "bun";
 import {
 	buildDiffDocument,
 	buildLineSelectionPatch,
 	type DiffBuildOptions,
 	DiffPane,
-} from "@rva/tui/apps/git/diff-pane";
-import type { ChangedFile } from "@rva/tui/apps/git/state";
+} from "@reverse/tui/apps/git/diff-pane";
+import type { ChangedFile } from "@reverse/tui/apps/git/state";
 import { GitModel } from "../src/cli/git-tui/state";
-import { ImageProtocol, TERMINAL } from "@rva/tui/terminal-capabilities";
-import { initTheme } from "@rva/tui/theme";
+import { ImageProtocol, TERMINAL } from "@reverse/tui/terminal-capabilities";
+import { initTheme } from "@reverse/tui/theme";
 
 const RED_PNG = Buffer.from(
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC",

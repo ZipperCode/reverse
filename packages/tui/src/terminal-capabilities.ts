@@ -1,5 +1,5 @@
-import { encodeSixel } from "@rva/natives";
-import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@rva/utils/env";
+import { encodeSixel } from "@reverse/natives";
+import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@reverse/utils/env";
 import { writeTerminalSequence } from "./active-terminal";
 import { sendDesktopNotification, shouldDeliverDesktopNotification } from "./desktop-notify";
 import {

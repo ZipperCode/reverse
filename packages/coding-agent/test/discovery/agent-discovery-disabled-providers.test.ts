@@ -8,17 +8,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import {
-	disableProvider,
-	disableUserSource,
-	enableProvider,
-	enableUserSource,
-} from "@rva/coding-agent/capability";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import { resolveAgentModelPatterns } from "@rva/coding-agent/config/model-resolver";
-import { clearClaudePluginRootsCache } from "@rva/coding-agent/discovery/helpers";
-import { discoverAgents } from "@rva/coding-agent/task/discovery";
-import { removeSyncWithRetries } from "@rva/utils";
+import { disableProvider, disableUserSource, enableProvider, enableUserSource } from "@reverse/coding-agent/capability";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { resolveAgentModelPatterns } from "@reverse/coding-agent/config/model-resolver";
+import { clearClaudePluginRootsCache } from "@reverse/coding-agent/discovery/helpers";
+import { discoverAgents } from "@reverse/coding-agent/task/discovery";
+import { removeSyncWithRetries } from "@reverse/utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 const PLUGIN_AGENT_MD = [
 	"---",

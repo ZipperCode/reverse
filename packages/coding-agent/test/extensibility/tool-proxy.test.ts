@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { isArkSchema } from "@rva/ai/utils/schema";
+import { type } from "@reverse/omptype";
+import { isArkSchema } from "@reverse/ai/utils/schema";
 import { applyToolProxy } from "../../src/extensibility/tool-proxy";
 
 describe("applyToolProxy", () => {

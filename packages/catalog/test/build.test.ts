@@ -3,19 +3,19 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildDiscoveredModel, buildModel } from "@rva/catalog/build";
-import { isOfficialAnthropicApiUrl } from "@rva/catalog/compat/anthropic";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { Effort } from "@rva/catalog/effort";
-import { readModelCache, writeModelCache } from "@rva/catalog/model-cache";
-import { fingerprintStaticModels, resolveProviderModels } from "@rva/catalog/model-manager";
-import { getBundledModel } from "@rva/catalog/models";
-import { toModelSpec } from "@rva/catalog/provider-models/bundled-references";
+import { buildDiscoveredModel, buildModel } from "@reverse/catalog/build";
+import { isOfficialAnthropicApiUrl } from "@reverse/catalog/compat/anthropic";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { Effort } from "@reverse/catalog/effort";
+import { readModelCache, writeModelCache } from "@reverse/catalog/model-cache";
+import { fingerprintStaticModels, resolveProviderModels } from "@reverse/catalog/model-manager";
+import { getBundledModel } from "@reverse/catalog/models";
+import { toModelSpec } from "@reverse/catalog/provider-models/bundled-references";
 import {
 	deepinfraModelManagerOptions,
 	openrouterModelManagerOptions,
-} from "@rva/catalog/provider-models/openai-compat";
-import type { Api, Model, ModelSpec } from "@rva/catalog/types";
+} from "@reverse/catalog/provider-models/openai-compat";
+import type { Api, Model, ModelSpec } from "@reverse/catalog/types";
 
 function completionsSpec(overrides: Partial<ModelSpec<"openai-completions">> = {}): ModelSpec<"openai-completions"> {
 	return {

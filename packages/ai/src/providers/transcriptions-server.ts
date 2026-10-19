@@ -1,4 +1,4 @@
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import * as AIError from "../error";
 import type {
 	TranscriptionRequest,

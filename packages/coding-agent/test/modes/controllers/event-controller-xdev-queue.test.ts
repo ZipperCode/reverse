@@ -3,16 +3,16 @@
  * every pending call args-complete) until that call's own `tool_execution_start`.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@rva/ai";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import type { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
+import type { AssistantMessage } from "@reverse/ai";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import type { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
-import { cfgDisplaySmoothStreaming } from "@rva/coding-agent/modes/settings";
+import { cfgDisplaySmoothStreaming } from "@reverse/coding-agent/modes/settings";
 
 beforeAll(async () => {
 	await initTheme();

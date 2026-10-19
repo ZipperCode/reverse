@@ -11,7 +11,7 @@ import {
 	openMemoryDb,
 	tryClaimGlobalPhase2Job,
 	upsertThreads,
-} from "@rva/coding-agent/memories/storage";
+} from "@reverse/coding-agent/memories/storage";
 
 const CWD_A = "/projects/alpha";
 const CWD_B = "/projects/beta";

@@ -2,11 +2,11 @@
  * View usage statistics dashboard.
  */
 
-import { Command, Flags } from "@rva/utils/cli";
+import { Command, Flags } from "@reverse/utils/cli";
 import { statsHelp as commandHelp } from "../cli/command-help";
 import type { StatsCommandArgs } from "../cli/stats-cli";
 import * as statsCli from "../cli/stats-cli";
-import * as theme from "@rva/tui/theme";
+import * as theme from "@reverse/tui/theme";
 
 export default class Stats extends Command {
 	static description = commandHelp.description;

@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { Component } from "@rva/tui";
-import { initTheme } from "@rva/tui/theme";
+import type { Component } from "@reverse/tui";
+import { initTheme } from "@reverse/tui/theme";
 import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
 import { setNativeRendering } from "../src/native/state";
 import type { SetupHost, SetupScene, SetupSceneController, SetupUiHost } from "../src/setup/scenes/types";

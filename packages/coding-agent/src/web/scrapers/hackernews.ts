@@ -1,4 +1,4 @@
-import { tryParseJson } from "@rva/utils";
+import { tryParseJson } from "@reverse/utils";
 import { mapWithConcurrencyLimit } from "../../task/parallel";
 import type { SpecialHandler } from "./types";
 import { buildResult, decodeHtmlEntities, formatIsoDate, loadPage } from "./types";

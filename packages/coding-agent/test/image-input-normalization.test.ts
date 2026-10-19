@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeModelContextImages } from "@rva/coding-agent/utils/image-loading";
-import { ensureSupportedImageInput } from "@rva/tui/chat/image-loading";
+import { normalizeModelContextImages } from "@reverse/coding-agent/utils/image-loading";
+import { ensureSupportedImageInput } from "@reverse/tui/chat/image-loading";
 
 // 1x1 red PNG (69 bytes). Bun.Image sniffs format from bytes, so we can pass
 // this with a non-supported MIME type and the conversion path runs over the

@@ -17,10 +17,10 @@
  *
  * Credential values are always redacted.
  */
-import { isRecord, prompt } from "@rva/utils";
-import { fuzzyFilter } from "@rva/tui/fuzzy";
-import { type CfgWriteDetails, type CfgWriteOutcome } from "@rva/tui/tools/cfg-render";
-import { CFG_SAVE_SEGMENT, CFG_URL_PREFIX, parseCfgUrl } from "@rva/tui/tools/cfg-url";
+import { isRecord, prompt } from "@reverse/utils";
+import { fuzzyFilter } from "@reverse/tui/fuzzy";
+import { type CfgWriteDetails, type CfgWriteOutcome } from "@reverse/tui/tools/cfg-render";
+import { CFG_SAVE_SEGMENT, CFG_URL_PREFIX, parseCfgUrl } from "@reverse/tui/tools/cfg-url";
 import { type AnySetting, all } from "../config/registry";
 import type { SettingProvenance, Settings } from "../config/settings";
 import cfgPromptDoc from "../prompts/internal-urls/cfg.md" with { type: "text" };

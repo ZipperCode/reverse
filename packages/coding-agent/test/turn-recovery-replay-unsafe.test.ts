@@ -1,19 +1,19 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { AgentMessage, SyntheticToolResultDetails } from "@rva/agent";
-import type { AssistantMessage, ToolResultMessage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { kCursorExecResolved } from "@rva/ai/utils/block-symbols";
-import { getBundledModel } from "@rva/catalog/models";
-import type { Model, Usage } from "@rva/catalog/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import type { AgentMessage, SyntheticToolResultDetails } from "@reverse/agent";
+import type { AssistantMessage, ToolResultMessage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { kCursorExecResolved } from "@reverse/ai/utils/block-symbols";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { Model, Usage } from "@reverse/catalog/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import {
 	type RecoveryCompactionResult,
 	TurnRecovery,
 	type TurnRecoveryHost,
-} from "@rva/coding-agent/session/turn-recovery";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/turn-recovery";
+import { TempDir } from "@reverse/utils";
 import { createProviderErrorMessage } from "../../ai/src/providers/error-message";
 import { streamFactoryDroidGemini } from "../../ai/src/providers/factory-droid/gemini";
 import { captureFetch, gemini as factoryGemini } from "../../ai/test/helpers/factory-droid";

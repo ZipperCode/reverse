@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { resolvePrimaryModel, resolveSmolModel } from "@rva/coding-agent/commit/model-selection";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Effort } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { resolvePrimaryModel, resolveSmolModel } from "@reverse/coding-agent/commit/model-selection";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 function getModelOrThrow(id: string) {

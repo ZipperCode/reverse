@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import type { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/types";
-import type { AsyncJobSnapshot } from "@rva/coding-agent/session/agent-session";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import type { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/types";
+import type { AsyncJobSnapshot } from "@reverse/coding-agent/session/agent-session";
 
 function createRunner(getAsyncJobSnapshot?: () => AsyncJobSnapshot | null): ExtensionRunner {
 	const runtime = {

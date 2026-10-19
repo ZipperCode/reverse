@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import type { UsageProvider, UsageReport } from "@rva/ai";
-import { unregisterOAuthProvider } from "@rva/ai/oauth";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import type { ProviderConfig } from "@rva/coding-agent/extensibility/extensions/types";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
+import type { UsageProvider, UsageReport } from "@reverse/ai";
+import { unregisterOAuthProvider } from "@reverse/ai/oauth";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import type { ProviderConfig } from "@reverse/coding-agent/extensibility/extensions/types";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
 
 const testProviderConfig: ProviderConfig = {
 	baseUrl: "https://example.invalid/v1",

@@ -1,13 +1,13 @@
 import { createModelBrowserSource } from "../src/modes/model-browser-source";
 import { beforeAll, describe, expect, test } from "bun:test";
-import { Agent, ThinkingLevel } from "@rva/agent";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { Agent, ThinkingLevel } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	buildBrowserItems,
 	buildSearchAffinity,
@@ -16,9 +16,9 @@ import {
 	type RoleAssignments,
 	resolveRoleAssignments,
 	sortModelItems,
-} from "@rva/tui/overlays/model-browser";
-import { initTheme, theme } from "@rva/tui/theme";
-import { createModelMentionSource } from "@rva/tui/prompt/model-mention-autocomplete";
+} from "@reverse/tui/overlays/model-browser";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { createModelMentionSource } from "@reverse/tui/prompt/model-mention-autocomplete";
 
 /** Optional presentation metadata a catalog or discovery source may attach. */
 type NativeMetadata = Pick<Model, "description" | "isNew" | "isBeta" | "isRecommended" | "int" | "tps"> &

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ProviderHttpError } from "@rva/ai/error";
-import { classify, Flag, is, isUsageLimit, retriable } from "@rva/ai/error/flags";
+import { ProviderHttpError } from "@reverse/ai/error";
+import { classify, Flag, is, isUsageLimit, retriable } from "@reverse/ai/error/flags";
 import {
 	calculateRateLimitBackoffMs,
 	is402BillingCapBody,
@@ -10,7 +10,7 @@ import {
 	isUsageLimitStatus,
 	matchesUsageLimitText,
 	parseRateLimitReason,
-} from "@rva/ai/error/rate-limit";
+} from "@reverse/ai/error/rate-limit";
 
 // MiniMax CN (minimax-code-cn) Token Plan exhaustion (2067): phrased 用量上限,
 // not 使用上限 like Zhipu.

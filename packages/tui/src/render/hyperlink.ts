@@ -6,7 +6,7 @@
  * permits it. Falls back to plain text when disabled.
  */
 import * as url from "node:url";
-import type { TspSpan } from "@rva/wire";
+import type { TspSpan } from "@reverse/wire";
 import { span } from "../native/describe";
 import { setTerminalHyperlinks, TERMINAL, type TerminalId } from "../terminal-capabilities";
 

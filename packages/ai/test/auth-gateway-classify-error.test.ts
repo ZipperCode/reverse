@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { classifyGatewayError } from "@rva/ai/error";
+import { classifyGatewayError } from "@reverse/ai/error";
 
 describe("auth-gateway classifyGatewayError", () => {
 	it("honours an explicit numeric `status` property on the error", () => {

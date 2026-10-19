@@ -6,8 +6,8 @@ import {
 	CONFIG_DIR_NAME,
 	createReadToolDefinition,
 	parseArgs,
-} from "@rva/coding-agent/extensibility/legacy-pi-coding-agent-shim";
-import { toolReadsSkillUris } from "@rva/coding-agent/system-prompt";
+} from "@reverse/coding-agent/extensibility/legacy-pi-coding-agent-shim";
+import { toolReadsSkillUris } from "@reverse/coding-agent/system-prompt";
 
 describe("legacy shim CLI exports", () => {
 	it("re-exports parseArgs and CONFIG_DIR_NAME from the legacy package root", () => {

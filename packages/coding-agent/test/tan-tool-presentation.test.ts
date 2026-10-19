@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { getBundledModel } from "@rva/catalog/models";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { type CustomTool, createAgentSession } from "@rva/coding-agent/sdk";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { createSubagentSettings } from "@rva/coding-agent/task/executor";
-import { TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { getBundledModel } from "@reverse/catalog/models";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { type CustomTool, createAgentSession } from "@reverse/coding-agent/sdk";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { createSubagentSettings } from "@reverse/coding-agent/task/executor";
+import { TempDir } from "@reverse/utils";
 
 const mcpTool: CustomTool = {
 	name: "mcp__fixture_probe",

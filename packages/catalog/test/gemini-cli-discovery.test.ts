@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { fetchGeminiCliQuotaModels } from "@rva/catalog/discovery/gemini-cli";
-import { googleGeminiCliModelManagerOptions } from "@rva/catalog/provider-models/google";
+import { fetchGeminiCliQuotaModels } from "@reverse/catalog/discovery/gemini-cli";
+import { googleGeminiCliModelManagerOptions } from "@reverse/catalog/provider-models/google";
 
 const CCA = "https://cloudcode-pa.googleapis.com";
 

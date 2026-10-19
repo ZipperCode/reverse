@@ -7,11 +7,11 @@
  * wording, and add-flow logic stay in the per-controller files because they
  * diverge in workflow.
  */
-import { Text } from "@rva/tui";
+import { Text } from "@reverse/tui";
 import type { SourceMeta } from "../../capability/types";
-import { shortenPath } from "@rva/tui/render/render-utils";
-import { DynamicBorder } from "@rva/tui/chrome/dynamic-border";
-import { TranscriptBlock } from "@rva/tui/chrome/transcript-container";
+import { shortenPath } from "@reverse/tui/render/render-utils";
+import { DynamicBorder } from "@reverse/tui/chrome/dynamic-border";
+import { TranscriptBlock } from "@reverse/tui/chrome/transcript-container";
 import { parseCommandArgs } from "../../utils/command-args";
 import type { InteractiveModeContext } from "../types";
 

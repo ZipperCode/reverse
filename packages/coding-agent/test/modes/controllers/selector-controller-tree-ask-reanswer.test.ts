@@ -8,11 +8,11 @@
  * ask toolResults).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { SelectorController } from "@rva/coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import type { SessionEntry, SessionTreeNode } from "@rva/coding-agent/session/session-entries";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { SelectorController } from "@reverse/coding-agent/modes/controllers/selector-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import type { SessionEntry, SessionTreeNode } from "@reverse/coding-agent/session/session-entries";
 
 beforeAll(async () => {
 	await initTheme();

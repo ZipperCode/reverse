@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { Loader } from "@rva/tui";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { Loader } from "@reverse/tui";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
-import { cfgTerminalShowProgress } from "@rva/coding-agent/modes/settings";
+import { cfgTerminalShowProgress } from "@reverse/coding-agent/modes/settings";
 
 /**
  * Faithful model of the shared `statusContainer` + working-loader invariant that

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspPickerProps } from "@rva/wire";
+import type { TspPickerProps } from "@reverse/wire";
 import type { DescribeContext, NativeNode } from "../src/native/node";
 import { type HistorySearchEntry, HistorySearchComponent } from "../src/overlays/history-search";
 import { type SessionSelectorEntry, SessionSelectorComponent } from "../src/overlays/session-selector";

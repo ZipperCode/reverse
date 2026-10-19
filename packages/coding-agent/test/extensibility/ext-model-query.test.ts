@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { Api, Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { Api, Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import { createExtensionModelQuery } from "../../src/extensibility/extensions/model-api";
 
 function model(id: string, name: string, provider: string): Model<"anthropic-messages"> {

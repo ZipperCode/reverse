@@ -1,4 +1,4 @@
-import type { ImageContent, MessageAttribution, ServiceTierByFamily, TextContent } from "@rva/ai";
+import type { ImageContent, MessageAttribution, ServiceTierByFamily, TextContent } from "@reverse/ai";
 import type { AgentMessage } from "../types";
 
 export interface SessionEntryBase {

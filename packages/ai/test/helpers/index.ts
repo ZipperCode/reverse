@@ -1,10 +1,10 @@
 import { afterEach, beforeEach } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import type { ModelSpec } from "@rva/catalog/types";
-import { isEnoent } from "@rva/utils";
+import type { Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import type { ModelSpec } from "@reverse/catalog/types";
+import { isEnoent } from "@reverse/utils";
 
 export async function withEnv(
 	overrides: Record<string, string | undefined>,

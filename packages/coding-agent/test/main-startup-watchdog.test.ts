@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { runRootCommand } from "@rva/coding-agent/main";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { runRootCommand } from "@reverse/coding-agent/main";
 
 describe("startup watchdog under test runner", () => {
 	afterEach(() => {

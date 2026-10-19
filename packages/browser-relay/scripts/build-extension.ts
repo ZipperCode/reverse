@@ -12,7 +12,6 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { $ } from "bun";
 
 const root = path.resolve(import.meta.dir, "..");
 const repoRoot = path.resolve(root, "../..");

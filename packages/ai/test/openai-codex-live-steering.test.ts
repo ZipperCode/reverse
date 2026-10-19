@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as AIError from "@rva/ai/error";
-import { planSteeredRequest } from "@rva/ai/providers/openai-codex/live-steering";
-import { streamOpenAICodexResponses } from "@rva/ai/providers/openai-codex-responses";
+import * as AIError from "@reverse/ai/error";
+import { planSteeredRequest } from "@reverse/ai/providers/openai-codex/live-steering";
+import { streamOpenAICodexResponses } from "@reverse/ai/providers/openai-codex-responses";
 import type {
 	AssistantMessage,
 	Context,
@@ -12,9 +12,9 @@ import type {
 	ProviderSessionState,
 	ToolResultMessage,
 	UserMessage,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import * as piUtils from "@rva/utils";
+} from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import * as piUtils from "@reverse/utils";
 
 const { getAgentDir, setAgentDir, TempDir } = piUtils;
 const originalAgentDir = getAgentDir();

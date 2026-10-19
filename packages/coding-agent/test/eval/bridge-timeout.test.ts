@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import type { AgentTool } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import type { AgentTool } from "@reverse/agent";
 import { Settings } from "../../src/config/settings";
 import {
 	EVAL_TIMEOUT_PAUSE_OP,

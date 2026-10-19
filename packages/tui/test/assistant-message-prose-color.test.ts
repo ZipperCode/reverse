@@ -2,11 +2,11 @@ import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@rva/ai";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { getThemeByName, initTheme, setThemeInstance } from "@rva/tui/theme";
-import { setTerminalImageProtocol, TERMINAL } from "@rva/tui";
-import { getConfigRootDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@rva/utils";
+import type { AssistantMessage } from "@reverse/ai";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { getThemeByName, initTheme, setThemeInstance } from "@reverse/tui/theme";
+import { setTerminalImageProtocol, TERMINAL } from "@reverse/tui";
+import { getConfigRootDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@reverse/utils";
 
 const RENDER_WIDTH = 80;
 const PROSE = "Assistant prose must be themeable.";

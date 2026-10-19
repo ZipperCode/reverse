@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { visibleWidth } from "@rva/tui";
-import { LiveVisualizer } from "@rva/tui/apps/live-visualizer";
-import { initTheme } from "@rva/tui/theme";
+import { visibleWidth } from "@reverse/tui";
+import { LiveVisualizer } from "@reverse/tui/apps/live-visualizer";
+import { initTheme } from "@reverse/tui/theme";
 
 describe("LiveVisualizer", () => {
 	beforeAll(async () => {

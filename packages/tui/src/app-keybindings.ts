@@ -1,12 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-// Subpaths, not the `@rva/utils` barrel: the barrel loads the native
+// Subpaths, not the `@reverse/utils` barrel: the barrel loads the native
 // addon (file-lock), and key-hint formatting runs on addon-free CLI paths
 // (`omp --version`, help) through cli/command-help.ts.
-import { getActiveProfile, getAgentDir, getProfileRootDir } from "@rva/utils/dirs";
-import { isEnoent } from "@rva/utils/fs-error";
-import * as logger from "@rva/utils/logger";
-import { stringifyYamlConfig } from "@rva/utils/yaml-config";
+import { getActiveProfile, getAgentDir, getProfileRootDir } from "@reverse/utils/dirs";
+import { isEnoent } from "@reverse/utils/fs-error";
+import * as logger from "@reverse/utils/logger";
+import { stringifyYamlConfig } from "@reverse/utils/yaml-config";
 import { JSONC, YAML } from "bun";
 import { formatKeyHints } from "./key-hint-format";
 import {

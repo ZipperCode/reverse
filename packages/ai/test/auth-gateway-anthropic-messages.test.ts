@@ -1,23 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@rva/ai/providers/anthropic";
-import { encodeResponse, encodeStream, parseRequest } from "@rva/ai/providers/anthropic-messages-server";
+import { convertAnthropicMessages } from "@reverse/ai/providers/anthropic";
+import { encodeResponse, encodeStream, parseRequest } from "@reverse/ai/providers/anthropic-messages-server";
 import type {
 	ToolSearchServerToolUseBlockParam,
 	ToolSearchToolResultBlockParam,
 	WebSearchServerToolUseBlockParam,
 	WebSearchToolResultBlockParam,
-} from "@rva/ai/providers/anthropic-wire";
-import type {
-	AssistantMessage,
-	AssistantMessageEvent,
-	Model,
-	ToolCall,
-	ToolResultMessage,
-} from "@rva/ai/types";
-import { type CursorExecResolvedCarrier, kCursorExecResolved } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+} from "@reverse/ai/providers/anthropic-wire";
+import type { AssistantMessage, AssistantMessageEvent, Model, ToolCall, ToolResultMessage } from "@reverse/ai/types";
+import { type CursorExecResolvedCarrier, kCursorExecResolved } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 
 function emptyUsage(): AssistantMessage["usage"] {
 	return {

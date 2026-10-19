@@ -1,11 +1,11 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { renderDemotedThinking } from "@rva/ai/dialect";
+import { renderDemotedThinking } from "@reverse/ai/dialect";
 import {
 	applyOpenRouterRoutingVariant,
 	convertMessages,
 	parseChunkUsage,
 	streamOpenAICompletions,
-} from "@rva/ai/providers/openai-completions";
+} from "@reverse/ai/providers/openai-completions";
 import type {
 	AssistantMessage,
 	Context,
@@ -15,13 +15,13 @@ import type {
 	OpenAICompat,
 	Tool,
 	ToolResultMessage,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { clampThinkingLevelForModel, getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { getBundledModel } from "@rva/catalog/models";
-import type { ResolvedOpenAICompat } from "@rva/catalog/types";
-import { serializeAlibabaTokenPlanCredential } from "@rva/catalog/wire/alibaba-token-plan";
+} from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { clampThinkingLevelForModel, getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { ResolvedOpenAICompat } from "@reverse/catalog/types";
+import { serializeAlibabaTokenPlanCredential } from "@reverse/catalog/wire/alibaba-token-plan";
 
 const gpt4oMiniSpec: ModelSpec<"openai-completions"> = (() => {
 	const {

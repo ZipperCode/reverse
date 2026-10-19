@@ -1,5 +1,5 @@
-import type { Model } from "@rva/ai";
-import { isRecord, prompt } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import { isRecord, prompt } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import modelMentionDescription from "../prompts/agents/model-mention.md" with { type: "text" };
@@ -10,7 +10,7 @@ import {
 	type ModelMention,
 	modelMentionDisplayName,
 	modelMentionTag,
-} from "@rva/tui/prompt/model-mention-syntax";
+} from "@reverse/tui/prompt/model-mention-syntax";
 import type { SessionEntry } from "./session-entries";
 import type { SessionManager } from "./session-manager";
 

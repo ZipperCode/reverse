@@ -1,7 +1,7 @@
-import { formatNumber, normalizePremiumRequests } from "@rva/utils";
+import { formatNumber, normalizePremiumRequests } from "@reverse/utils";
 import type { Theme } from "../theme";
 
-export { normalizePremiumRequests } from "@rva/utils";
+export { normalizePremiumRequests } from "@reverse/utils";
 
 /** Inputs whose differences are intentionally preserved between current status segments and the legacy footer. */
 export interface BillingSummaryOptions {

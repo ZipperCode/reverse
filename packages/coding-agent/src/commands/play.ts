@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { isEnoent } from "@rva/utils";
-import { Args, CliUsageError, Command, Flags } from "@rva/utils/cli";
+import { isEnoent } from "@reverse/utils";
+import { Args, CliUsageError, Command, Flags } from "@reverse/utils/cli";
 import { playHelp as commandHelp } from "../cli/command-help";
 import { playRecording } from "../stream/player";
 import { latestRecording, parseRecording, type Recording, recordingsDir } from "../stream/recording";

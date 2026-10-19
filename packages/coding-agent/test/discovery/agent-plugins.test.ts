@@ -2,27 +2,27 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadCapability } from "@rva/coding-agent/capability";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
+import { loadCapability } from "@reverse/coding-agent/capability";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
 import {
 	AGENT_PLUGIN_MANIFEST_SCHEMA,
 	AGENT_PLUGIN_MCP_SCHEMA,
 	clearAgentPluginRootCache,
 	parseAgentPluginManifest,
 	parseAgentPluginMcp,
-} from "@rva/coding-agent/discovery/agent-plugin-format";
+} from "@reverse/coding-agent/discovery/agent-plugin-format";
 import {
 	clearClaudePluginRootsCache,
 	injectPluginDirRoots,
 	listClaudePluginRoots,
-} from "@rva/coding-agent/discovery/helpers";
-import { loadSkills } from "@rva/coding-agent/extensibility/skills";
-import { getPluginsDir, removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/discovery/helpers";
+import { loadSkills } from "@reverse/coding-agent/extensibility/skills";
+import { getPluginsDir, removeWithRetries } from "@reverse/utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
-import "@rva/coding-agent/discovery/agent-plugins";
-import "@rva/coding-agent/discovery/claude-plugins";
-import type { MCPServer } from "@rva/coding-agent/capability/mcp";
-import type { Skill } from "@rva/coding-agent/capability/skill";
+import "@reverse/coding-agent/discovery/agent-plugins";
+import "@reverse/coding-agent/discovery/claude-plugins";
+import type { MCPServer } from "@reverse/coding-agent/capability/mcp";
+import type { Skill } from "@reverse/coding-agent/capability/skill";
 
 // Concatenation avoids the noTemplateCurlyInString lint on literal placeholder names.
 const PLUGIN_ROOT_VAR = "$" + "{PLUGIN_ROOT}";

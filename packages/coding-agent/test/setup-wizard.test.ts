@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, mock, vi } from "bun:test";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { runOnboardingSetup } from "@rva/coding-agent/commands/setup";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { runOnboardingSetup } from "@reverse/coding-agent/commands/setup";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	ALL_SCENES,
 	createSetupHost,
@@ -12,15 +12,15 @@ import {
 	type SetupScene,
 	type SetupSceneHost,
 	selectSetupScenes,
-} from "@rva/coding-agent/modes/setup";
-import { providersSetupScene } from "@rva/tui/setup/scenes/sign-in";
-import { themeSetupScene } from "@rva/tui/setup/scenes/theme";
-import { SetupWizardComponent } from "@rva/tui/setup/wizard-overlay";
-import { setTerminalGlyphProtocol } from "@rva/tui/terminal-capabilities";
-import { initTheme, theme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+} from "@reverse/coding-agent/modes/setup";
+import { providersSetupScene } from "@reverse/tui/setup/scenes/sign-in";
+import { themeSetupScene } from "@reverse/tui/setup/scenes/theme";
+import { SetupWizardComponent } from "@reverse/tui/setup/wizard-overlay";
+import { setTerminalGlyphProtocol } from "@reverse/tui/terminal-capabilities";
+import { initTheme, theme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
-import { cfgSetupVersion, cfgSymbolPreset } from "@rva/coding-agent/modes/settings";
+import { cfgSetupVersion, cfgSymbolPreset } from "@reverse/coding-agent/modes/settings";
 
 type SetupApplicationSceneHost = Omit<SetupSceneHost, "ctx"> & { ctx: InteractiveModeContext };
 

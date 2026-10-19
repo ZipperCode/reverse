@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type { CompactionSettings } from "@rva/agent/compaction/compaction";
+import type { CompactionSettings } from "@reverse/agent/compaction/compaction";
 import {
 	DEFAULT_COMPACTION_SETTINGS,
 	effectiveReserveTokens,
 	resolveBudgetReserveTokens,
 	resolveThresholdTokens,
 	shouldCompact,
-} from "@rva/agent/compaction/compaction";
+} from "@reverse/agent/compaction/compaction";
 
 describe("compaction reserve provenance", () => {
 	it("honors an explicit reserve equal to the default on a small window", () => {

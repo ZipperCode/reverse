@@ -1,4 +1,4 @@
-import type { Api, Model } from "@rva/ai";
+import type { Api, Model } from "@reverse/ai";
 import { formatModelStringWithRouting, resolveModelOverride, resolveRoleSelection } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import {

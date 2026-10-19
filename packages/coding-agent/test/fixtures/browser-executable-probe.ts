@@ -1,6 +1,6 @@
 import { spyOn } from "bun:test";
 import * as os from "node:os";
-import { ensureChromiumExecutable } from "@rva/coding-agent/tools/browser/launch";
+import { ensureChromiumExecutable } from "@reverse/coding-agent/tools/browser/launch";
 
 // Launch policy reads `process.platform`; Chrome-for-Testing platform detection reads `os.platform()`, which Bun does
 // not derive from the `process.platform` override. Pin both so the child resolves the emulated host's paths.

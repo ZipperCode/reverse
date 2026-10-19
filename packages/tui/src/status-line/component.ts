@@ -1,14 +1,11 @@
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, UsageLimit, UsageReport } from "@rva/ai";
-import {
-	getAntigravityCounterKeyForModel,
-	scopeAntigravityLimitsForModel,
-} from "@rva/ai/usage/google-antigravity";
-import { getNextTimeBasedPricingTransition } from "@rva/catalog/models";
-import type { Model, ModelCost } from "@rva/catalog/types";
-import type { VcsGitRepo, VcsRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, UsageLimit, UsageReport } from "@reverse/ai";
+import { getAntigravityCounterKeyForModel, scopeAntigravityLimitsForModel } from "@reverse/ai/usage/google-antigravity";
+import { getNextTimeBasedPricingTransition } from "@reverse/catalog/models";
+import type { Model, ModelCost } from "@reverse/catalog/types";
+import type { VcsGitRepo, VcsRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
 import {
 	type Component,
 	type ComposerStyle,
@@ -18,7 +15,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
-import { adjustHsv, formatNumber, getProjectDir, hexToRgb, rgbToHex } from "@rva/utils";
+import { adjustHsv, formatNumber, getProjectDir, hexToRgb, rgbToHex } from "@reverse/utils";
 import type {
 	ActiveRepoContext,
 	StatusAccountIdentity as OAuthAccountIdentity,
@@ -39,7 +36,7 @@ import { canReuseCachedPr, createPrCacheContext, isSamePrCacheContext, type PrCa
 import { summarizeUsageResetCredits } from "../overlays/usage-display";
 import { getPreset } from "./presets";
 import { describeSegment, renderSegment, type SegmentContext } from "./segments";
-import type { TspMeterMark, TspProps } from "@rva/wire";
+import type { TspMeterMark, TspProps } from "@reverse/wire";
 import type { NativeNode, NativeUiEvent } from "../native/node";
 import { col, node, span } from "../native/describe";
 import { getContextMeterThresholds } from "../chrome/context-thresholds";

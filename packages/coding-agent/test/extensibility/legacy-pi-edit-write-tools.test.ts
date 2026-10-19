@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import * as shim from "@rva/coding-agent/extensibility/legacy-pi-coding-agent-shim";
+import * as shim from "@reverse/coding-agent/extensibility/legacy-pi-coding-agent-shim";
 
 // Issue #7094: pi extensions import the edit/write tool factories
 // (`createEditTool`, `createEditToolDefinition`, `createWriteTool`,

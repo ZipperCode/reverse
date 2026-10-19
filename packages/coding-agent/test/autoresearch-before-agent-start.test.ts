@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { createAutoresearchExtension } from "@rva/coding-agent/autoresearch";
-import { closeAllAutoresearchStorages } from "@rva/coding-agent/autoresearch/storage";
+import { createAutoresearchExtension } from "@reverse/coding-agent/autoresearch";
+import { closeAllAutoresearchStorages } from "@reverse/coding-agent/autoresearch/storage";
 import type {
 	BeforeAgentStartEvent,
 	BeforeAgentStartEventResult,
@@ -8,10 +8,10 @@ import type {
 	ExtensionContext,
 	ExtensionHandler,
 	SessionStartEvent,
-} from "@rva/coding-agent/extensibility/extensions";
-import type { VcsGitRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/extensions";
+import type { VcsGitRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { TempDir } from "@reverse/utils";
 
 // Reproduces issue #3665: when the upstream system prompt resolution leaves
 // `event.systemPrompt` unset, the autoresearch handler must still render its

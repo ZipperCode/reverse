@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { type AuthAccountPolicies, AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
+import { type AuthAccountPolicies, AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
 
 const EMAIL = "dev@example.com";
 const POLICIES = [{ provider: "cursor", account: { email: EMAIL }, priority: -1 }] satisfies AuthAccountPolicies;

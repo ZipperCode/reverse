@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspKind, TspPickerProps } from "@rva/wire";
-import { getOAuthProviders } from "@rva/ai/oauth";
+import type { TspKind, TspPickerProps } from "@reverse/wire";
+import { getOAuthProviders } from "@reverse/ai/oauth";
 import type { DescribeContext, NativeNode } from "../src/native/node";
 import { HookSelectorComponent } from "../src/overlays/hook-selector";
 import { OAuthSelectorComponent, type OAuthSelectorAuthSource } from "../src/overlays/oauth-selector";

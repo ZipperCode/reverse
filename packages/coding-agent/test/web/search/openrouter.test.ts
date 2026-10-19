@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { buildModel } from "@rva/catalog/build";
-import { searchOpenRouterGrounded } from "@rva/coding-agent/web/search/providers/openrouter";
+import type { FetchImpl } from "@reverse/ai/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { buildModel } from "@reverse/catalog/build";
+import { searchOpenRouterGrounded } from "@reverse/coding-agent/web/search/providers/openrouter";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 function createFixture() {

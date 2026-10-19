@@ -3,7 +3,7 @@
  *
  * @example
  * ```ts
- * import { hexToHsv, hsvToHex } from "@rva/utils";
+ * import { hexToHsv, hsvToHex } from "@reverse/utils";
  *
  * // Rotate the hue by 90°
  * const hsv = hexToHsv("#4ade80");

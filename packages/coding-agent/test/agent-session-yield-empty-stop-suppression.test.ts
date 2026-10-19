@@ -8,16 +8,16 @@
  * (see issues #3389 and #4963).
  */
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
-import { Agent, type AgentMessage, type AgentTool } from "@rva/agent";
-import { createMockModel, type MockModel, type MockResponse } from "@rva/ai/providers/mock";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { IrcMessage } from "@rva/tui/tools/irc";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
+import { createMockModel, type MockModel, type MockResponse } from "@reverse/ai/providers/mock";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { IrcMessage } from "@reverse/tui/tools/irc";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 

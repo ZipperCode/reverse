@@ -1,4 +1,4 @@
-import { type AwsCredentials, type SignedHeaders, signRequest } from "@rva/ai/providers/aws-sigv4";
+import { type AwsCredentials, type SignedHeaders, signRequest } from "@reverse/ai/providers/aws-sigv4";
 import type { BlobDestinationId } from "./destinations";
 import type { BlobUploader, RemoteDeleteAction } from "./publication";
 import {

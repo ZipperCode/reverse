@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, ProviderPayload, Usage } from "@rva/ai";
-import { BlobStore } from "@rva/coding-agent/session/blob-store";
-import type { SessionMessageEntry } from "@rva/coding-agent/session/session-entries";
-import { prepareEntryForPersistence } from "@rva/coding-agent/session/session-persistence";
-import { TempDir } from "@rva/utils";
+import type { AssistantMessage, ProviderPayload, Usage } from "@reverse/ai";
+import { BlobStore } from "@reverse/coding-agent/session/blob-store";
+import type { SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
+import { prepareEntryForPersistence } from "@reverse/coding-agent/session/session-persistence";
+import { TempDir } from "@reverse/utils";
 
 const usage = (): Usage => ({
 	input: 1,

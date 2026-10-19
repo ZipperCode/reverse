@@ -49,7 +49,7 @@
 
 ### Added
 
-- Added the Tern Surface Protocol wire contract (`@rva/wire`): message framing constants, the component vocabulary, document ops, frames, the handshake and terminal events that let omp render natively in terminals that speak it
+- Added the Tern Surface Protocol wire contract (`@reverse/wire`): message framing constants, the component vocabulary, document ops, frames, the handshake and terminal events that let omp render natively in terminals that speak it
 
 ## [18.2.11] - 2026-09-23
 
@@ -61,7 +61,7 @@
 
 ### Added
 
-- Added the `omp stream` wire contract (`@rva/wire/stream`) for pane screen updates, viewer snapshots and chat, channel metadata, and `live.omp.sh` stream routes.
+- Added the `omp stream` wire contract (`@reverse/wire/stream`) for pane screen updates, viewer snapshots and chat, channel metadata, and `live.omp.sh` stream routes.
 - Added authentication support for stencil.so streams, including user identity in welcome messages, channel ownership metadata, and explicit unauthorized and forbidden close codes.
 
 ### Changed

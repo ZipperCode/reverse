@@ -1,5 +1,5 @@
-import { retryResetTimezoneOffsetFor } from "@rva/catalog/compat/behavior";
-import { extractRetryHint } from "@rva/utils";
+import { retryResetTimezoneOffsetFor } from "@reverse/catalog/compat/behavior";
+import { extractRetryHint } from "@reverse/utils";
 
 export type HeadersLike = Headers | Record<string, string | undefined> | undefined | null;
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { gunzipSync } from "node:zlib";
-import { streamDevin } from "@rva/ai/providers/devin";
-import type { Context, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamDevin } from "@reverse/ai/providers/devin";
+import type { Context, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	type AssignModelRequest,
 	AssignModelRequestSchema,
@@ -16,9 +16,9 @@ import {
 	GetUserJwtResponseSchema,
 	ModelAssignmentSchema,
 	StopReason,
-} from "@rva/catalog/discovery/devin-proto";
-import { create, fromBinary, toBinary } from "@rva/catalog/discovery/protobuf";
-import type { DevinCompat } from "@rva/catalog/types";
+} from "@reverse/catalog/discovery/devin-proto";
+import { create, fromBinary, toBinary } from "@reverse/catalog/discovery/protobuf";
+import type { DevinCompat } from "@reverse/catalog/types";
 
 const AUTH_PAYLOAD = toBinary(GetUserJwtResponseSchema, create(GetUserJwtResponseSchema, { userJwt: "user-jwt" }));
 

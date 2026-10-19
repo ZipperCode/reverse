@@ -3,9 +3,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
-import { type as arkType } from "@rva/omptype";
-import { Effort } from "@rva/ai";
-import { NO_AUTH_SENTINEL } from "@rva/ai/auth-retry";
+import { type as arkType } from "@reverse/omptype";
+import { Effort } from "@reverse/ai";
+import { NO_AUTH_SENTINEL } from "@reverse/ai/auth-retry";
 import {
 	applyClaudeToolPrefix,
 	buildAnthropicClientOptions,
@@ -19,11 +19,11 @@ import {
 	mapStainlessOs,
 	streamAnthropic,
 	stripClaudeToolPrefix,
-} from "@rva/ai/providers/anthropic";
-import type { MessageCreateParams } from "@rva/ai/providers/anthropic-wire";
-import { getClaudeCodeVersion } from "@rva/ai/providers/claude-code-fingerprint";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
-import { streamSimple } from "@rva/ai/stream";
+} from "@reverse/ai/providers/anthropic";
+import type { MessageCreateParams } from "@reverse/ai/providers/anthropic-wire";
+import { getClaudeCodeVersion } from "@reverse/ai/providers/claude-code-fingerprint";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
+import { streamSimple } from "@reverse/ai/stream";
 import type {
 	AssistantMessage,
 	CacheRetention,
@@ -33,9 +33,9 @@ import type {
 	TJsonSchema,
 	TokenTaskBudget,
 	Tool,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { removeSyncWithRetries } from "@reverse/utils";
 import { withEnv, withOfficialAnthropicEndpoint } from "./helpers";
 
 const ANTHROPIC_MODEL_SPEC: ModelSpec<"anthropic-messages"> = {

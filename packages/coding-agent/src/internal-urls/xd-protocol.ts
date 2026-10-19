@@ -1,8 +1,8 @@
-import type { ToolApprovalDecision } from "@rva/agent";
-import { isRecord } from "@rva/utils";
-import { isResolutionDeviceName } from "@rva/tui/tools/resolve";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { parseXdTopicUrl, parseXdUrl } from "@rva/tui/tools/xd-url";
+import type { ToolApprovalDecision } from "@reverse/agent";
+import { isRecord } from "@reverse/utils";
+import { isResolutionDeviceName } from "@reverse/tui/tools/resolve";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { parseXdTopicUrl, parseXdUrl } from "@reverse/tui/tools/xd-url";
 import type { ToolSession } from "../tools";
 import { resolveToolTier } from "../tools/approval";
 import { dispatchResolutionDevice, resolutionDeviceUsage } from "../tools/resolve";

@@ -9,16 +9,16 @@
  * daemons before acting on them.
  */
 
-import { truncateToWidth } from "@rva/tui";
-import { formatDuration, getProjectDir } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { truncateToWidth } from "@reverse/tui";
+import { formatDuration, getProjectDir } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import {
 	closeDaemonClients,
 	type DaemonBrokerClient,
 	daemonClientForGlobal,
 	daemonClientForProject,
 } from "../launch/client";
-import type { DaemonSnapshot } from "@rva/tui/tools/daemon";
+import type { DaemonSnapshot } from "@reverse/tui/tools/daemon";
 import {
 	daemonLabel,
 	formatCommand,
@@ -28,8 +28,8 @@ import {
 	TABLE_HEADER,
 	TERMINAL_STATES,
 	tableCells,
-} from "@rva/tui/apps/ps-data";
-import { runPsTop, type PsTopHost } from "@rva/tui/apps/ps-top";
+} from "@reverse/tui/apps/ps-data";
+import { runPsTop, type PsTopHost } from "@reverse/tui/apps/ps-top";
 import { isSharedBrowserDaemonName, restartSharedBrowser } from "../tools/browser/shared-daemon";
 import { collectReports, KILL_GRACE_MS, scopeClient } from "./ps-data";
 

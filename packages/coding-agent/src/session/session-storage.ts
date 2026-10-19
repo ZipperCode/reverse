@@ -2,16 +2,16 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { FileLock as NativeFileLock } from "@rva/natives";
-import { getSessionOwnersDir } from "@rva/utils/dirs";
-import { isBunTestRuntime } from "@rva/utils/env";
-import { type FileLockHandle, tryAcquireFileLock, withFileLockSync } from "@rva/utils/file-lock";
-import { type FsError, hasFsCode, isEnoent } from "@rva/utils/fs-error";
-import { openCloexecSync } from "@rva/utils/fs-open";
-import * as logger from "@rva/utils/logger";
-import { peekFileEnds } from "@rva/utils/peek-file";
-import { Snowflake } from "@rva/utils/snowflake";
-import { toError } from "@rva/utils/type-guards";
+import { FileLock as NativeFileLock } from "@reverse/natives";
+import { getSessionOwnersDir } from "@reverse/utils/dirs";
+import { isBunTestRuntime } from "@reverse/utils/env";
+import { type FileLockHandle, tryAcquireFileLock, withFileLockSync } from "@reverse/utils/file-lock";
+import { type FsError, hasFsCode, isEnoent } from "@reverse/utils/fs-error";
+import { openCloexecSync } from "@reverse/utils/fs-open";
+import * as logger from "@reverse/utils/logger";
+import { peekFileEnds } from "@reverse/utils/peek-file";
+import { Snowflake } from "@reverse/utils/snowflake";
+import { toError } from "@reverse/utils/type-guards";
 import { isAssistantMessageLine } from "./session-entries";
 import {
 	overlayTitleSlotContent,

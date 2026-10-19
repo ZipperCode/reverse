@@ -1,4 +1,4 @@
-import { normalizeCharmHyperBaseUrl } from "@rva/catalog/wire/charm-hyper";
+import { normalizeCharmHyperBaseUrl } from "@reverse/catalog/wire/charm-hyper";
 import { ProviderHttpError } from "../error";
 import type { UsageFetchContext, UsageFetchParams, UsageLimit, UsageProvider, UsageReport } from "../usage";
 import { isRecord } from "../utils";

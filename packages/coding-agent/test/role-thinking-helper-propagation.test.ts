@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as ai from "@rva/ai";
-import { type Api, Effort, type Model } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { generateCommitMessage } from "@rva/coding-agent/utils/commit-message-generator";
-import { generateSessionTitle } from "@rva/coding-agent/utils/title-generator";
+import * as ai from "@reverse/ai";
+import { type Api, Effort, type Model } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { generateCommitMessage } from "@reverse/coding-agent/utils/commit-message-generator";
+import { generateSessionTitle } from "@reverse/coding-agent/utils/title-generator";
 
 function getModelOrThrow(id: string) {
 	const model = getBundledModel("anthropic", id);

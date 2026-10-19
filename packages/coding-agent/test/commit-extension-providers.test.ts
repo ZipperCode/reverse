@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as path from "node:path";
-import { closeModelCache } from "@rva/catalog/model-cache";
-import { runCommitCommand } from "@rva/coding-agent/commit";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { getProjectAgentDir, setAgentDir, setProjectDir, TempDir } from "@rva/utils";
+import { closeModelCache } from "@reverse/catalog/model-cache";
+import { runCommitCommand } from "@reverse/coding-agent/commit";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { getProjectAgentDir, setAgentDir, setProjectDir, TempDir } from "@reverse/utils";
 import { $ } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 

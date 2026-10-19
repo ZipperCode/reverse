@@ -4,7 +4,7 @@
  * its strongest verified line ranges with a verbatim snippet.
  */
 import * as path from "node:path";
-import { formatDuration, formatNumber } from "@rva/utils";
+import { formatDuration, formatNumber } from "@reverse/utils";
 import { renderProgressBar } from "../components/progress-bar";
 import { Text } from "../components/text";
 import {
@@ -28,7 +28,7 @@ import type { Theme, ThemeColor } from "../theme/theme";
 import type { Component } from "../tui";
 import type { OutputMeta } from "./output-meta";
 import type { NativeToolHead, NativeToolView, RenderResultOptions, ToolRenderer } from "./renderer";
-import type { TspTone } from "@rva/wire";
+import type { TspTone } from "@reverse/wire";
 import { code, col, compact, keyed, node, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { getLanguageFromPath } from "../lang-from-path";

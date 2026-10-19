@@ -14,8 +14,8 @@ import {
 	visibleWidth,
 } from "../index";
 import * as path from "node:path";
-import { formatBytes, getProjectDir } from "@rva/utils";
-import type { TspPickerGroup, TspPickerItem, TspSpan, TspText, TspTone } from "@rva/wire";
+import { formatBytes, getProjectDir } from "@reverse/utils";
+import type { TspPickerGroup, TspPickerItem, TspSpan, TspText, TspTone } from "@reverse/wire";
 import { compact, kv, md, node, span } from "../native/describe";
 import {
 	picker,

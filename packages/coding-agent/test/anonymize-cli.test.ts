@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 import { runAnonymizeCommand } from "../src/cli/anonymize-cli";
 import { CliUsageError } from "../src/cli/usage-error";
 

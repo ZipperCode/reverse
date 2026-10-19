@@ -6,7 +6,7 @@
  */
 import * as os from "node:os";
 import * as path from "node:path";
-import { isEnoent, logger } from "@rva/utils";
+import { isEnoent, logger } from "@reverse/utils";
 import { resolveClaudePaths } from "../config/claude-paths";
 import { readForeignJsonRecords } from "../session/foreign-session-jsonl";
 

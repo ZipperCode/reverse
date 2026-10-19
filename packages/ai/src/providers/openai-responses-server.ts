@@ -9,8 +9,8 @@
  * Inverse direction (source-of-truth for item shapes): ../../providers/openai-responses.ts
  */
 
-import { type } from "@rva/omptype";
-import { logger, structuredCloneJSON } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { logger, structuredCloneJSON } from "@reverse/utils";
 import { resolvePromptCacheKey } from "../auth-gateway/http";
 import type { AuthGatewayStreamControl, AuthGatewayParsedRequest as ParsedRequest } from "../auth-gateway/types";
 import * as AIError from "../error";

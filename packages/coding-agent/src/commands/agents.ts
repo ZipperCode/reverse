@@ -2,10 +2,10 @@
  * Manage bundled task agents.
  */
 
-import { Args, Command, Flags, renderCommandHelp } from "@rva/utils/cli";
+import { Args, Command, Flags, renderCommandHelp } from "@reverse/utils/cli";
 import { type AgentsAction, type AgentsCommandArgs, runAgentsCommand } from "../cli/agents-cli";
 import { agentsHelp as commandHelp } from "../cli/command-help";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 
 const ACTIONS: AgentsAction[] = ["unpack"];
 

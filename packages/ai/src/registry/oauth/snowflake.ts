@@ -1,5 +1,5 @@
-import { authPolicyFor } from "@rva/catalog/compat/auth";
-import { isRecord } from "@rva/utils";
+import { authPolicyFor } from "@reverse/catalog/compat/auth";
+import { isRecord } from "@reverse/utils";
 import * as AIError from "../../error";
 import { normalizeSnowflakeAccountUrl } from "../snowflake";
 import { OAuthCallbackFlow } from "./callback-server";

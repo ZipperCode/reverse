@@ -8,8 +8,8 @@ import {
 	matchesSite,
 	parseDateValue,
 	parseSearchQuery,
-} from "@rva/coding-agent/web/search/query";
-import type { SearchSource } from "@rva/coding-agent/web/search/types";
+} from "@reverse/coding-agent/web/search/query";
+import type { SearchSource } from "@reverse/coding-agent/web/search/types";
 
 describe("parseSearchQuery", () => {
 	it("leaves plain queries untouched", () => {

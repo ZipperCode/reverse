@@ -1,7 +1,7 @@
-import { Args, type CommandMetadata, Flags } from "@rva/utils/cli";
-import { APP_NAME, CONFIG_DIR_NAME } from "@rva/utils/dirs";
-import { formatKeyHint } from "@rva/tui/key-hint-format";
-import { CLI_THINKING_LEVELS } from "@rva/tui/thinking";
+import { Args, type CommandMetadata, Flags } from "@reverse/utils/cli";
+import { APP_NAME, CONFIG_DIR_NAME } from "@reverse/utils/dirs";
+import { formatKeyHint } from "@reverse/tui/key-hint-format";
+import { CLI_THINKING_LEVELS } from "@reverse/tui/thinking";
 import { SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
 
 export const launchHelp = {

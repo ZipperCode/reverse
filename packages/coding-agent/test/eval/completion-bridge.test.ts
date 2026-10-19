@@ -1,9 +1,9 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { Api, AssistantMessage, Model } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { Effort } from "@rva/ai";
-import { TempDir } from "@rva/utils";
+import type { Api, AssistantMessage, Model } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { Effort } from "@reverse/ai";
+import { TempDir } from "@reverse/utils";
 import { $ } from "bun";
 import type { ModelRegistry } from "../../src/config/model-registry";
 import { Settings } from "../../src/config/settings";
@@ -22,9 +22,9 @@ import { disposeAllVmContexts } from "../../src/eval/js/context-manager";
 import { executeJs } from "../../src/eval/js/executor";
 import { disposeAllKernelSessions, type PythonResult } from "../../src/eval/py/executor";
 import type { ToolSession } from "../../src/tools";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
-import { cfgRetryFallbackChains, cfgRetryMaxRetries } from "@rva/coding-agent/session/settings";
+import { cfgRetryFallbackChains, cfgRetryMaxRetries } from "@reverse/coding-agent/session/settings";
 
 async function runEvalCompletionAndWait(
 	args: unknown,

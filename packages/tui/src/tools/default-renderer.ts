@@ -1,5 +1,5 @@
 import type { Component } from "../index";
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 import type { NativeToolHead, NativeToolView, RenderResultOptions } from "./renderer";
 import { ansi } from "../native/describe";
 import { noteText } from "./native-view";

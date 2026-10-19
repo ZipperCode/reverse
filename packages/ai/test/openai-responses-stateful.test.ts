@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import { stream } from "@rva/ai/stream";
-import type { Context, FetchImpl, Model, ModelSpec, ProviderSessionState } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { classifyModel } from "@rva/catalog/compat/taxonomy";
-import { getBundledModel } from "@rva/catalog/models";
-import * as utils from "@rva/utils";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import { stream } from "@reverse/ai/stream";
+import type { Context, FetchImpl, Model, ModelSpec, ProviderSessionState } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { classifyModel } from "@reverse/catalog/compat/taxonomy";
+import { getBundledModel } from "@reverse/catalog/models";
+import * as utils from "@reverse/utils";
 
 const model = getBundledModel("openai", "gpt-5-mini") as Model<"openai-responses">;
 

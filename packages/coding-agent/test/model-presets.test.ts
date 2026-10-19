@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { Effort } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
+import { Agent } from "@reverse/agent";
+import { Effort } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
 import {
 	acquireModelRoleMutation,
 	applyModelPreset,
@@ -14,15 +14,15 @@ import {
 	modelPresetSavedMessage,
 	modelPresetShadowOwner,
 	saveModelPreset,
-} from "@rva/coding-agent/config/model-presets";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { cfgModelPresets } from "@rva/coding-agent/config/model-settings";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { cfgDefaultThinkingLevel } from "@rva/coding-agent/session/settings";
-import { CONFIG_DIR_NAME, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/config/model-presets";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { cfgModelPresets } from "@reverse/coding-agent/config/model-settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { cfgDefaultThinkingLevel } from "@reverse/coding-agent/session/settings";
+import { CONFIG_DIR_NAME, TempDir } from "@reverse/utils";
 
 const SONNET = "anthropic/claude-sonnet-4-5";
 const SONNET_46 = "anthropic/claude-sonnet-4-6";

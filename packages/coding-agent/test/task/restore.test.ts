@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AssistantMessage, Message } from "@rva/ai";
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentRegistry, MAIN_AGENT_ID } from "@rva/coding-agent/registry/agent-registry";
-import { getAgentTombstonePath } from "@rva/coding-agent/registry/agent-tombstone";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import { restoreSession } from "@rva/coding-agent/task/restore";
-import type { SingleResult } from "@rva/tui/tools/task";
-import { TempDir } from "@rva/utils";
+import type { AssistantMessage, Message } from "@reverse/ai";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentRegistry, MAIN_AGENT_ID } from "@reverse/coding-agent/registry/agent-registry";
+import { getAgentTombstonePath } from "@reverse/coding-agent/registry/agent-tombstone";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import { restoreSession } from "@reverse/coding-agent/task/restore";
+import type { SingleResult } from "@reverse/tui/tools/task";
+import { TempDir } from "@reverse/utils";
 
 const zeroUsage = {
 	input: 0,

@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 
 /** Narrow a value to a thenable so a rejection handler can be attached. */
 export function isThenable(value: unknown): value is PromiseLike<unknown> {

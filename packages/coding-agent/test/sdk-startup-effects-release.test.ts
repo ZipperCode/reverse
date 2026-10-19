@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { isProviderEnabled } from "@rva/coding-agent/capability";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { effectsSettings } from "@rva/coding-agent/config/registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { initializeWithSettings } from "@rva/coding-agent/discovery";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { isProviderEnabled } from "@reverse/coding-agent/capability";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { effectsSettings } from "@reverse/coding-agent/config/registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { initializeWithSettings } from "@reverse/coding-agent/discovery";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // A top-level SDK session holds process-wide state on its settings until disposed: setting

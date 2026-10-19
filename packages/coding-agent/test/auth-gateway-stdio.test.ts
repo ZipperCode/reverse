@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getBundledModel } from "@rva/catalog/models";
-import { selectorCandidates } from "@rva/coding-agent/cli/auth-gateway-stdio";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { getBundledModel } from "@reverse/catalog/models";
+import { selectorCandidates } from "@reverse/coding-agent/cli/auth-gateway-stdio";
+import { Settings } from "@reverse/coding-agent/config/settings";
 
 const fast = getBundledModel("google", "gemini-3.5-flash")!;
 const mini = getBundledModel("openai", "gpt-4o-mini")!;

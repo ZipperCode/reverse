@@ -67,7 +67,7 @@ import type {
 	UsageLimit,
 	UsageReport,
 	UsageResetCreditDetail,
-} from "@rva/ai";
+} from "@reverse/ai";
 import type { ResetAutoRedeemMode } from "./settings";
 import { reportMatchesActiveAccount } from "../slash-commands/helpers/active-oauth-account";
 

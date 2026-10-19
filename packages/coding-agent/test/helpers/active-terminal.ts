@@ -1,6 +1,6 @@
 import { vi } from "bun:test";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { setTerminalHeadless } from "@rva/utils";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { setTerminalHeadless } from "@reverse/utils";
 
 // Pristine descriptors, captured once at module load, so repeated harnesses
 // always restore the real process state.

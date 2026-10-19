@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import type { AuthStorage } from "@rva/ai";
-import type { Api, FetchImpl, Model } from "@rva/ai/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { buildModel } from "@rva/catalog/build";
-import { getGroundedSearchProvider } from "@rva/coding-agent/web/search/provider";
-import type { SearchParams } from "@rva/coding-agent/web/search/providers/base";
-import { searchOpenAIResponses } from "@rva/coding-agent/web/search/providers/openai";
+import type { AuthStorage } from "@reverse/ai";
+import type { Api, FetchImpl, Model } from "@reverse/ai/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { buildModel } from "@reverse/catalog/build";
+import { getGroundedSearchProvider } from "@reverse/coding-agent/web/search/provider";
+import type { SearchParams } from "@reverse/coding-agent/web/search/providers/base";
+import { searchOpenAIResponses } from "@reverse/coding-agent/web/search/providers/openai";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const API_KEY = "selected-openai-api-key";

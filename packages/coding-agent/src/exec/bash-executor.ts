@@ -3,19 +3,13 @@
  *
  * Uses brush-core via native bindings for shell execution.
  */
-import { ExponentialYield } from "@rva/agent/utils/yield";
-import type { ImageContent } from "@rva/ai";
-import {
-	type MinimizerOptions,
-	PtySession,
-	Shell,
-	type ShellFilesystem,
-	type ShellRunResult,
-} from "@rva/natives";
-import { $env } from "@rva/utils/env";
-import { isCmdShell, isExecutable, type ShellConfig } from "@rva/utils/procmgr";
+import { ExponentialYield } from "@reverse/agent/utils/yield";
+import type { ImageContent } from "@reverse/ai";
+import { type MinimizerOptions, PtySession, Shell, type ShellFilesystem, type ShellRunResult } from "@reverse/natives";
+import { $env } from "@reverse/utils/env";
+import { isCmdShell, isExecutable, type ShellConfig } from "@reverse/utils/procmgr";
 import { Settings } from "../config/settings";
-import { type OutputArtifactError, OutputSink, type OutputSummary } from "@rva/tui/tools/streaming-output";
+import { type OutputArtifactError, OutputSink, type OutputSummary } from "@reverse/tui/tools/streaming-output";
 import {
 	resolveOutputMaxColumns,
 	resolveOutputSinkArtifactMaxBytes,

@@ -19,9 +19,9 @@ import type {
 	ToolResultMessage,
 	ToolResultProviderMetadata,
 	TSchema,
-} from "@rva/ai";
-import type { Dialect } from "@rva/ai/dialect";
-import type { HarmonyAuditEvent } from "@rva/ai/utils/harmony-leak";
+} from "@reverse/ai";
+import type { Dialect } from "@reverse/ai/dialect";
+import type { HarmonyAuditEvent } from "@reverse/ai/utils/harmony-leak";
 import type { AppendOnlyContextManager } from "./append-only-context";
 import type { AgentRunCoverage, AgentRunSummary } from "./run-collector";
 import type { SentToolDefinitions } from "./sent-tool-definitions";
@@ -973,7 +973,7 @@ export interface AfterToolCallContext {
  *
  * @example
  * ```typescript
- * declare module "@rva/agent" {
+ * declare module "@reverse/agent" {
  *   interface CustomAgentMessages {
  *     artifact: ArtifactMessage;
  *     notification: NotificationMessage;

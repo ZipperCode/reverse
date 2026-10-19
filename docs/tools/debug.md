@@ -277,8 +277,8 @@ GDB example for an OpenOCD remote target:
 - Subprocesses / native bindings
   - Spawns debugger adapters (`gdb`, `lldb-dap`, `python -m debugpy.adapter`, `dlv`, and others from `defaults.json`) detached.
   - Reverse DAP `runInTerminal` requests spawn the debuggee detached via `ptree.spawn()`; its stdout is consumed in a background drain for its lifetime.
-  - `getWorkProfile(30)` comes from `@rva/natives`.
-  - CPU profiling uses `node:inspector/promises`; memory statistics use `process.memoryUsage()` and numeric counters from `bun:jsc`'s `heapStats()` after GC; raw/log viewers sanitize text via `sanitizeText()` from `@rva/utils`.
+  - `getWorkProfile(30)` comes from `@reverse/natives`.
+  - CPU profiling uses `node:inspector/promises`; memory statistics use `process.memoryUsage()` and numeric counters from `bun:jsc`'s `heapStats()` after GC; raw/log viewers sanitize text via `sanitizeText()` from `@reverse/utils`.
   - `openPath()` launches the OS default file/browser handler for artifact dirs and SVGs.
   - Log/raw-SSE viewers can call `copyToClipboard()`.
 - Session state (transcript, memory, jobs, checkpoints, registries)

@@ -2,8 +2,8 @@
  * CLI handlers for `rva skill`: discover skills and check their external tool
  * dependencies for a directory.
  */
-import { APP_NAME } from "@rva/utils/dirs";
-import { CliUsageError } from "@rva/utils/cli";
+import { APP_NAME } from "@reverse/utils/dirs";
+import { CliUsageError } from "@reverse/utils/cli";
 import { handleSkillCheck } from "./skill-check";
 import { handleSkillList } from "./skill-list";
 

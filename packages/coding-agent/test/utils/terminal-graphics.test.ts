@@ -1,7 +1,7 @@
 import { deflateSync } from "node:zlib";
 import { describe, expect, it } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { TerminalGraphicsDecoder, encodeTerminalImage } from "@rva/coding-agent/utils/terminal-graphics";
+import type { ImageContent } from "@reverse/ai";
+import { TerminalGraphicsDecoder, encodeTerminalImage } from "@reverse/coding-agent/utils/terminal-graphics";
 
 const RED_1X1_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { FetchImpl } from "@rva/ai";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import type { FetchImpl } from "@reverse/ai";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 
 describe("AuthStorage MiniMax login", () => {
 	let authStorage: AuthStorage;

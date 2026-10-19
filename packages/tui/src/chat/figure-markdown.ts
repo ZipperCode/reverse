@@ -1,4 +1,4 @@
-import type { Tokens } from "@rva/utils/marked";
+import type { Tokens } from "@reverse/utils/marked";
 import type { ImageBudget } from "../components/image";
 import { type Markdown, streamingMarkdownSource } from "../components/markdown";
 import { Spacer } from "../components/spacer";

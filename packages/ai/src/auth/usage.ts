@@ -1,5 +1,5 @@
-import { authPolicyFor } from "@rva/catalog/compat/auth";
-import { $pickenv, logger } from "@rva/utils";
+import { authPolicyFor } from "@reverse/catalog/compat/auth";
+import { $pickenv, logger } from "@reverse/utils";
 import { getEnvApiKey } from "../env-api-key";
 import * as AIError from "../error";
 import type { OAuthCredentials } from "../registry/oauth/types";

@@ -1,25 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@rva/agent";
-import { type AssistantMessage, Effort } from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionActions, LoadExtensionsResult } from "@rva/coding-agent/extensibility/extensions/types";
-import type { CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@reverse/agent";
+import { type AssistantMessage, Effort } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionActions, LoadExtensionsResult } from "@reverse/coding-agent/extensibility/extensions/types";
+import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import {
 	finalizeSubprocessOutput,
 	runSubagentFollowUpTurn,
 	runSubprocess,
 	SUBAGENT_WARNING_EMPTY_MESSAGE,
 	SUBAGENT_WARNING_MISSING_YIELD,
-} from "@rva/coding-agent/task/executor";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import { YieldTool } from "@rva/coding-agent/tools/yield";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { logger } from "@rva/utils";
+} from "@reverse/coding-agent/task/executor";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import { YieldTool } from "@reverse/coding-agent/tools/yield";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { logger } from "@reverse/utils";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 function createAssistantStopMessage(text: string): AssistantMessage {
@@ -123,7 +123,7 @@ describe("runSubprocess yield reminders", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@rva/coding-agent/config/model-registry").ModelRegistry,
+		} as unknown as import("@reverse/coding-agent/config/model-registry").ModelRegistry,
 		enableLsp: false,
 	};
 
@@ -198,7 +198,7 @@ describe("runSubprocess yield reminders", () => {
 		const createAgentSessionSpy = mockCreateAgentSession(session);
 		const modelRegistry = {
 			refresh: async () => {},
-		} as unknown as import("@rva/coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@reverse/coding-agent/config/model-registry").ModelRegistry;
 		const refreshSpy = vi.spyOn(modelRegistry, "refresh");
 
 		await runSubprocess({ ...baseOptions, id: "subagent-skip-refresh", modelRegistry });
@@ -1070,7 +1070,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			refresh: async () => {},
 			getAvailable: () => [{ provider: "openai", id: "gpt-4o", name: "GPT-4o" }],
-		} as unknown as import("@rva/coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@reverse/coding-agent/config/model-registry").ModelRegistry;
 
 		await runSubprocess({
 			...baseOptions,
@@ -1213,7 +1213,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: fakeAuthStorage,
 			refresh: async () => {},
-		} as unknown as import("@rva/coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@reverse/coding-agent/config/model-registry").ModelRegistry;
 
 		await runSubprocess({ ...baseOptions, id: "subagent-registry-only", modelRegistry });
 
@@ -1229,7 +1229,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: registryStorage,
 			refresh: async () => {},
-		} as unknown as import("@rva/coding-agent/config/model-registry").ModelRegistry;
+		} as unknown as import("@reverse/coding-agent/config/model-registry").ModelRegistry;
 
 		const result = await runSubprocess({
 			...baseOptions,
@@ -1301,7 +1301,7 @@ describe("runSubprocess telemetry propagation", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@rva/coding-agent/config/model-registry").ModelRegistry,
+		} as unknown as import("@reverse/coding-agent/config/model-registry").ModelRegistry,
 		enableLsp: false,
 	};
 

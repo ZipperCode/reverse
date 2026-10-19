@@ -1,7 +1,7 @@
-import { resolveThresholdTokens } from "@rva/agent/compaction";
-import type { Model } from "@rva/ai";
-import type { ModelCompactionPoint } from "@rva/tui/overlays/model-browser";
-import { isRecord } from "@rva/utils";
+import { resolveThresholdTokens } from "@reverse/agent/compaction";
+import type { Model } from "@reverse/ai";
+import type { ModelCompactionPoint } from "@reverse/tui/overlays/model-browser";
+import { isRecord } from "@reverse/utils";
 import {
 	applyCompactionThresholdPair,
 	applyModelCompactionThreshold,

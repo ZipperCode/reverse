@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentEvent } from "@rva/agent";
-import { defineRpcClientTool, RpcClient } from "@rva/coding-agent/modes";
-import { RpcHostToolBridge } from "@rva/coding-agent/modes/rpc/host-tools";
+import type { AgentEvent } from "@reverse/agent";
+import { defineRpcClientTool, RpcClient } from "@reverse/coding-agent/modes";
+import { RpcHostToolBridge } from "@reverse/coding-agent/modes/rpc/host-tools";
 import type {
 	RpcHostToolCallRequest,
 	RpcHostToolCancelRequest,
 	RpcHostToolUpdate,
-} from "@rva/coding-agent/modes/rpc/rpc-types";
-import { toolReadsSkillUris } from "@rva/coding-agent/system-prompt";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/modes/rpc/rpc-types";
+import { toolReadsSkillUris } from "@reverse/coding-agent/system-prompt";
+import { removeWithRetries } from "@reverse/utils";
 
 const tempPaths: string[] = [];
 

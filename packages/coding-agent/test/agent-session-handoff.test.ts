@@ -1,26 +1,26 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type StreamFn } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import type { AssistantMessage, Model, ToolCall } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Agent, type AgentMessage, type StreamFn } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { AssistantMessage, Model, ToolCall } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	ExtensionRunner,
 	loadExtensionFromFactory,
 	loadExtensions,
-} from "@rva/coding-agent/extensibility/extensions";
-import { SecretObfuscator } from "@rva/coding-agent/secrets";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { SessionMaintenance } from "@rva/coding-agent/session/session-maintenance";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+} from "@reverse/coding-agent/extensibility/extensions";
+import { SecretObfuscator } from "@reverse/coding-agent/secrets";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { SessionMaintenance } from "@reverse/coding-agent/session/session-maintenance";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 
 import {
 	cfgCompactionEnabled,
@@ -28,7 +28,7 @@ import {
 	cfgCompactionMethodOrder,
 	cfgCompactionThresholdPercent,
 	cfgContextPromotionEnabled,
-} from "@rva/coding-agent/session/context-settings";
+} from "@reverse/coding-agent/session/context-settings";
 
 const HANDOFF_SECRET = "HANDOFF_SECRET_TOKEN_12345";
 const UNRENDERABLE_SNAPCOMPACT_TEXT = "\uE000\uE001\uE002\uE003\uE004\uE005\uE006\uE007\uE008\uE009";

@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import { $which, removeWithRetries } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import { $which, removeWithRetries } from "@reverse/utils";
 
 describe("jj workspace detection", () => {
 	let tmpDir: string | undefined;

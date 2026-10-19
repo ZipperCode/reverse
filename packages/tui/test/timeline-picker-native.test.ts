@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { TspKind, TspPickerProps, TspProps } from "@rva/wire";
+import type { AgentMessage } from "@reverse/agent";
+import type { TspKind, TspPickerProps, TspProps } from "@reverse/wire";
 import type { SessionMessageEntryLike } from "../src/chat/transcript-entry";
 import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
 import { setNativeRendering } from "../src/native/state";

@@ -1,6 +1,6 @@
-import type * as XtermModule from "@rva/utils/vterm";
-import type { Terminal as XtermTerminalType } from "@rva/utils/vterm";
-import type { TspSpan } from "@rva/wire";
+import type * as XtermModule from "@reverse/utils/vterm";
+import type { Terminal as XtermTerminalType } from "@reverse/utils/vterm";
+import type { TspSpan } from "@reverse/wire";
 import type { Component } from "../tui";
 import { ansi, col, row, span, text } from "../native/describe";
 import { Memo } from "../native/memo";

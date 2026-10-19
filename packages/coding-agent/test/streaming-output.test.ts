@@ -15,11 +15,11 @@ import {
 	truncateMiddle,
 	truncateTail,
 	truncateTailBytes,
-} from "@rva/tui/tools/streaming-output";
-import { stripOutputNotice } from "@rva/tui/tools/output-meta";
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
-import { outputMeta } from "@rva/coding-agent/tools/output-meta";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/tui/tools/streaming-output";
+import { stripOutputNotice } from "@reverse/tui/tools/output-meta";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
+import { outputMeta } from "@reverse/coding-agent/tools/output-meta";
+import { removeWithRetries } from "@reverse/utils";
 
 const createdTempDirs: string[] = [];
 const originalForceProtocol = Bun.env.PI_FORCE_IMAGE_PROTOCOL;

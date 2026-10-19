@@ -9,8 +9,8 @@
  * same-axis contest throws {@link AmbiguousOverlapError}. Declaration and
  * file order are never semantic.
  */
-import { LRUCache } from "@rva/utils/lru";
-import { isRecord } from "@rva/utils/type-guards";
+import { LRUCache } from "@reverse/utils/lru";
+import { isRecord } from "@reverse/utils/type-guards";
 import { parseRevision, type Revision, type RevisionTerm, revisionSatisfies } from "./revision";
 import rules from "./rules.json";
 import type { CompiledCascade, CompiledRule, CompiledSelector, ResolvedAxes, ResolveTarget } from "./types";

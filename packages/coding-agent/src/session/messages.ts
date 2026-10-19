@@ -4,7 +4,7 @@
  * Extends the base AgentMessage type with coding-agent specific message types,
  * and provides a transformer to convert them to LLM-compatible messages.
  */
-import type { AgentMessage } from "@rva/agent";
+import type { AgentMessage } from "@reverse/agent";
 import {
 	isUserInterruptAbort,
 	isCustomMessageContent,
@@ -15,7 +15,7 @@ import {
 	type FileMentionMessage,
 	isUserInvokedSkillPrompt,
 	isUserTurnInitiator,
-} from "@rva/tui/chat/messages";
+} from "@reverse/tui/chat/messages";
 export {
 	SKILL_PROMPT_MESSAGE_TYPE,
 	LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,
@@ -45,18 +45,15 @@ export {
 	type FileMentionMessage,
 	isUserInvokedSkillPrompt,
 	isUserTurnInitiator,
-} from "@rva/tui/chat/messages";
-import {
-	invalidateMessageCache,
-	registerMessageCacheInvalidator,
-} from "@rva/agent/compaction/message-cache";
-import { convertMessageToLlm } from "@rva/agent/compaction/messages";
-import type { AssistantMessage, ImageContent, Message, TextContent, UserMessage } from "@rva/ai";
-import { copyPerCallContextMessage } from "@rva/ai/utils/block-symbols";
-import { isRecord, logger, prompt } from "@rva/utils";
+} from "@reverse/tui/chat/messages";
+import { invalidateMessageCache, registerMessageCacheInvalidator } from "@reverse/agent/compaction/message-cache";
+import { convertMessageToLlm } from "@reverse/agent/compaction/messages";
+import type { AssistantMessage, ImageContent, Message, TextContent, UserMessage } from "@reverse/ai";
+import { copyPerCallContextMessage } from "@reverse/ai/utils/block-symbols";
+import { isRecord, logger, prompt } from "@reverse/utils";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
-import { stripXdUrlPrefix } from "@rva/tui/tools/xd-url";
+import { stripXdUrlPrefix } from "@reverse/tui/tools/xd-url";
 
 export {
 	type BranchSummaryMessage,
@@ -64,10 +61,10 @@ export {
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,
 	createCustomMessage,
-} from "@rva/agent/compaction/messages";
+} from "@reverse/agent/compaction/messages";
 
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
-import { titleTextFromSkillPrompt } from "@rva/tui/chat/skill-title-input";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
+import { titleTextFromSkillPrompt } from "@reverse/tui/chat/skill-title-input";
 
 /**
  * Logs provider-error turns so their actual cause is available outside the

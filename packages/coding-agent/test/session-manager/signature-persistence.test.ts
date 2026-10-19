@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AssistantMessage, CursorHistoryPayload, ImageContent } from "@rva/ai";
-import type { SessionMessageEntry } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { getBlobsDir, TempDir } from "@rva/utils";
+import type { AssistantMessage, CursorHistoryPayload, ImageContent } from "@reverse/ai";
+import type { SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getBlobsDir, TempDir } from "@reverse/utils";
 
 function isAssistantSessionEntry(entry: unknown): entry is SessionMessageEntry & { message: AssistantMessage } {
 	return (

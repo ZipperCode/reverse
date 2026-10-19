@@ -2,47 +2,44 @@ import { afterEach, beforeAll, describe, expect, it, spyOn, vi } from "bun:test"
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { getKeybindings, setKeybindings, TUI } from "@rva/tui";
+import type { AgentMessage } from "@reverse/agent";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { getKeybindings, setKeybindings, TUI } from "@reverse/tui";
 import type {
 	ExtensionCustomOptions,
 	ExtensionUIContext,
 	ExtensionUiComponent,
-} from "@rva/coding-agent/extensibility/extensions/types";
-import type { Theme } from "@rva/tui/theme";
-import { initTheme, theme } from "@rva/tui/theme";
-import { CopySelectorComponent } from "@rva/tui/overlays/copy-selector";
-import type { SessionPick } from "@rva/coding-agent/extensibility/custom-commands/bundled/annotate/text-source";
+} from "@reverse/coding-agent/extensibility/extensions/types";
+import type { Theme } from "@reverse/tui/theme";
+import { initTheme, theme } from "@reverse/tui/theme";
+import { CopySelectorComponent } from "@reverse/tui/overlays/copy-selector";
+import type { SessionPick } from "@reverse/coding-agent/extensibility/custom-commands/bundled/annotate/text-source";
 import {
 	AnnotateCommand,
 	runAnnotateCommand,
-} from "@rva/coding-agent/extensibility/custom-commands/bundled/annotate";
+} from "@reverse/coding-agent/extensibility/custom-commands/bundled/annotate";
 import {
 	type AnnotationOverlayContext,
 	showCodeReviewOverlay,
 	showTextReviewOverlay,
-} from "@rva/coding-agent/extensibility/custom-commands/bundled/annotate/fullscreen";
-import * as externalEditor from "@rva/coding-agent/utils/external-editor";
-import type {
-	CustomCommandAPI,
-	CustomCommandContext,
-} from "@rva/coding-agent/extensibility/custom-commands/types";
-import type { ReviewPrRef } from "@rva/coding-agent/extensibility/custom-commands/bundled/review";
+} from "@reverse/coding-agent/extensibility/custom-commands/bundled/annotate/fullscreen";
+import * as externalEditor from "@reverse/coding-agent/utils/external-editor";
+import type { CustomCommandAPI, CustomCommandContext } from "@reverse/coding-agent/extensibility/custom-commands/types";
+import type { ReviewPrRef } from "@reverse/coding-agent/extensibility/custom-commands/bundled/review";
 import {
 	createResolvedReviewTarget,
 	type ResolvedReviewTarget,
 	type ReviewTargetUI,
-} from "@rva/coding-agent/extensibility/custom-commands/bundled/review/target";
-import { buildTextReviewPrompt } from "@rva/coding-agent/extensibility/custom-commands/bundled/annotate/text-review";
-import type { SessionMessageEntry } from "@rva/coding-agent/session/session-entries";
+} from "@reverse/coding-agent/extensibility/custom-commands/bundled/review/target";
+import { buildTextReviewPrompt } from "@reverse/coding-agent/extensibility/custom-commands/bundled/annotate/text-review";
+import type { SessionMessageEntry } from "@reverse/coding-agent/session/session-entries";
 import type {
 	CodeReviewAnnotation,
 	TextReviewAnnotation,
 	TextReviewSource,
-} from "@rva/tui/overlays/annotation-types";
-import * as gh from "@rva/coding-agent/tools/gh";
-import { github } from "@rva/coding-agent/utils/github";
+} from "@reverse/tui/overlays/annotation-types";
+import * as gh from "@reverse/coding-agent/tools/gh";
+import { github } from "@reverse/coding-agent/utils/github";
 import { VirtualTerminal } from "../../../../tui/test/virtual-terminal";
 
 const ENTER = "\r";

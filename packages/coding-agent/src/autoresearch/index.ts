@@ -1,14 +1,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as vcs from "@rva/natives/vcs";
-import type { AutocompleteItem } from "@rva/tui";
-import { logger, prompt } from "@rva/utils";
+import * as vcs from "@reverse/natives/vcs";
+import type { AutocompleteItem } from "@reverse/tui";
+import { logger, prompt } from "@reverse/utils";
 import type { ExtensionContext, ExtensionFactory } from "../extensibility/extensions";
 import commandResumeTemplate from "./command-resume.md" with { type: "text" };
-import { createDashboardController } from "@rva/tui/apps/autoresearch-dashboard";
-import { currentResults, findBaselineMetric, findBaselineRunNumber } from "@rva/tui/apps/autoresearch-data";
+import { createDashboardController } from "@reverse/tui/apps/autoresearch-dashboard";
+import { currentResults, findBaselineMetric, findBaselineRunNumber } from "@reverse/tui/apps/autoresearch-data";
 import { ensureAutoresearchBranch } from "./git";
-import { formatNum } from "@rva/tui/tools/autoresearch";
+import { formatNum } from "@reverse/tui/tools/autoresearch";
 import promptTemplate from "./prompt.md" with { type: "text" };
 import setupPromptTemplate from "./prompt-setup.md" with { type: "text" };
 import resumeMessageTemplate from "./resume-message.md" with { type: "text" };
@@ -25,7 +25,7 @@ import { createLogExperimentTool } from "./tools/log-experiment";
 import { createRunExperimentTool } from "./tools/run-experiment";
 import { createUpdateNotesTool } from "./tools/update-notes";
 import type { AutoresearchRuntime, PendingRunSummary } from "./types";
-import type { ExperimentResult } from "@rva/tui/tools/autoresearch";
+import type { ExperimentResult } from "@reverse/tui/tools/autoresearch";
 
 const EXPERIMENT_TOOL_NAMES = ["init_experiment", "run_experiment", "log_experiment", "update_notes"];
 

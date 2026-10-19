@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
 
 interface ResponsesCompatTestSpec {
 	id?: string;

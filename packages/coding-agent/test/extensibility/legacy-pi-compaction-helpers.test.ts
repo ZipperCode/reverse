@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Tokenizer } from "@rva/agent";
-import type { Usage } from "@rva/ai";
+import { Tokenizer } from "@reverse/agent";
+import type { Usage } from "@reverse/ai";
 import {
 	calculateContextTokens,
 	estimateTokens,
@@ -8,7 +8,7 @@ import {
 	type SessionEntry,
 	sessionEntryToContextMessages,
 	serializeConversation,
-} from "@rva/coding-agent/extensibility/legacy-pi-coding-agent-shim";
+} from "@reverse/coding-agent/extensibility/legacy-pi-coding-agent-shim";
 
 // Issue #6583: pi extensions import `estimateTokens` from
 // `@earendil-works/pi-coding-agent`, which aliases to this shim. Legacy pi
@@ -31,7 +31,7 @@ describe("legacy shim compaction helpers", () => {
 		expect(tokens).toBeGreaterThan(0);
 	});
 
-	// Issue #7174: `compact` (same `@rva/agent/compaction` module as
+	// Issue #7174: `compact` (same `@reverse/agent/compaction` module as
 	// `estimateTokens`) was likewise absent from the shim surface, so
 	// `omp plugin install npm:pi-claude-bridge` failed with "Export named
 	// 'compact' not found". Pin the callable re-export.
@@ -44,7 +44,7 @@ describe("legacy shim compaction helpers", () => {
 	});
 
 	// Issue #10278: `calculateContextTokens` is another package-root compaction
-	// helper (same `@rva/agent/compaction` module) used by
+	// helper (same `@reverse/agent/compaction` module) used by
 	// pi-blackhole. Its absence made `omp plugin install pi-blackhole` fail Bun's
 	// static "Export named 'calculateContextTokens' not found" check.
 	it("re-exports calculateContextTokens with its usage-sizing behavior", () => {

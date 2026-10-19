@@ -7,8 +7,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { OmpErrors, type } from "@rva/omptype";
-import { getAgentDir, hasFsCode, isEnoent } from "@rva/utils";
+import { OmpErrors, type } from "@reverse/omptype";
+import { getAgentDir, hasFsCode, isEnoent } from "@reverse/utils";
 import { resolveOrDefaultProjectRegistryPath } from "../discovery/helpers";
 import { replaceFileAtomically } from "../utils/atomic-file";
 

@@ -1,7 +1,7 @@
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { AssistantMessage, Model } from "@rva/ai";
-import { SessionObserverRegistry } from "@rva/tui/overlays/session-observer-registry";
+import { Agent } from "@reverse/agent";
+import type { AssistantMessage, Model } from "@reverse/ai";
+import { SessionObserverRegistry } from "@reverse/tui/overlays/session-observer-registry";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";
 import { sumSubagentTreeCost } from "../src/modes/agent-hub-runtime";

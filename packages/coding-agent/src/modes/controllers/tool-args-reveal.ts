@@ -1,5 +1,5 @@
-import type { Component } from "@rva/tui";
-import { parseStreamingJson, parseStreamingJsonThrottled, STREAMING_JSON_PARSE_MIN_GROWTH } from "@rva/utils";
+import type { Component } from "@reverse/tui";
+import { parseStreamingJson, parseStreamingJsonThrottled, STREAMING_JSON_PARSE_MIN_GROWTH } from "@reverse/utils";
 import { nextStep, STREAMING_REVEAL_FRAME_MS } from "./streaming-reveal";
 
 /** Minimal component surface the reveal pushes frames into. */

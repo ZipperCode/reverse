@@ -1,4 +1,4 @@
-import { extractHttpStatusFromError } from "@rva/utils";
+import { extractHttpStatusFromError } from "@reverse/utils";
 import type { LimitsApi, OAuthAccess, OAuthApi, OAuthRequestIdentity } from "./auth/types";
 import * as AIError from "./error";
 import { isAuthRetryableError, isInvalidatedOAuthTokenError } from "./error/auth-classify";

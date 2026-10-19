@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getEvidenceProjectDir, isEnoent } from "@rva/utils";
-import { withFileLock } from "@rva/utils/file-lock";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { getEvidenceProjectDir, isEnoent } from "@reverse/utils";
+import { withFileLock } from "@reverse/utils/file-lock";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { replaceFileAtomically } from "../utils/atomic-file";
 import {
 	type AddFactInput,

@@ -6,14 +6,14 @@ import type {
 	ToolCallContent,
 	ToolCallLocation,
 	ToolKind,
-} from "@rva/utils/acp";
+} from "@reverse/utils/acp";
 import { InternalUrlRouter } from "../../internal-urls/router";
 import { extractUriScheme } from "../../internal-urls/parse";
 import type { SchemeSpec } from "../../internal-urls/types";
 import type { AgentSessionEvent } from "../../session/agent-session";
 import { resolveToCwd, splitPathAndSelPreferringLiteralSync } from "../../tools/path-utils";
-import type { TodoStatus } from "@rva/tui/tools/todo";
-import { canonicalizeMessage } from "@rva/tui/chat/thinking-display";
+import type { TodoStatus } from "@reverse/tui/tools/todo";
+import { canonicalizeMessage } from "@reverse/tui/chat/thinking-display";
 
 interface MessageProgress {
 	textEmitted: boolean;

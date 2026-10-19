@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
 import {
 	clampThinkingLevelForModel,
 	defaultSupportedEffort,
@@ -9,8 +9,8 @@ import {
 	mapEffortToGoogleThinkingLevel,
 	minimumSupportedEffort,
 	requireSupportedEffort,
-} from "@rva/catalog/model-thinking";
-import type { Api, Model, ModelSpec, Provider } from "@rva/catalog/types";
+} from "@reverse/catalog/model-thinking";
+import type { Api, Model, ModelSpec, Provider } from "@reverse/catalog/types";
 
 function createModel<TApi extends Api>(overrides: {
 	id: string;

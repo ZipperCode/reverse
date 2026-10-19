@@ -1,6 +1,6 @@
 import { describe, expect, it, type Mock, vi } from "bun:test";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 import { createInteractiveModeContext } from "../helpers/interactive-mode-context";
 
 interface Harness {

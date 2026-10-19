@@ -1,4 +1,4 @@
-import { pdfToMarkdown } from "@rva/natives";
+import { pdfToMarkdown } from "@reverse/natives";
 import type { ConversionResult, Converter, StreamInfo } from "../../types";
 
 const EXTENSIONS = [".pdf"];

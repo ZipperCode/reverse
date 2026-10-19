@@ -1,4 +1,4 @@
-import type { FetchImpl } from "@rva/ai/types";
+import type { FetchImpl } from "@reverse/ai/types";
 
 type FetchHandler = (input: string | URL | Request, init?: RequestInit) => Response | Promise<Response>;
 

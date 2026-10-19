@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { Effort } from "@rva/catalog/effort";
+import { buildModel } from "@reverse/catalog/build";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { Effort } from "@reverse/catalog/effort";
 import {
 	DEFAULT_MODEL_PER_PROVIDER,
 	MODELS_DEV_PROVIDER_DESCRIPTORS,
 	mapModelsDevToModels,
 	PROVIDER_DESCRIPTORS,
-} from "@rva/catalog/provider-models";
-import type { ModelSpec } from "@rva/catalog/types";
+} from "@reverse/catalog/provider-models";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 // A stencil.so "azure" payload: two OpenAI-family models (one reasoning), a
 // non-tool-capable instruct model, and a Foundry-hosted third party served via

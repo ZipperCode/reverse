@@ -8,21 +8,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AgentProtocolHandler } from "@rva/coding-agent/internal-urls/agent-protocol";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
-import { resetRegisteredArtifactDirsForTests } from "@rva/coding-agent/internal-urls/registry-helpers";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { TaskTool } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import * as isolationRunner from "@rva/coding-agent/task/isolation-runner";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { SingleResult, TaskParams } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { TempDir } from "@rva/utils";
+import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AgentProtocolHandler } from "@reverse/coding-agent/internal-urls/agent-protocol";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
+import { resetRegisteredArtifactDirsForTests } from "@reverse/coding-agent/internal-urls/registry-helpers";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { TaskTool } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import * as isolationRunner from "@reverse/coding-agent/task/isolation-runner";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { SingleResult, TaskParams } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { TempDir } from "@reverse/utils";
 
 const AGENT: AgentDefinition = {
 	name: "worker",

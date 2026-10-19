@@ -1,46 +1,35 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { getBundledModel } from "@rva/catalog/models";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import * as pluginHelpers from "@rva/coding-agent/discovery/helpers";
-import { runRootCommand } from "@rva/coding-agent/main";
-import { Composer, type ComposerPreferences } from "@rva/tui/prompt/composer";
-import * as composerCache from "@rva/tui/prompt/composer-cache";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { getBundledModel } from "@reverse/catalog/models";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { Composer, type ComposerPreferences } from "@reverse/tui/prompt/composer";
+import * as composerCache from "@reverse/tui/prompt/composer-cache";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
 import {
 	applyStartupComposerPreferences,
 	beginStartupComposer,
 	ComposerLease,
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
-} from "@rva/coding-agent/modes/startup-composer";
-import { initTheme } from "@rva/tui/theme";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { getProjectDir, setProjectDir } from "@rva/utils";
+} from "@reverse/coding-agent/modes/startup-composer";
+import { initTheme } from "@reverse/tui/theme";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
-import { cfgTierOpenai } from "@rva/coding-agent/session/settings";
+import { cfgTierOpenai } from "@reverse/coding-agent/session/settings";
 import { createTestSession } from "./utilities";
 
 import {
 	cfgAutocompleteMaxVisible,
 	cfgComposerShape,
-	cfgMarketplaceAutoUpdate,
 	cfgShowHardwareCursor,
 	cfgSpellingAutocomplete,
 	cfgSpellingAutocorrect,
 	cfgSpellingTypoDetection,
-	cfgStartupChangelogMode,
 	cfgStartupQuiet,
-	cfgStartupSetupWizard,
-	cfgStartupShowSplash,
 	cfgTuiImeSafeCursor,
 	cfgTuiMaxInlineImages,
 	cfgTuiResizeScrollback,
-} from "@rva/coding-agent/modes/settings";
+} from "@reverse/coding-agent/modes/settings";
 
 class CountingTerminal extends VirtualTerminal {
 	starts = 0;
@@ -87,7 +76,6 @@ class InputTrackingTerminal extends CountingTerminal {
 		this.inputEnables += 1;
 	}
 }
-
 
 describe("Composer prepaint", () => {
 	let settings: Settings;

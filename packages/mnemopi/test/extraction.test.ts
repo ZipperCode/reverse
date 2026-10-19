@@ -1,23 +1,19 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai";
+import type { FetchImpl } from "@reverse/ai";
 import {
 	buildExtractionPrompt,
 	extractFacts,
 	extractFactsSafe,
 	heuristicExtractFacts,
 	parseFacts,
-} from "@rva/mnemopi/core/extraction";
-import { getExtractionStats, resetExtractionStats } from "@rva/mnemopi/core/extraction/diagnostics";
-import {
-	CallableLlmBackend,
-	resetHostLlmBackendForTests,
-	setHostLlmBackend,
-} from "@rva/mnemopi/core/llm-backends";
+} from "@reverse/mnemopi/core/extraction";
+import { getExtractionStats, resetExtractionStats } from "@reverse/mnemopi/core/extraction/diagnostics";
+import { CallableLlmBackend, resetHostLlmBackendForTests, setHostLlmBackend } from "@reverse/mnemopi/core/llm-backends";
 import {
 	type MnemopiLlmCompletionTask,
 	type ResolvedMnemopiRuntimeOptions,
 	withMnemopiRuntimeOptions,
-} from "@rva/mnemopi/core/runtime-options";
+} from "@reverse/mnemopi/core/runtime-options";
 
 const OLD_ENV = { ...process.env };
 function restoreEnv(): void {

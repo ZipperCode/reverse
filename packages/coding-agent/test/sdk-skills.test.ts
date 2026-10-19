@@ -2,20 +2,20 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { getActiveSkills } from "@rva/coding-agent/extensibility/skills";
-import type { Skill } from "@rva/coding-agent/sdk";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { removeSyncWithRetries } from "@rva/utils";
-import { CONFIG_DIR_NAME, getAgentDir, setAgentDir } from "@rva/utils/dirs";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { getActiveSkills } from "@reverse/coding-agent/extensibility/skills";
+import type { Skill } from "@reverse/coding-agent/sdk";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { removeSyncWithRetries } from "@reverse/utils";
+import { CONFIG_DIR_NAME, getAgentDir, setAgentDir } from "@reverse/utils/dirs";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
 
-import { cfgAutolearnEnabled } from "@rva/coding-agent/autolearn/settings";
-import { cfgSkillsCustomDirectories } from "@rva/coding-agent/extensibility/settings";
+import { cfgAutolearnEnabled } from "@reverse/coding-agent/autolearn/settings";
+import { cfgSkillsCustomDirectories } from "@reverse/coding-agent/extensibility/settings";
 
 function createIsolatedSkillsSettings(extensions: string[] = []): Settings {
 	return Settings.isolated({
@@ -128,7 +128,13 @@ Loaded via symbolic link.
 	it("SDK invocation root scope isolates disabled discovery and merges normal discovery", async () => {
 		const explicitPackage = path.join(tempDir, "sdk-explicit-extension");
 		const settingsPackage = path.join(tempDir, "sdk-settings-extension");
-		const installedPackage = path.join(tempHomeDir, CONFIG_DIR_NAME, "plugins", "node_modules", "sdk-installed-extension");
+		const installedPackage = path.join(
+			tempHomeDir,
+			CONFIG_DIR_NAME,
+			"plugins",
+			"node_modules",
+			"sdk-installed-extension",
+		);
 		createExtensionSkill(explicitPackage, "sdk-explicit-skill");
 		createExtensionSkill(settingsPackage, "sdk-settings-skill");
 		createExtensionSkill(installedPackage, "sdk-installed-skill");

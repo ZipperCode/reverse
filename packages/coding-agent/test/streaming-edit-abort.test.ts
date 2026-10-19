@@ -2,14 +2,14 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Agent, AgentEvent } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { EditTool, getEditStore } from "@rva/coding-agent/edit";
-import { StreamingEditGuard } from "@rva/coding-agent/session/stream-guards";
-import { formatHashlineHeader } from "@rva/tui/tools/hashline-format";
-import type { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { removeWithRetries } from "@rva/utils";
+import type { Agent, AgentEvent } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool, getEditStore } from "@reverse/coding-agent/edit";
+import { StreamingEditGuard } from "@reverse/coding-agent/session/stream-guards";
+import { formatHashlineHeader } from "@reverse/tui/tools/hashline-format";
+import type { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { removeWithRetries } from "@reverse/utils";
 
 function createGuard(
 	streamingAbort: boolean,

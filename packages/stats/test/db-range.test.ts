@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getDashboardStats, getFolderStats } from "@rva/stats/aggregator";
-import { initDb, insertMessageStats } from "@rva/stats/db";
-import type { MessageStats } from "@rva/stats/types";
+import { getDashboardStats, getFolderStats } from "@reverse/stats/aggregator";
+import { initDb, insertMessageStats } from "@reverse/stats/db";
+import type { MessageStats } from "@reverse/stats/types";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-db-range-");

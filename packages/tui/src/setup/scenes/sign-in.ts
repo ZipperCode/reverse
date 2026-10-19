@@ -1,6 +1,6 @@
-import type { AuthStorage } from "@rva/ai";
-import { PASTE_CODE_LOGIN_PROVIDERS } from "@rva/ai";
-import type { OAuthPrompt, OAuthProvider } from "@rva/ai/oauth/types";
+import type { AuthStorage } from "@reverse/ai";
+import { PASTE_CODE_LOGIN_PROVIDERS } from "@reverse/ai";
+import type { OAuthPrompt, OAuthProvider } from "@reverse/ai/oauth/types";
 import { type Component, type Focusable, Container } from "../../tui";
 import { Spacer } from "../../components/spacer";
 import { Text } from "../../components/text";
@@ -11,7 +11,7 @@ import { editorKey } from "../../chrome/keybinding-hints";
 import { matchesKey } from "../../keys";
 import { type SgrMouseEvent } from "../../mouse";
 import { wrapTextWithAnsi } from "../../utils";
-import { getAgentDbPath } from "@rva/utils";
+import { getAgentDbPath } from "@reverse/utils";
 import { OAuthSelectorComponent } from "../../overlays/oauth-selector";
 import { theme } from "../../theme/theme";
 import { col, node, span, text } from "../../native/describe";

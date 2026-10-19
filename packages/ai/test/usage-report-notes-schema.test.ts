@@ -10,9 +10,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { usageReportSchema } from "@rva/ai";
-import { usageResponseSchema } from "@rva/ai/auth-broker/wire-schemas";
+import { type } from "@reverse/omptype";
+import { usageReportSchema } from "@reverse/ai";
+import { usageResponseSchema } from "@reverse/ai/auth-broker/wire-schemas";
 
 const PROVIDER_NOTE = "Usage data can be delayed by up to five minutes.";
 

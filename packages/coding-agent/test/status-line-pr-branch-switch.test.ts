@@ -7,15 +7,15 @@
  * Contract: a cached PR is only rendered for the branch it was resolved on.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { github } from "@rva/coding-agent/utils/github";
-import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import type { StatusLineSettings } from "@rva/tui/status-line";
-import { StatusLineComponent } from "@rva/tui/status-line";
-import { initTheme } from "@rva/tui/theme";
-import { getProjectDir, setProjectDir } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { github } from "@reverse/coding-agent/utils/github";
+import type { VcsGitRepo, VcsGitRepoInfo, VcsHeadState, VcsRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import type { StatusLineSettings } from "@reverse/tui/status-line";
+import { StatusLineComponent } from "@reverse/tui/status-line";
+import { initTheme } from "@reverse/tui/theme";
+import { getProjectDir, setProjectDir } from "@reverse/utils";
 
 const originalProjectDir = getProjectDir();
 const root = "/repo/pr-branch-switch";

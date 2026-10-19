@@ -11,21 +11,21 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { getBundledModel } from "@rva/catalog/models";
-import type { EffectiveExtensionRoots } from "@rva/coding-agent/capability/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import "@rva/coding-agent/discovery";
-import { setActiveSkills } from "@rva/coding-agent/extensibility/skills";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { discoverAgents } from "@rva/coding-agent/task/discovery";
-import { removeSyncWithRetries } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { EffectiveExtensionRoots } from "@reverse/coding-agent/capability/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import "@reverse/coding-agent/discovery";
+import { setActiveSkills } from "@reverse/coding-agent/extensibility/skills";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { discoverAgents } from "@reverse/coding-agent/task/discovery";
+import { removeSyncWithRetries } from "@reverse/utils";
 
-import { cfgExtensions } from "@rva/coding-agent/extensibility/settings";
+import { cfgExtensions } from "@reverse/coding-agent/extensibility/settings";
 
 interface SessionInputs {
 	additionalExtensionPaths?: readonly string[];

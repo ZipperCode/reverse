@@ -18,14 +18,14 @@
  */
 
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, Usage } from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext, RenderSessionContextOptions } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import type { SessionContext } from "@rva/coding-agent/session/session-context";
-import { Container } from "@rva/tui";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, Usage } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext, RenderSessionContextOptions } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import type { SessionContext } from "@reverse/coding-agent/session/session-context";
+import { Container } from "@reverse/tui";
 
 beforeAll(() => {
 	initTheme();

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import { AnthropicMessages } from "@rva/ai/providers/anthropic-client";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import { AnthropicMessages } from "@reverse/ai/providers/anthropic-client";
 import type {
 	AssistantMessage,
 	AssistantMessageEvent,
@@ -8,8 +8,8 @@ import type {
 	Message,
 	Model,
 	ProviderSessionState,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 /**
  * Regression for #4297 — the anthropic-messages transport auto-heals the very

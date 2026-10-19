@@ -7,7 +7,7 @@
  * surfaced its whole catalog; picking one persisted an unresolvable selector.
  */
 import { beforeAll, describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
+import { buildModel } from "@reverse/catalog/build";
 import {
 	ModelHubComponent,
 	type ModelHubCallbacks,

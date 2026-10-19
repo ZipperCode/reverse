@@ -1,4 +1,4 @@
-import type { Usage } from "@rva/catalog/types";
+import type { Usage } from "@reverse/catalog/types";
 
 export type TranscriptionResponseFormat = "json" | "verbose_json";
 export type TranscriptionTimestampGranularity = "word" | "segment";

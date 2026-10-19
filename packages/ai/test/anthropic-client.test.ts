@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import * as AIError from "@rva/ai/error";
-import { AnthropicMessagesClient } from "@rva/ai/providers/anthropic-client";
-import type { MessageCreateParamsStreaming } from "@rva/ai/providers/anthropic-wire";
-import type { FetchImpl } from "@rva/ai/types";
+import * as AIError from "@reverse/ai/error";
+import { AnthropicMessagesClient } from "@reverse/ai/providers/anthropic-client";
+import type { MessageCreateParamsStreaming } from "@reverse/ai/providers/anthropic-wire";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const params: MessageCreateParamsStreaming = {
 	model: "claude-sonnet-4-5",

@@ -4,10 +4,10 @@
  * `<provider>/<credential id>` target, and map a redeem outcome code to a
  * human message.
  */
-import { sanitizeText } from "@rva/utils";
+import { sanitizeText } from "@reverse/utils";
 import type { ResetCreditAccountStatus, ResetCreditRedeemOutcome, ResetCreditTarget } from "../../session/auth-storage";
-import type { ResetUsageAccount } from "@rva/tui/overlays/reset-usage-selector";
-import { summarizeUsageResetCredits } from "@rva/tui/overlays/usage-display";
+import type { ResetUsageAccount } from "@reverse/tui/overlays/reset-usage-selector";
+import { summarizeUsageResetCredits } from "@reverse/tui/overlays/usage-display";
 
 const CODEX_PROVIDER_ID = "openai-codex";
 const CLAUDE_PROVIDER_ID = "anthropic";

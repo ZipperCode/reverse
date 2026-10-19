@@ -1,14 +1,14 @@
-import { MCP_TOOL_NAME_PREFIX, type MCPToolDetails } from "@rva/tui/tools/mcp";
+import { MCP_TOOL_NAME_PREFIX, type MCPToolDetails } from "@reverse/tui/tools/mcp";
 /**
  * MCP to CustomTool bridge.
  *
  * Converts MCP tool definitions to CustomTool format for the agent.
  */
-import type { AgentToolUpdateCallback } from "@rva/agent";
-import type { ImageContent, TextContent, TSchema } from "@rva/ai";
-import { normalizeSchemaForMCP } from "@rva/ai/utils/schema";
-import { logger, untilAborted } from "@rva/utils";
-import { INTENT_FIELD } from "@rva/wire";
+import type { AgentToolUpdateCallback } from "@reverse/agent";
+import type { ImageContent, TextContent, TSchema } from "@reverse/ai";
+import { normalizeSchemaForMCP } from "@reverse/ai/utils/schema";
+import { logger, untilAborted } from "@reverse/utils";
+import { INTENT_FIELD } from "@reverse/wire";
 import type { SourceMeta } from "../capability/types";
 import type {
 	CustomTool,
@@ -18,12 +18,12 @@ import type {
 } from "../extensibility/custom-tools/types";
 import { extractUriScheme } from "../internal-urls/parse";
 import { InternalUrlRouter } from "../internal-urls/router";
-import type { Theme } from "@rva/tui/theme";
+import type { Theme } from "@reverse/tui/theme";
 import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 import { callTool } from "./client";
 import { formatMCPToolFailure, MCPTransportError } from "./errors";
-import { describeMCPCall, describeMCPResult, renderMCPCall, renderMCPResult } from "@rva/tui/tools/mcp";
+import { describeMCPCall, describeMCPResult, renderMCPCall, renderMCPResult } from "@reverse/tui/tools/mcp";
 import type {
 	MCPAuthChallenge,
 	MCPServerConnection,
@@ -31,7 +31,7 @@ import type {
 	MCPToolCallResult,
 	MCPToolDefinition,
 } from "./types";
-import type { MCPContent } from "@rva/tui/tools/mcp";
+import type { MCPContent } from "@reverse/tui/tools/mcp";
 
 /** Reconnect callback: tears down a stale connection, optionally authorizing first. */
 export type MCPReconnect = (options?: { authChallenge?: MCPAuthChallenge }) => Promise<MCPServerConnection | null>;

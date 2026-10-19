@@ -2,23 +2,23 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "bun:test"
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls";
-import { getMemoryRoot } from "@rva/coding-agent/memories";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls";
+import { getMemoryRoot } from "@reverse/coding-agent/memories";
 import {
 	loadMnemopi,
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@rva/coding-agent/mnemopi/state";
-import { getInternalUrlSuggestions } from "@rva/tui/prompt/internal-url-autocomplete";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { GlobTool } from "@rva/coding-agent/tools/glob";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/mnemopi/state";
+import { getInternalUrlSuggestions } from "@reverse/tui/prompt/internal-url-autocomplete";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { GlobTool } from "@reverse/coding-agent/tools/glob";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { getAgentDir, removeWithRetries, setAgentDir, TempDir } from "@reverse/utils";
 
 // Mnemopi state is loaded lazily; preload so `new MnemopiSessionState(...)` can
 // resolve the module synchronously in the fixtures below.

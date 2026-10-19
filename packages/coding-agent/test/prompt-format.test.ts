@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 
 describe("prompt.format renderPhase", () => {
 	test("pre-render preserves indentation on Handlebars block lines", () => {

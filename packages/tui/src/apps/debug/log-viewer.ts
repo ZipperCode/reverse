@@ -1,4 +1,4 @@
-import type { TspPickerGroup, TspPickerItem, TspTone } from "@rva/wire";
+import type { TspPickerGroup, TspPickerItem, TspTone } from "@reverse/wire";
 import { formatKeyHint, formatKeyHints } from "../../app-keybindings";
 import type { Component } from "../../tui";
 import { code } from "../../native/describe";
@@ -9,7 +9,7 @@ import { matchesKey } from "../../keys";
 import { Input } from "../../components/input";
 import { routeSgrMouseInput, type SgrMouseEvent } from "../../mouse";
 import { padding, truncateToWidth, visibleWidth } from "../../utils";
-import { isRecord, sanitizeText } from "@rva/utils";
+import { isRecord, sanitizeText } from "@reverse/utils";
 import { getThemeEpoch, theme } from "../../theme/theme";
 import { sanitizeDisplayText } from "../../overlays/extensions/display-text";
 import { DebugViewerFrame, type DebugViewerFrameContent, type DebugViewerFrameContext } from "./viewer-frame";

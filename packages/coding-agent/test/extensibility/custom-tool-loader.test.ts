@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { toolWireSchema } from "@rva/ai/utils/schema";
-import { validateToolArguments } from "@rva/ai/utils/validation";
+import { toolWireSchema } from "@reverse/ai/utils/schema";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
 import { loadCustomTools, type ToolPathWithSource } from "../../src/extensibility/custom-tools/loader";
 
 let tempRoot: string | undefined;

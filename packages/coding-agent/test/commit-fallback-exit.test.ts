@@ -5,16 +5,16 @@
  */
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { runAgenticCommit } from "@rva/coding-agent/commit/agentic";
-import * as agentModule from "@rva/coding-agent/commit/agentic/agent";
-import * as modelSelection from "@rva/coding-agent/commit/model-selection";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import type { VcsGitRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { runAgenticCommit } from "@reverse/coding-agent/commit/agentic";
+import * as agentModule from "@reverse/coding-agent/commit/agentic/agent";
+import * as modelSelection from "@reverse/coding-agent/commit/model-selection";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import type { VcsGitRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
 
 const NUMSTAT = [{ path: "src/a.ts", added: 1, removed: 0 }];
 let authStorage: AuthStorage | undefined;

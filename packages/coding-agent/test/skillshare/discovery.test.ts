@@ -2,21 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import "@rva/coding-agent/discovery";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import { loadSkillshareSkills } from "@rva/coding-agent/discovery/skillshare";
-import { loadSkills } from "@rva/coding-agent/extensibility/skills";
-import { SkillProtocolHandler } from "@rva/coding-agent/internal-urls/skill-protocol";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
+import "@reverse/coding-agent/discovery";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { loadSkillshareSkills } from "@reverse/coding-agent/discovery/skillshare";
+import { loadSkills } from "@reverse/coding-agent/extensibility/skills";
+import { SkillProtocolHandler } from "@reverse/coding-agent/internal-urls/skill-protocol";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
 import {
 	getSkillshareStoreDir,
 	getSkillStorePath,
 	STORE_INTEGRITY_FILE,
 	type SkillsLock,
 	writeSkillsLock,
-} from "@rva/coding-agent/skillshare/manifest";
-import { removeWithRetries } from "@rva/utils";
-import { CONFIG_DIR_NAME, getAgentDir, setAgentDir } from "@rva/utils/dirs";
+} from "@reverse/coding-agent/skillshare/manifest";
+import { removeWithRetries } from "@reverse/utils";
+import { CONFIG_DIR_NAME, getAgentDir, setAgentDir } from "@reverse/utils/dirs";
 
 function lockEntry(scope: string, name: string, version: string) {
 	return {

@@ -9,11 +9,11 @@
  * revival) and are only removed on explicit release/teardown.
  */
 
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { AgentSession } from "../session/agent-session";
-import { oneLineLabel } from "@rva/tui/tools/task";
+import { oneLineLabel } from "@reverse/tui/tools/task";
 
-import { MAIN_AGENT_ID, type AgentStatus, type AgentMetricsSummary } from "@rva/tui/overlays/agent-hub-types";
+import { MAIN_AGENT_ID, type AgentStatus, type AgentMetricsSummary } from "@reverse/tui/overlays/agent-hub-types";
 export { MAIN_AGENT_ID };
 export type { AgentStatus, AgentMetricsSummary };
 

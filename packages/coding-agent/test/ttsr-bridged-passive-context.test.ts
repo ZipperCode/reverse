@@ -5,23 +5,23 @@ import {
 	type AgentToolContext,
 	TOOL_RESULT_ADDITIONAL_CONTEXT,
 	type ToolResultWithAdditionalContext,
-} from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { CursorExecHandlers } from "@rva/coding-agent/cursor";
-import { TtsrManager } from "@rva/coding-agent/export/ttsr";
-import { ExtensionRuntime } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { ExtensionToolWrapper } from "@rva/coding-agent/extensibility/extensions/wrapper";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { Tool, ToolSession } from "@rva/coding-agent/tools";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { TempDir } from "@rva/utils";
+} from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { CursorExecHandlers } from "@reverse/coding-agent/cursor";
+import { TtsrManager } from "@reverse/coding-agent/export/ttsr";
+import { ExtensionRuntime } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { ExtensionToolWrapper } from "@reverse/coding-agent/extensibility/extensions/wrapper";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { Tool, ToolSession } from "@reverse/coding-agent/tools";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const authStorage: AuthStorage = createInMemoryAuthStorage();

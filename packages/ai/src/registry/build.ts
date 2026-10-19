@@ -1,10 +1,10 @@
 /**
  * Projects one compiled auth policy (`rules/auth/<id>.kdl`) plus the
  * provider's optional TypeScript transport hooks into the
- * {@link ProviderDefinition} the rest of `@rva/ai` consumes.
+ * {@link ProviderDefinition} the rest of `@reverse/ai` consumes.
  */
-import type { CompiledAuthProvider } from "@rva/catalog/compat/types";
-import { $pickenv } from "@rva/utils";
+import type { CompiledAuthProvider } from "@reverse/catalog/compat/types";
+import { $pickenv } from "@reverse/utils";
 import * as AIError from "../error";
 import { createApiKeyLogin } from "./engine/api-key";
 import { loadLoginHook } from "./engine/common";

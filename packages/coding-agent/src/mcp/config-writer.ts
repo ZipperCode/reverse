@@ -6,8 +6,8 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { isEnoent } from "@rva/utils";
-import { withFileLock } from "@rva/utils/file-lock";
+import { isEnoent } from "@reverse/utils";
+import { withFileLock } from "@reverse/utils/file-lock";
 import { invalidate as invalidateFsCache } from "../capability/fs";
 
 import { validateServerConfig } from "./config";

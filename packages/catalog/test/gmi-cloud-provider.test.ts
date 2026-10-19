@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { getBundledModelReferenceIndex } from "@rva/catalog/identity/bundled";
-import { resolveModelReference } from "@rva/catalog/identity/reference";
-import { seedModels } from "@rva/catalog/compat/providers";
-import { providerEntry } from "@rva/catalog/compat/providers";
-import { gmiCloudModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
+import { getBundledModelReferenceIndex } from "@reverse/catalog/identity/bundled";
+import { resolveModelReference } from "@reverse/catalog/identity/reference";
+import { seedModels } from "@reverse/catalog/compat/providers";
+import { providerEntry } from "@reverse/catalog/compat/providers";
+import { gmiCloudModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
 
 const GMI_CLOUD_SEED_MODELS = seedModels<"openai-completions">("gmi-cloud");
 

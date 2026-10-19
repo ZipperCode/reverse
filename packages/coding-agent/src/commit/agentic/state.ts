@@ -1,4 +1,4 @@
-import type { VcsHunkSelection } from "@rva/natives";
+import type { VcsHunkSelection } from "@reverse/natives";
 import type { CommitType, ConventionalAnalysis, ConventionalDetail, NumstatEntry } from "../../commit/types";
 
 export interface GitOverviewSnapshot {

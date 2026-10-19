@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { applyExtensionFlags, type ExtensionFlagSink } from "@rva/coding-agent/cli/extension-flags";
-import { buildInitialMessage } from "@rva/coding-agent/cli/initial-message";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { normalizeContinueSessionArgs } from "@rva/coding-agent/main";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { applyExtensionFlags, type ExtensionFlagSink } from "@reverse/coding-agent/cli/extension-flags";
+import { buildInitialMessage } from "@reverse/coding-agent/cli/initial-message";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { normalizeContinueSessionArgs } from "@reverse/coding-agent/main";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
 
 // Regression coverage for extension-registered flags leaking into the initial
 // prompt. The CLI parses argv twice: once at startup (before extensions load,

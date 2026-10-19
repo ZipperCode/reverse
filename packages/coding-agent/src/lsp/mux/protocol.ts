@@ -9,7 +9,7 @@
  * ({@link MUX_CONNECT_METHOD}); everything below is shared by the worker
  * entry (`server.ts`), the client connector (`daemon.ts`), and tests.
  */
-import { stableStringifyJson } from "@rva/utils";
+import { stableStringifyJson } from "@reverse/utils";
 
 export { LSP_MUX_WORKER_ARG } from "../../cli/worker-selectors";
 

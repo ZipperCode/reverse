@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { getManagedSkillsDir } from "@rva/coding-agent/autolearn/managed-skills";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { resetActiveSkillsForTests, type Skill, setActiveSkills } from "@rva/coding-agent/extensibility/skills";
-import type { HindsightSessionState } from "@rva/coding-agent/hindsight/state";
-import type { MnemopiSessionState } from "@rva/coding-agent/mnemopi/state";
-import { createTools, type ToolSession } from "@rva/coding-agent/tools";
-import { LearnTool } from "@rva/coding-agent/tools/learn";
-import { ManageSkillTool } from "@rva/coding-agent/tools/manage-skill";
-import { removeWithRetries } from "@rva/utils";
-import { getAgentDir, setAgentDir } from "@rva/utils/dirs";
+import { type } from "@reverse/omptype";
+import { getManagedSkillsDir } from "@reverse/coding-agent/autolearn/managed-skills";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { resetActiveSkillsForTests, type Skill, setActiveSkills } from "@reverse/coding-agent/extensibility/skills";
+import type { HindsightSessionState } from "@reverse/coding-agent/hindsight/state";
+import type { MnemopiSessionState } from "@reverse/coding-agent/mnemopi/state";
+import { createTools, type ToolSession } from "@reverse/coding-agent/tools";
+import { LearnTool } from "@reverse/coding-agent/tools/learn";
+import { ManageSkillTool } from "@reverse/coding-agent/tools/manage-skill";
+import { removeWithRetries } from "@reverse/utils";
+import { getAgentDir, setAgentDir } from "@reverse/utils/dirs";
 
 function makeSession(settingsOverrides: Record<string, unknown> = {}, extra: Partial<ToolSession> = {}): ToolSession {
 	return {

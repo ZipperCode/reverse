@@ -53,9 +53,9 @@
  * re-attached to the compaction summary message on every context rebuild.
  */
 
-import type { Api, ImageContent, Message, Model, TextContent } from "@rva/ai";
-import { reachesOfficialEndpoint } from "@rva/ai/providers/anthropic-state";
-import { resolveCatalogPolicy } from "@rva/catalog/compat/catalog-policy";
+import type { Api, ImageContent, Message, Model, TextContent } from "@reverse/ai";
+import { reachesOfficialEndpoint } from "@reverse/ai/providers/anthropic-state";
+import { resolveCatalogPolicy } from "@reverse/catalog/compat/catalog-policy";
 import {
 	type ImageSize,
 	type ImageTokenization,
@@ -63,12 +63,12 @@ import {
 	imageTokens,
 	resolveImageMaxEdge,
 	resolveImageTokenization,
-} from "@rva/catalog/compat/image-tokenization";
-import { resolveImageCountBudget, resolveInlineImageByteBudget } from "@rva/catalog/compat/request-size";
-import { classifyModel, compareRevision, parseRevision } from "@rva/catalog/identity";
-import { renderSnapcompactPng, snapcompactSupportedChars } from "@rva/natives";
-import { formatGroupedPaths, isRecord, prompt } from "@rva/utils";
-import { INTENT_FIELD } from "@rva/wire";
+} from "@reverse/catalog/compat/image-tokenization";
+import { resolveImageCountBudget, resolveInlineImageByteBudget } from "@reverse/catalog/compat/request-size";
+import { classifyModel, compareRevision, parseRevision } from "@reverse/catalog/identity";
+import { renderSnapcompactPng, snapcompactSupportedChars } from "@reverse/natives";
+import { formatGroupedPaths, isRecord, prompt } from "@reverse/utils";
+import { INTENT_FIELD } from "@reverse/wire";
 import fileOperationsTemplate from "./prompts/file-operations.md" with { type: "text" };
 import snapcompactSummaryPrompt from "./prompts/snapcompact-summary.md" with { type: "text" };
 

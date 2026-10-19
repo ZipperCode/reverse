@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { type AgentToolCall, Tokenizer } from "@rva/agent";
-import type { SessionMessageEntry } from "@rva/agent/compaction/entries";
-import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@rva/agent/compaction/pruning";
-import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@rva/agent/compaction/shake";
-import type { ProtectedToolContext } from "@rva/agent/compaction/tool-protection";
-import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@rva/ai";
-import { createPlanReadMatcher } from "@rva/coding-agent/plan-mode/plan-protection";
+import { type AgentToolCall, Tokenizer } from "@reverse/agent";
+import type { SessionMessageEntry } from "@reverse/agent/compaction/entries";
+import { DEFAULT_PRUNE_CONFIG, pruneToolOutputs } from "@reverse/agent/compaction/pruning";
+import { AGGRESSIVE_SHAKE_CONFIG, collectShakeRegions } from "@reverse/agent/compaction/shake";
+import type { ProtectedToolContext } from "@reverse/agent/compaction/tool-protection";
+import type { AssistantMessage, TextContent, ToolResultMessage, Usage } from "@reverse/ai";
+import { createPlanReadMatcher } from "@reverse/coding-agent/plan-mode/plan-protection";
 
 const tokenizer = new Tokenizer();
 

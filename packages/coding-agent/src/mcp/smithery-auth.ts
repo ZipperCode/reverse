@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger } from "@rva/utils";
-import { getAgentDir } from "@rva/utils/dirs";
+import { isEnoent, logger } from "@reverse/utils";
+import { getAgentDir } from "@reverse/utils/dirs";
 import { withTimeoutSignal } from "../utils/fetch-timeout";
 
 const SMITHERY_AUTH_FILENAME = "smithery.json";

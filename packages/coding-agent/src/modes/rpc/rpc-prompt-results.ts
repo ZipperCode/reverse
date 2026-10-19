@@ -8,10 +8,10 @@
  * started or joined. Hosts correlate on the command `id` instead of inferring
  * ownership of an `agent_end` that carries no prompt identity.
  */
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { stripRawHttpRequestDiagnostics } from "@rva/ai/utils/http-inspector";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { stripRawHttpRequestDiagnostics } from "@reverse/ai/utils/http-inspector";
 import type { AgentSessionEvent } from "../../session/agent-session";
 import { isRpcSessionSettled, type RpcScheduledTurnProbe, type RpcSettleSession } from "./rpc-session-settle";
 import type { RpcPromptError, RpcPromptResultFrame, RpcPromptStatus } from "./rpc-types";

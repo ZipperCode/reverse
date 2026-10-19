@@ -1,4 +1,4 @@
-import { isRecord, truncate } from "@rva/utils";
+import { isRecord, truncate } from "@reverse/utils";
 
 /**
  * Connect-protocol end-stream error formatting.

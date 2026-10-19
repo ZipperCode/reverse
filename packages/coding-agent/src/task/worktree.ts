@@ -1,12 +1,12 @@
-import { type NestedRepoPatch } from "@rva/tui/tools/task";
+import { type NestedRepoPatch } from "@reverse/tui/tools/task";
 import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { VcsCommitAuthor, VcsGitRepo } from "@rva/natives";
-import * as natives from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { formatBytes, getWorktreeDir, isEnoent, logger, Snowflake } from "@rva/utils";
+import type { VcsCommitAuthor, VcsGitRepo } from "@reverse/natives";
+import * as natives from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { formatBytes, getWorktreeDir, isEnoent, logger, Snowflake } from "@reverse/utils";
 import type { SettingValueOf } from "../config/registry";
 
 import { withRepoLock } from "../utils/repo-lock";

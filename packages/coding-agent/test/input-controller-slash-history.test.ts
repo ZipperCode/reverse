@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { ImageContent } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { cfgBareExitOnEmptySession, cfgBareSlashCommands } from "@rva/coding-agent/modes/settings";
-import { isQueuedMessageList, splitQueuedMessages } from "@rva/tui/prompt/queue-input";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import type { AgentMessage } from "@reverse/agent";
+import type { ImageContent } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { cfgBareExitOnEmptySession, cfgBareSlashCommands } from "@reverse/coding-agent/modes/settings";
+import { isQueuedMessageList, splitQueuedMessages } from "@reverse/tui/prompt/queue-input";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 
 // Drives the real editor submit handler through the builtin slash dispatch
 // path. Before #3148 only a handful of commands recorded their text (each
@@ -167,7 +167,6 @@ describe("input controller — slash command history (#3148)", () => {
 		expect(editor.pendingImages).toEqual([]);
 		expect(editor.pendingImageLinks).toEqual([]);
 	});
-
 
 	it("routes /queue through the yield-only follow-up queue while streaming", async () => {
 		const { ctx, editor, addToHistory, followUp, showStatus } = makeCtx(true);

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Usage } from "@rva/ai";
-import { isSyntheticToolResultMessage } from "@rva/agent";
+import type { Usage } from "@reverse/ai";
+import { isSyntheticToolResultMessage } from "@reverse/agent";
 import {
 	collectPendingToolCalls,
 	createInterruptedToolResults,
@@ -10,19 +10,19 @@ import {
 	describePendingToolCalls,
 	SESSION_EXIT_CUSTOM_TYPE,
 	TOOL_EXECUTION_START_CUSTOM_TYPE,
-} from "@rva/coding-agent/session/exit-diagnostics";
+} from "@reverse/coding-agent/session/exit-diagnostics";
 import {
 	CURRENT_SESSION_VERSION,
 	type SessionEntry,
 	type SessionHeader,
 	type SessionMessageEntry,
-} from "@rva/coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { FileSessionStorage, MemorySessionStorage } from "@rva/coding-agent/session/session-storage";
-import { getTerminalId } from "@rva/tui";
-import { isTaskToolDetails, type TaskToolDetails } from "@rva/tui/tools/task";
-import { getAgentDir, getTerminalSessionsDir, removeWithRetries, setAgentDir, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/session-entries";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { FileSessionStorage, MemorySessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { getTerminalId } from "@reverse/tui";
+import { isTaskToolDetails, type TaskToolDetails } from "@reverse/tui/tools/task";
+import { getAgentDir, getTerminalSessionsDir, removeWithRetries, setAgentDir, TempDir } from "@reverse/utils";
 
 interface JsonlMessageEntry {
 	type: "message";

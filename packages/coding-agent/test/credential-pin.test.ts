@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 import { AuthStorage, SqliteAuthCredentialStore } from "../src/session/auth-storage";
 import { credentialPinHash, recordCredentialPin, seedCredentialPins } from "../src/session/credential-pin";
 import { SessionManager } from "../src/session/session-manager";

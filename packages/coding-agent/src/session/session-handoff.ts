@@ -1,16 +1,10 @@
 /** Handoff document generation. Committing the document as a compaction entry is owned by SessionMaintenance. */
 
 import * as path from "node:path";
-import {
-	type Agent,
-	type AgentMessage,
-	resolveTelemetry,
-	type StreamFn,
-	type ThinkingLevel,
-} from "@rva/agent";
-import { generateHandoffFromContext, renderHandoffPrompt } from "@rva/agent/compaction";
-import type { Message, Model, ServiceTier, SimpleStreamOptions } from "@rva/ai";
-import { logger, Snowflake } from "@rva/utils";
+import { type Agent, type AgentMessage, resolveTelemetry, type StreamFn, type ThinkingLevel } from "@reverse/agent";
+import { generateHandoffFromContext, renderHandoffPrompt } from "@reverse/agent/compaction";
+import type { Message, Model, ServiceTier, SimpleStreamOptions } from "@reverse/ai";
+import { logger, Snowflake } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import { obfuscateProviderContext } from "../secrets/message-transform";

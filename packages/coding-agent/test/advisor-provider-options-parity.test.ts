@@ -11,21 +11,21 @@
  * and its explicit websocket preference.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { Agent, type StreamFn } from "@rva/agent";
-import type { FetchImpl, Model, SimpleStreamOptions } from "@rva/ai";
-import { streamSimple } from "@rva/ai";
-import { resolveApiKeyOnce } from "@rva/ai/auth-retry";
-import { getBundledModel } from "@rva/catalog/models";
-import { SessionAccountPoolScope } from "@rva/coding-agent/config/account-pools";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { Agent, type StreamFn } from "@reverse/agent";
+import type { FetchImpl, Model, SimpleStreamOptions } from "@reverse/ai";
+import { streamSimple } from "@reverse/ai";
+import { resolveApiKeyOnce } from "@reverse/ai/auth-retry";
+import { getBundledModel } from "@reverse/catalog/models";
+import { SessionAccountPoolScope } from "@reverse/coding-agent/config/account-pools";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-import { cfgProvidersOpenaiWebsockets } from "@rva/coding-agent/session/settings";
+import { cfgProvidersOpenaiWebsockets } from "@reverse/coding-agent/session/settings";
 
 /** Provider-facing advisor session ids must be UUIDv7 (issue #5040): Codex writes
  *  them verbatim onto `conversation_id`/`session_id` headers, so `-advisor`

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchContext, UsageFetchParams } from "@rva/ai/usage";
-import { kimiUsageProvider } from "@rva/ai/usage/kimi";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchContext, UsageFetchParams } from "@reverse/ai/usage";
+import { kimiUsageProvider } from "@reverse/ai/usage/kimi";
 
 function makeCredential(accountId?: string): UsageFetchParams["credential"] {
 	return {

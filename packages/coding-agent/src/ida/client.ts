@@ -9,11 +9,11 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { IpcConnection, ipcEndpoint } from "@rva/natives";
-import { logger, postmortem, ptree, untilAborted } from "@rva/utils";
-import { TERMINAL_STATES } from "@rva/tui/apps/ps-data";
-import type { DaemonSnapshot } from "@rva/tui/tools/daemon";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { IpcConnection, ipcEndpoint } from "@reverse/natives";
+import { logger, postmortem, ptree, untilAborted } from "@reverse/utils";
+import { TERMINAL_STATES } from "@reverse/tui/apps/ps-data";
+import type { DaemonSnapshot } from "@reverse/tui/tools/daemon";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { type DaemonBrokerClient, daemonClientForProject } from "../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../launch/ensure";
 import { daemonRuntimeDir } from "../launch/paths";

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import type { UsageProvider, UsageReport } from "@rva/ai/usage";
+import { type AuthCredentialStore, AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import type { UsageProvider, UsageReport } from "@reverse/ai/usage";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const HOUR_MS = 60 * 60 * 1000;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { INTENT_FIELD } from "@rva/wire";
+import { INTENT_FIELD } from "@reverse/wire";
 import { renderToolExamples } from "../src/dialect/examples";
 import type { InbandTool } from "../src/dialect/types";
 

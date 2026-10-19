@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { stableStringifyJson, stringifyJson } from "@rva/utils/json";
+import { stableStringifyJson, stringifyJson } from "@reverse/utils/json";
 
 describe("stableStringifyJson", () => {
 	it("canonicalizes nested object key order while preserving array order", () => {

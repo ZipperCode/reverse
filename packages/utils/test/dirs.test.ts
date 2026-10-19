@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as nativePath from "@rva/natives/path";
+import * as nativePath from "@reverse/natives/path";
 import {
 	APP_NAME,
 	__resetProjectDirCacheForTests,
@@ -12,7 +12,7 @@ import {
 	localDay,
 	relativePathWithinRoot,
 	setProjectDir,
-} from "@rva/utils/dirs";
+} from "@reverse/utils/dirs";
 
 const originalProjectDir = fs.realpathSync(process.cwd()).replace(/^\/private(?=\/)/, "");
 

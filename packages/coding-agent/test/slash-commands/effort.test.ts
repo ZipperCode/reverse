@@ -1,20 +1,20 @@
 import { describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@rva/agent/thinking";
-import { Effort } from "@rva/catalog/effort";
-import type { Model } from "@rva/catalog/types";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { ModelControls, type ModelControlsHost } from "@rva/coding-agent/session/model-controls";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
+import { ThinkingLevel } from "@reverse/agent/thinking";
+import { Effort } from "@reverse/catalog/effort";
+import type { Model } from "@reverse/catalog/types";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { ModelControls, type ModelControlsHost } from "@reverse/coding-agent/session/model-controls";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 import {
 	BUILTIN_SLASH_COMMANDS,
 	buildTuiBuiltinSlashCommands,
 	executeBuiltinSlashCommand,
 	lookupBuiltinSlashCommand,
 	type SlashCommandRuntime,
-} from "@rva/coding-agent/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@rva/coding-agent/slash-commands/types";
-import { CombinedAutocompleteProvider } from "@rva/tui/autocomplete";
-import { AUTO_THINKING, type ConfiguredThinkingLevel } from "@rva/tui/thinking";
+} from "@reverse/coding-agent/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@reverse/coding-agent/slash-commands/types";
+import { CombinedAutocompleteProvider } from "@reverse/tui/autocomplete";
+import { AUTO_THINKING, type ConfiguredThinkingLevel } from "@reverse/tui/thinking";
 
 const command = lookupBuiltinSlashCommand("effort");
 

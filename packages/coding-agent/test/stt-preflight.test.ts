@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@rva/catalog/models";
-import { Settings, settings } from "@rva/coding-agent/config/settings";
-import * as asrClient from "@rva/coding-agent/stt/asr-client";
-import * as downloader from "@rva/coding-agent/stt/downloader";
-import { STTController, type STTControllerDependencies } from "@rva/coding-agent/stt/stt-controller";
-import { getTinyModelsCacheDir, removeWithRetries, setAgentDir } from "@rva/utils";
+import { getBundledModel } from "@reverse/catalog/models";
+import { Settings, settings } from "@reverse/coding-agent/config/settings";
+import * as asrClient from "@reverse/coding-agent/stt/asr-client";
+import * as downloader from "@reverse/coding-agent/stt/downloader";
+import { STTController, type STTControllerDependencies } from "@reverse/coding-agent/stt/stt-controller";
+import { getTinyModelsCacheDir, removeWithRetries, setAgentDir } from "@reverse/utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 const WHISPER_BASE_REPO = "onnx-community/whisper-base";

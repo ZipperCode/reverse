@@ -1,19 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, Model } from "@rva/ai";
-import type { AsyncJobRegisterOptions } from "@rva/coding-agent/async/job-manager";
-import type { EffectiveExtensionRoots } from "@rva/coding-agent/capability/types";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { PreparedExtension } from "@rva/coding-agent/extensibility/extensions";
-import { resolveLocalRoot } from "@rva/coding-agent/internal-urls/local-protocol";
-import { TanCommandController } from "@rva/coding-agent/modes/controllers/tan-command-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { AgentRegistry, MAIN_AGENT_ID } from "@rva/coding-agent/registry/agent-registry";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@rva/coding-agent/sdk";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, Model } from "@reverse/ai";
+import type { AsyncJobRegisterOptions } from "@reverse/coding-agent/async/job-manager";
+import type { EffectiveExtensionRoots } from "@reverse/coding-agent/capability/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { PreparedExtension } from "@reverse/coding-agent/extensibility/extensions";
+import { resolveLocalRoot } from "@reverse/coding-agent/internal-urls/local-protocol";
+import { TanCommandController } from "@reverse/coding-agent/modes/controllers/tan-command-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { AgentRegistry, MAIN_AGENT_ID } from "@reverse/coding-agent/registry/agent-registry";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
 interface CapturedJobRunContext {
 	jobId: string;

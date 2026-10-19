@@ -6,11 +6,11 @@
  * and the openai-completions provider translates them to router wire form at request time.
  */
 import { describe, expect, it } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { OAuthController } from "@rva/ai/registry/oauth/types";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { OAuthController } from "@reverse/ai/registry/oauth/types";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { getBundledModel } from "@reverse/catalog/models";
 
 function sseResponse(events: unknown[]): Response {
 	const payload = `${events.map(e => `data: ${typeof e === "string" ? e : JSON.stringify(e)}`).join("\n\n")}\n\n`;

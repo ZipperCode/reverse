@@ -1,7 +1,7 @@
-import { $which, isRecord } from "@rva/utils";
+import { $which, isRecord } from "@reverse/utils";
 import { REJECT_PROMPT_COMMAND } from "../exec/non-interactive-env";
 import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 /** Captured result of a completed `gh` invocation. */
 export interface GhCommandResult {

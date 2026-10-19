@@ -2,14 +2,14 @@
  * Component for displaying bash command execution with streaming output.
  */
 
-import type { ImageContent } from "@rva/ai";
+import type { ImageContent } from "@reverse/ai";
 import { Image } from "../components/image";
 import type { Loader } from "../components/loader";
 import { Text } from "../components/text";
 import { getImageDimensions, imageFallback, ImageProtocol, TERMINAL } from "../terminal-capabilities";
 import { Container, type TUI } from "../tui";
-import { sanitizeText } from "@rva/utils";
-import type { Terminal as XtermTerminalType } from "@rva/utils/vterm";
+import { sanitizeText } from "@reverse/utils";
+import type { Terminal as XtermTerminalType } from "@reverse/utils/vterm";
 import { theme } from "../theme/theme";
 import type { OutputArtifactError } from "../tools/streaming-output";
 import type { TruncationMeta } from "../tools/output-meta";

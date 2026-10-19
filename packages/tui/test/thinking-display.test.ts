@@ -3,7 +3,7 @@ import {
 	canonicalizeMessage,
 	formatThinkingForDisplay,
 	resetThinkingDisplayCacheForTests,
-} from "@rva/tui/chat/thinking-display";
+} from "@reverse/tui/chat/thinking-display";
 
 describe("canonicalizeMessage", () => {
 	it("returns empty string for undefined, empty, or whitespace-only", () => {

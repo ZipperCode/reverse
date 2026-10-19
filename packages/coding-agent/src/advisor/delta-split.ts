@@ -17,8 +17,8 @@
 //
 // The heading stays on the FIRST chunk; the WIP marker stays on the LAST chunk
 // (candidate 3) so a wip/final flip never changes the stable prefix.
-import type { AgentMessage } from "@rva/agent";
-import type { TextContent, ToolResultMessage } from "@rva/ai";
+import type { AgentMessage } from "@reverse/agent";
+import type { TextContent, ToolResultMessage } from "@reverse/ai";
 import { formatSessionHistoryMarkdown, type ToolIOTransform } from "../session/session-history-format";
 
 /**

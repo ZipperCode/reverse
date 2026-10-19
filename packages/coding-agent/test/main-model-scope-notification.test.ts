@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import type { ScopedModel } from "@rva/coding-agent/config/model-resolver";
-import { buildModelScopeNotification } from "@rva/coding-agent/main";
+import { buildModel } from "@reverse/catalog/build";
+import type { ScopedModel } from "@reverse/coding-agent/config/model-resolver";
+import { buildModelScopeNotification } from "@reverse/coding-agent/main";
 
 function scopedModel(id: string): ScopedModel {
 	return {

@@ -2,18 +2,10 @@ import type { Database } from "bun:sqlite";
 import type * as fsNode from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import { type ApiKey, completeSimple, Effort, type Model, retryTransientCompletion } from "@rva/ai";
-import { clampThinkingLevelForModel } from "@rva/catalog/model-thinking";
-import {
-	getAgentDbPath,
-	getMemoriesDir,
-	isEnoent,
-	logger,
-	parseJsonlLenient,
-	peekFile,
-	prompt,
-} from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { type ApiKey, completeSimple, Effort, type Model, retryTransientCompletion } from "@reverse/ai";
+import { clampThinkingLevelForModel } from "@reverse/catalog/model-thinking";
+import { getAgentDbPath, getMemoriesDir, isEnoent, logger, parseJsonlLenient, peekFile, prompt } from "@reverse/utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../config/model-resolver";

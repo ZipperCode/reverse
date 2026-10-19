@@ -1,13 +1,13 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import type { AgentTool } from "@rva/agent";
-import { type Component, Text } from "@rva/tui";
+import type { AgentTool } from "@reverse/agent";
+import { type Component, Text } from "@reverse/tui";
 import { Settings, settings } from "../../../src/config/settings";
-import { renderMCPResult } from "@rva/tui/tools/mcp";
-import type { MCPToolDetails } from "@rva/tui/tools/mcp";
-import { ToolExecutionComponent, type ToolExecutionUi } from "@rva/tui/chat/tool-execution";
-import { getThemeByName, setThemeInstance, theme } from "@rva/tui/theme";
+import { renderMCPResult } from "@reverse/tui/tools/mcp";
+import type { MCPToolDetails } from "@reverse/tui/tools/mcp";
+import { ToolExecutionComponent, type ToolExecutionUi } from "@reverse/tui/chat/tool-execution";
+import { getThemeByName, setThemeInstance, theme } from "@reverse/tui/theme";
 
-import { cfgMcpRenderMarkdownResults } from "@rva/coding-agent/mcp/settings";
+import { cfgMcpRenderMarkdownResults } from "@reverse/coding-agent/mcp/settings";
 
 class BoldTypeErrorComponent implements Component {
 	render(_width: number): readonly string[] {

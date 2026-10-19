@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SessionHeader } from "@rva/coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { getConfigRootDir, setAgentDir } from "@rva/utils";
+import type { SessionHeader } from "@reverse/coding-agent/session/session-entries";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getConfigRootDir, setAgentDir } from "@reverse/utils";
 
 describe("SessionManager.createEmptySessionFile", () => {
 	let testAgentDir: string;

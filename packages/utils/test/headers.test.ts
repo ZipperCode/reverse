@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { HeaderGenerator, type Headers, type OperatingSystem } from "@rva/utils/headers";
+import { HeaderGenerator, type Headers, type OperatingSystem } from "@reverse/utils/headers";
 
 // Captured from header-generator 2.1.82 for desktop navigation requests. Client hints
 // are the three additional fields emitted for Chromium profiles.

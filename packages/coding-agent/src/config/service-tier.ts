@@ -1,9 +1,9 @@
-import type { Model, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@rva/ai";
+import type { Model, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@reverse/ai";
 // Setting declarations (`session/settings.ts`) pull this module into CLI startup; import the classifier
 // from the dependency-free types module so the `pi-ai` index (and the native
 // addon behind it) stays lazy.
-import { serviceTierFamily } from "@rva/ai/types";
-import type { SubmenuOption } from "@rva/tui/overlays/settings-defs";
+import { serviceTierFamily } from "@reverse/ai/types";
+import type { SubmenuOption } from "@reverse/tui/overlays/settings-defs";
 
 /**
  * Per-family service-tier setting values. `"none"` is the omit-the-parameter

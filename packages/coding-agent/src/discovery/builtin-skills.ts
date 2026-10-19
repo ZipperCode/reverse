@@ -16,7 +16,7 @@
  *
  * @see ../extensibility/skills.ts
  */
-import { parseFrontmatter } from "@rva/utils";
+import { parseFrontmatter } from "@reverse/utils";
 import { registerProvider } from "../capability";
 import { readFile } from "../capability/fs";
 import { type Skill, skillCapability } from "../capability/skill";

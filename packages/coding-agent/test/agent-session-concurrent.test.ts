@@ -7,36 +7,29 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@rva/omptype";
-import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@rva/agent";
-import type { AssistantMessage, AssistantMessageEvent, ToolCall } from "@rva/ai";
-import {
-	accumulateToolCallArgumentsDelta,
-	finalizeToolCallArgumentsDone,
-} from "@rva/ai/providers/openai-shared";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { kStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { TtsrManager } from "@rva/coding-agent/export/ttsr";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { ExtensionToolWrapper } from "@rva/coding-agent/extensibility/extensions/wrapper";
-import { GoalRuntime } from "@rva/coding-agent/goals/runtime";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import {
-	convertToLlm,
-	isUserInterruptAbort,
-	shouldRenderAbortReason,
-} from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@reverse/agent";
+import type { AssistantMessage, AssistantMessageEvent, ToolCall } from "@reverse/ai";
+import { accumulateToolCallArgumentsDelta, finalizeToolCallArgumentsDone } from "@reverse/ai/providers/openai-shared";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { kStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { TtsrManager } from "@reverse/coding-agent/export/ttsr";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { ExtensionToolWrapper } from "@reverse/coding-agent/extensibility/extensions/wrapper";
+import { GoalRuntime } from "@reverse/coding-agent/goals/runtime";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm, isUserInterruptAbort, shouldRenderAbortReason } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 // Mock stream that mimics AssistantMessageEventStream
 

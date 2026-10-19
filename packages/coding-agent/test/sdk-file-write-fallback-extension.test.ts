@@ -20,20 +20,20 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@rva/agent";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { AgentTool } from "@reverse/agent";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import type {
 	ExtensionActions,
 	ExtensionContextActions,
 	ExtensionFactory,
 	ExtensionRunner,
-} from "@rva/coding-agent/extensibility/extensions";
-import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@rva/coding-agent/sdk";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { FileWriteFallbackRequest } from "@rva/coding-agent/tools/file-write-fallback";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/extensions";
+import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@reverse/coding-agent/sdk";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { FileWriteFallbackRequest } from "@reverse/coding-agent/tools/file-write-fallback";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 /**
  * Drives `ExtensionRunner.initialize` with no-op stubs, mirroring what a mode

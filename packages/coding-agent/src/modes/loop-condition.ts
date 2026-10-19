@@ -15,12 +15,12 @@
  * work, which is the failure mode this whole feature exists to avoid.
  */
 
-import { logger } from "@rva/utils";
-import type { LoopConditionConfig } from "@rva/tui/status-line/loop";
+import { logger } from "@reverse/utils";
+import type { LoopConditionConfig } from "@reverse/tui/status-line/loop";
 import type { BashResult } from "../exec/bash-executor";
 import { executeBash } from "../exec/bash-executor";
-import { TRUNCATE_LENGTHS, truncateToWidth } from "@rva/tui/render/render-utils";
-import { sanitizeStatusText } from "@rva/tui/chrome/shared";
+import { TRUNCATE_LENGTHS, truncateToWidth } from "@reverse/tui/render/render-utils";
+import { sanitizeStatusText } from "@reverse/tui/chrome/shared";
 
 export type LoopConditionVerdict =
 	/** The condition says run another iteration. */

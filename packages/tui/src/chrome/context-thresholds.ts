@@ -1,5 +1,5 @@
-import { formatNumber } from "@rva/utils";
-import type { TspTone } from "@rva/wire";
+import { formatNumber } from "@reverse/utils";
+import type { TspTone } from "@reverse/wire";
 import type { ThemeColor } from "../theme/index";
 export type ContextUsageLevel = "normal" | "warning" | "purple" | "error";
 

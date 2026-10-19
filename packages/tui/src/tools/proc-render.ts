@@ -12,7 +12,7 @@ import {
 } from "../render/render-utils";
 import type { Theme } from "../theme/theme";
 import type { NativeToolView, RenderResultOptions } from "./renderer";
-import type { TspSpan, TspTone } from "@rva/wire";
+import type { TspSpan, TspTone } from "@reverse/wire";
 import { ansi, compact, node, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { errorText, noteText, toolHead } from "./native-view";

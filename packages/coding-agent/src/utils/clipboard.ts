@@ -3,11 +3,11 @@ import {
 	copyToClipboard as nativeCopyToClipboard,
 	readImageFromClipboard as nativeReadImageFromClipboard,
 	readTextFromClipboard as nativeReadTextFromClipboard,
-} from "@rva/natives/clipboard";
-import { writeTerminalSequence } from "@rva/tui/terminal";
-import { isWsl } from "@rva/utils";
-import * as logger from "@rva/utils/logger";
-import { SUPPORTED_IMAGE_MIME_TYPES } from "@rva/utils/mime";
+} from "@reverse/natives/clipboard";
+import { writeTerminalSequence } from "@reverse/tui/terminal";
+import { isWsl } from "@reverse/utils";
+import * as logger from "@reverse/utils/logger";
+import { SUPPORTED_IMAGE_MIME_TYPES } from "@reverse/utils/mime";
 import MAC_FILE_URL_SCRIPT from "./mac-file-urls.applescript" with { type: "text" };
 
 type SpawnCaptureOptions = { input?: string; timeoutMs?: number; env?: Record<string, string | undefined> };

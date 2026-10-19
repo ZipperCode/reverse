@@ -15,7 +15,7 @@ import {
 	isRecord,
 	logger,
 	stripWindowsExtendedLengthPathPrefix,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { registerPluginCacheInvalidator } from "../../discovery/helpers";
 
 const USE_BUNDLED_PI_MODULES = isCompiledBinary() || Boolean(process.env.PI_BUNDLED);
@@ -805,11 +805,11 @@ function resolveBundledVirtualSpecifier(
 // keeps plugins running against the exact runtime state of the host (single
 // module registry, single tool registry, etc.) regardless of which historical
 // scope name they happened to declare in their peerDependencies.
-const CANONICAL_PI_SCOPE = "@rva";
+const CANONICAL_PI_SCOPE = "@reverse";
 
 // Scopes that have historically been used to publish (or alias) internal host
 // packages.
-const PI_SCOPE_ALIASES = ["rva", "oh-my-pi", "mariozechner", "earendil-works"] as const;
+const PI_SCOPE_ALIASES = ["reverse", "rva", "oh-my-pi", "mariozechner", "earendil-works"] as const;
 
 // Internal host package basenames bundled inside the rva binary.
 const PI_PACKAGE_NAMES = [
@@ -846,8 +846,8 @@ const LEGACY_PI_PACKAGE_MAP: Record<string, string> = {
 	"pi-wire": "wire",
 	"pi-mnemopi": "mnemopi",
 	"omp-stats": "stats",
-	"omptype": "omptype",
-	"snapcompact": "snapcompact",
+	omptype: "omptype",
+	snapcompact: "snapcompact",
 	"browser-relay": "browser-relay",
 };
 
@@ -933,7 +933,7 @@ const TYPEBOX_SPECIFIER_FILTER = /^(?:@sinclair\/typebox|typebox)$/;
  *
  * `bundle-dist.ts` defines `process.env.PI_BUNDLED="true"`; after bundling,
  * `import.meta.dir` points at `<package>/dist`. Do not resolve the package via
- * bare `@rva/coding-agent` here: from a global install Bun can pick an
+ * bare `@reverse/coding-agent` here: from a global install Bun can pick an
  * older cache entry, recreating mixed-runtime plugin loading.
  */
 export function __computeBundledSelfPackageRoot(metaDir: string, pathImpl: typeof path = path): string {
@@ -993,7 +993,7 @@ const TYPEBOX_SHIM_PATH = __resolveTypeBoxShimPath(USE_BUNDLED_PI_MODULES, sourc
 // longer satisfies those imports. The override below redirects only the bare
 // pi-ai package root onto a sibling shim that re-exports the canonical surface
 // plus the borrowed `Type` runtime from the omptype TypeBox facade. Subpath
-// imports such as `@rva/ai/oauth` continue to resolve directly
+// imports such as `@reverse/ai/oauth` continue to resolve directly
 // against the bundled pi-ai package.
 const LEGACY_PI_AI_SHIM_PATH = USE_BUNDLED_PI_MODULES
 	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/pi-ai`)
@@ -2823,7 +2823,7 @@ function resolveLegacyPiSpecifier(args: { path: string; importer: string }): Leg
 		const resolved = resolveRemappedLegacyPiSpecifier(remappedSpecifier, args);
 		// A canonical specifier that remaps to itself and already resolves to the
 		// same host file from its importer (host code, e.g. `/login` requiring
-		// `@rva/ai/index.js`) has nothing to rewrite: decline and let Bun
+		// `@reverse/ai/index.js`) has nothing to rewrite: decline and let Bun
 		// resolve it natively. Answering it anyway breaks `require()` on Bun
 		// 1.3.x, which reads the returned path back as `file:<path>` and, on
 		// source-link/dev installs, recurses into `NameTooLong reading

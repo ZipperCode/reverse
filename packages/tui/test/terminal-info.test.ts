@@ -3,9 +3,9 @@ import {
 	collectTerminalState,
 	formatTerminalState,
 	type TerminalStateInfo,
-} from "@rva/tui/apps/debug/terminal-info";
-import { TERMINAL } from "@rva/tui";
-import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@rva/tui/terminal-multiplexer";
+} from "@reverse/tui/apps/debug/terminal-info";
+import { TERMINAL } from "@reverse/tui";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@reverse/tui/terminal-multiplexer";
 
 const sample: TerminalStateInfo = {
 	detectedId: "kitty",

@@ -1,4 +1,4 @@
-import { type MermaidRenderOptions, renderMermaidAscii } from "@rva/natives";
+import { type MermaidRenderOptions, renderMermaidAscii } from "@reverse/natives";
 
 /**
  * Native Mermaid → ASCII/Unicode renderer (flowchart, state, sequence, class,

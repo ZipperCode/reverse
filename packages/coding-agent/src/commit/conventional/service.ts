@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { VcsNumstatEntry } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { getCommitCacheDbPath } from "@rva/utils";
+import type { VcsNumstatEntry } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { getCommitCacheDbPath } from "@reverse/utils";
 import { ModelRegistry } from "../../config/model-registry";
 import { Settings } from "../../config/settings";
 import { cfgCommit } from "../settings";

@@ -1,5 +1,5 @@
 import { parentPort } from "node:worker_threads";
-import { installWorkerInbox, WORKER_HOST_SELECTOR_PREFIX } from "@rva/utils/worker-host";
+import { installWorkerInbox, WORKER_HOST_SELECTOR_PREFIX } from "@reverse/utils/worker-host";
 import { COMPUTER_WORKER_ARG } from "../../src/tools/computer/protocol";
 
 const STATS_WORKER_ARG = `${WORKER_HOST_SELECTOR_PREFIX}stats_sync`;

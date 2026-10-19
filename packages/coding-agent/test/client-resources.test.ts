@@ -7,7 +7,7 @@ import {
 	serverSupportsResources,
 	subscribeToResources,
 	unsubscribeFromResources,
-} from "@rva/coding-agent/mcp/client";
+} from "@reverse/coding-agent/mcp/client";
 import type {
 	MCPResource,
 	MCPResourceReadResult,
@@ -15,7 +15,7 @@ import type {
 	MCPResourceTemplate,
 	MCPResourceTemplatesListResult,
 	MCPTransport,
-} from "@rva/coding-agent/mcp/types";
+} from "@reverse/coding-agent/mcp/types";
 import { createMockConnection, createMockTransport } from "./mcp-test-utils";
 
 describe("listResources", () => {

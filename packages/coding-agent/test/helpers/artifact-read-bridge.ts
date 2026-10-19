@@ -1,7 +1,7 @@
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { wrapToolWithMetaNotice } from "@rva/coding-agent/tools/output-meta";
-import { ReadTool } from "@rva/coding-agent/tools/read";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { wrapToolWithMetaNotice } from "@reverse/coding-agent/tools/output-meta";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
 import { bridgeValueFromToolResult } from "../../src/eval/js/tool-bridge";
 
 /** The eval bridge's `read` call against a session whose artifacts live in `artifactsDir`: real tool, real bridge value. */

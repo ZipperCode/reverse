@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { resolveMemoryBackend } from "@rva/coding-agent/memory-backend";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { sharpshooterBackend } from "@rva/coding-agent/sharpshooter/backend";
-import { sharpshooterBankDir } from "@rva/coding-agent/sharpshooter/paths";
-import { executeAcpBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/acp-builtins";
-import type { SlashCommandRuntime } from "@rva/coding-agent/slash-commands/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { resolveMemoryBackend } from "@reverse/coding-agent/memory-backend";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { sharpshooterBackend } from "@reverse/coding-agent/sharpshooter/backend";
+import { sharpshooterBankDir } from "@reverse/coding-agent/sharpshooter/paths";
+import { executeAcpBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/acp-builtins";
+import type { SlashCommandRuntime } from "@reverse/coding-agent/slash-commands/types";
 
 const tempDirs: string[] = [];
 

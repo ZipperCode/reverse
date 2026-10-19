@@ -12,9 +12,9 @@
  * @see https://github.com/can1357/oh-my-pi/issues/2424
  */
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@rva/ai/registry/oauth/types";
-import type { FetchImpl } from "@rva/ai/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@reverse/ai/registry/oauth/types";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const BUNDLED_CLIENT_ID = "da4edff2e6ebd2bc3208611e2768bc1c1dd7be791dc5ff26ca34ca9ee44f7d4b";
 const provider = getProviderDefinition("gitlab-duo");

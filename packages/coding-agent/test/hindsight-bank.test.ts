@@ -2,10 +2,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { computeBankScope, ensureBankExists } from "@rva/coding-agent/hindsight/bank";
-import { HindsightApi } from "@rva/coding-agent/hindsight/client";
-import type { HindsightConfig } from "@rva/coding-agent/hindsight/config";
-import { removeWithRetries } from "@rva/utils";
+import { computeBankScope, ensureBankExists } from "@reverse/coding-agent/hindsight/bank";
+import { HindsightApi } from "@reverse/coding-agent/hindsight/client";
+import type { HindsightConfig } from "@reverse/coding-agent/hindsight/config";
+import { removeWithRetries } from "@reverse/utils";
 
 // Isolate `git` invocations in this file from the host's global config —
 // `~/.gitconfig` commit signing or template hooks would otherwise turn the

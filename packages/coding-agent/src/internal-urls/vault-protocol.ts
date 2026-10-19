@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { $which } from "@rva/utils";
+import { $which } from "@reverse/utils";
 import { isSettingsInitialized, settings } from "../config/settings";
 
 import vaultDoc from "../prompts/internal-urls/vault.md" with { type: "text" };

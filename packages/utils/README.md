@@ -1,4 +1,4 @@
-# @rva/utils
+# @reverse/utils
 
 Shared utilities for [omp](https://github.com/can1357/oh-my-pi) packages. Zero ceremony, Bun-first.
 
@@ -21,12 +21,12 @@ Shared utilities for [omp](https://github.com/can1357/oh-my-pi) packages. Zero c
 | `peek-file`                                                                                                        | Read the first N bytes of a file with pooled buffers                                         |
 | `frontmatter`, `glob`, `mime`, `temp`, `format`, `color`, `snowflake`, `tab-spacing`, `path-tree`, `sanitize-text` | Smaller single-purpose helpers                                                               |
 
-Import from the root barrel or per-module subpaths (`@rva/utils/<module>`).
+Import from the root barrel or per-module subpaths (`@reverse/utils/<module>`).
 
 ## Install
 
 ```sh
-bun add @rva/utils
+bun add @reverse/utils
 ```
 
 Ships TypeScript source directly (no build step); requires Bun ≥ 1.3.14.

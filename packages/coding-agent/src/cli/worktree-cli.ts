@@ -18,10 +18,10 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as natives from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { getWorktreesDir, isEnoent } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import * as natives from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { getWorktreesDir, isEnoent } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { Settings } from "../config/settings";
 import { hasLiveIsolationOwner, ISOLATION_OWNER_FILE, readRetainedMountBackend } from "../task/isolation-ownership";
 import { formatIsolationBackend, parseIsolationBackend } from "../task/worktree";

@@ -1,6 +1,6 @@
 # Natives Architecture
 
-`@rva/natives` combines a JavaScript ESM loader with a Rust Node-API addon:
+`@reverse/natives` combines a JavaScript ESM loader with a Rust Node-API addon:
 
 1. **Package/loader layer** selects, loads, and validates the correct `.node` addon, then exposes generated named ESM exports.
 2. **Rust N-API layer** implements those exports and supplies napi-rs-generated TypeScript declarations.
@@ -30,11 +30,11 @@ The package exports five entrypoints:
 
 | Import                           | Runtime               | Types                   | Load behavior                                                                           |
 | -------------------------------- | --------------------- | ----------------------- | --------------------------------------------------------------------------------------- |
-| `@rva/natives`           | `native/index.js`     | `native/index.d.ts`     | Loads the addon immediately, then binds every generated class/function and enum object. |
-| `@rva/natives/desktop`   | `native/desktop.js`   | `native/desktop.d.ts`   | Exposes `createDesktopSession(options)` and defers addon loading until it is called.    |
-| `@rva/natives/clipboard` | `native/clipboard.js` | `native/clipboard.d.ts` | Exposes lazy `copyToClipboard` and `readImageFromClipboard` wrappers.                   |
+| `@reverse/natives`           | `native/index.js`     | `native/index.d.ts`     | Loads the addon immediately, then binds every generated class/function and enum object. |
+| `@reverse/natives/desktop`   | `native/desktop.js`   | `native/desktop.d.ts`   | Exposes `createDesktopSession(options)` and defers addon loading until it is called.    |
+| `@reverse/natives/clipboard` | `native/clipboard.js` | `native/clipboard.d.ts` | Exposes lazy `copyToClipboard` and `readImageFromClipboard` wrappers.                   |
 
-The other lazy entrypoints are `@rva/natives/path` (`native/path.js` / `path.d.ts`) and `@rva/natives/vcs` (`native/vcs.js` / `vcs.d.ts`). The path wrapper loads only for Windows path operations and returns its input unchanged elsewhere. The VCS wrapper memoizes bindings on its first native-backed operation; its error predicates and watch helper can be imported without loading the addon.
+The other lazy entrypoints are `@reverse/natives/path` (`native/path.js` / `path.d.ts`) and `@reverse/natives/vcs` (`native/vcs.js` / `vcs.d.ts`). The path wrapper loads only for Windows path operations and returns its input unchanged elsewhere. The VCS wrapper memoizes bindings on its first native-backed operation; its error predicates and watch helper can be imported without loading the addon.
 
 There is no `packages/natives/src` wrapper layer. Most root exports bind N-API values directly; `DesktopSession` passes through `desktop-adapter.js`, which adapts older capture/execute/close addons and leaves current classes unchanged. The lazy subpaths defer loading until native functionality is needed.
 
@@ -65,7 +65,7 @@ Filename fallback is:
 - baseline x64: `-baseline.node`, then unsuffixed `.node`;
 - non-x64: unsuffixed `.node` only.
 
-The published core package contains loader JS, declarations, and metadata but no `.node` files. Release publishing generates `@rva/natives-<platform>-<arch>` optional-dependency leaf packages and injects them at the same version into the core manifest. `LEAF_TARGETS` in `gen-npm-packages.ts` is the authoritative publish target list.
+The published core package contains loader JS, declarations, and metadata but no `.node` files. Release publishing generates `@reverse/natives-<platform>-<arch>` optional-dependency leaf packages and injects them at the same version into the core manifest. `LEAF_TARGETS` in `gen-npm-packages.ts` is the authoritative publish target list.
 
 ### Candidate ownership and order
 

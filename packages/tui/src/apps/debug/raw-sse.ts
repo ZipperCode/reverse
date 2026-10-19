@@ -1,4 +1,4 @@
-import type { TspScrollBy } from "@rva/wire";
+import type { TspScrollBy } from "@reverse/wire";
 import { formatKeyHint } from "../../app-keybindings";
 import type { Component } from "../../tui";
 import { matchesKey } from "../../keys";

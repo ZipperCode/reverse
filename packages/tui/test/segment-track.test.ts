@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { renderSegmentTrack, resolveSegmentPalette, type TrackSegment } from "@rva/tui/chrome/segment-track";
-import { initTheme, type ThemeColor, theme } from "@rva/tui/theme";
+import { renderSegmentTrack, resolveSegmentPalette, type TrackSegment } from "@reverse/tui/chrome/segment-track";
+import { initTheme, type ThemeColor, theme } from "@reverse/tui/theme";
 
 beforeAll(async () => {
 	await initTheme();

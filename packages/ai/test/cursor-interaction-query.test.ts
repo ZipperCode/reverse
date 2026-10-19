@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { type BlockState, handleServerMessage, type ToolCallState } from "@rva/ai/providers/cursor";
-import type { AssistantMessage } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+import { type BlockState, handleServerMessage, type ToolCallState } from "@reverse/ai/providers/cursor";
+import type { AssistantMessage } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import {
 	type AgentClientMessage,
 	AgentClientMessageSchema,
@@ -15,8 +15,8 @@ import {
 	SetupVmEnvironmentArgsSchema,
 	SwitchModeRequestQuerySchema,
 	WebSearchRequestQuerySchema,
-} from "@rva/catalog/discovery/cursor-proto";
-import { create, fromBinary } from "@rva/catalog/discovery/protobuf";
+} from "@reverse/catalog/discovery/cursor-proto";
+import { create, fromBinary } from "@reverse/catalog/discovery/protobuf";
 
 type ProtoUnknownField = { no: number; wireType: number; data: Uint8Array };
 type ProtoUnknownBag = { $unknown?: ProtoUnknownField[] };

@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import * as utils from "@rva/utils";
+import * as utils from "@reverse/utils";
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { resolveCliEntryCmd, resolveExecutablePath, resolveWorkerSpawnCmd } from "../src/subprocess/worker-client";
 

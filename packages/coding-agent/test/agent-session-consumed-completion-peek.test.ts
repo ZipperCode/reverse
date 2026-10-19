@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentTool } from "@rva/agent";
-import type { ToolResultMessage } from "@rva/ai";
-import { createMockModel, type MockHandler } from "@rva/ai/providers/mock";
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { convertToLlm } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { WaitTool } from "@rva/coding-agent/tools/wait";
-import { TempDir } from "@rva/utils";
+import { Agent, type AgentTool } from "@reverse/agent";
+import type { ToolResultMessage } from "@reverse/ai";
+import { createMockModel, type MockHandler } from "@reverse/ai/providers/mock";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { WaitTool } from "@reverse/coding-agent/tools/wait";
+import { TempDir } from "@reverse/utils";
 
 /**
  * An eval cell awaiting a subagent consumes the subagent's output after the

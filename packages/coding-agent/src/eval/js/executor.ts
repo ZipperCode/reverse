@@ -1,4 +1,4 @@
-import { DEFAULT_MAX_BYTES, type OutputArtifactError, OutputSink } from "@rva/tui/tools/streaming-output";
+import { DEFAULT_MAX_BYTES, type OutputArtifactError, OutputSink } from "@reverse/tui/tools/streaming-output";
 import type { ToolSession } from "../../tools";
 import {
 	resolveOutputMaxColumns,

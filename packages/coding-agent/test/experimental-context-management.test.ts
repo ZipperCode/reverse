@@ -1,32 +1,28 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, CompactionCancelledError, type AgentTool } from "@rva/agent";
-import type { AssistantMessage, UserMessage } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@rva/coding-agent/session/context-notes";
-import {
-	createCustomMessage,
-	convertToLlm,
-	SKILL_PROMPT_MESSAGE_TYPE,
-} from "@rva/coding-agent/session/messages";
-import type { CompactionEntry } from "@rva/coding-agent/session/session-entries";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
-import { computeNonMessageTokens } from "@rva/tui/status-line/context-usage";
-import { mnemopiBackend } from "@rva/coding-agent/mnemopi/backend";
-import type { Tool, ToolSession } from "@rva/coding-agent/tools";
-import { ContextNotesTool, NewContextTool } from "@rva/coding-agent/tools/context-notes";
-import { BUILTIN_TOOL_NAMES } from "@rva/coding-agent/tools/builtin-names";
-import { GrepTool } from "@rva/coding-agent/tools/grep";
-import { ReadTool } from "@rva/coding-agent/tools/read";
+import { Agent, CompactionCancelledError, type AgentTool } from "@reverse/agent";
+import type { AssistantMessage, UserMessage } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@reverse/coding-agent/session/context-notes";
+import { createCustomMessage, convertToLlm, SKILL_PROMPT_MESSAGE_TYPE } from "@reverse/coding-agent/session/messages";
+import type { CompactionEntry } from "@reverse/coding-agent/session/session-entries";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
+import { computeNonMessageTokens } from "@reverse/tui/status-line/context-usage";
+import { mnemopiBackend } from "@reverse/coding-agent/mnemopi/backend";
+import type { Tool, ToolSession } from "@reverse/coding-agent/tools";
+import { ContextNotesTool, NewContextTool } from "@reverse/coding-agent/tools/context-notes";
+import { BUILTIN_TOOL_NAMES } from "@reverse/coding-agent/tools/builtin-names";
+import { GrepTool } from "@reverse/coding-agent/tools/grep";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();

@@ -1,6 +1,6 @@
-import type { ImageContent } from "@rva/ai";
-import { shiftImageMarkers } from "@rva/tui/prompt/composer-attachments";
-import type { CustomEditor } from "@rva/tui/prompt/custom-editor";
+import type { ImageContent } from "@reverse/ai";
+import { shiftImageMarkers } from "@reverse/tui/prompt/composer-attachments";
+import type { CustomEditor } from "@reverse/tui/prompt/custom-editor";
 import type { TuiSlashCommandRuntime } from "../types";
 
 /** Clear only text still owned by this submission, never a newer detached draft. */

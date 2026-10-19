@@ -3,13 +3,13 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SessionHeader } from "@rva/coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import { resolveResumableSession } from "@rva/coding-agent/session/session-listing";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { stripOuterDoubleQuotes } from "@rva/coding-agent/tools/path-utils";
-import { getConfigRootDir, setAgentDir } from "@rva/utils";
+import type { SessionHeader } from "@reverse/coding-agent/session/session-entries";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { resolveResumableSession } from "@reverse/coding-agent/session/session-listing";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { stripOuterDoubleQuotes } from "@reverse/coding-agent/tools/path-utils";
+import { getConfigRootDir, setAgentDir } from "@reverse/utils";
 
 // -- helpers ----------------------------------------------------------------
 

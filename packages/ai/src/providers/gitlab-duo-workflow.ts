@@ -3,7 +3,7 @@ import * as path from "node:path";
 import {
 	discoverGitLabDuoWorkflowRuntimeNamespace,
 	type GitLabDuoWorkflowNamespaceSelection,
-} from "@rva/catalog/discovery/gitlab-duo-workflow";
+} from "@reverse/catalog/discovery/gitlab-duo-workflow";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";
 import type {

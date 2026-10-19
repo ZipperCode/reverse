@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AssistantMessage, Model } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { startMemoryStartupTask } from "@rva/coding-agent/memories";
+import type { AssistantMessage, Model } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { startMemoryStartupTask } from "@reverse/coding-agent/memories";
 import {
 	claimStage1Jobs,
 	clearMemoryData,
@@ -15,8 +15,8 @@ import {
 	openMemoryDb,
 	tryClaimGlobalPhase2Job,
 	upsertThreads,
-} from "@rva/coding-agent/memories/storage";
-import { getAgentDbPath, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/memories/storage";
+import { getAgentDbPath, TempDir } from "@reverse/utils";
 
 const GLOBAL_KIND = "memory_consolidate_global";
 const PROJECT_CWD = "/repo";

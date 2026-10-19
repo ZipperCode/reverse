@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as natives from "@rva/natives";
-import { buildDirectoryTree, buildWorkspaceTree } from "@rva/coding-agent/workspace-tree";
-import { removeWithRetries } from "@rva/utils";
+import * as natives from "@reverse/natives";
+import { buildDirectoryTree, buildWorkspaceTree } from "@reverse/coding-agent/workspace-tree";
+import { removeWithRetries } from "@reverse/utils";
 
 const tempDirs: string[] = [];
 

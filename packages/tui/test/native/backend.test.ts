@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { card, md, node } from "@rva/tui/native/describe";
-import type { NativeNode, NativeUiEvent } from "@rva/tui/native/node";
-import { nativeComponentId } from "@rva/tui/native/reconcile";
-import { settleNative } from "@rva/tui/native/settle";
-import { isNativeRendering, onNativeRenderingChange } from "@rva/tui/native/state";
-import { type Component, Container } from "@rva/tui/tui";
-import type { TspOp } from "@rva/wire";
+import { card, md, node } from "@reverse/tui/native/describe";
+import type { NativeNode, NativeUiEvent } from "@reverse/tui/native/node";
+import { nativeComponentId } from "@reverse/tui/native/reconcile";
+import { settleNative } from "@reverse/tui/native/settle";
+import { isNativeRendering, onNativeRenderingChange } from "@reverse/tui/native/state";
+import { type Component, Container } from "@reverse/tui/tui";
+import type { TspOp } from "@reverse/wire";
 import { ManualScheduler, TspHarness, TspTestTerminal } from "./tsp-harness";
 
 class Probe implements Component {

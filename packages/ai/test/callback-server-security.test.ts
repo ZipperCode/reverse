@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import { OAuthCallbackFlow } from "@rva/ai/registry/oauth/callback-server";
-import type { OAuthAuthInfo, OAuthCredentials } from "@rva/ai/registry/oauth/types";
-import { parseHTML } from "@rva/utils/dom";
+import { OAuthCallbackFlow } from "@reverse/ai/registry/oauth/callback-server";
+import type { OAuthAuthInfo, OAuthCredentials } from "@reverse/ai/registry/oauth/types";
+import { parseHTML } from "@reverse/utils/dom";
 
 class CallbackProbeFlow extends OAuthCallbackFlow {
 	async generateAuthUrl(state: string, redirectUri: string): Promise<{ url: string }> {

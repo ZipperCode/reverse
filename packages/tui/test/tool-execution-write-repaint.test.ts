@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { initTheme } from "@rva/tui/theme";
-import type { TUI } from "@rva/tui";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { initTheme } from "@reverse/tui/theme";
+import type { TUI } from "@reverse/tui";
 
 function writeArgs(lineCount: number) {
 	return {

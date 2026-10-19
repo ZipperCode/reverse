@@ -1,22 +1,16 @@
-import { type } from "@rva/omptype";
-import type {
-	AgentTool,
-	AgentToolContext,
-	AgentToolResult,
-	AgentToolUpdateCallback,
-	ToolTier,
-} from "@rva/agent";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@reverse/agent";
 
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 
 import goalDescription from "../../prompts/tools/goal.md" with { type: "text" };
 
 import type { ToolSession } from "../../tools";
 
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 import { completionBudgetReport, remainingTokens } from "../runtime";
-import type { Goal, GoalToolDetails } from "@rva/tui/tools/goal";
+import type { Goal, GoalToolDetails } from "@reverse/tui/tools/goal";
 
 const goalSchema = type({
 	op: type("'create' | 'get' | 'complete' | 'resume' | 'drop'").describe("goal operation"),

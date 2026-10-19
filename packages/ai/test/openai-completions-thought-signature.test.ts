@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { FetchImpl, Message, ModelSpec, ToolCall } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { FetchImpl, Message, ModelSpec, ToolCall } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const model = buildModel({
 	id: "gemini-3.7-flash",

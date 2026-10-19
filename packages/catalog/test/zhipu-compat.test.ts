@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import { zhipuCodingPlanModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import { zhipuCodingPlanModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@reverse/catalog/types";
 
 /**
  * Resolver-branch coverage for the `isZhipu` path added by the

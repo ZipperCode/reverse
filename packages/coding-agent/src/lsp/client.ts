@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { isEnoent, logger, postmortem, ptree, stableStringifyJson, untilAborted } from "@rva/utils";
+import { isEnoent, logger, postmortem, ptree, stableStringifyJson, untilAborted } from "@reverse/utils";
 import { encodeMessageFrame, MessageFramer } from "../jsonrpc/message-framing";
 import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
 import { getConfig } from "./config";

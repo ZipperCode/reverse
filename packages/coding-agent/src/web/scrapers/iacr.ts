@@ -29,7 +29,7 @@ export const handleIacr: SpecialHandler = async (
 
 		if (!result.ok) return null;
 
-		const { parseHTML } = await import("@rva/utils/dom");
+		const { parseHTML } = await import("@reverse/utils/dom");
 		const doc = parseHTML(result.content).document;
 
 		// Extract metadata from the page

@@ -7,7 +7,7 @@
  * landing on an unauthenticated provider), and the injectable `streamSimple`
  * signature tests substitute for a synthetic stream.
  */
-import type { ResolvedThinkingLevel } from "@rva/agent";
+import type { ResolvedThinkingLevel } from "@reverse/agent";
 import type {
 	Api,
 	ApiKeyResolver,
@@ -15,16 +15,16 @@ import type {
 	Context,
 	Model,
 	SimpleStreamOptions,
-} from "@rva/ai";
-import { buildModelProviderPriorityRank } from "@rva/catalog/identity";
-import { getProjectDir, logger } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+} from "@reverse/ai";
+import { buildModelProviderPriorityRank } from "@reverse/catalog/identity";
+import { getProjectDir, logger } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import type { ApiKeyResolverModel } from "../config/api-key-resolver";
 import { ModelRegistry } from "../config/model-registry";
 import { formatModelString, getModelMatchPreferences, resolveCliModel } from "../config/model-resolver";
 import { Settings } from "../config/settings";
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";
-import { concreteThinkingLevel, resolveThinkingLevelForModel } from "@rva/tui/thinking";
+import { concreteThinkingLevel, resolveThinkingLevelForModel } from "@reverse/tui/thinking";
 
 /** Injection point for the provider call; tests pass a synthetic event stream. */
 export type StreamSimpleFn = (

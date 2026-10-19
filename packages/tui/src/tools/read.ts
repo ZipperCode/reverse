@@ -1,9 +1,9 @@
-import type { SummaryResult } from "@rva/natives";
+import type { SummaryResult } from "@reverse/natives";
 import { formatNumberedLine } from "./hashline-format";
 import { LINE_RANGE_CHUNK_SOURCE, parseLineRanges } from "./line-ranges";
 import * as os from "node:os";
 import * as path from "node:path";
-import { parseArchivePathCandidates } from "@rva/utils/ar";
+import { parseArchivePathCandidates } from "@reverse/utils/ar";
 import type { Component } from "../tui";
 import { Text } from "../components/text";
 import type {

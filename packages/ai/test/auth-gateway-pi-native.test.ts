@@ -2,19 +2,19 @@ import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCustomApis } from "@rva/ai/api-registry";
-import { startAuthGateway } from "@rva/ai/auth-gateway";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
-import { encodeStream, formatError, parseRequest } from "@rva/ai/providers/pi-native-server";
+import { clearCustomApis } from "@reverse/ai/api-registry";
+import { startAuthGateway } from "@reverse/ai/auth-gateway";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import { encodeStream, formatError, parseRequest } from "@reverse/ai/providers/pi-native-server";
 import type {
 	AssistantMessage,
 	AssistantMessageEvent,
 	AssistantMessageEventStream,
 	Context,
 	Usage,
-} from "@rva/ai/types";
-import { Effort } from "@rva/catalog/effort";
+} from "@reverse/ai/types";
+import { Effort } from "@reverse/catalog/effort";
 
 function makeEventStream(events: AssistantMessageEvent[], final: AssistantMessage): AssistantMessageEventStream {
 	async function* iter() {

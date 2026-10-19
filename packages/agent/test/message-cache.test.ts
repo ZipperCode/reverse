@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { type AgentMessage, Tokenizer } from "@rva/agent";
-import type { SessionMessageEntry } from "@rva/agent/compaction";
+import { type AgentMessage, Tokenizer } from "@reverse/agent";
+import type { SessionMessageEntry } from "@reverse/agent/compaction";
 import {
 	applyShakeRegion,
 	collectShakeRegions,
@@ -8,8 +8,8 @@ import {
 	invalidateMessageCache,
 	isEstimateCacheable,
 	pruneToolOutputs,
-} from "@rva/agent/compaction";
-import type { AssistantMessage, ToolResultMessage, Usage } from "@rva/ai";
+} from "@reverse/agent/compaction";
+import type { AssistantMessage, ToolResultMessage, Usage } from "@reverse/ai";
 
 const tokenizer = new Tokenizer();
 

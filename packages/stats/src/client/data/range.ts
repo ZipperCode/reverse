@@ -4,7 +4,7 @@
  * formatting, and the contiguous bucket axis charts plot against.
  */
 
-import { format } from "@rva/utils/dates";
+import { format } from "@reverse/utils/dates";
 import type { TimeRange } from "../types";
 
 const MINUTE_MS = 60 * 1000;

@@ -3,13 +3,13 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SessionHeader } from "@rva/coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { writeTerminalBreadcrumb } from "@rva/coding-agent/session/session-paths";
-import { FileSessionStorage } from "@rva/coding-agent/session/session-storage";
-import { getTerminalId } from "@rva/tui";
-import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@rva/utils";
+import type { SessionHeader } from "@reverse/coding-agent/session/session-entries";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { writeTerminalBreadcrumb } from "@reverse/coding-agent/session/session-paths";
+import { FileSessionStorage } from "@reverse/coding-agent/session/session-storage";
+import { getTerminalId } from "@reverse/tui";
+import { getConfigRootDir, getTerminalSessionsDir, setAgentDir } from "@reverse/utils";
 
 import { makeAssistantMessage } from "./helpers";
 

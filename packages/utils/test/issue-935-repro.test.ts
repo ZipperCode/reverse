@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { resolveEquivalentPath } from "@rva/utils/dirs";
+import { resolveEquivalentPath } from "@reverse/utils/dirs";
 
 describe("issue #935 path equivalence", () => {
 	afterEach(() => {

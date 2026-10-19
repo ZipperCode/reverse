@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
-import { clearRenderCache, Markdown, type MarkdownTheme } from "@rva/tui/components/markdown";
-import { getMarkdownTheme, getMarkdownThemeWithLinkTargets, theme } from "@rva/tui/theme";
-import { TERMINAL } from "@rva/tui/terminal-capabilities";
-import { Lexer } from "@rva/utils/marked";
+import { clearRenderCache, Markdown, type MarkdownTheme } from "@reverse/tui/components/markdown";
+import { getMarkdownTheme, getMarkdownThemeWithLinkTargets, theme } from "@reverse/tui/theme";
+import { TERMINAL } from "@reverse/tui/terminal-capabilities";
+import { Lexer } from "@reverse/utils/marked";
 import { defaultMarkdownTheme } from "./test-themes.js";
 
 // E2 contract: the streaming incremental lexer (lex(prefix) ++ lex(tail), reusing

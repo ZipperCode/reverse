@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, test, vi } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext, RenderSessionContextOptions } from "@rva/coding-agent/modes/types";
-import { UiHelpers } from "@rva/coding-agent/modes/utils/ui-helpers";
-import { buildSessionContext, type SessionContext } from "@rva/coding-agent/session/session-context";
-import { type Component, Container } from "@rva/tui";
+import type { AgentMessage } from "@reverse/agent";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext, RenderSessionContextOptions } from "@reverse/coding-agent/modes/types";
+import { UiHelpers } from "@reverse/coding-agent/modes/utils/ui-helpers";
+import { buildSessionContext, type SessionContext } from "@reverse/coding-agent/session/session-context";
+import { type Component, Container } from "@reverse/tui";
 
 function renderLastLine(container: Container, width = 120): string {
 	const last = container.children[container.children.length - 1];

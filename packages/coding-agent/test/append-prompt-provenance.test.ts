@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { composeAppendPrompt } from "@rva/coding-agent/system-prompt";
+import { composeAppendPrompt } from "@reverse/coding-agent/system-prompt";
 
 /**
  * The generated blocks that precede a user's append prompt end with the MCP

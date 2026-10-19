@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { serializeConversation, serializeConversationForSummary } from "@rva/agent/compaction";
-import type { AssistantMessage, Message, ToolResultMessage, Usage } from "@rva/ai";
+import { serializeConversation, serializeConversationForSummary } from "@reverse/agent/compaction";
+import type { AssistantMessage, Message, ToolResultMessage, Usage } from "@reverse/ai";
 
 const ZERO_USAGE: Usage = {
 	input: 0,

@@ -1,4 +1,4 @@
-import { CLINEPASS_API_BASE_URL, clinePassClientHeaders } from "@rva/catalog/wire/cline-pass";
+import { CLINEPASS_API_BASE_URL, clinePassClientHeaders } from "@reverse/catalog/wire/cline-pass";
 import { ProviderHttpError } from "../error";
 import type { UsageFetchContext, UsageFetchParams, UsageLimit, UsageProvider, UsageReport } from "../usage";
 import { isRecord } from "../utils";

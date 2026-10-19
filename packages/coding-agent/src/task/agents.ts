@@ -3,8 +3,8 @@
  *
  * Agents are embedded at build time via Bun's import with { type: "text" }.
  */
-import { Effort } from "@rva/ai";
-import { parseFrontmatter, prompt } from "@rva/utils";
+import { Effort } from "@reverse/ai";
+import { parseFrontmatter, prompt } from "@reverse/utils";
 import { parseAgentFields } from "../discovery/helpers";
 // Embed agent markdown files at build time
 import agentFrontmatterTemplate from "../prompts/agents/frontmatter.md" with { type: "text" };
@@ -12,9 +12,9 @@ import reviewerMd from "../prompts/agents/reviewer.md" with { type: "text" };
 import scoutMd from "../prompts/agents/scout.md" with { type: "text" };
 import securityReviewerMd from "../prompts/agents/security-reviewer.md" with { type: "text" };
 import taskMd from "../prompts/agents/task.md" with { type: "text" };
-import { AUTO_THINKING } from "@rva/tui/thinking";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
 
-import type { AgentSource } from "@rva/tui/tools/task";
+import type { AgentSource } from "@reverse/tui/tools/task";
 import type { AgentDefinition } from "./types";
 
 interface AgentFrontmatter {

@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { Container, Text } from "@rva/tui";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { ReportPanel } from "@rva/tui/overlays/report-panel";
-import { editorKey } from "@rva/tui/chrome/keybinding-hints";
-import { COMPOSER_DEFAULTS, Composer } from "@rva/tui/prompt/composer";
-import { initTheme } from "@rva/tui/theme";
+import { Container, Text } from "@reverse/tui";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { ReportPanel } from "@reverse/tui/overlays/report-panel";
+import { editorKey } from "@reverse/tui/chrome/keybinding-hints";
+import { COMPOSER_DEFAULTS, Composer } from "@reverse/tui/prompt/composer";
+import { initTheme } from "@reverse/tui/theme";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";

@@ -2,8 +2,8 @@ import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Process, ProcessStatus } from "@rva/natives";
-import { createLinuxSubreaperScript, exec, NonZeroExitError, spawn, TimeoutError } from "@rva/utils/ptree";
+import { Process, ProcessStatus } from "@reverse/natives";
+import { createLinuxSubreaperScript, exec, NonZeroExitError, spawn, TimeoutError } from "@reverse/utils/ptree";
 
 async function supportsLinuxMountNamespaces(): Promise<boolean> {
 	if (process.platform !== "linux") return false;

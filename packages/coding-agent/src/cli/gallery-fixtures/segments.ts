@@ -1,8 +1,8 @@
-import { truncateToWidth } from "@rva/tui";
-import type { StatusLineSegmentId } from "@rva/tui/status-line/schema";
-import { ALL_SEGMENT_IDS, renderSegment } from "@rva/tui/status-line/segments";
-import type { SegmentContext } from "@rva/tui/status-line/types";
-import { theme } from "@rva/tui/theme";
+import { truncateToWidth } from "@reverse/tui";
+import type { StatusLineSegmentId } from "@reverse/tui/status-line/schema";
+import { ALL_SEGMENT_IDS, renderSegment } from "@reverse/tui/status-line/segments";
+import type { SegmentContext } from "@reverse/tui/status-line/types";
+import { theme } from "@reverse/tui/theme";
 import type { GallerySessionOptions } from "./preview-session";
 import { createGallerySession, GALLERY_CONTEXT_WINDOW } from "./preview-session";
 import type { GalleryPreviewEntry } from "./types";

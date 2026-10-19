@@ -11,7 +11,7 @@ Primary implementation files:
 - `packages/coding-agent/src/config/model-settings.ts` — model selection settings (`modelRoles`, `enabledModels`, `enabledProviders`/`disabledProviders`, `modelProviderOrder`, `cycleOrder`)
 - `packages/coding-agent/src/session/settings.ts` — provider transport preferences (`providers.*`)
 - `packages/coding-agent/src/config/models-config.ts` and `models-config-schema-bundle.ts` — custom provider/model validation
-- `packages/coding-agent/src/session/auth-storage.ts` — re-exports `AuthStorage` from `@rva/ai`; credential precedence is implemented in `packages/ai/src/auth/cascade.ts`
+- `packages/coding-agent/src/session/auth-storage.ts` — re-exports `AuthStorage` from `@reverse/ai`; credential precedence is implemented in `packages/ai/src/auth/cascade.ts`
 - `packages/catalog/src/compat/resolve.ts` and `compat/rules/` — compatibility and model policy resolution
 - `packages/catalog/src/models.ts` and `packages/catalog/src/types.ts` — built-in providers/models and public model types
 
@@ -298,7 +298,7 @@ Successful command outputs are cached for the process lifetime, and concurrent r
 ModelRegistry composition order:
 
 1. Load `models.yml` / `models.yaml` to establish provider overrides, custom models, model overrides, and discovery configuration.
-2. Load built-in models from `@rva/catalog` (`getBundledProviders` / `getBundledModels`), applying provider overrides and context policies.
+2. Load built-in models from `@reverse/catalog` (`getBundledProviders` / `getBundledModels`), applying provider overrides and context policies.
 3. Merge cached and runtime-discovered rows. Authoritative provider catalogs can replace their bundled chat roster.
 4. Merge configured custom `models`, then extension-registered models:
    - a matching `provider + id` replaces transport metadata and patches defined model fields

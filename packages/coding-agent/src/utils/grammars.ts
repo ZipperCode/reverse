@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type WasmGrammarInfo, type WasmGrammarQuery, wasmGrammarFor } from "@rva/natives";
-import { getNativeGrammarsDir, logger, withFileLock } from "@rva/utils";
+import { type WasmGrammarInfo, type WasmGrammarQuery, wasmGrammarFor } from "@reverse/natives";
+import { getNativeGrammarsDir, logger, withFileLock } from "@reverse/utils";
 import { withDownload } from "../downloads/activity";
 import { downloadFile } from "./tools-manager";
 

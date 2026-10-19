@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, TUI } from "@rva/tui";
-import type { Terminal, TerminalAppearance } from "@rva/tui/terminal";
+import { type Component, TUI } from "@reverse/tui";
+import type { Terminal, TerminalAppearance } from "@reverse/tui/terminal";
 
 class CaptureTerminal implements Terminal {
 	writes: string[] = [];

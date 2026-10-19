@@ -3,9 +3,9 @@ import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { isOfficialAnthropicApiUrl } from "@rva/catalog/compat/anthropic";
-import type { Effort } from "@rva/catalog/effort";
-import { isVertexExpressOpenAIUrl, isVertexRawPredictUrl, resolveVertexEndpointHost } from "@rva/catalog/hosts";
+import { isOfficialAnthropicApiUrl } from "@reverse/catalog/compat/anthropic";
+import type { Effort } from "@reverse/catalog/effort";
+import { isVertexExpressOpenAIUrl, isVertexRawPredictUrl, resolveVertexEndpointHost } from "@reverse/catalog/hosts";
 import {
 	defaultSupportedEffort,
 	mapEffortToAnthropicAdaptiveEffort,
@@ -13,9 +13,9 @@ import {
 	requireSupportedEffort,
 	resolveWireModelId,
 	withoutUnverifiedThinking,
-} from "@rva/catalog/model-thinking";
-import { isOfficialCodexApiUrl } from "@rva/catalog/wire/codex";
-import { $env, getProviderInFlightRoot, isEnoent, logger, untilAborted } from "@rva/utils";
+} from "@reverse/catalog/model-thinking";
+import { isOfficialCodexApiUrl } from "@reverse/catalog/wire/codex";
+import { $env, getProviderInFlightRoot, isEnoent, logger, untilAborted } from "@reverse/utils";
 import { getCustomApi } from "./api-registry";
 import { createAuthRetryKeyState, isApiKeyResolver, resolvedApiKeyBearer, resolveNextAuthRetryKey } from "./auth-retry";
 import type { OAuthRequestIdentity } from "./auth/types";

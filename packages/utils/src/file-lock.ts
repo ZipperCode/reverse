@@ -6,7 +6,7 @@
  */
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { FileLock as NativeFileLock } from "@rva/natives";
+import { FileLock as NativeFileLock } from "@reverse/natives";
 
 /** Controls bounded waiting when an advisory file lock is contended. */
 export interface FileLockOptions {

@@ -4,17 +4,17 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions";
-import type { SecretObfuscator } from "@rva/coding-agent/secrets/obfuscator";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { createTools, type ToolSession } from "@rva/coding-agent/tools";
-import { Snowflake } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions";
+import type { SecretObfuscator } from "@reverse/coding-agent/secrets/obfuscator";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { createTools, type ToolSession } from "@reverse/coding-agent/tools";
+import { Snowflake } from "@reverse/utils";
 import { e2eApiKey } from "../../ai/test/oauth";
 
 export { e2eApiKey };

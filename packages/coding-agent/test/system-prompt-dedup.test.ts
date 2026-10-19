@@ -7,9 +7,9 @@ import {
 	loadProjectContextFiles,
 	loadSystemPromptFiles,
 	type SystemPromptToolMetadata,
-} from "@rva/coding-agent/system-prompt";
+} from "@reverse/coding-agent/system-prompt";
 import { cleanupTempHome } from "./helpers/temp-home-cleanup";
-import { CONFIG_DIR_NAME } from "@rva/utils/dirs";
+import { CONFIG_DIR_NAME } from "@reverse/utils/dirs";
 
 function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -7,7 +7,7 @@
  * (`src/utils/transcript.ts`, present since at least 1.0.2) and re-exports it
  * from the package root (`normalizeContext`, `getCurrentSystemMessage`,
  * `getCurrentTools`, `resolveTranscriptTools`, …). OMP forked before that
- * module existed and has no equivalent anywhere in `@rva/ai`, so the
+ * module existed and has no equivalent anywhere in `@reverse/ai`, so the
  * star re-export in `legacy-pi-ai-shim.ts` cannot satisfy these imports and
  * legacy extensions fail Bun's static named-export check (observed with
  * `pi-optchat` importing `getCurrentSystemMessage`).

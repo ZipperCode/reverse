@@ -2,9 +2,9 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { RpcClient, RpcCommandError } from "@rva/coding-agent/modes/rpc/rpc-client";
-import type { BtwHistoryRecord } from "@rva/coding-agent/session/btw-history";
-import { isRecord, readJsonl, removeWithRetries } from "@rva/utils";
+import { RpcClient, RpcCommandError } from "@reverse/coding-agent/modes/rpc/rpc-client";
+import type { BtwHistoryRecord } from "@reverse/coding-agent/session/btw-history";
+import { isRecord, readJsonl, removeWithRetries } from "@reverse/utils";
 
 /** Settle a request before `expect` sees it (see rpc-goal.test.ts). */
 async function rejectionOf(request: Promise<unknown>): Promise<Error> {

@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { RawSseDebugBuffer } from "@rva/tui/apps/debug/raw-sse-buffer";
-import { createReportBundle } from "@rva/coding-agent/debug/report-bundle";
-import { getConfigRootDir, removeWithRetries, setAgentDir } from "@rva/utils";
+import type { Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { RawSseDebugBuffer } from "@reverse/tui/apps/debug/raw-sse-buffer";
+import { createReportBundle } from "@reverse/coding-agent/debug/report-bundle";
+import { getConfigRootDir, removeWithRetries, setAgentDir } from "@reverse/utils";
 
 const model: Model<"anthropic-messages"> = buildModel({
 	id: "claude-test",

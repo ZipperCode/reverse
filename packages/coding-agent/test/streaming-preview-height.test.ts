@@ -2,14 +2,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@rva/agent";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { theme as activeTheme, initTheme } from "@rva/tui/theme";
-import { previewWindowRows } from "@rva/tui/render/render-utils";
-import { editDiffString } from "@rva/natives";
-import { TUI, visibleWidth } from "@rva/tui";
-import { removeWithRetries } from "@rva/utils";
+import type { AgentTool } from "@reverse/agent";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { theme as activeTheme, initTheme } from "@reverse/tui/theme";
+import { previewWindowRows } from "@reverse/tui/render/render-utils";
+import { editDiffString } from "@reverse/natives";
+import { TUI, visibleWidth } from "@reverse/tui";
+import { removeWithRetries } from "@reverse/utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { withoutTerminalMultiplexer } from "../../tui/test/helpers/terminal-multiplexer";
 

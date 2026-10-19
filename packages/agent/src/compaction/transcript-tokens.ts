@@ -18,7 +18,7 @@
  * - `hasContextTokenUsage(usage)`: the report must carry usable context numbers.
  */
 
-import type { AssistantMessage, Message } from "@rva/ai";
+import type { AssistantMessage, Message } from "@reverse/ai";
 import type { MessageCountOptions, Tokenizer } from "../tokenizer";
 import type { AgentMessage } from "../types";
 import { calculateContextTokens, hasContextTokenUsage } from "./compaction";

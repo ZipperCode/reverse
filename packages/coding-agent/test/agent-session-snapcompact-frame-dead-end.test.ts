@@ -1,21 +1,21 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent, RESCUE_SHAKE_CONFIG } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import type { Model } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { loadExtensions } from "@rva/coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@rva/coding-agent/extensibility/extensions/runner";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import type { CompactionEntry } from "@rva/coding-agent/session/session-entries";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { computeNonMessageTokens } from "@rva/tui/status-line/context-usage";
-import { getProjectAgentDir, TempDir } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+import { Agent, RESCUE_SHAKE_CONFIG } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import type { Model } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { loadExtensions } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import type { CompactionEntry } from "@reverse/coding-agent/session/session-entries";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { computeNonMessageTokens } from "@reverse/tui/status-line/context-usage";
+import { getProjectAgentDir, TempDir } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 
 /**
  * Regression test for the snapcompact frame dead-end.

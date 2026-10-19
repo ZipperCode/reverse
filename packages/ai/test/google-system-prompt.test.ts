@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { renderDemotedThinking } from "@rva/ai/dialect";
-import { streamGoogle } from "@rva/ai/providers/google";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { renderDemotedThinking } from "@reverse/ai/dialect";
+import { streamGoogle } from "@reverse/ai/providers/google";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const model: Model<"google-generative-ai"> = buildModel({
 	id: "gemini-3-pro-preview",

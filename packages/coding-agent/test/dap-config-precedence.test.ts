@@ -2,8 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAdapterConfigs } from "@rva/coding-agent/dap/config";
-import { CONFIG_DIR_NAME } from "@rva/utils/dirs";
+import { getAdapterConfigs } from "@reverse/coding-agent/dap/config";
+import { CONFIG_DIR_NAME } from "@reverse/utils/dirs";
 
 const ADAPTER = "omp-precedence-probe";
 

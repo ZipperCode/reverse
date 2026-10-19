@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@rva/agent";
-import { createCustomMessage } from "@rva/agent/compaction/messages";
-import type { ImageContent, MessageAttribution, TextContent } from "@rva/ai";
+import type { AgentMessage } from "@reverse/agent";
+import { createCustomMessage } from "@reverse/agent/compaction/messages";
+import type { ImageContent, MessageAttribution, TextContent } from "@reverse/ai";
 import {
 	type CustomMessage,
 	type CustomMessageContent,

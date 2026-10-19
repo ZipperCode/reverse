@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readRpcInputFrames } from "@rva/coding-agent/modes/rpc/rpc-input";
+import { readRpcInputFrames } from "@reverse/coding-agent/modes/rpc/rpc-input";
 
 /**
  * Regression test for issue #5194: a non-JSON stdin line crashed the whole RPC

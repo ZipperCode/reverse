@@ -1,5 +1,5 @@
-import type { TSchema } from "@rva/ai";
-import { $env, isRecord, logger } from "@rva/utils";
+import type { TSchema } from "@reverse/ai";
+import { $env, isRecord, logger } from "@reverse/utils";
 import type { CustomTool, CustomToolResult } from "../extensibility/custom-tools/types";
 import { type CallMcpOptions, callMCP } from "../mcp/json-rpc";
 import type { ExaSearchResponse, MCPTool, MCPToolWrapperConfig } from "./types";

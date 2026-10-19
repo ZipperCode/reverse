@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { executePythonWithKernel } from "@rva/coding-agent/eval/py/executor";
-import { DEFAULT_MAX_BYTES } from "@rva/tui/tools/streaming-output";
+import { executePythonWithKernel } from "@reverse/coding-agent/eval/py/executor";
+import { DEFAULT_MAX_BYTES } from "@reverse/tui/tools/streaming-output";
 import { FakeKernel } from "./helpers";
 
 describe("executePythonWithKernel streaming", () => {

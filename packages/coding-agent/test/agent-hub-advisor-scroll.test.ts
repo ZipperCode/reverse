@@ -1,4 +1,4 @@
-import { agentTranscriptSource } from "@rva/coding-agent/modes/agent-hub-runtime";
+import { agentTranscriptSource } from "@reverse/coding-agent/modes/agent-hub-runtime";
 /**
  * Regression: the fullscreen transcript viewer must align the header, body, and
  * footer on a single shared gutter. The transcript components carry their own
@@ -11,12 +11,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { AgentHubRemote } from "@rva/tui/overlays/agent-hub";
-import { AgentTranscriptViewer } from "@rva/tui/overlays/agent-transcript-viewer";
-import { initTheme } from "@rva/tui/theme";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { CURRENT_SESSION_VERSION } from "@rva/coding-agent/session/session-entries";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { AgentHubRemote } from "@reverse/tui/overlays/agent-hub";
+import { AgentTranscriptViewer } from "@reverse/tui/overlays/agent-transcript-viewer";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { CURRENT_SESSION_VERSION } from "@reverse/coding-agent/session/session-entries";
 import {
 	getKittyGraphics,
 	ImageBudget,
@@ -25,10 +25,10 @@ import {
 	setTerminalImageProtocol,
 	TERMINAL,
 	type TUI,
-} from "@rva/tui";
-import { removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/tui";
+import { removeSyncWithRetries } from "@reverse/utils";
 
-import { cfgTerminalShowImages } from "@rva/coding-agent/modes/settings";
+import { cfgTerminalShowImages } from "@reverse/coding-agent/modes/settings";
 
 const TS = new Date().toISOString();
 

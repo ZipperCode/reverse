@@ -1,8 +1,8 @@
 /**
  * JSON tree rendering utilities shared across tool renderers.
  */
-import { INTENT_FIELD, type TspSpan, type TspTreeNode } from "@rva/wire";
-import { sanitizeText } from "@rva/utils";
+import { INTENT_FIELD, type TspSpan, type TspTreeNode } from "@reverse/wire";
+import { sanitizeText } from "@reverse/utils";
 import { TreeView, treeRowPrefix } from "../components/tree-view";
 import { truncateToWidth } from "../render/render-utils";
 import type { Theme, ThemeColor } from "../theme/theme";

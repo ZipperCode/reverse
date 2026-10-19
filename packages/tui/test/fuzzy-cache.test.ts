@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { FuzzyQuery, FuzzyText, fuzzyMatch, fuzzyRank, resetFuzzyIndexCache } from "@rva/tui/fuzzy";
+import { FuzzyQuery, FuzzyText, fuzzyMatch, fuzzyRank, resetFuzzyIndexCache } from "@reverse/tui/fuzzy";
 
 describe("fuzzy index cache", () => {
 	it("produces identical ordering whether the cache is cold or warm", () => {

@@ -2,14 +2,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
-import { getEditStore } from "@rva/coding-agent/edit/store";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
+import { getEditStore } from "@reverse/coding-agent/edit/store";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { removeWithRetries } from "@reverse/utils";
 
-import { cfgEditMode } from "@rva/coding-agent/edit/settings";
+import { cfgEditMode } from "@reverse/coding-agent/edit/settings";
 
 function createSession(cwd: string): ToolSession {
 	return {

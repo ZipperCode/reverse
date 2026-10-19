@@ -1,5 +1,5 @@
 /**
- * Re-exports from @rva/ai.
+ * Re-exports from @reverse/ai.
  * All credential storage types and the AuthStorage class now live in the ai package.
  */
 
@@ -19,6 +19,6 @@ export type {
 	ResetCreditRedeemOutcome,
 	ResetCreditTarget,
 	StoredAuthCredential,
-} from "@rva/ai";
-export { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@rva/ai";
-export type { SnapshotResponse } from "@rva/ai/auth-broker/types";
+} from "@reverse/ai";
+export { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@reverse/ai";
+export type { SnapshotResponse } from "@reverse/ai/auth-broker/types";

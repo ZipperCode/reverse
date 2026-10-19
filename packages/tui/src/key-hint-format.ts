@@ -2,7 +2,7 @@
  * Key-hint formatting, kept free of the native addon: it imports only types
  * plus the theme symbol mirror, so addon-free CLI paths (`omp --version`,
  * help text in cli/command-help.ts) can format keys without loading
- * `@rva/natives` through the keybindings registry.
+ * `@reverse/natives` through the keybindings registry.
  */
 import type { KeyId } from "./keybindings";
 import type { ModifierName } from "./keys";

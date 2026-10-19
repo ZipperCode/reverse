@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { streamBedrock } from "@rva/ai/providers/amazon-bedrock";
-import { crc32 } from "@rva/ai/providers/aws-eventstream";
-import { streamSimple } from "@rva/ai/stream";
-import type { Context, FetchImpl, Model } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
+import { crc32 } from "@reverse/ai/providers/aws-eventstream";
+import { streamSimple } from "@reverse/ai/stream";
+import type { Context, FetchImpl, Model } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 interface GuardrailPayload {
 	guardrailConfig?: {

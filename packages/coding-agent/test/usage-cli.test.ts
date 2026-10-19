@@ -8,9 +8,9 @@ import {
 	SqliteAuthCredentialStore,
 	type UsageReport,
 	type UsageResetCredit,
-} from "@rva/ai";
-import { AuthBrokerClient, RemoteAuthCredentialStore, startAuthBroker } from "@rva/ai/auth-broker";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir, withFileLock } from "@rva/utils";
+} from "@reverse/ai";
+import { AuthBrokerClient, RemoteAuthCredentialStore, startAuthBroker } from "@reverse/ai/auth-broker";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir, withFileLock } from "@reverse/utils";
 import {
 	buildRedactionMap,
 	collectHistoryIdentityStrings,
@@ -20,16 +20,16 @@ import {
 	runUsageCommand,
 	type UsagePolicyDiagnosticsOptions,
 	type UsageResetExpiryOptions,
-} from "@rva/coding-agent/cli/usage-cli";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as sdkModule from "@rva/coding-agent/sdk";
-import { resetAccountLockKey } from "@rva/coding-agent/session/codex-auto-reset";
-import { formatResetExpiryNotice } from "@rva/coding-agent/session/reset-expiry";
-import { resetLockPath } from "@rva/coding-agent/session/reset-fence";
+} from "@reverse/coding-agent/cli/usage-cli";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as sdkModule from "@reverse/coding-agent/sdk";
+import { resetAccountLockKey } from "@reverse/coding-agent/session/codex-auto-reset";
+import { formatResetExpiryNotice } from "@reverse/coding-agent/session/reset-expiry";
+import { resetLockPath } from "@reverse/coding-agent/session/reset-fence";
 import {
 	collectUnreportedAccounts,
 	type UsageAccountIdentity,
-} from "@rva/coding-agent/slash-commands/helpers/usage-accounts";
+} from "@reverse/coding-agent/slash-commands/helpers/usage-accounts";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const HOUR = 3_600_000;

@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import { type FactoryDroidGeminiOptions, streamFactoryDroidGemini } from "../src/providers/factory-droid/gemini";
 import * as AIError from "../src/error";
 import { SKIP_THOUGHT_SIGNATURE } from "../src/providers/google-shared";

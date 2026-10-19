@@ -10,7 +10,7 @@ import {
 	type AgentToolUpdateCallback,
 	isNonBlankContext,
 	joinAdditionalContext,
-} from "@rva/agent";
+} from "@reverse/agent";
 import type {
 	AssistantMessage,
 	CredentialDisabledEvent,
@@ -18,22 +18,22 @@ import type {
 	Model,
 	ProviderResponseMetadata,
 	TextContent,
-} from "@rva/ai";
+} from "@reverse/ai";
 import {
 	clearContextHistoryIndex,
 	getContextHistoryIndex,
 	markPerCallContextMessage,
 	setContextHistoryIndex,
-} from "@rva/ai/utils/block-symbols";
-import type { KeyId } from "@rva/tui";
-import { logger } from "@rva/utils";
-import { refreshShellConfigCache } from "@rva/utils/procmgr";
+} from "@reverse/ai/utils/block-symbols";
+import type { KeyId } from "@reverse/tui";
+import { logger } from "@reverse/utils";
+import { refreshShellConfigCache } from "@reverse/utils/procmgr";
 import { MAIN_AGENT_RULE_NAME } from "../../capability/rule";
 import type { ModelRegistry } from "../../config/model-registry";
 import { type Settings, withActiveSettings } from "../../config/settings";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
 import type { MemoryRuntimeContext } from "../../memory-backend";
-import { type Theme, theme } from "@rva/tui/theme";
+import { type Theme, theme } from "@reverse/tui/theme";
 import type { AsyncJobSnapshot, SendUserMessageOptions } from "../../session/agent-session";
 import { MAIN_AGENT_ID } from "../../registry/agent-registry";
 import type { SessionManager } from "../../session/session-manager";
@@ -43,7 +43,7 @@ import { accumulateToolCallResult, buildAggregatedToolCallResult } from "../shar
 import { ManagedTimers } from "./managed-timers";
 import { createExtensionModelQuery } from "./model-api";
 import { trackUserWaits, type UserWaitTracker } from "./user-wait";
-import type { ComposerShapeDefinition } from "@rva/tui/overlays/composer-shape-registry";
+import type { ComposerShapeDefinition } from "@reverse/tui/overlays/composer-shape-registry";
 import type {
 	AfterProviderResponseEvent,
 	AssistantMessageRewriteEvent,

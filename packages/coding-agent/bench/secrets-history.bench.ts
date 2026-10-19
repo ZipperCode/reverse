@@ -6,7 +6,7 @@
  *
  * Run: bun packages/coding-agent/bench/secrets-history.bench.ts [messages...]
  */
-import type { Message } from "@rva/ai";
+import type { Message } from "@reverse/ai";
 import { builtinCredentialSecretEntries } from "../src/secrets";
 import { obfuscateMessages, obfuscateProviderContext } from "../src/secrets/message-transform";
 import { type SecretEntry, SecretObfuscator } from "../src/secrets/obfuscator";

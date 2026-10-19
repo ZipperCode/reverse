@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
-import { planRequirementFor, quotaTierFor } from "@rva/catalog/compat/behavior";
-import { toNumber } from "@rva/catalog/utils";
-import { slugify, USER_AGENT } from "@rva/utils";
+import { planRequirementFor, quotaTierFor } from "@reverse/catalog/compat/behavior";
+import { toNumber } from "@reverse/catalog/utils";
+import { slugify, USER_AGENT } from "@reverse/utils";
 import { ProviderHttpError } from "../error";
 import type {
 	CredentialRankingContext,

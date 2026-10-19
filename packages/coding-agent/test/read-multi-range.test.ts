@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
-import type { ClientBridge } from "@rva/coding-agent/session/client-bridge";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import type { ReadToolDetails } from "@rva/tui/tools/read";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { removeWithRetries } from "@rva/utils";
+import type { AgentToolResult } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
+import type { ClientBridge } from "@reverse/coding-agent/session/client-bridge";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import type { ReadToolDetails } from "@reverse/tui/tools/read";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { removeWithRetries } from "@reverse/utils";
 
-import { cfgReadSummarizeEnabled } from "@rva/coding-agent/tools/settings";
+import { cfgReadSummarizeEnabled } from "@reverse/coding-agent/tools/settings";
 
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content

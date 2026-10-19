@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as capability from "@rva/coding-agent/capability";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { resetActiveRulesForTests, setActiveRules } from "@rva/coding-agent/capability/rule";
-import type { SSHHost } from "@rva/coding-agent/capability/ssh";
-import type { CapabilityResult } from "@rva/coding-agent/capability/types";
-import type { Skill } from "@rva/coding-agent/extensibility/skills";
-import { resetActiveSkillsForTests, setActiveSkills } from "@rva/coding-agent/extensibility/skills";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
+import * as capability from "@reverse/coding-agent/capability";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { resetActiveRulesForTests, setActiveRules } from "@reverse/coding-agent/capability/rule";
+import type { SSHHost } from "@reverse/coding-agent/capability/ssh";
+import type { CapabilityResult } from "@reverse/coding-agent/capability/types";
+import type { Skill } from "@reverse/coding-agent/extensibility/skills";
+import { resetActiveSkillsForTests, setActiveSkills } from "@reverse/coding-agent/extensibility/skills";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
 import {
 	applyInternalUrlCompletion,
 	extractInternalUrlContext,
 	getInternalUrlSuggestions,
 	isInternalUrlPrefix,
-} from "@rva/tui/prompt/internal-url-autocomplete";
-import { PromptActionAutocompleteProvider } from "@rva/tui/prompt/prompt-action-autocomplete";
+} from "@reverse/tui/prompt/internal-url-autocomplete";
+import { PromptActionAutocompleteProvider } from "@reverse/tui/prompt/prompt-action-autocomplete";
 
 function skill(name: string, description = ""): Skill {
 	return { name, description, filePath: `/skills/${name}/SKILL.md`, baseDir: `/skills/${name}`, source: "test" };

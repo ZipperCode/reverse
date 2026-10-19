@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { type AgentMessage, Tokenizer } from "@rva/agent";
+import { type AgentMessage, Tokenizer } from "@reverse/agent";
 import type {
 	BranchSummaryEntry,
 	CustomMessageEntry,
 	SessionEntry,
 	SessionMessageEntry,
-} from "@rva/agent/compaction";
+} from "@reverse/agent/compaction";
 import {
 	type CacheLookbackConfig,
 	type ConvertToLlm,
@@ -19,11 +19,11 @@ import {
 	type SupersedeCompleteFn,
 	type SupersedePruneConfig,
 	USELESS_NOTICE,
-} from "@rva/agent/compaction";
-import type { ProtectedToolContext } from "@rva/agent/compaction/tool-protection";
-import type { AssistantMessage, ImageContent, Message, TextContent, ToolResultMessage } from "@rva/ai";
-import { convertAnthropicMessages } from "@rva/ai/providers/anthropic";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/agent/compaction";
+import type { ProtectedToolContext } from "@reverse/agent/compaction/tool-protection";
+import type { AssistantMessage, ImageContent, Message, TextContent, ToolResultMessage } from "@reverse/ai";
+import { convertAnthropicMessages } from "@reverse/ai/providers/anthropic";
+import { buildModel } from "@reverse/catalog/build";
 
 const tokenizer = new Tokenizer();
 

@@ -4,11 +4,11 @@
  * cancel-then-dismiss (mirroring the `/omfg` panel).
  */
 import { runCleanse } from "../../cleanse";
-import { appKey } from "@rva/tui/chrome/keybinding-hints";
-import { CleanseBoardModel } from "@rva/tui/apps/cleanse-board";
+import { appKey } from "@reverse/tui/chrome/keybinding-hints";
+import { CleanseBoardModel } from "@reverse/tui/apps/cleanse-board";
 import type { CleanseCheckerDescriptor } from "../../cleanse/checkers";
-import type { CleanseTargetChoice } from "@rva/tui/apps/cleanse-picker";
-import { CleansePanelComponent } from "@rva/tui/overlays/cleanse-panel";
+import type { CleanseTargetChoice } from "@reverse/tui/apps/cleanse-picker";
+import { CleansePanelComponent } from "@reverse/tui/overlays/cleanse-panel";
 import type { InteractiveModeContext } from "../types";
 
 interface CleanseRun {

@@ -12,15 +12,15 @@
  * carry subsystem-specific message types — lives in the per-subsystem
  * `types.ts` files and is documented there.
  */
-import { type AgentMessage, isNonBlankContext, joinAdditionalContext } from "@rva/agent";
-import type { CompactionPreparation, CompactionResult } from "@rva/agent/compaction";
-import type { AssistantRetryRecovery, ImageContent, TextContent, ToolResultMessage } from "@rva/ai";
+import { type AgentMessage, isNonBlankContext, joinAdditionalContext } from "@reverse/agent";
+import type { CompactionPreparation, CompactionResult } from "@reverse/agent/compaction";
+import type { AssistantRetryRecovery, ImageContent, TextContent, ToolResultMessage } from "@reverse/ai";
 import type { Rule } from "../capability/rule";
-import type { Goal } from "@rva/tui/tools/goal";
+import type { Goal } from "@reverse/tui/tools/goal";
 import type { GoalModeState } from "../goals/state";
 import type { BranchSummaryEntry, CompactionEntry, SessionEntry } from "../session/session-entries";
 import type { CacheWarmingAction } from "../session/cache-warmer";
-import type { TodoItem } from "@rva/tui/tools/todo";
+import type { TodoItem } from "@reverse/tui/tools/todo";
 
 // ============================================================================
 // Session Events

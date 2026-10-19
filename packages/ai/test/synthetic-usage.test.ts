@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchContext, UsageFetchParams } from "@rva/ai/usage";
-import { syntheticUsageProvider } from "@rva/ai/usage/synthetic";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchContext, UsageFetchParams } from "@reverse/ai/usage";
+import { syntheticUsageProvider } from "@reverse/ai/usage/synthetic";
 
 const FULL_FIXTURE = {
 	subscription: { limit: 500, requests: 12, renewsAt: "2026-07-10T11:33:46.399Z" },

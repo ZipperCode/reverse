@@ -54,7 +54,7 @@ export interface CleanseAssignment {
 	weight: number;
 }
 
-export type { CleanseTargetChoice } from "@rva/tui/apps/cleanse-picker";
+export type { CleanseTargetChoice } from "@reverse/tui/apps/cleanse-picker";
 
 /** Terminal status of one cleanse run. */
 export type CleanseRunStatus = "clean" | "unresolved" | "unsupported" | "cancelled";

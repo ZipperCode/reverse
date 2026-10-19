@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { Context, ImageContent, Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import * as snapcompact from "@rva/snapcompact";
+import type { Context, ImageContent, Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import * as snapcompact from "@reverse/snapcompact";
 import { type BlobBackend, LocalBlobBackend } from "../src/blob-broker/broker";
 import { probeExposureHealth } from "../src/blob-broker/exposure";
 import type { BlobBrokerWorkerConfig } from "../src/blob-broker/protocol";

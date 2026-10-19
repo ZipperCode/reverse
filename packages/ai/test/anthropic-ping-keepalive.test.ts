@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
+import { buildModel } from "@reverse/catalog/build";
 import { streamAnthropic } from "../src/providers/anthropic";
 import type { AnthropicMessagesClientLike } from "../src/providers/anthropic-client";
 import type { Context, Model } from "../src/types";

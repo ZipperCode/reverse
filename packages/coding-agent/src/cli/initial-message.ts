@@ -1,4 +1,4 @@
-import type { ImageContent } from "@rva/ai";
+import type { ImageContent } from "@reverse/ai";
 import type { Args } from "./args";
 
 export interface InitialMessageInput {

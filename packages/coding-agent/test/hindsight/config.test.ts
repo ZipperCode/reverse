@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { loadHindsightConfig } from "@rva/coding-agent/hindsight/config";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { loadHindsightConfig } from "@reverse/coding-agent/hindsight/config";
 
 const TOUCHED = [
 	"HINDSIGHT_AUTO_RECALL",

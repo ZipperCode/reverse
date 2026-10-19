@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import { type } from "@rva/omptype";
-import type { FetchImpl } from "@rva/ai/types";
+import { type } from "@reverse/omptype";
+import type { FetchImpl } from "@reverse/ai/types";
 import {
 	type UsageFetchContext,
 	type UsageFetchParams,
@@ -9,8 +9,8 @@ import {
 	type UsageReport,
 	type UsageStatus,
 	usageReportSchema,
-} from "@rva/ai/usage";
-import { commandCodeRankingStrategy, commandCodeUsageProvider } from "@rva/ai/usage/commandcode";
+} from "@reverse/ai/usage";
+import { commandCodeRankingStrategy, commandCodeUsageProvider } from "@reverse/ai/usage/commandcode";
 
 function makeCredential(): UsageFetchParams["credential"] {
 	return { type: "api_key", apiKey: "user_test" };

@@ -1,5 +1,5 @@
-import { getProjectDir } from "@rva/utils/dirs";
-import * as logger from "@rva/utils/logger";
+import { getProjectDir } from "@reverse/utils/dirs";
+import * as logger from "@reverse/utils/logger";
 import {
 	type AutocompleteItem,
 	type AutocompleteProvider,
@@ -15,7 +15,7 @@ import { BracketedPasteHandler, decodeReencodedPasteControls } from "../brackete
 import { canonicalKeyId, getKeybindings, type KeybindingsManager } from "../keybindings";
 import { extractPrintableText, matchesKey, parseKey } from "../keys";
 import { KillRing } from "../kill-ring";
-import type { TspEditorDecoration, TspEditorProps, TspText, TspTone } from "@rva/wire";
+import type { TspEditorDecoration, TspEditorProps, TspText, TspTone } from "@reverse/wire";
 import { col, node } from "../native/describe";
 import { sameItems, sameProps } from "../native/memo";
 import { plainText } from "../native/spans";

@@ -1,5 +1,5 @@
-import { quotaTierFor } from "@rva/catalog/compat/behavior";
-import { getAntigravityUserAgent } from "@rva/catalog/wire/gemini-headers";
+import { quotaTierFor } from "@reverse/catalog/compat/behavior";
+import { getAntigravityUserAgent } from "@reverse/catalog/wire/gemini-headers";
 import * as AIError from "../error";
 import type {
 	CredentialRankingContext,

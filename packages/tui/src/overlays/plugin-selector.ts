@@ -10,7 +10,7 @@ import { OverlayPanel } from "../chrome/overlay-box";
 import { routeSelectListMouseWithTopBorder } from "../chrome/select-list-mouse-routing";
 import type { DescribeContext, NativeNode, NativeUiEvent } from "../native/node";
 import { SelectListSheet } from "../native/picker";
-import type { TspPickerItem } from "@rva/wire";
+import type { TspPickerItem } from "@reverse/wire";
 
 export interface PluginSelectorCallbacks {
 	onSelect: (pluginName: string, marketplace: string, scope?: "user" | "project") => void;

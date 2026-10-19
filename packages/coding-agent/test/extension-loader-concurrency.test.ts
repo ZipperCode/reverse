@@ -7,8 +7,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadExtensions } from "@rva/coding-agent/extensibility/extensions/loader";
-import { TempDir } from "@rva/utils";
+import { loadExtensions } from "@reverse/coding-agent/extensibility/extensions/loader";
+import { TempDir } from "@reverse/utils";
 
 const EVENTS_KEY = "__ompExtensionLoaderConcurrencyEvents";
 const RELEASE_KEY = "__ompExtensionLoaderConcurrencyRelease";

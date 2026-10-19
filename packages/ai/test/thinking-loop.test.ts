@@ -1,11 +1,11 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { clearCustomApis, registerCustomApi } from "@rva/ai/api-registry";
-import * as AIError from "@rva/ai/error";
-import { createMockModel, type MockContent, registerMockApi } from "@rva/ai/providers/mock";
-import { complete, completeSimple, stream, streamSimple } from "@rva/ai/stream";
-import type { Api, AssistantMessage, AssistantMessageEvent, Context, Model } from "@rva/ai/types";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
+import { clearCustomApis, registerCustomApi } from "@reverse/ai/api-registry";
+import * as AIError from "@reverse/ai/error";
+import { createMockModel, type MockContent, registerMockApi } from "@reverse/ai/providers/mock";
+import { complete, completeSimple, stream, streamSimple } from "@reverse/ai/stream";
+import type { Api, AssistantMessage, AssistantMessageEvent, Context, Model } from "@reverse/ai/types";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import {
 	GEMINI_HEADER_RUNAWAY_THRESHOLD,
 	GeminiHeaderRunDetector,
@@ -14,9 +14,9 @@ import {
 	THINKING_LOOP_ERROR_MARKER,
 	ThinkingLoopDetector,
 	withThinkingLoopGuard,
-} from "@rva/ai/utils/thinking-loop";
-import { classifyModel } from "@rva/catalog/compat/taxonomy";
-import { isRetryableError } from "@rva/utils";
+} from "@reverse/ai/utils/thinking-loop";
+import { classifyModel } from "@reverse/catalog/compat/taxonomy";
+import { isRetryableError } from "@reverse/utils";
 
 function context(): Context {
 	return { systemPrompt: [], messages: [{ role: "user", content: "go", timestamp: 0 }] };

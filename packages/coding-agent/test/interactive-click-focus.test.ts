@@ -1,22 +1,22 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { Composer } from "@rva/tui/prompt/composer";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import { initTheme } from "@rva/tui/theme";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { AgentProgress } from "@rva/tui/tools/task";
-import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@rva/coding-agent/task";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { Composer } from "@reverse/tui/prompt/composer";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { AgentProgress } from "@reverse/tui/tools/task";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@reverse/coding-agent/task";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { TempDir } from "@reverse/utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
-import { cfgTuiMouse } from "@rva/coding-agent/modes/settings";
+import { cfgTuiMouse } from "@reverse/coding-agent/modes/settings";
 
 function plainRows(rows: readonly string[]): string[] {
 	return rows.map(row => Bun.stripANSI(row).trimEnd());

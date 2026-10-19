@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { AuthStorage, type UsageReport } from "@rva/ai";
-import { CommandController, renderUsageReports } from "@rva/coding-agent/modes/controllers/command-controller";
-import { SelectorController } from "@rva/coding-agent/modes/controllers/selector-controller";
-import * as activityClient from "@rva/coding-agent/stats/activity-client";
-import { Container, visibleWidth } from "@rva/tui";
-import { UsageDashboardComponent } from "@rva/tui/overlays/usage-dashboard";
-import { getThemeByName, setThemeInstance, theme } from "@rva/tui/theme";
+import { AuthStorage, type UsageReport } from "@reverse/ai";
+import { CommandController, renderUsageReports } from "@reverse/coding-agent/modes/controllers/command-controller";
+import { SelectorController } from "@reverse/coding-agent/modes/controllers/selector-controller";
+import * as activityClient from "@reverse/coding-agent/stats/activity-client";
+import { Container, visibleWidth } from "@reverse/tui";
+import { UsageDashboardComponent } from "@reverse/tui/overlays/usage-dashboard";
+import { getThemeByName, setThemeInstance, theme } from "@reverse/tui/theme";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 describe("renderUsageReports content", () => {

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { JsRuntime, type RuntimeHooks } from "@rva/coding-agent/eval/js/shared/runtime";
+import { JsRuntime, type RuntimeHooks } from "@reverse/coding-agent/eval/js/shared/runtime";
 
 describe("cell syntax error position", () => {
 	const hooks: RuntimeHooks = { onText: () => {}, onDisplay: () => {}, callTool: async () => undefined };

@@ -1,5 +1,5 @@
 import * as nodeCrypto from "node:crypto";
-import { getInstallId } from "@rva/utils";
+import { getInstallId } from "@reverse/utils";
 import { claudeToolPrefix } from "./claude-code-fingerprint";
 
 const CLAUDE_CLOAKING_USER_ID_REGEX =

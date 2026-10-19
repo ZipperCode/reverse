@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as natives from "@rva/natives";
-import { type AutocompleteItem, CombinedAutocompleteProvider } from "@rva/tui/autocomplete";
+import * as natives from "@reverse/natives";
+import { type AutocompleteItem, CombinedAutocompleteProvider } from "@reverse/tui/autocomplete";
 
 describe("CombinedAutocompleteProvider", () => {
 	describe("extractPathPrefix", () => {

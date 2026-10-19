@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { $which, isRecord, logger, pathIsWithin, type WhichOptions } from "@rva/utils";
+import { $which, isRecord, logger, pathIsWithin, type WhichOptions } from "@reverse/utils";
 import { YAML } from "bun";
 import type { ClaudePluginRoot } from "../discovery/helpers";
 import {

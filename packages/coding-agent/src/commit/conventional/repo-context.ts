@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { isRecord } from "@rva/utils";
+import { isRecord } from "@reverse/utils";
 
 const RUST_FRAMEWORKS: readonly (readonly [string, string])[] = [
 	["axum", "Axum"],

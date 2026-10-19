@@ -1,4 +1,4 @@
-import { tryParseJson } from "@rva/utils";
+import { tryParseJson } from "@reverse/utils";
 import { buildResult, formatNumber, htmlToBasicMarkdown, loadPage, type SpecialHandler } from "./types";
 
 /**

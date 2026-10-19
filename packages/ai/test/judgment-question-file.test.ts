@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { judgeQuestions } from "@rva/ai";
+import { judgeQuestions } from "@reverse/ai";
 
 describe("judgeQuestions", () => {
 	it("derives each question's kind from the shape of its criteria", () => {

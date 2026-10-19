@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModels } from "@rva/catalog/models";
-import type { ModelSpec } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModels } from "@reverse/catalog/models";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 // Anthropic priced Fable 5.1 cache reads at $0.25/MTok, 0.025x its $10 input,
 // a 75% cut from Fable 5's $1.00. Every other current Claude model keeps the

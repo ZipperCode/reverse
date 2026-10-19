@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { handleRpcSteerSubagent } from "@rva/coding-agent/modes/rpc/rpc-mode";
-import { RpcSubagentRegistry } from "@rva/coding-agent/modes/rpc/rpc-subagents";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { PromptDroppedError } from "@rva/coding-agent/session/agent-session";
-import { type SubagentLifecyclePayload, TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@rva/coding-agent/task/types";
-import { EventBus } from "@rva/coding-agent/utils/event-bus";
-import { removeSyncWithRetries } from "@rva/utils";
+import { handleRpcSteerSubagent } from "@reverse/coding-agent/modes/rpc/rpc-mode";
+import { RpcSubagentRegistry } from "@reverse/coding-agent/modes/rpc/rpc-subagents";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { PromptDroppedError } from "@reverse/coding-agent/session/agent-session";
+import { type SubagentLifecyclePayload, TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@reverse/coding-agent/task/types";
+import { EventBus } from "@reverse/coding-agent/utils/event-bus";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 interface SentMessage {
 	id: string;

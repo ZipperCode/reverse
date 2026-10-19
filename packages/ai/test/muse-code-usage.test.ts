@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import type { FetchImpl } from "@rva/ai/types";
-import { museCodeUsageProvider } from "@rva/ai/usage/muse-code";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import type { FetchImpl } from "@reverse/ai/types";
+import { museCodeUsageProvider } from "@reverse/ai/usage/muse-code";
 
 const credential = {
 	type: "oauth" as const,

@@ -9,8 +9,8 @@
  * product and must never be sent here.
  */
 
-import { toNumber } from "@rva/catalog/utils";
-import { slugify } from "@rva/utils";
+import { toNumber } from "@reverse/catalog/utils";
+import { slugify } from "@reverse/utils";
 import { isUsageLimitExhausted } from "../auth/usage-report";
 import {
 	buildXAICliBillingUrl,

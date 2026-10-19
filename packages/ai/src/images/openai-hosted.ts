@@ -1,4 +1,4 @@
-import { type Api, type Model, modelKind } from "@rva/catalog/types";
+import { type Api, type Model, modelKind } from "@reverse/catalog/types";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
@@ -6,8 +6,8 @@ import {
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
 	URL_PATHS,
-} from "@rva/catalog/wire/codex";
-import { prompt, readSseJson, USER_AGENT } from "@rva/utils";
+} from "@reverse/catalog/wire/codex";
+import { prompt, readSseJson, USER_AGENT } from "@reverse/utils";
 import { withAuth } from "../auth-retry";
 import * as AIError from "../error";
 import { applySessionHeader } from "../providers/inference-headers";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { canonicalNerdFontName } from "@rva/coding-agent/utils/nerd-font-glyphs";
+import { canonicalNerdFontName } from "@reverse/coding-agent/utils/nerd-font-glyphs";
 
 describe("canonicalNerdFontName", () => {
 	it.each([

@@ -1,9 +1,9 @@
 import type { BodyInit } from "bun";
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { FetchImpl } from "@rva/ai";
-import { fetchExaTools } from "@rva/coding-agent/exa/mcp-client";
-import { callMCP, redactUrlForLog } from "@rva/coding-agent/mcp/json-rpc";
-import { isRecord } from "@rva/utils";
+import type { FetchImpl } from "@reverse/ai";
+import { fetchExaTools } from "@reverse/coding-agent/exa/mcp-client";
+import { callMCP, redactUrlForLog } from "@reverse/coding-agent/mcp/json-rpc";
+import { isRecord } from "@reverse/utils";
 import { asGlobalFetch } from "./helpers/fetch-mock";
 
 interface PostedJsonRpcRequest {

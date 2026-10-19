@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
-import { createMCPTimeout, isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "@rva/coding-agent/mcp/timeout";
-import { logger } from "@rva/utils";
+import { createMCPTimeout, isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "@reverse/coding-agent/mcp/timeout";
+import { logger } from "@reverse/utils";
 
 const ORIGINAL_TIMEOUT = process.env.OMP_MCP_TIMEOUT_MS;
 

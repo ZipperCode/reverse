@@ -8,14 +8,14 @@
  * This replaces the old single hardwired `onJobComplete` closure that routed
  * every completion — regardless of owner — into the first top-level session.
  */
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 import type { AsyncJob, AsyncJobType } from "../async";
 import asyncResultTemplate from "../prompts/tools/async-result.md" with { type: "text" };
-import type { StructuredSubagentOutput } from "@rva/tui/tools/task";
+import type { StructuredSubagentOutput } from "@reverse/tui/tools/task";
 import { escapeHarnessTags } from "./harness-tags";
 import type { CustomMessage } from "./messages";
-import type { OutputMeta } from "@rva/tui/tools/output-meta";
-import { truncateMiddle } from "@rva/tui/tools/streaming-output";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
+import { truncateMiddle } from "@reverse/tui/tools/streaming-output";
 
 /**
  * `customType` of the injected async-result follow-up message. The task

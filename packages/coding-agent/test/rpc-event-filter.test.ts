@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { CONFIG_DIR_NAME, readLines, TempDir } from "@rva/utils";
+import { CONFIG_DIR_NAME, readLines, TempDir } from "@reverse/utils";
 
 describe("set_event_filter over RPC", () => {
 	test("rejects invalid replacements atomically and echoes projection resets in v1 and v2", async () => {

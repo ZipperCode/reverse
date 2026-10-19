@@ -5,8 +5,8 @@ import {
 	parseTspMessage,
 	splitTspMessage,
 	TspReader,
-} from "@rva/tui/native/encode";
-import type { TspEvent } from "@rva/wire";
+} from "@reverse/tui/native/encode";
+import type { TspEvent } from "@reverse/wire";
 
 const encoder = new TextEncoder();
 

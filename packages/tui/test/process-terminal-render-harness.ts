@@ -1,7 +1,7 @@
 import { vi } from "bun:test";
-import { type Component, TUI, type TUIStartOptions } from "@rva/tui";
-import { ProcessTerminal, type ProcessTerminalOptions } from "@rva/tui/terminal";
-import { setTerminalHeadless } from "@rva/utils";
+import { type Component, TUI, type TUIStartOptions } from "@reverse/tui";
+import { ProcessTerminal, type ProcessTerminalOptions } from "@reverse/tui/terminal";
+import { setTerminalHeadless } from "@reverse/utils";
 
 // Pristine descriptors, captured once at module load. Every dispose() restores
 // to these so the harness is full-suite safe across repeated create/dispose

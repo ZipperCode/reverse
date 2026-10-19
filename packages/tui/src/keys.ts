@@ -18,12 +18,12 @@
  * - isKittyProtocolActive() - Query global Kitty protocol state
  */
 
-import type { KeyEventType } from "@rva/natives";
+import type { KeyEventType } from "@reverse/natives";
 import {
 	matchesKey as matchesKeyNative,
 	parseKey as parseKeyNative,
 	parseKittySequence as parseKittySequenceNative,
-} from "@rva/natives";
+} from "@reverse/natives";
 import { isInsideTerminalMultiplexer, isSshSession } from "./terminal-capabilities";
 
 // =============================================================================

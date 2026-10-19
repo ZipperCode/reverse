@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
+import { AuthStorage } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
 import { runModelsListing } from "../../src/cli/models-cli";
 import { ModelRegistry } from "../../src/config/model-registry";
 

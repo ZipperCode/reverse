@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 import { parseArgs } from "node:util";
-import { formatDuration, formatNumber, formatPercent, normalizePremiumRequests } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { formatDuration, formatNumber, formatPercent, normalizePremiumRequests } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import { formatErrorRate } from "./client/data/formatters";
 import { getDashboardStats, getTotalMessageCount, syncAllSessions } from "./aggregator";
 import { closeDb } from "./db";

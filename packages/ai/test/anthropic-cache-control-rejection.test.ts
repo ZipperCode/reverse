@@ -24,16 +24,16 @@
  * something else costs one request rather than a session of lost caching.
  */
 import { describe, expect, it } from "bun:test";
-import { isCacheControlUnsupported } from "@rva/ai/error";
+import { isCacheControlUnsupported } from "@reverse/ai/error";
 import {
 	buildAnthropicClientOptions,
 	clearAnthropicFastModeFallback,
 	streamAnthropic,
-} from "@rva/ai/providers/anthropic";
-import { AnthropicMessagesClient, type AnthropicMessagesClientLike } from "@rva/ai/providers/anthropic-client";
-import type { CacheControlEphemeral, MessageCreateParams } from "@rva/ai/providers/anthropic-wire";
-import type { AssistantMessage, Context, FetchImpl, Model, ProviderSessionState } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/providers/anthropic";
+import { AnthropicMessagesClient, type AnthropicMessagesClientLike } from "@reverse/ai/providers/anthropic-client";
+import type { CacheControlEphemeral, MessageCreateParams } from "@reverse/ai/providers/anthropic-wire";
+import type { AssistantMessage, Context, FetchImpl, Model, ProviderSessionState } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import { withOfficialAnthropicEndpoint } from "./helpers";
 
 const EXTENDED_CACHE_TTL_BETA = "extended-cache-ttl-2025-04-11";

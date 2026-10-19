@@ -4,10 +4,10 @@
  * Handles /mcp subcommands for managing MCP servers.
  */
 import * as path from "node:path";
-import { type Component, replaceTabs, Spacer, Text } from "@rva/tui";
-import { getMCPConfigPath, getProjectDir } from "@rva/utils";
-import { formatKeyHint } from "@rva/tui/app-keybindings";
-import { appKey } from "@rva/tui/chrome/keybinding-hints";
+import { type Component, replaceTabs, Spacer, Text } from "@reverse/tui";
+import { getMCPConfigPath, getProjectDir } from "@reverse/utils";
+import { formatKeyHint } from "@reverse/tui/app-keybindings";
+import { appKey } from "@reverse/tui/chrome/keybinding-hints";
 import { clearCache as clearFsCache } from "../../capability/fs";
 import type { SourceMeta } from "../../capability/types";
 import { expandEnvVarsDeep } from "../../discovery/helpers";
@@ -58,19 +58,19 @@ import type {
 	MCPServerConfig,
 	MCPServerConnection,
 } from "../../mcp/types";
-import { shortenPath } from "@rva/tui/render/render-utils";
-import { urlHyperlinkAlways } from "@rva/tui/render";
+import { shortenPath } from "@reverse/tui/render/render-utils";
+import { urlHyperlinkAlways } from "@reverse/tui/render";
 import { copyToClipboard } from "../../utils/clipboard";
 import { isTimeoutError } from "../../utils/fetch-timeout";
 import { openPath } from "../../utils/open";
-import { ChatBlock } from "@rva/tui/chrome/chat-block";
-import { DynamicBorder } from "@rva/tui/chrome/dynamic-border";
-import { MCPAddWizard } from "@rva/tui/overlays/mcp-add-wizard";
-import { TranscriptBlock } from "@rva/tui/chrome/transcript-container";
+import { ChatBlock } from "@reverse/tui/chrome/chat-block";
+import { DynamicBorder } from "@reverse/tui/chrome/dynamic-border";
+import { MCPAddWizard } from "@reverse/tui/overlays/mcp-add-wizard";
+import { TranscriptBlock } from "@reverse/tui/chrome/transcript-container";
 import { parseCommandArgs } from "../../utils/command-args";
-import { theme } from "@rva/tui/theme";
-import { col, span, text } from "@rva/tui/native/describe";
-import type { NativeNode } from "@rva/tui/native/node";
+import { theme } from "@reverse/tui/theme";
+import { col, span, text } from "@reverse/tui/native/describe";
+import type { NativeNode } from "@reverse/tui/native/node";
 import type { InteractiveModeContext } from "../types";
 import { groupBySource, parseRemoveArgs, readScopeFlag, showCommandMessage } from "./command-controller-shared";
 

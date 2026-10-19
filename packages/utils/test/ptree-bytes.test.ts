@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { spawn } from "@rva/utils/ptree";
+import { spawn } from "@reverse/utils/ptree";
 
 describe("ptree.ChildProcess.bytes()", () => {
 	// Regression for https://github.com/can1357/oh-my-pi/issues/3712:

@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModel } from "@rva/catalog/models";
-import * as blobStore from "@rva/coding-agent/session/blob-store";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { getAgentDir, getBlobsDir, setAgentDir } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+import { getBundledModel } from "@reverse/catalog/models";
+import * as blobStore from "@reverse/coding-agent/session/blob-store";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getAgentDir, getBlobsDir, setAgentDir } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 
 const FRAME_COUNT = 10;
 const FRAME_RAW_BYTES = 300_000;

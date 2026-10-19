@@ -20,7 +20,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, logger } from "@rva/utils";
+import { CONFIG_DIR_NAME, logger } from "@reverse/utils";
 import { isProviderEnabled, isUserSourceEnabled } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { findAllNearestProjectConfigDirs, getConfigDirs } from "../config";
@@ -28,7 +28,7 @@ import { pluginUsesClaudeModelDialect } from "../discovery/agent-plugin-format";
 import { listClaudePluginRoots } from "../discovery/helpers";
 import { listRvaExtensionRoots } from "../discovery/rva-extension-roots";
 import { loadBundledAgents, parseAgent } from "./agents";
-import type { AgentSource } from "@rva/tui/tools/task";
+import type { AgentSource } from "@reverse/tui/tools/task";
 import type { AgentDefinition } from "./types";
 
 const TASK_AGENT_CONFIG_SOURCE = CONFIG_DIR_NAME;

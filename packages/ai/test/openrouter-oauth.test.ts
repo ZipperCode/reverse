@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { OAuthController } from "@rva/ai/registry/oauth/types";
-import type { FetchImpl } from "@rva/ai/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { OAuthController } from "@reverse/ai/registry/oauth/types";
+import type { FetchImpl } from "@reverse/ai/types";
 
 const KEY_EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";
 const REDIRECT_URI = "http://localhost:54549/callback";

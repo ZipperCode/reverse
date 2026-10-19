@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { type } from "@rva/omptype";
-import { buildParams, convertTools } from "@rva/ai/providers/openai-responses";
-import type { Context, Model, ModelSpec, Tool } from "@rva/ai/types";
-import { findStrictToolSchemaViolation } from "@rva/ai/utils/schema";
-import { buildModel } from "@rva/catalog/build";
+import { type } from "@reverse/omptype";
+import { buildParams, convertTools } from "@reverse/ai/providers/openai-responses";
+import type { Context, Model, ModelSpec, Tool } from "@reverse/ai/types";
+import { findStrictToolSchemaViolation } from "@reverse/ai/utils/schema";
+import { buildModel } from "@reverse/catalog/build";
 
 function makeModel(provider: "openai" | "xai-oauth" = "openai"): Model<"openai-responses"> {
 	return buildModel({

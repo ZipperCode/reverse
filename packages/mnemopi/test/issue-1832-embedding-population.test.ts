@@ -18,14 +18,11 @@ import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import "./setup";
-import { cmdRemember, withMemory } from "@rva/mnemopi/cli";
-import { BeamMemory } from "@rva/mnemopi/core/beam";
-import { Mnemopi } from "@rva/mnemopi/core/memory";
-import {
-	type ResolvedMnemopiRuntimeOptions,
-	withMnemopiRuntimeOptions,
-} from "@rva/mnemopi/core/runtime-options";
-import { withBeam } from "@rva/mnemopi/mcp";
+import { cmdRemember, withMemory } from "@reverse/mnemopi/cli";
+import { BeamMemory } from "@reverse/mnemopi/core/beam";
+import { Mnemopi } from "@reverse/mnemopi/core/memory";
+import { type ResolvedMnemopiRuntimeOptions, withMnemopiRuntimeOptions } from "@reverse/mnemopi/core/runtime-options";
+import { withBeam } from "@reverse/mnemopi/mcp";
 
 interface EmbeddingRow {
 	readonly memory_id: string;

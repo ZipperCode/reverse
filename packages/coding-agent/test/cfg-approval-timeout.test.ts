@@ -2,28 +2,28 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { closeModelCache } from "@rva/catalog/model-cache";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { CfgProtocolHandler, setCfgApprovalHost } from "@rva/coding-agent/internal-urls/cfg-protocol";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
-import { type MCPAuthHandler, MCPManager } from "@rva/coding-agent/mcp/manager";
-import { ExtensionUiController } from "@rva/coding-agent/modes/controllers/extension-ui-controller";
-import { MCPCommandController } from "@rva/coding-agent/modes/controllers/mcp-command-controller";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
+import { closeModelCache } from "@reverse/catalog/model-cache";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { CfgProtocolHandler, setCfgApprovalHost } from "@reverse/coding-agent/internal-urls/cfg-protocol";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
+import { type MCPAuthHandler, MCPManager } from "@reverse/coding-agent/mcp/manager";
+import { ExtensionUiController } from "@reverse/coding-agent/modes/controllers/extension-ui-controller";
+import { MCPCommandController } from "@reverse/coding-agent/modes/controllers/mcp-command-controller";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
 import {
 	cfgMarketplaceAutoUpdate,
 	cfgStartupChangelogMode,
 	cfgStartupSetupWizard,
 	cfgStartupShowSplash,
-} from "@rva/coding-agent/modes/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { HistoryStorage } from "@rva/coding-agent/session/history-storage";
-import { resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { Composer } from "@rva/tui/prompt/composer";
-import { initTheme } from "@rva/tui/theme";
-import { getProjectDir, setProjectDir, Snowflake } from "@rva/utils";
-import * as utils from "@rva/utils";
+} from "@reverse/coding-agent/modes/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { HistoryStorage } from "@reverse/coding-agent/session/history-storage";
+import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { Composer } from "@reverse/tui/prompt/composer";
+import { initTheme } from "@reverse/tui/theme";
+import { getProjectDir, setProjectDir, Snowflake } from "@reverse/utils";
+import * as utils from "@reverse/utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { createTestSession, type TestSessionContext } from "./utilities";
 

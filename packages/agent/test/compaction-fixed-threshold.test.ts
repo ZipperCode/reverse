@@ -4,7 +4,7 @@ import {
 	resolveBudgetReserveTokens,
 	resolveThresholdTokens,
 	shouldCompact,
-} from "@rva/agent/compaction/compaction";
+} from "@reverse/agent/compaction/compaction";
 
 const fixed = (thresholdTokens: number, extra: Partial<CompactionSettings> = {}): CompactionSettings => ({
 	enabled: true,

@@ -7,15 +7,15 @@ import type {
 	AgentLoopConfig,
 	SpeculativeCommitContext,
 	SpeculativeOperationContext,
-} from "@rva/agent";
-import { SpeculativeOperationCoordinator } from "@rva/agent";
-import type { Message } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { CodingAgentSpeculativeExecutionHost } from "@rva/coding-agent/speculation/host";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/agent";
+import { SpeculativeOperationCoordinator } from "@reverse/agent";
+import type { Message } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { CodingAgentSpeculativeExecutionHost } from "@reverse/coding-agent/speculation/host";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { removeWithRetries } from "@reverse/utils";
 
 const temporaryDirectories: string[] = [];
 

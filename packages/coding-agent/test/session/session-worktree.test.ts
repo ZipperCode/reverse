@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { shortenPath } from "@rva/tui/render/render-utils";
-import { setWorktreesDir } from "@rva/utils";
+import { shortenPath } from "@reverse/tui/render/render-utils";
+import { setWorktreesDir } from "@reverse/utils";
 import { Settings } from "../../src/config/settings";
 import {
 	canAutoCreateWorktree,

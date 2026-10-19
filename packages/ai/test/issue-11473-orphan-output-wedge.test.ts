@@ -1,12 +1,9 @@
 import { expect, it } from "bun:test";
-import type { ResponseInput } from "@rva/ai/providers/openai-responses-wire";
-import {
-	buildResponsesInput,
-	hoistInterleavedResponsesToolBatchMessages,
-} from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Context, ToolResultMessage } from "@rva/ai/types";
-import { createOpenAIResponsesHistoryPayload } from "@rva/ai/utils";
-import { buildModel } from "@rva/catalog/build";
+import type { ResponseInput } from "@reverse/ai/providers/openai-responses-wire";
+import { buildResponsesInput, hoistInterleavedResponsesToolBatchMessages } from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Context, ToolResultMessage } from "@reverse/ai/types";
+import { createOpenAIResponsesHistoryPayload } from "@reverse/ai/utils";
+import { buildModel } from "@reverse/catalog/build";
 
 // DeepSeek via openai-responses (#11473): its validator pairs tool calls by
 // turn, so an assistant `message` wedged between a `function_call` and its

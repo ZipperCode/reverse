@@ -7,11 +7,11 @@
  */
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { runRootCommand } from "@rva/coding-agent/main";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { TempDir } from "@rva/utils";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { runRootCommand } from "@reverse/coding-agent/main";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { TempDir } from "@reverse/utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {

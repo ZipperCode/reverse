@@ -4,7 +4,7 @@
  * and options.
  */
 
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import type {
 	ContentBlockParam,
 	ImageBlockParam,

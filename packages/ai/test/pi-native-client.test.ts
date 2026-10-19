@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, type Mock, mock, spyOn } from "bun:test";
-import * as AIError from "@rva/ai/error";
-import { streamPiNative } from "@rva/ai/providers/pi-native-client";
-import { streamSimple } from "@rva/ai/stream";
+import * as AIError from "@reverse/ai/error";
+import { streamPiNative } from "@reverse/ai/providers/pi-native-client";
+import { streamSimple } from "@reverse/ai/stream";
 import type {
 	AssistantMessage,
 	AssistantMessageEvent,
@@ -10,8 +10,8 @@ import type {
 	Model,
 	ModelSpec,
 	ProviderResponseMetadata,
-} from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 function sseBytes(events: AssistantMessageEvent[]): Uint8Array {
 	const encoder = new TextEncoder();

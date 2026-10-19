@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { RpcSessionSettleWatcher } from "@rva/coding-agent/modes/rpc/rpc-session-settle";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
+import { RpcSessionSettleWatcher } from "@reverse/coding-agent/modes/rpc/rpc-session-settle";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
 
 const agentStart: AgentSessionEvent = { type: "agent_start" };
 const terminalEnd: AgentSessionEvent = { type: "agent_end", messages: [], isTerminal: true };

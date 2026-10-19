@@ -1,5 +1,5 @@
-import type { Api, Model } from "@rva/catalog/types";
-import { logger } from "@rva/utils";
+import type { Api, Model } from "@reverse/catalog/types";
+import { logger } from "@reverse/utils";
 import type { ResolvedApiKey } from "../../auth-retry";
 import { classifyGatewayError } from "../../error/gateway";
 import * as videoServer from "../../providers/video-server";

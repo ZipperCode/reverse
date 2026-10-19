@@ -10,8 +10,8 @@ import {
 	isCached,
 	isValidVersionForCache,
 	removeCachedPlugin,
-} from "@rva/coding-agent/extensibility/plugins/marketplace";
-import { removeSyncWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

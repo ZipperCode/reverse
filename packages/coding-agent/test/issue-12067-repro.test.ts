@@ -9,11 +9,11 @@
  * shutdown behavior.
  */
 import { describe, expect, it } from "bun:test";
-import { MnemopiEmbedClient, type MnemopiEmbedWorkerHandle } from "@rva/coding-agent/mnemopi/embed-client";
+import { MnemopiEmbedClient, type MnemopiEmbedWorkerHandle } from "@reverse/coding-agent/mnemopi/embed-client";
 import type {
 	MnemopiEmbedWorkerInbound,
 	MnemopiEmbedWorkerOutbound,
-} from "@rva/coding-agent/mnemopi/embed-protocol";
+} from "@reverse/coding-agent/mnemopi/embed-protocol";
 
 class DelayedEmbedWorker implements MnemopiEmbedWorkerHandle {
 	readonly firstRequest = Promise.withResolvers<MnemopiEmbedWorkerInbound>();

@@ -1,4 +1,4 @@
-# @rva/tui
+# @reverse/tui
 
 Minimal terminal UI framework with differential rendering and synchronized output for flicker-free interactive CLI applications.
 
@@ -16,7 +16,7 @@ Minimal terminal UI framework with differential rendering and synchronized outpu
 ## Quick Start
 
 ```typescript
-import { TUI, Text, Editor, ProcessTerminal } from "@rva/tui";
+import { TUI, Text, Editor, ProcessTerminal } from "@reverse/tui";
 
 // Create terminal
 const terminal = new ProcessTerminal();
@@ -99,7 +99,7 @@ Build screens from persistent components and update their data, selection, expan
 | Data | `MetricRow`, `ProgressBar`, `Table`, `KeyValueList`, `Section` | package root |
 
 ```typescript
-import { Disclosure, SplitPane, Text } from "@rva/tui";
+import { Disclosure, SplitPane, Text } from "@reverse/tui";
 
 const diagnostics = new Disclosure({
 	summary: new Text("2 build diagnostics", 0, 0),
@@ -492,8 +492,8 @@ Supported formats: PNG, JPEG, GIF, WebP. Dimensions are parsed from the image he
 Supports both slash commands and file paths.
 
 ```typescript
-import { CombinedAutocompleteProvider } from "@rva/tui";
-import { getProjectDir } from "@rva/utils";
+import { CombinedAutocompleteProvider } from "@reverse/tui";
+import { getProjectDir } from "@reverse/utils";
 
 const provider = new CombinedAutocompleteProvider(
 	[
@@ -548,7 +548,7 @@ import {
 	isHome,
 	isEnd,
 	// ... and more
-} from "@rva/tui";
+} from "@reverse/tui";
 
 if (isCtrlC(data)) {
 	process.exit(0);
@@ -593,7 +593,7 @@ interface Terminal {
 ## Utilities
 
 ```typescript
-import { Ellipsis, visibleWidth, truncateToWidth, wrapTextWithAnsi } from "@rva/tui";
+import { Ellipsis, visibleWidth, truncateToWidth, wrapTextWithAnsi } from "@reverse/tui";
 
 // Get visible width of string (ignoring ANSI codes, uses Bun.stringWidth)
 const width = visibleWidth("\x1b[31mHello\x1b[0m"); // 5
@@ -618,8 +618,8 @@ When creating custom components, **each line returned by `render()` must not exc
 Use the key detection utilities to handle keyboard input:
 
 ```typescript
-import { isEnter, isEscape, isArrowUp, isArrowDown, isCtrlC, isTab, isBackspace } from "@rva/tui";
-import type { Component } from "@rva/tui";
+import { isEnter, isEscape, isArrowUp, isArrowDown, isCtrlC, isTab, isBackspace } from "@reverse/tui";
+import type { Component } from "@reverse/tui";
 
 class MyInteractiveComponent implements Component {
 	private selectedIndex = 0;
@@ -654,8 +654,8 @@ class MyInteractiveComponent implements Component {
 Use the provided utilities to ensure lines fit:
 
 ```typescript
-import { visibleWidth, truncateToWidth } from "@rva/tui";
-import type { Component } from "@rva/tui";
+import { visibleWidth, truncateToWidth } from "@reverse/tui";
+import type { Component } from "@reverse/tui";
 
 class MyComponent implements Component {
 	private text: string;
@@ -689,7 +689,7 @@ class MyComponent implements Component {
 - `wrapTextWithAnsi()` preserves ANSI codes while word-wrapping and trimming line ends
 
 ```typescript
-import chalk from "@rva/utils/chalk";
+import chalk from "@reverse/utils/chalk";
 
 const styled = chalk.red("Hello") + " " + chalk.blue("World");
 const width = visibleWidth(styled); // 11 (not counting ANSI codes)

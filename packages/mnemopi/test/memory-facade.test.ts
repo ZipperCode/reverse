@@ -20,8 +20,8 @@ import {
 	sleep,
 	sleepAllSessions,
 	update,
-} from "@rva/mnemopi/core/memory";
-import { openDatabase } from "@rva/mnemopi/db";
+} from "@reverse/mnemopi/core/memory";
+import { openDatabase } from "@reverse/mnemopi/db";
 
 const roots: string[] = [];
 let previousDataDir: string | undefined;

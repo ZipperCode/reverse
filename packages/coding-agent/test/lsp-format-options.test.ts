@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { detectIndentFromContent, resolveFormatOptions } from "@rva/coding-agent/lsp/format-options";
-import { getProjectDir, removeWithRetries, Snowflake, setProjectDir } from "@rva/utils";
+import { detectIndentFromContent, resolveFormatOptions } from "@reverse/coding-agent/lsp/format-options";
+import { getProjectDir, removeWithRetries, Snowflake, setProjectDir } from "@reverse/utils";
 
 /**
  * Regression coverage for issue #2329 — the LSP format-on-write path used to

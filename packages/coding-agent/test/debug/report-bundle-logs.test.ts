@@ -2,8 +2,16 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createReportBundle } from "@rva/coding-agent/debug/report-bundle";
-import { APP_NAME, getConfigRootDir, getLogsDir, localDay, logger, removeWithRetries, setAgentDir } from "@rva/utils";
+import { createReportBundle } from "@reverse/coding-agent/debug/report-bundle";
+import {
+	APP_NAME,
+	getConfigRootDir,
+	getLogsDir,
+	localDay,
+	logger,
+	removeWithRetries,
+	setAgentDir,
+} from "@reverse/utils";
 
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const originalXdgStateHome = process.env.XDG_STATE_HOME;

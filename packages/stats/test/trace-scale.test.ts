@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildScale, buildTicks } from "@rva/stats/client/traces/time-scale";
-import type { TraceSpan, TraceTrack } from "@rva/stats/types";
+import { buildScale, buildTicks } from "@reverse/stats/client/traces/time-scale";
+import type { TraceSpan, TraceTrack } from "@reverse/stats/types";
 
 const B = 1_700_000_000_000;
 

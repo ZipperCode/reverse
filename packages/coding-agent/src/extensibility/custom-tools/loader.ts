@@ -5,10 +5,10 @@
  * directories do not depend on workspace module resolution.
  */
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import * as zod from "@rva/omptype/zod";
-import type { AgentToolResult } from "@rva/agent";
-import { logger } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import * as zod from "@reverse/omptype/zod";
+import type { AgentToolResult } from "@reverse/agent";
+import { logger } from "@reverse/utils";
 import { toolCapability } from "../../capability/tool";
 import { type CustomTool, loadCapability } from "../../discovery";
 import type { ExecOptions } from "../../exec/exec";

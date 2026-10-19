@@ -1,4 +1,4 @@
-import type { TspProps, TspSpace } from "@rva/wire";
+import type { TspProps, TspSpace } from "@reverse/wire";
 import type { MouseRoutable } from "../../mouse";
 import type { Component } from "../../tui";
 import { padding, truncateToWidth, visibleWidth } from "../../utils";

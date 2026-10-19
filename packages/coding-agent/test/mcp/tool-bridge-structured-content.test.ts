@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { AgentTool, AgentToolContext } from "@rva/agent";
-import { TempDir } from "@rva/utils";
-import { getThemeByName, initTheme } from "@rva/tui/theme";
-import { type MCPToolDetails, renderMCPResult } from "@rva/tui/tools/mcp";
+import type { AgentTool, AgentToolContext } from "@reverse/agent";
+import { TempDir } from "@reverse/utils";
+import { getThemeByName, initTheme } from "@reverse/tui/theme";
+import { type MCPToolDetails, renderMCPResult } from "@reverse/tui/tools/mcp";
 
 import { resetSettingsForTest, Settings } from "../../src/config/settings";
 import type { CustomToolContext, CustomToolResult } from "../../src/extensibility/custom-tools/types";

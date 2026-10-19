@@ -1,5 +1,5 @@
-import type { ThinkingLevel } from "@rva/agent";
-import type { Effort } from "@rva/ai";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Effort } from "@reverse/ai";
 import {
 	type Component,
 	Container,
@@ -22,7 +22,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
-import type { ShapeTarget } from "@rva/snapcompact";
+import type { ShapeTarget } from "@reverse/snapcompact";
 import type {
 	ContextLineMode,
 	StatusLinePreset,
@@ -37,15 +37,13 @@ import {
 	numericOption,
 	SETTING_TABS,
 	type SubmenuOption,
-	TAB_LEADS,
-	TAB_METADATA,
 	tuiHint,
 	type SettingTab,
 	type SettingsHost,
 	type SettingsDisplayEntry,
 } from "./settings-defs";
-import type { SupportedLocale } from "@rva/utils/i18n";
-import type { TspPrefsControl, TspPrefsProps } from "@rva/wire";
+import type { SupportedLocale } from "@reverse/utils/i18n";
+import type { TspPrefsControl, TspPrefsProps } from "@reverse/wire";
 import { prefsSectionId } from "../components/settings-list";
 import { getCurrentThemeName, getSelectListTheme, getSettingsListTheme, theme } from "../theme/theme";
 import { AUTO_THINKING, type ConfiguredThinkingLevel } from "../thinking";
@@ -582,7 +580,11 @@ function getSettingsTabs(locale?: SupportedLocale): Tab[] {
 			const icon = theme.symbol(meta.icon);
 			return { id, label: `${icon} ${meta.label}`, short: icon };
 		}),
-		{ id: "plugins", label: `${theme.icon.package} ${tuiHint("settings.plugins", locale, "Plugins")}`, short: theme.icon.package },
+		{
+			id: "plugins",
+			label: `${theme.icon.package} ${tuiHint("settings.plugins", locale, "Plugins")}`,
+			short: theme.icon.package,
+		},
 	];
 }
 
@@ -864,7 +866,12 @@ export class SettingsSelectorComponent implements Component {
 
 		const pages: TspPrefsProps["pages"][number][] = SETTING_TABS.map(id => {
 			const changed = this.#changedCount(id);
-			return { id, label: getTabMetadata(id, this.#locale).label, icon: id, changed: changed > 0 ? changed : undefined };
+			return {
+				id,
+				label: getTabMetadata(id, this.#locale).label,
+				icon: id,
+				changed: changed > 0 ? changed : undefined,
+			};
 		});
 		pages.push({
 			id: PLUGINS_PAGE,
@@ -1625,7 +1632,9 @@ export class SettingsSelectorComponent implements Component {
 			if (this.#locale === "zh-CN") {
 				return baseOptions.map(opt => {
 					const tr = def.options.find(o => o.value === opt.value);
-					return tr ? { value: opt.value, label: tr.label ?? opt.label, description: tr.description ?? opt.description } : opt;
+					return tr
+						? { value: opt.value, label: tr.label ?? opt.label, description: tr.description ?? opt.description }
+						: opt;
 				});
 			}
 			return baseOptions;

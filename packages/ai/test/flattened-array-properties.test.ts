@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import type { Tool } from "@rva/ai/types";
-import { validateToolArguments } from "@rva/ai/utils/validation";
+import { type } from "@reverse/omptype";
+import type { Tool } from "@reverse/ai/types";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
 
 // Issue #8886 — some providers (notably Gemini) serialize array arguments as
 // flattened property paths (`questions[0].id`) instead of a nested array.

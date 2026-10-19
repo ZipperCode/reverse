@@ -7,9 +7,14 @@
 - Added `language` setting (`en` | `zh-CN`, default `en`, overrideable via `REVERSE_LANG` environment variable) providing Chinese localization for configuration labels, descriptions, group headers, and CLI help, while keeping canonical setting identifiers, enum storage values, and JSON machine contracts unchanged.
 - Added interactive TUI wizard (`/setup providers`, `/models`, `/provider add`, `/models add`) to add custom OpenAI-compatible and Anthropic-compatible providers with automated endpoint model discovery, multi-selection, and context window/output limit extraction without manual input, securely storing credentials in the local SQLite database (`agent.db`) and non-sensitive configurations in `models.yml` with immediate registry reload.
 
+### Changed
+
+- Migrated internal workspace packages and imports from `@rva/*` to `@reverse/*`, including build scripts, lockfile metadata, and SDK examples. No old-scope aliases are provided.
+
 ### Fixed
 
 - Fixed custom provider wizard model discovery to abort in-flight requests on cancel, back, and dispose, ignoring stale asynchronous responses; resolved native UI content duplication in model selection; and clearly displayed runtime output fallback for models with unknown `maxTokens` without persisting fabricated values.
+- Aligned reverse tool execution with the agent's call-ID, parameters, and cancellation contract; corrected DEX offsets, manifest flags, evidence findings, and runtime recovery types without suppressing diagnostics.
 ## [18.11.2] - 2026-10-16
 
 ### Added
@@ -187,7 +192,7 @@
 - Fixed background job results already consumed by an eval `agent()` handle's `wait()` being re-injected as one `async-result` follow-up when the cell ran past the 5-minute job retention window ([#15625](https://github.com/can1357/oh-my-pi/issues/15625))
 - Fixed `/tan` missing the parent's prompt cache: it advertised the parent's `xd://` tools as top-level tools and dropped `ask`, so its tool list no longer matched ([#15578](https://github.com/can1357/oh-my-pi/issues/15578))
 - Fixed forks and reloaded sessions missing the prompt cache after a compaction in a session with `eval` history ([#15695](https://github.com/can1357/oh-my-pi/issues/15695))
-- Fixed compiled-binary extensions importing `@rva/tui` subpaths such as `terminal-capabilities`, `chat/svg-figure` or `theme/index` loading a second copy from their own `node_modules` instead of sharing the host's terminal, theme and figure state ([#15659](https://github.com/can1357/oh-my-pi/issues/15659))
+- Fixed compiled-binary extensions importing `@reverse/tui` subpaths such as `terminal-capabilities`, `chat/svg-figure` or `theme/index` loading a second copy from their own `node_modules` instead of sharing the host's terminal, theme and figure state ([#15659](https://github.com/can1357/oh-my-pi/issues/15659))
 - Fixed marketplace plugins that keep their version in `.claude-plugin/plugin.json` never being reported by `omp plugin upgrade` or auto-updated; for plugins shipped inside the marketplace, `plugin.json`'s version now also takes precedence over the catalog entry's, as in Claude Code ([#15585](https://github.com/can1357/oh-my-pi/issues/15585))
 - Fixed a steer (queued user or peer message) waiting behind a `bash` service's readiness wait (`name` + `ready`) for up to `ready.timeout`; the call now returns early with the service still starting, inspectable via `proc://<name>` ([#15653](https://github.com/can1357/oh-my-pi/issues/15653))
 - Fixed `omp install`/`omp plugin install`, `upgrade`, `uninstall` and `doctor --fix` failing with `Executable not found in $PATH: "bun"` for npm and Git plugins on machines without Bun installed, such as standalone-binary installs ([#15480](https://github.com/can1357/oh-my-pi/issues/15480))
@@ -507,7 +512,7 @@
 - Fixed the `/switch` command and alternate model picker crashing when stored model speed statistics contained an unnamed model.
 - Fixed `lsp` and `generate_image` attempting to read FIFO, terminal, or unbounded device paths, which could hang or exhaust memory.
 - Fixed aside messages from extensions being blocked behind a running wait operation.
-- Fixed extensions importing `@rva/tui/native/*` failing to load in compiled `omp` binaries.
+- Fixed extensions importing `@reverse/tui/native/*` failing to load in compiled `omp` binaries.
 - Fixed raw token markers appearing instead of Nerd Font icons in Anthropic idle recaps, `/btw` and `/omfg` replies, and streaming previews.
 - Fixed sessions moved with `/wt` disappearing from resume lists; sessions in Git worktrees now remain discoverable and can be resumed or relocated if their worktree was removed.
 - Fixed live config reload ignoring edits made during startup or right after a config symlink was retargeted, until the next unrelated edit.
@@ -898,7 +903,7 @@
 - Fixed collaboration guests queueing host-only prompts locally instead of receiving the appropriate refusal.
 - `git worktree add` and `omp worktree add` now run the new worktree's `post-checkout` hook, including fallback checkouts.
 - Added a warning when submitted prompts cannot be saved to persistent history until saving recovers.
-- Compiled extensions can now import root-level `@rva/catalog` modules.
+- Compiled extensions can now import root-level `@reverse/catalog` modules.
 - Fixed idle compaction hiding the final assistant answer when advisor notes followed it.
 - `omp render` and resumed sessions now preserve token counts when imported assistant messages lack cost data.
 - Fixed cross-agent messages and background-job output from incorrectly closing or forging harness blocks.
@@ -1022,7 +1027,7 @@
 - Fixed isolated task branch capture leaving full-checkout temporary worktrees and empty `omp/task/*` branches behind when interrupted
 - Fixed merging isolated task branches stashing the entire working tree, which rewrote every Git LFS file and left `omp-task-merge` stash entries; merges now touch only the picked files and combine them with your unstaged edits
 - Fixed `openai-models-list` discovery to honor nested OpenAI model-list input/output token limits while preserving explicit top-level context precedence ([#13988](https://github.com/can1357/oh-my-pi/pull/13988) by [@github-nicolas-stadler](https://github.com/github-nicolas-stadler))
-- Fixed importing `@rva/coding-agent` source from an installed package (SDK, extension loader, bun-global `omp`) failing with `Export named 'createRatchetPrelude' not found` ([#14027](https://github.com/can1357/oh-my-pi/issues/14027))
+- Fixed importing `@reverse/coding-agent` source from an installed package (SDK, extension loader, bun-global `omp`) failing with `Export named 'createRatchetPrelude' not found` ([#14027](https://github.com/can1357/oh-my-pi/issues/14027))
 - Fixed finished subagent runs staying in memory for as long as the session that spawned them, through an abort listener left on the session's signal ([#14038](https://github.com/can1357/oh-my-pi/pull/14038) by [@theolundqvist](https://github.com/theolundqvist)).
 - Fixed print, RPC and ACP runs recording startup timing spans for their whole lifetime, which grew memory with every session and subagent they started ([#14039](https://github.com/can1357/oh-my-pi/pull/14039) by [@theolundqvist](https://github.com/theolundqvist)).
 - Fixed parked subagents keeping their spawn-time run state and settings in memory until the process exits, which grew memory with every subagent a long session spawned ([#14040](https://github.com/can1357/oh-my-pi/pull/14040) by [@theolundqvist](https://github.com/theolundqvist)).
@@ -1138,7 +1143,7 @@
 - Extension providers that offer `/login` and also name an env var as their `apiKey` (e.g. the Nexos provider's `NEXOS_API_KEY`) now use the key saved by `/login` when that env var is unset, instead of sending the env var's name as the key, which made their models fail to load or disappear ([#13815](https://github.com/can1357/oh-my-pi/pull/13815) by [@H4vC](https://github.com/H4vC))
 - Reduced memory held by finished subagents during long sessions ([#13624](https://github.com/can1357/oh-my-pi/pull/13624) by [@iliaal](https://github.com/iliaal)).
 - Fixed role and subagent `retry.fallbackChains` being skipped once the session's thinking level differed from the role's configured one (e.g. `task: grok-4.7:high` running at `:xhigh`), and cold-revived subagents losing the fallback chain they were spawned with ([#13789](https://github.com/can1357/oh-my-pi/issues/13789))
-- Fixed compiled OMP extensions importing `@rva/catalog` and its provider-model subpaths ([#13731](https://github.com/can1357/oh-my-pi/issues/13731)).
+- Fixed compiled OMP extensions importing `@reverse/catalog` and its provider-model subpaths ([#13731](https://github.com/can1357/oh-my-pi/issues/13731)).
 - Explicit `symbolPreset: unicode` now stays Unicode after a Glyph Protocol handshake instead of switching the status bar to Nerd Font icons ([#13865](https://github.com/can1357/oh-my-pi/issues/13865)).
 - Fixed rewinding (`/rewind`, `/tree`) during a running turn hiding the queued-prompt bar, making the still-pending queue look deleted and uneditable ([#13680](https://github.com/can1357/oh-my-pi/issues/13680))
 
@@ -1715,7 +1720,7 @@
 
 ### Breaking Changes
 
-- Moved terminal UI modules—including themes, tool renderers, chat, overlay, status-line, composer, setup wizard, and Git/PS/debug apps—to `@rva/tui`. The corresponding `@rva/coding-agent` subpaths no longer exist; names re-exported from the package root remain unchanged.
+- Moved terminal UI modules—including themes, tool renderers, chat, overlay, status-line, composer, setup wizard, and Git/PS/debug apps—to `@reverse/tui`. The corresponding `@reverse/coding-agent` subpaths no longer exist; names re-exported from the package root remain unchanged.
 
 ### Added
 

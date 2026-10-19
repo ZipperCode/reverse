@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import type { Args } from "@rva/coding-agent/cli/args";
-import { buildInitialMessage } from "@rva/coding-agent/cli/initial-message";
+import type { ImageContent } from "@reverse/ai";
+import type { Args } from "@reverse/coding-agent/cli/args";
+import { buildInitialMessage } from "@reverse/coding-agent/cli/initial-message";
 
 function createArgs(messages: string[]): Args {
 	return {

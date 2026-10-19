@@ -2,7 +2,7 @@
  * Run on-disk storage maintenance.
  */
 
-import { Command, Flags } from "@rva/utils/cli";
+import { Command, Flags } from "@reverse/utils/cli";
 import { gcHelp as commandHelp } from "../cli/command-help";
 import { collectGcErrors, type GcCommandArgs, runGcCommand } from "../cli/gc-cli";
 

@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { InteractiveMode } from "@rva/coding-agent/modes/interactive-mode";
-import * as loopCondition from "@rva/coding-agent/modes/loop-condition";
-import type { LoopConditionVerdict } from "@rva/coding-agent/modes/loop-condition";
-import { initTheme } from "@rva/tui/theme";
-import type { SubmittedUserInput } from "@rva/coding-agent/modes/types";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import * as loopCondition from "@reverse/coding-agent/modes/loop-condition";
+import type { LoopConditionVerdict } from "@reverse/coding-agent/modes/loop-condition";
+import { initTheme } from "@reverse/tui/theme";
+import type { SubmittedUserInput } from "@reverse/coding-agent/modes/types";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { TempDir } from "@reverse/utils";
 
-import { cfgLoopMode } from "@rva/coding-agent/modes/settings";
+import { cfgLoopMode } from "@reverse/coding-agent/modes/settings";
 
 async function flushMicrotasks(): Promise<void> {
 	await Promise.resolve();

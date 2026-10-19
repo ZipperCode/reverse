@@ -9,9 +9,9 @@
  */
 
 import * as path from "node:path";
-import type { Context, ImageContent, Model } from "@rva/ai";
-import { getBlobsDir, logger } from "@rva/utils";
-import * as snapcompact from "@rva/snapcompact";
+import type { Context, ImageContent, Model } from "@reverse/ai";
+import { getBlobsDir, logger } from "@reverse/utils";
+import * as snapcompact from "@reverse/snapcompact";
 import type { Settings } from "../config/settings";
 import { type BlobBackend, LocalBlobBackend } from "./broker";
 import {

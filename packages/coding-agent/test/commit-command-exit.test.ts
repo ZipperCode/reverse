@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import CommitCommand from "@rva/coding-agent/commands/commit";
-import * as commitModule from "@rva/coding-agent/commit";
-import * as themeModule from "@rva/tui/theme";
-import { postmortem } from "@rva/utils";
+import CommitCommand from "@reverse/coding-agent/commands/commit";
+import * as commitModule from "@reverse/coding-agent/commit";
+import * as themeModule from "@reverse/tui/theme";
+import { postmortem } from "@reverse/utils";
 
 describe("omp commit command lifecycle (issue #1041)", () => {
 	afterEach(() => {

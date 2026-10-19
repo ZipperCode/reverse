@@ -1,6 +1,6 @@
-import { renderComposerShapePreview } from "@rva/tui/overlays/composer-shape-preview";
-import { getComposerShapeOptions } from "@rva/tui/overlays/composer-shape-registry";
-import { StatusLineComponent } from "@rva/tui/status-line";
+import { renderComposerShapePreview } from "@reverse/tui/overlays/composer-shape-preview";
+import { getComposerShapeOptions } from "@reverse/tui/overlays/composer-shape-registry";
+import { StatusLineComponent } from "@reverse/tui/status-line";
 import { statusLineHost } from "../../modes/status-line-host";
 import { createGallerySession } from "./preview-session";
 import type { GalleryPreviewEntry } from "./types";

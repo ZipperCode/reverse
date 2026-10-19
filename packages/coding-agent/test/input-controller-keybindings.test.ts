@@ -1,19 +1,19 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
-import type { ImageContent } from "@rva/ai";
-import { ApprovalDialogComponent } from "@rva/tui/overlays/approval-dialog";
-import { AskDialogComponent } from "@rva/tui/overlays/ask-dialog";
-import { HookEditorComponent } from "@rva/tui/overlays/hook-editor";
-import { TreeSelectorComponent } from "@rva/tui/overlays/tree-selector";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import { SpaceHoldGesture } from "@rva/tui/space-hold";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import type { SessionTreeNode } from "@rva/coding-agent/session/session-entries";
-import { type KeyId, matchesKey } from "@rva/tui";
-import { TempDir } from "@rva/utils";
+import type { ImageContent } from "@reverse/ai";
+import { ApprovalDialogComponent } from "@reverse/tui/overlays/approval-dialog";
+import { AskDialogComponent } from "@reverse/tui/overlays/ask-dialog";
+import { HookEditorComponent } from "@reverse/tui/overlays/hook-editor";
+import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import { SpaceHoldGesture } from "@reverse/tui/space-hold";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import type { SessionTreeNode } from "@reverse/coding-agent/session/session-entries";
+import { type KeyId, matchesKey } from "@reverse/tui";
+import { TempDir } from "@reverse/utils";
 import manualContinuePrompt from "../src/prompts/system/manual-continue.md" with { type: "text" };
-import { imageAttachmentSource } from "@rva/tui/prompt/image-source";
+import { imageAttachmentSource } from "@reverse/tui/prompt/image-source";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
 type FakeEditor = {
@@ -408,7 +408,6 @@ describe("InputController keybinding setup", () => {
 		expect(focusedRetry).toHaveBeenCalledTimes(1);
 		expect(spies.retry).not.toHaveBeenCalled();
 	});
-
 
 	it("keeps the draft when there is nothing to retry", async () => {
 		const { InputController, ctx, editor, spies } = await createContext();

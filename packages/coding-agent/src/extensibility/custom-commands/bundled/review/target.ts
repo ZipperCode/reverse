@@ -1,4 +1,4 @@
-import * as vcs from "@rva/natives/vcs";
+import * as vcs from "@reverse/natives/vcs";
 import { parseReviewDiffSnapshot, type ReviewDiffSnapshot } from "./diff";
 
 export type LocalReviewKind = "base-branch" | "uncommitted" | "commit";

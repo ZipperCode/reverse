@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@rva/agent";
-import type { Model } from "@rva/ai";
+import { ThinkingLevel } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
 import type { ResolvedModelRoleValue } from "../../src/config/model-resolver";
 import { resolvePlanModelTransition } from "../../src/plan-mode/model-transition";
-import { AUTO_THINKING } from "@rva/tui/thinking";
+import { AUTO_THINKING } from "@reverse/tui/thinking";
 
 /**
  * Plan-mode model transition policy (issue #5657). The active model in plan

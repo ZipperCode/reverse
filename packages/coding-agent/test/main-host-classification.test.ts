@@ -1,9 +1,9 @@
 import { expect, it } from "bun:test";
-import { discoverAuthStorage } from "@rva/coding-agent/sdk";
-import { parseArgs } from "@rva/coding-agent/cli/args";
-import { resetSettingsForTest } from "@rva/coding-agent/config/settings";
-import { runRootCommand } from "@rva/coding-agent/main";
-import { getDbBusyTimeoutMs, setInteractiveHost, TempDir } from "@rva/utils";
+import { discoverAuthStorage } from "@reverse/coding-agent/sdk";
+import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { runRootCommand } from "@reverse/coding-agent/main";
+import { getDbBusyTimeoutMs, setInteractiveHost, TempDir } from "@reverse/utils";
 
 it("classifies an interactive host before opening auth storage", async () => {
 	const previous = setInteractiveHost(false);

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { FetchImpl } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { buildModel } from "@rva/catalog/build";
-import { searchAnthropic } from "@rva/coding-agent/web/search/providers/anthropic";
+import type { FetchImpl } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { buildModel } from "@reverse/catalog/build";
+import { searchAnthropic } from "@reverse/coding-agent/web/search/providers/anthropic";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const SELECTED_BASE_URL = "https://anthropic-grounding.example.test/v1";

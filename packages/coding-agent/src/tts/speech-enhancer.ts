@@ -15,8 +15,8 @@
  *   mechanical {@link SpeakableStream} cleanup — speech never blocks on the
  *   model.
  */
-import { type AssistantMessage, completeSimple, retryTransientCompletion } from "@rva/ai";
-import { logger, prompt } from "@rva/utils";
+import { type AssistantMessage, completeSimple, retryTransientCompletion } from "@reverse/ai";
+import { logger, prompt } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { roleCandidatePool } from "../config/model-roles";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../config/model-resolver";

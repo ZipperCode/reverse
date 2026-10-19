@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { TypingWordTracker } from "@rva/tui/prompt/typing-word";
+import { TypingWordTracker } from "@reverse/tui/prompt/typing-word";
 
 describe("TypingWordTracker", () => {
 	it("holds the word under the caret until a separator is typed", () => {

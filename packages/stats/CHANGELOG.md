@@ -181,7 +181,7 @@
 
 ### Changed
 
-- Optimized package dependencies by replacing `date-fns` with `@rva/utils/dates` and removing unused test dependencies.
+- Optimized package dependencies by replacing `date-fns` with `@reverse/utils/dates` and removing unused test dependencies.
 
 ## [17.2.9] - 2026-08-05
 
@@ -353,7 +353,7 @@
 
 ### Changed
 
-- Bundled-model lookups (`getBundledModel`, `GeneratedProvider`) now import from the new `@rva/catalog` package instead of the `@rva/ai` barrel, which no longer re-exports catalog values
+- Bundled-model lookups (`getBundledModel`, `GeneratedProvider`) now import from the new `@reverse/catalog` package instead of the `@reverse/ai` barrel, which no longer re-exports catalog values
 - The session-sync worker re-enters the host CLI entry (`workerHostEntry()` + `__omp_stats_sync_worker` argv selector) when running inside omp — source, npm bundle, or compiled binary — and keeps loading its own `sync-worker.ts` module directly for standalone `omp-stats`, bun test, and SDK hosts
 
 ## [15.1.6] - 2026-05-19

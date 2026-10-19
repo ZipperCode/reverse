@@ -11,9 +11,9 @@
  * directory, and `undefined` spans every project.
  */
 import * as path from "node:path";
-import { previewLine, shortenPath, TRUNCATE_LENGTHS } from "@rva/tui/render/render-utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatAge, formatCount } from "@rva/utils";
+import { previewLine, shortenPath, TRUNCATE_LENGTHS } from "@reverse/tui/render/render-utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatAge, formatCount } from "@reverse/utils";
 import { type HistoryEntry, HistoryStorage } from "../session/history-storage";
 import { listSessionRecaps, type SessionRecap } from "../session/session-index";
 import {

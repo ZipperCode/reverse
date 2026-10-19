@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { TSP_KINDS, type TspNode, type TspPickerProps } from "@rva/wire";
+import { TSP_KINDS, type TspNode, type TspPickerProps } from "@reverse/wire";
 import { ExtensionDashboard, type ExtensionDashboardRuntime } from "../src/overlays/extensions/extension-dashboard";
 import type { Extension, ExtensionProvider } from "../src/overlays/extensions/types";
 import { initTheme } from "../src/theme";

@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
-import { initBeam } from "@rva/mnemopi/core/beam";
+import { initBeam } from "@reverse/mnemopi/core/beam";
 import {
 	consolidateToEpisodic,
 	degradeEpisodic,
@@ -12,10 +12,10 @@ import {
 	memoriaRetrieve,
 	sleep,
 	sleepAllSessions,
-} from "@rva/mnemopi/core/beam/consolidate";
-import type { BeamMemoryState } from "@rva/mnemopi/core/beam/types";
-import { REGEX_EXTRACTION_MAX_INPUT_CHARS } from "@rva/mnemopi/core/entities";
-import { closeQuietly, openDatabase } from "@rva/mnemopi/db";
+} from "@reverse/mnemopi/core/beam/consolidate";
+import type { BeamMemoryState } from "@reverse/mnemopi/core/beam/types";
+import { REGEX_EXTRACTION_MAX_INPUT_CHARS } from "@reverse/mnemopi/core/entities";
+import { closeQuietly, openDatabase } from "@reverse/mnemopi/db";
 
 function state(sessionId = "s1"): BeamMemoryState {
 	const db = openDatabase(":memory:", { create: true, readwrite: true });

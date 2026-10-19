@@ -1,22 +1,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent, TextContent } from "@rva/ai";
-import { createSessionRuntime } from "@rva/coding-agent/autoresearch/state";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import { createSessionRuntime } from "@reverse/coding-agent/autoresearch/state";
 import {
 	type AutoresearchStorage,
 	closeAllAutoresearchStorages,
 	openAutoresearchStorage,
 	type SessionRow,
-} from "@rva/coding-agent/autoresearch/storage";
-import { createInitExperimentTool } from "@rva/coding-agent/autoresearch/tools/init-experiment";
-import { createLogExperimentTool } from "@rva/coding-agent/autoresearch/tools/log-experiment";
-import { createRunExperimentTool } from "@rva/coding-agent/autoresearch/tools/run-experiment";
-import { createUpdateNotesTool } from "@rva/coding-agent/autoresearch/tools/update-notes";
-import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@rva/tui/tools/autoresearch";
-import type { ExtensionAPI, ExtensionContext } from "@rva/coding-agent/extensibility/extensions";
-import * as vcs from "@rva/natives/vcs";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/autoresearch/storage";
+import { createInitExperimentTool } from "@reverse/coding-agent/autoresearch/tools/init-experiment";
+import { createLogExperimentTool } from "@reverse/coding-agent/autoresearch/tools/log-experiment";
+import { createRunExperimentTool } from "@reverse/coding-agent/autoresearch/tools/run-experiment";
+import { createUpdateNotesTool } from "@reverse/coding-agent/autoresearch/tools/update-notes";
+import type { ASIData, LogDetails, NumericMetricMap, RunDetails } from "@reverse/tui/tools/autoresearch";
+import type { ExtensionAPI, ExtensionContext } from "@reverse/coding-agent/extensibility/extensions";
+import * as vcs from "@reverse/natives/vcs";
+import { TempDir } from "@reverse/utils";
 import { $ } from "bun";
 
 afterEach(() => {

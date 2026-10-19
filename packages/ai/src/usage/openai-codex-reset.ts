@@ -18,8 +18,8 @@
  * (the `/usage reset` command + auto-redeem) and any out-of-band tooling can
  * share one wire contract.
  */
-import { toNumber } from "@rva/catalog/utils";
-import { USER_AGENT } from "@rva/utils";
+import { toNumber } from "@reverse/catalog/utils";
+import { USER_AGENT } from "@reverse/utils";
 import type { FetchImpl } from "../types";
 import { isRecord } from "../utils";
 import { normalizeCodexBaseUrl } from "./openai-codex-base-url";

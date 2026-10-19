@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "bun:test";
-import { pollOAuthDeviceCodeFlow } from "@rva/ai/oauth";
+import { pollOAuthDeviceCodeFlow } from "@reverse/ai/oauth";
 
 describe("OAuth device-code polling", () => {
 	it("exports the legacy device-code poll helper for external providers", async () => {

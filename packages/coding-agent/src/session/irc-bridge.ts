@@ -1,6 +1,6 @@
-import type { Agent, AgentMessage } from "@rva/agent";
-import { prompt } from "@rva/utils";
-import { type IrcMessage } from "@rva/tui/tools/irc";
+import type { Agent, AgentMessage } from "@reverse/agent";
+import { prompt } from "@reverse/utils";
+import { type IrcMessage } from "@reverse/tui/tools/irc";
 import parentIrcSteerTemplate from "../prompts/steering/parent-irc.md" with { type: "text" };
 import ircIncomingTemplate from "../prompts/system/irc-incoming.md" with { type: "text" };
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";

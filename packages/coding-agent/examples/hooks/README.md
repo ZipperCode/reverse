@@ -33,7 +33,7 @@ cp permission-gate.ts ~/.omp/agent/hooks/pre/
 See [docs/hooks.md](../../../../docs/hooks.md) for full documentation.
 
 ```typescript
-import type { HookAPI } from "@rva/coding-agent/extensibility/hooks";
+import type { HookAPI } from "@reverse/coding-agent/extensibility/hooks";
 
 export default function (pi: HookAPI) {
 	// Subscribe to events

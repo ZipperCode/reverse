@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildParams } from "@rva/ai/providers/openai-responses";
-import type { Context } from "@rva/ai/types";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModel } from "@rva/catalog/models";
+import { buildParams } from "@reverse/ai/providers/openai-responses";
+import type { Context } from "@reverse/ai/types";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const GPT_56_MODEL_IDS = [
 	"daybreak-blue-latest",

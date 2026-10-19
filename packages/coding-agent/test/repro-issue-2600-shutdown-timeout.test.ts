@@ -18,18 +18,18 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { discoverAndLoadExtensions } from "@rva/coding-agent/extensibility/extensions/loader";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { discoverAndLoadExtensions } from "@reverse/coding-agent/extensibility/extensions/loader";
 import {
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	ExtensionRunner,
 	SESSION_SHUTDOWN_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
 	testSetSessionShutdownHandlerTimeoutMs,
-} from "@rva/coding-agent/extensibility/extensions/runner";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { getProjectAgentDir, logger, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/extensibility/extensions/runner";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getProjectAgentDir, logger, TempDir } from "@reverse/utils";
 
 const HANG_EXTENSION_SRC = `
 	export default function(pi) {

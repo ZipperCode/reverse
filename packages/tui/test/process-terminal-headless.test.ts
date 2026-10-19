@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ProcessTerminal } from "@rva/tui/terminal";
-import { TERMINAL } from "@rva/tui/terminal-capabilities";
-import { isTerminalHeadless, setTerminalHeadless } from "@rva/utils";
+import { ProcessTerminal } from "@reverse/tui/terminal";
+import { TERMINAL } from "@reverse/tui/terminal-capabilities";
+import { isTerminalHeadless, setTerminalHeadless } from "@reverse/utils";
 
 const TERMINAL_PROGRESS_ACTIVE_SEQUENCE = "\x1b]9;4;3\x07";
 const TERMINAL_PROGRESS_CLEAR_SEQUENCE = "\x1b]9;4;0;\x07";

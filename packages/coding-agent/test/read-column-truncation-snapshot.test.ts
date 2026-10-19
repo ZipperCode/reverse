@@ -13,16 +13,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
-import { getEditStore } from "@rva/coding-agent/edit/store";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { GrepTool } from "@rva/coding-agent/tools/grep";
-import { removeWithRetries } from "@rva/utils";
+import type { AgentToolResult } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
+import { getEditStore } from "@reverse/coding-agent/edit/store";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { GrepTool } from "@reverse/coding-agent/tools/grep";
+import { removeWithRetries } from "@reverse/utils";
 
-import { cfgReadSummarizeEnabled, cfgToolsOutputMaxColumns } from "@rva/coding-agent/tools/settings";
+import { cfgReadSummarizeEnabled, cfgToolsOutputMaxColumns } from "@reverse/coding-agent/tools/settings";
 
 const HASHLINE_HEADER_LINE = /^\[([^#\r\n]+)#([0-9A-F]{4})\]$/m;
 const COLUMN_CAP = 64;

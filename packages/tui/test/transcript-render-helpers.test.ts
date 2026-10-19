@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Usage } from "@rva/ai";
-import { assistantUsageIsBilled } from "@rva/tui/chat/transcript-render-helpers";
+import type { Usage } from "@reverse/ai";
+import { assistantUsageIsBilled } from "@reverse/tui/chat/transcript-render-helpers";
 
 function usage(overrides: Partial<Usage> = {}): Usage {
 	return {

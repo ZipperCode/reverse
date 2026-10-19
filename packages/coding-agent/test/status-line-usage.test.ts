@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { StatusLineComponent } from "@rva/tui/status-line";
-import { statusLineHost } from "@rva/coding-agent/modes/status-line-host";
-import { renderSegment } from "@rva/tui/status-line/segments";
-import type { SegmentContext } from "@rva/tui/status-line/types";
-import { initTheme } from "@rva/tui/theme";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { StatusLineComponent } from "@reverse/tui/status-line";
+import { statusLineHost } from "@reverse/coding-agent/modes/status-line-host";
+import { renderSegment } from "@reverse/tui/status-line/segments";
+import type { SegmentContext } from "@reverse/tui/status-line/types";
+import { initTheme } from "@reverse/tui/theme";
 import { StatusLineTestComponents } from "./helpers/status-line";
 
 const statusLines = new StatusLineTestComponents();

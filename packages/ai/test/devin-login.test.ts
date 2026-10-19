@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { OAuthController } from "@rva/ai/registry/oauth/types";
-import type { FetchImpl } from "@rva/catalog/types";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { OAuthController } from "@reverse/ai/registry/oauth/types";
+import type { FetchImpl } from "@reverse/catalog/types";
 
 describe("Devin CLI login", () => {
 	test("exchanges callback code with CLI token JSON endpoint", async () => {

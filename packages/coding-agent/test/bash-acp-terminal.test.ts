@@ -1,12 +1,12 @@
 import { afterAll, afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
-import { TempDir } from "@rva/utils";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ClientBridge, ClientBridgeTerminalHandle } from "@rva/coding-agent/session/client-bridge";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { BashTool } from "@rva/coding-agent/tools/bash";
-import { encodeTerminalImage } from "@rva/coding-agent/utils/terminal-graphics";
+import { TempDir } from "@reverse/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ClientBridge, ClientBridgeTerminalHandle } from "@reverse/coding-agent/session/client-bridge";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
+import { encodeTerminalImage } from "@reverse/coding-agent/utils/terminal-graphics";
 
 // `getShellConfig()` validates that `shellPath` exists, and `/bin/bash` does not
 // on Windows. The ACP route only forwards the path to the stubbed client

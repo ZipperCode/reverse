@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { parseFileDiffs } from "@rva/coding-agent/commit/git/diff";
-import * as vcs from "@rva/natives/vcs";
+import { parseFileDiffs } from "@reverse/coding-agent/commit/git/diff";
+import * as vcs from "@reverse/natives/vcs";
 
 describe("joinPatch", () => {
 	test("preserves space character in empty context line at end of patch", () => {

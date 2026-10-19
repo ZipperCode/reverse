@@ -21,12 +21,12 @@ import {
 	type ThinkingBudgets,
 	type ToolChoice,
 	type ToolResultMessage,
-} from "@rva/ai";
-import type { Dialect } from "@rva/ai/dialect";
-import { openAIResponsesReplaysNativeHistory } from "@rva/ai/providers/openai-responses";
-import type { HarmonyAuditEvent } from "@rva/ai/utils/harmony-leak";
-import { getBundledModel } from "@rva/catalog/models";
-import { logger } from "@rva/utils";
+} from "@reverse/ai";
+import type { Dialect } from "@reverse/ai/dialect";
+import { openAIResponsesReplaysNativeHistory } from "@reverse/ai/providers/openai-responses";
+import type { HarmonyAuditEvent } from "@reverse/ai/utils/harmony-leak";
+import { getBundledModel } from "@reverse/catalog/models";
+import { logger } from "@reverse/utils";
 import {
 	abortReasonText,
 	agentLoop,

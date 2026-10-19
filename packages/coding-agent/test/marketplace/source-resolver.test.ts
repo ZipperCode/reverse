@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { MarketplacePluginEntry } from "@rva/coding-agent/extensibility/plugins/marketplace";
-import { resolvePluginSource, validatePluginSource } from "@rva/coding-agent/extensibility/plugins/marketplace";
-import { removeSyncWithRetries } from "@rva/utils";
+import type { MarketplacePluginEntry } from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import { resolvePluginSource, validatePluginSource } from "@reverse/coding-agent/extensibility/plugins/marketplace";
+import { removeSyncWithRetries } from "@reverse/utils";
 
 // Fixture: a cloned marketplace with a single plugin at ./plugins/hello-plugin
 const FIXTURE_DIR = path.resolve(import.meta.dir, "fixtures/valid-marketplace");

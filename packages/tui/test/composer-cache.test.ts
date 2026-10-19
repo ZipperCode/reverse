@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Database, Statement } from "bun:sqlite";
-import { ThinkingLevel } from "@rva/agent";
+import { ThinkingLevel } from "@reverse/agent";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { COMPOSER_DEFAULTS, type ComposerStatusCache } from "@rva/tui/prompt/composer";
-import { ComposerCache } from "@rva/tui/prompt/composer-cache";
+import { COMPOSER_DEFAULTS, type ComposerStatusCache } from "@reverse/tui/prompt/composer";
+import { ComposerCache } from "@reverse/tui/prompt/composer-cache";
 
 function statusFor(thinkingLevel: ThinkingLevel): ComposerStatusCache {
 	return {
@@ -138,7 +138,7 @@ describe("composer startup cache", () => {
 		]);
 		await Bun.write(path.join(home, ".env"), `XDG_CACHE_HOME=${xdgCache}\n`);
 
-		const composerCacheModule = Bun.resolveSync("@rva/tui/prompt/composer-cache", import.meta.dir);
+		const composerCacheModule = Bun.resolveSync("@reverse/tui/prompt/composer-cache", import.meta.dir);
 		const script = [
 			'import * as path from "node:path";',
 			`import { ComposerCache } from ${JSON.stringify(composerCacheModule)};`,

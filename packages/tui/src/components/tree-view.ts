@@ -1,4 +1,4 @@
-import type { TspSpan, TspTreeNode } from "@rva/wire";
+import type { TspSpan, TspTreeNode } from "@reverse/wire";
 import { styledSpans } from "../native/spans";
 import { node } from "../native/describe";
 import type { DescribeContext, NativeNode } from "../native/node";

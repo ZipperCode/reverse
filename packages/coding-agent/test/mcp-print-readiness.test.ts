@@ -1,13 +1,13 @@
 import * as path from "node:path";
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { callTool } from "@rva/coding-agent/mcp/client";
-import { MCPManager } from "@rva/coding-agent/mcp/manager";
-import { resolveMCPStartupTimeoutMs } from "@rva/coding-agent/mcp/timeout";
-import type { MCPStdioServerConfig } from "@rva/coding-agent/mcp/types";
-import { runPrintMode } from "@rva/coding-agent/modes/print-mode";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { TempDir } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { callTool } from "@reverse/coding-agent/mcp/client";
+import { MCPManager } from "@reverse/coding-agent/mcp/manager";
+import { resolveMCPStartupTimeoutMs } from "@reverse/coding-agent/mcp/timeout";
+import type { MCPStdioServerConfig } from "@reverse/coding-agent/mcp/types";
+import { runPrintMode } from "@reverse/coding-agent/modes/print-mode";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { TempDir } from "@reverse/utils";
 
 const FIXTURE = path.join(import.meta.dir, "fixtures", "readiness-mcp.ts");
 const SLOW_START_MS = 1_100;

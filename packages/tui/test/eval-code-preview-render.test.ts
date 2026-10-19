@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { EvalToolDetails } from "@rva/tui/tools/eval";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import { evalToolRenderer } from "@rva/tui/tools/eval";
-import { previewWindowRows } from "@rva/tui/render/render-utils";
+import type { EvalToolDetails } from "@reverse/tui/tools/eval";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import { evalToolRenderer } from "@reverse/tui/tools/eval";
+import { previewWindowRows } from "@reverse/tui/render/render-utils";
 
 /**
  * Defends the bounded code-window contract for eval cells: collapsed views cap

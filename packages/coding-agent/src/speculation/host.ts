@@ -12,13 +12,13 @@ import type {
 	SpeculativeOperationContext,
 	SpeculativeToolExecutionConfig,
 	SpeculativeToolReference,
-} from "@rva/agent";
+} from "@reverse/agent";
 import {
 	BINARY_SNIFF_BYTES,
 	IMAGE_METADATA_HEADER_BYTES,
 	isProbablyBinaryHeader,
 	parseImageMetadata,
-} from "@rva/utils";
+} from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import type { ToolSession } from "../tools";
 import { resolveApproval } from "../tools/approval";
@@ -31,7 +31,7 @@ import {
 } from "../tools/read";
 import { isCpuProfilePath } from "../utils/cpuprofile";
 import { isSampleProfilePath } from "../utils/sample-profile";
-import { isVideoPath } from "@rva/tui/prompt/video";
+import { isVideoPath } from "@reverse/tui/prompt/video";
 import { cfgTaskSpeculativeLaunch } from "../task/settings";
 
 import {

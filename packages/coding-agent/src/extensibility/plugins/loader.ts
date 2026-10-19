@@ -14,7 +14,7 @@ import {
 	isEnoent,
 	logger,
 	normalizePathForComparison,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { getConfigDirPaths } from "../../config";
 import { registerPluginCacheInvalidator, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import { findExtensionDirectoryIndex, resolveExtensionDirectory } from "../extensions/directory-resolution";

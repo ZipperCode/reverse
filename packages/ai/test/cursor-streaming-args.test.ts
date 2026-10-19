@@ -7,11 +7,11 @@ import {
 	synthesizeCursorExecToolCall,
 	type ToolCallState,
 	type UsageState,
-} from "@rva/ai/providers/cursor";
-import type { AssistantMessage, AssistantMessageEvent } from "@rva/ai/types";
-import { getStreamingPartialJson, kCursorExecResolved } from "@rva/ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { validateToolArguments } from "@rva/ai/utils/validation";
+} from "@reverse/ai/providers/cursor";
+import type { AssistantMessage, AssistantMessageEvent } from "@reverse/ai/types";
+import { getStreamingPartialJson, kCursorExecResolved } from "@reverse/ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
 
 interface Harness {
 	output: AssistantMessage;

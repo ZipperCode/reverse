@@ -1,6 +1,6 @@
 import type { DeferredDiagnosticsEntry, ToolSession } from "../tools";
 import { getDiagnosticsLedger } from "./diagnostics-ledger";
-import type { FileDiagnosticsResult } from "@rva/tui/tools/lsp";
+import type { FileDiagnosticsResult } from "@reverse/tui/tools/lsp";
 import type { WritethroughDeferredHandle } from "./index";
 
 import { cfgLspDiagnosticsDeduplicate } from "./settings";

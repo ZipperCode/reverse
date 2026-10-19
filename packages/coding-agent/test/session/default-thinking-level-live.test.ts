@@ -2,17 +2,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { SelectorController } from "@rva/coding-agent/modes/controllers/selector-controller";
-import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { cfgDefaultThinkingLevel } from "@rva/coding-agent/session/settings";
-import { createSubagentSettings } from "@rva/coding-agent/task/executor";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { Effort } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { SelectorController } from "@reverse/coding-agent/modes/controllers/selector-controller";
+import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { cfgDefaultThinkingLevel } from "@reverse/coding-agent/session/settings";
+import { createSubagentSettings } from "@reverse/coding-agent/task/executor";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { createInteractiveModeContext } from "../helpers/interactive-mode-context";
 
 // `defaultThinkingLevel` seeds new sessions. A later write that is not the user's

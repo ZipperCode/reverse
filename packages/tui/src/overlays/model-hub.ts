@@ -10,7 +10,7 @@ import { parseModelString, splitUpstreamRouting, formatModelSelectorValue } from
  * Fully mouse-navigable (hover, wheel, click). Session-only switching lives
  * in the compact alt+p picker ({@link ./model-picker}).
  */
-import { ThinkingLevel } from "@rva/agent";
+import { ThinkingLevel } from "@reverse/agent";
 import type {
 	TspPickerAction,
 	TspPickerColumn,
@@ -19,14 +19,14 @@ import type {
 	TspPickerProps,
 	TspPickerScope,
 	TspSpan,
-} from "@rva/wire";
-import type { KeysApi, Model } from "@rva/ai";
-import { getOAuthProviders } from "@rva/ai/oauth";
-import { getSupportedEfforts } from "@rva/catalog/model-thinking";
-import { providerEntry } from "@rva/catalog/compat/providers";
-import { MODEL_KINDS, modelKind, type ModelKind } from "@rva/catalog/types";
+} from "@reverse/wire";
+import type { KeysApi, Model } from "@reverse/ai";
+import { getOAuthProviders } from "@reverse/ai/oauth";
+import { getSupportedEfforts } from "@reverse/catalog/model-thinking";
+import { providerEntry } from "@reverse/catalog/compat/providers";
+import { MODEL_KINDS, modelKind, type ModelKind } from "@reverse/catalog/types";
 import type { Component, TUI } from "../tui";
-import { resolveEffectiveLocale, type SupportedLocale } from "@rva/utils/i18n";
+import { resolveEffectiveLocale, type SupportedLocale } from "@reverse/utils/i18n";
 import { extractPrintableText, matchesKey } from "../keys";
 import { FuzzyCorpus } from "../fuzzy";
 import { formatKeyHint, formatKeyHints } from "../app-keybindings";

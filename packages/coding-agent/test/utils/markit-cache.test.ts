@@ -10,10 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Markit } from "@rva/coding-agent/markit";
-import { convertBufferWithMarkit, convertFileWithMarkit } from "@rva/coding-agent/utils/markit";
-import { pruneMarkitConversionCache } from "@rva/coding-agent/utils/markit-cache";
-import { __resetDirsFromEnvForTests, getAgentDir, Snowflake, setAgentDir } from "@rva/utils";
+import { Markit } from "@reverse/coding-agent/markit";
+import { convertBufferWithMarkit, convertFileWithMarkit } from "@reverse/coding-agent/utils/markit";
+import { pruneMarkitConversionCache } from "@reverse/coding-agent/utils/markit-cache";
+import { __resetDirsFromEnvForTests, getAgentDir, Snowflake, setAgentDir } from "@reverse/utils";
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {

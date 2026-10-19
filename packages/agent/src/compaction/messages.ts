@@ -5,8 +5,8 @@ import type {
 	ProviderPayload,
 	TextContent,
 	ToolResultMessage,
-} from "@rva/ai";
-import { prompt } from "@rva/utils";
+} from "@reverse/ai";
+import { prompt } from "@reverse/utils";
 import type { AgentMessage } from "../types";
 import type { SessionEntry } from "./entries";
 import branchSummaryContextPrompt from "./prompts/branch-summary-context.md" with { type: "text" };

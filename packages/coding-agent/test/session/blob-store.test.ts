@@ -6,9 +6,9 @@ import {
 	externalizeImageData,
 	parseBlobRef,
 	resolveImageData,
-} from "@rva/coding-agent/session/blob-store";
-import { blobExtensionForImageMimeType } from "@rva/tui/prompt/image-format";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/blob-store";
+import { blobExtensionForImageMimeType } from "@reverse/tui/prompt/image-format";
+import { TempDir } from "@reverse/utils";
 
 describe("BlobStore image display paths", () => {
 	it("creates an extension-bearing sidecar for image blobs while keeping canonical refs extensionless", async () => {

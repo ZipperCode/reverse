@@ -4,18 +4,18 @@
  * Mnemopi instances -> `recallEnhanced`.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { loadMnemopiConfig } from "@rva/coding-agent/mnemopi/config";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { loadMnemopiConfig } from "@reverse/coding-agent/mnemopi/config";
 import {
 	loadMnemopi,
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@rva/coding-agent/mnemopi/state";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
-import { MemoryRecallTool } from "@rva/coding-agent/tools/memory-recall";
-import { MemoryRetainTool } from "@rva/coding-agent/tools/memory-retain";
-import { TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/mnemopi/state";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
+import { MemoryRecallTool } from "@reverse/coding-agent/tools/memory-recall";
+import { MemoryRetainTool } from "@reverse/coding-agent/tools/memory-retain";
+import { TempDir } from "@reverse/utils";
 
 // Mnemopi is lazy-loaded at runtime; preload it for synchronous state construction.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);

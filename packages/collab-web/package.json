@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@rva/tool-views",
+  "name": "@reverse/tool-views",
   "version": "16.3.6",
   "private": true,
   "description": "Tool render views and build script for session exports",
@@ -35,7 +35,7 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@rva/wire": "catalog:",
+    "@reverse/wire": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

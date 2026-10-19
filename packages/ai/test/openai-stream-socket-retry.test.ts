@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { streamAzureOpenAIResponses } from "@rva/ai/providers/azure-openai-responses";
-import { streamOpenAICodexResponses } from "@rva/ai/providers/openai-codex-responses";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { Context, FetchImpl, Model, ModelSpec } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { streamAzureOpenAIResponses } from "@reverse/ai/providers/azure-openai-responses";
+import { streamOpenAICodexResponses } from "@reverse/ai/providers/openai-codex-responses";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { Context, FetchImpl, Model, ModelSpec } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const SOCKET_CLOSE_MESSAGE =
 	"The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()";

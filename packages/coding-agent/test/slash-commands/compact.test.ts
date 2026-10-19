@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "bun:test";
-import { CompactionCancelledError } from "@rva/agent/compaction";
-import type { CompactOptions } from "@rva/coding-agent/extensibility/extensions/types";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import type { CompactMode } from "@rva/coding-agent/session/compact-modes";
-import { USER_INTERRUPT_LABEL } from "@rva/coding-agent/session/messages";
-import { executeAcpBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/acp-builtins";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import type { SlashCommandRuntime } from "@rva/coding-agent/slash-commands/types";
+import { CompactionCancelledError } from "@reverse/agent/compaction";
+import type { CompactOptions } from "@reverse/coding-agent/extensibility/extensions/types";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import type { CompactMode } from "@reverse/coding-agent/session/compact-modes";
+import { USER_INTERRUPT_LABEL } from "@reverse/coding-agent/session/messages";
+import { executeAcpBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/acp-builtins";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import type { SlashCommandRuntime } from "@reverse/coding-agent/slash-commands/types";
 
 function acpRuntime() {
 	const compact = vi.fn(async (_instructions?: string, _options?: CompactOptions) => {});

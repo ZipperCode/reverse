@@ -13,9 +13,9 @@
  * dashboard must keep working for API-key-only setups that never record usage.
  */
 import { Database } from "bun:sqlite";
-import { AuthBrokerClient, resolveAuthBrokerConfig } from "@rva/ai/auth-broker";
-import type { ClientUsageClientSummary } from "@rva/ai/usage";
-import { getAgentDbPath, logger } from "@rva/utils";
+import { AuthBrokerClient, resolveAuthBrokerConfig } from "@reverse/ai/auth-broker";
+import type { ClientUsageClientSummary } from "@reverse/ai/usage";
+import { getAgentDbPath, logger } from "@reverse/utils";
 import type { ProviderWindowInsight, UsageWindowPoint, UsageWindowSeries } from "./shared-types";
 
 /** Subset of a `usage_history` row consumed by the window analytics. */

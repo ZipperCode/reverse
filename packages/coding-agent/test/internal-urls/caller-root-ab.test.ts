@@ -19,16 +19,16 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls";
-import { resetRegisteredArtifactDirsForTests } from "@rva/coding-agent/internal-urls/registry-helpers";
-import { InternalUrlFilesystem } from "@rva/coding-agent/internal-urls/url-filesystem";
-import { AgentRegistry, MAIN_AGENT_ID } from "@rva/coding-agent/registry/agent-registry";
-import { ensurePersistedRoster } from "@rva/coding-agent/registry/persisted-agents";
-import { CURRENT_SESSION_VERSION } from "@rva/coding-agent/session/session-entries";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { GrepTool } from "@rva/coding-agent/tools/grep";
-import { ShellFsOp } from "@rva/natives";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls";
+import { resetRegisteredArtifactDirsForTests } from "@reverse/coding-agent/internal-urls/registry-helpers";
+import { InternalUrlFilesystem } from "@reverse/coding-agent/internal-urls/url-filesystem";
+import { AgentRegistry, MAIN_AGENT_ID } from "@reverse/coding-agent/registry/agent-registry";
+import { ensurePersistedRoster } from "@reverse/coding-agent/registry/persisted-agents";
+import { CURRENT_SESSION_VERSION } from "@reverse/coding-agent/session/session-entries";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { GrepTool } from "@reverse/coding-agent/tools/grep";
+import { ShellFsOp } from "@reverse/natives";
 
 function sessionHeader(id: string): string {
 	return JSON.stringify({

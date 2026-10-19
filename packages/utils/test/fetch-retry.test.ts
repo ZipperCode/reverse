@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractRetryHint, fetchWithRetry, isUnexpectedSocketCloseMessage } from "@rva/utils/fetch-retry";
+import { extractRetryHint, fetchWithRetry, isUnexpectedSocketCloseMessage } from "@reverse/utils/fetch-retry";
 
 describe("isUnexpectedSocketCloseMessage", () => {
 	it.each(["Socket is closed", "Error: Socket is closed.", "The socket connection was closed unexpectedly"])(

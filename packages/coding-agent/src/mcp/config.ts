@@ -4,7 +4,7 @@
  * Uses the capability system to load MCP servers from multiple sources.
  */
 
-import { getMCPConfigPath, logger } from "@rva/utils";
+import { getMCPConfigPath, logger } from "@reverse/utils";
 import { mcpCapability } from "../capability/mcp";
 import type { EffectiveExtensionRoots, SourceMeta } from "../capability/types";
 import type { MCPServer } from "../discovery";

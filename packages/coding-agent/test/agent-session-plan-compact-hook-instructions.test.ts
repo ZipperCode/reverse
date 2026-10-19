@@ -16,17 +16,17 @@
  *   `CompactOptions.internalGuidance` instead.
  * - The `session_before_compact` hook event MUST see
  *   `customInstructions: undefined` for internal-guidance compactions.
- * - The native summarizer (invoked via `@rva/agent/compaction`)
+ * - The native summarizer (invoked via `@reverse/agent/compaction`)
  *   MUST still receive the plan guidance so the summary is directed.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import * as compactionModule from "@rva/agent/compaction";
-import { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { getBundledModel } from "@rva/catalog/models";
-import { TempDir } from "@rva/utils";
+import { Agent } from "@reverse/agent";
+import * as compactionModule from "@reverse/agent/compaction";
+import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { getBundledModel } from "@reverse/catalog/models";
+import { TempDir } from "@reverse/utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { Settings } from "../src/config/settings";
 import type { SessionBeforeCompactEvent } from "../src/extensibility/shared-events";

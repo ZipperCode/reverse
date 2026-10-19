@@ -4,27 +4,22 @@
  * running-agents roster for activity with no job entry.
  */
 
-import type { AgentToolResult } from "@rva/agent";
+import type { AgentToolResult } from "@reverse/agent";
 
 import type { AsyncJob, AsyncJobDetails, AsyncJobManager, AsyncJobType } from "./job-manager";
 
 import { renderStructuredJson, structuredStatusLabel } from "../session/async-job-delivery";
 import { USER_INTERRUPT_LABEL } from "../session/messages";
-import type { StructuredSubagentOutput } from "@rva/tui/tools/task";
-import { parseConfiguredThinkingLevel } from "@rva/tui/thinking";
+import type { StructuredSubagentOutput } from "@reverse/tui/tools/task";
+import { parseConfiguredThinkingLevel } from "@reverse/tui/thinking";
 
 import type { ToolSession } from "../tools";
 
-import { formatDuration } from "@rva/tui/render/render-utils";
-import type {
-	AgentActivitySnapshot,
-	CancelOutcome,
-	CoordinationDetails,
-	JobSnapshot,
-} from "@rva/tui/tools/wait";
+import { formatDuration } from "@reverse/tui/render/render-utils";
+import type { AgentActivitySnapshot, CancelOutcome, CoordinationDetails, JobSnapshot } from "@reverse/tui/tools/wait";
 
-import { isWaitingPollDetails } from "@rva/tui/tools/wait";
-import { formatArtifactErrorNotice } from "@rva/tui/tools/output-meta";
+import { isWaitingPollDetails } from "@reverse/tui/tools/wait";
+import { formatArtifactErrorNotice } from "@reverse/tui/tools/output-meta";
 
 /**
  * Resolve a list of job ids to job records visible to the calling agent.

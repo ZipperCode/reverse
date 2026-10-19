@@ -16,18 +16,18 @@ import {
 	generateBranchSummary,
 	generateHandoff,
 	generateSummary,
-} from "@rva/agent/compaction";
+} from "@reverse/agent/compaction";
 import {
 	type AgentTelemetryConfig,
 	GenAIAttr,
 	GenAIOperation,
 	OmpGenAIAttr,
 	resolveTelemetry,
-} from "@rva/agent/telemetry";
-import type { AgentMessage } from "@rva/agent/types";
-import type { AssistantMessage, Model, Usage } from "@rva/ai";
-import * as ai from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/agent/telemetry";
+import type { AgentMessage } from "@reverse/agent/types";
+import type { AssistantMessage, Model, Usage } from "@reverse/ai";
+import * as ai from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
 import { SpanStatusCode } from "@opentelemetry/api";
 import {
 	BasicTracerProvider,

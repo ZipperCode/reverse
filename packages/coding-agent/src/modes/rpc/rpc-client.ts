@@ -5,11 +5,11 @@
  */
 
 import { isPromise } from "node:util/types";
-import type { AgentEvent, AgentMessage, AgentToolResult, ThinkingLevel } from "@rva/agent";
-import type { CompactionResult } from "@rva/agent/compaction";
-import type { ImageContent, Model } from "@rva/ai";
-import { isRecord, ptree, readJsonl } from "@rva/utils";
-import type { LogoutAccount } from "@rva/tui/overlays/logout-account-selector";
+import type { AgentEvent, AgentMessage, AgentToolResult, ThinkingLevel } from "@reverse/agent";
+import type { CompactionResult } from "@reverse/agent/compaction";
+import type { ImageContent, Model } from "@reverse/ai";
+import { isRecord, ptree, readJsonl } from "@reverse/utils";
+import type { LogoutAccount } from "@reverse/tui/overlays/logout-account-selector";
 import type { FileSink } from "bun";
 import type { BashResult } from "../../exec/bash-executor";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";

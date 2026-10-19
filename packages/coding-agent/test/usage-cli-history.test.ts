@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore, type UsageHistoryEntry } from "@rva/ai";
-import { type AuthBrokerServerHandle, startAuthBroker } from "@rva/ai/auth-broker";
-import { runUsageCommand } from "@rva/coding-agent/cli/usage-cli";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as sdkModule from "@rva/coding-agent/sdk";
+import { AuthStorage, SqliteAuthCredentialStore, type UsageHistoryEntry } from "@reverse/ai";
+import { type AuthBrokerServerHandle, startAuthBroker } from "@reverse/ai/auth-broker";
+import { runUsageCommand } from "@reverse/coding-agent/cli/usage-cli";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as sdkModule from "@reverse/coding-agent/sdk";
 
 const BROKER_ENV = ["OMP_AUTH_BROKER_URL", "OMP_AUTH_BROKER_TOKEN"] as const;
 const HOUR_MS = 60 * 60 * 1000;

@@ -5,9 +5,9 @@
  * They can provide custom rendering for tool calls and results in the TUI.
  */
 
-import type { type as ArkType } from "@rva/omptype";
-import type * as TypeBox from "@rva/omptype/typebox";
-import type * as zod from "@rva/omptype/zod";
+import type { type as ArkType } from "@reverse/omptype";
+import type * as TypeBox from "@reverse/omptype/typebox";
+import type * as zod from "@reverse/omptype/zod";
 import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
@@ -15,12 +15,12 @@ import type {
 	ToolApprovalDecision,
 	ToolLoadMode,
 	ToolTier,
-} from "@rva/agent";
-import type { CompactionResult } from "@rva/agent/compaction";
-import type { FetchImpl, Model, Static, TSchema } from "@rva/ai";
-import type { Component } from "@rva/tui";
-import type { NativeToolView, RenderResultOptions } from "@rva/tui/tools/renderer";
-import type { logger as PiLogger } from "@rva/utils";
+} from "@reverse/agent";
+import type { CompactionResult } from "@reverse/agent/compaction";
+import type { FetchImpl, Model, Static, TSchema } from "@reverse/ai";
+import type { Component } from "@reverse/tui";
+import type { NativeToolView, RenderResultOptions } from "@reverse/tui/tools/renderer";
+import type { logger as PiLogger } from "@reverse/utils";
 import type { Rule } from "../../capability/rule";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { Settings } from "../../config/settings";
@@ -28,9 +28,9 @@ import type { ExecOptions, ExecResult } from "../../exec/exec";
 import type { HookUIContext } from "../../extensibility/hooks/types";
 import type * as PiCodingAgent from "../../index";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
-import type { Theme } from "@rva/tui/theme";
+import type { Theme } from "@reverse/tui/theme";
 import type { ReadonlySessionManager } from "../../session/session-manager";
-import type { TodoItem } from "@rva/tui/tools/todo";
+import type { TodoItem } from "@reverse/tui/tools/todo";
 import type { RetryErrorUpdate } from "../shared-events";
 
 /** Alias for clarity */

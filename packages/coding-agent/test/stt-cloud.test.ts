@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as transcription from "@rva/ai/transcription";
-import type { TranscriptionResult } from "@rva/ai/transcription";
-import { getBundledModel } from "@rva/catalog/models";
-import type { Model } from "@rva/catalog/types";
-import { Settings, settings } from "@rva/coding-agent/config/settings";
-import * as asrClient from "@rva/coding-agent/stt/asr-client";
-import * as downloader from "@rva/coding-agent/stt/downloader";
-import { STTController } from "@rva/coding-agent/stt/stt-controller";
+import * as transcription from "@reverse/ai/transcription";
+import type { TranscriptionResult } from "@reverse/ai/transcription";
+import { getBundledModel } from "@reverse/catalog/models";
+import type { Model } from "@reverse/catalog/types";
+import { Settings, settings } from "@reverse/coding-agent/config/settings";
+import * as asrClient from "@reverse/coding-agent/stt/asr-client";
+import * as downloader from "@reverse/coding-agent/stt/downloader";
+import { STTController } from "@reverse/coding-agent/stt/stt-controller";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 
-import { cfgSttLanguage, cfgSttSubmitTrigger } from "@rva/coding-agent/stt/settings";
+import { cfgSttLanguage, cfgSttSubmitTrigger } from "@reverse/coding-agent/stt/settings";
 
 const ZERO_USAGE = {
 	input: 0,

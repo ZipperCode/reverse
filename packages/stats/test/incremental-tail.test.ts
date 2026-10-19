@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { syncAllSessions } from "@rva/stats/aggregator";
-import { closeDb, getFileOffset, getRecentRequests, initDb } from "@rva/stats/db";
-import { getOverallStats } from "@rva/stats/rollup";
-import { getSessionsDir, getStatsDbPath } from "@rva/utils";
+import { syncAllSessions } from "@reverse/stats/aggregator";
+import { closeDb, getFileOffset, getRecentRequests, initDb } from "@reverse/stats/db";
+import { getOverallStats } from "@reverse/stats/rollup";
+import { getSessionsDir, getStatsDbPath } from "@reverse/utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 const isolation = installStatsTestIsolation("@pi-stats-tail-");

@@ -1,8 +1,8 @@
-import type { AgentMessage } from "@rva/agent";
-import type { AssistantMessage, ImageContent, TextContent } from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { raceWithSignal } from "@rva/ai/utils/abort";
-import { logger } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import type { AssistantMessage, ImageContent, TextContent } from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { raceWithSignal } from "@reverse/ai/utils/abort";
+import { logger } from "@reverse/utils";
 import {
 	collectNativeReplayRegexSecretValues,
 	obfuscateNativeReplay,

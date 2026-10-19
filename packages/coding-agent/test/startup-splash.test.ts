@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { runStartupSplash } from "@rva/tui/setup/startup-splash";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { shouldShowStartupSplash } from "@rva/coding-agent/startup-splash";
-import type { Component } from "@rva/tui";
+import { runStartupSplash } from "@reverse/tui/setup/startup-splash";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { shouldShowStartupSplash } from "@reverse/coding-agent/startup-splash";
+import type { Component } from "@reverse/tui";
 
 beforeAll(async () => {
 	await initTheme(false);

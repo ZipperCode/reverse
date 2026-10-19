@@ -7,9 +7,9 @@ import {
 	type Model,
 	retryTransientCompletion,
 	withAuth,
-} from "@rva/ai";
-import { ProviderHttpError } from "@rva/ai/error";
-import { fetchWithRetry } from "@rva/utils";
+} from "@reverse/ai";
+import { ProviderHttpError } from "@reverse/ai/error";
+import { fetchWithRetry } from "@reverse/utils";
 import { type CompleteOptions, callHostLlm, getHostLlmBackend } from "./llm-backends";
 import {
 	getMnemopiRuntimeOptions,

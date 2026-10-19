@@ -1,4 +1,4 @@
-import { extractHttpStatusFromError } from "@rva/utils";
+import { extractHttpStatusFromError } from "@reverse/utils";
 import type { CapturedHttpErrorResponse } from "../utils/http-inspector";
 
 /**

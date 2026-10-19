@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { AuthStorage } from "@rva/ai/auth-storage";
-import type { UsageReport } from "@rva/ai/usage";
-import { claudeUsageProvider } from "@rva/ai/usage/claude";
+import { AuthStorage } from "@reverse/ai/auth-storage";
+import type { UsageReport } from "@reverse/ai/usage";
+import { claudeUsageProvider } from "@reverse/ai/usage/claude";
 import { withEnv } from "./helpers";
 
 async function probeEnvUsage(apiKey: string) {

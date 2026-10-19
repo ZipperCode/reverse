@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { instrumentedCompleteSimple } from "@rva/agent/telemetry";
-import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions, Usage } from "@rva/ai/types";
+import { instrumentedCompleteSimple } from "@reverse/agent/telemetry";
+import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions, Usage } from "@reverse/ai/types";
 
 /**
  * Defends the opt-in contract of the oneshot retry funnel.

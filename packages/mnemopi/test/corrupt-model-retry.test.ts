@@ -5,7 +5,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getFastembedCacheDir } from "@rva/utils";
+import { getFastembedCacheDir } from "@reverse/utils";
 import { defaultLocalModelInitializer, type LocalEmbeddingModel } from "../src/core/embeddings";
 import * as runtime from "../src/core/fastembed-runtime";
 

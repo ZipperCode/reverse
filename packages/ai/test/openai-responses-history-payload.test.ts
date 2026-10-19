@@ -1,20 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import {
 	type OpenAIResponsesOptions,
 	openAIResponsesReplaysNativeHistory,
 	streamOpenAIResponses,
-} from "@rva/ai/providers/openai-responses";
-import { buildResponsesInput } from "@rva/ai/providers/openai-shared";
-import type { AssistantMessage, Context, Model, ModelSpec, ProviderSessionState, Tool } from "@rva/ai/types";
-import {
-	createOpenAIResponsesHistoryPayload,
-	sanitizeOpenAIResponsesHistoryItemsForReplay,
-} from "@rva/ai/utils";
-import { buildModel } from "@rva/catalog/build";
-import { type GeneratedProvider, getBundledModel } from "@rva/catalog/models";
-import { Effort } from "@rva/catalog/effort";
-import * as piUtils from "@rva/utils";
+} from "@reverse/ai/providers/openai-responses";
+import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
+import type { AssistantMessage, Context, Model, ModelSpec, ProviderSessionState, Tool } from "@reverse/ai/types";
+import { createOpenAIResponsesHistoryPayload, sanitizeOpenAIResponsesHistoryItemsForReplay } from "@reverse/ai/utils";
+import { buildModel } from "@reverse/catalog/build";
+import { type GeneratedProvider, getBundledModel } from "@reverse/catalog/models";
+import { Effort } from "@reverse/catalog/effort";
+import * as piUtils from "@reverse/utils";
 
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";
 

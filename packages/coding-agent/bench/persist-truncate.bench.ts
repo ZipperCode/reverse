@@ -10,7 +10,7 @@
  */
 import { BlobStore } from "../src/session/blob-store";
 import { prepareEntryForPersistence } from "../src/session/session-persistence";
-import { TempDir } from "@rva/utils/temp";
+import { TempDir } from "@reverse/utils/temp";
 
 using tempDir = TempDir.createSync("@persist-truncate-bench-");
 const blobStore = new BlobStore(tempDir.path());

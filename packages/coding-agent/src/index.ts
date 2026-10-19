@@ -2,13 +2,13 @@ import { HookEditorComponent, HookInputComponent, HookSelectorComponent } from "
 
 // Core session management
 
-export * as zod from "@rva/omptype/zod";
-export { z } from "@rva/omptype/zod";
+export * as zod from "@reverse/omptype/zod";
+export { z } from "@reverse/omptype/zod";
 // Re-export TUI components for custom tool rendering
-export { Container, Markdown, Spacer, Text } from "@rva/tui";
+export { Container, Markdown, Spacer, Text } from "@reverse/tui";
 // Logging
-export { getAgentDir, logger, VERSION } from "@rva/utils";
-export * from "@rva/tui/app-keybindings";
+export { getAgentDir, logger, VERSION } from "@reverse/utils";
+export * from "@reverse/tui/app-keybindings";
 export * from "./config/model-registry";
 // Prompt templates
 export type * from "./config/prompt-templates";
@@ -35,7 +35,7 @@ export * from "./main";
 export * from "./modes";
 export * from "./modes/components";
 // Theme utilities for custom tools
-export * from "@rva/tui/theme";
+export * from "@reverse/tui/theme";
 // SDK for programmatic usage
 export * from "./sdk";
 export * from "./session/agent-session";
@@ -70,7 +70,7 @@ export type {
 	AgentProgress,
 	SingleResult,
 	TaskToolDetails,
-} from "@rva/tui/tools/task";
+} from "@reverse/tui/tools/task";
 // Tools (detail types and utilities)
 export * from "./tools";
 export * from "./evidence";

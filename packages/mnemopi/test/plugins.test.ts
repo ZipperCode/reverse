@@ -5,7 +5,7 @@ import {
 	MetricsPlugin,
 	MnemopiPlugin,
 	PluginManager,
-} from "@rva/mnemopi/core/plugins";
+} from "@reverse/mnemopi/core/plugins";
 
 class CountingPlugin extends MnemopiPlugin {
 	override name = "counting";

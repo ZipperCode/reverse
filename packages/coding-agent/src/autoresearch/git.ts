@@ -1,6 +1,6 @@
-import type { VcsGitRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { slugify } from "@rva/utils";
+import type { VcsGitRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { slugify } from "@reverse/utils";
 import type { ExtensionAPI } from "../extensibility/extensions";
 import { normalizePathSpec } from "./helpers";
 

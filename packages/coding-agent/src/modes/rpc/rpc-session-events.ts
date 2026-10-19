@@ -2,7 +2,7 @@
  * Session-event forwarding for RPC mode: stamps message lifecycle frames with a
  * `messageId` and applies the host's `set_event_filter` selection.
  */
-import type { AssistantMessageEvent } from "@rva/ai";
+import type { AssistantMessageEvent } from "@reverse/ai";
 import type { AgentSessionEvent } from "../../session/agent-session";
 import type {
 	RpcAgentSessionEventFrame,

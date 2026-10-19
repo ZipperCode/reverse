@@ -7,8 +7,8 @@ import {
 	type UsageReport,
 	type UsageResetCredit,
 	type UsageResetCreditDetail,
-} from "@rva/ai";
-import { claudeRankingStrategy } from "@rva/ai/usage/claude";
+} from "@reverse/ai";
+import { claudeRankingStrategy } from "@reverse/ai/usage/claude";
 import {
 	ATTEMPT_COOLDOWN_MS,
 	DEBOUNCE_BUCKET_MS,

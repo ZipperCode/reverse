@@ -16,11 +16,11 @@ import type {
 	Model,
 	SimpleStreamOptions,
 	Usage,
-} from "@rva/ai";
-import * as AIError from "@rva/ai/error";
-import { resolveAnthropicCompactionEffort } from "@rva/ai/providers/anthropic";
-import { supportsAnthropicCompaction } from "@rva/ai/providers/anthropic-compaction";
-import { isRecord, prompt } from "@rva/utils";
+} from "@reverse/ai";
+import * as AIError from "@reverse/ai/error";
+import { resolveAnthropicCompactionEffort } from "@reverse/ai/providers/anthropic";
+import { supportsAnthropicCompaction } from "@reverse/ai/providers/anthropic-compaction";
+import { isRecord, prompt } from "@reverse/utils";
 import { type InstrumentedChatSpanOptions, instrumentedCompleteSimple } from "../telemetry";
 import type { AgentMessage } from "../types";
 import anthropicCompactionInstructionsPrompt from "./prompts/anthropic-compaction-instructions.md" with { type: "text" };

@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@rva/coding-agent";
+import type { ExtensionAPI } from "@reverse/coding-agent";
 
 export default function helloExtension(pi: ExtensionAPI) {
   // Show a greeting whenever a session starts.

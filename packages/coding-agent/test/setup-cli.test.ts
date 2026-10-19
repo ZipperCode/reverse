@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 import { checkPythonSetup } from "../src/cli/setup-cli";
 import { Settings } from "../src/config/settings";
 import { restoreEnvValue } from "./helpers/settings-test-state";

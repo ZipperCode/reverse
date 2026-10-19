@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Usage } from "@rva/ai/types";
-import { calculateCost, getBundledModel, getBundledModels } from "@rva/catalog/models";
+import type { Usage } from "@reverse/ai/types";
+import { calculateCost, getBundledModel, getBundledModels } from "@reverse/catalog/models";
 
 describe("calculateCost", () => {
 	it("keeps token-based calculation for GitHub Copilot models", () => {

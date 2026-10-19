@@ -1,14 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchParams } from "@rva/ai/usage";
-import {
-	alibabaTokenPlanRankingStrategy,
-	alibabaTokenPlanUsageProvider,
-} from "@rva/ai/usage/alibaba-token-plan";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchParams } from "@reverse/ai/usage";
+import { alibabaTokenPlanRankingStrategy, alibabaTokenPlanUsageProvider } from "@reverse/ai/usage/alibaba-token-plan";
 import {
 	ALIBABA_TOKEN_PLAN_CN_BASE_URL,
 	serializeAlibabaTokenPlanCredential,
-} from "@rva/catalog/wire/alibaba-token-plan";
+} from "@reverse/catalog/wire/alibaba-token-plan";
 
 function params(apiKey: string): UsageFetchParams {
 	return {

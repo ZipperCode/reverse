@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type Component, CURSOR_MARKER, type Focusable, type OverlayFocusOwner, TUI } from "@rva/tui";
+import { type Component, CURSOR_MARKER, type Focusable, type OverlayFocusOwner, TUI } from "@reverse/tui";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 import { VirtualTerminal } from "./virtual-terminal";
 

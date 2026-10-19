@@ -6,19 +6,19 @@
  * how assistant text snaps at message_end.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentTool } from "@rva/agent";
-import type { AssistantMessage } from "@rva/ai";
-import { kStreamingPartialJson } from "@rva/ai/utils/block-symbols";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { EventController } from "@rva/coding-agent/modes/controllers/event-controller";
-import { STREAMING_REVEAL_FRAME_MS } from "@rva/coding-agent/modes/controllers/streaming-reveal";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
+import type { AgentTool } from "@reverse/agent";
+import type { AssistantMessage } from "@reverse/ai";
+import { kStreamingPartialJson } from "@reverse/ai/utils/block-symbols";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { EventController } from "@reverse/coding-agent/modes/controllers/event-controller";
+import { STREAMING_REVEAL_FRAME_MS } from "@reverse/coding-agent/modes/controllers/streaming-reveal";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
-import { cfgDisplaySmoothStreaming } from "@rva/coding-agent/modes/settings";
+import { cfgDisplaySmoothStreaming } from "@reverse/coding-agent/modes/settings";
 
 beforeAll(async () => {
 	await initTheme();

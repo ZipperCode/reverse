@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { convertMessages } from "@rva/ai/providers/google-shared";
-import type { Context, Model, Usage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { convertMessages } from "@reverse/ai/providers/google-shared";
+import type { Context, Model, Usage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 const ZERO_USAGE: Usage = {
 	input: 0,

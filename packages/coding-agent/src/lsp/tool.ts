@@ -6,16 +6,16 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@rva/agent";
-import { isEnoent, isFsError, logger, prompt, untilAborted } from "@rva/utils";
-import { type Theme, theme } from "@rva/tui/theme";
+} from "@reverse/agent";
+import { isEnoent, isFsError, logger, prompt, untilAborted } from "@reverse/utils";
+import { type Theme, theme } from "@reverse/tui/theme";
 import lspDescription from "../prompts/tools/lsp.md" with { type: "text" };
 import type { ToolSession } from "../tools";
 import { truncateForPrompt } from "../tools/approval";
 import { formatPathRelativeToCwd, resolveToCwd } from "../tools/path-utils";
-import { replaceTabs, shortenPath } from "@rva/tui/render/render-utils";
+import { replaceTabs, shortenPath } from "@reverse/tui/render/render-utils";
 import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { clampTimeout, resolveLspTimeouts, TOOL_TIMEOUTS } from "../tools/tool-timeouts";
 import {
 	applyWorkspaceEditWithLsp,
@@ -82,7 +82,7 @@ import {
 	type TextEdit,
 	type WorkspaceEdit,
 } from "./types";
-import { type LspParams, type LspToolDetails } from "@rva/tui/tools/lsp";
+import { type LspParams, type LspToolDetails } from "@reverse/tui/tools/lsp";
 import {
 	applyCodeAction,
 	dedupeWorkspaceSymbols,
@@ -102,7 +102,7 @@ import {
 	symbolKindToIcon,
 	uriToFile,
 } from "./utils";
-import { formatGroupedDiagnosticMessages } from "@rva/tui/tools/output-meta";
+import { formatGroupedDiagnosticMessages } from "@reverse/tui/tools/output-meta";
 import { runWorkspaceDiagnostics } from "./workspace-diagnostics";
 
 import { cfgToolsMaxTimeout } from "../tools/settings";

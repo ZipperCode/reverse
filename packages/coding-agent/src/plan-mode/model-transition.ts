@@ -12,10 +12,10 @@
  * is testable without a live session or TUI. The interactive mode performs the
  * resulting side effect.
  */
-import type { Model } from "@rva/ai";
-import { modelsAreEqual } from "@rva/catalog/models";
+import type { Model } from "@reverse/ai";
+import { modelsAreEqual } from "@reverse/catalog/models";
 import type { ResolvedModelRoleValue } from "../config/model-resolver";
-import type { ConfiguredThinkingLevel } from "@rva/tui/thinking";
+import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
 
 /** The action implied by resolving the `plan` role against the active model. */
 export type PlanModelTransition =

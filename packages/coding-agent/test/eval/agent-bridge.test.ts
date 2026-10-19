@@ -1,22 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	runEvalAgent,
 	type EvalAgentBridgeOptions,
 	type EvalAgentResult,
-} from "@rva/coding-agent/eval/agent-bridge";
-import { runEvalWait } from "@rva/coding-agent/eval/handle-bridge";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import * as taskDiscovery from "@rva/coding-agent/task/discovery";
-import * as taskExecutor from "@rva/coding-agent/task/executor";
-import * as isolationRunner from "@rva/coding-agent/task/isolation-runner";
-import { runStructuredSubagent } from "@rva/coding-agent/task/structured-subagent";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { SingleResult } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
+} from "@reverse/coding-agent/eval/agent-bridge";
+import { runEvalWait } from "@reverse/coding-agent/eval/handle-bridge";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import * as taskDiscovery from "@reverse/coding-agent/task/discovery";
+import * as taskExecutor from "@reverse/coding-agent/task/executor";
+import * as isolationRunner from "@reverse/coding-agent/task/isolation-runner";
+import { runStructuredSubagent } from "@reverse/coding-agent/task/structured-subagent";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { SingleResult } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 
-import { cfgTaskIsolationEnabled } from "@rva/coding-agent/task/settings";
+import { cfgTaskIsolationEnabled } from "@reverse/coding-agent/task/settings";
 
 const jobManagers = new Set<AsyncJobManager>();
 

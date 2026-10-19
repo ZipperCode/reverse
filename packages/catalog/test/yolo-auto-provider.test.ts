@@ -1,10 +1,10 @@
 import { describe, expect, test, vi } from "bun:test";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { createModelManager } from "@rva/catalog/model-manager";
-import * as modelsModule from "@rva/catalog/models";
-import { yoloAutoModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl } from "@rva/catalog/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { createModelManager } from "@reverse/catalog/model-manager";
+import * as modelsModule from "@reverse/catalog/models";
+import { yoloAutoModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl } from "@reverse/catalog/types";
 
 /**
  * Fixture mirrors the live `https://yolo-auto.com/v1/models` surface: an

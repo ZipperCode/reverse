@@ -25,9 +25,9 @@ import {
 	REMOTE_REFRESH_SENTINEL,
 	SqliteAuthCredentialStore,
 	type StoredAuthCredential,
-} from "@rva/ai/auth-storage";
-import type { UsageReport } from "@rva/ai/usage";
-import * as claudeUsage from "@rva/ai/usage/claude";
+} from "@reverse/ai/auth-storage";
+import type { UsageReport } from "@reverse/ai/usage";
+import * as claudeUsage from "@reverse/ai/usage/claude";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const EMAIL = "shared@example.com";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { identifyImageFetcher } from "@rva/catalog/wire/image-fetchers";
+import { identifyImageFetcher } from "@reverse/catalog/wire/image-fetchers";
 
 /** Header sets captured from live provider fetches of a URL-sourced image. */
 const captured = {

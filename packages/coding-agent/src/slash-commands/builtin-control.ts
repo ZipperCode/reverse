@@ -1,4 +1,4 @@
-import { runPauseScreen } from "@rva/tui/overlays/pause-screen";
+import { runPauseScreen } from "@reverse/tui/overlays/pause-screen";
 import { clearSubmittedText } from "./helpers/draft";
 import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";

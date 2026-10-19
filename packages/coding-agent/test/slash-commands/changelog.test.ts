@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { executeAcpBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/acp-builtins";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import type { SlashCommandRuntime } from "@rva/coding-agent/slash-commands/types";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { executeAcpBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/acp-builtins";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import type { SlashCommandRuntime } from "@reverse/coding-agent/slash-commands/types";
 import {
 	CHANGELOG_COMMAND_USAGE,
 	getChangelogPath,
 	parseChangelog,
 	RECENT_CHANGELOG_ENTRY_LIMIT,
-} from "@rva/coding-agent/utils/changelog";
+} from "@reverse/coding-agent/utils/changelog";
 
 function versionHeadings(markdown: string): string[] {
 	return markdown.match(/^## \[[^\]]+\]/gm) ?? [];

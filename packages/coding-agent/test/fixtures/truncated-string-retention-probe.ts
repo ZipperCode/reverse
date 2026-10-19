@@ -1,5 +1,5 @@
-import { RawSseDebugBuffer } from "@rva/tui/apps/debug/raw-sse-buffer";
-import { truncateHead, truncateTail } from "@rva/tui/tools/streaming-output";
+import { RawSseDebugBuffer } from "@reverse/tui/apps/debug/raw-sse-buffer";
+import { truncateHead, truncateTail } from "@reverse/tui/tools/streaming-output";
 
 const EVENTS = 16;
 const PARENT_BYTES = 8 * 1024 * 1024;

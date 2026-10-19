@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@rva/agent";
-import type { Model, ModelKind } from "@rva/catalog/types";
-import { getBundledModel } from "@rva/catalog/models";
+import { ThinkingLevel } from "@reverse/agent";
+import type { Model, ModelKind } from "@reverse/catalog/types";
+import { getBundledModel } from "@reverse/catalog/models";
 import {
 	expandDefaultRetryFallbackChains,
 	findRetryFallbackCandidates,
 	type RetryFallbackResolutionContext,
 	resolveRetryFallbackChainKey,
 	validateRetryFallbackChains,
-} from "@rva/coding-agent/session/retry-fallback-chains";
-import { Settings } from "@rva/coding-agent/config/settings";
+} from "@reverse/coding-agent/session/retry-fallback-chains";
+import { Settings } from "@reverse/coding-agent/config/settings";
 
 function createContext(
 	chains: RetryFallbackResolutionContext["chains"],

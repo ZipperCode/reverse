@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getLogsDir, isBunTestRuntime, isEnoent, isRecord, logger } from "@rva/utils";
+import { getLogsDir, isBunTestRuntime, isEnoent, isRecord, logger } from "@reverse/utils";
 import * as AIError from "../error/flags";
 import { formatErrorMessageWithRetryAfter } from "./retry-after.js";
 

@@ -1,4 +1,4 @@
-import { hasTerminalMultiplexerSession } from "@rva/tui/terminal-multiplexer";
+import { hasTerminalMultiplexerSession } from "@reverse/tui/terminal-multiplexer";
 import { launchError, oneLineId, runStep } from "./shared";
 import type {
 	SupportedMultiplexerCapabilities,

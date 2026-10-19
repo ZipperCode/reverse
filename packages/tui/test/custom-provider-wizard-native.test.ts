@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { TUI } from "@rva/tui";
+import { TUI } from "@reverse/tui";
 import {
 	CustomProviderWizard,
 	type CustomProviderWizardOutput,
 	type CustomWizardModel,
-} from "@rva/tui/overlays/custom-provider-wizard";
-import type { TspNode } from "@rva/wire";
+} from "@reverse/tui/overlays/custom-provider-wizard";
+import type { TspNode } from "@reverse/wire";
 import { TspHarness } from "./native/tsp-harness";
 import { VirtualTerminal } from "./virtual-terminal";
 

@@ -1,13 +1,13 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentToolContext, AgentToolResult } from "@rva/agent";
-import type { TUI } from "@rva/tui";
+import type { AgentToolContext, AgentToolResult } from "@reverse/agent";
+import type { TUI } from "@reverse/tui";
 import { Settings } from "../src/config/settings";
 import type { ExtensionUIDialogOptions, ExtensionUISelectItem } from "../src/extensibility/extensions";
-import { HookSelectorComponent } from "@rva/tui/overlays/hook-selector";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
+import { HookSelectorComponent } from "@reverse/tui/overlays/hook-selector";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
 import type { ToolSession } from "../src/tools";
 import { AskTool } from "../src/tools/ask";
-import { type AskToolDetails } from "@rva/tui/tools/ask";
+import { type AskToolDetails } from "@reverse/tui/tools/ask";
 
 type AskExecutionResult = AgentToolResult<AskToolDetails>;
 type AskSelect = (

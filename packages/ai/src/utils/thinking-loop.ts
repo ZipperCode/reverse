@@ -49,7 +49,7 @@
  * three guarded attempts and then fail closed. Disable detection with
  * `PI_NO_THINKING_LOOP_GUARD=1`.
  */
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import * as AIError from "../error";
 import type { Api, AssistantMessage, Model, StreamOptions } from "../types";
 import { AssistantMessageEventStream } from "./event-stream";

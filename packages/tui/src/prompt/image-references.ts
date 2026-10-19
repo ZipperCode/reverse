@@ -1,6 +1,6 @@
-import type { ImageContent } from "@rva/ai";
-import { logger } from "@rva/utils";
-import type { TspSpan } from "@rva/wire";
+import type { ImageContent } from "@reverse/ai";
+import { logger } from "@reverse/utils";
+import type { TspSpan } from "@reverse/wire";
 import { span } from "../native/describe";
 import { isNativeRendering } from "../native/state";
 import { fileHyperlink, fileLinkSpan, isHyperlinkEnabled, isNativeLinkEnabled } from "../render/hyperlink";

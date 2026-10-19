@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { configureCredentialRedaction, transformMessages } from "@rva/ai/providers/transform-messages";
-import type { AssistantMessage, Message, Model, ToolCall, ToolResultMessage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+import { configureCredentialRedaction, transformMessages } from "@reverse/ai/providers/transform-messages";
+import type { AssistantMessage, Message, Model, ToolCall, ToolResultMessage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 
 function makeModel(): Model<"openai-responses"> {
 	return buildModel({

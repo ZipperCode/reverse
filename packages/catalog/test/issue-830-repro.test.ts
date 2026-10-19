@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { getOAuthProviders } from "@rva/ai/registry/oauth";
-import { getEnvApiKey } from "@rva/ai/env-api-key";
+import { getOAuthProviders } from "@reverse/ai/registry/oauth";
+import { getEnvApiKey } from "@reverse/ai/env-api-key";
 
 describe("deepseek built-in provider (issue #830)", () => {
 	test("registers DeepSeek as an API-key login provider", () => {

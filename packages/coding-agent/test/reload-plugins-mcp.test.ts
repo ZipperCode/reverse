@@ -7,14 +7,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { EffectiveExtensionRoots } from "@rva/coding-agent/capability/types";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@rva/coding-agent/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@rva/coding-agent/slash-commands/types";
-import { TaskTool } from "@rva/coding-agent/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { CONFIG_DIR_NAME, getProjectDir, removeWithRetries, setProjectDir } from "@rva/utils";
+import type { EffectiveExtensionRoots } from "@reverse/coding-agent/capability/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { executeBuiltinSlashCommand } from "@reverse/coding-agent/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@reverse/coding-agent/slash-commands/types";
+import { TaskTool } from "@reverse/coding-agent/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { CONFIG_DIR_NAME, getProjectDir, removeWithRetries, setProjectDir } from "@reverse/utils";
 
 const originalProjectDir = getProjectDir();
 const TEST_EXTENSION_ROOTS: EffectiveExtensionRoots = {

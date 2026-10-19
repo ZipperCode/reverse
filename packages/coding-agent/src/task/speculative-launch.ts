@@ -23,8 +23,8 @@ import {
 	type SpeculativeToolReference,
 	type ToolSpeculationAssessmentContext,
 	type ToolSpeculationStreamSession,
-} from "@rva/agent";
-import type { TaskParams } from "@rva/tui/tools/task";
+} from "@reverse/agent";
+import type { TaskParams } from "@reverse/tui/tools/task";
 import type { SpawnRun } from "./spawn-run";
 
 /**

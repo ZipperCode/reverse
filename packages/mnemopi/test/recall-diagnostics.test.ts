@@ -1,9 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-	explainRecallDiagnostics,
-	RECALL_TIERS,
-	RecallDiagnostics,
-} from "@rva/mnemopi/core/recall-diagnostics";
+import { explainRecallDiagnostics, RECALL_TIERS, RecallDiagnostics } from "@reverse/mnemopi/core/recall-diagnostics";
 
 describe("recall diagnostics counters", () => {
 	it("starts with canonical tiers and zeroed JSON-serializable snapshot", () => {

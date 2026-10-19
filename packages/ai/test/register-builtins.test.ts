@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import * as AIError from "@rva/ai/error";
-import * as BedrockProvider from "@rva/ai/providers/amazon-bedrock";
-import { setBedrockProviderModule, streamBedrock } from "@rva/ai/providers/register-builtins";
-import type { AssistantMessage, Context, Model } from "@rva/ai/types";
-import type { AssistantMessageEventStream } from "@rva/ai/utils/event-stream";
-import { buildModel } from "@rva/catalog/build";
+import * as AIError from "@reverse/ai/error";
+import * as BedrockProvider from "@reverse/ai/providers/amazon-bedrock";
+import { setBedrockProviderModule, streamBedrock } from "@reverse/ai/providers/register-builtins";
+import type { AssistantMessage, Context, Model } from "@reverse/ai/types";
+import type { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
+import { buildModel } from "@reverse/catalog/build";
 
 // The transport override is process-global: put the built-in back so later files stream for real.
 afterEach(() => setBedrockProviderModule(BedrockProvider));

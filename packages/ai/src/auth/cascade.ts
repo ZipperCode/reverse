@@ -1,5 +1,5 @@
-import { authPolicyFor } from "@rva/catalog/compat/auth";
-import { $env, $envExact, logger } from "@rva/utils";
+import { authPolicyFor } from "@reverse/catalog/compat/auth";
+import { $env, $envExact, logger } from "@reverse/utils";
 import { type ApiKeyResolver, markAfterSiblingWait, type ResolvedApiKey } from "../auth-retry";
 import { getEnvApiKey, getEnvApiKeyName } from "../env-api-key";
 import * as AIError from "../error";

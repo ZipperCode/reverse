@@ -1,5 +1,5 @@
-import { formatBytes } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import { formatBytes } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 import {
 	DEFAULT_TINY_TITLE_LOCAL_MODEL_KEY,
 	getTinyLocalModelSpec,

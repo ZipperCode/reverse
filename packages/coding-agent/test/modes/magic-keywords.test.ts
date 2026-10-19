@@ -3,7 +3,7 @@ import {
 	MAGIC_KEYWORDS,
 	renderOrchestrateNotice,
 	renderWorkflowNotice,
-} from "@rva/coding-agent/modes/magic-keywords";
+} from "@reverse/coding-agent/modes/magic-keywords";
 
 describe("magic keyword registry", () => {
 	it("keeps ids and words unique so notice types and settings keys cannot collide", () => {

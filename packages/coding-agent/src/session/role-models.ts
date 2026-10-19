@@ -1,7 +1,7 @@
-import type { ThinkingLevel } from "@rva/agent";
-import type { Model } from "@rva/ai";
+import type { ThinkingLevel } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
 import type { ModelRegistry } from "../config/model-registry";
-import { formatModelSelectorValue, parseModelString } from "@rva/tui/overlays/model-selector";
+import { formatModelSelectorValue, parseModelString } from "@reverse/tui/overlays/model-selector";
 import {
 	extractExplicitThinkingSelector,
 	getModelMatchPreferences,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@rva/omptype";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import type { Context, Model, ModelSpec, Tool } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { getBundledModel } from "@rva/catalog/models";
+import { type } from "@reverse/omptype";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import type { Context, Model, ModelSpec, Tool } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const echoTool: Tool = {
 	name: "echo",

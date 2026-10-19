@@ -1,4 +1,4 @@
-import type { ResolvedThinkingLevel } from "@rva/agent";
+import type { ResolvedThinkingLevel } from "@reverse/agent";
 import type {
 	Api,
 	ApiKeyResolver,
@@ -10,8 +10,8 @@ import type {
 	ProviderSessionState,
 	ServiceTier,
 	ServiceTierByFamily,
-} from "@rva/ai";
-import { resolveModelServiceTier, streamSimple } from "@rva/ai";
+} from "@reverse/ai";
+import { resolveModelServiceTier, streamSimple } from "@reverse/ai";
 import {
 	renderTableRow,
 	replaceTabs,
@@ -19,10 +19,10 @@ import {
 	type TableColumn,
 	truncateToWidth,
 	visibleWidth,
-} from "@rva/tui";
-import { formatDuration, formatNumber, prompt } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
-import { formatModelSelectorValue } from "@rva/tui/overlays/model-selector";
+} from "@reverse/tui";
+import { formatDuration, formatNumber, prompt } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
+import { formatModelSelectorValue } from "@reverse/tui/overlays/model-selector";
 import { formatModelStringWithRouting } from "../config/model-resolver";
 import { buildServiceTierByFamily, serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/service-tier";
 import cachePrefixTemplate from "../prompts/bench/cache-prefix.md" with { type: "text" };
@@ -31,7 +31,7 @@ import cacheSuffixTemplate from "../prompts/bench/cache-suffix.md" with { type: 
 import chatTemplate from "../prompts/bench/chat.md" with { type: "text" };
 import generationTemplate from "../prompts/bench/generation.md" with { type: "text" };
 import prefillInstruction from "../prompts/bench/prefill-instruction.md" with { type: "text" };
-import { shouldDisableReasoning, toReasoningEffort } from "@rva/tui/thinking";
+import { shouldDisableReasoning, toReasoningEffort } from "@reverse/tui/thinking";
 import {
 	type BenchRuntime,
 	type BenchTarget,
@@ -39,8 +39,8 @@ import {
 	resolveBenchTargets,
 	type StreamSimpleFn,
 } from "./bench-runtime";
-import { createLiveBoard, type LiveBoardOutput } from "@rva/tui/chrome/live-board";
-import { formatCost } from "@rva/tui/overlays/agent-hub-renderer";
+import { createLiveBoard, type LiveBoardOutput } from "@reverse/tui/chrome/live-board";
+import { formatCost } from "@reverse/tui/overlays/agent-hub-renderer";
 
 import { cfgTierAnthropic, cfgTierGoogle, cfgTierOpenai } from "../session/settings";
 

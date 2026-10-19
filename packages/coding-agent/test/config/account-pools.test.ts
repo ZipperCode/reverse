@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { validateAgentAccountPools } from "@rva/coding-agent/config/account-pools";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { cfgTaskAgentAccountPools } from "@rva/coding-agent/task/settings";
-import { TempDir } from "@rva/utils";
+import { validateAgentAccountPools } from "@reverse/coding-agent/config/account-pools";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { cfgTaskAgentAccountPools } from "@reverse/coding-agent/task/settings";
+import { TempDir } from "@reverse/utils";
 
 describe("task.agentAccountPools", () => {
 	it("keeps an empty provider list as a deny-all pool and lets null clear an agent", () => {

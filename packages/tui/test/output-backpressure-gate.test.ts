@@ -16,7 +16,7 @@
  * 3. Terminals that do not report `pendingOutputBytes` are never gated.
  */
 import { describe, expect, it } from "bun:test";
-import { type RenderTimer, Text, TUI } from "@rva/tui";
+import { type RenderTimer, Text, TUI } from "@reverse/tui";
 import { VirtualTerminal } from "./virtual-terminal";
 
 class BackloggedTerminal extends VirtualTerminal {

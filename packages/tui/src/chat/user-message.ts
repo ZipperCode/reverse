@@ -3,9 +3,9 @@ import type { AnimationFrame, TranscriptPresentationTarget } from "../chrome/tra
 import { type Component, Container } from "../tui";
 import { Disclosure } from "../components/disclosure";
 import { Markdown } from "../components/markdown";
-import { formatBytes } from "@rva/utils";
-import type { ImageContent } from "@rva/ai";
-import type { TspSpan } from "@rva/wire";
+import { formatBytes } from "@reverse/utils";
+import type { ImageContent } from "@reverse/ai";
+import type { TspSpan } from "@reverse/wire";
 import { ensureThemeSync, getMarkdownTheme, theme } from "../theme";
 import {
 	attachmentSgr,

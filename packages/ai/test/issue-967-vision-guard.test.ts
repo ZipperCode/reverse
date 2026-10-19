@@ -1,16 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { convertAnthropicMessages } from "@rva/ai/providers/anthropic";
-import { convertMessages as convertGoogleMessages } from "@rva/ai/providers/google-shared";
-import { convertCodexResponsesMessages } from "@rva/ai/providers/openai-codex-responses";
-import { convertMessages as convertOpenAICompletionsMessages } from "@rva/ai/providers/openai-completions";
-import {
-	appendResponsesToolResultMessages,
-	convertResponsesInputContent,
-} from "@rva/ai/providers/openai-shared";
-import { NON_VISION_IMAGE_PLACEHOLDER } from "@rva/ai/providers/vision-guard";
-import type { Api, AssistantMessage, Context, Model, ModelSpec, ToolResultMessage, Usage } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import type { ResolvedOpenAICompat } from "@rva/catalog/types";
+import { convertAnthropicMessages } from "@reverse/ai/providers/anthropic";
+import { convertMessages as convertGoogleMessages } from "@reverse/ai/providers/google-shared";
+import { convertCodexResponsesMessages } from "@reverse/ai/providers/openai-codex-responses";
+import { convertMessages as convertOpenAICompletionsMessages } from "@reverse/ai/providers/openai-completions";
+import { appendResponsesToolResultMessages, convertResponsesInputContent } from "@reverse/ai/providers/openai-shared";
+import { NON_VISION_IMAGE_PLACEHOLDER } from "@reverse/ai/providers/vision-guard";
+import type { Api, AssistantMessage, Context, Model, ModelSpec, ToolResultMessage, Usage } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import type { ResolvedOpenAICompat } from "@reverse/catalog/types";
 
 const emptyUsage: Usage = {
 	input: 0,

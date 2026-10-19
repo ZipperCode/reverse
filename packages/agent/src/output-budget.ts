@@ -1,6 +1,6 @@
-import type { Context, Model, Tool } from "@rva/ai";
-import { stopsOutputAtContextWindow } from "@rva/catalog/compat/output-limits";
-import { stringifyJson } from "@rva/utils";
+import type { Context, Model, Tool } from "@reverse/ai";
+import { stopsOutputAtContextWindow } from "@reverse/catalog/compat/output-limits";
+import { stringifyJson } from "@reverse/utils";
 import { findRequestUsageAnchor } from "./compaction/transcript-tokens";
 import type { Tokenizer } from "./tokenizer";
 

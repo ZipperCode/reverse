@@ -1,5 +1,5 @@
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult } from "@rva/agent/types";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult } from "@reverse/agent/types";
 
 export interface GetCurrentTimeResult extends AgentToolResult<{ utcTimestamp: number }> {}
 

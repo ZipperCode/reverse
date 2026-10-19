@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@rva/agent";
-import type { ImageContent, TextContent } from "@rva/ai";
-import { convertToLlm, stripImagesFromMessage } from "@rva/coding-agent/session/messages";
+import type { AgentMessage } from "@reverse/agent";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import { convertToLlm, stripImagesFromMessage } from "@reverse/coding-agent/session/messages";
 
 const png = (data: string = "iVBORw0KGgo"): ImageContent => ({ type: "image", data, mimeType: "image/png" });
 const text = (value: string): TextContent => ({ type: "text", text: value });

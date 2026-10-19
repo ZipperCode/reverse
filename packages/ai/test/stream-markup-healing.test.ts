@@ -1,20 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import {
-	type Dialect,
-	getDialectDefinition,
-	type InbandScanEvent,
-	ThinkingInbandScanner,
-} from "@rva/ai/dialect";
-import { streamGoogleGeminiCli } from "@rva/ai/providers/google-gemini-cli";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { stream } from "@rva/ai/stream";
-import type { Context, FetchImpl, Model, TextContent, ThinkingContent, Tool, ToolCall } from "@rva/ai/types";
-import { getStreamMarkupHealingPattern, StreamMarkupHealing } from "@rva/ai/utils/stream-markup-healing";
-import { stripDsmlToolMarkup } from "@rva/ai/utils/dsml-leak";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { INTENT_FIELD } from "@rva/wire";
+import { type Dialect, getDialectDefinition, type InbandScanEvent, ThinkingInbandScanner } from "@reverse/ai/dialect";
+import { streamGoogleGeminiCli } from "@reverse/ai/providers/google-gemini-cli";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { stream } from "@reverse/ai/stream";
+import type { Context, FetchImpl, Model, TextContent, ThinkingContent, Tool, ToolCall } from "@reverse/ai/types";
+import { getStreamMarkupHealingPattern, StreamMarkupHealing } from "@reverse/ai/utils/stream-markup-healing";
+import { stripDsmlToolMarkup } from "@reverse/ai/utils/dsml-leak";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { INTENT_FIELD } from "@reverse/wire";
 
 interface SseToolCallDelta {
 	index: number;

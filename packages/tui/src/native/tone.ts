@@ -3,7 +3,7 @@
  * (`(text) => string`) sample them with a probe string to recover the theme
  * token behind the escape, then map the token to a card/text tone.
  */
-import type { TspTone } from "@rva/wire";
+import type { TspTone } from "@reverse/wire";
 import { isValidThemeColor, type ThemeBg, type ThemeColor } from "../theme/theme";
 import { styledBackground, styledSpans } from "./spans";
 

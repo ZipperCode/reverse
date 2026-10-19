@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
-import { ImageUrlService, LiveImageUrlService } from "@rva/coding-agent/blob-broker/service";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { ImageUrlService, LiveImageUrlService } from "@reverse/coding-agent/blob-broker/service";
+import { Settings } from "@reverse/coding-agent/config/settings";
 
-import { cfgImagesUrlsEnabled, cfgImagesUrlsTtlHours } from "@rva/coding-agent/blob-broker/settings";
+import { cfgImagesUrlsEnabled, cfgImagesUrlsTtlHours } from "@reverse/coding-agent/blob-broker/settings";
 
 describe("LiveImageUrlService", () => {
 	it("follows images.urls.* changes made after construction", async () => {

@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import type { Rule } from "@rva/coding-agent/capability/rule";
-import { TodoReminderComponent } from "@rva/tui/chat/todo-reminder";
-import { ToolActivityContainer } from "@rva/tui/chrome/tool-activity";
-import { TranscriptContainer } from "@rva/tui/chrome/transcript-container";
-import { TtsrNotificationComponent } from "@rva/tui/chat/ttsr-notification";
-import { getThemeByName, setThemeInstance } from "@rva/tui/theme";
-import { Text } from "@rva/tui";
+import type { Rule } from "@reverse/coding-agent/capability/rule";
+import { TodoReminderComponent } from "@reverse/tui/chat/todo-reminder";
+import { ToolActivityContainer } from "@reverse/tui/chrome/tool-activity";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { TtsrNotificationComponent } from "@reverse/tui/chat/ttsr-notification";
+import { getThemeByName, setThemeInstance } from "@reverse/tui/theme";
+import { Text } from "@reverse/tui";
 
 const darkTheme = await getThemeByName("dark");
 

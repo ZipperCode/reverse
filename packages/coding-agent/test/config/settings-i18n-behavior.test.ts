@@ -6,13 +6,13 @@ import {
 	getTabMetadata,
 	type SettingDef,
 	type SettingsHost,
-} from "@rva/tui/overlays/settings-defs";
-import { SettingsSelectorComponent } from "@rva/tui/overlays/settings-selector";
-import { initTheme } from "@rva/tui/theme";
-import { createSettingsHost } from "@rva/coding-agent/config/settings-ui";
-import { createPluginSettingsHost } from "@rva/coding-agent/extensibility/plugins/settings-host";
-import { lookup } from "@rva/coding-agent/config/registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
+} from "@reverse/tui/overlays/settings-defs";
+import { SettingsSelectorComponent } from "@reverse/tui/overlays/settings-selector";
+import { initTheme } from "@reverse/tui/theme";
+import { createSettingsHost } from "@reverse/coding-agent/config/settings-ui";
+import { createPluginSettingsHost } from "@reverse/coding-agent/extensibility/plugins/settings-host";
+import { lookup } from "@reverse/coding-agent/config/registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import { SETTING_TRANSLATIONS_ZH_CN } from "../../src/i18n/zh-CN/settings";
 
 const CJK = /[\u4e00-\u9fff]/;

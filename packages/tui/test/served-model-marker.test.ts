@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@rva/ai/types";
-import { detectServedModelMismatch, ServedModelTracker } from "@rva/tui/chat/served-model-marker";
+import type { AssistantMessage } from "@reverse/ai/types";
+import { detectServedModelMismatch, ServedModelTracker } from "@reverse/tui/chat/served-model-marker";
 
 function turn(parts: {
 	model: string;

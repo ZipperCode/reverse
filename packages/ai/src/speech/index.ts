@@ -1,4 +1,4 @@
-import type { Api, Model } from "@rva/catalog/types";
+import type { Api, Model } from "@reverse/catalog/types";
 import * as AIError from "../error";
 import { synthesizeOpenAiSpeech } from "./openai-speech";
 import type { SpeechOptions, SpeechRequest, SpeechResult } from "./types";

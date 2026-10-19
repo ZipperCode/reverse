@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { consumeClaudeResetCredit, listClaudeResetCredits, type UsageResetCredit } from "@rva/ai";
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchContext } from "@rva/ai/usage";
-import { claudeUsageProvider } from "@rva/ai/usage/claude";
+import { consumeClaudeResetCredit, listClaudeResetCredits, type UsageResetCredit } from "@reverse/ai";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchContext } from "@reverse/ai/usage";
+import { claudeUsageProvider } from "@reverse/ai/usage/claude";
 
 interface CapturedCall {
 	url: string;

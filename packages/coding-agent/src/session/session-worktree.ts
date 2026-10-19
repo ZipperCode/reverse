@@ -10,10 +10,10 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { IsoBackendKind } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { getWorktreeDir, hashPath, logger } from "@rva/utils";
-import { shortenPath } from "@rva/tui/render/render-utils";
+import type { IsoBackendKind } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { getWorktreeDir, hashPath, logger } from "@reverse/utils";
+import { shortenPath } from "@reverse/tui/render/render-utils";
 import type { Settings } from "../config/settings";
 import { formatIsolationBackend, parseIsolationBackend } from "../task/worktree";
 import { resolveAvailableWorktreePath } from "../tools/gh-pr-checkout";

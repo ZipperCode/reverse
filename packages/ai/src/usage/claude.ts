@@ -1,6 +1,6 @@
-import { classifyModel } from "@rva/catalog/compat/taxonomy";
-import { isAnthropicOAuthToken, toNumber } from "@rva/catalog/utils";
-import { slugify } from "@rva/utils";
+import { classifyModel } from "@reverse/catalog/compat/taxonomy";
+import { isAnthropicOAuthToken, toNumber } from "@reverse/catalog/utils";
+import { slugify } from "@reverse/utils";
 import * as AIError from "../error";
 import {
 	type CredentialRankingContext,

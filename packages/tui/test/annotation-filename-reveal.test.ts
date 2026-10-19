@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { getKeybindings, setKeybindings, type TUI, visibleWidth } from "@rva/tui";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import { AnnotationOverlay } from "@rva/tui/overlays/annotation-overlay";
-import type { ReviewDiffFile } from "@rva/tui/overlays/annotation-types";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { getKeybindings, setKeybindings, type TUI, visibleWidth } from "@reverse/tui";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import { AnnotationOverlay } from "@reverse/tui/overlays/annotation-overlay";
+import type { ReviewDiffFile } from "@reverse/tui/overlays/annotation-types";
 
 const DOWN = "\x1b[B";
 const TAB = "\t";

@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, ImageContent } from "@rva/ai";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { initTheme } from "@rva/tui/theme";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@rva/tui";
+import type { AssistantMessage, ImageContent } from "@reverse/ai";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { initTheme } from "@reverse/tui/theme";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@reverse/tui";
 
 const IMAGE: ImageContent = {
 	type: "image",

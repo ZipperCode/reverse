@@ -3,18 +3,18 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FileEntry, SessionHeader } from "@rva/coding-agent/session/session-entries";
-import { resetSessionIndexForTests } from "@rva/coding-agent/session/session-index";
-import { findSessionFiles } from "@rva/coding-agent/session/session-listing";
-import { loadEntriesFromFile } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import type { FileEntry, SessionHeader } from "@reverse/coding-agent/session/session-entries";
+import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { findSessionFiles } from "@reverse/coding-agent/session/session-listing";
+import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	lastSessionTransfer,
 	markSessionMoved,
 	packSession,
 	unpackSession,
-} from "@rva/coding-agent/session/session-transfer";
-import { getConfigRootDir, setAgentDir } from "@rva/utils";
+} from "@reverse/coding-agent/session/session-transfer";
+import { getConfigRootDir, setAgentDir } from "@reverse/utils";
 import { makeAssistantMessage } from "./session-manager/helpers";
 
 function headerOf(entries: FileEntry[]): SessionHeader {

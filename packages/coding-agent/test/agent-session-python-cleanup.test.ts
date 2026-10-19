@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as pythonExecutor from "@rva/coding-agent/eval/py/executor";
-import type { PythonKernel as PythonKernelInstance } from "@rva/coding-agent/eval/py/kernel";
-import * as pythonKernel from "@rva/coding-agent/eval/py/kernel";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { createAgentSession, type ExtensionFactory, type WorkspaceTree } from "@rva/coding-agent/sdk";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { Snowflake, TempDir } from "@rva/utils";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as pythonExecutor from "@reverse/coding-agent/eval/py/executor";
+import type { PythonKernel as PythonKernelInstance } from "@reverse/coding-agent/eval/py/kernel";
+import * as pythonKernel from "@reverse/coding-agent/eval/py/kernel";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { createAgentSession, type ExtensionFactory, type WorkspaceTree } from "@reverse/coding-agent/sdk";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { Snowflake, TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const OK_EXECUTION = { status: "ok", cancelled: false, timedOut: false, stdinRequested: false } as const;

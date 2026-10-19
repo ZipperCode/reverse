@@ -1,9 +1,9 @@
 import { describe, expect, it, type Mock, vi } from "bun:test";
-import { AssistantMessageComponent } from "@rva/tui/chat/assistant-message";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InputController } from "@rva/coding-agent/modes/controllers/input-controller";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { cfgHideThinkingBlock } from "@rva/coding-agent/session/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { cfgHideThinkingBlock } from "@reverse/coding-agent/session/settings";
 
 function createAssistant(): AssistantMessageComponent {
 	const assistant = Object.create(AssistantMessageComponent.prototype) as AssistantMessageComponent;

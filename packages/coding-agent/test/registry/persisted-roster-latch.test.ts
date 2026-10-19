@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { ensurePersistedRoster } from "@rva/coding-agent/registry/persisted-agents";
-import { CURRENT_SESSION_VERSION } from "@rva/coding-agent/session/session-entries";
-import { TempDir } from "@rva/utils";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { ensurePersistedRoster } from "@reverse/coding-agent/registry/persisted-agents";
+import { CURRENT_SESSION_VERSION } from "@reverse/coding-agent/session/session-entries";
+import { TempDir } from "@reverse/utils";
 import type { BunFile } from "bun";
 
 /** Latch-cache bound enforced by `ensurePersistedRoster` (see MAX_PERSISTED_ROSTER_LATCHES). */

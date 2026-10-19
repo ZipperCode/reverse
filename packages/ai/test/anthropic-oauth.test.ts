@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { getClaudeCodeVersion } from "@rva/ai/providers/claude-code-fingerprint";
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { OAuthCredentials, OAuthController } from "@rva/ai/registry/oauth/types";
-import type { FetchImpl } from "@rva/ai/types";
+import { getClaudeCodeVersion } from "@reverse/ai/providers/claude-code-fingerprint";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { OAuthCredentials, OAuthController } from "@reverse/ai/registry/oauth/types";
+import type { FetchImpl } from "@reverse/ai/types";
 import {
 	buildAnthropicAuthConfig,
 	buildAnthropicSearchHeaders,
 	buildAnthropicUrl,
-} from "@rva/ai/utils/anthropic-auth";
+} from "@reverse/ai/utils/anthropic-auth";
 import { withEnv } from "./helpers";
 
 afterEach(() => {

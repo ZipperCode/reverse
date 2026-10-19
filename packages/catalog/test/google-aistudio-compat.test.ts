@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { resolveModelPolicy } from "@rva/catalog/compat/resolve";
-import type { ModelSpec } from "@rva/catalog/types";
+import { resolveModelPolicy } from "@reverse/catalog/compat/resolve";
+import type { ModelSpec } from "@reverse/catalog/types";
 
 /**
  * Google AI Studio's OpenAI-compatible endpoint

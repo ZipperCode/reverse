@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent } from "@rva/utils";
+import { isEnoent } from "@reverse/utils";
 import { findMostRecentSession, resolveResumableSession } from "../session/session-listing";
 import { SessionManager } from "../session/session-manager";
 

@@ -4,8 +4,8 @@
  * Lightweight utilities for calling MCP servers directly via HTTP
  * without maintaining persistent connections.
  */
-import type { FetchImpl } from "@rva/ai";
-import { isRecord, logger, readSseEvents } from "@rva/utils";
+import type { FetchImpl } from "@reverse/ai";
+import { isRecord, logger, readSseEvents } from "@reverse/utils";
 import type { JsonRpcResponse } from "./types";
 
 /** Hard ceiling on a single MCP HTTP request when the caller provides no signal. */

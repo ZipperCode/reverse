@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { isEnoent, isEnotdir } from "@rva/utils";
-import { CliUsageError } from "@rva/utils/cli";
+import { isEnoent, isEnotdir } from "@reverse/utils";
+import { CliUsageError } from "@reverse/utils/cli";
 import { Settings } from "../config/settings";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { initializeWithSettings } from "../discovery";

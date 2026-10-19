@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { initTheme } from "@rva/tui/theme";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@rva/tui/tools/task";
-import type { TUI } from "@rva/tui";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { initTheme } from "@reverse/tui/theme";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@reverse/tui/tools/task";
+import type { TUI } from "@reverse/tui";
 
 function progressEntry(description: string): AgentProgress {
 	return {

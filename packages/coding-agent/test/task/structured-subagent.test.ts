@@ -2,48 +2,48 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import path from "node:path";
-import { unregisterCustomApis } from "@rva/ai/api-registry";
-import { createMockModel, registerMockApi } from "@rva/ai/providers/mock";
-import { closeModelCache } from "@rva/catalog/model-cache";
+import { unregisterCustomApis } from "@reverse/ai/api-registry";
+import { createMockModel, registerMockApi } from "@reverse/ai/providers/mock";
+import { closeModelCache } from "@reverse/catalog/model-cache";
 import {
 	disableProvider,
 	enableProvider,
 	getDisabledProviders,
 	isProviderEnabled,
 	setDisabledProviders,
-} from "@rva/coding-agent/capability";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { AgentCompactionThresholdOverride } from "@rva/coding-agent/config/compaction-threshold";
-import type { BeforeSubagentSpawnEvent } from "@rva/coding-agent/extensibility/extensions/types";
+} from "@reverse/coding-agent/capability";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { AgentCompactionThresholdOverride } from "@reverse/coding-agent/config/compaction-threshold";
+import type { BeforeSubagentSpawnEvent } from "@reverse/coding-agent/extensibility/extensions/types";
 import {
 	artifactsDirsFromRegistry,
 	resetRegisteredArtifactDirsForTests,
-} from "@rva/coding-agent/internal-urls/registry-helpers";
-import * as planHandoff from "@rva/coding-agent/plan-mode/plan-handoff";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { TaskTool } from "@rva/coding-agent/task";
-import * as discoveryModule from "@rva/coding-agent/task/discovery";
-import { createEvalCustomTools } from "@rva/coding-agent/task/eval-tools";
-import * as executorModule from "@rva/coding-agent/task/executor";
-import * as isolationRunner from "@rva/coding-agent/task/isolation-runner";
+} from "@reverse/coding-agent/internal-urls/registry-helpers";
+import * as planHandoff from "@reverse/coding-agent/plan-mode/plan-handoff";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { TaskTool } from "@reverse/coding-agent/task";
+import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import { createEvalCustomTools } from "@reverse/coding-agent/task/eval-tools";
+import * as executorModule from "@reverse/coding-agent/task/executor";
+import * as isolationRunner from "@reverse/coding-agent/task/isolation-runner";
 import {
 	buildStructuredSubagentRecoveryHint,
 	resolveEffectiveSubagentPolicy,
 	runStructuredSubagent,
 	StructuredSubagentError,
 	type StructuredSubagentRequest,
-} from "@rva/coding-agent/task/structured-subagent";
-import type { AgentDefinition } from "@rva/coding-agent/task/types";
-import type { SingleResult, TaskParams } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeWithRetries, setAgentDir } from "@rva/utils";
+} from "@reverse/coding-agent/task/structured-subagent";
+import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import type { SingleResult, TaskParams } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeWithRetries, setAgentDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
-import { cfgRetryModelFallback } from "@rva/coding-agent/session/settings";
-import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@rva/coding-agent/task/settings";
+import { cfgRetryModelFallback } from "@reverse/coding-agent/session/settings";
+import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@reverse/coding-agent/task/settings";
 
 const AGENT: AgentDefinition = {
 	name: "worker",

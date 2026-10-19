@@ -4,7 +4,7 @@
  * Commands are embedded at build time via Bun's import with { type: "text" }.
  */
 import * as path from "node:path";
-import { parseFrontmatter, prompt } from "@rva/utils";
+import { parseFrontmatter, prompt } from "@reverse/utils";
 import { type SlashCommand, slashCommandCapability } from "../capability/slash-command";
 import { loadCapability } from "../discovery";
 // Embed command markdown files at build time

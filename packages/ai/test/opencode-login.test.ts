@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { OAuthAuthInfo, OAuthLoginCallbacks } from "@rva/ai/registry/oauth/types";
-import { getProviderDefinition } from "@rva/ai/registry/registry";
+import type { OAuthAuthInfo, OAuthLoginCallbacks } from "@reverse/ai/registry/oauth/types";
+import { getProviderDefinition } from "@reverse/ai/registry/registry";
 
 const loginOpenCodeGo = getProviderDefinition("opencode-go")!.login!;
 const loginOpenCodeZen = getProviderDefinition("opencode-zen")!.login!;

@@ -12,9 +12,9 @@ import {
 	type BeforeToolCallContext,
 	type BeforeToolCallResult,
 	createToolScopedAbortReason,
-} from "@rva/agent";
-import type { AssistantMessage, Judge, ToolCall } from "@rva/ai";
-import { logger, prompt, relativePathWithinRoot, withTimeout } from "@rva/utils";
+} from "@reverse/agent";
+import type { AssistantMessage, Judge, ToolCall } from "@reverse/ai";
+import { logger, prompt, relativePathWithinRoot, withTimeout } from "@reverse/utils";
 import type { Rule } from "../capability/rule";
 import type { Settings } from "../config/settings";
 import {

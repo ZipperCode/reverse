@@ -14,7 +14,7 @@ import {
 	type OAuthProviderId,
 	type OAuthProviderInfo,
 	PASTE_CODE_LOGIN_PROVIDERS,
-} from "@rva/ai";
+} from "@reverse/ai";
 import { openPath } from "../utils/open";
 
 /**

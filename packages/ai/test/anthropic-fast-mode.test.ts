@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { isFastModeUnsupported } from "@rva/ai/error";
+import { isFastModeUnsupported } from "@reverse/ai/error";
 import {
 	clearAnthropicFastModeFallback,
 	isAnthropicFastModeFallbackDisabled,
 	streamAnthropic,
-} from "@rva/ai/providers/anthropic";
-import type { Context, Model, ProviderSessionState, ServiceTier } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/ai/providers/anthropic";
+import type { Context, Model, ProviderSessionState, ServiceTier } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
 import { withOfficialAnthropicEndpoint } from "./helpers";
 
 function makeAnthropicModel(id: string): Model<"anthropic-messages"> {

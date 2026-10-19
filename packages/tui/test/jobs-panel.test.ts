@@ -1,13 +1,13 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import type { DescribeContext, NativeNode, NativeUiEvent } from "@rva/tui/native/node";
+import type { DescribeContext, NativeNode, NativeUiEvent } from "@reverse/tui/native/node";
 import {
 	type JobsPanelDetail,
 	type JobsPanelJob,
 	type JobsPanelSnapshot,
 	JobsSheet,
 	type JobsSheetSource,
-} from "@rva/tui/overlays/jobs-panel";
-import { initTheme } from "@rva/tui/theme";
+} from "@reverse/tui/overlays/jobs-panel";
+import { initTheme } from "@reverse/tui/theme";
 
 const DOWN = "\x1b[B";
 const UP = "\x1b[A";

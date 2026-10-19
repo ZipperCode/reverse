@@ -1,11 +1,11 @@
 import { describe, expect, test, vi } from "bun:test";
-import { streamOllama } from "@rva/ai/providers/ollama";
-import type { Context, Tool } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { Effort } from "@rva/catalog/effort";
-import { clampThinkingLevelForModel } from "@rva/catalog/model-thinking";
-import { ollamaModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@rva/catalog/types";
+import { streamOllama } from "@reverse/ai/providers/ollama";
+import type { Context, Tool } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { Effort } from "@reverse/catalog/effort";
+import { clampThinkingLevelForModel } from "@reverse/catalog/model-thinking";
+import { ollamaModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@reverse/catalog/types";
 
 interface OllamaRequestBody {
 	tools?: Array<{ function: { name: string } }>;

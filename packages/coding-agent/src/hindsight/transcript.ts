@@ -10,7 +10,7 @@
  * event time.
  */
 
-import type { AssistantMessage } from "@rva/ai";
+import type { AssistantMessage } from "@reverse/ai";
 import type { SessionEntry } from "../session/session-entries";
 import { type HindsightMessage, hasSubstantiveContent } from "./content";
 

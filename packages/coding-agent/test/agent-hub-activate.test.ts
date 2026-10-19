@@ -1,4 +1,4 @@
-import { createAgentHubRuntime } from "@rva/coding-agent/modes/agent-hub-runtime";
+import { createAgentHubRuntime } from "@reverse/coding-agent/modes/agent-hub-runtime";
 /**
  * Hub Enter contract: activating a non-remote agent row delegates to the
  * `focusAgent` dep (session focus proxy) and closes the hub on success; a
@@ -7,30 +7,30 @@ import { createAgentHubRuntime } from "@rva/coding-agent/modes/agent-hub-runtime
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent } from "@rva/agent";
-import type { AssistantMessage, Model, Usage } from "@rva/ai";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { IrcBus } from "@rva/coding-agent/irc/bus";
-import { AgentHubOverlayComponent } from "@rva/tui/overlays/agent-hub";
-import { SelectorController } from "@rva/coding-agent/modes/controllers/selector-controller";
-import { SessionObserverRegistry } from "@rva/tui/overlays/session-observer-registry";
-import { initTheme } from "@rva/tui/theme";
-import type { InteractiveModeContext } from "@rva/coding-agent/modes/types";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { visitEntriesFromFileStream } from "@rva/coding-agent/session/session-loader";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { getBundledAgent } from "@rva/coding-agent/task/agents";
-import { TempDir } from "@rva/utils";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import { Agent } from "@reverse/agent";
+import type { AssistantMessage, Model, Usage } from "@reverse/ai";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { IrcBus } from "@reverse/coding-agent/irc/bus";
+import { AgentHubOverlayComponent } from "@reverse/tui/overlays/agent-hub";
+import { SelectorController } from "@reverse/coding-agent/modes/controllers/selector-controller";
+import { SessionObserverRegistry } from "@reverse/tui/overlays/session-observer-registry";
+import { initTheme } from "@reverse/tui/theme";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { visitEntriesFromFileStream } from "@reverse/coding-agent/session/session-loader";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getBundledAgent } from "@reverse/coding-agent/task/agents";
+import { TempDir } from "@reverse/utils";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import {
 	aggregateMetrics,
 	hubFallbackStatsSession,
 	hubRowMetrics,
 	type AgentMetrics,
-} from "@rva/tui/overlays/agent-hub-projection";
+} from "@reverse/tui/overlays/agent-hub-projection";
 
 const AGENT_ID = "Worker";
 const TEST_CWD = path.resolve("agent-hub-cwd");

@@ -1,5 +1,5 @@
-import type { Api, FetchImpl, Model, Usage } from "@rva/catalog/types";
-import { type } from "@rva/omptype";
+import type { Api, FetchImpl, Model, Usage } from "@reverse/catalog/types";
+import { type } from "@reverse/omptype";
 import { type ApiKey, withAuth } from "../auth-retry";
 import * as AIError from "../error";
 import type {

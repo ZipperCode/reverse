@@ -1,10 +1,10 @@
-import { type AgentTool, type AgentToolResult, validateAgentToolArguments } from "@rva/agent";
-import { type ImageContent, toolWireSchema } from "@rva/ai";
-import { isRecord } from "@rva/utils";
-import { INTENT_FIELD } from "@rva/wire";
+import { type AgentTool, type AgentToolResult, validateAgentToolArguments } from "@reverse/agent";
+import { type ImageContent, toolWireSchema } from "@reverse/ai";
+import { isRecord } from "@reverse/utils";
+import { INTENT_FIELD } from "@reverse/wire";
 import type { ToolSession } from "../../tools";
 import { committedTodoPhases } from "../../tools/todo";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { schemaDeclaresIntentField } from "../../utils/tool-schema";
 import { findEnabledEvalPrelude, invokeEvalPrelude } from "../preludes";
 import { EVAL_AGENT_BRIDGE_NAME, type EvalAgentHandleResult, runEvalAgent } from "../agent-bridge";

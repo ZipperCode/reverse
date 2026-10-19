@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@rva/ai/auth-storage";
-import { registerOAuthProvider, unregisterOAuthProviders } from "@rva/ai/registry/oauth";
-import type { OAuthLoginCallbacks, OAuthProviderInterface } from "@rva/ai/registry/oauth/types";
+import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
+import { registerOAuthProvider, unregisterOAuthProviders } from "@reverse/ai/registry/oauth";
+import type { OAuthLoginCallbacks, OAuthProviderInterface } from "@reverse/ai/registry/oauth/types";
 
 const TEST_SOURCE = "manual-code-gate-test";
 

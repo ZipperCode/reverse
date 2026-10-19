@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import type { UsageFetchContext } from "@rva/ai/usage";
-import { claudeUsageProvider } from "@rva/ai/usage/claude";
+import type { FetchImpl } from "@reverse/ai/types";
+import type { UsageFetchContext } from "@reverse/ai/usage";
+import { claudeUsageProvider } from "@reverse/ai/usage/claude";
 
 const CANONICAL_USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
 

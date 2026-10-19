@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { streamAnthropic } from "@rva/ai/providers/anthropic";
-import type { AnthropicMessagesClientLike } from "@rva/ai/providers/anthropic-client";
-import type { RawMessageStreamEvent } from "@rva/ai/providers/anthropic-wire";
-import { streamAzureOpenAIResponses } from "@rva/ai/providers/azure-openai-responses";
-import { streamOpenAICompletions } from "@rva/ai/providers/openai-completions";
-import { streamOpenAIResponses } from "@rva/ai/providers/openai-responses";
-import type { Context, FetchImpl, Model, RawSseEvent } from "@rva/ai/types";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
+import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import type { AnthropicMessagesClientLike } from "@reverse/ai/providers/anthropic-client";
+import type { RawMessageStreamEvent } from "@reverse/ai/providers/anthropic-wire";
+import { streamAzureOpenAIResponses } from "@reverse/ai/providers/azure-openai-responses";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
+import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import type { Context, FetchImpl, Model, RawSseEvent } from "@reverse/ai/types";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
 
 const context: Context = {
 	messages: [{ role: "user", content: "Say hello", timestamp: Date.now() }],

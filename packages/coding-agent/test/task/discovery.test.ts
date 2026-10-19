@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { disableProvider, enableProvider } from "@rva/coding-agent/capability";
-import { clearCache as clearFsCache } from "@rva/coding-agent/capability/fs";
-import { clearAgentPluginRootCache } from "@rva/coding-agent/discovery/agent-plugin-format";
+import { disableProvider, enableProvider } from "@reverse/coding-agent/capability";
+import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
+import { clearAgentPluginRootCache } from "@reverse/coding-agent/discovery/agent-plugin-format";
 import {
 	clearRvaExtensionCliRoots,
 	injectRvaExtensionCliRoots,
-} from "@rva/coding-agent/discovery/rva-extension-roots";
-import { clearClaudePluginRootsCache, injectPluginDirRoots } from "@rva/coding-agent/discovery/helpers";
-import { discoverAgents } from "@rva/coding-agent/task/discovery";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/discovery/rva-extension-roots";
+import { clearClaudePluginRootsCache, injectPluginDirRoots } from "@reverse/coding-agent/discovery/helpers";
+import { discoverAgents } from "@reverse/coding-agent/task/discovery";
+import { removeWithRetries } from "@reverse/utils";
 
 const OMP_AGENT_MD = [
 	"---",

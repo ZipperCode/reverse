@@ -1,7 +1,7 @@
-import { getProviderDefinition } from "@rva/ai/registry";
-import type { FetchImpl, Model } from "@rva/ai/types";
-import { transportFetch } from "@rva/ai/utils/transport-fetch";
-import { untilAborted } from "@rva/utils";
+import { getProviderDefinition } from "@reverse/ai/registry";
+import type { FetchImpl, Model } from "@reverse/ai/types";
+import { transportFetch } from "@reverse/ai/utils/transport-fetch";
+import { untilAborted } from "@reverse/utils";
 
 export interface BedrockCompactionRequest {
 	model: Model;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { generateSummary } from "@rva/agent/compaction";
-import type { AgentMessage } from "@rva/agent/types";
-import type { AssistantMessage, Model, Usage } from "@rva/ai/types";
+import { generateSummary } from "@reverse/agent/compaction";
+import type { AgentMessage } from "@reverse/agent/types";
+import type { AssistantMessage, Model, Usage } from "@reverse/ai/types";
 
 /**
  * Defends `SummaryOptions.oneshotRetry`, the split that lets manual `/compact`

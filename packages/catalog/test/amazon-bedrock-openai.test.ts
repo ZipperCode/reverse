@@ -2,12 +2,12 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resolveProviderModels } from "@rva/catalog/model-manager";
-import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@rva/catalog/provider-models/descriptors";
-import { seedModels } from "@rva/catalog/compat/providers";
-import { filterModelsDevCatalogRows } from "@rva/catalog/provider-models/models-dev-policies";
-import { bedrockMantleModelManagerOptions } from "@rva/catalog/provider-models/openai-compat";
-import type { FetchImpl, ModelSpec } from "@rva/catalog/types";
+import { resolveProviderModels } from "@reverse/catalog/model-manager";
+import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@reverse/catalog/provider-models/descriptors";
+import { seedModels } from "@reverse/catalog/compat/providers";
+import { filterModelsDevCatalogRows } from "@reverse/catalog/provider-models/models-dev-policies";
+import { bedrockMantleModelManagerOptions } from "@reverse/catalog/provider-models/openai-compat";
+import type { FetchImpl, ModelSpec } from "@reverse/catalog/types";
 
 const MANTLE_MODEL_IDS = [
 	"openai.gpt-5.4",

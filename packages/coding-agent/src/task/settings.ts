@@ -9,10 +9,10 @@ import {
 } from "../config/compaction-threshold";
 import { effect, register } from "../config/registry";
 import { type ServiceTierInheritSettingValue, validateAgentServiceTierOverrides } from "../config/service-tier";
-import { THINKING_EFFORTS } from "@rva/catalog/effort";
-import { isRecord, logger, setWorktreesDir } from "@rva/utils";
-import { setFeedModelBadgeEnabled } from "@rva/tui/render/render-utils";
-import { getThinkingLevelMetadata } from "@rva/tui/thinking";
+import { THINKING_EFFORTS } from "@reverse/catalog/effort";
+import { isRecord, logger, setWorktreesDir } from "@reverse/utils";
+import { setFeedModelBadgeEnabled } from "@reverse/tui/render/render-utils";
+import { getThinkingLevelMetadata } from "@reverse/tui/thinking";
 
 const EMPTY_AGENT_SERVICE_TIER_OVERRIDES: Record<string, ServiceTierInheritSettingValue> = {};
 const EMPTY_AGENT_COMPACTION_THRESHOLD_OVERRIDES: Record<string, AgentCompactionThresholdOverride> = {};

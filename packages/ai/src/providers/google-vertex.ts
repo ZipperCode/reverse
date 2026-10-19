@@ -1,5 +1,5 @@
-import { resolveVertexEndpointHost } from "@rva/catalog/hosts";
-import { $env } from "@rva/utils";
+import { resolveVertexEndpointHost } from "@reverse/catalog/hosts";
+import { $env } from "@reverse/utils";
 import * as AIError from "../error";
 import type { Context, Model, StreamFunction } from "../types";
 import type { AssistantMessageEventStream } from "../utils/event-stream";

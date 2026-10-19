@@ -5,13 +5,13 @@ import {
 	MAX_TINY_MESSAGE_CHARS,
 	preprocessTinyMessage,
 	stripCodeBlocks,
-} from "@rva/coding-agent/tiny/message-preproc";
+} from "@reverse/coding-agent/tiny/message-preproc";
 import {
 	isAttachmentOnlyTitleInput,
 	isLowSignalTitleInput,
 	NO_TITLE_SENTINEL,
 	normalizeGeneratedTitle,
-} from "@rva/coding-agent/tiny/text";
+} from "@reverse/coding-agent/tiny/text";
 
 describe("stripCodeBlocks", () => {
 	it("drops fenced code blocks but keeps the surrounding prose", () => {

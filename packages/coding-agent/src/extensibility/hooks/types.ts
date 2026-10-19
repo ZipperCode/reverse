@@ -1,23 +1,23 @@
-import { type HookMessageRenderer } from "@rva/tui/chat/extension-types";
-export { type HookMessageRenderOptions, type HookMessageRenderer } from "@rva/tui/chat/extension-types";
-import type { type as ArkType } from "@rva/omptype";
-import type * as TypeBox from "@rva/omptype/typebox";
-import type * as zod from "@rva/omptype/zod";
-import type { ImageContent, Message, Model, TextContent } from "@rva/ai";
-import type { Component, TUI } from "@rva/tui";
-import type { logger as PiLogger } from "@rva/utils";
-import type { KeybindingsManager } from "@rva/tui/app-keybindings";
+import { type HookMessageRenderer } from "@reverse/tui/chat/extension-types";
+export { type HookMessageRenderOptions, type HookMessageRenderer } from "@reverse/tui/chat/extension-types";
+import type { type as ArkType } from "@reverse/omptype";
+import type * as TypeBox from "@reverse/omptype/typebox";
+import type * as zod from "@reverse/omptype/zod";
+import type { ImageContent, Message, Model, TextContent } from "@reverse/ai";
+import type { Component, TUI } from "@reverse/tui";
+import type { logger as PiLogger } from "@reverse/utils";
+import type { KeybindingsManager } from "@reverse/tui/app-keybindings";
 import type { ModelRegistry } from "../../config/model-registry";
-import type { EditToolDetails } from "@rva/tui/tools/edit";
+import type { EditToolDetails } from "@reverse/tui/tools/edit";
 import type { ExecOptions, ExecResult } from "../../exec/exec";
 import type * as PiCodingAgent from "../../index";
-import type { Theme } from "@rva/tui/theme";
+import type { Theme } from "@reverse/tui/theme";
 import type { CustomMessagePayload } from "../../session/messages";
 import type { ReadonlySessionManager, SessionManager } from "../../session/session-manager";
-import type { BashToolDetails } from "@rva/tui/tools/bash";
-import type { GlobToolDetails } from "@rva/tui/tools/glob";
-import type { GrepToolDetails } from "@rva/tui/tools/grep";
-import type { ReadToolDetails } from "@rva/tui/tools/read";
+import type { BashToolDetails } from "@reverse/tui/tools/bash";
+import type { GlobToolDetails } from "@reverse/tui/tools/glob";
+import type { GrepToolDetails } from "@reverse/tui/tools/grep";
+import type { ReadToolDetails } from "@reverse/tui/tools/read";
 import type {
 	AgentEndEvent,
 	AgentStartEvent,
