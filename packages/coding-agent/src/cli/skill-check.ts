@@ -1,5 +1,5 @@
 /**
- * `rva skill check [dir] [--json]`: report declared external tool
+ * `reverse skill check [dir] [--json]`: report declared external tool
  * dependencies and whether each one is present on this machine.
  *
  * This is the human-facing counterpart to the notice injected when a skill is
@@ -72,12 +72,12 @@ function formatStatus(status: RequirementStatus): string {
 }
 
 /**
- * `rva skill check [dir] [--json]`: check declared tool dependencies for the
+ * `reverse skill check [dir] [--json]`: check declared tool dependencies for the
  * skills a session in `dir` would resolve. Returns 1 when a required tool is
  * missing; discovery warnings go to stderr in text mode.
  */
 export async function handleSkillCheck(args: string[], cwd: string, json: boolean): Promise<number> {
-	const target = await resolveSkillTarget(args, cwd, "usage: omp skill check [dir] [--json]");
+	const target = await resolveSkillTarget(args, cwd, "usage: reverse skill check [dir] [--json]");
 	const result = await runSkillCheckCommand({ cwd: target });
 	if (json) {
 		process.stdout.write(`${JSON.stringify(result)}\n`);

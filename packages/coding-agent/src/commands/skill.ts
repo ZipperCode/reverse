@@ -23,10 +23,10 @@ export default class Skill extends Command {
 	};
 
 	static examples = [
-		"rva skill list",
-		"rva skill list ./my-project --json",
-		"rva skill check",
-		"rva skill check ./my-project --json",
+		"reverse skill list",
+		"reverse skill list ./my-project --json",
+		"reverse skill check",
+		"reverse skill check ./my-project --json",
 	];
 
 	async run(): Promise<void> {

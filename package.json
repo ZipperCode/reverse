@@ -82,6 +82,8 @@
 		"claude:trace": "bun scripts/claude-trace.ts",
 		"build": "bun --cwd=packages/coding-agent run build",
 		"build:native": "bun --cwd=packages/natives run build",
+		"install:local": "bun scripts/install-local.ts",
+		"uninstall:local": "bun scripts/install-local.ts --uninstall",
 		"test": "bun scripts/ci-test-ts.ts local",
 		"test:ts": "bun scripts/ci-test-ts.ts local-ts",
 		"test:scripts": "bun test scripts",

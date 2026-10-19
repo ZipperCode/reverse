@@ -11,6 +11,12 @@ import {
 	type ReverseServiceStatus,
 	type ReverseToolStatus,
 } from "../cli/setup-reverse";
+import { buildSpeechComponents, checkPythonSetup, type SpeechComponent } from "../cli/setup-cli";
+import { getAllLocalizedPanels } from "../cli/setup-panels";
+import { enumeratePythonRuntimes } from "../eval/py/runtime";
+import { cfgPythonInterpreter } from "../eval/settings";
+import { STT_MODEL_OPTIONS } from "../stt/models";
+import { TTS_LOCAL_MODELS } from "../tts";
 import { getEffectiveLocale } from "../config/persisted-locale";
 import {
 	formatModelString,
@@ -937,6 +943,500 @@ async function showItemDetails(
 	}
 }
 
+export async function runInteractiveSetupMenu(
+	ctx: InteractiveModeContext,
+	installCallback?: ReverseInstallCallback,
+	options?: { isTTY?: boolean },
+): Promise<void> {
+	const isZh = getEffectiveLocale() === "zh-CN";
+	const isInteractive = Boolean(
+		(options?.isTTY ?? ctx.isTTY ?? process.stdin.isTTY) && typeof ctx.showHookSelector === "function",
+	);
+
+	if (!isInteractive) {
+		await ctx.showProviderSetup();
+		return;
+	}
+
+	const panels = getAllLocalizedPanels(isZh);
+	const exitLabel = isZh ? "← 退出" : "← Exit";
+	const exitDesc = isZh ? "关闭设置菜单" : "Close setup menu";
+
+	const selectorOptions = [
+		...panels.map(p => ({
+			label: p.label,
+			description: p.description,
+		})),
+		{ label: exitLabel, description: exitDesc },
+	];
+
+	const title = isZh ? "系统与工具链配置 (Setup)" : "System & Toolchain Setup";
+	const choice = await ctx.showHookSelector(title, selectorOptions);
+
+	if (!choice || choice.includes("← Exit") || choice.includes("← 退出")) {
+		return;
+	}
+
+	if (choice.includes("providers") || choice.includes("Providers") || choice.includes("模型服务商")) {
+		await ctx.showProviderSetup();
+	} else if (choice.includes("add") || choice.includes("Add") || choice.includes("添加自定义服务商")) {
+		await ctx.showCustomProviderWizard();
+	} else if (choice.includes("reverse") || choice.includes("Reverse") || choice.includes("逆向工程工具链")) {
+		await runInteractiveReverseSetup(ctx, undefined, installCallback, options);
+	} else if (choice.includes("python") || choice.includes("Python") || choice.includes("执行环境")) {
+		await runInteractivePythonSetup(ctx, options);
+	} else if (choice.includes("speech") || choice.includes("Speech") || choice.includes("语音识别与合成")) {
+		await runInteractiveSpeechSetup(ctx, options);
+	}
+}
+
+export async function runInteractivePythonSetup(
+	ctx: InteractiveModeContext,
+	options?: { isTTY?: boolean },
+): Promise<void> {
+	const isZh = getEffectiveLocale() === "zh-CN";
+	const isInteractive = Boolean(
+		(options?.isTTY ?? ctx.isTTY ?? process.stdin.isTTY) && typeof ctx.showHookSelector === "function",
+	);
+
+	const configuredInterpreter = ctx.settings ? cfgPythonInterpreter.get(ctx.settings)?.trim() || undefined : undefined;
+	const check = await checkPythonSetup(process.cwd(), configuredInterpreter);
+
+	if (!isInteractive) {
+		const title = isZh ? "Python 执行环境状态" : "Python Execution Environment Status";
+		const lines = [
+			`# ${title}`,
+			"",
+			check.available
+				? isZh
+					? "✅ **Python 3 解释器已就绪**"
+					: "✅ **Python 3 interpreter is ready**"
+				: isZh
+					? "❌ **未检测到有效的 Python 3 解释器**"
+					: "❌ **No valid Python 3 interpreter detected**",
+			"",
+			`- **${isZh ? "当前解释器路径" : "Interpreter Path"}**: \`${check.pythonPath ?? (isZh ? "未找到" : "Not found")}\``,
+			`- **${isZh ? "托管虚拟环境" : "Managed Environment"}**: \`${check.usingManagedEnv ? check.managedEnvPath : isZh ? "否" : "No"}\``,
+			`- **${isZh ? "配置项 (python.interpreter)" : "Setting (python.interpreter)"}**: \`${configuredInterpreter ?? (isZh ? "自动探测" : "auto-probe")}\``,
+		];
+		if (!check.available) {
+			lines.push(
+				"",
+				isZh
+					? "> **提示**：系统未找到可用的 Python 3 解释器。可在终端中运行 `rva setup python` 诊断，或在设置中配置 `python.interpreter`。"
+					: "> **Action**: No working Python 3 found. Run `rva setup python` in terminal or configure `python.interpreter` in settings.",
+			);
+		}
+		if (typeof ctx.showCommandReport === "function") {
+			ctx.showCommandReport({
+				title,
+				body: new Markdown(lines.join("\n"), 0, 0, getMarkdownTheme()),
+			});
+		} else {
+			ctx.showStatus?.(check.available ? "Python ready" : "Python not found");
+		}
+		return;
+	}
+
+	while (true) {
+		const currentInterp = ctx.settings ? cfgPythonInterpreter.get(ctx.settings)?.trim() || undefined : undefined;
+		const currentCheck = await checkPythonSetup(process.cwd(), currentInterp);
+		const runtimes = enumeratePythonRuntimes(process.cwd(), process.env);
+
+		const title = isZh
+			? `Python 执行环境 — ${currentCheck.available ? "已就绪" : "未就绪"}`
+			: `Python Environment — ${currentCheck.available ? "Ready" : "Not Ready"}`;
+
+		const menuItems = [
+			{
+				label: `${currentCheck.available ? "✅" : "❌"} ${isZh ? "解释器状态" : "Interpreter Status"}: ${currentCheck.pythonPath ?? (isZh ? "未检测到" : "Not found")}`,
+				description: currentCheck.usingManagedEnv
+					? isZh
+						? "使用托管虚拟环境"
+						: "Using managed virtualenv"
+					: currentInterp
+						? isZh
+							? `配置项指定: ${currentInterp}`
+							: `Configured: ${currentInterp}`
+						: isZh
+							? "PATH 自动发现"
+							: "Discovered on PATH",
+			},
+			{
+				label: isZh
+					? `🔄 切换 / 选择 Python 解释器 (${runtimes.length} 个候选)`
+					: `🔄 Select / Switch Python Interpreter (${runtimes.length} candidates)`,
+				description: isZh
+					? "从发现的系统解释器或虚拟环境中选择"
+					: "Select from detected system runtimes or virtual environments",
+			},
+			{
+				label: isZh ? "📄 查看完整诊断报告" : "📄 View Full Diagnostic Report",
+				description: isZh ? "查看详细的解释器与环境配置信息" : "View detailed environment diagnostics",
+			},
+			{
+				label: isZh ? "← 返回设置菜单" : "← Back to Setup Menu",
+				description: isZh ? "返回主设置菜单" : "Return to setup menu",
+			},
+		];
+
+		const choice = await ctx.showHookSelector(title, menuItems);
+		if (!choice || choice.includes("← Back") || choice.includes("← 返回")) {
+			break;
+		}
+
+		if (choice.includes("查看完整诊断报告") || choice.includes("View Full Diagnostic Report")) {
+			const reportLines = [
+				`# ${isZh ? "Python 执行环境详细报告" : "Python Execution Environment Report"}`,
+				"",
+				`- **${isZh ? "状态" : "Status"}**: ${currentCheck.available ? "✅ " + (isZh ? "就绪" : "Ready") : "❌ " + (isZh ? "不可用" : "Unavailable")}`,
+				`- **${isZh ? "解释器" : "Interpreter"}**: \`${currentCheck.pythonPath ?? (isZh ? "无" : "none")}\``,
+				`- **${isZh ? "托管虚拟环境" : "Managed Env"}**: \`${currentCheck.managedEnvPath ?? (isZh ? "无" : "none")}\``,
+				`- **${isZh ? "配置项" : "Configuration"}**: \`${currentInterp ?? (isZh ? "（未配置，自动检测）" : "(not set, auto-detect)")}\``,
+				"",
+				`### ${isZh ? "发现的候选 Python 运行时" : "Discovered Candidate Runtimes"}`,
+				...runtimes.map((r, i) => `${i + 1}. \`${r.pythonPath}\`${r.venvPath ? ` (venv: \`${r.venvPath}\`)` : ""}`),
+			];
+			if (typeof ctx.showCommandReport === "function") {
+				ctx.showCommandReport({
+					title: isZh ? "Python 执行环境报告" : "Python Diagnostic Report",
+					body: new Markdown(reportLines.join("\n"), 0, 0, getMarkdownTheme()),
+				});
+			}
+			continue;
+		}
+
+		if (choice.includes("切换 / 选择") || choice.includes("Select / Switch")) {
+			if (runtimes.length === 0) {
+				ctx.showWarning?.(
+					isZh
+						? "未在系统中发现任何 Python 3 解释器候选。"
+						: "No Python 3 interpreter candidates discovered on system.",
+				);
+				continue;
+			}
+			const runtimeOptions = [
+				...runtimes.map(r => ({
+					label: r.pythonPath,
+					description: r.venvPath
+						? isZh
+							? `虚拟环境: ${r.venvPath}`
+							: `Virtualenv: ${r.venvPath}`
+						: isZh
+							? "系统 Python"
+							: "System Python",
+				})),
+				{
+					label: isZh ? "← 返回" : "← Back",
+					description: isZh ? "取消并返回上一层" : "Cancel and go back",
+				},
+			];
+			const picked = await ctx.showHookSelector(
+				isZh ? "选择要配置的 Python 解释器" : "Select Python Interpreter",
+				runtimeOptions,
+			);
+			if (!picked || picked.includes("← Back") || picked.includes("← 返回")) {
+				continue;
+			}
+			const selectedRuntime = runtimes.find(r => r.pythonPath === picked);
+			if (selectedRuntime) {
+				const confirmMsg = isZh
+					? `是否确认将 Python 解释器设置为:\n${selectedRuntime.pythonPath}`
+					: `Set python.interpreter to:\n${selectedRuntime.pythonPath}?`;
+				const confirmed =
+					typeof ctx.showHookConfirm === "function"
+						? await ctx.showHookConfirm(isZh ? "确认配置解释器" : "Confirm Python Interpreter", confirmMsg)
+						: true;
+				if (confirmed) {
+					if (ctx.settings) {
+						cfgPythonInterpreter.set(ctx.settings, selectedRuntime.pythonPath);
+						await ctx.settings.flush();
+					}
+					ctx.showStatus?.(
+						isZh
+							? `✅ Python 解释器已设置为 ${selectedRuntime.pythonPath}`
+							: `✅ Python interpreter set to ${selectedRuntime.pythonPath}`,
+					);
+				}
+			}
+		}
+	}
+}
+
+export async function runInteractiveSpeechSetup(
+	ctx: InteractiveModeContext,
+	options?: { isTTY?: boolean },
+): Promise<void> {
+	const isZh = getEffectiveLocale() === "zh-CN";
+	const isInteractive = Boolean(
+		(options?.isTTY ?? ctx.isTTY ?? process.stdin.isTTY) && typeof ctx.showHookSelector === "function",
+	);
+
+	let components: SpeechComponent[] = [];
+	if (ctx.settings && ctx.session?.modelRegistry) {
+		try {
+			components = buildSpeechComponents(ctx.settings, ctx.session.modelRegistry);
+		} catch {
+			components = [];
+		}
+	}
+	if (components.length === 0) {
+		components = [
+			{
+				name: "Speech-to-Text model",
+				isReady: async () => false,
+				status: async () => "whisper-base — not downloaded",
+				ensure: async () => {},
+			},
+			{
+				name: "Text-to-Speech model",
+				isReady: async () => false,
+				status: async () => "kokoro — model/runtime not installed",
+				ensure: async () => {},
+			},
+		];
+	}
+
+	if (!isInteractive) {
+		const title = isZh ? "语音识别与合成模型状态" : "Speech STT & TTS Model Status";
+		const lines = [`# ${title}`, ""];
+		for (const comp of components) {
+			const ready = await comp.isReady();
+			const status = await comp.status();
+			lines.push(`- **${comp.name}**: ${ready ? "✅ " : "⚠️ "}${status}`);
+		}
+		if (typeof ctx.showCommandReport === "function") {
+			ctx.showCommandReport({
+				title,
+				body: new Markdown(lines.join("\n"), 0, 0, getMarkdownTheme()),
+			});
+		} else {
+			ctx.showStatus?.("Speech setup inspected.");
+		}
+		return;
+	}
+
+	while (true) {
+		const sttComp = components[0];
+		const ttsComp = components[1];
+		const sttReady = await sttComp.isReady();
+		const ttsReady = await ttsComp.isReady();
+		const sttStatus = await sttComp.status();
+		const ttsStatus = await ttsComp.status();
+
+		const title = isZh ? "语音识别与合成配置 (Speech)" : "Speech Recognition & Synthesis (Speech)";
+
+		const menuItems = [
+			{
+				label: `${sttReady ? "✅" : "⚠️"} [STT] ${sttComp.name}: ${sttStatus}`,
+				description: isZh
+					? sttReady
+						? "语音转文字模型已就绪，点击可切换或重新下载"
+						: "语音转文字模型未下载，点击下载"
+					: sttReady
+						? "STT model ready; click to switch or re-download"
+						: "STT model missing; click to download",
+			},
+			{
+				label: `${ttsReady ? "✅" : "⚠️"} [TTS] ${ttsComp.name}: ${ttsStatus}`,
+				description: isZh
+					? ttsReady
+						? "文字转语音模型已就绪，点击可切换或重新下载"
+						: "文字转语音模型未就绪，点击下载"
+					: ttsReady
+						? "TTS model ready; click to switch or re-download"
+						: "TTS model missing; click to download",
+			},
+		];
+
+		if (!sttReady || !ttsReady) {
+			menuItems.push({
+				label: isZh ? "⬇️ 下载所有缺失的语音模型" : "⬇️ Download All Missing Speech Models",
+				description: isZh ? "批量下载并准备未就绪的 STT / TTS 模型" : "Download and prepare all missing models",
+			});
+		}
+
+		menuItems.push(
+			{
+				label: isZh ? "📄 查看语音模型说明与指南" : "📄 View Speech Models Guide & Status",
+				description: isZh
+					? "查看 STT / TTS 详细说明与键盘快捷键配置"
+					: "View speech model documentation and keybindings",
+			},
+			{
+				label: isZh ? "← 返回设置菜单" : "← Back to Setup Menu",
+				description: isZh ? "返回主设置菜单" : "Return to setup menu",
+			},
+		);
+
+		const choice = await ctx.showHookSelector(title, menuItems);
+		if (!choice || choice.includes("← Back") || choice.includes("← 返回")) {
+			break;
+		}
+
+		if (choice.includes("查看语音模型说明") || choice.includes("View Speech Models Guide")) {
+			const guideLines = [
+				`# ${isZh ? "语音识别与合成模型指南" : "Speech STT & TTS Guide"}`,
+				"",
+				`- **${sttComp.name}**: ${sttReady ? "✅ " : "⚠️ "}${sttStatus}`,
+				`- **${ttsComp.name}**: ${ttsReady ? "✅ " : "⚠️ "}${ttsStatus}`,
+				"",
+				`### ${isZh ? "快捷键与用法" : "Usage & Keybindings"}`,
+				`- **STT (${isZh ? "语音输入" : "Speech-to-Text"})**: ${isZh ? "启用 `stt.enabled`，长按空格键可进行语音转文字。" : "Enable `stt.enabled`, then hold spacebar to dictate."}`,
+				`- **TTS (${isZh ? "语音朗读" : "Text-to-Speech"})**: ${isZh ? "启用 `speech.enabled`，可在助手回复时朗读内容。" : "Enable `speech.enabled` to have assistant responses spoken aloud."}`,
+			];
+			if (typeof ctx.showCommandReport === "function") {
+				ctx.showCommandReport({
+					title: isZh ? "语音模型指南" : "Speech Models Guide",
+					body: new Markdown(guideLines.join("\n"), 0, 0, getMarkdownTheme()),
+				});
+			}
+			continue;
+		}
+
+		if (choice.includes("下载所有缺失") || choice.includes("Download All Missing")) {
+			const confirmMsg = isZh
+				? "是否确认下载所有缺失的语音模型？这可能需要从网络下载约几十至几百 MB 数据。"
+				: "Download all missing speech models now? This may download tens to hundreds of MB.";
+			const confirmed =
+				typeof ctx.showHookConfirm === "function"
+					? await ctx.showHookConfirm(isZh ? "确认下载" : "Confirm Download", confirmMsg)
+					: true;
+			if (!confirmed) continue;
+
+			for (const comp of components) {
+				if (!(await comp.isReady())) {
+					ctx.showStatus?.(isZh ? `正在准备 ${comp.name}...` : `Preparing ${comp.name}...`);
+					try {
+						await comp.ensure(progress => {
+							const pct = progress.percent !== undefined ? ` (${progress.percent}%)` : "";
+							ctx.showStatus?.(`${progress.stage}${pct}`);
+						});
+						ctx.showStatus?.(isZh ? `✅ ${comp.name} 准备就绪` : `✅ ${comp.name} ready`);
+					} catch (err) {
+						ctx.showError?.(
+							err instanceof Error
+								? err.message
+								: isZh
+									? `下载 ${comp.name} 失败`
+									: `Failed to download ${comp.name}`,
+						);
+					}
+				}
+			}
+			continue;
+		}
+
+		if (choice.includes("[STT]")) {
+			const sttSubmenu = [
+				{
+					label: isZh ? `⬇️ 下载 / 更新模型 (${sttStatus})` : `⬇️ Download / Cache Model (${sttStatus})`,
+					description: isZh ? "下载当前配置的语音识别模型权重" : "Download weights for current STT model",
+				},
+				{
+					label: isZh ? "🔄 切换 STT 模型" : "🔄 Switch STT Model",
+					description: isZh ? "从候选 Whisper 模型中选择" : "Select from candidate Whisper models",
+				},
+				{
+					label: isZh ? "← 返回" : "← Back",
+					description: isZh ? "返回语音设置" : "Return to speech setup",
+				},
+			];
+			const sttChoice = await ctx.showHookSelector(sttComp.name, sttSubmenu);
+			if (sttChoice?.includes("下载") || sttChoice?.includes("Download")) {
+				const confirmed =
+					typeof ctx.showHookConfirm === "function"
+						? await ctx.showHookConfirm(
+								isZh ? "确认下载 STT 模型" : "Confirm STT Download",
+								isZh ? `是否开始下载 ${sttComp.name}？` : `Download ${sttComp.name} now?`,
+							)
+						: true;
+				if (confirmed) {
+					try {
+						await sttComp.ensure(p => {
+							const pct = p.percent !== undefined ? ` (${p.percent}%)` : "";
+							ctx.showStatus?.(`${p.stage}${pct}`);
+						});
+						ctx.showStatus?.(isZh ? `✅ ${sttComp.name} 下载完成` : `✅ ${sttComp.name} download complete`);
+					} catch (err) {
+						ctx.showError?.(err instanceof Error ? err.message : String(err));
+					}
+				}
+			} else if (sttChoice?.includes("切换") || sttChoice?.includes("Switch")) {
+				const picked = await ctx.showHookSelector(isZh ? "选择语音转文字模型" : "Select STT Model", [
+					...STT_MODEL_OPTIONS.map(opt => ({
+						label: opt.value,
+						description: opt.label,
+					})),
+					{ label: isZh ? "← 返回" : "← Back", description: "" },
+				]);
+				if (picked && !picked.includes("← Back") && !picked.includes("← 返回")) {
+					if (ctx.settings) {
+						ctx.settings.setModelRole("dictation", `local/${picked}`);
+						await ctx.settings.flush();
+					}
+					ctx.showStatus?.(isZh ? `已将 STT 模型切换为 ${picked}` : `Switched STT model to ${picked}`);
+				}
+			}
+			continue;
+		}
+
+		if (choice.includes("[TTS]")) {
+			const ttsSubmenu = [
+				{
+					label: isZh ? `⬇️ 下载 / 更新模型 (${ttsStatus})` : `⬇️ Download / Cache Model (${ttsStatus})`,
+					description: isZh ? "下载当前配置的文字转语音模型权重" : "Download weights for current TTS model",
+				},
+				{
+					label: isZh ? "🔄 切换 TTS 模型" : "🔄 Switch TTS Model",
+					description: isZh ? "从候选文字转语音模型中选择" : "Select from candidate TTS models",
+				},
+				{
+					label: isZh ? "← 返回" : "← Back",
+					description: isZh ? "返回语音设置" : "Return to speech setup",
+				},
+			];
+			const ttsChoice = await ctx.showHookSelector(ttsComp.name, ttsSubmenu);
+			if (ttsChoice?.includes("下载") || ttsChoice?.includes("Download")) {
+				const confirmed =
+					typeof ctx.showHookConfirm === "function"
+						? await ctx.showHookConfirm(
+								isZh ? "确认下载 TTS 模型" : "Confirm TTS Download",
+								isZh ? `是否开始下载 ${ttsComp.name}？` : `Download ${ttsComp.name} now?`,
+							)
+						: true;
+				if (confirmed) {
+					try {
+						await ttsComp.ensure(p => {
+							const pct = p.percent !== undefined ? ` (${p.percent}%)` : "";
+							ctx.showStatus?.(`${p.stage}${pct}`);
+						});
+						ctx.showStatus?.(isZh ? `✅ ${ttsComp.name} 准备就绪` : `✅ ${ttsComp.name} ready`);
+					} catch (err) {
+						ctx.showError?.(err instanceof Error ? err.message : String(err));
+					}
+				}
+			} else if (ttsChoice?.includes("切换") || ttsChoice?.includes("Switch")) {
+				const picked = await ctx.showHookSelector(isZh ? "选择文字转语音模型" : "Select TTS Model", [
+					...TTS_LOCAL_MODELS.map(opt => ({
+						label: opt.key,
+						description: `${opt.label} — ${opt.description}`,
+					})),
+					{ label: isZh ? "← 返回" : "← Back", description: "" },
+				]);
+				if (picked && !picked.includes("← Back") && !picked.includes("← 返回")) {
+					if (ctx.settings) {
+						ctx.settings.setModelRole("speech", `local/${picked}`);
+						await ctx.settings.flush();
+					}
+					ctx.showStatus?.(isZh ? `已将 TTS 模型切换为 ${picked}` : `Switched TTS model to ${picked}`);
+				}
+			}
+			continue;
+		}
+	}
+}
+
 export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "security",
@@ -972,31 +1472,46 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "setup",
 		aliases: ["providers"],
 		icon: "gear",
-		description: "Open provider setup",
+		description: "Open system and toolchain setup menu",
 		allowArgs: true,
 		subcommands: [
-			{ name: "providers", description: "Configure sign-in and web search providers" },
-			{ name: "add", description: "Add a custom OpenAI/Anthropic-compatible provider" },
-			{ name: "reverse", description: "Inspect reverse engineering toolchain status and install guides" },
+			{ name: "providers", description: "Configure sign-in, API keys, and web search providers" },
+			{ name: "add", description: "Add a custom OpenAI/Anthropic-compatible provider with model discovery" },
+			{ name: "reverse", description: "Inspect and install reverse engineering tools and MCP services" },
+			{ name: "python", description: "Verify and configure Python 3 interpreter and execution environment" },
+			{ name: "speech", description: "Configure and download STT and TTS local models" },
 		],
 		handleTui: async (command, runtime) => {
+			if (command.name === "providers") {
+				await runtime.ctx.showProviderSetup();
+				clearSubmittedText(runtime);
+				return;
+			}
 			const rawArgs = command.args.trim();
 			const [subcommand, ...rest] = rawArgs.split(/\s+/);
 			const sub = subcommand?.toLowerCase() ?? "";
-			if (sub === "add" || sub === "add-provider") {
+
+			const installCallback =
+				getInstallCallback(runtime) ??
+				(typeof runtime.ctx.installReverseItem === "function"
+					? runtime.ctx.installReverseItem.bind(runtime.ctx)
+					: getInstallCallback(runtime.ctx));
+
+			if (sub === "") {
+				await runInteractiveSetupMenu(runtime.ctx, installCallback);
+			} else if (sub === "providers") {
+				await runtime.ctx.showProviderSetup();
+			} else if (sub === "add" || sub === "add-provider") {
 				await runtime.ctx.showCustomProviderWizard();
 			} else if (sub === "reverse") {
 				const targetTool = rest.join(" ").trim() || undefined;
-				const installCallback =
-					getInstallCallback(runtime) ??
-					(typeof runtime.ctx.installReverseItem === "function"
-						? runtime.ctx.installReverseItem.bind(runtime.ctx)
-						: getInstallCallback(runtime.ctx));
 				await runInteractiveReverseSetup(runtime.ctx, targetTool, installCallback);
-			} else if (sub === "" || sub === "providers") {
-				await runtime.ctx.showProviderSetup();
+			} else if (sub === "python") {
+				await runInteractivePythonSetup(runtime.ctx);
+			} else if (sub === "speech") {
+				await runInteractiveSpeechSetup(runtime.ctx);
 			} else {
-				runtime.ctx.showWarning(`Usage: /${command.name} [providers|add|reverse]`);
+				runtime.ctx.showWarning(`Usage: /${command.name} [providers|add|reverse|python|speech]`);
 			}
 			clearSubmittedText(runtime);
 		},

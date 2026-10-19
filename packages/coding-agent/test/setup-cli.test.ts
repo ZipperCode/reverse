@@ -23,7 +23,7 @@ async function runSetupPython(cwd: string): Promise<CliProcessResult> {
 	const env: NodeJS.ProcessEnv = {
 		...process.env,
 		NO_COLOR: "1",
-		PI_CODING_AGENT_DIR: path.join(cwd, "agent"),
+		REVERSE_CODING_AGENT_DIR: path.join(cwd, "agent"),
 	};
 	delete env.VIRTUAL_ENV;
 	delete env.CONDA_DEFAULT_ENV;
@@ -44,7 +44,7 @@ async function runSetup(cwd: string, ...setupArgs: string[]): Promise<CliProcess
 	const env: NodeJS.ProcessEnv = {
 		...process.env,
 		NO_COLOR: "1",
-		PI_CODING_AGENT_DIR: path.join(cwd, "agent"),
+		REVERSE_CODING_AGENT_DIR: path.join(cwd, "agent"),
 	};
 	const proc = Bun.spawn([process.execPath, cliEntry, "setup", ...setupArgs], {
 		cwd,
@@ -96,7 +96,7 @@ describe("omp setup python", () => {
 			const interpreter = path.join(cwd, "configured-python");
 			await Bun.write(interpreter, "#!/bin/sh\nexit 0\n");
 			await fs.chmod(interpreter, 0o755);
-			await Bun.write(path.join(cwd, ".rva", "config.yml"), `python:\n  interpreter: ${interpreter}\n`);
+			await Bun.write(path.join(cwd, ".reverse", "config.yml"), `python:\n  interpreter: ${interpreter}\n`);
 
 			const result = await runSetupPython(cwd);
 
@@ -173,4 +173,51 @@ describe("omp setup without a component", () => {
 			expect(result.error).toContain("requires a COMPONENT");
 		});
 	}
+});
+
+describe("omp setup unified 5-panel components", () => {
+	let projectDir: TempDir | undefined;
+
+	afterEach(async () => {
+		await projectDir?.remove();
+		projectDir = undefined;
+	});
+
+	it("handles setup providers --json", async () => {
+		projectDir = TempDir.createSync("@omp-setup-providers-");
+		const result = await runSetup(projectDir.path(), "providers", "--json");
+		expect(result.exitCode).toBe(0);
+		const parsed = JSON.parse(result.output);
+		expect(parsed.status).toBe("ok");
+		expect(Array.isArray(parsed.providers)).toBe(true);
+	});
+
+	it("handles setup providers --check", async () => {
+		projectDir = TempDir.createSync("@omp-setup-providers-check-");
+		const result = await runSetup(projectDir.path(), "providers", "--check");
+		expect(result.exitCode).toBe(0);
+		expect(result.output).toContain("Model Providers Setup Status");
+	});
+
+	it("handles setup add --json", async () => {
+		projectDir = TempDir.createSync("@omp-setup-add-");
+		const result = await runSetup(projectDir.path(), "add", "--json");
+		expect(result.exitCode).toBe(0);
+		const parsed = JSON.parse(result.output);
+		expect(typeof parsed.customProvidersCount).toBe("number");
+		expect(Array.isArray(parsed.models)).toBe(true);
+	});
+
+	it("handles setup add --check", async () => {
+		projectDir = TempDir.createSync("@omp-setup-add-check-");
+		const result = await runSetup(projectDir.path(), "add", "--check");
+		expect(result.exitCode).toBe(0);
+		expect(result.output).toContain("Custom Providers Setup Status");
+	});
+
+	it("fails on unknown component with error", async () => {
+		projectDir = TempDir.createSync("@omp-setup-invalid-");
+		const result = await runSetup(projectDir.path(), "nonexistent_component");
+		expect(result.exitCode).not.toBe(0);
+	});
 });

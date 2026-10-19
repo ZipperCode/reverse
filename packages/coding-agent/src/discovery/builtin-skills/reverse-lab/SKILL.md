@@ -2,7 +2,7 @@
 name: reverse-lab
 description: Multi-platform reverse engineering orchestrator for reverse. Enforces skill-first investigation, target-first triage, structured evidence chains (Fact/Hypothesis/Conclusion), capability discovery before stopping, trusted setup installation with user approval, immediate dispatch, and graceful tool degradation.
 metadata:
-  requiresOptional: droidasc, jadx, apktool, adb, frida, frida_session, radare2, ida, unidbg, mitmproxy
+  requiresOptional: droidasc, jadx, apktool, adb, frida, radare2, ida, unidbg, mitmproxy
 ---
 
 # Reverse Lab Orchestrator

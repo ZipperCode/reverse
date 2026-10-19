@@ -112,6 +112,120 @@ describe("/setup slash command", () => {
 		expect(harness.showProviderSetup).toHaveBeenCalledTimes(1);
 		expect(harness.setText).toHaveBeenCalledWith("");
 	});
+
+	it("shows top-level interactive selector with all 5 panels for /setup when showHookSelector is available", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["← Exit"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showHookSelector).toHaveBeenCalledTimes(1);
+		const [title, items] = harness.showHookSelector.mock.calls[0] as [string, Array<{ label: string }>];
+		expect(title).toContain("Setup");
+		expect(items.some(i => i.label.includes("providers"))).toBe(true);
+		expect(items.some(i => i.label.includes("add"))).toBe(true);
+		expect(items.some(i => i.label.includes("reverse"))).toBe(true);
+		expect(items.some(i => i.label.includes("python"))).toBe(true);
+		expect(items.some(i => i.label.includes("speech"))).toBe(true);
+		expect(items.some(i => i.label.includes("Exit") || i.label.includes("退出"))).toBe(true);
+	});
+
+	it("keeps /providers as direct providers alias even when showHookSelector is available", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["← Exit"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/providers", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showHookSelector).not.toHaveBeenCalled();
+		expect(harness.showProviderSetup).toHaveBeenCalledTimes(1);
+	});
+
+	it("dispatches to providers when chosen from interactive setup menu", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["🌐 Model Providers (providers)"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showProviderSetup).toHaveBeenCalledTimes(1);
+	});
+
+	it("dispatches to add provider when chosen from interactive setup menu", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["➕ Add Custom Provider (add)"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showCustomProviderWizard).toHaveBeenCalledTimes(1);
+	});
+
+	it("dispatches to reverse toolchain when chosen from interactive setup menu", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["🛠️ Reverse Engineering Toolchain (reverse)", "← Exit"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showHookSelector).toHaveBeenCalledTimes(2);
+		const secondTitle = harness.showHookSelector.mock.calls[1]?.[0] as string;
+		expect(secondTitle).toContain("Reverse");
+	});
+
+	it("dispatches to python environment when chosen from interactive setup menu", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["🐍 Python Execution Environment (python)", "← Back to Setup Menu"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showHookSelector).toHaveBeenCalledTimes(2);
+		const secondTitle = harness.showHookSelector.mock.calls[1]?.[0] as string;
+		expect(secondTitle).toContain("Python");
+	});
+
+	it("dispatches to speech when chosen from interactive setup menu", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["🎙️ Speech Recognition & Synthesis (speech)", "← Back to Setup Menu"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showHookSelector).toHaveBeenCalledTimes(2);
+		const secondTitle = harness.showHookSelector.mock.calls[1]?.[0] as string;
+		expect(secondTitle).toContain("Speech");
+	});
+
+	it("routes direct /setup python subcommand in non-interactive mode", async () => {
+		const harness = createRuntime();
+
+		const handled = await executeBuiltinSlashCommand("/setup python", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showCommandReport).toHaveBeenCalledTimes(1);
+		const reportCall = harness.showCommandReport.mock.calls[0]?.[0];
+		expect(reportCall.title).toContain("Python");
+	});
+
+	it("routes direct /setup speech subcommand in non-interactive mode", async () => {
+		const harness = createRuntime();
+
+		const handled = await executeBuiltinSlashCommand("/setup speech", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showCommandReport).toHaveBeenCalledTimes(1);
+		const reportCall = harness.showCommandReport.mock.calls[0]?.[0];
+		expect(reportCall.title).toContain("Speech");
+	});
 	it("opens custom provider wizard for /setup add", async () => {
 		const harness = createRuntime();
 
@@ -352,18 +466,18 @@ describe("/setup slash command", () => {
 
 		expect(handled).toBe(true);
 		expect(harness.showProviderSetup).not.toHaveBeenCalled();
-		expect(harness.showWarning).toHaveBeenCalledWith("Usage: /setup [providers|add|reverse]");
+		expect(harness.showWarning).toHaveBeenCalledWith("Usage: /setup [providers|add|reverse|python|speech]");
 		expect(harness.setText).toHaveBeenCalledWith("");
 	});
 
-	it("shows alias-specific usage for unsupported providers alias arguments", async () => {
+	it("always opens provider setup directly through the /providers alias", async () => {
 		const harness = createRuntime();
 
 		const handled = await executeBuiltinSlashCommand("/providers theme", harness.runtime);
 
 		expect(handled).toBe(true);
-		expect(harness.showProviderSetup).not.toHaveBeenCalled();
-		expect(harness.showWarning).toHaveBeenCalledWith("Usage: /providers [providers|add|reverse]");
+		expect(harness.showProviderSetup).toHaveBeenCalledTimes(1);
+		expect(harness.showWarning).not.toHaveBeenCalled();
 		expect(harness.setText).toHaveBeenCalledWith("");
 	});
 });

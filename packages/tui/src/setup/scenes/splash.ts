@@ -10,14 +10,8 @@ import { Memo } from "../../native/memo";
 export const SETUP_SPLASH_MS = 2600;
 export const SETUP_TICK_MS = 33;
 
-/** Brand mark at 2x: every glyph doubled horizontally, every row doubled vertically. */
-const LARGE_LOGO = PI_LOGO.flatMap(line => {
-	let wide = "";
-	for (const char of line) {
-		wide += char === " " ? "  " : `${char}${char}`;
-	}
-	return [wide, wide];
-});
+/** Brand mark for the setup splash scene. */
+const LARGE_LOGO = PI_LOGO;
 const LOGO_WIDTH = Math.max(...LARGE_LOGO.map(line => visibleWidth(line)));
 const LOGO_HEIGHT = LARGE_LOGO.length;
 const RESET = "\x1b[0m";
@@ -158,11 +152,11 @@ function resetCells(width: number, height: number): string[][] {
 let diagonalEscapes: (string | undefined)[] = [];
 
 /**
- * Animated setup splash, in the spirit of the omp landing page: the brand π
- * mark rendered with the live diagonal gradient + shine sweep, rising out of a
- * rippling, gradient-lit water surface, under a faint twinkling starfield. The
- * mark and water share one continuous gradient so the sweep reads across the
- * whole scene; the water surface drifts each frame.
+ * Animated setup splash: the brand mark rendered with the live diagonal
+ * gradient + shine sweep, rising out of a rippling, gradient-lit water
+ * surface, under a faint twinkling starfield. The mark and water share one
+ * continuous gradient so the sweep reads across the whole scene; the water
+ * surface drifts each frame.
  */
 export function renderSetupSplash(width: number, height: number, elapsedMs: number): string[] {
 	const w = Math.max(1, width);
@@ -263,7 +257,7 @@ export function describeSetupSplash(): NativeNode {
 			[
 				node("spacer", { grow: 1 }),
 				logoNode(LARGE_LOGO, true),
-				text([span("O h   M y   P i", "strong")], { wrap: "none" }),
+				text([span("R e v e r s e", "strong")], { wrap: "none" }),
 				node("spacer", { grow: 1 }),
 				text([span(hint, "dim")], { wrap: "none" }),
 			],
@@ -274,8 +268,8 @@ export function describeSetupSplash(): NativeNode {
 
 /** Centered fallback for windows too small to hold the full scene. */
 function renderCompactSplash(width: number, height: number, phase: number, shine: ShineConfig): string[] {
-	const art = height >= 14 ? LARGE_LOGO : PI_LOGO;
-	const content = [...gradientLogo(art, phase, shine), "", theme.bold("O h   M y   P i")];
+	const art = LARGE_LOGO;
+	const content = [...gradientLogo(art, phase, shine), "", theme.bold("R e v e r s e")];
 	const start = Math.max(0, Math.floor((height - content.length) / 2));
 	const lines: string[] = [];
 	for (let y = 0; y < height; y++) {

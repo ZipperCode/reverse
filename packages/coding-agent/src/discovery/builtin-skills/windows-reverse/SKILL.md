@@ -2,8 +2,7 @@
 name: windows-reverse
 description: Windows PE binary and dynamic library reverse engineering specialist. Focuses on PE header triage, IAT auditing, IDA Pro integration, radare2 disassembler, and anti-debug analysis.
 metadata:
-  requires: radare2
-  requiresOptional: ida
+  requiresOptional: radare2, ida
 ---
 
 # Windows PE Reverse Engineering Specialist
@@ -28,9 +27,9 @@ Read `skill://reverse-lab/references/evidence.md` for report schemas.
 
 ---
 
-## 2. Toolchain & Required Dependencies
+## 2. Toolchain & Dependencies
 
-- **Primary CLI Disassembler (`radare2`)**: REQUIRED. Provides headless disassembler analysis, symbol extraction, function graph mapping, and string cross-references (`r2 -qc "iI; iS; ii; is" <pe>`).
+- **Primary CLI Disassembler (`radare2`)**: OPTIONAL. Provides headless disassembler analysis, symbol extraction, function graph mapping, and string cross-references (`r2 -qc "iI; iS; ii; is" <pe>`).
 - **Advanced Decompilation Engine (`ida`)**: OPTIONAL. When available with `idalib`, leverage reverse's native `read-binary` selectors (`:overview`, `:imports`, `:exports`, `:xrefs:<sym>`, `:decompile:<func>`).
 - **Offline Windows API Trace Analysis (`windows_observe`)**: OPTIONAL (Built-in tool). Analyze existing ETW, API Monitor, or structured JSON/NDJSON capture files offline. Supports `inspect` (process/module/category summary), paged `list`/`search` (filtering by PID, module, API, category, direction, time range), and sanitized `export`. It never attaches, injects, or replays; all analysis is read-only.
 

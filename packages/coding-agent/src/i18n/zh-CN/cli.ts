@@ -62,4 +62,17 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 		"【手动模式】请复制上述命令在终端中运行；如需在确认后辅助执行，请带参数 '--execute' 重新运行。",
 	"cli.setup.reverse.executeRequiresTTY":
 		"{app} setup reverse --execute 需要交互式 TTY 终端。非交互环境请使用 --check 或 --json。",
+	"cli.setup.menu.title": "系统与工具链配置 (Setup)",
+	"cli.setup.panel.providers.label": "模型服务商 (providers)",
+	"cli.setup.panel.providers.desc": "配置 OAuth 登录、API Key 及 Web 搜索服务",
+	"cli.setup.panel.add.label": "添加自定义服务商 (add)",
+	"cli.setup.panel.add.desc": "添加兼容 OpenAI / Anthropic 协议的自定义模型服务商并自动发现模型",
+	"cli.setup.panel.reverse.label": "逆向工程工具链 (reverse)",
+	"cli.setup.panel.reverse.desc": "检查并安装逆向工具 (JADX, Frida, Radare2, ADB 等) 及 MCP 辅助服务",
+	"cli.setup.panel.python.label": "Python 执行环境 (python)",
+	"cli.setup.panel.python.desc": "检查并配置 Python 3 解释器与代码执行环境",
+	"cli.setup.panel.speech.label": "语音识别与合成 (speech)",
+	"cli.setup.panel.speech.desc": "配置并下载语音转文字 (STT) 与文字转语音 (TTS) 本地模型",
+	"cli.setup.menu.exit": "← 退出",
+	"cli.setup.menu.exitDesc": "关闭设置菜单",
 };

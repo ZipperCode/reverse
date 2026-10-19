@@ -2,8 +2,7 @@
 name: android-reverse
 description: Android application and native library reverse engineering specialist. Focuses on APK/DEX static decompilation, smali patching, JNI native library triage, and ADB/Frida dynamic instrumentation.
 metadata:
-  requires: jadx
-  requiresOptional: apktool, adb, frida, droidasc, unidbg, bundletool, dex2jar, baksmali, scrcpy
+  requiresOptional: jadx, apktool, adb, frida, droidasc, unidbg, bundletool, dex2jar, baksmali, scrcpy
   capabilities: apk_unpacking, android_native_emulation
 ---
 
@@ -42,7 +41,7 @@ Read `skill://reverse-lab/references/evidence.md` for artifact formats.
 
 - **Native Package & DEX Inspector (`android_package_inspect`)**: BUILT-IN (Zero-dependency). Recommended first-stop for native inspection of Android packages (`.apk`, `.aab`, `.apks`) and bare Dalvik executables (`.dex`). Parses container entries, DEX headers/classes, Android Binary XML manifests, signature schemes (v1, v2, v3, v3.1, SourceStamp), and resource trees in-process with optional bridges for `apksigner` and `aapt2`.
 - **On-Demand DEX Query Tool (`droidasc`)**: OPTIONAL (Built-in tool). Recommended for instant (<1s) manifest extraction, class listing, code cross-references (string, method, type, field, extends, impl), and single-class decompilation directly against APK packages without JVM memory pressure (for raw `.dex` or `.aab`, use `dexdump` or `jadx`). Model directly calls `droidasc` (returns structured degradation notices and fallbacks when CLI is missing).
-- **Primary Decompiler (`jadx`)**: OPTIONAL / REQUIRED external decompiler. Used for structured Java decompilation, control flow analysis, and cross-reference mapping.
+- **Primary Decompiler (`jadx`)**: OPTIONAL external decompiler. Used for structured Java decompilation, control flow analysis, and cross-reference mapping.
 - **Resource & Smali Engine (`apktool`)**: OPTIONAL external tool. Used for decoding XML resources (`res/values/strings.xml`) and smali bytecode re-assembly.
 - **Native SO, JNI & Emulation Orchestration (`android_native_workflow`, `unidbg`)**: OPTIONAL (Built-in tool `android_native_workflow`). Use `android_native_workflow` to inventory native `.so` libraries, parse ELF machine architectures, map JNI exported functions (`Java_*`), link DEX native declarations (`ACC_NATIVE`) to dynamic `RegisterNatives` / `JNI_OnLoad`, and extract libraries directly to `./artifacts/extracted_so/`. When analyzing native cryptography or token algorithms without a connected phone or emulator, invoke `unidbg` to emulate ARM instructions headlessly on the host JVM.
 - **Dynamic Instrumentation (`frida`, `frida_session`, `adb_observe`, `adb`)**: OPTIONAL. Use the built-in `frida` tool for open dynamic execution and inspection: execute custom Frida JavaScript scripts (`script` or `script_path`) against processes via attach (`pid`/`process`) or spawn (`spawn`), supporting hook implementation replacement and memory inspection, as well as device discovery, process enumeration, module listing, and trace observation; record dynamic evidence to `./artifacts` and cite in evidence findings. Use the built-in `frida_session` tool for persistent multi-turn dynamic analysis sessions with active child/target persistence (create/run/status/stop/destroy) without re-attaching each turn. Use the built-in `adb_observe` tool for read-only device evidence with fixed commands: device discovery, installed packages, running processes, bounded logcat, system properties, and screenshots saved as artifacts.

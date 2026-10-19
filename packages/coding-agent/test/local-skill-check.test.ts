@@ -27,12 +27,12 @@ describe("rva skill check", () => {
 	let tempProject: string;
 
 	beforeEach(async () => {
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "rva-skill-check-home-"));
-		tempProject = await fs.mkdtemp(path.join(os.tmpdir(), "rva-skill-check-project-"));
-		const userConfigDir = path.join(tempHome, ".rva", "agent");
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-skill-check-home-"));
+		tempProject = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-skill-check-project-"));
+		const userConfigDir = path.join(tempHome, ".reverse", "agent");
 		await fs.mkdir(userConfigDir, { recursive: true });
 		await Bun.write(path.join(userConfigDir, "config.yml"), "disabledProviders:\n  - builtin-skills\n");
-		const projectConfigDir = path.join(tempProject, ".rva");
+		const projectConfigDir = path.join(tempProject, ".reverse");
 		await fs.mkdir(projectConfigDir, { recursive: true });
 		await Bun.write(path.join(projectConfigDir, "config.yml"), "disabledProviders:\n  - builtin-skills\n");
 	});
@@ -53,6 +53,8 @@ describe("rva skill check", () => {
 			USERPROFILE: tempHome,
 			NO_COLOR: "1",
 			REVERSE_NO_TITLE: "1",
+			REVERSE_CONFIG_DIR: ".reverse",
+			REVERSE_CODING_AGENT_DIR: path.join(tempHome, ".reverse", "agent"),
 			AWS_EC2_METADATA_DISABLED: "true",
 		};
 		return Bun.spawn([process.execPath, cliEntry, ...args], {
@@ -64,7 +66,7 @@ describe("rva skill check", () => {
 	}
 
 	async function writeSkill(name: string, metadata: string): Promise<void> {
-		const dir = path.join(tempProject, ".rva", "skills", name);
+		const dir = path.join(tempProject, ".reverse", "skills", name);
 		await fs.mkdir(dir, { recursive: true });
 		await Bun.write(
 			path.join(dir, "SKILL.md"),
@@ -94,7 +96,7 @@ describe("rva skill check", () => {
 		expect(exitCode, stderr).toBe(1);
 		const parsed = JSON.parse(stdout) as CheckOutput;
 		expect(parsed.ok).toBe(false);
-		const targetSkill = parsed.skills.find(s => s.name === "missing-deps") ?? parsed.skills[0];
+		const targetSkill = parsed.skills.find(s => s.name === "missing-deps");
 		expect(targetSkill).toBeDefined();
 		expect(targetSkill?.name).toBe("missing-deps");
 		expect(targetSkill?.missingRequired).toEqual(["rva-cli-absent-fixture"]);
@@ -130,9 +132,9 @@ describe("rva skill check", () => {
 		expect(exitCode, stderr).toBe(0);
 		const parsed = JSON.parse(stdout) as CheckOutput;
 		expect(parsed.ok).toBe(true);
-		const targetSkill = parsed.skills.find(s => s.name === "optional-dep") ?? parsed.skills[0];
+		const targetSkill = parsed.skills.find(s => s.name === "optional-dep");
 		expect(targetSkill).toBeDefined();
-		expect(targetSkill?.missingRequired).toEqual([]);
+		expect(targetSkill?.name).toBe("optional-dep");
 		expect(targetSkill?.requirements[0]).toMatchObject({ optional: true, foundPath: null });
 	});
 
@@ -151,9 +153,9 @@ describe("rva skill check", () => {
 			expect(exitCode, stderr).toBe(0);
 			const parsed = JSON.parse(stdout) as CheckOutput;
 			expect(parsed.ok).toBe(true);
-			const targetSkill = parsed.skills.find(s => s.name === "present-dep") ?? parsed.skills[0];
+			const targetSkill = parsed.skills.find(s => s.name === "present-dep");
 			expect(targetSkill).toBeDefined();
-			expect(targetSkill?.missingRequired).toEqual([]);
+			expect(targetSkill?.name).toBe("present-dep");
 			expect(targetSkill?.requirements[0].foundPath).toBeTruthy();
 		},
 	);

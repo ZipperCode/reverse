@@ -234,15 +234,14 @@ Skills can declare the external tools they expect on the machine running `revers
 name: android-reverse
 description: Android APK and native library analysis.
 metadata:
-  requires: jadx
-  requiresOptional: apktool, adb, frida
+  requiresOptional: jadx, apktool, adb, frida
 ---
 ```
 
-- `metadata.requires` lists tools the skill needs; `metadata.requiresOptional` lists tools it can use when present.
+- `metadata.requires` lists tools the skill strictly needs (user-authored skills may enforce required CLI dependencies); `metadata.requiresOptional` lists tools it can use when present. Built-in reverse skills keep external deep tools optional (`requiresOptional`), ensuring zero baseline dependency failures.
 - Values are comma/whitespace-separated strings (or a string list in reverse-local skills). Ids are lowercase.
 - `metadata` is the portable location because the Agent Skills schema is closed for plugin skills. Top-level `requires` / `requiresOptional` are accepted only for skills outside that schema.
-
+- Tool requirements represent external CLI binaries checked against `$PATH`. Built-in agent tools (e.g. `frida_session`) must not be declared in external requirements. MCP helper services (e.g. `playwright-mcp`) live in the MCP service catalog and are referenced through capability declarations (`metadata.capabilities`) rather than CLI PATH dependencies.
 Dependency checking is read-only and local:
 
 - Tools are resolved through `$PATH` plus catalog-owned directories (Android SDK, Homebrew, Python user scripts, IDA install locations, etc.).
@@ -265,7 +264,7 @@ reverse skill check
 reverse skill check ./my-project --json
 ```
 
-The command exits non-zero only when a required tool is missing; missing optional tools never fail it. JSON output includes each requirement's `id`, `optional`, `foundPath`, and `hint`.
+The command exits non-zero only when a required tool is missing; missing optional tools never fail it. Built-in reverse skills pass with exit code 0 out of the box when no optional tools are installed. JSON output includes each requirement's `id`, `optional`, `foundPath`, and `hint`.
 
 Skills are still discovered and loaded when a required tool is absent: the dependency notice is guidance, not a gate. Skills should describe a fallback path for optional tools and treat `requires` as "install this before relying on the primary workflow". Unknown tool ids are treated as unsupported by the catalog: they can be probed but have no trusted installation guidance.
 

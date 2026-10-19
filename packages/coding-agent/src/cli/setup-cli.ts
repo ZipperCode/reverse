@@ -3,7 +3,9 @@
  *
  * Handles `omp setup` for onboarding and `omp setup <component>` for optional dependencies.
  */
+import * as readline from "node:readline";
 import * as path from "node:path";
+import { getOAuthProviders } from "@reverse/ai";
 import { APP_NAME, getProjectDir, getPythonEnvDir } from "@reverse/utils";
 import chalk from "@reverse/utils/chalk";
 import { formatKeyHint } from "@reverse/tui/key-hint-format";
@@ -18,12 +20,16 @@ import { downloadSttModel, isSttModelCached } from "../stt/downloader";
 import { isSttModelKey, STT_MODEL_OPTIONS } from "../stt/models";
 import { downloadTtsModel, isTtsLocalModelKey, isTtsModelCached, TTS_LOCAL_MODELS } from "../tts";
 import { selectSetupModel } from "@reverse/tui/apps/setup-model-picker";
+import { fetchDiscoveredProviderModels } from "../config/model-discovery";
+import { saveCustomProvider } from "../config/custom-provider-writer";
+import { runLoginCommand } from "./login-cli";
+import { pickIndex, promptLine } from "./oauth-terminal";
 import { handleReverseSetup } from "./setup-reverse";
+import { type SetupPanelKey, SETUP_PANEL_KEYS } from "./setup-panels";
 
 import { cfgPythonInterpreter } from "../eval/settings";
 
-export type SetupComponent = "python" | "speech" | "reverse";
-
+export type SetupComponent = SetupPanelKey;
 export interface SetupCommandArgs {
 	component: SetupComponent;
 	tool?: string;
@@ -34,7 +40,7 @@ export interface SetupCommandArgs {
 	};
 }
 
-const VALID_COMPONENTS: SetupComponent[] = ["python", "speech", "reverse"];
+const VALID_COMPONENTS: SetupComponent[] = [...SETUP_PANEL_KEYS];
 
 const MANAGED_PYTHON_ENV = getPythonEnvDir();
 
@@ -120,6 +126,12 @@ export async function checkPythonSetup(cwd: string, interpreter?: string): Promi
  */
 export async function runSetupCommand(cmd: SetupCommandArgs): Promise<void> {
 	switch (cmd.component) {
+		case "providers":
+			await handleProvidersSetup(cmd.flags);
+			break;
+		case "add":
+			await handleAddProviderSetup(cmd.flags);
+			break;
 		case "python":
 			await handlePythonSetup(cmd.flags);
 			break;
@@ -131,6 +143,171 @@ export async function runSetupCommand(cmd: SetupCommandArgs): Promise<void> {
 			if (exitCode !== 0) process.exit(exitCode);
 			break;
 		}
+	}
+}
+
+async function handleProvidersSetup(flags: { json?: boolean; check?: boolean }): Promise<void> {
+	const cwd = getProjectDir();
+	const settings = await Settings.init({ cwd });
+	const authStorage = await discoverAuthStorage(undefined, { settings });
+
+	try {
+		const accounts = authStorage.credentials;
+		const hasAnyAuth = accounts.list().length > 0;
+		const oauthProviders = getOAuthProviders().filter(p => p.available);
+
+		if (flags.json) {
+			console.log(
+				JSON.stringify(
+					{
+						status: "ok",
+						configured: hasAnyAuth,
+						providers: oauthProviders.map(p => ({
+							id: p.id,
+							name: p.name,
+							configured: accounts.has(p.storeCredentialsAs ?? p.id),
+						})),
+					},
+					null,
+					2,
+				),
+			);
+			return;
+		}
+
+		if (flags.check) {
+			console.log(chalk.bold("Model Providers Setup Status:"));
+			console.log(
+				`  ${hasAnyAuth ? chalk.green("[ready]") : chalk.yellow("[unconfigured]")} Auth credential store active`,
+			);
+			for (const p of oauthProviders) {
+				const isConfigured = accounts.has(p.storeCredentialsAs ?? p.id);
+				const mark = isConfigured ? chalk.green("[configured]") : chalk.dim("[available]");
+				console.log(`  ${mark} ${p.name} (${p.id})`);
+			}
+			return;
+		}
+
+		await runLoginCommand(undefined);
+	} finally {
+		authStorage.close();
+	}
+}
+
+async function handleAddProviderSetup(flags: { json?: boolean; check?: boolean }): Promise<void> {
+	const cwd = getProjectDir();
+	const settings = await Settings.init({ cwd });
+	const authStorage = await discoverAuthStorage(undefined, { settings });
+
+	try {
+		const registry = new ModelRegistry(authStorage, undefined, { settings });
+		const customModels = registry
+			.getAll()
+			.filter(m => m.provider !== "anthropic" && m.provider !== "openai" && m.provider !== "local");
+
+		if (flags.json) {
+			console.log(
+				JSON.stringify(
+					{
+						customProvidersCount: customModels.length,
+						models: customModels.map(m => m.id),
+					},
+					null,
+					2,
+				),
+			);
+			return;
+		}
+
+		if (flags.check) {
+			console.log(chalk.bold("Custom Providers Setup Status:"));
+			console.log(`  Discovered custom models: ${customModels.length}`);
+			for (const m of customModels) {
+				console.log(`  ${chalk.green("[ready]")} ${m.id} (${m.name})`);
+			}
+			return;
+		}
+
+		const isTTY = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+		if (!isTTY) {
+			console.log(
+				chalk.dim("To add a custom provider interactively, run in a terminal or launch TUI and use `/setup add`."),
+			);
+			return;
+		}
+
+		const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+		try {
+			console.log(chalk.bold.cyan("\nAdd Custom Model Provider (OpenAI / Anthropic Compatible)\n"));
+			const providerId = await promptLine(rl, "Provider ID (e.g. deepseek, ollama, custom-api): ");
+			if (!providerId.trim()) {
+				console.log(chalk.yellow("Provider ID cannot be empty. Aborted."));
+				return;
+			}
+			const apiIndex = await pickIndex(rl, "API Protocol:", [
+				"openai-completions (OpenAI Chat Completions / LiteLLM)",
+				"openai-responses (OpenAI Responses)",
+				"anthropic-messages (Anthropic Messages)",
+			]);
+			const apis = ["openai-completions", "openai-responses", "anthropic-messages"] as const;
+			const api = apis[apiIndex] ?? "openai-completions";
+			const defaultBaseUrl =
+				api === "anthropic-messages" ? "https://api.anthropic.com/v1" : "https://api.openai.com/v1";
+			const baseUrlInput = await promptLine(rl, `Base URL (default: ${defaultBaseUrl}): `);
+			const baseUrl = baseUrlInput.trim() || defaultBaseUrl;
+			const apiKey = await promptLine(rl, "API Key (optional, press Enter to skip): ");
+
+			console.log(chalk.dim("\nAttempting model discovery..."));
+			let models: Array<{ id: string; name?: string; contextWindow?: number; maxTokens?: number }> = [];
+			try {
+				models = await fetchDiscoveredProviderModels({
+					api,
+					baseUrl: baseUrl.trim(),
+					apiKey: apiKey.trim() || undefined,
+				});
+				console.log(chalk.green(`Discovered ${models.length} model(s).`));
+			} catch (err) {
+				console.log(
+					chalk.yellow(`Could not auto-discover models: ${err instanceof Error ? err.message : String(err)}`),
+				);
+				const manualModel = await promptLine(rl, "Enter default model ID manually: ");
+				if (manualModel.trim()) {
+					models = [{ id: manualModel.trim(), name: manualModel.trim() }];
+				}
+			}
+
+			if (models.length === 0) {
+				console.log(chalk.yellow("No models defined. Aborted."));
+				return;
+			}
+
+			await saveCustomProvider(
+				{
+					providerId: providerId.trim(),
+					baseUrl: baseUrl.trim(),
+					api,
+					apiKey: apiKey.trim() || undefined,
+					models: models.map(m => ({
+						id: m.id,
+						name: m.name ?? m.id,
+						contextWindow: m.contextWindow ?? 128000,
+						maxTokens: m.maxTokens ?? 4096,
+					})),
+				},
+				{
+					authStorage,
+					modelRegistry: registry,
+					agentDir: settings.getAgentDir(),
+				},
+			);
+			console.log(
+				chalk.green(`\nSuccessfully added provider "${providerId.trim()}" with ${models.length} model(s)!`),
+			);
+		} finally {
+			rl.close();
+		}
+	} finally {
+		authStorage.close();
 	}
 }
 
@@ -171,7 +348,7 @@ async function handlePythonSetup(flags: { json?: boolean; check?: boolean }): Pr
  * `pick` (optional) lets an interactive user choose + persist a model; `ensure`
  * performs the download, streaming a normalized progress event.
  */
-interface SpeechComponent {
+export interface SpeechComponent {
 	name: string;
 	isReady(): Promise<boolean>;
 	status(): Promise<string>;
@@ -187,7 +364,7 @@ function resolveLocalSpeechModelId(role: "speech" | "dictation", settings: Setti
 	return candidate.model.id;
 }
 
-function buildSpeechComponents(settings: Settings, registry: ModelRegistry): SpeechComponent[] {
+export function buildSpeechComponents(settings: Settings, registry: ModelRegistry): SpeechComponent[] {
 	const localRoleModelIds = (role: "speech" | "dictation") =>
 		new Set(
 			roleCandidatePool(role, settings, registry)
@@ -323,13 +500,15 @@ async function handleSpeechSetup(flags: { json?: boolean; check?: boolean }): Pr
  * Print setup command help.
  */
 export function printSetupHelp(): void {
-	console.log(`${chalk.bold(`${APP_NAME} setup`)} - Run onboarding or install dependencies for optional features
+	console.log(`${chalk.bold(`${APP_NAME} setup`)} - Run onboarding or configure system components and dependencies
 
 ${chalk.bold("Usage:")}
-  ${APP_NAME} setup                     Run the onboarding wizard
+  ${APP_NAME} setup                     Run interactive setup menu or onboarding
   ${APP_NAME} setup <component> [options]
 
 ${chalk.bold("Components:")}
+  providers Configure sign-in, API keys, and web search providers
+  add       Add a custom OpenAI/Anthropic-compatible provider with model discovery
   reverse   Inspect and install reverse engineering tools (jadx, frida, radare2, etc.)
   python    Verify a Python 3 interpreter is reachable for code execution
   speech    Pick and download speech-to-text and text-to-speech models
@@ -339,7 +518,9 @@ ${chalk.bold("Options:")}
   --json         Output status as JSON
   -x, --execute  Execute verified installation commands after interactive confirmation (reverse only)
 ${chalk.bold("Examples:")}
-  ${APP_NAME} setup                  Run the onboarding wizard
+  ${APP_NAME} setup                  Run interactive setup menu
+  ${APP_NAME} setup providers        Configure model providers and OAuth logins
+  ${APP_NAME} setup add              Add a custom model provider
   ${APP_NAME} setup reverse          Open reverse engineering tools setup panel
   ${APP_NAME} setup reverse --check  Check reverse engineering tools dependencies
   ${APP_NAME} setup python           Check Python execution dependencies

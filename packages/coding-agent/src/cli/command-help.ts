@@ -132,8 +132,8 @@ export const sessionHelp = {
 export const setupHelp = {
 	get description() {
 		return getEffectiveLocale() === "zh-CN"
-			? "运行入职设置或安装可选功能的依赖（reverse、python、speech）"
-			: "Run onboarding setup or install dependencies for optional features (reverse, python, speech)";
+			? "运行入职设置或配置系统组件（providers、add、reverse、python、speech）"
+			: "Run onboarding setup or configure system components (providers, add, reverse, python, speech)";
 	},
 } satisfies CommandMetadata;
 

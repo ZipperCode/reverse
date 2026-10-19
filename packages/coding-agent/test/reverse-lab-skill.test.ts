@@ -50,13 +50,14 @@ describe("reverse-lab suite discovery, requirements and references", () => {
 		const requirements = reverseLab!.requirements ?? [];
 		expect(requirements.length).toBeGreaterThanOrEqual(7);
 		expect(requirements.every(r => r.optional === true)).toBe(true);
+		expect(requirements.map(r => r.id)).not.toContain("frida_session");
 
 		// With no tools found, orchestrator notice remains undefined (silent)
 		const statuses = checkToolRequirements(requirements, { which: () => null });
 		expect(missingRequirementNotice(statuses)).toBeUndefined();
 	});
 
-	it("verifies android-reverse enforces jadx as required and emits install notice when missing", async () => {
+	it("verifies android-reverse keeps external tools optional (silent baseline check when missing)", async () => {
 		const { skills } = await loadSkills({ cwd: repoRoot });
 		const androidRev = skills.find(s => s.name === "android-reverse");
 		expect(androidRev).toBeDefined();
@@ -64,34 +65,26 @@ describe("reverse-lab suite discovery, requirements and references", () => {
 		const requirements = androidRev!.requirements ?? [];
 		const jadxReq = requirements.find(r => r.id === "jadx");
 		expect(jadxReq).toBeDefined();
-		expect(jadxReq!.optional).toBeFalsy();
+		expect(jadxReq!.optional).toBe(true);
+		expect(requirements.every(r => r.optional === true)).toBe(true);
 
 		// Optional tools in android-reverse
 		const optionalIds = requirements.filter(r => r.optional).map(r => r.id);
+		expect(optionalIds).toContain("jadx");
 		expect(optionalIds).toContain("apktool");
 		expect(optionalIds).toContain("adb");
 		expect(optionalIds).toContain("frida");
 		expect(optionalIds).toContain("droidasc");
 
-		// When jadx is missing on PATH, notice must be generated with install hint
+		// When tools are missing on PATH, notice must remain undefined (silent on baseline)
 		const statuses = checkToolRequirements(requirements, {
 			platform: "darwin",
 			which: () => null,
 		});
-		const notice = missingRequirementNotice(statuses);
-		expect(notice).toBeDefined();
-		expect(notice).toContain("jadx not found on PATH");
-		expect(notice).toContain("brew install jadx");
-
-		// When jadx and java are present, notice must be undefined (silent)
-		const presentStatuses = checkToolRequirements(requirements, {
-			platform: "darwin",
-			which: cmd => (cmd === "jadx" ? "/usr/local/bin/jadx" : cmd === "java" ? "/usr/bin/java" : null),
-		});
-		expect(missingRequirementNotice(presentStatuses)).toBeUndefined();
+		expect(missingRequirementNotice(statuses)).toBeUndefined();
 	});
 
-	it("verifies windows-reverse enforces radare2 as required and emits install notice when missing", async () => {
+	it("verifies windows-reverse keeps external tools optional (silent baseline check when missing)", async () => {
 		const { skills } = await loadSkills({ cwd: repoRoot });
 		const windowsRev = skills.find(s => s.name === "windows-reverse");
 		expect(windowsRev).toBeDefined();
@@ -99,21 +92,19 @@ describe("reverse-lab suite discovery, requirements and references", () => {
 		const requirements = windowsRev!.requirements ?? [];
 		const r2Req = requirements.find(r => r.id === "radare2");
 		expect(r2Req).toBeDefined();
-		expect(r2Req!.optional).toBeFalsy();
+		expect(r2Req!.optional).toBe(true);
 
 		const idaReq = requirements.find(r => r.id === "ida");
 		expect(idaReq).toBeDefined();
 		expect(idaReq!.optional).toBe(true);
+		expect(requirements.every(r => r.optional === true)).toBe(true);
 
-		// When radare2 is missing on Linux, notice must recommend apt install radare2
+		// When tools are missing on PATH, notice must remain undefined (silent on baseline)
 		const statuses = checkToolRequirements(requirements, {
 			platform: "linux",
 			which: () => null,
 		});
-		const notice = missingRequirementNotice(statuses);
-		expect(notice).toBeDefined();
-		expect(notice).toContain("radare2 not found on PATH");
-		expect(notice).toContain("apt install radare2");
+		expect(missingRequirementNotice(statuses)).toBeUndefined();
 	});
 
 	it("verifies web-protocol-reverse declares optional tools correctly", async () => {
@@ -125,7 +116,19 @@ describe("reverse-lab suite discovery, requirements and references", () => {
 		const ids = requirements.map(r => r.id);
 		expect(ids).toContain("ast-grep");
 		expect(ids).toContain("wabt");
+		expect(ids).not.toContain("playwright-mcp");
 		expect(requirements.every(r => r.optional === true)).toBe(true);
+	});
+
+	it("verifies generic skill checker still flags user-authored required dependencies", () => {
+		const requirements = [{ id: "jadx" }];
+		const statuses = checkToolRequirements(requirements, {
+			platform: "darwin",
+			which: () => null,
+		});
+		const notice = missingRequirementNotice(statuses);
+		expect(notice).toBeDefined();
+		expect(notice).toContain("jadx not found on PATH");
 	});
 
 	it("verifies native-binary-reverse declares optional tools correctly", async () => {

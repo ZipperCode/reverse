@@ -23,7 +23,8 @@ const NO_TERN_TIP_MARKER = /^\[NO-TERN\]\s*/;
 const TIP_LINES: readonly string[] = tipsText
 	.split("\n")
 	.map(line => line.trim())
-	.filter(line => line.length > 0);
+	.filter(line => line.length > 0)
+	.map(line => line.replaceAll("{app}", APP_NAME));
 
 /** Tips for the classic renderer: every tip, {@link NO_TERN_TIP_MARKER} stripped. */
 const TIPS: readonly string[] = TIP_LINES.map(line => line.replace(NO_TERN_TIP_MARKER, ""));
@@ -107,7 +108,7 @@ function isKeybinding(action: string): action is Keybinding {
 
 /** Expand tip key placeholders through the key formatter; malformed ones stay verbatim. */
 function expandTipKeys(tip: string): string {
-	return tip.replace(TIP_KEY_PLACEHOLDER, (placeholder, kind: string, value: string) => {
+	return tip.replaceAll("{app}", APP_NAME).replace(TIP_KEY_PLACEHOLDER, (placeholder, kind: string, value: string) => {
 		if (kind === "action") return isKeybinding(value) ? editorKey(value) : placeholder;
 		const keys = value.split(",");
 		if (!keys.every(isKeyName)) return placeholder;
@@ -409,21 +410,26 @@ export class WelcomeComponent implements Component {
 }
 
 /** Block-grid brand mark shared by the welcome and setup surfaces. */
-export const PI_LOGO = ["████████████", "   ██  ██   ", "   ██  ██   ", "   ▒▒  ██   ", "       ██   "];
+export const PI_LOGO = [
+	"█▀▀▄ █▀▀ █   █ █▀▀ █▀▀▄ █▀▀ █▀▀",
+	"█  █ █   █   █ █   █  █ █   █  ",
+	"█▀▀▄ █▀▀ █   █ █▀▀ █▀▀▄ ▀▀█ █▀▀",
+	"█  █ █    █ █  █   █  █   █ █  ",
+	"▀  ▀ ▀▀▀   ▀   ▀▀▀ ▀  ▀ ▀▀▀ ▀▀▀",
+];
+
+export const REVERSE_LOGO = PI_LOGO;
 
 /** Columns of {@link PI_LOGO}. */
 const LOGO_WIDTH = Math.max(...PI_LOGO.map(row => row.length));
 
-/**
- * The `omp` wordmark in half-blocks, set beside {@link PI_LOGO} from its second
- * row: the `p` descends into the fourth, the version takes the fifth.
- */
-const WORDMARK = ["▄▀▀▄ █▀▄▀▄ █▀▀▄", "▀▄▄▀ █ █ █ █▄▄▀", "           █"];
+/** Wordmark beside {@link PI_LOGO}. */
+const WORDMARK: readonly string[] = [];
 
 /** Columns of {@link WORDMARK}. */
-const WORDMARK_WIDTH = Math.max(...WORDMARK.map(row => row.length));
+const WORDMARK_WIDTH = Math.max(0, ...WORDMARK.map(row => row.length));
 
-/** Columns between the logo and the wordmark. */
+/** Columns between the logo and the wordmark / version. */
 const LOCKUP_GAP = 4;
 
 /** Widest a welcome tip wraps, so a long one stays a centered paragraph. */
@@ -432,10 +438,10 @@ const TIP_MEASURE = 72;
 /** Narrowest terminal that still shows the tip; below it the banner is the logo alone. */
 const TIP_MIN_COLUMNS = 50;
 
-/** Logo frame `logo` with the wordmark beside it and `version` (styled) under the wordmark. */
+/** Logo frame `logo` with `version` (styled) set beside row 4. */
 function lockup(logo: readonly string[], version: string): string[] {
-	const beside = ["", ...WORDMARK.map(row => theme.bold(theme.fg("text", row))), version];
-	return logo.map((row, index) => `${row}${padding(LOCKUP_GAP)}${beside[index] ?? ""}`);
+	const beside = ["", "", "", "", version];
+	return logo.map((row, index) => `${row}${beside[index] ? padding(LOCKUP_GAP) + beside[index] : ""}`);
 }
 
 /**
