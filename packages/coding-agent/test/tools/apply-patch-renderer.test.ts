@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import * as themeModule from "@rva/tui/theme";
-import { toolRenderers } from "@rva/tui/tools";
-import type { TUI } from "@rva/tui";
-import { removeWithRetries } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import * as themeModule from "@reverse/tui/theme";
+import { toolRenderers } from "@reverse/tui/tools";
+import type { TUI } from "@reverse/tui";
+import { removeWithRetries } from "@reverse/utils";
 
 async function getUiTheme() {
 	await themeModule.initTheme(false, undefined, undefined, "dark", "light");
@@ -194,7 +194,7 @@ describe("apply_patch rendering", () => {
 					op: "update",
 					diff: [
 						" 10|}",
-						'+11|import { CODEX_INSTRUCTIONS } from "@rva/ai/providers/openai-codex-responses";',
+						'+11|import { CODEX_INSTRUCTIONS } from "@reverse/ai/providers/openai-codex-responses";',
 						" 12|\t$env,",
 						" 228|\toutput_format: typeof OPENAI_IMAGE_OUTPUT_FORMAT;",
 						"+235|\tinstructions?: string;",

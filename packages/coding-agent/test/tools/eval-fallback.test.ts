@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as evalIndex from "@rva/coding-agent/eval";
-import * as pyKernel from "@rva/coding-agent/eval/py/kernel";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EvalTool } from "@rva/coding-agent/tools/eval";
-import { resolveEvalBackends } from "@rva/coding-agent/tools/eval-backends";
-import { ToolAbortError } from "@rva/coding-agent/tools/tool-errors";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as evalIndex from "@reverse/coding-agent/eval";
+import * as pyKernel from "@reverse/coding-agent/eval/py/kernel";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EvalTool } from "@reverse/coding-agent/tools/eval";
+import { resolveEvalBackends } from "@reverse/coding-agent/tools/eval-backends";
+import { ToolAbortError } from "@reverse/coding-agent/tools/tool-errors";
 
-import { cfgEvalJs, cfgEvalPy } from "@rva/coding-agent/eval/settings";
-import { cfgToolsMaxTimeout } from "@rva/coding-agent/tools/settings";
+import { cfgEvalJs, cfgEvalPy } from "@reverse/coding-agent/eval/settings";
+import { cfgToolsMaxTimeout } from "@reverse/coding-agent/tools/settings";
 
 let originalPiPy: string | undefined;
 let originalPiJs: string | undefined;

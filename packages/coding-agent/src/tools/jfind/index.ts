@@ -5,11 +5,11 @@
  * contract and the model-facing report.
  */
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@rva/agent";
-import type { FindToolDetails } from "@rva/tui/tools/find";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes, formatDuration, formatNumber } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
+import type { FindToolDetails } from "@reverse/tui/tools/find";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes, formatDuration, formatNumber } from "@reverse/utils";
 import { sessionResolveContext } from "../../internal-urls/context";
 import { InternalUrlFilesystem } from "../../internal-urls/url-filesystem";
 import { hasNativeJudge, journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../../judgment";

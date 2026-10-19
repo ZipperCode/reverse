@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeSchemaForGoogle } from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createTools, HIDDEN_TOOLS, type ToolSession } from "@rva/coding-agent/tools";
+import { normalizeSchemaForGoogle } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, HIDDEN_TOOLS, type ToolSession } from "@reverse/coding-agent/tools";
 
 /**
  * Problematic JSON Schema features that cause issues with various providers.

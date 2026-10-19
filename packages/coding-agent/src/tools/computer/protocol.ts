@@ -1,6 +1,6 @@
-import type { ImageContent, TextContent } from "@rva/ai";
-import type { CaptureRegion, DesktopCapabilities, DesktopScreenState } from "@rva/natives";
-import * as prompt from "@rva/utils/prompt";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import type { CaptureRegion, DesktopCapabilities, DesktopScreenState } from "@reverse/natives";
+import * as prompt from "@reverse/utils/prompt";
 import screenLockedCaptureNote from "../../prompts/tools/computer-screen-locked-capture.md" with { type: "text" };
 import screenStateTemplate from "../../prompts/tools/computer-screen-state.md" with { type: "text" };
 

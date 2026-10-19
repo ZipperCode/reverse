@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type ParsedReadUrlTarget, parseReadUrlTarget } from "@rva/coding-agent/tools/fetch";
+import { type ParsedReadUrlTarget, parseReadUrlTarget } from "@reverse/coding-agent/tools/fetch";
 
 describe("parseReadUrlTarget", () => {
 	it("returns null for non-URL paths", () => {

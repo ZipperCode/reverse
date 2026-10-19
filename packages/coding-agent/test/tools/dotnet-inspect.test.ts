@@ -2,15 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	DotnetInspectTool,
-	type DotnetInspectDetails,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, DotnetInspectTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -20,6 +15,9 @@ function createTestSession(cwd: string): ToolSession {
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated({ "tools.xdev": false }),
 	};
+}
+function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+	return result.content.flatMap(item => (item.type === "text" && item.text ? [item.text] : [])).join("\n");
 }
 
 function buildTestDotnetAssembly(): Buffer {
@@ -249,9 +247,9 @@ describe("dotnet_inspect path validation and errors", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "dotnet-missing-"));
 		try {
 			const tool = new DotnetInspectTool(createTestSession(tempDir));
-			await expect(
-				tool.execute("call-1", { action: "info", path: "nonexistent.dll" }),
-			).rejects.toThrow("Target file not found");
+			await expect(tool.execute("call-1", { action: "info", path: "nonexistent.dll" })).rejects.toThrow(
+				"Target file not found",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -261,9 +259,7 @@ describe("dotnet_inspect path validation and errors", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "dotnet-dir-"));
 		try {
 			const tool = new DotnetInspectTool(createTestSession(tempDir));
-			await expect(
-				tool.execute("call-1", { action: "info", path: "." }),
-			).rejects.toThrow("is a directory");
+			await expect(tool.execute("call-1", { action: "info", path: "." })).rejects.toThrow("is a directory");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -277,7 +273,7 @@ describe("dotnet_inspect path validation and errors", () => {
 			const tool = new DotnetInspectTool(createTestSession(tempDir));
 			const res = await tool.execute("call-1", { action: "info", path: "text.txt" });
 			expect(res.details.status).toBe("unsupported");
-			expect(res.content[0].text).toContain("[Unsupported]");
+			expect(textOf(res)).toContain("[Unsupported]");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -317,7 +313,7 @@ describe("dotnet_inspect with generated .NET assembly", () => {
 			expect(res.details.module?.name).toBe("TestModule.dll");
 			expect(res.details.streams?.some(s => s.name === "#~")).toBe(true);
 			expect(res.details.streams?.some(s => s.name === "#Strings")).toBe(true);
-			expect(res.content[0].text).toContain("TestAssembly");
+			expect(textOf(res)).toContain("TestAssembly");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -413,10 +409,11 @@ describe("dotnet_inspect with generated .NET assembly", () => {
 			expect(insts[2].opcode).toBe("add");
 			expect(insts[3].opcode).toBe("ret");
 
-			expect(res.content[0].text).toContain("IL_0000: ldarg.0");
-			expect(res.content[0].text).toContain("IL_0001: ldc.i4.s 42");
-			expect(res.content[0].text).toContain("IL_0003: add");
-			expect(res.content[0].text).toContain("IL_0004: ret");
+			const text = textOf(res);
+			expect(text).toContain("IL_0000: ldarg.0");
+			expect(text).toContain("IL_0001: ldc.i4.s 42");
+			expect(text).toContain("IL_0003: add");
+			expect(text).toContain("IL_0004: ret");
 		} finally {
 			await removeWithRetries(tempDir);
 		}

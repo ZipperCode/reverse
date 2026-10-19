@@ -1,10 +1,10 @@
-import type { AstGrepToolDetails } from "@rva/tui/tools/ast-grep";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@rva/agent";
-import type { ToolExample } from "@rva/ai";
-import { type AstFindMatch, astGrep, type ShellFilesystem } from "@rva/natives";
+import type { AstGrepToolDetails } from "@reverse/tui/tools/ast-grep";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
+import type { ToolExample } from "@reverse/ai";
+import { type AstFindMatch, astGrep, type ShellFilesystem } from "@reverse/natives";
 
-import { prompt, untilAborted } from "@rva/utils";
+import { prompt, untilAborted } from "@reverse/utils";
 import { getEditStore } from "../edit/store";
 
 import { sessionResolveContext } from "../internal-urls/context";
@@ -19,14 +19,14 @@ import type { ToolSession } from ".";
 import { resolveToolTier } from "./approval";
 import { materializeReadUrlToFile, parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath, resultSnapshotPath } from "./file-recorder";
-import { type FileMatchSection, formatFileMatches } from "@rva/tui/tools/grouped-file-output";
-import { formatMatchLine } from "@rva/tui/tools/match-line-format";
+import { type FileMatchSection, formatFileMatches } from "@reverse/tui/tools/grouped-file-output";
+import { formatMatchLine } from "@reverse/tui/tools/match-line-format";
 
 import { relativeSearchResultPath, resolveSearchResultPath, resolveToolSearchScope } from "./path-utils";
-import { toPathList } from "@rva/tui/render/render-utils";
+import { toPathList } from "@reverse/tui/render/render-utils";
 import { isRawSelector } from "./read-selector";
-import { capParseErrors, formatCodeFrameLine, formatParseErrors } from "@rva/tui/render/render-utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { capParseErrors, formatCodeFrameLine, formatParseErrors } from "@reverse/tui/render/render-utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgTaskDisabledAgents } from "../task/settings";

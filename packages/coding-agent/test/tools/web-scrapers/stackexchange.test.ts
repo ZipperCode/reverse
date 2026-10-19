@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { handleStackOverflow } from "@rva/coding-agent/web/scrapers/stackoverflow";
+import { handleStackOverflow } from "@reverse/coding-agent/web/scrapers/stackoverflow";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

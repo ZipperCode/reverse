@@ -1,8 +1,8 @@
-import type { ReadToolDetails } from "@rva/tui/tools/read";
+import type { ReadToolDetails } from "@reverse/tui/tools/read";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type EditStore, notebookToEditableText } from "@rva/natives";
-import { type } from "@rva/omptype";
+import { type EditStore, notebookToEditableText } from "@reverse/natives";
+import { type } from "@reverse/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -14,8 +14,8 @@ import type {
 	ToolSpeculationDiscardContext,
 	ToolSpeculationExecutionContext,
 	ToolTier,
-} from "@rva/agent";
-import { completeSimple, type ImageContent, type TextContent } from "@rva/ai";
+} from "@reverse/agent";
+import { completeSimple, type ImageContent, type TextContent } from "@reverse/ai";
 import {
 	BINARY_SNIFF_BYTES,
 	type ImageMetadata,
@@ -27,7 +27,7 @@ import {
 	parseImageMetadata,
 	prompt,
 	readImageMetadata,
-} from "@rva/utils";
+} from "@reverse/utils";
 import {
 	cfgIdaAvailable,
 	EXECUTABLE_SNIFF_BYTES,
@@ -46,7 +46,7 @@ import {
 	sessionResolveContext,
 	skillInstructionRequirementNotice,
 } from "../internal-urls";
-import { isMarkdownPath } from "@rva/tui/lang-from-path";
+import { isMarkdownPath } from "@reverse/tui/lang-from-path";
 import readDescription from "../prompts/tools/read.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import {
@@ -56,7 +56,7 @@ import {
 	truncateHead,
 	truncateHeadBytes,
 	truncateLine,
-} from "@rva/tui/tools/streaming-output";
+} from "@reverse/tui/tools/streaming-output";
 import {
 	buildLineEntriesWithBlockContext,
 	lineEntriesToPlainText,
@@ -71,7 +71,7 @@ import {
 	InvalidImageDataError,
 	MAX_IMAGE_INPUT_BYTES,
 	webpExclusionForModel,
-} from "@rva/tui/chat/image-loading";
+} from "@reverse/tui/chat/image-loading";
 import { askImageQuestion, resolveImageQuestionModel } from "../utils/image-question";
 import { CONVERTIBLE_EXTENSIONS, convertFileWithMarkit } from "../utils/markit";
 import { isSampleProfilePath, renderSampleProfile } from "../utils/sample-profile";
@@ -96,8 +96,8 @@ import {
 	splitMixedUrlPathList,
 	splitPathAndSelPreferringLiteral,
 } from "./path-utils";
-import { type LineRange } from "@rva/tui/tools/line-ranges";
-import { splitPathAndSel } from "@rva/tui/tools/read";
+import { type LineRange } from "@reverse/tui/tools/line-ranges";
+import { splitPathAndSel } from "@reverse/tui/tools/read";
 import { readArchive, resolveArchiveReadPath } from "./read-archive";
 import {
 	BRACKET_CONTEXT_ELLIPSIS,
@@ -144,7 +144,7 @@ import {
 	type VideoMetadata,
 	type VideoPng,
 } from "../utils/video";
-import { isVideoPath } from "@rva/tui/prompt/video";
+import { isVideoPath } from "@reverse/tui/prompt/video";
 import {
 	isMultiRange,
 	isRawSelector,
@@ -154,7 +154,7 @@ import {
 	resolveTailSelector,
 	selToOffsetLimit,
 } from "./read-selector";
-import { splitAddressableFileLines } from "@rva/tui/tools/hashline-format";
+import { splitAddressableFileLines } from "@reverse/tui/tools/hashline-format";
 import { readBinary, resolveBinaryViewPath } from "./read-binary";
 import { readSqlite, resolveSqliteReadPath } from "./read-sqlite";
 import { readJson, resolveJsonReadPath, splitJsonQueryTarget } from "./read-json";
@@ -166,9 +166,9 @@ import {
 	trySummarize,
 } from "./read-summary";
 import { parseSqlitePathCandidates } from "./sqlite-reader";
-import { formatBytes, shortenPath } from "@rva/tui/render/render-utils";
+import { formatBytes, shortenPath } from "@reverse/tui/render/render-utils";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import {

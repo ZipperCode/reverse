@@ -1,9 +1,9 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { disposeAllVmContexts } from "@rva/coding-agent/eval/js/context-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EvalTool } from "@rva/coding-agent/tools/eval";
-import * as toolTimeouts from "@rva/coding-agent/tools/tool-timeouts";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { disposeAllVmContexts } from "@reverse/coding-agent/eval/js/context-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EvalTool } from "@reverse/coding-agent/tools/eval";
+import * as toolTimeouts from "@reverse/coding-agent/tools/tool-timeouts";
 
 function makeSession(): ToolSession {
 	return {

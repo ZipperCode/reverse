@@ -4,8 +4,8 @@
  * file line numbers, and splicing replacement content over registered blocks.
  */
 import * as fs from "node:fs/promises";
-import { type ConflictEntry, renderConflictRegion } from "@rva/tui/tools/conflict-detect";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { type ConflictEntry, renderConflictRegion } from "@reverse/tui/tools/conflict-detect";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { getEditStore } from "../edit/store";
 import type { InternalWriteResult } from "../internal-urls/types";
 import { writethroughNoop } from "../lsp/writethrough";

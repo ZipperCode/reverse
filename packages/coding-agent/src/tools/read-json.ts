@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@rva/agent";
-import { Shell } from "@rva/natives";
-import type { ReadToolDetails } from "@rva/tui/tools/read";
-import { DEFAULT_MAX_LINES, truncateHead, truncateTail } from "@rva/tui/tools/streaming-output";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { isEnoent, sanitizeText } from "@rva/utils";
+import type { AgentToolResult } from "@reverse/agent";
+import { Shell } from "@reverse/natives";
+import type { ReadToolDetails } from "@reverse/tui/tools/read";
+import { DEFAULT_MAX_LINES, truncateHead, truncateTail } from "@reverse/tui/tools/streaming-output";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { isEnoent, sanitizeText } from "@reverse/utils";
 import type { ToolSession } from "../sdk";
 import { quotePosixArgument } from "../utils/shell-quote";
 import { resolveReadPath } from "./path-utils";

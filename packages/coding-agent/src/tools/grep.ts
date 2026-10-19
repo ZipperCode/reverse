@@ -1,30 +1,24 @@
-import type { GrepToolDetails } from "@rva/tui/tools/grep";
+import type { GrepToolDetails } from "@reverse/tui/tools/grep";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type {
-	AgentTool,
-	AgentToolContext,
-	AgentToolResult,
-	AgentToolUpdateCallback,
-	ToolTier,
-} from "@rva/agent";
-import { type EditStore, type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@rva/natives";
-import { prompt, untilAborted } from "@rva/utils";
-import { LRUCache } from "@rva/utils/lru";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@reverse/agent";
+import { type EditStore, type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@reverse/natives";
+import { prompt, untilAborted } from "@reverse/utils";
+import { LRUCache } from "@reverse/utils/lru";
 import {
 	type ArchiveReader,
 	type ExtractedArchiveFile,
 	openArchive,
 	parseArchivePathCandidates,
-} from "@rva/utils/ar";
+} from "@reverse/utils/ar";
 import { getEditStore, recordFullySeenRows } from "../edit/store";
 import { sessionResolveContext } from "../internal-urls/context";
 import { InternalUrlRouter } from "../internal-urls/router";
 import { InternalUrlFilesystem } from "../internal-urls/url-filesystem";
 import grepDescription from "../prompts/tools/grep.md" with { type: "text" };
-import { DEFAULT_MAX_COLUMN, truncateHead } from "@rva/tui/tools/streaming-output";
+import { DEFAULT_MAX_COLUMN, truncateHead } from "@reverse/tui/tools/streaming-output";
 import { sessionDelegationBias } from "../task/prompt-policy";
 import { isScoutSpawnable } from "../task/spawn-policy";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
@@ -32,8 +26,8 @@ import type { ToolSession } from ".";
 import { resolveToolTier } from "./approval";
 import { materializeReadUrlToFile, parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath, resultSnapshotPath } from "./file-recorder";
-import { type FileMatchSection, formatFileMatches } from "@rva/tui/tools/grouped-file-output";
-import { formatMatchLine } from "@rva/tui/tools/match-line-format";
+import { type FileMatchSection, formatFileMatches } from "@reverse/tui/tools/grouped-file-output";
+import { formatMatchLine } from "@reverse/tui/tools/match-line-format";
 import { isFindEnabled } from "./jfind";
 import {
 	expandDelimitedPathEntries,
@@ -47,12 +41,12 @@ import {
 	resolveToolSearchScope,
 	splitPathAndSelPreferringLiteral,
 } from "./path-utils";
-import { type LineRange, parseLineRanges, selectorLineRanges } from "@rva/tui/tools/line-ranges";
-import { splitPathAndSel } from "@rva/tui/tools/read";
-import { toPathList } from "@rva/tui/render/render-utils";
+import { type LineRange, parseLineRanges, selectorLineRanges } from "@reverse/tui/tools/line-ranges";
+import { splitPathAndSel } from "@reverse/tui/tools/read";
+import { toPathList } from "@reverse/tui/render/render-utils";
 import { isRawSelector } from "./read-selector";
-import { formatCodeFrameLine } from "@rva/tui/render/render-utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { formatCodeFrameLine } from "@reverse/tui/render/render-utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgGrepContextAfter, cfgGrepContextBefore } from "./settings";

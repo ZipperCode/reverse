@@ -1,21 +1,21 @@
-import type { AstEditToolDetails } from "@rva/tui/tools/ast-edit";
-import { type } from "@rva/omptype";
+import type { AstEditToolDetails } from "@reverse/tui/tools/ast-edit";
+import { type } from "@reverse/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@rva/agent";
-import type { ToolExample } from "@rva/ai";
-import { type AstReplaceChange, type AstReplaceFileChange, astEdit, type ShellFilesystem } from "@rva/natives";
+} from "@reverse/agent";
+import type { ToolExample } from "@reverse/ai";
+import { type AstReplaceChange, type AstReplaceFileChange, astEdit, type ShellFilesystem } from "@reverse/natives";
 
-import { $envpos, isRecord, prompt, untilAborted } from "@rva/utils";
+import { $envpos, isRecord, prompt, untilAborted } from "@reverse/utils";
 import { getEditStore } from "../edit/store";
 import { normalizeToLF } from "../edit/normalize";
 import { InternalUrlRouter, sessionResolveContext } from "../internal-urls";
 import { InternalUrlFilesystem } from "../internal-urls/url-filesystem";
-import { formatHashlineHeader } from "@rva/tui/tools/hashline-format";
+import { formatHashlineHeader } from "@reverse/tui/tools/hashline-format";
 
 import astEditDescription from "../prompts/tools/ast-edit.md" with { type: "text" };
 
@@ -25,17 +25,12 @@ import type { ToolSession } from ".";
 import { resolveToolTier, strictestApproval, truncateForPrompt } from "./approval";
 import { parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath, resultSnapshotPath } from "./file-recorder";
-import { formatGroupedFiles } from "@rva/tui/tools/grouped-file-output";
+import { formatGroupedFiles } from "@reverse/tui/tools/grouped-file-output";
 
 import { relativeSearchResultPath, resolveSearchResultPath, resolveToolSearchScope } from "./path-utils";
-import {
-	capParseErrors,
-	formatCodeFrameLine,
-	formatCount,
-	formatParseErrors,
-} from "@rva/tui/render/render-utils";
+import { capParseErrors, formatCodeFrameLine, formatCount, formatParseErrors } from "@reverse/tui/render/render-utils";
 import { PREVIEW_PENDING_NOTICE, queueResolveHandler } from "./resolve";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 const astEditOpSchema = type({

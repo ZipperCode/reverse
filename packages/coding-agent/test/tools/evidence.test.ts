@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createTools, EvidenceTool, type ToolSession, BUILTIN_TOOLS } from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, EvidenceTool, type ToolSession, BUILTIN_TOOLS } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string, options: { allocateArtifact?: boolean } = {}): ToolSession {
 	const artifactsDir = path.join(cwd, "artifacts");

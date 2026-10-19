@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { isFilesystemSourcePath } from "@rva/coding-agent/tools/path-utils";
-import { parseLineRangeChunk, parseLineRanges } from "@rva/tui/tools/line-ranges";
-import { splitPathAndSel } from "@rva/tui/tools/read";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { isFilesystemSourcePath } from "@reverse/coding-agent/tools/path-utils";
+import { parseLineRangeChunk, parseLineRanges } from "@reverse/tui/tools/line-ranges";
+import { splitPathAndSel } from "@reverse/tui/tools/read";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 describe("`..` range selector alias", () => {
 	it("treats `N..M` as the inclusive range `N-M`", () => {

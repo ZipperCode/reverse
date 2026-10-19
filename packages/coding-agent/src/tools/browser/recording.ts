@@ -1,10 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { untilAborted } from "@rva/utils/abortable";
-import type { HTMLElement } from "@rva/utils/dom";
-import { TempDir } from "@rva/utils/temp";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { untilAborted } from "@reverse/utils/abortable";
+import type { HTMLElement } from "@reverse/utils/dom";
+import { TempDir } from "@reverse/utils/temp";
 import type { Protocol } from "devtools-protocol";
 import type { CDPSession, Page } from "puppeteer-core";
 import { resizeImage } from "../../utils/image-resize";

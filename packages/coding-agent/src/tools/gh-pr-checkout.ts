@@ -1,15 +1,15 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@rva/agent";
-import type { IsoBackendKind, VcsGitRepo, VcsWorktreeEntry } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { getWorktreeDir, hashPath, isEnoent, logger, slugify } from "@rva/utils";
+import type { AgentToolResult } from "@reverse/agent";
+import type { IsoBackendKind, VcsGitRepo, VcsWorktreeEntry } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { getWorktreeDir, hashPath, isEnoent, logger, slugify } from "@reverse/utils";
 import { github } from "../utils/github";
 import { formatIsolationBackend, parseIsolationBackend } from "../task/worktree";
 import { withRepoLock } from "../utils/repo-lock";
 import type { ToolSession } from ".";
-import type { GhPrCheckoutSummary, GhToolDetails } from "@rva/tui/tools/github";
+import type { GhPrCheckoutSummary, GhToolDetails } from "@reverse/tui/tools/github";
 import {
 	appendRepoFlag,
 	buildTextResult,
@@ -24,13 +24,13 @@ import {
 	requireCurrentGitBranch,
 	requireNonEmpty,
 } from "./gh-common";
-import { pushLine } from "@rva/tui/tools/gh-format";
-import { formatShortSha } from "@rva/tui/tools/gh-format";
+import { pushLine } from "@reverse/tui/tools/gh-format";
+import { formatShortSha } from "@reverse/tui/tools/gh-format";
 import type { GhPrViewData, GhRepoViewData, GithubInput } from "./gh-types";
 import { GH_PR_FIELDS_NO_COMMENTS } from "./gh-view";
 import { invalidateAllForNumber } from "./github-cache";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 import { cfgIsolationBackend, cfgWorktreeClone } from "../task/settings";
 

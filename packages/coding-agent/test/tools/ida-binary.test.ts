@@ -2,10 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { cfgIdaAvailable, cfgIdaInstall } from "@rva/coding-agent/ida/install";
-import { isExecutableHeader, parseFatSlices, selectSlice, splitSliceRef } from "@rva/coding-agent/ida/store";
-import { type BinaryView, parseBinaryView } from "@rva/coding-agent/tools/read-binary";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { cfgIdaAvailable, cfgIdaInstall } from "@reverse/coding-agent/ida/install";
+import { isExecutableHeader, parseFatSlices, selectSlice, splitSliceRef } from "@reverse/coding-agent/ida/store";
+import { type BinaryView, parseBinaryView } from "@reverse/coding-agent/tools/read-binary";
 
 describe("isExecutableHeader", () => {
 	const cases: Array<[string, number[], boolean]> = [

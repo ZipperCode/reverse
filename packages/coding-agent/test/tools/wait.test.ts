@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { TOOL_INTERRUPT_ABORT_REASON } from "@rva/agent";
-import { AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { IrcBus } from "@rva/coding-agent/irc/bus";
-import * as daemonClient from "@rva/coding-agent/launch/client";
-import type { DaemonBrokerClient } from "@rva/coding-agent/launch/client";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { WaitTool } from "@rva/coding-agent/tools/wait";
+import { TOOL_INTERRUPT_ABORT_REASON } from "@reverse/agent";
+import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { IrcBus } from "@reverse/coding-agent/irc/bus";
+import * as daemonClient from "@reverse/coding-agent/launch/client";
+import type { DaemonBrokerClient } from "@reverse/coding-agent/launch/client";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { WaitTool } from "@reverse/coding-agent/tools/wait";
 
 function session(manager?: AsyncJobManager, agentId = "Main", launch = false): ToolSession {
 	return {

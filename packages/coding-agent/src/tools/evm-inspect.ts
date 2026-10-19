@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import { createHash } from "node:crypto";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes } from "@rva/utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
@@ -31,9 +31,7 @@ const evmInspectSchema = type({
 	"filter?": type("string").describe(
 		"Optional case-insensitive substring filter for mnemonics or selector signatures",
 	),
-	"limit?": type("number.integer >= 1").describe(
-		"Maximum instructions or selectors to return (default 50, max 500)",
-	),
+	"limit?": type("number.integer >= 1").describe("Maximum instructions or selectors to return (default 50, max 500)"),
 	"offset?": type("number.integer >= 0").describe("Pagination offset (default 0)"),
 });
 
@@ -233,7 +231,10 @@ const KNOWN_SELECTORS: Record<string, { signature: string; standard: string }> =
 
 	// ERC-1155
 	"0xf242432a": { signature: "safeTransferFrom(address,address,uint256,uint256,bytes)", standard: "ERC-1155" },
-	"0x2eb2c2d6": { signature: "safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)", standard: "ERC-1155" },
+	"0x2eb2c2d6": {
+		signature: "safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)",
+		standard: "ERC-1155",
+	},
 	"0x00fdd58e": { signature: "balanceOf(address,uint256)", standard: "ERC-1155" },
 	"0x4e1273f4": { signature: "balanceOfBatch(address[],uint256[])", standard: "ERC-1155" },
 	"0x0e89341c": { signature: "uri(uint256)", standard: "ERC-1155" },
@@ -315,10 +316,7 @@ export function disassembleBytecode(buffer: Buffer): {
 	return { instructions, jumpDests };
 }
 
-export function extractSelectors(
-	instructions: EvmInstruction[],
-	jumpDests: Set<number>,
-): EvmSelectorEntry[] {
+export function extractSelectors(instructions: EvmInstruction[], jumpDests: Set<number>): EvmSelectorEntry[] {
 	const selectors: EvmSelectorEntry[] = [];
 	const seen = new Set<string>();
 
@@ -418,7 +416,8 @@ export function parseCborMetadata(buffer: Buffer): EvmCborMetadata | undefined {
 	// Search for bzzr0 / bzzr1 marker
 	const bzzr0Marker = Buffer.from("bzzr0");
 	const bzzr1Marker = Buffer.from("bzzr1");
-	const bzzrIdx = cborSlice.indexOf(bzzr0Marker) !== -1 ? cborSlice.indexOf(bzzr0Marker) : cborSlice.indexOf(bzzr1Marker);
+	const bzzrIdx =
+		cborSlice.indexOf(bzzr0Marker) !== -1 ? cborSlice.indexOf(bzzr0Marker) : cborSlice.indexOf(bzzr1Marker);
 	if (bzzrIdx !== -1) {
 		const vOffset = bzzrIdx + 5;
 		if (vOffset + 32 <= cborSlice.length) {
@@ -472,7 +471,8 @@ export class EvmInspectTool implements AgentTool<typeof evmInspectSchema, EvmIns
 	readonly name = "evm_inspect";
 	readonly approval: ToolTier = "read";
 	readonly label = "EVM Bytecode Inspect";
-	readonly summary = "Native offline read-only EVM bytecode inspection, disassembly, and function selector extraction.";
+	readonly summary =
+		"Native offline read-only EVM bytecode inspection, disassembly, and function selector extraction.";
 	readonly description = evmInspectDescription;
 	readonly parameters = evmInspectSchema;
 	readonly loadMode = "discoverable";
@@ -481,10 +481,13 @@ export class EvmInspectTool implements AgentTool<typeof evmInspectSchema, EvmIns
 	constructor(private readonly session: ToolSession) {}
 
 	async execute(
+		_toolCallId: string,
 		params: EvmInspectParams,
-		context?: { abortSignal?: AbortSignal },
-	): Promise<AgentToolResult<EvmInspectDetails>> {
-		throwIfAborted(context?.abortSignal);
+		signal?: AbortSignal,
+		_onUpdate?: AgentToolUpdateCallback<EvmInspectDetails>,
+		_ctx?: AgentToolContext,
+	): Promise<AgentToolResult<EvmInspectDetails> & { details: EvmInspectDetails }> {
+		throwIfAborted(signal);
 
 		let buffer: Buffer;
 		let source: "code" | "file";
@@ -492,11 +495,12 @@ export class EvmInspectTool implements AgentTool<typeof evmInspectSchema, EvmIns
 
 		if (params.code !== undefined && params.code.trim().length > 0) {
 			source = "code";
-			const cleanHex = params.code.trim().replace(/^0x/i, "").replace(/[\s\r\n]+/g, "");
+			const cleanHex = params.code
+				.trim()
+				.replace(/^0x/i, "")
+				.replace(/[\s\r\n]+/g, "");
 			if (!/^[0-9a-fA-F]*$/.test(cleanHex)) {
-				throw new ToolError(
-					`Invalid hex string in 'code': contains non-hexadecimal characters.`,
-				);
+				throw new ToolError(`Invalid hex string in 'code': contains non-hexadecimal characters.`);
 			}
 			buffer = Buffer.from(cleanHex, "hex");
 		} else if (params.path !== undefined && params.path.trim().length > 0) {
@@ -506,9 +510,7 @@ export class EvmInspectTool implements AgentTool<typeof evmInspectSchema, EvmIns
 			try {
 				fileData = await fs.readFile(sourcePath);
 			} catch (err) {
-				throw new ToolError(
-					`File not found: ${params.path} (${err instanceof Error ? err.message : String(err)})`,
-				);
+				throw new ToolError(`File not found: ${params.path} (${err instanceof Error ? err.message : String(err)})`);
 			}
 
 			// Check if file content is ASCII hex representation
@@ -520,12 +522,10 @@ export class EvmInspectTool implements AgentTool<typeof evmInspectSchema, EvmIns
 				buffer = fileData;
 			}
 		} else {
-			throw new ToolError(
-				"Either 'code' (raw hex string) or 'path' (path to bytecode file) must be provided.",
-			);
+			throw new ToolError("Either 'code' (raw hex string) or 'path' (path to bytecode file) must be provided.");
 		}
 
-		throwIfAborted(context?.abortSignal);
+		throwIfAborted(signal);
 
 		const sha256 = createHash("sha256").update(buffer).digest("hex");
 		const { instructions, jumpDests } = disassembleBytecode(buffer);
@@ -540,7 +540,12 @@ export class EvmInspectTool implements AgentTool<typeof evmInspectSchema, EvmIns
 		} else {
 			const hasCodecopy = instructions.some(i => i.mnemonic === "CODECOPY");
 			const hasReturn = instructions.some(i => i.mnemonic === "RETURN");
-			if (hasCodecopy && hasReturn && instructions.length > 5 && instructions[instructions.length - 1].mnemonic !== "RETURN") {
+			if (
+				hasCodecopy &&
+				hasReturn &&
+				instructions.length > 5 &&
+				instructions[instructions.length - 1].mnemonic !== "RETURN"
+			) {
 				bytecodeType = "deployment";
 			}
 		}
@@ -637,7 +642,9 @@ export class EvmInspectTool implements AgentTool<typeof evmInspectSchema, EvmIns
 			let filtered = instructions;
 			if (filter) {
 				filtered = filtered.filter(
-					i => i.mnemonic.toLowerCase().includes(filter) || (i.pushBytes && i.pushBytes.toLowerCase().includes(filter)),
+					i =>
+						i.mnemonic.toLowerCase().includes(filter) ||
+						(i.pushBytes && i.pushBytes.toLowerCase().includes(filter)),
 				);
 			}
 			const paged = filtered.slice(offset, offset + limit);
@@ -705,7 +712,10 @@ export class EvmInspectTool implements AgentTool<typeof evmInspectSchema, EvmIns
 				const sig = sel.signature ? `\`${sel.signature}\`` : "*Unknown signature*";
 				const std = sel.standard ? `**${sel.standard}**` : "-";
 				const dispPc = `0x${sel.pc.toString(16)}`;
-				const jmp = sel.jumpDest !== undefined ? `0x${sel.jumpDest.toString(16)} ${sel.verifiedJumpDest ? "✅" : "⚠️"}` : "-";
+				const jmp =
+					sel.jumpDest !== undefined
+						? `0x${sel.jumpDest.toString(16)} ${sel.verifiedJumpDest ? "✅" : "⚠️"}`
+						: "-";
 				lines.push(`| \`${sel.selector}\` | ${sig} | ${std} | \`${dispPc}\` | \`${jmp}\` |`);
 			}
 
@@ -735,10 +745,7 @@ export class EvmInspectTool implements AgentTool<typeof evmInspectSchema, EvmIns
 		// Action: metadata
 		// ------------------------------------------------------------------------
 		if (action === "metadata") {
-			const lines = [
-				`# EVM Compiler CBOR Metadata: ${source === "file" ? `\`${sourcePath}\`` : "Raw Code"}`,
-				"",
-			];
+			const lines = [`# EVM Compiler CBOR Metadata: ${source === "file" ? `\`${sourcePath}\`` : "Raw Code"}`, ""];
 
 			if (metadata) {
 				lines.push(

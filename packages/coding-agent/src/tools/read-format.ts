@@ -1,15 +1,15 @@
-import { type ElidedRange, formatSingleLine } from "@rva/tui/tools/read";
+import { type ElidedRange, formatSingleLine } from "@reverse/tui/tools/read";
 import * as path from "node:path";
-import type { AgentToolResult } from "@rva/agent";
-import { countNewlines } from "@rva/utils";
+import type { AgentToolResult } from "@reverse/agent";
+import { countNewlines } from "@reverse/utils";
 import { getEditStore } from "../edit/store";
 import {
 	formatHashlineHeader,
 	formatNumberedLines,
 	splitAddressableFileLines,
-} from "@rva/tui/tools/hashline-format";
+} from "@reverse/tui/tools/hashline-format";
 import { normalizeToLF } from "../edit/normalize";
-import { isMarkdownPath } from "@rva/tui/theme";
+import { isMarkdownPath } from "@reverse/tui/theme";
 import type { ToolSession } from "../sdk";
 import {
 	DEFAULT_MAX_BYTES,
@@ -17,7 +17,7 @@ import {
 	type TruncationResult,
 	truncateHead,
 	truncateHeadBytes,
-} from "@rva/tui/tools/streaming-output";
+} from "@reverse/tui/tools/streaming-output";
 import {
 	buildLineEntriesWithBlockContext,
 	type LineEntry,
@@ -27,11 +27,11 @@ import {
 } from "../utils/block-context";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import { formatPathRelativeToCwd } from "./path-utils";
-import { type LineRange } from "@rva/tui/tools/line-ranges";
-import type { ReadToolDetails, ReadTruncationStats } from "@rva/tui/tools/read";
+import { type LineRange } from "@reverse/tui/tools/line-ranges";
+import type { ReadToolDetails, ReadTruncationStats } from "@reverse/tui/tools/read";
 import { isRawSelector, type ParsedSelector, resolveTailSelector, selToOffsetLimit } from "./read-selector";
-import { formatBytes, shortenPath } from "@rva/tui/render/render-utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { formatBytes, shortenPath } from "@reverse/tui/render/render-utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgReadRenderMarkdown } from "./settings";

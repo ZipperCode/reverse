@@ -1,18 +1,12 @@
+import type { AgentToolResult } from "@reverse/agent";
 import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	FirmwareInspectTool,
-	computeShannonEntropy,
-	scanFirmwareRegions,
-	type FirmwareInspectDetails,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, FirmwareInspectTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -24,9 +18,9 @@ function createTestSession(cwd: string): ToolSession {
 	};
 }
 
-function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+function textOf(result: AgentToolResult<unknown>): string {
 	return result.content
-		.map(item => item.text ?? "")
+		.flatMap(item => (item.type === "text" ? [item.text] : []))
 		.join("\n")
 		.trim();
 }
@@ -36,16 +30,18 @@ function textOf(result: { content: Array<{ type: string; text?: string }> }): st
 // ============================================================================
 
 /** Build a synthetic U-Boot legacy uImage header (64 bytes) + payload */
-function createSyntheticUImage(options: {
-	imageName?: string;
-	osId?: number;
-	archId?: number;
-	typeId?: number;
-	compId?: number;
-	loadAddr?: number;
-	entryPoint?: number;
-	payloadSize?: number;
-} = {}): Buffer {
+function createSyntheticUImage(
+	options: {
+		imageName?: string;
+		osId?: number;
+		archId?: number;
+		typeId?: number;
+		compId?: number;
+		loadAddr?: number;
+		entryPoint?: number;
+		payloadSize?: number;
+	} = {},
+): Buffer {
 	const name = options.imageName ?? "Linux-5.10-arm";
 	const osId = options.osId ?? 5; // Linux
 	const archId = options.archId ?? 2; // ARM
@@ -85,13 +81,15 @@ function createSyntheticUImage(options: {
 }
 
 /** Build a synthetic SquashFS v4.0 superblock (96 bytes) + padding */
-function createSyntheticSquashfs(options: {
-	inodes?: number;
-	blockSize?: number;
-	compId?: number;
-	bytesUsed?: number;
-	isBigEndian?: boolean;
-} = {}): Buffer {
+function createSyntheticSquashfs(
+	options: {
+		inodes?: number;
+		blockSize?: number;
+		compId?: number;
+		bytesUsed?: number;
+		isBigEndian?: boolean;
+	} = {},
+): Buffer {
 	const inodes = options.inodes ?? 150;
 	const blockSize = options.blockSize ?? 131072; // 128 KiB
 	const compId = options.compId ?? 1; // gzip

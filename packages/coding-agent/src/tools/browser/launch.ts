@@ -10,8 +10,8 @@ import {
 	removeWithRetries,
 	toError,
 	untilAborted,
-} from "@rva/utils";
-import type * as BrowsersNs from "@rva/utils/browsers";
+} from "@reverse/utils";
+import type * as BrowsersNs from "@reverse/utils/browsers";
 import type {
 	Browser,
 	CDPSession,
@@ -37,7 +37,7 @@ import stealthPluginsScript from "../puppeteer/10_stealth_plugins.txt" with { ty
 import stealthHardwareScript from "../puppeteer/11_stealth_hardware.txt" with { type: "text" };
 import stealthCodecsScript from "../puppeteer/12_stealth_codecs.txt" with { type: "text" };
 import stealthWorkerScript from "../puppeteer/13_stealth_worker.txt" with { type: "text" };
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { withDownload } from "../../downloads/activity";
 
 export const DEFAULT_VIEWPORT = { width: 1365, height: 768, deviceScaleFactor: 1.25 };
@@ -222,7 +222,7 @@ export function loadedNetworkConditions(): Readonly<Record<string, NetworkCondit
 let browsersModule: typeof BrowsersNs | undefined;
 async function loadBrowsers(): Promise<typeof BrowsersNs> {
 	if (!browsersModule) {
-		browsersModule = await import("@rva/utils/browsers");
+		browsersModule = await import("@reverse/utils/browsers");
 	}
 	return browsersModule;
 }

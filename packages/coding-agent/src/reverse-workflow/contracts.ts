@@ -1,13 +1,4 @@
-export const SUPPORTED_TARGET_FORMATS = [
-	"PE",
-	"ELF",
-	"Mach-O",
-	"APK",
-	"JS",
-	"WASM",
-	"PCAP",
-	"SQLite",
-] as const;
+export const SUPPORTED_TARGET_FORMATS = ["PE", "ELF", "Mach-O", "APK", "JS", "WASM", "PCAP", "SQLite"] as const;
 
 export type TargetFormat = (typeof SUPPORTED_TARGET_FORMATS)[number] | "unknown";
 
@@ -258,7 +249,8 @@ export function normalizeTargetFormat(input?: string): TargetFormat | undefined 
 	if (lower === "elf" || lower === "elf32" || lower === "elf64" || lower === "so") return "ELF";
 	if (lower === "macho" || lower === "mach-o" || lower === "dylib") return "Mach-O";
 	if (lower === "apk" || lower === "aab" || lower === "dex") return "APK";
-	if (lower === "js" || lower === "javascript" || lower === "sourcemap" || lower === "map" || lower === "hbc") return "JS";
+	if (lower === "js" || lower === "javascript" || lower === "sourcemap" || lower === "map" || lower === "hbc")
+		return "JS";
 	if (lower === "wasm" || lower === "wat" || lower === "webassembly") return "WASM";
 	if (lower === "pcap" || lower === "pcapng") return "PCAP";
 	if (lower === "sqlite" || lower === "sqlite3" || lower === "db") return "SQLite";

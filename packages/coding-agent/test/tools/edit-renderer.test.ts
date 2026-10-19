@@ -2,16 +2,16 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentTool } from "@rva/agent";
-import { editDiffString } from "@rva/natives";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { editToolRenderer, renderStreamingFallback } from "@rva/tui/tools/edit";
-import { renderDiff } from "@rva/tui/chrome/diff";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import * as themeModule from "@rva/tui/theme";
-import { type TUI, visibleWidth } from "@rva/tui";
-import { removeWithRetries } from "@rva/utils";
-import chalk from "@rva/utils/chalk";
+import type { AgentTool } from "@reverse/agent";
+import { editDiffString } from "@reverse/natives";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { editToolRenderer, renderStreamingFallback } from "@reverse/tui/tools/edit";
+import { renderDiff } from "@reverse/tui/chrome/diff";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import * as themeModule from "@reverse/tui/theme";
+import { type TUI, visibleWidth } from "@reverse/tui";
+import { removeWithRetries } from "@reverse/utils";
+import chalk from "@reverse/utils/chalk";
 
 beforeAll(async () => {
 	resetSettingsForTest();

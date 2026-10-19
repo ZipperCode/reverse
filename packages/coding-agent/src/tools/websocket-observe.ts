@@ -1,11 +1,11 @@
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { prompt } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { prompt } from "@reverse/utils";
 import * as fs from "node:fs/promises";
 import websocketObserveDescription from "../prompts/tools/websocket-observe.md" with { type: "text" };
 import { resolveReadPath, specialFileKind } from "./path-utils";
 import type { ToolSession } from "./index";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 
 /** Largest capture file this tool will read; analysis is offline and bounded. */

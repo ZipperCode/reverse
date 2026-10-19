@@ -2,19 +2,19 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { disposeAllVmContexts } from "@rva/coding-agent/eval/js/context-manager";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
-import { CmuxTab } from "@rva/coding-agent/tools/browser/cmux/cmux-tab";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { disposeAllVmContexts } from "@reverse/coding-agent/eval/js/context-manager";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
+import { CmuxTab } from "@reverse/coding-agent/tools/browser/cmux/cmux-tab";
 import {
 	clickElement,
 	clickQueryHandlerText,
 	resolveActionableQueryHandlerClickTarget,
-} from "@rva/coding-agent/tools/browser/interactions";
-import { acquireBrowser, releaseBrowser } from "@rva/coding-agent/tools/browser/registry";
-import { releaseAllTabs } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import { TERN_KIT_SOURCE } from "@rva/coding-agent/tools/browser/tern/page-kit";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
+} from "@reverse/coding-agent/tools/browser/interactions";
+import { acquireBrowser, releaseBrowser } from "@reverse/coding-agent/tools/browser/registry";
+import { releaseAllTabs } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import { TERN_KIT_SOURCE } from "@reverse/coding-agent/tools/browser/tern/page-kit";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

@@ -1,10 +1,9 @@
 import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import { createHash } from "node:crypto";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { getProjectDir } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { AgentTool, AgentToolContext, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { getProjectDir } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 import { resolveReadPath } from "./path-utils";
 import type { ToolSession } from "./index";
@@ -20,7 +19,6 @@ import {
 	applyKnowledge,
 	createKnowledgeId,
 	type ReverseKnowledgeRecord,
-	type KnowledgeKind,
 	type KnowledgeConfidence,
 	type LearnKnowledgeResult,
 	type ApplyKnowledgeResult,
@@ -30,7 +28,6 @@ import {
 	type DisableKnowledgeResult,
 	DEFAULT_KNOWLEDGE_SEARCH_LIMIT,
 	MAX_KNOWLEDGE_SEARCH_LIMIT,
-	MAX_KNOWLEDGE_INLINE_CHARS,
 } from "../reverse-knowledge";
 
 const reverseKnowledgeSchema = type({
@@ -40,9 +37,7 @@ const reverseKnowledgeSchema = type({
 			"Reverse knowledge action: search (bounded query across reverse findings and patterns), retain (persist verified conclusion or recovery pattern), learn (extract verified knowledge from evidence ledger and workflow recovery audits), apply (retrieve actionable recommendations for target, tool, or error), audit (deterministic duplicate detection, stale evidence reporting, expiration review), merge (consolidate duplicate knowledge into target record without destructive deletion), expire (retire obsolete knowledge records), disable (deactivate knowledge records from active retrieval)",
 		),
 	"query?": type("string").describe("Keyword query to search across stored knowledge titles, summaries, and guidance"),
-	"format?": type("string").describe(
-		"Target binary/package format (PE, ELF, Mach-O, APK, JS, WASM, PCAP, SQLite)",
-	),
+	"format?": type("string").describe("Target binary/package format (PE, ELF, Mach-O, APK, JS, WASM, PCAP, SQLite)"),
 	"target?": type("string").describe("Path to target file or sample relative to workspace"),
 	"path?": type("string").describe("Alias for target"),
 	"target_hash?": type("string").describe("SHA256 hash of target binary for exact knowledge matching"),
@@ -69,6 +64,8 @@ const reverseKnowledgeSchema = type({
 	"error?": type("string").describe("Error message or failure category to match against recovery patterns in 'apply'"),
 	"goal?": type("string").describe("Analytical goal or objective for 'search' or 'apply'"),
 	"target_id?": type("string").describe("Target knowledge record ID to absorb merged records in 'merge'"),
+	"id?": type("string").describe("Alias for knowledge_id or target_id"),
+	"ids?": type("string[]").describe("Alias for knowledge_ids or source_ids"),
 	"source_ids?": type("string[]").describe("Array of source knowledge record IDs to be merged into target_id"),
 	"knowledge_id?": type("string").describe("Knowledge record ID for expire, disable, or audit lookup"),
 	"knowledge_ids?": type("string[]").describe("Array of knowledge record IDs for bulk expire, disable, or merge"),
@@ -119,7 +116,7 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 				action === "expire" ||
 				action === "disable"
 			) {
-				return "modify";
+				return "write";
 			}
 		}
 		return "read";
@@ -127,7 +124,13 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 
 	constructor(private readonly session: ToolSession) {}
 
-	async execute(_id: string, params: ReverseKnowledgeParams, signal?: AbortSignal): Promise<AgentToolResult<ReverseKnowledgeDetails>> {
+	async execute(
+		_toolCallId: string,
+		params: ReverseKnowledgeParams,
+		signal?: AbortSignal,
+		_onUpdate?: (result: AgentToolResult<ReverseKnowledgeDetails>) => void,
+		_context?: AgentToolContext,
+	): Promise<AgentToolResult<ReverseKnowledgeDetails> & { details: ReverseKnowledgeDetails }> {
 		throwIfAborted(signal);
 
 		const repoRoot = this.session.cwd ?? getProjectDir();
@@ -238,7 +241,9 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 					throw new ToolError("Parameter 'summary' is required for 'retain' action.");
 				}
 				if (!params.kind) {
-					throw new ToolError("Parameter 'kind' ('verified_conclusion' or 'recovery_pattern') is required for 'retain' action.");
+					throw new ToolError(
+						"Parameter 'kind' ('verified_conclusion' or 'recovery_pattern') is required for 'retain' action.",
+					);
 				}
 
 				const targetFormat: TargetFormat = normalizeTargetFormat(params.format) ?? "unknown";
@@ -288,7 +293,9 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 				);
 
 				const metadata: Record<string, unknown> = {
-					...(params.params && typeof params.params === "object" ? (params.params as Record<string, unknown>) : {}),
+					...(params.params && typeof params.params === "object"
+						? (params.params as Record<string, unknown>)
+						: {}),
 				};
 				if (validation?.missingEvidenceIds && validation.missingEvidenceIds.length > 0) {
 					metadata.missing_evidence_ids = validation.missingEvidenceIds;
@@ -372,7 +379,9 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 					`- **Successful recovery patterns learned**: ${learnResult.learned_recoveries}`,
 					`- **Unverified records skipped**: ${learnResult.skipped_unverified} (unverified hypotheses and questions were preserved without premature promotion)`,
 					"",
-					createdList.length > 0 ? `Created Entries:\n${createdList.join("\n")}` : "No new verified entries to learn.",
+					createdList.length > 0
+						? `Created Entries:\n${createdList.join("\n")}`
+						: "No new verified entries to learn.",
 				].join("\n");
 
 				return {
@@ -504,7 +513,9 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 				if (auditResult.findings.length > 0) {
 					lines.push("### Governance Findings:");
 					for (const finding of auditResult.findings.slice(0, 10)) {
-						lines.push(`- [${finding.type.toUpperCase()}] \`${finding.record_id}\` (${finding.title}): ${finding.reason}`);
+						lines.push(
+							`- [${finding.type.toUpperCase()}] \`${finding.record_id}\` (${finding.title}): ${finding.reason}`,
+						);
 					}
 					if (auditResult.findings.length > 10) {
 						lines.push(`  ... and ${auditResult.findings.length - 10} more finding(s)`);
@@ -533,7 +544,7 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 				if (!targetId) {
 					throw new ToolError("target_id is required for 'merge' action.");
 				}
-				const sourceIds = params.source_ids ?? params.knowledge_ids;
+				const sourceIds = params.source_ids ?? params.knowledge_ids ?? params.ids;
 				if (!sourceIds || sourceIds.length === 0) {
 					throw new ToolError("source_ids is required for 'merge' action.");
 				}
@@ -563,7 +574,10 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 			}
 
 			case "expire": {
-				const ids = params.knowledge_ids ?? (params.knowledge_id ? [params.knowledge_id] : (params.id ? [params.id] : []));
+				const ids =
+					params.knowledge_ids ??
+					params.ids ??
+					(params.knowledge_id ? [params.knowledge_id] : params.id ? [params.id] : []);
 				if (ids.length === 0) {
 					throw new ToolError("knowledge_id or knowledge_ids is required for 'expire' action.");
 				}
@@ -575,7 +589,9 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 
 				const text = [
 					`Expired ${expireResult.expired_ids.length} knowledge record(s):`,
-					...expireResult.records.map(r => `  - [\`${r.id}\`] ${r.title} (Status: expired, Reason: ${r.status_reason})`),
+					...expireResult.records.map(
+						r => `  - [\`${r.id}\`] ${r.title} (Status: expired, Reason: ${r.status_reason})`,
+					),
 					"Records are preserved for auditability and excluded from active tool retrieval.",
 				].join("\n");
 
@@ -589,7 +605,10 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 			}
 
 			case "disable": {
-				const ids = params.knowledge_ids ?? (params.knowledge_id ? [params.knowledge_id] : (params.id ? [params.id] : []));
+				const ids =
+					params.knowledge_ids ??
+					params.ids ??
+					(params.knowledge_id ? [params.knowledge_id] : params.id ? [params.id] : []);
 				if (ids.length === 0) {
 					throw new ToolError("knowledge_id or knowledge_ids is required for 'disable' action.");
 				}
@@ -601,7 +620,9 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 
 				const text = [
 					`Disabled ${disableResult.disabled_ids.length} knowledge record(s):`,
-					...disableResult.records.map(r => `  - [\`${r.id}\`] ${r.title} (Status: disabled, Reason: ${r.status_reason})`),
+					...disableResult.records.map(
+						r => `  - [\`${r.id}\`] ${r.title} (Status: disabled, Reason: ${r.status_reason})`,
+					),
 					"Records are deactivated from active recommendations.",
 				].join("\n");
 

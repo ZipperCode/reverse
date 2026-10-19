@@ -2,17 +2,17 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	createTools,
 	type ToolSession,
 	WindowsObserveTool,
 	type WindowsObserveDetails,
 	type WindowsObserveParams,
-} from "@rva/coding-agent/tools";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/tools";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 let root: string;
 let artifactCounter = 0;

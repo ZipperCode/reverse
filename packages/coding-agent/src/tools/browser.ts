@@ -1,9 +1,9 @@
-import { type } from "@rva/omptype";
-import type { AgentToolResult } from "@rva/agent";
-import { isRecord, logger, untilAborted } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentToolResult } from "@reverse/agent";
+import { isRecord, logger, untilAborted } from "@reverse/utils";
 import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";
 import type { ToolSession } from "../sdk";
-import { enforceInlineByteCap } from "@rva/tui/tools/streaming-output";
+import { enforceInlineByteCap } from "@reverse/tui/tools/streaming-output";
 import { resolveCmuxKind } from "./browser/cmux/rpc";
 import { describeRelayTargets, listRelayTargets, type RelayTarget, resolveSpawnArgs } from "./browser/attach";
 import {
@@ -22,7 +22,7 @@ import { resolveTernKind } from "./browser/tern/kind";
 import { isTernUnavailable } from "./browser/tern/wire";
 import type { AriaSnapshotOptions } from "./browser/aria/aria-snapshot";
 import type { ScreenshotResult } from "./browser/tab-protocol";
-import type { OutputMeta } from "@rva/tui/tools/output-meta";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
 import {
 	type AcquireTabResult,
 	acquireTab,
@@ -42,7 +42,7 @@ import { renderTabCall } from "./browser/tab-call";
 import { resolveToCwd } from "./path-utils";
 import { renderCallChain, renderFunctionRun } from "./run-code";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { clampTimeout } from "./tool-timeouts";
 

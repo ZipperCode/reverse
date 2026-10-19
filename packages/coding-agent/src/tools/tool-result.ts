@@ -1,7 +1,7 @@
-import type { AgentToolResult } from "@rva/agent";
-import type { ImageContent, TextContent } from "@rva/ai";
-import type { OutputSummary, TruncationResult } from "@rva/tui/tools/streaming-output";
-import type { OutputMeta } from "@rva/tui/tools/output-meta";
+import type { AgentToolResult } from "@reverse/agent";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import type { OutputSummary, TruncationResult } from "@reverse/tui/tools/streaming-output";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
 import type { LimitsInput, TruncationMetaInput, TruncationSummaryOptions, TruncationTextOptions } from "./output-meta";
 import { outputMeta } from "./output-meta";
 

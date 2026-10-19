@@ -1,16 +1,12 @@
+import type { AgentToolResult } from "@reverse/agent";
 import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	BinaryDiffTool,
-	type BinaryDiffDetails,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, BinaryDiffTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -22,9 +18,9 @@ function createTestSession(cwd: string): ToolSession {
 	};
 }
 
-function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+function textOf(result: AgentToolResult<unknown>): string {
 	return result.content
-		.map(item => item.text ?? "")
+		.flatMap(item => (item.type === "text" ? [item.text] : []))
 		.join("\n")
 		.trim();
 }
@@ -69,7 +65,7 @@ describe("binary_diff safety and path validation", () => {
 		try {
 			const session = createTestSession(tempDir);
 			const tool = new BinaryDiffTool(session);
-			await expect(tool.execute({ path_a: "fileA.bin" })).rejects.toThrow(
+			await expect(tool.execute("call-1", { path_a: "fileA.bin" })).rejects.toThrow(
 				"Both 'path_a' (or path1) and 'path_b'",
 			);
 		} finally {
@@ -85,9 +81,9 @@ describe("binary_diff safety and path validation", () => {
 			const filePath = path.join(tempDir, "sample.bin");
 			await fs.writeFile(filePath, Buffer.from([1, 2, 3, 4]));
 
-			await expect(
-				tool.execute({ path_a: "sample.bin", path_b: "sample.bin" }),
-			).rejects.toThrow("identical path provided");
+			await expect(tool.execute("call-1", { path_a: "sample.bin", path_b: "sample.bin" })).rejects.toThrow(
+				"identical path provided",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -103,9 +99,9 @@ describe("binary_diff safety and path validation", () => {
 			await fs.writeFile(original, Buffer.from("test payload"));
 			await fs.symlink(original, link);
 
-			await expect(
-				tool.execute({ path_a: "real.bin", path_b: "link.bin" }),
-			).rejects.toThrow("resolve to the exact same file");
+			await expect(tool.execute("call-1", { path_a: "real.bin", path_b: "link.bin" })).rejects.toThrow(
+				"resolve to the exact same file",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -119,9 +115,9 @@ describe("binary_diff safety and path validation", () => {
 			const existing = path.join(tempDir, "existing.bin");
 			await fs.writeFile(existing, Buffer.from("existing"));
 
-			await expect(
-				tool.execute({ path_a: "existing.bin", path_b: "nonexistent.bin" }),
-			).rejects.toThrow("File B not found");
+			await expect(tool.execute("call-1", { path_a: "existing.bin", path_b: "nonexistent.bin" })).rejects.toThrow(
+				"File B not found",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -135,7 +131,7 @@ describe("binary_diff safety and path validation", () => {
 			const file = path.join(tempDir, "file.bin");
 			await fs.writeFile(file, Buffer.from("payload"));
 
-			await expect(tool.execute({ path_a: "file.bin", path_b: "." })).rejects.toThrow(
+			await expect(tool.execute("call-1", { path_a: "file.bin", path_b: "." })).rejects.toThrow(
 				"Directories are not supported",
 			);
 		} finally {
@@ -159,7 +155,7 @@ describe("binary_diff comparison execution", () => {
 			await fs.writeFile(path.join(tempDir, "copyA.bin"), data);
 			await fs.writeFile(path.join(tempDir, "copyB.bin"), data);
 
-			const result = await tool.execute({ path_a: "copyA.bin", path_b: "copyB.bin" });
+			const result = await tool.execute("call-1", { path_a: "copyA.bin", path_b: "copyB.bin" });
 
 			expect(result.details.isIdentical).toBe(true);
 			expect(result.details.similarityPercent).toBe(100.0);
@@ -194,7 +190,7 @@ describe("binary_diff comparison execution", () => {
 			await fs.writeFile(path.join(tempDir, "fileB.bin"), bufB);
 
 			// 1. Summary action
-			const summaryResult = await tool.execute({
+			const summaryResult = await tool.execute("call-summary", {
 				path_a: "fileA.bin",
 				path_b: "fileB.bin",
 				action: "summary",
@@ -212,7 +208,7 @@ describe("binary_diff comparison execution", () => {
 			expect(sumText).toContain("0xa (10)");
 
 			// 2. Blocks action
-			const blocksResult = await tool.execute({
+			const blocksResult = await tool.execute("call-blocks", {
 				path_a: "fileA.bin",
 				path_b: "fileB.bin",
 				action: "blocks",
@@ -225,7 +221,7 @@ describe("binary_diff comparison execution", () => {
 			expect(modBlock?.offset).toBe(0);
 
 			// 3. Bytes action
-			const bytesResult = await tool.execute({
+			const bytesResult = await tool.execute("call-bytes", {
 				path_a: "fileA.bin",
 				path_b: "fileB.bin",
 				action: "bytes",
@@ -272,7 +268,7 @@ describe("binary_diff comparison execution", () => {
 			peB[65] = 0x45; // 'E'
 			await fs.writeFile(path.join(tempDir, "win.exe"), peB);
 
-			const hdrResult = await tool.execute({
+			const hdrResult = await tool.execute("call-headers", {
 				path_a: "elf_x86.bin",
 				path_b: "win.exe",
 				action: "headers",

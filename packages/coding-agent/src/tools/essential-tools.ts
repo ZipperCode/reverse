@@ -14,7 +14,7 @@
  * {@link defaultLoadModeForToolName} pins these names to `"essential"` when the
  * definition omits `loadMode`, so re-registering a built-in never demotes it.
  */
-import type { ToolLoadMode } from "@rva/agent";
+import type { ToolLoadMode } from "@reverse/agent";
 
 /**
  * Built-in tool names whose classes declare `loadMode = "essential"`. Kept in

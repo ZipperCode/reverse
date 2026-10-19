@@ -1,6 +1,6 @@
-import { type } from "@rva/omptype";
-import { prompt } from "@rva/utils";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import { prompt } from "@reverse/utils";
+import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import memoryEditDescription from "../prompts/tools/memory-edit.md" with { type: "text" };
 import { sessionMemoryToolRefs } from "../memory-backend/tool-names";
 import type { ToolSession } from ".";

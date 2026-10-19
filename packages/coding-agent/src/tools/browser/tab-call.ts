@@ -1,5 +1,5 @@
 import { renderCallChain, renderRunArg } from "../run-code";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 /** One allowlisted method invocation in a tab call chain. */
 export interface TabCallStep {

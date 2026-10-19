@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
-import { acquireBrowser } from "@rva/coding-agent/tools/browser/registry";
-import { acquireTab, releaseTab } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import { pickTernBlock, type TernBlockEntry } from "@rva/coding-agent/tools/browser/tern/blocks";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
+import { acquireBrowser } from "@reverse/coding-agent/tools/browser/registry";
+import { acquireTab, releaseTab } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import { pickTernBlock, type TernBlockEntry } from "@reverse/coding-agent/tools/browser/tern/blocks";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
 import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "./tern-fake-daemon";
 
 const PANE = 3;

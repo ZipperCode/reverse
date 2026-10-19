@@ -11,9 +11,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, test,
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/sdk";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/sdk";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
 import {
 	attachPageWithTimeout,
 	findFreeCdpPort,
@@ -24,16 +24,16 @@ import {
 	shouldPreserveConnectedBrowserFocus,
 	waitForCdp,
 	waitForMainFrame,
-} from "@rva/coding-agent/tools/browser/attach";
-import { ensureChromiumExecutable } from "@rva/coding-agent/tools/browser/launch";
+} from "@reverse/coding-agent/tools/browser/attach";
+import { ensureChromiumExecutable } from "@reverse/coding-agent/tools/browser/launch";
 import {
 	acquireBrowser,
 	type BrowserHandle,
 	normalizeConnectedCdpUrl,
 	releaseBrowser,
-} from "@rva/coding-agent/tools/browser/registry";
-import { acquireTab, getTab } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import { Process, ProcessStatus } from "@rva/natives";
+} from "@reverse/coding-agent/tools/browser/registry";
+import { acquireTab, getTab } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import { Process, ProcessStatus } from "@reverse/natives";
 import type { Browser, HTTPRequest, Page, Target } from "puppeteer-core";
 import { rejectionOf } from "../helpers/rejection";
 import { chromiumAvailable } from "./chromium-probe";

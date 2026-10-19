@@ -1,6 +1,6 @@
-import { renderJobsSection, renderFailedJobLogs, renderRunSection } from "@rva/tui/tools/github";
+import { renderJobsSection, renderFailedJobLogs, renderRunSection } from "@reverse/tui/tools/github";
 import { scheduler } from "node:timers/promises";
-import type { AgentToolResult, AgentToolUpdateCallback } from "@rva/agent";
+import type { AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 import { github } from "../utils/github";
 import type { ToolSession } from ".";
 import type {
@@ -9,7 +9,7 @@ import type {
 	GhRunWatchRunDetails,
 	GhRunWatchViewDetails,
 	GhToolDetails,
-} from "@rva/tui/tools/github";
+} from "@reverse/tui/tools/github";
 import {
 	buildTextResult,
 	formatRepoRef,
@@ -25,8 +25,8 @@ import {
 	saveArtifactText,
 	tryResolveCurrentRepoFresh,
 } from "./gh-common";
-import { pushLine } from "@rva/tui/tools/gh-format";
-import { formatShortSha } from "@rva/tui/tools/gh-format";
+import { pushLine } from "@reverse/tui/tools/gh-format";
+import { formatShortSha } from "@reverse/tui/tools/gh-format";
 import type {
 	GhActionsJobApi,
 	GhActionsJobsResponse,
@@ -36,9 +36,9 @@ import type {
 	GhRunReference,
 	GithubInput,
 } from "./gh-types";
-import type { GhFailedJobLog, GhRunJobSnapshot, GhRunSnapshot } from "@rva/tui/tools/github";
+import type { GhFailedJobLog, GhRunJobSnapshot, GhRunSnapshot } from "@reverse/tui/tools/github";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 export const RUN_WATCH_INTERVAL_DEFAULT = 3;
 export const RUN_WATCH_INTERVAL_SLOW = 15;

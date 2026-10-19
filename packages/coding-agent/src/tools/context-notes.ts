@@ -1,13 +1,13 @@
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@rva/agent";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { prompt } from "@rva/utils";
+} from "@reverse/agent";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { prompt } from "@reverse/utils";
 import contextNotesDescription from "../prompts/tools/context-notes.md" with { type: "text" };
 import contextNotesTextDescription from "../prompts/tools/context-notes-text.md" with { type: "text" };
 import newContextDescription from "../prompts/tools/new-context.md" with { type: "text" };

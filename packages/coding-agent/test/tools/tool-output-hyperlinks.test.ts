@@ -3,19 +3,19 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { resetSettingsForTest, Settings, settings } from "@rva/coding-agent/config/settings";
-import { editToolRenderer } from "@rva/tui/tools/edit";
-import { getThemeByName, initTheme } from "@rva/tui/theme";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { astGrepToolRenderer } from "@rva/tui/tools/ast-grep";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { readToolRenderer } from "@rva/tui/tools/read";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { writeToolRenderer } from "@rva/tui/tools/write";
-import { removeSyncWithRetries } from "@rva/utils";
-import { grepToolRenderer } from "@rva/tui/tools/grep";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { editToolRenderer } from "@reverse/tui/tools/edit";
+import { getThemeByName, initTheme } from "@reverse/tui/theme";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { astGrepToolRenderer } from "@reverse/tui/tools/ast-grep";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { readToolRenderer } from "@reverse/tui/tools/read";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { writeToolRenderer } from "@reverse/tui/tools/write";
+import { removeSyncWithRetries } from "@reverse/utils";
+import { grepToolRenderer } from "@reverse/tui/tools/grep";
 
-import { cfgTuiHyperlinks } from "@rva/coding-agent/modes/settings";
+import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
 
 // 1x1 PNG so the read tool takes its image branch.
 const TINY_PNG_BASE64 =

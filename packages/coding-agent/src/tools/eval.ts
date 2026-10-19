@@ -1,15 +1,15 @@
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolSpeculationPolicy,
-} from "@rva/agent";
-import type { ImageContent, ToolExample } from "@rva/ai";
-import { formatBackgroundNotice } from "@rva/tui/tools/bash";
-import { parseConfiguredThinkingLevel } from "@rva/tui/thinking";
-import { isRecord, prompt } from "@rva/utils";
+} from "@reverse/agent";
+import type { ImageContent, ToolExample } from "@reverse/ai";
+import { formatBackgroundNotice } from "@reverse/tui/tools/bash";
+import { parseConfiguredThinkingLevel } from "@reverse/tui/thinking";
+import { isRecord, prompt } from "@reverse/utils";
 import { raceJobSettlement, resolveAutoBackgroundWaitMs } from "../async";
 import { jsBackend, pythonBackend } from "../eval";
 import type { ExecutorBackend, ExecutorBackendResult } from "../eval/backend";
@@ -21,7 +21,7 @@ import type { BackendProbeOptions } from "../eval/probe";
 import { defaultEvalSessionId } from "../eval/session-id";
 import { EvalShadowCellSession } from "../eval/speculation/cell-session";
 import { runWithEvalShadowCell } from "../eval/speculation/runtime-context";
-import type { EvalCellResult, EvalLanguage, EvalStatusEvent, EvalToolDetails } from "@rva/tui/tools/eval";
+import type { EvalCellResult, EvalLanguage, EvalStatusEvent, EvalToolDetails } from "@reverse/tui/tools/eval";
 import evalDescription from "../prompts/tools/eval.md" with { type: "text" };
 import evalAgentsTopic from "../prompts/tools/eval-agents.md" with { type: "text" };
 import evalJudgeTopic from "../prompts/tools/eval-judge.md" with { type: "text" };
@@ -32,21 +32,21 @@ import {
 	type OutputSummary,
 	TailBuffer,
 	truncateHeadBytes,
-} from "@rva/tui/tools/streaming-output";
+} from "@reverse/tui/tools/streaming-output";
 import { sessionDelegationBias } from "../task/prompt-policy";
 import { resolveSpawnPolicy } from "../task/spawn-policy";
 import { canSpawnAtDepth } from "../task/types";
-import { webpExclusionForModel } from "@rva/tui/chat/image-loading";
+import { webpExclusionForModel } from "@reverse/tui/chat/image-loading";
 import { formatDimensionNote, resizeImage } from "../utils/image-resize";
 import type { ToolSession } from ".";
 import { truncateForPrompt } from "./approval";
 import { type EvalBackendsAllowance, resolveEvalBackends } from "./eval-backends";
-import { recordStatusEvent, type StatusEventLog } from "@rva/tui/tools/eval";
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
+import { recordStatusEvent, type StatusEventLog } from "@reverse/tui/tools/eval";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
 import { resolveOutputMaxColumns, resolveOutputSinkArtifactMaxBytes, resolveOutputSinkHeadBytes } from "./output-meta";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
 import { hasWaitTool } from "./wait";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { clampTimeout } from "./tool-timeouts";
 

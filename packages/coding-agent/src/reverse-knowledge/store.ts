@@ -1,9 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getReverseKnowledgeProjectDir, isEnoent } from "@rva/utils";
-import { withFileLock } from "@rva/utils/file-lock";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { getReverseKnowledgeProjectDir, isEnoent } from "@reverse/utils";
+import { withFileLock } from "@reverse/utils/file-lock";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { replaceFileAtomically } from "../utils/atomic-file";
 import {
 	type ReverseKnowledgeRecord,
@@ -24,14 +24,12 @@ import {
 	MAX_KNOWLEDGE_SEARCH_LIMIT,
 	MAX_KNOWLEDGE_TITLE_LENGTH,
 	MAX_KNOWLEDGE_SUMMARY_LENGTH,
-	MAX_KNOWLEDGE_FIELD_LENGTH,
 	KNOWLEDGE_KINDS,
 	KNOWLEDGE_CONFIDENCE_LEVELS,
 	KNOWLEDGE_STATUSES,
 } from "./contracts";
 import type { EvidenceStore } from "../evidence/store";
 import type { ConclusionEvidence, HypothesisEvidence } from "../evidence/contracts";
-import { normalizeTargetFormat } from "../reverse-workflow/contracts";
 import {
 	matchAndScoreKnowledgeRecords,
 	searchBundledReverseKnowledge,
@@ -132,17 +130,13 @@ export class ReverseKnowledgeStore {
 			throw new ToolError("Knowledge title is required and cannot be empty.");
 		}
 		if (record.title.length > MAX_KNOWLEDGE_TITLE_LENGTH) {
-			throw new ToolError(
-				`Knowledge title exceeds maximum length of ${MAX_KNOWLEDGE_TITLE_LENGTH} characters.`,
-			);
+			throw new ToolError(`Knowledge title exceeds maximum length of ${MAX_KNOWLEDGE_TITLE_LENGTH} characters.`);
 		}
 		if (!record.summary || typeof record.summary !== "string" || record.summary.trim().length === 0) {
 			throw new ToolError("Knowledge summary is required and cannot be empty.");
 		}
 		if (record.summary.length > MAX_KNOWLEDGE_SUMMARY_LENGTH) {
-			throw new ToolError(
-				`Knowledge summary exceeds maximum length of ${MAX_KNOWLEDGE_SUMMARY_LENGTH} characters.`,
-			);
+			throw new ToolError(`Knowledge summary exceeds maximum length of ${MAX_KNOWLEDGE_SUMMARY_LENGTH} characters.`);
 		}
 		if (!KNOWLEDGE_CONFIDENCE_LEVELS.includes(record.confidence)) {
 			throw new ToolError(
@@ -278,10 +272,7 @@ export class ReverseKnowledgeStore {
 		return [];
 	}
 
-	async audit(
-		options: AuditKnowledgeInput = {},
-		evidenceStore?: EvidenceStore,
-	): Promise<KnowledgeAuditResult> {
+	async audit(options: AuditKnowledgeInput = {}, evidenceStore?: EvidenceStore): Promise<KnowledgeAuditResult> {
 		const allRecords = await this.list();
 		const limit = Math.min(Math.max(options.limit ?? 100, 1), 200);
 		const auditedRecords = allRecords.slice(0, limit);
@@ -387,8 +378,8 @@ export class ReverseKnowledgeStore {
 			// Sort group to select primary winner deterministically
 			group.sort((a, b) => {
 				// 1. Active status preferred
-				const aActive = (a.status === "active" || !a.status) ? 1 : 0;
-				const bActive = (b.status === "active" || !b.status) ? 1 : 0;
+				const aActive = a.status === "active" || !a.status ? 1 : 0;
+				const bActive = b.status === "active" || !b.status ? 1 : 0;
 				if (bActive !== aActive) return bActive - aActive;
 
 				// 2. Confidence level
@@ -515,9 +506,7 @@ export class ReverseKnowledgeStore {
 			targetRecord.source_evidence_ids = Array.from(combinedEvidence);
 			targetRecord.usage_count = (targetRecord.usage_count ?? 0) + additionalUsage;
 			targetRecord.last_used_at = latestUsedAt;
-			targetRecord.merged_from = Array.from(
-				new Set([...(targetRecord.merged_from ?? []), ...input.source_ids]),
-			);
+			targetRecord.merged_from = Array.from(new Set([...(targetRecord.merged_from ?? []), ...input.source_ids]));
 			targetRecord.updated_at = new Date().toISOString();
 
 			// Save updated target
@@ -542,9 +531,12 @@ export class ReverseKnowledgeStore {
 	}
 
 	async expire(input: ExpireKnowledgeInput): Promise<ExpireKnowledgeResult> {
-		const ids = Array.isArray(input.knowledge_ids) && input.knowledge_ids.length > 0
-			? input.knowledge_ids
-			: (input.knowledge_id ? [input.knowledge_id] : []);
+		const ids =
+			Array.isArray(input.knowledge_ids) && input.knowledge_ids.length > 0
+				? input.knowledge_ids
+				: input.knowledge_id
+					? [input.knowledge_id]
+					: [];
 		if (ids.length === 0) {
 			throw new ToolError("knowledge_id or knowledge_ids is required for 'expire' action.");
 		}
@@ -571,9 +563,12 @@ export class ReverseKnowledgeStore {
 	}
 
 	async disable(input: DisableKnowledgeInput): Promise<DisableKnowledgeResult> {
-		const ids = Array.isArray(input.knowledge_ids) && input.knowledge_ids.length > 0
-			? input.knowledge_ids
-			: (input.knowledge_id ? [input.knowledge_id] : []);
+		const ids =
+			Array.isArray(input.knowledge_ids) && input.knowledge_ids.length > 0
+				? input.knowledge_ids
+				: input.knowledge_id
+					? [input.knowledge_id]
+					: [];
 		if (ids.length === 0) {
 			throw new ToolError("knowledge_id or knowledge_ids is required for 'disable' action.");
 		}

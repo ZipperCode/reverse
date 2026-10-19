@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { deferredDiagnosticsWaitMs } from "@rva/coding-agent/lsp/diagnostics";
-import { clampTimeout, resolveLspTimeouts, TOOL_TIMEOUTS } from "@rva/coding-agent/tools/tool-timeouts";
+import { deferredDiagnosticsWaitMs } from "@reverse/coding-agent/lsp/diagnostics";
+import { clampTimeout, resolveLspTimeouts, TOOL_TIMEOUTS } from "@reverse/coding-agent/tools/tool-timeouts";
 
 describe("clampTimeout", () => {
 	it("returns the per-tool default when no raw timeout is given", () => {

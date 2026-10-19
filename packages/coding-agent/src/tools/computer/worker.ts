@@ -22,9 +22,9 @@ import type {
 	DesktopSessionOptions,
 	DesktopWindow,
 	PointerOptions,
-} from "@rva/natives";
-import * as postmortem from "@rva/utils/postmortem";
-import { Snowflake } from "@rva/utils/snowflake";
+} from "@reverse/natives";
+import * as postmortem from "@reverse/utils/postmortem";
+import { Snowflake } from "@reverse/utils/snowflake";
 import { JsRuntime, type RuntimeHooks } from "../../eval/js/shared/runtime";
 import { cloneSafe, RunOutput } from "../browser/run-output";
 import {
@@ -35,7 +35,7 @@ import {
 	waitForRun,
 } from "../run-scope";
 import { ToolAbortError, throwIfAborted } from "../tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import {
 	type ComputerScreenshot,
 	type ComputerSessionSnapshot,
@@ -826,7 +826,7 @@ export class ComputerWorkerCore {
 				// The worker must answer its readiness handshake without loading the native
 				// addon; normal CLI startup and selector pings never execute desktop code.
 				const createSession =
-					this.#createSession ?? (await import("@rva/natives/desktop")).createDesktopSession;
+					this.#createSession ?? (await import("@reverse/natives/desktop")).createDesktopSession;
 				const session = await createSession({ display: snapshot.display });
 				this.#session = session;
 				return session;

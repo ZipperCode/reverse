@@ -1,8 +1,8 @@
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import type { TUI } from "@rva/tui";
-import { theme as activeTheme, initTheme } from "@rva/tui/theme";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import type { TUI } from "@reverse/tui";
+import { theme as activeTheme, initTheme } from "@reverse/tui/theme";
 
 beforeAll(async () => {
 	await initTheme();

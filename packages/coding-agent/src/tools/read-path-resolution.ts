@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { getRemoteDir } from "@rva/utils";
+import { getRemoteDir } from "@reverse/utils";
 import type { ToolSession } from "../sdk";
 import { findUniqueWorkspaceSuffix } from "./path-utils";
 

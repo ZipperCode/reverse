@@ -13,9 +13,9 @@ import {
 	type JsonSchemaValidationIssue,
 	type JsonSchemaValidationResult,
 	validateJsonSchemaValue,
-} from "@rva/ai/utils/schema";
-import { isRecord } from "@rva/utils";
-import { LRUCache } from "@rva/utils/lru";
+} from "@reverse/ai/utils/schema";
+import { isRecord } from "@reverse/utils";
+import { LRUCache } from "@reverse/utils/lru";
 import { jtdToJsonSchema, normalizeSchema } from "./jtd-to-json-schema";
 
 /** A validator bound to a specific output schema. */

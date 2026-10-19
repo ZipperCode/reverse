@@ -10,21 +10,21 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type DaemonBrokerClient, DaemonBrokerRejectedError } from "@rva/coding-agent/launch/client";
-import * as daemonClient from "@rva/coding-agent/launch/client";
-import { daemonRuntimeDir } from "@rva/coding-agent/launch/paths";
-import type { DaemonOperation, DaemonRpcResult } from "@rva/coding-agent/launch/protocol";
-import * as browserAttach from "@rva/coding-agent/tools/browser/attach";
-import * as browserLaunch from "@rva/coding-agent/tools/browser/launch";
-import { removeUserDataDir, seedOwnedProfilePreferences } from "@rva/coding-agent/tools/browser/launch";
-import { type BrowserHandle, releaseBrowser } from "@rva/coding-agent/tools/browser/registry";
+import { type DaemonBrokerClient, DaemonBrokerRejectedError } from "@reverse/coding-agent/launch/client";
+import * as daemonClient from "@reverse/coding-agent/launch/client";
+import { daemonRuntimeDir } from "@reverse/coding-agent/launch/paths";
+import type { DaemonOperation, DaemonRpcResult } from "@reverse/coding-agent/launch/protocol";
+import * as browserAttach from "@reverse/coding-agent/tools/browser/attach";
+import * as browserLaunch from "@reverse/coding-agent/tools/browser/launch";
+import { removeUserDataDir, seedOwnedProfilePreferences } from "@reverse/coding-agent/tools/browser/launch";
+import { type BrowserHandle, releaseBrowser } from "@reverse/coding-agent/tools/browser/registry";
 import {
 	ensureSharedBrowser,
 	restartSharedBrowser,
 	sharedBrowserDaemonName,
-} from "@rva/coding-agent/tools/browser/shared-daemon";
-import type { DaemonSnapshot, DaemonState } from "@rva/tui/tools/daemon";
-import * as piUtils from "@rva/utils";
+} from "@reverse/coding-agent/tools/browser/shared-daemon";
+import type { DaemonSnapshot, DaemonState } from "@reverse/tui/tools/daemon";
+import * as piUtils from "@reverse/utils";
 
 async function makeProfileDir(): Promise<string> {
 	const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-chrome-profile-test-"));

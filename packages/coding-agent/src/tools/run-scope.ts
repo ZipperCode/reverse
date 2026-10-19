@@ -1,8 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { untilAborted } from "@rva/utils/abortable";
-import * as postmortem from "@rva/utils/postmortem";
+import { untilAborted } from "@reverse/utils/abortable";
+import * as postmortem from "@reverse/utils/postmortem";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 const browserRunRejections = new WeakMap<object, object>();
 

@@ -17,11 +17,11 @@
  */
 
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CmuxKind } from "@rva/coding-agent/tools/browser/cmux/rpc";
-import { CmuxSocketClient } from "@rva/coding-agent/tools/browser/cmux/socket-client";
-import { acquireBrowser } from "@rva/coding-agent/tools/browser/registry";
-import type { BrowserHandle } from "@rva/coding-agent/tools/browser/registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CmuxKind } from "@reverse/coding-agent/tools/browser/cmux/rpc";
+import { CmuxSocketClient } from "@reverse/coding-agent/tools/browser/cmux/socket-client";
+import { acquireBrowser } from "@reverse/coding-agent/tools/browser/registry";
+import type { BrowserHandle } from "@reverse/coding-agent/tools/browser/registry";
 import {
 	acquireTab,
 	armIdleCloseForOwner,
@@ -38,10 +38,10 @@ import {
 	runInTab,
 	setTabFrozenForTest,
 	unfreezeTabSessionForTest,
-} from "@rva/coding-agent/tools/browser/tab-supervisor";
-import { ToolAbortError } from "@rva/coding-agent/tools/tool-errors";
-import type { PendingRun, TabSession } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
+} from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import { ToolAbortError } from "@reverse/coding-agent/tools/tool-errors";
+import type { PendingRun, TabSession } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

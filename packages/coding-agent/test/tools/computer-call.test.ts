@@ -5,7 +5,7 @@ import {
 	isReadOnlyComputerCall,
 	renderComputerCall,
 	WINDOW_METHODS,
-} from "@rva/coding-agent/tools/computer/call";
+} from "@reverse/coding-agent/tools/computer/call";
 
 function errorMessage(run: () => unknown): string {
 	try {

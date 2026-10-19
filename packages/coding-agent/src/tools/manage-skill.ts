@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import {
 	deleteManagedSkill,
 	getManagedSkillsDir,

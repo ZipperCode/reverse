@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { hasFsCode, isEnoent, toError, untilAborted } from "@rva/utils";
+import { hasFsCode, isEnoent, toError, untilAborted } from "@reverse/utils";
 import type { Browser, CDPSession, Page } from "puppeteer-core";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { replaceFileAcrossDevices, replaceFileAtomically } from "../../utils/atomic-file";
 import { devtoolsFrameId } from "./frames";
 

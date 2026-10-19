@@ -2,30 +2,18 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
+import type { TextContent, ImageContent } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ReverseWorkflowTool, ReverseWorkspaceTool, EvidenceTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 import {
-	createTools,
-	ReverseWorkflowTool,
-	ReverseWorkspaceTool,
-	EvidenceTool,
-	type ToolSession,
-	BUILTIN_TOOLS,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { EvidenceStore } from "@rva/coding-agent/evidence/store";
-import { ReverseWorkflowStore } from "@rva/coding-agent/reverse-workflow/store";
-import {
-	exportWorkflowToWorkspace,
-	inspectWorkspace,
-	loadWorkspaceManifest,
 	cleanWorkspace,
 	DEFAULT_WORKSPACE_DIR,
 	WORKSPACE_FILES,
 	WORKSPACE_SUBDIRS,
 	type ReverseWorkspaceManifest,
-} from "@rva/coding-agent/reverse-workspace";
+} from "@reverse/coding-agent/reverse-workspace";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -37,9 +25,9 @@ function createTestSession(cwd: string): ToolSession {
 	};
 }
 
-function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+function textOf(result: { content: (TextContent | ImageContent)[] }): string {
 	return result.content
-		.map(item => item.text ?? "")
+		.flatMap(item => (item.type === "text" ? [item.text] : []))
 		.join("\n")
 		.trim();
 }
@@ -83,7 +71,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const evidenceTool = new EvidenceTool(session);
 
 			// 1. Create workflow
-			const createRes = await workflowTool.execute({
+			const createRes = await workflowTool.execute("wf-create", {
 				action: "create",
 				target: targetFile,
 				format: "ELF",
@@ -116,7 +104,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			if (!conclusionId) throw new Error("Conclusion id missing");
 
 			// 3. Record step completion with linked evidence
-			await workflowTool.execute({
+			await workflowTool.execute("wf-record", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "elf_step_1",
@@ -126,7 +114,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			});
 
 			// 4. Export with to_workspace: true
-			const exportRes = await workflowTool.execute({
+			const exportRes = await workflowTool.execute("wf-export", {
 				action: "export",
 				workflow_id: workflowId,
 				to_workspace: true,
@@ -141,12 +129,18 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const manifestPath = path.join(wsDir, WORKSPACE_FILES.MANIFEST);
 
 			// Check all standardized files exist
-			const manifestExists = await fs.stat(manifestPath).then(s => s.isFile()).catch(() => false);
+			const manifestExists = await fs
+				.stat(manifestPath)
+				.then(s => s.isFile())
+				.catch(() => false);
 			expect(manifestExists).toBe(true);
 
 			for (const subdir of WORKSPACE_SUBDIRS) {
 				const subdirPath = path.join(wsDir, subdir);
-				const isDir = await fs.stat(subdirPath).then(s => s.isDirectory()).catch(() => false);
+				const isDir = await fs
+					.stat(subdirPath)
+					.then(s => s.isDirectory())
+					.catch(() => false);
 				expect(isDir).toBe(true);
 			}
 
@@ -210,7 +204,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const session = createTestSession(tempDir);
 			const workflowTool = new ReverseWorkflowTool(session);
 
-			const createRes = await workflowTool.execute({
+			const createRes = await workflowTool.execute("wf-create", {
 				action: "create",
 				target: targetFile,
 				format: "ELF",
@@ -218,20 +212,15 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const workflowId = createRes.details.workflow?.id;
 			if (!workflowId) throw new Error("Workflow id missing");
 
-			await workflowTool.execute({
+			await workflowTool.execute("wf-record", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "elf_step_1",
 				status: "completed",
-				artifact_refs: [
-					scriptPath,
-					dumpPath,
-					largePath,
-					"artifact://session_virtual_art_123",
-				],
+				artifact_refs: [scriptPath, dumpPath, largePath, "artifact://session_virtual_art_123"],
 			});
 
-			const exportRes = await workflowTool.execute({
+			const exportRes = await workflowTool.execute("wf-export", {
 				action: "export",
 				workflow_id: workflowId,
 				to_workspace: true,
@@ -290,13 +279,13 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const workspaceTool = new ReverseWorkspaceTool(session);
 
 			// Initial status before export: workspace does not exist
-			const preStatus = await workspaceTool.execute({
+			const preStatus = await workspaceTool.execute("ws-pre-status", {
 				action: "status",
 			});
 			expect(preStatus.details.inspection?.exists).toBe(false);
 
 			// Create and export workflow
-			const createRes = await workflowTool.execute({
+			const createRes = await workflowTool.execute("wf-create", {
 				action: "create",
 				target: targetFile,
 				format: "PE",
@@ -309,7 +298,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const dumpFile = path.join(tempDir, "temp_mem.dump");
 			await fs.writeFile(dumpFile, "00 01 02 03\n", "utf8");
 
-			await workflowTool.execute({
+			await workflowTool.execute("wf-record", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -317,13 +306,13 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 				artifact_refs: [dumpFile],
 			});
 
-			await workspaceTool.execute({
+			await workspaceTool.execute("ws-export", {
 				action: "export",
 				workflow_id: workflowId,
 			});
 
 			// Status after export: valid workspace exists
-			const postStatus = await workspaceTool.execute({
+			const postStatus = await workspaceTool.execute("ws-post-status", {
 				action: "status",
 			});
 			expect(postStatus.details.inspection?.exists).toBe(true);
@@ -331,21 +320,21 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			expect(postStatus.details.manifest?.workflow.id).toBe(workflowId);
 
 			// Read manifest directly
-			const manifestRes = await workspaceTool.execute({
+			const manifestRes = await workspaceTool.execute("ws-manifest", {
 				action: "manifest",
 			});
 			expect(manifestRes.details.manifest?.workflow.id).toBe(workflowId);
 			expect(manifestRes.details.manifest?.target.name).toBe("client.exe");
 
 			// Clean workspace dumps
-			const cleanRes = await workspaceTool.execute({
+			const cleanRes = await workspaceTool.execute("ws-clean", {
 				action: "clean",
 				clean_dumps_only: true,
 			});
 			expect(cleanRes.details.clean_result?.removed_files).toContain("dumps/temp_mem.dump");
 
 			// Manifest and reports must still exist after clean
-			const postCleanStatus = await workspaceTool.execute({
+			const postCleanStatus = await workspaceTool.execute("ws-post-clean", {
 				action: "status",
 			});
 			expect(postCleanStatus.details.inspection?.exists).toBe(true);
@@ -363,7 +352,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const session = createTestSession(tempDir);
 			const workflowTool = new ReverseWorkflowTool(session);
 
-			const createRes = await workflowTool.execute({
+			const createRes = await workflowTool.execute("wf-create", {
 				action: "create",
 				target: targetFile,
 				format: "ELF",
@@ -372,7 +361,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			if (!workflowId) throw new Error("Workflow id missing");
 
 			// Intermediate record step
-			await workflowTool.execute({
+			await workflowTool.execute("wf-record", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "elf_step_1",
@@ -381,7 +370,10 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 
 			// Verify .reverse/ was NOT created unexpectedly
 			const wsDir = path.join(tempDir, DEFAULT_WORKSPACE_DIR);
-			const wsExists = await fs.stat(wsDir).then(() => true).catch(() => false);
+			const wsExists = await fs
+				.stat(wsDir)
+				.then(() => true)
+				.catch(() => false);
 			expect(wsExists).toBe(false);
 		} finally {
 			await removeWithRetries(tempDir);
@@ -397,7 +389,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const workflowTool = new ReverseWorkflowTool(session);
 			const workspaceTool = new ReverseWorkspaceTool(session);
 
-			const createRes = await workflowTool.execute({
+			const createRes = await workflowTool.execute("wf-create", {
 				action: "create",
 				target: targetFile,
 				format: "PE",
@@ -426,7 +418,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			await fs.writeFile(dumpB, "DUMP_B_DATA", "utf8");
 			await fs.writeFile(dumpC, "DUMP_C_DATA", "utf8");
 
-			await workflowTool.execute({
+			await workflowTool.execute("wf-record-1", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -434,7 +426,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 				artifact_refs: [scriptA, dumpA],
 			});
 
-			await workflowTool.execute({
+			await workflowTool.execute("wf-record-2", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_2",
@@ -442,7 +434,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 				artifact_refs: [scriptB, dumpB, dumpC],
 			});
 
-			const exportRes = await workspaceTool.execute({
+			const exportRes = await workspaceTool.execute("ws-export", {
 				action: "export",
 				workflow_id: workflowId,
 			});
@@ -498,25 +490,19 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			// 1. Plain directory without manifest
 			const plainDir = path.join(tempDir, "plain_folder");
 			await fs.mkdir(plainDir, { recursive: true });
-			await expect(
-				cleanWorkspace({ projectDir: tempDir, workspaceDir: "plain_folder" }),
-			).rejects.toThrow();
+			await expect(cleanWorkspace({ projectDir: tempDir, workspaceDir: "plain_folder" })).rejects.toThrow();
 
 			// 2. Project root itself
-			await expect(
-				cleanWorkspace({ projectDir: tempDir, workspaceDir: "." }),
-			).rejects.toThrow("project directory itself");
+			await expect(cleanWorkspace({ projectDir: tempDir, workspaceDir: "." })).rejects.toThrow(
+				"project directory itself",
+			);
 
 			// 3. Filesystem root
 			const root = path.parse(tempDir).root;
-			await expect(
-				cleanWorkspace({ projectDir: tempDir, workspaceDir: root }),
-			).rejects.toThrow();
+			await expect(cleanWorkspace({ projectDir: tempDir, workspaceDir: root })).rejects.toThrow();
 
 			// 4. Path traversal outside project directory
-			await expect(
-				cleanWorkspace({ projectDir: tempDir, workspaceDir: "../../some_escape" }),
-			).rejects.toThrow();
+			await expect(cleanWorkspace({ projectDir: tempDir, workspaceDir: "../../some_escape" })).rejects.toThrow();
 
 			// 5. Corrupted manifest (missing required ownership fields)
 			const fakeWs = path.join(tempDir, "fake_ws");
@@ -526,9 +512,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 				JSON.stringify({ schema_version: "1.0.0", not_a_real_manifest: true }),
 				"utf8",
 			);
-			await expect(
-				cleanWorkspace({ projectDir: tempDir, workspaceDir: "fake_ws" }),
-			).rejects.toThrow();
+			await expect(cleanWorkspace({ projectDir: tempDir, workspaceDir: "fake_ws" })).rejects.toThrow();
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -545,7 +529,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const workflowTool = new ReverseWorkflowTool(session);
 			const workspaceTool = new ReverseWorkspaceTool(session);
 
-			const createRes = await workflowTool.execute({
+			const createRes = await workflowTool.execute("wf-create", {
 				action: "create",
 				target: targetFile,
 				format: "ELF",
@@ -553,7 +537,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const workflowId = createRes.details.workflow?.id;
 			if (!workflowId) throw new Error("Workflow id missing");
 
-			await workspaceTool.execute({
+			await workspaceTool.execute("ws-export", {
 				action: "export",
 				workflow_id: workflowId,
 			});
@@ -563,18 +547,16 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			// 1. Workspace dir symlinked to outside directory
 			const symlinkedWs = path.join(tempDir, "symlinked_ws");
 			await fs.symlink(outsideDir, symlinkedWs);
-			await expect(
-				cleanWorkspace({ projectDir: tempDir, workspaceDir: "symlinked_ws" }),
-			).rejects.toThrow();
+			await expect(cleanWorkspace({ projectDir: tempDir, workspaceDir: "symlinked_ws" })).rejects.toThrow();
 
 			// 2. Subdirectory in workspace symlinked to outside directory
 			const dumpSymlinkDir = path.join(tempDir, "escaped_ws");
 			await fs.cp(realWs, dumpSymlinkDir, { recursive: true });
 			await fs.rm(path.join(dumpSymlinkDir, "dumps"), { recursive: true, force: true });
 			await fs.symlink(outsideDir, path.join(dumpSymlinkDir, "dumps"));
-			await expect(
-				cleanWorkspace({ projectDir: tempDir, workspaceDir: "escaped_ws" }),
-			).rejects.toThrow("Symlink escape detected");
+			await expect(cleanWorkspace({ projectDir: tempDir, workspaceDir: "escaped_ws" })).rejects.toThrow(
+				"Symlink escape detected",
+			);
 
 			// 3. Symlink file escaping workspace directory
 			const fileSymlinkWs = path.join(tempDir, "file_symlink_ws");
@@ -599,11 +581,16 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			});
 			await fs.writeFile(manifestPath, JSON.stringify(mData), "utf8");
 
-			await expect(
-				cleanWorkspace({ projectDir: tempDir, workspaceDir: "file_symlink_ws" }),
-			).rejects.toThrow("Symlink escape detected");
+			await expect(cleanWorkspace({ projectDir: tempDir, workspaceDir: "file_symlink_ws" })).rejects.toThrow(
+				"Symlink escape detected",
+			);
 			// Verify outsideFile was NOT deleted
-			expect(await fs.stat(outsideFile).then(() => true).catch(() => false)).toBe(true);
+			expect(
+				await fs
+					.stat(outsideFile)
+					.then(() => true)
+					.catch(() => false),
+			).toBe(true);
 		} finally {
 			await removeWithRetries(tempDir);
 			await removeWithRetries(outsideDir);
@@ -619,7 +606,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const workflowTool = new ReverseWorkflowTool(session);
 			const workspaceTool = new ReverseWorkspaceTool(session);
 
-			const createRes = await workflowTool.execute({
+			const createRes = await workflowTool.execute("wf-create", {
 				action: "create",
 				target: targetFile,
 				format: "RawBinary",
@@ -632,7 +619,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			await fs.writeFile(indexedDump, "INDEXED DUMP CONTENT", "utf8");
 			await fs.writeFile(indexedScript, "console.log('indexed');", "utf8");
 
-			await workflowTool.execute({
+			await workflowTool.execute("wf-record", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "elf_step_1",
@@ -640,7 +627,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 				artifact_refs: [indexedDump, indexedScript],
 			});
 
-			await workspaceTool.execute({
+			await workspaceTool.execute("ws-export", {
 				action: "export",
 				workflow_id: workflowId,
 			});
@@ -668,8 +655,14 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			expect(cleanRes.removed_files).not.toContain("scripts/user_custom_tool.js");
 
 			// Unindexed files must physically still exist on disk!
-			const dumpStillExists = await fs.stat(unindexedDump).then(() => true).catch(() => false);
-			const scriptStillExists = await fs.stat(unindexedScript).then(() => true).catch(() => false);
+			const dumpStillExists = await fs
+				.stat(unindexedDump)
+				.then(() => true)
+				.catch(() => false);
+			const scriptStillExists = await fs
+				.stat(unindexedScript)
+				.then(() => true)
+				.catch(() => false);
 			expect(dumpStillExists).toBe(true);
 			expect(scriptStillExists).toBe(true);
 

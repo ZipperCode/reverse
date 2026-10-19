@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { AuthStorage, type FetchImpl } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resolveConfigValue } from "@rva/coding-agent/config/resolve-config-value";
-import type { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { searchWithParallel } from "@rva/coding-agent/web/parallel";
-import { ParallelProvider, searchParallel } from "@rva/coding-agent/web/search/providers/parallel";
-import { USER_AGENT } from "@rva/utils";
+import { AuthStorage, type FetchImpl } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resolveConfigValue } from "@reverse/coding-agent/config/resolve-config-value";
+import type { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { searchWithParallel } from "@reverse/coding-agent/web/parallel";
+import { ParallelProvider, searchParallel } from "@reverse/coding-agent/web/search/providers/parallel";
+import { USER_AGENT } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const anonymousAuthStorage = createInMemoryAuthStorage();

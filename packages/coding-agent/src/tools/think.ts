@@ -1,6 +1,6 @@
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
-import type { Model } from "@rva/ai";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
 
 /** Whether a model transport can suppress native reasoning while private scratchpad thoughts are active. */
 export function supportsExternalThinking(model: Model | null | undefined): boolean {

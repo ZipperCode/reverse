@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseFindingDetails } from "@rva/tui/tools/task";
+import { parseFindingDetails } from "@reverse/tui/tools/task";
 
 describe("parseFindingDetails", () => {
 	it("returns undefined for malformed finding details", () => {

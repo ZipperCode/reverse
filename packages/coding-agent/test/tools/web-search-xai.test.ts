@@ -1,12 +1,12 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { cfgModelProviderOrder } from "@rva/coding-agent/config/model-settings";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { rankXAIProviders, searchXAI, XAIProvider } from "@rva/coding-agent/web/search/providers/xai";
-import { SearchProviderError } from "@rva/coding-agent/web/search/types";
+import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { cfgModelProviderOrder } from "@reverse/coding-agent/config/model-settings";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { rankXAIProviders, searchXAI, XAIProvider } from "@reverse/coding-agent/web/search/providers/xai";
+import { SearchProviderError } from "@reverse/coding-agent/web/search/types";
 
 type CapturedRequest = {
 	url: string;

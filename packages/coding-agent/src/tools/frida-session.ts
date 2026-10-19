@@ -1,9 +1,14 @@
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
-import { $which, getFridaSessionsDir, isEnoent, logger } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type {
+	AgentTool,
+	AgentToolContext,
+	AgentToolResult,
+	AgentToolUpdateCallback,
+	ToolApprovalDecision,
+} from "@reverse/agent";
+import { $which, getFridaSessionsDir, isEnoent, logger } from "@reverse/utils";
 import fridaSessionDescription from "../prompts/tools/frida-session.md" with { type: "text" };
 import { redactMemorySecrets } from "../memory-backend/redact";
 import type { SkillRequirementWhich } from "../extensibility/skill-requirements";
@@ -12,7 +17,7 @@ import { ReverseRuntimeSessionStore } from "../reverse-runtime-session/store";
 import type { RuntimeSessionRecord } from "../reverse-runtime-session/contracts";
 import { normalizeFridaEvent, type UniversalDynamicEvent } from "../reverse-runtime-session/dynamic-events";
 import type { ToolSession } from "./index";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 import {
 	defaultFridaRunner,
@@ -20,13 +25,12 @@ import {
 	fridaDependency,
 	type FridaDependencyStatus,
 	type FridaFallbackInfo,
-	type FridaRunResult,
 	type FridaRunner,
 	resolveFridaFallback,
- 	resolveScriptPath,
- 	splitCliArgs,
+	resolveScriptPath,
+	splitCliArgs,
 	parsePythonLiteral,
- } from "./frida";
+} from "./frida";
 
 export const fridaSessionSchema = type({
 	"action?": type
@@ -38,9 +42,7 @@ export const fridaSessionSchema = type({
 		"Identifier for the session. Auto-generated on create if omitted. Required for run/status/events/stop/destroy when multiple sessions exist",
 	),
 	"name?": type("string").describe("Optional friendly name or label for the session"),
-	"pid?": type("number").describe(
-		"Target process ID (PID) to attach to. Mutually exclusive with process and spawn",
-	),
+	"pid?": type("number").describe("Target process ID (PID) to attach to. Mutually exclusive with process and spawn"),
 	"process?": type("string").describe(
 		"Target process name or application package to attach to. Mutually exclusive with pid and spawn",
 	),
@@ -57,7 +59,9 @@ export const fridaSessionSchema = type({
 	),
 	"script_args?": type("unknown").describe("Optional arguments passed to the script via -P / --parameters JSON"),
 	"pause?": type("boolean").describe("For spawn mode: leave main thread paused after spawning (passes --pause)"),
-	"no_pause?": type("boolean").describe("For spawn mode: legacy flag for starting main thread immediately; set false to leave paused via --pause"),
+	"no_pause?": type("boolean").describe(
+		"For spawn mode: legacy flag for starting main thread immediately; set false to leave paused via --pause",
+	),
 	"filter?": type("string").describe("Optional text filter for list/events action or output inspection"),
 	"cli_args?": type("unknown").describe("Optional array of extra CLI arguments passed directly to Frida"),
 	"timeout?": type("number").describe("Watchdog execution timeout in seconds (default: 30)"),
@@ -69,9 +73,7 @@ export const fridaSessionSchema = type({
 	"limit?": type("number").describe(
 		"For action: 'events' or 'list': maximum number of records to return (default 50, max 500)",
 	),
-	"clear?": type("boolean").describe(
-		"For action: 'events': clear all captured events from session event ring buffer",
-	),
+	"clear?": type("boolean").describe("For action: 'events': clear all captured events from session event ring buffer"),
 	"kind?": type("string").describe(
 		"For action: 'events': filter events by kind ('stdout', 'stderr', 'message', 'trace', 'lifecycle', 'error')",
 	),
@@ -290,7 +292,6 @@ export function appendEventsToBuffer(
 	return current;
 }
 
-
 /**
  * Recursively verifies that parsed object nesting does not exceed maxDepth.
  */
@@ -313,9 +314,7 @@ function checkMaxObjectDepth(val: unknown, maxDepth: number, currentDepth = 0): 
  * Safely parses a structured Frida CLI message line (JSON or Python dict repr).
  * Handles prefixes like `message:`, `Message:`, `[*]`, `[Local::...] >` and trailing `data: None` / `data: b'...'`.
  */
-export function parseStructuredFridaMessage(
-	line: string,
-): { parsed: unknown; data: unknown } | null {
+export function parseStructuredFridaMessage(line: string): { parsed: unknown; data: unknown } | null {
 	const trimmed = line.trim();
 	if (trimmed.length === 0) return null;
 
@@ -453,25 +452,25 @@ export function parseFridaOutputIntoEvents(
 						parsedRecord.payload && typeof parsedRecord.payload === "object" ? parsedRecord.payload : null;
 					const isCrypto = Boolean(
 						payloadObj &&
-							((payloadObj as Record<string, unknown>).cipher ||
-								(payloadObj as Record<string, unknown>).algorithm ||
-								(payloadObj as Record<string, unknown>).key ||
-								(payloadObj as Record<string, unknown>).type === "crypto" ||
-								(payloadObj as Record<string, unknown>).event === "crypto" ||
-								(payloadObj as Record<string, unknown>).event === "key_exchange"),
+						((payloadObj as Record<string, unknown>).cipher ||
+							(payloadObj as Record<string, unknown>).algorithm ||
+							(payloadObj as Record<string, unknown>).key ||
+							(payloadObj as Record<string, unknown>).type === "crypto" ||
+							(payloadObj as Record<string, unknown>).event === "crypto" ||
+							(payloadObj as Record<string, unknown>).event === "key_exchange"),
 					);
 					const isWs = Boolean(
 						payloadObj &&
-							((payloadObj as Record<string, unknown>).type === "ws" ||
-								(payloadObj as Record<string, unknown>).type === "websocket" ||
-								(payloadObj as Record<string, unknown>).event === "ws" ||
-								(payloadObj as Record<string, unknown>).event === "websocket"),
+						((payloadObj as Record<string, unknown>).type === "ws" ||
+							(payloadObj as Record<string, unknown>).type === "websocket" ||
+							(payloadObj as Record<string, unknown>).event === "ws" ||
+							(payloadObj as Record<string, unknown>).event === "websocket"),
 					);
 					const isConsole = Boolean(
 						payloadObj &&
-							((payloadObj as Record<string, unknown>).type === "console" ||
-								(payloadObj as Record<string, unknown>).type === "log" ||
-								(payloadObj as Record<string, unknown>).event === "console"),
+						((payloadObj as Record<string, unknown>).type === "console" ||
+							(payloadObj as Record<string, unknown>).type === "log" ||
+							(payloadObj as Record<string, unknown>).event === "console"),
 					);
 					events.push({
 						id: `ev_${sessionId}_${currentSeq}`,
@@ -493,7 +492,8 @@ export function parseFridaOutputIntoEvents(
 					parsed &&
 					typeof parsed === "object" &&
 					!Array.isArray(parsed) &&
-					((parsed as Record<string, unknown>).type === "log" || (parsed as Record<string, unknown>).type === "console")
+					((parsed as Record<string, unknown>).type === "log" ||
+						(parsed as Record<string, unknown>).type === "console")
 				) {
 					events.push({
 						id: `ev_${sessionId}_${currentSeq}`,
@@ -502,14 +502,18 @@ export function parseFridaOutputIntoEvents(
 						sessionId,
 						kind: "stdout",
 						channel: "console",
-						payload: "payload" in (parsed as Record<string, unknown>) ? (parsed as Record<string, unknown>).payload : parsed,
+						payload:
+							"payload" in (parsed as Record<string, unknown>)
+								? (parsed as Record<string, unknown>).payload
+								: parsed,
 						raw: trimmed,
 					});
 				} else if (
 					parsed &&
 					typeof parsed === "object" &&
 					!Array.isArray(parsed) &&
-					((parsed as Record<string, unknown>).type === "error" || (parsed as Record<string, unknown>).type === "exception")
+					((parsed as Record<string, unknown>).type === "error" ||
+						(parsed as Record<string, unknown>).type === "exception")
 				) {
 					events.push({
 						id: `ev_${sessionId}_${currentSeq}`,
@@ -539,7 +543,10 @@ export function parseFridaOutputIntoEvents(
 						sessionId,
 						kind: "message",
 						channel: "crypto",
-						payload: "payload" in (parsed as Record<string, unknown>) ? (parsed as Record<string, unknown>).payload : parsed,
+						payload:
+							"payload" in (parsed as Record<string, unknown>)
+								? (parsed as Record<string, unknown>).payload
+								: parsed,
 						raw: trimmed,
 						metadata: { category: "crypto", subChannel: "crypto" },
 					});
@@ -547,7 +554,8 @@ export function parseFridaOutputIntoEvents(
 					parsed &&
 					typeof parsed === "object" &&
 					!Array.isArray(parsed) &&
-					((parsed as Record<string, unknown>).type === "ws" || (parsed as Record<string, unknown>).type === "websocket")
+					((parsed as Record<string, unknown>).type === "ws" ||
+						(parsed as Record<string, unknown>).type === "websocket")
 				) {
 					events.push({
 						id: `ev_${sessionId}_${currentSeq}`,
@@ -556,7 +564,10 @@ export function parseFridaOutputIntoEvents(
 						sessionId,
 						kind: "message",
 						channel: "ws",
-						payload: "payload" in (parsed as Record<string, unknown>) ? (parsed as Record<string, unknown>).payload : parsed,
+						payload:
+							"payload" in (parsed as Record<string, unknown>)
+								? (parsed as Record<string, unknown>).payload
+								: parsed,
 						raw: trimmed,
 						metadata: { category: "ws", subChannel: "ws" },
 					});
@@ -679,8 +690,7 @@ export function buildEvidenceReference(
 	session: FridaSessionRecord,
 	event: DynamicSessionEvent,
 ): DynamicEvidenceReference {
-	const excerpt =
-		event.raw || (typeof event.payload === "string" ? event.payload : JSON.stringify(event.payload));
+	const excerpt = event.raw || (typeof event.payload === "string" ? event.payload : JSON.stringify(event.payload));
 	const targetDesc = String(session.target.value);
 	const title = `Dynamic ${event.kind} [${event.channel || "event"}] on ${targetDesc}`;
 	const content = `Captured dynamic ${event.kind} event in Frida session '${session.id}' on target ${session.target.type}:${targetDesc}: ${
@@ -812,6 +822,8 @@ export class FridaSessionStore {
 export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, FridaSessionDetails> {
 	readonly name = "frida_session";
 	readonly description = fridaSessionDescription;
+	readonly label = "Frida Session";
+	readonly parameters = fridaSessionSchema;
 	readonly schema = fridaSessionSchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
@@ -833,20 +845,20 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 	private getStore(): FridaSessionStore {
 		const projectKey = encodeProjectKey(this.session.cwd);
 		const baseDir = this.stateRoot
-			? (this.stateRoot.endsWith("frida-sessions") || this.stateRoot.endsWith("frida_sessions")
+			? this.stateRoot.endsWith("frida-sessions") || this.stateRoot.endsWith("frida_sessions")
 				? path.resolve(this.stateRoot)
-				: path.join(path.resolve(this.stateRoot), "frida-sessions"))
+				: path.join(path.resolve(this.stateRoot), "frida-sessions")
 			: getFridaSessionsDir();
 		const projectDir = path.join(baseDir, projectKey);
 		return new FridaSessionStore(projectDir);
 	}
 
 	async execute(
-		toolCallId: string,
+		_toolCallId: string,
 		params: FridaSessionParams,
-		_onUpdate?: (result: AgentToolResult<FridaSessionDetails>) => void,
-		_ctx?: unknown,
 		signal?: AbortSignal,
+		_onUpdate?: AgentToolUpdateCallback<FridaSessionDetails, typeof fridaSessionSchema>,
+		_ctx?: AgentToolContext,
 	): Promise<AgentToolResult<FridaSessionDetails>> {
 		throwIfAborted(signal);
 
@@ -873,7 +885,11 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		}
 	}
 
-	approval(params: FridaSessionParams): ToolTier {
+	approval(args: unknown): ToolApprovalDecision {
+		if (!args || typeof args !== "object") {
+			return "exec";
+		}
+		const params = args as Partial<FridaSessionParams>;
 		const action = params.action ?? (params.script || params.script_path || params.command ? "run" : "list");
 		switch (action) {
 			case "list":
@@ -986,7 +1002,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		let initialStdout = "";
 		let initialStderr = "";
 		let initialExitCode = 0;
-		let initialHistory: FridaSessionRunEntry[] = [];
+		const initialHistory: FridaSessionRunEntry[] = [];
 		let activeChildPid: number | undefined;
 
 		if (hasInitialScript) {
@@ -1039,16 +1055,10 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 
 		let initialEvents: DynamicSessionEvent[] = [];
 		if (hasInitialScript || targetType === "spawn") {
-			const parsed = parseFridaOutputIntoEvents(
-				sessionId,
-				initialStdout,
-				initialStderr,
-				0,
-				{
-					command: hasInitialScript ? "initial_script" : "spawn_probe",
-					exitCode: initialExitCode,
-				},
-			);
+			const parsed = parseFridaOutputIntoEvents(sessionId, initialStdout, initialStderr, 0, {
+				command: hasInitialScript ? "initial_script" : "spawn_probe",
+				exitCode: initialExitCode,
+			});
 			initialEvents = parsed.events;
 			if (parsed.spawnedPid && !activeChildPid) {
 				activeChildPid = parsed.spawnedPid;
@@ -1227,7 +1237,9 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		if (session.history.length > 0) {
 			lines.push("", `Recent history (${Math.min(session.history.length, 5)} runs):`);
 			for (const h of session.history.slice(-5)) {
-				lines.push(`  - [${h.timestamp}] exitCode=${h.exitCode ?? 0} bytes=${h.outputBytes ?? 0}: ${h.command ?? h.scriptSnippet?.slice(0, 60)}`);
+				lines.push(
+					`  - [${h.timestamp}] exitCode=${h.exitCode ?? 0} bytes=${h.outputBytes ?? 0}: ${h.command ?? h.scriptSnippet?.slice(0, 60)}`,
+				);
 			}
 		}
 
@@ -1375,7 +1387,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		if (params.to_artifact && this.session.allocateOutputArtifact) {
 			try {
 				const allocation = await this.session.allocateOutputArtifact("frida_session");
-				if (allocation) {
+				if (allocation?.path && allocation.id) {
 					artifactId = allocation.id;
 					artifactPath = allocation.path;
 					const recordToSave = {
@@ -1491,7 +1503,6 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 
 		let filtered = allEvents;
 
-
 		if (typeof params.since_seq === "number") {
 			filtered = filtered.filter(e => e.seq > params.since_seq!);
 		}
@@ -1517,8 +1528,11 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 						e.channel?.toLowerCase() === "websocket" ||
 						e.metadata?.category === "ws" ||
 						e.metadata?.subChannel === "ws" ||
-						(typeof e.payload === "object" && e.payload !== null &&
-							((e.payload as Record<string, unknown>).type === "ws" || (e.payload as Record<string, unknown>).type === "websocket" || (e.payload as Record<string, unknown>).event === "ws"))
+						(typeof e.payload === "object" &&
+							e.payload !== null &&
+							((e.payload as Record<string, unknown>).type === "ws" ||
+								(e.payload as Record<string, unknown>).type === "websocket" ||
+								(e.payload as Record<string, unknown>).event === "ws"))
 					);
 				}
 				if (k === "crypto") {
@@ -1526,9 +1540,13 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 						e.channel?.toLowerCase() === "crypto" ||
 						e.metadata?.category === "crypto" ||
 						e.metadata?.subChannel === "crypto" ||
-						(typeof e.payload === "object" && e.payload !== null &&
-							(Boolean((e.payload as Record<string, unknown>).cipher) || Boolean((e.payload as Record<string, unknown>).algorithm) ||
-								(e.payload as Record<string, unknown>).type === "crypto" || (e.payload as Record<string, unknown>).event === "crypto" || (e.payload as Record<string, unknown>).event === "key_exchange"))
+						(typeof e.payload === "object" &&
+							e.payload !== null &&
+							(Boolean((e.payload as Record<string, unknown>).cipher) ||
+								Boolean((e.payload as Record<string, unknown>).algorithm) ||
+								(e.payload as Record<string, unknown>).type === "crypto" ||
+								(e.payload as Record<string, unknown>).event === "crypto" ||
+								(e.payload as Record<string, unknown>).event === "key_exchange"))
 					);
 				}
 				return e.kind.toLowerCase() === k;
@@ -1548,8 +1566,11 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 						e.channel?.toLowerCase() === "websocket" ||
 						e.metadata?.category === "ws" ||
 						e.metadata?.subChannel === "ws" ||
-						(typeof e.payload === "object" && e.payload !== null &&
-							((e.payload as Record<string, unknown>).type === "ws" || (e.payload as Record<string, unknown>).type === "websocket" || (e.payload as Record<string, unknown>).event === "ws"))
+						(typeof e.payload === "object" &&
+							e.payload !== null &&
+							((e.payload as Record<string, unknown>).type === "ws" ||
+								(e.payload as Record<string, unknown>).type === "websocket" ||
+								(e.payload as Record<string, unknown>).event === "ws"))
 					);
 				}
 				if (ch === "crypto") {
@@ -1557,9 +1578,13 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 						e.channel?.toLowerCase() === "crypto" ||
 						e.metadata?.category === "crypto" ||
 						e.metadata?.subChannel === "crypto" ||
-						(typeof e.payload === "object" && e.payload !== null &&
-							(Boolean((e.payload as Record<string, unknown>).cipher) || Boolean((e.payload as Record<string, unknown>).algorithm) ||
-								(e.payload as Record<string, unknown>).type === "crypto" || (e.payload as Record<string, unknown>).event === "crypto" || (e.payload as Record<string, unknown>).event === "key_exchange"))
+						(typeof e.payload === "object" &&
+							e.payload !== null &&
+							(Boolean((e.payload as Record<string, unknown>).cipher) ||
+								Boolean((e.payload as Record<string, unknown>).algorithm) ||
+								(e.payload as Record<string, unknown>).type === "crypto" ||
+								(e.payload as Record<string, unknown>).event === "crypto" ||
+								(e.payload as Record<string, unknown>).event === "key_exchange"))
 					);
 				}
 				return false;
@@ -1572,7 +1597,8 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 				const raw = (e.raw || "").toLowerCase();
 				let payloadStr = "";
 				try {
-					payloadStr = typeof e.payload === "string" ? e.payload.toLowerCase() : JSON.stringify(e.payload).toLowerCase();
+					payloadStr =
+						typeof e.payload === "string" ? e.payload.toLowerCase() : JSON.stringify(e.payload).toLowerCase();
 				} catch {}
 				const channel = (e.channel || "").toLowerCase();
 				const kind = (e.kind || "").toLowerCase();
@@ -1600,7 +1626,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		if (params.to_artifact && this.session.allocateOutputArtifact) {
 			try {
 				const allocation = await this.session.allocateOutputArtifact("frida_session_events");
-				if (allocation) {
+				if (allocation?.path && allocation.id) {
 					artifactId = allocation.id;
 					artifactPath = allocation.path;
 					const exportPayload = {
@@ -1628,8 +1654,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		} else {
 			for (const ev of paged) {
 				const ch = ev.channel ? `/${ev.channel}` : "";
-				const payloadStr =
-					typeof ev.payload === "string" ? ev.payload : JSON.stringify(ev.payload);
+				const payloadStr = typeof ev.payload === "string" ? ev.payload : JSON.stringify(ev.payload);
 				lines.push(`[#${ev.seq} ${ev.kind}${ch} @ ${ev.timestamp}] ${payloadStr}`);
 			}
 		}
@@ -1778,10 +1803,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		stopActiveChild(session.id, session.activeChildPid);
 		await store.delete(session.id);
 		try {
-			const runtimeStore = ReverseRuntimeSessionStore.forSession(
-				this.session.cwd,
-				this.stateRoot,
-			);
+			const runtimeStore = ReverseRuntimeSessionStore.forSession(this.session.cwd, this.stateRoot);
 			await runtimeStore.delete(session.id);
 		} catch {}
 
@@ -1809,10 +1831,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 	}
 	private async syncToRuntimeSessionStore(session: FridaSessionRecord): Promise<void> {
 		try {
-			const runtimeStore = ReverseRuntimeSessionStore.forSession(
-				this.session.cwd,
-				this.stateRoot,
-			);
+			const runtimeStore = ReverseRuntimeSessionStore.forSession(this.session.cwd, this.stateRoot);
 			const targetVal = String(session.target.value ?? session.target.process ?? session.target.pid ?? "");
 			const recent = (session.events ?? []).slice(-50);
 			const normalizedRecent: UniversalDynamicEvent[] = recent.map((ev, idx) =>
@@ -1850,7 +1869,9 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 					},
 					instructions: [
 						`Attach or spawn Frida session "${session.id}" on target ${session.target.type}:${targetVal}`,
-						...(session.lastScript ? ["Re-apply previous instrumentation script via frida_session(action: 'run')"] : []),
+						...(session.lastScript
+							? ["Re-apply previous instrumentation script via frida_session(action: 'run')"]
+							: []),
 					],
 				},
 				created_at: session.createdAt,

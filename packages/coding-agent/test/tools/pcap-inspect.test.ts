@@ -2,15 +2,10 @@ import { beforeAll, afterAll, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	PcapInspectTool,
-	type PcapInspectDetails,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, PcapInspectTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -49,15 +44,27 @@ function createTlsClientHelloPayload(sniHostname: string): Buffer {
 	const random = Buffer.alloc(32, 0x5a);
 	const clientHello = Buffer.concat([
 		Buffer.from([
-			0x16, 0x03, 0x01, 0x00, 0x00, // TLS record header (type 22, TLS 1.0, len patched later)
-			0x01, 0x00, 0x00, 0x00, // ClientHello (type 1, len patched later)
-			0x03, 0x03, // client_version (TLS 1.2)
+			0x16,
+			0x03,
+			0x01,
+			0x00,
+			0x00, // TLS record header (type 22, TLS 1.0, len patched later)
+			0x01,
+			0x00,
+			0x00,
+			0x00, // ClientHello (type 1, len patched later)
+			0x03,
+			0x03, // client_version (TLS 1.2)
 		]),
 		random,
 		Buffer.from([
 			0x00, // session_id length 0
-			0x00, 0x02, 0xc0, 0x2f, // cipher suites (2 bytes len, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
-			0x01, 0x00, // compression methods (1 byte len, null)
+			0x00,
+			0x02,
+			0xc0,
+			0x2f, // cipher suites (2 bytes len, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+			0x01,
+			0x00, // compression methods (1 byte len, null)
 		]),
 		Buffer.from([(extBuf.length >> 8) & 0xff, extBuf.length & 0xff]),
 		extBuf,
@@ -175,7 +182,7 @@ function createUdpPacket(srcPort: number, dstPort: number, payload: Buffer): Buf
  */
 function createClassicPcapFixture(): Buffer {
 	const packets: Array<{ sec: number; usec: number; data: Buffer }> = [];
-	let tSec = 1700000000;
+	const tSec = 1700000000;
 	let tUsec = 100000;
 
 	// 1. TCP SYN
@@ -189,9 +196,7 @@ function createClassicPcapFixture(): Buffer {
 
 	// 2. HTTP GET Request
 	tUsec += 50000;
-	const httpPayload = Buffer.from(
-		"GET /api/v1/status HTTP/1.1\r\nHost: example.com\r\nUser-Agent: test/1.0\r\n\r\n",
-	);
+	const httpPayload = Buffer.from("GET /api/v1/status HTTP/1.1\r\nHost: example.com\r\nUser-Agent: test/1.0\r\n\r\n");
 	const httpPkt = encapsulateEthernetIpv4(
 		[192, 168, 1, 100],
 		[93, 184, 216, 34],
@@ -214,12 +219,7 @@ function createClassicPcapFixture(): Buffer {
 	// 4. DNS Query for example.org
 	tUsec += 40000;
 	const dnsPayload = createDnsQueryPayload("example.org", 1);
-	const dnsPkt = encapsulateEthernetIpv4(
-		[192, 168, 1, 100],
-		[8, 8, 8, 8],
-		17,
-		createUdpPacket(55555, 53, dnsPayload),
-	);
+	const dnsPkt = encapsulateEthernetIpv4([192, 168, 1, 100], [8, 8, 8, 8], 17, createUdpPacket(55555, 53, dnsPayload));
 	packets.push({ sec: tSec, usec: tUsec, data: dnsPkt });
 
 	// 5. ICMP Echo Request
@@ -308,12 +308,7 @@ function createPcapNgFixture(): Buffer {
 	chunks.push(idb);
 
 	// 3. Enhanced Packet Block (EPB)
-	const rawPkt = encapsulateEthernetIpv4(
-		[10, 0, 0, 1],
-		[10, 0, 0, 2],
-		6,
-		createTcpPacket(8080, 9090, 42, 0, 0x02),
-	);
+	const rawPkt = encapsulateEthernetIpv4([10, 0, 0, 1], [10, 0, 0, 2], 6, createTcpPacket(8080, 9090, 42, 0, 0x02));
 	const paddedPktLen = Math.ceil(rawPkt.length / 4) * 4;
 	const epbLen = 32 + paddedPktLen;
 	const epb = Buffer.alloc(epbLen);

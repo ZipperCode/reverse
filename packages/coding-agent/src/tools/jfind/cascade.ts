@@ -13,8 +13,8 @@
  * the critical path is three dependent waves.
  */
 import * as path from "node:path";
-import type { Judge, JudgmentResult, NoulQuestion } from "@rva/ai";
-import type { FindHit, FindStats } from "@rva/tui/tools/find";
+import type { Judge, JudgmentResult, NoulQuestion } from "@reverse/ai";
+import type { FindHit, FindStats } from "@reverse/tui/tools/find";
 import type { InternalUrlFilesystem } from "../../internal-urls/url-filesystem";
 import { throwIfAborted } from "../tool-errors";
 import { fileScore, grepIndex, idf } from "./lexical";

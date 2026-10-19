@@ -2,21 +2,17 @@ import { createReadStream } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { prompt, getProjectDir } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { prompt, getProjectDir } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 import { resolveReadPath } from "./path-utils";
 import type { ToolSession } from "./index";
 import reverseWorkflowDescription from "../prompts/tools/reverse-workflow.md" with { type: "text" };
 import { EvidenceStore } from "../evidence/store";
 import { ReverseKnowledgeStore } from "../reverse-knowledge/store";
-import {
-	exportWorkflowToWorkspace,
-	hashFile,
-	type ReverseWorkspaceManifest,
-} from "../reverse-workspace";
+import { exportWorkflowToWorkspace, hashFile, type ReverseWorkspaceManifest } from "../reverse-workspace";
 import {
 	ReverseWorkflowStore,
 	sniffTargetFormat,
@@ -27,13 +23,11 @@ import {
 	computeWorkflowMetrics,
 	validateEvidenceIdFormat,
 	validateKnowledgeIdFormat,
-	normalizeTargetFormat,
 	classifyFailure,
 	generateRecoveryPlan,
 	verifyInstalledTool,
 	type VerifyToolResult,
 	advanceWorkflow,
-	assessStepRisk,
 	type ReverseWorkflowRecord,
 	type WorkflowStepRecord,
 	type WorkflowMetrics,
@@ -41,8 +35,6 @@ import {
 	type StepRetryEntry,
 	type RecoveryAuditEntry,
 	type RecoveryPlan,
-	type FailureAttribution,
-	type FailureCategory,
 	type ProgressionAuditEntry,
 	type ProgressionStatus,
 	type StepResumeMetadata,
@@ -50,9 +42,22 @@ import {
 	DEFAULT_MAX_ATTEMPTS,
 	HARD_MAX_ATTEMPTS,
 } from "../reverse-workflow";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
 const reverseWorkflowSchema = type({
 	action: type
-		.enumerated("create", "plan", "status", "record", "retry", "recover", "retry_plan", "export", "destroy", "advance", "auto_advance")
+		.enumerated(
+			"create",
+			"plan",
+			"status",
+			"record",
+			"retry",
+			"recover",
+			"retry_plan",
+			"export",
+			"destroy",
+			"advance",
+			"auto_advance",
+		)
 		.describe(
 			"Workflow orchestrator action: create (initialize target-routed workflow plan), plan (preview/generate deterministic plan), status (inspect workflow and step progress), record (record step execution, outputs, and evidence ledger links), retry (retry failed step with bounded attempts and caller params), recover (diagnose failure, attribute category, propose deterministic fallback/corrected params, record audit trail, and transition to pending), retry_plan (preview failure attribution and recovery plan without mutating state), export (produce bounded Markdown/JSON report), destroy (delete workflow), advance (progress or record next allowlisted low-risk static step), auto_advance (progress next allowlisted read/static triage step, attaching verified prior knowledge and halting on dynamic/high-risk tools or ambiguous targets)",
 		),
@@ -60,9 +65,7 @@ const reverseWorkflowSchema = type({
 	"id?": type("string").describe("Alias for workflow_id"),
 	"target?": type("string").describe("Path to target binary, package, capture, or script relative to project"),
 	"path?": type("string").describe("Alias for target"),
-	"format?": type("string").describe(
-		"Explicit target format override (PE, ELF, Mach-O, APK, JS, WASM, PCAP, SQLite)",
-	),
+	"format?": type("string").describe("Explicit target format override (PE, ELF, Mach-O, APK, JS, WASM, PCAP, SQLite)"),
 	"goal?": type("string").describe("Analytical goal or objective for the reverse engineering workflow"),
 	"step_id?": type("string").describe("Target step identifier within the workflow (e.g. 'pe_step_1')"),
 	"status?": type
@@ -113,28 +116,22 @@ const reverseWorkflowSchema = type({
 	),
 	"strategy?": type
 		.enumerated("resume_original", "fallback")
-		.describe("Resumption strategy: 'resume_original' to re-dispatch the original planned tool, or 'fallback' to engage alternative"),
-	"resume_strategy?": type
-		.enumerated("resume_original", "fallback")
-		.describe("Alias for strategy"),
+		.describe(
+			"Resumption strategy: 'resume_original' to re-dispatch the original planned tool, or 'fallback' to engage alternative",
+		),
+	"resume_strategy?": type.enumerated("resume_original", "fallback").describe("Alias for strategy"),
 	"resumed_at?": type("string").describe(
 		"ISO timestamp when the step was resumed following installation (defaults to current time)",
 	),
-	"format_type?": type
-		.enumerated("markdown", "json")
-		.describe("Export report format: 'markdown' (default) or 'json'"),
-	"to_artifact?": type("boolean").describe(
-		"Export full report to session artifact instead of inline response",
-	),
+	"format_type?": type.enumerated("markdown", "json").describe("Export report format: 'markdown' (default) or 'json'"),
+	"to_artifact?": type("boolean").describe("Export full report to session artifact instead of inline response"),
 	"to_workspace?": type("boolean").describe(
 		"Export standardized reverse engineering workspace to local .reverse/ directory (target info, workflow, evidence, findings, and safe artifact references)",
 	),
 	"workspace_path?": type("string").describe(
 		"Custom directory path for workspace export (defaults to '.reverse' in project root)",
 	),
-	"clean_workspace?": type("boolean").describe(
-		"Clean previous dumps/scripts before exporting new workspace run",
-	),
+	"clean_workspace?": type("boolean").describe("Clean previous dumps/scripts before exporting new workspace run"),
 	"max_steps?": type("number.integer >= 1").describe("Maximum steps to evaluate in auto_advance (default 1, max 5)"),
 	"propose_only?": type("boolean").describe("Only propose the next low-risk static step without mutating state"),
 	"limit?": type("number.integer >= 1").describe("Maximum items to list in 'status' action (default 20)"),
@@ -143,7 +140,18 @@ const reverseWorkflowSchema = type({
 export type ReverseWorkflowParams = typeof reverseWorkflowSchema.infer;
 
 export interface ReverseWorkflowDetails {
-	action: "create" | "plan" | "status" | "record" | "retry" | "recover" | "retry_plan" | "export" | "destroy" | "advance" | "auto_advance";
+	action:
+		| "create"
+		| "plan"
+		| "status"
+		| "record"
+		| "retry"
+		| "recover"
+		| "retry_plan"
+		| "export"
+		| "destroy"
+		| "advance"
+		| "auto_advance";
 	workflow?: ReverseWorkflowRecord;
 	workflows?: ReverseWorkflowRecord[];
 	step?: WorkflowStepRecord;
@@ -173,6 +181,12 @@ export interface ReverseWorkflowDetails {
 	progression_audit?: ProgressionAuditEntry[];
 	evaluated_steps?: WorkflowStepRecord[];
 	resume?: StepResumeMetadata;
+	status?: string;
+	verified?: boolean;
+	missing_tool?: string;
+	setup_command?: string;
+	advanced?: boolean;
+	meta?: OutputMeta;
 }
 
 export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSchema, ReverseWorkflowDetails> {
@@ -195,10 +209,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				action === "destroy" ||
 				action === "advance" ||
 				action === "auto_advance" ||
-				(action === "export" && (
-					("to_workspace" in args && Boolean(args.to_workspace)) ||
-					("workspace_path" in args && Boolean(args.workspace_path))
-				))
+				(action === "export" &&
+					(("to_workspace" in args && Boolean(args.to_workspace)) ||
+						("workspace_path" in args && Boolean(args.workspace_path))))
 			) {
 				return "write";
 			}
@@ -211,27 +224,15 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 	}
 
 	async execute(
-		toolCallIdOrParams: string | ReverseWorkflowParams,
-		paramsOrContext?: ReverseWorkflowParams | { abortSignal?: AbortSignal },
+		_toolCallId: string,
+		params: ReverseWorkflowParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<ReverseWorkflowDetails>> {
-		let params: ReverseWorkflowParams;
-		let abortSignal: AbortSignal | undefined;
-
-		if (typeof toolCallIdOrParams === "string") {
-			params = paramsOrContext as ReverseWorkflowParams;
-			abortSignal = signal;
-		} else {
-			params = toolCallIdOrParams;
-			const ctx = paramsOrContext as { abortSignal?: AbortSignal } | undefined;
-			abortSignal = ctx?.abortSignal;
-		}
-
-		throwIfAborted(abortSignal);
+	): Promise<AgentToolResult<ReverseWorkflowDetails> & { details: ReverseWorkflowDetails }> {
+		throwIfAborted(signal);
 
 		const repoRoot = this.session.cwd ?? getProjectDir();
 		const store = new ReverseWorkflowStore({ repositoryRoot: repoRoot });
-		const evidenceStore = new EvidenceStore({ repositoryRoot: repoRoot, signal: abortSignal });
+		const evidenceStore = new EvidenceStore({ repositoryRoot: repoRoot, signal });
 		const knowledgeStore = new ReverseKnowledgeStore({ repositoryRoot: repoRoot });
 
 		switch (params.action) {
@@ -246,7 +247,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				try {
 					stat = await fs.stat(targetPath);
 				} catch (err) {
-					throw new ToolError(`Target file not found: ${rawTarget} (${err instanceof Error ? err.message : String(err)})`);
+					throw new ToolError(
+						`Target file not found: ${rawTarget} (${err instanceof Error ? err.message : String(err)})`,
+					);
 				}
 
 				if (stat.isDirectory()) {
@@ -336,9 +339,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 								`Prior Knowledge (${priorKnowledge.length} reusable ${priorKnowledge.length === 1 ? "entry" : "entries"} found):`,
 								...priorKnowledge.map(k => {
 									const sourceTag =
-										k.source === "bundled" || k.metadata?.source === "bundled"
-											? " [bundled template]"
-											: "";
+										k.source === "bundled" || k.metadata?.source === "bundled" ? " [bundled template]" : "";
 									return `  - [\`${k.id}\`] ${k.title} (${k.kind}, ${k.confidence.toUpperCase()})${sourceTag}${k.actionable_guidance ? `\n    Guidance: ${k.actionable_guidance}` : ""}`;
 								}),
 							]
@@ -450,9 +451,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				const stepListText = plan.steps
 					.map(s => {
 						const paramsSummary =
-							typeof s.params_summary === "string"
-								? s.params_summary
-								: JSON.stringify(s.params_summary);
+							typeof s.params_summary === "string" ? s.params_summary : JSON.stringify(s.params_summary);
 						return `  - [${s.id}] ${s.title}\n    Tool: \`${s.tool}\` (${s.gate}) | Default params: \`${paramsSummary}\``;
 					})
 					.join("\n");
@@ -462,7 +461,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					stepListText,
 					...priorKnowledgeLines,
 					"",
-					"To initiate this workflow and start tracking execution state, call 'reverse_workflow(action: \"create\", target: \"...\")'.",
+					'To initiate this workflow and start tracking execution state, call \'reverse_workflow(action: "create", target: "...")\'.',
 				].join("\n");
 
 				return {
@@ -544,13 +543,17 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						stepLines.push(`- **Runtime Session**: \`${step.runtime_session_id}\``);
 					}
 					if (step.runtime_session_ids?.length) {
-						stepLines.push(`- **Runtime Sessions**: ${step.runtime_session_ids.map(id => `\`${id}\``).join(", ")}`);
+						stepLines.push(
+							`- **Runtime Sessions**: ${step.runtime_session_ids.map(id => `\`${id}\``).join(", ")}`,
+						);
 					}
 					if (step.recovery_metadata) {
 						const rec = step.recovery_metadata;
 						stepLines.push("- **Recovery Metadata**:");
 						if (rec.attribution) {
-							stepLines.push(`  - Attribution: [${rec.attribution.category.toUpperCase()}] ${rec.attribution.cause}`);
+							stepLines.push(
+								`  - Attribution: [${rec.attribution.category.toUpperCase()}] ${rec.attribution.cause}`,
+							);
 							if (rec.attribution.install_hint) {
 								stepLines.push(`    - Install Hint: \`${rec.attribution.install_hint}\``);
 							}
@@ -560,9 +563,11 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						}
 						if (rec.resume) {
 							stepLines.push("  - Install-After Resume Metadata:");
-							if (rec.resume.capability_id) stepLines.push(`    - Capability ID: \`${rec.resume.capability_id}\``);
+							if (rec.resume.capability_id)
+								stepLines.push(`    - Capability ID: \`${rec.resume.capability_id}\``);
 							stepLines.push(`    - Installed Tool: \`${rec.resume.installed_tool}\``);
-							if (rec.resume.setup_command) stepLines.push(`    - Setup Command: \`${rec.resume.setup_command}\``);
+							if (rec.resume.setup_command)
+								stepLines.push(`    - Setup Command: \`${rec.resume.setup_command}\``);
 							stepLines.push(`    - Verified: ${rec.resume.verified}`);
 							stepLines.push(`    - Strategy: \`${rec.resume.strategy}\``);
 							stepLines.push(`    - Resumed At: ${rec.resume.resumed_at}`);
@@ -580,9 +585,13 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 									audit.previous_tool === audit.proposed_tool
 										? `\`${audit.proposed_tool}\``
 										: `\`${audit.previous_tool}\` -> \`${audit.proposed_tool}\``;
-								stepLines.push(`    - [Attempt ${audit.attempt}] (${audit.action}): [${audit.category}] ${toolTransition} - ${audit.decision}`);
+								stepLines.push(
+									`    - [Attempt ${audit.attempt}] (${audit.action}): [${audit.category}] ${toolTransition} - ${audit.decision}`,
+								);
 								if (audit.evidence_ids && audit.evidence_ids.length > 0) {
-									stepLines.push(`      - Associated Evidence: ${audit.evidence_ids.map(id => `\`${id}\``).join(", ")}`);
+									stepLines.push(
+										`      - Associated Evidence: ${audit.evidence_ids.map(id => `\`${id}\``).join(", ")}`,
+									);
 								}
 							}
 						}
@@ -597,8 +606,12 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				const stepRows = workflow.steps.map(s => {
 					const evLinks = s.evidence_ids?.length ? ` [${s.evidence_ids.length} ev]` : "";
 					const runtTag = s.runtime_session_id ? ` [runt: ${s.runtime_session_id}]` : "";
-					const auditCount = s.recovery_metadata?.recovery_audit?.length ? ` [${s.recovery_metadata.recovery_audit.length} recovery audit]` : "";
-					const resumeTag = s.recovery_metadata?.resume ? ` [resumed: ${s.recovery_metadata.resume.installed_tool}]` : "";
+					const auditCount = s.recovery_metadata?.recovery_audit?.length
+						? ` [${s.recovery_metadata.recovery_audit.length} recovery audit]`
+						: "";
+					const resumeTag = s.recovery_metadata?.resume
+						? ` [resumed: ${s.recovery_metadata.resume.installed_tool}]`
+						: "";
 					return `  - [${s.status.toUpperCase()}] ${s.id}: ${s.title} -> \`${s.tool}\` (${s.attempts}/${s.max_attempts} attempts)${evLinks}${runtTag}${auditCount}${resumeTag}`;
 				});
 
@@ -614,9 +627,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					...(workflow.progression_audit && workflow.progression_audit.length > 0
 						? [
 								"Recent Progression Decisions:",
-								...workflow.progression_audit.slice(-3).map(
-									a => `  - [${a.status.toUpperCase()}] ${a.step_id} (${a.tool}): ${a.decision}`,
-								),
+								...workflow.progression_audit
+									.slice(-3)
+									.map(a => `  - [${a.status.toUpperCase()}] ${a.step_id} (${a.tool}): ${a.decision}`),
 								"",
 							]
 						: []),
@@ -645,7 +658,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 
 				const status = params.status;
 				if (!status) {
-					throw new ToolError("status ('completed', 'failed', 'running', 'skipped') is required for 'record' action.");
+					throw new ToolError(
+						"status ('completed', 'failed', 'running', 'skipped') is required for 'record' action.",
+					);
 				}
 
 				const workflow = await store.get(workflowId);
@@ -672,7 +687,6 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...params.evidence_ids]));
 				}
 
-
 				if (Array.isArray(params.knowledge_refs) && params.knowledge_refs.length > 0) {
 					for (const knId of params.knowledge_refs) {
 						if (!validateKnowledgeIdFormat(knId)) {
@@ -682,13 +696,13 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						}
 						const existingRecord = await knowledgeStore.get(knId);
 						if (!existingRecord) {
-							throw new ToolError(
-								`Knowledge ID '${knId}' not found in the project reverse knowledge store.`,
-							);
+							throw new ToolError(`Knowledge ID '${knId}' not found in the project reverse knowledge store.`);
 						}
 					}
 					step.knowledge_refs = Array.from(new Set([...(step.knowledge_refs ?? []), ...params.knowledge_refs]));
-					workflow.knowledge_refs = Array.from(new Set([...(workflow.knowledge_refs ?? []), ...params.knowledge_refs]));
+					workflow.knowledge_refs = Array.from(
+						new Set([...(workflow.knowledge_refs ?? []), ...params.knowledge_refs]),
+					);
 				}
 				if (Array.isArray(params.artifact_refs)) {
 					step.artifact_refs = Array.from(new Set([...(step.artifact_refs ?? []), ...params.artifact_refs]));
@@ -722,7 +736,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				if (errorMsg) {
 					step.error = errorMsg;
 					step.recovery_metadata = {
-						...(step.recovery_metadata ?? {}),
+						...step.recovery_metadata,
 						failure_reason: errorMsg,
 					};
 				}
@@ -738,7 +752,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						resumed_at: params.resumed_at ?? new Date().toISOString(),
 					};
 					step.recovery_metadata = {
-						...(step.recovery_metadata ?? {}),
+						...step.recovery_metadata,
 						resume: resumeMeta,
 					};
 				}
@@ -776,10 +790,16 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					`- Status: **${step.status}** (Attempts: ${step.attempts}/${step.max_attempts})`,
 					step.evidence_ids?.length ? `- Linked Evidence: ${step.evidence_ids.join(", ")}` : undefined,
 					step.runtime_session_id ? `- Associated Runtime Session: \`${step.runtime_session_id}\`` : undefined,
-					step.outputs ? `- Output recorded (${typeof step.outputs === "string" ? step.outputs.length : JSON.stringify(step.outputs).length} chars)` : undefined,
+					step.outputs
+						? `- Output recorded (${typeof step.outputs === "string" ? step.outputs.length : JSON.stringify(step.outputs).length} chars)`
+						: undefined,
 					step.error ? `- Failure reason: ${step.error}` : undefined,
-					step.recovery_metadata?.resume ? `- Resumed Tool: \`${step.recovery_metadata.resume.installed_tool}\` (Capability: \`${step.recovery_metadata.resume.capability_id || "none"}\`)` : undefined,
-					metrics.next_step ? `Next recommended step: \`${metrics.next_step.id}\` via \`${metrics.next_step.tool}\`.` : "Workflow completed!",
+					step.recovery_metadata?.resume
+						? `- Resumed Tool: \`${step.recovery_metadata.resume.installed_tool}\` (Capability: \`${step.recovery_metadata.resume.capability_id || "none"}\`)`
+						: undefined,
+					metrics.next_step
+						? `Next recommended step: \`${metrics.next_step.id}\` via \`${metrics.next_step.tool}\`.`
+						: "Workflow completed!",
 				]
 					.filter(Boolean)
 					.join("\n");
@@ -860,7 +880,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					};
 				}
 
-				const proposedTool = params.fallback_tool ?? (resumeMeta && resumeMeta.strategy === "fallback" ? resumeMeta.installed_tool : step.tool);
+				const proposedTool =
+					params.fallback_tool ??
+					(resumeMeta && resumeMeta.strategy === "fallback" ? resumeMeta.installed_tool : step.tool);
 
 				if (params.installed_tool && !isVerified) {
 					const auditEntry: RecoveryAuditEntry = {
@@ -868,7 +890,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						timestamp: new Date().toISOString(),
 						action: "resume",
 						category: "missing_dependency",
-						cause: verificationResult?.missing_reason ?? `Tool '${params.installed_tool}' not found or unconfigured on host`,
+						cause:
+							verificationResult?.missing_reason ??
+							`Tool '${params.installed_tool}' not found or unconfigured on host`,
 						previous_tool: step.tool,
 						proposed_tool: step.tool,
 						proposed_params: step.params_summary,
@@ -883,14 +907,16 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						strategy: resumeMeta?.strategy,
 					};
 					step.recovery_metadata = {
-						...(step.recovery_metadata ?? {}),
+						...step.recovery_metadata,
 						failure_reason: rawError,
 						recovery_audit: [...(step.recovery_metadata?.recovery_audit ?? []), auditEntry],
 						resume: resumeMeta,
 					};
 					await store.save(workflow);
 					const metrics = computeWorkflowMetrics(workflow.steps);
-					const missingReason = verificationResult?.missing_reason ?? "Executable binary not found on PATH or service unconfigured in mcp.json.";
+					const missingReason =
+						verificationResult?.missing_reason ??
+						"Executable binary not found on PATH or service unconfigured in mcp.json.";
 					const setupCmd = resumeMeta?.setup_command ?? `reverse setup reverse ${params.installed_tool}`;
 					const text = [
 						`Cannot resume step \`${step.id}\` in workflow \`${workflow.id}\`:`,
@@ -950,7 +976,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				};
 
 				step.recovery_metadata = {
-					...(step.recovery_metadata ?? {}),
+					...step.recovery_metadata,
 					failure_reason: rawError,
 					fallback_tool: params.fallback_tool ?? step.recovery_metadata?.fallback_tool,
 					attribution: step.recovery_metadata?.attribution ?? attribution,
@@ -985,7 +1011,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					params.fallback_tool ? `- Fallback tool switched to: \`${params.fallback_tool}\`` : undefined,
 					params.next_params ? `- Prepared retry parameters: \`${params.next_params}\`` : undefined,
 					callerResult ? `- Diagnostic note: ${callerResult}` : undefined,
-					resumeMeta ? `- Resumed via installed tool: \`${resumeMeta.installed_tool}\` (Capability: \`${resumeMeta.capability_id || "none"}\`, Strategy: \`${resumeMeta.strategy}\`, Verified: ${resumeMeta.verified})` : undefined,
+					resumeMeta
+						? `- Resumed via installed tool: \`${resumeMeta.installed_tool}\` (Capability: \`${resumeMeta.capability_id || "none"}\`, Strategy: \`${resumeMeta.strategy}\`, Verified: ${resumeMeta.verified})`
+						: undefined,
 					"",
 					`Ready for execution. Run \`${step.tool}\` with the specified parameters, then call 'record' with the result.`,
 				]
@@ -1051,7 +1079,8 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...params.evidence_ids]));
 				}
 
-				const rawError = params.error ?? params.failure_reason ?? step.error ?? "Step execution failed without explicit error";
+				const rawError =
+					params.error ?? params.failure_reason ?? step.error ?? "Step execution failed without explicit error";
 
 				const plan = generateRecoveryPlan(step, workflow, {
 					error: rawError,
@@ -1068,15 +1097,22 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				const retryNumber = step.attempts + 1;
 				const callerResult = params.result ?? params.caller_result;
 
-				const resumeMeta: StepResumeMetadata | undefined = plan.resume ?? (params.installed_tool ? {
-					capability_id: params.capability_id,
-					installed_tool: params.installed_tool,
-					setup_command: params.setup_command ?? plan.attribution.setup_command,
-					verified: plan.resume?.verified ?? false,
-					strategy: params.strategy ?? params.resume_strategy ?? (params.installed_tool === step.tool ? "resume_original" : "fallback"),
-					resumed_at: params.resumed_at ?? new Date().toISOString(),
-					resumed_params: plan.next_params,
-				} : undefined);
+				const resumeMeta: StepResumeMetadata | undefined =
+					plan.resume ??
+					(params.installed_tool
+						? {
+								capability_id: params.capability_id,
+								installed_tool: params.installed_tool,
+								setup_command: params.setup_command ?? plan.attribution.setup_command,
+								verified: false,
+								strategy:
+									params.strategy ??
+									params.resume_strategy ??
+									(params.installed_tool === step.tool ? "resume_original" : "fallback"),
+								resumed_at: params.resumed_at ?? new Date().toISOString(),
+								resumed_params: plan.next_params,
+							}
+						: undefined);
 
 				if (resumeMeta && !resumeMeta.verified) {
 					const unverifiedAudit: RecoveryAuditEntry = {
@@ -1099,7 +1135,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						strategy: resumeMeta.strategy,
 					};
 					step.recovery_metadata = {
-						...(step.recovery_metadata ?? {}),
+						...step.recovery_metadata,
 						failure_reason: rawError,
 						attribution: plan.attribution,
 						recovery_audit: [...(step.recovery_metadata?.recovery_audit ?? []), unverifiedAudit],
@@ -1166,7 +1202,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				};
 
 				step.recovery_metadata = {
-					...(step.recovery_metadata ?? {}),
+					...step.recovery_metadata,
 					failure_reason: rawError,
 					fallback_tool: plan.next_tool !== step.tool ? plan.next_tool : step.recovery_metadata?.fallback_tool,
 					suggested_fix: plan.reasoning,
@@ -1197,11 +1233,15 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					plan.attribution.install_hint ? `- Install Hint: \`${plan.attribution.install_hint}\`` : undefined,
 					plan.attribution.setup_command ? `- Setup Command: \`${plan.attribution.setup_command}\`` : undefined,
 					`- Recovery Strategy: **${plan.suggested_action}**`,
-					resumeMeta ? `- Install-After Resume: Tool \`${resumeMeta.installed_tool}\` installed and verified (Capability: \`${resumeMeta.capability_id || "none"}\`, Strategy: \`${resumeMeta.strategy}\`)` : undefined,
+					resumeMeta
+						? `- Install-After Resume: Tool \`${resumeMeta.installed_tool}\` installed and verified (Capability: \`${resumeMeta.capability_id || "none"}\`, Strategy: \`${resumeMeta.strategy}\`)`
+						: undefined,
 					`- Tool: \`${step.tool}\` (Previous: \`${auditEntry.previous_tool}\`)`,
 					`- Status: **pending** (Upcoming Attempt: ${retryNumber}/${maxAttempts})`,
 					`- Corrected Parameters: \`${nextParamsStr}\``,
-					plan.alternatives.length > 1 ? `- Alternatives: ${plan.alternatives.map(a => `\`${a}\``).join(", ")}` : undefined,
+					plan.alternatives.length > 1
+						? `- Alternatives: ${plan.alternatives.map(a => `\`${a}\``).join(", ")}`
+						: undefined,
 					step.evidence_ids?.length ? `- Linked Evidence: ${step.evidence_ids.join(", ")}` : undefined,
 					callerResult ? `- Diagnostic Note: ${callerResult}` : undefined,
 					"",
@@ -1241,7 +1281,8 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						? Math.min(params.max_attempts, HARD_MAX_ATTEMPTS)
 						: step.max_attempts || DEFAULT_MAX_ATTEMPTS;
 
-				const rawError = params.error ?? params.failure_reason ?? step.error ?? "Step execution failed without explicit error";
+				const rawError =
+					params.error ?? params.failure_reason ?? step.error ?? "Step execution failed without explicit error";
 
 				const plan = generateRecoveryPlan(step, workflow, {
 					error: rawError,
@@ -1269,7 +1310,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					`- Corrected Parameters: \`${nextParamsStr}\``,
 					`- Alternatives: ${plan.alternatives.map(a => `\`${a}\``).join(", ")}`,
 					`- Reasoning: ${plan.reasoning}`,
-					plan.resume ? `- Install-After Resume Preview: Tool \`${plan.resume.installed_tool}\` (Capability: \`${plan.resume.capability_id || "none"}\`, Strategy: \`${plan.resume.strategy}\`, Verified: ${plan.resume.verified})` : undefined,
+					plan.resume
+						? `- Install-After Resume Preview: Tool \`${plan.resume.installed_tool}\` (Capability: \`${plan.resume.capability_id || "none"}\`, Strategy: \`${plan.resume.strategy}\`, Verified: ${plan.resume.verified})`
+						: undefined,
 					`- Bounded Recovery Status: ${plan.can_retry ? "Retry permitted" : "Exhausted"}`,
 					"",
 					plan.can_retry
@@ -1433,9 +1476,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				} else if (progressionResult.evaluated_steps.length > 0) {
 					const proposed = progressionResult.evaluated_steps[0];
 					lines.push("");
-					lines.push(
-						`Proposed Next Step: \`${proposed.id}\` via \`${proposed.tool}\` (${proposed.gate})`,
-					);
+					lines.push(`Proposed Next Step: \`${proposed.id}\` via \`${proposed.tool}\` (${proposed.gate})`);
 					lines.push(`- **Title**: ${proposed.title}`);
 					const paramsStr =
 						typeof proposed.params_summary === "string"
@@ -1467,7 +1508,6 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					},
 				};
 			}
-
 
 			default:
 				throw new ToolError(`Unknown reverse_workflow action: '${String(params.action)}'`);

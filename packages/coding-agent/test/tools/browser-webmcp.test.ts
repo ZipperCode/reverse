@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { disposeAllVmContexts } from "@rva/coding-agent/eval/js/context-manager";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
-import { acquireBrowser, holdBrowser, releaseBrowser } from "@rva/coding-agent/tools/browser/registry";
-import { releaseAllTabs } from "@rva/coding-agent/tools/browser/tab-supervisor";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { disposeAllVmContexts } from "@reverse/coding-agent/eval/js/context-manager";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
+import { acquireBrowser, holdBrowser, releaseBrowser } from "@reverse/coding-agent/tools/browser/registry";
+import { releaseAllTabs } from "@reverse/coding-agent/tools/browser/tab-supervisor";
 import {
 	installWebMcp,
 	installWebMcpPageHook,
@@ -12,8 +12,8 @@ import {
 	type WebMcpInvokeResult,
 	type WebMcpListResult,
 	webMcpSnapshotInPage,
-} from "@rva/coding-agent/tools/browser/webmcp";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
+} from "@reverse/coding-agent/tools/browser/webmcp";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

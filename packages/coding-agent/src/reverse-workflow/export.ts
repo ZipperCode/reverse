@@ -126,14 +126,11 @@ export async function exportWorkflowToMarkdown(
 			lines.push(`- **Decision Reason**: ${step.decision_reason}`);
 		}
 		const paramsStr =
-			typeof step.params_summary === "string"
-				? step.params_summary
-				: JSON.stringify(step.params_summary);
+			typeof step.params_summary === "string" ? step.params_summary : JSON.stringify(step.params_summary);
 		lines.push(`- **Parameters**: \`${paramsStr}\``);
 
 		if (step.outputs) {
-			const outputStr =
-				typeof step.outputs === "string" ? step.outputs : JSON.stringify(step.outputs);
+			const outputStr = typeof step.outputs === "string" ? step.outputs : JSON.stringify(step.outputs);
 			lines.push(`- **Output Summary**: ${outputStr.length > 500 ? outputStr.slice(0, 500) + "..." : outputStr}`);
 		}
 
@@ -191,11 +188,15 @@ export async function exportWorkflowToMarkdown(
 							? audit.proposed_params
 							: JSON.stringify(audit.proposed_params);
 					const capTag = audit.capability_id ? ` (Capability: \`${audit.capability_id}\`)` : "";
-					lines.push(`    - Attempt ${audit.attempt} (${audit.action}): [${audit.category}] ${toolTransition}${capTag}`);
+					lines.push(
+						`    - Attempt ${audit.attempt} (${audit.action}): [${audit.category}] ${toolTransition}${capTag}`,
+					);
 					lines.push(`      - Decision: ${audit.decision}`);
 					lines.push(`      - Proposed Params: \`${paramsStr}\``);
 					if (audit.installed_tool) {
-						lines.push(`      - Installed Tool: \`${audit.installed_tool}\` (Verified: ${audit.verified ?? true})`);
+						lines.push(
+							`      - Installed Tool: \`${audit.installed_tool}\` (Verified: ${audit.verified ?? true})`,
+						);
 					}
 					if (audit.evidence_ids && audit.evidence_ids.length > 0) {
 						lines.push(`      - Associated Evidence: ${audit.evidence_ids.map(id => `\`${id}\``).join(", ")}`);
@@ -205,7 +206,9 @@ export async function exportWorkflowToMarkdown(
 			if (rec.retry_history && rec.retry_history.length > 0) {
 				lines.push("  - Retry History:");
 				for (const rh of rec.retry_history) {
-					lines.push(`    - Attempt ${rh.attempt} at ${rh.timestamp}: ${rh.caller_result || rh.error || "Retried"}`);
+					lines.push(
+						`    - Attempt ${rh.attempt} at ${rh.timestamp}: ${rh.caller_result || rh.error || "Retried"}`,
+					);
 				}
 			}
 		}
@@ -247,7 +250,6 @@ export async function exportWorkflowToMarkdown(
 		}
 		lines.push("");
 	}
-
 
 	const fullText = lines.join("\n");
 	if (fullText.length > MAX_EXPORT_CHARS) {

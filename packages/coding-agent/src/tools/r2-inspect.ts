@@ -1,8 +1,8 @@
 import { stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { prompt } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { prompt } from "@reverse/utils";
 import r2InspectDescription from "../prompts/tools/r2-inspect.md" with { type: "text" };
 import {
 	checkToolRequirements,
@@ -12,7 +12,7 @@ import {
 import { SKILL_TOOL_CATALOG, type SkillToolPlatform } from "../extensibility/skill-tool-catalog";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 
 const r2InspectSchema = type({

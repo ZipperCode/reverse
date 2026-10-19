@@ -4,7 +4,7 @@
  * picture-in-pictures floating over omp's own pane and every tab helper drives
  * that PiP's native web view through the Tern daemon (`wire.ts`).
  */
-import { parseFlag } from "@rva/utils";
+import { parseFlag } from "@reverse/utils";
 
 /** The Tern pane omp runs in. */
 export interface TernPane {

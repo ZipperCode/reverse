@@ -1,10 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type {
-	RuntimeSessionProbeInfo,
-	RuntimeSessionRecord,
-	RuntimeSessionStatus,
-} from "./contracts";
+import type { RuntimeSessionProbeInfo, RuntimeSessionRecord, RuntimeSessionStatus } from "./contracts";
 import { sanitizeSessionString } from "./sanitize";
 
 export interface ProbeOptions {
@@ -47,7 +43,13 @@ export async function probeSessionStatus(
 	if (options.caller_status || options.probe_result) {
 		const rawStatus = (options.caller_status || "").trim().toLowerCase();
 		let status: RuntimeSessionStatus = record.status;
-		if (rawStatus === "active" || rawStatus === "idle" || rawStatus === "stale" || rawStatus === "closed" || rawStatus === "failed") {
+		if (
+			rawStatus === "active" ||
+			rawStatus === "idle" ||
+			rawStatus === "stale" ||
+			rawStatus === "closed" ||
+			rawStatus === "failed"
+		) {
 			status = rawStatus;
 		} else if (options.error) {
 			status = "failed";
@@ -59,7 +61,9 @@ export async function probeSessionStatus(
 			ok: status !== "failed",
 			status,
 			reachable: isReachable,
-			message: sanitizeSessionString(options.probe_result || options.error || `Caller reported status as '${status}'.`),
+			message: sanitizeSessionString(
+				options.probe_result || options.error || `Caller reported status as '${status}'.`,
+			),
 			source: "caller_reported",
 		};
 	}
@@ -72,9 +76,7 @@ export async function probeSessionStatus(
 	switch (kind) {
 		case "ida": {
 			const dbPath =
-				(targetDetails.db as string) ||
-				(targetDetails.idb_path as string) ||
-				(targetDetails.path as string);
+				(targetDetails.db as string) || (targetDetails.idb_path as string) || (targetDetails.path as string);
 			if (!dbPath) {
 				return {
 					timestamp,
@@ -94,7 +96,9 @@ export async function probeSessionStatus(
 					ok: true,
 					reachable: true,
 					status: record.status === "failed" ? "failed" : "idle",
-					message: sanitizeSessionString(`IDA target file exists on disk (${stat.size} bytes). Host connection probe requires active daemon. Stored heartbeat: ${record.last_heartbeat_at}.`),
+					message: sanitizeSessionString(
+						`IDA target file exists on disk (${stat.size} bytes). Host connection probe requires active daemon. Stored heartbeat: ${record.last_heartbeat_at}.`,
+					),
 					source: "metadata_check",
 				};
 			} catch {
@@ -130,7 +134,9 @@ export async function probeSessionStatus(
 					ok: true,
 					reachable: true,
 					status: record.status === "failed" ? "failed" : "idle",
-					message: sanitizeSessionString(`Ghidra target binary exists on disk (${stat.size} bytes). Headless project ready for inspection. Stored heartbeat: ${record.last_heartbeat_at}.`),
+					message: sanitizeSessionString(
+						`Ghidra target binary exists on disk (${stat.size} bytes). Headless project ready for inspection. Stored heartbeat: ${record.last_heartbeat_at}.`,
+					),
 					source: "metadata_check",
 				};
 			} catch {
@@ -153,7 +159,9 @@ export async function probeSessionStatus(
 					ok: true,
 					reachable: record.status !== "failed" && record.status !== "closed",
 					status: record.status,
-					message: sanitizeSessionString(`Browser tab has no navigation URL specified; placeholder tab session. Stored heartbeat: ${record.last_heartbeat_at}.`),
+					message: sanitizeSessionString(
+						`Browser tab has no navigation URL specified; placeholder tab session. Stored heartbeat: ${record.last_heartbeat_at}.`,
+					),
 					source: "metadata_check",
 				};
 			}
@@ -165,7 +173,9 @@ export async function probeSessionStatus(
 					ok: true,
 					reachable: record.status !== "failed" && record.status !== "closed",
 					status: record.status,
-					message: sanitizeSessionString(`Browser target URL syntax is valid: '${url}'. Stored heartbeat: ${record.last_heartbeat_at}.`),
+					message: sanitizeSessionString(
+						`Browser target URL syntax is valid: '${url}'. Stored heartbeat: ${record.last_heartbeat_at}.`,
+					),
 					source: "metadata_check",
 				};
 			} catch {
@@ -190,7 +200,9 @@ export async function probeSessionStatus(
 						ok: false,
 						reachable: false,
 						status: "stale",
-						message: sanitizeSessionString(`Target DAP process with PID ${pid} is not running (reachability check failed). Stored heartbeat was at ${record.last_heartbeat_at}.`),
+						message: sanitizeSessionString(
+							`Target DAP process with PID ${pid} is not running (reachability check failed). Stored heartbeat was at ${record.last_heartbeat_at}.`,
+						),
 						source: "reachability_check",
 					};
 				}
@@ -207,9 +219,7 @@ export async function probeSessionStatus(
 			}
 
 			const program =
-				(targetDetails.program as string) ||
-				(targetDetails.binary as string) ||
-				(targetDetails.path as string);
+				(targetDetails.program as string) || (targetDetails.binary as string) || (targetDetails.path as string);
 			if (program) {
 				const resolvedPath = path.isAbsolute(program) ? program : path.resolve(cwd, program);
 				try {
@@ -222,7 +232,7 @@ export async function probeSessionStatus(
 						message: sanitizeSessionString(
 							`DAP target program exists on disk (${stat.size} bytes). Stored heartbeat was at ${record.last_heartbeat_at}.`,
 						),
-					source: "metadata_check",
+						source: "metadata_check",
 					};
 				} catch {
 					return {
@@ -231,7 +241,7 @@ export async function probeSessionStatus(
 						reachable: false,
 						status: "failed",
 						message: sanitizeSessionString(`Target DAP program file not found on disk: '${resolvedPath}'.`),
-					source: "metadata_check",
+						source: "metadata_check",
 					};
 				}
 			}
@@ -258,7 +268,9 @@ export async function probeSessionStatus(
 						ok: false,
 						reachable: false,
 						status: "stale",
-						message: sanitizeSessionString(`Target Frida process with PID ${pid} is not running (reachability check failed). Stored heartbeat was at ${record.last_heartbeat_at}.`),
+						message: sanitizeSessionString(
+							`Target Frida process with PID ${pid} is not running (reachability check failed). Stored heartbeat was at ${record.last_heartbeat_at}.`,
+						),
 						source: "reachability_check",
 					};
 				}
@@ -280,7 +292,9 @@ export async function probeSessionStatus(
 				ok: record.status !== "failed",
 				reachable: record.status !== "failed" && record.status !== "closed",
 				status: record.status,
-				message: sanitizeSessionString(`Metadata check: Frida session configured for ${targetSummary}. Stored heartbeat was at ${record.last_heartbeat_at}. Live process attachment verified via heartbeat or frida_session tool.`),
+				message: sanitizeSessionString(
+					`Metadata check: Frida session configured for ${targetSummary}. Stored heartbeat was at ${record.last_heartbeat_at}. Live process attachment verified via heartbeat or frida_session tool.`,
+				),
 				source: "metadata_check",
 			};
 		}
@@ -292,7 +306,9 @@ export async function probeSessionStatus(
 				ok: record.status !== "failed",
 				reachable: record.status !== "failed" && record.status !== "closed",
 				status: record.status,
-				message: sanitizeSessionString(`Metadata check: session status preserved as '${record.status}'. Stored heartbeat was at ${record.last_heartbeat_at}.`),
+				message: sanitizeSessionString(
+					`Metadata check: session status preserved as '${record.status}'. Stored heartbeat was at ${record.last_heartbeat_at}.`,
+				),
 				source: "metadata_check",
 			};
 		}

@@ -1,18 +1,18 @@
-import type { AgentToolResult } from "@rva/agent";
-import type { TextContent } from "@rva/ai";
+import type { AgentToolResult } from "@reverse/agent";
+import type { TextContent } from "@reverse/ai";
 import {
 	type ArchiveFormat,
 	type ArchiveReader,
 	formatArchiveEntryLines,
 	openArchive,
 	parseArchivePathCandidates,
-} from "@rva/utils/ar";
-import { LRUCache } from "@rva/utils/lru";
+} from "@reverse/utils/ar";
+import { LRUCache } from "@reverse/utils/lru";
 import type { ToolSession } from "../sdk";
-import { truncateHead } from "@rva/tui/tools/streaming-output";
-import { applyListLimit } from "@rva/tui/tools/list-limit";
+import { truncateHead } from "@reverse/tui/tools/streaming-output";
+import { applyListLimit } from "@reverse/tui/tools/list-limit";
 import { resolveReadPath } from "./path-utils";
-import type { ReadToolDetails } from "@rva/tui/tools/read";
+import type { ReadToolDetails } from "@reverse/tui/tools/read";
 import {
 	buildInMemorySelectorResult,
 	decodeUtf8Text,
@@ -27,9 +27,9 @@ import {
 	type SuffixMatchCache,
 } from "./read-path-resolution";
 import { isMultiRange, type ParsedSelector, parseSel, resolveTailSelector, selToOffsetLimit } from "./read-selector";
-import { formatBytes } from "@rva/tui/render/render-utils";
+import { formatBytes } from "@reverse/tui/render/render-utils";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 interface ResolvedArchiveReadPath {

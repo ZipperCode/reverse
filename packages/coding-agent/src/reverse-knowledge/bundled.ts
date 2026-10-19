@@ -7,8 +7,9 @@ import {
 } from "./contracts";
 import { normalizeTargetFormat } from "../reverse-workflow/contracts";
 
-export const BUNDLED_REVERSE_KNOWLEDGE_SEEDS: readonly ReverseKnowledgeRecord[] =
-	Object.freeze(bundledSeedsRaw as ReverseKnowledgeRecord[]);
+export const BUNDLED_REVERSE_KNOWLEDGE_SEEDS: readonly ReverseKnowledgeRecord[] = Object.freeze(
+	bundledSeedsRaw as ReverseKnowledgeRecord[],
+);
 
 export function getBundledReverseKnowledgeRecords(): ReverseKnowledgeRecord[] {
 	return BUNDLED_REVERSE_KNOWLEDGE_SEEDS.map(r => ({ ...r, metadata: { ...r.metadata } }));
@@ -23,10 +24,7 @@ export function matchAndScoreKnowledgeRecords(
 	records: readonly ReverseKnowledgeRecord[],
 	filter: ReverseKnowledgeFilter = {},
 ): ReverseKnowledgeRecord[] {
-	const limit = Math.min(
-		Math.max(filter.limit ?? DEFAULT_KNOWLEDGE_SEARCH_LIMIT, 1),
-		MAX_KNOWLEDGE_SEARCH_LIMIT,
-	);
+	const limit = Math.min(Math.max(filter.limit ?? DEFAULT_KNOWLEDGE_SEARCH_LIMIT, 1), MAX_KNOWLEDGE_SEARCH_LIMIT);
 	const normalizedFilterFormat = normalizeTargetFormat(filter.format);
 
 	const queryTokens = filter.query
@@ -172,8 +170,6 @@ export function matchAndScoreKnowledgeRecords(
 	return scored.slice(offset, offset + limit).map(item => item.record);
 }
 
-export function searchBundledReverseKnowledge(
-	filter: ReverseKnowledgeFilter = {},
-): ReverseKnowledgeRecord[] {
+export function searchBundledReverseKnowledge(filter: ReverseKnowledgeFilter = {}): ReverseKnowledgeRecord[] {
 	return matchAndScoreKnowledgeRecords(BUNDLED_REVERSE_KNOWLEDGE_SEEDS, filter);
 }

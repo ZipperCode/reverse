@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { prompt, isEnoent, getBrowserSessionsProjectDir } from "@rva/utils";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { prompt, isEnoent, getBrowserSessionsProjectDir } from "@reverse/utils";
 import { replaceFileAtomically } from "../utils/atomic-file";
 import { encodeProjectKey } from "./frida-session";
 import { ReverseRuntimeSessionStore } from "../reverse-runtime-session/store";
@@ -16,10 +16,8 @@ import {
 	HOOK_PRESETS,
 	HOOK_TAMPER_MODES,
 	type HookPresetKind,
-	type HookTamperMode,
 	type BrowserReverseEvent,
 	type BrowserReverseRunner,
-	type BrowserTabSummary,
 	createDefaultBrowserReverseRunner,
 	validateCustomTargetSelector,
 	JsHookPresetTool,
@@ -42,9 +40,9 @@ const browserReverseSessionSchema = type({
 	"session_id?": type("string").describe("Identifier for the reverse runtime session (auto-generated if omitted)"),
 	"tab_name?": type("string").describe("Browser tab identifier (default 'main')"),
 	"url?": type("string").describe("Target URL to open (required for action 'open')"),
-	"preset?": type.enumerated(...HOOK_PRESETS).describe(
-		"Hook preset to inject: fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, custom",
-	),
+	"preset?": type
+		.enumerated(...HOOK_PRESETS)
+		.describe("Hook preset to inject: fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, custom"),
 	"target?": type("string").describe("Allowlisted target selector for custom preset (e.g. 'window.api.login')"),
 	"filter?": type("string").describe("Substring filter to match specific URLs, methods, or payloads"),
 	"kind?": type("string").describe(
@@ -54,18 +52,18 @@ const browserReverseSessionSchema = type({
 		"For action: 'events': filter to events strictly greater than this sequence number",
 	),
 	"stack_trace?": type("boolean").describe("Whether to capture call stack traces with events (default true)"),
-	"tamper_mode?": type.enumerated(...HOOK_TAMPER_MODES).describe(
-		"Hook mode: 'log' (default read-only observer), 'debugger', or 'stub'",
-	),
+	"tamper_mode?": type
+		.enumerated(...HOOK_TAMPER_MODES)
+		.describe("Hook mode: 'log' (default read-only observer), 'debugger', or 'stub'"),
 	"max_payload_length?": type("number.integer >= 1").describe(
 		"Maximum characters of argument/response payload to capture (default 1024, max 32768)",
 	),
 	"clear?": type("boolean").describe("Whether to clear captured event buffer after reading (for 'capture'/'events')"),
 	"limit?": type("number.integer >= 1").describe("Maximum number of events to return or export (default 50, max 500)"),
 	"export_target?": type("string").describe("Target file/URL name recorded in exported evidence facts"),
-	"evidence_kind?": type.enumerated("fact", "hypothesis").describe(
-		"Kind of evidence to export ('fact' or 'hypothesis', default 'fact')",
-	),
+	"evidence_kind?": type
+		.enumerated("fact", "hypothesis")
+		.describe("Kind of evidence to export ('fact' or 'hypothesis', default 'fact')"),
 	"tags?": type("string[]").describe("Categorization tags to attach to exported evidence"),
 });
 
@@ -115,6 +113,7 @@ export interface BrowserReverseSessionDetails {
 	injected_hooks?: InjectedHookRecord[];
 	events?: BrowserReverseEvent[];
 	eventCount?: number;
+	totalEvents?: number;
 	consoleLogs?: unknown[];
 	requests?: unknown[];
 	evidence?: BrowserEvidenceExportItem[];
@@ -124,7 +123,9 @@ export interface BrowserReverseSessionDetails {
 
 const activeReverseSessions = new Map<string, ActiveBrowserReverseSession>();
 
-export function getActiveBrowserReverseSessionForTest(sessionIdOrTabName: string): ActiveBrowserReverseSession | undefined {
+export function getActiveBrowserReverseSessionForTest(
+	sessionIdOrTabName: string,
+): ActiveBrowserReverseSession | undefined {
 	const direct = activeReverseSessions.get(sessionIdOrTabName);
 	if (direct) return direct;
 	for (const session of activeReverseSessions.values()) {
@@ -148,9 +149,10 @@ export class BrowserReverseSessionStore {
 		const projectKey = encodeProjectKey(cwd);
 		if (stateRoot) {
 			const resolved = path.resolve(stateRoot);
-			const baseDir = resolved.endsWith("browser_sessions") || resolved.endsWith("browser-sessions")
-				? resolved
-				: path.join(resolved, "browser_sessions");
+			const baseDir =
+				resolved.endsWith("browser_sessions") || resolved.endsWith("browser-sessions")
+					? resolved
+					: path.join(resolved, "browser_sessions");
 			return new BrowserReverseSessionStore(path.join(baseDir, projectKey));
 		}
 		return new BrowserReverseSessionStore(getBrowserSessionsProjectDir(projectKey));
@@ -222,9 +224,10 @@ export class BrowserReverseSessionStore {
 	}
 }
 
-export class BrowserReverseSessionTool
-	implements AgentTool<typeof browserReverseSessionSchema, BrowserReverseSessionDetails>
-{
+export class BrowserReverseSessionTool implements AgentTool<
+	typeof browserReverseSessionSchema,
+	BrowserReverseSessionDetails
+> {
 	readonly name = "browser_reverse_session";
 	readonly approval = (args: unknown): ToolTier => {
 		if (args && typeof args === "object" && "action" in args) {
@@ -256,10 +259,7 @@ export class BrowserReverseSessionTool
 
 	private async syncToRuntimeSessionStore(revSession: ActiveBrowserReverseSession): Promise<void> {
 		try {
-			const runtimeStore = ReverseRuntimeSessionStore.forSession(
-				this.session.cwd,
-				this.stateRoot,
-			);
+			const runtimeStore = ReverseRuntimeSessionStore.forSession(this.session.cwd, this.stateRoot);
 			const recent = (revSession.capturedEvents ?? []).slice(-50);
 			const normalizedRecent: UniversalDynamicEvent[] = recent.map((ev, idx) =>
 				normalizeBrowserEvent(ev, revSession.id, {
@@ -389,7 +389,6 @@ export class BrowserReverseSessionTool
 		return this.runner ?? createDefaultBrowserReverseRunner(this.session);
 	}
 
-
 	async execute(
 		_toolCallId: string,
 		params: BrowserReverseSessionParams,
@@ -406,9 +405,7 @@ export class BrowserReverseSessionTool
 			if (!targetUrl) {
 				const liveTab = runner.getTab(tabName);
 				if (!liveTab || liveTab.state !== "alive") {
-					throw new ToolError(
-						`url is required for action 'open' when tab "${tabName}" is not already open.`,
-					);
+					throw new ToolError(`url is required for action 'open' when tab "${tabName}" is not already open.`);
 				}
 			}
 
@@ -549,11 +546,18 @@ export class BrowserReverseSessionTool
 
 		if (action === "capture") {
 			const liveTab = runner.getTab(tabName);
-			if (!liveTab || liveTab.state !== "alive") throw new ToolError(`Browser tab "${tabName}" is not open or alive. Cannot capture events from an inactive tab.`);
+			if (!liveTab || liveTab.state !== "alive")
+				throw new ToolError(
+					`Browser tab "${tabName}" is not open or alive. Cannot capture events from an inactive tab.`,
+				);
 			const revSession = await this.findOrCreateSession(tabName, params.session_id, liveTab.url);
 			const limit = Math.min(500, Math.max(1, Math.floor(params.limit ?? 50)));
 			const hookTool = new JsHookPresetTool(this.session, runner);
-			const captureRes = await hookTool.execute("sub_capture", { action: "capture", tab_name: tabName, filter: params.filter, clear: params.clear === true, limit }, signal);
+			const captureRes = await hookTool.execute(
+				"sub_capture",
+				{ action: "capture", tab_name: tabName, filter: params.filter, clear: params.clear === true, limit },
+				signal,
+			);
 			const newEvents = captureRes.details?.events ?? [];
 			if (typeof revSession.eventsCount !== "number") {
 				revSession.eventsCount = revSession.capturedEvents.reduce(
@@ -567,8 +571,7 @@ export class BrowserReverseSessionTool
 					return (
 						e.timestamp === ev.timestamp &&
 						e.type === ev.type &&
-						JSON.stringify(e.data ?? e.payload ?? e) ===
-							JSON.stringify(ev.data ?? ev.payload ?? ev)
+						JSON.stringify(e.data ?? e.payload ?? e) === JSON.stringify(ev.data ?? ev.payload ?? ev)
 					);
 				});
 				if (existing) {
@@ -609,11 +612,14 @@ export class BrowserReverseSessionTool
 			const revSession = await this.findOrCreateSession(tabName, params.session_id);
 			let matchingEvents = [...revSession.capturedEvents];
 			if (typeof params.since_seq === "number") {
-				matchingEvents = matchingEvents.filter(
-					e => typeof e.seq === "number" && e.seq > params.since_seq!,
-				);
+				matchingEvents = matchingEvents.filter(e => typeof e.seq === "number" && e.seq > params.since_seq!);
 			}
-			const filterQuery = (params.filter || (params as Record<string, unknown>).kind ? String(params.filter || (params as Record<string, unknown>).kind).trim().toLowerCase() : null);
+			const filterQuery =
+				params.filter || (params as Record<string, unknown>).kind
+					? String(params.filter || (params as Record<string, unknown>).kind)
+							.trim()
+							.toLowerCase()
+					: null;
 			if (filterQuery) {
 				matchingEvents = matchingEvents.filter(e => {
 					const typeLower = (e.type || "").toLowerCase();
@@ -671,7 +677,12 @@ export class BrowserReverseSessionTool
 		if (action === "export_evidence") {
 			const liveTab = runner.getTab(tabName);
 			const revSession = await this.findOrCreateSession(tabName, params.session_id, liveTab?.url);
-			const filter = (params.filter || (params as Record<string, unknown>).kind ? String(params.filter || (params as Record<string, unknown>).kind).trim().toLowerCase() : null);
+			const filter =
+				params.filter || (params as Record<string, unknown>).kind
+					? String(params.filter || (params as Record<string, unknown>).kind)
+							.trim()
+							.toLowerCase()
+					: null;
 			const limit = Math.min(500, Math.max(1, Math.floor(params.limit ?? 50)));
 
 			let matchingEvents = revSession.capturedEvents;
@@ -760,7 +771,9 @@ export class BrowserReverseSessionTool
 			if (revSession.injectedHooks.length > 0) {
 				summaryLines.push("### Active Hooks:");
 				for (const h of revSession.injectedHooks) {
-					summaryLines.push(`- **${h.preset}** ${h.target ? `(${h.target})` : ""}${h.filter ? ` [filter: ${h.filter}]` : ""}`);
+					summaryLines.push(
+						`- **${h.preset}** ${h.target ? `(${h.target})` : ""}${h.filter ? ` [filter: ${h.filter}]` : ""}`,
+					);
 				}
 			}
 
@@ -789,7 +802,9 @@ export class BrowserReverseSessionTool
 			await this.saveSession(revSession);
 
 			return {
-				content: [{ type: "text", text: `Browser reverse session \`${revSession.id}\` (tab \`${tabName}\`) closed.` }],
+				content: [
+					{ type: "text", text: `Browser reverse session \`${revSession.id}\` (tab \`${tabName}\`) closed.` },
+				],
 				details: {
 					action: "close",
 					session_id: revSession.id,

@@ -1,23 +1,16 @@
-import * as fs from "node:fs";
 import * as path from "node:path";
 import type {
 	FailureAttribution,
-	FailureCategory,
-	RecoveryAuditEntry,
 	RecoveryPlan,
 	ReverseWorkflowRecord,
 	WorkflowStepRecord,
 	StepResumeMetadata,
 } from "./contracts";
 import { DEFAULT_MAX_ATTEMPTS, HARD_MAX_ATTEMPTS } from "./contracts";
-import {
-	CAPABILITY_CATALOG,
-	SKILL_TOOL_CATALOG,
-	type SkillToolPlatform,
-} from "../extensibility/skill-tool-catalog";
+import { CAPABILITY_CATALOG, SKILL_TOOL_CATALOG, type SkillToolPlatform } from "../extensibility/skill-tool-catalog";
 import { checkToolRequirements, type SkillRequirementWhich } from "../extensibility/skill-requirements";
 import { getMcpService } from "../extensibility/mcp-service-catalog";
-import { getMCPConfigPath, getProjectDir } from "@rva/utils";
+import { getMCPConfigPath, getProjectDir } from "@reverse/utils";
 import { readMcpConfigFileSync } from "../cli/setup-reverse";
 import type { MCPConfigFile } from "../mcp/types";
 export interface ToolInstallHint {
@@ -144,7 +137,10 @@ export function getCapabilitySetupCommand(toolName: string): string | undefined 
 	return undefined;
 }
 
-export function getPlatformInstallCommand(toolName: string, platform: NodeJS.Platform = process.platform): string | undefined {
+export function getPlatformInstallCommand(
+	toolName: string,
+	platform: NodeJS.Platform = process.platform,
+): string | undefined {
 	const normalized = toolName.toLowerCase().trim();
 	const hint = TOOL_INSTALL_HINTS[normalized];
 	if (hint) {
@@ -182,22 +178,36 @@ export interface FailureClassificationContext {
  * - unsupported
  * - unknown
  */
-export function classifyFailure(
-	errorMessage: string,
-	context: FailureClassificationContext = {},
-): FailureAttribution {
+export function classifyFailure(errorMessage: string, context: FailureClassificationContext = {}): FailureAttribution {
 	const rawError = errorMessage.trim();
-	const errLower = rawError.toLowerCase();
 
 	// 1. Missing Dependency Check
 	// Specific tools first
 	const toolPatterns: Array<{ name: string; pattern: RegExp }> = [
-		{ name: "radare2", pattern: /\b(?:r2|radare2)\b.*(?:not found|cannot find|no such file|command not found|enoent)|(?:cannot find|no such command).*\b(?:r2|radare2)\b|r2: command not found/i },
-		{ name: "ghidra", pattern: /\bghidra\b.*(?:not found|cannot find|no such file|command not found)|ghidra_install_dir|analyzeheadless/i },
-		{ name: "droidasc", pattern: /\bdroidasc\b.*(?:not found|cannot find|no such file|command not found|cannot find module)/i },
-		{ name: "jadx", pattern: /\bjadx\b.*(?:not found|cannot find|no such file|command not found|please install jadx)/i },
+		{
+			name: "radare2",
+			pattern:
+				/\b(?:r2|radare2)\b.*(?:not found|cannot find|no such file|command not found|enoent)|(?:cannot find|no such command).*\b(?:r2|radare2)\b|r2: command not found/i,
+		},
+		{
+			name: "ghidra",
+			pattern:
+				/\bghidra\b.*(?:not found|cannot find|no such file|command not found)|ghidra_install_dir|analyzeheadless/i,
+		},
+		{
+			name: "droidasc",
+			pattern: /\bdroidasc\b.*(?:not found|cannot find|no such file|command not found|cannot find module)/i,
+		},
+		{
+			name: "jadx",
+			pattern: /\bjadx\b.*(?:not found|cannot find|no such file|command not found|please install jadx)/i,
+		},
 		{ name: "apktool", pattern: /\bapktool\b.*(?:not found|cannot find|no such file|command not found)/i },
-		{ name: "adb", pattern: /\badb\b.*(?:not found|cannot find|no such file|command not found)|failed to execute adb.*(?:enoent|not found)/i },
+		{
+			name: "adb",
+			pattern:
+				/\badb\b.*(?:not found|cannot find|no such file|command not found)|failed to execute adb.*(?:enoent|not found)/i,
+		},
 		{ name: "frida", pattern: /\bfrida\b.*(?:not found|cannot find|no such file|command not found|frida-tools)/i },
 		{ name: "wabt", pattern: /\b(?:wabt|wasm2wat|wat2wasm)\b.*(?:not found|cannot find|command not found)/i },
 		{ name: "tshark", pattern: /\btshark\b.*(?:not found|cannot find|command not found)/i },
@@ -220,12 +230,13 @@ export function classifyFailure(
 				install_hint: installCmd ?? setupCmd,
 				setup_command: setupCmd,
 			};
-	}
-
+		}
 	}
 	// Generic missing dependency
 	if (
-		/\b(?:command not found|not found on path|is not installed|not installed on the system|spawn .* enoent|executable not found|no such file or directory)\b/i.test(rawError) ||
+		/\b(?:command not found|not found on path|is not installed|not installed on the system|spawn .* enoent|executable not found|no such file or directory)\b/i.test(
+			rawError,
+		) ||
 		/cannot find executable|binary not found|please install/i.test(rawError)
 	) {
 		const toolName = context.tool ?? "required tool";
@@ -245,7 +256,9 @@ export function classifyFailure(
 
 	// 2. Device Required Check
 	if (
-		/\b(?:no (?:usable )?(?:android )?device|device (?:offline|not found|unauthorized)|no emulator|adb server not running|cannot connect to daemon|unable to connect to.*frida|device not connected|no target device|usb device not detected|device unauthorized)\b/i.test(rawError)
+		/\b(?:no (?:usable )?(?:android )?device|device (?:offline|not found|unauthorized)|no emulator|adb server not running|cannot connect to daemon|unable to connect to.*frida|device not connected|no target device|usb device not detected|device unauthorized)\b/i.test(
+			rawError,
+		)
 	) {
 		return {
 			category: "device_required",
@@ -258,7 +271,9 @@ export function classifyFailure(
 
 	// 3. Timeout Check
 	if (
-		/\b(?:timed? out|timeout|etimedout|deadline exceeded|killed after \d+m?s|execution time exceeded|took too long)\b/i.test(rawError)
+		/\b(?:timed? out|timeout|etimedout|deadline exceeded|killed after \d+m?s|execution time exceeded|took too long)\b/i.test(
+			rawError,
+		)
 	) {
 		return {
 			category: "timeout",
@@ -271,7 +286,9 @@ export function classifyFailure(
 
 	// 4. Truncated Check
 	if (
-		/\b(?:truncated|output limit exceeded|buffer (?:overflow|full|limit)|response clipped|maximum .* limit of \d+ bytes|exceeds maximum .* limit|too large)\b/i.test(rawError)
+		/\b(?:truncated|output limit exceeded|buffer (?:overflow|full|limit)|response clipped|maximum .* limit of \d+ bytes|exceeds maximum .* limit|too large)\b/i.test(
+			rawError,
+		)
 	) {
 		return {
 			category: "truncated",
@@ -284,7 +301,9 @@ export function classifyFailure(
 
 	// 5. Invalid Format Check
 	if (
-		/\b(?:invalid (?:magic|header|format|signature|elf|pe|mach-o|apk|dex|zip|wasm|pcap|sqlite)|not a valid (?:elf|pe|mach-o|apk|dex|zip|wasm|pcap|sqlite)|corrupt(?:ed)?|bad magic|unrecognized file format|file format not recognized|unexpected file format|malformed|not an elf binary|not a pe file|not an apk|not a valid sqlite|failed to parse|file is encrypted|packed with unknown packer)\b/i.test(rawError)
+		/\b(?:invalid (?:magic|header|format|signature|elf|pe|mach-o|apk|dex|zip|wasm|pcap|sqlite)|not a valid (?:elf|pe|mach-o|apk|dex|zip|wasm|pcap|sqlite)|corrupt(?:ed)?|bad magic|unrecognized file format|file format not recognized|unexpected file format|malformed|not an elf binary|not a pe file|not an apk|not a valid sqlite|failed to parse|file is encrypted|packed with unknown packer)\b/i.test(
+			rawError,
+		)
 	) {
 		return {
 			category: "invalid_format",
@@ -297,7 +316,9 @@ export function classifyFailure(
 
 	// 6. Unsupported Check
 	if (
-		/\b(?:unsupported (?:architecture|arch|format|feature|version|encoding|platform)|not supported|not implemented|unknown architecture|symbol not found|stripped binary|no section table|no debugging symbols|entrypoint not found)\b/i.test(rawError)
+		/\b(?:unsupported (?:architecture|arch|format|feature|version|encoding|platform)|not supported|not implemented|unknown architecture|symbol not found|stripped binary|no section table|no debugging symbols|entrypoint not found)\b/i.test(
+			rawError,
+		)
 	) {
 		return {
 			category: "unsupported",
@@ -350,10 +371,7 @@ export interface VerifyToolResult {
  * Verify that an external tool is actually installed and available on the host system.
  * User-supplied verified: true is never accepted without fresh host verification.
  */
-export function verifyInstalledTool(
-	toolId: string,
-	options: VerifyToolOptions = {},
-): VerifyToolResult {
+export function verifyInstalledTool(toolId: string, options: VerifyToolOptions = {}): VerifyToolResult {
 	const normalizedId = (toolId ?? "").trim().toLowerCase();
 	if (!normalizedId) {
 		return {
@@ -542,7 +560,8 @@ export function generateRecoveryPlan(
 
 		// User supplied verified:true isn't proof; host check is authoritative
 		const isVerified = verification.verified;
-		const resumeStrategy = options.strategy ?? (options.installedTool === originalTool ? "resume_original" : "fallback");
+		const resumeStrategy =
+			options.strategy ?? (options.installedTool === originalTool ? "resume_original" : "fallback");
 		const resumeMeta: StepResumeMetadata = {
 			capability_id: options.capabilityId,
 			installed_tool: options.installedTool,
@@ -574,7 +593,8 @@ export function generateRecoveryPlan(
 			};
 		}
 
-		const nextTool = options.fallbackToolOverride ?? (resumeStrategy === "resume_original" ? originalTool : options.installedTool);
+		const nextTool =
+			options.fallbackToolOverride ?? (resumeStrategy === "resume_original" ? originalTool : options.installedTool);
 		const nextParams = options.nextParamsOverride ?? originalParams;
 		return {
 			attribution,
@@ -632,8 +652,7 @@ export function generateRecoveryPlan(
 				nextParams = { path: targetPath, action: "inspect" };
 				alternatives = ["android_native_workflow", "android_package_inspect"];
 				reasoning = `Unidbg emulator is not available. Falling back to android_native_workflow for static JNI export and DEX native mapping.`;
-			} else
-			if (originalTool === "droidasc" || originalTool === "jadx" || originalTool === "apktool") {
+			} else if (originalTool === "droidasc" || originalTool === "jadx" || originalTool === "apktool") {
 				nextTool = "android_package_inspect";
 				nextParams = { path: targetPath, action: "dex" };
 				alternatives = ["android_package_inspect", "jadx", "apktool"];
@@ -661,7 +680,11 @@ export function generateRecoveryPlan(
 				reasoning = `WASM disassembler 'wabt' is missing. Degraded to built-in 'wasm_inspect'.`;
 			} else if (originalTool === "vbindiff") {
 				nextTool = "binary_diff";
-				nextParams = { fileA: parsedOriginalParams.fileA ?? targetPath, fileB: parsedOriginalParams.fileB ?? targetPath, mode: "summary" };
+				nextParams = {
+					fileA: parsedOriginalParams.fileA ?? targetPath,
+					fileB: parsedOriginalParams.fileB ?? targetPath,
+					mode: "summary",
+				};
 				alternatives = ["binary_diff"];
 				reasoning = `Visual diff utility 'vbindiff' is missing. Degraded to built-in 'binary_diff'.`;
 			} else if (originalTool === "ast-grep") {

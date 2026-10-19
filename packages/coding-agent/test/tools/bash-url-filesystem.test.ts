@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { resolveLocalRoot } from "@rva/coding-agent/internal-urls";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { BashTool } from "@rva/coding-agent/tools/bash";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { resolveLocalRoot } from "@reverse/coding-agent/internal-urls";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
 
 let tempDir: string;
 let localRoot: string;

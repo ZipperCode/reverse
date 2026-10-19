@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { IrcBus } from "@rva/coding-agent/irc/bus";
-import { AgentProtocolHandler } from "@rva/coding-agent/internal-urls/agent-protocol";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import type { IrcMessage } from "@rva/tui/tools/irc";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { IrcBus } from "@reverse/coding-agent/irc/bus";
+import { AgentProtocolHandler } from "@reverse/coding-agent/internal-urls/agent-protocol";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import type { IrcMessage } from "@reverse/tui/tools/irc";
 
 const received = new Map<string, IrcMessage[]>();
 let registry: AgentRegistry;

@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import * as imageResize from "@rva/coding-agent/utils/image-resize";
-import * as toolsManager from "@rva/coding-agent/utils/tools-manager";
-import * as scrapers from "@rva/coding-agent/web/scrapers/types";
-import * as scraperUtils from "@rva/coding-agent/web/scrapers/utils";
-import * as natives from "@rva/natives";
-import { ptree, removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import * as imageResize from "@reverse/coding-agent/utils/image-resize";
+import * as toolsManager from "@reverse/coding-agent/utils/tools-manager";
+import * as scrapers from "@reverse/coding-agent/web/scrapers/types";
+import * as scraperUtils from "@reverse/coding-agent/web/scrapers/utils";
+import * as natives from "@reverse/natives";
+import { ptree, removeSyncWithRetries, Snowflake } from "@reverse/utils";
 import { asGlobalFetch } from "../helpers/fetch-mock";
 
 const withMissingSystemPython = () => {

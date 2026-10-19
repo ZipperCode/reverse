@@ -2,12 +2,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter, VaultProtocolHandler } from "@rva/coding-agent/internal-urls";
-import * as vaultProtocol from "@rva/coding-agent/internal-urls/vault-protocol";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter, VaultProtocolHandler } from "@reverse/coding-agent/internal-urls";
+import * as vaultProtocol from "@reverse/coding-agent/internal-urls/vault-protocol";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { removeWithRetries } from "@reverse/utils";
 
 function createSession(cwd: string): ToolSession {
 	return {

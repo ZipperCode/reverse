@@ -1,10 +1,10 @@
 import type { Database } from "bun:sqlite";
-import type { AgentToolResult } from "@rva/agent";
+import type { AgentToolResult } from "@reverse/agent";
 import type { ToolSession } from "../sdk";
-import { DEFAULT_MAX_LINES, truncateHead } from "@rva/tui/tools/streaming-output";
-import { applyListLimit } from "@rva/tui/tools/list-limit";
+import { DEFAULT_MAX_LINES, truncateHead } from "@reverse/tui/tools/streaming-output";
+import { applyListLimit } from "@reverse/tui/tools/list-limit";
 import { resolveReadPath } from "./path-utils";
-import type { ReadToolDetails } from "@rva/tui/tools/read";
+import type { ReadToolDetails } from "@reverse/tui/tools/read";
 import { prependSuffixResolutionNotice, toReadTruncationStats } from "./read-format";
 import {
 	findSuffixMatchCached,
@@ -31,7 +31,7 @@ import {
 	resolveTableRowLookup,
 } from "./sqlite-reader";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 interface ResolvedSqliteReadPath {

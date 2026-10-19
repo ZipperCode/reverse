@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { IrcBus } from "@rva/coding-agent/irc/bus";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
+import { IrcBus } from "@reverse/coding-agent/irc/bus";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
 
 describe("IRC roster activity", () => {
 	let registry: AgentRegistry;

@@ -1,5 +1,5 @@
-import type * as DomNs from "@rva/utils/dom";
-import type * as ReadabilityNs from "@rva/utils/readability";
+import type * as DomNs from "@reverse/utils/dom";
+import type * as ReadabilityNs from "@reverse/utils/readability";
 import { htmlToBasicMarkdown } from "../../web/scrapers/types";
 
 export type ReadableFormat = "text" | "markdown";
@@ -33,7 +33,7 @@ function normalize(text: string | null | undefined): string | undefined {
 let readabilityModule: typeof ReadabilityNs | undefined;
 async function loadReadability(): Promise<typeof ReadabilityNs> {
 	if (!readabilityModule) {
-		readabilityModule = await import("@rva/utils/readability");
+		readabilityModule = await import("@reverse/utils/readability");
 	}
 	return readabilityModule;
 }
@@ -41,7 +41,7 @@ async function loadReadability(): Promise<typeof ReadabilityNs> {
 let domModule: typeof DomNs | undefined;
 async function loadDom(): Promise<typeof DomNs> {
 	if (!domModule) {
-		domModule = await import("@rva/utils/dom");
+		domModule = await import("@reverse/utils/dom");
 	}
 	return domModule;
 }

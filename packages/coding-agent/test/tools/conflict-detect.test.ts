@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type ConflictEntry, renderConflictRegion } from "@rva/tui/tools/conflict-detect";
+import { type ConflictEntry, renderConflictRegion } from "@reverse/tui/tools/conflict-detect";
 import {
 	ConflictHistory,
 	expandContentTokens,
@@ -8,8 +8,8 @@ import {
 	recoverConflictUriPrefix,
 	scanConflictLines,
 	spliceConflict,
-} from "@rva/coding-agent/tools/conflict-detect";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+} from "@reverse/coding-agent/tools/conflict-detect";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 describe("scanConflictLines", () => {
 	it("detects a 2-way conflict with correct line numbers and labels", () => {

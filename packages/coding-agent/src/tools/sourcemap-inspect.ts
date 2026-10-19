@@ -1,10 +1,10 @@
 import * as fs from "node:fs/promises";
 import type { Stats } from "node:fs";
 import * as path from "node:path";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes, prompt } from "@rva/utils";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes, prompt } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
@@ -242,14 +242,12 @@ function decodeLineSegments(lineStr: string, state: MappingState): MappingSegmen
 export function sanitizeExtractionPath(sourcePath: string): string {
 	let clean = sourcePath.replace(/\?.*$/, "");
 	clean = clean.replace(/^(?:webpack|vite|file):\/{2,3}/i, "");
-	clean = clean.replace(/^[a-zA-Z]:[\\\/]/, "").replace(/^[\\\/]+/, "");
-	clean = path.normalize(clean).replace(/^(\.\.[\/\\])+/, "");
+	clean = clean.replace(/^[a-zA-Z]:[\\/]/, "").replace(/^[\\/]+/, "");
+	clean = path.normalize(clean).replace(/^(\.\.[/\\])+/, "");
 	return clean || "recovered-source.js";
 }
 
-export class SourcemapInspectTool
-	implements AgentTool<typeof sourcemapInspectSchema, SourcemapInspectDetails>
-{
+export class SourcemapInspectTool implements AgentTool<typeof sourcemapInspectSchema, SourcemapInspectDetails> {
 	readonly name = "sourcemap_inspect";
 	readonly approval: ToolTier = "read";
 	readonly label = "SourceMap Inspect";
@@ -268,7 +266,7 @@ export class SourcemapInspectTool
 		_toolCallId: string,
 		params: SourcemapInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<SourcemapInspectDetails>> {
+	): Promise<AgentToolResult<SourcemapInspectDetails> & { details: SourcemapInspectDetails }> {
 		throwIfAborted(signal);
 
 		const requestedPath = params.path?.trim();
@@ -531,9 +529,7 @@ export class SourcemapInspectTool
 			const originalLineNum = matched.originalLine !== undefined ? matched.originalLine + 1 : undefined;
 			const originalColumnNum = matched.originalColumn;
 			const originalName =
-				matched.nameIndex !== undefined && matched.nameIndex < names.length
-					? names[matched.nameIndex]
-					: undefined;
+				matched.nameIndex !== undefined && matched.nameIndex < names.length ? names[matched.nameIndex] : undefined;
 
 			let sourceSnippet: string | undefined;
 			if (matched.sourceIndex !== undefined && sourcesContent[matched.sourceIndex]) {
@@ -560,13 +556,7 @@ export class SourcemapInspectTool
 				`- **Original Line & Col**: ${originalLineNum !== undefined ? `${originalLineNum}:${originalColumnNum}` : "[unmapped]"}`,
 				originalName ? `- **Original Symbol Name**: \`${originalName}\`` : null,
 				sourceSnippet
-					? [
-							"",
-							"### Original Source Snippet:",
-							"```typescript",
-							sourceSnippet,
-							"```",
-						].join("\n")
+					? ["", "### Original Source Snippet:", "```typescript", sourceSnippet, "```"].join("\n")
 					: null,
 			].filter(Boolean) as string[];
 
@@ -666,7 +656,10 @@ export class SourcemapInspectTool
 			...extractedFiles.map(f => {
 				const header = `- [Index ${f.index}] \`${f.source}\` (${formatBytes(f.size)})${f.savedPath ? ` -> \`${f.savedPath}\`` : ""}`;
 				if (!resolvedDestDir) {
-					const preview = f.content.length > 500 ? `${f.content.slice(0, 500)}...\n[truncated ${f.content.length - 500} chars]` : f.content;
+					const preview =
+						f.content.length > 500
+							? `${f.content.slice(0, 500)}...\n[truncated ${f.content.length - 500} chars]`
+							: f.content;
 					return `${header}\n\`\`\`typescript\n${preview}\n\`\`\``;
 				}
 				return header;

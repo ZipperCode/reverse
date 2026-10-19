@@ -22,7 +22,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger } from "@rva/utils";
+import { isEnoent, logger } from "@reverse/utils";
 import type { Browser } from "puppeteer-core";
 import { daemonRuntimeDir } from "../../launch/paths";
 

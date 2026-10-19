@@ -1,13 +1,13 @@
-import { type Type, type } from "@rva/omptype";
-import type { AgentToolResult, ToolApprovalDecision } from "@rva/agent";
-import type { Model } from "@rva/ai";
-import { classifyModel } from "@rva/catalog/identity";
-import type { DesktopCapabilities } from "@rva/natives";
-import { once } from "@rva/utils";
+import { type Type, type } from "@reverse/omptype";
+import type { AgentToolResult, ToolApprovalDecision } from "@reverse/agent";
+import type { Model } from "@reverse/ai";
+import { classifyModel } from "@reverse/catalog/identity";
+import type { DesktopCapabilities } from "@reverse/natives";
+import { once } from "@reverse/utils";
 import { callSessionTool } from "../eval/js/tool-bridge";
 import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";
 import computerUsePrompt from "../prompts/system/computer-use.md" with { type: "text" };
-import { enforceInlineByteCap } from "@rva/tui/tools/streaming-output";
+import { enforceInlineByteCap } from "@reverse/tui/tools/streaming-output";
 import { type ComputerCallStep, isReadOnlyComputerCall, renderComputerCall } from "./computer/call";
 import { type ComputerScreenshot, type ComputerSessionSnapshot, screenStateNotice } from "./computer/protocol";
 import {
@@ -19,7 +19,7 @@ import {
 import type { ToolSession } from "./index";
 import { renderCallChain, renderFunctionRun } from "./run-code";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { clampTimeout } from "./tool-timeouts";
 
 import {

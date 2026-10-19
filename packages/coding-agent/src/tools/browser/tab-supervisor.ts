@@ -6,15 +6,15 @@ import {
 	Snowflake,
 	withTimeout,
 	workerHostEntry,
-} from "@rva/utils";
+} from "@reverse/utils";
 import type { CDPSession, Page, Target } from "puppeteer-core";
 import { callSessionTool } from "../../eval/js/tool-bridge";
-import { webpExclusionForModel } from "@rva/tui/chat/image-loading";
+import { webpExclusionForModel } from "@reverse/tui/chat/image-loading";
 import type { ToolSession } from "../index";
 import { expandPath } from "../path-utils";
 import { CELL_BUDGET_SLACK_MS } from "../run-scope";
 import { ToolAbortError, toWorkerErrorPayload } from "../tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { gracefulKillTreeOnce, pickElectronTarget, shouldPreserveConnectedBrowserFocus } from "./attach";
 import { CmuxTab } from "./cmux/cmux-tab";
 import { mapWaitUntil } from "./cmux/rpc";

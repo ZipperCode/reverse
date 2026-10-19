@@ -2,15 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	JavascriptApplicationTool,
-	type JavascriptApplicationDetails,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, JavascriptApplicationTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -178,7 +173,7 @@ document.getElementById('login-btn')?.addEventListener('click', () => {
 			const result = await tool.execute("call-1", { path: "my-electron-app" });
 
 			const text = textOf(result);
-			const details = result.details as JavascriptApplicationDetails;
+			const details = result.details;
 
 			expect(details.targetType).toBe("directory");
 			expect(details.packageJson?.name).toBe("sample-desktop-app");
@@ -249,7 +244,7 @@ ipcRenderer.send('app:ready');
 			const tool = new JavascriptApplicationTool(session);
 			const result = await tool.execute("call-2", { path: "app.asar" });
 
-			const details = result.details as JavascriptApplicationDetails;
+			const details = result.details;
 			expect(details.targetType).toBe("asar");
 			expect(details.packageJson?.name).toBe("packaged-asar-app");
 			expect(details.electronVersion).toBe("31.0.0");
@@ -291,7 +286,7 @@ ipcMain.handle('system:reboot', () => {});
 			const tool = new JavascriptApplicationTool(session);
 			const result = await tool.execute("call-3", { path: "filtered.asar", channel_filter: "secret" });
 
-			const details = result.details as JavascriptApplicationDetails;
+			const details = result.details;
 			expect(details.ipcChannels.length).toBe(1);
 			expect(details.ipcChannels[0].channel).toBe("auth:secret-token");
 		} finally {

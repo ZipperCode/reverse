@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { resolveBrowserKind, resolveTernKind, type TernKind } from "@rva/coding-agent/tools/browser";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { resolveBrowserKind, resolveTernKind, type TernKind } from "@reverse/coding-agent/tools/browser";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
 
 const TERN_ENV = { TERN_PANE_SOCKET: "/tmp/tern.sock", TERN_PANE: "42" };
 const TERN: TernKind = { kind: "tern", socketPath: "/tmp/tern.sock", pane: 42 };

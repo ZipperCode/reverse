@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createLspWritethrough } from "@rva/coding-agent/lsp";
-import { type FileDiagnosticsResult, FileFormatResult } from "@rva/tui/tools/lsp";
-import * as lspClient from "@rva/coding-agent/lsp/client";
-import * as lspConfig from "@rva/coding-agent/lsp/config";
-import { formatContent, INLINE_DIAGNOSTICS_WAIT_TIMEOUT_MS } from "@rva/coding-agent/lsp/diagnostics";
-import type { Diagnostic, LinterClient, LspClient, ServerConfig } from "@rva/coding-agent/lsp/types";
-import { EquivalentUriMap, fileToUri } from "@rva/coding-agent/lsp/utils";
-import type { DeferredDiagnosticsEntry, ToolSession } from "@rva/coding-agent/tools";
-import { EditTool } from "@rva/coding-agent/edit";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { type ptree, TempDir } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createLspWritethrough } from "@reverse/coding-agent/lsp";
+import { type FileDiagnosticsResult, FileFormatResult } from "@reverse/tui/tools/lsp";
+import * as lspClient from "@reverse/coding-agent/lsp/client";
+import * as lspConfig from "@reverse/coding-agent/lsp/config";
+import { formatContent, INLINE_DIAGNOSTICS_WAIT_TIMEOUT_MS } from "@reverse/coding-agent/lsp/diagnostics";
+import type { Diagnostic, LinterClient, LspClient, ServerConfig } from "@reverse/coding-agent/lsp/types";
+import { EquivalentUriMap, fileToUri } from "@reverse/coding-agent/lsp/utils";
+import type { DeferredDiagnosticsEntry, ToolSession } from "@reverse/coding-agent/tools";
+import { EditTool } from "@reverse/coding-agent/edit";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { type ptree, TempDir } from "@reverse/utils";
 
 const TEST_SERVER: ServerConfig = {
 	command: "test-lsp",

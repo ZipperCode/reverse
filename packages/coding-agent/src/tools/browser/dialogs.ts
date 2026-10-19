@@ -1,5 +1,5 @@
 import type { Dialog, Frame, Page } from "puppeteer-core";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 /** Automatic JavaScript-dialog policy. */
 export type DialogPolicy = "accept" | "dismiss";

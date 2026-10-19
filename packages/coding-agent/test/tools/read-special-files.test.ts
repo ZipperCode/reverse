@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { hasFsCode, removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { hasFsCode, removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 function makeSession(cwd: string): ToolSession {
 	return {

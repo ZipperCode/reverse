@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as toolsManager from "@rva/coding-agent/utils/tools-manager";
-import { handleYouTube } from "@rva/coding-agent/web/scrapers/youtube";
-import { ptree } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as toolsManager from "@reverse/coding-agent/utils/tools-manager";
+import { handleYouTube } from "@reverse/coding-agent/web/scrapers/youtube";
+import { ptree } from "@reverse/utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "../../helpers/settings-test-state";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;

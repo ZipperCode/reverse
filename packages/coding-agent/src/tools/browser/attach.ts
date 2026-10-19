@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as net from "node:net";
 import * as path from "node:path";
-import { Process, ProcessStatus } from "@rva/natives";
-import { getBrowserProfilesDir, isRecord, untilAborted } from "@rva/utils";
+import { Process, ProcessStatus } from "@reverse/natives";
+import { getBrowserProfilesDir, isRecord, untilAborted } from "@reverse/utils";
 import type { Socket } from "bun";
 import type { Browser, Page, Target } from "puppeteer-core";
 import { throwIfAborted } from "../tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 const ATTACH_TARGET_SKIP_PATTERN =
 	/request[\s_-]?handler|devtools|background[\s_-]?(?:page|host)|service[\s_-]?worker/i;

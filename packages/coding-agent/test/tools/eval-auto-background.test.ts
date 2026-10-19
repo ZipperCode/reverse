@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AgentToolContext } from "@rva/agent";
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as evalIndex from "@rva/coding-agent/eval";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EvalTool } from "@rva/coding-agent/tools/eval";
+import type { AgentToolContext } from "@reverse/agent";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as evalIndex from "@reverse/coding-agent/eval";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EvalTool } from "@reverse/coding-agent/tools/eval";
 
 function makeSession(settings: Settings, asyncJobManager: AsyncJobManager): ToolSession {
 	return {

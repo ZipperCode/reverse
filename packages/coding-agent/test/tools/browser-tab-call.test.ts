@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { renderTabCall } from "@rva/coding-agent/tools/browser/tab-call";
+import { renderTabCall } from "@reverse/coding-agent/tools/browser/tab-call";
 
 function errorMessage(run: () => unknown): string {
 	try {

@@ -1,13 +1,12 @@
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import type { Stats } from "node:fs";
-import * as path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes, prompt } from "@rva/utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes, prompt } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
@@ -33,19 +32,11 @@ const sqliteInspectSchema = type({
 			"Inspection action: info (db version, page size, page count, journal mode, table counts, WAL summary), tables (list of all tables/views with row counts), schema (DDL, columns, indexes, foreign keys for all or specific table), rows (read bounded rows from a specific table), or wal (WAL file header, frame count, checkpoint status)",
 		),
 	path: type("string").describe("Path to target SQLite database file (.db, .sqlite, .sqlite3)"),
-	"table?": type("string").describe(
-		"Target table or view name (required for 'rows', optional filter for 'schema')",
-	),
-	"columns?": type("string[]").describe(
-		"Optional list of specific column names to retrieve in 'rows' action",
-	),
+	"table?": type("string").describe("Target table or view name (required for 'rows', optional filter for 'schema')"),
+	"columns?": type("string[]").describe("Optional list of specific column names to retrieve in 'rows' action"),
 	"order_by?": type("string").describe("Optional column name to sort by in 'rows' action"),
-	"order_desc?": type("boolean").describe(
-		"Whether to sort descending when order_by is specified (default false)",
-	),
-	"limit?": type("number.integer >= 1").describe(
-		"Maximum rows or items to return (default 50, max 500)",
-	),
+	"order_desc?": type("boolean").describe("Whether to sort descending when order_by is specified (default false)"),
+	"limit?": type("number.integer >= 1").describe("Maximum rows or items to return (default 50, max 500)"),
 	"offset?": type("number.integer >= 0").describe("Pagination offset (default 0)"),
 	"max_bytes?": type("number.integer >= 1").describe(
 		"Maximum database file size in bytes to inspect (default 500MB, max 2GB)",
@@ -207,9 +198,7 @@ function openSqliteDriver(dbPath: string): SqliteDriverInstance {
 					if (!trimmed) return [];
 					return JSON.parse(trimmed) as T[];
 				} catch (err) {
-					throw new ToolError(
-						`sqlite3 execution failed: ${err instanceof Error ? err.message : String(err)}`,
-					);
+					throw new ToolError(`sqlite3 execution failed: ${err instanceof Error ? err.message : String(err)}`);
 				}
 			},
 			close() {
@@ -293,8 +282,7 @@ export async function inspectWalFile(dbPath: string): Promise<SqliteWalInfo> {
 		const salt1 = isLE ? headerBuf.readUInt32LE(16) : headerBuf.readUInt32BE(16);
 		const salt2 = isLE ? headerBuf.readUInt32LE(20) : headerBuf.readUInt32BE(20);
 
-		const frameCount =
-			pageSize > 0 ? Math.max(0, Math.floor((walSize - 32) / (pageSize + 24))) : 0;
+		const frameCount = pageSize > 0 ? Math.max(0, Math.floor((walSize - 32) / (pageSize + 24))) : 0;
 
 		return {
 			walExists: true,
@@ -379,7 +367,13 @@ export class SqliteInspectTool implements AgentTool<typeof sqliteInspectSchema, 
 		this.description = prompt.render(sqliteInspectDescription);
 	}
 
-	async execute(_toolCallId: string, params: SqliteInspectParams, signal?: AbortSignal): Promise<AgentToolResult<SqliteInspectDetails>> {
+	async execute(
+		_toolCallId: string,
+		params: SqliteInspectParams,
+		signal?: AbortSignal,
+		_onUpdate?: AgentToolUpdateCallback<SqliteInspectDetails>,
+		_ctx?: AgentToolContext,
+	): Promise<AgentToolResult<SqliteInspectDetails> & { details: SqliteInspectDetails }> {
 		throwIfAborted(signal);
 
 		const resolvedPath = resolveReadPath(params.path, this.session.cwd);
@@ -432,16 +426,13 @@ export class SqliteInspectTool implements AgentTool<typeof sqliteInspectSchema, 
 				name: string;
 				tbl_name: string;
 				sql?: string;
-			}>(
-				"SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
-			);
+			}>("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
 
 			const tableEntries = masterEntries.filter(e => e.type === "table");
 			const viewEntries = masterEntries.filter(e => e.type === "view");
 			const indexEntries = masterEntries.filter(e => e.type === "index");
 			const triggerEntries = masterEntries.filter(e => e.type === "trigger");
 
-			const knownEntityNames = new Set(masterEntries.map(e => e.name));
 			const tableOrViewNames = new Set([...tableEntries, ...viewEntries].map(e => e.name));
 
 			const walInfo = await inspectWalFile(resolvedPath);
@@ -461,9 +452,7 @@ export class SqliteInspectTool implements AgentTool<typeof sqliteInspectSchema, 
 				const pragmaUserVer = await driver.query<{ user_version: number }>("PRAGMA user_version");
 				const pragmaAppId = await driver.query<{ application_id: number }>("PRAGMA application_id");
 				const pragmaJournal = await driver.query<{ journal_mode: string }>("PRAGMA journal_mode");
-				const pragmaWalAuto = await driver.query<{ wal_autocheckpoint: number }>(
-					"PRAGMA wal_autocheckpoint",
-				);
+				const pragmaWalAuto = await driver.query<{ wal_autocheckpoint: number }>("PRAGMA wal_autocheckpoint");
 
 				const pageSize = pragmaPageSize[0]?.page_size;
 				const pageCount = pragmaPageCount[0]?.page_count;
@@ -749,9 +738,7 @@ export class SqliteInspectTool implements AgentTool<typeof sqliteInspectSchema, 
 					// Row count
 					let rowCount = 0;
 					try {
-						const cnt = await driver.query<{ count: number }>(
-							`SELECT COUNT(*) AS count FROM "${safeTableName}"`,
-						);
+						const cnt = await driver.query<{ count: number }>(`SELECT COUNT(*) AS count FROM "${safeTableName}"`);
 						rowCount = cnt[0]?.count ?? 0;
 					} catch {
 						rowCount = -1;
@@ -772,7 +759,7 @@ export class SqliteInspectTool implements AgentTool<typeof sqliteInspectSchema, 
 				const textLines: string[] = [];
 				for (const s of schemas) {
 					textLines.push(
-						`# Schema: ${s.name} (${s.type}, ${s.rowCount >= 0 ? `${s.rowCount} rows` : "view"})`,
+						`# Schema: ${s.name} (${s.type}, ${s.rowCount !== undefined && s.rowCount >= 0 ? `${s.rowCount} rows` : "view"})`,
 						"",
 						"```sql",
 						s.sql ?? `-- No DDL recorded for ${s.name}`,
@@ -950,9 +937,7 @@ export class SqliteInspectTool implements AgentTool<typeof sqliteInspectSchema, 
 			// ----------------------------------------------------------------------
 			if (action === "wal") {
 				const pragmaJournal = await driver.query<{ journal_mode: string }>("PRAGMA journal_mode");
-				const pragmaWalAuto = await driver.query<{ wal_autocheckpoint: number }>(
-					"PRAGMA wal_autocheckpoint",
-				);
+				const pragmaWalAuto = await driver.query<{ wal_autocheckpoint: number }>("PRAGMA wal_autocheckpoint");
 
 				const textLines = [
 					`# Write-Ahead Log (WAL) Inspection: ${resolvedPath}`,
@@ -967,9 +952,7 @@ export class SqliteInspectTool implements AgentTool<typeof sqliteInspectSchema, 
 					`- **Status**: ${walInfo.status}`,
 					walInfo.magicHex ? `- **Magic Header**: \`${walInfo.magicHex}\`` : "",
 					walInfo.pageSize ? `- **Page Size**: ${walInfo.pageSize} bytes` : "",
-					walInfo.checkpointSeq !== undefined
-						? `- **Checkpoint Sequence**: ${walInfo.checkpointSeq}`
-						: "",
+					walInfo.checkpointSeq !== undefined ? `- **Checkpoint Sequence**: ${walInfo.checkpointSeq}` : "",
 					walInfo.frameCount !== undefined ? `- **Uncheckpointed Frames**: ${walInfo.frameCount}` : "",
 					"",
 					"## Shared Memory (SHM) Status",

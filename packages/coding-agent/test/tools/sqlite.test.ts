@@ -3,17 +3,17 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@rva/utils";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ReadTool } from "@rva/coding-agent/tools/read";
+import { removeWithRetries } from "@reverse/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
 import {
 	listTables,
 	parseSqlitePathCandidates,
 	parseSqliteSelector,
 	renderTable,
 	renderTableList,
-} from "@rva/coding-agent/tools/sqlite-reader";
-import { WriteTool } from "@rva/coding-agent/tools/write";
+} from "@reverse/coding-agent/tools/sqlite-reader";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
 
 type ToolTextResult = {
 	content: Array<{ type: string; text?: string }>;

@@ -1,10 +1,10 @@
-import { BashInteractiveOverlayComponent } from "@rva/tui/tools/bash-interactive";
-import type { AgentToolContext } from "@rva/agent";
-import type { ImageContent } from "@rva/ai";
-import { type PtyRunResult, PtySession } from "@rva/natives";
-import { loadXtermTerminal } from "@rva/tui/tools/terminal-output";
+import { BashInteractiveOverlayComponent } from "@reverse/tui/tools/bash-interactive";
+import type { AgentToolContext } from "@reverse/agent";
+import type { ImageContent } from "@reverse/ai";
+import { type PtyRunResult, PtySession } from "@reverse/natives";
+import { loadXtermTerminal } from "@reverse/tui/tools/terminal-output";
 import { Settings } from "../config/settings";
-import { OutputSink, type OutputSummary } from "@rva/tui/tools/streaming-output";
+import { OutputSink, type OutputSummary } from "@reverse/tui/tools/streaming-output";
 import { TerminalGraphicsDecoder } from "../utils/terminal-graphics";
 import { resolveOutputMaxColumns, resolveOutputSinkArtifactMaxBytes, resolveOutputSinkHeadBytes } from "./output-meta";
 

@@ -8,12 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { Markit } from "@rva/coding-agent/markit";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import * as markit from "@rva/coding-agent/utils/markit";
-import { __resetDirsFromEnvForTests, removeSyncWithRetries, Snowflake, setAgentDir } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { Markit } from "@reverse/coding-agent/markit";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import * as markit from "@reverse/coding-agent/utils/markit";
+import { __resetDirsFromEnvForTests, removeSyncWithRetries, Snowflake, setAgentDir } from "@reverse/utils";
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {

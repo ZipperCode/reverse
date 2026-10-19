@@ -1,5 +1,5 @@
-import { untilAborted } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { untilAborted } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { Page } from "puppeteer-core";
 import { type ReactPageEnvelope, requireReactHookResult } from "./devtools-hook";
 

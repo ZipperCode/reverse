@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { resolveOpTimeouts, resolveWaitTimeout } from "@rva/coding-agent/tools/browser/op-timeouts";
-import { dispatchScroll, normalizeSelector } from "@rva/coding-agent/tools/browser/tab-worker";
-import { resolvePredicateTimeout } from "@rva/coding-agent/tools/run-scope";
+import { resolveOpTimeouts, resolveWaitTimeout } from "@reverse/coding-agent/tools/browser/op-timeouts";
+import { dispatchScroll, normalizeSelector } from "@reverse/coding-agent/tools/browser/tab-worker";
+import { resolvePredicateTimeout } from "@reverse/coding-agent/tools/run-scope";
 
 // Regression coverage for the "weird timeouts" failure mode: interactive `tab.*` helpers
 // used to run with the full cell budget as their internal puppeteer timeout, so a stalled

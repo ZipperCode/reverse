@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createTools, type ToolSession } from "@rva/coding-agent/tools";
-import * as scrapers from "@rva/coding-agent/web/scrapers/types";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, type ToolSession } from "@reverse/coding-agent/tools";
+import * as scrapers from "@reverse/coding-agent/web/scrapers/types";
+import { removeWithRetries } from "@reverse/utils";
 
 function createSession(testDir: string): ToolSession {
 	const sessionFile = path.join(testDir, "session.jsonl");

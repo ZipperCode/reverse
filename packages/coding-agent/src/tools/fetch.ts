@@ -1,20 +1,20 @@
-import { repairCollapsedScheme, tryExtractEmbeddedUrlSelector } from "@rva/tui/tools/fetch";
-import type { ReadUrlToolDetails } from "@rva/tui/tools/fetch";
+import { repairCollapsedScheme, tryExtractEmbeddedUrlSelector } from "@reverse/tui/tools/fetch";
+import type { ReadUrlToolDetails } from "@reverse/tui/tools/fetch";
 import type { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@rva/agent";
-import { type FetchImpl, getEnvApiKey, type ImageContent, type TextContent } from "@rva/ai";
-import { htmlToMarkdown, notebookToEditableText } from "@rva/natives";
-import { $which, ptree } from "@rva/utils";
-import { type ArchiveFormat, listArchiveRoot, sniffArchiveFormat } from "@rva/utils/ar";
+import type { AgentToolResult } from "@reverse/agent";
+import { type FetchImpl, getEnvApiKey, type ImageContent, type TextContent } from "@reverse/ai";
+import { htmlToMarkdown, notebookToEditableText } from "@reverse/natives";
+import { $which, ptree } from "@reverse/utils";
+import { type ArchiveFormat, listArchiveRoot, sniffArchiveFormat } from "@reverse/utils/ar";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import type { ToolSession } from "../sdk";
 import type { AgentStorage } from "../session/agent-storage";
-import { DEFAULT_MAX_BYTES, truncateHead } from "@rva/tui/tools/streaming-output";
-import { webpExclusionForModel } from "@rva/tui/chat/image-loading";
+import { DEFAULT_MAX_BYTES, truncateHead } from "@reverse/tui/tools/streaming-output";
+import { webpExclusionForModel } from "@reverse/tui/chat/image-loading";
 import { formatDimensionNote, resizeImage } from "../utils/image-resize";
 import { CONVERTIBLE_EXTENSIONS } from "../utils/markit";
 import { ensureTool } from "../utils/tools-manager";
@@ -24,15 +24,15 @@ import type { RenderResult, SpecialHandler } from "../web/scrapers/types";
 import { finalizeOutput, loadPage, looksLikeHtml, MAX_BYTES, MAX_OUTPUT_CHARS } from "../web/scrapers/types";
 import { type BinaryFetchResult, convertWithMarkit, fetchBinary } from "../web/scrapers/utils";
 import { findCredential } from "../web/search/providers/utils";
-import { applyListLimit } from "@rva/tui/tools/list-limit";
+import { applyListLimit } from "@reverse/tui/tools/list-limit";
 import { parseTailCount } from "./path-utils";
-import { type LineRange, parseLineRanges } from "@rva/tui/tools/line-ranges";
-import { isReadableUrlPath } from "@rva/tui/tools/read";
+import { type LineRange, parseLineRanges } from "@reverse/tui/tools/line-ranges";
+import { isReadableUrlPath } from "@reverse/tui/tools/read";
 import type { ParsedSelector } from "./read-selector";
-import { formatBytes } from "@rva/tui/render/render-utils";
+import { formatBytes } from "@reverse/tui/render/render-utils";
 import { listTables, looksLikeSqlite, openSqliteReadConnection, renderTableList } from "./sqlite-reader";
 import { ToolAbortError } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { clampTimeout } from "./tool-timeouts";
 
@@ -470,7 +470,7 @@ function cleanFeedText(text: string): string {
  * Parse RSS/Atom feed to markdown
  */
 async function parseFeedToMarkdown(content: string, maxItems = 10): Promise<string> {
-	const { parseHTML } = await import("@rva/utils/dom");
+	const { parseHTML } = await import("@reverse/utils/dom");
 	try {
 		const doc = parseHTML(content).document;
 

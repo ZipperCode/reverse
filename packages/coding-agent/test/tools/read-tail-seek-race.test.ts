@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool, SNAPSHOT_MAX_BYTES } from "@rva/coding-agent/tools/read";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool, SNAPSHOT_MAX_BYTES } from "@reverse/coding-agent/tools/read";
 
 function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content

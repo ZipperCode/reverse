@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
 import {
 	registerArtifactsDir,
 	resetRegisteredArtifactDirsForTests,
-} from "@rva/coding-agent/internal-urls/registry-helpers";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { AstEditTool } from "@rva/coding-agent/tools/ast-edit";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/internal-urls/registry-helpers";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { AstEditTool } from "@reverse/coding-agent/tools/ast-edit";
+import { removeWithRetries } from "@reverse/utils";
 
 let tmpDir: string;
 let artifactsDir: string;

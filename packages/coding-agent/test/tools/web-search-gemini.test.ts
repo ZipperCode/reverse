@@ -1,12 +1,12 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ThinkingLevel } from "@rva/agent";
-import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { getBundledModel } from "@rva/catalog/models";
-import { serializeCloudflareCredential } from "@rva/catalog/wire/cloudflare";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { GeminiProvider, searchGemini } from "@rva/coding-agent/web/search/providers/gemini";
+import { ThinkingLevel } from "@reverse/agent";
+import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { getBundledModel } from "@reverse/catalog/models";
+import { serializeCloudflareCredential } from "@reverse/catalog/wire/cloudflare";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { GeminiProvider, searchGemini } from "@reverse/coding-agent/web/search/providers/gemini";
 
 const SSE_RESPONSE =
 	'data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"text":"Gemini answer"}]}}],"modelVersion":"gemini-2.5-flash"}}\n\n';

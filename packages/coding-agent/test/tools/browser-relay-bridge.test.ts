@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { createHash } from "node:crypto";
-import { RelayBridge, type RelaySocket } from "@rva/coding-agent/tools/browser/relay/bridge";
+import { RelayBridge, type RelaySocket } from "@reverse/coding-agent/tools/browser/relay/bridge";
 import type {
 	RelayRpcRequest,
 	RelayToExtMessage,
 	TabSnapshot,
-} from "@rva/coding-agent/tools/browser/relay/protocol";
+} from "@reverse/coding-agent/tools/browser/relay/protocol";
 
 /** Same derivation as the bridge: target ids embed this per-instance code. */
 function instanceCode(instanceId: string): string {

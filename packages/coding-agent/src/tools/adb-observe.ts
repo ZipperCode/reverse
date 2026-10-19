@@ -1,6 +1,6 @@
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { prompt } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { prompt } from "@reverse/utils";
 import adbObserveDescription from "../prompts/tools/adb-observe.md" with { type: "text" };
 import {
 	checkToolRequirements,
@@ -9,7 +9,7 @@ import {
 } from "../extensibility/skill-requirements";
 import { SKILL_TOOL_CATALOG, type SkillToolPlatform } from "../extensibility/skill-tool-catalog";
 import type { ToolSession } from "./index";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 
 const adbObserveSchema = type({

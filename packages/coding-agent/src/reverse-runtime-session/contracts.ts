@@ -1,22 +1,8 @@
-export const RUNTIME_SESSION_KINDS = [
-	"frida",
-	"browser",
-	"dap",
-	"ida",
-	"ghidra",
-	"generic",
-] as const;
+export const RUNTIME_SESSION_KINDS = ["frida", "browser", "dap", "ida", "ghidra", "generic"] as const;
 
 export type RuntimeSessionKind = (typeof RUNTIME_SESSION_KINDS)[number];
 
-export const RUNTIME_SESSION_STATUSES = [
-	"active",
-	"idle",
-	"stale",
-	"closed",
-	"failed",
-	"unknown",
-] as const;
+export const RUNTIME_SESSION_STATUSES = ["active", "idle", "stale", "closed", "failed", "unknown"] as const;
 
 export type RuntimeSessionStatus = (typeof RUNTIME_SESSION_STATUSES)[number];
 

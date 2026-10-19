@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { FetchImpl } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { searchTavily } from "@rva/coding-agent/web/search/providers/tavily";
-import type { SearchProviderError } from "@rva/coding-agent/web/search/types";
+import type { FetchImpl } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { searchTavily } from "@reverse/coding-agent/web/search/providers/tavily";
+import type { SearchProviderError } from "@reverse/coding-agent/web/search/types";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();

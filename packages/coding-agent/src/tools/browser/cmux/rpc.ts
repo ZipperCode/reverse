@@ -1,5 +1,5 @@
-import { parseFlag } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { parseFlag } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { Observation, ObservationEntry } from "../tab-protocol";
 
 export interface CmuxKind {

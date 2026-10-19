@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import * as scrapers from "@rva/coding-agent/web/scrapers/types";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import * as scrapers from "@reverse/coding-agent/web/scrapers/types";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
 const ATOM = `<?xml version="1.0"?>\n<feed xmlns="http://www.w3.org/2005/Atom"><title>Sample</title><entry><title>One</title><id>1</id><updated>2024-01-01T00:00:00Z</updated><content>body</content></entry></feed>`;
 const JSON_BODY = `{"alpha":1,"beta":[2,3]}`;

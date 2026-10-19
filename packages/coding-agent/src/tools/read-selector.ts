@@ -1,7 +1,7 @@
-import type { LineRange } from "@rva/tui/tools/line-ranges";
+import type { LineRange } from "@reverse/tui/tools/line-ranges";
 import { parseTailCount } from "./path-utils";
-import { parseLineRanges } from "@rva/tui/tools/line-ranges";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { parseLineRanges } from "@reverse/tui/tools/line-ranges";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 /** Parsed representation of a path-embedded selector. */
 export type ParsedSelector =
 	| { kind: "none" }

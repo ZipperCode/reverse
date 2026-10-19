@@ -2,8 +2,8 @@
  * The browser blocks of a Tern window (Tern's `blocks` op) and how
  * `app.target` picks the one an open adopts.
  */
-import { isRecord } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { isRecord } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { TernSocketClient } from "./wire";
 
 /**

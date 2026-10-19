@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import { createReadStream, type Stats } from "node:fs";
 import { stat } from "node:fs/promises";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { prompt } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { prompt } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";

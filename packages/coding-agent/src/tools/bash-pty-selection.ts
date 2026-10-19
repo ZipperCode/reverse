@@ -1,4 +1,4 @@
-import { $env } from "@rva/utils/env";
+import { $env } from "@reverse/utils/env";
 
 /** Minimal UI-capability fields needed to decide whether bash can use the local PTY overlay. */
 export interface BashPtyContext {

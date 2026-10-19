@@ -2,18 +2,18 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
 import {
 	createTools,
 	type ToolSession,
 	FridaTool,
 	type FridaDetails,
 	type FridaRunner,
- 	FIXED_ENUMERATE_MODULES_SCRIPT,
+	FIXED_ENUMERATE_MODULES_SCRIPT,
 	parseFridaModules,
 	parseFridaTrace,
- } from "@rva/coding-agent/tools";
-import { Settings } from "@rva/coding-agent/config/settings";
+} from "@reverse/coding-agent/tools";
+import { Settings } from "@reverse/coding-agent/config/settings";
 
 function createTestSession(
 	cwd: string,
@@ -47,8 +47,8 @@ async function removeTestDir(dirPath: string): Promise<void> {
 
 function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content
-		.filter(c => c.type === "text" && c.text)
-		.map(c => c.text!)
+		.filter((c): c is { type: string; text: string } => c.type === "text" && typeof c.text === "string")
+		.map(c => c.text)
 		.join("\n");
 }
 
@@ -562,6 +562,7 @@ describe("frida execution and action modes", () => {
 			expect(calls[0].args).toContain("-t");
 			expect(calls[0].args).toContain("1000");
 			expect(capturedMaxBytes).toBe(10 * 1024 * 1024);
+			expect(capturedTimeoutMs).toBe(1003000);
 			expect(textOf(result)).toContain("Uncapped execution success");
 		} finally {
 			await removeTestDir(tempDir);
@@ -670,7 +671,8 @@ describe("frida execution and action modes", () => {
 
 			// Verify artifact on disk contains the full 1000-byte output
 			expect(details.artifactPath).toBeDefined();
-			const savedJson = JSON.parse(await fs.readFile(details.artifactPath!, "utf8"));
+			const artifactPath = details.artifactPath;
+			const savedJson = artifactPath ? JSON.parse(await fs.readFile(artifactPath, "utf8")) : {};
 			expect(savedJson.stdout).toBe(fullStdout);
 			expect(savedJson.truncated).toBe(false);
 		} finally {
@@ -686,7 +688,14 @@ describe("frida CLI spawn pause semantics and literal parsing", () => {
 			const calls: Array<{ binary: string; args: string[] }> = [];
 			const runner: FridaRunner = async (binary, args) => {
 				calls.push({ binary, args });
-				return { stdout: Buffer.from(""), stderr: "", exitCode: 0, outputBytes: 0, truncated: false, timedOut: false };
+				return {
+					stdout: Buffer.from(""),
+					stderr: "",
+					exitCode: 0,
+					outputBytes: 0,
+					truncated: false,
+					timedOut: false,
+				};
 			};
 			const which = (cmd: string) => (cmd === "frida" ? "/usr/local/bin/frida" : null);
 			const tool = new FridaTool(createTestSession(tempDir), { runner, which });
@@ -721,19 +730,32 @@ describe("frida CLI spawn pause semantics and literal parsing", () => {
 		}
 	});
 
-
 	it("parses modules and trace outputs formatted as Python repr literals", () => {
-		const pyModulesRaw = "__FRIDA_MODULES_START__[{'name': 'libdemo.so', 'base': '0x7fff0000', 'size': 65536, 'path': '/lib/libdemo.so'}]__FRIDA_MODULES_END__";
+		const pyModulesRaw =
+			"__FRIDA_MODULES_START__[{'name': 'libdemo.so', 'base': '0x7fff0000', 'size': 65536, 'path': '/lib/libdemo.so'}]__FRIDA_MODULES_END__";
 		const modules = parseFridaModules(pyModulesRaw);
 		expect(modules).toHaveLength(1);
 		expect(modules[0].name).toBe("libdemo.so");
 		expect(modules[0].base).toBe("0x7fff0000");
 		expect(modules[0].size).toBe(65536);
 
-		const pyTraceRaw = "__FRIDA_TRACE_START__{'module': 'libdemo.so', 'events': [{'event': 'export', 'name': 'target_fn', 'address': '0x7fff1234'}]}__FRIDA_TRACE_END__";
+		const pyTraceRaw =
+			"__FRIDA_TRACE_START__{'module': 'libdemo.so', 'events': [{'event': 'export', 'name': 'target_fn', 'address': '0x7fff1234'}]}__FRIDA_TRACE_END__";
 		const trace = parseFridaTrace(pyTraceRaw);
 		expect(trace.module).toBe("libdemo.so");
 		expect(trace.events).toHaveLength(1);
 		expect(trace.events[0].name).toBe("target_fn");
+	});
+
+	it("respects AbortSignal passed as third execute argument", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-abort-"));
+		try {
+			const tool = new FridaTool(createTestSession(tempDir));
+			const controller = new AbortController();
+			controller.abort();
+			await expect(tool.execute("call-abort", { action: "devices" }, controller.signal)).rejects.toThrow();
+		} finally {
+			await removeTestDir(tempDir);
+		}
 	});
 });

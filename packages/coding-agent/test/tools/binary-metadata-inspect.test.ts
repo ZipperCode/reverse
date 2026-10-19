@@ -1,19 +1,13 @@
+import type { AgentToolResult } from "@reverse/agent";
 import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import * as zlib from "node:zlib";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	BinaryMetadataInspectTool,
-	inspectGoBuildInfo,
-	inspectRustAuditInfo,
-	type BinaryMetadataInspectDetails,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, BinaryMetadataInspectTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -25,21 +19,23 @@ function createTestSession(cwd: string): ToolSession {
 	};
 }
 
-function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+function textOf(result: AgentToolResult<unknown>): string {
 	return result.content
-		.map(item => item.text ?? "")
+		.flatMap(item => (item.type === "text" ? [item.text] : []))
 		.join("\n")
 		.trim();
 }
 
 /** Builds synthetic Go binary buffer with buildinfo header and module table. */
-function createSyntheticGoBinary(options: {
-	runtimeVersion?: string;
-	modulePath?: string;
-	cgoEnabled?: string;
-	vcsRevision?: string;
-	dependencies?: Array<{ path: string; version: string; sum: string }>;
-} = {}): Buffer {
+function createSyntheticGoBinary(
+	options: {
+		runtimeVersion?: string;
+		modulePath?: string;
+		cgoEnabled?: string;
+		vcsRevision?: string;
+		dependencies?: Array<{ path: string; version: string; sum: string }>;
+	} = {},
+): Buffer {
 	const chunks: Buffer[] = [];
 
 	// Minimal ELF header (x86_64, little endian)
@@ -93,11 +89,13 @@ function createSyntheticGoBinary(options: {
 }
 
 /** Builds synthetic Rust ELF binary with .dep-v0 section and rustc strings. */
-function createSyntheticRustBinary(options: {
-	rustcVersion?: string;
-	rustcCommit?: string;
-	packages?: Array<{ name: string; version: string; source?: string }>;
-} = {}): Buffer {
+function createSyntheticRustBinary(
+	options: {
+		rustcVersion?: string;
+		rustcCommit?: string;
+		packages?: Array<{ name: string; version: string; source?: string }>;
+	} = {},
+): Buffer {
 	const chunks: Buffer[] = [];
 
 	// Minimal ELF header with 1 section header entry pointing to .dep-v0
@@ -154,9 +152,7 @@ describe("binary_metadata_inspect registration and discovery", () => {
 		try {
 			const session = createTestSession(tempDir);
 			const tools = await createTools(session, ["binary_metadata_inspect"]);
-			const tool = tools.find(t => t.name === "binary_metadata_inspect") as
-				| BinaryMetadataInspectTool
-				| undefined;
+			const tool = tools.find(t => t.name === "binary_metadata_inspect") as BinaryMetadataInspectTool | undefined;
 			expect(tool).toBeDefined();
 			expect(tool?.name).toBe("binary_metadata_inspect");
 			expect(tool?.approval).toBe("read");
@@ -178,9 +174,9 @@ describe("binary_metadata_inspect path validation", () => {
 		try {
 			const session = createTestSession(tempDir);
 			const tool = new BinaryMetadataInspectTool(session);
-			await expect(
-				tool.execute({ action: "info", path: "nonexistent_binary.exe" }),
-			).rejects.toThrow("File not found");
+			await expect(tool.execute("call-1", { action: "info", path: "nonexistent_binary.exe" })).rejects.toThrow(
+				"File not found",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -191,9 +187,7 @@ describe("binary_metadata_inspect path validation", () => {
 		try {
 			const session = createTestSession(tempDir);
 			const tool = new BinaryMetadataInspectTool(session);
-			await expect(tool.execute({ action: "info", path: "." })).rejects.toThrow(
-				"Path is a directory",
-			);
+			await expect(tool.execute("call-1", { action: "info", path: "." })).rejects.toThrow("Path is a directory");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -221,7 +215,7 @@ describe("binary_metadata_inspect Go metadata inspection", () => {
 			await fs.writeFile(samplePath, goBuf);
 
 			// 1. Info action
-			const infoResult = await tool.execute({ action: "info", path: "orderservice" });
+			const infoResult = await tool.execute("call-info", { action: "info", path: "orderservice" });
 			expect(infoResult.details.language).toBe("go");
 			expect(infoResult.details.isGo).toBe(true);
 			expect(infoResult.details.go?.runtimeVersion).toBe("go1.22.4");
@@ -236,7 +230,7 @@ describe("binary_metadata_inspect Go metadata inspection", () => {
 			expect(infoText).toContain("github.com/example/orderservice");
 
 			// 2. Go action
-			const goResult = await tool.execute({ action: "go", path: "orderservice" });
+			const goResult = await tool.execute("call-go", { action: "go", path: "orderservice" });
 			expect(goResult.details.action).toBe("go");
 			expect(goResult.details.isGo).toBe(true);
 			expect(goResult.details.go?.dependencies.length).toBeGreaterThanOrEqual(2);
@@ -247,7 +241,7 @@ describe("binary_metadata_inspect Go metadata inspection", () => {
 			expect(goText).toContain("CGO_ENABLED");
 
 			// 3. Filter test
-			const filterResult = await tool.execute({
+			const filterResult = await tool.execute("call-filter", {
 				action: "go",
 				path: "orderservice",
 				filter: "crypto",
@@ -274,7 +268,7 @@ describe("binary_metadata_inspect Go metadata inspection", () => {
 			const goBuf = createSyntheticGoBinary({ dependencies: deps });
 			await fs.writeFile(path.join(tempDir, "app"), goBuf);
 
-			const pagedResult = await tool.execute({
+			const pagedResult = await tool.execute("call-page", {
 				action: "go",
 				path: "app",
 				limit: 2,
@@ -308,7 +302,7 @@ describe("binary_metadata_inspect Rust metadata inspection", () => {
 			await fs.writeFile(samplePath, rustBuf);
 
 			// 1. Info action
-			const infoResult = await tool.execute({ action: "info", path: "cli_rust" });
+			const infoResult = await tool.execute("call-info", { action: "info", path: "cli_rust" });
 			expect(infoResult.details.language).toBe("rust");
 			expect(infoResult.details.isRust).toBe(true);
 			expect(infoResult.details.rust?.cargoAuditable).toBe(true);
@@ -322,7 +316,7 @@ describe("binary_metadata_inspect Rust metadata inspection", () => {
 			expect(infoText).toContain("Cargo Auditable (.dep-v0)");
 
 			// 2. Rust action
-			const rustResult = await tool.execute({ action: "rust", path: "cli_rust" });
+			const rustResult = await tool.execute("call-rust", { action: "rust", path: "cli_rust" });
 			expect(rustResult.details.action).toBe("rust");
 			expect(rustResult.details.isRust).toBe(true);
 			expect(rustResult.details.rust?.packages.length).toBe(3);
@@ -333,7 +327,7 @@ describe("binary_metadata_inspect Rust metadata inspection", () => {
 			expect(rustText).toContain("tokio");
 
 			// 3. Filter test
-			const filterResult = await tool.execute({
+			const filterResult = await tool.execute("call-filter", {
 				action: "rust",
 				path: "cli_rust",
 				filter: "tokio",
@@ -361,7 +355,7 @@ describe("binary_metadata_inspect Rust metadata inspection", () => {
 			plainElf[5] = 1;
 			await fs.writeFile(path.join(tempDir, "plain_c_app"), plainElf);
 
-			const result = await tool.execute({ action: "info", path: "plain_c_app" });
+			const result = await tool.execute("call-info", { action: "info", path: "plain_c_app" });
 			expect(result.details.format).toBe("elf");
 			expect(result.details.language).toBe("unknown");
 			expect(result.details.isGo).toBe(false);
@@ -371,7 +365,7 @@ describe("binary_metadata_inspect Rust metadata inspection", () => {
 			expect(text).toContain("No Go or Rust build metadata detected");
 
 			// Asking for go action on non-Go binary returns clean unsupported message
-			const goResult = await tool.execute({ action: "go", path: "plain_c_app" });
+			const goResult = await tool.execute("call-go", { action: "go", path: "plain_c_app" });
 			expect(goResult.details.isGo).toBe(false);
 			expect(textOf(goResult)).toContain("No Go build metadata or runtime markers were detected");
 		} finally {

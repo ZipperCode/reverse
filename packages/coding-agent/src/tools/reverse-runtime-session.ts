@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
-import * as path from "node:path";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { prompt } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
+import { type } from "@reverse/omptype";
+import { prompt } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 import type { ToolSession } from "./index";
 import reverseRuntimeSessionDescription from "../prompts/tools/reverse-runtime-session.md" with { type: "text" };
@@ -53,30 +53,18 @@ export const reverseRuntimeSessionSchema = type({
 	"connection?": type("unknown").describe(
 		"Connection metadata (host, port, device, cdp_url, etc.). Secrets are automatically scrubbed",
 	),
-	"recovery_hints?": type("unknown").describe(
-		"Optional custom recovery hints and tool instructions for restoration",
-	),
-	"workflow_id?": type("string").describe(
-		"Optional reverse_workflow ID to link this runtime session with",
-	),
-	"step_id?": type("string").describe(
-		"Optional reverse_workflow step ID to link this runtime session with",
-	),
+	"recovery_hints?": type("unknown").describe("Optional custom recovery hints and tool instructions for restoration"),
+	"workflow_id?": type("string").describe("Optional reverse_workflow ID to link this runtime session with"),
+	"step_id?": type("string").describe("Optional reverse_workflow step ID to link this runtime session with"),
 	"status?": type
 		.enumerated("active", "idle", "stale", "closed", "failed", "unknown")
 		.describe("Initial or reported status for the session"),
-	"caller_status?": type("string").describe(
-		"Caller-reported status or observation for heartbeat and status actions",
-	),
+	"caller_status?": type("string").describe("Caller-reported status or observation for heartbeat and status actions"),
 	"probe?": type("boolean").describe(
 		"Perform safe, non-invasive opt-in metadata probe (no arbitrary process manipulation)",
 	),
-	"probe_result?": type("string").describe(
-		"Caller-reported probe outcome, error message, or diagnostic observation",
-	),
-	"stale_timeout?": type("number.integer >= 10").describe(
-		"Stale detection threshold in seconds (default 300)",
-	),
+	"probe_result?": type("string").describe("Caller-reported probe outcome, error message, or diagnostic observation"),
+	"stale_timeout?": type("number.integer >= 10").describe("Stale detection threshold in seconds (default 300)"),
 	"limit?": type("number.integer >= 1").describe(
 		"Maximum sessions or events to return (default 20 for list, default 50 for events, max 100)",
 	),
@@ -90,9 +78,7 @@ export const reverseRuntimeSessionSchema = type({
 	"event_kind?": type("string").describe(
 		"Optional event kind filter: 'stdout', 'stderr', 'breakpoint', 'step', 'lifecycle', etc. (for 'events' action)",
 	),
-	"to_artifact?": type("boolean").describe(
-		"Export full session details and restore plan to session artifact",
-	),
+	"to_artifact?": type("boolean").describe("Export full session details and restore plan to session artifact"),
 });
 
 export type ReverseRuntimeSessionParams = typeof reverseRuntimeSessionSchema.infer;
@@ -103,21 +89,24 @@ export interface ReverseRuntimeSessionDetails {
 	sessions?: RuntimeSessionRecord[];
 	restore_plan?: RestorePlan;
 	probe_info?: RuntimeSessionProbeInfo;
+	session_id?: string;
 	events?: unknown[];
 	eventCount?: number;
 	total?: number;
+	total_events?: number;
 	artifactId?: string;
 	artifactPath?: string;
 	unregistered?: boolean;
+	meta?: OutputMeta;
 }
-
 export interface ReverseRuntimeSessionToolOptions {
 	stateRoot?: string;
 }
 
-export class ReverseRuntimeSessionTool
-	implements AgentTool<typeof reverseRuntimeSessionSchema, ReverseRuntimeSessionDetails>
-{
+export class ReverseRuntimeSessionTool implements AgentTool<
+	typeof reverseRuntimeSessionSchema,
+	ReverseRuntimeSessionDetails
+> {
 	readonly name = "reverse_runtime_session";
 	readonly label = "Reverse Runtime Session Registry";
 	readonly summary =
@@ -152,9 +141,10 @@ export class ReverseRuntimeSessionTool
 	}
 
 	async execute(
+		_toolCallId: string,
 		params: ReverseRuntimeSessionParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<ReverseRuntimeSessionDetails>> {
+	): Promise<AgentToolResult<ReverseRuntimeSessionDetails> & { details: ReverseRuntimeSessionDetails }> {
 		throwIfAborted(signal);
 
 		const store = this.getStore();
@@ -171,10 +161,8 @@ export class ReverseRuntimeSessionTool
 				const kind = rawKind as RuntimeSessionKind;
 				const sessionId = (params.session_id ?? params.id ?? createRuntimeSessionId(kind)).trim();
 
-				const targetDetails =
-					(sanitizeMetadataObject(params.target_details) as Record<string, unknown>) ?? {};
-				const connection =
-					(sanitizeMetadataObject(params.connection) as Record<string, unknown>) ?? {};
+				const targetDetails = (sanitizeMetadataObject(params.target_details) as Record<string, unknown>) ?? {};
+				const connection = (sanitizeMetadataObject(params.connection) as Record<string, unknown>) ?? {};
 
 				const targetSummary = deriveTargetSummary(kind, targetDetails, params.target);
 				const name = params.name ? sanitizeSessionString(params.name) : undefined;
@@ -211,7 +199,7 @@ export class ReverseRuntimeSessionTool
 
 				// Generate deterministic recovery hints
 				const defaultPlan = generateRestorePlan(draftRecord);
-				draftRecord.recovery_hints = (sanitizeMetadataObject(
+				draftRecord.recovery_hints = sanitizeMetadataObject(
 					params.recovery_hints ?? {
 						restore_tool: defaultPlan.restore_tool,
 						restore_action: defaultPlan.restore_action,
@@ -219,7 +207,7 @@ export class ReverseRuntimeSessionTool
 						instructions: defaultPlan.instructions,
 						prerequisites: defaultPlan.prerequisites,
 					},
-				) as unknown as RuntimeSessionRecord["recovery_hints"]);
+				) as unknown as RuntimeSessionRecord["recovery_hints"];
 
 				await store.save(draftRecord);
 
@@ -272,9 +260,12 @@ export class ReverseRuntimeSessionTool
 				for (const s of sessions) {
 					const staleBadge = s.status === "stale" ? " [STALE]" : "";
 					const statusText = `**${s.status.toUpperCase()}**${staleBadge}`;
-					const targetPreview = s.target_summary.length > 40 ? s.target_summary.slice(0, 37) + "..." : s.target_summary;
+					const targetPreview =
+						s.target_summary.length > 40 ? s.target_summary.slice(0, 37) + "..." : s.target_summary;
 					const wf = s.workflow_id ? `\`${s.workflow_id}\`` : "-";
-					lines.push(`| \`${s.id}\` | \`${s.kind}\` | ${statusText} | ${targetPreview} | ${s.last_heartbeat_at} | ${wf} |`);
+					lines.push(
+						`| \`${s.id}\` | \`${s.kind}\` | ${statusText} | ${targetPreview} | ${s.last_heartbeat_at} | ${wf} |`,
+					);
 				}
 
 				return {
@@ -352,7 +343,8 @@ export class ReverseRuntimeSessionTool
 					statusLines.push(`  - Timestamp: ${record.last_probe.timestamp}`);
 				}
 
-				const metaEvents = record.metadata?.events ?? record.metadata?.recent_events ?? record.metadata?.capturedEvents;
+				const metaEvents =
+					record.metadata?.events ?? record.metadata?.recent_events ?? record.metadata?.capturedEvents;
 				const eventsCount =
 					typeof record.metadata?.eventsCount === "number"
 						? record.metadata.eventsCount
@@ -379,7 +371,15 @@ export class ReverseRuntimeSessionTool
 						if (alloc?.path && alloc.id) {
 							artifactId = alloc.id;
 							artifactPath = alloc.path;
-							await fs.writeFile(alloc.path, JSON.stringify({ record: sanitizeRuntimeSessionRecord(record), restorePlan, probeInfo }, null, 2), "utf8");
+							await fs.writeFile(
+								alloc.path,
+								JSON.stringify(
+									{ record: sanitizeRuntimeSessionRecord(record), restorePlan, probeInfo },
+									null,
+									2,
+								),
+								"utf8",
+							);
 							statusLines.push(`- **Session Artifact**: \`${artifactId}\` (${alloc.path})`);
 						}
 					} catch {
@@ -389,7 +389,14 @@ export class ReverseRuntimeSessionTool
 
 				return {
 					content: [{ type: "text", text: statusLines.join("\n") }],
-					details: { action: "status", session: record, restore_plan: restorePlan, probe_info: probeInfo, artifactId, artifactPath },
+					details: {
+						action: "status",
+						session: record,
+						restore_plan: restorePlan,
+						probe_info: probeInfo,
+						artifactId,
+						artifactPath,
+					},
 				};
 			}
 
@@ -505,9 +512,7 @@ export class ReverseRuntimeSessionTool
 				}
 
 				const metaEvents =
-					record.metadata?.events ??
-					record.metadata?.recent_events ??
-					record.metadata?.capturedEvents;
+					record.metadata?.events ?? record.metadata?.recent_events ?? record.metadata?.capturedEvents;
 				const rawList: unknown[] = Array.isArray(metaEvents) ? metaEvents : [];
 
 				let filtered = rawList;

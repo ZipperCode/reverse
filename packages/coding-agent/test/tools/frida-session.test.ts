@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
 import {
 	createTools,
 	type ToolSession,
@@ -10,20 +10,16 @@ import {
 	type FridaSessionDetails,
 	type FridaSessionRecord,
 	type DynamicSessionEvent,
-	type DynamicEvidenceReference,
 	type FridaRunner,
-	type FridaRunResult,
 	appendEventsToBuffer,
 	parseFridaOutputIntoEvents,
 	parseStructuredFridaMessage,
 	parsePythonLiteral,
-	buildEvidenceReference,
-	DEFAULT_MAX_EVENT_BUFFER_SIZE,
 	sanitizeRecordSecrets,
 	isProcessAlive,
 	encodeProjectKey,
-} from "@rva/coding-agent/tools";
-import { Settings } from "@rva/coding-agent/config/settings";
+} from "@reverse/coding-agent/tools";
+import { Settings } from "@reverse/coding-agent/config/settings";
 
 function createTestSession(
 	cwd: string,
@@ -57,8 +53,8 @@ async function removeTestDir(dirPath: string): Promise<void> {
 
 function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content
-		.filter(c => c.type === "text" && c.text)
-		.map(c => c.text!)
+		.filter((c): c is { type: string; text: string } => c.type === "text" && typeof c.text === "string")
+		.map(c => c.text)
 		.join("\n");
 }
 
@@ -283,10 +279,13 @@ describe("frida_session lifecycle and persistence", () => {
 			expect(runScriptDetails.artifactPath).toBeDefined();
 
 			// Verify artifact file exists on disk
-			const artifactExists = await fs.stat(runScriptDetails.artifactPath!).then(
-				() => true,
-				() => false,
-			);
+			const artifactPath = runScriptDetails.artifactPath;
+			const artifactExists = artifactPath
+				? await fs.stat(artifactPath).then(
+						() => true,
+						() => false,
+					)
+				: false;
 			expect(artifactExists).toBe(true);
 
 			// 6. Stop
@@ -499,7 +498,8 @@ describe("frida_session secret redaction and privacy", () => {
 				{
 					id: "h1",
 					timestamp: "2026-01-01T00:00:00Z",
-					scriptSnippet: "bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.t-IDcSemACt8x4iTMCda8Yhe3iZaWbvV5XKSTbuAn0M",
+					scriptSnippet:
+						"bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.t-IDcSemACt8x4iTMCda8Yhe3iZaWbvV5XKSTbuAn0M",
 				},
 			],
 			metadata: {
@@ -765,10 +765,11 @@ describe("frida_session dynamic event ring buffer and spawn idempotency", () => 
 			expect(evMsgDetails.events?.[0].kind).toBe("message");
 			expect(evMsgDetails.evidence).toBeDefined();
 
-			const evidence = Array.isArray(evMsgDetails.evidence)
-				? evMsgDetails.evidence[0]
-				: evMsgDetails.evidence!;
-			expect(evidence.sourceTool).toBe("frida_session");
+			const rawEvidence = evMsgDetails.evidence;
+			const evidence = Array.isArray(rawEvidence) ? rawEvidence[0] : rawEvidence;
+			expect(evidence).toBeDefined();
+			if (!evidence) throw new Error("Expected exported message evidence");
+			expect(evidence?.sourceTool).toBe("frida_session");
 			expect(evidence.locator).toStartWith("session:events-sess-1:seq:");
 			expect(evidence.kind).toBe("fact");
 			expect(evidence.target).toBe("12345");
@@ -802,6 +803,20 @@ describe("frida_session dynamic event ring buffer and spawn idempotency", () => 
 		expect(tool.approval({ action: "create" })).toBe("exec");
 		expect(tool.approval({ action: "list" })).toBe("read");
 		expect(tool.approval({ action: "status" })).toBe("read");
+	});
+
+	it("respects AbortSignal passed as third execute argument", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-sess-abort-"));
+		try {
+			const tool = new FridaSessionTool(createTestSession(tempDir), {
+				which: () => "/usr/local/bin/frida",
+			});
+			const controller = new AbortController();
+			controller.abort();
+			await expect(tool.execute("call-abort", { action: "create", pid: 1234 }, controller.signal)).rejects.toThrow();
+		} finally {
+			await removeTestDir(tempDir);
+		}
 	});
 });
 describe("frida_session regression: structured send/console/ws/crypto events, query, and classification", () => {
@@ -924,8 +939,11 @@ describe("frida_session regression: structured send/console/ws/crypto events, qu
 			const filterDetails = filterRes.details as FridaSessionDetails;
 			expect(filterDetails.events).toHaveLength(1);
 			expect(filterDetails.evidence).toBeDefined();
-			const ev = Array.isArray(filterDetails.evidence) ? filterDetails.evidence[0] : filterDetails.evidence!;
-			expect(ev.locator).toStartWith("session:frida-structured-sess:seq:");
+			const rawEv = filterDetails.evidence;
+			const ev = Array.isArray(rawEv) ? rawEv[0] : rawEv;
+			expect(ev).toBeDefined();
+			if (!ev) throw new Error("Expected filtered event evidence");
+			expect(ev?.locator).toStartWith("session:frida-structured-sess:seq:");
 			expect(ev.content).toContain("ChaCha20");
 		} finally {
 			await removeTestDir(tempDir);
@@ -939,7 +957,14 @@ describe("frida_session regression: structured send/console/ws/crypto events, qu
 		try {
 			const which = (cmd: string) => (cmd === "frida" ? "/usr/local/bin/frida" : null);
 			const tool = new FridaSessionTool(createTestSession(tempDir), {
-				runner: async () => ({ stdout: Buffer.from(""), stderr: "", exitCode: 0, outputBytes: 0, truncated: false, timedOut: false }),
+				runner: async () => ({
+					stdout: Buffer.from(""),
+					stderr: "",
+					exitCode: 0,
+					outputBytes: 0,
+					truncated: false,
+					timedOut: false,
+				}),
 				which,
 				stateRoot: stateDir,
 			});
@@ -966,7 +991,8 @@ describe("frida_session regression: structured send/console/ws/crypto events, qu
 
 describe("frida_session real Frida CLI normalization, pause semantics, and watchdog allowance", () => {
 	it("normalizes actual Frida CLI python repr send messages with None/bool/apostrophe and trailing data", () => {
-		const line1 = "message: {'type': 'send', 'payload': {'event': 'rea_demo_transform', 'input': 2, 'output': 17}} data: None";
+		const line1 =
+			"message: {'type': 'send', 'payload': {'event': 'rea_demo_transform', 'input': 2, 'output': 17}} data: None";
 		const res1 = parseStructuredFridaMessage(line1);
 		expect(res1).not.toBeNull();
 		expect(res1?.parsed).toEqual({
@@ -976,7 +1002,8 @@ describe("frida_session real Frida CLI normalization, pause semantics, and watch
 		expect(res1?.data).toBeNull();
 
 		// Apostrophe in string, booleans True/False, null/None, double quotes in single quotes
-		const line2 = "message: {'type': 'send', 'payload': {'text': 'it\\'s running', 'flag': True, 'missing': None, 'desc': 'says \"hello\"'}} data: None";
+		const line2 =
+			"message: {'type': 'send', 'payload': {'text': 'it\\'s running', 'flag': True, 'missing': None, 'desc': 'says \"hello\"'}} data: None";
 		const res2 = parseStructuredFridaMessage(line2);
 		expect(res2).not.toBeNull();
 		expect(res2?.parsed).toEqual({
@@ -1030,7 +1057,9 @@ describe("frida_session real Frida CLI normalization, pause semantics, and watch
 		expect(readyEvent).toBeDefined();
 		expect((readyEvent?.payload as Record<string, unknown>)?.address).toBe("0x100778460");
 
-		const transformEvents = sendEvents.filter(e => (e.payload as Record<string, unknown>)?.event === "rea_demo_transform");
+		const transformEvents = sendEvents.filter(
+			e => (e.payload as Record<string, unknown>)?.event === "rea_demo_transform",
+		);
 		expect(transformEvents).toHaveLength(2);
 		const p0 = transformEvents[0].payload as Record<string, unknown>;
 		const p1 = transformEvents[1].payload as Record<string, unknown>;
@@ -1109,11 +1138,18 @@ describe("frida_session real Frida CLI normalization, pause semantics, and watch
 			"message: {'type': 'send', 'payload': {'__proto__': {'event': 'crypto'}, 'constructor': 'kept'}} data: None";
 		const res = parseStructuredFridaMessage(protoLine);
 		expect(res).not.toBeNull();
-		const payload = res?.parsed && typeof res.parsed === "object" ? (res.parsed as Record<string, unknown>).payload : null;
+		let payload: unknown = null;
+		if (res && res.parsed && typeof res.parsed === "object" && "payload" in res.parsed) {
+			payload = res.parsed.payload;
+		}
 		expect(payload).not.toBeNull();
 		expect(Object.prototype.hasOwnProperty.call(payload, "__proto__")).toBe(true);
 		expect((payload as Record<string, unknown>).event).toBeUndefined();
-		expect((payload as Record<string, unknown>).constructor).toBe("kept");
+		let constructorVal: unknown;
+		if (payload && typeof payload === "object" && "constructor" in payload) {
+			constructorVal = payload.constructor;
+		}
+		expect(constructorVal).toBe("kept");
 		expect(JSON.stringify(payload)).toContain('"__proto__":{"event":"crypto"}');
 
 		// Verify event classification in parseFridaOutputIntoEvents does not leak crypto category
@@ -1159,23 +1195,31 @@ describe("frida_session real Frida CLI normalization, pause semantics, and watch
 		const unicodeJson = "message: " + JSON.stringify({ type: "send", payload: "a\u2028b\u2029c" });
 		const res1 = parseStructuredFridaMessage(unicodeJson);
 		expect(res1).not.toBeNull();
-		expect((res1?.parsed as Record<string, unknown>).payload).toBe("a\u2028b\u2029c");
+		let payload1: unknown;
+		if (res1 && res1.parsed && typeof res1.parsed === "object" && "payload" in res1.parsed) {
+			payload1 = res1.parsed.payload;
+		}
+		expect(payload1).toBe("a\u2028b\u2029c");
 
 		const unicodeJsonWithData = unicodeJson + " data: None";
 		const res2 = parseStructuredFridaMessage(unicodeJsonWithData);
 		expect(res2).not.toBeNull();
-		expect((res2?.parsed as Record<string, unknown>).payload).toBe("a\u2028b\u2029c");
+		let payload2: unknown;
+		if (res2 && res2.parsed && typeof res2.parsed === "object" && "payload" in res2.parsed) {
+			payload2 = res2.parsed.payload;
+		}
+		expect(payload2).toBe("a\u2028b\u2029c");
 	});
 
 	it("decodes Python repr literal escape sequences safely", () => {
-		const repr = "{'nul': '\\x00', 'u2028': '\\u2028', 'emoji': '\\U0001f600', 'surrogate': '\\ud800', 'quotes': 'it\\'s \"fine\"\\\\'}";
+		const repr =
+			"{'nul': '\\x00', 'u2028': '\\u2028', 'emoji': '\\U0001f600', 'surrogate': '\\ud800', 'quotes': 'it\\'s \"fine\"\\\\'}";
 		const res = parsePythonLiteral(repr);
 		const val = res.value as Record<string, unknown>;
 		expect(val.nul).toBe("\0");
 		expect(val.u2028).toBe("\u2028");
 		expect(val.emoji).toBe("😀");
 		expect(val.surrogate).toBe("\ud800");
-		expect(val.quotes).toBe("it's \"fine\"\\");
+		expect(val.quotes).toBe('it\'s "fine"\\');
 	});
-
 });

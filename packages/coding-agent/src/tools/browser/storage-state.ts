@@ -1,8 +1,7 @@
-import * as os from "node:os";
 import * as path from "node:path";
 
-import { getConfigRootDir, isRecord, untilAborted } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { getConfigRootDir, isRecord, untilAborted } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { Cookie, CookieParam, Page } from "puppeteer-core";
 import { resolveToCwd } from "../path-utils";
 import { throwIfAborted } from "../tool-errors";

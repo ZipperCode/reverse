@@ -1,18 +1,18 @@
-import type { WriteToolDetails } from "@rva/tui/tools/write";
+import type { WriteToolDetails } from "@reverse/tui/tools/write";
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@rva/agent";
+} from "@reverse/agent";
 
-import { isEnoent, isRecord, prompt, untilAborted } from "@rva/utils";
+import { isEnoent, isRecord, prompt, untilAborted } from "@reverse/utils";
 import {
 	type ArchiveMemberContent,
 	archiveFormatFromPath,
@@ -20,7 +20,7 @@ import {
 	parseArchivePathCandidates,
 	readArchiveEntries,
 	writeArchive,
-} from "@rva/utils/ar";
+} from "@reverse/utils/ar";
 import { normalizeToLF } from "../edit/normalize";
 
 import { InternalUrlRouter, sessionResolveContext, sessionWriteContext } from "../internal-urls";
@@ -38,13 +38,13 @@ import { routeWriteThroughBridge, shouldRouteWriteThroughBridge } from "./acp-br
 import { truncateForPrompt } from "./approval";
 import { assertEditableFile } from "./auto-generated-guard";
 
-import { isReadTruncationNotice } from "@rva/tui/tools/hashline-format";
+import { isReadTruncationNotice } from "@reverse/tui/tools/hashline-format";
 import { recoverConflictUriPrefix } from "./conflict-detect";
 import { invalidateFsScanAfterWrite } from "./fs-cache-invalidation";
 
 import { outputMeta } from "./output-meta";
 import { formatPathRelativeToCwd, probeLiteralPathExists, specialFileKind } from "./path-utils";
-import { splitPathAndSel } from "@rva/tui/tools/read";
+import { splitPathAndSel } from "@reverse/tui/tools/read";
 import {
 	enforcePlanModeWrite,
 	resolvePlanPath,
@@ -53,7 +53,7 @@ import {
 } from "./plan-mode-guard";
 import { decodeUtf8Text } from "./read-format";
 import { routeReadThroughBridge } from "./read-summary";
-import { shortenPath } from "@rva/tui/render/render-utils";
+import { shortenPath } from "@reverse/tui/render/render-utils";
 
 import {
 	deleteRowByKey,
@@ -65,7 +65,7 @@ import {
 	updateRowByKey,
 	updateRowByRowId,
 } from "./sqlite-reader";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { maybeWriteSnapshotHeader, stripWriteContent } from "./write-content";
 

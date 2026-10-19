@@ -1,5 +1,5 @@
-import type { DesktopWindow } from "@rva/natives";
-import { truncate } from "@rva/utils/format";
+import type { DesktopWindow } from "@reverse/natives";
+import { truncate } from "@reverse/utils/format";
 
 const MAX_APPS = 12;
 const WINDOWS_PER_APP = 3;

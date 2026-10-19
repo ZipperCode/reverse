@@ -1,15 +1,12 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
-import { findFreeCdpPort, relayTargets } from "@rva/coding-agent/tools/browser/attach";
-import {
-	DISCARDED_TABS_PROTOCOL_VERSION,
-	type TabSnapshot,
-} from "@rva/coding-agent/tools/browser/relay/protocol";
-import { type RelayServer, startRelayServer } from "@rva/coding-agent/tools/browser/relay/server";
-import { releaseTab } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
-import { isRecord } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
+import { findFreeCdpPort, relayTargets } from "@reverse/coding-agent/tools/browser/attach";
+import { DISCARDED_TABS_PROTOCOL_VERSION, type TabSnapshot } from "@reverse/coding-agent/tools/browser/relay/protocol";
+import { type RelayServer, startRelayServer } from "@reverse/coding-agent/tools/browser/relay/server";
+import { releaseTab } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
+import { isRecord } from "@reverse/utils";
 import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "./tern-fake-daemon";
 
 const PANE = 3;

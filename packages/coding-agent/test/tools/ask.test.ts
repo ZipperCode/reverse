@@ -1,24 +1,24 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { type } from "@rva/omptype";
-import type { AgentToolContext } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { type } from "@reverse/omptype";
+import type { AgentToolContext } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import type {
 	ExtensionAskDialogQuestion,
 	ExtensionAskDialogResult,
 	ExtensionUISelectItem,
-} from "@rva/coding-agent/extensibility/extensions";
-import { getThemeByName, initTheme, theme, type Theme } from "@rva/tui/theme";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { AskTool } from "@rva/coding-agent/tools/ask";
-import { askToolRenderer } from "@rva/tui/tools/ask";
-import { ToolAbortError } from "@rva/coding-agent/tools/tool-errors";
-import { TERMINAL } from "@rva/tui";
-import { tagImageAttachmentSource } from "@rva/tui/prompt/image-source";
-import * as ai from "@rva/ai";
-import type { Api, AssistantMessage, Model } from "@rva/ai";
-import { TempDir } from "@rva/utils";
-import { buildModel } from "@rva/catalog/build";
+} from "@reverse/coding-agent/extensibility/extensions";
+import { getThemeByName, initTheme, theme, type Theme } from "@reverse/tui/theme";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { AskTool } from "@reverse/coding-agent/tools/ask";
+import { askToolRenderer } from "@reverse/tui/tools/ask";
+import { ToolAbortError } from "@reverse/coding-agent/tools/tool-errors";
+import { TERMINAL } from "@reverse/tui";
+import { tagImageAttachmentSource } from "@reverse/tui/prompt/image-source";
+import * as ai from "@reverse/ai";
+import type { Api, AssistantMessage, Model } from "@reverse/ai";
+import { TempDir } from "@reverse/utils";
+import { buildModel } from "@reverse/catalog/build";
 
 // 1x1 transparent PNG.
 const TINY_PNG_BASE64 =

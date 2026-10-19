@@ -3,16 +3,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { getThemeByName, initTheme, type Theme } from "@rva/tui/theme";
-import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from "@rva/tui/tools/streaming-output";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import type { ReadToolDetails, ReadTruncationStats } from "@rva/tui/tools/read";
-import { formatTruncationMetaNotice } from "@rva/tui/tools/output-meta";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { readToolRenderer } from "@rva/tui/tools/read";
-import { writeArchive } from "@rva/utils/ar";
+import type { AgentToolResult } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { getThemeByName, initTheme, type Theme } from "@reverse/tui/theme";
+import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from "@reverse/tui/tools/streaming-output";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import type { ReadToolDetails, ReadTruncationStats } from "@reverse/tui/tools/read";
+import { formatTruncationMetaNotice } from "@reverse/tui/tools/output-meta";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { readToolRenderer } from "@reverse/tui/tools/read";
+import { writeArchive } from "@reverse/utils/ar";
 
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content

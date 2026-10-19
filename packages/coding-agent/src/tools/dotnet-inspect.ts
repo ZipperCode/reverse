@@ -1,9 +1,9 @@
 import type { Stats } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { prompt } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { prompt } from "@reverse/utils";
 import dotnetInspectDescription from "../prompts/tools/dotnet-inspect.md" with { type: "text" };
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
@@ -27,9 +27,7 @@ const dotnetInspectSchema = type({
 		"Maximum items/instructions returned (default 50 for lists, 100 for CIL, capped at 500/2000)",
 	),
 	"offset?": type("number").describe("Zero-based pagination offset"),
-	"max_bytes?": type("number").describe(
-		"Maximum file bytes to read before error (default 104857600, max 524288000)",
-	),
+	"max_bytes?": type("number").describe("Maximum file bytes to read before error (default 104857600, max 524288000)"),
 });
 
 export type DotnetInspectParams = typeof dotnetInspectSchema.infer;
@@ -130,14 +128,7 @@ const HARD_MAX_FILE_BYTES = 500 * 1024 * 1024; // 500 MiB
 // ECMA-335 Table & Coded Token Definitions
 // ============================================================================
 
-type ColumnType =
-	| "u16"
-	| "u32"
-	| "str"
-	| "guid"
-	| "blob"
-	| `table:${string}`
-	| keyof typeof CODED_TOKEN_MAP;
+type ColumnType = "u16" | "u32" | "str" | "guid" | "blob" | `table:${string}` | keyof typeof CODED_TOKEN_MAP;
 
 const CODED_TOKEN_MAP: Record<string, [tables: number[], tagBits: number]> = {
 	TypeDefOrRef: [[0x02, 0x01, 0x1b], 2],
@@ -830,7 +821,7 @@ class PeCliParser {
 		return null;
 	}
 
-	private parseTildeStream(offset: number, size: number): void {
+	private parseTildeStream(offset: number, _size: number): void {
 		const heapSizes = this.buffer[offset + 6];
 		this.strings4Byte = (heapSizes & 0x01) !== 0;
 		this.guid4Byte = (heapSizes & 0x02) !== 0;
@@ -888,7 +879,7 @@ class PeCliParser {
 				const r = this.tableRowCounts[t] ?? 0;
 				if (r > maxRows) maxRows = r;
 			}
-			return (maxRows << tagBits) >= 65536 ? 4 : 2;
+			return maxRows << tagBits >= 65536 ? 4 : 2;
 		}
 		return 2;
 	}
@@ -932,10 +923,7 @@ class PeCliParser {
 			headerLen = 2;
 		} else if ((b0 & 0xe0) === 0xc0) {
 			length =
-				((b0 & 0x1f) << 24) |
-				(this.buffer[pos + 1] << 16) |
-				(this.buffer[pos + 2] << 8) |
-				this.buffer[pos + 3];
+				((b0 & 0x1f) << 24) | (this.buffer[pos + 1] << 16) | (this.buffer[pos + 2] << 8) | this.buffer[pos + 3];
 			headerLen = 4;
 		} else {
 			return null;
@@ -963,10 +951,7 @@ class PeCliParser {
 			headerLen = 2;
 		} else if ((b0 & 0xe0) === 0xc0) {
 			length =
-				((b0 & 0x1f) << 24) |
-				(this.buffer[pos + 1] << 16) |
-				(this.buffer[pos + 2] << 8) |
-				this.buffer[pos + 3];
+				((b0 & 0x1f) << 24) | (this.buffer[pos + 1] << 16) | (this.buffer[pos + 2] << 8) | this.buffer[pos + 3];
 			headerLen = 4;
 		} else {
 			return Buffer.alloc(0);
@@ -984,8 +969,14 @@ class PeCliParser {
 		const pos = stream.offset + (index - 1) * 16;
 		if (pos + 16 > this.buffer.length) return null;
 		const d1 = this.buffer.readUInt32LE(pos).toString(16).padStart(8, "0");
-		const d2 = this.buffer.readUInt16LE(pos + 4).toString(16).padStart(4, "0");
-		const d3 = this.buffer.readUInt16LE(pos + 6).toString(16).padStart(4, "0");
+		const d2 = this.buffer
+			.readUInt16LE(pos + 4)
+			.toString(16)
+			.padStart(4, "0");
+		const d3 = this.buffer
+			.readUInt16LE(pos + 6)
+			.toString(16)
+			.padStart(4, "0");
 		const d4 = this.buffer.subarray(pos + 8, pos + 10).toString("hex");
 		const d5 = this.buffer.subarray(pos + 10, pos + 16).toString("hex");
 		return `{${d1}-${d2}-${d3}-${d4}-${d5}}`;
@@ -1072,7 +1063,11 @@ export class DotnetInspectTool implements AgentTool<typeof dotnetInspectSchema, 
 		this.description = prompt.render(dotnetInspectDescription);
 	}
 
-	async execute(_toolCallId: string, params: DotnetInspectParams, signal?: AbortSignal): Promise<AgentToolResult<DotnetInspectDetails>> {
+	async execute(
+		_toolCallId: string,
+		params: DotnetInspectParams,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<DotnetInspectDetails> & { details: DotnetInspectDetails }> {
 		throwIfAborted(signal);
 
 		const resolvedPath = resolveReadPath(params.path, this.session.cwd);
@@ -1136,7 +1131,10 @@ export class DotnetInspectTool implements AgentTool<typeof dotnetInspectSchema, 
 		}
 	}
 
-	private handleInfo(params: DotnetInspectParams, parser: PeCliParser): AgentToolResult<DotnetInspectDetails> {
+	private handleInfo(
+		params: DotnetInspectParams,
+		parser: PeCliParser,
+	): AgentToolResult<DotnetInspectDetails> & { details: DotnetInspectDetails } {
 		const flagsList: string[] = [];
 		const rawFlags = parser.cliHeader.flags;
 		if ((rawFlags & 0x0001) !== 0) flagsList.push("ILONLY");
@@ -1222,7 +1220,10 @@ export class DotnetInspectTool implements AgentTool<typeof dotnetInspectSchema, 
 		};
 	}
 
-	private handleTypes(params: DotnetInspectParams, parser: PeCliParser): AgentToolResult<DotnetInspectDetails> {
+	private handleTypes(
+		params: DotnetInspectParams,
+		parser: PeCliParser,
+	): AgentToolResult<DotnetInspectDetails> & { details: DotnetInspectDetails } {
 		const totalTypes = parser.tableRowCounts[0x02] ?? 0;
 		const filter = params.filter?.toLowerCase();
 		const typeFilter = params.type?.toLowerCase();
@@ -1335,7 +1336,10 @@ export class DotnetInspectTool implements AgentTool<typeof dotnetInspectSchema, 
 		};
 	}
 
-	private handleMethods(params: DotnetInspectParams, parser: PeCliParser): AgentToolResult<DotnetInspectDetails> {
+	private handleMethods(
+		params: DotnetInspectParams,
+		parser: PeCliParser,
+	): AgentToolResult<DotnetInspectDetails> & { details: DotnetInspectDetails } {
 		const totalTypes = parser.tableRowCounts[0x02] ?? 0;
 		const totalMethods = parser.tableRowCounts[0x06] ?? 0;
 		const typeFilter = params.type?.toLowerCase();
@@ -1366,10 +1370,7 @@ export class DotnetInspectTool implements AgentTool<typeof dotnetInspectSchema, 
 			const name = parser.readString(row.Name);
 			const fullName = `${declaringType}.${name}`;
 
-			if (
-				typeFilter &&
-				!declaringType.toLowerCase().includes(typeFilter)
-			) {
+			if (typeFilter && !declaringType.toLowerCase().includes(typeFilter)) {
 				continue;
 			}
 			if (
@@ -1462,7 +1463,10 @@ export class DotnetInspectTool implements AgentTool<typeof dotnetInspectSchema, 
 		};
 	}
 
-	private handleCil(params: DotnetInspectParams, parser: PeCliParser): AgentToolResult<DotnetInspectDetails> {
+	private handleCil(
+		params: DotnetInspectParams,
+		parser: PeCliParser,
+	): AgentToolResult<DotnetInspectDetails> & { details: DotnetInspectDetails } {
 		const totalTypes = parser.tableRowCounts[0x02] ?? 0;
 		const totalMethods = parser.tableRowCounts[0x06] ?? 0;
 		const methodQuery = (params.method ?? params.target ?? params.token)?.toLowerCase();
@@ -1509,10 +1513,7 @@ export class DotnetInspectTool implements AgentTool<typeof dotnetInspectSchema, 
 			) {
 				if (params.type) {
 					const typeFilter = params.type.toLowerCase();
-					if (
-						!declaringType.toLowerCase().includes(typeFilter) &&
-						!fullName.toLowerCase().includes(typeFilter)
-					) {
+					if (!declaringType.toLowerCase().includes(typeFilter) && !fullName.toLowerCase().includes(typeFilter)) {
 						continue;
 					}
 				}
@@ -1524,9 +1525,7 @@ export class DotnetInspectTool implements AgentTool<typeof dotnetInspectSchema, 
 		}
 
 		if (matchedMethodIndex === -1 || !matchedMethodRow) {
-			throw new ToolError(
-				`Method not found in ${params.path}: '${params.method ?? params.target ?? params.token}'`,
-			);
+			throw new ToolError(`Method not found in ${params.path}: '${params.method ?? params.target ?? params.token}'`);
 		}
 
 		const methodName = parser.readString(matchedMethodRow.Name);

@@ -1,10 +1,10 @@
 import * as fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes, prompt } from "@rva/utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes, prompt } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
@@ -36,9 +36,7 @@ const firmwareInspectSchema = type({
 	"block_size?": type("number.integer >= 512").describe(
 		"Block/chunk size in bytes for entropy scanning (default 65536, min 512, max 1048576)",
 	),
-	"path_filter?": type("string").describe(
-		"Filter file entries by filename or path substring (for 'entries' action)",
-	),
+	"path_filter?": type("string").describe("Filter file entries by filename or path substring (for 'entries' action)"),
 	"max_bytes?": type("number.integer >= 1").describe(
 		"Maximum image bytes to read and scan (default 100MB, max 500MB)",
 	),
@@ -604,7 +602,10 @@ function parseCompressedStream(buf: Buffer, offset: number): FirmwareRegion | nu
 // ============================================================================
 
 /** Parse CPIO archive (New ASCII format 070701 / 070702) */
-function parseCpioArchive(buf: Buffer, startOffset: number): { region: FirmwareRegion; entries: FirmwareEntry[] } | null {
+function parseCpioArchive(
+	buf: Buffer,
+	startOffset: number,
+): { region: FirmwareRegion; entries: FirmwareEntry[] } | null {
 	if (startOffset + 110 > buf.length) return null;
 	const magic = buf.toString("ascii", startOffset, startOffset + 6);
 	if (magic !== "070701" && magic !== "070702" && magic !== "070707") return null;
@@ -628,12 +629,7 @@ function parseCpioArchive(buf: Buffer, startOffset: number): { region: FirmwareR
 			const fileSize = Number.parseInt(filesizeHex, 16);
 			const nameSize = Number.parseInt(namesizeHex, 16);
 
-			if (
-				Number.isNaN(fileSize) ||
-				Number.isNaN(nameSize) ||
-				nameSize <= 0 ||
-				fileSize < 0
-			) {
+			if (Number.isNaN(fileSize) || Number.isNaN(nameSize) || nameSize <= 0 || fileSize < 0) {
 				break;
 			}
 
@@ -704,7 +700,10 @@ function parseCpioArchive(buf: Buffer, startOffset: number): { region: FirmwareR
 }
 
 /** Parse POSIX TAR archive */
-function parseTarArchive(buf: Buffer, startOffset: number): { region: FirmwareRegion; entries: FirmwareEntry[] } | null {
+function parseTarArchive(
+	buf: Buffer,
+	startOffset: number,
+): { region: FirmwareRegion; entries: FirmwareEntry[] } | null {
 	if (startOffset + 512 > buf.length) return null;
 	const magic = buf.toString("ascii", startOffset + 257, startOffset + 262);
 	if (magic !== "ustar\0" && magic !== "ustar ") return null;
@@ -723,15 +722,30 @@ function parseTarArchive(buf: Buffer, startOffset: number): { region: FirmwareRe
 			break;
 		}
 
-		let name = buf.toString("utf8", curr, curr + 100).replace(/\0.*$/, "").trim();
-		const prefix = buf.toString("utf8", curr + 345, curr + 500).replace(/\0.*$/, "").trim();
+		let name = buf
+			.toString("utf8", curr, curr + 100)
+			.replace(/\0.*$/, "")
+			.trim();
+		const prefix = buf
+			.toString("utf8", curr + 345, curr + 500)
+			.replace(/\0.*$/, "")
+			.trim();
 		if (prefix) name = `${prefix}/${name}`;
 
 		if (!name) break;
 
-		const modeStr = buf.toString("ascii", curr + 100, curr + 108).replace(/\0.*$/, "").trim();
-		const sizeStr = buf.toString("ascii", curr + 124, curr + 136).replace(/\0.*$/, "").trim();
-		const mtimeStr = buf.toString("ascii", curr + 136, curr + 148).replace(/\0.*$/, "").trim();
+		const modeStr = buf
+			.toString("ascii", curr + 100, curr + 108)
+			.replace(/\0.*$/, "")
+			.trim();
+		const sizeStr = buf
+			.toString("ascii", curr + 124, curr + 136)
+			.replace(/\0.*$/, "")
+			.trim();
+		const mtimeStr = buf
+			.toString("ascii", curr + 136, curr + 148)
+			.replace(/\0.*$/, "")
+			.trim();
 		const typeflag = String.fromCharCode(buf[curr + 156]);
 
 		const size = Number.parseInt(sizeStr, 8) || 0;
@@ -776,7 +790,10 @@ function parseTarArchive(buf: Buffer, startOffset: number): { region: FirmwareRe
 }
 
 /** Parse ZIP archive */
-function parseZipArchive(buf: Buffer, startOffset: number): { region: FirmwareRegion; entries: FirmwareEntry[] } | null {
+function parseZipArchive(
+	buf: Buffer,
+	startOffset: number,
+): { region: FirmwareRegion; entries: FirmwareEntry[] } | null {
 	if (startOffset + 30 > buf.length) return null;
 	if (buf.readUInt32LE(startOffset) !== 0x04034b50) return null;
 
@@ -787,7 +804,6 @@ function parseZipArchive(buf: Buffer, startOffset: number): { region: FirmwareRe
 		const sig = buf.readUInt32LE(curr);
 		if (sig !== 0x04034b50) break; // Local file header
 
-		const method = buf.readUInt16LE(curr + 8);
 		const mtime = buf.readUInt16LE(curr + 10);
 		const mdate = buf.readUInt16LE(curr + 12);
 		const compressedSize = buf.readUInt32LE(curr + 18);
@@ -890,7 +906,9 @@ export function scanFirmwareRegions(buf: Buffer): { regions: FirmwareRegion[]; e
 	// For performance on large files, check 4-byte words
 	const knownOffsets = new Set<number>(regions.map(r => r.offset));
 	for (const entry of allEntries) {
-		knownOffsets.add(entry.offset);
+		if (entry.offset !== undefined) {
+			knownOffsets.add(entry.offset);
+		}
 	}
 	for (let i = 4; i < length - 32; i += 4) {
 		const inRange = skipRanges.find(r => i >= r.start && i < r.end);
@@ -928,7 +946,10 @@ export function scanFirmwareRegions(buf: Buffer): { regions: FirmwareRegion[]; e
 		}
 
 		// SquashFS: "sqsh" (0x73717368) or "hsqs" (0x68737173)
-		if ((b0 === 0x73 && b1 === 0x71 && b2 === 0x73 && b3 === 0x68) || (b0 === 0x68 && b1 === 0x73 && b2 === 0x71 && b3 === 0x73)) {
+		if (
+			(b0 === 0x73 && b1 === 0x71 && b2 === 0x73 && b3 === 0x68) ||
+			(b0 === 0x68 && b1 === 0x73 && b2 === 0x71 && b3 === 0x73)
+		) {
 			const sqsh = parseSquashfsSuperblock(buf, i);
 			if (sqsh) {
 				regions.push(sqsh);
@@ -945,7 +966,9 @@ export function scanFirmwareRegions(buf: Buffer): { regions: FirmwareRegion[]; e
 				allEntries.push(...cpio.entries);
 				knownOffsets.add(i);
 				for (const entry of cpio.entries) {
-					knownOffsets.add(entry.offset);
+					if (entry.offset !== undefined) {
+						knownOffsets.add(entry.offset);
+					}
 				}
 				if (cpio.region.size && cpio.region.size > 0) {
 					skipRanges.push({ start: i, end: i + cpio.region.size });
@@ -964,7 +987,9 @@ export function scanFirmwareRegions(buf: Buffer): { regions: FirmwareRegion[]; e
 				allEntries.push(...tar.entries);
 				knownOffsets.add(i);
 				for (const entry of tar.entries) {
-					knownOffsets.add(entry.offset);
+					if (entry.offset !== undefined) {
+						knownOffsets.add(entry.offset);
+					}
 				}
 				if (tar.region.size && tar.region.size > 0) {
 					skipRanges.push({ start: i, end: i + tar.region.size });
@@ -983,7 +1008,9 @@ export function scanFirmwareRegions(buf: Buffer): { regions: FirmwareRegion[]; e
 				allEntries.push(...zip.entries);
 				knownOffsets.add(i);
 				for (const entry of zip.entries) {
-					knownOffsets.add(entry.offset);
+					if (entry.offset !== undefined) {
+						knownOffsets.add(entry.offset);
+					}
 				}
 				if (zip.region.size && zip.region.size > 0) {
 					skipRanges.push({ start: i, end: i + zip.region.size });
@@ -994,7 +1021,10 @@ export function scanFirmwareRegions(buf: Buffer): { regions: FirmwareRegion[]; e
 			}
 		}
 		// CramFS: 0x28cd3d45 or 0x453dcd28
-		if ((b0 === 0x45 && b1 === 0x3d && b2 === 0xcd && b3 === 0x28) || (b0 === 0x28 && b1 === 0xcd && b2 === 0x3d && b3 === 0x45)) {
+		if (
+			(b0 === 0x45 && b1 === 0x3d && b2 === 0xcd && b3 === 0x28) ||
+			(b0 === 0x28 && b1 === 0xcd && b2 === 0x3d && b3 === 0x45)
+		) {
 			const cramfs = parseCramfsSuperblock(buf, i);
 			if (cramfs) {
 				regions.push(cramfs);
@@ -1071,7 +1101,9 @@ export class FirmwareInspectTool implements AgentTool<typeof firmwareInspectSche
 		_toolCallId: string,
 		params: FirmwareInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<FirmwareInspectDetails>> {
+		_onUpdate?: AgentToolUpdateCallback<FirmwareInspectDetails>,
+		_ctx?: AgentToolContext,
+	): Promise<AgentToolResult<FirmwareInspectDetails> & { details: FirmwareInspectDetails }> {
 		throwIfAborted(signal);
 
 		const resolvedPath = resolveReadPath(params.path, this.session.cwd);
@@ -1161,7 +1193,9 @@ export class FirmwareInspectTool implements AgentTool<typeof firmwareInspectSche
 					);
 				}
 				if (regions.length > 15) {
-					textLines.push(`*...and ${regions.length - 15} more regions (use \`action: "regions"\` to inspect all)*`);
+					textLines.push(
+						`*...and ${regions.length - 15} more regions (use \`action: "regions"\` to inspect all)*`,
+					);
 				}
 			}
 
@@ -1177,7 +1211,9 @@ export class FirmwareInspectTool implements AgentTool<typeof firmwareInspectSche
 					textLines.push(`| \`${ent.path}\` | ${ent.type} | ${formatBytes(ent.size)} | ${ent.container} |`);
 				}
 				if (entries.length > 8) {
-					textLines.push(`*...and ${entries.length - 8} more files (use \`action: "entries"\` to search and paginate)*`);
+					textLines.push(
+						`*...and ${entries.length - 8} more files (use \`action: "entries"\` to search and paginate)*`,
+					);
 				}
 			}
 
@@ -1312,10 +1348,7 @@ export class FirmwareInspectTool implements AgentTool<typeof firmwareInspectSche
 		// Action: entropy
 		// ------------------------------------------------------------------------
 		if (action === "entropy") {
-			const blockSize = Math.min(
-				Math.max(params.block_size ?? DEFAULT_BLOCK_SIZE, MIN_BLOCK_SIZE),
-				MAX_BLOCK_SIZE,
-			);
+			const blockSize = Math.min(Math.max(params.block_size ?? DEFAULT_BLOCK_SIZE, MIN_BLOCK_SIZE), MAX_BLOCK_SIZE);
 			const totalBlocks = Math.ceil(buffer.length / blockSize);
 			const allBlocks: FirmwareEntropyBlock[] = [];
 

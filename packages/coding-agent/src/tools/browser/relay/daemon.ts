@@ -12,13 +12,13 @@
  * the global broker lease before probing, then adopt that external server
  * without attempting another bind.
  */
-import { logger } from "@rva/utils";
-import { VERSION } from "@rva/utils/dirs";
+import { logger } from "@reverse/utils";
+import { VERSION } from "@reverse/utils/dirs";
 import { daemonClientForGlobal } from "../../../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../../../launch/ensure";
 import { resolveWorkerSpawnCmd } from "../../../subprocess/worker-client";
 import { throwIfAborted } from "../../tool-errors";
-import { probeCdpResponse, probeCdpStatus } from "../attach";
+import { probeCdpResponse } from "../attach";
 import { DEFAULT_RELAY_URL } from "./kind";
 import { isOlderRelayVersion, relayCdpClientsOf, relayVersionOf } from "./probe";
 

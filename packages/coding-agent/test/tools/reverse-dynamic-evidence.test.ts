@@ -2,19 +2,13 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	ReverseDynamicEvidenceTool,
-	type ToolSession,
-	BUILTIN_TOOLS,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { EvidenceStore } from "@rva/coding-agent/evidence";
-import { ReverseWorkflowStore } from "@rva/coding-agent/reverse-workflow";
-import { ReverseKnowledgeStore } from "@rva/coding-agent/reverse-knowledge";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, ReverseDynamicEvidenceTool, type ToolSession, BUILTIN_TOOLS } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
+import { EvidenceStore, type FactEvidence, type ConclusionEvidence } from "@reverse/coding-agent/evidence";
+import { ReverseWorkflowStore } from "@reverse/coding-agent/reverse-workflow";
+import { ReverseKnowledgeStore } from "@reverse/coding-agent/reverse-knowledge";
 import {
 	formatDynamicLocator,
 	parseDynamicLocator,
@@ -22,13 +16,11 @@ import {
 	normalizeFridaEvent,
 	normalizeBrowserEvent,
 	normalizeDapEvent,
-	normalizeDynamicEvent,
 	filterDynamicEvents,
 	appendDynamicEvents,
 	dynamicEventToFactInput,
 	type UniversalDynamicEvent,
-} from "@rva/coding-agent/reverse-runtime-session/dynamic-events";
-import { dapSessionManager } from "@rva/coding-agent/dap";
+} from "@reverse/coding-agent/reverse-runtime-session/dynamic-events";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -40,9 +32,9 @@ function createTestSession(cwd: string): ToolSession {
 	};
 }
 
-function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+function textOf(result: { content: Array<{ type: string; text?: string } | { type: string }> }): string {
 	return result.content
-		.map(item => item.text ?? "")
+		.map(item => ("text" in item && typeof item.text === "string" ? item.text : ""))
 		.join("\n")
 		.trim();
 }
@@ -304,6 +296,7 @@ describe("reverse_dynamic_evidence tool operations", () => {
 
 			// Add hypothesis
 			const hyp = await evidenceStore.addHypothesis({
+				kind: "hypothesis",
 				target: "app.apk",
 				claim: "Target uses AES-CBC with static IV for license verification",
 				verificationPlan: "Hook Cipher.init using Frida to observe algorithm parameters",
@@ -390,11 +383,13 @@ describe("reverse_dynamic_evidence tool operations", () => {
 
 			// Add a dynamic fact and a regular fact
 			await evidenceStore.addFact({
+				kind: "fact",
 				sourceTool: "frida_session",
 				locator: "session:test:seq:1",
 				content: "Dynamic trace 1",
 			});
 			await evidenceStore.addFact({
+				kind: "fact",
 				sourceTool: "triage",
 				locator: "0x14001A240",
 				content: "Static header entry",

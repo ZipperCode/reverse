@@ -1,10 +1,10 @@
 import { pathToFileURL } from "node:url";
-import { untilAborted } from "@rva/utils";
+import { untilAborted } from "@reverse/utils";
 import type { ToolSession } from "../sdk";
 import type { BrowserHandle } from "./browser/registry";
 import type { ScreenshotResult } from "./browser/tab-protocol";
 import { ToolAbortError } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 const PDF_IMAGE_MEMBER_RE = /^(.*\.pdf):(.*)$/i;
 const PDF_PAGE_MEMBER_RE = /^(?:p|page[-_]?)(\d+)(?:[-_].*)?\.png$/i;

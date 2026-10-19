@@ -2,16 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	CrashdumpInspectTool,
-	inspectCrashdump,
-	type CrashdumpInspectDetails,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, CrashdumpInspectTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -37,17 +31,19 @@ function textOf(result: { content: Array<{ type: string; text?: string }> }): st
 /**
  * Builds a synthetic minimal Linux ELF64 Core Dump (x86_64).
  */
-function createSyntheticElfCore(options: {
-	pid?: number;
-	signal?: number;
-	rip?: bigint;
-	rsp?: bigint;
-	rbp?: bigint;
-	rax?: bigint;
-	faultAddr?: bigint;
-	processName?: string;
-	processArgs?: string;
-} = {}): Buffer {
+function createSyntheticElfCore(
+	options: {
+		pid?: number;
+		signal?: number;
+		rip?: bigint;
+		rsp?: bigint;
+		rbp?: bigint;
+		rax?: bigint;
+		faultAddr?: bigint;
+		processName?: string;
+		processArgs?: string;
+	} = {},
+): Buffer {
 	const pid = options.pid ?? 1234;
 	const signal = options.signal ?? 11; // SIGSEGV
 	const rip = options.rip ?? 0x7fff5fc01234n;
@@ -170,22 +166,22 @@ function createSyntheticElfCore(options: {
 /**
  * Builds a synthetic minimal Microsoft Minidump (MDMP).
  */
-function createSyntheticMinidump(options: {
-	threadId?: number;
-	excCode?: number;
-	excAddress?: bigint;
-	rip?: bigint;
-	rsp?: bigint;
-	moduleName?: string;
-} = {}): Buffer {
+function createSyntheticMinidump(
+	options: {
+		threadId?: number;
+		excCode?: number;
+		excAddress?: bigint;
+		rip?: bigint;
+		rsp?: bigint;
+		moduleName?: string;
+	} = {},
+): Buffer {
 	const threadId = options.threadId ?? 4567;
 	const excCode = options.excCode ?? 0xc0000005; // STATUS_ACCESS_VIOLATION
 	const excAddress = options.excAddress ?? 0x7ff7a0101000n;
 	const rip = options.rip ?? 0x7ff7a0101000n;
 	const rsp = options.rsp ?? 0x000000e00000f000n;
 	const moduleName = options.moduleName ?? "C:\\App\\crash_demo.exe";
-
-	const chunks: Buffer[] = [];
 
 	// Stream 1: SystemInfoStream (type 7) - 24 bytes
 	const sysInfo = Buffer.alloc(24, 0);

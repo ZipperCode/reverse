@@ -3,8 +3,8 @@ import * as fs from "node:fs/promises";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CmuxSocketClient } from "@rva/coding-agent/tools/browser/cmux/socket-client";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { CmuxSocketClient } from "@reverse/coding-agent/tools/browser/cmux/socket-client";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 type RequestLine = {
 	id?: unknown;

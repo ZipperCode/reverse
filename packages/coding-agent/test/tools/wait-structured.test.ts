@@ -6,13 +6,13 @@
  * carrying data must advertise the `agent://<id>` handle (PR #10625 review).
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { AsyncJobManager } from "@rva/coding-agent/async/job-manager";
-import type { AsyncJobRunResult } from "@rva/coding-agent/async/job-manager";
-import { IrcBus } from "@rva/coding-agent/irc/bus";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { StructuredSubagentOutput } from "@rva/tui/tools/task";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { buildJobResult } from "@rva/coding-agent/async/job-control";
+import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import type { AsyncJobRunResult } from "@reverse/coding-agent/async/job-manager";
+import { IrcBus } from "@reverse/coding-agent/irc/bus";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { StructuredSubagentOutput } from "@reverse/tui/tools/task";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { buildJobResult } from "@reverse/coding-agent/async/job-control";
 
 const SELF_ID = "Main";
 

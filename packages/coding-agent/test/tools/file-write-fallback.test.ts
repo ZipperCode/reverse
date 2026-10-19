@@ -9,7 +9,7 @@ import {
 	isPermissionDeniedError,
 	withFileMutationSession,
 	writeFileWithFallback,
-} from "@rva/coding-agent/tools/file-write-fallback";
+} from "@reverse/coding-agent/tools/file-write-fallback";
 
 /** Mimics a Node/Bun filesystem error with a structured `code`, without touching a real fs. */
 function fsError(code: string, message = `${code}: simulated`): NodeJS.ErrnoException {

@@ -5,11 +5,11 @@ import {
 	type TodoPhase,
 	type TodoCompletionTransition,
 	type TodoToolDetails,
-} from "@rva/tui/tools/todo";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@rva/agent";
+} from "@reverse/tui/tools/todo";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 
-import { isRecord, prompt } from "@rva/utils";
+import { isRecord, prompt } from "@reverse/utils";
 
 import todoDescription from "../prompts/tools/todo.md" with { type: "text" };
 import type { ToolSession } from "../sdk";

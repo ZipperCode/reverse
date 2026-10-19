@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	createTools,
 	ReverseWorkflowTool,
@@ -11,21 +11,11 @@ import {
 	EvidenceTool,
 	type ToolSession,
 	BUILTIN_TOOLS,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { EvidenceStore } from "@rva/coding-agent/evidence/store";
-import { ReverseWorkflowStore } from "@rva/coding-agent/reverse-workflow/store";
-import { sniffTargetFormat, generateDeterministicPlan } from "@rva/coding-agent/reverse-workflow/planner";
-import {
-	computeWorkflowMetrics,
-	FAILURE_CATEGORIES,
-} from "@rva/coding-agent/reverse-workflow/contracts";
-import {
-	classifyFailure,
-	generateRecoveryPlan,
-} from "@rva/coding-agent/reverse-workflow/recovery";
+} from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
+import { ReverseWorkflowStore } from "@reverse/coding-agent/reverse-workflow/store";
+import { classifyFailure } from "@reverse/coding-agent/reverse-workflow/recovery";
 function createTestSession(cwd: string, options: { allocateArtifact?: boolean } = {}): ToolSession {
 	const artifactsDir = path.join(cwd, "artifacts");
 	return {
@@ -44,9 +34,9 @@ function createTestSession(cwd: string, options: { allocateArtifact?: boolean } 
 	};
 }
 
-function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+function textOf(result: { content: Array<{ type: string; text?: string } | { type: string }> }): string {
 	return result.content
-		.map(item => item.text ?? "")
+		.map(item => ("text" in item && typeof item.text === "string" ? item.text : ""))
 		.join("\n")
 		.trim();
 }
@@ -196,7 +186,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", target });
+			const res = await tool.execute("call_plan", { action: "plan", target });
 			expect(res.details.action).toBe("plan");
 			expect(res.details.plan?.format).toBe("PE");
 			expect(res.details.plan?.steps).toHaveLength(4);
@@ -215,7 +205,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", target });
+			const res = await tool.execute("call_plan", { action: "plan", target });
 			expect(res.details.plan?.format).toBe("ELF");
 			expect(res.details.plan?.steps).toHaveLength(4);
 			expect(res.details.plan?.steps[0]?.tool).toBe("triage");
@@ -234,7 +224,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", target });
+			const res = await tool.execute("call_plan", { action: "plan", target });
 			expect(res.details.plan?.format).toBe("Mach-O");
 			expect(res.details.plan?.steps).toHaveLength(4);
 			expect(res.details.plan?.steps[0]?.tool).toBe("triage");
@@ -251,7 +241,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", target });
+			const res = await tool.execute("call_plan", { action: "plan", target });
 			expect(res.details.plan?.format).toBe("APK");
 			expect(res.details.plan?.steps).toHaveLength(4);
 			expect(res.details.plan?.steps[0]?.tool).toBe("android_package_inspect");
@@ -270,7 +260,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", target });
+			const res = await tool.execute("call_plan", { action: "plan", target });
 			expect(res.details.plan?.format).toBe("JS");
 			expect(res.details.plan?.steps).toHaveLength(4);
 			expect(res.details.plan?.steps[0]?.tool).toBe("sourcemap_inspect");
@@ -289,7 +279,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", target });
+			const res = await tool.execute("call_plan", { action: "plan", target });
 			expect(res.details.plan?.format).toBe("WASM");
 			expect(res.details.plan?.steps).toHaveLength(4);
 			expect(res.details.plan?.steps[0]?.tool).toBe("wasm_inspect");
@@ -308,7 +298,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", target });
+			const res = await tool.execute("call_plan", { action: "plan", target });
 			expect(res.details.plan?.format).toBe("PCAP");
 			expect(res.details.plan?.steps).toHaveLength(4);
 			expect(res.details.plan?.steps[0]?.tool).toBe("pcap_inspect");
@@ -327,7 +317,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", target });
+			const res = await tool.execute("call_plan", { action: "plan", target });
 			expect(res.details.plan?.format).toBe("SQLite");
 			expect(res.details.plan?.steps).toHaveLength(4);
 			expect(res.details.plan?.steps[0]?.tool).toBe("sqlite_inspect");
@@ -345,7 +335,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", format: "WASM", target: "virtual/app.wasm" });
+			const res = await tool.execute("call_plan", { action: "plan", format: "WASM", target: "virtual/app.wasm" });
 			expect(res.details.plan?.format).toBe("WASM");
 			expect(res.details.plan?.steps).toHaveLength(4);
 		} finally {
@@ -367,7 +357,7 @@ describe("reverse_workflow lifecycle management", () => {
 			const tool = new ReverseWorkflowTool(session);
 
 			// 1. Create
-			const createRes = await tool.execute({
+			const createRes = await tool.execute("call_create", {
 				action: "create",
 				target,
 				goal: "Verify authentication bypass vulnerability",
@@ -382,14 +372,14 @@ describe("reverse_workflow lifecycle management", () => {
 			const workflowId = wf!.id;
 
 			// 2. Status inspection
-			const statusRes = await tool.execute({ action: "status", workflow_id: workflowId });
+			const statusRes = await tool.execute("call_status", { action: "status", workflow_id: workflowId });
 			expect(statusRes.details.metrics?.total_steps).toBe(4);
 			expect(statusRes.details.metrics?.completed_steps).toBe(0);
 			expect(statusRes.details.metrics?.pending_steps).toBe(4);
 			expect(statusRes.details.metrics?.next_step?.id).toBe("elf_step_1");
 
 			// 3. Record step 1 completed
-			const rec1 = await tool.execute({
+			const rec1 = await tool.execute("call_rec1", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "elf_step_1",
@@ -402,7 +392,7 @@ describe("reverse_workflow lifecycle management", () => {
 			expect(rec1.details.metrics?.next_step?.id).toBe("elf_step_2");
 
 			// 4. Record step 2 skipped
-			await tool.execute({
+			await tool.execute("call_rec2", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "elf_step_2",
@@ -411,7 +401,7 @@ describe("reverse_workflow lifecycle management", () => {
 			});
 
 			// 5. Inspect single step status
-			const stepStatus = await tool.execute({
+			const stepStatus = await tool.execute("call_step_status", {
 				action: "status",
 				workflow_id: workflowId,
 				step_id: "elf_step_1",
@@ -420,7 +410,7 @@ describe("reverse_workflow lifecycle management", () => {
 			expect(stepStatus.details.step?.status).toBe("completed");
 
 			// 6. Export to Markdown
-			const exportMd = await tool.execute({
+			const exportMd = await tool.execute("call_export_md", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "markdown",
@@ -431,7 +421,7 @@ describe("reverse_workflow lifecycle management", () => {
 			expect(mdText).toContain("[COMPLETED] elf_step_1");
 
 			// 7. Export to JSON
-			const exportJson = await tool.execute({
+			const exportJson = await tool.execute("call_export_json", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "json",
@@ -442,11 +432,11 @@ describe("reverse_workflow lifecycle management", () => {
 			expect(parsedJson.metrics.skipped_steps).toBe(1);
 
 			// 8. Destroy
-			const destroyRes = await tool.execute({ action: "destroy", workflow_id: workflowId });
+			const destroyRes = await tool.execute("call_destroy", { action: "destroy", workflow_id: workflowId });
 			expect(destroyRes.details.destroyed).toBe(true);
 
 			// Confirm deleted
-			await expect(tool.execute({ action: "status", workflow_id: workflowId })).rejects.toThrow(
+			await expect(tool.execute("call_status_err", { action: "status", workflow_id: workflowId })).rejects.toThrow(
 				`Workflow '${workflowId}' not found.`,
 			);
 		} finally {
@@ -462,10 +452,10 @@ describe("reverse_workflow lifecycle management", () => {
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			await tool.execute({ action: "create", target: target1, id: "wf_test_1" });
-			await tool.execute({ action: "create", target: target2, id: "wf_test_2" });
+			await tool.execute("call_create1", { action: "create", target: target1, id: "wf_test_1" });
+			await tool.execute("call_create2", { action: "create", target: target2, id: "wf_test_2" });
 
-			const listRes = await tool.execute({ action: "status" });
+			const listRes = await tool.execute("call_list", { action: "status" });
 			expect(listRes.details.workflows).toHaveLength(2);
 			const text = textOf(listRes);
 			expect(text).toContain("wf_test_1");
@@ -498,15 +488,15 @@ describe("reverse_workflow cross-tool evidence association", () => {
 				locator: "com.example.AuthActivity",
 				content: "Discovered exported activity with android:exported='true'",
 			});
-			const factId = factRes.details.record?.id;
+			const factId = factRes.details?.record?.id;
 			expect(factId).toBeDefined();
 
 			// Create workflow
-			const createRes = await workflowTool.execute({ action: "create", target });
+			const createRes = await workflowTool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Record step with linked evidence ID
-			const recordRes = await workflowTool.execute({
+			const recordRes = await workflowTool.execute("call_rec", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "apk_step_2",
@@ -517,7 +507,7 @@ describe("reverse_workflow cross-tool evidence association", () => {
 			expect(recordRes.details.step?.evidence_ids).toContain(factId!);
 
 			// Export to Markdown and confirm evidence hydration
-			const exportRes = await workflowTool.execute({
+			const exportRes = await workflowTool.execute("call_export_md", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "markdown",
@@ -528,7 +518,7 @@ describe("reverse_workflow cross-tool evidence association", () => {
 			expect(exportText).toContain("Discovered exported activity");
 
 			// Export to JSON and verify hydrated evidence
-			const jsonRes = await workflowTool.execute({
+			const jsonRes = await workflowTool.execute("call_export_json", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "json",
@@ -550,11 +540,11 @@ describe("reverse_workflow cross-tool evidence association", () => {
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			await expect(
-				tool.execute({
+				tool.execute("call_rec_err", {
 					action: "record",
 					workflow_id: workflowId,
 					step_id: "elf_step_1",
@@ -574,12 +564,12 @@ describe("reverse_workflow cross-tool evidence association", () => {
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			const fakeId = "ev_fact_018f99999999";
 			await expect(
-				tool.execute({
+				tool.execute("call_rec_err", {
 					action: "record",
 					workflow_id: workflowId,
 					step_id: "elf_step_1",
@@ -605,12 +595,12 @@ describe("reverse_workflow bounded failure recovery and retry", () => {
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Step is currently pending
 			await expect(
-				tool.execute({
+				tool.execute("call_ret_err", {
 					action: "retry",
 					workflow_id: workflowId,
 					step_id: "pe_step_1",
@@ -628,11 +618,11 @@ describe("reverse_workflow bounded failure recovery and retry", () => {
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Fail step 3
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -641,7 +631,7 @@ describe("reverse_workflow bounded failure recovery and retry", () => {
 			});
 
 			// Retry step 3 with fallback tool and caller-provided parameters
-			const retryRes = await tool.execute({
+			const retryRes = await tool.execute("call_retry", {
 				action: "retry",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -674,11 +664,11 @@ describe("reverse_workflow bounded failure recovery and retry", () => {
 			const tool = new ReverseWorkflowTool(session);
 
 			// Workflow with max_attempts: 2
-			const createRes = await tool.execute({ action: "create", target, max_attempts: 2 });
+			const createRes = await tool.execute("call_create", { action: "create", target, max_attempts: 2 });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Attempt 1 fails
-			await tool.execute({
+			await tool.execute("call_rec1", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -687,7 +677,7 @@ describe("reverse_workflow bounded failure recovery and retry", () => {
 			});
 
 			// Retry 1: step goes to pending
-			await tool.execute({
+			await tool.execute("call_ret1", {
 				action: "retry",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -695,7 +685,7 @@ describe("reverse_workflow bounded failure recovery and retry", () => {
 			});
 
 			// Attempt 2 fails
-			await tool.execute({
+			await tool.execute("call_rec2", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -705,7 +695,7 @@ describe("reverse_workflow bounded failure recovery and retry", () => {
 
 			// Attempt 3 retry should be rejected because attempts (2) >= max_attempts (2)
 			await expect(
-				tool.execute({
+				tool.execute("call_ret3_err", {
 					action: "retry",
 					workflow_id: workflowId,
 					step_id: "pe_step_1",
@@ -762,11 +752,11 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Fail step 3
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -775,7 +765,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			});
 
 			// Preview recovery plan with retry_plan
-			const planRes = await tool.execute({
+			const planRes = await tool.execute("call_plan", {
 				action: "retry_plan",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -790,7 +780,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			expect(recoveryPlan?.can_retry).toBe(true);
 
 			// Verify step state in store remains 'failed' (retry_plan is read-only)
-			const statusRes = await tool.execute({
+			const statusRes = await tool.execute("call_status", {
 				action: "status",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -808,11 +798,11 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Step 3 in APK workflow is droidasc
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "apk_step_3",
@@ -821,7 +811,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			});
 
 			// Execute recover
-			const recoverRes = await tool.execute({
+			const recoverRes = await tool.execute("call_recover", {
 				action: "recover",
 				workflow_id: workflowId,
 				step_id: "apk_step_3",
@@ -856,10 +846,10 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -867,7 +857,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 				error: "invalid PE header: bad magic bytes",
 			});
 
-			const recoverRes = await tool.execute({
+			const recoverRes = await tool.execute("call_recover", {
 				action: "recover",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -890,10 +880,10 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -901,7 +891,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 				error: "r2_inspect execution timed out after 30000ms",
 			});
 
-			const recoverRes = await tool.execute({
+			const recoverRes = await tool.execute("call_recover", {
 				action: "recover",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -925,10 +915,10 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -936,7 +926,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 				error: "buffer limit exceeded: output truncated",
 			});
 
-			const recoverRes = await tool.execute({
+			const recoverRes = await tool.execute("call_recover", {
 				action: "recover",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -960,10 +950,10 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "apk_step_3",
@@ -971,7 +961,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 				error: "Failed to execute adb: No usable Android device was resolved",
 			});
 
-			const recoverRes = await tool.execute({
+			const recoverRes = await tool.execute("call_recover", {
 				action: "recover",
 				workflow_id: workflowId,
 				step_id: "apk_step_3",
@@ -994,11 +984,11 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			const tool = new ReverseWorkflowTool(session);
 
 			// Max attempts = 2
-			const createRes = await tool.execute({ action: "create", target, max_attempts: 2 });
+			const createRes = await tool.execute("call_create", { action: "create", target, max_attempts: 2 });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Attempt 1 fails
-			await tool.execute({
+			await tool.execute("call_rec1", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -1007,14 +997,14 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			});
 
 			// Recover 1: transitions to pending
-			await tool.execute({
+			await tool.execute("call_recov1", {
 				action: "recover",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
 			});
 
 			// Attempt 2 fails
-			await tool.execute({
+			await tool.execute("call_rec2", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -1024,7 +1014,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 
 			// Now attempts (2) >= max_attempts (2): recover MUST be rejected
 			await expect(
-				tool.execute({
+				tool.execute("call_recov_err", {
 					action: "recover",
 					workflow_id: workflowId,
 					step_id: "pe_step_1",
@@ -1032,12 +1022,11 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			).rejects.toThrow("Retry attempt limit reached for step 'pe_step_1' (2/2 attempts).");
 
 			// retry_plan should report can_retry: false and exhausted: true
-			const planRes = await tool.execute({
+			const planRes = await tool.execute("call_plan", {
 				action: "retry_plan",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
 			});
-			expect(planRes.details.recovery_plan?.can_retry).toBe(false);
 			expect(planRes.details.recovery_plan?.exhausted).toBe(true);
 		} finally {
 			await removeWithRetries(tempDir);
@@ -1052,7 +1041,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			const tool = new ReverseWorkflowTool(session);
 			const evidenceTool = new EvidenceTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Add a diagnostic hypothesis in the evidence ledger
@@ -1063,10 +1052,10 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 				verificationPlan: "Run triage and compare the function base offset.",
 				target,
 			});
-			const evId = evRes.details.record!.id;
+			const evId = evRes.details!.record!.id;
 
 			// Fail step 3
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -1075,7 +1064,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			});
 
 			// Recover with linked evidence ID
-			const recoverRes = await tool.execute({
+			const recoverRes = await tool.execute("call_recover", {
 				action: "recover",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -1103,7 +1092,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			const tool = new ReverseWorkflowTool(session);
 			const evidenceTool = new EvidenceTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			const evRes = await evidenceTool.execute("fact-call", {
@@ -1114,10 +1103,10 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 				content: "MZ header verified",
 				target,
 			});
-			const evId = evRes.details.record!.id;
+			const evId = evRes.details!.record!.id;
 
 			// Fail step 3
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -1126,7 +1115,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			});
 
 			// Recover with evidence
-			await tool.execute({
+			await tool.execute("call_recover", {
 				action: "recover",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -1134,7 +1123,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			});
 
 			// Status with step_id
-			const statusRes = await tool.execute({
+			const statusRes = await tool.execute("call_status", {
 				action: "status",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -1145,7 +1134,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			expect(statusText).toContain(evId);
 
 			// Export to markdown
-			const mdRes = await tool.execute({
+			const mdRes = await tool.execute("call_export_md", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "markdown",
@@ -1156,7 +1145,7 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 			expect(mdText).toContain(evId);
 
 			// Export to JSON
-			const jsonRes = await tool.execute({
+			const jsonRes = await tool.execute("call_export_json", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "json",
@@ -1191,7 +1180,7 @@ describe("reverse_workflow path validation and safety", () => {
 			const tool = new ReverseWorkflowTool(session);
 
 			await expect(
-				tool.execute({ action: "create", target: "nonexistent_file.bin" }),
+				tool.execute("call_create_err", { action: "create", target: "nonexistent_file.bin" }),
 			).rejects.toThrow("Target file not found: nonexistent_file.bin");
 		} finally {
 			await removeWithRetries(tempDir);
@@ -1206,9 +1195,9 @@ describe("reverse_workflow path validation and safety", () => {
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			await expect(
-				tool.execute({ action: "create", target: subDir }),
-			).rejects.toThrow("Target path must be a file, not a directory");
+			await expect(tool.execute("call_create_err", { action: "create", target: subDir })).rejects.toThrow(
+				"Target path must be a file, not a directory",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -1221,15 +1210,14 @@ describe("reverse_workflow path validation and safety", () => {
 			const session = createTestSession(tempDir, { allocateArtifact: true });
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
-			const exportRes = await tool.execute({
+			const exportRes = await tool.execute("call_export", {
 				action: "export",
 				workflow_id: workflowId,
 				to_artifact: true,
 			});
-
 			expect(exportRes.details.artifactId).toBeDefined();
 			expect(exportRes.details.artifactPath).toBeDefined();
 			const text = textOf(exportRes);
@@ -1248,13 +1236,13 @@ describe("reverse_workflow runtime session association and export", () => {
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 			const firstStep = createRes.details.workflow!.steps[0];
 
 			// Record step with runtime_session_id
 			const runtimeSessionId = "runt_frida_018f921ab39c";
-			const recordRes = await tool.execute({
+			const recordRes = await tool.execute("call_rec", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: firstStep.id,
@@ -1267,7 +1255,7 @@ describe("reverse_workflow runtime session association and export", () => {
 			expect(textOf(recordRes)).toContain(`- Associated Runtime Session: \`${runtimeSessionId}\``);
 
 			// Check status displays runtime session
-			const statusStepRes = await tool.execute({
+			const statusStepRes = await tool.execute("call_status_step", {
 				action: "status",
 				workflow_id: workflowId,
 				step_id: firstStep.id,
@@ -1275,7 +1263,7 @@ describe("reverse_workflow runtime session association and export", () => {
 			expect(textOf(statusStepRes)).toContain(`- **Runtime Session**: \`${runtimeSessionId}\``);
 
 			// Check Markdown export contains runtime session
-			const mdExportRes = await tool.execute({
+			const mdExportRes = await tool.execute("call_export_md", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "markdown",
@@ -1284,7 +1272,7 @@ describe("reverse_workflow runtime session association and export", () => {
 			expect(mdText).toContain(`- **Runtime Session**: \`${runtimeSessionId}\``);
 
 			// Check JSON export contains runtime session
-			const jsonExportRes = await tool.execute({
+			const jsonExportRes = await tool.execute("call_export_json", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "json",
@@ -1308,7 +1296,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			const tool = new ReverseWorkflowTool(session);
 
 			// 1. Create workflow
-			const createRes = await tool.execute({
+			const createRes = await tool.execute("call_create", {
 				action: "create",
 				target,
 				goal: "Static audit of PE sample",
@@ -1317,7 +1305,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			expect(workflowId).toBeDefined();
 
 			// 2. Auto advance first pending step (pe_step_1: triage)
-			const adv1 = await tool.execute({
+			const adv1 = await tool.execute("call_adv1", {
 				action: "auto_advance",
 				workflow_id: workflowId,
 			});
@@ -1329,7 +1317,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			expect(adv1.details.progression_audit?.[0].is_low_risk).toBe(true);
 
 			// 3. Record completion of step 1 via advance
-			const rec1 = await tool.execute({
+			const rec1 = await tool.execute("call_rec1", {
 				action: "advance",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -1341,7 +1329,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			expect(rec1.details.step?.status).toBe("completed");
 
 			// 4. Auto advance next step (pe_step_2: binary_metadata_inspect)
-			const adv2 = await tool.execute({
+			const adv2 = await tool.execute("call_adv2", {
 				action: "auto_advance",
 				workflow_id: workflowId,
 			});
@@ -1351,7 +1339,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			expect(adv2.details.step?.tool).toBe("binary_metadata_inspect");
 
 			// 5. Record completion of step 2
-			const rec2 = await tool.execute({
+			const rec2 = await tool.execute("call_rec2", {
 				action: "advance",
 				workflow_id: workflowId,
 				step_id: "pe_step_2",
@@ -1361,7 +1349,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			expect(rec2.details.step?.status).toBe("completed");
 
 			// 6. Check workflow status displays recent progression decisions
-			const statusRes = await tool.execute({
+			const statusRes = await tool.execute("call_status", {
 				action: "status",
 				workflow_id: workflowId,
 			});
@@ -1378,21 +1366,21 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({
+			const createRes = await tool.execute("call_create", {
 				action: "create",
 				target,
 			});
 			const workflowId = createRes.details.workflow!.id;
 
 			// Complete step 1 and step 2 to reach step 3 (r2_inspect)
-			await tool.execute({
+			await tool.execute("call_adv_step1", {
 				action: "advance",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
 				status: "completed",
 				outputs: "Triage complete",
 			});
-			await tool.execute({
+			await tool.execute("call_adv_step2", {
 				action: "advance",
 				workflow_id: workflowId,
 				step_id: "pe_step_2",
@@ -1401,7 +1389,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			});
 
 			// Now next pending step is pe_step_3 (tool: r2_inspect)
-			const adv3 = await tool.execute({
+			const adv3 = await tool.execute("call_adv3", {
 				action: "auto_advance",
 				workflow_id: workflowId,
 			});
@@ -1430,7 +1418,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({
+			const createRes = await tool.execute("call_create", {
 				action: "create",
 				target,
 			});
@@ -1439,7 +1427,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			// Delete target file to make target ambiguous/inaccessible
 			await fs.unlink(target);
 
-			const advRes = await tool.execute({
+			const advRes = await tool.execute("call_adv", {
 				action: "auto_advance",
 				workflow_id: workflowId,
 			});
@@ -1469,24 +1457,24 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 				summary: "Entropy > 7.2 in .text section indicates runtime packer packing",
 				confidence: "high",
 			});
-			const knId = knRes.details.record!.id;
+			const knId = knRes.details!.record!.id;
 
 			// Create workflow
-			const createRes = await workflowTool.execute({
+			const createRes = await workflowTool.execute("call_create", {
 				action: "create",
 				target,
 			});
 			const workflowId = createRes.details.workflow!.id;
 
 			// Auto advance attaches the active prior knowledge
-			const advRes = await workflowTool.execute({
+			const advRes = await workflowTool.execute("call_adv", {
 				action: "auto_advance",
 				workflow_id: workflowId,
 			});
 			expect(advRes.details.knowledge_refs).toContain(knId);
 
 			// Record step completion with knowledge ref
-			await workflowTool.execute({
+			await workflowTool.execute("call_adv_step1", {
 				action: "advance",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -1496,7 +1484,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			});
 
 			// Markdown export contains decisions and knowledge references
-			const mdRes = await workflowTool.execute({
+			const mdRes = await workflowTool.execute("call_export_md", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "markdown",
@@ -1507,7 +1495,7 @@ describe("reverse_workflow low-risk auto progression and guardrails", () => {
 			expect(mdText).toContain(knId);
 
 			// JSON export contains progression audit and knowledge references
-			const jsonRes = await workflowTool.execute({
+			const jsonRes = await workflowTool.execute("call_export_json", {
 				action: "export",
 				workflow_id: workflowId,
 				format_type: "json",
@@ -1575,15 +1563,15 @@ describe("reverse_workflow full-file hashing for >64KiB targets", () => {
 				action: "retain",
 				title: "Specific entry point and tail layout for Target A",
 				kind: "verified_conclusion",
-				target_format: "ELF",
+				format: "ELF",
 				target_hash: expectedHashA,
 				summary: "Verified 70KiB binary structure with tail layout pattern A",
 			});
-			const knId = knRes.details.record?.id;
+			const knId = knRes.details!.record?.id;
 			expect(knId).toBeDefined();
 
 			// 1. Create workflow for Target A
-			const createResA = await workflowTool.execute({
+			const createResA = await workflowTool.execute("call_create_a", {
 				action: "create",
 				target: targetPathA,
 				goal: "Analyze Target A with full hash verification",
@@ -1599,7 +1587,7 @@ describe("reverse_workflow full-file hashing for >64KiB targets", () => {
 			expect(wfA?.knowledge_refs).toContain(knId!);
 
 			// 2. Create workflow for Target B
-			const createResB = await workflowTool.execute({
+			const createResB = await workflowTool.execute("call_create_b", {
 				action: "create",
 				target: targetPathB,
 				goal: "Analyze Target B with different tail",
@@ -1616,7 +1604,7 @@ describe("reverse_workflow full-file hashing for >64KiB targets", () => {
 
 			// 3. Export Target A workflow to custom workspace directory using workspace_path
 			const customWsDir = path.join(tempDir, "custom-rea-workspace");
-			const exportWsResA = await workflowTool.execute({
+			const exportWsResA = await workflowTool.execute("call_export_ws_a", {
 				action: "export",
 				workflow_id: wfA!.id,
 				workspace_path: customWsDir,
@@ -1636,7 +1624,7 @@ describe("reverse_workflow full-file hashing for >64KiB targets", () => {
 			expect(diskTargetJson.size).toBe(totalSize);
 
 			// 4. Export Target B workflow using to_workspace: true
-			const exportWsResB = await workflowTool.execute({
+			const exportWsResB = await workflowTool.execute("call_export_ws_b", {
 				action: "export",
 				workflow_id: wfB!.id,
 				to_workspace: true,
@@ -1656,11 +1644,11 @@ describe("reverse_workflow install-after resume and canonical host verification"
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Fail step 1
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -1670,7 +1658,7 @@ describe("reverse_workflow install-after resume and canonical host verification"
 
 			// Retry with installed_tool that does NOT exist on PATH
 			// Pass verified: true - user assertion must NOT be accepted as proof!
-			const retryRes = await tool.execute({
+			const retryRes = await tool.execute("call_retry", {
 				action: "retry",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -1679,7 +1667,6 @@ describe("reverse_workflow install-after resume and canonical host verification"
 				strategy: "resume_original",
 				next_params: '{"action": "disasm"}',
 			});
-
 			// Must not throw ReferenceError: proposedParams is not defined
 			// Must return structured missing state
 			expect(retryRes.details.status).toBe("missing_dependency");
@@ -1707,11 +1694,11 @@ describe("reverse_workflow install-after resume and canonical host verification"
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Fail step 1
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -1720,7 +1707,7 @@ describe("reverse_workflow install-after resume and canonical host verification"
 			});
 
 			// Retry with 'strings' which is present on PATH
-			const retryRes = await tool.execute({
+			const retryRes = await tool.execute("call_retry", {
 				action: "retry",
 				workflow_id: workflowId,
 				step_id: "pe_step_1",
@@ -1729,7 +1716,6 @@ describe("reverse_workflow install-after resume and canonical host verification"
 				strategy: "resume_original",
 				next_params: '{"min_length": 6}',
 			});
-
 			expect(retryRes.details.resume?.verified).toBe(true);
 			const step = retryRes.details.step;
 			expect(step?.status).toBe("pending");
@@ -1745,11 +1731,11 @@ describe("reverse_workflow install-after resume and canonical host verification"
 			const session = createTestSession(tempDir);
 			const tool = new ReverseWorkflowTool(session);
 
-			const createRes = await tool.execute({ action: "create", target });
+			const createRes = await tool.execute("call_create", { action: "create", target });
 			const workflowId = createRes.details.workflow!.id;
 
 			// Fail step 3 (r2_inspect)
-			await tool.execute({
+			await tool.execute("call_rec_fail", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",
@@ -1759,7 +1745,7 @@ describe("reverse_workflow install-after resume and canonical host verification"
 
 			// Retry step 3 indicating radare2 dependency was installed
 			// In resume_original, step.tool MUST remain 'r2_inspect' rather than being overwritten with 'radare2'
-			const retryRes = await tool.execute({
+			const retryRes = await tool.execute("call_retry", {
 				action: "retry",
 				workflow_id: workflowId,
 				step_id: "pe_step_3",

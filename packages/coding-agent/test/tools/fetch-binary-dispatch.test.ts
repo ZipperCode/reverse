@@ -3,14 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageContent, TextContent } from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import * as scrapers from "@rva/coding-agent/web/scrapers/types";
-import * as scraperUtils from "@rva/coding-agent/web/scrapers/utils";
-import { removeSyncWithRetries, Snowflake } from "@rva/utils";
-import { encodeArchive } from "@rva/utils/ar";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import * as scrapers from "@reverse/coding-agent/web/scrapers/types";
+import * as scraperUtils from "@reverse/coding-agent/web/scrapers/utils";
+import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
+import { encodeArchive } from "@reverse/utils/ar";
 
 function makeSession(testDir: string): ToolSession {
 	const sessionFile = path.join(testDir, "session.jsonl");

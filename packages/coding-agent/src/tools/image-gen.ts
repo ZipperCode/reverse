@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type { AgentToolResult } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import type { AgentToolResult } from "@reverse/agent";
 import {
 	type GeneratedImage,
 	generateImage,
@@ -11,10 +11,10 @@ import {
 	isImageGenerationApi,
 	type Model,
 	parseAntigravityCredentials,
-} from "@rva/ai";
-import { ProviderHttpError } from "@rva/ai/error";
-import { getEffectiveTokenCost } from "@rva/catalog/models";
-import { isEnoent, logger, parseImageMetadata, prompt, ptree, Snowflake, untilAborted } from "@rva/utils";
+} from "@reverse/ai";
+import { ProviderHttpError } from "@reverse/ai/error";
+import { getEffectiveTokenCost } from "@reverse/catalog/models";
+import { isEnoent, logger, parseImageMetadata, prompt, ptree, Snowflake, untilAborted } from "@reverse/utils";
 import { type RoleChainCandidate, resolveModelRoleValue, resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";
 import { isAuthenticated, type ModelRegistry } from "../config/model-registry";

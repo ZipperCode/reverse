@@ -2,26 +2,20 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Judge, JudgmentRequest, JudgmentResult, NoulAnswer, Questions } from "@rva/ai";
-import { tokenUsage } from "@rva/ai";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
-import { InternalUrlFilesystem } from "@rva/coding-agent/internal-urls/url-filesystem";
-import { FindTool } from "@rva/coding-agent/tools/jfind";
-import { runCascade } from "@rva/coding-agent/tools/jfind/cascade";
-import { keywordsFromQuery } from "@rva/coding-agent/tools/jfind/keywords";
-import { grepIndex } from "@rva/coding-agent/tools/jfind/lexical";
-import {
-	mergeHeat,
-	type Passage,
-	selectWindows,
-	sketch,
-	windows,
-} from "@rva/coding-agent/tools/jfind/passages";
-import { readText, ReadTextError } from "@rva/coding-agent/tools/jfind/text";
-import { eligibleFile, renderTree, resolveSearchRoot } from "@rva/coding-agent/tools/jfind/tree";
-import { resolveSearchResultPath } from "@rva/coding-agent/tools/path-utils";
-import { removeWithRetries } from "@rva/utils";
+import type { Judge, JudgmentRequest, JudgmentResult, NoulAnswer, Questions } from "@reverse/ai";
+import { tokenUsage } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
+import { InternalUrlFilesystem } from "@reverse/coding-agent/internal-urls/url-filesystem";
+import { FindTool } from "@reverse/coding-agent/tools/jfind";
+import { runCascade } from "@reverse/coding-agent/tools/jfind/cascade";
+import { keywordsFromQuery } from "@reverse/coding-agent/tools/jfind/keywords";
+import { grepIndex } from "@reverse/coding-agent/tools/jfind/lexical";
+import { mergeHeat, type Passage, selectWindows, sketch, windows } from "@reverse/coding-agent/tools/jfind/passages";
+import { readText, ReadTextError } from "@reverse/coding-agent/tools/jfind/text";
+import { eligibleFile, renderTree, resolveSearchRoot } from "@reverse/coding-agent/tools/jfind/tree";
+import { resolveSearchResultPath } from "@reverse/coding-agent/tools/path-utils";
+import { removeWithRetries } from "@reverse/utils";
 
 /** Read-tier URL filesystem rooted at `cwd`, as the `find` tool builds one per call. */
 function urlFs(cwd: string): InternalUrlFilesystem {

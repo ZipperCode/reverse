@@ -1,12 +1,12 @@
 import * as path from "node:path";
-import type { AgentToolResult } from "@rva/agent";
-import * as vcs from "@rva/natives/vcs";
-import { untilAborted } from "@rva/utils";
+import type { AgentToolResult } from "@reverse/agent";
+import * as vcs from "@reverse/natives/vcs";
+import { untilAborted } from "@reverse/utils";
 import { github } from "../utils/github";
 import type { ToolSession } from ".";
-import type { GhToolDetails } from "@rva/tui/tools/github";
+import type { GhToolDetails } from "@reverse/tui/tools/github";
 import type { GhLabel, GhUser } from "./gh-types";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 export function normalizeText(value: string | null | undefined): string {

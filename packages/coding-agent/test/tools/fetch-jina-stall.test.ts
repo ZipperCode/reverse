@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { renderHtmlToText } from "@rva/coding-agent/tools/fetch";
-import { TempDir } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { renderHtmlToText } from "@reverse/coding-agent/tools/fetch";
+import { TempDir } from "@reverse/utils";
 import { asGlobalFetch } from "../helpers/fetch-mock";
 
 /**

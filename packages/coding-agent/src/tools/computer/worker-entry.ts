@@ -1,5 +1,5 @@
 import { parentPort } from "node:worker_threads";
-import { consumeWorkerInbox, isWorkerHostSelector } from "@rva/utils/worker-host";
+import { consumeWorkerInbox, isWorkerHostSelector } from "@reverse/utils/worker-host";
 import type { ComputerWorkerInbound, ComputerWorkerTransport } from "./protocol";
 import { ComputerWorkerCore } from "./worker";
 

@@ -1,4 +1,4 @@
-import type { ConflictBlock, ConflictEntry, ConflictScope } from "@rva/tui/tools/conflict-detect";
+import type { ConflictBlock, ConflictEntry, ConflictScope } from "@reverse/tui/tools/conflict-detect";
 /**
  * Detect and resolve unresolved git merge conflicts that surface in `read`
  * output.
@@ -20,7 +20,7 @@ import type { ConflictBlock, ConflictEntry, ConflictScope } from "@rva/tui/tools
  */
 
 import type { ToolSession } from "./index";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 const OURS_PREFIX = "<<<<<<<";
 const BASE_PREFIX = "|||||||";

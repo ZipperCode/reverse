@@ -15,7 +15,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { daemonRuntimeDir } from "@rva/coding-agent/launch/paths";
+import { daemonRuntimeDir } from "@reverse/coding-agent/launch/paths";
 import {
 	collectOrphanTargets,
 	forgetSharedTarget,
@@ -23,7 +23,7 @@ import {
 	recordSharedTarget,
 	resetOrphanRegistryForTest,
 	type SharedTargetScope,
-} from "@rva/coding-agent/tools/browser/orphan-registry";
+} from "@reverse/coding-agent/tools/browser/orphan-registry";
 import type { Browser } from "puppeteer-core";
 
 const DAEMON_NAME = "omp.browser.headless";

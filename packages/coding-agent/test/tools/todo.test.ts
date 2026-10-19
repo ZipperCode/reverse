@@ -1,16 +1,16 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { initTheme, theme } from "@rva/tui/theme";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import { type } from "@reverse/omptype";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { initTheme, theme } from "@reverse/tui/theme";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 import {
 	markdownToPhases,
 	nextActionableTask,
 	phasesToMarkdown,
 	resolveTodoMarkdownPath,
 	TodoTool,
-} from "@rva/coding-agent/tools";
+} from "@reverse/coding-agent/tools";
 import {
 	selectCollapsedTodos,
 	TODO_STRIKE_HOLD_FRAMES,
@@ -19,8 +19,8 @@ import {
 	type TodoPhase,
 	todoMatchesAnyDescription,
 	todoToolRenderer,
-} from "@rva/tui/tools/todo";
-import type { Component } from "@rva/tui";
+} from "@reverse/tui/tools/todo";
+import type { Component } from "@reverse/tui";
 
 function createSession(initialPhases: TodoPhase[] = []): ToolSession {
 	let phases = initialPhases;
@@ -867,7 +867,7 @@ describe("todoToolRenderer.renderCall malformed-args regression (#2005)", () => 
 	it("renders op summary metadata for a well-formed flat call", () => {
 		const args = { op: "init", items: ["a", "b", "c"] };
 		const component = todoToolRenderer.renderCall(args, renderOptions, theme);
-		// `Text(text, 0, 0)` from `@rva/tui` exposes the content via .render().
+		// `Text(text, 0, 0)` from `@reverse/tui` exposes the content via .render().
 		const rendered = Bun.stripANSI(component.render(120).join("\n"));
 		expect(rendered).toContain("init");
 		expect(rendered).toContain("3 items");

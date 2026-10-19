@@ -10,9 +10,9 @@ import type {
 	AgentToolExecFn,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@rva/agent";
-import type { ImageContent, TextContent } from "@rva/ai";
-import { isRecord, logger } from "@rva/utils";
+} from "@reverse/agent";
+import type { ImageContent, TextContent } from "@reverse/ai";
+import { isRecord, logger } from "@reverse/utils";
 import type { Setting } from "../config/registry";
 import type { Settings } from "../config/settings";
 
@@ -21,8 +21,8 @@ import {
 	type TruncationResult,
 	truncateMiddle,
 	truncateTail,
-} from "@rva/tui/tools/streaming-output";
-import { formatOutputNotice, type OutputMeta, type TruncationMeta } from "@rva/tui/tools/output-meta";
+} from "@reverse/tui/tools/streaming-output";
+import { formatOutputNotice, type OutputMeta, type TruncationMeta } from "@reverse/tui/tools/output-meta";
 import { renderError } from "./tool-errors";
 import {
 	cfgToolsArtifactHeadBytes,

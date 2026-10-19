@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, getReverseRuntimeSessionsProjectDir } from "@rva/utils";
+import { isEnoent, getReverseRuntimeSessionsProjectDir } from "@reverse/utils";
 import { replaceFileAtomically } from "../utils/atomic-file";
 import {
 	type RuntimeSessionRecord,
@@ -100,7 +100,12 @@ export class ReverseRuntimeSessionStore {
 			let record = JSON.parse(text) as RuntimeSessionRecord;
 			record = sanitizeRuntimeSessionRecord(record);
 			const staleCheck = computeSessionStaleState(record);
-			if (staleCheck.isStale && record.status !== "stale" && record.status !== "closed" && record.status !== "failed") {
+			if (
+				staleCheck.isStale &&
+				record.status !== "stale" &&
+				record.status !== "closed" &&
+				record.status !== "failed"
+			) {
 				record.status = "stale";
 				record.status_source = "stale_timeout";
 			}
@@ -135,7 +140,12 @@ export class ReverseRuntimeSessionStore {
 					let record = JSON.parse(text) as RuntimeSessionRecord;
 					record = sanitizeRuntimeSessionRecord(record);
 					const staleCheck = computeSessionStaleState(record);
-					if (staleCheck.isStale && record.status !== "stale" && record.status !== "closed" && record.status !== "failed") {
+					if (
+						staleCheck.isStale &&
+						record.status !== "stale" &&
+						record.status !== "closed" &&
+						record.status !== "failed"
+					) {
 						record.status = "stale";
 						record.status_source = "stale_timeout";
 					}

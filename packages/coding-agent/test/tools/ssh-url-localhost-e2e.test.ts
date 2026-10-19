@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import * as capability from "@rva/coding-agent/capability";
-import type { SSHHost } from "@rva/coding-agent/capability/ssh";
-import type { CapabilityResult } from "@rva/coding-agent/capability/types";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { parseInternalUrl } from "@rva/coding-agent/internal-urls/parse";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
-import { SshProtocolHandler } from "@rva/coding-agent/internal-urls/ssh-protocol";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { GrepTool } from "@rva/coding-agent/tools/grep";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { WriteTool } from "@rva/coding-agent/tools/write";
+import * as capability from "@reverse/coding-agent/capability";
+import type { SSHHost } from "@reverse/coding-agent/capability/ssh";
+import type { CapabilityResult } from "@reverse/coding-agent/capability/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
+import { SshProtocolHandler } from "@reverse/coding-agent/internal-urls/ssh-protocol";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { GrepTool } from "@reverse/coding-agent/tools/grep";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
 
 // Live integration against `ssh localhost`. Skips automatically where key-based
 // localhost SSH is unavailable (CI without sshd). Capability lookup is mocked

@@ -2,16 +2,15 @@ import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	createTools,
 	JsHookPresetTool,
-	type JsHookPresetDetails,
 	type ToolSession,
 	validateCustomTargetSelector,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -148,7 +147,7 @@ describe("js_hook_preset action: generate", () => {
 			const script = result.details?.script ?? "";
 			expect(script).toContain("window.WebSocket");
 			expect(script).toContain("ws.send");
-			expect(script).toContain("addEventListener(\"message\"");
+			expect(script).toContain('addEventListener("message"');
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -324,7 +323,9 @@ describe("js_hook_preset validation and security allowlisting", () => {
 		}
 	});
 });
-function createMockBrowserRunner(initialTabs: Record<string, { state: "alive" | "dead"; url?: string; title?: string }> = {}) {
+function createMockBrowserRunner(
+	initialTabs: Record<string, { state: "alive" | "dead"; url?: string; title?: string }> = {},
+) {
 	const tabs = new Map<string, { state: "alive" | "dead"; url?: string; title?: string }>(Object.entries(initialTabs));
 	const calls: Array<{ type: string; name: string; payload?: unknown }> = [];
 	const inTabEvents = new Map<string, any[]>();
@@ -394,7 +395,7 @@ describe("js_hook_preset action: inject", () => {
 					preset: "fetch",
 					tab_name: "nonexistent",
 				}),
-			).rejects.toThrow("Browser tab \"nonexistent\" is not open or alive");
+			).rejects.toThrow('Browser tab "nonexistent" is not open or alive');
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -470,7 +471,7 @@ describe("js_hook_preset action: capture and clear", () => {
 					action: "capture",
 					tab_name: "missing",
 				}),
-			).rejects.toThrow("Browser tab \"missing\" is not open or alive");
+			).rejects.toThrow('Browser tab "missing" is not open or alive');
 		} finally {
 			await removeWithRetries(tempDir);
 		}

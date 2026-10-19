@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import type { AgentTool } from "@rva/agent";
-import type { Tool as AiTool } from "@rva/ai";
-import { toolWireSchema } from "@rva/ai/utils/schema";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@rva/coding-agent/eval/preludes";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EvalTool, getEvalDocTopics, getEvalToolDescription } from "@rva/coding-agent/tools/eval";
-import { ReadTool } from "@rva/coding-agent/tools/read";
+import type { AgentTool } from "@reverse/agent";
+import type { Tool as AiTool } from "@reverse/ai";
+import { toolWireSchema } from "@reverse/ai/utils/schema";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { EvalPreludeDefinition } from "@reverse/coding-agent/eval/preludes";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EvalTool, getEvalDocTopics, getEvalToolDescription } from "@reverse/coding-agent/tools/eval";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
 
-import { cfgEvalPy } from "@rva/coding-agent/eval/settings";
-import { cfgTaskMaxRecursionDepth } from "@rva/coding-agent/task/settings";
+import { cfgEvalPy } from "@reverse/coding-agent/eval/settings";
+import { cfgTaskMaxRecursionDepth } from "@reverse/coding-agent/task/settings";
 
 function makeSession(opts: {
 	spawns?: string | null;

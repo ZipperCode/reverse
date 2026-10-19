@@ -1,7 +1,7 @@
-import type { MemoryRetainDetails } from "@rva/tui/tools/memory";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
-import { prompt, withLoopPhase } from "@rva/utils";
+import type { MemoryRetainDetails } from "@reverse/tui/tools/memory";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult } from "@reverse/agent";
+import { prompt, withLoopPhase } from "@reverse/utils";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";
 import retainDescription from "../prompts/tools/retain.md" with { type: "text" };
 import type { ToolSession } from ".";

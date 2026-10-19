@@ -6,7 +6,7 @@ import {
 	type ResolveAction,
 	type ResolveDetails,
 	type ResolveInvocation,
-} from "@rva/tui/tools/resolve";
+} from "@reverse/tui/tools/resolve";
 /**
  * Resolution devices: staged work is finalized through plain-text writes to
  * always-available `xd://` URLs — no tool schema, no JSON protocol.
@@ -23,17 +23,17 @@ import {
  * resolve renderer under `resolve` and `reject` so device writes and legacy
  * `resolve` tool transcripts draw the same block.
  */
-import type { AgentToolResult, CustomMessage } from "@rva/agent";
+import type { AgentToolResult, CustomMessage } from "@reverse/agent";
 
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 
-import { parseXdUrl, XD_URL_PREFIX } from "@rva/tui/tools/xd-url";
+import { parseXdUrl, XD_URL_PREFIX } from "@reverse/tui/tools/xd-url";
 
 import resolveReminderPrompt from "../prompts/system/resolve-device-reminder.md" with { type: "text" };
 
 import type { ToolSession } from ".";
 
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { XdevDispatch } from "./xdev";
 
 /** The plain-text resolution device URLs (`xd://resolve`, …). */

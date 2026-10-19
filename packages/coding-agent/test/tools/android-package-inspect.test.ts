@@ -3,14 +3,11 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	AndroidPackageInspectTool,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, AndroidPackageInspectTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { parseDexBuffer, parseXmlText } from "../../src/tools/android-package-inspect";
+import { BUILTIN_TOOL_NAMES } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -22,13 +19,15 @@ function createTestSession(cwd: string): ToolSession {
 	};
 }
 
+function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+	return result.content.flatMap(item => (item.type === "text" && item.text ? [item.text] : [])).join("\n");
+}
+
 // ============================================================================
 // Fixture Generators
 // ============================================================================
 
-function buildTestDex(
-	classNames: string[] = ["Lcom/example/MainActivity;", "Lcom/example/AuthService;"],
-): Buffer {
+function buildTestDex(classNames: string[] = ["Lcom/example/MainActivity;", "Lcom/example/AuthService;"]): Buffer {
 	const strings: string[] = ["Ljava/lang/Object;"];
 	for (const c of classNames) {
 		if (!strings.includes(c)) strings.push(c);
@@ -75,7 +74,12 @@ function buildTestDex(
 	buf.writeUInt32LE(stringIdsOff, 0x3c);
 	buf.writeUInt32LE(typeIdsSize, 0x40);
 	buf.writeUInt32LE(typeIdsOff, 0x44);
+	buf.writeUInt32LE(2, 0x48); // protoIdsSize
+	buf.writeUInt32LE(0x100, 0x4c); // protoIdsOff
+	buf.writeUInt32LE(3, 0x50); // fieldIdsSize
+	buf.writeUInt32LE(0x120, 0x54); // fieldIdsOff
 	buf.writeUInt32LE(5, 0x58); // methodIdsSize
+	buf.writeUInt32LE(0x140, 0x5c); // methodIdsOff
 	buf.writeUInt32LE(classDefsSize, 0x60);
 	buf.writeUInt32LE(classDefsOff, 0x64);
 	buf.writeUInt32LE(currentStrDataOff - (classDefsOff + classDefsSize * 32), 0x68); // dataSize
@@ -117,12 +121,7 @@ function buildTestDex(
 	return buf;
 }
 
-function buildApkSigningBlock(options: {
-	v2?: boolean;
-	v3?: boolean;
-	v31?: boolean;
-	sourceStamp?: boolean;
-}): Buffer {
+function buildApkSigningBlock(options: { v2?: boolean; v3?: boolean; v31?: boolean; sourceStamp?: boolean }): Buffer {
 	const pairs: Buffer[] = [];
 
 	if (options.v2) {
@@ -508,9 +507,7 @@ describe("android_package_inspect registration", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-reg-"));
 		try {
 			const tools = await createTools(createTestSession(tempDir), ["android_package_inspect"]);
-			const tool = tools.find(t => t.name === "android_package_inspect") as
-				| AndroidPackageInspectTool
-				| undefined;
+			const tool = tools.find(t => t.name === "android_package_inspect") as AndroidPackageInspectTool | undefined;
 			expect(tool).toBeDefined();
 			expect(tool?.label).toBe("Android Package Inspect");
 			expect(tool?.approval).toBe("read");
@@ -526,9 +523,9 @@ describe("android_package_inspect path validation and errors", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-missing-"));
 		try {
 			const tool = new AndroidPackageInspectTool(createTestSession(tempDir));
-			await expect(
-				tool.execute("call-1", { action: "info", path: "nonexistent.apk" }),
-			).rejects.toThrow("Target file not found");
+			await expect(tool.execute("call-1", { action: "info", path: "nonexistent.apk" })).rejects.toThrow(
+				"Target file not found",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -538,9 +535,7 @@ describe("android_package_inspect path validation and errors", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-dir-"));
 		try {
 			const tool = new AndroidPackageInspectTool(createTestSession(tempDir));
-			await expect(tool.execute("call-1", { action: "info", path: "." })).rejects.toThrow(
-				"is a directory",
-			);
+			await expect(tool.execute("call-1", { action: "info", path: "." })).rejects.toThrow("is a directory");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -566,7 +561,7 @@ describe("android_package_inspect path validation and errors", () => {
 			const tool = new AndroidPackageInspectTool(createTestSession(tempDir));
 			const res = await tool.execute("call-1", { action: "info", path: "sample.txt" });
 			expect(res.details.status).toBe("unsupported");
-			expect(res.content[0].text).toContain("[Unsupported]");
+			expect(textOf(res)).toContain("[Unsupported]");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -578,10 +573,7 @@ describe("android_package_inspect bare DEX inspection", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "dex-info-"));
 		try {
 			const dexPath = path.join(tempDir, "classes.dex");
-			await fs.writeFile(
-				dexPath,
-				buildTestDex(["Lcom/example/MainActivity;", "Lcom/example/AuthManager;"]),
-			);
+			await fs.writeFile(dexPath, buildTestDex(["Lcom/example/MainActivity;", "Lcom/example/AuthManager;"]));
 
 			const tool = new AndroidPackageInspectTool(createTestSession(tempDir));
 			const res = await tool.execute("call-1", { action: "info", path: "classes.dex" });
@@ -592,9 +584,9 @@ describe("android_package_inspect bare DEX inspection", () => {
 			expect(res.details.info?.bareDex?.header.version).toBe("035");
 			expect(res.details.info?.bareDex?.header.classDefsCount).toBe(2);
 			expect(res.details.info?.bareDex?.header.endian).toBe("little");
-			expect(res.content[0].text).toContain("Bare DEX File");
-			expect(res.content[0].text).toContain("com.example.MainActivity");
-			expect(res.content[0].text).toContain("com.example.AuthManager");
+			expect(textOf(res)).toContain("Bare DEX File");
+			expect(textOf(res)).toContain("com.example.MainActivity");
+			expect(textOf(res)).toContain("com.example.AuthManager");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -606,11 +598,7 @@ describe("android_package_inspect bare DEX inspection", () => {
 			const dexPath = path.join(tempDir, "classes.dex");
 			await fs.writeFile(
 				dexPath,
-				buildTestDex([
-					"Lcom/example/MainActivity;",
-					"Lcom/example/AuthManager;",
-					"Lcom/example/NetworkClient;",
-				]),
+				buildTestDex(["Lcom/example/MainActivity;", "Lcom/example/AuthManager;", "Lcom/example/NetworkClient;"]),
 			);
 
 			const tool = new AndroidPackageInspectTool(createTestSession(tempDir));
@@ -726,8 +714,8 @@ describe("android_package_inspect APK container inspection", () => {
 			expect(container.signing.v2Scheme).toBe(true);
 			expect(container.signing.v3Scheme).toBe(true);
 
-			expect(res.content[0].text).toContain("arm64-v8a: libnative-crypto.so, libssl.so");
-			expect(res.content[0].text).toContain("Scheme v2: Yes");
+			expect(textOf(res)).toContain("arm64-v8a: libnative-crypto.so, libssl.so");
+			expect(textOf(res)).toContain("Scheme v2: Yes");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -764,9 +752,9 @@ describe("android_package_inspect APK container inspection", () => {
 			expect(m.permissions).toContain("android.permission.ACCESS_FINE_LOCATION");
 			expect(m.activities.some(a => a.name === "com.test.demo.HomeActivity")).toBe(true);
 
-			expect(res.content[0].text).toContain("Package: com.test.demo");
-			expect(res.content[0].text).toContain("min: 26, target: 34");
-			expect(res.content[0].text).toContain("android.permission.ACCESS_FINE_LOCATION");
+			expect(textOf(res)).toContain("Package: com.test.demo");
+			expect(textOf(res)).toContain("min: 26, target: 34");
+			expect(textOf(res)).toContain("android.permission.ACCESS_FINE_LOCATION");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -798,8 +786,8 @@ describe("android_package_inspect APK container inspection", () => {
 			expect(res.details.dex?.selectedDex).toBe("classes2.dex");
 			expect(res.details.dex?.classes.length).toBe(2);
 			expect(res.details.dex?.classes[0].name).toBe("com.example.SecondClass");
-			expect(res.content[0].text).toContain("classes2.dex");
-			expect(res.content[0].text).toContain("com.example.SecondClass");
+			expect(textOf(res)).toContain("classes2.dex");
+			expect(textOf(res)).toContain("com.example.SecondClass");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -839,10 +827,10 @@ describe("android_package_inspect APK container inspection", () => {
 			expect(s.apkSigningBlock.sourceStamp).toBe(true);
 			expect(s.apkSigningBlock.blockIds?.length).toBe(3);
 
-			expect(res.content[0].text).toContain("Scheme v1 (JAR signing): Present");
-			expect(res.content[0].text).toContain("Scheme v2 (APK Signature Scheme v2): Present");
-			expect(res.content[0].text).toContain("Scheme v3 (APK Signature Scheme v3): Present");
-			expect(res.content[0].text).toContain("SourceStamp: Present");
+			expect(textOf(res)).toContain("Scheme v1 (JAR signing): Present");
+			expect(textOf(res)).toContain("Scheme v2 (APK Signature Scheme v2): Present");
+			expect(textOf(res)).toContain("Scheme v3 (APK Signature Scheme v3): Present");
+			expect(textOf(res)).toContain("SourceStamp: Present");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -882,9 +870,9 @@ describe("android_package_inspect APK container inspection", () => {
 			expect(r.breakdown.assets.count).toBe(1);
 			expect(r.matchingFiles).toContain("res/layout/dialog_auth.xml");
 
-			expect(res.content[0].text).toContain("Resource Table (ARSC): Present");
-			expect(res.content[0].text).toContain("com.example.myapp");
-			expect(res.content[0].text).toContain("res/layout/dialog_auth.xml");
+			expect(textOf(res)).toContain("Resource Table (ARSC): Present");
+			expect(textOf(res)).toContain("com.example.myapp");
+			expect(textOf(res)).toContain("res/layout/dialog_auth.xml");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -924,7 +912,7 @@ describe("android_package_inspect AAB and APKS inspection", () => {
 			const resManifest = await tool.execute("call-2", { action: "manifest", path: "bundle.aab" });
 			expect(resManifest.details.status).toBe("unsupported");
 			expect(resManifest.details.error).toContain("Protobuf");
-			expect(resManifest.content[0].text).toContain("[Unsupported]");
+			expect(textOf(resManifest)).toContain("[Unsupported]");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -947,9 +935,55 @@ describe("android_package_inspect AAB and APKS inspection", () => {
 
 			expect(res.details.status).toBe("ok");
 			expect(res.details.format).toBe("APKS");
-			expect(res.content[0].text).toContain("Format: APKS");
+			expect(textOf(res)).toContain("Format: APKS");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
+	});
+});
+
+describe("parseDexBuffer and parseXmlText parser fields", () => {
+	it("parses all DEX header offsets correctly", () => {
+		const buf = buildTestDex(["Lcom/example/MyClass;"]);
+		const parsed = parseDexBuffer(buf);
+		expect(parsed).not.toBeNull();
+		expect(parsed!.header.stringIdsCount).toBeGreaterThan(0);
+		expect(parsed!.header.stringIdsOff).toBe(112);
+		expect(parsed!.header.typeIdsCount).toBeGreaterThan(0);
+		expect(parsed!.header.typeIdsOff).toBeGreaterThan(112);
+		expect(parsed!.header.protoIdsCount).toBe(2);
+		expect(parsed!.header.protoIdsOff).toBe(0x100);
+		expect(parsed!.header.fieldIdsCount).toBe(3);
+		expect(parsed!.header.fieldIdsOff).toBe(0x120);
+		expect(parsed!.header.methodIdsCount).toBe(5);
+		expect(parsed!.header.methodIdsOff).toBe(0x140);
+		expect(parsed!.header.classDefsCount).toBe(1);
+		expect(parsed!.header.classDefsOff).toBeGreaterThan(0);
+	});
+
+	it("extracts application manifest flags from XML text", () => {
+		const xml = `
+			<manifest package="com.test.app"
+				android:versionCode="12"
+				android:versionName="1.2.0">
+				<uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+				<application
+					android:name="com.test.app.MainApplication"
+					android:debuggable="true"
+					android:allowBackup="false"
+					android:extractNativeLibs="false"
+					android:useEmbeddedDex="true"
+					android:hasCode="true" />
+			</manifest>
+		`;
+		const parsed = parseXmlText(xml);
+		expect(parsed).not.toBeNull();
+		expect(parsed!.package).toBe("com.test.app");
+		expect(parsed!.application.name).toBe("com.test.app.MainApplication");
+		expect(parsed!.application.debuggable).toBe(true);
+		expect(parsed!.application.allowBackup).toBe(false);
+		expect(parsed!.application.extractNativeLibs).toBe(false);
+		expect(parsed!.application.useEmbeddedDex).toBe(true);
+		expect(parsed!.application.hasCode).toBe(true);
 	});
 });

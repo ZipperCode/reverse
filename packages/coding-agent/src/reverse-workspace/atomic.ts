@@ -96,7 +96,7 @@ export function redactSecrets(input: string): string {
  * Produces deterministic JSON with sorted keys for reproducible diffs.
  */
 export function deterministicJsonStringify(obj: unknown, space = 2): string {
-	return JSON.stringify(sortKeysRecursively(obj), null, space);
+	return JSON.stringify(sortKeysRecursively(obj), null, space) ?? "";
 }
 
 function sortKeysRecursively(val: unknown): unknown {
@@ -111,7 +111,9 @@ function sortKeysRecursively(val: unknown): unknown {
 
 	const sortedObj: Record<string, unknown> = {};
 	for (const [k, v] of entries) {
-		sortedObj[k] = sortKeysRecursively(v);
+		if (v !== undefined) {
+			sortedObj[k] = sortKeysRecursively(v);
+		}
 	}
 	return sortedObj;
 }

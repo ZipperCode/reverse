@@ -2,18 +2,18 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { RenderResultOptions } from "@rva/coding-agent/extensibility/custom-tools/types";
-import { InternalUrlFilesystem } from "@rva/coding-agent/internal-urls/url-filesystem";
-import { getThemeByName, initTheme, type Theme } from "@rva/tui/theme";
+import type { RenderResultOptions } from "@reverse/coding-agent/extensibility/custom-tools/types";
+import { InternalUrlFilesystem } from "@reverse/coding-agent/internal-urls/url-filesystem";
+import { getThemeByName, initTheme, type Theme } from "@reverse/tui/theme";
 import {
 	expandDelimitedPathEntries,
 	parseFindPattern,
 	resolveToolSearchScope,
 	splitDelimitedPathEntry,
-} from "@rva/coding-agent/tools/path-utils";
-import type { Component } from "@rva/tui";
-import { removeWithRetries } from "@rva/utils";
-import { globToolRenderer } from "@rva/tui/tools/glob";
+} from "@reverse/coding-agent/tools/path-utils";
+import type { Component } from "@reverse/tui";
+import { removeWithRetries } from "@reverse/utils";
+import { globToolRenderer } from "@reverse/tui/tools/glob";
 
 let uiTheme: Theme;
 

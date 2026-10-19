@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl } from "@rva/ai/types";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AgentStorage } from "@rva/coding-agent/session/agent-storage";
-import { searchSearXNG } from "@rva/coding-agent/web/search/providers/searxng";
-import { SearchProviderError } from "@rva/coding-agent/web/search/types";
-import { removeWithRetries } from "@rva/utils";
+import type { FetchImpl } from "@reverse/ai/types";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { searchSearXNG } from "@reverse/coding-agent/web/search/providers/searxng";
+import { SearchProviderError } from "@reverse/coding-agent/web/search/types";
+import { removeWithRetries } from "@reverse/utils";
 
 describe("SearXNG web search provider", () => {
 	afterEach(() => {

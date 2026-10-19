@@ -24,7 +24,6 @@ const SENSITIVE_KEY_NAMES: Record<string, true> = {
 	credentials: true,
 };
 
-
 const LIVE_HANDLE_KEYS: Record<string, true> = {
 	socket: true,
 	stream: true,
@@ -62,13 +61,14 @@ export function sanitizeUrlString(rawUrl: string): string {
 				params.set(key, "[REDACTED]");
 			}
 		}
-		return parsed
-			.toString()
-			.replaceAll("%5BREDACTED%5D", "[REDACTED]");
+		return parsed.toString().replaceAll("%5BREDACTED%5D", "[REDACTED]");
 	} catch {
 		// Fallback regex replacement for non-standard / relative URLs
 		return rawUrl
-			.replace(/([?&](?:token|auth|key|secret|password|passwd|sig|cred|pwd|apikey)[^=]*=)[^&\s,"'`;}]+/gi, "$1[REDACTED]")
+			.replace(
+				/([?&](?:token|auth|key|secret|password|passwd|sig|cred|pwd|apikey)[^=]*=)[^&\s,"'`;}]+/gi,
+				"$1[REDACTED]",
+			)
 			.replace(/((?:https?|wss?):\/\/)([^:@/\s]+):([^:@/\s]+)@/gi, "$1[REDACTED]:[REDACTED]@");
 	}
 }
@@ -92,10 +92,7 @@ export function sanitizeSessionString(value: string): string {
 			new URL(redacted);
 			redacted = sanitizeUrlString(redacted);
 		} catch {
-			redacted = redacted.replace(
-				/((?:https?|wss?):\/\/[^\s"'`<>]+)/gi,
-				match => sanitizeUrlString(match),
-			);
+			redacted = redacted.replace(/((?:https?|wss?):\/\/[^\s"'`<>]+)/gi, match => sanitizeUrlString(match));
 		}
 	}
 
@@ -214,9 +211,7 @@ export function sanitizeRuntimeSessionRecord(record: RuntimeSessionRecord): Runt
 		? (sanitizeMetadataObject(record.recovery_hints) as unknown as RuntimeSessionRecord["recovery_hints"])
 		: record.recovery_hints;
 
-	const metadata = record.metadata
-		? (sanitizeMetadataObject(record.metadata) as Record<string, unknown>)
-		: undefined;
+	const metadata = record.metadata ? (sanitizeMetadataObject(record.metadata) as Record<string, unknown>) : undefined;
 
 	return {
 		...record,

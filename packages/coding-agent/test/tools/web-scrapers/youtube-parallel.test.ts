@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import * as toolsManager from "@rva/coding-agent/utils/tools-manager";
-import * as parallelModule from "@rva/coding-agent/web/parallel";
-import { handleYouTube } from "@rva/coding-agent/web/scrapers/youtube";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import * as toolsManager from "@reverse/coding-agent/utils/tools-manager";
+import * as parallelModule from "@reverse/coding-agent/web/parallel";
+import { handleYouTube } from "@reverse/coding-agent/web/scrapers/youtube";
 
 describe("handleYouTube with Parallel extract", () => {
 	beforeEach(async () => {

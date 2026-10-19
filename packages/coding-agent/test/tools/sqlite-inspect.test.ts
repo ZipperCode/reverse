@@ -1,17 +1,13 @@
+import type { AgentToolResult } from "@reverse/agent";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { Database } from "bun:sqlite";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	SqliteInspectTool,
-	type SqliteInspectDetails,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, SqliteInspectTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -23,9 +19,9 @@ function createTestSession(cwd: string): ToolSession {
 	};
 }
 
-function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+function textOf(result: AgentToolResult<unknown>): string {
 	return result.content
-		.map(item => item.text ?? "")
+		.flatMap(item => (item.type === "text" ? [item.text] : []))
 		.join("\n")
 		.trim();
 }
@@ -149,7 +145,7 @@ describe("sqlite_inspect path validation and errors", () => {
 					action: "info",
 					path: "invalid.db",
 				}),
-			).rejects.toThrow("Not a valid SQLite 3 database file: missing \"SQLite format 3\" magic header");
+			).rejects.toThrow('Not a valid SQLite 3 database file: missing "SQLite format 3" magic header');
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -308,7 +304,7 @@ describe("sqlite_inspect action: schema", () => {
 				path: "test.db",
 				table: "non_existent_table",
 			}),
-		).rejects.toThrow("Table or view \"non_existent_table\" not found");
+		).rejects.toThrow('Table or view "non_existent_table" not found');
 	});
 });
 
@@ -334,7 +330,7 @@ describe("sqlite_inspect action: rows and safety constraints", () => {
 				action: "rows",
 				path: "test.db",
 			}),
-		).rejects.toThrow("Parameter \"table\" is required for action \"rows\"");
+		).rejects.toThrow('Parameter "table" is required for action "rows"');
 	});
 
 	it("reads bounded rows and formats BLOB cells safely", async () => {
@@ -363,7 +359,7 @@ describe("sqlite_inspect action: rows and safety constraints", () => {
 		expect(alice.avatar).toContain("<BLOB: 4 bytes, hex: cafebabe>");
 
 		const text = textOf(res);
-		expect(text).toContain("Rows from \"users\"");
+		expect(text).toContain('Rows from "users"');
 		expect(text).toContain("alice");
 		expect(text).toContain("cafebabe");
 	});
@@ -401,7 +397,7 @@ describe("sqlite_inspect action: rows and safety constraints", () => {
 				table: "users",
 				columns: ["id", "evil_column'; DROP TABLE users; --"],
 			}),
-		).rejects.toThrow("Column \"evil_column'; DROP TABLE users; --\" does not exist");
+		).rejects.toThrow('Column "evil_column\'; DROP TABLE users; --" does not exist');
 	});
 
 	it("rejects invalid/injected order_by column", async () => {
@@ -414,7 +410,7 @@ describe("sqlite_inspect action: rows and safety constraints", () => {
 				table: "users",
 				order_by: "invalid_col",
 			}),
-		).rejects.toThrow("Order column \"invalid_col\" does not exist");
+		).rejects.toThrow('Order column "invalid_col" does not exist');
 	});
 
 	it("pages rows with limit and offset", async () => {

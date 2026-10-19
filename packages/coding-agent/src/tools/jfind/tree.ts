@@ -6,9 +6,9 @@
  * obvious credential material.
  */
 import * as path from "node:path";
-import * as natives from "@rva/natives";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { buildPathTree, type PathTreeInput, walkPathTree } from "@rva/utils";
+import * as natives from "@reverse/natives";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { buildPathTree, type PathTreeInput, walkPathTree } from "@reverse/utils";
 import { InternalUrlRouter } from "../../internal-urls/router";
 import { type InternalUrlFilesystem, type UrlFileStat, UrlFsError } from "../../internal-urls/url-filesystem";
 import { resolveSearchBase, resolveSearchResultPath } from "../path-utils";

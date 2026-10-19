@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/sdk";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/sdk";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
 
-import { cfgBrowserEnabled } from "@rva/coding-agent/tools/browser/settings";
+import { cfgBrowserEnabled } from "@reverse/coding-agent/tools/browser/settings";
 
 function makeSession(settings = Settings.isolated({ "browser.enabled": true })): ToolSession {
 	return {

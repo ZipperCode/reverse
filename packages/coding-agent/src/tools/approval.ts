@@ -6,13 +6,13 @@
  * - compare a tool capability tier against the active approval mode,
  * - format the generic approval prompt body.
  */
-import type { AgentTool, ToolApprovalDecision, ToolTier } from "@rva/agent";
+import type { AgentTool, ToolApprovalDecision, ToolTier } from "@reverse/agent";
 import type { Settings } from "../config/settings";
 import type { ExtensionUIContext } from "../extensibility/extensions/types";
 
 import { cfgToolsApproval, cfgToolsApprovalMode } from "./settings";
 
-export type { ToolApproval, ToolApprovalDecision, ToolTier } from "@rva/agent";
+export type { ToolApproval, ToolApprovalDecision, ToolTier } from "@reverse/agent";
 
 export type ApprovalPolicy = "allow" | "deny" | "prompt";
 export type ApprovalMode = "always-ask" | "write" | "yolo";

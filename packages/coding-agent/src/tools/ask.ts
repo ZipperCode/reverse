@@ -1,4 +1,4 @@
-import type { AskToolDetails, QuestionResult } from "@rva/tui/tools/ask";
+import type { AskToolDetails, QuestionResult } from "@reverse/tui/tools/ask";
 /**
  * Ask Tool - Interactive user prompting during execution
  *
@@ -16,26 +16,22 @@ import type { AskToolDetails, QuestionResult } from "@rva/tui/tools/ask";
  *   - Questions may time out and auto-select the recommended option (configurable, disabled in plan mode)
  */
 
-import { type as arkType } from "@rva/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@rva/agent";
-import { type ImageContent, type TextContent, type ToolExample, validateToolArguments } from "@rva/ai";
-import { replaceTabs, TERMINAL, truncateToWidth } from "@rva/tui";
-import { isRecord, logger, prompt, untilAborted } from "@rva/utils";
+import { type as arkType } from "@reverse/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
+import { type ImageContent, type TextContent, type ToolExample, validateToolArguments } from "@reverse/ai";
+import { replaceTabs, TERMINAL, truncateToWidth } from "@reverse/tui";
+import { isRecord, logger, prompt, untilAborted } from "@reverse/utils";
 
 import type { ExtensionUISelectItem } from "../extensibility/extensions";
-import { formatKeyHint, formatKeyHints } from "@rva/tui/app-keybindings";
-import { editorKey, editorKeys } from "@rva/tui/chrome/keybinding-hints";
-import { theme } from "@rva/tui/theme";
+import { formatKeyHint, formatKeyHints } from "@reverse/tui/app-keybindings";
+import { editorKey, editorKeys } from "@reverse/tui/chrome/keybinding-hints";
+import { theme } from "@reverse/tui/theme";
 import askDescription from "../prompts/tools/ask.md" with { type: "text" };
 import { vocalizer } from "../tts/vocalizer";
 
 import type { ToolSession } from ".";
-import {
-	disambiguateDisplayLabels,
-	sanitizeCarriageReturns,
-	TRUNCATE_LENGTHS,
-} from "@rva/tui/render/render-utils";
-import { shiftImageMarkers } from "@rva/tui/prompt/composer-attachments";
+import { disambiguateDisplayLabels, sanitizeCarriageReturns, TRUNCATE_LENGTHS } from "@reverse/tui/render/render-utils";
+import { shiftImageMarkers } from "@reverse/tui/prompt/composer-attachments";
 import { ToolAbortError } from "./tool-errors";
 
 import { sessionLocalProtocolOptions } from "../internal-urls/context";

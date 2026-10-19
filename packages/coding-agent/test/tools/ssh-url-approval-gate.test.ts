@@ -2,13 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolContext } from "@rva/agent";
-import { getBundledModel } from "@rva/catalog/models";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createAgentSession } from "@rva/coding-agent/sdk";
-import type { AgentSession } from "@rva/coding-agent/session/agent-session";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import { Snowflake } from "@rva/utils";
+import type { AgentToolContext } from "@reverse/agent";
+import { getBundledModel } from "@reverse/catalog/models";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createAgentSession } from "@reverse/coding-agent/sdk";
+import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { Snowflake } from "@reverse/utils";
 
 // Exercises the real per-tool approval gate (ExtensionToolWrapper) for read/grep/write,
 // proving an `ssh://` target is exec-tier (prompts / is denied without a UI) while the

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { handleOllama } from "@rva/coding-agent/web/scrapers/ollama";
-import * as scrapers from "@rva/coding-agent/web/scrapers/types";
+import { handleOllama } from "@reverse/coding-agent/web/scrapers/ollama";
+import * as scrapers from "@reverse/coding-agent/web/scrapers/types";
 
 describe("handleOllama URL parsing & route rejection", () => {
 	afterEach(() => {

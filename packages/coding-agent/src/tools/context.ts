@@ -1,9 +1,9 @@
-import type { AgentToolContext, ToolCallContext } from "@rva/agent";
+import type { AgentToolContext, ToolCallContext } from "@reverse/agent";
 import type { CustomToolContext } from "../extensibility/custom-tools/types";
 import type { ExtensionUIContext } from "../extensibility/extensions/types";
 import { trackUserWaits, type UserWaitTracker } from "../extensibility/extensions/user-wait";
 
-declare module "@rva/agent" {
+declare module "@reverse/agent" {
 	interface AgentToolContext extends CustomToolContext {
 		ui?: ExtensionUIContext;
 		hasUI?: boolean;

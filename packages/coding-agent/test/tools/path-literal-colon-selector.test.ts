@@ -2,22 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { EditTool } from "@rva/coding-agent/edit";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { EditTool } from "@reverse/coding-agent/edit";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 import {
 	expandPath,
 	probeLiteralPathExists,
 	resolveToCwd,
 	splitPathAndSelPreferringLiteral,
 	splitPathAndSelPreferringLiteralSync,
-} from "@rva/coding-agent/tools/path-utils";
-import { splitPathAndSel } from "@rva/tui/tools/read";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { GrepOutputMode } from "@rva/natives";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/tools/path-utils";
+import { splitPathAndSel } from "@reverse/tui/tools/read";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { GrepOutputMode } from "@reverse/natives";
+import { removeWithRetries } from "@reverse/utils";
 import { runGrepCommand } from "../../src/cli/grep-cli";
-import { initTheme } from "@rva/tui/theme";
+import { initTheme } from "@reverse/tui/theme";
 import { GrepTool } from "../../src/tools/grep";
 
 function getText(result: { content: Array<{ type: string; text?: string }> }): string {

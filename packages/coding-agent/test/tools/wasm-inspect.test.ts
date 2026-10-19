@@ -2,15 +2,15 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	createTools,
 	type ToolSession,
 	WasmInspectTool,
 	type WasmInspectDetails,
 	wabtDependency,
-} from "@rva/coding-agent/tools";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/tools";
+import { removeWithRetries } from "@reverse/utils";
 
 function u32(value: number): number[] {
 	const out: number[] = [];

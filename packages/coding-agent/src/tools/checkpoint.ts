@@ -1,11 +1,11 @@
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@rva/agent";
-import { prompt } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
+import { prompt } from "@reverse/utils";
 import checkpointDescription from "../prompts/tools/checkpoint.md" with { type: "text" };
 import rewindDescription from "../prompts/tools/rewind.md" with { type: "text" };
 import type { ToolSession } from ".";
-import type { OutputMeta } from "@rva/tui/tools/output-meta";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 export interface CheckpointState {

@@ -1,27 +1,27 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { AgentToolContext } from "@rva/agent";
+import type { AgentToolContext } from "@reverse/agent";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { EvalPreludeDefinition } from "@rva/coding-agent/eval/preludes";
-import { disposeAllKernelSessions, executePython } from "@rva/coding-agent/eval/py/executor";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { computerApproval, createComputerPrelude } from "@rva/coding-agent/tools/computer";
-import { isReadOnlyComputerCall, renderComputerCall } from "@rva/coding-agent/tools/computer/call";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { EvalPreludeDefinition } from "@reverse/coding-agent/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@reverse/coding-agent/eval/py/executor";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { computerApproval, createComputerPrelude } from "@reverse/coding-agent/tools/computer";
+import { isReadOnlyComputerCall, renderComputerCall } from "@reverse/coding-agent/tools/computer/call";
 import {
 	type ComputerSessionSnapshot,
 	type ComputerWorkerInbound,
 	type ComputerWorkerOutbound,
 	type ComputerWorkerTransport,
 	SCREEN_LOCKED_CAPTURE_NOTE,
-} from "@rva/coding-agent/tools/computer/protocol";
+} from "@reverse/coding-agent/tools/computer/protocol";
 import {
 	beginComputerTurnForOwner,
 	type ComputerController,
 	ComputerSupervisor,
 	type ComputerWorkerHandle,
 	endComputerTurnForOwner,
-} from "@rva/coding-agent/tools/computer/supervisor";
-import { ComputerWorkerCore, type NativeDesktopSession } from "@rva/coding-agent/tools/computer/worker";
+} from "@reverse/coding-agent/tools/computer/supervisor";
+import { ComputerWorkerCore, type NativeDesktopSession } from "@reverse/coding-agent/tools/computer/worker";
 import type {
 	AxNode,
 	AxQuery,
@@ -34,9 +34,9 @@ import type {
 	DesktopScreenState,
 	DesktopWindow,
 	PointerOptions,
-} from "@rva/natives";
+} from "@reverse/natives";
 
-import { cfgComputerEnabled } from "@rva/coding-agent/tools/settings";
+import { cfgComputerEnabled } from "@reverse/coding-agent/tools/settings";
 
 /** Method name of the last step in a facade call chain, or "" when the chain is malformed. */
 function terminalMethod(chain: unknown): string {

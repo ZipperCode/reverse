@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import type { Dirent, Stats } from "node:fs";
 import * as path from "node:path";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { isReadableUrlPath } from "@rva/tui/tools/read";
-import { archiveFormatFromPath, openArchive, sniffArchiveFormat, type ArchiveReader } from "@rva/utils/ar";
-import { formatBytes, prompt } from "@rva/utils";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { isReadableUrlPath } from "@reverse/tui/tools/read";
+import { archiveFormatFromPath, openArchive, sniffArchiveFormat, type ArchiveReader } from "@reverse/utils/ar";
+import { formatBytes, prompt } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
@@ -218,11 +218,9 @@ async function collectArchiveFiles(
 const IPC_CALL_REGEX =
 	/\b(ipcRenderer|ipcMain|webContents|event\.sender|event)\s*\.\s*(send|sendSync|sendTo|sendToHost|invoke|postMessage|on|once|handle|handleOnce|reply)\s*\(\s*(['"`])([^'"`\r\n\t]+)\3/g;
 
-const CONTEXT_BRIDGE_REGEX =
-	/\bcontextBridge\s*\.\s*exposeInMainWorld\s*\(\s*(['"`])([^'"`\r\n\t]+)\1/g;
+const CONTEXT_BRIDGE_REGEX = /\bcontextBridge\s*\.\s*exposeInMainWorld\s*\(\s*(['"`])([^'"`\r\n\t]+)\1/g;
 
-const NODE_ADDON_REQUIRE_REGEX =
-	/(?:require\s*\(\s*|import\s*(?:[^{}]*?from\s+)?)(['"])([^'"]+?\.node)\1/g;
+const NODE_ADDON_REQUIRE_REGEX = /(?:require\s*\(\s*|import\s*(?:[^{}]*?from\s+)?)(['"])([^'"]+?\.node)\1/g;
 
 const BINDINGS_REGEX = /\b(?:bindings|node-gyp-build)\s*\(\s*(['"])([^'"]+)\1\s*\)/g;
 const REQUIRE_BINDINGS_REGEX = /\brequire\s*\(\s*(['"])bindings\1\s*\)\s*\(\s*(['"])([^'"]+)\2\s*\)/g;
@@ -290,11 +288,7 @@ function getPriorityScore(filePath: string, mainPath?: string): number {
 	return 5;
 }
 
-function renderApplicationReport(
-	details: JavascriptApplicationDetails,
-	requestedPath: string,
-	limit: number,
-): string {
+function renderApplicationReport(details: JavascriptApplicationDetails, requestedPath: string, limit: number): string {
 	const lines: string[] = [];
 	const sizeStr = formatBytes(details.totalSizeBytes);
 	lines.push(
@@ -388,9 +382,10 @@ function renderApplicationReport(
 	return lines.join("\n");
 }
 
-export class JavascriptApplicationTool
-	implements AgentTool<typeof javascriptApplicationSchema, JavascriptApplicationDetails>
-{
+export class JavascriptApplicationTool implements AgentTool<
+	typeof javascriptApplicationSchema,
+	JavascriptApplicationDetails
+> {
 	readonly name = "javascript_application";
 	readonly approval: ToolTier = "read";
 	readonly label = "JavaScript Application";
@@ -409,7 +404,7 @@ export class JavascriptApplicationTool
 		_toolCallId: string,
 		params: JavascriptApplicationParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<JavascriptApplicationDetails>> {
+	): Promise<AgentToolResult<JavascriptApplicationDetails> & { details: JavascriptApplicationDetails }> {
 		throwIfAborted(signal);
 		const requestedPath = params.path?.trim() || params.target?.trim() || "";
 		if (!requestedPath) {
@@ -436,10 +431,7 @@ export class JavascriptApplicationTool
 		}
 
 		const limit = Math.min(MAX_LIST_LIMIT, Math.max(1, Math.floor(params.limit ?? DEFAULT_LIST_LIMIT)));
-		const maxFiles = Math.min(
-			MAX_FILES_LIMIT,
-			Math.max(1, Math.floor(params.max_files ?? DEFAULT_MAX_FILES)),
-		);
+		const maxFiles = Math.min(MAX_FILES_LIMIT, Math.max(1, Math.floor(params.max_files ?? DEFAULT_MAX_FILES)));
 		const includeNodeModules = params.include_node_modules === true;
 		const channelFilter = params.channel_filter?.trim() || undefined;
 
@@ -462,7 +454,7 @@ export class JavascriptApplicationTool
 					);
 				}
 			} else {
-				let head = Buffer.alloc(512);
+				const head = Buffer.alloc(512);
 				let bytesRead = 0;
 				try {
 					const fh = await fs.open(absolutePath, "r");
@@ -513,7 +505,9 @@ export class JavascriptApplicationTool
 				if (typeof parsed === "object" && parsed !== null) {
 					electronVersion =
 						(typeof parsed.dependencies?.electron === "string" ? parsed.dependencies.electron : undefined) ??
-						(typeof parsed.devDependencies?.electron === "string" ? parsed.devDependencies.electron : undefined) ??
+						(typeof parsed.devDependencies?.electron === "string"
+							? parsed.devDependencies.electron
+							: undefined) ??
 						(typeof parsed.build?.electronVersion === "string" ? parsed.build.electronVersion : undefined);
 
 					packageJsonSummary = {
@@ -525,8 +519,7 @@ export class JavascriptApplicationTool
 						module: typeof parsed.module === "string" ? parsed.module : undefined,
 						type: typeof parsed.type === "string" ? parsed.type : undefined,
 						electronVersion,
-						scripts:
-							typeof parsed.scripts === "object" && parsed.scripts !== null ? parsed.scripts : undefined,
+						scripts: typeof parsed.scripts === "object" && parsed.scripts !== null ? parsed.scripts : undefined,
 						dependencies:
 							typeof parsed.dependencies === "object" && parsed.dependencies !== null
 								? parsed.dependencies
@@ -535,8 +528,7 @@ export class JavascriptApplicationTool
 							typeof parsed.devDependencies === "object" && parsed.devDependencies !== null
 								? parsed.devDependencies
 								: undefined,
-						build:
-							typeof parsed.build === "object" && parsed.build !== null ? parsed.build : undefined,
+						build: typeof parsed.build === "object" && parsed.build !== null ? parsed.build : undefined,
 					};
 				}
 			} catch {

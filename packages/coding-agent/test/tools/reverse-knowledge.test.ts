@@ -2,21 +2,16 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	ReverseKnowledgeTool,
-	ReverseWorkflowTool,
-	EvidenceTool,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { EvidenceStore } from "@rva/coding-agent/evidence/store";
-import { ReverseWorkflowStore } from "@rva/coding-agent/reverse-workflow/store";
-import { ReverseKnowledgeStore } from "@rva/coding-agent/reverse-knowledge/store";
-import { MnemopiKnowledgeBridge } from "@rva/coding-agent/reverse-knowledge/bridge";
-import type { MnemopiSessionState } from "@rva/coding-agent/mnemopi/state";
+import type { TextContent, ImageContent } from "@reverse/ai";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ReverseKnowledgeTool, ReverseWorkflowTool, EvidenceTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
+import { EvidenceStore } from "@reverse/coding-agent/evidence/store";
+import { ReverseWorkflowStore } from "@reverse/coding-agent/reverse-workflow/store";
+import { ReverseKnowledgeStore } from "@reverse/coding-agent/reverse-knowledge/store";
+import { MnemopiKnowledgeBridge } from "@reverse/coding-agent/reverse-knowledge/bridge";
+import type { MnemopiSessionState } from "@reverse/coding-agent/mnemopi/state";
 
 function createTestSession(cwd: string, options: { mnemopi?: boolean } = {}): ToolSession {
 	const fakeMnemopiMemories: Array<{ id: string; content: string; metadata?: Record<string, unknown> }> = [];
@@ -29,31 +24,34 @@ function createTestSession(cwd: string, options: { mnemopi?: boolean } = {}): To
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated({ "tools.xdev": false }),
 		getMnemopiSessionState: options.mnemopi
-			? () => ({
-					rememberInScope: (content: string, opts?: { metadata?: Record<string, unknown> }) => {
-						const id = `mem-${idCounter++}`;
-						fakeMnemopiMemories.push({ id, content, metadata: opts?.metadata });
-						return id;
-					},
-					recallResultsScoped: async (query: string) => {
-						const lower = query.toLowerCase();
-						return fakeMnemopiMemories
-							.filter(m => m.content.toLowerCase().includes(lower) || m.content.includes("[REVERSE_KNOWLEDGE]"))
-							.map(m => ({
-								id: m.id,
-								content: m.content,
-								score: 0.85,
-								metadata: m.metadata,
-							}));
-					},
-				} as unknown as MnemopiSessionState)
+			? () =>
+					({
+						rememberInScope: (content: string, opts?: { metadata?: Record<string, unknown> }) => {
+							const id = `mem-${idCounter++}`;
+							fakeMnemopiMemories.push({ id, content, metadata: opts?.metadata });
+							return id;
+						},
+						recallResultsScoped: async (query: string) => {
+							const lower = query.toLowerCase();
+							return fakeMnemopiMemories
+								.filter(
+									m => m.content.toLowerCase().includes(lower) || m.content.includes("[REVERSE_KNOWLEDGE]"),
+								)
+								.map(m => ({
+									id: m.id,
+									content: m.content,
+									score: 0.85,
+									metadata: m.metadata,
+								}));
+						},
+					}) as unknown as MnemopiSessionState
 			: undefined,
 	};
 }
 
-function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+function textOf(result: { content: (TextContent | ImageContent)[] }): string {
 	return result.content
-		.map(item => item.text ?? "")
+		.flatMap(item => (item.type === "text" ? [item.text] : []))
 		.join("\n")
 		.trim();
 }
@@ -118,7 +116,8 @@ describe("reverse_knowledge retain and verification safety", () => {
 				format: "APK",
 				tool: "droidasc",
 				confidence: "high",
-				summary: "droidasc failed with invalid_format when Dalvik bytecode had non-standard header; android_package_inspect parsed manifests successfully.",
+				summary:
+					"droidasc failed with invalid_format when Dalvik bytecode had non-standard header; android_package_inspect parsed manifests successfully.",
 				pattern: "category:invalid_format;previous_tool:droidasc;fallback_tool:android_package_inspect",
 				actionable_guidance: "Use android_package_inspect when droidasc crashes on packed APKs.",
 			});
@@ -298,7 +297,8 @@ describe("reverse_knowledge search and apply", () => {
 				kind: "recovery_pattern",
 				format: "ELF",
 				tool: "r2_inspect",
-				summary: "r2_inspect timed out during full analysis 'aaa'; scope reduction to 'aa' and targeted function analysis succeeded.",
+				summary:
+					"r2_inspect timed out during full analysis 'aaa'; scope reduction to 'aa' and targeted function analysis succeeded.",
 				actionable_guidance: "Adjust params: use 'aa' instead of 'aaa' when target is > 5MB.",
 				params: JSON.stringify({ analysis_level: "aa" }),
 			});
@@ -461,7 +461,9 @@ describe("reverse_workflow and reverse_knowledge integration", () => {
 			expect(createRes.details.workflow?.knowledge_refs?.length).toBeGreaterThan(0);
 
 			// Status workflow: should report knowledge references
-			const wfId = createRes.details.workflow!.id;
+			const workflow = createRes.details.workflow;
+			if (!workflow) throw new Error("workflow missing");
+			const wfId = workflow.id;
 			const statusRes = await workflowTool.execute("status-1", {
 				action: "status",
 				workflow_id: wfId,
@@ -487,7 +489,9 @@ describe("reverse_workflow and reverse_knowledge integration", () => {
 				format: "PE",
 				summary: "memcpy at 0x401080 lacks bounds check on packet size parameter.",
 			});
-			const knId = knRes.details.record!.id;
+			const knRecord = knRes.details.record;
+			if (!knRecord) throw new Error("knRecord missing");
+			const knId = knRecord.id;
 
 			// Create workflow
 			const pePath = path.join(tempDir, "vuln.exe");
@@ -503,7 +507,9 @@ describe("reverse_workflow and reverse_knowledge integration", () => {
 				action: "create",
 				target: "vuln.exe",
 			});
-			const wfId = createRes.details.workflow!.id;
+			const createdWf = createRes.details.workflow;
+			if (!createdWf) throw new Error("created workflow missing");
+			const wfId = createdWf.id;
 
 			// Record step with invalid knowledge ID format -> should throw
 			await expect(
@@ -590,8 +596,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				summary: "Found hardcoded 16-byte RC4 key at offset 0x401000",
 				confidence: "high",
 			});
-			const id1 = r1.details.record?.id;
-			expect(id1).toBeDefined();
+			const r1Record = r1.details.record;
+			if (!r1Record) throw new Error("r1 record missing");
+			const id1 = r1Record.id;
 
 			// Create duplicate record with identical normalized tokens and properties
 			const r2 = await tool.execute("r2", {
@@ -604,8 +611,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				summary: "Duplicate finding: RC4 key at offset 0x401000",
 				confidence: "medium",
 			});
-			const id2 = r2.details.record?.id;
-			expect(id2).toBeDefined();
+			const r2Record = r2.details.record;
+			if (!r2Record) throw new Error("r2 record missing");
+			const id2 = r2Record.id;
 
 			// Create distinct record
 			await tool.execute("r3", {
@@ -627,8 +635,10 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 			expect(audit?.total_records).toBe(3);
 			expect(audit?.duplicate_count).toBe(1);
 			expect(audit?.duplicate_groups.length).toBe(1);
-			expect(audit?.duplicate_groups[0].primary_id).toBe(id1!);
-			expect(audit?.duplicate_groups[0].duplicate_ids).toContain(id2!);
+			const dupGroup = audit?.duplicate_groups[0];
+			if (!dupGroup) throw new Error("duplicate group missing");
+			expect(dupGroup.primary_id).toBe(id1);
+			expect(dupGroup.duplicate_ids).toContain(id2);
 			expect(textOf(auditRes)).toContain("Duplicate Groups");
 		} finally {
 			await removeWithRetries(tempDir);
@@ -651,7 +661,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				confidence: "medium",
 				source_evidence_ids: ["ev_conc_aaa111"],
 			});
-			const primaryId = primary.details.record!.id;
+			const primaryRecord = primary.details.record;
+			if (!primaryRecord) throw new Error("primaryRecord missing");
+			const primaryId = primaryRecord.id;
 
 			const duplicate = await tool.execute("r-dup", {
 				action: "retain",
@@ -663,7 +675,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				confidence: "high", // Higher confidence should promote primary
 				source_evidence_ids: ["ev_conc_bbb222"],
 			});
-			const duplicateId = duplicate.details.record!.id;
+			const duplicateRecord = duplicate.details.record;
+			if (!duplicateRecord) throw new Error("duplicateRecord missing");
+			const duplicateId = duplicateRecord.id;
 
 			const mergeRes = await tool.execute("merge-1", {
 				action: "merge",
@@ -673,7 +687,7 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 			});
 
 			const mergeResult = mergeRes.details.merge_result;
-			expect(mergeResult).toBeDefined();
+			if (!mergeResult) throw new Error("merge_result missing");
 			expect(mergeResult.target_record.confidence).toBe("high");
 			expect(mergeResult.target_record.source_evidence_ids).toContain("ev_conc_aaa111");
 			expect(mergeResult.target_record.source_evidence_ids).toContain("ev_conc_bbb222");
@@ -705,12 +719,13 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				claim: "Target sends plaintext telemetry to port 8080",
 				verificationPlan: "Check connect() disassembly",
 			});
-			const hypId = hypRes.details.record?.id;
-			expect(hypId).toBeDefined();
+			const hypRecord = hypRes.details?.record;
+			if (!hypRecord) throw new Error("hypRecord missing");
+			const hypId = hypRecord.id;
 
 			const refRes = await evidenceTool.execute("conc-refuted", {
 				action: "verify",
-				hypothesisId: hypId!,
+				hypothesisId: hypId,
 				method: "Disassembly inspection of connect()",
 				command: "r2 -qc 'pdf @ sym.send_telemetry'",
 				result: "connect() calls SSL_connect() before writing bytes",
@@ -718,7 +733,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				reproducibility: "always",
 				status: "refuted",
 			});
-			const refutedConcId = refRes.details.record?.id;
+			const refutedRecord = refRes.details?.record;
+			if (!refutedRecord) throw new Error("refutedRecord missing");
+			const refutedConcId = refutedRecord.id;
 			expect(refutedConcId).toBeDefined();
 
 			// Retain knowledge backed by the refuted conclusion
@@ -728,9 +745,11 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				kind: "verified_conclusion",
 				format: "ELF",
 				summary: "Plaintext telemetry observed",
-				source_evidence_ids: [refutedConcId!],
+				source_evidence_ids: [refutedConcId],
 			});
-			const knRefutedId = knRefuted.details.record!.id;
+			const knRefutedRecord = knRefuted.details.record;
+			if (!knRefutedRecord) throw new Error("knRefuted record missing");
+			const knRefutedId = knRefutedRecord.id;
 
 			// Retain knowledge backed by a non-existent evidence ID
 			const knMissing = await knowledgeTool.execute("kn-missing", {
@@ -741,7 +760,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				summary: "Master password string found",
 				source_evidence_ids: ["ev_conc_nonexistent_999"],
 			});
-			const knMissingId = knMissing.details.record!.id;
+			const knMissingRecord = knMissing.details.record;
+			if (!knMissingRecord) throw new Error("knMissing record missing");
+			const knMissingId = knMissingRecord.id;
 
 			// Run audit with mark_stale: true
 			const auditRes = await knowledgeTool.execute("audit-stale", {
@@ -785,7 +806,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				format: "PE",
 				summary: "Legacy UPX stub recovery",
 			});
-			const id1 = r1.details.record!.id;
+			const r1Record = r1.details.record;
+			if (!r1Record) throw new Error("r1 record missing");
+			const id1 = r1Record.id;
 
 			const r2 = await tool.execute("r2", {
 				action: "retain",
@@ -794,7 +817,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				format: "ELF",
 				summary: "Hooks older glibc 2.27 symbol",
 			});
-			const id2 = r2.details.record!.id;
+			const r2Record = r2.details.record;
+			if (!r2Record) throw new Error("r2 record missing");
+			const id2 = r2Record.id;
 
 			// Expire r1
 			const expireRes = await tool.execute("exp-1", {
@@ -841,7 +866,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				confidence: "high",
 				source_evidence_ids: ["ev_conc_active_123"],
 			});
-			const activeId = rActive.details.record!.id;
+			const activeRecord = rActive.details.record;
+			if (!activeRecord) throw new Error("activeRecord missing");
+			const activeId = activeRecord.id;
 
 			// 2. Expired record
 			const rExpired = await tool.execute("r-exp", {
@@ -852,7 +879,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				summary: "Old notes",
 				confidence: "low",
 			});
-			await tool.execute("do-exp", { action: "expire", knowledge_id: rExpired.details.record!.id });
+			const expiredRecord = rExpired.details.record;
+			if (!expiredRecord) throw new Error("expiredRecord missing");
+			await tool.execute("do-exp", { action: "expire", knowledge_id: expiredRecord.id });
 
 			// 3. Disabled record
 			const rDisabled = await tool.execute("r-dis", {
@@ -862,7 +891,9 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 				format: "SQLite",
 				summary: "Disabled pattern",
 			});
-			await tool.execute("do-dis", { action: "disable", knowledge_id: rDisabled.details.record!.id });
+			const disabledRecord = rDisabled.details.record;
+			if (!disabledRecord) throw new Error("disabledRecord missing");
+			await tool.execute("do-dis", { action: "disable", knowledge_id: disabledRecord.id });
 
 			// Apply knowledge for SQLite format
 			const applyRes = await tool.execute("apply-sqlite", {
@@ -871,10 +902,10 @@ describe("reverse_knowledge quality governance and lifecycle", () => {
 			});
 
 			const applyResult = applyRes.details.apply_result;
-			expect(applyResult).toBeDefined();
-			expect(applyResult?.knowledge_refs).toContain(activeId);
-			expect(applyResult?.knowledge_refs).not.toContain(rExpired.details.record!.id);
-			expect(applyResult?.knowledge_refs).not.toContain(rDisabled.details.record!.id);
+			if (!applyResult) throw new Error("applyResult missing");
+			expect(applyResult.knowledge_refs).toContain(activeId);
+			expect(applyResult.knowledge_refs).not.toContain(expiredRecord.id);
+			expect(applyResult.knowledge_refs).not.toContain(disabledRecord.id);
 
 			const rec = applyResult?.recommendations.find(r => r.knowledge_id === activeId);
 			expect(rec).toBeDefined();

@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { TempDir } from "@rva/utils";
-import { getThemeByName } from "@rva/tui/theme";
-import { evalToolRenderer } from "@rva/tui/tools/eval";
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
-import * as evalIndex from "@rva/coding-agent/eval";
-import * as pyKernel from "@rva/coding-agent/eval/py/kernel";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EvalTool } from "@rva/coding-agent/tools/eval";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { TempDir } from "@reverse/utils";
+import { getThemeByName } from "@reverse/tui/theme";
+import { evalToolRenderer } from "@reverse/tui/tools/eval";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
+import * as evalIndex from "@reverse/coding-agent/eval";
+import * as pyKernel from "@reverse/coding-agent/eval/py/kernel";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EvalTool } from "@reverse/coding-agent/tools/eval";
 
 function makeSession(): ToolSession {
 	return {

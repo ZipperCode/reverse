@@ -2,20 +2,20 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { disposeAllVmContexts } from "@rva/coding-agent/eval/js/context-manager";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
-import { findFreeCdpPort, waitForCdp } from "@rva/coding-agent/tools/browser/attach";
-import { prepareElementUpload } from "@rva/coding-agent/tools/browser/interactions";
-import { ensureChromiumExecutable } from "@rva/coding-agent/tools/browser/launch";
-import { releaseAllTabs } from "@rva/coding-agent/tools/browser/tab-supervisor";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { disposeAllVmContexts } from "@reverse/coding-agent/eval/js/context-manager";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
+import { findFreeCdpPort, waitForCdp } from "@reverse/coding-agent/tools/browser/attach";
+import { prepareElementUpload } from "@reverse/coding-agent/tools/browser/interactions";
+import { ensureChromiumExecutable } from "@reverse/coding-agent/tools/browser/launch";
+import { releaseAllTabs } from "@reverse/coding-agent/tools/browser/tab-supervisor";
 import {
 	openUploadSource,
 	sweepUploadStaging,
 	type UploadRoute,
 	UploadStaging,
-} from "@rva/coding-agent/tools/browser/upload-files";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
+} from "@reverse/coding-agent/tools/browser/upload-files";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
 import type { ElementHandle, Page } from "puppeteer-core";
 import { rejectionOf } from "../helpers/rejection";
 import { chromiumAvailable } from "./chromium-probe";

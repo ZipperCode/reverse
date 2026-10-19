@@ -1,11 +1,11 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import type { SearchParams } from "@rva/coding-agent/web/search/providers/base";
-import { hasCodexSearch, searchCodex } from "@rva/coding-agent/web/search/providers/codex";
-import { TempDir } from "@rva/utils";
+import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import type { SearchParams } from "@reverse/coding-agent/web/search/providers/base";
+import { hasCodexSearch, searchCodex } from "@reverse/coding-agent/web/search/providers/codex";
+import { TempDir } from "@reverse/utils";
 
 type CapturedRequest = {
 	url: string;

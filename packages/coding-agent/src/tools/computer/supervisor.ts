@@ -1,13 +1,13 @@
-import type { AgentToolContext } from "@rva/agent";
-import { untilAborted } from "@rva/utils";
-import type { DesktopCapabilities } from "@rva/natives";
-import { withTimeout } from "@rva/utils/async";
-import * as logger from "@rva/utils/logger";
-import { Snowflake } from "@rva/utils/snowflake";
-import { workerHostEntry } from "@rva/utils/worker-host";
+import type { AgentToolContext } from "@reverse/agent";
+import { untilAborted } from "@reverse/utils";
+import type { DesktopCapabilities } from "@reverse/natives";
+import { withTimeout } from "@reverse/utils/async";
+import * as logger from "@reverse/utils/logger";
+import { Snowflake } from "@reverse/utils/snowflake";
+import { workerHostEntry } from "@reverse/utils/worker-host";
 import type { ToolSession } from "../index";
 import { ToolAbortError, toWorkerErrorPayload } from "../tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import {
 	COMPUTER_WORKER_ARG,
 	type ComputerRunOk,

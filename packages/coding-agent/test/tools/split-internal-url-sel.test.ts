@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
 
 const split = (input: string) => InternalUrlRouter.instance().split(input);
 const peelWriteSelector = (input: string) => InternalUrlRouter.instance().peelWriteSelector(input, "write");

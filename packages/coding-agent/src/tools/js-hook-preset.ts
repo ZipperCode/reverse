@@ -1,7 +1,7 @@
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { prompt } from "@rva/utils";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { prompt } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { throwIfAborted } from "./tool-errors";
 import jsHookPresetDescription from "../prompts/tools/js-hook-preset.md" with { type: "text" };
@@ -30,7 +30,7 @@ export const HOOK_TAMPER_MODES = ["log", "debugger", "stub"] as const;
 export type HookTamperMode = (typeof HOOK_TAMPER_MODES)[number];
 
 const SAFE_IDENTIFIER_PATH_REGEX = /^[a-zA-Z_$][a-zA-Z0-9_$]*(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)*$/;
-const DISALLOWED_TARGET_SEGMENTS: Record<string, true> = {
+const DISALLOWED_TARGET_SEGMENTS: Record<string, boolean> = {
 	__proto__: true,
 	prototype: true,
 	constructor: true,
@@ -70,7 +70,10 @@ export interface BrowserTabSummary {
 export interface BrowserReverseRunner {
 	getTab(name: string): BrowserTabSummary | undefined;
 	openTab(name: string, url: string, signal?: AbortSignal): Promise<{ name: string; url: string }>;
-	runInTab(name: string, opts: { code: string; timeoutMs?: number; signal?: AbortSignal }): Promise<{
+	runInTab(
+		name: string,
+		opts: { code: string; timeoutMs?: number; signal?: AbortSignal },
+	): Promise<{
 		returnValue?: unknown;
 		displays?: Array<{ type: string; text?: string }>;
 	}>;
@@ -96,7 +99,9 @@ export function createDefaultBrowserReverseRunner(session: ToolSession): Browser
 		},
 		async openTab(name: string, url: string, signal?: AbortSignal): Promise<{ name: string; url: string }> {
 			const { createBrowserPrelude } = require("./browser");
-			const prelude = session.getEvalPreludes?.()?.find((p: { name: string }) => p.name === "browser") ?? createBrowserPrelude(session);
+			const prelude =
+				session.getEvalPreludes?.()?.find((p: { name: string }) => p.name === "browser") ??
+				createBrowserPrelude(session);
 			const result = await prelude.invoke(
 				{ action: "open", name, url, headed: false },
 				{ signal: signal ?? new AbortController().signal },
@@ -126,7 +131,7 @@ export function createDefaultBrowserReverseRunner(session: ToolSession): Browser
 				displays: result.displays,
 			};
 		},
-		async closeTab(name: string, signal?: AbortSignal): Promise<boolean> {
+		async closeTab(name: string, _signal?: AbortSignal): Promise<boolean> {
 			try {
 				const { releaseTab } = require("./browser/tab-supervisor");
 				return await releaseTab(name, { timeoutMs: 5000 });
@@ -139,20 +144,24 @@ export function createDefaultBrowserReverseRunner(session: ToolSession): Browser
 
 const jsHookPresetSchema = type({
 	action: type.enumerated("list", "generate", "inject", "capture", "clear"),
-	"preset?": type.enumerated(...HOOK_PRESETS).describe(
-		"Hook preset: fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, or custom",
-	),
+	"preset?": type
+		.enumerated(...HOOK_PRESETS)
+		.describe("Hook preset: fetch, xhr, websocket, crypto, eval, json_parse, contextBridge, or custom"),
 	"target?": type("string").describe(
 		"Allowlisted target selector (e.g. 'window.myService.login' or 'document.cookie') for custom preset",
 	),
-	"format?": type.enumerated(...HOOK_FORMATS).describe(
-		"Output script format: snippet (default IIFE), userscript (Tampermonkey), devtools (Console snippet), or frida",
-	),
+	"format?": type
+		.enumerated(...HOOK_FORMATS)
+		.describe(
+			"Output script format: snippet (default IIFE), userscript (Tampermonkey), devtools (Console snippet), or frida",
+		),
 	"filter?": type("string").describe("Substring filter to log only matching URLs, methods, or payloads"),
 	"stack_trace?": type("boolean").describe("Whether to capture and log call stack traces (default true)"),
-	"tamper_mode?": type.enumerated(...HOOK_TAMPER_MODES).describe(
-		"Hook mode: 'log' (read-only observer, default), 'debugger' (trigger debugger statement), or 'stub' (dummy return)",
-	),
+	"tamper_mode?": type
+		.enumerated(...HOOK_TAMPER_MODES)
+		.describe(
+			"Hook mode: 'log' (read-only observer, default), 'debugger' (trigger debugger statement), or 'stub' (dummy return)",
+		),
 	"max_payload_length?": type("number.integer >= 1").describe(
 		"Maximum characters of argument/response payload to log (default 1024, max 32768)",
 	),
@@ -162,9 +171,7 @@ const jsHookPresetSchema = type({
 	"export_evidence?": type("boolean").describe(
 		"Whether to format captured events as structured evidence records (for action 'capture')",
 	),
-	"limit?": type("number.integer >= 1").describe(
-		"Maximum number of captured events to return (default 50, max 500)",
-	),
+	"limit?": type("number.integer >= 1").describe("Maximum number of captured events to return (default 50, max 500)"),
 });
 
 export type JsHookPresetParams = typeof jsHookPresetSchema.infer;
@@ -1224,9 +1231,7 @@ Java.perform(function() {
 	}
 }
 
-export class JsHookPresetTool
-	implements AgentTool<typeof jsHookPresetSchema, JsHookPresetDetails>
-{
+export class JsHookPresetTool implements AgentTool<typeof jsHookPresetSchema, JsHookPresetDetails> {
 	readonly name = "js_hook_preset";
 	readonly approval: ToolTier = "read";
 	readonly label = "JS Hook Preset";
@@ -1579,7 +1584,13 @@ export class JsHookPresetTool
 			const summaryLines = [
 				`# Browser Captured Events: Tab \`${tabName}\``,
 				`- **Total Events Captured**: ${rawEvents.length}${rawEvents.length > limit ? ` (showing first ${limit})` : ""}`,
-				`- **Event Types Breakdown**: ${Object.keys(typeCounts).length > 0 ? Object.entries(typeCounts).map(([k, v]) => `${k}=${v}`).join(", ") : "[none]"}`,
+				`- **Event Types Breakdown**: ${
+					Object.keys(typeCounts).length > 0
+						? Object.entries(typeCounts)
+								.map(([k, v]) => `${k}=${v}`)
+								.join(", ")
+						: "[none]"
+				}`,
 				`- **Captured Console Messages**: ${consoleLogs.length}`,
 				`- **Captured Network Requests**: ${requests.length}`,
 				`- **Buffer Cleared**: ${clear ? "yes" : "no"}`,
@@ -1590,7 +1601,9 @@ export class JsHookPresetTool
 				summaryLines.push("### Recent Hook Events:");
 				for (let i = 0; i < Math.min(pagedEvents.length, 10); i++) {
 					const ev = pagedEvents[i];
-					summaryLines.push(`- **[${new Date(ev.timestamp).toISOString()}] ${ev.type}** ${ev.url || ev.method || ev.target || ""}`);
+					summaryLines.push(
+						`- **[${new Date(ev.timestamp).toISOString()}] ${ev.type}** ${ev.url || ev.method || ev.target || ""}`,
+					);
 				}
 				if (pagedEvents.length > 10) {
 					summaryLines.push(`... and ${pagedEvents.length - 10} more events.`);

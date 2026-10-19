@@ -2,10 +2,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ToolCall } from "@rva/ai";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import type { ToolCall } from "@reverse/ai";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 import {
 	buildSearchDateQualifier,
 	GithubTool,
@@ -13,15 +13,15 @@ import {
 	parsePrUnifiedDiff,
 	parseSearchDateBound,
 	resolveDefaultRepoMemoized,
-} from "@rva/coding-agent/tools/gh";
-import { parseIssueUrl, parsePullRequestUrl } from "@rva/coding-agent/tools/gh-common";
-import { sanitizeRemoteName } from "@rva/coding-agent/tools/gh-pr-checkout";
-import { github } from "@rva/coding-agent/utils/github";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { withRepoLock } from "@rva/coding-agent/utils/repo-lock";
-import type { VcsGitRepo } from "@rva/natives";
-import * as vcs from "@rva/natives/vcs";
-import { getAgentDir, hashPath, normalizePathForComparison, removeWithRetries, setAgentDir } from "@rva/utils";
+} from "@reverse/coding-agent/tools/gh";
+import { parseIssueUrl, parsePullRequestUrl } from "@reverse/coding-agent/tools/gh-common";
+import { sanitizeRemoteName } from "@reverse/coding-agent/tools/gh-pr-checkout";
+import { github } from "@reverse/coding-agent/utils/github";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { withRepoLock } from "@reverse/coding-agent/utils/repo-lock";
+import type { VcsGitRepo } from "@reverse/natives";
+import * as vcs from "@reverse/natives/vcs";
+import { getAgentDir, hashPath, normalizePathForComparison, removeWithRetries, setAgentDir } from "@reverse/utils";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";

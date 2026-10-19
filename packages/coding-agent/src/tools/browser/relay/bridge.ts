@@ -22,7 +22,7 @@
  *   shared root session and passed through verbatim
  */
 import { createHash } from "node:crypto";
-import { VERSION } from "@rva/utils/dirs";
+import { VERSION } from "@reverse/utils/dirs";
 import { DISCARDED_TABS_PROTOCOL_VERSION } from "./protocol";
 import type { ExtToRelayMessage, RelayRpcRequest, RelayToExtMessage, TabSnapshot } from "./protocol";
 

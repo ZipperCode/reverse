@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { postmortem } from "@rva/utils";
+import { postmortem } from "@reverse/utils";
 import { ToolAbortError, throwIfAborted } from "../../src/tools/tool-errors";
 
 describe("tool abort errors", () => {

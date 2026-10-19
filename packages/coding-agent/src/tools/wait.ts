@@ -1,11 +1,11 @@
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import {
 	type AgentTool,
 	type AgentToolResult,
 	type AgentToolUpdateCallback,
 	TOOL_INTERRUPT_ABORT_REASON,
-} from "@rva/agent";
-import { prompt } from "@rva/utils";
+} from "@reverse/agent";
+import { prompt } from "@reverse/utils";
 import { IrcBus } from "../irc/bus";
 import waitDescription from "../prompts/tools/wait.md" with { type: "text" };
 import type { ToolSession } from ".";
@@ -14,9 +14,9 @@ import { buildJobResult, snapshotJobs, undeliveredJobs } from "../async/job-cont
 import { hasLiveOwnedService, listServicesTolerant, waitForOwnedServiceCompletion } from "../launch/services";
 import { drainPendingInbox, messageResult } from "../irc/messaging";
 import type { AgentRegistry } from "../registry/agent-registry";
-import type { IrcMessage } from "@rva/tui/tools/irc";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import type { CoordinationDetails } from "@rva/tui/tools/wait";
+import type { IrcMessage } from "@reverse/tui/tools/irc";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import type { CoordinationDetails } from "@reverse/tui/tools/wait";
 import { throwIfAborted } from "./tool-errors";
 
 import { cfgLaunchEnabled } from "./settings";

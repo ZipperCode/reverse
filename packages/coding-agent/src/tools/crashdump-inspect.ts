@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import type { Stats } from "node:fs";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes, prompt } from "@rva/utils";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes, prompt } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
@@ -25,16 +25,12 @@ const crashdumpInspectSchema = type({
 			"Inspection action: info (crash summary, format, architecture, faulting thread/instruction, exception/signal), threads (thread list with IDs, fault status, and key register pointers), mappings (memory mappings and loaded modules with virtual addresses and file paths), registers (detailed register dump for faulting or specified thread), or notes (raw/structured ELF core notes or Minidump stream headers)",
 		),
 	path: type("string").describe("Path to target core dump or minidump file"),
-	"thread_id?": type("number.integer >= 0").describe(
-		"Specific thread ID to inspect for registers or thread details",
-	),
+	"thread_id?": type("number.integer >= 0").describe("Specific thread ID to inspect for registers or thread details"),
 	"limit?": type("number.integer >= 1").describe(
 		"Maximum threads, mappings, or notes to return (default 50, max 500)",
 	),
 	"offset?": type("number.integer >= 0").describe("Pagination offset (default 0)"),
-	"max_bytes?": type("number.integer >= 1").describe(
-		"Maximum dump file bytes to read (default 100MB, max 500MB)",
-	),
+	"max_bytes?": type("number.integer >= 1").describe("Maximum dump file bytes to read (default 100MB, max 500MB)"),
 });
 
 export type CrashdumpInspectParams = typeof crashdumpInspectSchema.infer;
@@ -146,7 +142,10 @@ const WINDOWS_EXCEPTION_MAP: Record<number, { name: string; description: string 
 	0x80000003: { name: "STATUS_BREAKPOINT", description: "A breakpoint or assertion was encountered" },
 	0x80000004: { name: "STATUS_SINGLE_STEP", description: "A single step trap occurred" },
 	0xc00000fd: { name: "STATUS_STACK_OVERFLOW", description: "The thread exhausted its stack space" },
-	0xc000001d: { name: "STATUS_ILLEGAL_INSTRUCTION", description: "The thread attempted to execute an illegal instruction" },
+	0xc000001d: {
+		name: "STATUS_ILLEGAL_INSTRUCTION",
+		description: "The thread attempted to execute an illegal instruction",
+	},
 	0xc000008c: { name: "STATUS_ARRAY_BOUNDS_EXCEEDED", description: "Array index out of bounds" },
 	0xc000008e: { name: "STATUS_FLOAT_DIVIDE_BY_ZERO", description: "Floating point division by zero" },
 	0xc0000094: { name: "STATUS_INTEGER_DIVIDE_BY_ZERO", description: "Integer division by zero" },
@@ -311,9 +310,15 @@ function parseElfCore(buf: Buffer): ParsedCrashdump {
 
 		if (is64) {
 			const pFlags = isLE ? buf.readUInt32LE(entryOffset + 4) : buf.readUInt32BE(entryOffset + 4);
-			const pOffset = isLE ? Number(buf.readBigUInt64LE(entryOffset + 8)) : Number(buf.readBigUInt64BE(entryOffset + 8));
-			const pVAddr = isLE ? Number(buf.readBigUInt64LE(entryOffset + 16)) : Number(buf.readBigUInt64BE(entryOffset + 16));
-			const pMemSz = isLE ? Number(buf.readBigUInt64LE(entryOffset + 40)) : Number(buf.readBigUInt64BE(entryOffset + 40));
+			const pOffset = isLE
+				? Number(buf.readBigUInt64LE(entryOffset + 8))
+				: Number(buf.readBigUInt64BE(entryOffset + 8));
+			const pVAddr = isLE
+				? Number(buf.readBigUInt64LE(entryOffset + 16))
+				: Number(buf.readBigUInt64BE(entryOffset + 16));
+			const pMemSz = isLE
+				? Number(buf.readBigUInt64LE(entryOffset + 40))
+				: Number(buf.readBigUInt64BE(entryOffset + 40));
 
 			const r = (pFlags & 4) !== 0 ? "r" : "-";
 			const w = (pFlags & 2) !== 0 ? "w" : "-";
@@ -403,9 +408,33 @@ function parseElfCore(buf: Buffer): ParsedCrashdump {
 					// Linux x86_64: 27 x 8-byte uint64 at offset 112
 					const regOffset = 112;
 					const rNames = [
-						"r15", "r14", "r13", "r12", "rbp", "rbx", "r11", "r10", "r9", "r8",
-						"rax", "rcx", "rdx", "rsi", "rdi", "orig_rax", "rip", "cs", "eflags",
-						"rsp", "ss", "fs_base", "gs_base", "ds", "es", "fs", "gs",
+						"r15",
+						"r14",
+						"r13",
+						"r12",
+						"rbp",
+						"rbx",
+						"r11",
+						"r10",
+						"r9",
+						"r8",
+						"rax",
+						"rcx",
+						"rdx",
+						"rsi",
+						"rdi",
+						"orig_rax",
+						"rip",
+						"cs",
+						"eflags",
+						"rsp",
+						"ss",
+						"fs_base",
+						"gs_base",
+						"ds",
+						"es",
+						"fs",
+						"gs",
 					];
 					for (let rIdx = 0; rIdx < rNames.length; rIdx++) {
 						const val = isLittleEndian
@@ -421,8 +450,23 @@ function parseElfCore(buf: Buffer): ParsedCrashdump {
 					// Linux x86 (32-bit): 17 x 4-byte uint32 at offset 72
 					const regOffset = 72;
 					const rNames = [
-						"ebx", "ecx", "edx", "esi", "edi", "ebp", "eax", "ds", "es", "fs", "gs",
-						"orig_eax", "eip", "cs", "eflags", "esp", "ss",
+						"ebx",
+						"ecx",
+						"edx",
+						"esi",
+						"edi",
+						"ebp",
+						"eax",
+						"ds",
+						"es",
+						"fs",
+						"gs",
+						"orig_eax",
+						"eip",
+						"cs",
+						"eflags",
+						"esp",
+						"ss",
 					];
 					for (let rIdx = 0; rIdx < rNames.length && regOffset + (rIdx + 1) * 4 <= descBuf.length; rIdx++) {
 						const val = isLittleEndian
@@ -437,12 +481,20 @@ function parseElfCore(buf: Buffer): ParsedCrashdump {
 					// ARM (32-bit)
 					const regOffset = 72;
 					for (let rIdx = 0; rIdx <= 12; rIdx++) {
-						const val = isLittleEndian ? descBuf.readUInt32LE(regOffset + rIdx * 4) : descBuf.readUInt32BE(regOffset + rIdx * 4);
+						const val = isLittleEndian
+							? descBuf.readUInt32LE(regOffset + rIdx * 4)
+							: descBuf.readUInt32BE(regOffset + rIdx * 4);
 						regs[`r${rIdx}`] = `0x${val.toString(16).padStart(8, "0")}`;
 					}
-					const sp = isLittleEndian ? descBuf.readUInt32LE(regOffset + 13 * 4) : descBuf.readUInt32BE(regOffset + 13 * 4);
-					const lr = isLittleEndian ? descBuf.readUInt32LE(regOffset + 14 * 4) : descBuf.readUInt32BE(regOffset + 14 * 4);
-					const pc = isLittleEndian ? descBuf.readUInt32LE(regOffset + 15 * 4) : descBuf.readUInt32BE(regOffset + 15 * 4);
+					const sp = isLittleEndian
+						? descBuf.readUInt32LE(regOffset + 13 * 4)
+						: descBuf.readUInt32BE(regOffset + 13 * 4);
+					const lr = isLittleEndian
+						? descBuf.readUInt32LE(regOffset + 14 * 4)
+						: descBuf.readUInt32BE(regOffset + 14 * 4);
+					const pc = isLittleEndian
+						? descBuf.readUInt32LE(regOffset + 15 * 4)
+						: descBuf.readUInt32BE(regOffset + 15 * 4);
 					regs.sp = `0x${sp.toString(16).padStart(8, "0")}`;
 					regs.lr = `0x${lr.toString(16).padStart(8, "0")}`;
 					regs.pc = `0x${pc.toString(16).padStart(8, "0")}`;
@@ -469,8 +521,14 @@ function parseElfCore(buf: Buffer): ParsedCrashdump {
 
 			// NT_PRPSINFO (3) - Process info & command line args
 			if (typeId === 3 && descBuf.length >= 128) {
-				const fname = descBuf.toString("ascii", is64Bit ? 40 : 28, is64Bit ? 56 : 44).replace(/\0.*$/, "").trim();
-				const psargs = descBuf.toString("ascii", is64Bit ? 56 : 44, is64Bit ? 136 : 124).replace(/\0.*$/, "").trim();
+				const fname = descBuf
+					.toString("ascii", is64Bit ? 40 : 28, is64Bit ? 56 : 44)
+					.replace(/\0.*$/, "")
+					.trim();
+				const psargs = descBuf
+					.toString("ascii", is64Bit ? 56 : 44, is64Bit ? 136 : 124)
+					.replace(/\0.*$/, "")
+					.trim();
 				if (fname) processName = fname;
 				if (psargs) processArgs = psargs;
 				descSummary = `Process: "${fname}" args: "${psargs}"`;
@@ -491,22 +549,34 @@ function parseElfCore(buf: Buffer): ParsedCrashdump {
 			// NT_FILE (0x46494c45) - Memory mapped file paths
 			if (typeId === 0x46494c45 && descBuf.length >= 16) {
 				const count = is64Bit
-					? isLittleEndian ? Number(descBuf.readBigUInt64LE(0)) : Number(descBuf.readBigUInt64BE(0))
-					: isLittleEndian ? descBuf.readUInt32LE(0) : descBuf.readUInt32BE(0);
+					? isLittleEndian
+						? Number(descBuf.readBigUInt64LE(0))
+						: Number(descBuf.readBigUInt64BE(0))
+					: isLittleEndian
+						? descBuf.readUInt32LE(0)
+						: descBuf.readUInt32BE(0);
 
 				const entrySize = is64Bit ? 24 : 12;
-				let stringsOffset = (is64Bit ? 16 : 8) + count * entrySize;
+				const stringsOffset = (is64Bit ? 16 : 8) + count * entrySize;
 
 				if (stringsOffset <= descBuf.length) {
 					const fileEntries: Array<{ start: number; end: number }> = [];
 					for (let fIdx = 0; fIdx < count; fIdx++) {
 						const eOff = (is64Bit ? 16 : 8) + fIdx * entrySize;
 						const vmStart = is64Bit
-							? isLittleEndian ? Number(descBuf.readBigUInt64LE(eOff)) : Number(descBuf.readBigUInt64BE(eOff))
-							: isLittleEndian ? descBuf.readUInt32LE(eOff) : descBuf.readUInt32BE(eOff);
+							? isLittleEndian
+								? Number(descBuf.readBigUInt64LE(eOff))
+								: Number(descBuf.readBigUInt64BE(eOff))
+							: isLittleEndian
+								? descBuf.readUInt32LE(eOff)
+								: descBuf.readUInt32BE(eOff);
 						const vmEnd = is64Bit
-							? isLittleEndian ? Number(descBuf.readBigUInt64LE(eOff + (is64Bit ? 8 : 4))) : Number(descBuf.readBigUInt64BE(eOff + (is64Bit ? 8 : 4)))
-							: isLittleEndian ? descBuf.readUInt32LE(eOff + (is64Bit ? 8 : 4)) : descBuf.readUInt32BE(eOff + (is64Bit ? 8 : 4));
+							? isLittleEndian
+								? Number(descBuf.readBigUInt64LE(eOff + (is64Bit ? 8 : 4)))
+								: Number(descBuf.readBigUInt64BE(eOff + (is64Bit ? 8 : 4)))
+							: isLittleEndian
+								? descBuf.readUInt32LE(eOff + (is64Bit ? 8 : 4))
+								: descBuf.readUInt32BE(eOff + (is64Bit ? 8 : 4));
 						fileEntries.push({ start: vmStart, end: vmEnd });
 					}
 
@@ -776,7 +846,7 @@ function parseMinidump(buf: Buffer): ParsedCrashdump {
 		os: osName,
 		timestamp: timeStr,
 		exception: exceptionObj,
-		faultingThreadId: faultingThreadId ?? (threads[0]?.id),
+		faultingThreadId: faultingThreadId ?? threads[0]?.id,
 		faultingInstructionPointer: faultingIP ?? threads[0]?.instructionPointer,
 		faultingMemoryAddress: faultingMemoryAddr,
 		threads,
@@ -885,7 +955,10 @@ function parseMachoCore(buf: Buffer): ParsedCrashdump {
 
 		// LC_SEGMENT_64 (0x19) or LC_SEGMENT (1)
 		if (cmd === 0x19 && is64 && cmdSize >= 72) {
-			const segName = buf.toString("ascii", cmdOffset + 8, cmdOffset + 24).replace(/\0.*$/, "").trim();
+			const segName = buf
+				.toString("ascii", cmdOffset + 8, cmdOffset + 24)
+				.replace(/\0.*$/, "")
+				.trim();
 			const vmAddr = isLE ? buf.readBigUInt64LE(cmdOffset + 24) : buf.readBigUInt64BE(cmdOffset + 24);
 			const vmSize = isLE ? buf.readBigUInt64LE(cmdOffset + 32) : buf.readBigUInt64BE(cmdOffset + 32);
 			const fileOff = isLE ? buf.readBigUInt64LE(cmdOffset + 40) : buf.readBigUInt64BE(cmdOffset + 40);
@@ -905,7 +978,7 @@ function parseMachoCore(buf: Buffer): ParsedCrashdump {
 		// LC_THREAD (4)
 		if (cmd === 4 && cmdSize >= 16) {
 			const flavor = isLE ? buf.readUInt32LE(cmdOffset + 8) : buf.readUInt32BE(cmdOffset + 8);
-			const count = isLE ? buf.readUInt32LE(cmdOffset + 12) : buf.readUInt32BE(cmdOffset + 12);
+			const _count = isLE ? buf.readUInt32LE(cmdOffset + 12) : buf.readUInt32BE(cmdOffset + 12);
 			threads.push({
 				id: threads.length + 1,
 				isFaulting: threads.length === 0,
@@ -997,7 +1070,7 @@ export class CrashdumpInspectTool implements AgentTool<typeof crashdumpInspectSc
 		_toolCallId: string,
 		params: CrashdumpInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<CrashdumpInspectDetails>> {
+	): Promise<AgentToolResult<CrashdumpInspectDetails> & { details: CrashdumpInspectDetails }> {
 		throwIfAborted(signal);
 
 		const resolvedPath = resolveReadPath(params.path, this.session.cwd);
@@ -1131,7 +1204,9 @@ export class CrashdumpInspectTool implements AgentTool<typeof crashdumpInspectSc
 					);
 				}
 				if (dump.threads.length > 8) {
-					textLines.push(`*...and ${dump.threads.length - 8} more threads (use \`action: "threads"\` to view all)*`);
+					textLines.push(
+						`*...and ${dump.threads.length - 8} more threads (use \`action: "threads"\` to view all)*`,
+					);
 				}
 			}
 
@@ -1149,7 +1224,9 @@ export class CrashdumpInspectTool implements AgentTool<typeof crashdumpInspectSc
 					);
 				}
 				if (dump.mappings.length > 8) {
-					textLines.push(`*...and ${dump.mappings.length - 8} more mappings (use \`action: "mappings"\` to paginate)*`);
+					textLines.push(
+						`*...and ${dump.mappings.length - 8} more mappings (use \`action: "mappings"\` to paginate)*`,
+					);
 				}
 			}
 
@@ -1278,10 +1355,7 @@ export class CrashdumpInspectTool implements AgentTool<typeof crashdumpInspectSc
 					targetThread?.stackPointer ? `Stack Pointer: \`${targetThread.stackPointer}\`` : "",
 				);
 			} else {
-				textLines.push(
-					"| Register | Hexadecimal Value | Register | Hexadecimal Value |",
-					"|---|---|---|---|",
-				);
+				textLines.push("| Register | Hexadecimal Value | Register | Hexadecimal Value |", "|---|---|---|---|");
 				for (let i = 0; i < regKeys.length; i += 2) {
 					const k1 = regKeys[i];
 					const v1 = regValues[k1];

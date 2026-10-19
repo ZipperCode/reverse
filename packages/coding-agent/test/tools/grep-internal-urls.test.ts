@@ -2,30 +2,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as capability from "@rva/coding-agent/capability";
-import type { CapabilityResult } from "@rva/coding-agent/capability/types";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { resetActiveSkillsForTests, setActiveSkills } from "@rva/coding-agent/extensibility/skills";
+import * as capability from "@reverse/coding-agent/capability";
+import type { CapabilityResult } from "@reverse/coding-agent/capability/types";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { resetActiveSkillsForTests, setActiveSkills } from "@reverse/coding-agent/extensibility/skills";
 import {
 	type InternalResource,
 	type InternalUrl,
 	InternalUrlRouter,
 	LocalProtocolHandler,
 	type ProtocolHandler,
-} from "@rva/coding-agent/internal-urls";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { SessionEntry } from "@rva/coding-agent/session/session-entries";
-import * as sshFileTransfer from "@rva/coding-agent/ssh/file-transfer";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/internal-urls";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { SessionEntry } from "@reverse/coding-agent/session/session-entries";
+import * as sshFileTransfer from "@reverse/coding-agent/ssh/file-transfer";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { removeWithRetries } from "@reverse/utils";
 import { AstGrepTool } from "../../src/tools/ast-grep";
 import { GlobTool } from "../../src/tools/glob";
 import { GrepTool } from "../../src/tools/grep";
 
-import { cfgCompactionExperimentalContextManagement } from "@rva/coding-agent/session/context-settings";
-import { cfgReadSummarizeEnabled } from "@rva/coding-agent/tools/settings";
+import { cfgCompactionExperimentalContextManagement } from "@reverse/coding-agent/session/context-settings";
+import { cfgReadSummarizeEnabled } from "@reverse/coding-agent/tools/settings";
 
 function getResultText(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content
@@ -401,7 +401,9 @@ describe("GrepTool internal URL resolution", () => {
 	});
 
 	it("globs reverse:// docs by URL pattern", async () => {
-		const text = getResultText(await new GlobTool(createSession()).execute("glob-reverse", { path: "reverse://tools/*.md" }));
+		const text = getResultText(
+			await new GlobTool(createSession()).execute("glob-reverse", { path: "reverse://tools/*.md" }),
+		);
 
 		expect(text).toContain("reverse://tools/read.md");
 		expect(text).toContain("reverse://tools/grep.md");

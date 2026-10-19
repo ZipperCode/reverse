@@ -302,7 +302,7 @@ console.log(\`omp browser relay listening on http://127.0.0.1:\${port}\`);
 		);
 		const result = await runWithIsolatedBroker(
 			home,
-			`import { VERSION } from "@rva/utils/dirs";
+			`import { VERSION } from "@reverse/utils/dirs";
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { restartRelayDaemon } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/daemon.ts"))};
 const [ownedPort, manualPort, standIn] = [Bun.env.OMP_TEST_OWNED_PORT!, Bun.env.OMP_TEST_MANUAL_PORT!, Bun.env.OMP_TEST_STALE_RELAY!];
@@ -442,7 +442,7 @@ console.log(\`omp browser relay listening on http://127.0.0.1:\${port}\`);
 		);
 		const result = await runWithIsolatedBroker(
 			home,
-			`import { VERSION } from "@rva/utils/dirs";
+			`import { VERSION } from "@reverse/utils/dirs";
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { restartRelayDaemon } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/daemon.ts"))};
 const [ownedPort, manualPort, standIn] = [Bun.env.OMP_TEST_OWNED_PORT!, Bun.env.OMP_TEST_MANUAL_PORT!, Bun.env.OMP_TEST_STALE_RELAY!];
@@ -532,7 +532,7 @@ console.log(\`omp browser relay listening on http://127.0.0.1:\${port}\`);
 		);
 		const result = await runWithIsolatedBroker(
 			home,
-			`import { VERSION } from "@rva/utils/dirs";
+			`import { VERSION } from "@reverse/utils/dirs";
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { restartRelayDaemon } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/daemon.ts"))};
 const [port, standIn] = [Bun.env.OMP_TEST_PORT!, Bun.env.OMP_TEST_STALE_RELAY!];
@@ -603,7 +603,7 @@ try {
 		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-restart-abort-"));
 		const result = await runWithIsolatedBroker(
 			home,
-			`import { declareWorkerHostEntry } from "@rva/utils/worker-host";
+			`import { declareWorkerHostEntry } from "@reverse/utils/worker-host";
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { acquireBrowser } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/registry.ts"))};
 const controller = new AbortController();
@@ -762,7 +762,7 @@ if (process.argv[2] === "browser-relay") {
 		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-idle-raced-"));
 		const result = await runWithIsolatedBroker(
 			home,
-			`import { declareWorkerHostEntry } from "@rva/utils/worker-host";
+			`import { declareWorkerHostEntry } from "@reverse/utils/worker-host";
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { acquireBrowser } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/registry.ts"))};
 import { DISCARDED_TABS_PROTOCOL_VERSION } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/protocol.ts"))};

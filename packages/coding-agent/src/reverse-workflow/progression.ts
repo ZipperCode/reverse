@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ReverseKnowledgeStore } from "../reverse-knowledge/store";
 import type { EvidenceStore } from "../evidence/store";
 import { isDynamicLocator } from "../reverse-runtime-session/dynamic-events";
@@ -65,9 +65,7 @@ export function assessStepRisk(step: WorkflowStepRecord): StepRiskAssessment {
 	for (const dynamicTool of HIGH_RISK_OR_DYNAMIC_TOOLS) {
 		if (tool === dynamicTool || tool.startsWith(`${dynamicTool}_`) || tool.includes(dynamicTool)) {
 			const isDynamic =
-				dynamicTool === "frida" ||
-				dynamicTool === "reverse_runtime_session" ||
-				dynamicTool === "replay";
+				dynamicTool === "frida" || dynamicTool === "reverse_runtime_session" || dynamicTool === "replay";
 			return {
 				is_low_risk: false,
 				tool: step.tool,
@@ -227,10 +225,20 @@ export async function advanceWorkflow(
 
 		const risk = assessStepRisk(step);
 		let verifiedByDynamicEvidence = false;
-		if (!risk.is_low_risk && options.status === "completed" && options.evidence_ids && options.evidence_ids.length > 0 && context.evidenceStore) {
+		if (
+			!risk.is_low_risk &&
+			options.status === "completed" &&
+			options.evidence_ids &&
+			options.evidence_ids.length > 0 &&
+			context.evidenceStore
+		) {
 			for (const evId of options.evidence_ids) {
 				const rec = await context.evidenceStore.getRecord(evId).catch(() => null);
-				if (rec && ((rec.kind === "conclusion" && rec.status === "verified") || (rec.kind === "fact" && isDynamicLocator(rec.locator)))) {
+				if (
+					rec &&
+					((rec.kind === "conclusion" && rec.status === "verified") ||
+						(rec.kind === "fact" && isDynamicLocator(rec.locator)))
+				) {
 					verifiedByDynamicEvidence = true;
 					break;
 				}
@@ -290,7 +298,8 @@ export async function advanceWorkflow(
 			for (const knId of options.knowledge_refs) {
 				if (!validateKnowledgeIdFormat(knId)) throw new ToolError(`Invalid knowledge ID format: '${knId}'.`);
 				const exists = await context.knowledgeStore.get(knId);
-				if (!exists && !knId.startsWith("kn_rev_seed_")) throw new ToolError(`Knowledge ID '${knId}' not found in project reverse knowledge store.`);
+				if (!exists && !knId.startsWith("kn_rev_seed_"))
+					throw new ToolError(`Knowledge ID '${knId}' not found in project reverse knowledge store.`);
 				allKnowledgeRefs.add(knId);
 			}
 			step.knowledge_refs = Array.from(new Set([...(step.knowledge_refs ?? []), ...options.knowledge_refs]));
@@ -505,7 +514,7 @@ export async function advanceWorkflow(
 	workflow.updated_at = now;
 
 	return {
-		advanced: terminalStatus === "proposed" || terminalStatus === "recorded",
+		advanced: terminalStatus === "proposed",
 		status: terminalStatus,
 		decision: terminalDecision,
 		reason: terminalReason,

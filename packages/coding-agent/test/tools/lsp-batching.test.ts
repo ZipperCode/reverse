@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { createLspWritethrough } from "@rva/coding-agent/lsp";
-import { FileFormatResult } from "@rva/tui/tools/lsp";
-import * as lspConfig from "@rva/coding-agent/lsp/config";
-import type { LinterClient, ServerConfig } from "@rva/coding-agent/lsp/types";
-import { addFileWriteFallback } from "@rva/coding-agent/tools/file-write-fallback";
-import { TempDir } from "@rva/utils";
+import { createLspWritethrough } from "@reverse/coding-agent/lsp";
+import { FileFormatResult } from "@reverse/tui/tools/lsp";
+import * as lspConfig from "@reverse/coding-agent/lsp/config";
+import type { LinterClient, ServerConfig } from "@reverse/coding-agent/lsp/types";
+import { addFileWriteFallback } from "@reverse/coding-agent/tools/file-write-fallback";
+import { TempDir } from "@reverse/utils";
 
 function createFormatter(format: (filePath: string, content: string) => Promise<string>): ServerConfig {
 	return {

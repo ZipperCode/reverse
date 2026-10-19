@@ -2,21 +2,21 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolContext } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as evalIndex from "@rva/coding-agent/eval";
-import type { EvalToolDetails } from "@rva/tui/tools/eval";
-import { getThemeByName } from "@rva/tui/theme";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { EvalTool } from "@rva/coding-agent/tools/eval";
-import { evalToolRenderer } from "@rva/tui/tools/eval";
-import { stripOutputNotice } from "@rva/tui/tools/output-meta";
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
-import { wrapToolWithMetaNotice } from "@rva/coding-agent/tools/output-meta";
-import { removeWithRetries, sanitizeText } from "@rva/utils";
+import type { AgentToolContext } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as evalIndex from "@reverse/coding-agent/eval";
+import type { EvalToolDetails } from "@reverse/tui/tools/eval";
+import { getThemeByName } from "@reverse/tui/theme";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { EvalTool } from "@reverse/coding-agent/tools/eval";
+import { evalToolRenderer } from "@reverse/tui/tools/eval";
+import { stripOutputNotice } from "@reverse/tui/tools/output-meta";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
+import { wrapToolWithMetaNotice } from "@reverse/coding-agent/tools/output-meta";
+import { removeWithRetries, sanitizeText } from "@reverse/utils";
 
-import { cfgToolsOutputMaxColumns } from "@rva/coding-agent/tools/settings";
+import { cfgToolsOutputMaxColumns } from "@reverse/coding-agent/tools/settings";
 
 function makeSession(settings = Settings.isolated()): ToolSession {
 	return {

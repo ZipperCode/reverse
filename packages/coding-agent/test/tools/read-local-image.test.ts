@@ -11,13 +11,13 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { completeSimple } from "@rva/ai";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter, LocalProtocolHandler, parseInternalUrl } from "@rva/coding-agent/internal-urls";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { $which, removeWithRetries } from "@rva/utils";
+import type { completeSimple } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter, LocalProtocolHandler, parseInternalUrl } from "@reverse/coding-agent/internal-urls";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { $which, removeWithRetries } from "@reverse/utils";
 
 const hasFfprobe = Boolean($which("ffprobe"));
 

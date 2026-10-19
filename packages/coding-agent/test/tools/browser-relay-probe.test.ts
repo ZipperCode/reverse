@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { VERSION } from "@rva/utils/dirs";
-import { findFreeCdpPort } from "@rva/coding-agent/tools/browser/attach";
-import { waitForRelayExtension } from "@rva/coding-agent/tools/browser/relay/probe";
-import { DISCARDED_TABS_PROTOCOL_VERSION } from "@rva/coding-agent/tools/browser/relay/protocol";
+import { VERSION } from "@reverse/utils/dirs";
+import { findFreeCdpPort } from "@reverse/coding-agent/tools/browser/attach";
+import { waitForRelayExtension } from "@reverse/coding-agent/tools/browser/relay/probe";
+import { DISCARDED_TABS_PROTOCOL_VERSION } from "@reverse/coding-agent/tools/browser/relay/protocol";
 import {
 	type RelayServer,
 	type RelayUnavailableInfo,
 	startRelayServer,
-} from "@rva/coding-agent/tools/browser/relay/server";
+} from "@reverse/coding-agent/tools/browser/relay/server";
 
 const EXTENSION_HELLO = {
 	t: "hello",

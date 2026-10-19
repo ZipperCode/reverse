@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { AsyncJobManager } from "@rva/coding-agent/async";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as evalIndex from "@rva/coding-agent/eval";
-import * as bashExecutor from "@rva/coding-agent/exec/bash-executor";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { BashTool } from "@rva/coding-agent/tools/bash";
-import { EvalTool } from "@rva/coding-agent/tools/eval";
-import { ToolAbortError } from "@rva/coding-agent/tools/tool-errors";
-import { TempDir } from "@rva/utils";
+import { AsyncJobManager } from "@reverse/coding-agent/async";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as evalIndex from "@reverse/coding-agent/eval";
+import * as bashExecutor from "@reverse/coding-agent/exec/bash-executor";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
+import { EvalTool } from "@reverse/coding-agent/tools/eval";
+import { ToolAbortError } from "@reverse/coding-agent/tools/tool-errors";
+import { TempDir } from "@reverse/utils";
 
 function sessionFor(root: string, manager?: AsyncJobManager): ToolSession {
 	return {

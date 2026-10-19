@@ -1,4 +1,4 @@
-import type { ImageContent, TextContent } from "@rva/ai";
+import type { ImageContent, TextContent } from "@reverse/ai";
 import type { JsDisplayOutput } from "../../eval/js/shared/types";
 
 /**

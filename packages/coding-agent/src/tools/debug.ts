@@ -1,15 +1,15 @@
-import { type DebugToolDetails, formatLocation, formatSessionSnapshot } from "@rva/tui/tools/debug";
+import { type DebugToolDetails, formatLocation, formatSessionSnapshot } from "@reverse/tui/tools/debug";
 import * as fs from "node:fs/promises";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@rva/agent";
-import type { ToolExample } from "@rva/ai";
-import { isEnoent, prompt } from "@rva/utils";
+} from "@reverse/agent";
+import type { ToolExample } from "@reverse/ai";
+import { isEnoent, prompt } from "@reverse/utils";
 import {
 	type DapBreakpointRecord,
 	type DapCapabilities,
@@ -37,22 +37,20 @@ import {
 	selectAttachAdapter,
 	selectLaunchAdapter,
 } from "../dap";
-import {
-	type UniversalDynamicEvent,
-	dynamicEventToFactInput,
-} from "../reverse-runtime-session/dynamic-events";
+import { type UniversalDynamicEvent, dynamicEventToFactInput } from "../reverse-runtime-session/dynamic-events";
 import {
 	ReverseRuntimeSessionStore,
 	type RuntimeSessionRecord,
 	type RuntimeSessionRecoveryHint,
+	type RuntimeSessionStatus,
 } from "../reverse-runtime-session";
 import debugDescription from "../prompts/tools/debug.md" with { type: "text" };
 import type { ToolSession } from ".";
 import { truncateForPrompt } from "./approval";
-import type { OutputMeta } from "@rva/tui/tools/output-meta";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
 import { formatPathRelativeToCwd, resolveToCwd } from "./path-utils";
-import { replaceTabs, shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@rva/tui/render/render-utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { replaceTabs, shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@reverse/tui/render/render-utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { clampTimeout } from "./tool-timeouts";
 
@@ -626,19 +624,19 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 		},
 	): Promise<void> {
 		try {
-			const runtimeStore = ReverseRuntimeSessionStore.forSession(
-				this.session.cwd,
-				this.options.stateRoot,
-			);
+			const runtimeStore = ReverseRuntimeSessionStore.forSession(this.session.cwd, this.options.stateRoot);
 
 			const eventResult = dapSessionManager.getEvents(snapshot.id, { limit: 50 });
 			const recentEvents = eventResult.events;
 			const eventsCount = eventResult.total;
 
 			const isTerminated = action === "terminate" || snapshot.status === "terminated";
-			const runtimeStatus = isTerminated
+			const runtimeStatus: RuntimeSessionStatus = isTerminated
 				? "closed"
-				: snapshot.status === "stopped" || snapshot.status === "running" || snapshot.status === "initializing"
+				: snapshot.status === "stopped" ||
+					  snapshot.status === "running" ||
+					  snapshot.status === "launching" ||
+					  snapshot.status === "configuring"
 					? "active"
 					: "unknown";
 
@@ -682,7 +680,8 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				connection.host = extraParams.host;
 			}
 
-			const isAttach = typeof extraParams?.pid === "number" || typeof extraParams?.port === "number" || action === "attach";
+			const isAttach =
+				typeof extraParams?.pid === "number" || typeof extraParams?.port === "number" || action === "attach";
 			const restoreAction = isAttach ? "attach" : "launch";
 			const restoreParams: Record<string, unknown> = {
 				adapter: snapshot.adapter,
@@ -708,11 +707,11 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				status: runtimeStatus,
 				target_summary: targetDesc,
 				target_details: {
-					...(existingRecord?.target_details ?? {}),
+					...existingRecord?.target_details,
 					...targetDetails,
 				},
 				connection: {
-					...(existingRecord?.connection ?? {}),
+					...existingRecord?.connection,
 					...connection,
 				},
 				recovery_hints: existingRecord?.recovery_hints ?? recoveryHints,
@@ -723,7 +722,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				stale_timeout_sec: existingRecord?.stale_timeout_sec ?? 300,
 				status_source: isTerminated ? "closed" : "caller_reported",
 				metadata: {
-					...(existingRecord?.metadata ?? {}),
+					...existingRecord?.metadata,
 					adapter: snapshot.adapter,
 					dapStatus: snapshot.status,
 					breakpointCount: snapshot.breakpointCount,
@@ -1175,7 +1174,9 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 					`DAP session '${eventResult.sessionId}' events: showing ${eventResult.events.length} of ${eventResult.total} buffered:`,
 				];
 				for (const ev of eventResult.events) {
-					const preview = ev.raw ? ev.raw.replace(/\r?\n/g, " ").slice(0, 100) : JSON.stringify(ev.payload).slice(0, 100);
+					const preview = ev.raw
+						? ev.raw.replace(/\r?\n/g, " ").slice(0, 100)
+						: JSON.stringify(ev.payload).slice(0, 100);
 					lines.push(`  #${ev.seq} [${ev.kind}/${ev.channel || "event"}] ${preview}`);
 				}
 				return result.text(lines.join("\n")).done();
@@ -1193,9 +1194,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 				if (facts.length === 0) {
 					return result.text("No DAP events available to export as evidence.").done();
 				}
-				const lines = [
-					`Exported ${facts.length} dynamic fact(s) from DAP session '${eventResult.sessionId}':`,
-				];
+				const lines = [`Exported ${facts.length} dynamic fact(s) from DAP session '${eventResult.sessionId}':`];
 				for (const f of facts) {
 					lines.push(`  - ${f.locator}: ${f.title}`);
 				}

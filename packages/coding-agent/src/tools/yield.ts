@@ -9,16 +9,16 @@ import type {
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@rva/agent";
-import type { TSchema } from "@rva/ai/types";
+} from "@reverse/agent";
+import type { TSchema } from "@reverse/ai/types";
 import {
 	dereferenceJsonSchema,
 	isValidJsonSchema,
 	type JsonSchemaValidationResult,
 	sanitizeSchemaForStrictMode,
 	tryEnforceStrictSchema,
-} from "@rva/ai/utils/schema";
-import { prompt } from "@rva/utils";
+} from "@reverse/ai/utils/schema";
+import { prompt } from "@reverse/utils";
 import yieldDescription from "../prompts/tools/yield.md" with { type: "text" };
 import yieldDataErrorConflictMessage from "../prompts/tools/yield-data-error-conflict.md" with { type: "text" };
 import { subprocessToolRegistry } from "../task/subprocess-tool-registry";

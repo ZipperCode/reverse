@@ -2,10 +2,10 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Stats } from "node:fs";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { prompt } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { prompt } from "@reverse/utils";
 import ghidraInspectDescription from "../prompts/tools/ghidra-inspect.md" with { type: "text" };
 import {
 	checkToolRequirements,
@@ -30,9 +30,7 @@ const ghidraInspectSchema = type({
 	"script_args?": type("string[]").describe("Arguments to pass to the script"),
 	"project_dir?": type("string").describe("Optional directory for Ghidra project; defaults to temporary directory"),
 	"timeout?": type("number").describe("Execution timeout in seconds (default 60, max 300)"),
-	"max_bytes?": type("number").describe(
-		"Maximum stdout/export bytes captured (default 262144, max 4194304)",
-	),
+	"max_bytes?": type("number").describe("Maximum stdout/export bytes captured (default 262144, max 4194304)"),
 	"limit?": type("number").describe("Maximum lines returned (default 100, max 2000)"),
 	"offset?": type("number").describe("Zero-based line pagination offset"),
 	"mode?": type
@@ -214,10 +212,7 @@ export function ghidraDependency(options: GhidraInspectToolOptions = {}): Ghidra
 	if (envDir && envDir.trim().length > 0) {
 		const isWin = process.platform === "win32";
 		const binaryName = isWin ? "analyzeHeadless.bat" : "analyzeHeadless";
-		const candidates = [
-			path.join(envDir, "support", binaryName),
-			path.join(envDir, binaryName),
-		];
+		const candidates = [path.join(envDir, "support", binaryName), path.join(envDir, binaryName)];
 		for (const cand of candidates) {
 			try {
 				const s = Bun.file(cand);
@@ -275,11 +270,7 @@ export function resolveGhidraFallback(
 				operation: action,
 				suggestedFallback: `r2_inspect(action: "info", path: ${quoted})`,
 				activeFallback: "r2_inspect",
-				alternatives: [
-					`triage(path: ${quoted})`,
-					`r2 -qc "iI" ${quoted}`,
-					`file ${quoted}`,
-				],
+				alternatives: [`triage(path: ${quoted})`, `r2 -qc "iI" ${quoted}`, `file ${quoted}`],
 				executed: false,
 			};
 		case "analyze":
@@ -316,10 +307,7 @@ export function resolveGhidraFallback(
 				operation: action,
 				suggestedFallback: `r2_inspect(action: "disasm", path: ${quoted})`,
 				activeFallback: "r2_inspect",
-				alternatives: [
-					`objdump -d ${quoted}`,
-					`triage(path: ${quoted})`,
-				],
+				alternatives: [`objdump -d ${quoted}`, `triage(path: ${quoted})`],
 				executed: false,
 			};
 	}
@@ -354,7 +342,10 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 	private readonly runnerSeam?: GhidraRunner;
 	private readonly ghidraInstallDirSeam?: string;
 
-	constructor(private readonly session: ToolSession, options: GhidraInspectToolOptions = {}) {
+	constructor(
+		private readonly session: ToolSession,
+		options: GhidraInspectToolOptions = {},
+	) {
 		this.description = prompt.render(ghidraInspectDescription);
 		this.whichSeam = options.which;
 		this.runnerSeam = options.runner;
@@ -365,7 +356,7 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 		_toolCallId: string,
 		params: GhidraInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<GhidraInspectDetails>> {
+	): Promise<AgentToolResult<GhidraInspectDetails> & { details: GhidraInspectDetails }> {
 		throwIfAborted(signal);
 
 		const resolvedPath = resolveReadPath(params.path, this.session.cwd);
@@ -485,10 +476,7 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 			}
 		}
 
-		const timeoutSeconds = Math.min(
-			Math.max(1, params.timeout ?? DEFAULT_TIMEOUT_SECONDS),
-			MAX_TIMEOUT_SECONDS,
-		);
+		const timeoutSeconds = Math.min(Math.max(1, params.timeout ?? DEFAULT_TIMEOUT_SECONDS), MAX_TIMEOUT_SECONDS);
 		const maxBytes = Math.min(Math.max(1024, params.max_bytes ?? DEFAULT_MAX_BYTES), MAX_OUTPUT_BYTES);
 
 		const runner = this.runnerSeam ?? defaultGhidraRunner;

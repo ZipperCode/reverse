@@ -1,7 +1,7 @@
-import type { AgentToolResult } from "@rva/agent";
+import type { AgentToolResult } from "@reverse/agent";
 import { github } from "../utils/github";
 import type { ToolSession } from ".";
-import type { GhToolDetails } from "@rva/tui/tools/github";
+import type { GhToolDetails } from "@reverse/tui/tools/github";
 import {
 	buildTextResult,
 	formatAuthor,
@@ -12,8 +12,8 @@ import {
 	requireNonEmpty,
 	tryResolveCurrentRepo,
 } from "./gh-common";
-import { pushLine } from "@rva/tui/tools/gh-format";
-import { formatShortSha } from "@rva/tui/tools/gh-format";
+import { pushLine } from "@reverse/tui/tools/gh-format";
+import { formatShortSha } from "@reverse/tui/tools/gh-format";
 import type {
 	GhApiLabel,
 	GhApiSearchCodeItem,
@@ -30,7 +30,7 @@ import type {
 	GhUser,
 	GithubInput,
 } from "./gh-types";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 export const SEARCH_LIMIT_DEFAULT = 10;
 export const SEARCH_LIMIT_MAX = 50;

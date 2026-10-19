@@ -1,11 +1,11 @@
 import { extractUriScheme } from "../internal-urls/parse";
-import { type LineRange } from "@rva/tui/tools/line-ranges";
-import { splitPathAndSel, isReadableUrlPath } from "@rva/tui/tools/read";
+import { type LineRange } from "@reverse/tui/tools/line-ranges";
+import { splitPathAndSel, isReadableUrlPath } from "@reverse/tui/tools/read";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { glob } from "@rva/natives";
+import { glob } from "@reverse/natives";
 import {
 	hasFsCode,
 	isEnoent,
@@ -13,11 +13,11 @@ import {
 	isWsl,
 	stripWindowsExtendedLengthPathPrefix,
 	windowsPathToWslMount,
-} from "@rva/utils";
+} from "@reverse/utils";
 import { InternalUrlRouter } from "../internal-urls";
 import { type InternalUrlFilesystem, joinUrlPath, UrlFsError } from "../internal-urls/url-filesystem";
 import { ToolAbortError } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 

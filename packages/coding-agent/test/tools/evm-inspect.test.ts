@@ -1,19 +1,12 @@
+import type { AgentToolResult } from "@reverse/agent";
 import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	EvmInspectTool,
-	disassembleBytecode,
-	extractSelectors,
-	parseCborMetadata,
-	type EvmInspectDetails,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, EvmInspectTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -25,9 +18,9 @@ function createTestSession(cwd: string): ToolSession {
 	};
 }
 
-function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+function textOf(result: AgentToolResult<unknown>): string {
 	return result.content
-		.map(item => item.text ?? "")
+		.flatMap(item => (item.type === "text" ? [item.text] : []))
 		.join("\n")
 		.trim();
 }
@@ -118,7 +111,7 @@ describe("evm_inspect input validation", () => {
 		try {
 			const session = createTestSession(tempDir);
 			const tool = new EvmInspectTool(session);
-			await expect(tool.execute({ action: "info" })).rejects.toThrow(
+			await expect(tool.execute("call-1", { action: "info" })).rejects.toThrow(
 				"Either 'code' (raw hex string) or 'path'",
 			);
 		} finally {
@@ -131,9 +124,9 @@ describe("evm_inspect input validation", () => {
 		try {
 			const session = createTestSession(tempDir);
 			const tool = new EvmInspectTool(session);
-			await expect(
-				tool.execute({ action: "info", code: "0x6080ZZZZinvalid" }),
-			).rejects.toThrow("Invalid hex string");
+			await expect(tool.execute("call-1", { action: "info", code: "0x6080ZZZZinvalid" })).rejects.toThrow(
+				"Invalid hex string",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -144,9 +137,9 @@ describe("evm_inspect input validation", () => {
 		try {
 			const session = createTestSession(tempDir);
 			const tool = new EvmInspectTool(session);
-			await expect(
-				tool.execute({ action: "info", path: "nonexistent.bin" }),
-			).rejects.toThrow("File not found");
+			await expect(tool.execute("call-1", { action: "info", path: "nonexistent.bin" })).rejects.toThrow(
+				"File not found",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -166,7 +159,7 @@ describe("evm_inspect opcode disassembly", () => {
 
 			// PUSH1 0x80, PUSH1 0x40, MSTORE, PUSH0, STOP
 			const bytecode = "0x60806040525f00";
-			const result = await tool.execute({ action: "disasm", code: bytecode });
+			const result = await tool.execute("call-1", { action: "disasm", code: bytecode });
 
 			expect(result.details.action).toBe("disasm");
 			expect(result.details.instructionCount).toBe(5);
@@ -199,7 +192,7 @@ describe("evm_inspect opcode disassembly", () => {
 			const tool = new EvmInspectTool(session);
 
 			const code = createSyntheticSolidityBytecode();
-			const pagedResult = await tool.execute({
+			const pagedResult = await tool.execute("call-page", {
 				action: "disasm",
 				code,
 				limit: 3,
@@ -207,7 +200,7 @@ describe("evm_inspect opcode disassembly", () => {
 			});
 			expect(pagedResult.details.instructions?.length).toBe(3);
 
-			const filteredResult = await tool.execute({
+			const filteredResult = await tool.execute("call-filter", {
 				action: "disasm",
 				code,
 				filter: "JUMP",
@@ -234,7 +227,7 @@ describe("evm_inspect function selector extraction", () => {
 			const tool = new EvmInspectTool(session);
 
 			const code = createSyntheticSolidityBytecode();
-			const result = await tool.execute({ action: "selectors", code });
+			const result = await tool.execute("call-selectors", { action: "selectors", code });
 
 			expect(result.details.selectors?.length).toBeGreaterThanOrEqual(2);
 			const transferSel = result.details.selectors?.find(s => s.selector === "0xa9059cbb");
@@ -269,7 +262,7 @@ describe("evm_inspect CBOR metadata and proxy forensics", () => {
 			const tool = new EvmInspectTool(session);
 
 			const code = createSyntheticSolidityBytecode();
-			const result = await tool.execute({ action: "metadata", code });
+			const result = await tool.execute("call-metadata", { action: "metadata", code });
 
 			expect(result.details.metadata).toBeDefined();
 			expect(result.details.metadata?.compiler).toBe("solc");
@@ -293,7 +286,7 @@ describe("evm_inspect CBOR metadata and proxy forensics", () => {
 			// ERC-1167 minimal proxy clone targeting 0x1122334455667788990011223344556677889900
 			const cloneBytecode =
 				"363d3d373d3d3d363d7311223344556677889900112233445566778899005af43d82803e903d91602b57fd5bf3";
-			const result = await tool.execute({ action: "info", code: cloneBytecode });
+			const result = await tool.execute("call-info", { action: "info", code: cloneBytecode });
 
 			expect(result.details.proxyPattern).toContain("ERC-1167 Minimal Proxy");
 			expect(result.details.proxyPattern).toContain("0x1122334455667788990011223344556677889900");
@@ -314,7 +307,7 @@ describe("evm_inspect CBOR metadata and proxy forensics", () => {
 			const filePath = path.join(tempDir, "contract.hex");
 			await fs.writeFile(filePath, "0x6080604052348015600f57600080fd5b00\n");
 
-			const result = await tool.execute({ action: "info", path: "contract.hex" });
+			const result = await tool.execute("call-file", { action: "info", path: "contract.hex" });
 			expect(result.details.source).toBe("file");
 			expect(result.details.bytecodeSize).toBe(17);
 			expect(result.details.instructionCount).toBeGreaterThan(5);

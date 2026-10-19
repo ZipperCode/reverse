@@ -2,8 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { formatBytes, isRecord, postmortem, Snowflake, untilAborted, withTimeout } from "@rva/utils";
-import type { HTMLElement } from "@rva/utils/dom";
+import { formatBytes, isRecord, postmortem, Snowflake, untilAborted, withTimeout } from "@reverse/utils";
+import type { HTMLElement } from "@reverse/utils/dom";
 import type {
 	Accessibility,
 	Browser,
@@ -37,7 +37,7 @@ import {
 	withBrowserPromiseCombinatorTracking,
 } from "../run-scope";
 import { ToolAbortError, throwIfAborted } from "../tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import {
 	type AriaSnapshotOptions,
 	assertSelectorString,

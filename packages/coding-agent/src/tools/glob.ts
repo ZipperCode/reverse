@@ -1,19 +1,19 @@
-import type { GlobToolDetails } from "@rva/tui/tools/glob";
+import type { GlobToolDetails } from "@reverse/tui/tools/glob";
 import * as fs from "node:fs";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@rva/agent";
-import * as natives from "@rva/natives";
-import { formatGroupedPaths, hasFsCode, isEnoent, prompt, untilAborted } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
+import * as natives from "@reverse/natives";
+import { formatGroupedPaths, hasFsCode, isEnoent, prompt, untilAborted } from "@reverse/utils";
 import { InternalUrlRouter, sessionResolveContext } from "../internal-urls";
 import { InternalUrlFilesystem, type UrlFileStat } from "../internal-urls/url-filesystem";
 import globDescription from "../prompts/tools/glob.md" with { type: "text" };
-import { truncateHead } from "@rva/tui/tools/streaming-output";
+import { truncateHead } from "@reverse/tui/tools/streaming-output";
 import { sessionDelegationBias } from "../task/prompt-policy";
 import { isScoutSpawnable } from "../task/spawn-policy";
 import type { ToolSession } from ".";
 import { resolveToolTier } from "./approval";
 import { isFindEnabled } from "./jfind";
-import { applyListLimit } from "@rva/tui/tools/list-limit";
+import { applyListLimit } from "@reverse/tui/tools/list-limit";
 import {
 	expandDelimitedPathEntries,
 	formatPathRelativeToCwd,
@@ -24,9 +24,9 @@ import {
 	resolveSearchBase,
 	resolveSearchResultPath,
 } from "./path-utils";
-import { toPathList } from "@rva/tui/render/render-utils";
+import { toPathList } from "@reverse/tui/render/render-utils";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgTaskDisabledAgents } from "../task/settings";

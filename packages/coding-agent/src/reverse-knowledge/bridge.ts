@@ -1,4 +1,4 @@
-import { logger } from "@rva/utils";
+import { logger } from "@reverse/utils";
 import type { ToolSession } from "../tools/index";
 import type { ReverseKnowledgeRecord } from "./contracts";
 
@@ -45,10 +45,10 @@ export class MnemopiKnowledgeBridge {
 				metadata: {
 					reverse_knowledge_id: record.id,
 					target_format: record.target_format,
-					target_hash: record.target_hash,
-					tool: record.tool,
+					...(record.target_hash !== undefined ? { target_hash: record.target_hash } : {}),
+					...(record.tool !== undefined ? { tool: record.tool } : {}),
 					kind: record.kind,
-					source_evidence_ids: record.source_evidence_ids,
+					...(record.source_evidence_ids !== undefined ? { source_evidence_ids: record.source_evidence_ids } : {}),
 				},
 			});
 
@@ -62,11 +62,7 @@ export class MnemopiKnowledgeBridge {
 		}
 	}
 
-	static async recall(
-		query: string,
-		session: ToolSession,
-		limit = 5,
-	): Promise<MnemopiKnowledgeHit[]> {
+	static async recall(query: string, session: ToolSession, limit = 5): Promise<MnemopiKnowledgeHit[]> {
 		try {
 			const state = session.getMnemopiSessionState?.();
 			if (!state) return [];

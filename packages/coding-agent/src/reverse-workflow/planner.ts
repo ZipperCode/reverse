@@ -1,17 +1,8 @@
 import * as path from "node:path";
-import {
-	type TargetFormat,
-	type WorkflowStepRecord,
-	DEFAULT_MAX_ATTEMPTS,
-	normalizeTargetFormat,
-} from "./contracts";
+import { type TargetFormat, type WorkflowStepRecord, DEFAULT_MAX_ATTEMPTS, normalizeTargetFormat } from "./contracts";
 
 /** Sniff binary header or file contents to determine target classification format. */
-export function sniffTargetFormat(
-	targetPath: string,
-	buffer?: Uint8Array,
-	fileSize?: number,
-): TargetFormat {
+export function sniffTargetFormat(targetPath: string, buffer?: Uint8Array, _fileSize?: number): TargetFormat {
 	const ext = path.extname(targetPath).toLowerCase();
 
 	if (buffer && buffer.length >= 4) {
@@ -132,7 +123,8 @@ export function sniffTargetFormat(
 	if (ext === ".so" || ext === ".elf" || ext === ".o") return "ELF";
 	if (ext === ".dylib" || ext === ".macho") return "Mach-O";
 	if (ext === ".apk" || ext === ".aab" || ext === ".dex") return "APK";
-	if (ext === ".js" || ext === ".mjs" || ext === ".cjs" || ext === ".map" || ext === ".bundle" || ext === ".hbc") return "JS";
+	if (ext === ".js" || ext === ".mjs" || ext === ".cjs" || ext === ".map" || ext === ".bundle" || ext === ".hbc")
+		return "JS";
 	if (ext === ".wasm" || ext === ".wat") return "WASM";
 	if (ext === ".pcap" || ext === ".pcapng" || ext === ".cap") return "PCAP";
 	if (ext === ".sqlite" || ext === ".sqlite3" || ext === ".db") return "SQLite";
@@ -156,8 +148,7 @@ export function generateDeterministicPlan(
 	options: PlanGenerationOptions = {},
 ): { format: TargetFormat; steps: WorkflowStepRecord[] } {
 	const effectiveFormat =
-		normalizeTargetFormat(options.formatOverride) ??
-		(detectedFormat !== "unknown" ? detectedFormat : "unknown");
+		normalizeTargetFormat(options.formatOverride) ?? (detectedFormat !== "unknown" ? detectedFormat : "unknown");
 
 	const maxAttempts =
 		typeof options.maxAttempts === "number" && options.maxAttempts > 0

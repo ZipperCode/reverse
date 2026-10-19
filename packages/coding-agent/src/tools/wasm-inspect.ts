@@ -1,9 +1,9 @@
 import type { Stats } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ToolSession } from ".";
 import {
 	checkToolRequirements,

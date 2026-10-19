@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import type { FetchImpl } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import type { SearchParams } from "@rva/coding-agent/web/search/providers/base";
-import { searchDuckDuckGo } from "@rva/coding-agent/web/search/providers/duckduckgo";
-import { applyQueryConstraints, parseSearchQuery } from "@rva/coding-agent/web/search/query";
+import type { FetchImpl } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import type { SearchParams } from "@reverse/coding-agent/web/search/providers/base";
+import { searchDuckDuckGo } from "@reverse/coding-agent/web/search/providers/duckduckgo";
+import { applyQueryConstraints, parseSearchQuery } from "@reverse/coding-agent/web/search/query";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const sharedAuthStorage = createInMemoryAuthStorage();

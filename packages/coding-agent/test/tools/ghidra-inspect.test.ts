@@ -2,18 +2,17 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	createTools,
 	foldGhidraText,
 	GhidraInspectTool,
-	type GhidraInspectDetails,
 	type GhidraRunResult,
 	type GhidraRunner,
 	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -23,6 +22,9 @@ function createTestSession(cwd: string): ToolSession {
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated({ "tools.xdev": false }),
 	};
+}
+function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+	return result.content.flatMap(item => (item.type === "text" && item.text ? [item.text] : [])).join("\n");
 }
 
 interface CapturedInvocation {
@@ -77,9 +79,9 @@ describe("ghidra_inspect path and parameter validation", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-missing-file-"));
 		try {
 			const tool = new GhidraInspectTool(createTestSession(tempDir));
-			await expect(
-				tool.execute("call-1", { action: "info", path: "missing.bin" }),
-			).rejects.toThrow("Target file not found");
+			await expect(tool.execute("call-1", { action: "info", path: "missing.bin" })).rejects.toThrow(
+				"Target file not found",
+			);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -89,9 +91,7 @@ describe("ghidra_inspect path and parameter validation", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-dir-"));
 		try {
 			const tool = new GhidraInspectTool(createTestSession(tempDir));
-			await expect(
-				tool.execute("call-1", { action: "info", path: "." }),
-			).rejects.toThrow("is a directory");
+			await expect(tool.execute("call-1", { action: "info", path: "." })).rejects.toThrow("is a directory");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -177,8 +177,9 @@ describe("ghidra_inspect missing dependency handling", () => {
 			expect(res.details.fallback?.suggestedFallback).toContain("r2_inspect");
 			expect(res.details.fallback?.executed).toBe(false);
 
-			expect(res.content[0].text).toContain("[Notice] Primary tool 'ghidra'");
-			expect(res.content[0].text).toContain("r2_inspect");
+			const text = textOf(res);
+			expect(text).toContain("[Notice] Primary tool 'ghidra'");
+			expect(text).toContain("r2_inspect");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -203,7 +204,7 @@ describe("ghidra_inspect actions and argv construction", () => {
 			expect(res.details.status).toBe("ok");
 			expect(res.details.dependency?.available).toBe(true);
 			expect(calls.length).toBe(0); // Info does not spawn a heavy headless process
-			expect(res.content[0].text).toContain("Ghidra Headless Bridge Status:");
+			expect(textOf(res)).toContain("Ghidra Headless Bridge Status:");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -236,7 +237,7 @@ describe("ghidra_inspect actions and argv construction", () => {
 			expect(call.args).toContain(path.resolve(tempDir, "sample.bin"));
 			expect(call.args).toContain("-readOnly");
 			expect(call.args).toContain("-deleteProject");
-			expect(res.content[0].text).toContain("ANALYSIS COMPLETE");
+			expect(textOf(res)).toContain("ANALYSIS COMPLETE");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -269,7 +270,7 @@ describe("ghidra_inspect actions and argv construction", () => {
 			expect(call.args).toContain("-postScript");
 			expect(call.args).toContain("Decompile.java");
 			expect(call.args).toContain("main");
-			expect(res.content[0].text).toContain("int main");
+			expect(textOf(res)).toContain("int main");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -306,10 +307,11 @@ describe("ghidra_inspect actions and argv construction", () => {
 			expect(res.details.returnedLines).toBe(5);
 			expect(res.details.offset).toBe(10);
 			expect(res.details.hasMore).toBe(true);
-			expect(res.content[0].text).toContain("Line 11");
-			expect(res.content[0].text).toContain("Line 15");
-			expect(res.content[0].text).not.toContain("Line 10");
-			expect(res.content[0].text).not.toContain("Line 16");
+			const text = textOf(res);
+			expect(text).toContain("Line 11");
+			expect(text).toContain("Line 15");
+			expect(text).not.toContain("Line 10");
+			expect(text).not.toContain("Line 16");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -338,7 +340,7 @@ describe("ghidra_inspect actions and argv construction", () => {
 
 			expect(res.details.status).toBe("error");
 			expect(res.details.error).toContain("137");
-			expect(res.content[0].text).toContain("ERROR: Out of memory");
+			expect(textOf(res)).toContain("ERROR: Out of memory");
 		} finally {
 			await removeWithRetries(tempDir);
 		}

@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import * as rewriteImports from "@rva/coding-agent/eval/js/shared/rewrite-imports";
-import * as toolBridge from "@rva/coding-agent/eval/js/tool-bridge";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
-import { findFreeCdpPort } from "@rva/coding-agent/tools/browser/attach";
-import { ensureChromiumExecutable } from "@rva/coding-agent/tools/browser/launch";
-import { DISCARDED_TABS_PROTOCOL_VERSION } from "@rva/coding-agent/tools/browser/relay/protocol";
-import { type RelayServer, startRelayServer } from "@rva/coding-agent/tools/browser/relay/server";
-import { getTab, releaseTab, runInTab } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
-import { ToolAbortError } from "@rva/coding-agent/tools/tool-errors";
-import { isRecord } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import * as rewriteImports from "@reverse/coding-agent/eval/js/shared/rewrite-imports";
+import * as toolBridge from "@reverse/coding-agent/eval/js/tool-bridge";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
+import { findFreeCdpPort } from "@reverse/coding-agent/tools/browser/attach";
+import { ensureChromiumExecutable } from "@reverse/coding-agent/tools/browser/launch";
+import { DISCARDED_TABS_PROTOCOL_VERSION } from "@reverse/coding-agent/tools/browser/relay/protocol";
+import { type RelayServer, startRelayServer } from "@reverse/coding-agent/tools/browser/relay/server";
+import { getTab, releaseTab, runInTab } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
+import { ToolAbortError } from "@reverse/coding-agent/tools/tool-errors";
+import { isRecord } from "@reverse/utils";
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import { chromiumAvailable } from "./chromium-probe";
 

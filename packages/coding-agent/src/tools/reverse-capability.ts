@@ -1,14 +1,13 @@
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { prompt, getProjectDir } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { prompt, getProjectDir } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 import type { ToolSession } from "./index";
 import reverseCapabilityDescription from "../prompts/tools/reverse-capability.md" with { type: "text" };
 import { checkReverseTools } from "../cli/setup-reverse";
 import {
 	getReverseCapabilities,
-	getReverseCapability,
 	type CapabilityDescriptor,
 	type ReverseCapabilityStatus,
 } from "../extensibility/skill-tool-catalog";
@@ -79,10 +78,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 		switch (params.action) {
 			case "list": {
 				const capabilities = getReverseCapabilities();
-				const lines: string[] = [
-					`### Reverse Engineering Capabilities (${capabilities.length} total)`,
-					"",
-				];
+				const lines: string[] = [`### Reverse Engineering Capabilities (${capabilities.length} total)`, ""];
 				for (const cap of capabilities) {
 					lines.push(`- **\`${cap.id}\`**: ${cap.name} [${cap.category}]`);
 					lines.push(`  - Scenario: ${cap.scenario}`);
@@ -95,7 +91,9 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					lines.push(`  - Post-Install Invocation: \`${cap.postInstallInvocation}\``);
 					lines.push("");
 				}
-				lines.push("Call `reverse_capability(action: \"resolve\")` to evaluate host system tool availability and readiness.");
+				lines.push(
+					'Call `reverse_capability(action: "resolve")` to evaluate host system tool availability and readiness.',
+				);
 
 				return {
 					content: [{ type: "text", text: lines.join("\n") }],
@@ -114,9 +112,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					const matched = report.capabilities.filter(c => c.id.toLowerCase() === capId);
 					if (matched.length === 0) {
 						const available = report.capabilities.map(c => c.id).join(", ");
-						throw new ToolError(
-							`Capability '${capId}' not found. Available capabilities: ${available}`,
-						);
+						throw new ToolError(`Capability '${capId}' not found. Available capabilities: ${available}`);
 					}
 					targetCaps = matched;
 				}
@@ -143,9 +139,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					}
 					const toolSummary =
 						cap.optionalExternalTools.length > 0
-							? cap.optionalExternalTools
-									.map(t => `${t.id} (${t.status})`)
-									.join(", ")
+							? cap.optionalExternalTools.map(t => `${t.id} (${t.status})`).join(", ")
 							: "none";
 					lines.push(`- **Optional External Tools**: ${toolSummary}`);
 					const availableFbStr = cap.availableFallbacks.length > 0 ? cap.availableFallbacks.join(", ") : "none";
@@ -168,19 +162,17 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 
 			case "get": {
 				if (!capId) {
-					const valid = getReverseCapabilities().map(c => c.id).join(", ");
-					throw new ToolError(
-						`capability parameter is required for 'get' action. Valid capabilities: ${valid}`,
-					);
+					const valid = getReverseCapabilities()
+						.map(c => c.id)
+						.join(", ");
+					throw new ToolError(`capability parameter is required for 'get' action. Valid capabilities: ${valid}`);
 				}
 
 				const report = checkReverseTools({ cwd: projectDir });
 				const capStatus = report.capabilities.find(c => c.id.toLowerCase() === capId);
 				if (!capStatus) {
 					const valid = report.capabilities.map(c => c.id).join(", ");
-					throw new ToolError(
-						`Capability '${capId}' not found. Valid capabilities: ${valid}`,
-					);
+					throw new ToolError(`Capability '${capId}' not found. Valid capabilities: ${valid}`);
 				}
 
 				const statusBadge =
@@ -222,7 +214,8 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					lines.push(`- **Prerequisites**: ${capStatus.prerequisites.join(", ")}`);
 				}
 
-				const availFbStr = capStatus.availableFallbacks.length > 0 ? capStatus.availableFallbacks.join(", ") : "none";
+				const availFbStr =
+					capStatus.availableFallbacks.length > 0 ? capStatus.availableFallbacks.join(", ") : "none";
 				lines.push(`- **Available Fallbacks**: ${availFbStr}`);
 				lines.push(`- **All Defined Fallbacks**: ${capStatus.fallbacks.join(", ")}`);
 				lines.push(`- **Trusted Setup Command**: \`${capStatus.setupCommand}\``);

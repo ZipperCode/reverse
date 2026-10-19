@@ -1,12 +1,12 @@
-import type { GhToolDetails } from "@rva/tui/tools/github";
-import { type } from "@rva/omptype";
+import type { GhToolDetails } from "@reverse/tui/tools/github";
+import { type } from "@reverse/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@rva/agent";
+} from "@reverse/agent";
 
 import {
 	BINARY_SNIFF_BYTES,
@@ -15,11 +15,11 @@ import {
 	parseImageMetadata,
 	prompt,
 	untilAborted,
-} from "@rva/utils";
+} from "@reverse/utils";
 import githubDescription from "../prompts/tools/github.md" with { type: "text" };
 import { github } from "../utils/github";
 import { loadImageAttachmentInput } from "../utils/image-loading";
-import { webpExclusionForModel } from "@rva/tui/chat/image-loading";
+import { webpExclusionForModel } from "@reverse/tui/chat/image-loading";
 import type { ToolSession } from ".";
 import {
 	buildTextResult,
@@ -41,7 +41,7 @@ import {
 } from "./gh-search";
 import { executeRepoView } from "./gh-view";
 
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgImagesAutoResize } from "../modes/settings";

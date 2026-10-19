@@ -3,29 +3,29 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult, RenderResultOptions } from "@rva/agent";
-import { arkToWireSchema } from "@rva/ai/utils/schema";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { preloadPluginRoots } from "@rva/coding-agent/discovery/helpers";
+import type { AgentToolResult, RenderResultOptions } from "@reverse/agent";
+import { arkToWireSchema } from "@reverse/ai/utils/schema";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { preloadPluginRoots } from "@reverse/coding-agent/discovery/helpers";
 import { restoreEnvValue } from "../helpers/settings-test-state";
-import { createLspWritethrough, LspTool } from "@rva/coding-agent/lsp";
-import * as lspClient from "@rva/coding-agent/lsp/client";
-import * as lspConfig from "@rva/coding-agent/lsp/config";
+import { createLspWritethrough, LspTool } from "@reverse/coding-agent/lsp";
+import * as lspClient from "@reverse/coding-agent/lsp/client";
+import * as lspConfig from "@reverse/coding-agent/lsp/config";
 import {
 	configCache,
 	getConfig,
 	getServersForFile,
 	type LspConfig,
 	loadConfig,
-} from "@rva/coding-agent/lsp/config";
-import { waitForDiagnostics } from "@rva/coding-agent/lsp/diagnostics";
+} from "@reverse/coding-agent/lsp/config";
+import { waitForDiagnostics } from "@reverse/coding-agent/lsp/diagnostics";
 import {
 	applyTextEditsToString,
 	applyWorkspaceEdit,
 	type ExecutedWorkspaceChange,
 	sortAndValidateTextEdits,
-} from "@rva/coding-agent/lsp/edits";
-import { renderCall, renderResult } from "@rva/tui/tools/lsp";
+} from "@reverse/coding-agent/lsp/edits";
+import { renderCall, renderResult } from "@reverse/tui/tools/lsp";
 import {
 	type CodeAction,
 	type CreateFile,
@@ -38,8 +38,8 @@ import {
 	type SymbolInformation,
 	type TextDocumentEdit,
 	type WorkspaceEdit,
-} from "@rva/coding-agent/lsp/types";
-import { type LspToolDetails } from "@rva/tui/tools/lsp";
+} from "@reverse/coding-agent/lsp/types";
+import { type LspToolDetails } from "@reverse/tui/tools/lsp";
 import {
 	applyCodeAction,
 	collectGlobMatches,
@@ -52,17 +52,17 @@ import {
 	resolveDiagnosticTargets,
 	resolveSymbolColumn,
 	uriToFile,
-} from "@rva/coding-agent/lsp/utils";
-import { getThemeByName, initTheme } from "@rva/tui/theme";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ToolAbortError } from "@rva/coding-agent/tools/tool-errors";
-import { clampTimeout } from "@rva/coding-agent/tools/tool-timeouts";
-import * as piUtils from "@rva/utils";
-import { sanitizeText, TempDir } from "@rva/utils";
+} from "@reverse/coding-agent/lsp/utils";
+import { getThemeByName, initTheme } from "@reverse/tui/theme";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ToolAbortError } from "@reverse/coding-agent/tools/tool-errors";
+import { clampTimeout } from "@reverse/coding-agent/tools/tool-timeouts";
+import * as piUtils from "@reverse/utils";
+import { sanitizeText, TempDir } from "@reverse/utils";
 import type { Subprocess } from "bun";
 import DEFAULTS from "../../src/lsp/defaults.json" with { type: "json" };
-import { renderResult as renderLocalResult } from "@rva/tui/tools/lsp";
-import { getLanguageFromPath } from "@rva/tui/lang-from-path";
+import { renderResult as renderLocalResult } from "@reverse/tui/tools/lsp";
+import { getLanguageFromPath } from "@reverse/tui/lang-from-path";
 
 const lspTestSettings = Settings.isolated();
 

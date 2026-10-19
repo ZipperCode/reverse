@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
-import type { AgentToolContext } from "@rva/agent";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { runInteractiveBashPty } from "@rva/coding-agent/tools/bash-interactive";
-import { KeybindingsManager } from "@rva/tui/app-keybindings";
-import { initTheme, type Theme, theme } from "@rva/tui/theme";
-import { TUI } from "@rva/tui";
-import { TempDir } from "@rva/utils";
+import type { AgentToolContext } from "@reverse/agent";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { runInteractiveBashPty } from "@reverse/coding-agent/tools/bash-interactive";
+import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { initTheme, type Theme, theme } from "@reverse/tui/theme";
+import { TUI } from "@reverse/tui";
+import { TempDir } from "@reverse/utils";
 import { VirtualTerminal } from "../../../tui/test/virtual-terminal";
 
 type InteractiveUi = Pick<NonNullable<AgentToolContext["ui"]>, "custom">;

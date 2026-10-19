@@ -1,17 +1,17 @@
 import * as fs from "node:fs/promises";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@rva/agent";
-import { shortenPath } from "@rva/tui/render/render-utils";
-import type { OutputMeta } from "@rva/tui/tools/output-meta";
-import { enforceInlineByteCap } from "@rva/tui/tools/streaming-output";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { prompt } from "@rva/utils";
+} from "@reverse/agent";
+import { shortenPath } from "@reverse/tui/render/render-utils";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
+import { enforceInlineByteCap } from "@reverse/tui/tools/streaming-output";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { prompt } from "@reverse/utils";
 import {
 	acquireIdaDatabase,
 	cfgIdaAvailable,

@@ -8,10 +8,10 @@ import {
 	toolWireSchema,
 	validateSchemaCompatibility,
 	validateStrictSchemaEnforcement,
-} from "@rva/ai/utils/schema";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createTools, HIDDEN_TOOLS, type ToolSession } from "@rva/coding-agent/tools";
-import { createVibeTools } from "@rva/coding-agent/tools/vibe";
+} from "@reverse/ai/utils/schema";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, HIDDEN_TOOLS, type ToolSession } from "@reverse/coding-agent/tools";
+import { createVibeTools } from "@reverse/coding-agent/tools/vibe";
 
 interface ToolSchemaEntry {
 	name: string;

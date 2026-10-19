@@ -8,10 +8,10 @@ import {
 	resolveSharedBrowserLaunchSpec,
 	stealthIgnoreDefaultArgsForTest,
 	systemChromiumCandidatesForTest,
-} from "@rva/coding-agent/tools/browser/launch";
-import { TempDir } from "@rva/utils";
-import { BrowserPlatform, computeExecutablePath } from "@rva/utils/browsers";
-import { APP_NAME } from "@rva/utils/dirs";
+} from "@reverse/coding-agent/tools/browser/launch";
+import { TempDir } from "@reverse/utils";
+import { BrowserPlatform, computeExecutablePath } from "@reverse/utils/browsers";
+import { APP_NAME } from "@reverse/utils/dirs";
 import { PUPPETEER_REVISIONS } from "puppeteer-core/internal/revisions.js";
 
 const EXECUTABLE_PROBE = path.resolve(import.meta.dir, "../fixtures/browser-executable-probe.ts");

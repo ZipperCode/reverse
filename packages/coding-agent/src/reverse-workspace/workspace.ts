@@ -1,10 +1,8 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, type Stats } from "node:fs";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { EvidenceStore } from "../evidence/store";
 import type { EvidenceRecord } from "../evidence/contracts";
-import type { ReverseWorkflowRecord } from "../reverse-workflow/contracts";
 import {
 	hydrateWorkflowEvidence,
 	exportWorkflowToMarkdown,
@@ -82,9 +80,7 @@ const GITIGNORE_CONTENT = `# Reverse workspace gitignore
  * Exports a reverse workflow and all associated evidence, findings, and safe artifact
  * references into a standardized, deterministic .reverse/ workspace.
  */
-export async function exportWorkflowToWorkspace(
-	options: ExportToWorkspaceOptions,
-): Promise<ExportToWorkspaceResult> {
+export async function exportWorkflowToWorkspace(options: ExportToWorkspaceOptions): Promise<ExportToWorkspaceResult> {
 	const { workflow, evidenceStore, projectDir } = options;
 
 	const resolvedWorkspaceDir = options.workspaceDir
@@ -101,9 +97,7 @@ export async function exportWorkflowToWorkspace(
 
 	// 1. Inspect target without mutation or copying raw huge binary
 	const candidatePath = workflow.target_abs_path || workflow.target;
-	const resolvedTargetPath = path.isAbsolute(candidatePath)
-		? candidatePath
-		: path.resolve(projectDir, candidatePath);
+	const resolvedTargetPath = path.isAbsolute(candidatePath) ? candidatePath : path.resolve(projectDir, candidatePath);
 
 	let targetSha256 = workflow.target_sha256;
 	let targetSize = workflow.target_size;
@@ -434,9 +428,7 @@ export function allocateArtifactDestinationPath(
 /**
  * Reads and validates a workspace manifest from disk.
  */
-export async function loadWorkspaceManifest(
-	workspaceDir: string,
-): Promise<ReverseWorkspaceManifest | null> {
+export async function loadWorkspaceManifest(workspaceDir: string): Promise<ReverseWorkspaceManifest | null> {
 	const manifestPath = path.join(workspaceDir, WORKSPACE_FILES.MANIFEST);
 	try {
 		const content = await fs.readFile(manifestPath, "utf8");
@@ -466,9 +458,7 @@ export async function inspectWorkspace(
 	workspaceDir: string,
 	projectDir: string = process.cwd(),
 ): Promise<InspectWorkspaceResult> {
-	const resolvedWorkspaceDir = path.isAbsolute(workspaceDir)
-		? workspaceDir
-		: path.resolve(projectDir, workspaceDir);
+	const resolvedWorkspaceDir = path.isAbsolute(workspaceDir) ? workspaceDir : path.resolve(projectDir, workspaceDir);
 
 	const relativeWorkspaceDir = path.relative(projectDir, resolvedWorkspaceDir) || ".";
 
@@ -550,7 +540,7 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 	const resolvedProjectDir = path.resolve(projectDir);
 
 	// 1. Verify project directory exists and is a directory
-	let projectStat: fs.Stats;
+	let projectStat: Stats;
 	try {
 		projectStat = await fs.stat(resolvedProjectDir);
 	} catch {
@@ -585,7 +575,7 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 	}
 
 	// 6. Check workspace directory exists and check lstat
-	let wsLstat: fs.Stats;
+	let wsLstat: Stats;
 	try {
 		wsLstat = await fs.lstat(resolvedWorkspaceDir);
 	} catch {
@@ -614,7 +604,7 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 
 	// 8. Validate manifest file and ownership before ANY deletion
 	const manifestPath = path.join(resolvedWorkspaceDir, WORKSPACE_FILES.MANIFEST);
-	let manifestLstat: fs.Stats;
+	let manifestLstat: Stats;
 	try {
 		manifestLstat = await fs.lstat(manifestPath);
 	} catch {
@@ -652,7 +642,7 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 	const dirsToCheck = removeDumpsOnly ? ["dumps"] : ["dumps", "scripts"];
 	for (const dirName of dirsToCheck) {
 		const targetDir = path.join(resolvedWorkspaceDir, dirName);
-		let dirLstat: fs.Stats;
+		let dirLstat: Stats;
 		try {
 			dirLstat = await fs.lstat(targetDir);
 		} catch (error) {
@@ -702,7 +692,7 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 	for (const relPath of uniqueCandidatePaths) {
 		const fullFilePath = assertWithinPath(resolvedWorkspaceDir, relPath);
 
-		let fileLstat: fs.Stats;
+		let fileLstat: Stats;
 		try {
 			fileLstat = await fs.lstat(fullFilePath);
 		} catch {
@@ -718,17 +708,13 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 			const realFilePath = await fs.realpath(fullFilePath);
 			const relToWs = path.relative(realWorkspaceDir, realFilePath);
 			if (relToWs.startsWith("..") || path.isAbsolute(relToWs)) {
-				throw new Error(
-					`Symlink escape detected for file ${relPath}: resolves to ${realFilePath}`,
-				);
+				throw new Error(`Symlink escape detected for file ${relPath}: resolves to ${realFilePath}`);
 			}
 			const expectedSubdir = relPath.startsWith("dumps") ? "dumps" : "scripts";
 			const realSubdirPath = await fs.realpath(path.join(resolvedWorkspaceDir, expectedSubdir));
 			const relToSub = path.relative(realSubdirPath, realFilePath);
 			if (relToSub.startsWith("..") || path.isAbsolute(relToSub)) {
-				throw new Error(
-					`Symlink escape detected for file ${relPath}: escapes ${expectedSubdir}`,
-				);
+				throw new Error(`Symlink escape detected for file ${relPath}: escapes ${expectedSubdir}`);
 			}
 		}
 

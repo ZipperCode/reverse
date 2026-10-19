@@ -1,8 +1,8 @@
 import * as path from "node:path";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { prompt, getProjectDir } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { AgentTool, AgentToolContext, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { prompt, getProjectDir } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 import type { ToolSession } from "./index";
 import reverseWorkspaceDescription from "../prompts/tools/reverse-workspace.md" with { type: "text" };
@@ -29,12 +29,8 @@ const reverseWorkspaceSchema = type({
 		"Workflow identifier to export (optional for status/manifest/clean, will pick most recent if omitted)",
 	),
 	"id?": type("string").describe("Alias for workflow_id"),
-	"workspace_path?": type("string").describe(
-		"Target workspace directory (defaults to '.reverse' in project root)",
-	),
-	"format_type?": type
-		.enumerated("markdown", "json")
-		.describe("Report format: 'markdown' (default) or 'json'"),
+	"workspace_path?": type("string").describe("Target workspace directory (defaults to '.reverse' in project root)"),
+	"format_type?": type.enumerated("markdown", "json").describe("Report format: 'markdown' (default) or 'json'"),
 	"clean_dumps_only?": type("boolean").describe(
 		"When cleaning, remove only dumps while keeping scripts (default false: cleans dumps and scripts)",
 	),
@@ -74,24 +70,13 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 	}
 
 	async execute(
-		toolCallIdOrParams: string | ReverseWorkspaceParams,
-		paramsOrContext?: ReverseWorkspaceParams | { abortSignal?: AbortSignal },
+		_toolCallId: string,
+		params: ReverseWorkspaceParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<ReverseWorkspaceDetails>> {
-		let params: ReverseWorkspaceParams;
-		let abortSignal: AbortSignal | undefined;
-
-		if (typeof toolCallIdOrParams === "string") {
-			params = paramsOrContext as ReverseWorkspaceParams;
-			abortSignal = signal;
-		} else {
-			params = toolCallIdOrParams;
-			if (paramsOrContext && "abortSignal" in paramsOrContext) {
-				abortSignal = paramsOrContext.abortSignal;
-			}
-		}
-
-		throwIfAborted(abortSignal);
+		_onUpdate?: (result: AgentToolResult<ReverseWorkspaceDetails>) => void,
+		_context?: AgentToolContext,
+	): Promise<AgentToolResult<ReverseWorkspaceDetails> & { details: ReverseWorkspaceDetails }> {
+		throwIfAborted(signal);
 
 		const projectDir = this.session.cwd ?? getProjectDir();
 		const workspacePath = params.workspace_path || DEFAULT_WORKSPACE_DIR;
@@ -103,13 +88,11 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 
 				let workflowId = params.workflow_id ?? params.id;
 				if (!workflowId) {
-					const allWorkflows = await workflowStore.list(1);
+					const allWorkflows = await workflowStore.list();
 					if (allWorkflows.length > 0) {
 						workflowId = allWorkflows[0].id;
 					} else {
-						throw new ToolError(
-							"workflow_id is required for 'export' action when no prior workflows exist.",
-						);
+						throw new ToolError("workflow_id is required for 'export' action when no prior workflows exist.");
 					}
 				}
 
@@ -193,9 +176,7 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 			}
 
 			case "manifest": {
-				const manifest = await loadWorkspaceManifest(
-					path.resolve(projectDir, workspacePath),
-				);
+				const manifest = await loadWorkspaceManifest(path.resolve(projectDir, workspacePath));
 				if (!manifest) {
 					throw new ToolError(
 						`Workspace manifest not found or invalid at '${workspacePath}/manifest.json'. Run export first.`,

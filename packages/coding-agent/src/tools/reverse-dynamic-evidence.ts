@@ -1,38 +1,22 @@
-import * as path from "node:path";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { getProjectDir, prompt } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import type { OutputMeta } from "@reverse/tui/tools/output-meta";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 import type { ToolSession } from "./index";
 import reverseDynamicEvidenceDescription from "../prompts/tools/reverse-dynamic-evidence.md" with { type: "text" };
-import {
-	EvidenceStore,
-	type FactEvidence,
-	type ConclusionEvidence,
-	type EvidenceRecord,
-} from "../evidence";
-import {
-	ReverseWorkflowStore,
-	type ReverseWorkflowRecord,
-	type WorkflowStepRecord,
-} from "../reverse-workflow";
+import { EvidenceStore, type FactEvidence, type ConclusionEvidence } from "../evidence";
+import { ReverseWorkflowStore } from "../reverse-workflow";
 import {
 	ReverseKnowledgeStore,
 	learnFromEvidenceAndWorkflows,
 	type ReverseKnowledgeRecord,
 } from "../reverse-knowledge";
-import {
-	ReverseRuntimeSessionStore,
-	type RuntimeSessionRecord,
-} from "../reverse-runtime-session";
+import { ReverseRuntimeSessionStore } from "../reverse-runtime-session";
 import {
 	type UniversalDynamicEvent,
 	type DynamicEventSource,
-	type DynamicEventKind,
 	DYNAMIC_EVENT_SOURCES,
-	DYNAMIC_EVENT_KINDS,
-	formatDynamicLocator,
 	isDynamicLocator,
 	normalizeDynamicEvent,
 	filterDynamicEvents,
@@ -52,57 +36,35 @@ export const reverseDynamicEvidenceSchema = type({
 	"source?": type
 		.enumerated(...DYNAMIC_EVENT_SOURCES)
 		.describe("Event source platform: 'frida', 'browser', 'dap', 'unidbg', or 'custom'"),
-	"target?": type("string").describe(
-		"Target binary, package, process name, or URL associated with these events",
-	),
-	"events?": type("unknown").describe(
-		"Explicit array of raw or structured dynamic events to ingest or query",
-	),
+	"target?": type("string").describe("Target binary, package, process name, or URL associated with these events"),
+	"events?": type("unknown").describe("Explicit array of raw or structured dynamic events to ingest or query"),
 	"kind?": type("string").describe(
 		"Filter events by kind: 'stdout', 'stderr', 'message', 'trace', 'network', 'crypto', 'storage', 'dom', 'breakpoint', 'step', 'lifecycle', 'error'",
 	),
 	"channel?": type("string").describe(
 		"Filter events by channel: 'send', 'console', 'websocket', 'crypto', 'fetch', 'xhr', 'stopped', 'output', etc.",
 	),
-	"since_seq?": type("number").describe(
-		"Filter to events strictly greater than this sequence number",
-	),
-	"limit?": type("number").describe(
-		"Maximum number of events to ingest or return (default 20, max 100)",
-	),
+	"since_seq?": type("number").describe("Filter to events strictly greater than this sequence number"),
+	"limit?": type("number").describe("Maximum number of events to ingest or return (default 20, max 100)"),
 	"classification?": type("string").describe(
 		"Weakness classification for generated facts, e.g. 'CWE-311' (crypto) or 'CWE-319' (cleartext transmission)",
 	),
 	"tags?": type("string[]").describe(
 		"Categorization tags to attach to generated evidence facts, e.g. ['crypto', 'token', 'auth']",
 	),
-	"workflow_id?": type("string").describe(
-		"Reverse workflow ID to link newly ingested dynamic facts and update steps",
-	),
-	"step_id?": type("string").describe(
-		"Specific workflow step ID to link newly ingested dynamic facts to",
-	),
+	"workflow_id?": type("string").describe("Reverse workflow ID to link newly ingested dynamic facts and update steps"),
+	"step_id?": type("string").describe("Specific workflow step ID to link newly ingested dynamic facts to"),
 	"advance_workflow?": type("boolean").describe(
 		"Whether to mark the associated workflow step as completed if backed by verified evidence",
 	),
-	"hypothesis_id?": type("string").describe(
-		"Hypothesis ID in Evidence ledger to verify with these dynamic facts",
-	),
-	"conclusion?": type("string").describe(
-		"Confirmed deductive conclusion text to record when verifying a hypothesis",
-	),
+	"hypothesis_id?": type("string").describe("Hypothesis ID in Evidence ledger to verify with these dynamic facts"),
+	"conclusion?": type("string").describe("Confirmed deductive conclusion text to record when verifying a hypothesis"),
 	"method?": type("string").describe(
 		"Experimental dynamic method, e.g. 'Frida JNI hook', 'CDP network intercept', 'DAP breakpoint'",
 	),
-	"command?": type("string").describe(
-		"Exact script, CLI invocation, or expression that produced the dynamic outcome",
-	),
-	"result?": type("string").describe(
-		"Observed empirical result, output string, decrypted buffer, or register delta",
-	),
-	"reproducibility?": type("string").describe(
-		"Reproducibility metric or description, e.g. '100% (5/5 runs)'",
-	),
+	"command?": type("string").describe("Exact script, CLI invocation, or expression that produced the dynamic outcome"),
+	"result?": type("string").describe("Observed empirical result, output string, decrypted buffer, or register delta"),
+	"reproducibility?": type("string").describe("Reproducibility metric or description, e.g. '100% (5/5 runs)'"),
 	"learn?": type("boolean").describe(
 		"Whether to automatically promote verified conclusions into reusable reverse knowledge (default true)",
 	),
@@ -128,21 +90,23 @@ export interface IngestDynamicEvidenceDetails {
 	knowledgeRecords?: ReverseKnowledgeRecord[];
 	events?: UniversalDynamicEvent[];
 	statusSummary?: Record<string, unknown>;
+	meta?: OutputMeta;
 }
 
 export interface ReverseDynamicEvidenceToolOptions {
 	stateRoot?: string;
 }
 
-export class ReverseDynamicEvidenceTool
-	implements AgentTool<typeof reverseDynamicEvidenceSchema, IngestDynamicEvidenceDetails>
-{
+export class ReverseDynamicEvidenceTool implements AgentTool<
+	typeof reverseDynamicEvidenceSchema,
+	IngestDynamicEvidenceDetails
+> {
 	readonly name = "reverse_dynamic_evidence";
 	readonly label = "Reverse Dynamic Evidence & Closure";
 	readonly summary =
 		"Normalizes and ingests bounded dynamic events (Frida, browser CDP, DAP, Unidbg) into the Evidence ledger, links workflow steps, and promotes verified outcomes into reusable reverse knowledge.";
-	readonly schema = reverseDynamicEvidenceSchema;
-	readonly tier: ToolTier = "read";
+	readonly parameters = reverseDynamicEvidenceSchema;
+	readonly approval: ToolTier = "read";
 	readonly strict = true;
 	private readonly stateRoot?: string;
 
@@ -160,21 +124,21 @@ export class ReverseDynamicEvidenceTool
 		callId: string,
 		params: ReverseDynamicEvidenceParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<IngestDynamicEvidenceDetails>> {
+	): Promise<AgentToolResult<IngestDynamicEvidenceDetails> & { details: IngestDynamicEvidenceDetails }> {
 		throwIfAborted(signal);
 
 		const cwd = this.session.cwd;
 		const action = params.action;
 		const sessionId = params.session_id?.trim() || "dynamic_session";
-		const source: DynamicEventSource = (params.source as DynamicEventSource) || (
-			sessionId.startsWith("runt_frida") || sessionId.includes("frida")
+		const source: DynamicEventSource =
+			(params.source as DynamicEventSource) ||
+			(sessionId.startsWith("runt_frida") || sessionId.includes("frida")
 				? "frida"
 				: sessionId.startsWith("browser") || sessionId.includes("browser")
 					? "browser"
 					: sessionId.startsWith("dap_") || sessionId.includes("dap")
 						? "dap"
-						: "custom"
-		);
+						: "custom");
 		const target = params.target?.trim();
 		const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
 
@@ -188,12 +152,7 @@ export class ReverseDynamicEvidenceTool
 			case "events":
 			case "ingest": {
 				// 1. Gather raw events from input or session manager / runtime store
-				const rawEvents = await this.gatherRawEvents(
-					params,
-					source,
-					sessionId,
-					runtimeSessionStore,
-				);
+				const rawEvents = await this.gatherRawEvents(params, source, sessionId, runtimeSessionStore);
 
 				// 2. Normalize events into UniversalDynamicEvent[]
 				const normalizedEvents = this.normalizeEventsList(rawEvents, source, sessionId, target);
@@ -278,9 +237,7 @@ export class ReverseDynamicEvidenceTool
 						if (params.step_id) {
 							const step = wf.steps.find(s => s.id === params.step_id);
 							if (step) {
-								step.evidence_ids = Array.from(
-									new Set([...(step.evidence_ids ?? []), ...createdFactIds]),
-								);
+								step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...createdFactIds]));
 								if (params.advance_workflow) {
 									step.status = "completed";
 								}
@@ -288,9 +245,7 @@ export class ReverseDynamicEvidenceTool
 								stepUpdated = true;
 							}
 						}
-						wf.runtime_session_ids = Array.from(
-							new Set([...(wf.runtime_session_ids ?? []), sessionId]),
-						);
+						wf.runtime_session_ids = Array.from(new Set([...(wf.runtime_session_ids ?? []), sessionId]));
 						wf.updated_at = new Date().toISOString();
 						await workflowStore.save(wf);
 					}
@@ -363,9 +318,7 @@ export class ReverseDynamicEvidenceTool
 					lines.push(`  - [${f.id}] ${f.locator}: ${f.title}`);
 				}
 				if (stepUpdated) {
-					lines.push(
-						`\nAttached evidence facts to workflow '${params.workflow_id}', step '${params.step_id}'.`,
-					);
+					lines.push(`\nAttached evidence facts to workflow '${params.workflow_id}', step '${params.step_id}'.`);
 				}
 				if (conclusionRecord) {
 					lines.push(
@@ -373,9 +326,7 @@ export class ReverseDynamicEvidenceTool
 					);
 				}
 				if (learnedRecords.length > 0) {
-					lines.push(
-						`Promoted ${learnedRecords.length} verified outcome(s) into reusable reverse knowledge:`,
-					);
+					lines.push(`Promoted ${learnedRecords.length} verified outcome(s) into reusable reverse knowledge:`);
 					for (const kn of learnedRecords) {
 						lines.push(`  - [${kn.id}] ${kn.title} (${kn.pattern || "verified"})`);
 					}
@@ -464,9 +415,7 @@ export class ReverseDynamicEvidenceTool
 					if (wf) {
 						const step = wf.steps.find(s => s.id === params.step_id);
 						if (step) {
-							step.evidence_ids = Array.from(
-								new Set([...(step.evidence_ids ?? []), conclusionRecord.id]),
-							);
+							step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), conclusionRecord.id]));
 							if (params.advance_workflow) {
 								step.status = "completed";
 							}
@@ -484,9 +433,7 @@ export class ReverseDynamicEvidenceTool
 					`  Result: ${conclusionRecord.result}`,
 				];
 				if (learnedRecords.length > 0) {
-					lines.push(
-						`\nPromoted ${learnedRecords.length} record(s) into reusable reverse knowledge:`,
-					);
+					lines.push(`\nPromoted ${learnedRecords.length} record(s) into reusable reverse knowledge:`);
 					for (const kn of learnedRecords) {
 						lines.push(`  - [${kn.id}] ${kn.title}`);
 					}

@@ -3,15 +3,7 @@ import type { EvidenceStore } from "../evidence/store";
 
 export const DEFAULT_WORKSPACE_DIR = ".reverse";
 
-export const WORKSPACE_SUBDIRS = [
-	"target",
-	"workflow",
-	"evidence",
-	"findings",
-	"scripts",
-	"dumps",
-	"reports",
-] as const;
+export const WORKSPACE_SUBDIRS = ["target", "workflow", "evidence", "findings", "scripts", "dumps", "reports"] as const;
 
 export type WorkspaceSubdir = (typeof WORKSPACE_SUBDIRS)[number];
 
@@ -106,21 +98,25 @@ export interface ReverseFindingsSummary {
 	conclusions: Array<{
 		id: string;
 		conclusion: string;
-		sourceTool?: string;
-		locator?: string;
+		method?: string;
+		command?: string;
+		result?: string;
+		reproducibility?: string;
+		status?: "verified" | "refuted";
+		hypothesisId?: string;
 		timestamp: string;
 	}>;
 	verified_hypotheses: Array<{
 		id: string;
 		claim: string;
-		verificationMethod?: string;
-		verifiedConclusionId?: string;
+		verificationPlan?: string;
+		verifiedBy?: string;
 		timestamp: string;
 	}>;
 	unverified_hypotheses: Array<{
 		id: string;
 		claim: string;
-		falsificationCondition?: string;
+		verificationPlan?: string;
 		timestamp: string;
 	}>;
 	facts: Array<{

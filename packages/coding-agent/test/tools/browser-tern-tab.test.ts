@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
-import { RunOutput } from "@rva/coding-agent/tools/browser/run-output";
-import type { ScreenshotResult } from "@rva/coding-agent/tools/browser/tab-protocol";
-import { TernElementHandle, TernTab, userSourceFunction } from "@rva/coding-agent/tools/browser/tern/tern-tab";
-import { parseTernSelector } from "@rva/coding-agent/tools/browser/tern/selectors";
-import { TernSocketClient } from "@rva/coding-agent/tools/browser/tern/wire";
-import { encodeRawPng } from "@rva/coding-agent/utils/png-encode";
+import { RunOutput } from "@reverse/coding-agent/tools/browser/run-output";
+import type { ScreenshotResult } from "@reverse/coding-agent/tools/browser/tab-protocol";
+import { TernElementHandle, TernTab, userSourceFunction } from "@reverse/coding-agent/tools/browser/tern/tern-tab";
+import { parseTernSelector } from "@reverse/coding-agent/tools/browser/tern/selectors";
+import { TernSocketClient } from "@reverse/coding-agent/tools/browser/tern/wire";
+import { encodeRawPng } from "@reverse/coding-agent/utils/png-encode";
 import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "./tern-fake-daemon";
 
 interface FakePage {

@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { FileType } from "@rva/natives";
-import type { AgentToolResult } from "@rva/agent";
+import { FileType } from "@reverse/natives";
+import type { AgentToolResult } from "@reverse/agent";
 import { Settings } from "../../src/config/settings";
 import type { ToolSession } from "../../src/tools";
 import { GlobTool } from "../../src/tools/glob";
-import type { GlobToolDetails } from "@rva/tui/tools/glob";
+import type { GlobToolDetails } from "@reverse/tui/tools/glob";
 import { findUniqueWorkspaceSuffixWithGlobForTest } from "../../src/tools/path-utils";
 import { ToolAbortError } from "../../src/tools/tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatOutputNotice, type OutputMeta } from "@rva/tui/tools/output-meta";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatOutputNotice, type OutputMeta } from "@reverse/tui/tools/output-meta";
 
 function createSession(cwd = process.cwd()): ToolSession {
 	return {

@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import * as os from "node:os";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { GrepTool } from "@rva/coding-agent/tools/grep";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { WriteTool } from "@rva/coding-agent/tools/write";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { GrepTool } from "@reverse/coding-agent/tools/grep";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
 
 // Minimal ToolSession stub (block-images.test.ts shape). Approval functions are
 // pure over their args, and the write-execute selector reject throws before any

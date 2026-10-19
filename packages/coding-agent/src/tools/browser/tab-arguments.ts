@@ -1,4 +1,4 @@
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 export function assertTabPressArgs(key: unknown, options?: unknown): void {
 	if (typeof options === "string") {

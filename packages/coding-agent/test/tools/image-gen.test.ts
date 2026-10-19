@@ -1,19 +1,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { afterAll, describe, expect, it } from "bun:test";
-import { type Api, type FetchImpl, type Model } from "@rva/ai";
-import { buildModel } from "@rva/catalog/build";
-import { modelKind } from "@rva/catalog/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CustomToolContext, CustomToolResult } from "@rva/coding-agent/extensibility/custom-tools";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
-import {
-	getImageGenTools,
-	getImageGenToolsWithRegistry,
-	imageGenTool,
-} from "@rva/coding-agent/tools/image-gen";
-import { hasFsCode, removeWithRetries, TempDir } from "@rva/utils";
+import { type Api, type FetchImpl, type Model } from "@reverse/ai";
+import { buildModel } from "@reverse/catalog/build";
+import { modelKind } from "@reverse/catalog/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CustomToolContext, CustomToolResult } from "@reverse/coding-agent/extensibility/custom-tools";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import { getImageGenTools, getImageGenToolsWithRegistry, imageGenTool } from "@reverse/coding-agent/tools/image-gen";
+import { hasFsCode, removeWithRetries, TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const generatedImagePaths: string[] = [];

@@ -38,19 +38,19 @@ export function generateFindingsData(
 			});
 		} else if (record.kind === "hypothesis") {
 			const h = record as HypothesisEvidence;
-			if (h.status === "verified" || h.verifiedConclusionId) {
+			if (h.verifiedBy) {
 				verifiedHypotheses.push({
 					id: h.id,
 					claim: redactSecrets(h.claim),
-					verificationMethod: h.verificationMethod,
-					verifiedConclusionId: h.verifiedConclusionId,
+					verificationPlan: h.verificationPlan,
+					verifiedBy: h.verifiedBy,
 					timestamp: h.createdAt,
 				});
 			} else {
 				unverifiedHypotheses.push({
 					id: h.id,
 					claim: redactSecrets(h.claim),
-					falsificationCondition: h.falsificationCondition,
+					verificationPlan: h.verificationPlan,
 					timestamp: h.createdAt,
 				});
 			}
@@ -59,9 +59,13 @@ export function generateFindingsData(
 			conclusions.push({
 				id: c.id,
 				conclusion: redactSecrets(c.conclusion),
-				sourceTool: c.sourceTool,
-				locator: c.locator,
-				timestamp: c.createdAt,
+				method: c.method,
+				command: c.command,
+				result: redactSecrets(c.result),
+				reproducibility: c.reproducibility,
+				status: c.status,
+				hypothesisId: c.hypothesisId,
+				timestamp: c.verifiedAt || c.createdAt,
 			});
 		}
 	}
@@ -132,8 +136,9 @@ export function generateFindingsMarkdown(
 		for (const c of summary.conclusions) {
 			lines.push(`### [CONCLUSION] ${c.id}`);
 			lines.push(`- **Conclusion**: ${c.conclusion}`);
-			if (c.locator) lines.push(`- **Locator**: \`${c.locator}\``);
-			if (c.sourceTool) lines.push(`- **Source Tool**: \`${c.sourceTool}\``);
+			if (c.method) lines.push(`- **Method**: \`${c.method}\``);
+			if (c.status) lines.push(`- **Status**: \`${c.status}\``);
+			if (c.hypothesisId) lines.push(`- **Hypothesis**: \`${c.hypothesisId}\``);
 			lines.push(`- **Timestamp**: ${c.timestamp}`);
 			lines.push("");
 		}
@@ -149,8 +154,8 @@ export function generateFindingsMarkdown(
 			lines.push("### Verified Hypotheses");
 			for (const vh of summary.verified_hypotheses) {
 				lines.push(`- **\`${vh.id}\`** [VERIFIED]: ${vh.claim}`);
-				if (vh.verificationMethod) lines.push(`  - Verification Method: ${vh.verificationMethod}`);
-				if (vh.verifiedConclusionId) lines.push(`  - Backed by Conclusion: \`${vh.verifiedConclusionId}\``);
+				if (vh.verificationPlan) lines.push(`  - Verification Plan: ${vh.verificationPlan}`);
+				if (vh.verifiedBy) lines.push(`  - Backed by Conclusion: \`${vh.verifiedBy}\``);
 			}
 			lines.push("");
 		}
@@ -158,7 +163,7 @@ export function generateFindingsMarkdown(
 			lines.push("### Unverified / Working Hypotheses");
 			for (const uh of summary.unverified_hypotheses) {
 				lines.push(`- **\`${uh.id}\`** [PENDING]: ${uh.claim}`);
-				if (uh.falsificationCondition) lines.push(`  - Falsification: ${uh.falsificationCondition}`);
+				if (uh.verificationPlan) lines.push(`  - Verification Plan: ${uh.verificationPlan}`);
 			}
 			lines.push("");
 		}

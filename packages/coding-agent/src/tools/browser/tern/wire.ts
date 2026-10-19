@@ -16,7 +16,7 @@
  * the hello and hangs up.
  */
 import * as net from "node:net";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 /** Frames larger than this are a protocol error (the daemon's own cap). */
 const MAX_FRAME_BYTES = 256 << 20;

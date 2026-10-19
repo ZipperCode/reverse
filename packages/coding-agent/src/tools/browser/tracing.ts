@@ -2,8 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { Snowflake } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { Snowflake } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { CDPSession, Page } from "puppeteer-core";
 import { resolveToCwd } from "../path-utils";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import "@rva/coding-agent/tools/yield";
-import { subprocessToolRegistry } from "@rva/coding-agent/task/subprocess-tool-registry";
+import "@reverse/coding-agent/tools/yield";
+import { subprocessToolRegistry } from "@reverse/coding-agent/task/subprocess-tool-registry";
 
 describe("yield subprocess extraction", () => {
 	const handler = subprocessToolRegistry.getHandler("yield");

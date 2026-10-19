@@ -1,4 +1,4 @@
-import { untilAborted } from "@rva/utils";
+import { untilAborted } from "@reverse/utils";
 import type { Page, WaitForOptions } from "puppeteer-core";
 
 declare module "puppeteer-core" {

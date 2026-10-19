@@ -1,4 +1,4 @@
-import { untilAborted } from "@rva/utils";
+import { untilAborted } from "@reverse/utils";
 import type { Page } from "puppeteer-core";
 import { type ReactPageEnvelope, requireReactHookResult } from "./devtools-hook";
 

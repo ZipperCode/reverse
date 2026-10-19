@@ -1,6 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { customToolToDefinition } from "@rva/coding-agent/sdk";
-import type { AgentTool, ToolApproval } from "@rva/agent";
+import { customToolToDefinition } from "@reverse/coding-agent/sdk";
+import type { AgentTool, ToolApproval } from "@reverse/agent";
 import {
 	type ApprovalMode,
 	denyError,
@@ -10,8 +10,8 @@ import {
 	resolveApproval,
 	resolveApprovalFromContext,
 	truncateForPrompt,
-} from "@rva/coding-agent/tools/approval";
-import { BashTool } from "@rva/coding-agent/tools/bash";
+} from "@reverse/coding-agent/tools/approval";
+import { BashTool } from "@reverse/coding-agent/tools/bash";
 import { Settings } from "../../src/config/settings";
 import { EditTool } from "../../src/edit";
 import type { ToolSession } from "../../src/tools";

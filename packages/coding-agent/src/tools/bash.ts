@@ -4,9 +4,9 @@ import {
 	formatWallTimeNotice,
 	formatExitCodeNotice,
 	WALL_TIME_NOTICE_MIN_MS,
-} from "@rva/tui/tools/bash";
+} from "@reverse/tui/tools/bash";
 import * as fs from "node:fs";
-import { type } from "@rva/omptype";
+import { type } from "@reverse/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -14,10 +14,10 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 	ToolTier,
-} from "@rva/agent";
-import type { ImageContent } from "@rva/ai";
-import { isEnoent, logger, prompt } from "@rva/utils";
-import { isPosixShell } from "@rva/utils/procmgr";
+} from "@reverse/agent";
+import type { ImageContent } from "@reverse/ai";
+import { isEnoent, logger, prompt } from "@reverse/utils";
+import { isPosixShell } from "@reverse/utils/procmgr";
 import { raceJobSettlement, resolveAutoBackgroundWaitMs } from "../async";
 import type { Settings } from "../config/settings";
 import { applyDirenvPreflight, type BashResult, executeBash } from "../exec/bash-executor";
@@ -30,7 +30,7 @@ import type {
 	ClientBridgeTerminalHandle,
 	ClientBridgeTerminalOutput,
 } from "../session/client-bridge";
-import { DEFAULT_MAX_BYTES, enforceInlineByteCap } from "@rva/tui/tools/streaming-output";
+import { DEFAULT_MAX_BYTES, enforceInlineByteCap } from "@reverse/tui/tools/streaming-output";
 import { resolveCliEntryCmd } from "../subprocess/worker-client";
 import { TerminalGraphicsDecoder } from "../utils/terminal-graphics";
 import type { ToolSession } from ".";
@@ -43,13 +43,13 @@ import { resolveEvalBackends } from "./eval-backends";
 import { invalidateGithubCacheForBashCommand } from "./gh-cache-invalidation";
 import { serviceLogs, startService, type ServiceReady } from "../launch/services";
 import { isFindEnabled } from "./jfind";
-import { formatArtifactErrorNotice } from "@rva/tui/tools/output-meta";
-import { formatOutputNotice } from "@rva/tui/tools/output-meta";
+import { formatArtifactErrorNotice } from "@reverse/tui/tools/output-meta";
+import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
 import { resolveInlineByteCapBudget } from "./output-meta";
 import { resolveToCwd } from "./path-utils";
 import { extractLeadingCdTarget, extractLiteralAndChainSegments, tokenizeShellSegments } from "./shell-tokenize";
 import { ToolAbortError } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { clampTimeout, TOOL_TIMEOUTS } from "./tool-timeouts";
 

@@ -94,7 +94,7 @@ export function normalizeFridaEvent(
 			kind = "lifecycle";
 		}
 
-		let payload = obj.payload ?? (obj.type === "send" && "payload" in obj ? obj.payload : obj);
+		const payload = obj.payload ?? (obj.type === "send" && "payload" in obj ? obj.payload : obj);
 		let rawText = typeof obj.raw === "string" ? obj.raw : undefined;
 		if (!rawText && typeof payload === "string") {
 			rawText = payload;
@@ -145,7 +145,7 @@ export function normalizeBrowserEvent(
 		const rawSeq = typeof obj.seq === "number" ? obj.seq : seq;
 		const rawId = typeof obj.id === "string" ? obj.id : `ev_${sessionId}_${rawSeq}`;
 		const rawTimestamp = typeof obj.timestamp === "string" ? obj.timestamp : timestamp;
-		const rawTarget = typeof obj.target === "string" ? obj.target : (typeof obj.url === "string" ? obj.url : target);
+		const rawTarget = typeof obj.target === "string" ? obj.target : typeof obj.url === "string" ? obj.url : target;
 
 		const typeStr = typeof obj.type === "string" ? obj.type.toLowerCase() : "";
 		let kind: DynamicEventKind = "custom";
@@ -175,7 +175,11 @@ export function normalizeBrowserEvent(
 		} else if (typeStr === "eval") {
 			kind = "trace";
 			channel = "eval";
-		} else if (obj.kind && typeof obj.kind === "string" && DYNAMIC_EVENT_KINDS.includes(obj.kind as DynamicEventKind)) {
+		} else if (
+			obj.kind &&
+			typeof obj.kind === "string" &&
+			DYNAMIC_EVENT_KINDS.includes(obj.kind as DynamicEventKind)
+		) {
 			kind = obj.kind as DynamicEventKind;
 		} else {
 			kind = "message";
@@ -183,11 +187,7 @@ export function normalizeBrowserEvent(
 
 		const payload = obj.payload ?? obj.details ?? obj.data ?? obj;
 		const rawText =
-			typeof obj.raw === "string"
-				? obj.raw
-				: typeof payload === "string"
-					? payload
-					: JSON.stringify(payload);
+			typeof obj.raw === "string" ? obj.raw : typeof payload === "string" ? payload : JSON.stringify(payload);
 
 		return {
 			id: rawId,
@@ -258,15 +258,24 @@ export function normalizeDapEvent(
 		} else if (eventName === "breakpoint") {
 			kind = "breakpoint";
 			channel = "breakpoint";
-		} else if (eventName === "continued" || eventName === "exited" || eventName === "terminated" || eventName === "initialized") {
+		} else if (
+			eventName === "continued" ||
+			eventName === "exited" ||
+			eventName === "terminated" ||
+			eventName === "initialized"
+		) {
 			kind = "lifecycle";
 			channel = eventName;
-		} else if (obj.kind && typeof obj.kind === "string" && DYNAMIC_EVENT_KINDS.includes(obj.kind as DynamicEventKind)) {
+		} else if (
+			obj.kind &&
+			typeof obj.kind === "string" &&
+			DYNAMIC_EVENT_KINDS.includes(obj.kind as DynamicEventKind)
+		) {
 			kind = obj.kind as DynamicEventKind;
 		}
 
 		const rawOutput = typeof body.output === "string" ? body.output : undefined;
-		const rawText = typeof obj.raw === "string" ? obj.raw : rawOutput ?? JSON.stringify(body);
+		const rawText = typeof obj.raw === "string" ? obj.raw : (rawOutput ?? JSON.stringify(body));
 
 		return {
 			id: rawId,
@@ -320,7 +329,13 @@ export function normalizeDynamicEvent(
 		if (obj.event === "output" || obj.event === "stopped" || "threadId" in obj || "stopLocation" in obj) {
 			return normalizeDapEvent(raw, sessionId, options);
 		}
-		if (obj.type === "crypto" || obj.type === "websocket" || obj.type === "xhr" || obj.type === "fetch" || "injectedHooks" in obj) {
+		if (
+			obj.type === "crypto" ||
+			obj.type === "websocket" ||
+			obj.type === "xhr" ||
+			obj.type === "fetch" ||
+			"injectedHooks" in obj
+		) {
 			return normalizeBrowserEvent(raw, sessionId, options);
 		}
 		if (obj.type === "send" || ("payload" in obj && "channel" in obj) || "spawnedPid" in obj) {
@@ -440,25 +455,17 @@ const DYNAMIC_SECRET_KEY_QUOTED_RE =
 const DYNAMIC_SECRET_KEY_UNQUOTED_RE =
 	/(["']?(?:[a-zA-Z0-9_.-]*(?:password|passwd|pwd|secret|token|api_key|apikey|auth_token|access_token|refresh_token|credential|private_key|_key)\b|key)["']?\s*[:=]\s*)(?!\[REDACTED\])[^\s,'"`;})\]>]+/gi;
 
-const DYNAMIC_STANDALONE_SECRET_RE =
-	/\b(?:[a-zA-Z0-9]+_)*(?:secret|token|password)_[a-zA-Z0-9_]{6,}\b/gi;
+const DYNAMIC_STANDALONE_SECRET_RE = /\b(?:[a-zA-Z0-9]+_)*(?:secret|token|password)_[a-zA-Z0-9_]{6,}\b/gi;
 
 export function redactDynamicEvidenceText(input: string): string {
 	if (!input) return input;
 	let text = redactEvidenceText(input);
 	text = text.replace(DYNAMIC_BEARER_AUTH_RE, "$1[REDACTED]");
-	text = text.replace(
-		DYNAMIC_SECRET_KEY_QUOTED_RE,
-		(match, prefix, quote) => `${prefix}${quote}[REDACTED]${quote}`,
-	);
-	text = text.replace(
-		DYNAMIC_SECRET_KEY_UNQUOTED_RE,
-		(match, prefix) => `${prefix}[REDACTED]`,
-	);
+	text = text.replace(DYNAMIC_SECRET_KEY_QUOTED_RE, (match, prefix, quote) => `${prefix}${quote}[REDACTED]${quote}`);
+	text = text.replace(DYNAMIC_SECRET_KEY_UNQUOTED_RE, (match, prefix) => `${prefix}[REDACTED]`);
 	text = text.replace(DYNAMIC_STANDALONE_SECRET_RE, "[REDACTED]");
 	return text;
 }
-
 
 export function dynamicEventToFactInput(
 	event: UniversalDynamicEvent,
@@ -512,7 +519,10 @@ export function dynamicEventToFactInput(
 	if (!classification) {
 		if (event.kind === "crypto" || event.channel === "crypto") {
 			classification = "CWE-311";
-		} else if (event.kind === "network" && (event.channel === "ws" || event.channel === "websocket" || event.channel === "xhr")) {
+		} else if (
+			event.kind === "network" &&
+			(event.channel === "ws" || event.channel === "websocket" || event.channel === "xhr")
+		) {
 			classification = "CWE-319";
 		}
 	}

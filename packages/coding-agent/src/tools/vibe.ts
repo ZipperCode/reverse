@@ -1,4 +1,4 @@
-import { type VibeToolDetails } from "@rva/tui/tools/vibe";
+import { type VibeToolDetails } from "@reverse/tui/tools/vibe";
 /**
  * Vibe mode tools — the director's entire non-read surface.
  *
@@ -12,10 +12,10 @@ import { type VibeToolDetails } from "@rva/tui/tools/vibe";
  * stacked, each showing its tool calls and streamed text as it works.
  */
 
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 
-import { prompt } from "@rva/utils";
+import { prompt } from "@reverse/utils";
 
 import vibeKillDescription from "../prompts/tools/vibe-kill.md" with { type: "text" };
 import vibeListDescription from "../prompts/tools/vibe-list.md" with { type: "text" };
@@ -23,7 +23,7 @@ import vibeSendDescription from "../prompts/tools/vibe-send.md" with { type: "te
 import vibeSpawnDescription from "../prompts/tools/vibe-spawn.md" with { type: "text" };
 import vibeWaitDescription from "../prompts/tools/vibe-wait.md" with { type: "text" };
 
-import { type VibeScreenSnapshot, type VibeWaitOutcome } from "@rva/tui/tools/vibe";
+import { type VibeScreenSnapshot, type VibeWaitOutcome } from "@reverse/tui/tools/vibe";
 import { VibeSessionRegistry } from "../vibe/runtime";
 import type { Tool, ToolSession } from "./index";
 

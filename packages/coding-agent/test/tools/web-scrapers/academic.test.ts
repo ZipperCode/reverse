@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { handleArxiv } from "@rva/coding-agent/web/scrapers/arxiv";
-import { handleIacr } from "@rva/coding-agent/web/scrapers/iacr";
-import { handlePubMed } from "@rva/coding-agent/web/scrapers/pubmed";
-import { handleSemanticScholar } from "@rva/coding-agent/web/scrapers/semantic-scholar";
-import type { RenderResult } from "@rva/coding-agent/web/scrapers/types";
+import { handleArxiv } from "@reverse/coding-agent/web/scrapers/arxiv";
+import { handleIacr } from "@reverse/coding-agent/web/scrapers/iacr";
+import { handlePubMed } from "@reverse/coding-agent/web/scrapers/pubmed";
+import { handleSemanticScholar } from "@reverse/coding-agent/web/scrapers/semantic-scholar";
+import type { RenderResult } from "@reverse/coding-agent/web/scrapers/types";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

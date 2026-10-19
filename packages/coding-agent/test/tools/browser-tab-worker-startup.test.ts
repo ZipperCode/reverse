@@ -4,14 +4,14 @@ import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 declare const devicePixelRatio: number;
 declare const window: { open(url: string, target: string, features: string): unknown };
 
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	acquireBrowser,
 	type BrowserHandle,
 	holdBrowser,
 	releaseBrowser,
-} from "@rva/coding-agent/tools/browser/registry";
-import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@rva/coding-agent/tools/browser/tab-protocol";
+} from "@reverse/coding-agent/tools/browser/registry";
+import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@reverse/coding-agent/tools/browser/tab-protocol";
 import {
 	acquireTab,
 	freezeTabsForOwner,
@@ -19,8 +19,8 @@ import {
 	initializeTabWorkerForTest,
 	releaseTab,
 	runInTab,
-} from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
+} from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
 import type { CDPSession } from "puppeteer-core";
 import { chromiumAvailable, visibleBrowserAvailable } from "./chromium-probe";
 

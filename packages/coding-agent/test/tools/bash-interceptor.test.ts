@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentToolContext } from "@rva/agent";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { BashInterceptorRule } from "@rva/coding-agent/exec/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { BashTool, type BashToolInput } from "@rva/coding-agent/tools/bash";
-import { checkBashInterception } from "@rva/coding-agent/tools/bash-interceptor";
-import { DEFAULT_BASH_INTERCEPTOR_RULES } from "@rva/coding-agent/exec/settings";
+import type { AgentToolContext } from "@reverse/agent";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { BashInterceptorRule } from "@reverse/coding-agent/exec/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { BashTool, type BashToolInput } from "@reverse/coding-agent/tools/bash";
+import { checkBashInterception } from "@reverse/coding-agent/tools/bash-interceptor";
+import { DEFAULT_BASH_INTERCEPTOR_RULES } from "@reverse/coding-agent/exec/settings";
 
 function createBashTool(rules: BashInterceptorRule[]): BashTool {
 	const session = {

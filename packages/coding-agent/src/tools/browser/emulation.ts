@@ -1,4 +1,4 @@
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { Device, Frame, NetworkConditions, Page, Permission } from "puppeteer-core";
 import { pressKey } from "./interactions";
 import { applyViewport } from "./launch";

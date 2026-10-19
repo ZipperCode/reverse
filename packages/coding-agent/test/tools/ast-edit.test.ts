@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { adaptSchemaForStrict, toolWireSchema } from "@rva/ai/utils/schema";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { ToolChoiceQueue } from "@rva/coding-agent/session/tool-choice-queue";
-import { createTools, type ToolSession } from "@rva/coding-agent/tools";
-import { removeWithRetries } from "@rva/utils";
+import { adaptSchemaForStrict, toolWireSchema } from "@reverse/ai/utils/schema";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ToolChoiceQueue } from "@reverse/coding-agent/session/tool-choice-queue";
+import { createTools, type ToolSession } from "@reverse/coding-agent/tools";
+import { removeWithRetries } from "@reverse/utils";
 
 type InvokedToolResult = {
 	content: Array<{ type: string; text?: string }>;

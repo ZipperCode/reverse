@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { EvalStatusEvent, EvalToolDetails } from "@rva/tui/tools/eval";
-import { ToolExecutionComponent } from "@rva/tui/chat/tool-execution";
-import { initTheme } from "@rva/tui/theme";
-import type { TUI } from "@rva/tui";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { EvalStatusEvent, EvalToolDetails } from "@reverse/tui/tools/eval";
+import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { initTheme } from "@reverse/tui/theme";
+import type { TUI } from "@reverse/tui";
 
 const uiStub = { requestRender() {}, requestComponentRender() {} } as unknown as TUI;
 

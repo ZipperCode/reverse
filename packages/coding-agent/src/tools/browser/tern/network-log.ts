@@ -4,7 +4,7 @@
  * like the Chromium log. Bodies of fetch/XHR responses stay in the page until
  * asked for; navigation bodies are not observable.
  */
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import {
 	buildHarEntry,
 	buildHarLog,

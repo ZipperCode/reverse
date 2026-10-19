@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { untilAborted, withTimeout } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { untilAborted, withTimeout } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { BunFile } from "bun";
 import type { ElementHandle, Page, Realm } from "puppeteer-core";
 import { throwIfAborted } from "../tool-errors";

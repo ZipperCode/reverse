@@ -32,19 +32,19 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { CmuxKind } from "@rva/coding-agent/tools/browser/cmux/rpc";
-import { CmuxSocketClient } from "@rva/coding-agent/tools/browser/cmux/socket-client";
-import { acquireBrowser } from "@rva/coding-agent/tools/browser/registry";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { CmuxKind } from "@reverse/coding-agent/tools/browser/cmux/rpc";
+import { CmuxSocketClient } from "@reverse/coding-agent/tools/browser/cmux/socket-client";
+import { acquireBrowser } from "@reverse/coding-agent/tools/browser/registry";
 import {
 	acquireTab,
 	getTabsMapForTest,
 	releaseTab,
 	runInTab,
-} from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
-import { encodeRawPng } from "@rva/coding-agent/utils/png-encode";
-import * as logger from "@rva/utils/logger";
+} from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
+import { encodeRawPng } from "@reverse/coding-agent/utils/png-encode";
+import * as logger from "@reverse/utils/logger";
 
 function makeKind(socketSuffix: string): CmuxKind {
 	return {

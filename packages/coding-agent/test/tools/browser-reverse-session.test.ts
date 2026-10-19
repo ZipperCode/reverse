@@ -2,14 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { Settings } from "@rva/coding-agent/config/settings";
-import {
-	createTools,
-	BrowserReverseSessionTool,
-	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, BrowserReverseSessionTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -24,9 +20,7 @@ function createTestSession(cwd: string): ToolSession {
 function createMockBrowserRunner(
 	initialTabs: Record<string, { state: "alive" | "dead"; url?: string; title?: string }> = {},
 ) {
-	const tabs = new Map<string, { state: "alive" | "dead"; url?: string; title?: string }>(
-		Object.entries(initialTabs),
-	);
+	const tabs = new Map<string, { state: "alive" | "dead"; url?: string; title?: string }>(Object.entries(initialTabs));
 	const calls: Array<{ type: string; name: string; payload?: unknown }> = [];
 	const inTabEvents = new Map<string, any[]>();
 	const inTabConsole = new Map<string, any[]>();
@@ -176,7 +170,7 @@ describe("browser_reverse_session action: inject", () => {
 					tab_name: "dead_tab",
 					preset: "fetch",
 				}),
-			).rejects.toThrow("Browser tab \"dead_tab\" is not open or alive");
+			).rejects.toThrow('Browser tab "dead_tab" is not open or alive');
 		} finally {
 			await removeWithRetries(tempDir);
 		}

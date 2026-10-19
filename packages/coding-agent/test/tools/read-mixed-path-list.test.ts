@@ -2,11 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 import { Database } from "bun:sqlite";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { removeWithRetries } from "@rva/utils";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { removeWithRetries } from "@reverse/utils";
 
 let cwd: string;
 let session: ToolSession;

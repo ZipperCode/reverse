@@ -2,10 +2,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { createTools, type ToolSession } from "@rva/coding-agent/tools";
-import { ConflictHistory } from "@rva/coding-agent/tools/conflict-detect";
-import { removeWithRetries } from "@rva/utils";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, type ToolSession } from "@reverse/coding-agent/tools";
+import { ConflictHistory } from "@reverse/coding-agent/tools/conflict-detect";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

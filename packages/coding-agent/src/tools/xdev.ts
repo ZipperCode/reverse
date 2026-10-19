@@ -35,15 +35,15 @@ import {
 	type AgentToolUpdateCallback,
 	type ToolLoadMode,
 	validateAgentToolArguments,
-} from "@rva/agent";
-import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema } from "@rva/ai";
+} from "@reverse/agent";
+import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema } from "@reverse/ai";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
-import { stripXdUrlPrefix, XD_URL_PREFIX } from "@rva/tui/tools/xd-url";
-import { truncateHeadBytes } from "@rva/tui/tools/streaming-output";
+import { stripXdUrlPrefix, XD_URL_PREFIX } from "@reverse/tui/tools/xd-url";
+import { truncateHeadBytes } from "@reverse/tui/tools/streaming-output";
 import { resolveToolTier, type ToolTier } from "./approval";
 import type { Tool } from "./index";
 import { renderError, ToolAbortError } from "./tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 /**
  * Discoverable built-ins that must stay top-level even when xdev mounting is
@@ -271,7 +271,7 @@ export function resolveMountedXdevTool(state: XdevState, name: string): Tool | u
  * Resolve a mounted tool with its execution-only permission decorator.
  *
  * Mounted-only, matching {@link resolveMountedXdevTool}, and a published export
- * under `@rva/coding-agent/tools/xdev`, so its semantics must not
+ * under `@reverse/coding-agent/tools/xdev`, so its semantics must not
  * drift. `sdk.ts` composes this with the calling agent's advertised tools to
  * recover a Claude Code-spelled MCP name: the union has to be resolved in one
  * pass for the ambiguity rule to hold, so that composition lives with the

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildBrowserNavigationHeaders } from "@rva/coding-agent/web/search/providers/browser-headers";
+import { buildBrowserNavigationHeaders } from "@reverse/coding-agent/web/search/providers/browser-headers";
 
 const CHROME_FALLBACK_HEADERS: Record<string, string> = {
 	Accept:

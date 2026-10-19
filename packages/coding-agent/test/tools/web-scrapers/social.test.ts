@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { handleReddit } from "@rva/coding-agent/web/scrapers/reddit";
+import { handleReddit } from "@reverse/coding-agent/web/scrapers/reddit";
 
 const SKIP = !Bun.env.WEB_FETCH_INTEGRATION;
 

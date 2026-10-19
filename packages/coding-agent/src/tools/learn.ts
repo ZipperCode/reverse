@@ -1,6 +1,6 @@
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
-import { prompt } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult } from "@reverse/agent";
+import { prompt } from "@reverse/utils";
 import { sanitizeSkillName, writeManagedSkill } from "../autolearn/managed-skills";
 import { isNameClaimedByAuthoredSkill } from "../extensibility/skills";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";

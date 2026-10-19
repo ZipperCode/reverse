@@ -2,17 +2,16 @@ import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { Settings } from "@rva/coding-agent/config/settings";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	createTools,
 	decodeVLQ,
 	sanitizeExtractionPath,
 	SourcemapInspectTool,
-	type SourcemapInspectDetails,
 	type ToolSession,
-} from "@rva/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@rva/coding-agent/tools/builtin-names";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/tools";
+import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
 	return {
@@ -182,7 +181,7 @@ describe("sourcemap_inspect action: info", () => {
 			await fs.writeFile(mapPath, JSON.stringify(SAMPLE_MAP_V3), "utf-8");
 
 			const jsPath = path.join(tempDir, "bundle.js");
-			await fs.writeFile(jsPath, 'var a=1;\n//# sourceMappingURL=bundle.map\n', "utf-8");
+			await fs.writeFile(jsPath, "var a=1;\n//# sourceMappingURL=bundle.map\n", "utf-8");
 
 			const session = createTestSession(tempDir);
 			const tool = new SourcemapInspectTool(session);
@@ -347,7 +346,10 @@ describe("sourcemap_inspect action: extract", () => {
 
 			expect(result.details?.extracted?.totalExtracted).toBe(2);
 			const cleanFile = path.join(outDir, "src", "clean.ts");
-			const cleanExists = await fs.stat(cleanFile).then(() => true).catch(() => false);
+			const cleanExists = await fs
+				.stat(cleanFile)
+				.then(() => true)
+				.catch(() => false);
 			expect(cleanExists).toBe(true);
 
 			// Path traversal check

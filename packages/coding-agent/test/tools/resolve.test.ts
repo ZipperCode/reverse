@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { getThemeByName } from "@rva/tui/theme";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { getThemeByName } from "@reverse/tui/theme";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 import {
 	dispatchResolutionDevice,
 	isPreviewResolutionToolCall,
@@ -11,14 +11,14 @@ import {
 	REJECT_DEVICE_PATH,
 	RESOLVE_DEVICE_PATH,
 	writeDeviceDispatch,
-} from "@rva/coding-agent/tools/resolve";
+} from "@reverse/coding-agent/tools/resolve";
 import {
 	PROPOSE_DEVICE_NAME,
 	REJECT_DEVICE_NAME,
 	RESOLVE_DEVICE_NAME,
 	resolveRenderer,
-} from "@rva/tui/tools/resolve";
-import { sanitizeText } from "@rva/utils";
+} from "@reverse/tui/tools/resolve";
+import { sanitizeText } from "@reverse/utils";
 
 function createSession(
 	options: {

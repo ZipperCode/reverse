@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
-import { prompt, $which } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
+import { prompt, $which } from "@reverse/utils";
 import fridaDescription from "../prompts/tools/frida.md" with { type: "text" };
 import {
 	checkToolRequirements,
@@ -12,7 +12,7 @@ import {
 } from "../extensibility/skill-requirements";
 import { SKILL_TOOL_CATALOG, type SkillToolPlatform } from "../extensibility/skill-tool-catalog";
 import type { ToolSession } from "./index";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 export const fridaSchema = type({
 	"action?": type
@@ -366,17 +366,39 @@ export function parsePythonLiteral(
 				if (i >= len) throw new SyntaxError("Unterminated string escape sequence");
 				const esc = input[i++];
 				switch (esc) {
-					case "'": res += "'"; break;
-					case '"': res += '"'; break;
-					case "\\": res += "\\"; break;
-					case "/": res += "/"; break;
-					case "n": res += "\n"; break;
-					case "r": res += "\r"; break;
-					case "t": res += "\t"; break;
-					case "b": res += "\b"; break;
-					case "f": res += "\f"; break;
-					case "v": res += "\v"; break;
-					case "0": res += "\0"; break;
+					case "'":
+						res += "'";
+						break;
+					case '"':
+						res += '"';
+						break;
+					case "\\":
+						res += "\\";
+						break;
+					case "/":
+						res += "/";
+						break;
+					case "n":
+						res += "\n";
+						break;
+					case "r":
+						res += "\r";
+						break;
+					case "t":
+						res += "\t";
+						break;
+					case "b":
+						res += "\b";
+						break;
+					case "f":
+						res += "\f";
+						break;
+					case "v":
+						res += "\v";
+						break;
+					case "0":
+						res += "\0";
+						break;
 					case "x": {
 						const hex = input.slice(i, i + 2);
 						if (!/^[0-9a-fA-F]{2}$/.test(hex)) throw new SyntaxError(`Invalid hex escape \\x${hex}`);
@@ -835,9 +857,7 @@ export function parseFridaProcesses(raw: string): FridaProcessInfo[] {
 						return {
 							pid: Number(r.pid ?? 0),
 							name: String(r.name ?? ""),
-							...(p?.identifier || r.identifier
-								? { identifier: String(p?.identifier ?? r.identifier) }
-								: {}),
+							...(p?.identifier || r.identifier ? { identifier: String(p?.identifier ?? r.identifier) } : {}),
 						};
 					})
 					.filter(item => item.pid > 0);
@@ -1074,6 +1094,8 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 		_toolCallId: string,
 		params: FridaParams,
 		signal?: AbortSignal,
+		_onUpdate?: AgentToolUpdateCallback<FridaDetails, typeof fridaSchema>,
+		_ctx?: AgentToolContext,
 	): Promise<AgentToolResult<FridaDetails>> {
 		throwIfAborted(signal);
 

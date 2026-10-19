@@ -23,24 +23,24 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { withTimeout } from "@rva/utils";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { DaemonBrokerClient } from "@rva/coding-agent/launch/client";
-import { daemonRuntimeDir } from "@rva/coding-agent/launch/paths";
-import type { DaemonOperation } from "@rva/coding-agent/launch/protocol";
+import { withTimeout } from "@reverse/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { DaemonBrokerClient } from "@reverse/coding-agent/launch/client";
+import { daemonRuntimeDir } from "@reverse/coding-agent/launch/paths";
+import type { DaemonOperation } from "@reverse/coding-agent/launch/protocol";
 import {
 	forgetSharedTarget,
 	recordSharedTarget,
 	resetOrphanRegistryForTest,
 	type SharedTargetScope,
-} from "@rva/coding-agent/tools/browser/orphan-registry";
-import type { BrowserHandle } from "@rva/coding-agent/tools/browser/registry";
-import * as sharedDaemon from "@rva/coding-agent/tools/browser/shared-daemon";
-import { stopSharedBrowserIfUnreachable } from "@rva/coding-agent/tools/browser/shared-daemon";
-import { getTabsMapForTest, releaseTab, runInTab } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { TabSession } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
-import type { DaemonSnapshot } from "@rva/tui/tools/daemon";
+} from "@reverse/coding-agent/tools/browser/orphan-registry";
+import type { BrowserHandle } from "@reverse/coding-agent/tools/browser/registry";
+import * as sharedDaemon from "@reverse/coding-agent/tools/browser/shared-daemon";
+import { stopSharedBrowserIfUnreachable } from "@reverse/coding-agent/tools/browser/shared-daemon";
+import { getTabsMapForTest, releaseTab, runInTab } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { TabSession } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
+import type { DaemonSnapshot } from "@reverse/tui/tools/daemon";
 
 const DAEMON_NAME = "omp.browser.headless";
 /** The target id the incident log names for the tab whose close never landed. */

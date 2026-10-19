@@ -2,10 +2,10 @@ import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import * as zlib from "node:zlib";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { prompt } from "@rva/utils";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { prompt } from "@reverse/utils";
 import androidPackageInspectDescription from "../prompts/tools/android-package-inspect.md" with { type: "text" };
 import { checkToolRequirements, type SkillRequirementWhich } from "../extensibility/skill-requirements";
 import type { ToolSession } from "./index";
@@ -22,9 +22,7 @@ const androidPackageInspectSchema = type({
 		.describe(
 			"Inspection action: info (container overview, DEX summaries, native libs, signing presence), manifest (AndroidManifest.xml structure/metadata), dex (DEX headers and class listing), signing (signature scheme v1/v2/v3/v4 evidence and apksigner bridge), or resources (ARSC/resource entries breakdown and aapt2 bridge)",
 		),
-	"path?": type("string").describe(
-		"Path to target Android package (.apk, .aab, .apks) or Dalvik executable (.dex)",
-	),
+	"path?": type("string").describe("Path to target Android package (.apk, .aab, .apks) or Dalvik executable (.dex)"),
 	"target?": type("string").describe("Alias for path"),
 	"dex_index?": type("number.integer >= 0").describe(
 		"Optional zero-based DEX index (e.g. 0 for classes.dex, 1 for classes2.dex)",
@@ -63,11 +61,17 @@ export interface AndroidDexHeaderInfo {
 	linkOff: number;
 	mapOff: number;
 	stringIdsCount: number;
+	stringIdsOff: number;
 	typeIdsCount: number;
+	typeIdsOff: number;
 	protoIdsCount: number;
+	protoIdsOff: number;
 	fieldIdsCount: number;
+	fieldIdsOff: number;
 	methodIdsCount: number;
+	methodIdsOff: number;
 	classDefsCount: number;
+	classDefsOff: number;
 	dataSize: number;
 	dataOff: number;
 }
@@ -108,6 +112,9 @@ export interface AndroidManifestMetadata {
 		icon?: string;
 		debuggable?: boolean;
 		allowBackup?: boolean;
+		extractNativeLibs?: boolean;
+		useEmbeddedDex?: boolean;
+		hasCode?: boolean;
 	};
 	activities: AndroidManifestComponent[];
 	services: AndroidManifestComponent[];
@@ -533,11 +540,17 @@ export function parseDexBuffer(buf: Buffer): DexParsedData | null {
 			linkOff,
 			mapOff,
 			stringIdsCount: stringIdsSize,
+			stringIdsOff,
 			typeIdsCount: typeIdsSize,
+			typeIdsOff,
 			protoIdsCount: protoIdsSize,
+			protoIdsOff,
 			fieldIdsCount: fieldIdsSize,
+			fieldIdsOff,
 			methodIdsCount: methodIdsSize,
+			methodIdsOff,
 			classDefsCount: classDefsSize,
+			classDefsOff,
 			dataSize,
 			dataOff,
 		},
@@ -567,7 +580,7 @@ export function extractDexClasses(dex: DexParsedData, buf: Buffer, filter?: stri
 		}
 
 		const superclass =
-			superclassIdx !== 0xffffffff ? dex.getClassNameFromTypeIdx(superclassIdx) ?? undefined : undefined;
+			superclassIdx !== 0xffffffff ? (dex.getClassNameFromTypeIdx(superclassIdx) ?? undefined) : undefined;
 
 		const flags: string[] = [];
 		if (accessFlags & 0x0001) flags.push("public");
@@ -762,6 +775,9 @@ export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
 	let appIcon: string | undefined;
 	let appDebuggable: boolean | undefined;
 	let appAllowBackup: boolean | undefined;
+	let appExtractNativeLibs: boolean | undefined;
+	let appUseEmbeddedDex: boolean | undefined;
+	let appHasCode: boolean | undefined;
 
 	while (ptr + 8 <= buf.length && ptr < totalSize) {
 		const type = buf.readUInt16LE(ptr);
@@ -796,7 +812,10 @@ export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
 				let val: string | number | boolean;
 
 				if (typedValType === 0x03) {
-					val = strings[typedValData] ?? (aRawValIdx !== 0xffffffff && aRawValIdx < strings.length ? strings[aRawValIdx] : "") ?? "";
+					val =
+						strings[typedValData] ??
+						(aRawValIdx !== 0xffffffff && aRawValIdx < strings.length ? strings[aRawValIdx] : "") ??
+						"";
 				} else if (aRawValIdx !== 0xffffffff && aRawValIdx < strings.length) {
 					val = strings[aRawValIdx];
 				} else if (typedValType === 0x12) {
@@ -838,7 +857,8 @@ export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
 				const min = getAttr("minSdkVersion");
 				if (min !== undefined) minSdkVersion = typeof min === "number" ? min : Number(min) || String(min);
 				const target = getAttr("targetSdkVersion");
-				if (target !== undefined) targetSdkVersion = typeof target === "number" ? target : Number(target) || String(target);
+				if (target !== undefined)
+					targetSdkVersion = typeof target === "number" ? target : Number(target) || String(target);
 			} else if (normElemName === "uses-permission") {
 				const name = getAttr("name");
 				if (name) permissions.push(String(name));
@@ -856,6 +876,12 @@ export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
 				if (debuggable !== undefined) appDebuggable = Boolean(debuggable);
 				const allowBackup = getAttr("allowBackup");
 				if (allowBackup !== undefined) appAllowBackup = Boolean(allowBackup);
+				const extractNativeLibs = getAttr("extractNativeLibs");
+				if (extractNativeLibs !== undefined) appExtractNativeLibs = Boolean(extractNativeLibs);
+				const useEmbeddedDex = getAttr("useEmbeddedDex");
+				if (useEmbeddedDex !== undefined) appUseEmbeddedDex = Boolean(useEmbeddedDex);
+				const hasCode = getAttr("hasCode");
+				if (hasCode !== undefined) appHasCode = Boolean(hasCode);
 			} else if (normElemName === "activity" || normElemName === "activity-alias") {
 				const name = getAttr("name");
 				if (name) {
@@ -928,6 +954,9 @@ export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
 			icon: appIcon,
 			debuggable: appDebuggable,
 			allowBackup: appAllowBackup,
+			extractNativeLibs: appExtractNativeLibs,
+			useEmbeddedDex: appUseEmbeddedDex,
+			hasCode: appHasCode,
 		},
 		activities,
 		services,
@@ -980,6 +1009,36 @@ export function parseXmlText(text: string): AndroidManifestMetadata | null {
 		providers.push({ name: prMatch[1] });
 	}
 
+	const appMatch = text.match(/<application\b([^>]*)>/i);
+	let appName: string | undefined;
+	let appLabel: string | undefined;
+	let appIcon: string | undefined;
+	let appDebuggable: boolean | undefined;
+	let appAllowBackup: boolean | undefined;
+	let appExtractNativeLibs: boolean | undefined;
+	let appUseEmbeddedDex: boolean | undefined;
+	let appHasCode: boolean | undefined;
+
+	if (appMatch) {
+		const appAttrs = appMatch[1];
+		const nameM = appAttrs.match(/(?:android:)?name\s*=\s*["']([^"']+)["']/i);
+		if (nameM) appName = nameM[1];
+		const labelM = appAttrs.match(/(?:android:)?label\s*=\s*["']([^"']+)["']/i);
+		if (labelM) appLabel = labelM[1];
+		const iconM = appAttrs.match(/(?:android:)?icon\s*=\s*["']([^"']+)["']/i);
+		if (iconM) appIcon = iconM[1];
+		const debM = appAttrs.match(/(?:android:)?debuggable\s*=\s*["']([^"']+)["']/i);
+		if (debM) appDebuggable = debM[1] === "true";
+		const abM = appAttrs.match(/(?:android:)?allowBackup\s*=\s*["']([^"']+)["']/i);
+		if (abM) appAllowBackup = abM[1] === "true";
+		const enlM = appAttrs.match(/(?:android:)?extractNativeLibs\s*=\s*["']([^"']+)["']/i);
+		if (enlM) appExtractNativeLibs = enlM[1] === "true";
+		const uedM = appAttrs.match(/(?:android:)?useEmbeddedDex\s*=\s*["']([^"']+)["']/i);
+		if (uedM) appUseEmbeddedDex = uedM[1] === "true";
+		const hcM = appAttrs.match(/(?:android:)?hasCode\s*=\s*["']([^"']+)["']/i);
+		if (hcM) appHasCode = hcM[1] === "true";
+	}
+
 	return {
 		package: pkgMatch ? pkgMatch[1] : "",
 		versionCode: vCodeMatch ? Number(vCodeMatch[1]) || vCodeMatch[1] : undefined,
@@ -988,7 +1047,16 @@ export function parseXmlText(text: string): AndroidManifestMetadata | null {
 		targetSdkVersion: targetSdkMatch ? Number(targetSdkMatch[1]) || targetSdkMatch[1] : undefined,
 		permissions,
 		permissionsDeclared: [],
-		application: {},
+		application: {
+			name: appName,
+			label: appLabel,
+			icon: appIcon,
+			debuggable: appDebuggable,
+			allowBackup: appAllowBackup,
+			extractNativeLibs: appExtractNativeLibs,
+			useEmbeddedDex: appUseEmbeddedDex,
+			hasCode: appHasCode,
+		},
 		activities,
 		services,
 		receivers,
@@ -1098,9 +1166,7 @@ async function runAapt2Bridge(
 	if (!available || !status?.foundPath) {
 		return {
 			available: false,
-			installHint:
-				status?.hint ??
-				"Install via Android Studio SDK Manager or CLI: sdkmanager 'build-tools;35.0.0'.",
+			installHint: status?.hint ?? "Install via Android Studio SDK Manager or CLI: sdkmanager 'build-tools;35.0.0'.",
 		};
 	}
 
@@ -1146,9 +1212,10 @@ async function runAapt2Bridge(
 // Tool Implementation
 // ============================================================================
 
-export class AndroidPackageInspectTool
-	implements AgentTool<typeof androidPackageInspectSchema, AndroidPackageInspectDetails>
-{
+export class AndroidPackageInspectTool implements AgentTool<
+	typeof androidPackageInspectSchema,
+	AndroidPackageInspectDetails
+> {
 	readonly name = "android_package_inspect";
 	readonly approval: ToolTier = "read";
 	readonly label = "Android Package Inspect";
@@ -1170,7 +1237,7 @@ export class AndroidPackageInspectTool
 		_toolCallId: string,
 		params: AndroidPackageInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<AndroidPackageInspectDetails>> {
+	): Promise<AgentToolResult<AndroidPackageInspectDetails> & { details: AndroidPackageInspectDetails }> {
 		throwIfAborted(signal);
 
 		const targetPath = params.path ?? params.target;
@@ -1287,7 +1354,7 @@ export class AndroidPackageInspectTool
 		sha256: string,
 		fileBuffer: Buffer,
 		zip: ZipParser | null,
-	): AgentToolResult<AndroidPackageInspectDetails> {
+	): AgentToolResult<AndroidPackageInspectDetails> & { details: AndroidPackageInspectDetails } {
 		if (format === "DEX" || !zip) {
 			const dexData = parseDexBuffer(fileBuffer);
 			if (!dexData) {
@@ -1460,7 +1527,9 @@ export class AndroidPackageInspectTool
 			lines.push(`  • ${d.name} (${d.size} bytes)${verStr}${clsStr}`);
 		}
 		if (dexHeaders.length > 0) {
-			lines.push(`DEX Totals: ${totalClasses} classes, ${totalMethods} methods, ${totalFields} fields across ${dexEntries.length} DEX files`);
+			lines.push(
+				`DEX Totals: ${totalClasses} classes, ${totalMethods} methods, ${totalFields} fields across ${dexEntries.length} DEX files`,
+			);
 		}
 
 		const abiList = Object.keys(nativeLibs);
@@ -1474,19 +1543,29 @@ export class AndroidPackageInspectTool
 		}
 
 		lines.push(`Resources:`);
-		lines.push(`  • Table: ${arscEntry ? `Present (${arscEntry.name}, ${arscEntry.uncompressedSize} bytes)` : "None"}`);
-		lines.push(`  • Files: ${resTotal} in res/ (${layoutsCount} layouts, ${drawablesCount} drawables), ${assetsCount} in assets/`);
+		lines.push(
+			`  • Table: ${arscEntry ? `Present (${arscEntry.name}, ${arscEntry.uncompressedSize} bytes)` : "None"}`,
+		);
+		lines.push(
+			`  • Files: ${resTotal} in res/ (${layoutsCount} layouts, ${drawablesCount} drawables), ${assetsCount} in assets/`,
+		);
 
 		lines.push(`Signing Schemes Detected:`);
-		lines.push(`  • v1 (JAR signing): ${v1Files.length > 0 ? `Yes (${v1Files.length} files: ${v1Files.join(", ")})` : "No"}`);
+		lines.push(
+			`  • v1 (JAR signing): ${v1Files.length > 0 ? `Yes (${v1Files.length} files: ${v1Files.join(", ")})` : "No"}`,
+		);
 		lines.push(`  • APK Signing Block: ${signingBlock.present ? `Yes (size: ${signingBlock.size} bytes)` : "No"}`);
 		if (signingBlock.present) {
 			lines.push(`    - Scheme v2: ${signingBlock.v2Scheme ? "Yes" : "No"}`);
 			lines.push(`    - Scheme v3: ${signingBlock.v3Scheme ? "Yes" : "No"}`);
 			lines.push(`    - v2 Scheme: ${signingBlock.v2Scheme ? "Yes" : "No"}`);
 			lines.push(`    - v3 Scheme: ${signingBlock.v3Scheme ? "Yes" : "No"}`);
-			lines.push(`    - Scheme v2 (APK Signature Scheme v2): ${signingBlock.v2Scheme ? "Present (0x7109871a)" : "No"}`);
-			lines.push(`    - Scheme v3 (APK Signature Scheme v3): ${signingBlock.v3Scheme ? "Present (0xf05368c0)" : "No"}`);
+			lines.push(
+				`    - Scheme v2 (APK Signature Scheme v2): ${signingBlock.v2Scheme ? "Present (0x7109871a)" : "No"}`,
+			);
+			lines.push(
+				`    - Scheme v3 (APK Signature Scheme v3): ${signingBlock.v3Scheme ? "Present (0xf05368c0)" : "No"}`,
+			);
 			lines.push(`    - v3.1 Scheme: ${signingBlock.v31Scheme ? "Yes" : "No"}`);
 			lines.push(`    - SourceStamp: ${signingBlock.sourceStamp ? "Yes" : "No"}`);
 		}
@@ -1547,7 +1626,7 @@ export class AndroidPackageInspectTool
 		zip: ZipParser | null,
 		params: AndroidPackageInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<AndroidPackageInspectDetails>> {
+	): Promise<AgentToolResult<AndroidPackageInspectDetails> & { details: AndroidPackageInspectDetails }> {
 		if (format === "DEX" || !zip) {
 			const text = `[Unsupported] Manifest inspection is not applicable to bare Dalvik executable (.dex) files. Target is a raw DEX binary without an Android package container.`;
 			return {
@@ -1713,7 +1792,7 @@ export class AndroidPackageInspectTool
 		fileBuffer: Buffer,
 		zip: ZipParser | null,
 		params: AndroidPackageInspectParams,
-	): AgentToolResult<AndroidPackageInspectDetails> {
+	): AgentToolResult<AndroidPackageInspectDetails> & { details: AndroidPackageInspectDetails } {
 		if (format === "DEX" || !zip) {
 			const parsed = parseDexBuffer(fileBuffer);
 			if (!parsed) {
@@ -1865,7 +1944,9 @@ export class AndroidPackageInspectTool
 
 		lines.push(`Selected DEX (${targetDexEntry.name}):`);
 		lines.push(`  • Version: dex v${parsedTarget.header.version} | Endian: ${parsedTarget.header.endian}`);
-		lines.push(`  • Header Metrics: ${parsedTarget.header.classDefsCount} classes, ${parsedTarget.header.methodIdsCount} methods, ${parsedTarget.header.fieldIdsCount} fields`);
+		lines.push(
+			`  • Header Metrics: ${parsedTarget.header.classDefsCount} classes, ${parsedTarget.header.methodIdsCount} methods, ${parsedTarget.header.fieldIdsCount} fields`,
+		);
 		lines.push(
 			`Classes (${paged.length} shown of ${allClasses.length} matching, total ${parsedTarget.header.classDefsCount}, offset ${offset}):`,
 		);
@@ -1909,7 +1990,7 @@ export class AndroidPackageInspectTool
 		zip: ZipParser | null,
 		params: AndroidPackageInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<AndroidPackageInspectDetails>> {
+	): Promise<AgentToolResult<AndroidPackageInspectDetails> & { details: AndroidPackageInspectDetails }> {
 		if (format === "DEX" || !zip) {
 			const text = `[Unsupported] Signing inspection is not applicable to bare Dalvik executable (.dex) files. Bare DEX files do not possess an APK signature block or META-INF certificate manifest.`;
 			return {
@@ -2004,12 +2085,18 @@ export class AndroidPackageInspectTool
 		];
 
 		if (signingBlock.present) {
-			lines.push(`    - Scheme v2 (APK Signature Scheme v2): ${signingBlock.v2Scheme ? "Present (0x7109871a)" : "No"}`);
-			lines.push(`    - Scheme v3 (APK Signature Scheme v3): ${signingBlock.v3Scheme ? "Present (0xf05368c0)" : "No"}`);
+			lines.push(
+				`    - Scheme v2 (APK Signature Scheme v2): ${signingBlock.v2Scheme ? "Present (0x7109871a)" : "No"}`,
+			);
+			lines.push(
+				`    - Scheme v3 (APK Signature Scheme v3): ${signingBlock.v3Scheme ? "Present (0xf05368c0)" : "No"}`,
+			);
 			lines.push(`    - Scheme v3.1: ${signingBlock.v31Scheme ? "Present (0x1b93ad61)" : "No"}`);
 			lines.push(`    - SourceStamp: ${signingBlock.sourceStamp ? "Present (0x42726577)" : "No"}`);
 			if (signingBlock.blockIds && signingBlock.blockIds.length > 0) {
-				lines.push(`    - Recognized Block IDs: ${signingBlock.blockIds.map(b => `${b.id} (${b.name})`).join(", ")}`);
+				lines.push(
+					`    - Recognized Block IDs: ${signingBlock.blockIds.map(b => `${b.id} (${b.name})`).join(", ")}`,
+				);
 			}
 		}
 
@@ -2053,7 +2140,7 @@ export class AndroidPackageInspectTool
 		zip: ZipParser | null,
 		params: AndroidPackageInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<AndroidPackageInspectDetails>> {
+	): Promise<AgentToolResult<AndroidPackageInspectDetails> & { details: AndroidPackageInspectDetails }> {
 		if (format === "DEX" || !zip) {
 			const text = `[Unsupported] Resource inspection is not applicable to bare Dalvik executable (.dex) files. Raw DEX binaries do not contain an Android resource table (resources.arsc) or packaged res/ layout trees.`;
 			return {
@@ -2165,15 +2252,27 @@ export class AndroidPackageInspectTool
 		];
 
 		if (arscInfo.present && arscInfo.packageCount !== undefined) {
-			lines.push(`  • Packages in ARSC: ${arscInfo.packageCount}${arscInfo.packageName ? ` (primary: ${arscInfo.packageName})` : ""}`);
+			lines.push(
+				`  • Packages in ARSC: ${arscInfo.packageCount}${arscInfo.packageName ? ` (primary: ${arscInfo.packageName})` : ""}`,
+			);
 		}
 
 		lines.push(`Resource Breakdown (${breakdown.totalFiles} files total):`);
-		lines.push(`  • Layouts: ${breakdown.layouts.count} files (e.g. ${breakdown.layouts.samples.slice(0, 3).join(", ") || "none"})`);
-		lines.push(`  • Drawables/Mipmaps: ${breakdown.drawables.count} files (e.g. ${breakdown.drawables.samples.slice(0, 3).join(", ") || "none"})`);
-		lines.push(`  • XML Configurations: ${breakdown.xml.count} files (e.g. ${breakdown.xml.samples.slice(0, 3).join(", ") || "none"})`);
-		lines.push(`  • Raw Resources: ${breakdown.raw.count} files (e.g. ${breakdown.raw.samples.slice(0, 3).join(", ") || "none"})`);
-		lines.push(`  • Assets: ${breakdown.assets.count} files (e.g. ${breakdown.assets.samples.slice(0, 3).join(", ") || "none"})`);
+		lines.push(
+			`  • Layouts: ${breakdown.layouts.count} files (e.g. ${breakdown.layouts.samples.slice(0, 3).join(", ") || "none"})`,
+		);
+		lines.push(
+			`  • Drawables/Mipmaps: ${breakdown.drawables.count} files (e.g. ${breakdown.drawables.samples.slice(0, 3).join(", ") || "none"})`,
+		);
+		lines.push(
+			`  • XML Configurations: ${breakdown.xml.count} files (e.g. ${breakdown.xml.samples.slice(0, 3).join(", ") || "none"})`,
+		);
+		lines.push(
+			`  • Raw Resources: ${breakdown.raw.count} files (e.g. ${breakdown.raw.samples.slice(0, 3).join(", ") || "none"})`,
+		);
+		lines.push(
+			`  • Assets: ${breakdown.assets.count} files (e.g. ${breakdown.assets.samples.slice(0, 3).join(", ") || "none"})`,
+		);
 
 		if (filterLower) {
 			lines.push(`Filtered Results for "${params.filter}" (${matchingFiles.length} matches):`);

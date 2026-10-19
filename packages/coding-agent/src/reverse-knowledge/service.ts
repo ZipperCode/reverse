@@ -4,7 +4,7 @@ import { isDynamicLocator, parseDynamicLocator } from "../reverse-runtime-sessio
 import type { ReverseWorkflowStore } from "../reverse-workflow/store";
 import type { ReverseKnowledgeStore } from "./store";
 import type { ToolSession } from "../tools/index";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import {
 	type ReverseKnowledgeRecord,
 	type RetainKnowledgeInput,
@@ -27,14 +27,18 @@ function extractToolName(command: string): string | undefined {
 	if (trimmed.includes("ghidra")) return "ghidra_inspect";
 	if (trimmed.includes("frida")) return "frida";
 	if (trimmed.includes("sourcemap") || trimmed.includes("source-map")) return "sourcemap_inspect";
-	if (trimmed.includes("jadx") || trimmed.includes("apktool") || trimmed.includes("dex")) return "android_package_inspect";
-	if (trimmed.includes("tshark") || trimmed.includes("tcpdump") || trimmed.includes("wireshark")) return "pcap_inspect";
+	if (trimmed.includes("jadx") || trimmed.includes("apktool") || trimmed.includes("dex"))
+		return "android_package_inspect";
+	if (trimmed.includes("tshark") || trimmed.includes("tcpdump") || trimmed.includes("wireshark"))
+		return "pcap_inspect";
 	if (trimmed.includes("sqlite")) return "sqlite_inspect";
 	if (trimmed.includes("binwalk")) return "firmware_inspect";
 	if (trimmed.includes("vbindiff") || trimmed.includes("bindiff")) return "binary_diff";
 	if (trimmed.includes("debug") || trimmed.includes("gdb") || trimmed.includes("lldb")) return "debug";
-	if (trimmed.includes("browser") || trimmed.includes("playwright") || trimmed.includes("cdp")) return "browser_reverse_session";
-	if (trimmed.includes("dynamic_evidence") || trimmed.includes("reverse_dynamic_evidence")) return "reverse_dynamic_evidence";
+	if (trimmed.includes("browser") || trimmed.includes("playwright") || trimmed.includes("cdp"))
+		return "browser_reverse_session";
+	if (trimmed.includes("dynamic_evidence") || trimmed.includes("reverse_dynamic_evidence"))
+		return "reverse_dynamic_evidence";
 	if (trimmed.includes("unidbg")) return "unidbg";
 	if (trimmed.includes("android_native_workflow")) return "android_native_workflow";
 	const firstWord = trimmed.split(/\s+/)[0];
@@ -218,7 +222,9 @@ export async function learnFromEvidenceAndWorkflows(
 					ev.result?.toLowerCase().includes("dynamic");
 
 				if (isDynamicContext) {
-					const allFacts = await evidenceStore.listRecords({ kind: "fact", limit: 100 }).catch(() => ({ items: [] }));
+					const allFacts = await evidenceStore
+						.listRecords({ kind: "fact", limit: 100 })
+						.catch(() => ({ items: [] }));
 					for (const r of allFacts.items) {
 						if (r.kind === "fact" && isDynamicLocator(r.locator)) {
 							const parsed = parseDynamicLocator(r.locator);
@@ -248,7 +254,12 @@ export async function learnFromEvidenceAndWorkflows(
 
 			let pattern: string | undefined;
 			const lowerText = `${ev.conclusion} ${ev.result} ${ev.method}`.toLowerCase();
-			if (lowerText.includes("aes") || lowerText.includes("crypto") || lowerText.includes("decrypt") || lowerText.includes("encrypt")) {
+			if (
+				lowerText.includes("aes") ||
+				lowerText.includes("crypto") ||
+				lowerText.includes("decrypt") ||
+				lowerText.includes("encrypt")
+			) {
 				pattern = "dynamic_crypto_verification";
 			} else if (lowerText.includes("jni") || lowerText.includes("registernatives")) {
 				pattern = "dynamic_jni_resolution";
@@ -304,7 +315,7 @@ export async function learnFromEvidenceAndWorkflows(
 
 	// 2. Learn from ReverseWorkflowStore
 	const workflows = options.workflow_id
-		? [(await workflowStore.get(options.workflow_id))].filter((w): w is NonNullable<typeof w> => Boolean(w))
+		? [await workflowStore.get(options.workflow_id)].filter((w): w is NonNullable<typeof w> => Boolean(w))
 		: await workflowStore.list();
 
 	for (const wf of workflows) {
@@ -335,18 +346,22 @@ export async function learnFromEvidenceAndWorkflows(
 
 				const resumeInfo = step.recovery_metadata?.resume;
 				const isResume = audit.action === "resume" || Boolean(resumeInfo);
-				const title = isResume && resumeInfo
-					? `Recovery Pattern: ${audit.category} on ${audit.previous_tool} -> Resumed via ${resumeInfo.installed_tool} (${resumeInfo.strategy})`
-					: `Recovery Pattern: ${audit.category} on ${audit.previous_tool} -> ${audit.proposed_tool}`;
-				const summary = isResume && resumeInfo
-					? `Failure category: ${audit.category}. Cause: ${audit.cause}. Decision: ${audit.decision}. Resumed after installing '${resumeInfo.installed_tool}' (capability: ${resumeInfo.capability_id || "none"}, strategy: ${resumeInfo.strategy}).`
-					: `Failure category: ${audit.category}. Cause: ${audit.cause}. Decision: ${audit.decision}. Fallback from ${audit.previous_tool} to ${audit.proposed_tool} succeeded.`;
-				const pattern = isResume && resumeInfo
-					? `category:${audit.category};previous_tool:${audit.previous_tool};installed_tool:${resumeInfo.installed_tool};strategy:${resumeInfo.strategy}`
-					: `category:${audit.category};previous_tool:${audit.previous_tool};fallback_tool:${audit.proposed_tool}`;
-				const guidance = isResume && resumeInfo
-					? `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), install '${resumeInfo.installed_tool}' via '${resumeInfo.setup_command || `reverse setup reverse ${resumeInfo.installed_tool}`}' and resume (${resumeInfo.strategy}).`
-					: `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), fallback to '${audit.proposed_tool}' with params: ${proposedParamsStr}`;
+				const title =
+					isResume && resumeInfo
+						? `Recovery Pattern: ${audit.category} on ${audit.previous_tool} -> Resumed via ${resumeInfo.installed_tool} (${resumeInfo.strategy})`
+						: `Recovery Pattern: ${audit.category} on ${audit.previous_tool} -> ${audit.proposed_tool}`;
+				const summary =
+					isResume && resumeInfo
+						? `Failure category: ${audit.category}. Cause: ${audit.cause}. Decision: ${audit.decision}. Resumed after installing '${resumeInfo.installed_tool}' (capability: ${resumeInfo.capability_id || "none"}, strategy: ${resumeInfo.strategy}).`
+						: `Failure category: ${audit.category}. Cause: ${audit.cause}. Decision: ${audit.decision}. Fallback from ${audit.previous_tool} to ${audit.proposed_tool} succeeded.`;
+				const pattern =
+					isResume && resumeInfo
+						? `category:${audit.category};previous_tool:${audit.previous_tool};installed_tool:${resumeInfo.installed_tool};strategy:${resumeInfo.strategy}`
+						: `category:${audit.category};previous_tool:${audit.previous_tool};fallback_tool:${audit.proposed_tool}`;
+				const guidance =
+					isResume && resumeInfo
+						? `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), install '${resumeInfo.installed_tool}' via '${resumeInfo.setup_command || `reverse setup reverse ${resumeInfo.installed_tool}`}' and resume (${resumeInfo.strategy}).`
+						: `When tool '${audit.previous_tool}' encounters ${audit.category} (${audit.cause}), fallback to '${audit.proposed_tool}' with params: ${proposedParamsStr}`;
 
 				const record: ReverseKnowledgeRecord = {
 					id: createKnowledgeId(),
@@ -391,10 +406,7 @@ export async function applyKnowledge(
 	knowledgeStore: ReverseKnowledgeStore,
 	input: ApplyKnowledgeInput,
 ): Promise<ApplyKnowledgeResult> {
-	const limit = Math.min(
-		Math.max(input.limit ?? DEFAULT_KNOWLEDGE_SEARCH_LIMIT, 1),
-		MAX_KNOWLEDGE_SEARCH_LIMIT,
-	);
+	const limit = Math.min(Math.max(input.limit ?? DEFAULT_KNOWLEDGE_SEARCH_LIMIT, 1), MAX_KNOWLEDGE_SEARCH_LIMIT);
 
 	const queryParts = [input.goal, input.error, input.tool].filter(Boolean).join(" ");
 	const normalizedFormat = normalizeTargetFormat(input.format);

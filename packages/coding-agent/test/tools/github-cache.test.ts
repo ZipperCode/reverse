@@ -9,18 +9,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { getOrFetchIssue, getOrFetchPr } from "@rva/coding-agent/tools/gh";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { getOrFetchIssue, getOrFetchPr } from "@reverse/coding-agent/tools/gh";
 import {
 	getCached,
 	getOrFetchView,
 	openDb,
 	putCached,
 	resetForTests as resetCacheForTests,
-} from "@rva/coding-agent/tools/github-cache";
-import { ToolAbortError, throwIfAborted } from "@rva/coding-agent/tools/tool-errors";
-import { github } from "@rva/coding-agent/utils/github";
-import { removeWithRetries } from "@rva/utils";
+} from "@reverse/coding-agent/tools/github-cache";
+import { ToolAbortError, throwIfAborted } from "@reverse/coding-agent/tools/tool-errors";
+import { github } from "@reverse/coding-agent/utils/github";
+import { removeWithRetries } from "@reverse/utils";
 
 const TEST_REPO = "owner/example";
 const TEST_AUTH_KEY = "test-auth";

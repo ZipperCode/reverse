@@ -1,5 +1,4 @@
 import type { TargetFormat } from "../reverse-workflow/contracts";
-import { normalizeTargetFormat } from "../reverse-workflow/contracts";
 
 export const KNOWLEDGE_KINDS = ["verified_conclusion", "recovery_pattern"] as const;
 export type KnowledgeKind = (typeof KNOWLEDGE_KINDS)[number];

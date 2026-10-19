@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { repairDoubleEncodedJsonString, repairTaskParams } from "@rva/tui/tools/task-repair-args";
-import type { TaskParams } from "@rva/tui/tools/task";
+import { repairDoubleEncodedJsonString, repairTaskParams } from "@reverse/tui/tools/task-repair-args";
+import type { TaskParams } from "@reverse/tui/tools/task";
 
 describe("repairDoubleEncodedJsonString", () => {
 	it("decodes a uniformly double-encoded prose value", () => {

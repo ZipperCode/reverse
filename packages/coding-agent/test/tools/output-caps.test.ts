@@ -6,7 +6,7 @@
  * bounded-output paths (bash sink/minimizer) see zero behavior change.
  */
 import { describe, expect, it } from "bun:test";
-import { DEFAULT_MAX_BYTES, enforceInlineByteCap } from "@rva/tui/tools/streaming-output";
+import { DEFAULT_MAX_BYTES, enforceInlineByteCap } from "@reverse/tui/tools/streaming-output";
 
 const MARKER_PATTERN = /\[…\d+B elided…\]/;
 

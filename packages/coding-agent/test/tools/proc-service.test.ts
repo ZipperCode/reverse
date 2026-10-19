@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { procmgr, setProcessName, TempDir } from "@rva/utils";
-import type { AgentToolContext } from "@rva/agent";
+import { procmgr, setProcessName, TempDir } from "@reverse/utils";
+import type { AgentToolContext } from "@reverse/agent";
 import { Settings } from "../../src/config/settings";
 import { AsyncJobManager } from "../../src/async/job-manager";
 import { ProcProtocolHandler } from "../../src/internal-urls/proc-protocol";
@@ -23,7 +23,7 @@ import { BashTool } from "../../src/tools/bash";
 import { WriteTool } from "../../src/tools/write";
 import { sharedBrowserDaemonName } from "../../src/tools/browser/shared-daemon";
 import type { ToolSession } from "../../src/tools";
-import type { DaemonSnapshot } from "@rva/tui/tools/daemon";
+import type { DaemonSnapshot } from "@reverse/tui/tools/daemon";
 
 function startBroker(projectDir: string, runtimeDir: string): Promise<void> {
 	const previous = [

@@ -128,7 +128,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, isFsError, logger } from "@rva/utils";
+import { isEnoent, isFsError, logger } from "@reverse/utils";
 import type { BunFile } from "bun";
 import type { ExtensionContext } from "../extensibility/extensions/types";
 import { resolveSyscallTarget } from "./path-utils";

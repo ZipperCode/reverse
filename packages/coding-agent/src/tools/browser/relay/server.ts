@@ -13,7 +13,7 @@
  * Binds loopback only: anything that can reach this port can drive the
  * user's logged-in browser.
  */
-import { VERSION } from "@rva/utils/dirs";
+import { VERSION } from "@reverse/utils/dirs";
 import { RelayBridge } from "./bridge";
 
 /** Options for {@link startRelayServer}. */

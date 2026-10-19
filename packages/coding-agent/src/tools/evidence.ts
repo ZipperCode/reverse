@@ -1,7 +1,7 @@
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { getProjectDir, prompt } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { getProjectDir, prompt } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 import type { ToolSession } from "./index";
 import evidenceDescription from "../prompts/tools/evidence.md" with { type: "text" };

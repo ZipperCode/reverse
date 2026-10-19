@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createTools, type ToolSession } from "@rva/coding-agent/tools";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createTools, type ToolSession } from "@reverse/coding-agent/tools";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 
@@ -96,13 +96,12 @@ describe("createTools", () => {
 
 	it("still exposes eval when python kernel is unavailable (dispatches to js)", async () => {
 		const session = createTestSession();
-		vi.spyOn(
-			await import("@rva/coding-agent/eval/py/kernel"),
-			"checkPythonKernelAvailability",
-		).mockResolvedValue({
-			ok: false,
-			reason: "missing python",
-		});
+		vi.spyOn(await import("@reverse/coding-agent/eval/py/kernel"), "checkPythonKernelAvailability").mockResolvedValue(
+			{
+				ok: false,
+				reason: "missing python",
+			},
+		);
 		const tools = await createTools(session, ["eval"]);
 		const names = tools.map(t => t.name);
 

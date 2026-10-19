@@ -9,8 +9,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isRecord, logger, Snowflake, untilAborted } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { isRecord, logger, Snowflake, untilAborted } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { JsRuntime } from "../../../eval/js/shared/runtime";
 import { formatScreenshot, resizeImage } from "../../../utils/image-resize";
 import { resolveToCwd } from "../../path-utils";

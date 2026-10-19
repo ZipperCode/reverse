@@ -1,5 +1,5 @@
 import { parentPort } from "node:worker_threads";
-import { consumeWorkerInbox } from "@rva/utils/worker-host";
+import { consumeWorkerInbox } from "@reverse/utils/worker-host";
 import type { Transport, WorkerInbound, WorkerOutbound } from "./tab-protocol";
 import { WorkerCore } from "./tab-worker";
 

@@ -1,21 +1,21 @@
-import { agentTranscriptSource } from "@rva/coding-agent/modes/agent-hub-runtime";
+import { agentTranscriptSource } from "@reverse/coding-agent/modes/agent-hub-runtime";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@rva/agent";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { getEditStore } from "@rva/coding-agent/edit/store";
-import { AgentTranscriptViewer } from "@rva/tui/overlays/agent-transcript-viewer";
-import { TreeSelectorComponent } from "@rva/tui/overlays/tree-selector";
-import type { ObservableSession, SessionObserverRegistry } from "@rva/tui/overlays/session-observer-registry";
-import { initTheme } from "@rva/tui/theme";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import type { SessionEntry, SessionTreeNode } from "@rva/coding-agent/session/session-entries";
-import { ToolChoiceQueue } from "@rva/coding-agent/session/tool-choice-queue";
-import { createTools, type ToolSession } from "@rva/coding-agent/tools";
-import { removeWithRetries } from "@rva/utils";
+import type { AgentMessage } from "@reverse/agent";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { getEditStore } from "@reverse/coding-agent/edit/store";
+import { AgentTranscriptViewer } from "@reverse/tui/overlays/agent-transcript-viewer";
+import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
+import type { ObservableSession, SessionObserverRegistry } from "@reverse/tui/overlays/session-observer-registry";
+import { initTheme } from "@reverse/tui/theme";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import type { SessionEntry, SessionTreeNode } from "@reverse/coding-agent/session/session-entries";
+import { ToolChoiceQueue } from "@reverse/coding-agent/session/tool-choice-queue";
+import { createTools, type ToolSession } from "@reverse/coding-agent/tools";
+import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {

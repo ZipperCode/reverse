@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter } from "@rva/coding-agent/internal-urls/router";
-import { InternalUrlFilesystem } from "@rva/coding-agent/internal-urls/url-filesystem";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { GlobTool } from "@rva/coding-agent/tools/glob";
-import { resolveToolSearchScope } from "@rva/coding-agent/tools/path-utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls/router";
+import { InternalUrlFilesystem } from "@reverse/coding-agent/internal-urls/url-filesystem";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { GlobTool } from "@reverse/coding-agent/tools/glob";
+import { resolveToolSearchScope } from "@reverse/coding-agent/tools/path-utils";
 
 // Minimal ToolSession stub (ssh-url-approval.test.ts shape). The ssh:// guard
 // fires before any session/SSH access, so no real cwd/fs is needed.

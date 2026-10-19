@@ -1,9 +1,9 @@
 import type { BodyInit } from "bun";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { FetchImpl } from "@rva/ai/types";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import { AuthStorage } from "@rva/coding-agent/session/auth-storage";
+import type { FetchImpl } from "@reverse/ai/types";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import {
 	buildExaRequestBody,
 	ExaProvider,
@@ -11,8 +11,8 @@ import {
 	resetExaSearchThrottleForTest,
 	searchExa,
 	synthesizeAnswer,
-} from "@rva/coding-agent/web/search/providers/exa";
-import { isRecord } from "@rva/utils";
+} from "@reverse/coding-agent/web/search/providers/exa";
+import { isRecord } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 type PostedMcpRequest = Record<string, unknown> & { id: string | number };

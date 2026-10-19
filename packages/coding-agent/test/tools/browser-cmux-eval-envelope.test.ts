@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { serializeEvalWithEnvelope, unwrapEvalEnvelope } from "@rva/coding-agent/tools/browser/cmux/rpc";
+import { serializeEvalWithEnvelope, unwrapEvalEnvelope } from "@reverse/coding-agent/tools/browser/cmux/rpc";
 
 /**
  * Executes the envelope script the way the cmux daemon would (global-scope

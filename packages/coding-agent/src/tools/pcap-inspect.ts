@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import type { Stats } from "node:fs";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes, prompt } from "@rva/utils";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes, prompt } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
@@ -35,9 +35,7 @@ const pcapInspectSchema = type({
 	"packet_number?": type("number.integer >= 1").describe(
 		"1-based packet index for detailed header and payload inspection",
 	),
-	"limit?": type("number.integer >= 1").describe(
-		"Maximum packet or item summaries to return (default 50, max 500)",
-	),
+	"limit?": type("number.integer >= 1").describe("Maximum packet or item summaries to return (default 50, max 500)"),
 	"offset?": type("number.integer >= 0").describe("Pagination offset (default 0)"),
 	"max_bytes?": type("number.integer >= 1").describe(
 		"Maximum capture file size in bytes to read (default 50MB, max 200MB)",
@@ -351,7 +349,7 @@ function decodeDnsName(buf: Buffer, offset: number): [string, number] {
 		labels.push(buf.toString("utf8", curr, curr + len));
 		curr += len;
 	}
-	return [labels.join("."), nextOffset >= 0 ? nextOffset : (curr < buf.length && buf[curr] === 0 ? curr + 1 : curr)];
+	return [labels.join("."), nextOffset >= 0 ? nextOffset : curr < buf.length && buf[curr] === 0 ? curr + 1 : curr];
 }
 
 const DNS_TYPE_NAMES: Record<number, string> = {
@@ -547,7 +545,7 @@ export function dissectPacketData(
 		}
 	} else {
 		// Fallback: check if starts like IPv4
-		if (data.length >= 20 && (data[0] >> 4) === 4) {
+		if (data.length >= 20 && data[0] >> 4 === 4) {
 			etherType = 0x0800;
 			payloadOffset = 0;
 		}
@@ -695,7 +693,9 @@ export function dissectPacketData(
 
 		// 3. HTTP check
 		const textHeader = appData.subarray(0, Math.min(appData.length, 512)).toString("utf8");
-		const httpReqMatch = textHeader.match(/^(GET|POST|HEAD|PUT|DELETE|OPTIONS|PATCH|CONNECT)\s+([^\s]+)\s+HTTP\/1\.[01]/);
+		const httpReqMatch = textHeader.match(
+			/^(GET|POST|HEAD|PUT|DELETE|OPTIONS|PATCH|CONNECT)\s+([^\s]+)\s+HTTP\/1\.[01]/,
+		);
 		if (httpReqMatch) {
 			decoded.applicationProtocol = "HTTP";
 			decoded.httpMethod = httpReqMatch[1];
@@ -748,12 +748,7 @@ export function parsePcapBuffer(fileBuffer: Buffer): {
 	const magic = fileBuffer.readUInt32LE(0);
 
 	// 1. Classic PCAP
-	if (
-		magic === 0xa1b2c3d4 ||
-		magic === 0xd4c3b2a1 ||
-		magic === 0xa1b23c4d ||
-		magic === 0x4d3c2ba1
-	) {
+	if (magic === 0xa1b2c3d4 || magic === 0xd4c3b2a1 || magic === 0xa1b23c4d || magic === 0x4d3c2ba1) {
 		const isLE = magic === 0xa1b2c3d4 || magic === 0xa1b23c4d;
 		const isNano = magic === 0xa1b23c4d || magic === 0x4d3c2ba1;
 		const vMajor = readUInt16(fileBuffer, 4, isLE);
@@ -955,7 +950,11 @@ export class PcapInspectTool implements AgentTool<typeof pcapInspectSchema, Pcap
 		this.description = prompt.render(pcapInspectDescription);
 	}
 
-	async execute(_toolCallId: string, params: PcapInspectParams, signal?: AbortSignal): Promise<AgentToolResult<PcapInspectDetails>> {
+	async execute(
+		_toolCallId: string,
+		params: PcapInspectParams,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<PcapInspectDetails> & { details: PcapInspectDetails }> {
 		throwIfAborted(signal);
 
 		const resolvedPath = resolveReadPath(params.path, this.session.cwd);
@@ -1098,9 +1097,7 @@ export class PcapInspectTool implements AgentTool<typeof pcapInspectSchema, Pcap
 				...Object.entries(protocolCounts).map(([proto, count]) => `${proto}: ${count} packets`),
 				"",
 				"## Top IP Endpoints",
-				...topEndpoints.map(
-					ep => `- \`${ep.ip}\`: ${ep.packets} packets (${formatBytes(ep.bytes)})`,
-				),
+				...topEndpoints.map(ep => `- \`${ep.ip}\`: ${ep.packets} packets (${formatBytes(ep.bytes)})`),
 			].filter(Boolean);
 
 			if (parsed.interfaces.length > 0) {

@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage, FetchImpl } from "@rva/ai";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
-import { searchTinyFish } from "@rva/coding-agent/web/search/providers/tinyfish";
-import { SearchProviderError } from "@rva/coding-agent/web/search/types";
+import type { AuthStorage, FetchImpl } from "@reverse/ai";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
+import { searchTinyFish } from "@reverse/coding-agent/web/search/providers/tinyfish";
+import { SearchProviderError } from "@reverse/coding-agent/web/search/types";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const TEST_KEY = "test-tinyfish-key";

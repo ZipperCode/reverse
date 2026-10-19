@@ -1,15 +1,15 @@
 import { describe, expect, test, vi } from "bun:test";
-import { AuthStorage } from "@rva/ai";
-import { getBundledModel } from "@rva/catalog/models";
-import { ModelRegistry } from "@rva/coding-agent/config/model-registry";
+import { AuthStorage } from "@reverse/ai";
+import { getBundledModel } from "@reverse/catalog/models";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { Settings } from "../../src/config/settings";
 import { createAgentSession } from "../../src/sdk";
 import { SessionManager } from "../../src/session/session-manager";
 import { createTools, type ToolSession } from "../../src/tools";
-import { TempDir } from "@rva/utils";
+import { TempDir } from "@reverse/utils";
 
-import { cfgAstGrepEnabled, cfgToolsXdev } from "@rva/coding-agent/tools/settings";
-import { cfgCompactionExperimentalContextManagement } from "@rva/coding-agent/session/context-settings";
+import { cfgAstGrepEnabled, cfgToolsXdev } from "@reverse/coding-agent/tools/settings";
+import { cfgCompactionExperimentalContextManagement } from "@reverse/coding-agent/session/context-settings";
 
 function createSession(enabled: boolean, restricted = false): ToolSession {
 	const settings = Settings.isolated();

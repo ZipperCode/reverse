@@ -1,7 +1,7 @@
-import type { AgentOptions, AgentTelemetryConfig, AgentTool, AgentToolContext } from "@rva/agent";
-import type { EditStore } from "@rva/natives";
-import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } from "@rva/ai";
-import { logger } from "@rva/utils";
+import type { AgentOptions, AgentTelemetryConfig, AgentTool, AgentToolContext } from "@reverse/agent";
+import type { EditStore } from "@reverse/natives";
+import type { FetchImpl, ImageContent, Model, ServiceTierByFamily, ToolChoice } from "@reverse/ai";
+import { logger } from "@reverse/utils";
 import type { AsyncJobManager } from "../async/job-manager";
 import type { Rule } from "../capability/rule";
 import type { EffectiveExtensionRoots } from "../capability/types";
@@ -38,7 +38,7 @@ import type { ToolChoiceQueue } from "../session/tool-choice-queue";
 import { TaskTool } from "../task";
 import type { AgentOutputManager } from "../task/output-manager";
 import { type AgentDefinition, canSpawnAtDepth } from "../task/types";
-import { type StructuredSubagentSchemaMode } from "@rva/tui/tools/task";
+import { type StructuredSubagentSchemaMode } from "@reverse/tui/tools/task";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { EventBus } from "../utils/event-bus";
 import { WebSearchTool } from "../web/search";
@@ -71,7 +71,7 @@ import { ReadTool } from "./read";
 import type { PlanProposalHandler } from "./resolve";
 import { SecurityScanTool } from "./security-scan";
 import { supportsExternalThinking, ThinkTool } from "./think";
-import { type TodoPhase } from "@rva/tui/tools/todo";
+import { type TodoPhase } from "@reverse/tui/tools/todo";
 import { TodoTool } from "./todo";
 import { WriteTool } from "./write";
 import { WaitTool } from "./wait";
@@ -138,14 +138,14 @@ import { cfgTaskMaxRecursionDepth } from "../task/settings";
 export * from "../edit";
 export * from "../goals";
 export * from "../lsp";
-export * from "@rva/tui/tools/streaming-output";
+export * from "@reverse/tui/tools/streaming-output";
 export * from "../task";
 export * from "../web/search";
 export * from "./ask";
 export * from "./ast-edit";
 export * from "./ast-grep";
 export * from "./bash";
-export type { BashToolDetails, BashRenderArgs, BashRenderContext, ShellRendererConfig } from "@rva/tui/tools/bash";
+export type { BashToolDetails, BashRenderArgs, BashRenderContext, ShellRendererConfig } from "@reverse/tui/tools/bash";
 export * from "./browser";
 export * from "./checkpoint";
 export * from "./computer";
@@ -162,7 +162,7 @@ export * from "./gh";
 export * from "./glob";
 export * from "./grep";
 export * from "./jfind";
-export type { AgentActivitySnapshot, CoordinationDetails, JobSnapshot } from "@rva/tui/tools/wait";
+export type { AgentActivitySnapshot, CoordinationDetails, JobSnapshot } from "@reverse/tui/tools/wait";
 export * from "./image-gen";
 export * from "./learn";
 export * from "./manage-skill";
@@ -172,7 +172,12 @@ export * from "./memory-reflect";
 export * from "./memory-retain";
 export * from "./read";
 export * from "./resolve";
-export type { FindingPriority, FindingPriorityInfo, FindingDetails, SubmitReviewDetails } from "@rva/tui/tools/task";
+export type {
+	FindingPriority,
+	FindingPriorityInfo,
+	FindingDetails,
+	SubmitReviewDetails,
+} from "@reverse/tui/tools/task";
 export * from "./security-scan";
 export * from "./think";
 export * from "./todo";
@@ -210,7 +215,7 @@ export * from "./reverse-knowledge";
 export * from "./reverse-dynamic-evidence";
 export * from "./reverse-workspace";
 export * from "./reverse-capability";
-export type { VibeToolDetails } from "@rva/tui/tools/vibe";
+export type { VibeToolDetails } from "@reverse/tui/tools/vibe";
 export * from "./write";
 export * from "./xdev";
 export * from "./yield";
@@ -1022,11 +1027,11 @@ export async function createTools(session: ToolSession, toolNames?: string[]): P
 	return tools;
 }
 
-export type { AskToolDetails, QuestionResult } from "@rva/tui/tools/ask";
+export type { AskToolDetails, QuestionResult } from "@reverse/tui/tools/ask";
 // Issue #12680: extensions that shadow the built-in ask tool reach the native
 // renderer through the injected pi.pi namespace (the root barrel of this
 // package). Re-export it so the pi-tui renderer migration doesn't drop it.
-export { askToolRenderer } from "@rva/tui/tools/ask";
+export { askToolRenderer } from "@reverse/tui/tools/ask";
 export { AndroidNativeWorkflowTool } from "./android-native-workflow";
 export type {
 	TodoStatus,
@@ -1036,9 +1041,9 @@ export type {
 	TodoCompletionTransition,
 	TodoToolDetails,
 	CollapsedTodoSelection,
-} from "@rva/tui/tools/todo";
-export type { ThinkRenderArgs } from "@rva/tui/tools/think";
-export type { ResolutionDeviceName, ResolveDetails } from "@rva/tui/tools/resolve";
+} from "@reverse/tui/tools/todo";
+export type { ThinkRenderArgs } from "@reverse/tui/tools/think";
+export type { ResolutionDeviceName, ResolveDetails } from "@reverse/tui/tools/resolve";
 export type {
 	GhToolDetails,
 	GhPrCheckoutSummary,
@@ -1046,4 +1051,4 @@ export type {
 	GhRunWatchRunDetails,
 	GhRunWatchFailedLogDetails,
 	GhRunWatchViewDetails,
-} from "@rva/tui/tools/github";
+} from "@reverse/tui/tools/github";

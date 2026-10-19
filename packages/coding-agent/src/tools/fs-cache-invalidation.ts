@@ -1,4 +1,4 @@
-import { invalidateFsScanCache } from "@rva/natives";
+import { invalidateFsScanCache } from "@reverse/natives";
 
 /**
  * Invalidate shared filesystem scan caches after a content write/update.

@@ -18,32 +18,22 @@
  * License boundary: Clean-room implementation in pure TypeScript from standard ELF
  * and Dalvik specifications; zero GPL/AGPL copyleft dependencies or copied code.
  */
-import type { Stats } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { $which, getProjectDir, prompt } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { $which, prompt } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
 import type { ToolSession } from "./index";
+import { ZipParser, parseDexBuffer, parseAxml, parseXmlText } from "./android-package-inspect";
+import { SKILL_TOOL_CATALOG, type SkillToolPlatform, type ToolCategory } from "../extensibility/skill-tool-catalog";
 import {
-	ZipParser,
-	ZipEntry,
-	parseDexBuffer,
-	parseAxml,
-	parseXmlText,
-	type DexParsedData,
-	type AndroidManifestMetadata,
-} from "./android-package-inspect";
-import {
-	SKILL_TOOL_CATALOG,
-	getReverseTools,
-	type SkillToolPlatform,
-	type ToolCategory,
-} from "../extensibility/skill-tool-catalog";
-import { checkToolRequirements, type RequirementStatus, type SkillRequirementWhich } from "../extensibility/skill-requirements";
+	checkToolRequirements,
+	type RequirementStatus,
+	type SkillRequirementWhich,
+} from "../extensibility/skill-requirements";
 import androidNativeWorkflowDescription from "../prompts/tools/android-native-workflow.md" with { type: "text" };
 
 // ============================================================================
@@ -201,10 +191,7 @@ export interface AndroidNativeWorkflowDetails {
  */
 export function mangleJniSymbol(className: string, methodName: string): string {
 	const cleanClass = className.replace(/^L|;$/g, "").replace(/\//g, ".");
-	let escapedClass = cleanClass
-		.replace(/_/g, "_1")
-		.replace(/\$/g, "_00024")
-		.replace(/\./g, "_");
+	let escapedClass = cleanClass.replace(/_/g, "_1").replace(/\$/g, "_00024").replace(/\./g, "_");
 	if (escapedClass.includes("com_my_1org")) {
 		escapedClass = escapedClass.replace(/com_my_1org/g, "com_1my_1org");
 	}
@@ -256,11 +243,7 @@ const ANTI_ANALYSIS_PATTERNS = [
  * Extracts machine arch, bitness, endian, exported JNI functions, dynamic symbols,
  * JNI_OnLoad/RegisterNatives links, and crypto/anti-analysis keywords.
  */
-export function parseElfBuffer(
-	buf: Buffer,
-	libPath: string,
-	compressedSize = 0,
-): AndroidNativeLibraryInfo {
+export function parseElfBuffer(buf: Buffer, libPath: string, compressedSize = 0): AndroidNativeLibraryInfo {
 	const libName = path.basename(libPath);
 	const abiMatch = libPath.match(/lib\/([^/]+)\//);
 	const abi = abiMatch ? abiMatch[1] : "unknown";
@@ -339,7 +322,9 @@ export function parseElfBuffer(
 				: isLe
 					? buf.readUInt32LE(entryOff + 20)
 					: buf.readUInt32BE(entryOff + 20);
-			const link = isLe ? buf.readUInt32LE(entryOff + (is64 ? 40 : 24)) : buf.readUInt32BE(entryOff + (is64 ? 40 : 24));
+			const link = isLe
+				? buf.readUInt32LE(entryOff + (is64 ? 40 : 24))
+				: buf.readUInt32BE(entryOff + (is64 ? 40 : 24));
 			const entSize = is64
 				? isLe
 					? Number(buf.readBigUInt64LE(entryOff + 56))
@@ -494,10 +479,7 @@ export function parseElfBuffer(
  * Scans a DEX buffer for class definitions with ACC_NATIVE methods and
  * derives expected JNI symbol names.
  */
-export function extractDexNativeMethods(
-	buf: Buffer,
-	filter?: string,
-): AndroidNativeMethodInfo[] {
+export function extractDexNativeMethods(buf: Buffer, filter?: string): AndroidNativeMethodInfo[] {
 	const dexParsed = parseDexBuffer(buf);
 	if (!dexParsed) return [];
 
@@ -552,7 +534,8 @@ export function extractDexNativeMethods(
 					const returnTypeStr =
 						returnTypeIdx < dexParsed.header.typeIdsCount &&
 						dexParsed.header.typeIdsOff + returnTypeIdx * 4 + 4 <= buf.length
-							? dexParsed.getDexString(buf.readUInt32LE(dexParsed.header.typeIdsOff + returnTypeIdx * 4)) ?? "V"
+							? (dexParsed.getDexString(buf.readUInt32LE(dexParsed.header.typeIdsOff + returnTypeIdx * 4)) ??
+								"V")
 							: "V";
 
 					const paramsOff = buf.readUInt32LE(protoIdOff + 8);
@@ -617,9 +600,10 @@ export function extractDexNativeMethods(
 // Tool Implementation
 // ============================================================================
 
-export class AndroidNativeWorkflowTool
-	implements AgentTool<typeof androidNativeWorkflowSchema, AndroidNativeWorkflowDetails>
-{
+export class AndroidNativeWorkflowTool implements AgentTool<
+	typeof androidNativeWorkflowSchema,
+	AndroidNativeWorkflowDetails
+> {
 	readonly name = "android_native_workflow";
 	readonly approval: ToolTier = "read";
 	readonly label = "Android Native Workflow";
@@ -638,9 +622,10 @@ export class AndroidNativeWorkflowTool
 	}
 
 	async execute(
+		_toolCallId: string,
 		params: AndroidNativeWorkflowParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<AndroidNativeWorkflowDetails>> {
+	): Promise<AgentToolResult<AndroidNativeWorkflowDetails> & { details: AndroidNativeWorkflowDetails }> {
 		throwIfAborted(signal);
 
 		const action = params.action;
@@ -663,9 +648,8 @@ export class AndroidNativeWorkflowTool
 		}
 
 		const resolvedPath = resolveReadPath(targetPath, this.session.cwd);
-		let targetStats: Stats;
 		try {
-			targetStats = await fs.stat(resolvedPath);
+			await fs.stat(resolvedPath);
 		} catch (err) {
 			throw new ToolError(
 				`Failed to access target path '${targetPath}' (${resolvedPath}): ${(err as Error).message}`,
@@ -699,7 +683,7 @@ export class AndroidNativeWorkflowTool
 	private async executeStatus(
 		which: SkillRequirementWhich,
 		platform: SkillToolPlatform,
-	): Promise<AgentToolResult<AndroidNativeWorkflowDetails>> {
+	): Promise<AgentToolResult<AndroidNativeWorkflowDetails> & { details: AndroidNativeWorkflowDetails }> {
 		const androidToolIds = [
 			"unidbg",
 			"jadx",
@@ -818,7 +802,7 @@ export class AndroidNativeWorkflowTool
 		displayPath: string,
 		params: AndroidNativeWorkflowParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<AndroidNativeWorkflowDetails>> {
+	): Promise<AgentToolResult<AndroidNativeWorkflowDetails> & { details: AndroidNativeWorkflowDetails }> {
 		throwIfAborted(signal);
 
 		let buffer: Buffer;
@@ -908,19 +892,21 @@ export class AndroidNativeWorkflowTool
 		which: SkillRequirementWhich,
 		platform: SkillToolPlatform,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<AndroidNativeWorkflowDetails>> {
+	): Promise<AgentToolResult<AndroidNativeWorkflowDetails> & { details: AndroidNativeWorkflowDetails }> {
 		throwIfAborted(signal);
 
 		// Perform rapid inspection to parameterize the plan
 		const inspection = await this.performInventory(resolvedPath, displayPath, params, signal);
 		const statusRes = await this.executeStatus(which, platform);
-		const readiness = statusRes.details.readiness ?? {
+		const statusDetails = statusRes.details;
+		const readiness = statusDetails?.readiness ?? {
 			staticInspect: true,
 			unpack: true,
 			decompile: false,
 			dynamicInject: false,
 			emulation: false,
 		};
+		const radareInstalled = Boolean(statusDetails?.tools?.find(t => t.id === "radare2")?.installed);
 
 		const sampleLib = inspection.libraries[0]?.name ?? "libnative.so";
 		const sampleMethod = inspection.nativeMethods[0];
@@ -961,13 +947,11 @@ export class AndroidNativeWorkflowTool
 				stage: "disassemble",
 				title: "G2/G3: Disassemble Native .so & Map JNI Functions",
 				tool: "r2_inspect",
-				status: (statusRes.details.tools?.find(t => t.id === "radare2")?.installed ? "ready" : "blocked"),
+				status: radareInstalled ? "ready" : "blocked",
 				command_or_action: `r2_inspect(action: "functions", path: "./artifacts/extracted_so/lib/arm64-v8a/${sampleLib}")`,
 				description:
 					"Analyze exported JNI functions, JNI_OnLoad registration pointers, and cryptographic or anti-debug routines.",
-				missing_dependencies: statusRes.details.tools?.find(t => t.id === "radare2")?.installed
-					? undefined
-					: ["radare2"],
+				missing_dependencies: radareInstalled ? undefined : ["radare2"],
 				install_hints: ["brew install radare2 or apt install radare2"],
 			},
 			{
@@ -994,11 +978,8 @@ export class AndroidNativeWorkflowTool
 				description:
 					"Emulate ARM instructions on host JVM to execute target JNI function headlessly via custom Maven Java harness (manual integration required).",
 				missing_dependencies: readiness.emulation ? undefined : ["unidbg"],
-				install_hints: [
-					"git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests",
-				],
-				remedy:
-					"Compile Unidbg runner or set UNIDBG_HOME in environment. Safe for CI and offline workstations.",
+				install_hints: ["git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests"],
+				remedy: "Compile Unidbg runner or set UNIDBG_HOME in environment. Safe for CI and offline workstations.",
 			},
 			{
 				step_id: "step_6_record_evidence",
@@ -1068,7 +1049,7 @@ export class AndroidNativeWorkflowTool
 		which: SkillRequirementWhich,
 		platform: SkillToolPlatform,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<AndroidNativeWorkflowDetails>> {
+	): Promise<AgentToolResult<AndroidNativeWorkflowDetails> & { details: AndroidNativeWorkflowDetails }> {
 		throwIfAborted(signal);
 
 		const inventory = await this.performInventory(resolvedPath, displayPath, params, signal);
@@ -1086,7 +1067,7 @@ export class AndroidNativeWorkflowTool
 					nativeMethods: inventory.nativeMethods,
 					manifest: inventory.manifest,
 					antiAnalysis: inventory.antiAnalysis,
-					readiness: statusRes.details.readiness,
+					readiness: statusRes.details?.readiness,
 				},
 			};
 		}
@@ -1172,7 +1153,7 @@ export class AndroidNativeWorkflowTool
 				nativeMethods: inventory.nativeMethods,
 				manifest: inventory.manifest,
 				antiAnalysis: inventory.antiAnalysis,
-				readiness: statusRes.details.readiness,
+				readiness: statusRes.details?.readiness,
 			},
 		};
 	}
@@ -1314,14 +1295,10 @@ export class AndroidNativeWorkflowTool
 				antiAnalysis.push(`Known commercial Android packer detected: '${lib.name}' (${knownPackers[lib.name]}).`);
 			}
 			if (lib.antiAnalysisKeywords.includes("ptrace")) {
-				antiAnalysis.push(
-					`Library '${lib.name}' references 'ptrace' anti-debugging routine or API symbol.`,
-				);
+				antiAnalysis.push(`Library '${lib.name}' references 'ptrace' anti-debugging routine or API symbol.`);
 			}
 			if (lib.antiAnalysisKeywords.includes("tracerpid")) {
-				antiAnalysis.push(
-					`Library '${lib.name}' inspects '/proc/self/status' TracerPid to detect debuggers.`,
-				);
+				antiAnalysis.push(`Library '${lib.name}' inspects '/proc/self/status' TracerPid to detect debuggers.`);
 			}
 		}
 

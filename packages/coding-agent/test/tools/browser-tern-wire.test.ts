@@ -5,7 +5,7 @@ import {
 	TernError,
 	TernFrameReader,
 	TernSocketClient,
-} from "@rva/coding-agent/tools/browser/tern/wire";
+} from "@reverse/coding-agent/tools/browser/tern/wire";
 import { type FakeDaemon, frame, jsonPayload, startFakeDaemon } from "./tern-fake-daemon";
 
 let daemon: FakeDaemon | undefined;

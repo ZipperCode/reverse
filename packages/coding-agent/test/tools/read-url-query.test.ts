@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { type InternalUrl, VaultProtocolHandler } from "@rva/coding-agent/internal-urls";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { type InternalUrl, VaultProtocolHandler } from "@reverse/coding-agent/internal-urls";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
 
 function createSession(): ToolSession {
 	return {

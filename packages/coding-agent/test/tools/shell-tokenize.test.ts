@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractLeadingCdTarget, lexShellCommand, readShellWord } from "@rva/coding-agent/tools/shell-tokenize";
+import { extractLeadingCdTarget, lexShellCommand, readShellWord } from "@reverse/coding-agent/tools/shell-tokenize";
 
 describe("lexShellCommand", () => {
 	it("splits words from separators, keeping verbatim spelling beside the quote-removed value", () => {

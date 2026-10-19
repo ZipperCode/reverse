@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { acquireBrowser, releaseBrowser } from "@rva/coding-agent/tools/browser/registry";
-import { acquireTab, releaseTab, runInTab } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { acquireBrowser, releaseBrowser } from "@reverse/coding-agent/tools/browser/registry";
+import { acquireTab, releaseTab, runInTab } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

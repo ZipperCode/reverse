@@ -3,8 +3,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
 import {
 	AndroidNativeWorkflowTool,
 	mangleJniSymbol,
@@ -20,6 +20,10 @@ function createTestSession(cwd: string): ToolSession {
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated({ "tools.xdev": false }),
 	};
+}
+
+function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
+	return result.content.flatMap(item => (item.type === "text" && item.text ? [item.text] : [])).join("\n");
 }
 
 /**
@@ -175,9 +179,7 @@ describe("mangleJniSymbol", () => {
 	});
 
 	it("handles raw Dalvik descriptors with L and ; wrapper", () => {
-		expect(mangleJniSymbol("Lcom/example/NativeCrypto;", "encrypt")).toBe(
-			"Java_com_example_NativeCrypto_encrypt",
-		);
+		expect(mangleJniSymbol("Lcom/example/NativeCrypto;", "encrypt")).toBe("Java_com_example_NativeCrypto_encrypt");
 	});
 });
 
@@ -233,25 +235,25 @@ describe("AndroidNativeWorkflowTool", () => {
 				which: cmd => (cmd === "java" ? "/usr/bin/java" : null),
 			});
 
-			const res = await tool.execute({ action: "status" });
-			expect(res.details.status).toBe("ok");
-			expect(res.details.action).toBe("status");
-			expect(res.details.tools).toBeDefined();
+			const res = await tool.execute("call_status", { action: "status" });
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.action).toBe("status");
+			expect(res.details?.tools).toBeDefined();
 
-			const unidbg = res.details.tools?.find(t => t.id === "unidbg");
+			const unidbg = res.details?.tools?.find(t => t.id === "unidbg");
 			expect(unidbg).toBeDefined();
 			expect(unidbg?.workflowRole).toContain("ARM32/ARM64");
 
-			const bundletool = res.details.tools?.find(t => t.id === "bundletool");
+			const bundletool = res.details?.tools?.find(t => t.id === "bundletool");
 			expect(bundletool).toBeDefined();
 
-			const javaTool = res.details.tools?.find(t => t.id === "java");
+			const javaTool = res.details?.tools?.find(t => t.id === "java");
 			expect(javaTool?.installed).toBe(true);
 
-			expect(res.details.readiness?.staticInspect).toBe(true);
-			expect(res.details.readiness?.unpack).toBe(true);
+			expect(res.details?.readiness?.staticInspect).toBe(true);
+			expect(res.details?.readiness?.unpack).toBe(true);
 
-			const text = res.content[0]?.text ?? "";
+			const text = textOf(res);
 			expect(text).toContain("Android Reverse Companion Toolchain Status");
 			expect(text).toContain("Workflow Capability Readiness");
 		} finally {
@@ -269,7 +271,7 @@ describe("AndroidNativeWorkflowTool", () => {
 			const apkBuf = createMockZipBuffer([
 				{ name: "lib/arm64-v8a/libcrypto.so", content: elfBuf },
 				{ name: "classes.dex", content: createMockDexBuffer() },
-				{ name: "AndroidManifest.xml", content: Buffer.from("<manifest package=\"com.example.app\"></manifest>") },
+				{ name: "AndroidManifest.xml", content: Buffer.from('<manifest package="com.example.app"></manifest>') },
 			]);
 
 			const apkPath = path.join(tempDir, "test.apk");
@@ -278,11 +280,11 @@ describe("AndroidNativeWorkflowTool", () => {
 			const session = createTestSession(tempDir);
 			const tool = new AndroidNativeWorkflowTool(session);
 
-			const res = await tool.execute({ action: "plan", path: apkPath });
-			expect(res.details.status).toBe("ok");
-			expect(res.details.plan?.stages).toHaveLength(6);
+			const res = await tool.execute("call_plan", { action: "plan", path: apkPath });
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.plan?.stages).toHaveLength(6);
 
-			const stages = res.details.plan?.stages ?? [];
+			const stages = res.details?.plan?.stages ?? [];
 			expect(stages[0].stage).toBe("unpack");
 			expect(stages[0].tool).toBe("android_native_workflow");
 			expect(stages[0].status).toBe("ready");
@@ -293,7 +295,7 @@ describe("AndroidNativeWorkflowTool", () => {
 			expect(stages[5].stage).toBe("record_evidence");
 			expect(stages[5].tool).toBe("evidence");
 
-			const text = res.content[0]?.text ?? "";
+			const text = textOf(res);
 			expect(text).toContain("Android Native Reverse Engineering Plan");
 			expect(text).toContain("Plan Execution Recommendations");
 		} finally {
@@ -319,19 +321,22 @@ describe("AndroidNativeWorkflowTool", () => {
 			const tool = new AndroidNativeWorkflowTool(session);
 
 			const outDir = path.join(tempDir, "artifacts", "extracted_so");
-			const res = await tool.execute({
+			const res = await tool.execute("call_extract", {
 				action: "extract",
 				path: apkPath,
 				abi: "arm64-v8a",
 				output_dir: outDir,
 			});
 
-			expect(res.details.status).toBe("ok");
-			expect(res.details.extractedFiles).toBeDefined();
-			expect(res.details.extractedFiles?.length).toBeGreaterThanOrEqual(1);
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.extractedFiles).toBeDefined();
+			expect(res.details?.extractedFiles?.length).toBeGreaterThanOrEqual(1);
 
 			const extractedLib = path.join(outDir, "lib", "arm64-v8a", "libnative.so");
-			const exists = await fs.stat(extractedLib).then(() => true).catch(() => false);
+			const exists = await fs
+				.stat(extractedLib)
+				.then(() => true)
+				.catch(() => false);
 			expect(exists).toBe(true);
 		} finally {
 			await fs.rm(tempDir, { recursive: true, force: true });
@@ -349,7 +354,10 @@ describe("AndroidNativeWorkflowTool", () => {
 			const apkBuf = createMockZipBuffer([
 				{ name: "lib/arm64-v8a/libjiagu.so", content: elfBuf },
 				{ name: "classes.dex", content: createMockDexBuffer() },
-				{ name: "AndroidManifest.xml", content: Buffer.from("<manifest package=\"com.example.protected\"></manifest>") },
+				{
+					name: "AndroidManifest.xml",
+					content: Buffer.from('<manifest package="com.example.protected"></manifest>'),
+				},
 			]);
 
 			const apkPath = path.join(tempDir, "protected.apk");
@@ -358,13 +366,13 @@ describe("AndroidNativeWorkflowTool", () => {
 			const session = createTestSession(tempDir);
 			const tool = new AndroidNativeWorkflowTool(session);
 
-			const res = await tool.execute({ action: "inspect", path: apkPath });
-			expect(res.details.status).toBe("ok");
-			expect(res.details.summary?.totalLibraries).toBe(1);
-			expect(res.details.summary?.abis).toContain("arm64-v8a");
-			expect(res.details.antiAnalysis?.some(a => a.includes("Jiagu"))).toBe(true);
+			const res = await tool.execute("call_inspect", { action: "inspect", path: apkPath });
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.summary?.totalLibraries).toBe(1);
+			expect(res.details?.summary?.abis).toContain("arm64-v8a");
+			expect(res.details?.antiAnalysis?.some(a => a.includes("Jiagu"))).toBe(true);
 
-			const text = res.content[0]?.text ?? "";
+			const text = textOf(res);
 			expect(text).toContain("Android Native SO & JNI Inspection Report");
 			expect(text).toContain("Anti-Analysis & Packer Indicators");
 			expect(text).toContain("libjiagu.so");
@@ -377,9 +385,7 @@ describe("AndroidNativeWorkflowTool", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-json-"));
 		try {
 			const elfBuf = createMockElf64Buffer({ exportedSymbols: ["Java_com_example_Auth_login"] });
-			const apkBuf = createMockZipBuffer([
-				{ name: "lib/arm64-v8a/libauth.so", content: elfBuf },
-			]);
+			const apkBuf = createMockZipBuffer([{ name: "lib/arm64-v8a/libauth.so", content: elfBuf }]);
 
 			const apkPath = path.join(tempDir, "auth.apk");
 			await fs.writeFile(apkPath, apkBuf);
@@ -387,11 +393,49 @@ describe("AndroidNativeWorkflowTool", () => {
 			const session = createTestSession(tempDir);
 			const tool = new AndroidNativeWorkflowTool(session);
 
-			const res = await tool.execute({ action: "inspect", path: apkPath, format: "json" });
-			expect(res.details.status).toBe("ok");
-			const parsed = JSON.parse(res.content[0]?.text ?? "{}");
+			const res = await tool.execute("call_json", { action: "inspect", path: apkPath, format: "json" });
+			expect(res.details?.status).toBe("ok");
+			const parsed = JSON.parse(textOf(res) || "{}");
 			expect(parsed.summary?.totalLibraries).toBe(1);
 			expect(parsed.libraries?.[0]?.name).toBe("libauth.so");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("parses AndroidManifest flags (extractNativeLibs, useEmbeddedDex, hasCode, debuggable)", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-manifest-"));
+		try {
+			const manifestXml = `
+				<manifest package="com.example.flags"
+					xmlns:android="http://schemas.android.com/apk/res/android"
+					android:versionCode="42"
+					android:versionName="1.0.0">
+					<uses-sdk android:minSdkVersion="21" android:targetSdkVersion="33" />
+					<application
+						android:name="com.example.flags.App"
+						android:debuggable="true"
+						android:allowBackup="false"
+						android:extractNativeLibs="true"
+						android:useEmbeddedDex="true"
+						android:hasCode="true" />
+				</manifest>
+			`;
+			const apkBuf = createMockZipBuffer([
+				{ name: "AndroidManifest.xml", content: Buffer.from(manifestXml, "utf8") },
+			]);
+			const apkPath = path.join(tempDir, "flags.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_flags", { action: "inspect", path: apkPath, format: "json" });
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.manifest?.package).toBe("com.example.flags");
+			expect(res.details?.manifest?.extractNativeLibs).toBe(true);
+			expect(res.details?.manifest?.useEmbeddedDex).toBe(true);
+			expect(res.details?.manifest?.hasCode).toBe(true);
+			expect(res.details?.manifest?.debuggable).toBe(true);
 		} finally {
 			await fs.rm(tempDir, { recursive: true, force: true });
 		}

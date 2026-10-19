@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import * as PiCodingAgent from "@rva/coding-agent";
-import { askToolRenderer } from "@rva/tui/tools/ask";
+import * as PiCodingAgent from "@reverse/coding-agent";
+import { askToolRenderer } from "@reverse/tui/tools/ask";
 
 /**
- * Issue #12680: 0d6dbd32 moved the ask renderer into @rva/tui, so
+ * Issue #12680: 0d6dbd32 moved the ask renderer into @reverse/tui, so
  * extensions that shadow the built-in ask tool can no longer reach the native
  * renderer through the injected pi.pi namespace. Extensions receive the root
  * barrel of this package as pi.pi, so this pins the re-export there.

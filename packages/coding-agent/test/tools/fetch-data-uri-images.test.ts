@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { renderHtmlToText } from "@rva/coding-agent/tools/fetch";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { renderHtmlToText } from "@reverse/coding-agent/tools/fetch";
 
 const ICON_PATH = "M0 0h32v32H0z ".repeat(40);
 const PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";

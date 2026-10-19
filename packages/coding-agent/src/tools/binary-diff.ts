@@ -2,10 +2,10 @@ import * as fs from "node:fs/promises";
 import { type Stats } from "node:fs";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes } from "@rva/utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
@@ -230,10 +230,13 @@ export class BinaryDiffTool implements AgentTool<typeof binaryDiffSchema, Binary
 	constructor(private readonly session: ToolSession) {}
 
 	async execute(
+		_toolCallId: string,
 		params: BinaryDiffParams,
-		context?: { abortSignal?: AbortSignal },
-	): Promise<AgentToolResult<BinaryDiffDetails>> {
-		throwIfAborted(context?.abortSignal);
+		signal?: AbortSignal,
+		_onUpdate?: AgentToolUpdateCallback<BinaryDiffDetails>,
+		_ctx?: AgentToolContext,
+	): Promise<AgentToolResult<BinaryDiffDetails> & { details: BinaryDiffDetails }> {
+		throwIfAborted(signal);
 
 		const pathA = params.path_a ?? params.path1;
 		const pathB = params.path_b ?? params.path2;
@@ -249,9 +252,7 @@ export class BinaryDiffTool implements AgentTool<typeof binaryDiffSchema, Binary
 
 		// Guard: safe rejection of identical paths
 		if (resolvedA === resolvedB) {
-			throw new ToolError(
-				`path_a and path_b must point to distinct files; identical path provided: ${resolvedA}`,
-			);
+			throw new ToolError(`path_a and path_b must point to distinct files; identical path provided: ${resolvedA}`);
 		}
 
 		let statA: Stats;
@@ -260,17 +261,13 @@ export class BinaryDiffTool implements AgentTool<typeof binaryDiffSchema, Binary
 		try {
 			statA = await fs.stat(resolvedA);
 		} catch (err) {
-			throw new ToolError(
-				`File A not found: ${pathA} (${err instanceof Error ? err.message : String(err)})`,
-			);
+			throw new ToolError(`File A not found: ${pathA} (${err instanceof Error ? err.message : String(err)})`);
 		}
 
 		try {
 			statB = await fs.stat(resolvedB);
 		} catch (err) {
-			throw new ToolError(
-				`File B not found: ${pathB} (${err instanceof Error ? err.message : String(err)})`,
-			);
+			throw new ToolError(`File B not found: ${pathB} (${err instanceof Error ? err.message : String(err)})`);
 		}
 
 		if (statA.isDirectory() || statB.isDirectory()) {
@@ -280,14 +277,13 @@ export class BinaryDiffTool implements AgentTool<typeof binaryDiffSchema, Binary
 		const realA = await fs.realpath(resolvedA).catch(() => resolvedA);
 		const realB = await fs.realpath(resolvedB).catch(() => resolvedB);
 		if (realA === realB) {
-			throw new ToolError(`path_a and path_b resolve to the exact same file (${realA}). Cannot diff identical target.`);
+			throw new ToolError(
+				`path_a and path_b resolve to the exact same file (${realA}). Cannot diff identical target.`,
+			);
 		}
 
 		const maxBytes = Math.min(params.max_bytes ?? DEFAULT_MAX_BYTES, HARD_MAX_BYTES);
-		const blockSize = Math.max(
-			MIN_BLOCK_SIZE,
-			Math.min(params.block_size ?? DEFAULT_BLOCK_SIZE, MAX_BLOCK_SIZE),
-		);
+		const blockSize = Math.max(MIN_BLOCK_SIZE, Math.min(params.block_size ?? DEFAULT_BLOCK_SIZE, MAX_BLOCK_SIZE));
 		const action = params.action ?? "summary";
 		const limit = Math.min(params.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
 		const offset = params.offset ?? 0;
@@ -317,12 +313,10 @@ export class BinaryDiffTool implements AgentTool<typeof binaryDiffSchema, Binary
 				await fhB.close();
 			}
 		} catch (err) {
-			throw new ToolError(
-				`Error reading comparison files: ${err instanceof Error ? err.message : String(err)}`,
-			);
+			throw new ToolError(`Error reading comparison files: ${err instanceof Error ? err.message : String(err)}`);
 		}
 
-		throwIfAborted(context?.abortSignal);
+		throwIfAborted(signal);
 
 		// Compute deterministic hashes
 		const sha256A = createHash("sha256").update(bufA).digest("hex");
@@ -338,7 +332,6 @@ export class BinaryDiffTool implements AgentTool<typeof binaryDiffSchema, Binary
 
 		// Block and byte-level diff analysis
 		const maxLen = Math.max(bufA.length, bufB.length);
-		const minLen = Math.min(bufA.length, bufB.length);
 		const totalBlocks = Math.ceil(maxLen / blockSize) || 1;
 
 		let identicalBlocks = 0;
@@ -444,9 +437,7 @@ export class BinaryDiffTool implements AgentTool<typeof binaryDiffSchema, Binary
 
 		const identicalBytes = Math.max(0, Math.max(statA.size, statB.size) - totalDifferingBytes);
 		const denominator = Math.max(statA.size, statB.size, 1);
-		const similarityPercent = isIdentical
-			? 100.0
-			: Math.round((identicalBytes / denominator) * 10000) / 100;
+		const similarityPercent = isIdentical ? 100.0 : Math.round((identicalBytes / denominator) * 10000) / 100;
 
 		const fileMetadataA: FileMetadata = {
 			path: resolvedA,
@@ -524,10 +515,7 @@ export class BinaryDiffTool implements AgentTool<typeof binaryDiffSchema, Binary
 		if (action === "blocks") {
 			// Show changed blocks first or paged
 			const changedBlocks = allBlockEntries.filter(b => b.status !== "identical");
-			const pagedBlocks = (changedBlocks.length > 0 ? changedBlocks : allBlockEntries).slice(
-				offset,
-				offset + limit,
-			);
+			const pagedBlocks = (changedBlocks.length > 0 ? changedBlocks : allBlockEntries).slice(offset, offset + limit);
 
 			const lines = [
 				`# Binary Block Diff: \`${path.basename(resolvedA)}\` vs \`${path.basename(resolvedB)}\``,
@@ -667,7 +655,9 @@ export class BinaryDiffTool implements AgentTool<typeof binaryDiffSchema, Binary
 			}
 
 			if (byteRegions.length > offset + limit) {
-				lines.push(`*...and ${byteRegions.length - (offset + limit)} more byte regions (use \`offset\` to paginate)*`);
+				lines.push(
+					`*...and ${byteRegions.length - (offset + limit)} more byte regions (use \`offset\` to paginate)*`,
+				);
 			}
 
 			return {

@@ -1,6 +1,6 @@
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult } from "@rva/agent";
-import { logger, prompt, untilAborted } from "@rva/utils";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult } from "@reverse/agent";
+import { logger, prompt, untilAborted } from "@reverse/utils";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";
 import { formatCurrentTime, formatMemories } from "../hindsight/content";
 import recallDescription from "../prompts/tools/recall.md" with { type: "text" };

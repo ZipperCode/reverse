@@ -1,5 +1,5 @@
-import { type } from "@rva/omptype";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
+import { type } from "@reverse/omptype";
+import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
 import securityScanDescription from "../prompts/tools/security-scan.md" with { type: "text" };
 import { selectSecurityOAuthAccount } from "../security/auth";
 import {
@@ -14,7 +14,7 @@ import { getSecurityCoordinator } from "../security/coordinator";
 import type { SecurityTargetRequest } from "../security/preflight";
 import { SecurityStore } from "../security/store";
 import type { ToolSession } from "./index";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 
 import { cfgSecurityEnabled } from "./settings";
 

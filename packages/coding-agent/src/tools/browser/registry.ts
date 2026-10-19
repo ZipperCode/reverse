@@ -1,9 +1,9 @@
 import * as path from "node:path";
-import { getLogsDir, isCompiledBinary, logger, untilAborted, withTimeout, workerHostEntry } from "@rva/utils";
+import { getLogsDir, isCompiledBinary, logger, untilAborted, withTimeout, workerHostEntry } from "@reverse/utils";
 import type { Subprocess } from "bun";
 import type { Browser, CDPSession } from "puppeteer-core";
 import { ToolAbortError } from "../tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { findFreeCdpPort, findReusableCdp, gracefulKillTreeOnce, resolveSpawnArgs, waitForCdp } from "./attach";
 import type { CmuxKind } from "./cmux/rpc";
 import { CmuxSocketClient } from "./cmux/socket-client";

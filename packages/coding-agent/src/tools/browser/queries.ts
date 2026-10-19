@@ -1,5 +1,5 @@
-import { untilAborted } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { untilAborted } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ElementHandle, Page } from "puppeteer-core";
 
 /** Default computed-style properties returned by `tab.styles()`. */

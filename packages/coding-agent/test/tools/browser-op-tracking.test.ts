@@ -4,7 +4,7 @@ import {
 	describeScreenshot,
 	type InflightOp,
 	preparePageForScreenshot,
-} from "@rva/coding-agent/tools/browser/tab-worker";
+} from "@reverse/coding-agent/tools/browser/tab-worker";
 
 type ScreenshotPage = Parameters<typeof preparePageForScreenshot>[0];
 

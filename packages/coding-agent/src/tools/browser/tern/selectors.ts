@@ -1,4 +1,4 @@
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { assertSelectorString, PLAYWRIGHT_ONLY_SELECTOR_RE, parseAriaRefSelector } from "../aria/aria-snapshot";
 
 /** Semantic selector engines resolved in-page by the exported Chromium query handlers. */

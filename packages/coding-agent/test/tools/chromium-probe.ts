@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { findFreeCdpPort, waitForCdp } from "@rva/coding-agent/tools/browser/attach";
-import { type ChildProcess, ptree } from "@rva/utils";
-import { ensureChromiumExecutable } from "@rva/coding-agent/tools/browser/launch";
+import { findFreeCdpPort, waitForCdp } from "@reverse/coding-agent/tools/browser/attach";
+import { type ChildProcess, ptree } from "@reverse/utils";
+import { ensureChromiumExecutable } from "@reverse/coding-agent/tools/browser/launch";
 
 /**
  * Whether the Chromium puppeteer resolves can actually execute on this host.

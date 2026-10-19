@@ -2,10 +2,10 @@ import * as fs from "node:fs/promises";
 import { type Stats } from "node:fs";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
-import type { AgentTool, AgentToolResult, ToolTier } from "@rva/agent";
-import { type } from "@rva/omptype";
-import { ToolError } from "@rva/tui/tools/tool-errors";
-import { formatBytes } from "@rva/utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@reverse/agent";
+import { type } from "@reverse/omptype";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
+import { formatBytes } from "@reverse/utils";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
@@ -34,9 +34,7 @@ const binaryMetadataInspectSchema = type({
 		"Maximum dependency or package records to return (default 50, max 500)",
 	),
 	"offset?": type("number.integer >= 0").describe("Pagination offset (default 0)"),
-	"max_bytes?": type("number.integer >= 1").describe(
-		"Maximum binary bytes to inspect (default 64MB, max 256MB)",
-	),
+	"max_bytes?": type("number.integer >= 1").describe("Maximum binary bytes to inspect (default 64MB, max 256MB)"),
 });
 
 export type BinaryMetadataInspectParams = typeof binaryMetadataInspectSchema.infer;
@@ -259,15 +257,9 @@ function parseContainer(buffer: Buffer): ParsedContainer {
 		const magic32LE = buffer.readUInt32LE(0);
 		const magic32BE = buffer.readUInt32BE(0);
 		const isMachO =
-			magic32LE === 0xfeedface ||
-			magic32LE === 0xfeedfacf ||
-			magic32BE === 0xfeedface ||
-			magic32BE === 0xfeedfacf;
+			magic32LE === 0xfeedface || magic32LE === 0xfeedfacf || magic32BE === 0xfeedface || magic32BE === 0xfeedfacf;
 		const isFat =
-			magic32LE === 0xcafebabe ||
-			magic32LE === 0xbebafeca ||
-			magic32BE === 0xcafebabe ||
-			magic32BE === 0xbebafeca;
+			magic32LE === 0xcafebabe || magic32LE === 0xbebafeca || magic32BE === 0xcafebabe || magic32BE === 0xbebafeca;
 
 		if (isFat) {
 			return { format: "universal", architecture: "fat/universal", sections: [] };
@@ -485,7 +477,11 @@ export function inspectRustAuditInfo(buffer: Buffer, sections: BinarySectionInfo
 	} else {
 		// Scan for .dep-v0 signature: 0x01 followed by zlib header 0x78 (0x9c, 0x01, 0xda, 0x5e)
 		for (let i = 0; i < Math.min(buffer.length - 8, 32 * 1024 * 1024); i++) {
-			if (buffer[i] === 0x01 && buffer[i + 1] === 0x78 && (buffer[i + 2] === 0x9c || buffer[i + 2] === 0x01 || buffer[i + 2] === 0xda)) {
+			if (
+				buffer[i] === 0x01 &&
+				buffer[i + 1] === 0x78 &&
+				(buffer[i + 2] === 0x9c || buffer[i + 2] === 0x01 || buffer[i + 2] === 0xda)
+			) {
 				depData = buffer.subarray(i);
 				break;
 			}
@@ -603,9 +599,10 @@ export function inspectRustAuditInfo(buffer: Buffer, sections: BinarySectionInfo
 // Main Tool Implementation
 // ============================================================================
 
-export class BinaryMetadataInspectTool
-	implements AgentTool<typeof binaryMetadataInspectSchema, BinaryMetadataInspectDetails>
-{
+export class BinaryMetadataInspectTool implements AgentTool<
+	typeof binaryMetadataInspectSchema,
+	BinaryMetadataInspectDetails
+> {
 	readonly name = "binary_metadata_inspect";
 	readonly approval: ToolTier = "read";
 	readonly label = "Binary Metadata Inspect (Go/Rust)";
@@ -618,25 +615,24 @@ export class BinaryMetadataInspectTool
 	constructor(private readonly session: ToolSession) {}
 
 	async execute(
+		_toolCallId: string,
 		params: BinaryMetadataInspectParams,
-		context?: { abortSignal?: AbortSignal },
-	): Promise<AgentToolResult<BinaryMetadataInspectDetails>> {
-		throwIfAborted(context?.abortSignal);
+		signal?: AbortSignal,
+		_onUpdate?: AgentToolUpdateCallback<BinaryMetadataInspectDetails>,
+		_ctx?: AgentToolContext,
+	): Promise<AgentToolResult<BinaryMetadataInspectDetails> & { details: BinaryMetadataInspectDetails }> {
+		throwIfAborted(signal);
 
 		const resolvedPath = resolveReadPath(params.path, this.session.cwd);
 		let fileStat: Stats;
 		try {
 			fileStat = await fs.stat(resolvedPath);
 		} catch (err) {
-			throw new ToolError(
-				`File not found: ${params.path} (${err instanceof Error ? err.message : String(err)})`,
-			);
+			throw new ToolError(`File not found: ${params.path} (${err instanceof Error ? err.message : String(err)})`);
 		}
 
 		if (fileStat.isDirectory()) {
-			throw new ToolError(
-				`Path is a directory, not a binary file: ${params.path}. Use a valid executable binary.`,
-			);
+			throw new ToolError(`Path is a directory, not a binary file: ${params.path}. Use a valid executable binary.`);
 		}
 
 		const maxBytes = Math.min(params.max_bytes ?? DEFAULT_MAX_BYTES, HARD_MAX_BYTES);
@@ -658,7 +654,7 @@ export class BinaryMetadataInspectTool
 			);
 		}
 
-		throwIfAborted(context?.abortSignal);
+		throwIfAborted(signal);
 
 		const container = parseContainer(buffer);
 		const goInfo = inspectGoBuildInfo(buffer);
@@ -807,7 +803,12 @@ export class BinaryMetadataInspectTool
 				lines.push("*No key-value build settings recorded.*");
 			}
 
-			lines.push("", "## Compiled Dependencies", "| Module Path | Version | Hash / Checksum | Replaced By |", "|---|---|---|---|");
+			lines.push(
+				"",
+				"## Compiled Dependencies",
+				"| Module Path | Version | Hash / Checksum | Replaced By |",
+				"|---|---|---|---|",
+			);
 			if (pagedDeps.length > 0) {
 				for (const dep of pagedDeps) {
 					lines.push(
@@ -937,18 +938,16 @@ export class BinaryMetadataInspectTool
 
 			for (const sec of pagedSections) {
 				const markerStr =
-					sec.markerType === "go"
-						? "🔷 Go Runtime"
-						: sec.markerType === "rust"
-							? "🦀 Rust Audit"
-							: "standard";
+					sec.markerType === "go" ? "🔷 Go Runtime" : sec.markerType === "rust" ? "🦀 Rust Audit" : "standard";
 				lines.push(
 					`| ${sec.index} | **\`${sec.name}\`** | \`0x${sec.offset.toString(16)}\` | ${formatBytes(sec.size)} | \`${sec.virtualAddress ?? "-"}\` | ${markerStr} |`,
 				);
 			}
 
 			if (container.sections.length > offset + limit) {
-				lines.push(`*...and ${container.sections.length - (offset + limit)} more sections (use \`offset\` to paginate)*`);
+				lines.push(
+					`*...and ${container.sections.length - (offset + limit)} more sections (use \`offset\` to paginate)*`,
+				);
 			}
 
 			return {

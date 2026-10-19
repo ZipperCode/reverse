@@ -1,7 +1,7 @@
 import { inflateSync } from "node:zlib";
 
-import { untilAborted } from "@rva/utils";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { untilAborted } from "@reverse/utils";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ElementHandle, ElementScreenshotOptions, Page } from "puppeteer-core";
 import type { ScreenshotArea } from "../../utils/image-resize";
 import { encodeRawPng } from "../../utils/png-encode";

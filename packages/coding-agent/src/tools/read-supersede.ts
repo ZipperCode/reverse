@@ -1,5 +1,5 @@
-import type { ToolResultMessage } from "@rva/ai";
-import type { ReadToolDetails } from "@rva/tui/tools/read";
+import type { ToolResultMessage } from "@reverse/ai";
+import type { ReadToolDetails } from "@reverse/tui/tools/read";
 
 /**
  * Whether a successful `read` result shows its whole file, so a bare-path read

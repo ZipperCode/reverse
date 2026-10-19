@@ -2,12 +2,12 @@ import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { InternalUrlRouter, LocalProtocolHandler } from "@rva/coding-agent/internal-urls";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { ReadTool } from "@rva/coding-agent/tools/read";
-import { WriteTool } from "@rva/coding-agent/tools/write";
-import { removeWithRetries } from "@rva/utils";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { InternalUrlRouter, LocalProtocolHandler } from "@reverse/coding-agent/internal-urls";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { ReadTool } from "@reverse/coding-agent/tools/read";
+import { WriteTool } from "@reverse/coding-agent/tools/write";
+import { removeWithRetries } from "@reverse/utils";
 
 describe("local:// URL with the working directory prefixed", () => {
 	beforeAll(async () => {

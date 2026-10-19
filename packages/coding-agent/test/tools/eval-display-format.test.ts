@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { resetSettingsForTest, Settings } from "@rva/coding-agent/config/settings";
-import type { EvalToolDetails } from "@rva/tui/tools/eval";
-import { getThemeByName, setThemeInstance, type Theme } from "@rva/tui/theme";
-import { evalToolRenderer } from "@rva/tui/tools/eval";
+import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import type { EvalToolDetails } from "@reverse/tui/tools/eval";
+import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme";
+import { evalToolRenderer } from "@reverse/tui/tools/eval";
 
 describe("eval renderer: display-only streaming formatting", () => {
 	let theme: Theme;

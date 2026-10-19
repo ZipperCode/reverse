@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { DEFAULT_RELAY_URL, resolveRelayKind } from "@rva/coding-agent/tools/browser";
+import { DEFAULT_RELAY_URL, resolveRelayKind } from "@reverse/coding-agent/tools/browser";
 
 describe("resolveRelayKind", () => {
 	it("is disabled by default", () => {

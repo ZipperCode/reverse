@@ -10,11 +10,11 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { acquireFileLock, type FileLockHandle, logger, withTimeout } from "@rva/utils";
+import { acquireFileLock, type FileLockHandle, logger, withTimeout } from "@reverse/utils";
 import { type DaemonBrokerClient, daemonClientForProject } from "../../launch/client";
 import { describeDaemon, describeQuietly, stopQuietly, waitReady } from "../../launch/ensure";
 import { daemonRuntimeDir } from "../../launch/paths";
-import type { DaemonSnapshot } from "@rva/tui/tools/daemon";
+import type { DaemonSnapshot } from "@reverse/tui/tools/daemon";
 import { throwIfAborted } from "../tool-errors";
 import { probeCdpStatus } from "./attach";
 import {

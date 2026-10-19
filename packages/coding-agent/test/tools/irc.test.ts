@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@rva/agent";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { IrcBus } from "@rva/coding-agent/irc/bus";
-import { type IrcMessage } from "@rva/tui/tools/irc";
-import { AgentLifecycleManager } from "@rva/coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@rva/coding-agent/registry/agent-registry";
-import { AgentSession, type AgentSessionEvent } from "@rva/coding-agent/session/agent-session";
-import { IrcBridge } from "@rva/coding-agent/session/irc-bridge";
-import type { CustomMessage } from "@rva/coding-agent/session/messages";
-import { SessionManager } from "@rva/coding-agent/session/session-manager";
+import { Agent } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { IrcBus } from "@reverse/coding-agent/irc/bus";
+import { type IrcMessage } from "@reverse/tui/tools/irc";
+import { AgentLifecycleManager } from "@reverse/coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
+import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
+import { IrcBridge } from "@reverse/coding-agent/session/irc-bridge";
+import type { CustomMessage } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 interface FakeSession {
 	session: AgentSession;

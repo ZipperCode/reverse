@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { disposeAllVmContexts } from "@rva/coding-agent/eval/js/context-manager";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
-import type { BrowserA11yResult } from "@rva/coding-agent/tools/browser/a11y/audit";
-import { releaseAllTabs } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { disposeAllVmContexts } from "@reverse/coding-agent/eval/js/context-manager";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
+import type { BrowserA11yResult } from "@reverse/coding-agent/tools/browser/a11y/audit";
+import { releaseAllTabs } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

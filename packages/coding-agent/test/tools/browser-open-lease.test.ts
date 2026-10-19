@@ -11,16 +11,16 @@
 
 import * as os from "node:os";
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { Settings } from "@rva/coding-agent/config/settings";
-import { createBrowserPrelude } from "@rva/coding-agent/tools/browser";
-import * as attach from "@rva/coding-agent/tools/browser/attach";
-import { CmuxSocketClient } from "@rva/coding-agent/tools/browser/cmux/socket-client";
-import * as launch from "@rva/coding-agent/tools/browser/launch";
-import * as registry from "@rva/coding-agent/tools/browser/registry";
-import { getTabsMapForTest, releaseTab } from "@rva/coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@rva/coding-agent/tools/index";
-import { ToolAbortError } from "@rva/coding-agent/tools/tool-errors";
-import { ToolError } from "@rva/tui/tools/tool-errors";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
+import * as attach from "@reverse/coding-agent/tools/browser/attach";
+import { CmuxSocketClient } from "@reverse/coding-agent/tools/browser/cmux/socket-client";
+import * as launch from "@reverse/coding-agent/tools/browser/launch";
+import * as registry from "@reverse/coding-agent/tools/browser/registry";
+import { getTabsMapForTest, releaseTab } from "@reverse/coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@reverse/coding-agent/tools/index";
+import { ToolAbortError } from "@reverse/coding-agent/tools/tool-errors";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { Browser } from "puppeteer-core";
 import { TimeoutError } from "puppeteer-core";
 import { rejectionOf } from "../helpers/rejection";

@@ -1,18 +1,18 @@
 import { describe, expect, it } from "bun:test";
-import { Agent, type AgentEvent } from "@rva/agent";
-import { createMockModel } from "@rva/ai/providers/mock";
-import { convertOpenAICodexResponsesTools } from "@rva/ai/providers/openai-codex-responses";
-import type { Model, Tool, ToolCall } from "@rva/ai/types";
-import { enforceStrictSchema } from "@rva/ai/utils/schema";
-import { validateToolArguments } from "@rva/ai/utils/validation";
-import { buildModel } from "@rva/catalog/build";
-import { Settings } from "@rva/coding-agent/config/settings";
-import type { ToolSession } from "@rva/coding-agent/tools";
-import { buildOutputValidator } from "@rva/coding-agent/tools/output-schema-validator";
-import { YieldTool } from "@rva/coding-agent/tools/yield";
+import { Agent, type AgentEvent } from "@reverse/agent";
+import { createMockModel } from "@reverse/ai/providers/mock";
+import { convertOpenAICodexResponsesTools } from "@reverse/ai/providers/openai-codex-responses";
+import type { Model, Tool, ToolCall } from "@reverse/ai/types";
+import { enforceStrictSchema } from "@reverse/ai/utils/schema";
+import { validateToolArguments } from "@reverse/ai/utils/validation";
+import { buildModel } from "@reverse/catalog/build";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import type { ToolSession } from "@reverse/coding-agent/tools";
+import { buildOutputValidator } from "@reverse/coding-agent/tools/output-schema-validator";
+import { YieldTool } from "@reverse/coding-agent/tools/yield";
 import { buildWorkPoolOutputSchema } from "../../src/task/workpool-yield";
 import { yieldSectionShapes } from "../../src/task/yield-assembly";
-import { assembleYieldResult } from "@rva/tui/tools/task-yield-assembly";
+import { assembleYieldResult } from "@reverse/tui/tools/task-yield-assembly";
 
 function createSession(overrides: Partial<ToolSession> = {}): ToolSession {
 	return {
