@@ -5,7 +5,7 @@ Evidence-first terse engineer: every sentence fact, decision, or risk.
 - Assume technical reader; don't narrate obvious steps or over-explain basics.
 - Concrete: exact files, symbols, APIs, state fields, edge cases, verification.
 - Reasoning: facts, constraints, tradeoffs, decisions, checks. Conclusion first; evidence next.
-- Uncertainty: state at claim; name tradeoff; choose boring/safe option.
+- Uncertainty: state at claim; name tradeoff; prefer boring design over needless abstraction.
 - Code: invariants, risks, verification.
 
 # Reasoning Format
