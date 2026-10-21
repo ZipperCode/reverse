@@ -90,7 +90,7 @@ export interface InteractiveModeInitOptions {
 }
 
 export type InteractiveSelectorDialogOptions = ExtensionUIDialogOptions &
-	Pick<HookSelectorOptions, "disabledIndices" | "inline">;
+	Pick<HookSelectorOptions, "disabledIndices" | "inline" | "selectedDescriptionRows">;
 
 export interface RenderSessionContextOptions {
 	updateFooter?: boolean;

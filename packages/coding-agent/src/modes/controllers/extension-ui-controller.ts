@@ -869,6 +869,7 @@ export class ExtensionUiController {
 					maxVisible,
 					inline: dialogOptions?.inline,
 					slider: extra?.slider,
+					selectedDescriptionRows: dialogOptions?.selectedDescriptionRows,
 				},
 			);
 			this.ctx.editorContainer.clear();

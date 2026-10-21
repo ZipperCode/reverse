@@ -10,6 +10,7 @@
 - Added opt-in Frida live sessions with continuous telemetry, RPC, script reload/unload, explicit resume, and detach-only shutdown; batch mode remains available.
 - Added local standalone installation/check/uninstallation helpers with bounded version probes and collision-preserving backups.
 - Added managed jshookmcp setup through CLI, interactive TUI, and write-approved agent installation, with pinned local packages, search-profile stdio configuration, verified deobfuscation, and immediate session tool activation.
+- Added live selected-tool descriptions and usage guidance to the reverse toolchain setup list, with a reserved detail area for keyboard navigation, filtering, and compact terminals.
 
 ### Changed
 

@@ -33,7 +33,7 @@ import { renderSegmentTrack } from "../chrome/segment-track";
 import { Input } from "../components/input";
 import { MenuSelection, getMenuWindow } from "../components/menu-selection";
 import type { KeyName } from "../key-hint-format";
-import { node, span } from "../native/describe";
+import { node, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { actionHint, hintsRow, overlayCard } from "../native/overlay";
 import { plainText } from "../native/spans";
@@ -98,6 +98,10 @@ export interface HookSelectorOptions {
 	 *  sheet, so dock content above it (e.g. a `/omfg` candidate rule) stays
 	 *  visible and the transcript stays scrollable on native surfaces. */
 	inline?: boolean;
+	/** Number of rows reserved below the list for the selected item's description.
+	 *  When set > 0, options in the list show labels only and this pane shows
+	 *  the highlighted option's description immediately without pressing Enter. */
+	selectedDescriptionRows?: number;
 }
 
 export interface HookSelectorOption {
@@ -217,6 +221,7 @@ export class HookSelectorComponent extends OverlayPanel {
 	readonly #inline: boolean;
 	readonly #helpText: string | undefined;
 	/** Described option rows by original index; `marker` is the radio state baked into the label. */
+	readonly #selectedDescriptionRows: number | undefined;
 	readonly #nativeItems = new Map<number, { marker: boolean; node: NativeNode }>();
 	/** Title/detail/hint nodes, fixed for the dialog's lifetime. */
 	#nativeStatic: { title: string; detail: NativeNode | undefined; hints: NativeNode } | undefined;
@@ -264,6 +269,10 @@ export class HookSelectorComponent extends OverlayPanel {
 		);
 		this.#markableCount = Math.max(0, Math.min(opts?.markableCount ?? this.#options.length, this.#options.length));
 		this.#maxVisible = Math.max(3, opts?.maxVisible ?? 12);
+		this.#selectedDescriptionRows =
+			opts?.selectedDescriptionRows && opts.selectedDescriptionRows > 0
+				? Math.min(opts.selectedDescriptionRows, Math.max(1, this.#maxVisible - 3))
+				: undefined;
 		this.#onSelectCallback = onSelect;
 		this.#onCancelCallback = onCancel;
 		this.#baseTitle = this.title;
@@ -409,6 +418,51 @@ export class HookSelectorComponent extends OverlayPanel {
 		return kept.map(row => indent + row);
 	}
 
+	#wrapSelectedDescriptionBlock(
+		description: string,
+		maxRows: number,
+		isDisabled: boolean,
+		mdTheme: MarkdownTheme,
+		renderWidth = this.#lastRenderWidth,
+	): string[] {
+		if (maxRows <= 0) return [];
+		const indent = "    ";
+		const innerWidth = Math.max(1, (renderWidth ?? 80) - 2);
+		const bodyWidth = Math.max(1, innerWidth - indent.length);
+		const color: ThemeColor = isDisabled ? "dim" : "muted";
+		const out: string[] = [];
+		if (description.trim()) {
+			const paragraphs = description.split(/\r?\n/);
+			for (const para of paragraphs) {
+				if (!para.trim()) {
+					out.push("");
+					continue;
+				}
+				const colored = renderInlineMarkdown(para, mdTheme, t => theme.fg(color, t));
+				const wrapped = wrapTextWithAnsi(colored, bodyWidth);
+				if (wrapped.length === 0) {
+					out.push("");
+				} else {
+					for (const line of wrapped) {
+						out.push(indent + line);
+					}
+				}
+			}
+		}
+		const kept = out.slice(0, maxRows);
+		if (out.length > maxRows) {
+			const tail = out
+				.slice(maxRows - 1)
+				.map(s => s.trimStart())
+				.join(" ");
+			kept[maxRows - 1] = indent + truncateToWidth(tail, bodyWidth, Ellipsis.Unicode);
+		}
+		while (kept.length < maxRows) {
+			kept.push("");
+		}
+		return kept;
+	}
+
 	#renderedLineRowCount(line: string, renderWidth: number): number {
 		const normalized = replaceTabs(line);
 		if (this.#outlinedList) {
@@ -474,14 +528,18 @@ export class HookSelectorComponent extends OverlayPanel {
 		// enables search. There we collapse every option to its label and show
 		// only the highlighted option's description, so the whole menu stays
 		// visible on short terminals instead of collapsing to a single entry.
-		const compact = this.#isSearchEnabled(renderWidth, mdTheme);
+		const isReservedDesc = this.#selectedDescriptionRows !== undefined;
+		const compact = !isReservedDesc && this.#isSearchEnabled(renderWidth, mdTheme);
+		const listBudget = isReservedDesc
+			? Math.max(3, this.#maxVisible - this.#selectedDescriptionRows)
+			: Math.max(1, this.#maxVisible);
 		const { startIndex, endIndex } =
 			total === 0
 				? { startIndex: 0, endIndex: 0 }
 				: getMenuWindow(
-						this.#windowRowCounts(items, renderWidth, mdTheme, compact),
+						this.#windowRowCounts(items, renderWidth, mdTheme, isReservedDesc || compact),
 						this.#menu.selectedIndex,
-						Math.max(1, this.#maxVisible),
+						listBudget,
 					);
 
 		let selectedDescRows = 0;
@@ -502,7 +560,7 @@ export class HookSelectorComponent extends OverlayPanel {
 			if (filtered === undefined) continue;
 			const isSelected = i === this.#menu.selectedIndex;
 			const isDisabled = this.#isDisabled(filtered.index);
-			const descMode: number | "full" = compact ? (isSelected ? selectedDescRows : 0) : "full";
+			const descMode: number | "full" = isReservedDesc ? 0 : compact ? (isSelected ? selectedDescRows : 0) : "full";
 			// Highlight the whole option block (label + wrapped description rows)
 			// so the focus band reads as one continuous bar rather than a stripe
 			// under the label alone. Disabled rows never claim focus even if the
@@ -527,6 +585,21 @@ export class HookSelectorComponent extends OverlayPanel {
 
 		if (startIndex > 0 || endIndex < total || this.#shouldRenderSearchStatus(renderWidth, mdTheme)) {
 			rows.push({ text: this.#renderStatusLine(total), highlight: false });
+		}
+		if (isReservedDesc && total > 0) {
+			const selected = this.#menu.selectedItem;
+			if (selected) {
+				const descRows = this.#wrapSelectedDescriptionBlock(
+					selected.option.description ?? "",
+					this.#selectedDescriptionRows ?? 0,
+					this.#isDisabled(selected.index),
+					mdTheme,
+					renderWidth,
+				);
+				for (const text of descRows) {
+					rows.push({ text, highlight: false });
+				}
+			}
 		}
 		if (this.#outlinedList) {
 			this.#outlinedList.setLines(rows);
@@ -575,6 +648,10 @@ export class HookSelectorComponent extends OverlayPanel {
 	}
 
 	#isSearchEnabled(renderWidth = this.#lastRenderWidth, mdTheme?: MarkdownTheme): boolean {
+		if (this.#selectedDescriptionRows !== undefined) {
+			const listBudget = Math.max(3, this.#maxVisible - this.#selectedDescriptionRows);
+			return this.#options.length > listBudget;
+		}
 		return this.#totalOptionRows(this.#options, renderWidth, mdTheme) > this.#maxVisible;
 	}
 
@@ -707,26 +784,36 @@ export class HookSelectorComponent extends OverlayPanel {
 		this.#pickerItems ??= this.#options.map((option, index) => ({
 			id: String(index),
 			label: plainInline(option.label, mdTheme),
-			...(option.description ? { detail: plainInline(option.description, mdTheme) } : {}),
+			...(this.#selectedDescriptionRows === undefined && option.description
+				? { detail: plainInline(option.description, mdTheme) }
+				: {}),
 			...(this.#isDisabled(index) ? { disabled: true as const } : {}),
 		}));
+		const selectedItem = this.#menu.selectedItem;
+		const previewChildren: NativeChild[] = [];
+		if (this.#selectedDescriptionRows !== undefined && selectedItem && selectedItem.option.description) {
+			previewChildren.push(text(plainText(selectedItem.option.description), { wrap: "word" }));
+		}
 		const checkbox = this.#selectionMarker === "checkbox";
-		const result = dockedPicker({
-			title: fixed.title,
-			...(this.#detailLines.length > 0 ? { subtitle: plainText(this.#detailLines.join("\n")) } : {}),
-			noun: "options",
-			size: "md",
-			layout: "rows",
-			preview: "none",
-			...pickerQuery(this.#isSearchEnabled() || query.length > 0 ? this.#search : null),
-			items: this.#pickerItems,
-			...(query.length > 0 ? { order: items.map(filtered => String(filtered.index)) } : {}),
-			selected: selected ?? null,
-			...(checkbox ? { current: [...this.#checkedIndices].map(String) } : {}),
-			total: this.#options.length,
-			empty: "No matching options",
-			actions: [pickerAction("confirm", "Select", "enter", { primary: true }), CLOSE_ACTION],
-		});
+		const result = dockedPicker(
+			{
+				title: fixed.title,
+				...(this.#detailLines.length > 0 ? { subtitle: plainText(this.#detailLines.join("\n")) } : {}),
+				noun: "options",
+				size: "md",
+				layout: "rows",
+				preview: this.#selectedDescriptionRows !== undefined ? "below" : "none",
+				...pickerQuery(this.#isSearchEnabled() || query.length > 0 ? this.#search : null),
+				items: this.#pickerItems,
+				...(query.length > 0 ? { order: items.map(filtered => String(filtered.index)) } : {}),
+				selected: selected ?? null,
+				...(checkbox ? { current: [...this.#checkedIndices].map(String) } : {}),
+				total: this.#options.length,
+				empty: "No matching options",
+				actions: [pickerAction("confirm", "Select", "enter", { primary: true }), CLOSE_ACTION],
+			},
+			previewChildren.length > 0 ? previewChildren : undefined,
+		);
 		this.#pickerMemo = { items, selected, query, cursor, node: result };
 		return result;
 	}
@@ -779,12 +866,27 @@ export class HookSelectorComponent extends OverlayPanel {
 					selected: selectedItem && !this.#menu.isDisabled(selectedItem) ? (selected ?? null) : null,
 					filter: query.trim() || undefined,
 					empty: "No matching options",
-					max: { lines: this.#maxVisible },
+					max: {
+						lines:
+							this.#selectedDescriptionRows !== undefined
+								? Math.max(3, this.#maxVisible - this.#selectedDescriptionRows)
+								: this.#maxVisible,
+					},
 				},
 				rows,
 				"list",
 			),
 		);
+		if (this.#selectedDescriptionRows !== undefined && selectedItem && selectedItem.option.description) {
+			children.push(
+				node(
+					"text",
+					{ spans: [span(plainText(selectedItem.option.description), "muted")], wrap: "word" },
+					undefined,
+					"selected-desc",
+				),
+			);
+		}
 		if (query) {
 			children.push(
 				node("text", { spans: [span("Search: ", "dim"), span(query)], wrap: "none" }, undefined, "search"),
@@ -923,7 +1025,10 @@ export class HookSelectorComponent extends OverlayPanel {
 			"item",
 			{
 				label: glyph ? [span(`${glyph} `, glyphColor), span(label)] : [span(label)],
-				detail: option.description ? [span(plainInline(option.description, mdTheme), "muted")] : undefined,
+				detail:
+					this.#selectedDescriptionRows === undefined && option.description
+						? [span(plainInline(option.description, mdTheme), "muted")]
+						: undefined,
 				disabled: disabled || undefined,
 			},
 			undefined,

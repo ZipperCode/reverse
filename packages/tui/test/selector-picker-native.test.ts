@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import type { TspKind, TspPickerProps } from "@reverse/wire";
 import { getOAuthProviders } from "@reverse/ai/oauth";
-import type { DescribeContext, NativeNode } from "../src/native/node";
+import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
 import { HookSelectorComponent } from "../src/overlays/hook-selector";
 import { OAuthSelectorComponent, type OAuthSelectorAuthSource } from "../src/overlays/oauth-selector";
 import { ThemeSelectorComponent } from "../src/overlays/theme-selector";
@@ -212,6 +212,57 @@ describe("hook selector picker", () => {
 		expect(JSON.stringify(root)).not.toContain('"k":"picker"');
 		selector.handleNativeEvent({ type: "activate", key: "list", item: "1" });
 		expect(picked).toEqual(["global"]);
+	});
+
+	it("exposes selected description in preview children and preview:'below' when selectedDescriptionRows is opt-in", () => {
+		const selector = new HookSelectorComponent(
+			"Toolchain",
+			[
+				{ label: "jadx", description: "说明: DEX反编译工具\n用途: APK逆向分析" },
+				{ label: "apktool", description: "说明: 资源反编译\n用途: 解包与重打包" },
+			],
+			() => {},
+			() => {},
+			{ selectedDescriptionRows: 5 },
+		);
+		const root = selector.describe(pickerCx);
+		const p = sheet(root).props;
+		expect(p.preview).toBe("below");
+		// Does not duplicate detail in picker list items
+		expect(p.items?.[0]?.detail).toBeUndefined();
+		// Exposes selected description in preview children
+		const pickerNode = root?.c?.[0] as NativeNode | undefined;
+		expect(pickerNode?.c?.length).toBeGreaterThanOrEqual(1);
+		const getPreviewText = (child: NativeChild | undefined): string | undefined => {
+			if (
+				child &&
+				typeof child === "object" &&
+				"k" in child &&
+				child.k === "text" &&
+				child.p &&
+				typeof child.p === "object" &&
+				"text" in child.p
+			) {
+				return typeof child.p.text === "string" ? child.p.text : undefined;
+			}
+			return undefined;
+		};
+		expect(getPreviewText(pickerNode?.c?.[0])).toContain("DEX反编译工具");
+
+		// Selecting row 1 updates preview children without stale content
+		selector.handleNativeEvent(at("select", "1"));
+		const updatedRoot = selector.describe(pickerCx);
+		const updatedPickerNode = updatedRoot?.c?.[0] as NativeNode | undefined;
+		expect(getPreviewText(updatedPickerNode?.c?.[0])).toContain("资源反编译");
+		expect(getPreviewText(updatedPickerNode?.c?.[0])).not.toContain("DEX反编译工具");
+
+		// Non-picker native card fallback renders dedicated selected description node
+		const fallbackCard = selector.describe(genericCx);
+		expect(fallbackCard?.k).toBe("card");
+		const fallbackDesc = fallbackCard?.c?.find(
+			c => c && typeof c === "object" && "key" in c && c.key === "selected-desc",
+		);
+		expect(fallbackDesc).toBeDefined();
 	});
 });
 

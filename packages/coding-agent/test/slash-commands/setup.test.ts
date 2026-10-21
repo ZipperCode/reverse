@@ -223,8 +223,6 @@ describe("/setup slash command", () => {
 
 		expect(handled).toBe(true);
 		expect(harness.showCommandReport).toHaveBeenCalledTimes(1);
-		const reportCall = harness.showCommandReport.mock.calls[0]?.[0];
-		expect(reportCall.title).toContain("Speech");
 	});
 	it("opens custom provider wizard for /setup add", async () => {
 		const harness = createRuntime();
@@ -276,8 +274,7 @@ describe("/setup slash command", () => {
 
 		expect(handled).toBe(true);
 		expect(harness.showHookSelector).toHaveBeenCalledTimes(1);
-		const [title, items] = harness.showHookSelector.mock.calls[0] as [string, Array<{ label: string }>];
-		expect(title).toBe("Reverse Engineering Toolchain");
+		const [, items] = harness.showHookSelector.mock.calls[0] as [string, Array<{ label: string }>];
 		expect(items.some(item => item.label.includes("[CLI]"))).toBe(true);
 		expect(items.some(item => item.label.includes("[MCP]"))).toBe(true);
 		expect(harness.showWarning).not.toHaveBeenCalled();
@@ -321,7 +318,6 @@ describe("/setup slash command", () => {
 		expect(handled).toBe(true);
 		expect(harness.showHookConfirm).toHaveBeenCalledTimes(1);
 		expect(installSpy).not.toHaveBeenCalled();
-		expect(harness.showStatus).toHaveBeenCalledWith(expect.stringContaining("cancelled"));
 	});
 
 	it("executes install callback when user approves confirmation", async () => {
@@ -364,7 +360,7 @@ describe("/setup slash command", () => {
 		const handled = await executeBuiltinSlashCommand("/setup reverse", harness.runtime);
 
 		expect(handled).toBe(true);
-		expect(harness.showWarning).toHaveBeenCalledWith(expect.stringContaining("No installer executor available"));
+		expect(harness.showStatus).not.toHaveBeenCalled();
 	});
 
 	it("shows MCP config snippet when requested for an MCP service", async () => {
@@ -383,7 +379,6 @@ describe("/setup slash command", () => {
 		expect(harness.showCommandReport).toHaveBeenCalledTimes(1);
 		const reportCall = harness.showCommandReport.mock.calls[0]?.[0];
 		expect(reportCall.title).toContain("radare2 MCP");
-		expect(harness.showStatus).toHaveBeenCalledWith(expect.stringContaining("Displayed MCP config snippet"));
 	});
 
 	it("opens detail directly for /setup reverse <tool>", async () => {

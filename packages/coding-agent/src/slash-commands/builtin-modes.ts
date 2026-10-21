@@ -18,6 +18,7 @@ import { cfgPythonInterpreter } from "../eval/settings";
 import { STT_MODEL_OPTIONS } from "../stt/models";
 import { TTS_LOCAL_MODELS } from "../tts";
 import { getEffectiveLocale } from "../config/persisted-locale";
+import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
 import {
 	formatModelString,
 	getModelMatchPreferences,
@@ -521,6 +522,23 @@ function getInstallCallback(source: unknown): ReverseInstallCallback | undefined
 	return undefined;
 }
 
+function reverseSelectionDescription(
+	item: ReverseToolStatus | ReverseServiceStatus,
+	status: string,
+	isZh: boolean,
+): string {
+	const localize = (key: string, fallback: string) => (isZh ? (CLI_TRANSLATIONS_ZH_CN[key] ?? fallback) : fallback);
+	const description = localize(`cli.setup.reverse.tool.${item.id}.description`, item.description);
+	const purpose = item.usage?.whenToUse
+		? localize(`cli.setup.reverse.tool.${item.id}.purpose`, item.usage.whenToUse)
+		: undefined;
+	return [
+		`${localize("cli.setup.reverse.selection.description", "Description")}: ${description}`,
+		...(purpose ? [`${localize("cli.setup.reverse.selection.purpose", "When to use")}: ${purpose}`] : []),
+		`${localize("cli.setup.reverse.selection.status", "Status")}: ${status}`,
+	].join("\n");
+}
+
 export async function runInteractiveReverseSetup(
 	ctx: InteractiveModeContext,
 	targetTool?: string,
@@ -643,17 +661,21 @@ export async function runInteractiveReverseSetup(
 			const badge = isOk ? "✅" : "❌";
 			items.push({
 				label: `${badge} [CLI] ${tool.name} (${tool.id})`,
-				description: `[${tool.category}] ${
-					isOk
-						? isZh
-							? `已安装 (${tool.foundPath ?? "已就绪"})`
-							: `Installed (${tool.foundPath ?? "ready"})`
-						: tool.installCommand
-							? `安装: ${tool.installCommand}`
-							: isZh
-								? "需手动下载安装"
-								: "Manual install required"
-				}`,
+				description: reverseSelectionDescription(
+					tool,
+					`[${tool.category}] ${
+						isOk
+							? isZh
+								? `已安装 (${tool.foundPath ?? "已就绪"})`
+								: `Installed (${tool.foundPath ?? "ready"})`
+							: tool.installCommand
+								? `${isZh ? "安装" : "Install"}: ${tool.installCommand}`
+								: isZh
+									? "需手动下载安装"
+									: "Manual install required"
+					}`,
+					isZh,
+				),
 			});
 		}
 
@@ -670,15 +692,23 @@ export async function runInteractiveReverseSetup(
 				const connectionState = isZh ? "连接未验证" : "connection unverified";
 				items.push({
 					label: `${badge} [MCP] ${service.name} (${service.id})`,
-					description: `[${service.category}] ${
-						service.ready
-							? isZh
-								? "前置依赖已就绪"
-								: "Prerequisites ready"
-							: isZh
-								? `缺少依赖: ${service.missingPrerequisites.join(", ")}`
-								: `Missing: ${service.missingPrerequisites.join(", ")}`
-					} • ${configState} • ${connectionState} • ${service.startCommand}`,
+					description: reverseSelectionDescription(
+						service,
+						`[${service.category}] ${
+							service.missingPrerequisites.length > 0
+								? isZh
+									? `缺少依赖: ${service.missingPrerequisites.join(", ")}`
+									: `Missing: ${service.missingPrerequisites.join(", ")}`
+								: service.installed === false
+									? isZh
+										? "服务包未安装"
+										: "Service package not installed"
+									: isZh
+										? "前置依赖已就绪"
+										: "Prerequisites ready"
+						} • ${configState} • ${connectionState}`,
+						isZh,
+					),
 				});
 			}
 		}
@@ -689,7 +719,7 @@ export async function runInteractiveReverseSetup(
 		});
 
 		const title = isZh ? "逆向工程工具链" : "Reverse Engineering Toolchain";
-		const selected = await ctx.showHookSelector(title, items);
+		const selected = await ctx.showHookSelector(title, items, { selectedDescriptionRows: 5 });
 		if (!selected || selected.includes("← Exit") || selected.includes("← 退出")) {
 			break;
 		}

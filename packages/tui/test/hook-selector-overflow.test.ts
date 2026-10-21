@@ -525,4 +525,49 @@ describe("HookSelectorComponent", () => {
 		expect(appleRow).not.toContain(openBg);
 		expect(cherryRow).not.toContain(openBg);
 	});
+
+	it("reserves selected description pane below long list without dropping it on navigation or narrow width", () => {
+		const items = Array.from({ length: 15 }, (_, i) => ({
+			label: `[CLI] Tool ${i + 1}`,
+			description: `说明: 反编译工具 ${i + 1}\n用途: 逆向分析与检查 ${i + 1}\n状态: 已安装`,
+		}));
+		const component = new HookSelectorComponent(
+			"Toolchain Setup",
+			items,
+			() => {},
+			() => {},
+			{ initialIndex: 0, maxVisible: 8, selectedDescriptionRows: 5 },
+		);
+
+		// Verify initial render: Tool 1 selected, its description is visible even though list is long (15 items > 8 maxVisible)
+		const width = 50;
+		let lines = component.render(width).map(line => Bun.stripANSI(line));
+		expect(lines.some(l => l.includes("说明: 反编译工具 1"))).toBe(true);
+		expect(lines.some(l => l.includes("用途: 逆向分析与检查 1"))).toBe(true);
+		for (const line of component.render(width)) {
+			expect(visibleWidth(Bun.stripANSI(line))).toBeLessThanOrEqual(width);
+		}
+
+		// Navigate down with ArrowDown
+		component.handleInput("\x1b[B");
+		lines = component.render(width).map(line => Bun.stripANSI(line));
+		// Must update immediately to Tool 2 description, no stale Tool 1 content
+		expect(lines.some(l => l.includes("说明: 反编译工具 2"))).toBe(true);
+		expect(lines.some(l => l.includes("说明: 反编译工具 1"))).toBe(false);
+
+		// Search filtering: type '15' to match Tool 15
+		component.handleInput("1");
+		component.handleInput("5");
+		lines = component.render(width).map(line => Bun.stripANSI(line));
+		expect(lines.some(l => l.includes("Tool 15"))).toBe(true);
+		expect(lines.some(l => l.includes("说明: 反编译工具 15"))).toBe(true);
+
+		// Search filtering with no matches: clears description, no stale content
+		component.handleInput("q");
+		component.handleInput("q");
+		component.handleInput("q");
+		lines = component.render(width).map(line => Bun.stripANSI(line));
+		expect(lines.some(l => l.includes("No matching options"))).toBe(true);
+		expect(lines.some(l => l.includes("说明:"))).toBe(false);
+	});
 });
