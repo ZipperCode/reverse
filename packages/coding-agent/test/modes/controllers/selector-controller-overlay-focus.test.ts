@@ -5,7 +5,10 @@ import { initTheme } from "@reverse/tui/theme";
 import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 import type { SessionInfo } from "@reverse/coding-agent/session/session-listing";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
-import { Text } from "@reverse/tui";
+import { Container, Input, Text, TUI } from "@reverse/tui";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { VirtualRenderScheduler } from "../../../../tui/test/virtual-render-scheduler";
+import { VirtualTerminal } from "../../../../tui/test/virtual-terminal";
 
 beforeAll(async () => {
 	await initTheme();
@@ -182,5 +185,107 @@ describe("SelectorController session replacement overlay", () => {
 		resumed.resolve(true);
 		await overlayHidden.promise;
 		expect(hide).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("SelectorController.showCustomProviderWizard", () => {
+	it("mounts custom provider wizard through #showFullscreenMenu over active overlay, accepts typing/editing/Enter into Step 2, and restores overlay and editor", async () => {
+		const terminal = new VirtualTerminal(100, 32);
+		const scheduler = new VirtualRenderScheduler();
+		const tui = new TUI(terminal, false, { renderScheduler: scheduler });
+
+		const editor = new Input();
+		editor.setValue("original editor input");
+		const slot = new Container();
+		slot.addChild(editor);
+		tui.addChild(slot);
+		tui.setFocus(editor);
+
+		// Mount an active background overlay (simulating an active fullscreen setup or modal)
+		const backgroundOverlay = new Text("active background overlay", 0, 0);
+		const backgroundHandle = tui.showOverlay(backgroundOverlay, {
+			fullscreen: true,
+			width: "100%",
+			maxHeight: "100%",
+			anchor: "top-left",
+			margin: 0,
+		});
+		tui.setFocus(backgroundOverlay);
+
+		const ctx = {
+			editor,
+			editorContainer: slot,
+			session: {
+				modelRegistry: {
+					getAll: () => [],
+					authStorage: {
+						credentials: { has: () => false },
+						keys: { source: () => undefined },
+					},
+					refresh: vi.fn(),
+				},
+			},
+			settings: Settings.isolated(),
+			ui: tui,
+			showStatus: vi.fn(),
+			showError: vi.fn(),
+		} as unknown as InteractiveModeContext;
+
+		const controller = new SelectorController(ctx);
+		tui.start();
+		await scheduler.settle(terminal);
+
+		// Invoke real showCustomProviderWizard
+		const wizardPromise = controller.showCustomProviderWizard();
+		await scheduler.settle(terminal);
+
+		// 1. editorContainer must NOT have been cleared or replaced
+		expect(slot.children).toEqual([editor]);
+
+		// 2. The nested custom provider wizard overlay owns focus over background overlay
+		const focused = tui.getFocused();
+		expect(focused).not.toBeNull();
+		expect(focused).not.toBe(backgroundOverlay);
+		expect(focused).not.toBe(editor);
+
+		// 3. Dispatch real typing: "custom-prov"
+		for (const char of "custom-prov") terminal.sendInput(char);
+		await scheduler.settle(terminal);
+		expect(terminal.getViewport().join("\n")).toContain("custom-prov");
+
+		// 4. Dispatch backspace: delete 'v', then type 'v' and Enter '\r'
+		terminal.sendInput("\x7f");
+		await scheduler.settle(terminal);
+		expect(terminal.getViewport().join("\n")).not.toContain("custom-prov");
+		expect(terminal.getViewport().join("\n")).toContain("custom-pro");
+
+		terminal.sendInput("v");
+		terminal.sendInput("\r");
+		await scheduler.settle(terminal);
+
+		// 5. Explicit Step 2 assertion
+		const step2Viewport = terminal.getViewport().join("\n");
+		expect(step2Viewport).toContain("Step 2: API Protocol");
+		expect(step2Viewport).toContain("OpenAI Chat Completions");
+
+		// 6. Cancel wizard via Ctrl+C '\x03'
+		terminal.sendInput("\x03");
+		await wizardPromise;
+		await scheduler.settle(terminal);
+
+		// 7. Verify wizard overlay closed and background overlay regained focus
+		expect(tui.getFocused()).toBe(backgroundOverlay);
+
+		// 8. Closing background overlay restores focus and input routing to original editor
+		backgroundHandle.hide();
+		await scheduler.settle(terminal);
+		expect(tui.getFocused()).toBe(editor);
+		expect(editor.getValue()).toBe("original editor input");
+
+		terminal.sendInput("!");
+		await scheduler.settle(terminal);
+		expect(editor.getValue()).toBe("original editor input!");
+
+		tui.stop();
 	});
 });

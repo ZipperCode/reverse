@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AuthStorage } from "@reverse/ai";
 import type { OAuthLoginCallbacks, OAuthProviderId } from "@reverse/ai/oauth/types";
 import { providersSetupScene, SignInScene } from "@reverse/tui/setup/scenes/sign-in";
-import type { SetupHost, SetupSceneHost } from "@reverse/tui/setup/scenes/types";
+import type { SetupHost, SetupScene, SetupSceneHost } from "@reverse/tui/setup/scenes/types";
 import { initTheme } from "@reverse/tui/theme";
 import { type Component, TUI } from "@reverse/tui";
 import { Input } from "@reverse/tui/components/input";
@@ -334,4 +334,155 @@ describe("fullscreen setup sign-in cursor", () => {
 			}
 		});
 	}
+});
+
+describe("fullscreen setup sign-in custom provider onboarding", () => {
+	it("awaits custom provider settlement before transitioning to the next setup scene", async () => {
+		const terminal = new SignInTerminal(100, 32);
+		const scheduler = new VirtualRenderScheduler();
+		const tui = new TUI(terminal, false, { renderScheduler: scheduler });
+
+		let modelSceneMounted = false;
+		const dummyModelScene: SetupScene = {
+			id: "model",
+			title: "Model selection",
+			minVersion: 1,
+			mount: () => {
+				modelSceneMounted = true;
+				return {
+					title: "Model selection",
+					render: () => ["Model Selection Scene"],
+					invalidate: () => {},
+				};
+			},
+		};
+
+		const wizardGate = Promise.withResolvers<void>();
+		const showCustomProviderWizard = vi.fn(() => wizardGate.promise);
+
+		const host = {
+			ui: tui,
+			authStorage: {
+				credentials: { has: () => false },
+				keys: { source: () => undefined },
+				oauth: { login: async () => {} },
+			},
+			disabledProviders: [],
+			copyToClipboard: async () => {},
+			refreshProvider: async () => {},
+			openInBrowser(): void {},
+			showError: vi.fn(),
+			showCustomProviderWizard,
+		} as unknown as SetupHost;
+
+		const wizard = new SetupWizardComponent(host, [providersSetupScene, dummyModelScene]);
+		tui.start();
+		await scheduler.settle(terminal);
+
+		const overlay = tui.showOverlay(wizard, {
+			fullscreen: true,
+			width: "100%",
+			maxHeight: "100%",
+			anchor: "top-left",
+			margin: 0,
+		});
+
+		try {
+			void wizard.run();
+			terminal.sendInput("\r");
+			const afterDissolve = performance.now() + 1000;
+			vi.spyOn(performance, "now").mockReturnValue(afterDissolve);
+			await scheduler.settle(terminal);
+
+			// On SignInScene, trigger "+ Add custom provider…"
+			terminal.sendInput("\r");
+			await scheduler.settle(terminal);
+
+			expect(showCustomProviderWizard).toHaveBeenCalledTimes(1);
+
+			// Crucial assertion: Model scene MUST NOT mount while custom provider wizard promise is pending!
+			expect(modelSceneMounted).toBe(false);
+
+			// Resolve the wizard promise
+			wizardGate.resolve();
+			await Promise.resolve();
+			await scheduler.settle(terminal);
+
+			// After wizard settles, setup scene transitions to the model scene
+			expect(modelSceneMounted).toBe(true);
+		} finally {
+			wizard.dispose();
+			overlay.hide();
+			tui.stop();
+		}
+	});
+
+	it("forwards custom provider rejection to host.ctx.showError without advancing", async () => {
+		let modelSceneMounted = false;
+		const dummyModelScene: SetupScene = {
+			id: "model",
+			title: "Model selection",
+			minVersion: 1,
+			mount: () => {
+				modelSceneMounted = true;
+				return {
+					title: "Model selection",
+					render: () => [],
+					invalidate: () => {},
+				};
+			},
+		};
+
+		const errorSpy = vi.fn();
+		const terminal = new SignInTerminal(100, 32);
+		const scheduler = new VirtualRenderScheduler();
+		const tui = new TUI(terminal, false, { renderScheduler: scheduler });
+
+		const host = {
+			ui: tui,
+			authStorage: {
+				credentials: { has: () => false },
+				keys: { source: () => undefined },
+				oauth: { login: async () => {} },
+			},
+			disabledProviders: [],
+			copyToClipboard: async () => {},
+			refreshProvider: async () => {},
+			openInBrowser(): void {},
+			showError: errorSpy,
+			showCustomProviderWizard: vi.fn().mockRejectedValue(new Error("Custom provider error")),
+		} as unknown as SetupHost;
+
+		const wizard = new SetupWizardComponent(host, [providersSetupScene, dummyModelScene]);
+		tui.start();
+		await scheduler.settle(terminal);
+
+		const overlay = tui.showOverlay(wizard, {
+			fullscreen: true,
+			width: "100%",
+			maxHeight: "100%",
+			anchor: "top-left",
+			margin: 0,
+		});
+
+		try {
+			void wizard.run();
+			terminal.sendInput("\r");
+			const afterDissolve = performance.now() + 1000;
+			vi.spyOn(performance, "now").mockReturnValue(afterDissolve);
+			await scheduler.settle(terminal);
+
+			// Trigger "+ Add custom provider…"
+			terminal.sendInput("\r");
+			await scheduler.settle(terminal);
+			await Promise.resolve();
+
+			expect(errorSpy).toHaveBeenCalledWith("Custom provider error");
+			expect(modelSceneMounted).toBe(false);
+		} finally {
+			wizard.dispose();
+			overlay.hide();
+			tui.stop();
+		}
+	});
 });

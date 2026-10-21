@@ -2266,48 +2266,50 @@ export class SelectorController {
 		const locale = resolveEffectiveLocale(cfgLanguage.get(this.ctx.settings));
 
 		return new Promise<void>(resolve => {
-			this.showSelector(done => {
-				const finish = () => {
-					done();
-					resolve();
-				};
-				const wizard = new CustomProviderWizard(
-					{
-						existingProviderIds,
-						fetchModels: opts => fetchDiscoveredProviderModels(opts),
-					},
-					async config => {
-						await saveCustomProvider(
-							{
-								providerId: config.providerId,
-								baseUrl: config.baseUrl,
-								api: config.api,
-								apiKey: config.apiKey,
-								models: config.models,
-							},
-							{
-								authStorage: this.ctx.session.modelRegistry.authStorage,
-								modelRegistry: this.ctx.session.modelRegistry,
-								agentDir: this.ctx.settings.getAgentDir(),
-							},
-						);
-						finish();
-						const statusMsg =
-							locale === "zh-CN"
-								? `已添加自定义提供商 "${config.providerId}"（包含 ${config.models.length} 个模型）。`
-								: `Custom provider "${config.providerId}" added with ${config.models.length} model(s).`;
-						this.ctx.showStatus(statusMsg);
-						this.ctx.ui.requestRender();
-					},
-					() => {
-						finish();
-						this.ctx.ui.requestRender();
-					},
-					() => this.ctx.ui.requestRender(),
-					locale,
-				);
-				return { component: wizard, focus: wizard };
-			});
+			let closed = false;
+			const finish = () => {
+				if (closed) return;
+				closed = true;
+				handle.hide();
+				wizard.dispose();
+				resolve();
+			};
+			const wizard = new CustomProviderWizard(
+				{
+					existingProviderIds,
+					fetchModels: opts => fetchDiscoveredProviderModels(opts),
+				},
+				async config => {
+					await saveCustomProvider(
+						{
+							providerId: config.providerId,
+							baseUrl: config.baseUrl,
+							api: config.api,
+							apiKey: config.apiKey,
+							models: config.models,
+						},
+						{
+							authStorage: this.ctx.session.modelRegistry.authStorage,
+							modelRegistry: this.ctx.session.modelRegistry,
+							agentDir: this.ctx.settings.getAgentDir(),
+						},
+					);
+					finish();
+					const statusMsg =
+						locale === "zh-CN"
+							? `已添加自定义提供商 "${config.providerId}"（包含 ${config.models.length} 个模型）。`
+							: `Custom provider "${config.providerId}" added with ${config.models.length} model(s).`;
+					this.ctx.showStatus(statusMsg);
+					this.ctx.ui.requestRender();
+				},
+				() => {
+					finish();
+					this.ctx.ui.requestRender();
+				},
+				() => this.ctx.ui.requestRender(),
+				locale,
+			);
+			const handle = this.#showFullscreenMenu(wizard);
 		});
 	}
 	async showSessionPinSelector(): Promise<void> {

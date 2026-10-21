@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- Fixed keyboard input in the custom provider wizard during first-launch setup by opening a focused nested overlay and waiting for it to close before advancing to model selection.
 - Fixed custom provider wizard model discovery to abort in-flight requests on cancel, back, and dispose, ignoring stale asynchronous responses; resolved native UI content duplication in model selection; and clearly displayed runtime output fallback for models with unknown `maxTokens` without persisting fabricated values.
 - Aligned reverse tool execution with the agent's call-ID, parameters, and cancellation contract; corrected DEX offsets, manifest flags, evidence findings, and runtime recovery types without suppressing diagnostics.
 ## [18.11.2] - 2026-10-16
