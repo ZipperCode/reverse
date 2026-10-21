@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
 import { crc32 } from "@reverse/ai/providers/aws-eventstream";
 import type { Context, FetchImpl, Model, Tool } from "@reverse/ai/types";

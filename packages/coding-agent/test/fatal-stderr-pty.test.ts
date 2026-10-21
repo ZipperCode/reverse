@@ -38,7 +38,7 @@ describe.skipIf(process.platform === "win32")("fatal stderr terminal handoff", (
 				// (ci-test-ts children inherit PI_TEST_RUNTIME=1).
 				env: {
 					...process.env,
-					OMP_TUI_DEBUG: undefined,
+					REVERSE_TUI_DEBUG: undefined,
 					PI_TEST_RUNTIME: undefined,
 					BUN_ENV: undefined,
 					NODE_ENV: undefined,
@@ -46,7 +46,7 @@ describe.skipIf(process.platform === "win32")("fatal stderr terminal handoff", (
 					// A parent running in Tern must not turn the fixture's rows into APC JSON.
 					TERM: "xterm-256color",
 					TERM_PROGRAM: undefined,
-					OMP_TUI_NATIVE: "0",
+					REVERSE_TUI_NATIVE: "0",
 					PI_TUI_NATIVE: "0",
 				},
 				terminal,

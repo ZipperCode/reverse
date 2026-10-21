@@ -976,7 +976,7 @@ export class RpcClient {
 
 	/**
 	 * Selectable thinking levels for the live model, with `off` first.
-	 * OMP-only `auto`/`inherit` selectors are omitted from discovery.
+	 * REVERSE-only `auto`/`inherit` selectors are omitted from discovery.
 	 */
 	async getAvailableThinkingLevels(): Promise<ThinkingLevel[]> {
 		const response = await this.#send({ type: "get_available_thinking_levels" });

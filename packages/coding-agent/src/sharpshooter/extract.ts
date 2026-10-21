@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentMessage } from "@reverse/agent";
 import { completeSimple, Effort, type Model, retryTransientCompletion } from "@reverse/ai";
 import { clampThinkingLevelForModel } from "@reverse/catalog/model-thinking";

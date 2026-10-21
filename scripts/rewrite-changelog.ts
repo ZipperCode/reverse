@@ -25,13 +25,13 @@
  *   bun scripts/rewrite-changelog.ts --package coding-agent
  *   bun scripts/rewrite-changelog.ts --model google/gemini-3.5-flash
  *
- * Auth: resolves the provider API key through omp's auth storage
- * (~/.omp/agent/agent.db: stored key, OAuth, or env var fallback).
+ * Auth: resolves the provider API key through reverse's auth storage
+ * (~/.reverse/agent/agent.db: stored key, OAuth, or env var fallback).
  */
 
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { type Api, completeSimple, Effort, type Model, type Tool, type ToolCall } from "@reverse/ai";
 import { discoverAuthStorage } from "@reverse/ai/auth-broker";
 import { type GeneratedProvider, getBundledModel } from "@reverse/catalog/models";
@@ -48,7 +48,7 @@ import {
 
 const DEFAULT_MODEL = "openai-codex/gpt-5.6-luna";
 /** Tried in order after the primary model fails (quota exhaustion, auth, hard API errors). */
-const FALLBACK_MODELS = [];
+const FALLBACK_MODELS: readonly string[] = [];
 
 // --------------------------------------------------------------------------
 // Prompts
@@ -108,7 +108,7 @@ async function openModel(modelSpec: string): Promise<RewriteModel> {
 		const apiKey = await storage.keys.get(provider);
 		if (!apiKey) {
 			throw new Error(
-				`no credentials for provider "${provider}" via ${sourceLabel} (check broker or run \`omp login\`)`,
+				`no credentials for provider "${provider}" via ${sourceLabel} (check broker or run \`reverse login\`)`,
 			);
 		}
 		return { model, apiKey, spec: modelSpec };

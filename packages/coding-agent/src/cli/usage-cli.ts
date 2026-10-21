@@ -1,7 +1,7 @@
 /**
  * Usage CLI command handler.
  *
- * Handles `omp usage` — fetches provider usage reports for every
+ * Handles `reverse usage` — fetches provider usage reports for every
  * authenticated account and prints a detailed per-account breakdown
  * (limits, windows, reset times, plan metadata). Accounts whose
  * credentials produced no usage report are listed too, so the output
@@ -583,7 +583,7 @@ function formatReloginDeadline(
 }
 
 /**
- * Tombstones worth a row in `omp usage`: OAuth credentials torn down
+ * Tombstones worth a row in `reverse usage`: OAuth credentials torn down
  * automatically (refresh failure, upstream invalidation). Rows the user
  * replaced or deleted deliberately are lifecycle noise, not lost capacity.
  */
@@ -675,7 +675,7 @@ function formatPolicyLine(
 	const inherited = configuredReservePct === undefined;
 	const reservePct = Math.max(0, Math.min(100, configuredReservePct ?? options.globalReservePct));
 	const reserveLabel = `${reservePct}% ${inherited ? "(global)" : "(override)"}`;
-	// `omp usage` has no model/session context, so report the conservative
+	// `reverse usage` has no model/session context, so report the conservative
 	// account-wide state from the most-consumed visible window. Actual routing
 	// still scopes limits and selection in AuthStorage.
 	// Exhaustion follows the same status-first rule as the limit rows and routing's
@@ -704,9 +704,9 @@ function formatExpiringResets(warning: ResetExpiryWarning, nowMs: number): strin
 function formatResetSpendVerdict(verdict: ResetSpendVerdict): string {
 	const outcome =
 		verdict.kind === "auto"
-			? "an open interactive omp session spends it by its last 5 min if eligible then"
+			? "an open interactive reverse session spends it by its last 5 min if eligible then"
 			: verdict.kind === "ask"
-				? "an open interactive omp session asks before spending it"
+				? "an open interactive reverse session asks before spending it"
 				: "not spent automatically";
 	return `→ ${outcome}  (${verdict.setting}: ${verdict.mode})${verdict.eligibleNow ? "" : " · not eligible now"}`;
 }
@@ -749,7 +749,7 @@ function formatResetExpiryBanner(
 		const command =
 			stored.length === 1 ? `/usage reset ${warning.provider}/${stored[0]!.credentialId}` : "/usage reset";
 		lines.push(
-			`    ${verdicts[index]!.kind === "off" ? "spend it" : "or now"}:  ${chalk.cyan(command)} ${chalk.dim("in omp")}`,
+			`    ${verdicts[index]!.kind === "off" ? "spend it" : "or now"}:  ${chalk.cyan(command)} ${chalk.dim("in reverse")}`,
 		);
 	});
 	return lines;
@@ -1088,7 +1088,7 @@ function formatNoProviderCredentials(provider: string, storedAccounts: UsageAcco
 	const hint =
 		stored.length > 0
 			? `Providers with stored credentials: ${stored.join(", ")}.`
-			: "Run `omp` and use /login to add accounts.";
+			: "Run `reverse` and use /login to add accounts.";
 	return `No credentials stored for provider "${provider}". ${hint}\n`;
 }
 
@@ -1201,7 +1201,7 @@ async function resolveBrokerClient(): Promise<AuthBrokerClient | undefined> {
 	return config ? new AuthBrokerClient({ url: config.url, token: config.token }) : undefined;
 }
 
-/** One OAuth account as `omp usage accounts` lists it. */
+/** One OAuth account as `reverse usage accounts` lists it. */
 interface OAuthIdentityKeyRow {
 	provider: string;
 	/** `null` when the credential carries no account identity, so no pool can name it. */
@@ -1250,7 +1250,7 @@ function formatOAuthIdentityKeys(rows: readonly OAuthIdentityKeyRow[]): string {
 	return lines.join("\n");
 }
 
-const RESET_COMMAND = "omp usage reset";
+const RESET_COMMAND = "reverse usage reset";
 
 function failUsageReset(message: string): void {
 	process.stderr.write(chalk.red(`${message}\n`));
@@ -1276,7 +1276,7 @@ function identityTextMasker(redaction: Map<string, string>): (text: string) => s
 }
 
 /**
- * `omp usage reset [<provider>/<credential id>]`: list every stored Codex and
+ * `reverse usage reset [<provider>/<credential id>]`: list every stored Codex and
  * Claude account's saved resets, or spend one on the named account. Both run in
  * this process with the store's tokens, so a broker client works like the host.
  */
@@ -1387,7 +1387,7 @@ async function runUsageResetCommand(
 		}
 		if (accounts.length === 0) {
 			const names = providers.map(formatResetProviderName).join(" or ");
-			process.stderr.write(chalk.yellow(`No ${names} accounts found. Run \`omp\` and use /login to add one.\n`));
+			process.stderr.write(chalk.yellow(`No ${names} accounts found. Run \`reverse\` and use /login to add one.\n`));
 			process.exitCode = 1;
 			return;
 		}
@@ -1407,7 +1407,7 @@ async function runUsageResetCommand(
 	const lockKey = resetAccountLockKey(target);
 	if (!lockKey) {
 		failUsageReset(
-			`${who}: this login stores no account id or email to fence the spend against other omp processes, so nothing was spent. Run \`omp\` and use /login to sign in to it again.`,
+			`${who}: this login stores no account id or email to fence the spend against other reverse processes, so nothing was spent. Run \`reverse\` and use /login to sign in to it again.`,
 		);
 		return;
 	}
@@ -1442,8 +1442,8 @@ async function runUsageResetCommand(
 		const ago = formatDuration(Date.now() - result.atMs);
 		failUsageReset(
 			result.state === "reset"
-				? `${who}: another omp process spent a saved reset on this account ${ago} ago, so this one was not spent. Check \`omp usage\` before spending another.`
-				: `${who}: another omp process started spending a saved reset on this account ${ago} ago, so nothing was spent. Try again in a minute.`,
+				? `${who}: another reverse process spent a saved reset on this account ${ago} ago, so this one was not spent. Check \`reverse usage\` before spending another.`
+				: `${who}: another reverse process started spending a saved reset on this account ${ago} ago, so nothing was spent. Try again in a minute.`,
 		);
 		return;
 	}
@@ -1487,7 +1487,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			if (cmd.redact) {
 				process.stderr.write(
 					chalk.red(
-						"`omp usage accounts` prints identity keys verbatim for configuration; --redact does not apply.\n",
+						"`reverse usage accounts` prints identity keys verbatim for configuration; --redact does not apply.\n",
 					),
 				);
 				process.exitCode = 1;
@@ -1509,7 +1509,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			if (rows.length === 0) {
 				const scope = cmd.provider ? ` for provider "${cmd.provider}"` : "";
 				process.stderr.write(
-					chalk.yellow(`No OAuth accounts found${scope}. Run \`omp\` and use /login to add accounts.\n`),
+					chalk.yellow(`No OAuth accounts found${scope}. Run \`reverse\` and use /login to add accounts.\n`),
 				);
 				process.exitCode = 1;
 				return;
@@ -1538,7 +1538,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			if (clients.length === 0) {
 				process.stderr.write(
 					chalk.yellow(
-						"No per-client usage recorded yet. Broker-connected clients and the auth-gateway report token burn automatically; set OMP_AUTH_BROKER_URL (or run this on the broker host).\n",
+						"No per-client usage recorded yet. Broker-connected clients and the auth-gateway report token burn automatically; set REVERSE_AUTH_BROKER_URL (or run this on the broker host).\n",
 					),
 				);
 				process.exitCode = 1;
@@ -1574,7 +1574,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 				const scope = cmd.provider ? ` for provider "${cmd.provider}"` : "";
 				process.stderr.write(
 					chalk.yellow(
-						`No usage history recorded${scope} yet. Snapshots accumulate whenever usage is fetched (TUI footer, /usage, omp usage).\n`,
+						`No usage history recorded${scope} yet. Snapshots accumulate whenever usage is fetched (TUI footer, /usage, reverse usage).\n`,
 					),
 				);
 				process.exitCode = 1;
@@ -1673,7 +1673,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			} else if (storedAccounts.length > 0) {
 				message = "No usage data. Stored credentials are for providers without a usage endpoint.\n";
 			} else {
-				message = "No credentials found. Run `omp` and use /login to add accounts.\n";
+				message = "No credentials found. Run `reverse` and use /login to add accounts.\n";
 			}
 			process.stderr.write(chalk.yellow(message));
 			process.exitCode = 1;

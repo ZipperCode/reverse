@@ -46,19 +46,19 @@ function canResolve(specifier: string, fromDir: string): boolean {
 }
 
 /**
- * Picks a package OMP itself resolves but the workspace cannot. Prefers `@babel/parser`; a stray
+ * Picks a package REVERSE itself resolves but the workspace cannot. Prefers `@babel/parser`; a stray
  * `node_modules` above the temp dir (e.g. `npm i` run in the Windows profile dir) legitimately puts
- * it in the workspace's ancestry, so fall back to any other package installed for OMP.
+ * it in the workspace's ancestry, so fall back to any other package installed for REVERSE.
  */
-function ompOnlyPackage(workspaceDir: string): string {
-	const ompDir = path.resolve(import.meta.dir, "../..");
-	const repoModules = path.resolve(ompDir, "../../node_modules");
+function reverseOnlyPackage(workspaceDir: string): string {
+	const reverseDir = path.resolve(import.meta.dir, "../..");
+	const repoModules = path.resolve(reverseDir, "../../node_modules");
 	const candidates = [
 		"@babel/parser",
 		...fsSync.readdirSync(repoModules).filter(name => !name.startsWith(".") && !name.startsWith("@")),
 	];
-	const picked = candidates.find(name => canResolve(name, ompDir) && !canResolve(name, workspaceDir));
-	if (!picked) throw new Error(`Every OMP dependency is also resolvable from ${workspaceDir}`);
+	const picked = candidates.find(name => canResolve(name, reverseDir) && !canResolve(name, workspaceDir));
+	if (!picked) throw new Error(`Every REVERSE dependency is also resolvable from ${workspaceDir}`);
 	return picked;
 }
 
@@ -78,7 +78,7 @@ describe("persistent JavaScript package environments", () => {
 	});
 
 	it("refuses an implicit managed environment bootstrap when auto-provisioning is disabled", async () => {
-		using workspace = TempDir.createSync("@omp-js-package-policy-");
+		using workspace = TempDir.createSync("@reverse-js-package-policy-");
 		const sessionId = `js-package-policy:${crypto.randomUUID()}`;
 		const session = makeSession(workspace.path(), sessionId, { autoProvision: false });
 		const environment = resolveJsPackageEnvironment(workspace.path());
@@ -94,8 +94,8 @@ describe("persistent JavaScript package environments", () => {
 	});
 
 	it("resolves file imports from the filename while preserving cwd and repeat execution", async () => {
-		using workspace = TempDir.createSync("@omp-js-file-workspace-");
-		using scriptDir = TempDir.createSync("@omp-js-file-script-");
+		using workspace = TempDir.createSync("@reverse-js-file-workspace-");
+		using scriptDir = TempDir.createSync("@reverse-js-file-script-");
 		const filename = path.join(scriptDir.path(), "loaded.ts");
 		const source = [
 			'import { amount } from "./sibling.ts";',
@@ -127,13 +127,13 @@ describe("persistent JavaScript package environments", () => {
 		expect(JSON.parse(retained.output.trim())).toEqual([13, await fs.realpath(workspace.path()), 2]);
 	});
 
-	it("does not resolve a missing project package from OMP's own dependencies", async () => {
+	it("does not resolve a missing project package from REVERSE's own dependencies", async () => {
 		// Dynamic import is the behavior under test: a static import would be
 		// resolved by this test module's own dependency graph.
-		using workspace = TempDir.createSync("@omp-js-package-missing-");
+		using workspace = TempDir.createSync("@reverse-js-package-missing-");
 		const sessionId = `js-package-missing:${crypto.randomUUID()}`;
 		const session = makeSession(workspace.path(), sessionId);
-		const specifier = ompOnlyPackage(workspace.path());
+		const specifier = reverseOnlyPackage(workspace.path());
 		const result = await executeJs(`await import(${JSON.stringify(specifier)})`, executorOptions(session, sessionId));
 		expect(result.exitCode).toBe(1);
 		expect(result.output).toContain("JS package environment fallback");

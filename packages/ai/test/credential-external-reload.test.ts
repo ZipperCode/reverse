@@ -8,7 +8,7 @@ import {
 
 /**
  * A session that is already running must see credentials another process
- * committed. `omp auth` in a second terminal writes to the shared SQLite store;
+ * committed. `reverse auth` in a second terminal writes to the shared SQLite store;
  * without a reload the running session ranks a stale in-memory pool for its
  * whole lifetime, so rotation reports "no usable sibling" while a freshly added
  * account sits unblocked in the database and the turn degrades to the fallback

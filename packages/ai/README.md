@@ -101,7 +101,7 @@ import { getModel, stream, complete, Context, Tool, type } from "@reverse/ai";
 // Fully typed with auto-complete support for both providers and models
 const model = getModel("openai", "gpt-4o-mini");
 
-// Define tools with omptype schemas for type safety and validation
+// Define tools with reversetype schemas for type safety and validation
 const tools: Tool[] = [
 	{
 		name: "get_time",
@@ -343,7 +343,7 @@ for await (const event of s) {
 
 ### Validating Tool Arguments
 
-When using `agentLoop`, tool arguments are automatically validated against their omptype schemas before execution. Validation failures are returned to the model as tool results so it can retry.
+When using `agentLoop`, tool arguments are automatically validated against their reversetype schemas before execution. Validation failures are returned to the model as tool results so it can retry.
 
 When implementing your own tool execution loop with `stream()` or `complete()`, use `validateToolCall` to validate arguments before passing them to your tools:
 
@@ -967,7 +967,7 @@ In Node.js environments, you can set environment variables to avoid passing API 
 | Snowflake Cortex      | `SNOWFLAKE_PAT` + `SNOWFLAKE_ACCOUNT`                                                                               |
 | GitHub Copilot        | `COPILOT_GITHUB_TOKEN` or `GH_TOKEN` or `GITHUB_TOKEN`                                                              |
 
-`/login cloudflare-ai-gateway` collects and stores the gateway token, account ID, and gateway ID. For environment configuration, set all three Cloudflare values above. OMP derives provider endpoints from the account and gateway IDs.
+`/login cloudflare-ai-gateway` collects and stores the gateway token, account ID, and gateway ID. For environment configuration, set all three Cloudflare values above. reverse derives provider endpoints from the account and gateway IDs.
 
 For Anthropic Foundry routing, set `CLAUDE_CODE_USE_FOUNDRY=true` plus:
 `FOUNDRY_BASE_URL`, `ANTHROPIC_FOUNDRY_API_KEY`, optional `ANTHROPIC_CUSTOM_HEADERS`,
@@ -976,7 +976,7 @@ and optional mTLS material (`CLAUDE_CODE_CLIENT_CERT`, `CLAUDE_CODE_CLIENT_KEY`)
 `NODE_EXTRA_CA_CERTS` (PEM file path or inline PEM, mirroring Node's contract)
 is honoured on every provider fetch — OpenAI-compatible, Codex, Ollama, Azure
 Responses, Google, and Anthropic alike — for corporate relays or private CA
-bundles. Bun's `fetch` does not consume the env var natively, so omp injects
+bundles. Bun's `fetch` does not consume the env var natively, so reverse injects
 the bundle into `RequestInit.tls.ca` and seeds the system root store
 alongside it.
 
@@ -1041,11 +1041,11 @@ For paid Cloud Code Assist subscriptions, set `GOOGLE_CLOUD_PROJECT` or `GOOGLE_
 
 `/login snowflake` prompts for an account identifier (for example, `myorg-myaccount`), an HTTPS Snowflake account URL, or a Snowsight account link. It opens Snowflake's built-in `SNOWFLAKE$LOCAL_APPLICATION` OAuth flow using PKCE and a `127.0.0.1` callback (port 54551, with an ephemeral-port fallback). The stored account selects the inference endpoint; OAuth credentials cannot be sent to a different account through a custom model endpoint.
 
-The default inference role must hold either `SNOWFLAKE.CORTEX_USER` or the narrower, REST-only `SNOWFLAKE.CORTEX_REST_API_USER` (recommended for least privilege). `CORTEX_REST_API_USER` cannot be granted to a user directly; grant it to a custom role, and revoke `CORTEX_USER` from users who already hold it so the narrower control applies. The Cortex REST API is not available in China-region (`.snowflakecomputing.cn`) accounts. An administrator can check local-app availability with `SHOW SECURITY INTEGRATIONS LIKE 'SNOWFLAKE$LOCAL_APPLICATION'` and enable the integration or refresh issuance if necessary. When Snowflake issues a refresh token, omp refreshes the access token automatically. Without one, login remains valid until expiry; then sign in again or use the PAT environment alternative.
+The default inference role must hold either `SNOWFLAKE.CORTEX_USER` or the narrower, REST-only `SNOWFLAKE.CORTEX_REST_API_USER` (recommended for least privilege). `CORTEX_REST_API_USER` cannot be granted to a user directly; grant it to a custom role, and revoke `CORTEX_USER` from users who already hold it so the narrower control applies. The Cortex REST API is not available in China-region (`.snowflakecomputing.cn`) accounts. An administrator can check local-app availability with `SHOW SECURITY INTEGRATIONS LIKE 'SNOWFLAKE$LOCAL_APPLICATION'` and enable the integration or refresh issuance if necessary. When Snowflake issues a refresh token, reverse refreshes the access token automatically. Without one, login remains valid until expiry; then sign in again or use the PAT environment alternative.
 
 For PAT authentication, set both `SNOWFLAKE_ACCOUNT` and `SNOWFLAKE_PAT`. Prefer a short-lived PAT restricted to a dedicated inference role and the required user-scoped network allowlist; do not disable network-policy enforcement. See [Snowflake PAT setup](https://docs.snowflake.com/en/user-guide/programmatic-access-tokens) and [local-application OAuth](https://docs.snowflake.com/en/user-guide/oauth-local-applications).
 
-Claude models use `/api/v2/cortex/v1/messages`; OpenAI models use `/api/v2/cortex/v1/chat/completions`. Both reuse omp's streaming transports and local tool execution. The 15 bundled models are a documented roster, not an account entitlement check: availability still depends on Cortex REST API enablement, role grants, model allowlists, and region. If authentication succeeds but Cortex returns `003001` ("This account is not allowed to access this endpoint"), Snowflake has not enabled Cortex REST for the account. [Self-service trial accounts disable AI features until a credit card is added](https://docs.snowflake.com/en/user-guide/admin-trial-account#label-trial-account-ai-features) (adding one does not end the trial); REST access can remain disabled even after AI SQL functions work, in which case Snowflake support must enable it. Cross-region inference requires an account administrator's explicit decision. `omp models snowflake --json` lists available models only after credentials are configured.
+Claude models use `/api/v2/cortex/v1/messages`; OpenAI models use `/api/v2/cortex/v1/chat/completions`. Both reuse reverse's streaming transports and local tool execution. The 15 bundled models are a documented roster, not an account entitlement check: availability still depends on Cortex REST API enablement, role grants, model allowlists, and region. If authentication succeeds but Cortex returns `003001` ("This account is not allowed to access this endpoint"), Snowflake has not enabled Cortex REST for the account. [Self-service trial accounts disable AI features until a credit card is added](https://docs.snowflake.com/en/user-guide/admin-trial-account#label-trial-account-ai-features) (adding one does not end the trial); REST access can remain disabled even after AI SQL functions work, in which case Snowflake support must enable it. Cross-region inference requires an account administrator's explicit decision. `reverse models snowflake --json` lists available models only after credentials are configured.
 
 This provider uses the [public, account-billed Cortex REST API](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-rest-api). CoCo-subscription coverage is unverified. Catalog prices are per-million-token estimates from [Consumption Table 6(b)](https://www.snowflake.com/legal-files/CreditConsumptionTable.pdf) at [$2 per AI Credit](https://docs.snowflake.com/en/user-guide/snowflake-cortex/pricing) for on-demand global routing, not your contract price. Output is capped at the REST API's documented 16,384-token maximum; context windows are conservative AI_COMPLETE limits, not verified REST maxima. Cortex compatibility rules limit explicit cache retention to five minutes. Paste an account identifier or current Snowsight link; legacy `app.snowflake.com/<region>/<locator>` links are rejected because they don't map uniformly to an account host.
 
@@ -1089,14 +1089,14 @@ Official docs: [Application Default Credentials](https://cloud.google.com/docs/a
 
 ### CLI Login
 
-Authenticate via the [`omp`](https://omp.sh) coding-agent CLI, which drives this library's OAuth/API-key flows in-process and persists into `agent.db`:
+Authenticate via the [`reverse`](https://github.com/ZipperCode/rev) coding-agent CLI, which drives this library's OAuth/API-key flows in-process and persists into `agent.db`:
 
 ```bash
-omp auth-broker login              # interactive provider selection
-omp auth-broker login anthropic    # login to a specific provider
-omp auth-broker login vllm         # store vLLM API key (or placeholder for local no-auth)
-omp auth-broker list               # list supported providers
-omp auth-broker logout             # interactive — pick a stored credential to remove
+reverse auth-broker login              # interactive provider selection
+reverse auth-broker login anthropic    # login to a specific provider
+reverse auth-broker login vllm         # store vLLM API key (or placeholder for local no-auth)
+reverse auth-broker list               # list supported providers
+reverse auth-broker logout             # interactive — pick a stored credential to remove
 ```
 
 Credentials are saved to `agent.db` in the agent directory. `/login qianfan` opens the Qianfan console and stores the pasted API key.

@@ -2,8 +2,8 @@ import { HookEditorComponent, HookInputComponent, HookSelectorComponent } from "
 
 // Core session management
 
-export * as zod from "@reverse/omptype/zod";
-export { z } from "@reverse/omptype/zod";
+export * as zod from "@reverse/reversetype/zod";
+export { z } from "@reverse/reversetype/zod";
 // Re-export TUI components for custom tool rendering
 export { Container, Markdown, Spacer, Text } from "@reverse/tui";
 // Logging

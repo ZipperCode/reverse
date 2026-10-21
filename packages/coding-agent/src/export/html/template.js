@@ -1,7 +1,7 @@
     (function() {
       'use strict';
 
-      const THEME_STORAGE_KEY = 'rva-export-theme';
+      const THEME_STORAGE_KEY = 'reverse-export-theme';
       const themeSelect = document.getElementById('theme-select');
       let themePreference = 'auto';
       try {
@@ -28,7 +28,7 @@
       //
       // Two boot paths share this template:
       //  - Static export: session JSON rides base64-embedded in #session-data.
-      //  - Share viewer: share-loader.js sets `window.__OMP_SESSION_DATA__` to
+      //  - Share viewer: share-loader.js sets `window.__REVERSE_SESSION_DATA__` to
       //    a promise resolving to the session JSON (fetched + decrypted).
       // The entire app lives in bootSession(); its body keeps the original
       // one-level indentation to avoid a whole-file reindent.
@@ -570,8 +570,8 @@
       }
 
       /**
-       * Split an OMP interleaved assistant into sidebar text/tool rows.
-       * Pi stores those continuations as separate entries; OMP keeps one
+       * Split an REVERSE interleaved assistant into sidebar text/tool rows.
+       * Pi stores those continuations as separate entries; REVERSE keeps one
        * content array. Do not mutate session entries or parentIds.
        */
       function buildInterleavedAssistantRows(flatNode, toolResultNodes, includeTools) {
@@ -916,13 +916,13 @@
       // TOOL CALL RENDERING
       // ============================================================
       //
-      // Tool calls render through the bundled <omp-tool-view> web component
+      // Tool calls render through the bundled <reverse-tool-view> web component
       // (tool-views.generated.js — the same React renderers collab-web uses).
       // Payloads are handed over via a global store keyed by data-key, which
       // survives innerHTML serialization and cloneNode round trips.
 
       const TOOL_VIEW_DATA = new Map();
-      globalThis.__OMP_TOOL_VIEW_DATA = TOOL_VIEW_DATA;
+      globalThis.__REVERSE_TOOL_VIEW_DATA = TOOL_VIEW_DATA;
       let toolViewSeq = 0;
 
       function renderToolCall(call, sctx, blockId) {
@@ -938,7 +938,7 @@
             openAgent: (id) => openSubSession(joinKey(sctx.prefix, id)),
           },
         });
-        return '<omp-tool-view class="tool-execution ' + statusClass + '" id="' + blockId + '" data-key="' + key + '" open></omp-tool-view>';
+        return '<reverse-tool-view class="tool-execution ' + statusClass + '" id="' + blockId + '" data-key="' + key + '" open></reverse-tool-view>';
       }
 
       // ============================================================

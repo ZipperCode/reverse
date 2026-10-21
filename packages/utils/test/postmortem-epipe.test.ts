@@ -99,7 +99,7 @@ if (!CHILD_FLAGS.some(flag => process.argv.includes(flag))) {
 		});
 
 		it("keeps the process alive when Bun surfaces worker IPC EPIPE as an uncaught exception", async () => {
-			const marker = path.join(os.tmpdir(), `omp-postmortem-uncaught-ipc-${process.pid}-${Date.now()}`);
+			const marker = path.join(os.tmpdir(), `reverse-postmortem-uncaught-ipc-${process.pid}-${Date.now()}`);
 			const child = Bun.spawn([process.execPath, "run", import.meta.path, uncaughtIpcChildFlag, marker], {
 				stdin: "ignore",
 				stdout: "pipe",
@@ -154,7 +154,7 @@ if (!CHILD_FLAGS.some(flag => process.argv.includes(flag))) {
 		// TUI's own stdout listener on an interactive launch, so a fatal exit here
 		// would preempt the terminal disconnect path (SIGHUP/exit-129).
 		it("defers a non-EPIPE stdout error instead of forcing a fatal exit", async () => {
-			const marker = path.join(os.tmpdir(), `omp-postmortem-defer-${process.pid}-${Date.now()}`);
+			const marker = path.join(os.tmpdir(), `reverse-postmortem-defer-${process.pid}-${Date.now()}`);
 			const child = Bun.spawn([process.execPath, "run", import.meta.path, deferNonEpipeChildFlag, marker], {
 				stdin: "ignore",
 				stdout: "pipe",
@@ -180,7 +180,7 @@ if (!CHILD_FLAGS.some(flag => process.argv.includes(flag))) {
 		it.skipIf(process.platform === "win32")(
 			"runs cleanup and exits 0 when a registered stdout consumer closes early",
 			async () => {
-				const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-postmortem-stdout-"));
+				const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-postmortem-stdout-"));
 				const marker = path.join(tmpDir, "cleanup");
 				const errPath = path.join(tmpDir, "child.err");
 				try {

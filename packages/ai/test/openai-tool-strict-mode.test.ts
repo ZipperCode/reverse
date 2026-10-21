@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
 import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
 import type { Context, FetchImpl, Model, ModelSpec, OpenAICompat, ProviderSessionState, Tool } from "@reverse/ai/types";

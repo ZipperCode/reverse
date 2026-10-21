@@ -2,7 +2,7 @@
  * Cross-process contract for the broker-owned blob daemon.
  *
  * One blob daemon runs per project scope (launched through the same daemon
- * broker that owns the shared Chromium and LSP mux), so every omp process in
+ * broker that owns the shared Chromium and LSP mux), so every reverse process in
  * the project shares one exposure (tunnel or uploader) and one URL per blob.
  * Control traffic rides HTTP over a Unix socket in the daemon runtime dir;
  * public traffic reaches the same store through the exposure.
@@ -229,4 +229,4 @@ export interface BlobBrokerPurgeResponse {
 /** Path prefix of the session-side render callback server. */
 export const RENDER_CALLBACK_PATH = "/render/";
 /** Header carrying {@link EnsureLazyRequest.callbackToken} on render callbacks. */
-export const RENDER_CALLBACK_TOKEN_HEADER = "x-omp-blob-token";
+export const RENDER_CALLBACK_TOKEN_HEADER = "x-reverse-blob-token";

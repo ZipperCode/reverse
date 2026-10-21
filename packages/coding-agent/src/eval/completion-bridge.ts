@@ -12,7 +12,7 @@
  * in, text (or, with `schema`, a structured object) out.
  */
 
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { instrumentedCompleteSimple, resolveTelemetry } from "@reverse/agent";
 import { type Api, type AssistantMessage, Effort, type Model, type Tool } from "@reverse/ai";
 import { clampThinkingLevelForModel, getSupportedEfforts } from "@reverse/catalog/model-thinking";

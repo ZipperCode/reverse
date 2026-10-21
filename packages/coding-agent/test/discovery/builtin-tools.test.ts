@@ -27,7 +27,7 @@ describe("native executable custom tool discovery", () => {
 	let userTools: string;
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalOmpProfileEnv: string | undefined;
+	let originalReverseProfileEnv: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();
@@ -35,8 +35,8 @@ describe("native executable custom tool discovery", () => {
 		clearFsCache();
 		originalHome = process.env.HOME;
 		originalAgentDirEnv = process.env.REVERSE_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.REVERSE_PROFILE;
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-builtin-tools-"));
+		originalReverseProfileEnv = process.env.REVERSE_PROFILE;
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-builtin-tools-"));
 		const home = path.join(root, "home");
 		project = path.join(root, "project");
 		projectTools = path.join(project, CONFIG_DIR_NAME, "tools");
@@ -58,7 +58,7 @@ describe("native executable custom tool discovery", () => {
 		clearFsCache();
 		vi.restoreAllMocks();
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("REVERSE_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("REVERSE_PROFILE", originalReverseProfileEnv);
 		restoreEnvValue("REVERSE_CODING_AGENT_DIR", originalAgentDirEnv);
 		__resetDirsFromEnvForTests();
 		await removeWithRetries(root);

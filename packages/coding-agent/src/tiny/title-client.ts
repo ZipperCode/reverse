@@ -107,7 +107,7 @@ function normalizeTinyTitleGenerateOptions(
 
 // ── Device / dtype resolution ────────────────────────────────────────
 
-/** Setting value (its env var included); only the env var when settings are uninitialized (e.g. `omp --smoke-test`). */
+/** Setting value (its env var included); only the env var when settings are uninitialized (e.g. `reverse --smoke-test`). */
 function readTinyModelSetting(setting: Setting<string>): string | undefined {
 	return isSettingsInitialized() ? setting.get(settings) : setting.envValue();
 }
@@ -209,7 +209,7 @@ function mlxLaunch(
 			const python = await ensureTinyMlxRuntime(phase =>
 				emitProgress({ modelKey, status: phase, name: `mlx-lm@${MLX_LM_VERSION}` }),
 			);
-			const script = await stageRunnerScript("omp-tiny-mlx", "py", MLX_SERVER_SCRIPT);
+			const script = await stageRunnerScript("reverse-tiny-mlx", "py", MLX_SERVER_SCRIPT);
 			const env = inferenceWorkerEnv({
 				PYTHONUNBUFFERED: "1",
 				PYTHONIOENCODING: "utf-8",

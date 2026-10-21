@@ -98,7 +98,7 @@ class "minimax" {
 	on "minimax-code" "minimax-code-cn" "wafer-serverless" {
 		reasoning-content-field "reasoning_content"
 	}
-	// M3 reasoning reaches omp as its plaintext trace on every host, and
+	// M3 reasoning reaches reverse as its plaintext trace on every host, and
 	// MiniMax asks agents to pass all earlier reasoning back.
 	family "m3" {
 		portable-reasoning #true

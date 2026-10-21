@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { getSecurityContractSchemas } from "./schemas";
 import type { SecurityFinding, SecurityScan, SecurityScanBundle, SecurityScanPlan } from "./types";
 

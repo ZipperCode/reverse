@@ -209,7 +209,7 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
 当逆向分析深入并需要特定外部高级能力时，Agent 严格执行以下五步连贯工作流，杜绝直接报错或卡死：
 
 1. **Discover (能力发现，优先于终止)**：
-   - Agent 调用 `reverse setup reverse --json`（兼容 `rva setup reverse --json`）获取结构化能力状态 `capabilities[]` 与工具状态 `tools[]`。
+   - Agent 调用 `reverse setup reverse --json` 获取结构化能力状态 `capabilities[]` 与工具状态 `tools[]`。
    - 检查目标能力是否 `ready`；若未就绪，检查推荐原生工具或 `availableFallbacks` 是否足以满足当前阶段。
 2. **Explain (清晰说明意图与先决条件)**：
    - 若分析确需外部高级工具介入，Agent 向用户客观陈述：

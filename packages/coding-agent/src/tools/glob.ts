@@ -1,6 +1,6 @@
 import type { GlobToolDetails } from "@reverse/tui/tools/glob";
 import * as fs from "node:fs";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 import * as natives from "@reverse/natives";
 import { formatGroupedPaths, hasFsCode, isEnoent, prompt, untilAborted } from "@reverse/utils";

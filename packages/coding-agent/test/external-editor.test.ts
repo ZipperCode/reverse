@@ -88,7 +88,7 @@ describe("openInEditor", () => {
 	});
 
 	it("passes the cmd.exe command line verbatim on Windows", () => {
-		const tmpFile = String.raw`C:\Users\Example User\AppData\Local\Temp\omp-editor-123.omp.md`;
+		const tmpFile = String.raw`C:\Users\Example User\AppData\Local\Temp\reverse-editor-123.reverse.md`;
 
 		expect(resolveEditorSpawnCommand('"C:\\Program Files\\Code.exe" --wait', tmpFile, "win32")).toEqual({
 			cmd: [
@@ -96,7 +96,7 @@ describe("openInEditor", () => {
 				"/d",
 				"/s",
 				"/c",
-				String.raw`""C:\Program Files\Code.exe" --wait "C:\Users\Example User\AppData\Local\Temp\omp-editor-123.omp.md""`,
+				String.raw`""C:\Program Files\Code.exe" --wait "C:\Users\Example User\AppData\Local\Temp\reverse-editor-123.reverse.md""`,
 			],
 			windowsVerbatimArguments: true,
 		});

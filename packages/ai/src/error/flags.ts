@@ -206,7 +206,7 @@ export function isResponsesRequestBodyReadTimeout(message: {
 export const CODEX_NATIVE_LANE_STEER_REJECTED_CODE = "unsupported_native_inflight_message";
 
 /**
- * A Codex turn the native turn lane dropped because omp steered it. The
+ * A Codex turn the native turn lane dropped because reverse steered it. The
  * rejection answers our own `response.steer`, not the model's health: the
  * provider stops steering the session, so the same model replays cleanly.
  */

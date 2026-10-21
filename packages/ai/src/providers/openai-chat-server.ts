@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { resolvePromptCacheKey } from "../auth-gateway/http";
 /**
  * Parsed inbound OpenAI chat-completions request, ready to feed into pi-ai

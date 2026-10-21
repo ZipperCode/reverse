@@ -54,7 +54,7 @@ Removed in the unified-flow refactor:
 - `strict-mode.ts` (merged into `normalize.ts`).
 - `sanitize-google.ts` and `normalize-cca.ts` (replaced by
   `normalizeSchemaFor*` dispatchers).
-- `StringEnum` helper — use `type.enumerated(...)`; omptype emits
+- `StringEnum` helper — use `type.enumerated(...)`; reversetype emits
   provider-compatible JSON Schema.
 - `sanitizeSchemaFor{Google,CCA,MCP}` / `prepareSchemaForCCA` — renamed to
   `normalizeSchemaFor{Google,CCA,MCP}`.

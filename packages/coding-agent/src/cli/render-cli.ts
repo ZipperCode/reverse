@@ -1,5 +1,5 @@
 /**
- * `omp render` — draw a session's entire thread through the production
+ * `reverse render` — draw a session's entire thread through the production
  * transcript pipeline, headlessly.
  *
  * Replays the session into a real `InteractiveMode` + `TUI` wired to an
@@ -147,8 +147,8 @@ export async function runRenderCommand(args: RenderCommandArgs): Promise<number>
 
 	// Copy before opening: SessionManager.open takes the single-writer lock and
 	// session teardown appends a session_exit entry — neither may touch a live
-	// session file the user has open in another omp.
-	const tempDir = TempDir.createSync("@omp-render-");
+	// session file the user has open in another reverse.
+	const tempDir = TempDir.createSync("@reverse-render-");
 	const workingCopy = path.join(tempDir.path(), path.basename(sourcePath));
 
 	const width = args.width ?? (process.stdout.isTTY ? process.stdout.columns : undefined) ?? 120;
@@ -247,7 +247,7 @@ export async function runRenderCommand(args: RenderCommandArgs): Promise<number>
 			mode?.stop();
 			await session?.dispose();
 		} catch (err) {
-			logger.debug("omp render teardown failed", { error: String(err) });
+			logger.debug("reverse render teardown failed", { error: String(err) });
 		}
 		tempDir.removeSync();
 	}

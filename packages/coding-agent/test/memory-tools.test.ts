@@ -60,7 +60,7 @@ function makeConfig(overrides: Partial<HindsightConfig> = {}): HindsightConfig {
 		retainMode: "full-session",
 		retainEveryNTurns: 3,
 		retainOverlapTurns: 2,
-		retainContext: "omp",
+		retainContext: "reverse",
 		recallBudget: "mid",
 		recallMaxTokens: 1024,
 		recallTypes: ["world", "experience"],

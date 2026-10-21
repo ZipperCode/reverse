@@ -192,7 +192,7 @@ function resolveSkillDescriptionsDbPath(agentDir?: string): string {
  * atomically and never clobbers a database another process adopted or created
  * first. Where hard links are unsupported (some FUSE, exFAT, or network
  * mounts) an exclusive copy keeps the no-clobber guarantee. The legacy file
- * stays for older omp versions sharing the profile.
+ * stays for older reverse versions sharing the profile.
  */
 function adoptLegacyDatabase(legacyPath: string, dbPath: string): void {
 	if (legacyPath === dbPath || fs.existsSync(dbPath) || !fs.existsSync(legacyPath)) return;

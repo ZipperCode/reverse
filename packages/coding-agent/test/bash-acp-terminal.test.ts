@@ -11,7 +11,7 @@ import { encodeTerminalImage } from "@reverse/coding-agent/utils/terminal-graphi
 // `getShellConfig()` validates that `shellPath` exists, and `/bin/bash` does not
 // on Windows. The ACP route only forwards the path to the stubbed client
 // terminal, so an empty `bash` file stands in for the resolved shell everywhere.
-const stubShellDir = TempDir.createSync("@omp-acp-shell-");
+const stubShellDir = TempDir.createSync("@reverse-acp-shell-");
 const STUB_BASH = stubShellDir.join(process.platform === "win32" ? "bash.exe" : "bash");
 fs.writeFileSync(STUB_BASH, "");
 afterAll(() => stubShellDir.removeSync());

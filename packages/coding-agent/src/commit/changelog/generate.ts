@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { ThinkingLevel } from "@reverse/agent";
 import type { Api, ApiKey, AssistantMessage, Model } from "@reverse/ai";
 import { completeSimple, retryTransientCompletion, validateToolCall } from "@reverse/ai";

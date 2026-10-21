@@ -38,7 +38,7 @@ export interface ScreenshotResult {
 export interface SessionSnapshot {
 	cwd: string;
 	browserScreenshotDir?: string;
-	/** Force non-WebP screenshot encoding (e.g. for Ollama). Unset honors `OMP_NO_WEBP`. */
+	/** Force non-WebP screenshot encoding (e.g. for Ollama). Unset honors `REVERSE_NO_WEBP`. */
 	excludeWebP?: boolean;
 }
 
@@ -49,7 +49,7 @@ export type WorkerInitPayload =
 			safeDir: string;
 			/** The tab's upload staging folder, which outlives a recycled worker; see `UploadStaging`. */
 			uploadDir: string;
-			/** Keep the page tied to an OMP-owned worker without pinning a visible window's layout viewport. */
+			/** Keep the page tied to an REVERSE-owned worker without pinning a visible window's layout viewport. */
 			emulateViewport?: boolean;
 			viewport?: { width: number; height: number; deviceScaleFactor?: number };
 			dialogs?: "accept" | "dismiss";
@@ -88,7 +88,7 @@ export type WorkerInitPayload =
 			 * previously force-killed the tab). Never set for first-time Electron attach.
 			 */
 			recover?: boolean;
-			/** Restore focus emulation when recycling an OMP-owned tab, never a borrowed user tab. */
+			/** Restore focus emulation when recycling an REVERSE-owned tab, never a borrowed user tab. */
 			emulateFocus?: boolean;
 			/**
 			 * Whether the worker may raise this tab before capturing a screenshot. Unset
@@ -97,7 +97,7 @@ export type WorkerInitPayload =
 			activateForScreenshot?: boolean;
 			/**
 			 * The user drives this browser (connected, relay): downloads keep its one browser-wide folder and real file
-			 * names, since the user's own downloads land there too. Unset means an OMP-launched browser.
+			 * names, since the user's own downloads land there too. Unset means an REVERSE-launched browser.
 			 */
 			userDriven?: boolean;
 	  };
@@ -140,7 +140,7 @@ export interface RunErrorPayload {
 	/** The page's renderer crashed; the worker runs nothing more and must be recycled. */
 	rendererCrashed?: boolean;
 	/**
-	 * Chrome ended the debugger attachment the page is driven through (omp browser relay) `during` this run, after
+	 * Chrome ended the debugger attachment the page is driven through (reverse browser relay) `during` this run, after
 	 * its code started, or `before` it, so nothing ran; the worker runs nothing more. `reason` is Chrome's
 	 * (`target_closed`, `canceled_by_user`): after a user cancel the relay hides the tab, otherwise it is re-adopted.
 	 */

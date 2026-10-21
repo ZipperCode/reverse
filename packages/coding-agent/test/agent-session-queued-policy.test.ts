@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { setImmediate } from "node:timers/promises";
-import { Type } from "@reverse/omptype/typebox";
+import { Type } from "@reverse/reversetype/typebox";
 import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
 import type { Context, ImageContent } from "@reverse/ai";
 import { createMockModel, type MockResponseSource } from "@reverse/ai/providers/mock";

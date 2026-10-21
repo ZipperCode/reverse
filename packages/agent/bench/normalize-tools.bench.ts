@@ -7,7 +7,7 @@
  *
  * Run: bun packages/agent/bench/normalize-tools.bench.ts
  */
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { normalizeTools } from "../src/agent-loop";
 import type { AgentTool } from "../src/types";
 

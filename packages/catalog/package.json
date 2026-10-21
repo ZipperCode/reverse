@@ -1,7 +1,7 @@
 {
   "name": "@reverse/catalog",
   "version": "18.11.2",
-  "description": "Model catalog for omp: bundled model database, provider discovery descriptors, model identity, classification, and equivalence",
+  "description": "Model catalog for reverse: bundled model database, provider discovery descriptors, model identity, classification, and equivalence",
   "keywords": [
     "ai",
     "catalog",
@@ -9,9 +9,9 @@
     "llm",
     "models"
   ],
-  "homepage": "https://omp.sh",
+  "homepage": "https://github.com/ZipperCode/rev",
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/ZipperCode/rev/issues"
   },
   "license": "MIT",
   "author": {
@@ -20,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/ZipperCode/rev.git",
     "directory": "packages/catalog"
   },
   "files": [
@@ -90,7 +90,7 @@
     "gen:proto": "bun scripts/generate-protocols.ts"
   },
   "dependencies": {
-    "@reverse/omptype": "catalog:",
+    "@reverse/reversetype": "catalog:",
     "@reverse/utils": "catalog:"
   },
   "devDependencies": {

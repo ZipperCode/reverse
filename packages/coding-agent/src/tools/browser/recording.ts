@@ -51,7 +51,7 @@ interface CursorPageGlobal {
 	readonly document: CursorDocument;
 	readonly innerWidth: number;
 	readonly innerHeight: number;
-	__ompRecordingCursorCleanup?: () => void;
+	__reverseRecordingCursorCleanup?: () => void;
 	addEventListener(type: string, listener: (event: CursorMouseEvent) => void, capture: boolean): void;
 	removeEventListener(type: string, listener: (event: CursorMouseEvent) => void, capture: boolean): void;
 }
@@ -226,7 +226,7 @@ function recordingError(error: unknown, action: string): BrowserRecordingError {
 export function installCursorOverlay(): void {
 	const state = globalThis as unknown as CursorPageGlobal;
 	const document = state.document;
-	state.__ompRecordingCursorCleanup?.();
+	state.__reverseRecordingCursorCleanup?.();
 	let root: CursorElement | undefined;
 	let pointer: CursorElement | undefined;
 	const onMove = (event: CursorMouseEvent): void => {
@@ -242,17 +242,17 @@ export function installCursorOverlay(): void {
 		ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
 	};
 	const mount = (): void => {
-		if (document.getElementById("__omp_recording_cursor__")) return;
+		if (document.getElementById("__reverse_recording_cursor__")) return;
 		root = document.createElement("div");
-		root.id = "__omp_recording_cursor__";
-		root.setAttribute("aria-label", "OMP recording cursor overlay");
+		root.id = "__reverse_recording_cursor__";
+		root.setAttribute("aria-label", "REVERSE recording cursor overlay");
 		root.setAttribute("aria-hidden", "true");
 		root.setAttribute("inert", "");
 		root.style.cssText = "position:fixed;inset:0;z-index:2147483647;pointer-events:none;overflow:hidden";
 		const shadow = root.attachShadow({ mode: "open" });
 		const style = document.createElement("style");
 		style.textContent =
-			".pointer{position:absolute;left:0;top:0;width:0;height:0;border-left:8px solid white;border-top:14px solid black;border-right:4px solid transparent;filter:drop-shadow(0 0 1px white);transform:translate(-100px,-100px);transform-origin:0 0}.ripple{position:absolute;width:8px;height:8px;margin:-4px;border:2px solid #fff;border-radius:999px;box-shadow:0 0 0 1px #000;animation:omp-recording-ripple .45s ease-out forwards}@keyframes omp-recording-ripple{to{width:34px;height:34px;margin:-17px;opacity:0}}";
+			".pointer{position:absolute;left:0;top:0;width:0;height:0;border-left:8px solid white;border-top:14px solid black;border-right:4px solid transparent;filter:drop-shadow(0 0 1px white);transform:translate(-100px,-100px);transform-origin:0 0}.ripple{position:absolute;width:8px;height:8px;margin:-4px;border:2px solid #fff;border-radius:999px;box-shadow:0 0 0 1px #000;animation:reverse-recording-ripple .45s ease-out forwards}@keyframes reverse-recording-ripple{to{width:34px;height:34px;margin:-17px;opacity:0}}";
 		pointer = document.createElement("div");
 		pointer.className = "pointer";
 		shadow.append(style, pointer);
@@ -262,21 +262,21 @@ export function installCursorOverlay(): void {
 	else document.addEventListener("DOMContentLoaded", mount, { once: true });
 	state.addEventListener("mousemove", onMove, true);
 	state.addEventListener("mousedown", onDown, true);
-	state.__ompRecordingCursorCleanup = () => {
+	state.__reverseRecordingCursorCleanup = () => {
 		document.removeEventListener("DOMContentLoaded", mount);
 		state.removeEventListener("mousemove", onMove, true);
 		state.removeEventListener("mousedown", onDown, true);
 		root?.remove();
-		document.getElementById("__omp_recording_cursor__")?.remove();
-		delete state.__ompRecordingCursorCleanup;
+		document.getElementById("__reverse_recording_cursor__")?.remove();
+		delete state.__reverseRecordingCursorCleanup;
 	};
 }
 
 /** Page function removing the cursor overlay `installCursorOverlay` drew, and its listeners. */
 export function removeCursorOverlay(): void {
 	const state = globalThis as unknown as CursorPageGlobal;
-	state.__ompRecordingCursorCleanup?.();
-	state.document.getElementById("__omp_recording_cursor__")?.remove();
+	state.__reverseRecordingCursorCleanup?.();
+	state.document.getElementById("__reverse_recording_cursor__")?.remove();
 }
 
 class CdpRecordingSource implements RecordingFrameSource {
@@ -491,7 +491,7 @@ export class RecordingController {
 		this.#starting = true;
 		let spool: TempDir | undefined;
 		try {
-			spool = await TempDir.create("@omp-browser-recording-");
+			spool = await TempDir.create("@reverse-browser-recording-");
 			if (validated.cursor) await source.installCursor(signal);
 			const viewport = await source.viewport(signal);
 			const active: ActiveRecording = {

@@ -223,7 +223,7 @@ describe("native IPC", () => {
 		const dir = path.join(await tempDir(), "d".repeat(120));
 		const name = `long-${process.pid}`;
 		const endpoint = ipcEndpoint(dir, name);
-		expect(endpoint).toMatch(new RegExp(`^/tmp/omp-${process.getuid!()}/[0-9a-f]{16}\\.sock$`));
+		expect(endpoint).toMatch(new RegExp(`^/tmp/reverse-${process.getuid!()}/[0-9a-f]{16}\\.sock$`));
 		expect(ipcEndpoint(dir, name)).toBe(endpoint);
 		expect(Buffer.byteLength(endpoint)).toBeLessThan(104);
 		await listen(endpoint, { framing: "lines" }, connection => {

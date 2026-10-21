@@ -62,7 +62,7 @@ describe("stats sync serial mode", () => {
 	it("skips gc compress scratch copies but keeps transcripts in other dot directories", async () => {
 		await writeSessionFile();
 		const folder = path.join(getSessionsDir(), "--tmp--sync-serial");
-		const scratch = path.join(folder, ".omp-gc-compress-a1b2c3");
+		const scratch = path.join(folder, ".reverse-gc-compress-a1b2c3");
 		const hidden = path.join(folder, "session", ".runs");
 		await fs.mkdir(scratch);
 		await fs.mkdir(hidden, { recursive: true });

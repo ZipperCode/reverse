@@ -19,7 +19,7 @@ describe("Codex config.toml settings", () => {
 		clearFsCache();
 		resetSettingsForTest();
 		originalHome = process.env.HOME;
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-codex-settings-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-codex-settings-"));
 		home = path.join(root, "home");
 		project = path.join(root, "project");
 		process.env.HOME = home;
@@ -56,7 +56,7 @@ describe("Codex config.toml settings", () => {
 		]);
 	});
 
-	test("applies matching omp settings from project config.toml", async () => {
+	test("applies matching reverse settings from project config.toml", async () => {
 		const agentDir = path.join(root, "agent");
 		const projectConfig = path.join(project, ".codex", "config.toml");
 		await fs.mkdir(agentDir, { recursive: true });

@@ -125,7 +125,7 @@ describe("RpcHostUriBridge", () => {
 		const bridge = new RpcHostUriBridge(() => {});
 		for (const scheme of ["security", "local", "Agent", "mcp"]) {
 			expect(() => bridge.setSchemes([{ scheme, writable: true }])).toThrow(
-				`Host URI scheme is reserved by OMP: ${scheme.toLowerCase()}://`,
+				`Host URI scheme is reserved by REVERSE: ${scheme.toLowerCase()}://`,
 			);
 		}
 		bridge.clear("test cleanup");

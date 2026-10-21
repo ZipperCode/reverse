@@ -49,7 +49,7 @@ describe("wasm grammar install", () => {
 	});
 
 	it("installs the verified grammar at <dir>/<file>", async () => {
-		using tempDir = TempDir.createSync("@omp-grammar-install-");
+		using tempDir = TempDir.createSync("@reverse-grammar-install-");
 		const info = grammarInfo("testlang-ok.wasm", WASM_SHA256);
 		const dest = path.join(tempDir.path(), info.file);
 
@@ -61,7 +61,7 @@ describe("wasm grammar install", () => {
 	});
 
 	it("rejects a digest mismatch without leaving files behind", async () => {
-		using tempDir = TempDir.createSync("@omp-grammar-mismatch-");
+		using tempDir = TempDir.createSync("@reverse-grammar-mismatch-");
 		const info = grammarInfo("testlang-bad.wasm", "0".repeat(64));
 		const dest = path.join(tempDir.path(), info.file);
 

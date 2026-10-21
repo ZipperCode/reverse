@@ -26,11 +26,11 @@ describe("ModelRegistry", () => {
 	let authStorage: AuthStorage;
 
 	beforeEach(async () => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-reg-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-reg-"));
 		authStorage = await AuthStorage.create(":memory:");
 		// Construct with an explicit modelsPath inside the temp dir so the
 		// constructor's #loadModels read returns "not-found" rather than
-		// touching the host's ~/.omp/agent/models.yaml. isBunTestRuntime()
+		// touching the host's ~/.reverse/agent/models.yaml. isBunTestRuntime()
 		// auto-stubs #fetch in the constructor.
 		registry = new ModelRegistry(authStorage, path.join(tmpDir, "models.yaml"));
 	});

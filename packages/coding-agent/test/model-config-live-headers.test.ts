@@ -53,21 +53,21 @@ describe("async config header materialization", () => {
 	});
 
 	it("applies authHeader after explicit sources", async () => {
-		setEnv("OMP_TEST_LIVE_KEY", "sekret");
+		setEnv("REVERSE_TEST_LIVE_KEY", "sekret");
 		const resolver = createConfigHeaderResolver([{ Authorization: "wrong", "X-Keep": "k" }], {
 			authHeader: true,
-			apiKeyConfig: "OMP_TEST_LIVE_KEY",
+			apiKeyConfig: "REVERSE_TEST_LIVE_KEY",
 		});
 
 		expect(await resolver?.()).toEqual({ Authorization: "Bearer sekret", "X-Keep": "k" });
 	});
 
 	it("reads environment-backed values for every request", async () => {
-		setEnv("OMP_TEST_LIVE_DYN", "v1");
-		const resolver = createConfigHeaderResolver([{ "X-Dyn": "OMP_TEST_LIVE_DYN" }]);
+		setEnv("REVERSE_TEST_LIVE_DYN", "v1");
+		const resolver = createConfigHeaderResolver([{ "X-Dyn": "REVERSE_TEST_LIVE_DYN" }]);
 
 		expect((await resolver?.())?.["X-Dyn"]).toBe("v1");
-		setEnv("OMP_TEST_LIVE_DYN", "v2");
+		setEnv("REVERSE_TEST_LIVE_DYN", "v2");
 		expect((await resolver?.())?.["X-Dyn"]).toBe("v2");
 	});
 

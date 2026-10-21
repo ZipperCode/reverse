@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AssistantMessage, Context, Message } from "@reverse/ai";
 import { createMockModel } from "@reverse/ai/providers/mock";
 import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";

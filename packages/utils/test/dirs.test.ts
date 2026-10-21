@@ -64,7 +64,7 @@ describe("project directory state", () => {
 	});
 
 	it("normalizes each containment operand only once", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "omp-dirs-containment-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-dirs-containment-"));
 		const candidate = path.join(root, "child");
 		fs.mkdirSync(candidate);
 		const realpath = spyOn(fs, "realpathSync");

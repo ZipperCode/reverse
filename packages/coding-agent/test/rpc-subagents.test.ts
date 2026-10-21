@@ -324,7 +324,7 @@ describe("RPC subagent registry", () => {
 
 describe("readRpcSubagentTranscript", () => {
 	test("returns complete JSONL entries and byte cursor", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-rpc-subagent-transcript-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-rpc-subagent-transcript-"));
 		tempPaths.push(dir);
 		const sessionFile = path.join(dir, "session.jsonl");
 		const headerLine = `${JSON.stringify({ type: "session", id: "s1", timestamp: "2026-06-09T00:00:00.000Z", cwd: dir })}\n`;
@@ -346,7 +346,7 @@ describe("readRpcSubagentTranscript", () => {
 	});
 
 	test("returns empty cursor result for missing transcript files", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-rpc-subagent-transcript-missing-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-rpc-subagent-transcript-missing-"));
 		tempPaths.push(dir);
 		const sessionFile = path.join(dir, "missing.jsonl");
 
@@ -365,7 +365,7 @@ describe("readRpcSubagentTranscript", () => {
 
 describe("RpcClient subagent frames", () => {
 	test("dispatches subagent frames and session-specific events", async () => {
-		const scriptPath = path.join(os.tmpdir(), `omp-rpc-subagent-client-${Date.now()}.js`);
+		const scriptPath = path.join(os.tmpdir(), `reverse-rpc-subagent-client-${Date.now()}.js`);
 		tempPaths.push(scriptPath);
 		await Bun.write(
 			scriptPath,

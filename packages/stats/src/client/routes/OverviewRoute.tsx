@@ -95,7 +95,10 @@ export function OverviewRoute({ active, range, onRequestClick }: OverviewRoutePr
 
 	return (
 		<div className="page">
-			<PageHeader title="Overview" description={`Everything omp did across your sessions in ${meta.windowLabel}.`} />
+			<PageHeader
+				title="Overview"
+				description={`Everything reverse did across your sessions in ${meta.windowLabel}.`}
+			/>
 
 			<QueryView query={overview} skeleton={<ChartSkeleton height={112} />}>
 				{({ overall }) => (

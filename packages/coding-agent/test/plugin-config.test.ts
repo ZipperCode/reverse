@@ -18,9 +18,9 @@ describe("plugin config", () => {
 	let lockfile: string;
 
 	beforeEach(async () => {
-		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugin-config-"));
+		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-plugin-config-"));
 		pluginsDir = path.join(tmpRoot, "plugins");
-		lockfile = path.join(pluginsDir, "omp-plugins.lock.json");
+		lockfile = path.join(pluginsDir, "reverse-plugins.lock.json");
 
 		spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(lockfile);
@@ -63,7 +63,7 @@ describe("plugin config", () => {
 	});
 
 	test("resolves marketplace settings without restoring duplicate list entries", async () => {
-		const pluginName = "omp-commit";
+		const pluginName = "reverse-commit";
 		const installPath = path.join(pluginsDir, "cache", pluginName);
 		const pluginPath = path.join(pluginsDir, "node_modules", pluginName);
 		await Bun.write(
@@ -71,7 +71,7 @@ describe("plugin config", () => {
 			JSON.stringify({
 				name: pluginName,
 				version: "1.0.0",
-				omp: {
+				reverse: {
 					version: "1.0.0",
 					settings: {
 						mainBranchProtection: {
@@ -89,7 +89,7 @@ describe("plugin config", () => {
 			JSON.stringify({
 				version: 2,
 				plugins: {
-					"omp-commit@market": [
+					"reverse-commit@market": [
 						{
 							scope: "user",
 							installPath,
@@ -120,7 +120,7 @@ describe("plugin config", () => {
 	});
 
 	test("updates user marketplace runtime features despite a project shadow while list stays duplicate-free", async () => {
-		const pluginName = "omp-featureful";
+		const pluginName = "reverse-featureful";
 		const installPath = path.join(pluginsDir, "cache", pluginName);
 		const pluginPath = path.join(pluginsDir, "node_modules", pluginName);
 		await Bun.write(
@@ -128,7 +128,7 @@ describe("plugin config", () => {
 			JSON.stringify({
 				name: pluginName,
 				version: "1.0.0",
-				omp: { version: "1.0.0", features: { review: { description: "Review changes" } } },
+				reverse: { version: "1.0.0", features: { review: { description: "Review changes" } } },
 			}),
 		);
 		await fs.mkdir(path.dirname(pluginPath), { recursive: true });
@@ -138,7 +138,7 @@ describe("plugin config", () => {
 			JSON.stringify({
 				version: 2,
 				plugins: {
-					"omp-featureful@market": [
+					"reverse-featureful@market": [
 						{
 							scope: "user",
 							installPath,
@@ -165,13 +165,13 @@ describe("plugin config", () => {
 			JSON.stringify({
 				name: pluginName,
 				version: "2.0.0",
-				omp: { version: "2.0.0", features: { projectOnly: { description: "Project-only feature" } } },
+				reverse: { version: "2.0.0", features: { projectOnly: { description: "Project-only feature" } } },
 			}),
 		);
 		await fs.mkdir(path.dirname(projectPluginPath), { recursive: true });
 		await fs.symlink(projectInstallPath, projectPluginPath, "dir");
 		await Bun.write(
-			path.join(projectPluginsDir, "omp-plugins.lock.json"),
+			path.join(projectPluginsDir, "reverse-plugins.lock.json"),
 			JSON.stringify({
 				plugins: { [pluginName]: { version: "2.0.0", enabledFeatures: null, enabled: true } },
 				settings: {},
@@ -189,7 +189,7 @@ describe("plugin config", () => {
 
 		await expect(
 			runPluginCommand({ action: "features", args: [pluginName], flags: { enable: "projectOnly", json: true } }),
-		).rejects.toThrow(/Unknown feature "projectOnly" in omp-featureful/);
+		).rejects.toThrow(/Unknown feature "projectOnly" in reverse-featureful/);
 		lock = await Bun.file(lockfile).json();
 		expect(lock.plugins[pluginName].enabledFeatures).toEqual(["review"]);
 	});
@@ -197,25 +197,25 @@ describe("plugin config", () => {
 	async function writeManifest(dir: string, manifest: Record<string, unknown>): Promise<void> {
 		await Bun.write(
 			path.join(dir, "package.json"),
-			JSON.stringify({ name: "omp-commit", version: "2.0.0", ...manifest }),
+			JSON.stringify({ name: "reverse-commit", version: "2.0.0", ...manifest }),
 		);
 	}
 
 	async function installProjectMarketplacePlugin(schemaDefault: string, enabled = true): Promise<string> {
-		const installPath = path.join(tmpRoot, "cache", `omp-commit-project-${schemaDefault}`);
+		const installPath = path.join(tmpRoot, "cache", `reverse-commit-project-${schemaDefault}`);
 		await writeManifest(installPath, {
-			omp: {
+			reverse: {
 				version: "2.0.0",
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: schemaDefault } },
 			},
 		});
 		const projectRoot = path.join(tmpRoot, piUtils.CONFIG_DIR_NAME, "plugins");
 		await fs.mkdir(path.join(projectRoot, "node_modules"), { recursive: true });
-		await fs.symlink(installPath, path.join(projectRoot, "node_modules", "omp-commit"), "dir");
+		await fs.symlink(installPath, path.join(projectRoot, "node_modules", "reverse-commit"), "dir");
 		await Bun.write(
-			path.join(projectRoot, "omp-plugins.lock.json"),
+			path.join(projectRoot, "reverse-plugins.lock.json"),
 			JSON.stringify({
-				plugins: { "omp-commit": { version: "2.0.0", enabledFeatures: null, enabled } },
+				plugins: { "reverse-commit": { version: "2.0.0", enabledFeatures: null, enabled } },
 				settings: {},
 			}),
 		);
@@ -227,14 +227,14 @@ describe("plugin config", () => {
 
 		const manager = new PluginManager(tmpRoot);
 		expect(await manager.list()).toEqual([]);
-		expect((await manager.getPlugin("omp-commit"))?.manifest.settings?.splitMode?.default).toBe("auto");
+		expect((await manager.getPlugin("reverse-commit"))?.manifest.settings?.splitMode?.default).toBe("auto");
 	});
 
 	test("prefers the active project plugin over a same-named user install", async () => {
 		// User install: same package name, different schema default.
-		const userPkg = path.join(pluginsDir, "node_modules", "omp-commit");
+		const userPkg = path.join(pluginsDir, "node_modules", "reverse-commit");
 		await writeManifest(userPkg, {
-			omp: {
+			reverse: {
 				version: "1.0.0",
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: "manual" } },
 			},
@@ -242,7 +242,7 @@ describe("plugin config", () => {
 		await Bun.write(
 			lockfile,
 			JSON.stringify({
-				plugins: { "omp-commit": { version: "1.0.0", enabledFeatures: null, enabled: true } },
+				plugins: { "reverse-commit": { version: "1.0.0", enabledFeatures: null, enabled: true } },
 				settings: {},
 			}),
 		);
@@ -250,13 +250,13 @@ describe("plugin config", () => {
 		await installProjectMarketplacePlugin("auto");
 
 		const manager = new PluginManager(tmpRoot);
-		expect((await manager.getPlugin("omp-commit"))?.manifest.settings?.splitMode?.default).toBe("auto");
+		expect((await manager.getPlugin("reverse-commit"))?.manifest.settings?.splitMode?.default).toBe("auto");
 	});
 
 	test("falls back to an enabled user plugin when the project copy is disabled", async () => {
-		const userPkg = path.join(pluginsDir, "node_modules", "omp-commit");
+		const userPkg = path.join(pluginsDir, "node_modules", "reverse-commit");
 		await writeManifest(userPkg, {
-			omp: {
+			reverse: {
 				version: "1.0.0",
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: "manual" } },
 			},
@@ -264,13 +264,13 @@ describe("plugin config", () => {
 		await Bun.write(
 			lockfile,
 			JSON.stringify({
-				plugins: { "omp-commit": { version: "1.0.0", enabledFeatures: null, enabled: true } },
+				plugins: { "reverse-commit": { version: "1.0.0", enabledFeatures: null, enabled: true } },
 				settings: {},
 			}),
 		);
 		await installProjectMarketplacePlugin("auto", false);
 
 		const manager = new PluginManager(tmpRoot);
-		expect((await manager.getPlugin("omp-commit"))?.manifest.settings?.splitMode?.default).toBe("manual");
+		expect((await manager.getPlugin("reverse-commit"))?.manifest.settings?.splitMode?.default).toBe("manual");
 	});
 });

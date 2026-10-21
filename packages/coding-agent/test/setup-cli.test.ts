@@ -79,7 +79,7 @@ function hideActivePythonEnv(): () => void {
 	};
 }
 
-describe("omp setup python", () => {
+describe("reverse setup python", () => {
 	let projectDir: TempDir | undefined;
 
 	afterEach(async () => {
@@ -91,7 +91,7 @@ describe("omp setup python", () => {
 	it.skipIf(process.platform === "win32")(
 		"probes the project-configured interpreter instead of the PATH interpreter",
 		async () => {
-			projectDir = TempDir.createSync("@omp-setup-python-");
+			projectDir = TempDir.createSync("@reverse-setup-python-");
 			const cwd = projectDir.path();
 			const interpreter = path.join(cwd, "configured-python");
 			await Bun.write(interpreter, "#!/bin/sh\nexit 0\n");
@@ -110,7 +110,7 @@ describe("omp setup python", () => {
 		},
 	);
 	it.skipIf(process.platform === "win32")("prefers the project venv over the PATH interpreter", async () => {
-		projectDir = TempDir.createSync("@omp-setup-python-");
+		projectDir = TempDir.createSync("@reverse-setup-python-");
 		const cwd = projectDir.path();
 		const interpreter = path.join(cwd, ".venv", "bin", "python");
 		await Bun.write(interpreter, "#!/bin/sh\nexit 0\n");
@@ -130,7 +130,7 @@ describe("omp setup python", () => {
 		}
 	});
 	it.skipIf(process.platform === "win32")("does not let the global probe bypass skip setup validation", async () => {
-		projectDir = TempDir.createSync("@omp-setup-python-");
+		projectDir = TempDir.createSync("@reverse-setup-python-");
 		const cwd = projectDir.path();
 		const interpreter = path.join(cwd, "configured-python");
 		await Bun.write(interpreter, "#!/bin/sh\nexit 23\n");
@@ -152,7 +152,7 @@ describe("omp setup python", () => {
 	});
 });
 
-describe("omp setup without a component", () => {
+describe("reverse setup without a component", () => {
 	let projectDir: TempDir | undefined;
 
 	afterEach(async () => {
@@ -165,7 +165,7 @@ describe("omp setup without a component", () => {
 	// scripted `--json` health checks. It must now fail loudly on stderr.
 	for (const flags of [["--check"], ["--json"]]) {
 		it(`fails on stderr with a non-zero exit for ${["setup", ...flags].join(" ")}`, async () => {
-			projectDir = TempDir.createSync("@omp-setup-noarg-");
+			projectDir = TempDir.createSync("@reverse-setup-noarg-");
 			const result = await runSetup(projectDir.path(), ...flags);
 
 			expect(result.exitCode).not.toBe(0);
@@ -175,7 +175,7 @@ describe("omp setup without a component", () => {
 	}
 });
 
-describe("omp setup unified 5-panel components", () => {
+describe("reverse setup unified 5-panel components", () => {
 	let projectDir: TempDir | undefined;
 
 	afterEach(async () => {
@@ -184,7 +184,7 @@ describe("omp setup unified 5-panel components", () => {
 	});
 
 	it("handles setup providers --json", async () => {
-		projectDir = TempDir.createSync("@omp-setup-providers-");
+		projectDir = TempDir.createSync("@reverse-setup-providers-");
 		const result = await runSetup(projectDir.path(), "providers", "--json");
 		expect(result.exitCode).toBe(0);
 		const parsed = JSON.parse(result.output);
@@ -193,14 +193,14 @@ describe("omp setup unified 5-panel components", () => {
 	});
 
 	it("handles setup providers --check", async () => {
-		projectDir = TempDir.createSync("@omp-setup-providers-check-");
+		projectDir = TempDir.createSync("@reverse-setup-providers-check-");
 		const result = await runSetup(projectDir.path(), "providers", "--check");
 		expect(result.exitCode).toBe(0);
 		expect(result.output).toContain("Model Providers Setup Status");
 	});
 
 	it("handles setup add --json", async () => {
-		projectDir = TempDir.createSync("@omp-setup-add-");
+		projectDir = TempDir.createSync("@reverse-setup-add-");
 		const result = await runSetup(projectDir.path(), "add", "--json");
 		expect(result.exitCode).toBe(0);
 		const parsed = JSON.parse(result.output);
@@ -209,14 +209,14 @@ describe("omp setup unified 5-panel components", () => {
 	});
 
 	it("handles setup add --check", async () => {
-		projectDir = TempDir.createSync("@omp-setup-add-check-");
+		projectDir = TempDir.createSync("@reverse-setup-add-check-");
 		const result = await runSetup(projectDir.path(), "add", "--check");
 		expect(result.exitCode).toBe(0);
 		expect(result.output).toContain("Custom Providers Setup Status");
 	});
 
 	it("fails on unknown component with error", async () => {
-		projectDir = TempDir.createSync("@omp-setup-invalid-");
+		projectDir = TempDir.createSync("@reverse-setup-invalid-");
 		const result = await runSetup(projectDir.path(), "nonexistent_component");
 		expect(result.exitCode).not.toBe(0);
 	});

@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { getAdapterConfigs } from "@reverse/coding-agent/dap/config";
 import { CONFIG_DIR_NAME } from "@reverse/utils/dirs";
 
-const ADAPTER = "omp-precedence-probe";
+const ADAPTER = "reverse-precedence-probe";
 
 let tempDir: string | undefined;
 
@@ -16,7 +16,7 @@ afterEach(async () => {
 
 describe("DAP config layering", () => {
 	test("a cwd file overrides the project config dir field by field", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-dap-precedence-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-dap-precedence-"));
 		await Bun.write(
 			path.join(tempDir, CONFIG_DIR_NAME, "dap.yaml"),
 			`${ADAPTER}:\n  command: project-cmd\n  args: [from-project]\n`,

@@ -15,7 +15,7 @@ import { TINY_LOCAL_MODELS } from "@reverse/coding-agent/tiny/models";
 import { type TinyModelChatOptions, TinyTitleClient, tinyModelClient } from "@reverse/coding-agent/tiny/title-client";
 import type { TinyChatMessage, TinyWorkerRequest, TinyWorkerResponse } from "@reverse/coding-agent/tiny/title-protocol";
 
-const SOURCE_ID = "omp/local-inference";
+const SOURCE_ID = "reverse/local-inference";
 const model = getBundledModel("local", "lfm2.5-230m")!;
 
 function zeroUsage(): Usage {

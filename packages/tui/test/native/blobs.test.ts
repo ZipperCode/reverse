@@ -39,7 +39,7 @@ describe("native image blob lifetime", () => {
 		it(
 			name,
 			async () => {
-				await using root = await TempDir.create("@omp-native-blobs-");
+				await using root = await TempDir.create("@reverse-native-blobs-");
 				const env: NodeJS.ProcessEnv = {
 					...process.env,
 					PI_CONFIG_DIR: path.relative(os.homedir(), root.join("config")),
@@ -51,12 +51,18 @@ describe("native image blob lifetime", () => {
 					XDG_CACHE_HOME: root.join("cache"),
 					PI_TUI_NATIVE: "1",
 				};
-				delete env.OMP_PROFILE;
+				delete env.REVERSE_PROFILE;
 				delete env.PI_PROFILE;
 				await Promise.all(
-					["config", "agent", "session-owners", "xdg-config", "data/omp", "state/omp", "cache/omp"].map(dir =>
-						fs.promises.mkdir(root.join(dir), { recursive: true }),
-					),
+					[
+						"config",
+						"agent",
+						"session-owners",
+						"xdg-config",
+						"data/reverse",
+						"state/reverse",
+						"cache/reverse",
+					].map(dir => fs.promises.mkdir(root.join(dir), { recursive: true })),
 				);
 				const child = Bun.spawn([process.execPath, path.join(import.meta.dir, "fixtures", fixture), source], {
 					stdout: "pipe",

@@ -31,7 +31,7 @@ describe("AgentSession dispose releases retained memory", () => {
 	let session: AgentSession | undefined;
 
 	beforeEach(() => {
-		tempDir = TempDir.createSync("@omp-dispose-release-");
+		tempDir = TempDir.createSync("@reverse-dispose-release-");
 		authStorage = createInMemoryAuthStorage();
 		authStorage.keys.setRuntime("anthropic", "test-key");
 	});

@@ -64,7 +64,7 @@ async function writeSubagent(mainFile: string, cwd: string, id: string, messages
 	return file;
 }
 
-describe("restoreSession (omp --restore)", () => {
+describe("restoreSession (reverse --restore)", () => {
 	const ids = ["Cut", "Done", "Killed"];
 	let tempDir: TempDir | undefined;
 	let manager: AsyncJobManager | undefined;

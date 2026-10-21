@@ -2,14 +2,14 @@
  * Page-world instrumentation for Tern tabs: console and uncaught-error
  * capture, a fetch/XHR observer with persistent routes, and the JS-visible
  * emulation overrides (geolocation, locale, offline) WKWebView has no native
- * switch for. It reports to omp through
+ * switch for. It reports to reverse through
  * `webkit.messageHandlers.stencil.postMessage(JSON)`; response bodies stay in
- * the page (the last 200) until omp asks for one.
+ * the page (the last 200) until reverse asks for one.
  *
  * Everything here runs in the page's own world, so pages can see (and
  * tamper with) the wrappers — the price of observing page-world `fetch`.
  * Navigations and subresources (images, scripts, styles, frames) are not
- * observable or routable from page script; omp adds navigation responses
+ * observable or routable from page script; reverse adds navigation responses
  * from Tern's `response` events.
  */
 
@@ -48,7 +48,7 @@ export interface TernCaptureConfig {
 }
 
 /** Name of the page-world global holding the capture state. */
-export const TERN_CAPTURE_GLOBAL = "__ompTernCapture";
+export const TERN_CAPTURE_GLOBAL = "__reverseTernCapture";
 
 /**
  * Source of a page function `(config) => void` that installs the capture in
@@ -56,7 +56,7 @@ export const TERN_CAPTURE_GLOBAL = "__ompTernCapture";
  * calls). No `eval`: page CSP never applies to it.
  */
 export const TERN_CAPTURE_INSTALLER = String.raw`function (config) {
-	const KEY = "__ompTernCapture";
+	const KEY = "__reverseTernCapture";
 	const existing = globalThis[KEY];
 	if (existing) {
 		const wasOffline = !!existing.config.emulation.offline;
@@ -88,7 +88,7 @@ export const TERN_CAPTURE_INSTALLER = String.raw`function (config) {
 		if (now - state.window > 1000) { state.window = now; state.budget = 0; }
 		if (++state.budget > 400) { state.dropped++; return; }
 		if (state.dropped) { message.dropped = state.dropped; state.dropped = 0; }
-		message.omp = "tern";
+		message.reverse = "tern";
 		message.doc = doc;
 		message.frame = framePath;
 		message.ts = now;

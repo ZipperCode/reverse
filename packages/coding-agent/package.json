@@ -10,9 +10,9 @@
     "llm",
     "tui"
   ],
-  "homepage": "https://omp.sh",
+  "homepage": "https://github.com/ZipperCode/rev",
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/ZipperCode/rev/issues"
   },
   "license": "MIT",
   "author": {
@@ -24,7 +24,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/ZipperCode/rev.git",
     "directory": "packages/coding-agent"
   },
   "bin": {
@@ -569,7 +569,7 @@
   "dependencies": {
     "@babel/parser": "catalog:",
     "@reverse/stats": "catalog:",
-    "@reverse/omptype": "catalog:",
+    "@reverse/reversetype": "catalog:",
     "@reverse/agent": "catalog:",
     "@reverse/ai": "catalog:",
     "@reverse/catalog": "catalog:",

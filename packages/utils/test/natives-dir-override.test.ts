@@ -7,10 +7,10 @@ import { __resetDirsFromEnvForTests, getAgentDir, getNativesDir } from "@reverse
 const ENV_KEYS = [
 	"HOME",
 	"USERPROFILE",
-	"RVA_PROFILE",
-	"RVA_CONFIG_DIR",
-	"RVA_CODING_AGENT_DIR",
-	"RVA_NATIVES_DIR",
+	"REVERSE_PROFILE",
+	"REVERSE_CONFIG_DIR",
+	"REVERSE_CODING_AGENT_DIR",
+	"REVERSE_NATIVES_DIR",
 	"XDG_DATA_HOME",
 	"XDG_STATE_HOME",
 	"XDG_CACHE_HOME",
@@ -28,7 +28,7 @@ describe("native directory override", () => {
 			originalEnv[key] = process.env[key];
 			delete process.env[key];
 		}
-		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-utils-natives-dir-"));
+		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-utils-natives-dir-"));
 		home = path.join(tempRoot, "home");
 		await fs.mkdir(home);
 		process.env.HOME = home;
@@ -52,15 +52,15 @@ describe("native directory override", () => {
 		const cache = path.join(tempRoot, "cache");
 		const data = path.join(tempRoot, "data");
 		const shared = path.join(tempRoot, "shared");
-		await fs.mkdir(path.join(cache, "rva", "profiles", "isolated"), { recursive: true });
-		await fs.mkdir(path.join(data, "rva", "profiles", "isolated"), { recursive: true });
+		await fs.mkdir(path.join(cache, "reverse", "profiles", "isolated"), { recursive: true });
+		await fs.mkdir(path.join(data, "reverse", "profiles", "isolated"), { recursive: true });
 		process.env.XDG_CACHE_HOME = cache;
 		process.env.XDG_DATA_HOME = data;
-		process.env.RVA_CONFIG_DIR = ".alternate";
-		process.env.RVA_PROFILE = "isolated";
+		process.env.REVERSE_CONFIG_DIR = ".alternate";
+		process.env.REVERSE_PROFILE = "isolated";
 		__resetDirsFromEnvForTests();
 		const defaultNatives = path.join(
-			xdgPlatform ? path.join(cache, "rva") : path.join(home, ".alternate"),
+			xdgPlatform ? path.join(cache, "reverse") : path.join(home, ".alternate"),
 			"profiles",
 			"isolated",
 			"natives",
@@ -68,18 +68,18 @@ describe("native directory override", () => {
 		const agent = getAgentDir();
 		expect(getNativesDir()).toBe(defaultNatives);
 
-		process.env.RVA_NATIVES_DIR = " " + shared + " ";
+		process.env.REVERSE_NATIVES_DIR = " " + shared + " ";
 		expect(getNativesDir()).toBe(shared);
 		expect(getAgentDir()).toBe(agent);
 
-		delete process.env.RVA_NATIVES_DIR;
+		delete process.env.REVERSE_NATIVES_DIR;
 		expect(getNativesDir()).toBe(defaultNatives);
 	});
 
 	it("expands home-relative overrides instead of treating tilde as a cwd-relative path", () => {
-		process.env.RVA_NATIVES_DIR = "~";
+		process.env.REVERSE_NATIVES_DIR = "~";
 		expect(getNativesDir()).toBe(home);
-		process.env.RVA_NATIVES_DIR = " ~/unused/../shared ";
+		process.env.REVERSE_NATIVES_DIR = " ~/unused/../shared ";
 		expect(getNativesDir()).toBe(path.join(home, "shared"));
 	});
 
@@ -88,7 +88,7 @@ describe("native directory override", () => {
 		["whitespace", " \t "],
 		["relative", "relative/natives"],
 	])("keeps the existing cache root when the override is %s", (_label, override) => {
-		process.env.RVA_NATIVES_DIR = override;
-		expect(getNativesDir()).toBe(path.join(home, ".rva", "natives"));
+		process.env.REVERSE_NATIVES_DIR = override;
+		expect(getNativesDir()).toBe(path.join(home, ".reverse", "natives"));
 	});
 });

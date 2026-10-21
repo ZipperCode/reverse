@@ -37,7 +37,7 @@ import "./gemini";
 import "./opencode";
 import "./github";
 import "./mcp-json";
-import "./rva-plugins";
+import "./reverse-plugins";
 import "./skillshare";
 import "./ssh";
 import "./vscode";

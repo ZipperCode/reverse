@@ -8,7 +8,7 @@ import { wmuxMultiplexer } from "./multiplexers/wmux";
 import { zellijMultiplexer } from "./multiplexers/zellij";
 
 /**
- * Every multiplexer omp recognizes, in classification order within each
+ * Every multiplexer reverse recognizes, in classification order within each
  * precedence tier. Adding a multiplexer means adding its module here.
  */
 const registry = [
@@ -21,7 +21,7 @@ const registry = [
 	orcaMultiplexer,
 ] as const satisfies readonly TerminalMultiplexerModule[];
 
-/** Terminal multiplexers omp recognizes. */
+/** Terminal multiplexers reverse recognizes. */
 export type TerminalMultiplexer = (typeof registry)[number]["id"];
 
 const TERMINAL_MULTIPLEXERS: readonly TerminalMultiplexerModule<TerminalMultiplexer>[] = registry;

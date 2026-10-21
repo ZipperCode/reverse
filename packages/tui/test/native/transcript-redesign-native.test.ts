@@ -61,7 +61,7 @@ function texts(node: TspNode | undefined): string {
 }
 
 describe("native transcript redesign", () => {
-	it("draws a failed request as one frame: status chip, the message once, actions that run omp's commands", async () => {
+	it("draws a failed request as one frame: status chip, the message once, actions that run reverse's commands", async () => {
 		const actions: TranscriptAction[] = [];
 		setTranscriptActionHandler(action => actions.push(action));
 		const component = new AssistantMessageComponent(
@@ -71,17 +71,17 @@ describe("native transcript redesign", () => {
 		harness.tui.addChild(component);
 		await harness.render();
 
-		const frame = harness.find(node => node.k === "card" && node.p?.role === "omp.error");
+		const frame = harness.find(node => node.k === "card" && node.p?.role === "reverse.error");
 		expect(frame?.p).toMatchObject({ tone: "error" });
-		expect(harness.find(node => node.k === "badge" && node.p?.role === "omp.error.code")?.p).toMatchObject({
+		expect(harness.find(node => node.k === "badge" && node.p?.role === "reverse.error.code")?.p).toMatchObject({
 			text: "500",
 		});
-		const message = harness.find(node => node.p?.role === "omp.error.message");
+		const message = harness.find(node => node.p?.role === "reverse.error.message");
 		expect(texts(message)).toBe("upstream overloaded (type=server_error)");
 
-		const retry = harness.find(node => node.p?.role === "omp.error.action" && texts(node).startsWith("Retry"));
+		const retry = harness.find(node => node.p?.role === "reverse.error.action" && texts(node).startsWith("Retry"));
 		harness.event({ ev: "action", sf: harness.terminal.surface!, id: retry!.id, act: "retry" });
-		const copy = harness.find(node => node.p?.role === "omp.error.action" && texts(node).startsWith("Copy"));
+		const copy = harness.find(node => node.p?.role === "reverse.error.action" && texts(node).startsWith("Copy"));
 		harness.event({ ev: "action", sf: harness.terminal.surface!, id: copy!.id, act: "copy-error" });
 		expect(actions).toEqual([{ act: "retry" }, { act: "copy", text: "upstream overloaded (type=server_error)" }]);
 		expect(harness.errors).toEqual([]);
@@ -99,7 +99,7 @@ describe("native transcript redesign", () => {
 		});
 		component.updateContent(thinking("Weighing it"), { transient: true });
 		await harness.render();
-		const live = harness.find(node => node.k === "section" && node.p?.role === "omp.thinking.live");
+		const live = harness.find(node => node.k === "section" && node.p?.role === "reverse.thinking.live");
 		expect(live).toBeDefined();
 		expect(harness.find(node => node.k === "spinner" && node.p?.style === "starburst")).toBeDefined();
 		expect(harness.find(node => node.k === "elapsed")).toBeDefined();
@@ -108,7 +108,7 @@ describe("native transcript redesign", () => {
 		component.updateContent(thinking("Weighing it carefully"));
 		component.markTranscriptBlockFinalized();
 		await harness.render();
-		const done = harness.find(node => node.k === "section" && node.p?.role === "omp.thinking");
+		const done = harness.find(node => node.k === "section" && node.p?.role === "reverse.thinking");
 		expect(done?.p).toMatchObject({ collapsed: true });
 		expect(texts(done)).toStartWith("Thought");
 		expect(prop(done, "took")).toBeNumber();
@@ -126,7 +126,7 @@ describe("native transcript redesign", () => {
 		const component = new AssistantMessageComponent(message);
 		harness = await TspHarness.start();
 		harness.tui.addChild(component);
-		const thought = () => harness!.find(node => node.k === "section" && node.p?.role === "omp.thinking");
+		const thought = () => harness!.find(node => node.k === "section" && node.p?.role === "reverse.thinking");
 		await harness.render();
 		expect(thought()?.p).toMatchObject({ collapsed: true });
 
@@ -155,7 +155,7 @@ describe("native transcript redesign", () => {
 		});
 		component.updateContent(message({ type: "thinking", thinking: "Weighing it" }), { transient: true });
 		await harness.render();
-		expect(harness.find(node => node.k === "section" && node.p?.role === "omp.thinking.live")?.p).toMatchObject({
+		expect(harness.find(node => node.k === "section" && node.p?.role === "reverse.thinking.live")?.p).toMatchObject({
 			collapsed: true,
 		});
 
@@ -165,22 +165,22 @@ describe("native transcript redesign", () => {
 		component.markTranscriptBlockFinalized();
 		await harness.render();
 		expect(
-			harness.find(node => node.k === "section" && String(node.p?.role).startsWith("omp.thinking")),
+			harness.find(node => node.k === "section" && String(node.p?.role).startsWith("reverse.thinking")),
 		).toBeUndefined();
 		expect(harness.errors).toEqual([]);
 	});
 
-	it("gives a user message no head row, and routes its toolbar to omp's copy and rewind", async () => {
+	it("gives a user message no head row, and routes its toolbar to reverse's copy and rewind", async () => {
 		const actions: TranscriptAction[] = [];
 		setTranscriptActionHandler(action => actions.push(action));
 		const user = new UserMessageComponent("Fix the build", { timestamp: Date.UTC(2026, 0, 1, 12, 30) });
 		harness = await TspHarness.start();
 		harness.tui.addChild(user);
 		await harness.render();
-		const frame = harness.find(node => node.k === "card" && node.p?.role === "omp.user");
+		const frame = harness.find(node => node.k === "card" && node.p?.role === "reverse.user");
 		expect(prop(frame, "head")).toBeUndefined();
 		const tool = (icon: string) =>
-			harness!.find(node => node.p?.role === "omp.user.tool" && prop(node, "name") === icon)!;
+			harness!.find(node => node.p?.role === "reverse.user.tool" && prop(node, "name") === icon)!;
 		harness.event({ ev: "action", sf: harness.terminal.surface!, id: tool("copy").id, act: "copy-message" });
 		harness.event({ ev: "action", sf: harness.terminal.surface!, id: tool("rewind").id, act: "rewind" });
 		expect(actions).toEqual([{ act: "copy", text: "Fix the build" }, { act: "rewind" }]);
@@ -206,14 +206,14 @@ describe("native transcript redesign", () => {
 		harness = await TspHarness.start();
 		harness.tui.addChild(component);
 		await harness.render();
-		const copy = harness.find(node => node.p?.role === "omp.turn.copy");
+		const copy = harness.find(node => node.p?.role === "reverse.turn.copy");
 		harness.event({ ev: "action", sf: harness.terminal.surface!, id: copy!.id, act: "copy-answer" });
 		expect(actions).toEqual([{ act: "copy", text: "First part.\n\nSecond part." }]);
 
 		component.updateContent(answer({ type: "thinking", thinking: "Nothing to say" }));
 		await harness.render();
-		expect(harness.find(node => node.p?.role === "omp.turn.usage")).toBeDefined();
-		expect(harness.find(node => node.p?.role === "omp.turn.copy")).toBeUndefined();
+		expect(harness.find(node => node.p?.role === "reverse.turn.usage")).toBeDefined();
+		expect(harness.find(node => node.p?.role === "reverse.turn.copy")).toBeUndefined();
 		expect(harness.errors).toEqual([]);
 	});
 
@@ -227,7 +227,7 @@ describe("native transcript redesign", () => {
 			harness = await TspHarness.start(undefined, { hour12 });
 			harness.tui.addChild(new UserMessageComponent("Fix the build", { timestamp: at }));
 			await harness.render();
-			const time = harness.find(node => node.p?.role === "omp.user.time");
+			const time = harness.find(node => node.p?.role === "reverse.user.time");
 			expect(texts(time)).toMatch(shown);
 			expect(String(prop(time, "title"))).toMatch(hour12 ? /pm/i : /18:05/);
 			harness.stop();

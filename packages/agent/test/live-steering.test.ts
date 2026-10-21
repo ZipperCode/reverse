@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent } from "@reverse/agent";
 import { agentLoop } from "@reverse/agent/agent-loop";
 import type {

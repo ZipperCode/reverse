@@ -29,7 +29,7 @@ describe("legacy shim withFileMutationQueue export", () => {
 	let tmpDir: string;
 
 	beforeEach(async () => {
-		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-file-mutation-queue-"));
+		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-file-mutation-queue-"));
 	});
 
 	afterEach(async () => {

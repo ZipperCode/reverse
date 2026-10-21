@@ -1,19 +1,9 @@
-OMP THIRD-PARTY NOTICES
-=======================
+REVERSE THIRD-PARTY NOTICES
+===========================
 
-This generated, self-contained aggregate accompanies OMP release artifacts.
+This generated, self-contained aggregate accompanies reverse release artifacts.
 It does not replace package-level license files. First-party licensing grants
 no rights in third-party code, fonts, data, or marks identified below.
-
-PYTHON DEPENDENCY DISTRIBUTION ROLE
-===================================
-
-omp-rpc has no third-party runtime dependencies. robomp declares FastAPI,
-Uvicorn, HTTPX, Pydantic, pydantic-settings, python-dotenv, Click, and omp-rpc
-as ordinary installer-resolved dependencies. The Python wheels do not vendor
-those projects; each dependency remains a separately installed distribution
-carrying its own license metadata and files. Container/system assemblers must
-retain those independently installed distributions' notices.
 
 TRACKED VENDORED CODE AND ASSET NOTICES
 =======================================

@@ -99,10 +99,10 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 	});
 
 	it("proceeds and returns true when flush succeeds", async () => {
-		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-resume-preflight-"));
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-resume-preflight-"));
 		try {
 			const { ctx, switchSession, applyCwdChange, state } = createResumeContext({ sourceCwd: tmpDir });
-			const targetCwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-resume-target-"));
+			const targetCwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-resume-target-"));
 			switchSession.mockImplementation(async (_sessionPath, options) => {
 				state.cwd = targetCwd;
 				return options?.onCwdChange ? options.onCwdChange(targetCwd, tmpDir) : true;
@@ -129,8 +129,8 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 	});
 
 	it("restores an in-memory source when cwd application fails", async () => {
-		const sourceCwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-resume-memory-source-"));
-		const targetCwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-resume-memory-target-"));
+		const sourceCwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-resume-memory-source-"));
+		const targetCwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-resume-memory-target-"));
 		try {
 			const { ctx, switchSession, applyCwdChange, moveTo, state } = createResumeContext({ sourceCwd });
 			applyCwdChange.mockResolvedValue(false);
@@ -156,8 +156,8 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 	});
 
 	it("does not retry a cancelled rollback switch", async () => {
-		const sourceCwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-resume-cancel-source-"));
-		const targetCwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-resume-cancel-target-"));
+		const sourceCwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-resume-cancel-source-"));
+		const targetCwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-resume-cancel-target-"));
 		try {
 			const { ctx, switchSession, applyCwdChange, moveTo, state } = createResumeContext({
 				sourceCwd,
@@ -186,10 +186,10 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 	});
 
 	it("skips flush when settingsFlushed option is true", async () => {
-		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-resume-preflight-skip-"));
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-resume-preflight-skip-"));
 		try {
 			const { ctx, switchSession, state } = createResumeContext({ sourceCwd: tmpDir });
-			const targetCwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-resume-target-skip-"));
+			const targetCwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-resume-target-skip-"));
 			switchSession.mockImplementation(async (_sessionPath, options) => {
 				state.cwd = targetCwd;
 				return options?.onCwdChange ? options.onCwdChange(targetCwd, tmpDir) : true;

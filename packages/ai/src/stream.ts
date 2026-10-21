@@ -1247,7 +1247,7 @@ export function streamSimple<TApi extends Api>(
  * Forward a model-configured `User-Agent` override across the pi-native wire.
  * The model itself never crosses the wire — the client sends only `modelId`
  * and the gateway resolves its own model — so without this the gateway's
- * resolved Bedrock model always sends the default `omp/<version>` UA even
+ * resolved Bedrock model always sends the default `reverse/<version>` UA even
  * when the client's local model config set an override. Only the single
  * header is forwarded, not the rest of `model.headers` (which may carry
  * unrelated local config), and only when the caller hasn't already set their

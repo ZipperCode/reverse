@@ -59,7 +59,7 @@ export interface PuppeteerBrowserHandle extends BrowserHandleCommon {
 	browser: Browser;
 	cdpUrl?: string;
 	pid?: number;
-	/** OMP-owned temp Chromium profile directory removed on dispose (process-local headless launches). */
+	/** REVERSE-owned temp Chromium profile directory removed on dispose (process-local headless launches). */
 	userDataDir?: string;
 	/** Broker daemon backing this handle; dispose disconnects instead of closing, kill routes to the broker. */
 	sharedDaemon?: { name: string; projectDir: string };
@@ -220,7 +220,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		return { key: browserKey(kind), kind, tern, refCount: 0 };
 	}
 	if (kind.kind === "headless") {
-		// Every real omp process (session, subagent, worker — anything with a CLI
+		// Every real reverse process (session, subagent, worker — anything with a CLI
 		// worker host) MUST go through the project-shared broker-owned Chromium:
 		// per-process launches are what produced launch storms and orphaned
 		// process trees. The process-local launch survives only for hosts that
@@ -275,39 +275,39 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		// the wait fails fast when nothing serves the port or the server has
 		// already outlived the window an installed extension needs to connect.
 		let outcome = await waitForRelayExtension(cdpUrl, opts.signal);
-		// A broker-owned relay outlives omp upgrades; replace an incompatible one
+		// A broker-owned relay outlives reverse upgrades; replace an incompatible one
 		// with this version's once, and a compatible older one only while no CDP
 		// client uses it. A manually started relay is left to its owner.
 		if (outcome === "outdated-relay" && autoStart && (await restartRelayDaemon({ cdpUrl, signal: opts.signal }))) {
 			outcome = await waitForRelayExtension(cdpUrl, opts.signal);
 		} else if (outcome === "idle-older-relay" && autoStart) {
-			// Probe again even when it was kept: another omp may have replaced it since.
+			// Probe again even when it was kept: another reverse may have replaced it since.
 			await restartRelayDaemon({ cdpUrl, signal: opts.signal, idleOnly: true });
 			outcome = await waitForRelayExtension(cdpUrl, opts.signal);
 		}
 		if (outcome === "unreachable") {
 			throw new ToolError(
-				`omp browser relay is not reachable at ${cdpUrl}. Start it with \`omp browser-relay\` (or check the endpoint), and make sure the OMP Browser Relay extension is loaded in Chrome.`,
+				`reverse browser relay is not reachable at ${cdpUrl}. Start it with \`reverse browser-relay\` (or check the endpoint), and make sure the REVERSE Browser Relay extension is loaded in Chrome.`,
 			);
 		}
 		if (outcome === "no-extension") {
 			throw new ToolError(
-				`omp browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`omp browser-relay install\` and check the toolbar badge shows "on".`,
+				`reverse browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`reverse browser-relay install\` and check the toolbar badge shows "on".`,
 			);
 		}
 		if (outcome === "extension-gone") {
 			throw new ToolError(
-				`omp browser relay is serving at ${cdpUrl} but its extension disconnected and has not come back. Open Chrome with the OMP Browser Relay extension and check the toolbar badge shows "on".`,
+				`reverse browser relay is serving at ${cdpUrl} but its extension disconnected and has not come back. Open Chrome with the REVERSE Browser Relay extension and check the toolbar badge shows "on".`,
 			);
 		}
 		if (outcome === "outdated-relay") {
 			throw new ToolError(
-				`The browser relay at ${cdpUrl} is out of date. Restart the relay under this OMP version, then retry.`,
+				`The browser relay at ${cdpUrl} is out of date. Restart the relay under this REVERSE version, then retry.`,
 			);
 		}
 		if (outcome === "outdated-extension") {
 			throw new ToolError(
-				"The OMP Browser Relay extension is out of date. Run `omp browser-relay install` and reload the extension in Chrome.",
+				"The REVERSE Browser Relay extension is out of date. Run `reverse browser-relay install` and reload the extension in Chrome.",
 			);
 		}
 		const puppeteer = await loadPuppeteer();
@@ -417,7 +417,7 @@ async function disposeBrowserHandle(handle: BrowserHandle, opts: ReleaseBrowserO
 			// The broker owns the Chromium; this process only drops its CDP
 			// connection. `kill` is scoped to spawned-app browsers — stopping the
 			// shared daemon here would tear down every other session's tabs. The
-			// daemon dies with the last omp client in the project (broker idle
+			// daemon dies with the last reverse client in the project (broker idle
 			// teardown), when its CDP endpoint stops answering after a failed tab
 			// cleanup (`stopSharedBrowserIfUnreachable`), or via an explicit stop
 			// (`write proc://<name>/kill`).
@@ -444,7 +444,7 @@ async function disposeBrowserHandle(handle: BrowserHandle, opts: ReleaseBrowserO
 				if (proc?.pid !== undefined) await gracefulKillTreeOnce(proc.pid).catch(() => undefined);
 			}
 		}
-		// OMP owns the profile directory (puppeteer's temp cleanup is disabled by
+		// REVERSE owns the profile directory (puppeteer's temp cleanup is disabled by
 		// our explicit --user-data-dir), so remove it now the process tree has
 		// exited. Tolerant of the Windows lock-held window (issue #7058).
 		if (handle.userDataDir) await removeUserDataDir(handle.userDataDir);
@@ -499,7 +499,7 @@ async function openSharedHeadlessHandle(
 		});
 		if (!shared) {
 			throw new ToolError(
-				`Shared browser daemon unavailable (broker start or Chromium launch failed); check \`omp ps\` for omp.browser.* daemons and ${getLogsDir()} for details`,
+				`Shared browser daemon unavailable (broker start or Chromium launch failed); check \`reverse ps\` for reverse.browser.* daemons and ${getLogsDir()} for details`,
 			);
 		}
 		const puppeteer = await loadPuppeteer();
@@ -515,7 +515,7 @@ async function openSharedHeadlessHandle(
 			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
 		});
 		// Attaching to the shared daemon is the natural point to sweep targets
-		// left behind by omp processes that died without teardown — bounds
+		// left behind by reverse processes that died without teardown — bounds
 		// accumulation without a background timer. Best-effort and detached so a
 		// slow reap never delays the open (issue #10022).
 		void reapOrphanSharedTargets(browser, { projectDir: shared.projectDir, daemonName: shared.daemonName });

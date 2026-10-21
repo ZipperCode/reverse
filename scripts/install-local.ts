@@ -161,6 +161,12 @@ export async function verifyExecutable(
 				reject(new Error(`Binary verification timed out after ${timeoutMs}ms`));
 			}, timeoutMs);
 		});
+		if (!(proc.stdout instanceof ReadableStream) || !(proc.stderr instanceof ReadableStream)) {
+			return {
+				ok: false,
+				error: "Subprocess stdout or stderr is not a readable stream",
+			};
+		}
 
 		const readPromise = Promise.all([
 			readBounded(proc.stdout, MAX_VERSION_OUTPUT_BYTES),

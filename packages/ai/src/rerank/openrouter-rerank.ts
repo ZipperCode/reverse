@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { calculateCost } from "@reverse/catalog/models";
 import type { Api, FetchImpl, Model, Usage } from "@reverse/catalog/types";
 import { type ApiKey, withAuth } from "../auth-retry";

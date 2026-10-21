@@ -69,7 +69,7 @@ function startUploadEdge(): UploadEdge {
 		port: 0,
 		fetch: async request => {
 			const url = new URL(request.url);
-			if (url.pathname === "/.well-known/omp-blob-health") {
+			if (url.pathname === "/.well-known/reverse-blob-health") {
 				return new Response(null, { status: 204 });
 			}
 			if (url.pathname === "/upload" && request.method === "POST") {
@@ -126,7 +126,7 @@ describe("public exposure health", () => {
 
 		const baseUrl = await backend.ensureStarted();
 		expect(baseUrl).not.toBeNull();
-		expect((await fetch(`${baseUrl}/.well-known/omp-blob-health?nonce=test`)).status).toBe(204);
+		expect((await fetch(`${baseUrl}/.well-known/reverse-blob-health?nonce=test`)).status).toBe(204);
 	});
 
 	it("waits for delayed readiness and cache-busts every attempt", async () => {
@@ -150,9 +150,9 @@ describe("public exposure health", () => {
 
 		expect(urls).toHaveLength(3);
 		expect(urls.map(value => new URL(value).pathname)).toEqual([
-			"/.well-known/omp-blob-health",
-			"/.well-known/omp-blob-health",
-			"/.well-known/omp-blob-health",
+			"/.well-known/reverse-blob-health",
+			"/.well-known/reverse-blob-health",
+			"/.well-known/reverse-blob-health",
 		]);
 		expect(new Set(urls.map(value => new URL(value).searchParams.get("nonce"))).size).toBe(3);
 	});

@@ -5,9 +5,9 @@
 		}
 		const { silent, ...params } = { ...options, ...required };
 		const defined = Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined));
-		const response = await globalThis.__omp_prelude__("archive", { ...defined, action });
+		const response = await globalThis.__reverse_prelude__("archive", { ...defined, action });
 		if (!silent && response && typeof response.text === "string" && response.text.length > 0) {
-			globalThis.__omp_display__(response.text);
+			globalThis.__reverse_display__(response.text);
 		}
 		return response && typeof response === "object" ? response.details : undefined;
 	};

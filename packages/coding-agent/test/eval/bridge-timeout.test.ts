@@ -1,5 +1,5 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool } from "@reverse/agent";
 import { Settings } from "../../src/config/settings";
 import {

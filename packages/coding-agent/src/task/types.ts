@@ -7,7 +7,7 @@ export type {
 	SubagentProgressPayload,
 	SubagentLifecyclePayload,
 } from "@reverse/tui/overlays/session-observer-registry";
-import { type BaseType, type } from "@reverse/omptype";
+import { type BaseType, type } from "@reverse/reversetype";
 import { $env } from "@reverse/utils";
 
 import type { AgentSessionEvent } from "../session/agent-session";

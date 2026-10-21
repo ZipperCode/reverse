@@ -215,7 +215,7 @@ function parseAdditionalRateLimit(payload: unknown): ParsedAdditionalUsage | nul
 /**
  * True when paid credits can still fund plan-window overage. Codex CLI never
  * gates on `/wham/usage`, so once the plan allowance is spent it keeps working
- * off this balance; omp must mirror that or it parks a perfectly usable account
+ * off this balance; reverse must mirror that or it parks a perfectly usable account
  * until the weekly reset.
  *
  * Scoped to the plan verdict on purpose. `credits` describes the account's

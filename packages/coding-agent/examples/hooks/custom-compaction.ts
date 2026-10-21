@@ -10,7 +10,7 @@
  * which can be cheaper/faster than the main conversation model.
  *
  * Usage:
- *   omp --hook examples/hooks/custom-compaction.ts
+ *   reverse --hook examples/hooks/custom-compaction.ts
  */
 import { serializeConversation } from "@reverse/agent/compaction";
 import { complete } from "@reverse/ai";

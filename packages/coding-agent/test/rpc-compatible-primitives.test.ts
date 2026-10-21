@@ -325,7 +325,7 @@ describe("RPC Pi-compatible primitives (live server)", () => {
 			const stateOff = await next();
 			expect((stateOff.data as { thinkingLevel: unknown }).thinkingLevel).toBe("off");
 
-			// Command discovery stays an OMP dialect: the Pi-spelled alias is
+			// Command discovery stays an REVERSE dialect: the Pi-spelled alias is
 			// intentionally not served (see issue #6).
 			send({ type: "get_available_commands", id: "cmds-a" });
 			const available = await next();

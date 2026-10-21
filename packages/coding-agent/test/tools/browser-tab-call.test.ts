@@ -26,7 +26,7 @@ describe("renderTabCall", () => {
 		expect(
 			renderTabCall([
 				{ method: "ref", args: ["e2"] },
-				{ method: "evaluate", args: [{ __omp_fn: "node => node.textContent" }, /not-a-marker/] },
+				{ method: "evaluate", args: [{ __reverse_fn: "node => node.textContent" }, /not-a-marker/] },
 			]),
 		).toBe('return await (await tab.ref("e2")).evaluate((node => node.textContent), {});');
 		expect(

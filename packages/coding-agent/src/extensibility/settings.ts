@@ -65,7 +65,7 @@ export const cfgSkillsIncludeSkills = register({
 	default: EMPTY_STRING_ARRAY,
 });
 
-/** Skill discovery options (`skills.*` except the `omp skill` registry URL). */
+/** Skill discovery options (`skills.*` except the `reverse skill` registry URL). */
 export const cfgSkills = combine({
 	enabled: cfgSkillsEnabled,
 	enableSkillCommands: cfgSkillsEnableSkillCommands,
@@ -142,6 +142,6 @@ export const cfgExtensionHandlersToolCallTimeoutMs = register({
 		group: "Extensions",
 		label: "Tool Call Handler Timeout (ms)",
 		description:
-			"Positive finite active-work timeout for extension tool_call handlers; invalid values use 30000ms, and time awaiting OMP-owned dialogs does not count",
+			"Positive finite active-work timeout for extension tool_call handlers; invalid values use 30000ms, and time awaiting REVERSE-owned dialogs does not count",
 	},
 });

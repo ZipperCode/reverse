@@ -42,7 +42,7 @@ import { MCP_PROTOCOL_VERSION } from "./types";
 
 /** Client info sent during initialization */
 const CLIENT_INFO = {
-	name: "omp-coding-agent",
+	name: "reverse-coding-agent",
 	version: "1.0.0",
 };
 
@@ -145,7 +145,7 @@ export class MCPConnectionTimeoutError extends Error {
 /**
  * Connect to an MCP server.
  * Has a 30 second timeout by default to prevent blocking startup.
- * Set OMP_MCP_TIMEOUT_MS=0 to disable MCP client-side timeouts.
+ * Set REVERSE_MCP_TIMEOUT_MS=0 to disable MCP client-side timeouts.
  */
 export async function connectToServer(
 	name: string,

@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool, ThinkingLevel } from "@reverse/agent";
 import { type Api, Effort, type Model } from "@reverse/ai";
 import { createMockModel, type MockResponse } from "@reverse/ai/providers/mock";
@@ -1138,7 +1138,7 @@ describe("AgentSession prewalk", () => {
 		const sessionManager = SessionManager.inMemory();
 		sessionManager.appendCustomMessageEntry(
 			"prewalk-plan",
-			"legacy plan nudge written by an older OMP version",
+			"legacy plan nudge written by an older reverse version",
 			false,
 			undefined,
 			"agent",

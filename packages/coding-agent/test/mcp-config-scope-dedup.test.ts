@@ -36,9 +36,9 @@ describe("MCP scope filtering precedes connection-equivalence deduplication", ()
 
 	beforeEach(async () => {
 		originalHome = process.env.HOME;
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-scope-home-"));
-		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-scope-project-"));
-		userAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-scope-agent-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-mcp-scope-home-"));
+		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-mcp-scope-project-"));
+		userAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-mcp-scope-agent-"));
 		process.env.HOME = tempHome;
 		vi.spyOn(os, "homedir").mockReturnValue(tempHome);
 		setAgentDir(userAgentDir);
@@ -131,7 +131,7 @@ describe("MCP scope filtering precedes connection-equivalence deduplication", ()
 	});
 
 	test("effective extension roots survive scopeless MCP rediscovery", async () => {
-		const extensionDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-extension-"));
+		const extensionDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-mcp-extension-"));
 		try {
 			await fs.writeFile(
 				path.join(extensionDir, ".mcp.json"),

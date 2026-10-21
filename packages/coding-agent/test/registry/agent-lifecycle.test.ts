@@ -718,7 +718,7 @@ describe("AgentLifecycleManager", () => {
 	});
 
 	it("tombstone release keeps a killed ref as terminal `aborted` so a persisted-subagent rescan cannot resurrect it as parked", async () => {
-		using tempDir = TempDir.createSync("@omp-lifecycle-tombstone-");
+		using tempDir = TempDir.createSync("@reverse-lifecycle-tombstone-");
 		const rootSessionFile = path.join(tempDir.path(), "main.jsonl");
 		const workerId = "Killed-Sub";
 		const workerSessionFile = path.join(tempDir.path(), "main", `${workerId}.jsonl`);
@@ -790,7 +790,7 @@ describe("AgentLifecycleManager", () => {
 	});
 
 	it("tombstone release survives the dispose-path unregister racing the sidecar write (#10531)", async () => {
-		using tempDir = TempDir.createSync("@omp-lifecycle-tombstone-race-");
+		using tempDir = TempDir.createSync("@reverse-lifecycle-tombstone-race-");
 		const workerId = "Raced-Sub";
 		const workerSessionFile = path.join(tempDir.path(), `${workerId}.jsonl`);
 		await Bun.write(workerSessionFile, "");

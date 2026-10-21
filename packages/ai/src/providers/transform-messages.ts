@@ -519,7 +519,7 @@ function targetReadsForeignThinking(model: Model, compat: Model["compat"]): bool
  *   blocks only under these flags; otherwise it drops them.
  * - the Responses wire replays reasoning items unless history is filtered, and
  *   hosts that require reasoning replay already receive id-less plaintext
- *   items from omp (the `requiresReasoningContent*` safety net). OpenRouter's
+ *   items from reverse (the `requiresReasoningContent*` safety net). OpenRouter's
  *   chat fallback shares the tool-call flag.
  * - Devin sends every turn's thinking in the prompt's `thinking` field.
  * Anthropic-format targets that accept unsigned thinking already read it via

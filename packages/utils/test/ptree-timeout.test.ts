@@ -157,12 +157,12 @@ sleep 30
 	);
 
 	it.skipIf(process.platform !== "linux")("falls back after the first libc soname is unavailable", async () => {
-		const script = createLinuxSubreaperScript(["libc.so.omp-missing", "libc.so.6", "libc.so"]);
+		const script = createLinuxSubreaperScript(["libc.so.reverse-missing", "libc.so.6", "libc.so"]);
 		const child = Bun.spawn([process.execPath, "-e", script], {
 			env: {
 				...Bun.env,
 				BUN_BE_BUN: "1",
-				OMP_PTREE_SUBREAPER_COMMAND: JSON.stringify([
+				REVERSE_PTREE_SUBREAPER_COMMAND: JSON.stringify([
 					process.execPath,
 					"-e",
 					'process.stdout.write("libc-fallback-ok")',
@@ -225,7 +225,7 @@ ${createLinuxSubreaperScript()}
 				env: {
 					...Bun.env,
 					BUN_BE_BUN: "1",
-					OMP_PTREE_SUBREAPER_COMMAND: JSON.stringify(["/bin/sh", "-c", "printf procfs-free-ok"]),
+					REVERSE_PTREE_SUBREAPER_COMMAND: JSON.stringify(["/bin/sh", "-c", "printf procfs-free-ok"]),
 				},
 				stdin: "ignore",
 				stdout: "pipe",

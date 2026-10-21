@@ -232,7 +232,7 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 		return this.#nativeRoot.get([content], () =>
 			col([{ ...content, key: this.#phase === "transition" ? "scene" : this.#phase }], {
 				grow: 1,
-				role: "omp.app.setup",
+				role: "reverse.app.setup",
 			}),
 		);
 	}
@@ -269,7 +269,7 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 					node("col", { grow: 1 }, active ? [active] : [], `body:${scene?.id ?? this.#sceneIndex}`),
 					col([text([span(footer, "dim")])], { align: "center" }),
 				],
-				{ gap: "md", grow: 1, role: "omp.setup.scene" },
+				{ gap: "md", grow: 1, role: "reverse.setup.scene" },
 			);
 		});
 	}

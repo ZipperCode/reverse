@@ -72,7 +72,7 @@ interface XAIResponsesUsage {
 	server_side_tool_usage_details?: { x_posts_fetched?: number; x_users_fetched?: number } | null;
 }
 
-/** Body of a non-streaming xAI Responses API reply, as far as omp reads it. */
+/** Body of a non-streaming xAI Responses API reply, as far as reverse reads it. */
 export interface XAIResponsesResponse {
 	id?: string;
 	model?: string;

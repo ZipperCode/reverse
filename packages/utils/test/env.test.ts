@@ -90,10 +90,10 @@ describe("parseEnvFile", () => {
 	});
 
 	it("parses valid variables without cross-namespace mirroring", () => {
-		const filePath = writeTempEnv("RVA_FEATURE=enabled\nRVA_BAD=before\0after\n");
+		const filePath = writeTempEnv("REVERSE_FEATURE=enabled\nREVERSE_BAD=before\0after\n");
 
 		expect(parseEnvFile(filePath)).toEqual({
-			RVA_FEATURE: "enabled",
+			REVERSE_FEATURE: "enabled",
 		});
 	});
 
@@ -203,19 +203,19 @@ describe("filterChildShellEnv", () => {
 		const cwd = path.dirname(writeTempEnv(""));
 		fs.writeFileSync(
 			path.join(cwd, ".env.development.local"),
-			"OMP_DOTENV_REPRO_MARKER=synthetic-mode-local-value\n",
+			"REVERSE_DOTENV_REPRO_MARKER=synthetic-mode-local-value\n",
 		);
 		const envModulePath = path.join(import.meta.dir, "..", "src", "env.ts");
 		const script = [
 			`import { filterChildShellEnv } from ${JSON.stringify(envModulePath)};`,
 			"const child = filterChildShellEnv(",
-			'  { OMP_DOTENV_REPRO_MARKER: "synthetic-mode-local-value", UNCHANGED: "parent-value" },',
+			'  { REVERSE_DOTENV_REPRO_MARKER: "synthetic-mode-local-value", UNCHANGED: "parent-value" },',
 			`  ${JSON.stringify(cwd)},`,
 			");",
 			"process.stdout.write(JSON.stringify(child));",
 		].join("\n");
 		const proc = Bun.spawn([process.execPath, "--no-install", "--eval", script], {
-			env: { ...process.env, NODE_ENV: "test", OMP_DOTENV_REPRO_MARKER: undefined },
+			env: { ...process.env, NODE_ENV: "test", REVERSE_DOTENV_REPRO_MARKER: undefined },
 			stdout: "pipe",
 			stderr: "pipe",
 		});
@@ -255,21 +255,21 @@ describe("filterChildShellEnv", () => {
 		const cwd = path.dirname(writeTempEnv("NODE_ENV=production\n"));
 		fs.writeFileSync(
 			path.join(cwd, ".env.development.local"),
-			"OMP_DOTENV_REPRO_MARKER=synthetic-mode-local-value\n",
+			"REVERSE_DOTENV_REPRO_MARKER=synthetic-mode-local-value\n",
 		);
 		const envModulePath = path.join(import.meta.dir, "..", "src", "env.ts");
 		const script = [
 			`import { filterChildShellEnv } from ${JSON.stringify(envModulePath)};`,
 			"const child = filterChildShellEnv(process.env, process.cwd());",
 			"process.stdout.write(JSON.stringify({",
-			"  processValue: process.env.OMP_DOTENV_REPRO_MARKER ?? null,",
-			"  childValue: child.OMP_DOTENV_REPRO_MARKER ?? null,",
+			"  processValue: process.env.REVERSE_DOTENV_REPRO_MARKER ?? null,",
+			"  childValue: child.REVERSE_DOTENV_REPRO_MARKER ?? null,",
 			"  nodeEnv: process.env.NODE_ENV ?? null,",
 			"}));",
 		].join("\n");
 		const proc = Bun.spawn([process.execPath, "--no-install", "--eval", script], {
 			cwd,
-			env: { ...process.env, NODE_ENV: undefined, OMP_DOTENV_REPRO_MARKER: undefined },
+			env: { ...process.env, NODE_ENV: undefined, REVERSE_DOTENV_REPRO_MARKER: undefined },
 			stdout: "pipe",
 			stderr: "pipe",
 		});

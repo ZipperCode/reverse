@@ -1,13 +1,13 @@
 /**
  * Skillshare install manifest (`skills.json`) and lockfile (`skills.lock.json`).
  *
- * Project files live in the active project's `.omp/` directory (the same root
+ * Project files live in the active project's `.reverse/` directory (the same root
  * the plugin registry uses); user-global files live in the agent dir. Unpacked
  * packages live in a shared store: `<config root>/skillshare/@scope/name/<version>/`.
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { OmpErrors, type } from "@reverse/omptype";
+import { ReverseErrors, type } from "@reverse/reversetype";
 import { getAgentDir, hasFsCode, isEnoent } from "@reverse/utils";
 import { resolveOrDefaultProjectRegistryPath } from "../discovery/helpers";
 import { replaceFileAtomically } from "../utils/atomic-file";
@@ -62,14 +62,14 @@ export function parseSkillId(id: string): { scope: string; name: string } | null
 	return { scope: id.slice(1, slash), name: id.slice(slash + 1) };
 }
 
-/** Manifest + lock paths for the user-global install (`~/.omp/agent/`). */
+/** Manifest + lock paths for the user-global install (`~/.reverse/agent/`). */
 export function getGlobalSkillsInstallPaths(): SkillsInstallPaths {
 	return installPathsIn(getAgentDir());
 }
 
 /**
- * Manifest + lock paths for a project: the nearest `.omp/` walking up from
- * `cwd`, else the git root's `.omp/`, else `<cwd>/.omp/`. Throws when `cwd` is
+ * Manifest + lock paths for a project: the nearest `.reverse/` walking up from
+ * `cwd`, else the git root's `.reverse/`, else `<cwd>/.reverse/`. Throws when `cwd` is
  * a discovery ceiling or a user config root rather than a project root.
  */
 export async function getProjectSkillsInstallPaths(cwd: string): Promise<SkillsInstallPaths> {
@@ -77,7 +77,7 @@ export async function getProjectSkillsInstallPaths(cwd: string): Promise<SkillsI
 	if (!registryPath) {
 		throw new Error("This directory is not a project root; pass --global to install for your user.");
 	}
-	// `<root>/.omp/plugins/installed_plugins.json` → `<root>/.omp`
+	// `<root>/.reverse/plugins/installed_plugins.json` → `<root>/.reverse`
 	return installPathsIn(path.dirname(path.dirname(registryPath)));
 }
 
@@ -135,7 +135,7 @@ function assertSkillIds(ids: Record<string, unknown>, file: string): void {
 /** Parse `skills.json` text; throws with the file path on malformed content. */
 export function parseSkillsManifest(text: string, file: string): SkillsManifest {
 	const checked = ManifestSchema(parseJson(text, file));
-	if (checked instanceof OmpErrors) throw new Error(`${file}: ${checked.summary}`);
+	if (checked instanceof ReverseErrors) throw new Error(`${file}: ${checked.summary}`);
 	const skills = checked.skills ?? {};
 	assertSkillIds(skills, file);
 	return { skills };
@@ -144,7 +144,7 @@ export function parseSkillsManifest(text: string, file: string): SkillsManifest 
 /** Parse `skills.lock.json` text; throws with the file path on malformed content. */
 export function parseSkillsLock(text: string, file: string): SkillsLock {
 	const checked = LockSchema(parseJson(text, file));
-	if (checked instanceof OmpErrors) throw new Error(`${file}: ${checked.summary}`);
+	if (checked instanceof ReverseErrors) throw new Error(`${file}: ${checked.summary}`);
 	const skills = checked.skills ?? {};
 	assertSkillIds(skills, file);
 	for (const id in skills) {

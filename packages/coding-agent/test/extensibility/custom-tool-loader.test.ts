@@ -16,7 +16,7 @@ afterEach(async () => {
 });
 
 async function writeTool(name: string, source: string): Promise<string> {
-	tempRoot ??= await fs.mkdtemp(path.join(os.tmpdir(), "omp-custom-tool-loader-"));
+	tempRoot ??= await fs.mkdtemp(path.join(os.tmpdir(), "reverse-custom-tool-loader-"));
 	const filePath = path.join(tempRoot, name);
 	await Bun.write(filePath, source);
 	return filePath;
@@ -71,7 +71,7 @@ const MISSING_NAME_SOURCE = [
 ].join("\n");
 
 describe("custom tool loader", () => {
-	it("injects callable omptype-backed zod schemas through validation and wire emission", async () => {
+	it("injects callable reversetype-backed zod schemas through validation and wire emission", async () => {
 		const toolPath = await writeTool(
 			"zod-wire.js",
 			[

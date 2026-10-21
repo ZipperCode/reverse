@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import {
 	buildTransformedCodexRequestBody,
 	convertCodexResponsesMessages,

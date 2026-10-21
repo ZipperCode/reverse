@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { initTheme, theme } from "@reverse/tui/theme";
 import type { ToolSession } from "@reverse/coding-agent/tools";

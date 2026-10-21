@@ -50,7 +50,7 @@ describe("read → edit seen-line guard under default settings", () => {
 	let file: string;
 
 	beforeEach(async () => {
-		cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-seen-lines-"));
+		cwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-seen-lines-"));
 		file = path.join(cwd, "draw.py");
 		await Bun.write(file, SOURCE);
 	});

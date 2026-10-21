@@ -9,7 +9,7 @@ import { removeWithRetries, Snowflake } from "@reverse/utils";
 
 describe("tryRunRpcSkillCommand", () => {
 	test("dispatches registered /skill commands as skill prompt messages", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const skillPath = path.join(dir, "SKILL.md");
 		await Bun.write(
 			skillPath,
@@ -47,7 +47,7 @@ describe("tryRunRpcSkillCommand", () => {
 	});
 
 	test("honors the RPC prompt streaming behavior for registered /skill commands", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const skillPath = path.join(dir, "SKILL.md");
 		await Bun.write(
 			skillPath,
@@ -86,7 +86,7 @@ describe("tryRunRpcSkillCommand", () => {
 	});
 
 	test("preserves attached images in skill prompt messages", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const skillPath = path.join(dir, "SKILL.md");
 		await Bun.write(
 			skillPath,
@@ -147,7 +147,7 @@ describe("tryRunRpcSkillCommand", () => {
 	});
 
 	test("does not steal builtin slash-command arguments that mention registered skills", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const skillPath = path.join(dir, "SKILL.md");
 		await Bun.write(
 			skillPath,
@@ -204,7 +204,7 @@ function promptResultsFor(id: string, frames: object[] = []) {
 
 describe("dispatchRpcSkillPrompt", () => {
 	test("answers the prompt command once admitted, before the skill dispatch completes", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const skillPath = path.join(dir, "SKILL.md");
 		await Bun.write(
 			skillPath,
@@ -247,7 +247,7 @@ describe("dispatchRpcSkillPrompt", () => {
 	});
 
 	test("does not answer before admission, unlike the pre-fix immediate ack", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const skillPath = path.join(dir, "SKILL.md");
 		await Bun.write(skillPath, "---\nname: reviewer\ndescription: Review code\n---\n\nBody.\n");
 
@@ -310,7 +310,7 @@ describe("dispatchRpcSkillPrompt", () => {
 	});
 
 	test("a late dispatch failure surfaces through onError, not the answer", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const skillPath = path.join(dir, "SKILL.md");
 		await Bun.write(skillPath, "---\nname: reviewer\ndescription: Review code\n---\n\nBody.\n");
 
@@ -339,7 +339,7 @@ describe("dispatchRpcSkillPrompt", () => {
 	});
 
 	test("rejects before answering when the skill file cannot be read", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const missingSkillPath = path.join(dir, "SKILL.md");
 
 		let promptCustomMessageCalls = 0;
@@ -374,7 +374,7 @@ describe("dispatchRpcSkillPrompt", () => {
 	});
 
 	test("emits a non-invoked completion frame when the dispatch bails before the turn starts", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const skillPath = path.join(dir, "SKILL.md");
 		await Bun.write(skillPath, "---\nname: reviewer\ndescription: Review code\n---\n\nBody.\n");
 
@@ -408,7 +408,7 @@ describe("dispatchRpcSkillPrompt", () => {
 	});
 
 	test("forwards attached images to promptCustomMessage", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-rpc-skill-${Snowflake.next()}-`));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), `reverse-rpc-skill-${Snowflake.next()}-`));
 		const skillPath = path.join(dir, "SKILL.md");
 		await Bun.write(skillPath, "---\nname: reviewer\ndescription: Review code\n---\n\nBody.\n");
 

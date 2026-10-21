@@ -67,7 +67,7 @@
 
 ### Added
 
-- Added `getNativeGrammarsDir()`, where the native addon loads downloaded tree-sitter grammars from (`~/.omp/natives/grammars`).
+- Added `getNativeGrammarsDir()`, where the native addon loads downloaded tree-sitter grammars from (`~/.reverse/natives/grammars`).
 
 ### Fixed
 
@@ -118,7 +118,7 @@
 
 ### Added
 
-- Added the public `getSessionOwnersDir()` utility, which returns the profile-independent `~/.omp/run/session-owners` directory that names session ownership leases ([#14095](https://github.com/can1357/oh-my-pi/pull/14095) by [@andrebrait](https://github.com/andrebrait))
+- Added the public `getSessionOwnersDir()` utility, which returns the profile-independent `~/.reverse/run/session-owners` directory that names session ownership leases ([#14095](https://github.com/can1357/oh-my-pi/pull/14095) by [@andrebrait](https://github.com/andrebrait))
 
 ### Fixed
 
@@ -167,7 +167,7 @@
 
 ### Changed
 
-- Improved logging efficiency and configurability by batching routine file writes, flushing urgent records promptly, adding on-demand `logger.flush()` support, and allowing file log levels to be limited with `OMP_LOG_LEVEL`. Log files are created only when needed, and obsolete log and audit files are cleaned up automatically.
+- Improved logging efficiency and configurability by batching routine file writes, flushing urgent records promptly, adding on-demand `logger.flush()` support, and allowing file log levels to be limited with `REVERSE_LOG_LEVEL`. Log files are created only when needed, and obsolete log and audit files are cleaned up automatically.
 
 ## [18.4.4] - 2026-09-29
 
@@ -297,7 +297,7 @@
 
 ### Added
 
-- Added `getBrowserProfilesDir()` (`~/.omp/browser-profiles`; XDG: `$XDG_STATE_HOME/omp/browser-profiles`) for profiles of Chromium browsers spawned by the browser tool.
+- Added `getBrowserProfilesDir()` (`~/.reverse/browser-profiles`; XDG: `$XDG_STATE_HOME/reverse/browser-profiles`) for profiles of Chromium browsers spawned by the browser tool.
 
 ### Fixed
 
@@ -324,7 +324,7 @@
 
 ### Fixed
 
-- Fixed `filterChildShellEnv` applying the omp process's own launch-environment provenance (the pre-dotenv `NODE_ENV` and launcher-owned names read from `/proc/self/environ`) to caller-supplied environment objects; launch provenance now only applies when filtering the live `process.env`/`Bun.env`, and an explicit env resolves its dotenv mode from its own `NODE_ENV`.
+- Fixed `filterChildShellEnv` applying the reverse process's own launch-environment provenance (the pre-dotenv `NODE_ENV` and launcher-owned names read from `/proc/self/environ`) to caller-supplied environment objects; launch provenance now only applies when filtering the live `process.env`/`Bun.env`, and an explicit env resolves its dotenv mode from its own `NODE_ENV`.
 
 ## [18.1.11] - 2026-09-05
 
@@ -336,7 +336,7 @@
 
 ### Added
 
-- Added the public `getTinyWorkerRuntimeDir()` utility, which returns the standard `~/.omp/run/tiny` directory for tiny-worker runtime data.
+- Added the public `getTinyWorkerRuntimeDir()` utility, which returns the standard `~/.reverse/run/tiny` directory for tiny-worker runtime data.
 
 ### Fixed
 
@@ -424,7 +424,7 @@
 
 ### Fixed
 
-- Fixed OMP sessions unexpectedly exiting during socket cleanup or optional-worker communication on Bun.
+- Fixed reverse sessions unexpectedly exiting during socket cleanup or optional-worker communication on Bun.
 
 ## [18.0.6] - 2026-08-26
 
@@ -503,7 +503,7 @@
 ### Changed
 
 - Changed stale process-log retention from the newest five files globally to one newest file per completed process and day within the current and previous four local calendar days. This preserves bounded daily diagnostic coverage while continuing to remove one-use audit files.
-- Changed outbound User-Agent consumers to share the versioned `USER_AGENT` constant (`omp/<version>`).
+- Changed outbound User-Agent consumers to share the versioned `USER_AGENT` constant (`reverse/<version>`).
 
 ### Fixed
 
@@ -572,7 +572,7 @@
 ### Added
 
 - Added `getSecretPlaceholderKeyPath()`, `getDaemonRuntimeDir()`, `getProviderInFlightRoot()`, and `getMarketplacesRegistryPath()` to resolve secret key, daemon runtime, provider in-flight, and marketplace registry paths under their respective XDG categories (state, data) instead of the config root.
-- Existing installs enabling XDG keep their data: a legacy `~/.omp/agent/secret-placeholder.key` or `~/.omp/marketplaces.json` is copied to its XDG location on first resolution, so persisted transcripts still deobfuscate and added marketplaces survive the move.
+- Existing installs enabling XDG keep their data: a legacy `~/.reverse/agent/secret-placeholder.key` or `~/.reverse/marketplaces.json` is copied to its XDG location on first resolution, so persisted transcripts still deobfuscate and added marketplaces survive the move.
 
 ### Changed
 
@@ -587,7 +587,7 @@
 ### Added
 
 - Added a `postmortem.quit` configuration option to safely handle shutdown paths when the terminal output has already disconnected.
-- Added project-keyed OMP security-state directory helpers under the user state root.
+- Added project-keyed reverse security-state directory helpers under the user state root.
 
 ## [17.1.8] - 2026-07-28
 
@@ -692,7 +692,7 @@
 
 ### Fixed
 
-- Fixed child shell environment filtering to drop launch-directory `.env.local` values that Bun auto-loaded before OMP starts command shells. ([#4723](https://github.com/can1357/oh-my-pi/issues/4723))
+- Fixed child shell environment filtering to drop launch-directory `.env.local` values that Bun auto-loaded before reverse starts command shells. ([#4723](https://github.com/can1357/oh-my-pi/issues/4723))
 
 ## [16.3.10] - 2026-07-06
 
@@ -828,7 +828,7 @@
 ### Added
 
 - Added profile-aware directory helpers and isolated profile state roots, while keeping the install ID shared across profiles.
-- Added a named-profile API to the `dirs` module — `setProfile()`, `getActiveProfile()`, `getProfileRootDir()`, and `normalizeProfileName()` — plus `resolveProfileEnv()`, which selects the active profile from `OMP_PROFILE` (canonical; takes precedence) then `PI_PROFILE` (legacy fallback, consulted only when `OMP_PROFILE` is unset).
+- Added a named-profile API to the `dirs` module — `setProfile()`, `getActiveProfile()`, `getProfileRootDir()`, and `normalizeProfileName()` — plus `resolveProfileEnv()`, which selects the active profile from `REVERSE_PROFILE` (canonical; takes precedence) then `PI_PROFILE` (legacy fallback, consulted only when `REVERSE_PROFILE` is unset).
 - Added support for a runtime `overrides` map in `RuntimeInstallSpec`, which is now written into generated runtime `package.json` manifests to force dependency pins (including transitive ones) across the runtime tree
 - Added a lightweight loop-phase breadcrumb stack (`pushLoopPhase`/`popLoopPhase`/`currentLoopPhase`, plus `takeRecentLoopPhase` which returns the live phase or the most recently popped one and clears it) so the TUI event-loop watchdog can attribute a main-thread block to the phase that caused it — including a synchronous phase already popped before the watchdog's delayed tick runs ([#2485](https://github.com/can1357/oh-my-pi/issues/2485))
 - Added `FetchWithRetryOptions.timeout` (forwarded to the underlying `fetch` call). `false` disables Bun's native ~300s pre-response timeout; a positive number overrides the ceiling. Bare browser/Node fetch ignores it ([#2422](https://github.com/can1357/oh-my-pi/issues/2422))
@@ -851,7 +851,7 @@
 ### Added
 
 - Added `runtime-install`: shared on-demand runtime dependency support — `ensureRuntimeInstalled()` (locked, idempotent `bun install` of a pinned dependency set into a cache dir) and a multi-root `installRuntimeModuleResolver()`/`resolveRuntimeModule()` for loading those graphs inside compiled binaries (Bun #1763). Extracted from the coding-agent tiny-model worker; now also backs Mnemopi's on-demand fastembed runtime ([#2389](https://github.com/can1357/oh-my-pi/issues/2389))
-- Added `getFastembedRuntimeDir()` (~/.omp/cache/fastembed-runtime) alongside `getFastembedCacheDir()`
+- Added `getFastembedRuntimeDir()` (~/.reverse/cache/fastembed-runtime) alongside `getFastembedCacheDir()`
 
 ## [15.11.4] - 2026-06-12
 
@@ -900,7 +900,7 @@
 
 - Fixed `prompt.format()` so ASCII symbol replacements such as `-->` and `!=` still run on lines containing a closing HTML comment token when not inside a comment
 - `isCompiledBinary()` now also honors a define-folded `process.env.PI_COMPILED` (only `Bun.env` was checked), so builds that constant-fold `process.env` keep compiled-binary detection without relying on `import.meta.url` bunfs markers
-- `omp <cmd> --help` now loads only the requested command module instead of the entire command table, so an unrelated command whose import graph hangs or crashes can no longer take down every per-command help invocation.
+- `reverse <cmd> --help` now loads only the requested command module instead of the entire command table, so an unrelated command whose import graph hangs or crashes can no longer take down every per-command help invocation.
 
 ## [15.10.8] - 2026-06-09
 
@@ -919,7 +919,7 @@
 
 ### Added
 
-- Added `getAuthBrokerSnapshotCachePath()` with `OMP_AUTH_BROKER_SNAPSHOT_CACHE` override support for isolating the encrypted broker snapshot cache.
+- Added `getAuthBrokerSnapshotCachePath()` with `REVERSE_AUTH_BROKER_SNAPSHOT_CACHE` override support for isolating the encrypted broker snapshot cache.
 
 ## [15.9.1] - 2026-06-04
 
@@ -940,7 +940,7 @@
 
 ### Added
 
-- Added `getFastembedCacheDir` to return the FastEmbed model cache directory under ~/.omp/cache/fastembed
+- Added `getFastembedCacheDir` to return the FastEmbed model cache directory under ~/.reverse/cache/fastembed
 
 ### Fixed
 

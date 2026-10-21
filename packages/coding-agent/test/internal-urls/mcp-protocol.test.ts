@@ -650,7 +650,7 @@ describe("skill:// falls back to an MCP resource with the same URI", () => {
 	});
 
 	it("prefers a loaded local skill over an MCP resource with the same URI", async () => {
-		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "omp-skill-mcp-fallback-"));
+		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-skill-mcp-fallback-"));
 		tmpDirs.push(tmp);
 		const skillDir = path.join(tmp, "figma");
 		await fs.mkdir(path.join(skillDir, "figma-use"), { recursive: true });
@@ -755,7 +755,7 @@ describe("skill:// falls back to an MCP resource with the same URI", () => {
 		vi.useFakeTimers();
 		try {
 			const started = Promise.withResolvers<void>();
-			// `omp read` with a zero startup window: the loader awaits a handshake that never settles.
+			// `reverse read` with a zero startup window: the loader awaits a handshake that never settles.
 			MCPManager.setDeferredInstance(() => {
 				started.resolve();
 				return Promise.withResolvers<MCPManager>().promise;

@@ -62,7 +62,7 @@ const DROID_SYSTEM_PREFIX = droidIdentity.trim();
 /**
  * Node build the CLI's packaged runtime reports. The Stainless fingerprint is
  * a client-identity signal, so it is pinned to droid's own runtime rather than
- * leaking whichever Node/Bun build happens to host OMP.
+ * leaking whichever Node/Bun build happens to host Reverse.
  */
 const FACTORY_DROID_RUNTIME_VERSION = "v26.3.0";
 
@@ -78,9 +78,9 @@ export interface FactoryDroidOptions extends StreamOptions {
 	disableReasoning?: boolean;
 	toolChoice?: ToolChoice;
 	serviceTier?: ServiceTier;
-	/** OMP-native "omit thinking summaries" (anthropic adaptive display). */
+	/** Reverse-native "omit thinking summaries" (anthropic adaptive display). */
 	hideThinkingSummary?: boolean;
-	/** OMP-native response verbosity (responses wire `text.verbosity`). */
+	/** Reverse-native response verbosity (responses wire `text.verbosity`). */
 	textVerbosity?: "low" | "medium" | "high";
 }
 
@@ -534,7 +534,7 @@ export const streamFactoryDroid: StreamFunction<"factory-droid-agent"> = (
 	const stream = new AssistantMessageEventStream();
 
 	(async () => {
-		// Sole credential path: the OMP-stored WorkOS session from `/login
+		// Sole credential path: the Reverse-stored WorkOS session from `/login
 		// factory-droid`, resolved and refreshed by the harness and passed as
 		// apiKey. The no-auth sentinel means no stored credential.
 		const harnessToken = options?.apiKey?.trim();
@@ -547,7 +547,7 @@ export const streamFactoryDroid: StreamFunction<"factory-droid-agent"> = (
 			const registry = resolveFactoryDroidPolicy(model);
 			const wire = registry?.wire ?? "openai-completions";
 			const scope = scopeToAccount(model, registry, wire, options?.oauthIdentity, harnessToken);
-			// The proxy expects v4-shaped ids; the OMP session id is a UUIDv7-style
+			// The proxy expects v4-shaped ids; the Reverse session id is a UUIDv7-style
 			// timestamp id, so it maps through a deterministic v4 shape that stays
 			// stable per session.
 			const requestId = crypto.randomUUID();

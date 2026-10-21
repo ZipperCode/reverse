@@ -16,13 +16,13 @@ afterEach(async () => {
 
 describe("prepared extension rebinding", () => {
 	it("binds a fresh session extension without evaluating the module again", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-prepared-extension-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-prepared-extension-"));
 		temporaryDirectories.push(directory);
 		const parentDirectory = path.join(directory, "parent");
 		const childDirectory = path.join(directory, "child");
 		await Promise.all([fs.mkdir(parentDirectory), fs.mkdir(childDirectory)]);
 		const extensionPath = path.join(directory, "counter.ts");
-		const counterKey = `__omp_prepared_extension_${crypto.randomUUID().replaceAll("-", "")}`;
+		const counterKey = `__reverse_prepared_extension_${crypto.randomUUID().replaceAll("-", "")}`;
 		const bindingsKey = `${counterKey}_bindings`;
 		await Bun.write(
 			extensionPath,

@@ -719,10 +719,10 @@ describe("Claude saved-reset trigger integration", () => {
 		expect(pooled.session.agent.state.messages.at(-1)).toMatchObject({ role: "assistant", stopReason: "error" });
 	});
 
-	it("adopts a reset `omp usage reset` just spent instead of spending again", async () => {
+	it("adopts a reset `reverse usage reset` just spent instead of spending again", async () => {
 		const originalEnv = {
 			PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
-			OMP_PROFILE: process.env.OMP_PROFILE,
+			REVERSE_PROFILE: process.env.REVERSE_PROFILE,
 			PI_PROFILE: process.env.PI_PROFILE,
 		};
 		setAgentDir(tempDir.path());

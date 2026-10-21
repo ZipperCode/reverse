@@ -22,7 +22,7 @@ let tempDirectory: string;
 let sourceSessionFile: string;
 
 beforeEach(async () => {
-	tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-fork-command-"));
+	tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-fork-command-"));
 	sourceSessionFile = path.join(tempDirectory, "current-session.jsonl");
 	await Bun.write(sourceSessionFile, '{"type":"session"}\n');
 });
@@ -98,7 +98,7 @@ function createContext(
 		classifyTerminalMultiplexer: options.classifyTerminalMultiplexer ?? classifyTerminalMultiplexer,
 		environment: options.environment ?? (() => ({ TMUX: "server,1,0", TMUX_PANE: "%1" })),
 		launchTerminal,
-		resolveCliEntryCmd: () => ["omp-entry"],
+		resolveCliEntryCmd: () => ["reverse-entry"],
 		getActiveProfile: () =>
 			options.activeProfile === null ? undefined : (options.activeProfile ?? "active-profile"),
 		argv: () => options.argv ?? ["--model", "provider/model", "prompt text"],
@@ -175,9 +175,9 @@ describe("/fork terminal placement", () => {
 		const command = request?.command ?? [];
 		expect(command[0]).toBe("env");
 		expect(command).toContain("PI_CODING_AGENT_DIR=/user/agent");
-		expect(command).toContain("OMP_PROFILE=active-profile");
+		expect(command).toContain("REVERSE_PROFILE=active-profile");
 		expect(command).toContain("PI_PROFILE=active-profile");
-		expect(command.slice(command.indexOf("omp-entry") + 1)).toEqual([
+		expect(command.slice(command.indexOf("reverse-entry") + 1)).toEqual([
 			"--profile",
 			"active-profile",
 			"--model",
@@ -206,7 +206,7 @@ describe("/fork terminal placement", () => {
 		});
 		await controller.handleForkCommand("pane");
 		const command = launchTerminal.mock.calls[0]?.[0].command ?? [];
-		const appArgs = command.slice(command.indexOf("omp-entry") + 1);
+		const appArgs = command.slice(command.indexOf("reverse-entry") + 1);
 		expect(appArgs).toContain("--no-tools");
 		expect(appArgs).not.toContain("--goal");
 		expect(appArgs).not.toContain("ship the release");
@@ -224,8 +224,8 @@ describe("/fork terminal placement", () => {
 		});
 		await controller.handleForkCommand("pane");
 		const command = launchTerminal.mock.calls[0]?.[0].command ?? [];
-		const envArgs = command.slice(0, command.indexOf("omp-entry"));
-		for (const name of ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "OMP_PROFILE", "PI_PROFILE"]) {
+		const envArgs = command.slice(0, command.indexOf("reverse-entry"));
+		for (const name of ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "REVERSE_PROFILE", "PI_PROFILE"]) {
 			expect(envArgs[envArgs.indexOf(name) - 1]).toBe("-u");
 			expect(envArgs.some(arg => arg.startsWith(`${name}=`))).toBe(false);
 		}
@@ -241,7 +241,7 @@ describe("/fork terminal placement", () => {
 		const controller = new CommandController(ctx, {
 			environment: () => ({ ZELLIJ: "session" }),
 			launchTerminal,
-			resolveCliEntryCmd: () => ["omp-entry"],
+			resolveCliEntryCmd: () => ["reverse-entry"],
 			getActiveProfile: () => "active-profile",
 			argv: () => ["--profile", "launch-profile", "--fork", "stale-source", "prompt"],
 		});
@@ -271,7 +271,7 @@ describe("/fork terminal placement", () => {
 				({
 					TMUX: "server,1,0",
 					TMUX_PANE: "%1",
-					OMP_PROFILE: "stale-server-profile",
+					REVERSE_PROFILE: "stale-server-profile",
 					PI_PROFILE: "stale-server-profile",
 					PI_CODING_AGENT_DIR: "/stale/server/agent",
 					PI_CONFIG_FILES: configFiles,
@@ -304,7 +304,7 @@ describe("/fork terminal placement", () => {
 		expect(command).not.toContain("stale-server-profile");
 		expect(command).not.toContain("old-profile");
 
-		const appArgs = command.slice(command.indexOf("omp-entry") + 1);
+		const appArgs = command.slice(command.indexOf("reverse-entry") + 1);
 		const modelIndex = appArgs.indexOf("--model");
 		expect(appArgs[modelIndex + 1]).toBe("current-provider/model-b");
 		expect(appArgs).not.toContain("old-provider");
@@ -355,7 +355,7 @@ describe("/fork terminal placement", () => {
 		expect(configFilesEnv).not.toContain(staleConfigPath);
 		expect(command.join("\0")).not.toContain(secret);
 
-		const appArgs = command.slice(command.indexOf("omp-entry") + 1);
+		const appArgs = command.slice(command.indexOf("reverse-entry") + 1);
 		expect(appArgs).not.toContain("--cwd");
 		expect(appArgs).not.toContain(oldCwd);
 		expect(appArgs).not.toContain("--config");
@@ -409,7 +409,7 @@ describe("/fork terminal placement", () => {
 		const controller = new CommandController(ctx, {
 			environment,
 			launchTerminal: createTerminalLauncher({ environment }),
-			resolveCliEntryCmd: () => ["omp-entry"],
+			resolveCliEntryCmd: () => ["reverse-entry"],
 			getActiveProfile: () => undefined,
 			argv: () => [],
 		});

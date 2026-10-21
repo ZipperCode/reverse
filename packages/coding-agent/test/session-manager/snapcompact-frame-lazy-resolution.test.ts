@@ -85,12 +85,12 @@ describe("lazy snapcompact frame resolution", () => {
 	const originalAgentDir = getAgentDir();
 	const originalEnv = {
 		PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
-		OMP_PROFILE: process.env.OMP_PROFILE,
+		REVERSE_PROFILE: process.env.REVERSE_PROFILE,
 		PI_PROFILE: process.env.PI_PROFILE,
 	};
 
 	async function makeTempDir(): Promise<string> {
-		const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-lazy-frames-"));
+		const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "reverse-lazy-frames-"));
 		tempDirs.push(dir);
 		return dir;
 	}

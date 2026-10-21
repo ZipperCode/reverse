@@ -42,7 +42,7 @@ describe("skillshare discovery provider", () => {
 
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-skillshare-disco-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-skillshare-disco-"));
 		project = path.join(tempHome, "work", "proj");
 		await fs.mkdir(path.join(project, ".git"), { recursive: true });
 		vi.spyOn(os, "homedir").mockReturnValue(tempHome);

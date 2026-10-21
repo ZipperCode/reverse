@@ -2,8 +2,8 @@
  * Hook loader - loads TypeScript hook modules using native Bun import.
  */
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
-import * as zod from "@reverse/omptype/zod";
+import { type } from "@reverse/reversetype";
+import * as zod from "@reverse/reversetype/zod";
 import { logger } from "@reverse/utils";
 import { hookCapability } from "../../capability/hook";
 import type { Hook } from "../../discovery";
@@ -211,7 +211,7 @@ export async function loadHooks(paths: string[], cwd: string): Promise<LoadHooks
 /**
  * Discover and load hooks from all registered providers.
  * Uses the capability API to discover hook paths from:
- * 1. OMP native configs (.omp/.pi hooks/)
+ * 1. REVERSE native configs (.reverse/.pi hooks/)
  * 2. Installed plugins
  * 3. Other editor/IDE configurations
  *

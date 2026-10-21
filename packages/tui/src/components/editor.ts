@@ -625,8 +625,8 @@ export class Editor implements Component, Focusable {
 	 * TSP chrome around the `editor` node (the prompt composer's chips, mode
 	 * chip, send/stop): the root role, the children with `input` placed where
 	 * the layout wants it, and the input's keypath for the caret-anchored
-	 * autocomplete. Unset: a plain `omp.field` column over the input (a
-	 * dialog's text field; only the prompt composer claims `omp.editor`).
+	 * autocomplete. Unset: a plain `reverse.field` column over the input (a
+	 * dialog's text field; only the prompt composer claims `reverse.editor`).
 	 */
 	describeLayout: ((input: NativeNode, cx: DescribeContext) => NativeEditorLayout) | undefined;
 	/**
@@ -1726,7 +1726,7 @@ export class Editor implements Component, Focusable {
 		}
 
 		const layout = this.describeLayout?.(editor.node, cx) ?? {
-			role: "omp.field",
+			role: "reverse.field",
 			children: [editor.node],
 			caret: "input",
 		};
@@ -1739,7 +1739,12 @@ export class Editor implements Component, Focusable {
 				this.#nativeOverlay = {
 					list,
 					caret: layout.caret,
-					node: node("overlay", { anchor: { caret: layout.caret }, role: "omp.autocomplete" }, [list], "complete"),
+					node: node(
+						"overlay",
+						{ anchor: { caret: layout.caret }, role: "reverse.autocomplete" },
+						[list],
+						"complete",
+					),
 				};
 			}
 			children.push(this.#nativeOverlay!.node);

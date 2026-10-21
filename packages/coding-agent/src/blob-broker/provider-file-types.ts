@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { OmpErrors, type } from "@reverse/omptype";
+import { ReverseErrors, type } from "@reverse/reversetype";
 import type { ProviderFileReference } from "@reverse/ai";
 import { isEnoent } from "@reverse/utils";
 import type { RemoteDeleteAction } from "./publication";
@@ -385,7 +385,7 @@ export class ProviderFileCache {
 			return 0;
 		}
 		const checked = PersistedIndexSchema(parsed);
-		if (checked instanceof OmpErrors) {
+		if (checked instanceof ReverseErrors) {
 			this.#lastError = "Unsupported or malformed provider file cache index";
 			return 0;
 		}

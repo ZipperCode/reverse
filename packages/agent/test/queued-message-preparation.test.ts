@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@reverse/agent";
 import { createMockModel } from "@reverse/ai/providers/mock";
 import { createAssistantMessage, createUserMessage } from "./helpers";

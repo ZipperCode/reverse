@@ -550,7 +550,7 @@ describe("ModelRegistry command-resolved models.yml values", () => {
 		expect(await registry.getApiKey(model)).toBe("stale-key");
 		expect(fs.readFileSync(counterFile, "utf8")).toBe("1");
 
-		// User-facing recovery: `omp models refresh`, TUI F5.
+		// User-facing recovery: `reverse models refresh`, TUI F5.
 		await registry.refresh("online", { refreshCommandCredentials: true });
 		expect(await registry.getApiKey(model)).toBe("fresh-key");
 		expect(fs.readFileSync(counterFile, "utf8")).toBe("11");

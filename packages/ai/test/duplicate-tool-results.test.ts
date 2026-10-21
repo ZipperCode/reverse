@@ -539,7 +539,7 @@ describe("Duplicate Tool Results Regression", () => {
  */
 describe("Composite Tool-Call Id Pairing", () => {
 	// The deployed gateway path is a SAME-MODEL Codex (openai-responses) replay:
-	// omp re-encodes Codex history back to a Codex target, so `isSameModel` holds
+	// reverse re-encodes Codex history back to a Codex target, so `isSameModel` holds
 	// and composite tool-call ids pass through untouched to the pairing logic
 	// (the cross-provider / anthropic-target id normalization at :598-613 does
 	// NOT fire). Model the tests on that path so composite ids reach the fix.
@@ -1064,7 +1064,7 @@ describe("Opaque Chat Completions ids are not canonicalized (#10284)", () => {
  * `tool_result` blocks ... Each `tool_result` block must have a corresponding
  * `tool_use` block in the previous message."
  *
- * Reproduces the shape captured in `~/.omp/logs/http-400-requests/*.json` after
+ * Reproduces the shape captured in `~/.reverse/logs/http-400-requests/*.json` after
  * handoff/compaction folds an assistant `tool_use` into the handoff summary string
  * while leaving the matching user-side `tool_result` message untouched. The orphan
  * `tool_result` then sits next to the handoff-context user message, gets merged by

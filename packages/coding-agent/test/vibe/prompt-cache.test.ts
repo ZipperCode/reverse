@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 it("shares Vibe sibling cache routing by worker type while keeping conversations separate", async () => {
-	using directory = TempDir.createSync("@omp-vibe-cache-");
+	using directory = TempDir.createSync("@reverse-vibe-cache-");
 	vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network is disabled in this test"));
 	const authStorage = await AuthStorage.create(directory.join("auth.db"));
 	authStorage.keys.setRuntime("muse-code", JSON.stringify({ oauthAccessToken: "test-oauth", apiKey: "test-key" }));

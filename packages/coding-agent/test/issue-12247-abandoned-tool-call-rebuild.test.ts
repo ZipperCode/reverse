@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import type { Message } from "@reverse/ai";
 import { createMockModel } from "@reverse/ai/providers/mock";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { normalizeTools } from "@reverse/agent/agent-loop";
 import type { AgentTool } from "@reverse/agent/types";
 import { INTENT_FIELD } from "@reverse/wire";

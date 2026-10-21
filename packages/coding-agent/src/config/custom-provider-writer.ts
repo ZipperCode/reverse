@@ -4,7 +4,7 @@ import { YAML } from "bun";
 import type { Api } from "@reverse/ai";
 import type { AuthStorage } from "@reverse/ai";
 import { getBundledProviders } from "@reverse/catalog";
-import { OmpErrors } from "@reverse/omptype";
+import { ReverseErrors } from "@reverse/reversetype";
 import { getAgentDir, withFileLock } from "@reverse/utils";
 import { stringifyYamlConfig } from "@reverse/utils/yaml-config";
 import { replaceFileAtomically } from "../utils/atomic-file";
@@ -198,7 +198,7 @@ export async function saveCustomProvider(
 		};
 
 		const schemaCheck = ModelsConfigSchema(updatedConfig);
-		if (schemaCheck instanceof OmpErrors) {
+		if (schemaCheck instanceof ReverseErrors) {
 			const errorMsg = schemaCheck.map(e => `${e.path.join(".")}: ${e.problem}`).join("; ");
 			throw new Error(`Invalid provider configuration schema: ${errorMsg}`);
 		}

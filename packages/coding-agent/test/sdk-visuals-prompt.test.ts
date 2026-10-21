@@ -10,7 +10,7 @@ import { TempDir } from "@reverse/utils";
 
 /** The default system prompt of a session created with `options`. */
 async function promptFor(options: CreateAgentSessionOptions): Promise<string> {
-	using tempDir = TempDir.createSync("@omp-sdk-visuals-prompt-");
+	using tempDir = TempDir.createSync("@reverse-sdk-visuals-prompt-");
 	const cwd = tempDir.join("project");
 	const authStorage = await AuthStorage.create(":memory:");
 	const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir.path(), "models.yml"));

@@ -281,7 +281,7 @@ describe("write tool read projection guard", () => {
 
 	it("writes a literal read notice when the replacement does not shrink the current source", async () => {
 		const filePath = path.join(tmpDir, "documentation.txt");
-		const content = "Example omp output:\n[Showing lines 1-20 of 60. Use :21 to continue]\n";
+		const content = "Example reverse output:\n[Showing lines 1-20 of 60. Use :21 to continue]\n";
 		await Bun.write(filePath, "old\n");
 
 		await new WriteTool(createSession(tmpDir)).execute("call-2", { path: filePath, content });

@@ -22,7 +22,7 @@ describe("AgentSession.fork(entryId)", () => {
 	let providerStarted: PromiseWithResolvers<void>;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-fork-at-entry-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-fork-at-entry-"));
 		providerStarted = Promise.withResolvers<void>();
 	});
 

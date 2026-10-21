@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
 import type { AssistantMessage, Context, Model, Tool } from "@reverse/ai/types";
 import { Effort } from "@reverse/catalog/effort";

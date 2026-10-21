@@ -11,7 +11,7 @@ let dir: string;
 let writeSpy: Mock<typeof fs.writeSync>;
 
 beforeEach(() => {
-	dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-logger-batching-"));
+	dir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-logger-batching-"));
 	writeSpy = spyOn(fs, "writeSync");
 });
 
@@ -124,7 +124,7 @@ describe("RotatingFileSink batching", () => {
 	function makeSink(directory: string, batch?: RotatingFileBatchOptions): RotatingFileSink {
 		return new RotatingFileSink({
 			directory,
-			filenamePrefix: "omp",
+			filenamePrefix: "reverse",
 			filenameSuffix: "1234",
 			maxBytes: 1_000,
 			maxFiles: 5,

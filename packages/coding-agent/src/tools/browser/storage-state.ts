@@ -71,7 +71,7 @@ export interface ClearCookiesOptions {
 	names?: string[];
 }
 
-/** One origin's Web Storage entries in an omp storage state file. */
+/** One origin's Web Storage entries in an reverse storage state file. */
 export interface StorageStateOrigin {
 	/** Serialized origin. */
 	origin: string;
@@ -81,7 +81,7 @@ export interface StorageStateOrigin {
 	sessionStorage?: Array<{ name: string; value: string }>;
 }
 
-/** Playwright-compatible browser state with sessionStorage as an omp extension. */
+/** Playwright-compatible browser state with sessionStorage as an reverse extension. */
 export interface BrowserStorageState {
 	/** Serialized browser cookies. */
 	cookies: BrowserCookie[];
@@ -460,7 +460,7 @@ export async function clearPageStorage(page: Page, kind: string, signal?: AbortS
 	await untilAborted(signal, () => page.evaluate(clearStorageInPage, kind));
 }
 
-/** Where `tab.saveState()` writes: the requested path, else `~/.omp/browser-state/<tab>.json`. */
+/** Where `tab.saveState()` writes: the requested path, else `~/.reverse/browser-state/<tab>.json`. */
 export function storageStatePath(tabName: string, requestedPath: string | undefined, cwd: string): string {
 	const safeName = tabName.replace(/[^A-Za-z0-9._-]/g, "_");
 	const fileName = safeName === "." || safeName === ".." ? "_" : safeName || "main";

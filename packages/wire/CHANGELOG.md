@@ -49,7 +49,7 @@
 
 ### Added
 
-- Added the Tern Surface Protocol wire contract (`@reverse/wire`): message framing constants, the component vocabulary, document ops, frames, the handshake and terminal events that let omp render natively in terminals that speak it
+- Added the Tern Surface Protocol wire contract (`@reverse/wire`): message framing constants, the component vocabulary, document ops, frames, the handshake and terminal events that let reverse render natively in terminals that speak it
 
 ## [18.2.11] - 2026-09-23
 
@@ -61,7 +61,7 @@
 
 ### Added
 
-- Added the `omp stream` wire contract (`@reverse/wire/stream`) for pane screen updates, viewer snapshots and chat, channel metadata, and `live.omp.sh` stream routes.
+- Added the `reverse stream` wire contract (`@reverse/wire/stream`) for pane screen updates, viewer snapshots and chat, channel metadata, and `live.reverse` stream routes.
 - Added authentication support for stencil.so streams, including user identity in welcome messages, channel ownership metadata, and explicit unauthorized and forbidden close codes.
 
 ### Changed
@@ -97,7 +97,7 @@
 - Added `readOnly` flags to participant and session payload types to indicate when a guest is connected via a read-only (view) link
 - Added `writeToken` to `GuestFrame` hello payloads and parsed collaboration links so full-access links can carry and expose a write-capability token
 - Added `ROOM_KEY_BYTES` and `WRITE_TOKEN_BYTES` constants for room key and write-token sizing in the wire protocol
-- Added `DEFAULT_SHARE_URL` (`https://my.omp.sh/s`), the default share viewer/upload base for `/share` links
+- Added `DEFAULT_SHARE_URL` (`https://my.reverse/s`), the default share viewer/upload base for `/share` links
 
 ## [15.11.8] - 2026-06-12
 

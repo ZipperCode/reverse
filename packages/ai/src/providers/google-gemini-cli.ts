@@ -5,7 +5,7 @@
  */
 import { randomBytes, randomUUID } from "node:crypto";
 import { scheduler } from "node:timers/promises";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { calculateCost } from "@reverse/catalog/models";
 import {
 	ensureAntigravityVersion,
@@ -103,10 +103,10 @@ function isPlanningLeakObject(parsed: unknown, toolNames: Set<string>): boolean 
 	if (!parsed || typeof parsed !== "object") return false;
 	const record = parsed as Record<string, unknown>;
 	const hasThought = typeof record.thought === "string";
-	const isOmpTool = typeof record.call === "string" && toolNames.has(record.call);
+	const isReverseTool = typeof record.call === "string" && toolNames.has(record.call);
 	const hasToolSignature =
 		"_i" in record || "paths" in record || "command" in record || ("path" in record && "content" in record);
-	return hasThought || isOmpTool || hasToolSignature;
+	return hasThought || isReverseTool || hasToolSignature;
 }
 
 function splitLeadingJsonObject(text: string): { prefixLength: number; jsonText: string; rest: string } | undefined {

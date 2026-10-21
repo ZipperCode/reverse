@@ -23,9 +23,9 @@ function stored(store: SqliteAuthCredentialStore, provider: string): AuthCredent
 	return store.listAuthCredentials(provider).map(row => row.credential);
 }
 
-describe("omp auth export/import", () => {
+describe("reverse auth export/import", () => {
 	it("round-trips an API key and an OAuth login, refresh token included, into an empty store", async () => {
-		using dir = TempDir.createSync("@omp-auth-transfer-");
+		using dir = TempDir.createSync("@reverse-auth-transfer-");
 		const laptop = await SqliteAuthCredentialStore.open(path.join(dir.path(), "laptop.db"));
 		const cloud = await SqliteAuthCredentialStore.open(path.join(dir.path(), "cloud.db"));
 		try {
@@ -45,7 +45,7 @@ describe("omp auth export/import", () => {
 	});
 
 	it("replaces the same account and the provider API key, keeping other accounts", async () => {
-		using dir = TempDir.createSync("@omp-auth-transfer-");
+		using dir = TempDir.createSync("@reverse-auth-transfer-");
 		const store = await SqliteAuthCredentialStore.open(path.join(dir.path(), "agent.db"));
 		try {
 			const otherAccount: OAuthCredential = {

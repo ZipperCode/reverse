@@ -1,5 +1,5 @@
 /**
- * Regression test for `omp plugin config validate` (#9106).
+ * Regression test for `reverse plugin config validate` (#9106).
  *
  * `handleConfigValidate` used to enumerate only `PluginManager.list()`, which
  * intentionally omits marketplace runtime packages — so an invalid constrained
@@ -32,12 +32,12 @@ describe("runPluginCommand({ action: 'config', args: ['validate'] })", () => {
 
 	test("reports an invalid stored value on a marketplace plugin that list() omits", async () => {
 		const summary: InstalledPluginSummary = {
-			id: "omp-commit@market",
+			id: "reverse-commit@market",
 			scope: "user",
 			entries: [
 				{
 					scope: "user",
-					installPath: "/cache/omp-commit",
+					installPath: "/cache/reverse-commit",
 					version: "2.0.0",
 					installedAt: "2026-08-20T00:00:00.000Z",
 					lastUpdated: "2026-08-20T00:00:00.000Z",
@@ -45,9 +45,9 @@ describe("runPluginCommand({ action: 'config', args: ['validate'] })", () => {
 			],
 		};
 		const resolved: InstalledPlugin = {
-			name: "omp-commit",
+			name: "reverse-commit",
 			version: "2.0.0",
-			path: "/cache/omp-commit",
+			path: "/cache/reverse-commit",
 			manifest: {
 				version: "2.0.0",
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: "auto" } },
@@ -65,21 +65,21 @@ describe("runPluginCommand({ action: 'config', args: ['validate'] })", () => {
 		await runPluginCommand({ action: "config", args: ["validate"], flags: { json: true } });
 
 		// Resolved through the trusted marketplace install path.
-		expect(getPlugin).toHaveBeenCalledWith("omp-commit", { path: "/cache/omp-commit" });
+		expect(getPlugin).toHaveBeenCalledWith("reverse-commit", { path: "/cache/reverse-commit" });
 
 		const report = JSON.parse(output.join("\n")) as {
 			valid: boolean;
 			errors: Array<{ plugin: string; key: string }>;
 		};
 		expect(report.valid).toBe(false);
-		expect(report.errors).toContainEqual(expect.objectContaining({ plugin: "omp-commit", key: "splitMode" }));
+		expect(report.errors).toContainEqual(expect.objectContaining({ plugin: "reverse-commit", key: "splitMode" }));
 	});
 
 	test("validates against the active project schema over a same-named user plugin", async () => {
 		const userPlugin: InstalledPlugin = {
-			name: "omp-commit",
+			name: "reverse-commit",
 			version: "1.0.0",
-			path: "/user/omp-commit",
+			path: "/user/reverse-commit",
 			manifest: {
 				version: "1.0.0",
 				settings: { splitMode: { type: "enum", values: ["legacy"], default: "legacy" } },
@@ -90,14 +90,14 @@ describe("runPluginCommand({ action: 'config', args: ['validate'] })", () => {
 		const projectPlugin: InstalledPlugin = {
 			...userPlugin,
 			version: "2.0.0",
-			path: "/project/omp-commit",
+			path: "/project/reverse-commit",
 			manifest: {
 				version: "2.0.0",
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: "auto" } },
 			},
 		};
 		const summary: InstalledPluginSummary = {
-			id: "omp-commit@market",
+			id: "reverse-commit@market",
 			scope: "project",
 			entries: [
 				{
@@ -117,12 +117,12 @@ describe("runPluginCommand({ action: 'config', args: ['validate'] })", () => {
 
 		await runPluginCommand({ action: "config", args: ["validate"], flags: { json: true } });
 
-		expect(getPlugin).toHaveBeenCalledWith("omp-commit");
+		expect(getPlugin).toHaveBeenCalledWith("reverse-commit");
 		const report = JSON.parse(output.join("\n")) as {
 			valid: boolean;
 			errors: Array<{ plugin: string; key: string }>;
 		};
 		expect(report.valid).toBe(false);
-		expect(report.errors).toContainEqual(expect.objectContaining({ plugin: "omp-commit", key: "splitMode" }));
+		expect(report.errors).toContainEqual(expect.objectContaining({ plugin: "reverse-commit", key: "splitMode" }));
 	});
 });

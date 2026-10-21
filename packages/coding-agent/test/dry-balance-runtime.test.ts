@@ -8,8 +8,8 @@ import { getModelDbPath, TempDir } from "@reverse/utils";
 
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 
-test("omp dry-balance resolves credential-scoped models from the model cache", async () => {
-	const tempDir = TempDir.createSync("@omp-dry-balance-runtime-");
+test("reverse dry-balance resolves credential-scoped models from the model cache", async () => {
+	const tempDir = TempDir.createSync("@reverse-dry-balance-runtime-");
 	const apiKey = "dry-balance-cache-test-key";
 	const modelId = "cached-dry-balance-model";
 	const cacheDbPath = getModelDbPath(tempDir.path());

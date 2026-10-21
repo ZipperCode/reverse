@@ -7,7 +7,7 @@ import { $ } from "bun";
 const STATS_PROBE_TIMEOUT_MS = 500;
 const PROCESS_EXIT_POLL_MS = 50;
 const PROCESS_EXIT_POLLS = 10;
-const STATS_RUNTIME_IMAGES: Record<string, true> = { bun: true, node: true, rva: true, "rva-stats": true };
+const STATS_RUNTIME_IMAGES: Record<string, true> = { bun: true, node: true, reverse: true, "reverse-stats": true };
 
 interface PortHolder {
 	pid: number;
@@ -16,9 +16,9 @@ interface PortHolder {
 }
 
 /** Header stamped on every dashboard response so reuse probes can identify us. */
-export const STATS_DASHBOARD_HEADER = "x-rva-stats-dashboard";
+export const STATS_DASHBOARD_HEADER = "x-reverse-stats-dashboard";
 /** Header recording the server's requested bind host so reuse cannot change its exposure scope. */
-export const STATS_DASHBOARD_HOSTNAME_HEADER = "x-rva-stats-hostname";
+export const STATS_DASHBOARD_HOSTNAME_HEADER = "x-reverse-stats-hostname";
 
 /** Identity-header value for dashboards enforcing an explicit bind host and same-origin access. */
 export const STATS_DASHBOARD_SECURITY_VERSION = "3";
@@ -242,14 +242,14 @@ async function reclaimStatsPort(port: number, hasDashboardIdentity = false): Pro
 		.replace(/ \(deleted\)$/, "");
 	const normalizedCommand = holder.commandLine.toLowerCase().replaceAll("\\", "/");
 	const hasStatsIdentity =
-		normalizedImage === "rva-stats" ||
-		/(?:^|[/"'\s])rva-stats(?:\.exe)?(?:["'\s]|$)/.test(normalizedCommand) ||
+		normalizedImage === "reverse-stats" ||
+		/(?:^|[/"'\s])reverse-stats(?:\.exe)?(?:["'\s]|$)/.test(normalizedCommand) ||
 		/\/packages\/stats\/src\/index\.ts(?:["'\s]|$)/.test(normalizedCommand) ||
-		(normalizedImage === "rva" && /(?:^|\s)stats(?:\s|$)/.test(normalizedCommand)) ||
-		/(?:^|\/)rva(?:\.exe)?["'\s]+stats(?:["'\s]|$)/.test(normalizedCommand);
+		(normalizedImage === "reverse" && /(?:^|\s)stats(?:\s|$)/.test(normalizedCommand)) ||
+		/(?:^|\/)reverse(?:\.exe)?["'\s]+stats(?:["'\s]|$)/.test(normalizedCommand);
 	if (!STATS_RUNTIME_IMAGES[normalizedImage] || (!hasStatsIdentity && !hasDashboardIdentity)) {
 		throw new Error(
-			`Port ${port} is in use by ${holder.image} (PID ${holder.pid}), which is not identifiable as an rva stats dashboard; refusing to stop it.`,
+			`Port ${port} is in use by ${holder.image} (PID ${holder.pid}), which is not identifiable as a reverse stats dashboard; refusing to stop it.`,
 		);
 	}
 

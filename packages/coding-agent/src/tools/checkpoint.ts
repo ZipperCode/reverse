@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 import { prompt } from "@reverse/utils";
 import checkpointDescription from "../prompts/tools/checkpoint.md" with { type: "text" };

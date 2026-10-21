@@ -5,7 +5,7 @@
  * and draws that chart — locally under `always`, through the host's
  * model-backed {@link TableChartPlanner} under `smart` for the tables
  * {@link shouldJudge} picks — and caches it per table source. {@link TableChartFigure} shows it
- * as a terminal image rasterized in omp's theme; {@link chartFence} hands a
+ * as a terminal image rasterized in reverse's theme; {@link chartFence} hands a
  * TSP terminal the SVG as an ```svg fence, which it draws in the palette it
  * shows. Either way a chart follows theme switches like the prose around it.
  */
@@ -178,7 +178,7 @@ function drawChart(analysis: TableAnalysis, plan: ChartPlan, guessed = false): s
  * Chart `svg` as a Markdown ```svg fence, for a TSP terminal's `md` node. Its
  * figure tokens stay unresolved: the terminal draws the fence as a figure in
  * the palette it shows the prose in, so the chart cannot fall out of step with
- * the page when omp's own idea of the appearance does, and a theme switch
+ * the page when reverse's own idea of the appearance does, and a theme switch
  * recolors it without a resend.
  */
 export function chartFence(svg: string): string {

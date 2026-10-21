@@ -354,7 +354,7 @@ describe("NativeJudge", () => {
 				/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(reference),
 			),
 		).toBe(true);
-		expect(body.state).toEqual({ ...state, __omp_judgment_images: references });
+		expect(body.state).toEqual({ ...state, __reverse_judgment_images: references });
 		expect(body.assets[references[0]]).toEqual({ type: "image", format: "png", data_base64: "AQI=" });
 		expect(body.assets[references[1]]).toEqual({ type: "image", format: "jpeg", data_base64: "BAU=" });
 		expect(Buffer.from(body.assets[references[0]].data_base64, "base64")).toEqual(
@@ -366,8 +366,8 @@ describe("NativeJudge", () => {
 
 	it("preserves object, string, and array states when adding TypeSafe image references", async () => {
 		const objectState = {
-			__omp_judgment_images: "caller value",
-			__omp_judgment_images_1: ["also caller data"],
+			__reverse_judgment_images: "caller value",
+			__reverse_judgment_images_1: ["also caller data"],
 			ticket: "Keep every original root field.",
 		};
 		const originalObjectState = structuredClone(objectState);
@@ -387,7 +387,7 @@ describe("NativeJudge", () => {
 		const objectReferences = Object.keys(bodies[0].assets);
 		const stringReferences = Object.keys(bodies[1].assets);
 		const arrayReferences = Object.keys(bodies[2].assets);
-		expect(bodies[0].state).toEqual({ ...objectState, __omp_judgment_images_2: objectReferences });
+		expect(bodies[0].state).toEqual({ ...objectState, __reverse_judgment_images_2: objectReferences });
 		expect(bodies[1].state).toEqual(["plain state", ...stringReferences]);
 		expect(bodies[2].state).toEqual(["array state", { detail: "preserved" }, ...arrayReferences]);
 		expect(objectState).toEqual(originalObjectState);
@@ -581,8 +581,8 @@ describe("NativeJudge", () => {
 		await judge.judge({ ...request, state, images: [IMAGE_REFS[1]] }, { imageAssets });
 
 		const encoded = body as { state: Record<string, unknown>; assets: Record<string, unknown> };
-		const generatedReferences = encoded.state.__omp_judgment_images as string[];
-		expect(encoded.state).toEqual({ ...state, __omp_judgment_images: generatedReferences });
+		const generatedReferences = encoded.state.__reverse_judgment_images as string[];
+		expect(encoded.state).toEqual({ ...state, __reverse_judgment_images: generatedReferences });
 		expect(generatedReferences).toHaveLength(1);
 		expect(generatedReferences[0]).not.toBe(reference);
 		expect(Object.keys(encoded.assets)).toHaveLength(2);
@@ -794,8 +794,8 @@ describe("NativeJudge", () => {
 		}));
 		const states = [
 			{
-				__omp_judgment_images: "caller-owned base key",
-				__omp_judgment_images_1: ["caller-owned suffix"],
+				__reverse_judgment_images: "caller-owned base key",
+				__reverse_judgment_images_1: ["caller-owned suffix"],
 				ticket: "Inspect this image.",
 				metadata: { source: "object" },
 			},
@@ -843,7 +843,7 @@ describe("NativeJudge", () => {
 			const expectedState = Array.isArray(originalState)
 				? [...originalState, ...expectedImageParts]
 				: typeof originalState === "object"
-					? { ...originalState, __omp_judgment_images_2: expectedImageParts }
+					? { ...originalState, __reverse_judgment_images_2: expectedImageParts }
 					: [originalState, ...expectedImageParts];
 			expect(body.state).toEqual(expectedState);
 			expect(body).toMatchObject({ model: "typesafe/jev-1.14", questions: request.questions });
@@ -853,7 +853,7 @@ describe("NativeJudge", () => {
 
 			const sentImages = Array.isArray(body.state)
 				? body.state.slice(-images.length)
-				: (body.state as Record<string, unknown>).__omp_judgment_images_2;
+				: (body.state as Record<string, unknown>).__reverse_judgment_images_2;
 			expect(
 				(sentImages as Array<{ image_url: { url: string } }>).map(part =>
 					Buffer.from(part.image_url.url.slice("data:image/png;base64,".length), "base64"),
@@ -862,8 +862,8 @@ describe("NativeJudge", () => {
 			if (index === 0) {
 				const wireState = body.state as Record<string, unknown>;
 				expect(wireState.ticket).toBe(states[0].ticket);
-				expect(wireState.__omp_judgment_images).toBe(states[0].__omp_judgment_images);
-				expect(wireState.__omp_judgment_images_1).toEqual(states[0].__omp_judgment_images_1);
+				expect(wireState.__reverse_judgment_images).toBe(states[0].__reverse_judgment_images);
+				expect(wireState.__reverse_judgment_images_1).toEqual(states[0].__reverse_judgment_images_1);
 			}
 		}
 	});

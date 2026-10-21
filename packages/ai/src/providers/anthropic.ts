@@ -287,7 +287,7 @@ const promptCacheBetas: Record<string, true> = {
  * Betas withheld under the kill switch: they gate the pre-release body fields
  * it removes (Claude Code's gateway contract: context management, beta tool
  * fields, structured-output format, task budgets, tool search), plus the
- * thinking-binding and compaction controls omp also withholds.
+ * thinking-binding and compaction controls reverse also withholds.
  */
 const killSwitchBetas: Record<string, true> = {
 	[THINKING_BINDING_CONTROLS_BETA]: true,
@@ -2529,7 +2529,7 @@ const streamAnthropicOnce = (
 				if (nextParams.compaction) stripCompactionIncompatibleParams(nextParams);
 				// After `onPayload`, so a hook cannot restore a field Bedrock rejects.
 				if (model.compat.bedrockMessagesApi) fitBedrockAnthropicPayload(nextParams);
-				// Vertex rawPredict carries betas in the body. The binding token omp
+				// Vertex rawPredict carries betas in the body. The binding token reverse
 				// adds is decided here, from the final params after any hook; a token
 				// the hook itself put in `anthropic_beta` is left as it is.
 				const bodyBetas = (nextParams as { anthropic_beta?: string[] }).anthropic_beta;
@@ -5746,7 +5746,7 @@ function collapseFallbackSegments(content: AssistantMessage["content"]): Assista
 }
 
 /**
- * Serialize omp {@link Message}s to Anthropic wire messages.
+ * Serialize reverse {@link Message}s to Anthropic wire messages.
  *
  * `opts.serverSideFallbackEnabled` — when the CURRENT request itself
  * opts into the server-side-fallback beta chain. Only then, and only on the

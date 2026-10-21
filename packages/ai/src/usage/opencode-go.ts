@@ -178,7 +178,7 @@ async function fetchOpenCodeGoUsage(params: UsageFetchParams, ctx: UsageFetchCon
 
 export const opencodeGoUsageProvider: UsageProvider = {
 	id: OPENCODE_GO_PROVIDER,
-	// v2: retires cached reports from the OMP-observed spend estimator (dollar
+	// v2: retires cached reports from the Reverse-observed spend estimator (dollar
 	// units) now that limits come from the upstream percent-based `/usage`
 	// endpoint; the 24h last-good retention would otherwise keep serving them.
 	cacheVersion: 2,

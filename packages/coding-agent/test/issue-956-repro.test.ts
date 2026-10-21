@@ -42,8 +42,8 @@ describe("interactive /mcp test", () => {
 	});
 
 	beforeEach(async () => {
-		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-issue-956-project-"));
-		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-issue-956-agent-"));
+		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-issue-956-project-"));
+		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-issue-956-agent-"));
 		setProjectDir(projectDir);
 		setAgentDir(agentDir);
 

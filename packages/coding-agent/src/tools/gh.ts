@@ -1,5 +1,5 @@
 import type { GhToolDetails } from "@reverse/tui/tools/github";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type {
 	AgentTool,
 	AgentToolContext,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { Tool } from "@reverse/ai/types";
 import { validateToolArguments } from "@reverse/ai/utils/validation";
 

@@ -24,9 +24,9 @@ export {
 	type AssistantThinkingRenderContext,
 	type AssistantThinkingRenderer,
 } from "@reverse/tui/chat/extension-types";
-import type { type as ArkType } from "@reverse/omptype";
-import type * as TypeBox from "@reverse/omptype/typebox";
-import type * as zod from "@reverse/omptype/zod";
+import type { type as ArkType } from "@reverse/reversetype";
+import type * as TypeBox from "@reverse/reversetype/typebox";
+import type * as zod from "@reverse/reversetype/zod";
 import type {
 	AgentMessage,
 	AgentToolResult,
@@ -701,7 +701,7 @@ export interface ExtensionContext {
 	/** Identity of the agent this session runs: the top-level session or a subagent. */
 	agent: ExtensionAgentIdentity;
 	/**
-	 * Whether the current project/workspace is trusted. OMP performs no
+	 * Whether the current project/workspace is trusted. REVERSE performs no
 	 * project-trust gating — project-level settings and extensions load
 	 * unconditionally — so this always returns `true`. Exposed for
 	 * compatibility with extensions authored against upstream Pi, whose
@@ -770,11 +770,11 @@ export interface ExtensionContext {
 	 * here; extensions written against that API (e.g. Plannotator) feature-detect this method to
 	 * decide whether project-local config is safe to load, and warn when it is absent.
 	 *
-	 * OMP has no equivalent per-directory trust gate: `.omp/extensions`, `.omp/config.yml`, and
+	 * REVERSE has no equivalent per-directory trust gate: `.reverse/extensions`, `.reverse/config.yml`, and
 	 * other project-local inputs are already discovered and loaded unconditionally (see
 	 * `docs/extension-loading.md`). This method exists for compatibility with that upstream surface
-	 * and always returns `true`, truthfully reflecting that OMP already trusts project-local inputs
-	 * by default -- it does not narrow or widen OMP's own security model.
+	 * and always returns `true`, truthfully reflecting that REVERSE already trusts project-local inputs
+	 * by default -- it does not narrow or widen REVERSE's own security model.
 	 */
 	isProjectTrusted(): boolean;
 }
@@ -1599,10 +1599,10 @@ export interface ExtensionAPI {
 	/** Injected TypeBox shim for legacy `Type.Object(...)` parameter authoring. */
 	typebox: typeof TypeBox;
 
-	/** Injected omptype schema builder for extension tools. */
+	/** Injected reversetype schema builder for extension tools. */
 	arktype: typeof ArkType;
 
-	/** Injected Zod-compatible omptype builder for extension tools. */
+	/** Injected Zod-compatible reversetype builder for extension tools. */
 	zod: typeof zod;
 
 	/** Injected pi-coding-agent exports for accessing SDK utilities */

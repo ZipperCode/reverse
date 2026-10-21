@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { type AdvisorSeverity, type AdvisorNote } from "@reverse/tui/chat/messages";
 export { type AdvisorSeverity, type AdvisorNote, type AdvisorMessageDetails } from "@reverse/tui/chat/messages";
 import type {

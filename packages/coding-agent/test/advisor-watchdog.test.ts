@@ -118,11 +118,11 @@ describe("advisor watchdog prompt discovery", () => {
 		const tempDir = TempDir.createSync("@pi-advisor-watchdog-");
 		tempDirs.push(tempDir);
 		const cwd = tempDir.join("project-root");
-		const ompDir = path.join(cwd, CONFIG_DIR_NAME);
+		const reverseDir = path.join(cwd, CONFIG_DIR_NAME);
 		const userAgentDir = tempDir.join("user-agent");
 		fs.mkdirSync(cwd, { recursive: true });
 		fs.mkdirSync(path.join(cwd, ".git"), { recursive: true });
-		fs.mkdirSync(ompDir, { recursive: true });
+		fs.mkdirSync(reverseDir, { recursive: true });
 		fs.mkdirSync(userAgentDir, { recursive: true });
 
 		const userWatchdogContent = "User-level watchdog rule.";
@@ -130,7 +130,7 @@ describe("advisor watchdog prompt discovery", () => {
 		const standaloneWatchdogContent = "Standalone project watchdog rule.";
 
 		fs.writeFileSync(path.join(userAgentDir, "WATCHDOG.md"), userWatchdogContent, "utf8");
-		fs.writeFileSync(path.join(ompDir, "WATCHDOG.md"), nativeWatchdogContent, "utf8");
+		fs.writeFileSync(path.join(reverseDir, "WATCHDOG.md"), nativeWatchdogContent, "utf8");
 		fs.writeFileSync(path.join(cwd, "WATCHDOG.md"), standaloneWatchdogContent, "utf8");
 
 		const dump = (await discoverWatchdogFiles(cwd, userAgentDir)).join("\n\n");

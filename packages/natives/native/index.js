@@ -47,9 +47,9 @@ export const VcsJjWorkspace = nativeBindings.VcsJjWorkspace;
 export const VcsRepo = nativeBindings.VcsRepo;
 
 // functions
-export const __ompInstallTokioRuntime = nativeBindings.__ompInstallTokioRuntime ?? missingNativeExport("__ompInstallTokioRuntime");
-export const __ompSetGrammarDir = nativeBindings.__ompSetGrammarDir ?? missingNativeExport("__ompSetGrammarDir");
 export const __piNativesBuildVersion = nativeBindings.__piNativesBuildVersion;
+export const __reverseInstallTokioRuntime = nativeBindings.__reverseInstallTokioRuntime ?? missingNativeExport("__reverseInstallTokioRuntime");
+export const __reverseSetGrammarDir = nativeBindings.__reverseSetGrammarDir ?? missingNativeExport("__reverseSetGrammarDir");
 export const appleFmAvailability = nativeBindings.appleFmAvailability ?? missingNativeExport("appleFmAvailability");
 export const appleFmCancel = nativeBindings.appleFmCancel ?? missingNativeExport("appleFmCancel");
 export const appleFmGenerate = nativeBindings.appleFmGenerate ?? missingNativeExport("appleFmGenerate");

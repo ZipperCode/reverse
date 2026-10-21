@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import * as AIError from "../../error";
 import type { AfterExchangeHook, ExchangeContext } from "../hooks/types";
 import type { FetchImpl } from "../../types";

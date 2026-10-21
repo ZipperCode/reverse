@@ -1,16 +1,16 @@
 /**
- * Tern mode: when omp runs inside a Tern pane (Tern exports `TERN_PANE_SOCKET`
+ * Tern mode: when reverse runs inside a Tern pane (Tern exports `TERN_PANE_SOCKET`
  * and `TERN_PANE` into every pane), browser tabs open as browser
- * picture-in-pictures floating over omp's own pane and every tab helper drives
+ * picture-in-pictures floating over reverse's own pane and every tab helper drives
  * that PiP's native web view through the Tern daemon (`wire.ts`).
  */
 import { parseFlag } from "@reverse/utils";
 
-/** The Tern pane omp runs in. */
+/** The Tern pane reverse runs in. */
 export interface TernPane {
 	/** The Tern daemon socket (`TERN_PANE_SOCKET`). */
 	socketPath: string;
-	/** The pane omp runs in (`TERN_PANE`), which owns the PiPs. */
+	/** The pane reverse runs in (`TERN_PANE`), which owns the PiPs. */
 	pane: number;
 }
 
@@ -19,7 +19,7 @@ export interface TernKind extends TernPane {
 	kind: "tern";
 }
 
-/** The Tern pane omp runs in, or null outside Tern (`TERN_PANE_SOCKET` unset or `TERN_PANE` not a block id). */
+/** The Tern pane reverse runs in, or null outside Tern (`TERN_PANE_SOCKET` unset or `TERN_PANE` not a block id). */
 export function resolveTernPane(env: Record<string, string | undefined> = process.env): TernPane | null {
 	const socketPath = env.TERN_PANE_SOCKET?.trim();
 	const pane = env.TERN_PANE?.trim();
@@ -36,7 +36,7 @@ export interface ResolveTernKindOptions {
 }
 
 /**
- * Resolve the Tern browser kind, or null when omp is not in a Tern pane or
+ * Resolve the Tern browser kind, or null when reverse is not in a Tern pane or
  * Tern mode is off. Mirrors `resolveCmuxKind`: the setting opts in, the env
  * var is the final override in both directions.
  */

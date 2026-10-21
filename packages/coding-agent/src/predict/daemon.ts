@@ -1,6 +1,6 @@
 /**
  * Server half of the machine-global text-prediction daemon (worker selector
- * `__omp_worker_text_predict`, started through the `text-predict` global broker).
+ * `__reverse_worker_text_predict`, started through the `text-predict` global broker).
  *
  * Lazily opens one `TextPredictor` per requested engine, keeps each learning
  * engine current with `history.db` (rows past a persisted row-id cursor, on
@@ -69,7 +69,7 @@ async function readCursor(stateDir: string): Promise<number | undefined> {
 class SmolLmWeightsMissingError extends Error {
 	constructor() {
 		super(
-			"SmolLM weights are not downloaded yet (the editor fetches them on first use, or run `omp tiny-models download smollm`)",
+			"SmolLM weights are not downloaded yet (the editor fetches them on first use, or run `reverse tiny-models download smollm`)",
 		);
 	}
 }

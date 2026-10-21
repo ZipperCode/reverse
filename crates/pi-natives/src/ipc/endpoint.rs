@@ -35,7 +35,7 @@ pub fn hash16(bytes: &[u8]) -> String {
 /// Private per-user directory that hosts relocated Unix sockets.
 #[cfg_attr(windows, allow(dead_code, reason = "pure helper unit-tested on every host"))]
 pub fn relocation_dir(euid: u32) -> String {
-	format!("/tmp/omp-{euid}")
+	format!("/tmp/reverse-{euid}")
 }
 
 /// Unix socket path for `name` in the already-resolved `dir`.
@@ -64,7 +64,7 @@ pub fn unix_endpoint(dir: &str, name: &str, euid: u32, sun_path_max: usize) -> S
 /// Windows named-pipe path for `name` in the already-resolved `dir`.
 #[cfg_attr(not(windows), allow(dead_code, reason = "pure helper unit-tested on every host"))]
 pub fn windows_pipe_name(dir: &str, name: &str) -> String {
-	format!(r"\\.\pipe\omp-{}-{}", sanitize_stem(name), hash16(dir.to_lowercase().as_bytes()))
+	format!(r"\\.\pipe\reverse-{}-{}", sanitize_stem(name), hash16(dir.to_lowercase().as_bytes()))
 }
 
 /// Size of `sockaddr_un::sun_path` on this platform, including the NUL.
@@ -168,7 +168,7 @@ mod tests {
 		let mut key = too_long.clone().into_bytes();
 		key.push(0);
 		key.extend_from_slice(name.as_bytes());
-		assert_eq!(relocated, format!("/tmp/omp-501/{}.sock", hash16(&key)));
+		assert_eq!(relocated, format!("/tmp/reverse-501/{}.sock", hash16(&key)));
 		// Linux's larger sun_path keeps the same directory in place.
 		assert_eq!(unix_endpoint(&too_long, name, 501, 108), format!("{too_long}/n.sock"));
 	}
@@ -182,7 +182,7 @@ mod tests {
 	#[test]
 	fn windows_pipe_name_shape() {
 		let name = windows_pipe_name(r"C:\Users\Me\Proj", "my sock");
-		assert_eq!(name, format!(r"\\.\pipe\omp-my_sock-{}", hash16(br"c:\users\me\proj")));
+		assert_eq!(name, format!(r"\\.\pipe\reverse-my_sock-{}", hash16(br"c:\users\me\proj")));
 		assert_eq!(name, windows_pipe_name(r"c:\users\me\PROJ", "my sock"));
 	}
 

@@ -79,7 +79,7 @@ describe("read → edit round-trip for out-of-cwd files", () => {
 	});
 
 	it("round-trips a home-relative path through read and edit", async () => {
-		homeDir = await fs.mkdtemp(path.join(os.homedir(), ".omp-read-edit-"));
+		homeDir = await fs.mkdtemp(path.join(os.homedir(), ".reverse-read-edit-"));
 		const homeFile = path.join(homeDir, "settings.txt");
 		const authoredPath = `~/${path.relative(os.homedir(), homeFile)}`;
 		await Bun.write(homeFile, "alpha\nbeta\n");

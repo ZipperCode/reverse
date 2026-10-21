@@ -31,7 +31,7 @@ describe("publish lock OS gate", () => {
 	let tempDir: string;
 
 	beforeEach(async () => {
-		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-publish-gate-"));
+		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "reverse-publish-gate-"));
 	});
 
 	afterEach(async () => {

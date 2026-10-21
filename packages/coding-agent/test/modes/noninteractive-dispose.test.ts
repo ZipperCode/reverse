@@ -81,7 +81,7 @@ describe("print mode disposes the session before terminating", () => {
 
 	// Windows cannot deliver a catchable SIGTERM via process.kill: libuv terminates the process outright.
 	it.skipIf(process.platform === "win32")("disposes an active print session before SIGTERM exits", async () => {
-		using tempDir = TempDir.createSync("@omp-print-signal-");
+		using tempDir = TempDir.createSync("@reverse-print-signal-");
 		const marker = tempDir.join("disposed");
 		const fixture = path.join(import.meta.dir, "..", "fixtures", "print-mode-signal.js");
 		const child = Bun.spawn([process.execPath, fixture, marker], {

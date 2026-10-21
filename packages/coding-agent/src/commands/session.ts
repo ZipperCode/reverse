@@ -1,10 +1,10 @@
 /**
  * Hand a session to another machine.
  *
- * `omp session pack <session> <out.tar>` writes a self-contained archive,
- * `omp session unpack <archive.tar> --cwd <dir>` lands it in `<dir>`'s session
+ * `reverse session pack <session> <out.tar>` writes a self-contained archive,
+ * `reverse session unpack <archive.tar> --cwd <dir>` lands it in `<dir>`'s session
  * directory (printing the session file path as the only stdout line), and
- * `omp session moved <session> --to <label>` marks the copy left behind stale
+ * `reverse session moved <session> --to <label>` marks the copy left behind stale
  * so resuming it forks instead of continuing it.
  */
 import chalk from "@reverse/utils/chalk";
@@ -24,9 +24,9 @@ const ACTIONS = ["pack", "unpack", "moved"] as const;
 type SessionAction = (typeof ACTIONS)[number];
 
 const USAGE: Record<SessionAction, string> = {
-	pack: "omp session pack <session> <out.tar>",
-	unpack: "omp session unpack <archive.tar> --cwd <dir>",
-	moved: "omp session moved <session> --to <label>",
+	pack: "reverse session pack <session> <out.tar>",
+	unpack: "reverse session unpack <archive.tar> --cwd <dir>",
+	moved: "reverse session moved <session> --to <label>",
 };
 
 const UNPACK_NOTE: Record<UnpackMode, string> = {
@@ -64,9 +64,9 @@ export default class Session extends Command {
 	};
 
 	static examples = [
-		"# Pack a session with its artifacts and image blobs\n  omp session pack ~/.omp/agent/sessions/<project>/<file>.jsonl /tmp/session.tar",
-		"# Unpack it on another machine; prints the session file path\n  omp session unpack /tmp/session.tar --cwd ~/src/project",
-		"# Mark the local copy stale; resuming it later forks it\n  omp session moved <file>.jsonl --to cloud",
+		"# Pack a session with its artifacts and image blobs\n  reverse session pack ~/.reverse/agent/sessions/<project>/<file>.jsonl /tmp/session.tar",
+		"# Unpack it on another machine; prints the session file path\n  reverse session unpack /tmp/session.tar --cwd ~/src/project",
+		"# Mark the local copy stale; resuming it later forks it\n  reverse session moved <file>.jsonl --to cloud",
 	];
 
 	async run(): Promise<void> {

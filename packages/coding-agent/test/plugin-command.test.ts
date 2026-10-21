@@ -3,7 +3,7 @@ import Plugin from "@reverse/coding-agent/commands/plugin";
 import type { CliConfig } from "@reverse/utils/cli";
 
 const TEST_CONFIG: CliConfig = {
-	bin: "omp",
+	bin: "reverse",
 	version: "0.0.0-test",
 	commands: new Map(),
 };

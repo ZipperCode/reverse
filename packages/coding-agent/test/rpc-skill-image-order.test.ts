@@ -24,7 +24,7 @@ let client: RpcClient;
 let directory: string;
 
 beforeEach(async () => {
-	directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-skill-image-"));
+	directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-rpc-skill-image-"));
 	client = new RpcClient({
 		command: [process.execPath, path.join(import.meta.dir, "fixtures", "skill-image-rpc-agent.ts")],
 		cwd: directory,

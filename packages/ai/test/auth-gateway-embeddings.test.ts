@@ -116,7 +116,7 @@ describe("auth-gateway POST /v1/embeddings", () => {
 		vi.spyOn(harness.storage.usage, "observe").mockImplementation(entry => observed.push(entry));
 		const response = await fetch(`${harness.url}/v1/embeddings`, {
 			method: "POST",
-			headers: { ...HEADERS, "x-omp-app": "vector-client" },
+			headers: { ...HEADERS, "x-reverse-app": "vector-client" },
 			body: JSON.stringify({
 				model: "openai/text-embedding-3-small",
 				input: "hello embeddings",
@@ -226,7 +226,7 @@ describe("auth-gateway POST /v1/embeddings", () => {
 		});
 		const inIdentityHeader = await request(`${harness.url}/v1/embeddings`, {
 			...HEADERS,
-			"x-omp-install-id": "gw-token",
+			"x-reverse-install-id": "gw-token",
 		});
 		const inForwardedHeader = await request(`${harness.url}/v1/embeddings`, {
 			...HEADERS,

@@ -369,7 +369,7 @@ async function stsAssumeRole(
 		Action: "AssumeRole",
 		Version: "2011-06-15",
 		RoleArn: roleArn,
-		RoleSessionName: opts.sessionName || `omp-${process.pid}`,
+		RoleSessionName: opts.sessionName || `reverse-${process.pid}`,
 	});
 	if (opts.durationSeconds) body.set("DurationSeconds", opts.durationSeconds);
 	if (opts.externalId) body.set("ExternalId", opts.externalId);
@@ -615,7 +615,7 @@ async function refreshSsoToken(
 }
 
 /**
- * Persist a refreshed token so the AWS CLI, other SDKs, and the next OMP process
+ * Persist a refreshed token so the AWS CLI, other SDKs, and the next Reverse process
  * all start from a live token. Written via temp file + rename so a concurrent
  * reader never observes a half-written cache entry; a failure here is logged and
  * ignored, since the in-memory token is still usable for this run.
@@ -951,7 +951,7 @@ async function assumeRoleWithWebIdentity(
 		Action: "AssumeRoleWithWebIdentity",
 		Version: "2011-06-15",
 		RoleArn: params.roleArn,
-		RoleSessionName: params.sessionName || `omp-${process.pid}`,
+		RoleSessionName: params.sessionName || `reverse-${process.pid}`,
 		WebIdentityToken: token,
 	});
 	const response = await fetchImpl(stsEndpoint(region), {

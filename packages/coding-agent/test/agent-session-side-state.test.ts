@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type StreamFn, ThinkingLevel } from "@reverse/agent";
 import type { Context, FetchImpl, Message, Model, ProviderSessionState } from "@reverse/ai";
 import { streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";

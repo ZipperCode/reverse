@@ -37,12 +37,12 @@ export default class Ps extends Command {
 	};
 
 	static examples = [
-		"omp ps",
-		"omp ps --all",
-		"omp ps logs web --follow",
-		"omp ps stop web",
-		"omp ps kill web",
-		"omp ps info relay --global browser-relay",
+		"reverse ps",
+		"reverse ps --all",
+		"reverse ps logs web --follow",
+		"reverse ps stop web",
+		"reverse ps kill web",
+		"reverse ps info relay --global browser-relay",
 	];
 
 	async run(): Promise<void> {

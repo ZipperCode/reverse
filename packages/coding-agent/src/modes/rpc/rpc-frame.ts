@@ -12,7 +12,7 @@ const RPC_CHUNK_PAYLOAD_BYTES = 256 * 1024;
 export type RpcProtocolVersion = 1 | 2;
 
 /** Stands in for a `message_update`'s shared snapshot while its frame skeleton serializes. */
-const SHARED_MESSAGE_PLACEHOLDER = `\u0000omp-rpc-shared-message-${crypto.randomUUID()}\u0000`;
+const SHARED_MESSAGE_PLACEHOLDER = `\u0000reverse-rpc-shared-message-${crypto.randomUUID()}\u0000`;
 const SHARED_MESSAGE_PLACEHOLDER_JSON = JSON.stringify(SHARED_MESSAGE_PLACEHOLDER);
 
 /**

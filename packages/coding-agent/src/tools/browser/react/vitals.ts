@@ -31,7 +31,7 @@ export interface VitalsResult {
 /** Page expression installing buffered Web Vitals observers (idempotent); run at document start and on the live page. */
 export const VITALS_INIT_SOURCE = `(() => {
 	const root = globalThis;
-	if (root.__ompBrowserVitals) return root.__ompBrowserVitals;
+	if (root.__reverseBrowserVitals) return root.__reverseBrowserVitals;
 	const round = value => Math.round(value * 100) / 100;
 	const state = {
 		fromDocumentStart: document.readyState === "loading" && performance.now() < 50,
@@ -42,7 +42,7 @@ export const VITALS_INIT_SOURCE = `(() => {
 		longTasks: 0,
 		hydration: undefined,
 	};
-	root.__ompBrowserVitals = state;
+	root.__reverseBrowserVitals = state;
 	const observe = (type, callback, options) => {
 		try {
 			const observer = new PerformanceObserver(list => callback(list.getEntries()));
@@ -77,7 +77,7 @@ export const VITALS_INIT_SOURCE = `(() => {
 
 /** Page expression reading the installed observers; evaluates to a `VitalsReadEnvelope`. */
 export const VITALS_READ_SOURCE = `(() => {
-	const state = globalThis.__ompBrowserVitals;
+	const state = globalThis.__reverseBrowserVitals;
 	if (!state) return { installed: false, fromDocumentStart: false };
 	const round = value => Math.round((Number(value) || 0) * 100) / 100;
 	const nav = performance.getEntriesByType("navigation")[0];

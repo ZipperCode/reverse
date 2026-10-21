@@ -27,7 +27,7 @@ export function planSaveFileName(title: string): string {
 	return `${stem.endsWith("_PLAN") ? stem : `${stem}_PLAN`}.md`;
 }
 
-/** Default autosave location: `<project>/.omp/plans/`. */
+/** Default autosave location: `<project>/.reverse/plans/`. */
 export function defaultPlanAutosaveDir(cwd: string): string {
 	return path.join(getProjectAgentDir(cwd), "plans");
 }

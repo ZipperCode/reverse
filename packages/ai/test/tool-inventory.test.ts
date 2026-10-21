@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { renderToolInventory } from "../src/dialect/inventory";
 import type { InbandTool } from "../src/dialect/types";
 

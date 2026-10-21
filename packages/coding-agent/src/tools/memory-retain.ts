@@ -1,5 +1,5 @@
 import type { MemoryRetainDetails } from "@reverse/tui/tools/memory";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import { prompt, withLoopPhase } from "@reverse/utils";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";

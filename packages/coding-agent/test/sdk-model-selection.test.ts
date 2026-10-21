@@ -1826,7 +1826,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 	});
 
 	test("restores a discovery-backed session model instead of falling back to the default role", async () => {
-		// Regression: on `omp --resume`, the session-model restore probed
+		// Regression: on `reverse --resume`, the session-model restore probed
 		// candidates only against the static+cached catalog. A discovery-backed
 		// provider (models.yml `discovery:`) hasn't been fetched at that point, so
 		// the saved model failed to resolve and resume silently downgraded to

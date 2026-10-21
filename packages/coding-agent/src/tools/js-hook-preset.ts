@@ -1,5 +1,5 @@
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { prompt } from "@reverse/utils";
 import type { ToolSession } from "./index";

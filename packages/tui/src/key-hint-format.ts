@@ -1,6 +1,6 @@
 /**
  * Key-hint formatting, kept free of the native addon: it imports only types
- * plus the theme symbol mirror, so addon-free CLI paths (`omp --version`,
+ * plus the theme symbol mirror, so addon-free CLI paths (`reverse --version`,
  * help text in cli/command-help.ts) can format keys without loading
  * `@reverse/natives` through the keybindings registry.
  */

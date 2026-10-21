@@ -1,7 +1,7 @@
 /**
  * End-to-end regression for broker-backed MCP OAuth refresh (issue #8933).
  *
- * Topology mirrors `omp auth-broker serve` fronting a sandboxed client:
+ * Topology mirrors `reverse auth-broker serve` fronting a sandboxed client:
  *   client (RemoteAuthCredentialStore) → broker (SqliteAuthCredentialStore
  *   + refreshBrokerOAuthCredential override) → MCP token endpoint.
  *
@@ -56,7 +56,7 @@ describe("broker-backed MCP OAuth refresh", () => {
 	let manager: MCPManager | undefined;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-broker-mcp-refresh-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-broker-mcp-refresh-"));
 		tokenRequests = [];
 		const server = Bun.serve({
 			port: 0,

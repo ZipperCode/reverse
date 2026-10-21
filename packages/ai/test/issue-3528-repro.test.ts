@@ -2,7 +2,7 @@
  * Regression guard for llama.cpp warm-prefix invalidation on auto-learn
  * capture-at-stop and any other assistant continuation (#3528).
  *
- * `omp-llm-request-15179edfab4dc557.json` plus the rr-session captures from the
+ * `reverse-llm-request-15179edfab4dc557.json` plus the rr-session captures from the
  * reporter showed:
  *
  *  - System prompt and tool catalogue were byte-stable across requests 3–12.
@@ -13,7 +13,7 @@
  *    prompt re-processing on llama.cpp.
  *
  * The prior assistant turn had streamed `reasoning_content` deltas (Qwen3
- * thinking output). The OMP-side `Context` preserved those as a
+ * thinking output). The Reverse-side `Context` preserved those as a
  * `{ type: "thinking", thinkingSignature: "reasoning_content" }` block on the
  * assistant message, but `convertMessages` dropped the field when re-serializing
  * for the next request because the llama.cpp compat profile carried none of the

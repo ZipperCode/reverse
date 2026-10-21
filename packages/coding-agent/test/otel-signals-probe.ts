@@ -13,7 +13,7 @@
 
 import { agentLoop } from "@reverse/agent/agent-loop";
 import type { AgentContext, AgentMessage, AgentTool } from "@reverse/agent/types";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { Message } from "@reverse/ai";
 import { createMockModel } from "@reverse/ai/providers/mock";
 import {
@@ -193,10 +193,10 @@ for await (const _event of agentLoop(
 }
 
 await flushTelemetryExport();
-assertSingleMetricPoint("omp.agent.chat.cost.estimated_usd");
-assertMetricPresent("omp.agent.chat.calls");
-assertSingleMetricPoint("omp.agent.tool.calls");
-assertSingleMetricPoint("omp.agent.tool.duration");
+assertSingleMetricPoint("reverse.agent.chat.cost.estimated_usd");
+assertMetricPresent("reverse.agent.chat.calls");
+assertSingleMetricPoint("reverse.agent.tool.calls");
+assertSingleMetricPoint("reverse.agent.tool.duration");
 await server.stop(true);
 
 const ok = seen.has("logs") && seen.has("metrics");

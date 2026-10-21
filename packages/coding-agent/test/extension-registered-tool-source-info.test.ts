@@ -10,7 +10,7 @@ const okResult = { content: [{ type: "text" as const, text: "ok" }] };
 // Regression for the pi-fabric startup crash (`undefined is not an object
 // (evaluating 'anchor.sourceInfo.path')`): extensions authored against upstream
 // `@earendil-works/pi-coding-agent` read `sourceInfo.path` off every entry
-// returned by `getAllRegisteredTools()`. omp's RegisteredTool must carry that
+// returned by `getAllRegisteredTools()`. reverse's RegisteredTool must carry that
 // upstream-shaped provenance, matching the SourceInfo synthesized for the
 // public `getAllToolInfos()` path.
 describe("RegisteredTool sourceInfo (upstream pi compat)", () => {

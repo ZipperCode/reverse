@@ -14,7 +14,7 @@ beforeAll(async () => {
 
 /** Repo with three untracked files under two directories: a/one.txt, a/two.txt, b/three.txt. */
 async function withDirtyRepo(run: (harness: SidebarHarness) => Promise<void>): Promise<void> {
-	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "omp-git-tui-sidebar-"));
+	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-git-tui-sidebar-"));
 	try {
 		await $`git init --initial-branch=main`.cwd(repo).quiet();
 		await $`git config user.name "Test User"`.cwd(repo).quiet();
@@ -33,7 +33,7 @@ async function withDirtyRepo(run: (harness: SidebarHarness) => Promise<void>): P
 
 /** Repo where a/ holds both a modified tracked file and an untracked one: a/tracked.txt (M), a/new.txt (?). */
 async function withMixedRepo(run: (harness: SidebarHarness) => Promise<void>): Promise<void> {
-	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "omp-git-tui-sidebar-mixed-"));
+	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-git-tui-sidebar-mixed-"));
 	try {
 		await $`git init --initial-branch=main`.cwd(repo).quiet();
 		await $`git config user.name "Test User"`.cwd(repo).quiet();

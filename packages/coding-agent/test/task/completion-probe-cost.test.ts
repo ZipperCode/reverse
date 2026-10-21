@@ -56,7 +56,7 @@ describe("completion probe cost persistence", () => {
 		const target = modelRegistry.getAll().find(candidate => candidate.contextWindow && candidate.contextWindow > 0);
 		if (!target) throw new Error("Expected a bundled model with a context window");
 
-		using tempDir = TempDir.createSync("@omp-completion-probe-cost-");
+		using tempDir = TempDir.createSync("@reverse-completion-probe-cost-");
 		const rootSessionFile = path.join(tempDir.path(), "main.jsonl");
 		const agentDir = path.join(tempDir.path(), "main");
 		await Bun.write(rootSessionFile, "");
@@ -194,7 +194,7 @@ describe("completion probe cost persistence", () => {
 		const target = modelRegistry.getAll().find(candidate => candidate.contextWindow && candidate.contextWindow > 0);
 		if (!target) throw new Error("Expected a bundled model with a context window");
 
-		using tempDir = TempDir.createSync("@omp-late-usage-reopen-");
+		using tempDir = TempDir.createSync("@reverse-late-usage-reopen-");
 		const original = SessionManager.create(tempDir.path(), tempDir.path());
 		let originalClosed = false;
 		let reopened: SessionManager | undefined;
@@ -277,7 +277,7 @@ describe("completion probe cost persistence", () => {
 		const target = modelRegistry.getAll().find(candidate => candidate.contextWindow && candidate.contextWindow > 0);
 		if (!target) throw new Error("Expected a bundled model with a context window");
 
-		using tempDir = TempDir.createSync("@omp-cleared-usage-leaf-");
+		using tempDir = TempDir.createSync("@reverse-cleared-usage-leaf-");
 		const original = SessionManager.create(tempDir.path(), tempDir.path());
 		let reopened: SessionManager | undefined;
 		try {

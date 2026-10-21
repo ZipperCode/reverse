@@ -32,7 +32,7 @@ describe("sdk edit-store session reset", () => {
 		const modelRegistry = new ModelRegistry(authStorage);
 		const bundled = getBundledModel("anthropic", "claude-sonnet-4-5");
 		if (!bundled) throw new Error("Expected built-in anthropic model to exist");
-		tempDir = TempDir.createSync("@omp-edit-store-reset-");
+		tempDir = TempDir.createSync("@reverse-edit-store-reset-");
 		const settings = Settings.isolated({
 			"async.enabled": false,
 			"browser.enabled": false,
@@ -72,14 +72,14 @@ describe("sdk edit-store session reset", () => {
 		// own lazy field.
 		const toolSession: ToolSession = Reflect.get(session.getToolByName("read") ?? {}, "session");
 		const toolStore = getEditStore(toolSession);
-		const tag = toolStore.recordSnapshot("/tmp/omp-13370/a.rs", "alpha\nbeta\n", undefined);
+		const tag = toolStore.recordSnapshot("/tmp/reverse-13370/a.rs", "alpha\nbeta\n", undefined);
 		expect(tag).toBeDefined();
-		expect(toolStore.byHashText("/tmp/omp-13370/a.rs", tag)).toBe("alpha\nbeta\n");
+		expect(toolStore.byHashText("/tmp/reverse-13370/a.rs", tag)).toBe("alpha\nbeta\n");
 
 		await session.newSession();
 
 		// /new fired the session-change callbacks: the tool-side store is empty,
 		// so the stale tag can't be presented as "issued in this session".
-		expect(toolStore.byHashText("/tmp/omp-13370/a.rs", tag)).toBeNull();
+		expect(toolStore.byHashText("/tmp/reverse-13370/a.rs", tag)).toBeNull();
 	});
 });

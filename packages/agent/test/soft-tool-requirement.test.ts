@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { agentLoop } from "@reverse/agent/agent-loop";
 import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool, SoftToolRequirement } from "@reverse/agent/types";
 import type { Message, ToolChoice } from "@reverse/ai";

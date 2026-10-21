@@ -105,7 +105,7 @@ export function detachGitDir(worktreeRoot, sourceCommonDir, signal) {
  * whole and holds the same content-addressed bytes, so it is kept.
  */
 async function publishGitObjectFile(from, to) {
-	const tmp = path.join(path.dirname(to), `tmp_obj_omp_${crypto.randomUUID()}`);
+	const tmp = path.join(path.dirname(to), `tmp_obj_reverse_${crypto.randomUUID()}`);
 	try {
 		await fs.promises.copyFile(from, tmp, fs.constants.COPYFILE_EXCL);
 		try {

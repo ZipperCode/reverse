@@ -18,7 +18,7 @@ describe.skipIf(process.platform === "win32")("session index across a store quar
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 
 	beforeEach(() => {
-		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-index-quarantine-"));
+		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-index-quarantine-"));
 		setAgentDir(testAgentDir);
 		resetSessionIndexForTests();
 	});

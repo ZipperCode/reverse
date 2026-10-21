@@ -6,7 +6,7 @@
  * validators see the same JSON Schema dialect.
  */
 
-import type { Type } from "@reverse/omptype";
+import type { Type } from "@reverse/reversetype";
 import { isRecord, structuredCloneJSON } from "@reverse/utils";
 import type { Tool, TSchema } from "../../types";
 import { upgradeJsonSchemaTo202012 } from "./draft";
@@ -109,9 +109,9 @@ function arkJsonAstToWire(value: unknown): unknown {
 }
 
 /** `stamp` cache keys; the entries themselves live in a weak side table keyed by schema identity. */
-const kJsonWireSchema = Symbol("omp.schema.json.wire");
-const kArkWireSchema = Symbol("omp.schema.ark.wire");
-const kStrippedSchema = Symbol("omp.schema.descriptions.stripped");
+const kJsonWireSchema = Symbol("reverse.schema.json.wire");
+const kArkWireSchema = Symbol("reverse.schema.ark.wire");
+const kStrippedSchema = Symbol("reverse.schema.descriptions.stripped");
 
 function postProcessJsonSchema(schema: Record<string, unknown>): Record<string, unknown> {
 	walk(schema);

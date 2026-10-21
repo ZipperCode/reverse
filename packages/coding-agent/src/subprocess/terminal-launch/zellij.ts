@@ -35,7 +35,7 @@ const capabilities = {
 
 type ZellijLaunchRequest = Extract<TerminalLaunchRequest, { multiplexer: "zellij" }>;
 
-/** Parsed `zellij --version` per CLI runner; the installed CLI does not change while omp runs. */
+/** Parsed `zellij --version` per CLI runner; the installed CLI does not change while reverse runs. */
 const zellijVersions = new WeakMap<TerminalLaunchCliRunner, readonly number[]>();
 
 function parseVersion(text: string): readonly number[] | undefined {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import type { AssistantMessage, Context } from "@reverse/ai";
 import { createMockModel } from "@reverse/ai/providers/mock";

@@ -20,7 +20,7 @@ function localDayBefore(base: Date, daysAgo: number): string {
 }
 
 async function makeProbe(logsDir: string): Promise<string> {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-logger-probe-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-logger-probe-"));
 	roots.push(root);
 	const releasePath = path.join(logsDir, ".release");
 	const probePath = path.join(root, "probe.ts");
@@ -50,7 +50,7 @@ async function makeProbe(logsDir: string): Promise<string> {
 
 describe("multiprocess file logging", () => {
 	it("prunes completed PID namespaces across short-lived invocations", async () => {
-		const logsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-logger-retention-"));
+		const logsDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-logger-retention-"));
 		roots.push(logsDir);
 		// macOS process identifiers are far below these values, so the fixtures
 		// are deterministically completed rather than briefly lingering as zombies.
@@ -66,7 +66,7 @@ describe("multiprocess file logging", () => {
 		seed.stdin.end();
 		expect(await seed.exited).toBe(0);
 		const seedLog = (await fs.readdir(logsDir)).find(name => name.endsWith(`.${seed.pid}.log`));
-		const seedDate = seedLog?.match(/^(?:rva|omp)\.(\d{4}-\d{2}-\d{2})\./)?.[1];
+		const seedDate = seedLog?.match(/^reverse\.(\d{4}-\d{2}-\d{2})\./)?.[1];
 		if (!seedDate) throw new Error("probe did not create a dated log");
 		const baseDate = new Date(`${seedDate}T12:00:00`);
 		const localDate = (daysAgo: number): string => localDayBefore(baseDate, daysAgo);
@@ -74,16 +74,16 @@ describe("multiprocess file logging", () => {
 		const expiredNames: string[] = [];
 		for (const pid of exitedPids) {
 			for (let daysAgo = -1; daysAgo <= 5; daysAgo++) {
-				const name = `omp.${localDate(daysAgo)}.${pid}.log`;
+				const name = `reverse.${localDate(daysAgo)}.${pid}.log`;
 				await Bun.write(path.join(logsDir, name), name);
 				await fs.utimes(path.join(logsDir, name), 2, 2);
 				(daysAgo > 0 && daysAgo < 5 ? retainedNames : expiredNames).push(name);
 			}
-			const rolloverName = `omp.${localDate(0)}.${pid}.log.1`;
+			const rolloverName = `reverse.${localDate(0)}.${pid}.log.1`;
 			await Bun.write(path.join(logsDir, rolloverName), rolloverName);
 			await fs.utimes(path.join(logsDir, rolloverName), 2, 2);
 			retainedNames.push(rolloverName);
-			await Bun.write(path.join(logsDir, `.omp.${pid}-audit.json`), "{}");
+			await Bun.write(path.join(logsDir, `.reverse.${pid}-audit.json`), "{}");
 		}
 
 		for (let restart = 0; restart < 2; restart++) {
@@ -106,18 +106,22 @@ describe("multiprocess file logging", () => {
 	});
 
 	it("ages out legacy shared daily logs and hash-named audits past the retention window", async () => {
-		const logsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-logger-legacy-"));
+		const logsDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-logger-legacy-"));
 		roots.push(logsDir);
 		const now = new Date();
 		const localDate = (daysAgo: number): string => localDayBefore(now, daysAgo);
 		const expired = [
-			`omp.${localDate(30)}.log`,
-			`omp.${localDate(30)}.log.1`,
-			`omp.${localDate(30)}.log.gz`,
-			`omp.${localDate(30)}.log.2.gz`,
+			`reverse.${localDate(30)}.log`,
+			`reverse.${localDate(30)}.log.1`,
+			`reverse.${localDate(30)}.log.gz`,
+			`reverse.${localDate(30)}.log.2.gz`,
 			".0123456789abcdef0123456789abcdef01234567-audit.json",
 		];
-		const retained = [`omp.${localDate(1)}.log`, `omp.${localDate(1)}.log.gz`, ".fedcba9876543210-audit.json"];
+		const retained = [
+			`reverse.${localDate(1)}.log`,
+			`reverse.${localDate(1)}.log.gz`,
+			".fedcba9876543210-audit.json",
+		];
 		for (const name of [...expired, ...retained]) await Bun.write(path.join(logsDir, name), name);
 		const thirtyDaysAgoSec = (Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000;
 		await fs.utimes(path.join(logsDir, expired[4]!), thirtyDaysAgoSec, thirtyDaysAgoSec);

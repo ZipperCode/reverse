@@ -169,7 +169,7 @@ describe("AnnotationOverlay", () => {
 		it("titles the sheet by the review and routes its footer buttons like the keys", () => {
 			let result: CodeReviewOverlayResult | undefined;
 			const overlay = makeDiffOverlay(oneLineFiles, { onComplete: value => (result = value) });
-			expect(overlay.nativeOverlay).toMatchObject({ role: "omp.overlay.codeReview", size: "full" });
+			expect(overlay.nativeOverlay).toMatchObject({ role: "reverse.overlay.codeReview", size: "full" });
 
 			overlay.describe();
 			// Paste needs a note first; a draft blocks both actions.
@@ -207,7 +207,7 @@ describe("AnnotationOverlay", () => {
 			const overlay = makeTextOverlay({ id: "t", kind: "message", label: "Reply", text: "one\ntwo" }, value => {
 				result = value;
 			});
-			expect(overlay.nativeOverlay).toMatchObject({ role: "omp.overlay.annotateText", size: "full" });
+			expect(overlay.nativeOverlay).toMatchObject({ role: "reverse.overlay.annotateText", size: "full" });
 			overlay.describe();
 			overlay.handleNativeEvent(click("review"));
 			expect(result).toBeUndefined();

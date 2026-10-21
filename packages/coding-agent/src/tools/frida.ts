@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 import { prompt, $which } from "@reverse/utils";
 import fridaDescription from "../prompts/tools/frida.md" with { type: "text" };

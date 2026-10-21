@@ -132,7 +132,7 @@ interface CollisionResolution {
  * Resolve a same-name skill against what is already loaded.
  * - Precedence, when raw names collide:
  *   1. An authored skill always outranks a registry-installed package
- *      (`omp skill install`, the `skillshare` provider) — installed steps
+ *      (`reverse skill install`, the `skillshare` provider) — installed steps
  *      aside regardless of admission order.
  *   2. A custom-directory skill always outranks a provider skill (#7190's
  *      override contract) — the provider skill steps aside even though it
@@ -323,7 +323,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 	}
 	function isSourceEnabled(source: SourceMeta): boolean {
 		const { provider, level } = source;
-		// Managed skills (auto-learn) are OMP-native and discovered unconditionally
+		// Managed skills (auto-learn) are REVERSE-native and discovered unconditionally
 		// — third-party CLI toggles must never silently hide them (cf. #2401). The
 		// master `enabled` flag above still gates them.
 		if (provider === MANAGED_SKILLS_PROVIDER_ID) return true;
@@ -334,8 +334,8 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		if (provider === "native" && level === "project") return enablePiProject;
 		if (provider === "agents" && level === "user") return enableAgentsUser;
 		if (provider === "agents" && level === "project") return enableAgentsProject;
-		// User-scope claude-plugins skills carry the root's origin (#10743). omp's
-		// own installs (`omp` registry, `--plugin-dir`) are not the foreign
+		// User-scope claude-plugins skills carry the root's origin (#10743). reverse's
+		// own installs (`reverse` registry, `--plugin-dir`) are not the foreign
 		// ~/.claude/plugins tree, so the foreign opt-in gate applies only to
 		// claude-origin roots — parity with allowedRoots() in
 		// discovery/claude-plugins.ts. Without this, #10666's root-level fix is

@@ -249,7 +249,7 @@
 
 ### Changed
 
-- Updated telemetry attribute names from the `pi.*` namespace to the `omp.*` namespace.
+- Updated telemetry attribute names from the `pi.*` namespace to the `reverse.*` namespace.
 
 ## [18.3.3] - 2026-09-27
 

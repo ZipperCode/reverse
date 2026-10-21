@@ -245,7 +245,7 @@ describe("Agent hub Enter activation", () => {
 	});
 
 	it("lists persisted subagent session files after restart", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-persisted-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-persisted-");
 		const sessionFile = path.join(tempDir.path(), "main.jsonl");
 		const workerSessionFile = path.join(tempDir.path(), "main", "Worker.jsonl");
 		await Bun.write(sessionFile, "");
@@ -271,7 +271,7 @@ describe("Agent hub Enter activation", () => {
 	});
 
 	it("ranks restored subagents by recency rather than readdir order", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-persisted-order-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-persisted-order-");
 		const sessionFile = path.join(tempDir.path(), "main.jsonl");
 		await Bun.write(sessionFile, "");
 		// Alphabetical readdir order (Aaa, Bbb, Ccc) is the reverse of recency:
@@ -306,7 +306,7 @@ describe("Agent hub Enter activation", () => {
 	});
 
 	it("stops persisted discovery when the Hub is disposed", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-disposed-scan-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-disposed-scan-");
 		const sessionFile = path.join(tempDir.path(), "main.jsonl");
 		await Bun.write(sessionFile, "");
 		await Bun.write(path.join(tempDir.path(), "main", "Worker.jsonl"), "");
@@ -328,7 +328,7 @@ describe("Agent hub Enter activation", () => {
 		expect(agents.get("Worker")).toBeUndefined();
 	});
 	it("restores nested parent lineage after restart", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-persisted-tree-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-persisted-tree-");
 		const sessionFile = path.join(tempDir.path(), "main.jsonl");
 		const parentSessionFile = path.join(tempDir.path(), "main", "Parent.jsonl");
 		const childSessionFile = path.join(tempDir.path(), "main", "Parent", "Child.jsonl");
@@ -356,7 +356,7 @@ describe("Agent hub Enter activation", () => {
 	});
 
 	it("restores saved task metadata and timestamps for completed agents", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-persisted-metadata-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-persisted-metadata-");
 		const sessionFile = path.join(tempDir.path(), "main.jsonl");
 		const workerSessionFile = path.join(tempDir.path(), "main", "Worker.jsonl");
 		const createdAt = "2026-07-30T01:13:37.835Z";
@@ -405,7 +405,7 @@ describe("Agent hub Enter activation", () => {
 	});
 
 	it("restores persisted model role, usage, spend, and tool totals", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-persisted-usage-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-persisted-usage-");
 		const sessionFile = path.join(tempDir.path(), "main.jsonl");
 		const workerSessionFile = path.join(tempDir.path(), "main", "Worker.jsonl");
 		const createdAt = "2026-07-30T01:13:30.000Z";
@@ -482,7 +482,7 @@ describe("Agent hub Enter activation", () => {
 	});
 	it("yields to a macrotask at the configured streaming threshold", async () => {
 		vi.useFakeTimers();
-		using tempDir = TempDir.createSync("@omp-agent-hub-responsive-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-responsive-");
 		const sessionFile = path.join(tempDir.path(), "session.jsonl");
 		const entry = JSON.stringify({
 			type: "message",
@@ -522,7 +522,7 @@ describe("Agent hub Enter activation", () => {
 	});
 
 	it("does not generically revive active or tombstoned Vibe children copied by a post-exit fork", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-vibe-fork-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-vibe-fork-");
 		const manager = SessionManager.create(tempDir.path(), tempDir.path());
 		manager.appendModeChange("vibe");
 		const parentSessionId = manager.getSessionId();
@@ -743,7 +743,7 @@ describe("Agent hub double-← gating", () => {
 	});
 
 	it("requireContent opens the hub after persisted subagents load", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-require-content-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-require-content-");
 		const sessionFile = path.join(tempDir.path(), "main.jsonl");
 		const workerSessionFile = path.join(tempDir.path(), "main", "Worker.jsonl");
 		await Bun.write(sessionFile, "");
@@ -760,7 +760,7 @@ describe("Agent hub double-← gating", () => {
 	});
 
 	it("the explicit hub opens fullscreen before persisted subagents load", async () => {
-		using tempDir = TempDir.createSync("@omp-agent-hub-explicit-");
+		using tempDir = TempDir.createSync("@reverse-agent-hub-explicit-");
 		const sessionFile = path.join(tempDir.path(), "main.jsonl");
 		await Bun.write(sessionFile, "");
 		await Bun.write(path.join(tempDir.path(), "main", "Worker.jsonl"), persistedChildJsonl("worker"));

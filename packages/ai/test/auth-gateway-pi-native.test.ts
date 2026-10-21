@@ -326,7 +326,7 @@ describe("pi-native gateway reasoning flags", () => {
 });
 
 describe("pi-native gateway usage attribution", () => {
-	it("records observed usage under the caller's x-omp-* identity, host-fallback when absent", async () => {
+	it("records observed usage under the caller's x-reverse-* identity, host-fallback when absent", async () => {
 		registerMockApi();
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gw-pi-native-usage-"));
 		const storage = await AuthStorage.create(path.join(dir, "auth.db"));
@@ -358,9 +358,9 @@ describe("pi-native gateway usage attribution", () => {
 				headers: {
 					Authorization: "Bearer test-token",
 					"Content-Type": "application/json",
-					"x-omp-install-id": "robomp-install",
-					"x-omp-hostname": "robomp-box",
-					"x-omp-app": "robomp",
+					"x-reverse-install-id": "reverse-install",
+					"x-reverse-hostname": "reverse-box",
+					"x-reverse-app": "reverse",
 				},
 				body: JSON.stringify({ modelId: "pi-native-usage", context: baseContext, stream: false }),
 			});
@@ -372,7 +372,7 @@ describe("pi-native gateway usage attribution", () => {
 				model: "pi-native-usage",
 				usage: { input: 100, output: 20, cacheRead: 5, cacheWrite: 2 },
 				costUsd: 0.75,
-				client: { installId: "robomp-install", hostname: "robomp-box", app: "robomp" },
+				client: { installId: "reverse-install", hostname: "reverse-box", app: "reverse" },
 			});
 
 			// No identity headers → the burn still lands somewhere: the gateway
@@ -411,7 +411,7 @@ describe("pi-native gateway usage attribution", () => {
 
 describe("pi-native encodeStream", () => {
 	it("ships every AssistantMessageEvent verbatim, terminated by [DONE]", async () => {
-		// Pi-native is omp-talks-to-omp: the client feeds parsed events directly
+		// Pi-native is reverse-talks-to-reverse: the client feeds parsed events directly
 		// into `AssistantMessageEventStream.push()`, so the wire IS the canonical
 		// event type. No partial-stripping, no per-event re-shaping.
 		const finalMessage = baseAssistant({

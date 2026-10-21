@@ -147,7 +147,7 @@ interface MarkTagged {
 /** The page's first row while older history is unreplayed: `a` loads it. */
 const EARLIER_TURNS = node(
 	"row",
-	{ role: "omp.rewind.earlier", gap: "xs", align: "center" },
+	{ role: "reverse.rewind.earlier", gap: "xs", align: "center" },
 	[kbd("a"), text([span("load earlier turns", "muted")])],
 	"earlier",
 );
@@ -695,7 +695,7 @@ export class RewindSelectorComponent implements Component {
 	 * own node, docked under the page, so the filter field keeps the caret.
 	 */
 	describeScreen(_cx: DescribeContext): NativeScreen {
-		return { role: "omp.rewind", main: this.#page(), dock: [this] };
+		return { role: "reverse.rewind", main: this.#page(), dock: [this] };
 	}
 
 	/** The page's blocks, marked for the current outline. */
@@ -714,7 +714,7 @@ export class RewindSelectorComponent implements Component {
 					page.push(this.#marked(blocks[i]!, picked ? "pick" : undefined));
 			}
 			if (matches.length === 0) {
-				page.push(text([span(`No turns match "${filter}"`, "muted")], { role: "omp.rewind.empty" }));
+				page.push(text([span(`No turns match "${filter}"`, "muted")], { role: "reverse.rewind.empty" }));
 			}
 			return page;
 		}
@@ -746,7 +746,7 @@ export class RewindSelectorComponent implements Component {
 			this.#markRun(children, column.builder.container.children, 0, column.targets, picked, column.rootId);
 			strip.push(this.#column(index + 1, children, column.rootId));
 		}
-		page.push(node("row", { role: "omp.rewind.strip", gap: "lg", align: "start" }, strip, "strip"));
+		page.push(node("row", { role: "reverse.rewind.strip", gap: "lg", align: "start" }, strip, "strip"));
 		return page;
 	}
 
@@ -790,7 +790,7 @@ export class RewindSelectorComponent implements Component {
 				"dim",
 			),
 		);
-		const caption = text(spans, { role: "omp.rewind.here", wrap: "none" });
+		const caption = text(spans, { role: "reverse.rewind.here", wrap: "none" });
 		return { ...caption, key: `here:${column}:${target.turnId}`, reveal: "start" };
 	}
 
@@ -799,7 +799,7 @@ export class RewindSelectorComponent implements Component {
 		const active = index === this.#activeVariant;
 		return node(
 			"col",
-			{ role: "omp.rewind.branch", gap: "lg", ...(active ? { tone: "accent" } : {}) },
+			{ role: "reverse.rewind.branch", gap: "lg", ...(active ? { tone: "accent" } : {}) },
 			children,
 			key,
 		);
@@ -814,7 +814,7 @@ export class RewindSelectorComponent implements Component {
 				span(`${index + 1}/${count}`, active ? "accent" : "dim"),
 				span(`${theme.sep.dot}${label}`, active ? "strong" : "dim"),
 			],
-			{ role: "omp.rewind.branch.head", wrap: "none" },
+			{ role: "reverse.rewind.branch.head", wrap: "none" },
 		);
 	}
 
@@ -869,7 +869,7 @@ export class RewindSelectorComponent implements Component {
 				actionBar([null, actionButton("Show all", "cancel", { keys: "escape" }), rewind]),
 			];
 		}
-		const root = node("row", { role: "omp.rewind.bar", gap: "md", align: "center", wrap: true }, children);
+		const root = node("row", { role: "reverse.rewind.bar", gap: "md", align: "center", wrap: true }, children);
 		this.#bar = { memo, targets: this.#targets, node: root };
 		return root;
 	}

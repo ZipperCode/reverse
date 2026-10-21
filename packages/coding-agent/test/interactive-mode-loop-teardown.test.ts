@@ -37,7 +37,7 @@ describe("InteractiveMode shutdown during a loop condition gate", () => {
 
 	beforeEach(async () => {
 		resetSettingsForTest();
-		tempDir = TempDir.createSync("@omp-loop-teardown-");
+		tempDir = TempDir.createSync("@reverse-loop-teardown-");
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
 		const modelRegistry = new ModelRegistry(authStorage);

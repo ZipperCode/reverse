@@ -369,7 +369,7 @@ const setValue = (target, value, append = false) => {
 
 const RESPONSE_OBSERVER_SCRIPT = String.raw`
 (() => {
-	const key = "__ompCmuxResponses";
+	const key = "__reverseCmuxResponses";
 	if (globalThis[key]) return true;
 	const state = { nextId: 1, records: [] };
 	Object.defineProperty(globalThis, key, { value: state, configurable: true });
@@ -587,7 +587,7 @@ export class CmuxTab implements InProcessRunTab {
 
 	async a11y(options: BrowserA11yOptions = {}): Promise<BrowserA11yResult> {
 		const context = this.#requireRunContext("tab.a11y()");
-		const stateKey = `__ompA11y${Snowflake.next()}`;
+		const stateKey = `__reverseA11y${Snowflake.next()}`;
 		const key = JSON.stringify(stateKey);
 		const audit = buildA11yPageScript(options);
 		await this.#evalScript(`(() => {
@@ -913,7 +913,7 @@ export class CmuxTab implements InProcessRunTab {
 		void opts?.steps;
 		await this.#evalScript(`(() => {
 			const point = ${JSON.stringify({ x, y })};
-			globalThis.__ompMousePoint = point;
+			globalThis.__reverseMousePoint = point;
 			const target = document.elementFromPoint(point.x, point.y) || document.body;
 			target.dispatchEvent(new MouseEvent("mousemove", {
 				clientX: point.x,
@@ -977,7 +977,7 @@ export class CmuxTab implements InProcessRunTab {
 		if (!Number.isFinite(duration) || duration < 0) {
 			throw new ToolError("highlight duration must be a non-negative number");
 		}
-		const id = `omp-highlight-${crypto.randomUUID()}`;
+		const id = `reverse-highlight-${crypto.randomUUID()}`;
 		await this.#selectorAction(selector, "highlight", { id });
 		await untilAborted(this.#runContext?.signal, () => Bun.sleep(duration));
 		await this.#evalScript(`document.getElementById(${JSON.stringify(id)})?.remove()`);
@@ -1117,7 +1117,7 @@ export class CmuxTab implements InProcessRunTab {
 					context.session.browserScreenshotDir,
 					`screenshot-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, -1)}.${ext}`,
 				)
-			: path.join(os.tmpdir(), `omp-sshots-${Snowflake.next()}.${ext}`);
+			: path.join(os.tmpdir(), `reverse-sshots-${Snowflake.next()}.${ext}`);
 		await fs.promises.mkdir(path.dirname(dest), { recursive: true });
 		await Bun.write(dest, savedBuffer);
 		const info: ScreenshotResult = {
@@ -1156,7 +1156,7 @@ export class CmuxTab implements InProcessRunTab {
 		const changed = diff.pixelChangeRatio > threshold;
 		const diffPath = opts.output
 			? resolveToCwd(opts.output, context.session.cwd)
-			: path.join(os.tmpdir(), `omp-screenshot-diff-${Snowflake.next()}.png`);
+			: path.join(os.tmpdir(), `reverse-screenshot-diff-${Snowflake.next()}.png`);
 		await fs.promises.mkdir(path.dirname(diffPath), { recursive: true });
 		await Bun.write(diffPath, diff.png);
 		const resized = await resizeImage(
@@ -1287,7 +1287,7 @@ export class CmuxTab implements InProcessRunTab {
 
 	async clearRequests(): Promise<void> {
 		await this.#installResponseObserver();
-		await this.#evalScript("(() => { globalThis.__ompCmuxResponses.records = []; return true; })()");
+		await this.#evalScript("(() => { globalThis.__reverseCmuxResponses.records = []; return true; })()");
 	}
 
 	async harStart(_options: { content?: HarContentPolicy } = {}): Promise<void> {
@@ -1398,7 +1398,7 @@ export class CmuxTab implements InProcessRunTab {
 
 	async clearConsole(): Promise<void> {
 		await this.#evalScript(
-			`${CMUX_CONSOLE_CAPTURE_SCRIPT}; globalThis.__ompConsoleCapture.entries = []; globalThis.__ompConsoleCapture.dropped = 0; true`,
+			`${CMUX_CONSOLE_CAPTURE_SCRIPT}; globalThis.__reverseConsoleCapture.entries = []; globalThis.__reverseConsoleCapture.dropped = 0; true`,
 		);
 	}
 
@@ -1661,7 +1661,7 @@ export class CmuxTab implements InProcessRunTab {
 		const serializedOptions = JSON.stringify(options);
 		const serialized = await this.#evalScript<string>(`(() => {
 			${CMUX_CONSOLE_CAPTURE_SCRIPT};
-			const state = globalThis.__ompConsoleCapture;
+			const state = globalThis.__reverseConsoleCapture;
 			const options = ${serializedOptions};
 			const since = Number.isFinite(options.since) ? Math.floor(options.since) : 0;
 			const limit = Number.isFinite(options.limit) ? Math.max(0, Math.floor(options.limit)) : 500;
@@ -1796,7 +1796,7 @@ export class CmuxTab implements InProcessRunTab {
 	#mouseTransitionScript(type: "mousedown" | "mouseup", button = "left"): string {
 		return `(() => {
 			const args = ${JSON.stringify({ type, button })};
-			const point = globalThis.__ompMousePoint || { x: 0, y: 0 };
+			const point = globalThis.__reverseMousePoint || { x: 0, y: 0 };
 			const target = document.elementFromPoint(point.x, point.y) || document.body;
 			const button = ({ left: 0, middle: 1, right: 2, back: 3, forward: 4 })[args.button] ?? 0;
 			target.dispatchEvent(new MouseEvent(args.type, {
@@ -1922,7 +1922,7 @@ export class CmuxTab implements InProcessRunTab {
 					const rect = element.getBoundingClientRect();
 					const overlay = document.createElement("div");
 					overlay.id = String(args.id);
-					overlay.dataset.ompHighlightOverlay = "";
+					overlay.dataset.reverseHighlightOverlay = "";
 					overlay.setAttribute("aria-hidden", "true");
 					overlay.setAttribute("role", "presentation");
 					overlay.inert = true;
@@ -2056,14 +2056,14 @@ export class CmuxTab implements InProcessRunTab {
 
 	async #responseCursor(): Promise<number> {
 		const value = await this.#evalScript<unknown>(
-			"(() => Math.max(0, ((globalThis.__ompCmuxResponses && globalThis.__ompCmuxResponses.nextId) || 1) - 1))()",
+			"(() => Math.max(0, ((globalThis.__reverseCmuxResponses && globalThis.__reverseCmuxResponses.nextId) || 1) - 1))()",
 		);
 		return numberFrom(value, 0);
 	}
 
 	async #responseRecordsAfter(id: number): Promise<CmuxResponseRecord[]> {
 		const value = await this.#evalScript<unknown>(
-			`(() => ((globalThis.__ompCmuxResponses && globalThis.__ompCmuxResponses.records) || []).filter(record => record.id > ${JSON.stringify(id)}))()`,
+			`(() => ((globalThis.__reverseCmuxResponses && globalThis.__reverseCmuxResponses.records) || []).filter(record => record.id > ${JSON.stringify(id)}))()`,
 		);
 		if (!Array.isArray(value)) return [];
 		const records: CmuxResponseRecord[] = [];

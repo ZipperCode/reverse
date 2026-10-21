@@ -51,7 +51,7 @@ afterAll(async () => {
 });
 
 async function writeFixtureExtension(source: string): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-pi-ai-type-remap-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-pi-ai-type-remap-"));
 	tempRoots.push(dir);
 	const entry = path.join(dir, "index.ts");
 	await fs.writeFile(entry, source, "utf8");
@@ -255,7 +255,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	});
 
 	it("preserves legacy defineTool root imports and usable coding tools", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-legacy-coding-tools-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-legacy-coding-tools-"));
 		tempRoots.push(dir);
 		await fs.writeFile(path.join(dir, "sample.txt"), "legacy read body", "utf8");
 		const entry = path.join(dir, "index.ts");
@@ -325,7 +325,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 			return realResolveSync(specifier, from);
 		});
 
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-legacy-direct-subpath-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-legacy-direct-subpath-"));
 		tempRoots.push(dir);
 		const packageDir = path.join(dir, "node_modules", "@mariozechner", "pi-ai");
 		await fs.mkdir(packageDir, { recursive: true });
@@ -349,7 +349,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	});
 
 	it("routes @earendil-works/pi-utils through canonical Bun.resolveSync in non-compiled mode", async () => {
-		// Regression: when omp runs from a node_modules install (not the monorepo
+		// Regression: when reverse runs from a node_modules install (not the monorepo
 		// and not a compiled binary), the bundled packages live at
 		// `node_modules/@reverse/pi-*`, not next to the source tree. Hardcoding
 		// a sibling `packages/<pkg>/src/index.ts` path would miss them, so the

@@ -6,7 +6,7 @@ import {
 	type TodoCompletionTransition,
 	type TodoToolDetails,
 } from "@reverse/tui/tools/todo";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 
 import { isRecord, prompt } from "@reverse/utils";

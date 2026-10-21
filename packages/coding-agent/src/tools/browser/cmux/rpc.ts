@@ -140,10 +140,10 @@ export function serializeEvalWithEnvelope(fn: string | ((...args: unknown[]) => 
 	return `(() => {
 		try {
 			const __v = (${expr});
-			if (__v && typeof __v.then === "function") return { __ompPromise: true };
-			return { __ompOk: __v === undefined ? null : __v };
+			if (__v && typeof __v.then === "function") return { __reversePromise: true };
+			return { __reverseOk: __v === undefined ? null : __v };
 		} catch (e) {
-			return { __ompErr: (e && (e.stack || e.message)) || String(e) };
+			return { __reverseErr: (e && (e.stack || e.message)) || String(e) };
 		}
 	})()`;
 }
@@ -156,16 +156,16 @@ export function serializeEvalWithEnvelope(fn: string | ((...args: unknown[]) => 
  */
 export function unwrapEvalEnvelope<R>(value: unknown, label: string): R {
 	if (value && typeof value === "object") {
-		if ("__ompErr" in value && typeof value.__ompErr === "string") {
-			throw new ToolError(`${label} threw a JavaScript exception:\n${value.__ompErr}`);
+		if ("__reverseErr" in value && typeof value.__reverseErr === "string") {
+			throw new ToolError(`${label} threw a JavaScript exception:\n${value.__reverseErr}`);
 		}
-		if ("__ompPromise" in value && value.__ompPromise === true) {
+		if ("__reversePromise" in value && value.__reversePromise === true) {
 			throw new ToolError(
 				`${label} returned a Promise, but this surface evaluates synchronously and cannot await it — return a plain value (poll with waitForFunction for async state instead)`,
 			);
 		}
-		if ("__ompOk" in value) {
-			return value.__ompOk as R;
+		if ("__reverseOk" in value) {
+			return value.__reverseOk as R;
 		}
 	}
 	return value as R;

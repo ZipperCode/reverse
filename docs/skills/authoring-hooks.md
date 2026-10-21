@@ -1,6 +1,6 @@
 ---
 name: authoring-hooks
-description: Use when creating a new omp hook. Covers HookAPI, event catalog, blocking/overriding tool calls, and context modification.
+description: Use when creating a new reverse hook. Covers HookAPI, event catalog, blocking/overriding tool calls, and context modification.
 ---
 
 # Authoring Hooks
@@ -14,8 +14,8 @@ Hooks are event-driven interceptors that run alongside the agent loop. They are 
 ```ts
 import type { HookAPI } from "@reverse/coding-agent/extensibility/hooks";
 
-export default function myHook(omp: HookAPI): void {
-  omp.on("tool_call", async (event, ctx) => {
+export default function myHook(reverse: HookAPI): void {
+  reverse.on("tool_call", async (event, ctx) => {
     // intercept every tool call
   });
 }
@@ -82,7 +82,7 @@ Extension-only events such as `tool_execution_start`, `tool_execution_update`, `
 Return `{ block: true, reason: "..." }` from a `tool_call` handler to prevent execution:
 
 ```ts
-omp.on("tool_call", async (event, ctx) => {
+reverse.on("tool_call", async (event, ctx) => {
   if (event.toolName === "bash") {
     const cmd = String(event.input.command ?? "");
     if (/\brm\s+-rf\s+\//.test(cmd)) {
@@ -106,7 +106,7 @@ Contract:
 Return `{ content, details, isError, additionalContext }` from a `tool_result` handler to patch what the LLM sees and/or attach trusted guidance outside the tool output:
 
 ```ts
-omp.on("tool_result", async (event, ctx) => {
+reverse.on("tool_result", async (event, ctx) => {
   if (event.toolName === "read" && !event.isError) {
     const redacted = event.content.map(chunk => {
       if (chunk.type !== "text") return chunk;
@@ -161,8 +161,8 @@ This narrow regex matches `rm -rf` followed by any absolute path, including `/tm
 ```ts
 import type { HookAPI } from "@reverse/coding-agent/extensibility/hooks";
 
-export default function rmRfBlocker(omp: HookAPI): void {
-  omp.on("tool_call", async (event, ctx) => {
+export default function rmRfBlocker(reverse: HookAPI): void {
+  reverse.on("tool_call", async (event, ctx) => {
     if (event.toolName !== "bash") return;
 
     const cmd = String(event.input.command ?? "");
@@ -199,8 +199,8 @@ const SECRET_PATTERNS = [
   /\b[a-zA-Z0-9_-]{20,}\s*=\s*["']?[a-zA-Z0-9._/+=-]{20,}["']?/g,
 ];
 
-export default function apiKeyRedactor(omp: HookAPI): void {
-  omp.on("tool_result", async (event) => {
+export default function apiKeyRedactor(reverse: HookAPI): void {
+  reverse.on("tool_result", async (event) => {
     if (event.isError) return;
 
     let changed = false;
@@ -224,8 +224,8 @@ export default function apiKeyRedactor(omp: HookAPI): void {
 ```ts
 import type { HookAPI } from "@reverse/coding-agent/extensibility/hooks";
 
-export default function contextFilter(omp: HookAPI): void {
-  omp.on("context", async (event) => {
+export default function contextFilter(reverse: HookAPI): void {
+  reverse.on("context", async (event) => {
     const MAX_TOOL_OUTPUT_CHARS = 8_000;
 
     const trimmed = event.messages.map(msg => {

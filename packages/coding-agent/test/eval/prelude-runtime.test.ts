@@ -23,14 +23,14 @@ function definition(
 		javascript: `{
 			globalThis.fixture = {
 				version: ${JSON.stringify(version)},
-				invoke: parameters => __omp_prelude__("fixture", parameters),
+				invoke: parameters => __reverse_prelude__("fixture", parameters),
 			};
 		}`,
 		python: `class _FixturePrelude:
     version = ${JSON.stringify(version)}
 
     async def invoke(self, **parameters):
-        return await _omp_prelude("fixture", parameters)
+        return await _reverse_prelude("fixture", parameters)
 
 fixture = _FixturePrelude()
 del _FixturePrelude`,
@@ -169,7 +169,7 @@ describe("eval prelude runtime", () => {
 		expect(captured.output).toContain('Eval prelude "fixture" is not enabled');
 		expect(calls).toHaveLength(2);
 
-		const missing = await executeJs("await __omp_prelude__('missing', {})", options);
+		const missing = await executeJs("await __reverse_prelude__('missing', {})", options);
 		expect(missing.exitCode).toBe(1);
 		expect(missing.output).toContain('Eval prelude "missing" is not enabled');
 	});
@@ -213,7 +213,7 @@ describe("eval prelude runtime", () => {
 		expect(captured.output).toContain('Eval prelude "fixture" is not enabled');
 		expect(calls).toHaveLength(2);
 
-		const missing = await executePython("await _omp_prelude('missing', {})", options);
+		const missing = await executePython("await _reverse_prelude('missing', {})", options);
 		expect(missing.exitCode).toBe(1);
 		expect(missing.output).toContain('Eval prelude "missing" is not enabled');
 	});

@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool } from "@reverse/agent";
 import type { AssistantMessage, ToolCall, ToolResultMessage, Usage } from "@reverse/ai";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";

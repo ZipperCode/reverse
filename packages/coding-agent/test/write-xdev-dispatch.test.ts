@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool } from "@reverse/agent";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import * as themeModule from "@reverse/tui/theme";

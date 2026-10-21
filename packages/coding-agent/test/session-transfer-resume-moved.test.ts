@@ -23,7 +23,7 @@ describe("resuming a session that moved away", () => {
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 
 	beforeEach(async () => {
-		root = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-moved-resume-"));
+		root = await fsp.mkdtemp(path.join(os.tmpdir(), "reverse-session-moved-resume-"));
 		cwd = path.join(root, "project");
 		fs.mkdirSync(cwd, { recursive: true });
 		setAgentDir(path.join(root, "agent"));

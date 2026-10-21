@@ -6,7 +6,7 @@
  * Upstream pi-ai 1.x exposes a transcript-replay module
  * (`src/utils/transcript.ts`, present since at least 1.0.2) and re-exports it
  * from the package root (`normalizeContext`, `getCurrentSystemMessage`,
- * `getCurrentTools`, `resolveTranscriptTools`, …). OMP forked before that
+ * `getCurrentTools`, `resolveTranscriptTools`, …). REVERSE forked before that
  * module existed and has no equivalent anywhere in `@reverse/ai`, so the
  * star re-export in `legacy-pi-ai-shim.ts` cannot satisfy these imports and
  * legacy extensions fail Bun's static named-export check (observed with
@@ -15,7 +15,7 @@
  * The logic below is ported verbatim from upstream `pi-ai` 1.1.0
  * (`src/utils/transcript.ts` + the `contentText`/`getSystemMessageText` helpers
  * from `src/utils/text.ts`). Types are structural: the compat layer must not
- * depend on OMP's exact `SystemMessage`/`Tool` drift, and legacy callers pass
+ * depend on REVERSE's exact `SystemMessage`/`Tool` drift, and legacy callers pass
  * plain message arrays (upstream's own `TranscriptMessages` is `readonly {role}[]`).
  */
 

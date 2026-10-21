@@ -4,12 +4,12 @@ import { ensureChromiumExecutable } from "@reverse/coding-agent/tools/browser/la
 
 // Launch policy reads `process.platform`; Chrome-for-Testing platform detection reads `os.platform()`, which Bun does
 // not derive from the `process.platform` override. Pin both so the child resolves the emulated host's paths.
-const platform = process.env.OMP_BROWSER_PROBE_PLATFORM;
+const platform = process.env.REVERSE_BROWSER_PROBE_PLATFORM;
 if (platform === "darwin" || platform === "win32") {
 	Object.defineProperty(process, "platform", { value: platform });
 	spyOn(os, "platform").mockReturnValue(platform);
 } else if (platform) {
-	throw new Error(`Unsupported OMP_BROWSER_PROBE_PLATFORM: ${platform}`);
+	throw new Error(`Unsupported REVERSE_BROWSER_PROBE_PLATFORM: ${platform}`);
 }
 
 const executable = await ensureChromiumExecutable();

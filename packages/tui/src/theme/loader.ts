@@ -83,7 +83,7 @@ function parseThemeJson(name: string, content: string): ThemeJson {
 	let parsed: ThemeJson;
 	try {
 		// Custom-theme-only boundary: built-in first-frame themes do not need to
-		// load or construct the omptype validation graph.
+		// load or construct the reversetype validation graph.
 		const { validateThemeJson } = require("./schema-validation");
 		parsed = validateThemeJson(json);
 	} catch (error) {

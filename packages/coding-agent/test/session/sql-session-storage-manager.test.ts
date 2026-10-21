@@ -42,7 +42,7 @@ class HeldSqlClient implements SqlSessionStorageClient {
 	}
 
 	unsafe(query: string, values?: unknown[]) {
-		if (this.holdNextReplace && query.startsWith("UPDATE omp_session_files SET content")) {
+		if (this.holdNextReplace && query.startsWith("UPDATE reverse_session_files SET content")) {
 			this.holdNextReplace = false;
 			this.replaceStarted.resolve();
 			return this.allowReplace.promise.then(() => this.#client.unsafe(query, values));
@@ -85,7 +85,7 @@ describe("SessionManager + SqlSessionStorage (SQLite)", () => {
 		await storage.drain();
 		await manager.close();
 
-		const rows = (await client.unsafe(`SELECT content FROM omp_session_files WHERE path = ?`, [
+		const rows = (await client.unsafe(`SELECT content FROM reverse_session_files WHERE path = ?`, [
 			sessionFilePath,
 		])) as Array<{ content: string }>;
 		expect(rows).toHaveLength(1);

@@ -6,22 +6,22 @@ import { disableProvider, enableProvider } from "@reverse/coding-agent/capabilit
 import { clearCache as clearFsCache } from "@reverse/coding-agent/capability/fs";
 import { clearAgentPluginRootCache } from "@reverse/coding-agent/discovery/agent-plugin-format";
 import {
-	clearRvaExtensionCliRoots,
-	injectRvaExtensionCliRoots,
-} from "@reverse/coding-agent/discovery/rva-extension-roots";
+	clearReverseExtensionCliRoots,
+	injectReverseExtensionCliRoots,
+} from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { clearClaudePluginRootsCache, injectPluginDirRoots } from "@reverse/coding-agent/discovery/helpers";
 import { discoverAgents } from "@reverse/coding-agent/task/discovery";
 import { removeWithRetries } from "@reverse/utils";
 
-const OMP_AGENT_MD = [
+const REVERSE_AGENT_MD = [
 	"---",
-	"name: omp-test-agent",
-	"description: OMP-native test agent.",
+	"name: reverse-test-agent",
+	"description: REVERSE-native test agent.",
 	"---",
-	"You are an OMP task agent.",
+	"You are a REVERSE task agent.",
 ].join("\n");
 
-const OMP_PLUGIN_AGENT_MD = [
+const REVERSE_PLUGIN_AGENT_MD = [
 	"---",
 	"name: loom-verify-spec",
 	"description: Plugin-shipped verification agent.",
@@ -40,41 +40,41 @@ const CLAUDE_AGENT_MD = [
 	"You are a Claude Code custom subagent.",
 ].join("\n");
 
-async function writeOmpPluginAgent(home: string): Promise<void> {
-	const userPluginsRoot = path.join(home, ".rva", "plugins");
+async function writeReversePluginAgent(home: string): Promise<void> {
+	const userPluginsRoot = path.join(home, ".reverse", "plugins");
 	const pluginRoot = path.join(userPluginsRoot, "node_modules", "loom");
 	await fs.mkdir(path.join(pluginRoot, "agents"), { recursive: true });
 	await fs.writeFile(
 		path.join(pluginRoot, "package.json"),
-		JSON.stringify({ name: "loom", version: "1.0.0", omp: { version: "1.0.0" } }),
+		JSON.stringify({ name: "loom", version: "1.0.0", reverse: { version: "1.0.0" } }),
 	);
 	await fs.writeFile(
 		path.join(userPluginsRoot, "package.json"),
 		JSON.stringify({
-			name: "omp-plugins-root",
+			name: "reverse-plugins-root",
 			version: "0.0.0",
 			dependencies: { loom: "1.0.0" },
 		}),
 	);
-	await fs.writeFile(path.join(pluginRoot, "agents", "loom-verify-spec.md"), OMP_PLUGIN_AGENT_MD);
+	await fs.writeFile(path.join(pluginRoot, "agents", "loom-verify-spec.md"), REVERSE_PLUGIN_AGENT_MD);
 }
 
 function agentMd(name: string, model: string): string {
 	return ["---", `name: ${name}`, `description: ${name} probe.`, `model: ${model}`, "---", `body ${name}`].join("\n");
 }
 
-// Register an omp-installed marketplace plugin via the OMP plugin registry
-// (`~/.omp/plugins/installed_plugins.json`), the path listClaudePluginRoots
-// reads as origin "omp" — distinct from the node_modules path above. `manifest`
-// controls the declared plugin dialect: `.omp-plugin/plugin.json` (OMP-native),
-// `.claude-plugin/plugin.json` (Claude Code), `both` (OMP wins by precedence),
+// Register a reverse-installed marketplace plugin via the REVERSE plugin registry
+// (`~/.reverse/plugins/installed_plugins.json`), the path listClaudePluginRoots
+// reads as origin "reverse" — distinct from the node_modules path above. `manifest`
+// controls the declared plugin dialect: `.reverse-plugin/plugin.json` (REVERSE-native),
+// `.claude-plugin/plugin.json` (Claude Code), `both` (REVERSE wins by precedence),
 // or `none` (bare directory).
-async function writeOmpMarketplacePlugin(
+async function writeReverseMarketplacePlugin(
 	home: string,
 	options: {
 		agentName: string;
 		model: string;
-		manifest: "omp" | "claude" | "both" | "none";
+		manifest: "reverse" | "claude" | "both" | "none";
 	},
 ): Promise<void> {
 	const pluginRoot = path.join(home, "marketplace-cache", options.agentName);
@@ -84,12 +84,12 @@ async function writeOmpMarketplacePlugin(
 		agentMd(options.agentName, options.model),
 	);
 
-	const wantsOmp = options.manifest === "omp" || options.manifest === "both";
+	const wantsReverse = options.manifest === "reverse" || options.manifest === "both";
 	const wantsClaude = options.manifest === "claude" || options.manifest === "both";
-	if (wantsOmp) {
-		await fs.mkdir(path.join(pluginRoot, ".omp-plugin"), { recursive: true });
+	if (wantsReverse) {
+		await fs.mkdir(path.join(pluginRoot, ".reverse-plugin"), { recursive: true });
 		await fs.writeFile(
-			path.join(pluginRoot, ".omp-plugin", "plugin.json"),
+			path.join(pluginRoot, ".reverse-plugin", "plugin.json"),
 			JSON.stringify({ name: options.agentName }),
 		);
 	}
@@ -101,7 +101,7 @@ async function writeOmpMarketplacePlugin(
 		);
 	}
 
-	const registryDir = path.join(home, ".rva", "plugins");
+	const registryDir = path.join(home, ".reverse", "plugins");
 	await fs.mkdir(registryDir, { recursive: true });
 	await fs.writeFile(
 		path.join(registryDir, "installed_plugins.json"),
@@ -121,14 +121,14 @@ describe("discoverAgents", () => {
 	let projectDir: string;
 
 	beforeEach(async () => {
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-task-agent-discovery-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-task-agent-discovery-"));
 		projectDir = path.join(tempHome, "project");
 		await fs.mkdir(projectDir, { recursive: true });
 	});
 
 	afterEach(async () => {
-		enableProvider("rva-plugins");
-		clearRvaExtensionCliRoots();
+		enableProvider("reverse-plugins");
+		clearReverseExtensionCliRoots();
 		await injectPluginDirRoots(tempHome, []);
 		clearClaudePluginRootsCache();
 		clearAgentPluginRootCache();
@@ -136,9 +136,9 @@ describe("discoverAgents", () => {
 		await removeWithRetries(tempHome);
 	});
 
-	test("loads OMP agents but skips Claude Code custom agents", async () => {
-		await fs.mkdir(path.join(projectDir, ".rva", "agents"), { recursive: true });
-		await fs.writeFile(path.join(projectDir, ".rva", "agents", "omp-test-agent.md"), OMP_AGENT_MD);
+	test("loads REVERSE agents but skips Claude Code custom agents", async () => {
+		await fs.mkdir(path.join(projectDir, ".reverse", "agents"), { recursive: true });
+		await fs.writeFile(path.join(projectDir, ".reverse", "agents", "reverse-test-agent.md"), REVERSE_AGENT_MD);
 
 		await fs.mkdir(path.join(tempHome, ".claude", "agents"), { recursive: true });
 		await fs.writeFile(path.join(tempHome, ".claude", "agents", "user-cc-test-agent.md"), CLAUDE_AGENT_MD);
@@ -148,13 +148,13 @@ describe("discoverAgents", () => {
 		const { agents, projectAgentsDir } = await discoverAgents(projectDir, tempHome);
 		const names = agents.map(agent => agent.name);
 
-		expect(names).toContain("omp-test-agent");
+		expect(names).toContain("reverse-test-agent");
 		expect(names).not.toContain("cc-test-agent");
-		expect(projectAgentsDir).toBe(path.join(projectDir, ".rva", "agents"));
+		expect(projectAgentsDir).toBe(path.join(projectDir, ".reverse", "agents"));
 	});
 
-	test("loads agents from OMP npm plugins under <home>/.omp/plugins/node_modules", async () => {
-		await writeOmpPluginAgent(tempHome);
+	test("loads agents from REVERSE npm plugins under <home>/.reverse/plugins/node_modules", async () => {
+		await writeReversePluginAgent(tempHome);
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
 		const names = agents.map(agent => agent.name);
@@ -162,9 +162,9 @@ describe("discoverAgents", () => {
 		expect(names).toContain("loom-verify-spec");
 	});
 
-	test("excludes OMP npm plugin agents when omp-plugins is disabled", async () => {
-		await writeOmpPluginAgent(tempHome);
-		disableProvider("rva-plugins");
+	test("excludes REVERSE npm plugin agents when reverse-plugins is disabled", async () => {
+		await writeReversePluginAgent(tempHome);
+		disableProvider("reverse-plugins");
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
 		const names = agents.map(agent => agent.name);
@@ -173,10 +173,10 @@ describe("discoverAgents", () => {
 	});
 
 	test("CLI extension agents win over project `extensions:` settings on dedup", async () => {
-		// listOmpExtensionRoots returns roots in source-precedence order
+		// listReverseExtensionRoots returns roots in source-precedence order
 		// (CLI > project settings > user settings > installed plugins). Agents
 		// must honor that order so the `task` surface dedups identically to
-		// the skills/hooks/tools surface in discovery/omp-plugins.ts.
+		// the skills/hooks/tools surface in discovery/reverse-plugins.ts.
 		const cliExt = path.join(tempHome, "cli-ext");
 		const projectExt = path.join(tempHome, "project-ext");
 		await fs.mkdir(path.join(cliExt, "agents"), { recursive: true });
@@ -190,9 +190,12 @@ describe("discoverAgents", () => {
 			["---", "name: collide", "description: from-project-settings", "---", "project body"].join("\n"),
 		);
 
-		await fs.mkdir(path.join(projectDir, ".rva"), { recursive: true });
-		await fs.writeFile(path.join(projectDir, ".rva", "settings.json"), JSON.stringify({ extensions: [projectExt] }));
-		injectRvaExtensionCliRoots([cliExt], tempHome, projectDir);
+		await fs.mkdir(path.join(projectDir, ".reverse"), { recursive: true });
+		await fs.writeFile(
+			path.join(projectDir, ".reverse", "settings.json"),
+			JSON.stringify({ extensions: [projectExt] }),
+		);
+		injectReverseExtensionCliRoots([cliExt], tempHome, projectDir);
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
 		const collide = agents.find(agent => agent.name === "collide");
@@ -217,12 +220,15 @@ describe("discoverAgents", () => {
 				["---", `name: ${name}`, `description: ${name}`, "---", `${name} body`].join("\n"),
 			);
 		}
-		await fs.mkdir(path.join(projectDir, ".rva"), { recursive: true });
-		await fs.writeFile(path.join(projectDir, ".rva", "settings.json"), JSON.stringify({ extensions: [settingsExt] }));
-		await writeOmpPluginAgent(tempHome);
+		await fs.mkdir(path.join(projectDir, ".reverse"), { recursive: true });
+		await fs.writeFile(
+			path.join(projectDir, ".reverse", "settings.json"),
+			JSON.stringify({ extensions: [settingsExt] }),
+		);
+		await writeReversePluginAgent(tempHome);
 
-		injectRvaExtensionCliRoots([staleExt], tempHome, projectDir);
-		injectRvaExtensionCliRoots([explicitExt], tempHome, projectDir, {
+		injectReverseExtensionCliRoots([staleExt], tempHome, projectDir);
+		injectReverseExtensionCliRoots([explicitExt], tempHome, projectDir, {
 			mode: "explicit-only",
 			replace: true,
 		});
@@ -254,29 +260,29 @@ describe("discoverAgents", () => {
 		expect(names).toContain("plugin-dir-agent");
 	});
 
-	test("honors model frontmatter of OMP-native omp-installed marketplace plugin agents (#12028)", async () => {
-		// omp-installed marketplace plugins ride the shared plugin registry as
-		// origin "omp" roots. An OMP-native package (no Claude manifest) uses OMP
+	test("honors model frontmatter of REVERSE-native reverse-installed marketplace plugin agents (#12028)", async () => {
+		// reverse-installed marketplace plugins ride the shared plugin registry as
+		// origin "reverse" roots. A REVERSE-native package (no Claude manifest) uses REVERSE
 		// model selectors, so `model:` must survive discovery.
 		enableProvider("claude-plugins");
-		await writeOmpMarketplacePlugin(tempHome, {
-			agentName: "omp-probe",
+		await writeReverseMarketplacePlugin(tempHome, {
+			agentName: "reverse-probe",
 			model: '["@advisor", "@smol"]',
 			manifest: "none",
 		});
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
-		const agent = agents.find(candidate => candidate.name === "omp-probe");
+		const agent = agents.find(candidate => candidate.name === "reverse-probe");
 
 		expect(agent).toBeDefined();
 		expect(agent?.model).toEqual(["@advisor", "@smol"]);
 	});
 
-	test("drops model frontmatter of a Claude-format plugin installed via the OMP registry (#12031 review)", async () => {
-		// origin "omp" but a `.claude-plugin` package: its `model: sonnet` is a
-		// Claude alias, not an OMP selector, so it must still be stripped.
+	test("drops model frontmatter of a Claude-format plugin installed via the REVERSE registry (#12031 review)", async () => {
+		// origin "reverse" but a `.claude-plugin` package: its `model: sonnet` is a
+		// Claude alias, not a REVERSE selector, so it must still be stripped.
 		enableProvider("claude-plugins");
-		await writeOmpMarketplacePlugin(tempHome, {
+		await writeReverseMarketplacePlugin(tempHome, {
 			agentName: "claude-probe",
 			model: "sonnet",
 			manifest: "claude",
@@ -289,11 +295,11 @@ describe("discoverAgents", () => {
 		expect(agent?.model).toBeUndefined();
 	});
 
-	test("honors model frontmatter when a plugin declares both OMP and Claude manifests (#12031 review)", async () => {
-		// `.omp-plugin/plugin.json` wins over a sibling `.claude-plugin/plugin.json`,
-		// mirroring the MCP-config precedence, so OMP selectors survive.
+	test("honors model frontmatter when a plugin declares both REVERSE and Claude manifests (#12031 review)", async () => {
+		// `.reverse-plugin/plugin.json` wins over a sibling `.claude-plugin/plugin.json`,
+		// mirroring the MCP-config precedence, so REVERSE selectors survive.
 		enableProvider("claude-plugins");
-		await writeOmpMarketplacePlugin(tempHome, {
+		await writeReverseMarketplacePlugin(tempHome, {
 			agentName: "hybrid-probe",
 			model: '["@advisor", "@smol"]',
 			manifest: "both",

@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
 import type { AssistantMessage, TextContent, ToolCall } from "@reverse/ai";
 import * as ai from "@reverse/ai";

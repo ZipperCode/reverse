@@ -3,13 +3,13 @@ import type { CDPSession, Frame, NewDocumentScriptEvaluation, Page, Realm, WebMC
 
 declare module "puppeteer-core" {
 	interface Frame {
-		/** Puppeteer's page-main JavaScript realm, retained by omp's pinned runtime patch. */
+		/** Puppeteer's page-main JavaScript realm, retained by reverse's pinned runtime patch. */
 		mainRealm(): Realm;
 	}
 }
 
 /** Global property under which `installWebMcpPageHook` stores its page bridge. */
-export const WEBMCP_BRIDGE_KEY = "__ompWebMcpBridge_v1";
+export const WEBMCP_BRIDGE_KEY = "__reverseWebMcpBridge_v1";
 const MAX_RESULT_BYTES = 64 * 1024;
 const MAX_SUMMARY_BYTES = 4 * 1024;
 const MAX_SUMMARY_DESCRIPTION_BYTES = 160;

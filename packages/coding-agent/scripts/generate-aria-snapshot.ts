@@ -154,7 +154,7 @@ export function resolveAriaRef(ref: string): Element | null {
 `;
 
 async function main(): Promise<void> {
-	const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "omp-aria-"));
+	const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-aria-"));
 	try {
 		// Fetch pinned upstream sources into the temp dir.
 		for (const [src, dst] of VENDOR_FILES) {

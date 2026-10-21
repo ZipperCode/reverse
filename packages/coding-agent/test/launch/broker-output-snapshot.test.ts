@@ -34,7 +34,7 @@ function startBroker(projectDir: string, runtimeDir: string): Promise<void> {
 
 describe("daemon broker log snapshots", () => {
 	it("returns the cursor captured with the PTY bytes rendered in the response", async () => {
-		using tempDir = TempDir.createSync("@omp-launch-cursor-");
+		using tempDir = TempDir.createSync("@reverse-launch-cursor-");
 		const projectDir = path.join(tempDir.path(), "project");
 		const runtimeDir = path.join(tempDir.path(), "runtime");
 		await fs.mkdir(projectDir);
@@ -135,7 +135,7 @@ process.stdin.on("data", () => process.stdout.write("AFTER-SNAPSHOT\\n"));
 	// own timeout. The broker now replies, and the reply bytes reach the program's
 	// stdin without being echoed back into the captured log.
 	it("answers terminal queries emitted by a supervised PTY", async () => {
-		using tempDir = TempDir.createSync("@omp-launch-terminal-query-");
+		using tempDir = TempDir.createSync("@reverse-launch-terminal-query-");
 		const projectDir = path.join(tempDir.path(), "project");
 		const runtimeDir = path.join(tempDir.path(), "runtime");
 		await fs.mkdir(projectDir);
@@ -214,7 +214,7 @@ process.stdout.write("READY\\x1b[6n");
 	}, 20_000);
 
 	it("starts a replacement daemon under the same name with an empty log", async () => {
-		using tempDir = TempDir.createSync("@omp-launch-replace-log-");
+		using tempDir = TempDir.createSync("@reverse-launch-replace-log-");
 		const projectDir = path.join(tempDir.path(), "project");
 		const runtimeDir = path.join(tempDir.path(), "runtime");
 		await fs.mkdir(projectDir);

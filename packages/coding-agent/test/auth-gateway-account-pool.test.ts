@@ -10,9 +10,9 @@ import { getAgentDir, removeWithRetries, setAgentDir } from "@reverse/utils";
 
 const BROKER_TOKEN = "gateway-account-pool-token";
 const ENV_KEYS = [
-	"OMP_AUTH_BROKER_URL",
-	"OMP_AUTH_BROKER_TOKEN",
-	"OMP_AUTH_BROKER_ACCOUNT_POOL_FILE",
+	"REVERSE_AUTH_BROKER_URL",
+	"REVERSE_AUTH_BROKER_TOKEN",
+	"REVERSE_AUTH_BROKER_ACCOUNT_POOL_FILE",
 	"PI_CODING_AGENT_DIR",
 	"PI_CONFIG_FILES",
 ] as const;
@@ -27,7 +27,7 @@ describe("auth-gateway account pool", () => {
 
 	beforeEach(async () => {
 		savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]])) as typeof savedEnv;
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-auth-gateway-pool-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-auth-gateway-pool-"));
 		process.env.PI_CODING_AGENT_DIR = tempDir;
 		setAgentDir(tempDir);
 		resetSettingsForTest();
@@ -54,9 +54,9 @@ describe("auth-gateway account pool", () => {
 		});
 		const poolPath = path.join(tempDir, "account-pool.json");
 		await Bun.write(poolPath, JSON.stringify({ anthropic: ["email:allowed@example.com"] }));
-		process.env.OMP_AUTH_BROKER_URL = handle.url;
-		process.env.OMP_AUTH_BROKER_TOKEN = BROKER_TOKEN;
-		process.env.OMP_AUTH_BROKER_ACCOUNT_POOL_FILE = poolPath;
+		process.env.REVERSE_AUTH_BROKER_URL = handle.url;
+		process.env.REVERSE_AUTH_BROKER_TOKEN = BROKER_TOKEN;
+		process.env.REVERSE_AUTH_BROKER_ACCOUNT_POOL_FILE = poolPath;
 	});
 
 	afterEach(async () => {

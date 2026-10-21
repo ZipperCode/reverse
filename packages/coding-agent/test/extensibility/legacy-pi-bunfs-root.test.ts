@@ -5,7 +5,7 @@ import { __computeBundledSelfPackageRoot } from "@reverse/coding-agent/extensibi
 // Issue #3423 removed the runtime bunfs-path computation (`__computeBunfsPackageRoot`,
 // `__joinBunfsPath`, `bunfsPath`): Bun 1.3.14 stopped exposing `--compile`
 // extras through any filesystem API, so the compat layer now routes the
-// bundled host packages and shims through the `omp-legacy-pi-bundled:`
+// bundled host packages and shims through the `reverse-legacy-pi-bundled:`
 // virtual namespace (see `legacy-pi-bundled-virtual.test.ts`). The bunfs
 // path computation is dead and its regression tests (issues #1514, #3329)
 // retired alongside the code.

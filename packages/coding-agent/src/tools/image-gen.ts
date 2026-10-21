@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentToolResult } from "@reverse/agent";
 import {
 	type GeneratedImage,
@@ -131,7 +131,7 @@ function imageExtension(mimeType: string): string {
 async function saveImagesToTemp(images: ImageGenerationResult["images"]): Promise<string[]> {
 	return Promise.all(
 		images.map(async image => {
-			const filepath = path.join(os.tmpdir(), `omp-image-${Snowflake.next()}.${imageExtension(image.mimeType)}`);
+			const filepath = path.join(os.tmpdir(), `reverse-image-${Snowflake.next()}.${imageExtension(image.mimeType)}`);
 			await Bun.write(filepath, Buffer.from(image.data, "base64"));
 			return filepath;
 		}),

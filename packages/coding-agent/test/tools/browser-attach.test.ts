@@ -140,7 +140,7 @@ interface DisposableExecutable {
 }
 
 async function spawnDisposableExecutable(args: string[] = []): Promise<DisposableExecutable> {
-	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-app-path-"));
+	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-app-path-"));
 	const executablePath = path.join(tempDir, path.basename(process.execPath));
 	await Bun.write(executablePath, Bun.file(process.execPath));
 	if (process.platform !== "win32") await fs.chmod(executablePath, 0o755);
@@ -207,7 +207,7 @@ describe("pickElectronTarget", () => {
 		async () => {
 			const exe = await ensureChromiumExecutable();
 			if (!exe) throw new Error("Expected a Chromium executable");
-			const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-attach-page-readiness-"));
+			const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-attach-page-readiness-"));
 			const port = await findFreeCdpPort();
 			const child = Bun.spawn(
 				[
@@ -353,7 +353,7 @@ describe("pickElectronTarget", () => {
 	}, 10_000);
 
 	test("rejects a user-data-dir already used by the running executable", async () => {
-		const profile = path.join(os.tmpdir(), `omp-browser-profile-${process.pid}-${Date.now()}`);
+		const profile = path.join(os.tmpdir(), `reverse-browser-profile-${process.pid}-${Date.now()}`);
 		const existing = await spawnDisposableExecutable([`--user-data-dir=${profile}`]);
 		try {
 			await expect(
@@ -419,7 +419,7 @@ describe("pickElectronTarget", () => {
 
 	test("does not reuse a live CDP endpoint belonging to a different profile", async () => {
 		const cdp = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("{}") });
-		const profile = path.join(os.tmpdir(), `omp-cdp-profile-${crypto.randomUUID()}`);
+		const profile = path.join(os.tmpdir(), `reverse-cdp-profile-${crypto.randomUUID()}`);
 		const existing = await spawnDisposableExecutable([
 			`--user-data-dir=${profile}`,
 			`--remote-debugging-port=${cdp.port}`,
@@ -437,7 +437,7 @@ describe("pickElectronTarget", () => {
 	});
 
 	test.skipIf(process.platform !== "linux")("reuses Chromium launched through a distro wrapper", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-wrapper-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-wrapper-"));
 		const wrapper = path.join(root, "google-chrome");
 		const target = path.join(root, "chrome");
 		const profile = path.join(root, "profile");
@@ -477,7 +477,7 @@ describe("pickElectronTarget", () => {
 		async () => {
 			const exe = await ensureChromiumExecutable();
 			if (!exe) throw new Error("Expected a Chromium executable");
-			const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-isolation-"));
+			const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-profile-isolation-"));
 			const borrowedProfile = path.join(root, "borrowed");
 			const port = await findFreeCdpPort();
 			// Explicit profiles keep the real OS keystore, so bypass it here or macOS
@@ -544,7 +544,7 @@ describe("pickElectronTarget", () => {
 		async () => {
 			const exe = await ensureChromiumExecutable();
 			if (!exe) throw new Error("Expected a Chromium executable");
-			const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-connected-viewport-"));
+			const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-connected-viewport-"));
 			const port = await findFreeCdpPort();
 			const child = Bun.spawn(
 				[
@@ -755,7 +755,7 @@ describe("resolveSpawnArgs", () => {
 		expect(resolveSpawnArgs("/Applications/Slack.app/Contents/MacOS/Slack", ["--foo"])).toEqual(["--foo"]);
 	});
 
-	test("bypasses the OS keystore only for omp-owned Chromium profiles", () => {
+	test("bypasses the OS keystore only for reverse-owned Chromium profiles", () => {
 		const owned = resolveSpawnArgs("/usr/bin/google-chrome-stable", ["--password-store=gnome"]);
 		expect(owned).toContain("--use-mock-keychain");
 		expect(owned).toContain("--password-store=gnome");
@@ -861,7 +861,7 @@ describe("pickElectronTarget relay path", () => {
 			id: "PAGE_NEW",
 			type: "page",
 			title: "",
-			url: "https://example.com/?omp-probe=new",
+			url: "https://example.com/?reverse-probe=new",
 			active: "false",
 			discarded: "false",
 		};
@@ -870,18 +870,23 @@ describe("pickElectronTarget relay path", () => {
 		const openedPage = makePage([() => {}], opened.url).page;
 		const target = makeTarget("PAGE_NEW", openedPage);
 
-		const picked = await pickElectronTarget(makeBrowser([target.target]), { relayJson, matcher: "omp-probe=new" });
+		const picked = await pickElectronTarget(makeBrowser([target.target]), {
+			relayJson,
+			matcher: "reverse-probe=new",
+		});
 
 		expect(picked).toBe(openedPage);
 		expect(served).toBe(2);
 	});
 
 	it("names the missing tab and what to pass when no tab ever matches", async () => {
-		const error = await rejectionOf(pickElectronTarget(makeBrowser([]), { relayJson, matcher: "omp-probe=none" }));
+		const error = await rejectionOf(
+			pickElectronTarget(makeBrowser([]), { relayJson, matcher: "reverse-probe=none" }),
+		);
 
 		expect(error).toBeInstanceOf(Error);
 		const message = (error as Error).message;
-		expect(message).toContain('No page target matched "omp-probe=none" after waiting 2s for a newly opened tab');
+		expect(message).toContain('No page target matched "reverse-probe=none" after waiting 2s for a newly opened tab');
 		expect(message).toContain("omit it to use the active tab");
 		expect(message).toContain("- Docs  https://docs.example.com");
 	});

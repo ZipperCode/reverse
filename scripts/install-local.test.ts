@@ -19,7 +19,7 @@ describe("install-local: version validation", () => {
 	});
 
 	test("rejects arbitrary and non-reverse binary outputs", () => {
-		expect(validateBinaryVersionOutput("omp/18.11.2").ok).toBe(false);
+		expect(validateBinaryVersionOutput("other-agent/18.11.2").ok).toBe(false);
 		expect(validateBinaryVersionOutput("node v20.10.0").ok).toBe(false);
 		expect(validateBinaryVersionOutput("GNU bash, version 5.2").ok).toBe(false);
 		expect(validateBinaryVersionOutput("").ok).toBe(false);

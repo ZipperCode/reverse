@@ -43,8 +43,8 @@ interface InferenceTarget {
 	thinkingLevel?: ThinkingLevel;
 }
 
-/** Omp's model/provider adapter for llm-git's parser-aware one-shot algorithm. */
-export class OmpCommitInference implements CommitInference {
+/** Reverse's model/provider adapter for llm-git's parser-aware one-shot algorithm. */
+export class ReverseCommitInference implements CommitInference {
 	readonly #targets: Record<CommitInferenceRole, InferenceTarget>;
 	readonly #config: ConventionalGenerationConfig;
 	readonly #cache: CommitInferenceCache | null;

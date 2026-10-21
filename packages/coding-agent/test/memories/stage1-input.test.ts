@@ -43,7 +43,7 @@ describe("buildStage1RolloutItems", () => {
 	let tempDir: string;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-stage1-input-test-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-stage1-input-test-"));
 	});
 
 	afterEach(async () => {

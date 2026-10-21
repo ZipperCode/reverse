@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "omp",
+      "name": "reverse",
       "dependencies": {
         "sherpa-onnx": "1.13.2",
         "sherpa-onnx-darwin-arm64": "1.13.3",
@@ -36,7 +36,7 @@
       "devDependencies": {
         "@opentelemetry/context-async-hooks": "catalog:",
         "@opentelemetry/sdk-trace-base": "catalog:",
-        "@reverse/omptype": "catalog:",
+        "@reverse/reversetype": "catalog:",
         "@types/bun": "catalog:",
       },
     },
@@ -46,7 +46,7 @@
       "dependencies": {
         "@reverse/catalog": "catalog:",
         "@reverse/natives": "catalog:",
-        "@reverse/omptype": "catalog:",
+        "@reverse/reversetype": "catalog:",
         "@reverse/utils": "catalog:",
         "@reverse/wire": "catalog:",
       },
@@ -66,7 +66,7 @@
       "name": "@reverse/catalog",
       "version": "18.11.2",
       "dependencies": {
-        "@reverse/omptype": "catalog:",
+        "@reverse/reversetype": "catalog:",
         "@reverse/utils": "catalog:",
       },
       "devDependencies": {
@@ -79,7 +79,7 @@
       "name": "@reverse/coding-agent",
       "version": "18.11.2",
       "bin": {
-        "rva": "src/cli.ts",
+        "reverse": "src/cli.ts",
       },
       "dependencies": {
         "@babel/parser": "catalog:",
@@ -99,7 +99,7 @@
         "@reverse/catalog": "catalog:",
         "@reverse/mnemopi": "catalog:",
         "@reverse/natives": "catalog:",
-        "@reverse/omptype": "catalog:",
+        "@reverse/reversetype": "catalog:",
         "@reverse/snapcompact": "catalog:",
         "@reverse/stats": "catalog:",
         "@reverse/tui": "catalog:",
@@ -134,7 +134,7 @@
       "name": "@reverse/mnemopi",
       "version": "18.11.2",
       "bin": {
-        "rva-memory": "src/cli.ts",
+        "reverse-memory": "src/cli.ts",
       },
       "dependencies": {
         "@reverse/ai": "catalog:",
@@ -171,8 +171,8 @@
         "wrap-ansi": "10.0.0",
       },
     },
-    "packages/omptype": {
-      "name": "@reverse/omptype",
+    "packages/reversetype": {
+      "name": "@reverse/reversetype",
       "version": "18.11.2",
       "devDependencies": {
         "@ark/attest": "0.56.3",
@@ -202,7 +202,7 @@
       "name": "@reverse/stats",
       "version": "18.11.2",
       "bin": {
-        "rva-stats": "./src/index.ts",
+        "reverse-stats": "./src/index.ts",
       },
       "dependencies": {
         "@reverse/ai": "catalog:",
@@ -226,7 +226,7 @@
         "@reverse/ai": "catalog:",
         "@reverse/catalog": "catalog:",
         "@reverse/natives": "catalog:",
-        "@reverse/omptype": "catalog:",
+        "@reverse/reversetype": "catalog:",
         "@reverse/snapcompact": "catalog:",
         "@reverse/utils": "catalog:",
         "@reverse/wire": "catalog:",
@@ -281,7 +281,7 @@
     "@reverse/catalog": "18.11.2",
     "@reverse/mnemopi": "18.11.2",
     "@reverse/natives": "18.11.2",
-    "@reverse/omptype": "18.11.2",
+    "@reverse/reversetype": "18.11.2",
     "@reverse/snapcompact": "18.11.2",
     "@reverse/stats": "18.11.2",
     "@reverse/tui": "18.11.2",
@@ -734,7 +734,7 @@
 
     "@reverse/natives": ["@reverse/natives@workspace:packages/natives"],
 
-    "@reverse/omptype": ["@reverse/omptype@workspace:packages/omptype"],
+    "@reverse/reversetype": ["@reverse/reversetype@workspace:packages/reversetype"],
 
     "@reverse/snapcompact": ["@reverse/snapcompact@workspace:packages/snapcompact"],
 

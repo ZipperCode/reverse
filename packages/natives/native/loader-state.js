@@ -119,14 +119,14 @@ export function getAddonFilenames({ tag, arch, variant }) {
 
 /**
  * Decide whether the loader should mirror the package's `native/<filename>.node`
- * into the per-version cache directory (`~/.rva/natives/<version>/`) before loading.
+ * into the per-version cache directory (`~/.reverse/natives/<version>/`) before loading.
  *
- * Windows-only safety net for `bun install -g` updates: when a previous `rva`
+ * Windows-only safety net for `bun install -g` updates: when a previous `reverse`
  * process is running, bun cannot overwrite the locked `.node` inside
  * `node_modules/@reverse/natives/native/`, leaving an old binary next to a
  * newer `index.js` and producing `<sym> is not a function` crashes on the next
  * launch. Staging into the version-pinned cache:
- *   1. Gives every package version its own filesystem path, so concurrent rva
+ *   1. Gives every package version its own filesystem path, so concurrent reverse
  *      processes never collide on the same file.
  *   2. Makes the running process keep its handle on the cache copy, freeing bun
  *      to overwrite the `node_modules` copy on subsequent updates.
@@ -210,7 +210,7 @@ function isOlderReleaseVersion(candidate, current) {
 	return false;
 }
 
-// A concurrently starting older rva binary creates or refreshes this directory
+// A concurrently starting older reverse binary creates or refreshes this directory
 // before extracting its addon. Keep fresh directories long enough for that
 // startup to finish; a later launch can reclaim them once they are genuinely
 // stale.
@@ -623,9 +623,9 @@ export function validateLoadedBindings(ctx, bindings, candidate) {
 	if (residentVersion && diskHasExpectedStamp) {
 		throw new Error(
 			`Loaded ${candidate}, which reports @reverse/natives@${residentVersion}, but this loader is ` +
-				`@${ctx.packageVersion}. rva was upgraded to ${ctx.packageVersion} while this session was running; ` +
+				`@${ctx.packageVersion}. reverse was upgraded to ${ctx.packageVersion} while this session was running; ` +
 				`the ${residentVersion} addon is still resident in this process. Disk is already consistent — ` +
-				`restart rva to pick up ${ctx.packageVersion} (reinstalling changes nothing).`,
+				`restart reverse to pick up ${ctx.packageVersion} (reinstalling changes nothing).`,
 		);
 	}
 	throw new Error(
@@ -719,12 +719,12 @@ export function missingNativeExportMessage(symbolName, addon = loadedAddon) {
  * Install the addon's bounded Tokio runtime now that `dlopen` has returned and
  * the dynamic-loader lock is released. The Rust `#[module_init]` deliberately
  * does NOT build the runtime — spawning worker threads under the loader lock
- * deadlocks on some hosts — so it exposes `__ompInstallTokioRuntime` for the
+ * deadlocks on some hosts — so it exposes `__reverseInstallTokioRuntime` for the
  * loader to call once, before any async native runs. Best-effort: older addons
  * predating this export simply fall back to napi-rs's default runtime.
  */
 function installNativeTokioRuntime(bindings) {
-	const install = bindings.__ompInstallTokioRuntime;
+	const install = bindings.__reverseInstallTokioRuntime;
 	if (typeof install !== "function") return;
 	try {
 		install();
@@ -742,7 +742,7 @@ function installNativeTokioRuntime(bindings) {
  * predating the export link every grammar and need no directory.
  */
 function configureGrammarDir(bindings, nativesDir) {
-	const setGrammarDir = bindings.__ompSetGrammarDir;
+	const setGrammarDir = bindings.__reverseSetGrammarDir;
 	if (typeof setGrammarDir === "function") setGrammarDir(path.join(nativesDir, "grammars"));
 }
 

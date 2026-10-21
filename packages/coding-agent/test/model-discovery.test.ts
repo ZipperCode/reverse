@@ -48,7 +48,7 @@ describe("ModelRegistry runtime discovery", () => {
 		delete Bun.env.OLLAMA_HOST;
 		delete Bun.env.OLLAMA_CONTEXT_LENGTH;
 		delete Bun.env.ANTHROPIC_API_KEY;
-		// The developer's shell or ~/.omp/agent/.env must not redirect llama.cpp discovery probes.
+		// The developer's shell or ~/.reverse/agent/.env must not redirect llama.cpp discovery probes.
 		originalLlamaCppBaseUrl = Bun.env.LLAMA_CPP_BASE_URL;
 		delete Bun.env.LLAMA_CPP_BASE_URL;
 		tempDir = path.join(os.tmpdir(), `pi-test-model-registry-${Snowflake.next()}`);
@@ -995,14 +995,14 @@ describe("ModelRegistry runtime discovery", () => {
 	});
 
 	test("keeps OLLAMA_BASE_URL precedence over OLLAMA_HOST", async () => {
-		using _baseUrl = withEnv("OLLAMA_BASE_URL", "http://omp-ollama.example:2222");
+		using _baseUrl = withEnv("OLLAMA_BASE_URL", "http://reverse-ollama.example:2222");
 		using _host = withEnv("OLLAMA_HOST", "ollama-host.example:3333");
-		const fetchMock = mockOllamaDiscovery(["phi4-mini"], "http://omp-ollama.example:2222");
+		const fetchMock = mockOllamaDiscovery(["phi4-mini"], "http://reverse-ollama.example:2222");
 		const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
 		await registry.refresh();
 
 		const model = registry.find("ollama", "phi4-mini");
-		expect(model?.baseUrl).toBe("http://omp-ollama.example:2222/v1");
+		expect(model?.baseUrl).toBe("http://reverse-ollama.example:2222/v1");
 		expect(registry.getProviderDiscoveryState("ollama")?.optional).toBe(false);
 	});
 

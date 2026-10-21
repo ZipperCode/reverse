@@ -404,8 +404,8 @@ async function loadHooks(ctx: LoadContext): Promise<LoadResult<Hook>> {
 	const codexDir = getProjectCodexDir(ctx);
 	const projectHooksDir = path.join(codexDir, "hooks");
 
-	// OMP hooks must be named `pre-<tool>.<ts|js>` or `post-<tool>.<ts|js>`.
-	// Files without that prefix are not OMP hooks (e.g. the standalone Codex
+	// REVERSE hooks must be named `pre-<tool>.<ts|js>` or `post-<tool>.<ts|js>`.
+	// Files without that prefix are not REVERSE hooks (e.g. the standalone Codex
 	// hook scripts users keep alongside) — silently dropping the prefix and
 	// defaulting to `pre:<basename>` caused those scripts to be imported as
 	// extension factories and any top-level `process.exit()` killed startup

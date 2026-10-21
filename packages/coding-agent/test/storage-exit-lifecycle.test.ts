@@ -11,7 +11,7 @@ const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
 const HISTORY_STORAGE_MODULE = path.resolve(import.meta.dir, "../src/session/history-storage.ts");
 const AGENT_STORAGE_MODULE = path.resolve(import.meta.dir, "../src/session/agent-storage.ts");
 
-async function freshStorage(prefix = "omp-history-write-through-"): Promise<HistoryStorage> {
+async function freshStorage(prefix = "reverse-history-write-through-"): Promise<HistoryStorage> {
 	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
 	const dbPath = path.join(tempDir, "history.db");
 	HistoryStorage.close();
@@ -58,7 +58,7 @@ describe("HistoryStorage write-through", () => {
 
 describe("storage process-exit cleanup", () => {
 	it("persists a synchronous prompt and flushes the deferred perf sample before a hard exit", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-exit-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-storage-exit-"));
 		const historyDbPath = path.join(tempDir, "history.db");
 		const agentDbPath = path.join(tempDir, "agent.db");
 		const historyModule = HISTORY_STORAGE_MODULE;
@@ -112,7 +112,7 @@ describe("storage process-exit cleanup", () => {
 	});
 
 	it("keeps stores opened after manual postmortem cleanup usable", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-late-open-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-storage-late-open-"));
 		const historyDbPath = path.join(tempDir, "history.db");
 		const agentDbPath = path.join(tempDir, "agent.db");
 		const script = [
@@ -150,7 +150,7 @@ describe("storage process-exit cleanup", () => {
 	});
 
 	it("arms storage opened while a keep-alive cleanup is still running", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-running-cleanup-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-storage-running-cleanup-"));
 		const agentDbPath = path.join(tempDir, "agent.db");
 		const checkpointed = path.join(tempDir, "agent-checkpoint.db");
 		const script = [
@@ -196,7 +196,7 @@ describe("storage process-exit cleanup", () => {
 	});
 
 	it("re-arms exit cleanup for a store opened after a manual postmortem cleanup", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-rearm-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-storage-rearm-"));
 		const agentDbPath = path.join(tempDir, "agent.db");
 		// A manual cleanup keeps the process alive; the store is opened afterward,
 		// then only a real exit flushes its deferred perf batch. If postmortem did
@@ -233,7 +233,7 @@ describe("storage process-exit cleanup", () => {
 	});
 
 	it("keeps a handle held across a manual cleanup usable", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-keepalive-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-storage-keepalive-"));
 		const agentDbPath = path.join(tempDir, "agent.db");
 		// A cached handle (Settings, MCP cache, the editor) survives a keep-alive
 		// cleanup that keeps the process running: its statements must not be

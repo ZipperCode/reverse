@@ -308,7 +308,7 @@ describe("jfind cascade", () => {
 		);
 	});
 
-	it("searches a single omp doc in place and reports hits as its URL", async () => {
+	it("searches a single reverse doc in place and reports hits as its URL", async () => {
 		const filesystem = urlFs(process.cwd());
 		const root = await resolveSearchRoot(filesystem, "reverse://tools/read.md", process.cwd());
 		const result = await runCascade({
@@ -323,7 +323,7 @@ describe("jfind cascade", () => {
 		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["reverse://tools/read.md"]);
 	});
 
-	it("walks the omp root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
+	it("walks the reverse root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
 		const completions = (await InternalUrlRouter.instance().complete("reverse", "")) ?? [];
 		const docs = new Set(completions.map(completion => completion.value));
 		const filesystem = urlFs(process.cwd());
@@ -364,7 +364,7 @@ describe("jfind cascade", () => {
 				"Path not found: nope",
 			);
 			await expect(
-				tool.execute("x", { query: "anything", grep_keywords: [], path: "rva://tools/read.md:1-10" }),
+				tool.execute("x", { query: "anything", grep_keywords: [], path: "reverse://tools/read.md:1-10" }),
 			).rejects.toThrow("line-range selectors are not supported");
 		} finally {
 			await removeWithRetries(dir);

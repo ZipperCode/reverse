@@ -142,8 +142,8 @@ pub struct IpcConnectOptions {
 /// Platform endpoint for `name` scoped to directory `dir`.
 ///
 /// Unix: `<dir>/<stem>.sock`; when that path does not fit `sun_path` (104 bytes
-/// on macOS/BSD, 108 on Linux, including NUL), `/tmp/omp-<euid>/<hash16>.sock`.
-/// Windows: `\\.\pipe\omp-<stem>-<hash16(lowercase(resolve(dir)))>`.
+/// on macOS/BSD, 108 on Linux, including NUL), `/tmp/reverse-<euid>/<hash16>.sock`.
+/// Windows: `\\.\pipe\reverse-<stem>-<hash16(lowercase(resolve(dir)))>`.
 /// `stem` is `name` with every char outside `[A-Za-z0-9._-]` replaced by "_".
 /// Pure and deterministic: every process computes the same endpoint.
 #[napi(js_name = "ipcEndpoint")]

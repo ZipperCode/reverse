@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock,
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AuthStorage } from "@reverse/ai";
 import { getBundledModel } from "@reverse/catalog/models";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
@@ -132,9 +132,9 @@ describe("createAgentSession MCP catalog handoff", () => {
 		// Discovery also reads user-level MCP config; point it at an empty home so
 		// only the fixture server is ever contacted.
 		const home = path.join(tempDir, "home");
-		fs.mkdirSync(path.join(home, ".omp", "agent"), { recursive: true });
+		fs.mkdirSync(path.join(home, ".reverse", "agent"), { recursive: true });
 		originalAgentDir = getAgentDir();
-		setAgentDir(path.join(home, ".omp", "agent"));
+		setAgentDir(path.join(home, ".reverse", "agent"));
 		spyOn(os, "homedir").mockReturnValue(home);
 	});
 

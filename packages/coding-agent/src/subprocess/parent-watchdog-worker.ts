@@ -21,7 +21,7 @@ function die(): never {
 }
 
 async function watch(parentPid: number): Promise<void> {
-	// Reparent baseline. omp often runs as PID 1 in containers, so a ppid of 1
+	// Reparent baseline. reverse often runs as PID 1 in containers, so a ppid of 1
 	// alone is not an orphan signal; only a change is. A parent that died before
 	// this snapshot is still caught by the exit probes on `parentPid` below.
 	const initialPpid = process.ppid;

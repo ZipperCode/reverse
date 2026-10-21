@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { Model } from "@reverse/ai";
 import { buildModel } from "@reverse/catalog/build";
 import { Settings } from "@reverse/coding-agent/config/settings";
@@ -143,7 +143,7 @@ afterEach(async () => {
 });
 
 async function createAgent(): Promise<AcpAgent> {
-	const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-acp-init-"));
+	const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reverse-acp-init-"));
 	cleanupRoots.push(root);
 	const agentDir = path.join(root, "agent");
 	const cwd = path.join(root, "cwd");
@@ -232,7 +232,7 @@ describe("ACP initialize conformance", () => {
 		const pkg = (await Bun.file(pkgPath).json()) as { version: string };
 		expect(response.agentInfo).toEqual(
 			expect.objectContaining({
-				title: "omp",
+				title: "reverse",
 				version: VERSION,
 			}),
 		);

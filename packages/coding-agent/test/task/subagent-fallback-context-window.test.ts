@@ -44,7 +44,7 @@ describe("subagent context window after a model swap", () => {
 	});
 
 	it("follows the serving model's window", async () => {
-		const primary = model("sub-omp", "k3-256k", 256_000);
+		const primary = model("sub-reverse", "k3-256k", 256_000);
 		const fallback = model("openai-codex", "gpt-6-sol", 500_000);
 		const snapshots: AgentProgress[] = [];
 		vi.spyOn(sdkModule, "createAgentSession").mockImplementation(async () => {
@@ -101,14 +101,14 @@ describe("subagent context window after a model swap", () => {
 		});
 
 		const settings = Settings.isolated({});
-		settings.setModelRole("default", "sub-omp/k3-256k");
+		settings.setModelRole("default", "sub-reverse/k3-256k");
 		const result = await runSubprocess({
 			cwd: "/tmp",
 			agent: { name: "task", description: "test", systemPrompt: "test", source: "bundled" },
 			task: "work",
 			index: 0,
 			id: "context-window-swap",
-			modelOverride: ["sub-omp/k3-256k", "openai-codex/gpt-6-sol"],
+			modelOverride: ["sub-reverse/k3-256k", "openai-codex/gpt-6-sol"],
 			settings,
 			modelRegistry: {
 				refresh: async () => {},

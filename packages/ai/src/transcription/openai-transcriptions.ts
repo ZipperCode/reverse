@@ -1,6 +1,6 @@
 import { calculateCost } from "@reverse/catalog/models";
 import type { Api, FetchImpl, Model, Usage } from "@reverse/catalog/types";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { type ApiKey, withAuth } from "../auth-retry";
 import * as AIError from "../error";
 import type { TranscriptionRequest, TranscriptionResult, TranscriptionSegment, TranscriptionWord } from "./types";

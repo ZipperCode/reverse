@@ -14,7 +14,7 @@ afterAll(async () => {
 });
 
 async function writePackage(files: Record<string, string>): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cjs-classification-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-cjs-classification-"));
 	tempRoots.push(dir);
 	for (const rel in files) {
 		const abs = path.join(dir, rel);
@@ -108,7 +108,7 @@ describe("isCommonJsModulePath CJS classification (inheritedKind override fix)",
 				exports: { ".": { import: "./index.mjs", require: "./index.cjs" } },
 			}),
 			"node_modules/ambiguous-esm-pkg/index.mjs":
-				"import './shim.js'; export default globalThis.__ompLegacyPiAmbiguousValue;",
+				"import './shim.js'; export default globalThis.__reverseLegacyPiAmbiguousValue;",
 			"node_modules/ambiguous-esm-pkg/index.cjs": "module.exports = 'cjs';",
 			"node_modules/ambiguous-esm-pkg/shim.js": [
 				"const marker = 'module.exports';",
@@ -117,12 +117,12 @@ describe("isCommonJsModulePath CJS classification (inheritedKind override fix)",
 				"\trequire('shadowed'); module.exports = {}; exports.value = true;",
 				"}",
 				"await Promise.resolve();",
-				"globalThis.__ompLegacyPiAmbiguousValue = marker;",
+				"globalThis.__reverseLegacyPiAmbiguousValue = marker;",
 			].join("\n"),
 		});
 
 		const mod = (await loadLegacyPiModule(path.join(dir, "consumer.mjs"))) as { result: string };
 		expect(mod.result).toBe("module.exports");
-		Reflect.deleteProperty(globalThis, "__ompLegacyPiAmbiguousValue");
+		Reflect.deleteProperty(globalThis, "__reverseLegacyPiAmbiguousValue");
 	});
 });

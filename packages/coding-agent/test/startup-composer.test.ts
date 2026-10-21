@@ -362,7 +362,7 @@ describe("Composer prepaint", () => {
 		try {
 			await mode.init({ suppressWelcomeIntro: true });
 
-			// The `omp "prompt"` launch shape: the CLI message is dispatched after
+			// The `reverse "prompt"` launch shape: the CLI message is dispatched after
 			// init and its first turn is still in flight when the user types. The
 			// input loop has not reached getUserInput yet.
 			prompt.mockReturnValueOnce(turn.promise);
@@ -444,7 +444,6 @@ describe("Composer prepaint", () => {
 			expect(mode.editor.getExpandedText()).toBe(draft);
 			expect(draft.split("\n")).toHaveLength(18);
 			expect(mode.editor.render(80).length).toBeLessThanOrEqual(4);
-			expect(terminal.getViewport().join("\n")).not.toContain("Starting OMP");
 		} finally {
 			mode.stop();
 			lease.dispose();
@@ -521,7 +520,6 @@ describe("Composer prepaint", () => {
 			.getViewport()
 			.map(r => Bun.stripANSI(r))
 			.join("\n");
-		expect(output).not.toContain("Starting OMP");
 		expect(output).toContain("╰");
 		const initialEditorRow = terminal
 			.getViewport()

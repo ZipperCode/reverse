@@ -261,7 +261,7 @@ export function describeSetupSplash(): NativeNode {
 				node("spacer", { grow: 1 }),
 				text([span(hint, "dim")], { wrap: "none" }),
 			],
-			{ align: "center", gap: "md", grow: 1, role: "omp.setup.splash", actions: { click: "skip" } },
+			{ align: "center", gap: "md", grow: 1, role: "reverse.setup.splash", actions: { click: "skip" } },
 		),
 	);
 }

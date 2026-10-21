@@ -29,7 +29,7 @@ describe("readToolRenderer hyperlinks", () => {
 		const theme = await getThemeByName("dark");
 		expect(theme).toBeDefined();
 
-		const handoffPath = path.resolve("/tmp/omp-local/handoff.md");
+		const handoffPath = path.resolve("/tmp/reverse-local/handoff.md");
 		const component = readToolRenderer.renderResult(
 			{
 				content: [{ type: "text", text: "second line" }],
@@ -58,7 +58,7 @@ describe("readToolRenderer hyperlinks", () => {
 		const theme = await getThemeByName("dark");
 		expect(theme).toBeDefined();
 
-		const examplePath = path.resolve("/tmp/omp-read/example.ts");
+		const examplePath = path.resolve("/tmp/reverse-read/example.ts");
 		const component = readToolRenderer.renderCall(
 			{ path: `${examplePath}:10-12` },
 			{ expanded: false, isPartial: false },

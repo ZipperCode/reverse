@@ -128,14 +128,14 @@ describe("pause screen", () => {
 			expect(shown).toContain("Every agent holds");
 			expect(shown).toContain("The repo is yours");
 
-			const buttons = all.filter(n => (n.p as { role?: string } | undefined)?.role === "omp.btn");
+			const buttons = all.filter(n => (n.p as { role?: string } | undefined)?.role === "reverse.btn");
 			expect(buttons.length).toBe(1);
 			const resume = buttons[0]!.p as { tone?: string; title?: string; actions?: { click?: string } };
 			expect(resume.tone).toBe("accent");
 			expect(resume.actions?.click).toBe("resume");
 			// The keys live in the tooltip: `Label  key` clauses.
 			expect(resume.title).toStartWith("Resume  esc");
-			expect(sheet.nativeOverlay).toMatchObject({ role: "omp.overlay.pause", head: "Paused" });
+			expect(sheet.nativeOverlay).toMatchObject({ role: "reverse.overlay.pause", head: "Paused" });
 		});
 
 		it("names the whole session when it has no name", () => {

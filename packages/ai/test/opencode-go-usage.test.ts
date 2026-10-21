@@ -92,7 +92,7 @@ describe("opencode-go usage provider", () => {
 		expect(calls).toHaveLength(1);
 		expect(calls[0]?.url).toBe(DEFAULT_USAGE_URL);
 		expect(calls[0]?.headers.authorization).toBe("Bearer sk-test");
-		// Attribution headers: omp UA instead of Bun's default, stable
+		// Attribution headers: reverse UA instead of Bun's default, stable
 		// install id as the session (required from 09/06).
 		expect(calls[0]?.headers["User-Agent"]).toBe(USER_AGENT);
 		expect(typeof calls[0]?.headers["x-opencode-session"]).toBe("string");

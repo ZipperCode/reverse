@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@reverse/agent";
 import type { AssistantMessage, AssistantMessageEvent, ToolCall } from "@reverse/ai";
 import { accumulateToolCallArgumentsDelta, finalizeToolCallArgumentsDone } from "@reverse/ai/providers/openai-shared";
@@ -746,7 +746,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	// agent's own `isStreaming` had flipped, but #promptWithMessage's finally had
 	// not yet decremented the prompt-in-flight counter), and the next prompt
 	// threw AgentBusyError. Surfaced as `RpcCommandError: prompt: Agent is
-	// already processing` from omp-rpc clients (robomp triage reminder path).
+	// already processing` from reverse-rpc clients (robreverse triage reminder path).
 
 	it("does not let extension notifications block public agent_end", async () => {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
@@ -1643,7 +1643,7 @@ describe("AgentSession TTSR resume gate", () => {
 
 		const sessionManager = SessionManager.inMemory();
 		const cwd = sessionManager.getCwd();
-		const ruleAbsPath = path.join(cwd, ".omp", "rules", "no-unwrap.md");
+		const ruleAbsPath = path.join(cwd, ".reverse", "rules", "no-unwrap.md");
 		const expectedRel = path.relative(cwd, ruleAbsPath);
 		const rule: Rule = {
 			name: "no-unwrap",

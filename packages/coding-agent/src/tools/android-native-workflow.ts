@@ -21,7 +21,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { $which, prompt } from "@reverse/utils";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { resolveReadPath } from "./path-utils";
@@ -779,7 +779,7 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			`- **Dynamic Instrumentation on Device**: ${readiness.dynamicInject ? "✅ Ready (`frida` + `adb`)" : "⚠️ Offline (requires `frida` and `adb` with connected device/emulator)"}`,
 		);
 		lines.push(
-			`- **Offline ARM CPU / JNI Host Emulation**: ${readiness.emulation ? "✅ Ready (`unidbg` + `java`)" : "⚠️ Missing (`unidbg` not installed; run `rva setup reverse` to view install recipes)"}`,
+			`- **Offline ARM CPU / JNI Host Emulation**: ${readiness.emulation ? "✅ Ready (`unidbg` + `java`)" : "⚠️ Missing (`unidbg` not installed; run `reverse setup reverse` to view install recipes)"}`,
 		);
 
 		return {
@@ -997,7 +997,7 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			"For immediate static triage: execute Step 1 (extract) to unpack native .so files into ./artifacts/.",
 			readiness.emulation
 				? "Unidbg is installed: you can emulate ARM native code directly on this machine without a phone."
-				: "Unidbg is missing: run 'rva setup reverse' or compile zhkl0228/unidbg to enable device-free JNI emulation.",
+				: "Unidbg is missing: run 'reverse setup reverse' or compile zhkl0228/unidbg to enable device-free JNI emulation.",
 			readiness.dynamicInject
 				? "Frida and ADB are available: attach an Android device to execute live on-device hooks."
 				: "No dynamic device toolchain detected: proceed with static disassembly (Step 3) or Unidbg emulation (Step 5).",

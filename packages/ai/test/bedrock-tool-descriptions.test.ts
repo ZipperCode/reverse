@@ -5,7 +5,7 @@
 // serializing the pruned "" made AWS reject the whole request with HTTP 400.
 // The provider must omit the key instead of sending an empty string.
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
 import type { Context, Model, Tool } from "@reverse/ai/types";
 import { buildModel } from "@reverse/catalog/build";

@@ -540,7 +540,7 @@ describe("imageGenTool catalog routing", () => {
 		"rejects a FIFO image input before reading or contacting the provider",
 		async () => {
 			// Real kernel FIFO I/O cannot be driven by fake timers; the race proves the async read rejects boundedly.
-			const tempDir = TempDir.createSync("@omp-image-special-file-");
+			const tempDir = TempDir.createSync("@reverse-image-special-file-");
 			const fifo = path.join(tempDir.path(), "input.png");
 			try {
 				expect(Bun.spawnSync(["mkfifo", fifo]).exitCode).toBe(0);

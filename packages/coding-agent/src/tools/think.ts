@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import type { Model } from "@reverse/ai";
 

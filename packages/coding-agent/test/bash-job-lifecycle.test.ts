@@ -14,7 +14,7 @@ let tool: BashTool;
 let write: WriteTool;
 
 beforeEach(async () => {
-	cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-job-lifecycle-"));
+	cwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-job-lifecycle-"));
 	manager = new AsyncJobManager({});
 	const session: ToolSession = {
 		cwd,

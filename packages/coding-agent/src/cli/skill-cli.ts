@@ -1,5 +1,5 @@
 /**
- * CLI handlers for `rva skill`: discover skills and check their external tool
+ * CLI handlers for `reverse skill`: discover skills and check their external tool
  * dependencies for a directory.
  */
 import { APP_NAME } from "@reverse/utils/dirs";

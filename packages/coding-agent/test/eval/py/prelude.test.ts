@@ -10,12 +10,12 @@ async function runPrelude(
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
 	const prelude = PYTHON_PRELUDE.replace(
 		"from __future__ import annotations",
-		"from __future__ import annotations\n__omp_display = lambda *args, **kwargs: None",
+		"from __future__ import annotations\n__reverse_display = lambda *args, **kwargs: None",
 	);
 	const script = `${prelude}\n${code}`;
 	// The full prelude exceeds Windows' ~32k `python -c` command-line limit
 	// (ENAMETOOLONG); a script file behaves identically on every platform.
-	const dir = await TempDir.create("@omp-py-prelude-");
+	const dir = await TempDir.create("@reverse-py-prelude-");
 	try {
 		const scriptPath = dir.join("script.py");
 		await Bun.write(scriptPath, script);
@@ -45,11 +45,11 @@ describe("python prelude", () => {
 				"def word_count(text: Annotated[str, 'Text to split'], sep: Literal[' ', ','] = ' ', limit: Optional[int] = None) -> dict:",
 				'    """Count words in text."""',
 				"    return {'count': len(text.split(sep))}",
-				"first = __omp_tools__['word_count'].describe()",
+				"first = __reverse_tools__['word_count'].describe()",
 				"@tool(name='word_count', description='Replacement')",
 				"def replacement(text: str) -> dict:",
 				"    return {'count': 1}",
-				"print(json.dumps({'first': first, 'current': __omp_tools__['word_count'].describe(), 'defined': tool.defined()}, sort_keys=True))",
+				"print(json.dumps({'first': first, 'current': __reverse_tools__['word_count'].describe(), 'defined': tool.defined()}, sort_keys=True))",
 				"print(tool.undefine('word_count'), tool.defined())",
 			].join("\n"),
 			{},
@@ -152,7 +152,7 @@ describe("python prelude", () => {
 	);
 
 	it("reads an artifact from this session's dir; empty for limit <= 0", async () => {
-		using artifacts = TempDir.createSync("@omp-py-prelude-artifacts-");
+		using artifacts = TempDir.createSync("@reverse-py-prelude-artifacts-");
 		await Bun.write(artifacts.join("12.eval.log"), "first\nsecond\nthird\n");
 		const { stdout, stderr, requests } = await runWithReadBridge(
 			[
@@ -169,7 +169,7 @@ describe("python prelude", () => {
 	});
 
 	it("reads an artifact another session holds in full, however large, through the read tool", async () => {
-		using tmp = TempDir.createSync("@omp-py-prelude-artifact-fallback-");
+		using tmp = TempDir.createSync("@reverse-py-prelude-artifact-fallback-");
 		await Bun.write(tmp.join("owner", "7.bash.log"), largeArtifact);
 		await Bun.write(tmp.join("own", "12.eval.log"), "this session's");
 		const out = tmp.join("out.txt");
@@ -194,7 +194,7 @@ describe("python prelude", () => {
 	});
 
 	it("reads an artifact in full through the read tool when no artifacts dir was injected", async () => {
-		using tmp = TempDir.createSync("@omp-py-prelude-artifact-no-root-");
+		using tmp = TempDir.createSync("@reverse-py-prelude-artifact-no-root-");
 		await Bun.write(tmp.join("12.eval.log"), largeArtifact);
 		const out = tmp.join("out.txt");
 		const { stderr, requests } = await runWithReadBridge(

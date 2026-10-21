@@ -249,8 +249,8 @@ Literal filesystem paths take precedence over selector interpretation, so an exi
 
 ### Internal URLs
 
-- `read` delegates internal and MCP-advertised schemes to `InternalUrlRouter`; the built-in registry currently includes `agent://`, `artifact://`, `attachment://`, `cfg://`, `conflict://`, `history://`, `issue://`, `local://`, `mcp://`, `memory://`, `omp://`, `pr://`, `proc://`, `rule://`, `security://`, `skill://`, `ssh://`, `vault://`, and `xd://`.
-   - `security://` is reserved for the OMP-owned, producer-neutral, read-only security-analysis store.
+- `read` delegates internal and MCP-advertised schemes to `InternalUrlRouter`; the built-in registry currently includes `agent://`, `artifact://`, `attachment://`, `cfg://`, `conflict://`, `history://`, `issue://`, `local://`, `mcp://`, `memory://`, `reverse://`, `pr://`, `proc://`, `rule://`, `security://`, `skill://`, `ssh://`, `vault://`, and `xd://`.
+   - `security://` is reserved for the reverse-owned, producer-neutral, read-only security-analysis store.
    - `agent://<id>` reads a subagent's latest completed output, including a successful parent-requested message-result follow-up after revival; while a newer turn runs, the previous output is marked superseded. Agents without published output return status and progress. `/key/index` extracts from the latest published JSON result. Peer-woken message replies and cancelled or empty message-result follow-ups do not replace the accepted result, nor do structured wakes without a `yield`. `agent://all` is write-only. Bare `history://` lists registered agents and persisted subagents; `history://<id>` reads a transcript across turns.
    - `proc://` lists caller-visible background jobs (including running agents without job rows) and project services; `proc://<id>` returns status and available output/logs without consuming async-result delivery. Service log files are searchable with `grep proc://<id>`.
    - `xd://` lists mounted tool devices; `xd://<name>` returns that device's input documentation. Writing JSON to the same URI dispatches the device through `write`.

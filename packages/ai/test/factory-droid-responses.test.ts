@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Effort } from "@reverse/catalog/effort";
 import { streamFactoryDroid } from "../src/providers/factory-droid";
 import type { Tool } from "../src/types";
@@ -21,7 +21,7 @@ const WORKOS_TOKEN_WITH_USER = workosJwt({ sub: "user_123", external_org_id: "or
 
 function context() {
 	return {
-		systemPrompt: ["OMP prompt"],
+		systemPrompt: ["Reverse prompt"],
 		messages: [{ role: "user" as const, content: "hello", timestamp: 1 }],
 		tools: [readTool],
 	};

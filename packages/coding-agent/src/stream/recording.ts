@@ -1,14 +1,14 @@
 /**
- * Session recordings (`/record`, `omp play`).
+ * Session recordings (`/record`, `reverse play`).
  *
- * A recording is the single-pane `omp stream` feed persisted to disk: the same
+ * A recording is the single-pane `reverse stream` feed persisted to disk: the same
  * normalized, redacted screen frames {@link StreamPaintEncoder} produces for
  * live viewers, stamped with their offset from the start of the recording.
  *
- * File format (`.ompcast`, JSON Lines, asciicast-like):
+ * File format (`.reversecast`, JSON Lines, asciicast-like):
  *
  * ```text
- * {"ompcast":1,"cols":120,"rows":40,"title":"pi","createdAt":"2026-09-22T10:00:00.000Z"}
+ * {"reversecast":1,"cols":120,"rows":40,"title":"pi","createdAt":"2026-09-22T10:00:00.000Z"}
  * [0,{"t":"viewport","rows":["…","…"]}]
  * [51,{"t":"patch","ops":[[39,"…"]],"rows":40}]
  * [880,{"t":"history","rows":["…"]}]
@@ -28,16 +28,16 @@ import { isDimension, isSessionFrame, type StreamScreenFrame } from "./protocol"
 import type { StreamRedactor } from "./redactor";
 
 export const RECORDING_VERSION = 1;
-export const RECORDING_EXTENSION = ".ompcast";
+export const RECORDING_EXTENSION = ".reversecast";
 
 /** First line of a recording file. */
 export interface RecordingHeader {
-	ompcast: number;
+	reversecast: number;
 	cols: number;
 	rows: number;
 	title: string;
 	createdAt: string;
-	/** Clip description, set by `omp clip --description`. */
+	/** Clip description. */
 	description?: string;
 	/** Uploading Stencil username, stamped by the clip server. */
 	owner?: string;
@@ -56,10 +56,10 @@ export interface Recording {
 
 /** Directory `/record` writes into (temporary storage for now). */
 export function recordingsDir(): string {
-	return path.join(os.tmpdir(), "rva-recordings");
+	return path.join(os.tmpdir(), "reverse-recordings");
 }
 
-/** Fresh, sortable recording path for one session: `<recordingsDir>/<utc-stamp>-<session>.ompcast`. */
+/** Fresh, sortable recording path for one session: `<recordingsDir>/<utc-stamp>-<session>.reversecast`. */
 export function newRecordingPath(sessionId: string): string {
 	const stamp = new Date()
 		.toISOString()
@@ -98,8 +98,8 @@ export function parseRecording(text: string): Recording {
 	const { values, error } = Bun.JSONL.parseChunk(text);
 	if (error) throw new Error(`malformed recording: ${error.message}`);
 	const [header, ...lines] = values;
-	if (!isRecordingHeader(header)) throw new Error("not an omp recording (missing ompcast header)");
-	if (header.ompcast !== RECORDING_VERSION) throw new Error(`unsupported recording version ${header.ompcast}`);
+	if (!isRecordingHeader(header)) throw new Error("not a reverse recording (missing reversecast header)");
+	if (header.reversecast !== RECORDING_VERSION) throw new Error(`unsupported recording version ${header.reversecast}`);
 	const events: RecordingEvent[] = [];
 	for (const [index, line] of lines.entries()) {
 		if (
@@ -121,7 +121,7 @@ function isRecordingHeader(value: unknown): value is RecordingHeader {
 	if (!value || typeof value !== "object") return false;
 	const header = value as Record<string, unknown>;
 	return (
-		typeof header.ompcast === "number" &&
+		typeof header.reversecast === "number" &&
 		isDimension(header.cols) &&
 		isDimension(header.rows) &&
 		typeof header.title === "string" &&
@@ -137,7 +137,7 @@ export interface SessionRecorderOptions {
 	path: string;
 }
 
-/** Records one interactive session's painted screen to an `.ompcast` file. */
+/** Records one interactive session's painted screen to an `.reversecast` file. */
 export class SessionRecorder {
 	readonly path: string;
 	readonly #encoder: StreamPaintEncoder;
@@ -159,7 +159,7 @@ export class SessionRecorder {
 		this.#encoder = new StreamPaintEncoder(size, options.redactor);
 		this.#writer = Bun.file(options.path).writer();
 		const header: RecordingHeader = {
-			ompcast: RECORDING_VERSION,
+			reversecast: RECORDING_VERSION,
 			cols: size.columns,
 			rows: size.rows,
 			title: options.title,

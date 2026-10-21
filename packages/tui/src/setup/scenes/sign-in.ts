@@ -291,7 +291,7 @@ export class SignInScene implements SetupSceneController {
 						),
 						...tail,
 					],
-					{ gap: "sm", role: "omp.setup.sign-in", tone: "pending" },
+					{ gap: "sm", role: "reverse.setup.sign-in", tone: "pending" },
 				);
 			}
 			return col(
@@ -305,7 +305,7 @@ export class SignInScene implements SetupSceneController {
 					this.#selector,
 					...tail,
 				],
-				{ gap: "sm", role: "omp.setup.sign-in" },
+				{ gap: "sm", role: "reverse.setup.sign-in" },
 			);
 		});
 	}
@@ -355,7 +355,7 @@ export class SignInScene implements SetupSceneController {
 				onAuth: info => {
 					// Store the full authorization URL as the primary copy/display
 					// target: it works from any machine, including SSH boxes where
-					// the OMP-hosted `launchUrl` would resolve against the user's
+					// the Reverse-hosted `launchUrl` would resolve against the user's
 					// local browser and fail. The wizard render uses
 					// `wrapTextWithAnsi`, so long URLs wrap across lines rather
 					// than getting truncated — the RFC 7636 §4.3 PKCE-downgrade

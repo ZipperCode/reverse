@@ -2,7 +2,7 @@
  * {@link TextBackend} over a chat model: the bridge that lets any smol/tiny
  * LLM serve {@link TextJudge} when no native judgment provider is configured.
  */
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import * as AIError from "../error";
 import { retryTransientCompletion } from "../oneshot-retry";
 import { sendsImageInputOnWire } from "../providers/vision-guard";

@@ -284,10 +284,10 @@ const agent = new Agent({
 
 ## Tools
 
-Define tools using `AgentTool` with an omptype parameter schema.
+Define tools using `AgentTool` with an reversetype parameter schema.
 
 ```typescript
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 
 const readFileTool: AgentTool = {
 	name: "read_file",
@@ -466,7 +466,7 @@ const runCoverage = aggregateAgentRunCoverage(coverages);
 
 ### Tool status reporting
 
-`execute_tool` spans carry `omp.gen_ai.tool.status` ∈
+`execute_tool` spans carry `reverse.gen_ai.tool.status` ∈
 `"ok" | "error" | "skipped" | "blocked" | "timeout" | "aborted"`.
 `beforeToolCall` blocks throw a distinguishable `ToolCallBlockedError`
 internally; the catch path reports `status: "blocked"` instead of conflating

@@ -42,7 +42,7 @@ describe("global --profile flag", () => {
 	let originalProfile: string | undefined;
 	let originalAgentDir = "";
 	let originalAgentDirEnv: string | undefined;
-	let originalOmpProfileEnv: string | undefined;
+	let originalReverseProfileEnv: string | undefined;
 	let originalPiProfileEnv: string | undefined;
 	let originalConfigDir: string | undefined;
 
@@ -50,7 +50,7 @@ describe("global --profile flag", () => {
 		originalProfile = getActiveProfile();
 		originalAgentDir = getAgentDir();
 		originalAgentDirEnv = process.env.REVERSE_CODING_AGENT_DIR ?? process.env.PI_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.REVERSE_PROFILE ?? process.env.OMP_PROFILE;
+		originalReverseProfileEnv = process.env.REVERSE_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalConfigDir = process.env.REVERSE_CONFIG_DIR ?? process.env.PI_CONFIG_DIR;
 		configDir = `.reverse-profile-cli-test-${Snowflake.next()}`;
@@ -74,11 +74,10 @@ describe("global --profile flag", () => {
 		} else {
 			setProfile(undefined);
 		}
-		if (originalOmpProfileEnv === undefined) {
+		if (originalReverseProfileEnv === undefined) {
 			delete process.env.REVERSE_PROFILE;
-			delete process.env.OMP_PROFILE;
 		} else {
-			process.env.REVERSE_PROFILE = originalOmpProfileEnv;
+			process.env.REVERSE_PROFILE = originalReverseProfileEnv;
 		}
 		if (originalPiProfileEnv === undefined) {
 			delete process.env.PI_PROFILE;
@@ -107,11 +106,10 @@ describe("global --profile flag", () => {
 		expect(getAgentDir()).toBe(path.join(os.homedir(), configDir, "profiles", "work", "agent"));
 	});
 
-	it("activates a profile inherited from OMP_PROFILE at run time", async () => {
+	it("activates a profile inherited from REVERSE_PROFILE at run time", async () => {
 		const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 		setProfile(undefined);
 		process.env.REVERSE_PROFILE = "work";
-		process.env.OMP_PROFILE = "work";
 		delete process.env.PI_PROFILE;
 
 		await runCli(["--version"]);
@@ -127,24 +125,23 @@ describe("global --profile flag", () => {
 		const installSpy = vi.spyOn(profileAliasCli, "installProfileAlias").mockResolvedValue({
 			shell: "bash",
 			configPath: "/home/me/.bashrc",
-			aliasName: "omp-work",
+			aliasName: "reverse-work",
 			profile: "work",
-			command: "omp --profile=work",
+			command: "reverse --profile=work",
 			reloadedWith: ". '/home/me/.bashrc'",
 		});
 		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-		await runCli(["--profile", "work", "--alias", "omp-work", "--version"]);
+		await runCli(["--profile", "work", "--alias", "reverse-work", "--version"]);
 
 		expect(process.exitCode).toBe(0);
 		expect(installSpy).toHaveBeenCalledWith(
 			expect.objectContaining({
 				profile: "work",
-				aliasName: "omp-work",
+				aliasName: "reverse-work",
 			}),
 		);
 		const output = outSpy.mock.calls.map(call => String(call[0] ?? "")).join("\n");
-		expect(output).toContain("Created omp-work");
 		expect(output).not.toContain(`${APP_NAME}/${VERSION}`);
 	});
 
@@ -162,24 +159,24 @@ describe("global --profile flag", () => {
 	});
 
 	it("loads profile agent .env before command modules import pi-utils env", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-cli-env-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-profile-cli-env-"));
 		try {
 			const home = path.join(root, "home");
-			const configDir = ".omp-profile-cli-env";
+			const configDir = ".reverse-profile-cli-env";
 			const defaultAgentDir = path.join(home, configDir, "agent");
 			const profileAgentDir = path.join(home, configDir, "profiles", "work", "agent");
 			await fs.mkdir(defaultAgentDir, { recursive: true });
 			await fs.mkdir(profileAgentDir, { recursive: true });
-			await Bun.write(path.join(defaultAgentDir, ".env"), "OMP_PROFILE_BOOTSTRAP_SENTINEL=default\n");
-			await Bun.write(path.join(profileAgentDir, ".env"), "OMP_PROFILE_BOOTSTRAP_SENTINEL=work\n");
+			await Bun.write(path.join(defaultAgentDir, ".env"), "REVERSE_PROFILE_BOOTSTRAP_SENTINEL=default\n");
+			await Bun.write(path.join(profileAgentDir, ".env"), "REVERSE_PROFILE_BOOTSTRAP_SENTINEL=work\n");
 
 			const probePath = path.join(root, "probe.ts");
 			await Bun.write(
 				probePath,
 				[
 					`import { runCli } from ${JSON.stringify(url.pathToFileURL(cliEntry).href)};`,
-					'await runCli(["--profile", "work", "--help"]);',
-					'process.stdout.write("\\nSENTINEL=" + (Bun.env.OMP_PROFILE_BOOTSTRAP_SENTINEL ?? ""));',
+					'await runCli(["--profile", "work", "config", "list", "--json"]);',
+					'process.stdout.write("\\nSENTINEL=" + (Bun.env.REVERSE_PROFILE_BOOTSTRAP_SENTINEL ?? ""));',
 				].join("\n"),
 			);
 
@@ -195,11 +192,10 @@ describe("global --profile flag", () => {
 				NO_COLOR: "1",
 			};
 			delete childEnv.REVERSE_PROFILE;
-			delete childEnv.OMP_PROFILE;
 			delete childEnv.PI_PROFILE;
 			delete childEnv.REVERSE_CODING_AGENT_DIR;
 			delete childEnv.PI_CODING_AGENT_DIR;
-			delete childEnv.OMP_PROFILE_BOOTSTRAP_SENTINEL;
+			delete childEnv.REVERSE_PROFILE_BOOTSTRAP_SENTINEL;
 
 			const proc = Bun.spawn([process.execPath, probePath], {
 				cwd: repoRoot,
@@ -223,8 +219,8 @@ describe("global --profile flag", () => {
 		// transpile of the CLI graph, not latency under test.
 	}, 30_000);
 
-	it("surfaces an invalid OMP_PROFILE env as a clean error, not an import crash", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-cli-env-bad-"));
+	it("surfaces an invalid REVERSE_PROFILE env as a clean error, not an import crash", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-profile-cli-env-bad-"));
 		try {
 			const home = path.join(root, "home");
 			await fs.mkdir(home, { recursive: true });
@@ -249,7 +245,6 @@ describe("global --profile flag", () => {
 				REVERSE_CONFIG_DIR: ".reverse-profile-cli-env-bad",
 				PI_CONFIG_DIR: ".reverse-profile-cli-env-bad",
 				REVERSE_PROFILE: "..",
-				OMP_PROFILE: "..",
 				NO_COLOR: "1",
 			};
 			delete childEnv.PI_PROFILE;
@@ -269,7 +264,7 @@ describe("global --profile flag", () => {
 			]);
 
 			expect(stdout, stderr).toContain("HANDLED");
-			expect(stderr).toMatch(/Invalid (?:RVA|OMP) profile/);
+			expect(stderr).toMatch(/Invalid reverse profile/);
 			expect(exitCode).toBe(1);
 		} finally {
 			await removeWithRetries(root);

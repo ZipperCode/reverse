@@ -32,7 +32,7 @@ function startBroker(projectDir: string, runtimeDir: string, onListening: () => 
 
 describe.skipIf(process.platform === "win32")("daemon broker runtime dir loss", () => {
 	it("hands the scope to a new broker after its runtime dir is deleted under it", async () => {
-		using tempDir = TempDir.createSync("@omp-launch-endpoint-loss-");
+		using tempDir = TempDir.createSync("@reverse-launch-endpoint-loss-");
 		const projectDir = path.join(tempDir.path(), "project");
 		const runtimeDir = path.join(tempDir.path(), "runtime");
 		await fs.mkdir(projectDir);

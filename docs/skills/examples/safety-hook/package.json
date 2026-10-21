@@ -1,9 +1,9 @@
 {
   "name": "safety-hook",
   "version": "1.0.0",
-  "description": "omp extension example: block rm -rf / via tool_call hook",
-  "homepage": "https://omp.sh",
-  "omp": {
+  "description": "reverse extension example: block rm -rf / via tool_call hook",
+  "homepage": "https://github.com/ZipperCode/rev",
+  "reverse": {
     "extensions": ["./index.ts"]
   }
 }

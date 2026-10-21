@@ -6,8 +6,8 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
-import * as zod from "@reverse/omptype/zod";
+import { type } from "@reverse/reversetype";
+import * as zod from "@reverse/reversetype/zod";
 import { getAgentDir, getProjectDir, isEnoent, logger } from "@reverse/utils";
 import { getConfigDirs } from "../../config";
 

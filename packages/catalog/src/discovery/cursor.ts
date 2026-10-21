@@ -1,5 +1,5 @@
 import * as http2 from "node:http2";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { slugify } from "@reverse/utils";
 import { collapseVariants, type EffortVariantFamily, reviewedVariantFamilyId } from "../compat/collapse";
 import { compareRevision, parseRevision } from "../compat/revision";
@@ -557,7 +557,7 @@ function normalizeRichCursorModels(
 	for (const details of models) {
 		const baseId = details.name.trim();
 		if (!baseId || details.supportsAgent === false || details.isChatOnly === true) continue;
-		// OMP always sends Cursor's zero-data-retention header. Advertising a
+		// Reverse always sends Cursor's zero-data-retention header. Advertising a
 		// retention-required model would expose a route every invocation rejects.
 		if (details.requiresDataRetention === true) continue;
 

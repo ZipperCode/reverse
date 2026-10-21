@@ -11,7 +11,7 @@ export const REQUEST_LOG_LIMIT = 200;
 export const RESPONSE_BODY_LIMIT_BYTES = 1024 * 1024;
 const ROUTE_INTERCEPT_PRIORITY = 10;
 const PASS_THROUGH_INTERCEPT_PRIORITY = 0;
-const REQUEST_RECORD = Symbol("omp.browser.requestRecord");
+const REQUEST_RECORD = Symbol("reverse.browser.requestRecord");
 
 /** URL pattern accepted by persistent tab routes and request filters. */
 export type NetworkPattern = string | RegExp;
@@ -513,7 +513,7 @@ export function buildHarLog(entries: Record<string, unknown>[]): object {
 	return {
 		log: {
 			version: "1.2",
-			creator: { name: "omp-browser", version: "1" },
+			creator: { name: "reverse-browser", version: "1" },
 			pages: [],
 			entries,
 		},

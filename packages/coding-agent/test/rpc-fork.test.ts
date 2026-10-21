@@ -21,7 +21,7 @@ describe("RPC fork", () => {
 	let directory: string;
 
 	beforeEach(async () => {
-		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-fork-"));
+		directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-rpc-fork-"));
 		client = new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "fork-rpc-agent.ts"), directory],
 			cwd: directory,

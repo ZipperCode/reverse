@@ -21,9 +21,9 @@ import {
  */
 describe("worker-host selectors", () => {
 	it("recognizes the shared selector namespace without claiming ordinary CLI arguments", () => {
-		expect(WORKER_HOST_SELECTOR_PREFIX).toBe("__rva_worker_");
-		expect(isWorkerHostSelector("__rva_worker_stats_sync")).toBeTrue();
-		expect(isWorkerHostSelector("__rva_worker_computer")).toBeTrue();
+		expect(WORKER_HOST_SELECTOR_PREFIX).toBe("__reverse_worker_");
+		expect(isWorkerHostSelector("__reverse_worker_stats_sync")).toBeTrue();
+		expect(isWorkerHostSelector("__reverse_worker_computer")).toBeTrue();
 		expect(isWorkerHostSelector("--version")).toBeFalse();
 		expect(isWorkerHostSelector(undefined)).toBeFalse();
 	});

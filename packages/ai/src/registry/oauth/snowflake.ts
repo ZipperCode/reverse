@@ -103,7 +103,7 @@ class SnowflakeOAuthFlow extends OAuthCallbackFlow {
 		});
 		return {
 			url: `${this.#accountUrl}/oauth/authorize?${params.toString()}`,
-			instructions: "Sign in to Snowflake in your browser and approve access for omp.",
+			instructions: "Sign in to Snowflake in your browser and approve access for reverse.",
 		};
 	}
 

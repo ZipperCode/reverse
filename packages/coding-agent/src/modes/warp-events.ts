@@ -58,8 +58,8 @@ export function createWarpEventEmitter(options: WarpEventEmitterOptions): WarpEv
 			const body = {
 				...event,
 				v: WARP_CLI_AGENT_PROTOCOL_VERSION,
-				// Warp resolves this via CLIAgent.command_prefix(); OhMyPi is "omp".
-				agent: "omp",
+				// Warp resolves this via CLIAgent.command_prefix(); OhMyPi is "reverse".
+				agent: "reverse",
 				session_id: options.sessionId,
 				cwd,
 				project: path.basename(cwd),
@@ -200,7 +200,7 @@ export function createWarpEventBridgeExtension(): ExtensionFactory {
 			emitter?.emit({
 				event: "permission_request",
 				tool_name: event.toolName,
-				summary: `omp wants to run ${event.toolName}`,
+				summary: `reverse wants to run ${event.toolName}`,
 			});
 		});
 

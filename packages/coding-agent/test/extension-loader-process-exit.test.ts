@@ -1,9 +1,9 @@
 /**
  * Regression test for #3680: third-party extension / hook modules that call
- * `process.exit()` at the top level must not terminate the host OMP process.
+ * `process.exit()` at the top level must not terminate the host REVERSE process.
  *
  * The harness intercepts the load via `withHostGuard`; this test pins that the
- * intercepted error surfaces as a per-module load failure (so OMP keeps going)
+ * intercepted error surfaces as a per-module load failure (so REVERSE keeps going)
  * instead of crashing the test runner.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
@@ -18,7 +18,7 @@ describe("extension/hook loader process.exit guard (#3680)", () => {
 	let project: TempDir | undefined;
 
 	beforeEach(() => {
-		project = TempDir.createSync("@omp-exit-guard-");
+		project = TempDir.createSync("@reverse-exit-guard-");
 	});
 
 	afterEach(() => {
@@ -203,14 +203,14 @@ try {
 			// instead of looping on ExtensionExitError.
 			const preload = writeModule(
 				"guard-init-preload.ts",
-				"globalThis.__ompNativeReallyExit = process.reallyExit;\n" +
+				"globalThis.__reverseNativeReallyExit = process.reallyExit;\n" +
 					'process.reallyExit = (() => { throw new Error("guarded during init"); });\n',
 			);
 			const { exitCode, stdout, stderr } = await runProbe(
 				`
 import { postmortem } from "@reverse/utils";
 postmortem.register("probe", reason => process.stdout.write(\`cleanup:\${reason}\\n\`));
-process.reallyExit = globalThis.__ompNativeReallyExit;
+process.reallyExit = globalThis.__reverseNativeReallyExit;
 process.stdout.write("armed\\n");
 process.kill(process.pid, "SIGHUP");
 // Keep the real child event loop alive so the platform can deliver SIGHUP;

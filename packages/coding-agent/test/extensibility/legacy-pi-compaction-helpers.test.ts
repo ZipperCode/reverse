@@ -17,7 +17,7 @@ import {
 // `Tokenizer.countMessage`, so the shim now defines a compat wrapper that keeps
 // the legacy export surface — a named import must not throw Bun's static
 // "Export named X not found" during plugin validation (e.g.
-// `omp plugin install pi-blackhole`). This pins the export through the public
+// `reverse plugin install pi-blackhole`). This pins the export through the public
 // package specifier.
 describe("legacy shim compaction helpers", () => {
 	it("exports estimateTokens as a callable token estimator", () => {
@@ -33,7 +33,7 @@ describe("legacy shim compaction helpers", () => {
 
 	// Issue #7174: `compact` (same `@reverse/agent/compaction` module as
 	// `estimateTokens`) was likewise absent from the shim surface, so
-	// `omp plugin install npm:pi-claude-bridge` failed with "Export named
+	// `reverse plugin install npm:pi-claude-bridge` failed with "Export named
 	// 'compact' not found". Pin the callable re-export.
 	// Issue #7403: `serializeConversation` is another package-root compaction
 	// helper used by pi-openai-server-compaction. Its absence prevented the
@@ -45,7 +45,7 @@ describe("legacy shim compaction helpers", () => {
 
 	// Issue #10278: `calculateContextTokens` is another package-root compaction
 	// helper (same `@reverse/agent/compaction` module) used by
-	// pi-blackhole. Its absence made `omp plugin install pi-blackhole` fail Bun's
+	// pi-blackhole. Its absence made `reverse plugin install pi-blackhole` fail Bun's
 	// static "Export named 'calculateContextTokens' not found" check.
 	it("re-exports calculateContextTokens with its usage-sizing behavior", () => {
 		expect(typeof calculateContextTokens).toBe("function");
@@ -61,8 +61,8 @@ describe("legacy shim compaction helpers", () => {
 	});
 });
 
-// Issue #11796: `omp install git:github.com/NVlabs/SoL-Pi` failed Bun's static
-// export check because the shim never forwarded `findCutPoint`. omp's canonical
+// Issue #11796: `reverse install git:github.com/NVlabs/SoL-Pi` failed Bun's static
+// export check because the shim never forwarded `findCutPoint`. reverse's canonical
 // `findCutPoint` also grew a required `Tokenizer` parameter, so the shim exposes
 // an upstream-signature (tokenizer-less, 4-arg) wrapper backed by the shared
 // model-agnostic tokenizer — a raw re-export would misread `startIndex` as the
@@ -96,7 +96,7 @@ describe("legacy shim findCutPoint", () => {
 });
 
 // Issue #11796: SoL-Pi's online-context-compact also imports
-// `sessionEntryToContextMessages`, absent from omp entirely, so it would fail the
+// `sessionEntryToContextMessages`, absent from reverse entirely, so it would fail the
 // same static check right after `findCutPoint`. The shim ports upstream Pi's
 // per-entry projector.
 describe("legacy shim sessionEntryToContextMessages", () => {

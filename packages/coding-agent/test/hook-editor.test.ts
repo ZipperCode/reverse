@@ -218,7 +218,7 @@ describe("HookEditorComponent prompt-style mode", () => {
 		const head = root.c?.[0];
 		const parts = typeof head === "object" && head !== null && "k" in head ? head.c : undefined;
 		expect(parts?.[0]).toMatchObject({ k: "text", p: { spans: [{ t: "Custom answer" }] } });
-		expect(parts?.[1]).toMatchObject({ k: "md", p: { text: question, role: "omp.ask.question" } });
+		expect(parts?.[1]).toMatchObject({ k: "md", p: { text: question, role: "reverse.ask.question" } });
 	});
 
 	it("runs the native action bar's Submit, Cancel and Open in editor like their keys", async () => {

@@ -42,7 +42,7 @@ function shortLocalRoot(options: LocalProtocolOptions): string {
 	// Derive the short root from the stable session id, never the artifact path,
 	// so `SessionManager.moveTo()` and the resume-after-move flow keep finding
 	// the same `local://` directory the session wrote pre-move.
-	return path.join(os.tmpdir(), "omp-local", safeSessionId(options));
+	return path.join(os.tmpdir(), "reverse-local", safeSessionId(options));
 }
 
 const LOCAL_TEXT_SNIFF_BYTES = 8 * 1024;
@@ -247,7 +247,7 @@ export function resolveLocalRoot(options: LocalProtocolOptions, platform: NodeJS
 		return candidate;
 	}
 
-	return path.join(os.tmpdir(), "omp-local", safeSessionId(options));
+	return path.join(os.tmpdir(), "reverse-local", safeSessionId(options));
 }
 
 /**

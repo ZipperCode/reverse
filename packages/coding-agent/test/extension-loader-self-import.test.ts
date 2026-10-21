@@ -9,7 +9,7 @@ import { loadHooks } from "@reverse/coding-agent/extensibility/hooks/loader";
 import { TempDir } from "@reverse/utils";
 
 declare global {
-	var __ompHostPiForLoaderIdentityTest: typeof PiCodingAgent | undefined;
+	var __reverseHostPiForLoaderIdentityTest: typeof PiCodingAgent | undefined;
 }
 
 describe("extension loader host runtime binding", () => {
@@ -17,13 +17,13 @@ describe("extension loader host runtime binding", () => {
 
 	beforeEach(() => {
 		projectDir = TempDir.createSync("@loader-host-runtime-");
-		globalThis.__ompHostPiForLoaderIdentityTest = PiCodingAgent;
+		globalThis.__reverseHostPiForLoaderIdentityTest = PiCodingAgent;
 	});
 
 	afterEach(() => {
 		projectDir?.removeSync();
 		projectDir = undefined;
-		globalThis.__ompHostPiForLoaderIdentityTest = undefined;
+		globalThis.__reverseHostPiForLoaderIdentityTest = undefined;
 	});
 
 	function writeModule(relativePath: string, source: string): string {
@@ -35,7 +35,7 @@ describe("extension loader host runtime binding", () => {
 	}
 
 	const identityGuard = `
-		const expectedPi = globalThis.__ompHostPiForLoaderIdentityTest;
+		const expectedPi = globalThis.__reverseHostPiForLoaderIdentityTest;
 		if (!expectedPi) throw new Error("missing host pi module");
 		if (api.pi !== expectedPi) throw new Error("injected pi module did not match host module");
 	`;

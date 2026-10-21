@@ -1,12 +1,12 @@
 /**
- * HTTP client for the omp auth-broker server.
+ * HTTP client for the reverse auth-broker server.
  *
  * Used by {@link RemoteAuthCredentialStore} (snapshot pulls) and by
- * `omp auth-broker status` (liveness checks). All endpoints except
+ * `reverse auth-broker status` (liveness checks). All endpoints except
  * `/v1/healthz` require a bearer token.
  */
 
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { readSseEvents } from "@reverse/utils";
 import type { AuthCredential, DisabledCredentialSummary, OAuthRefreshReason } from "../auth-storage";
 import type {

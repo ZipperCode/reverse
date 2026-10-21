@@ -99,14 +99,14 @@ describe("checkToolRequirements", () => {
 	});
 
 	it("probes unknown ids without inventing an install hint", () => {
-		const statuses = checkToolRequirements([{ id: "rva-unknown-fixture" }], {
+		const statuses = checkToolRequirements([{ id: "reverse-unknown-fixture" }], {
 			platform: "linux",
 			which: whichFrom({}),
 		});
 		expect(statuses[0]).toMatchObject({ unknown: true });
 		expect(statuses[0].hint).toBeUndefined();
 		const notice = missingRequirementNotice(statuses);
-		expect(notice).toContain("rva-unknown-fixture");
+		expect(notice).toContain("reverse-unknown-fixture");
 		expect(notice).not.toContain("brew");
 		expect(notice).not.toContain("apt");
 		expect(notice).not.toContain("choco");

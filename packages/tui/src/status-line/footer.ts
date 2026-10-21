@@ -183,7 +183,7 @@ export class FooterComponent implements Component {
 			this.session.sessionManager.getUsageStatistics();
 		const segs: NativeNode[] = [];
 		const seg = (key: string, props: TspProps<"seg">): void => {
-			segs.push(node("seg", { role: `omp.footer.${key}`, ...props }, undefined, key));
+			segs.push(node("seg", { role: `reverse.footer.${key}`, ...props }, undefined, key));
 		};
 		const pathSpans: TspSpan[] = [span(shortenPath(getProjectDir()), "path dim")];
 		const branch = this.#getCurrentBranch();
@@ -225,16 +225,18 @@ export class FooterComponent implements Component {
 			model += ` • ${level}`;
 		}
 		seg("model", { side: "right", priority: 5, icon: "model", spans: [span(model, "dim")] });
-		const bar = node("status", { role: "omp.footer" }, segs, "bar");
+		const bar = node("status", { role: "reverse.footer" }, segs, "bar");
 		const children: NativeNode[] = [bar];
 		if (this.#extensionStatuses.size > 0) {
 			const statuses = Array.from(this.#extensionStatuses.entries())
 				.sort(([a], [b]) => a.localeCompare(b))
 				.map(([, value]) => sanitizeStatusText(value))
 				.join(" ");
-			children.push(node("text", { text: statuses, wrap: "none", role: "omp.footer.extensions" }, undefined, "ext"));
+			children.push(
+				node("text", { text: statuses, wrap: "none", role: "reverse.footer.extensions" }, undefined, "ext"),
+			);
 		}
-		const built = children.length === 1 ? bar : col(children, { role: "omp.footer.panel" });
+		const built = children.length === 1 ? bar : col(children, { role: "reverse.footer.panel" });
 		const fingerprint = JSON.stringify(built);
 		if (this.#nativeMemo?.fingerprint === fingerprint) return this.#nativeMemo.node;
 		this.#nativeMemo = { node: built, fingerprint };

@@ -18,8 +18,8 @@ export interface ReactSuspenseBoundary {
 
 const SUSPENSE_SOURCE_PREFIX = `(() => {
 	const hook = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-	if (!hook || !hook.__ompReact) return { missingHook: true };
-	const internals = hook.__ompReact;
+	if (!hook || !hook.__reverseReact) return { missingHook: true };
+	const internals = hook.__reverseReact;
 	const onlyDynamic = `;
 
 const SUSPENSE_SOURCE_SUFFIX = `;

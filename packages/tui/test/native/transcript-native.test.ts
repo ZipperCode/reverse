@@ -188,7 +188,7 @@ describe("native transcript", () => {
 		await h.render();
 		expect(h.find(node => node.k === "md")?.p).toMatchObject({ text: source, stream: true });
 
-		const wt = "file:///C:/Users/me/.omp/wt/cr2-43939c6";
+		const wt = "file:///C:/Users/me/.reverse/wt/cr2-43939c6";
 		component.updateContent(assistant([{ type: "text", text: source }]));
 		component.setLinkTargets(
 			new Map([
@@ -221,7 +221,7 @@ describe("native transcript", () => {
 			builder.append(toolTranscript());
 			h.tui.addChild(builder.container);
 		});
-		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
+		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "reverse.tool.lookup_thing");
 		expect(cardNode?.p).toMatchObject({ status: "done", collapsible: true, collapsed: true });
 
 		h.event({ ev: "toggle", sf: h.terminal.surface!, id: cardNode!.id, collapsed: false });
@@ -306,7 +306,7 @@ describe("native transcript", () => {
 			builder.append(toolTranscript());
 			h.tui.addChild(builder.container);
 		});
-		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
+		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "reverse.tool.lookup_thing");
 		expect(opsSince(h, 0)).toContainEqual(["settle", cardNode!.id]);
 
 		const before = h.frames.length;
@@ -427,21 +427,21 @@ describe("native transcript", () => {
 		const roles = h.findAll(node => typeof node.p?.role === "string").map(node => node.p!.role);
 		expect(roles).toEqual(
 			expect.arrayContaining([
-				"omp.tool.lookup_thing",
-				"omp.user",
-				"omp.user.synthetic",
-				"omp.assistant",
-				"omp.thinking",
-				"omp.bash",
-				"omp.eval",
-				"omp.compaction",
-				"omp.custom",
-				"omp.notice.ttsr",
-				"omp.notice.todo",
-				"omp.diagnostics.late",
-				"omp.marker.cache-miss",
-				"omp.status-block",
-				"omp.advisor",
+				"reverse.tool.lookup_thing",
+				"reverse.user",
+				"reverse.user.synthetic",
+				"reverse.assistant",
+				"reverse.thinking",
+				"reverse.bash",
+				"reverse.eval",
+				"reverse.compaction",
+				"reverse.custom",
+				"reverse.notice.ttsr",
+				"reverse.notice.todo",
+				"reverse.diagnostics.late",
+				"reverse.marker.cache-miss",
+				"reverse.status-block",
+				"reverse.advisor",
 			]),
 		);
 		expect(h.errors).toEqual([]);

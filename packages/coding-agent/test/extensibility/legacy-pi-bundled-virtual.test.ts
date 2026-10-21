@@ -3,7 +3,7 @@ import { ptree, TempDir } from "@reverse/utils";
 
 describe("bundled extension modules", () => {
 	it("observes active host theme changes and native default/named exports", async () => {
-		using dir = TempDir.createSync("@omp-bundled-extension-");
+		using dir = TempDir.createSync("@reverse-bundled-extension-");
 		const entry = dir.join("extension.ts");
 		await Bun.write(
 			entry,
@@ -29,7 +29,7 @@ import { installLegacyPiSpecifierShim, loadLegacyPiModule } from ${JSON.stringif
 Bun.plugin({
 	name: "bundled-extension-fixture",
 	setup(build) {
-		build.module("omp-legacy-pi-modules", () => ({
+		build.module("reverse-legacy-pi-modules", () => ({
 			loader: "object",
 			exports: {
 				BUNDLED_PI_MODULE_LOADERS: {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { buildParams, convertTools } from "@reverse/ai/providers/openai-responses";
 import type { Context, Model, ModelSpec, Tool } from "@reverse/ai/types";
 import { findStrictToolSchemaViolation } from "@reverse/ai/utils/schema";

@@ -22,7 +22,7 @@ interface CheckOutput {
 	}>;
 }
 
-describe("rva skill check", () => {
+describe("reverse skill check", () => {
 	let tempHome: string;
 	let tempProject: string;
 
@@ -86,7 +86,7 @@ describe("rva skill check", () => {
 	}
 
 	it("exits non-zero and reports missing required tools with no invented hint", async () => {
-		await writeSkill("missing-deps", "  requires: rva-cli-absent-fixture");
+		await writeSkill("missing-deps", "  requires: reverse-cli-absent-fixture");
 		const proc = runCli(["skill", "check", "--json"]);
 		const [stdout, stderr, exitCode] = await Promise.all([
 			new Response(proc.stdout).text(),
@@ -99,9 +99,9 @@ describe("rva skill check", () => {
 		const targetSkill = parsed.skills.find(s => s.name === "missing-deps");
 		expect(targetSkill).toBeDefined();
 		expect(targetSkill?.name).toBe("missing-deps");
-		expect(targetSkill?.missingRequired).toEqual(["rva-cli-absent-fixture"]);
+		expect(targetSkill?.missingRequired).toEqual(["reverse-cli-absent-fixture"]);
 		expect(targetSkill?.requirements[0]).toMatchObject({
-			id: "rva-cli-absent-fixture",
+			id: "reverse-cli-absent-fixture",
 			foundPath: null,
 			unknown: true,
 		});
@@ -109,7 +109,7 @@ describe("rva skill check", () => {
 	});
 
 	it("prints a readable missing line in text mode", async () => {
-		await writeSkill("missing-text", "  requires: rva-cli-absent-fixture");
+		await writeSkill("missing-text", "  requires: reverse-cli-absent-fixture");
 		const proc = runCli(["skill", "check"]);
 		const [stdout, stderr, exitCode] = await Promise.all([
 			new Response(proc.stdout).text(),
@@ -118,11 +118,11 @@ describe("rva skill check", () => {
 		]);
 		expect(exitCode, stderr).toBe(1);
 		expect(stdout).toContain("missing-text");
-		expect(stdout).toContain("missing rva-cli-absent-fixture");
+		expect(stdout).toContain("missing reverse-cli-absent-fixture");
 	});
 
 	it("exits zero when only optional tools are missing", async () => {
-		await writeSkill("optional-dep", "  requiresOptional: rva-cli-absent-fixture");
+		await writeSkill("optional-dep", "  requiresOptional: reverse-cli-absent-fixture");
 		const proc = runCli(["skill", "check", "--json"]);
 		const [stdout, stderr, exitCode] = await Promise.all([
 			new Response(proc.stdout).text(),
@@ -142,8 +142,8 @@ describe("rva skill check", () => {
 		"exits zero and reports the path when required tools are present",
 		async () => {
 			const binDir = path.join(tempProject, "bin");
-			await createExecutable(binDir, "rva-cli-present-fixture");
-			await writeSkill("present-dep", "  requires: rva-cli-present-fixture");
+			await createExecutable(binDir, "reverse-cli-present-fixture");
+			await writeSkill("present-dep", "  requires: reverse-cli-present-fixture");
 			const proc = runCli(["skill", "check", "--json"], { pathPrefix: binDir });
 			const [stdout, stderr, exitCode] = await Promise.all([
 				new Response(proc.stdout).text(),

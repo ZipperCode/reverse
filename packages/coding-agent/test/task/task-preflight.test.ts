@@ -170,7 +170,7 @@ describe("task async preflight", () => {
 	});
 
 	it("names the searched agent directories, home-shortened, when the agent is unknown", async () => {
-		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-unknown-agent-"));
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-unknown-agent-"));
 		try {
 			const projectDir = path.join(home, "project");
 			await fs.mkdir(path.join(projectDir, CONFIG_DIR_NAME, "agents"), { recursive: true });

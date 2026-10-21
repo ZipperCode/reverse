@@ -1,4 +1,4 @@
-export { type Type, type } from "@reverse/omptype";
+export { type Type, type } from "@reverse/reversetype";
 export * from "./api-registry";
 export type * from "./auth-broker";
 export type { AuthGatewayBootOptions, AuthGatewayRouteOptions, ModelResolver } from "./auth-gateway/dispatch";

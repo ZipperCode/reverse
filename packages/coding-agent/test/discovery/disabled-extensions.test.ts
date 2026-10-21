@@ -24,7 +24,7 @@ describe("disabledExtensions runtime filtering", () => {
 	let tempHomeDir = "";
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalOmpProfileEnv: string | undefined;
+	let originalReverseProfileEnv: string | undefined;
 	let originalPiProfileEnv: string | undefined;
 	let originalUserProfile: string | undefined;
 	let originalClaudeConfigDir: string | undefined;
@@ -35,16 +35,16 @@ describe("disabledExtensions runtime filtering", () => {
 		delete process.env.CLAUDE_CONFIG_DIR;
 		delete Bun.env.CLAUDE_CONFIG_DIR;
 		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalReverseProfileEnv = process.env.REVERSE_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalHome = process.env.HOME;
 		originalUserProfile = process.env.USERPROFILE;
-		tempHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-ext-home-"));
+		tempHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-disabled-ext-home-"));
 		process.env.HOME = tempHomeDir;
 		process.env.USERPROFILE = tempHomeDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempHomeDir);
 		setAgentDir(path.join(tempHomeDir, CONFIG_DIR_NAME, "agent"));
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-ext-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-disabled-ext-"));
 		await fs.mkdir(path.join(tempDir, CONFIG_DIR_NAME), { recursive: true });
 		await fs.writeFile(path.join(tempDir, CONFIG_DIR_NAME, "AGENTS.md"), "# project instructions\n");
 
@@ -62,7 +62,7 @@ describe("disabledExtensions runtime filtering", () => {
 		resetSettingsForTest();
 		vi.restoreAllMocks();
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("REVERSE_PROFILE", originalReverseProfileEnv);
 		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
 		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("USERPROFILE", originalUserProfile);
@@ -143,7 +143,7 @@ describe("disabledExtensions runtime filtering", () => {
 	});
 
 	test("marks a disabled lower-priority row shadowed when an enabled higher-priority item owns the key", async () => {
-		// Enabled builtin .omp/AGENTS.md (priority 100) already exists at project
+		// Enabled builtin .reverse/AGENTS.md (priority 100) already exists at project
 		// depth 0 from beforeEach; add a lower-priority .gemini/GEMINI.md at the
 		// same depth and disable it.
 		await fs.mkdir(path.join(tempDir, ".gemini"), { recursive: true });

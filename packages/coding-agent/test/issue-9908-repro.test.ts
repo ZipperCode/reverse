@@ -1,7 +1,7 @@
 /**
  * Regression for https://github.com/can1357/oh-my-pi/issues/9908
  *
- * Every omp process used to spawn its own `__omp_worker_mnemopi_embed` child
+ * Every reverse process used to spawn its own `__reverse_worker_mnemopi_embed` child
  * and keep the embedding model resident for the whole process lifetime
  * (0.8–1.6 GB per session). Embeddings now go through one machine-shared
  * server per (model, cache dir) that exits once idle. This test spawns the
@@ -28,7 +28,7 @@ const MODEL = "fast-bge-small-en-v1.5";
 
 describe("issue #9908 — one embedding server per model, freed once idle", () => {
 	it("serves every client from a single server process that exits after the idle window", async () => {
-		const runtimeDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-embed-9908-"));
+		const runtimeDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-embed-9908-"));
 		const spawned: SpawnedWorker[] = [];
 		const base = mnemopiEmbedLaunch(MODEL, { [MNEMOPI_EMBED_IDLE_MS_ENV]: "2000" });
 		const launch: SharedWorkerLaunch = {

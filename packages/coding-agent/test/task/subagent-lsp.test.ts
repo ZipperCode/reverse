@@ -249,7 +249,7 @@ describe("subagent LSP availability", () => {
 		});
 		mockIsolation();
 		const { getOptions } = mockCreateAgentSession();
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolated-session-cwd-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-isolated-session-cwd-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			const tool = await TaskTool.create(createSession({ isolationEnabled: true, sessionFile: parentSessionFile }));

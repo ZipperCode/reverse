@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { OmpErrors } from "@reverse/omptype";
+import { ReverseErrors } from "@reverse/reversetype";
 import { getModelsConfigSchema } from "@reverse/coding-agent/config/models-config-schema-bundle";
 import {
 	type ProviderValidationConfig,
@@ -54,7 +54,7 @@ describe("ModelsConfigSchema Bedrock compat overrides", () => {
 				},
 			},
 		});
-		if (!(checked instanceof OmpErrors)) throw new Error("expected the schema to reject a string value");
+		if (!(checked instanceof ReverseErrors)) throw new Error("expected the schema to reject a string value");
 		expect(checked.map(error => `${error.path.join(".")}: ${error.problem}`)).toEqual([
 			expect.stringMatching(
 				/^providers\.amazon-bedrock\.models\.0\.compat\.supportsThinkingBindingControls: must be boolean/,
@@ -82,7 +82,7 @@ describe("ModelsConfigSchema Responses compat overrides", () => {
 	test("accepts a boolean supportsConfigurationUpdate override and keeps its value", () => {
 		for (const value of [false, true]) {
 			const checked = ModelsConfigSchema(astraProxyConfig({ supportsConfigurationUpdate: value }));
-			if (checked instanceof OmpErrors) throw new Error(checked.summary);
+			if (checked instanceof ReverseErrors) throw new Error(checked.summary);
 			const config: ModelsConfig = checked;
 			expect(config.providers?.["astra-proxy"]?.compat?.supportsConfigurationUpdate).toBe(value);
 		}
@@ -90,7 +90,7 @@ describe("ModelsConfigSchema Responses compat overrides", () => {
 
 	test("rejects a non-boolean statefulResponses override instead of silently storing responses", () => {
 		const checked = ModelsConfigSchema(astraProxyConfig({ statefulResponses: "false" }));
-		if (!(checked instanceof OmpErrors)) throw new Error("expected the schema to reject a string value");
+		if (!(checked instanceof ReverseErrors)) throw new Error("expected the schema to reject a string value");
 		expect(checked.map(error => `${error.path.join(".")}: ${error.problem}`)).toEqual([
 			expect.stringMatching(/^providers\.astra-proxy\.compat\.statefulResponses: must be boolean/),
 		]);
@@ -100,7 +100,7 @@ describe("ModelsConfigSchema Responses compat overrides", () => {
 		// A truthy string would reach the driver as "enabled"; the schema must
 		// name the key and the expected type like it does for its declared siblings.
 		const checked = ModelsConfigSchema(astraProxyConfig({ supportsConfigurationUpdate: "no" }));
-		if (!(checked instanceof OmpErrors)) throw new Error("expected the schema to reject a string value");
+		if (!(checked instanceof ReverseErrors)) throw new Error("expected the schema to reject a string value");
 		expect(checked.map(error => `${error.path.join(".")}: ${error.problem}`)).toEqual([
 			expect.stringMatching(/^providers\.astra-proxy\.compat\.supportsConfigurationUpdate: must be boolean/),
 		]);
@@ -122,16 +122,16 @@ describe("models.yml compat.stripImageInput (#11697)", () => {
 
 	test("accepts a boolean opt-out and preserves it", () => {
 		const parsed = schema(configWithModelCompat({ stripImageInput: false }));
-		expect(parsed instanceof OmpErrors).toBe(false);
-		if (!(parsed instanceof OmpErrors)) {
+		expect(parsed instanceof ReverseErrors).toBe(false);
+		if (!(parsed instanceof ReverseErrors)) {
 			expect(parsed.providers?.p?.models?.[0]?.compat).toMatchObject({ stripImageInput: false });
 		}
 	});
 
 	test("rejects a wrong-typed opt-out instead of silently ignoring it", () => {
 		const parsed = schema(configWithModelCompat({ stripImageInput: "no" }));
-		expect(parsed instanceof OmpErrors).toBe(true);
-		if (parsed instanceof OmpErrors) {
+		expect(parsed instanceof ReverseErrors).toBe(true);
+		if (parsed instanceof ReverseErrors) {
 			expect(parsed.summary).toContain("stripImageInput");
 		}
 	});
@@ -168,7 +168,7 @@ describe("model kind must match its api", () => {
 				gateway: { baseUrl, apiKey: "key", api: "openai-completions", models: [{ id: "s", kind: "search" }] },
 			},
 		});
-		if (!(checked instanceof OmpErrors)) throw new Error("expected the schema to reject kind search");
+		if (!(checked instanceof ReverseErrors)) throw new Error("expected the schema to reject kind search");
 		expect(checked.summary).toContain("providers.gateway.models[0].kind");
 		expect(checked.summary).toContain('(was "search")');
 	});

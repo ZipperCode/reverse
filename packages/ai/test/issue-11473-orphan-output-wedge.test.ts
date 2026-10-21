@@ -49,7 +49,7 @@ function toolResult(callId: string, toolName: string, text: string, isError = fa
 
 it("does not wedge a repaired orphan-output note between a call and its output (#11473)", () => {
 	// One turn: model issued parallel `todo` (call_00) + `bash` (call_01). `todo`
-	// failed omp-side arg validation, so the native-replay snapshot (dt:false)
+	// failed reverse-side arg validation, so the native-replay snapshot (dt:false)
 	// carries only the landed `bash` call; `todo` survives as an orphan result.
 	const assistant: AssistantMessage = {
 		role: "assistant",

@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import * as vcs from "@reverse/natives/vcs";
 import { parseDiffHunks } from "../../../commit/git/diff";
 import type { DiffHunk, FileHunks } from "../../../commit/types";

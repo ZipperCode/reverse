@@ -1,6 +1,6 @@
 /**
  * Issue #4919: a pi extension calling `ctx.ui.addAutocompleteProvider(...)` in its
- * `session_start` handler crashed at load under omp — the method was absent from
+ * `session_start` handler crashed at load under reverse — the method was absent from
  * `ExtensionUIContext`, so the call threw `TypeError: ... is not a function` and
  * (for extensions that wrap init in try/catch, e.g. @ff-labs/pi-fff) aborted the
  * extension's entire initialization.
@@ -17,7 +17,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import { type Api, Effort, type Model } from "@reverse/ai";
 import type { AutocompleteProvider } from "@reverse/tui";

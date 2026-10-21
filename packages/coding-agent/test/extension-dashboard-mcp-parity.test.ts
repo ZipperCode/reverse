@@ -33,8 +33,8 @@ describe("loadAllExtensions MCP parity with /mcp list (issue #3827)", () => {
 
 	beforeEach(async () => {
 		resetSettingsForTest();
-		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-3827-project-"));
-		userAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-3827-user-"));
+		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-3827-project-"));
+		userAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-3827-user-"));
 
 		// Redirect user-scoped mcp.json (resolved via getAgentDir() at the call
 		// site) into the per-test temp directory so neither the discovery loader

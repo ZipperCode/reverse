@@ -135,7 +135,7 @@ PATH="/opt/homebrew/opt/python@3.12/libexec/bin:$PATH" bun run test:ts
 - **Local Execution**: Tools (read, bash, edit, write, grep, glob, ast_grep, ast_edit, lsp, etc.), session management, subagents, and memory backends run locally without dependency on external hosted coordination or relay infrastructure.
 - **Provider Access**: Model provider access (Anthropic, OpenAI, Google, DeepSeek, local inference via Ollama / llama.cpp / vLLM, and compatible endpoints) with native compaction and secret obfuscation.
 - **Voice & Realtime**: Integrated voice/realtime support (`src/live/`) connecting directly to supported audio/realtime providers.
-- **Local Recording & Playback**: Terminal session recording via `/record` and playback via `reverse play` using `.ompcast` captures stored locally under temporary recordings (`reverse-recordings`).
+- **Local Recording & Playback**: Terminal session recording via `/record` and playback via `reverse play` using `.reversecast` captures stored locally under temporary recordings (`reverse-recordings`).
 - **HTML Export**: Standalone session export via `reverse --export <session.jsonl> [output.html]` and the `/export` slash command with self-contained inlined React tool views.
 - **Extensibility & Plugins**: Full support for local plugin loading and linking via `reverse install <path>` and `reverse plugin` commands.
 - **Local Skills**: Local skill discovery (`reverse skill list [dir] [--json]`), `manage_skill`, and skill store resolution via `skills.lock.json`.
@@ -149,10 +149,12 @@ All external hosted coordination services (collab relays, live screen broadcasti
 - **Single-Turn Execution**: `reverse -p "read src/index.ts"` executes prompt and tool calls in print mode.
 - **Multi-Turn Resumption**: `reverse -p --continue "summarize"` rehydrates the prior session's user, tool, and assistant history.
 - **Interactive Terminal (TUI)**: `reverse` launches the full interactive workspace with prompt composer, live status line, and `/new` session switching.
-- **Terminal Recording & Playback**: `/record` starts and stops local session captures stored in `$TMPDIR/reverse-recordings/*.ompcast`; `reverse play <recording> --speed 10 --idle-limit 0.1` provides terminal replay without network access.
+- **Terminal Recording & Playback**: `/record` starts and stops local session captures stored in `$TMPDIR/reverse-recordings/*.reversecast`; `reverse play <recording> --speed 10 --idle-limit 0.1` provides terminal replay without network access.
 - **Session HTML Export**: `reverse --export <session.jsonl> [output.html]` generates standalone self-contained HTML transcripts with inlined React tool views.
 - **Local Skills & Plugins**: `reverse skill list [dir] [--json]` discovers local `.reverse/skills`; `reverse install <local-plugin-path>` links development plugins into the isolated user plugin store.
 - **Configuration & Localization (i18n)**: Manage settings via `reverse config [list|get|set|reset]`. Full Chinese localization (`zh-CN`) is available for configuration labels, descriptions, group headers, and CLI help, configurable via `reverse config set language zh-CN`, in the interactive `/settings` panel (Appearance → Display → Language), or via the `REVERSE_LANG=zh-CN` environment override, while keeping all setting identifiers, enum values, and JSON machine output canonical. No migration promise is made for legacy aliases.
+
+The canonical contracts are `REVERSE_*` environment variables, `.reverse` configuration roots, `reverse://` documentation URLs, `.reverse-plugin` native plugin manifests, and `@reverse/reversetype` schemas. Recordings use `.reversecast` with a `reversecast` header. Optional SQL session storage defaults to `reverse_session_files`; existing recordings and SQL databases are not automatically migrated.
 
 ## Verification Evidence
 
@@ -163,7 +165,7 @@ A clean-room, zero-external-credential loopback smoke harness verified both the 
 3. **Session Continuation**: `--continue` replayed exact prior turns (user message, tool use, tool result, assistant output, follow-up prompt) over loopback SSE and returned `REVERSE_RESUME_OK`.
 4. **Excised Command Enforcement**: All 7 removed commands fail fast with exit code 1, print rejection guidance, and make zero network requests.
 5. **Isolated Extensibility**: `reverse skill list --json` returned project fixture skills; `reverse install` linked fixture packages strictly into isolated test environments without host leakage.
-6. **PTY Terminal & Recording**: Interactive TUI launched under a real Darwin PTY, processed interactive turns, switched sessions (`/new`), recorded screen sessions (`/record`), and replayed recorded `.ompcast` files locally via `reverse play` with zero remote calls.
+6. **PTY Terminal & Recording**: Interactive TUI launched under a real Darwin PTY, processed interactive turns, switched sessions (`/new`), recorded screen sessions (`/record`), and replayed recorded `.reversecast` files locally via `reverse play` with zero remote calls.
 7. **Standalone HTML Export**: Headless Chrome (v155) loaded exported session HTML via Chrome DevTools Protocol (CDP); DOM inspection confirmed chat messages and tool outputs rendered offline, and network interception verified zero outgoing requests to share, gist, or remote services.
 
 > **Provider Notes**: Verification was conducted using an offline loopback provider harness; remote providers require valid user-configured API credentials. Local Apple Foundation Models are unavailable on this machine due to upstream native build constraints requiring Swift 6.4 / macOS 27 SDK; the feature implementation remains intact in source.

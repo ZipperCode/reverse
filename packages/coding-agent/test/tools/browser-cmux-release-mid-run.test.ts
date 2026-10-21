@@ -49,7 +49,7 @@ import * as logger from "@reverse/utils/logger";
 function makeKind(socketSuffix: string): CmuxKind {
 	return {
 		kind: "cmux",
-		socketPath: `/tmp/omp-test-${socketSuffix}.sock`,
+		socketPath: `/tmp/reverse-test-${socketSuffix}.sock`,
 		surface: `surface-${socketSuffix}`,
 	};
 }
@@ -296,11 +296,11 @@ describe("browser tab-supervisor — cmux tab close mid-run (#4499)", () => {
 		const continuationStarted = Promise.withResolvers<void>();
 		const continuationGate = Promise.withResolvers<void>();
 		const globals = globalThis as typeof globalThis & {
-			__ompLateRejectionStarted?: () => void;
-			__ompLateRejectionGate?: Promise<void>;
+			__reverseLateRejectionStarted?: () => void;
+			__reverseLateRejectionGate?: Promise<void>;
 		};
-		globals.__ompLateRejectionStarted = continuationStarted.resolve;
-		globals.__ompLateRejectionGate = continuationGate.promise;
+		globals.__reverseLateRejectionStarted = continuationStarted.resolve;
+		globals.__reverseLateRejectionGate = continuationGate.promise;
 
 		try {
 			spyOn(CmuxSocketClient.prototype, "request").mockImplementation(
@@ -334,8 +334,8 @@ describe("browser tab-supervisor — cmux tab close mid-run (#4499)", () => {
 					const guestStarted = Promise.withResolvers();
 					void tab.title().then(async () => {
 						guestStarted.resolve();
-						globalThis.__ompLateRejectionStarted();
-						await globalThis.__ompLateRejectionGate;
+						globalThis.__reverseLateRejectionStarted();
+						await globalThis.__reverseLateRejectionGate;
 						throw new Error("late cmux continuation failed");
 					});
 					await guestStarted.promise;
@@ -355,8 +355,8 @@ describe("browser tab-supervisor — cmux tab close mid-run (#4499)", () => {
 			});
 		} finally {
 			continuationGate.resolve();
-			delete globals.__ompLateRejectionStarted;
-			delete globals.__ompLateRejectionGate;
+			delete globals.__reverseLateRejectionStarted;
+			delete globals.__reverseLateRejectionGate;
 		}
 	});
 
@@ -527,7 +527,7 @@ describe("browser tab-supervisor — cmux tab close mid-run (#4499)", () => {
 			},
 		);
 
-		const screenshotDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cmux-screenshot-"));
+		const screenshotDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-cmux-screenshot-"));
 		try {
 			const browser = await acquireBrowser(makeKind("screenshot-configured"), { cwd: "/tmp" });
 			await acquireTab("screenshot-configured", browser, {

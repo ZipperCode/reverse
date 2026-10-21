@@ -5757,13 +5757,13 @@ function resolveCursorRecordReplays(
 /**
  * Cursor AgentService reconstructs the model prompt from `requestContext.rules`,
  * not from the client-supplied `rootPromptMessagesJson` system blobs. Map each
- * OMP system-prompt entry to a global CursorRule so always-apply rules survive
+ * Reverse system-prompt entry to a global CursorRule so always-apply rules survive
  * that reconstruction.
  */
 export function buildCursorRequestContextRules(systemPrompt: readonly string[] | undefined): CursorRule[] {
 	return normalizeSystemPrompts(systemPrompt).map((content, index) =>
 		create(CursorRuleSchema, {
-			fullPath: `/omp/system-prompt/${index}.mdc`,
+			fullPath: `/reverse/system-prompt/${index}.mdc`,
 			content,
 			source: CursorRuleSource.USER,
 			type: create(CursorRuleTypeSchema, {

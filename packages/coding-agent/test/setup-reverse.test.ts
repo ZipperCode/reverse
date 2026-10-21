@@ -9,13 +9,13 @@ import {
 import type { SkillRequirementWhich } from "../src/extensibility/skill-requirements";
 import { afterEach, beforeEach } from "bun:test";
 
-let originalRvaLang: string | undefined;
+let originalReverseLang: string | undefined;
 beforeEach(() => {
-	originalRvaLang = process.env.REVERSE_LANG;
+	originalReverseLang = process.env.REVERSE_LANG;
 	process.env.REVERSE_LANG = "en";
 });
 afterEach(() => {
-	if (originalRvaLang !== undefined) process.env.REVERSE_LANG = originalRvaLang;
+	if (originalReverseLang !== undefined) process.env.REVERSE_LANG = originalReverseLang;
 	else delete process.env.REVERSE_LANG;
 });
 

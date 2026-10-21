@@ -1,5 +1,5 @@
 /**
- * Identity of the omp build running in this process, stamped into session files so a
+ * Identity of the reverse build running in this process, stamped into session files so a
  * transcript records which code produced each entry.
  *
  * Installed builds (compiled binary, package install) record only their version. A source
@@ -12,7 +12,7 @@ import { $env, isCompiledBinary, isRecord, logger, VERSION } from "@reverse/util
 import type { SessionEntry } from "./session-entries";
 
 export interface RuntimeIdentity {
-	/** omp package version. */
+	/** reverse package version. */
 	version: string;
 	/** Source checkout commit; absent for installed builds. */
 	commit?: string;
@@ -23,7 +23,7 @@ export interface RuntimeIdentity {
 	 * `unknown` when the diff could not be read (too large) or has not been read yet.
 	 */
 	diff?: string;
-	/** Free-form name from `OMP_BUILD_LABEL`. */
+	/** Free-form name from `REVERSE_BUILD_LABEL`. */
 	label?: string;
 }
 
@@ -63,7 +63,7 @@ async function readUncommittedDiff(repo: VcsGitRepo, identity: RuntimeIdentity):
  */
 function resolveRuntimeIdentity(): RuntimeIdentity {
 	if (current) return current;
-	const label = $env.OMP_BUILD_LABEL?.replace(/\s+/g, " ").trim().slice(0, MAX_LABEL_LENGTH);
+	const label = $env.REVERSE_BUILD_LABEL?.replace(/\s+/g, " ").trim().slice(0, MAX_LABEL_LENGTH);
 	current = { version: VERSION, label: label || undefined };
 	try {
 		const repo = findSourceCheckout();

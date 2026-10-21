@@ -219,12 +219,12 @@ export async function resolvePrBranchPushTarget(
 	const repository = vcs.requireGit(repoRoot);
 	const configPrefix = `branch.${localBranch}.`;
 	const [headRef, pushRemote, remote, prUrl, maintainerCanModifyValue, isCrossRepositoryValue] = await Promise.all([
-		repository.configGet(`${configPrefix}ompPrHeadRef`, signal),
+		repository.configGet(`${configPrefix}reversePrHeadRef`, signal),
 		repository.configGet(`${configPrefix}pushRemote`, signal),
 		repository.configGet(`${configPrefix}remote`, signal),
-		repository.configGet(`${configPrefix}ompPrUrl`, signal),
-		repository.configGet(`${configPrefix}ompPrMaintainerCanModify`, signal),
-		repository.configGet(`${configPrefix}ompPrIsCrossRepository`, signal),
+		repository.configGet(`${configPrefix}reversePrUrl`, signal),
+		repository.configGet(`${configPrefix}reversePrMaintainerCanModify`, signal),
+		repository.configGet(`${configPrefix}reversePrIsCrossRepository`, signal),
 	]);
 	if (!headRef) {
 		throw new ToolError(`branch ${localBranch} has no PR push metadata; check it out via op: pr_checkout first`);
@@ -475,15 +475,15 @@ export async function checkoutPullRequest(
 			await repository.configSet(`${configPrefix}remote`, remote.name, signal);
 			await repository.configSet(`${configPrefix}merge`, `refs/heads/${headRefName}`, signal);
 			await repository.configSet(`${configPrefix}pushRemote`, remote.name, signal);
-			await repository.configSet(`${configPrefix}ompPrHeadRef`, headRefName, signal);
-			await repository.configSet(`${configPrefix}ompPrUrl`, data.url ?? "", signal);
+			await repository.configSet(`${configPrefix}reversePrHeadRef`, headRefName, signal);
+			await repository.configSet(`${configPrefix}reversePrUrl`, data.url ?? "", signal);
 			await repository.configSet(
-				`${configPrefix}ompPrIsCrossRepository`,
+				`${configPrefix}reversePrIsCrossRepository`,
 				String(Boolean(data.isCrossRepository)),
 				signal,
 			);
 			await repository.configSet(
-				`${configPrefix}ompPrMaintainerCanModify`,
+				`${configPrefix}reversePrMaintainerCanModify`,
 				String(Boolean(data.maintainerCanModify)),
 				signal,
 			);

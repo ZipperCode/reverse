@@ -26,7 +26,7 @@ let tempDir: string;
 
 beforeEach(async () => {
 	resetSettingsForTest();
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-patch-unchanged-"));
+	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-patch-unchanged-"));
 	await Settings.init({ inMemory: true, cwd: tempDir });
 });
 

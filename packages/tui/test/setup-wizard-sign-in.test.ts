@@ -23,7 +23,7 @@ afterEach(() => {
 
 describe("SignInScene", () => {
 	it("masks secret input and keeps the OSC8 login link and manual-code prompt above clipped rows", async () => {
-		const url = `https://example.com/oauth/authorize?client_id=omp&redirect_uri=http%3A%2F%2Flocalhost%3A45454%2Fcallback&state=${"a".repeat(96)}`;
+		const url = `https://example.com/oauth/authorize?client_id=reverse&redirect_uri=http%3A%2F%2Flocalhost%3A45454%2Fcallback&state=${"a".repeat(96)}`;
 		const loginGate = Promise.withResolvers<void>();
 		const secretReceived = Promise.withResolvers<string>();
 		const secretValue = crypto.randomUUID();
@@ -107,7 +107,7 @@ describe("SignInScene", () => {
 	});
 
 	it("clears manual input after a native callback path settles", async () => {
-		const url = "https://example.com/oauth/authorize?client_id=omp&state=native";
+		const url = "https://example.com/oauth/authorize?client_id=reverse&state=native";
 		const loginCompleted = Promise.withResolvers<void>();
 		const copySpy = vi.fn(async (_text: string): Promise<void> => {});
 		const authStorage = {
@@ -152,7 +152,7 @@ describe("SignInScene", () => {
 	});
 
 	it("copies the active login URL from the keyboard while the setup TUI owns selection", async () => {
-		const url = "https://example.com/oauth/authorize?client_id=omp&state=copy";
+		const url = "https://example.com/oauth/authorize?client_id=reverse&state=copy";
 		const loginGate = Promise.withResolvers<void>();
 		const copySpy = vi.fn(async (_text: string): Promise<void> => {});
 

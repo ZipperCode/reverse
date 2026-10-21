@@ -66,7 +66,7 @@ describe("session title source persistence", () => {
 	const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 	beforeEach(() => {
-		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-title-source-"));
+		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-title-source-"));
 		cwd = path.join(testAgentDir, "cwd");
 		fs.mkdirSync(cwd, { recursive: true });
 		setAgentDir(testAgentDir);

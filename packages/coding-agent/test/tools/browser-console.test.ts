@@ -12,7 +12,7 @@ import type { ToolSession } from "@reverse/coding-agent/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();
-const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-console-"));
+const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-console-"));
 const session: ToolSession = {
 	cwd: root,
 	hasUI: false,
@@ -160,7 +160,7 @@ await wait(5_000);`,
 					const { proxy, revoke } = Proxy.revocable({}, {});
 					revoke();
 					console.log("revoked", proxy);
-					return globalThis.__ompConsoleCapture.entries;
+					return globalThis.__reverseConsoleCapture.entries;
 				})()`,
 			]);
 			expect(result).toEqual([

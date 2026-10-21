@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { type AgentMessage, type AgentTelemetryConfig, Tokenizer } from "@reverse/agent";
 import {
 	buildOpenAiNativeHistory,

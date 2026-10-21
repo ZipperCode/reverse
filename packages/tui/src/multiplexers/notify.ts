@@ -1,7 +1,7 @@
 import type { TerminalNotification } from "../terminal-capabilities";
 
 /** Title for out-of-band multiplexer notifications that carry none of their own. */
-export const DEFAULT_NOTIFICATION_TITLE = "rva";
+export const DEFAULT_NOTIFICATION_TITLE = "reverse";
 
 /** Title and body for an out-of-band multiplexer notification (cmux, Herdr). */
 export function notificationTitleAndBody(message: string | TerminalNotification): { title: string; body: string } {

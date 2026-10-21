@@ -2,7 +2,7 @@ import type { Stats } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ToolSession } from ".";
 import {

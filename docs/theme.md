@@ -17,7 +17,7 @@ Primary implementation: `packages/tui/src/theme/theme.ts`.
 
 ## Theme JSON shape
 
-Custom theme files are JSON objects validated by `validateThemeJson()` in `packages/tui/src/theme/schema-validation.ts` (using `@reverse/omptype`). Types live in `schema.ts`; the editor-facing JSON schema is `packages/tui/src/theme/theme-schema.json`. Embedded built-in themes bypass runtime validation.
+Custom theme files are JSON objects validated by `validateThemeJson()` in `packages/tui/src/theme/schema-validation.ts` (using `@reverse/reversetype`). Types live in `schema.ts`; the editor-facing JSON schema is `packages/tui/src/theme/theme-schema.json`. Embedded built-in themes bypass runtime validation.
 
 Top-level fields:
 
@@ -118,9 +118,9 @@ Theme lookup order (`loadThemeJson`):
 
 Custom themes directory comes from `getCustomThemesDir()`:
 
-- default: `~/.omp/agent/themes`
+- default: `~/.reverse/agent/themes`
 - default-profile override: `PI_CODING_AGENT_DIR` (`$PI_CODING_AGENT_DIR/themes`)
-- named profile: `~/.omp/profiles/<name>/agent/themes` (under the configured root); named profiles derive their own agent directory
+- named profile: `~/.reverse/profiles/<name>/agent/themes` (under the configured root); named profiles derive their own agent directory
 
 `getAvailableThemes()` returns merged built-in + custom names, sorted, with built-ins taking precedence on name collision.
 
@@ -237,8 +237,8 @@ Other tokens are unchanged.
 Theme-related settings are persisted by `Settings` to global config YAML:
 
 - path: `<agentDir>/config.yml`
-- default agent dir: `~/.omp/agent`
-- effective default file: `~/.omp/agent/config.yml`
+- default agent dir: `~/.reverse/agent`
+- effective default file: `~/.reverse/agent/config.yml`
 
 Persisted keys:
 
@@ -251,7 +251,7 @@ Legacy migration exists: a flat custom `theme: "name"` is migrated to nested `th
 
 ## Creating a custom theme (practical)
 
-1. Create file in custom themes dir, e.g. `~/.omp/agent/themes/my-theme.json`.
+1. Create file in custom themes dir, e.g. `~/.reverse/agent/themes/my-theme.json`.
 2. Include `name`, optional `vars`, and **all required** `colors` tokens.
 3. Optionally include `symbols` and `export`.
 4. Select the theme in Settings (`Appearance -> Dark Theme` or `Appearance -> Light Theme`) depending on which auto slot you want.
@@ -364,6 +364,6 @@ Use this workflow:
 
 - All `colors` tokens are required for custom themes except optional `thinkingMax` (falls back to `thinkingXhigh`) and `assistantMessageText` (unset keeps the terminal default foreground).
 - `export` and `symbols` are optional.
-- `$schema` in theme JSON is informational; custom-theme runtime validation is enforced by `@reverse/omptype` in `packages/tui/src/theme/schema-validation.ts`.
+- `$schema` in theme JSON is informational; custom-theme runtime validation is enforced by `@reverse/reversetype` in `packages/tui/src/theme/schema-validation.ts`.
 - `setTheme` failure falls back to `dark`; `previewTheme` failure does not replace current theme.
 - File watcher reload errors or temporary missing files keep the current loaded theme until a successful reload or explicit theme switch.

@@ -6,14 +6,14 @@
  * sticky `strictToolsDisabled` / `fastModeDisabled` /
  * `replayUnsignedThinkingDisabled` flags and dropped-thinking-prefix set,
  * OpenAI's strict-tools and reasoning-effort fallbacks, Codex's WebSocket and
- * turn-state sessions. An in-process omp session owns that `Map` for its whole
+ * turn-state sessions. An in-process reverse session owns that `Map` for its whole
  * lifetime, so a grammar-too-large 400 or a fast-mode rejection costs one
  * wasted round-trip per session rather than one per turn.
  *
  * The map is deliberately non-serializable — `Set`/`Map` fields, live sockets,
  * a `close()` method — so `pi-native-client` strips it from the wire and
  * `pi-native-server` never accepts it. Gateway clients therefore cannot bring
- * their own, and without a server-side owner every containerized / robomp turn
+ * their own, and without a server-side owner every containerized / reverse turn
  * re-learns every lesson from a fresh upstream rejection.
  *
  * A plain `Map<sessionId, …>` in a long-lived server process is a leak: nothing
@@ -197,7 +197,7 @@ function conversationKeys(request: AuthGatewaySessionStateRequest): string[] {
 /**
  * Chain one message into `seed`.
  *
- * Role + content only: omp re-stamps `timestamp` and provider metadata on
+ * Role + content only: reverse re-stamps `timestamp` and provider metadata on
  * every parsed message, so hashing those would break the chain on turn two of
  * every conversation. Each part's bulk string (text, thinking, base64 image
  * data) is hashed in place rather than re-serialized, and the part's remaining

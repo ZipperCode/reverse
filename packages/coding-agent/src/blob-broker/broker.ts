@@ -4,7 +4,7 @@
  * `LocalBlobBackend` runs everything in-process — either a loopback HTTP
  * server behind a tunnel/direct exposure (serve mode) or a push-once uploader
  * (upload mode). The daemon-shared variant in `daemon.ts` implements the same
- * {@link BlobBackend} contract over the project blob daemon so every omp
+ * {@link BlobBackend} contract over the project blob daemon so every reverse
  * process reuses one exposure and one URL per blob.
  *
  * Design invariants:
@@ -136,7 +136,7 @@ export class LocalBlobBackend implements BlobBackend {
 				hostname: this.#config.bindHost,
 				port: 0,
 				fetch: request => {
-					if (new URL(request.url).pathname === "/.well-known/omp-blob-health") {
+					if (new URL(request.url).pathname === "/.well-known/reverse-blob-health") {
 						return new Response(null, { status: 204 });
 					}
 					return this.#store.serve(request);

@@ -17,7 +17,7 @@ export class QueueModeSelectorComponent extends OverlayPanel {
 		onSelect: (mode: "all" | "one-at-a-time") => void,
 		onCancel: () => void,
 	) {
-		super("Queue Mode", "omp.overlay.queue-mode");
+		super("Queue Mode", "reverse.overlay.queue-mode");
 
 		const queueModes: SelectItem[] = [
 			{
@@ -48,7 +48,7 @@ export class QueueModeSelectorComponent extends OverlayPanel {
 		this.addChild(this.#selectList);
 		this.#sheet = new SelectListSheet(this.#selectList, {
 			title: "Queue mode",
-			subtitle: "How messages you send while omp works are delivered",
+			subtitle: "How messages you send while reverse works are delivered",
 			icon: "list",
 			noun: "modes",
 			current: [currentMode],

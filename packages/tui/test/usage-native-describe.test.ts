@@ -141,7 +141,7 @@ describe("UsageDashboardComponent.describe", () => {
 			],
 		);
 		const root = component.describe(cx);
-		const tiles = findAll(root, n => n.p?.role === "omp.usage.stat").map(tile =>
+		const tiles = findAll(root, n => n.p?.role === "reverse.usage.stat").map(tile =>
 			findAll(tile, n => n.k === "text").map(plain),
 		);
 		expect(tiles).toEqual([
@@ -152,7 +152,7 @@ describe("UsageDashboardComponent.describe", () => {
 		]);
 		const spark = findAll(root, n => n.k === "chart" && n.p?.kind === "spark")[0];
 		expect(spark?.k === "chart" ? spark.p?.series?.length : 0).toBe(30);
-		const foot = findAll(root, n => n.p?.role === "omp.usage.activity.foot")[0];
+		const foot = findAll(root, n => n.p?.role === "reverse.usage.activity.foot")[0];
 		expect(foot ? findAll(foot, n => n.k === "text").map(plain)[0] : "").toBe(
 			"4 active days · longest streak 3 days",
 		);
@@ -160,14 +160,14 @@ describe("UsageDashboardComponent.describe", () => {
 
 	it("shows one empty state when nothing is used anywhere", () => {
 		const root = dashboard([report("zai", "z@test", [limit("zai", "5h", "Usage", 0, "ok")])]).describe(cx);
-		const empty = findAll(root, n => n.p?.role === "omp.usage.empty")[0];
+		const empty = findAll(root, n => n.p?.role === "reverse.usage.empty")[0];
 		expect(empty ? findAll(empty, n => n.k === "text").map(plain) : []).toEqual([
 			"No usage yet",
 			expect.stringContaining("Quotas show here"),
 			"Untouched",
 			"Zai",
 		]);
-		expect(findAll(root, n => n.p?.role === "omp.usage.stats" || n.k === "chart")).toEqual([]);
+		expect(findAll(root, n => n.p?.role === "reverse.usage.stats" || n.k === "chart")).toEqual([]);
 	});
 
 	it("re-fetches reports from the Refresh button like the r key", async () => {
@@ -187,7 +187,7 @@ describe("UsageDashboardComponent.describe", () => {
 		component.handleNativeEvent({ type: "action", key: "head/refresh", act: "refresh", mods: [] });
 		expect(calls).toBe(1);
 		const providers = (): (string | undefined)[] =>
-			findAll(component.describe(cx), n => n.p?.role === "omp.usage.provider").map(n => n.key);
+			findAll(component.describe(cx), n => n.p?.role === "reverse.usage.provider").map(n => n.key);
 		const refreshed = Promise.withResolvers<void>();
 		onRender = () => {
 			if (providers()[0] === "openai") refreshed.resolve();
@@ -235,7 +235,7 @@ describe("SessionInfoOverlay.describe", () => {
 	it("leads with the session id, then the file, each copying its own value", () => {
 		const overlay = new SessionInfoOverlay({ terminal: { rows: 20 } }, fullReport(), () => {});
 		const root = overlay.describe(cx);
-		const copies = findAll(root, n => n.p?.role === "omp.info.copy");
+		const copies = findAll(root, n => n.p?.role === "reverse.info.copy");
 		expect(copies.map(n => n.p?.title)).toEqual(["Copy session ID", "Copy /tmp/s.jsonl"]);
 		expect(JSON.stringify(copies[0])).toContain("abc-123");
 		expect(JSON.stringify(copies[1])).toContain("/tmp/s.jsonl");
@@ -245,7 +245,7 @@ describe("SessionInfoOverlay.describe", () => {
 	it("does not offer to copy an in-memory session's file", () => {
 		const overlay = new SessionInfoOverlay({ terminal: { rows: 20 } }, `${dim("File")} In-memory\n`, () => {});
 		const root = overlay.describe(cx);
-		expect(findAll(root, n => n.p?.role === "omp.info.copy")).toEqual([]);
+		expect(findAll(root, n => n.p?.role === "reverse.info.copy")).toEqual([]);
 		expect(JSON.stringify(root)).toContain("In-memory");
 	});
 
@@ -259,8 +259,8 @@ describe("SessionInfoOverlay.describe", () => {
 			"Cost",
 			"MCP servers",
 		]);
-		expect(findAll(root, n => n.p?.role === "omp.info.stats")).toHaveLength(1);
-		expect(kvItems(root, "omp.info.nums")).toEqual([
+		expect(findAll(root, n => n.p?.role === "reverse.info.stats")).toHaveLength(1);
+		expect(kvItems(root, "reverse.info.nums")).toEqual([
 			[
 				{ k: "User", v: [{ t: "6", s: "mono" }] },
 				{ k: "Tool calls", v: [{ t: "23", s: "mono" }] },
@@ -268,12 +268,12 @@ describe("SessionInfoOverlay.describe", () => {
 			[{ k: "Input", v: [{ t: "182,440", s: "mono" }] }],
 			[{ k: "Total", v: [{ t: "$0.4127", s: "mono" }] }],
 		]);
-		expect(kvItems(root, "omp.info.total")).toEqual([
+		expect(kvItems(root, "reverse.info.total")).toEqual([
 			[{ k: "Total", v: [{ t: "29", s: "mono" }] }],
 			[{ k: "Total", v: [{ t: "182,440", s: "mono" }] }],
 		]);
 		// The append-only mode is a provider setting: it leaves the message counts.
-		expect(kvItems(root, "omp.info.kv")).toEqual([
+		expect(kvItems(root, "reverse.info.kv")).toEqual([
 			[
 				{ k: "Model", v: [{ t: "claude-sonnet-4-5", s: "mono" }] },
 				{
@@ -285,7 +285,7 @@ describe("SessionInfoOverlay.describe", () => {
 				},
 			],
 		]);
-		expect(kvItems(root, "omp.info.names")).toEqual([
+		expect(kvItems(root, "reverse.info.names")).toEqual([
 			[{ k: "github", v: [{ t: "connected", s: "success" }, { t: " " }, { t: "(4 tools)", s: "dim" }] }],
 		]);
 	});
@@ -298,7 +298,7 @@ describe("SessionInfoOverlay.describe", () => {
 		expect(meter?.p).toEqual(
 			expect.objectContaining({ value: expect.closeTo(0.206, 6), title: "41,200 of 200,000 tokens" }),
 		);
-		expect(JSON.stringify(findAll(root, n => n.p?.role === "omp.info.contextHead"))).toContain("41K / 200K");
+		expect(JSON.stringify(findAll(root, n => n.p?.role === "reverse.info.contextHead"))).toContain("41K / 200K");
 		const plain = new SessionInfoOverlay({ terminal: { rows: 20 } }, fullReport(), () => {}, context).describe(
 			plainCx,
 		);
@@ -358,16 +358,16 @@ describe("ContextUsageView.describe", () => {
 
 	it("leads with the tokens used and the room before auto-compaction, then one bar and the breakdown in its order", () => {
 		const described = new ContextUsageView(breakdown, theme).describe(cx);
-		expect(texts(described, "omp.context.used")[0]).toMatch(/^19K of 200K tokens · 9%$/);
-		expect(texts(described, "omp.context.room")[0]).toMatch(/left before auto-compaction at 85%$/);
+		expect(texts(described, "reverse.context.used")[0]).toMatch(/^19K of 200K tokens · 9%$/);
+		expect(texts(described, "reverse.context.room")[0]).toMatch(/left before auto-compaction at 85%$/);
 		expect(findAll(described, n => n.k === "meter")).toHaveLength(1);
-		const rows = findAll(described, n => n.k === "row" && (n.p?.role ?? "").startsWith("omp.context.cat"));
+		const rows = findAll(described, n => n.k === "row" && (n.p?.role ?? "").startsWith("reverse.context.cat"));
 		expect(rows.map(row => row.p?.role)).toEqual([
-			...breakdown.categories.map(() => "omp.context.cat"),
-			"omp.context.cat.free",
-			"omp.context.cat.buffer",
+			...breakdown.categories.map(() => "reverse.context.cat"),
+			"reverse.context.cat.free",
+			"reverse.context.cat.buffer",
 		]);
-		expect(texts(described, "omp.context.label").slice(0, 7)).toEqual([
+		expect(texts(described, "reverse.context.label").slice(0, 7)).toEqual([
 			"System prompt",
 			"System tools",
 			"System context",
@@ -377,7 +377,7 @@ describe("ContextUsageView.describe", () => {
 			"Autocompact buffer",
 		]);
 		expect(rows[4]?.p?.title).toBe("Messages · 12,000 tokens");
-		expect(findAll(described, n => n.p?.role === "omp.context.snap")).toEqual([]);
+		expect(findAll(described, n => n.p?.role === "reverse.context.snap")).toEqual([]);
 	});
 
 	it("titles snapcompact's savings, or says why it is inactive", () => {
@@ -396,19 +396,19 @@ describe("ContextUsageView.describe", () => {
 			toolResults: { total: 41, swapped: 0, textTokens: 0, frames: 0, imageTokens: 0, savedTokens: 0 },
 			savedTokens: 4_164,
 		});
-		const labels = texts(applied, "omp.context.label");
+		const labels = texts(applied, "reverse.context.label");
 		expect(labels.slice(-3)).toEqual(["System prompt · AGENTS.md", "Tool results", "Next request"]);
-		expect(texts(applied, "omp.context.detail")).toContain("None imaged · 41 in history");
-		expect(texts(applied, "omp.context.tokens").slice(-2)).toEqual(["−4.2K", "~14K"]);
+		expect(texts(applied, "reverse.context.detail")).toContain("None imaged · 41 in history");
+		expect(texts(applied, "reverse.context.tokens").slice(-2)).toEqual(["−4.2K", "~14K"]);
 
 		const inactive = withSnap({ visionCapable: false, savedTokens: 0 });
-		expect(texts(inactive, "omp.context.snap.note")).toEqual(["Inactive: the model has no image input."]);
+		expect(texts(inactive, "reverse.context.snap.note")).toEqual(["Inactive: the model has no image input."]);
 	});
 
 	it("keeps the glyph grid on terminals without `meter`", () => {
 		const described = new ContextUsageView(breakdown, theme).describe(plainCx);
 		expect(findAll(described, n => n.k === "meter")).toEqual([]);
-		expect(findAll(described, n => n.p?.role === "omp.context.usage")).toHaveLength(1);
+		expect(findAll(described, n => n.p?.role === "reverse.context.usage")).toHaveLength(1);
 	});
 });
 

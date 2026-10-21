@@ -7,7 +7,7 @@ function shellQuote(value: string): string {
 	return BARE_SAFE.test(value) ? value : `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
-function rewriteSegment(text: string, ompCmd: readonly string[]): string | undefined {
+function rewriteSegment(text: string, reverseCmd: readonly string[]): string | undefined {
 	if (SHELL_EXPANSION.test(text)) return undefined;
 	const tokenLists = tokenizeShellSegments(text);
 	if (tokenLists.length !== 1) return undefined;
@@ -57,7 +57,7 @@ function rewriteSegment(text: string, ompCmd: readonly string[]): string | undef
 	}
 	if (positionals.length < 1 || positionals.length > 2) return undefined;
 
-	const argv = [...ompCmd, "worktree", "add"];
+	const argv = [...reverseCmd, "worktree", "add"];
 	if (cwd) argv.push("-C", cwd);
 	if (branchFlag && branch) argv.push(branchFlag, branch);
 	if (detach) argv.push("--detach");
@@ -67,11 +67,11 @@ function rewriteSegment(text: string, ompCmd: readonly string[]): string | undef
 }
 
 /**
- * Rewrites supported `git worktree add` shell segments through omp so worktree
+ * Rewrites supported `git worktree add` shell segments through reverse so worktree
  * creation uses clone-first materialization. Unsupported shell syntax and git
  * flags are deliberately left for git to handle unchanged.
  */
-export function rewriteGitWorktreeAdd(command: string, ompCmd: readonly string[]): string {
+export function rewriteGitWorktreeAdd(command: string, reverseCmd: readonly string[]): string {
 	const segments = extractFlatShellCommandSegments(command);
 	if (segments.length === 0 || segments.some(segment => segment.pipedStdin)) return command;
 
@@ -81,7 +81,7 @@ export function rewriteGitWorktreeAdd(command: string, ompCmd: readonly string[]
 		const start = command.indexOf(segment.text, cursor);
 		if (start < 0) return command;
 		result += command.slice(cursor, start);
-		result += rewriteSegment(segment.text, ompCmd) ?? segment.text;
+		result += rewriteSegment(segment.text, reverseCmd) ?? segment.text;
 		cursor = start + segment.text.length;
 	}
 	return result + command.slice(cursor);

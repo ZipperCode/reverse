@@ -191,7 +191,7 @@ export function renderWelcomeTip(tip: string, width: number, phase = 0): string[
 
 /**
  * The session's welcome banner. In a terminal: the gradient logo beside the
- * `omp` wordmark with the version under it (the logo alone when the lockup does
+ * `reverse` wordmark with the version under it (the logo alone when the lockup does
  * not fit) and the tip of the session (dropped below {@link TIP_MIN_COLUMNS}
  * columns). Natively: a card with the same logo, wordmark, version and tip
  * ({@link WelcomeComponent.describe}).
@@ -231,8 +231,8 @@ export class WelcomeComponent implements Component {
 	}
 
 	/**
-	 * A `card` (`omp.welcome`) mirroring the terminal banner: the lockup
-	 * (`omp.welcome.lockup`: the terminal's builtin `omp` mark, which it animates,
+	 * A `card` (`reverse.welcome`) mirroring the terminal banner: the lockup
+	 * (`reverse.welcome.lockup`: the terminal's builtin `reverse` mark, which it animates,
 	 * beside the wordmark with the version under it) and the tip of the session.
 	 * Roles carry the look (gradient logo, type scale); a "[NEW]" tip
 	 * carries a terminal-clocked shimmering tag.
@@ -249,10 +249,10 @@ export class WelcomeComponent implements Component {
 					node(
 						"image",
 						{
-							builtin: "omp",
+							builtin: "reverse",
 							alt: APP_NAME,
 							w: 128,
-							role: "omp.welcome.logo",
+							role: "reverse.welcome.logo",
 						},
 						undefined,
 						"logo",
@@ -260,15 +260,15 @@ export class WelcomeComponent implements Component {
 					keyed(
 						col(
 							[
-								art([span(APP_NAME, "strong")], "omp.welcome.wordmark"),
-								art([span(`v${this.version}`, "dim mono")], "omp.welcome.version"),
+								art([span(APP_NAME, "strong")], "reverse.welcome.wordmark"),
+								art([span(`v${this.version}`, "dim mono")], "reverse.welcome.version"),
 							],
-							{ role: "omp.welcome.mark" },
+							{ role: "reverse.welcome.mark" },
 						),
 						"mark",
 					),
 				],
-				{ align: "center", gap: "md", role: "omp.welcome.lockup" },
+				{ align: "center", gap: "md", role: "reverse.welcome.lockup" },
 			),
 			"lockup",
 		);
@@ -277,14 +277,14 @@ export class WelcomeComponent implements Component {
 			const isNew = NEW_TIP_MARKER.test(tip);
 			const tipText = compactText(tipSpans(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip)));
 			const tipRow: NativeChild[] = [
-				node("icon", { name: "lightbulb", role: "omp.welcome.tip-icon" }),
-				text(tipText, { wrap: "word", role: "omp.welcome.tip-text" }),
+				node("icon", { name: "lightbulb", role: "reverse.welcome.tip-icon" }),
+				text(tipText, { wrap: "word", role: "reverse.welcome.tip-text" }),
 			];
-			if (isNew) tipRow.push(node("shimmer", { text: "New", role: "omp.welcome.new" }));
-			body.push(node("row", { gap: "sm", align: "start", role: "omp.welcome.tip" }, tipRow, "tip"));
+			if (isNew) tipRow.push(node("shimmer", { text: "New", role: "reverse.welcome.new" }));
+			body.push(node("row", { gap: "sm", align: "start", role: "reverse.welcome.tip" }, tipRow, "tip"));
 		}
 		// No head row or chevron: the card is the hero; the version sits under the wordmark.
-		const described = card({ role: "omp.welcome" }, body);
+		const described = card({ role: "reverse.welcome" }, body);
 		this.#native = { tip, node: described };
 		return described;
 	}
@@ -462,7 +462,7 @@ export function logoNode(lines: readonly string[], shimmer: boolean): NativeNode
 				wrap: "none",
 			}),
 		),
-		{ align: "center", role: "omp.setup.logo" },
+		{ align: "center", role: "reverse.setup.logo" },
 	);
 }
 

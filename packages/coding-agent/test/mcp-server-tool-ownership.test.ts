@@ -59,7 +59,7 @@ describe("MCP tool ownership with prefix-colliding server names", () => {
 	let manager: MCPManager;
 
 	beforeEach(() => {
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-ownership-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-mcp-ownership-"));
 		manager = new MCPManager(workDir);
 	});
 

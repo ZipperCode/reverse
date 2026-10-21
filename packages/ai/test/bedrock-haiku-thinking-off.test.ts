@@ -3,7 +3,7 @@ import { streamBedrock } from "@reverse/ai/providers/amazon-bedrock";
 import { streamSimple } from "@reverse/ai/stream";
 import type { Context, SimpleStreamOptions } from "@reverse/ai/types";
 import { Effort } from "@reverse/catalog/effort";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import {
 	BEDROCK_TEST_CONTEXT,
 	type BedrockCapture,

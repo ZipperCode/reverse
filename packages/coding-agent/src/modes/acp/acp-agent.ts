@@ -638,23 +638,23 @@ export class AcpAgent implements Agent {
 			{
 				id: "agent",
 				name: "Use existing local credentials",
-				description: "Authenticate via the provider keys/OAuth state already configured under ~/.omp.",
+				description: "Authenticate via the provider keys/OAuth state already configured under ~/.reverse.",
 			},
 		];
 		if (params.clientCapabilities?.auth?.terminal === true) {
 			authMethods.push({
 				type: "terminal",
 				id: "terminal",
-				name: "Set up omp in terminal",
-				description: "Launch the omp TUI to add provider keys and select models.",
+				name: "Set up reverse in terminal",
+				description: "Launch the reverse TUI to add provider keys and select models.",
 				args: [ACP_TERMINAL_AUTH_FLAG],
 			});
 		}
 		return {
 			protocolVersion: PROTOCOL_VERSION,
 			agentInfo: {
-				name: "omp",
-				title: "omp",
+				name: "reverse",
+				title: "reverse",
 				version: VERSION,
 			},
 			authMethods,
@@ -1141,7 +1141,7 @@ export class AcpAgent implements Agent {
 		switch (method) {
 			case SPEECH_MODELS_LIST_METHOD:
 				return buildAcpSpeechModelsCatalog();
-			case "_omp/sessions/listAll": {
+			case "_reverse/sessions/listAll": {
 				const limit = typeof params.limit === "number" ? Math.max(1, Math.min(5000, params.limit as number)) : 1000;
 				const sessions = await SessionManager.listAll();
 				const sorted = sessions.sort((l, r) => r.modified.getTime() - l.modified.getTime()).slice(0, limit);
@@ -1150,7 +1150,7 @@ export class AcpAgent implements Agent {
 					total: sessions.length,
 				};
 			}
-			case "_omp/projects/list": {
+			case "_reverse/projects/list": {
 				const sessions = await SessionManager.listAll();
 				const buckets = new Map<
 					string,
@@ -1178,7 +1178,7 @@ export class AcpAgent implements Agent {
 				const projects = Array.from(buckets.values()).sort((a, b) => b.lastActivityAt - a.lastActivityAt);
 				return { projects, totalSessions: sessions.length };
 			}
-			case "_omp/chats/byCwd": {
+			case "_reverse/chats/byCwd": {
 				const cwd = typeof params.cwd === "string" ? (params.cwd as string) : undefined;
 				if (!cwd) throw new Error("cwd required");
 				const limit = typeof params.limit === "number" ? Math.max(1, Math.min(500, params.limit as number)) : 100;
@@ -1186,7 +1186,7 @@ export class AcpAgent implements Agent {
 				const sorted = sessions.sort((l, r) => r.modified.getTime() - l.modified.getTime()).slice(0, limit);
 				return { sessions: sorted.map(s => this.#toSessionInfo(s)) };
 			}
-			case "_omp/usage": {
+			case "_reverse/usage": {
 				const [firstRecord] = this.#sessions.values();
 				const target = firstRecord?.session ?? this.#initialSession;
 				if (!target) {
@@ -1195,14 +1195,14 @@ export class AcpAgent implements Agent {
 				const reports = await target.fetchUsageReports();
 				return { reports: reports ?? [] };
 			}
-			case "_omp/extensions": {
+			case "_reverse/extensions": {
 				const cwd = typeof params.cwd === "string" ? (params.cwd as string) : undefined;
 				const sm = await Settings.init();
 				const disabledIds = cfgDisabledExtensions.get(sm);
 				const extensions = await loadAllExtensions(cwd, disabledIds);
 				return { extensions: extensions as unknown as Array<{ [key: string]: unknown }> };
 			}
-			case "_omp/extensions/toggle": {
+			case "_reverse/extensions/toggle": {
 				const providerId = params.providerId;
 				if (typeof providerId !== "string") throw new Error("providerId required");
 				if (params.enabled === false) {

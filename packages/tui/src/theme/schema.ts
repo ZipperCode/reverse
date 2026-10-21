@@ -29,7 +29,7 @@ export interface ThemeJson {
 	};
 	/**
 	 * The terminal this theme was made for, for hosts that paint the terminal
-	 * themselves (Tern). omp never sets the terminal's colors: its TUI draws on
+	 * themselves (Tern). reverse never sets the terminal's colors: its TUI draws on
 	 * whatever background the terminal has. A host derives absent fields from
 	 * `colors`.
 	 */

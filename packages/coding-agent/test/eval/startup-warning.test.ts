@@ -8,7 +8,7 @@ import {
 	resolvePythonEvalWarning,
 } from "@reverse/coding-agent/eval/startup-warning";
 
-const FIX_HINT = "Install Python 3.8+ or set python.interpreter, then verify with `omp setup python --check`.";
+const FIX_HINT = "Install Python 3.8+ or set python.interpreter, then verify with `reverse setup python --check`.";
 const CWD = "/tmp/eval-startup-warning";
 
 let savedPiPy: string | undefined;

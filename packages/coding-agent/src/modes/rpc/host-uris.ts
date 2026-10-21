@@ -101,10 +101,10 @@ export class RpcHostUriBridge {
 			if (!/^[a-z][a-z0-9+.-]*$/.test(scheme)) {
 				throw new Error(`Host URI scheme contains invalid characters: ${raw.scheme}`);
 			}
-			// Built-in schemes are OMP-owned: a host shadowing one would change its semantics for
+			// Built-in schemes are REVERSE-owned: a host shadowing one would change its semantics for
 			// the whole process, and `clear()` would then delete it for later sessions.
 			if (this.#router.isBuiltin(scheme)) {
-				throw new Error(`Host URI scheme is reserved by OMP: ${scheme}://`);
+				throw new Error(`Host URI scheme is reserved by REVERSE: ${scheme}://`);
 			}
 			normalized.set(scheme, {
 				scheme,

@@ -121,17 +121,17 @@ describe("resolveOpenAIRequestSetup User-Agent", () => {
 });
 
 describe("xAI stream User-Agent", () => {
-	test("xAI Responses POST sends omp User-Agent", async () => {
+	test("xAI Responses POST sends reverse User-Agent", async () => {
 		const captured = await captureStreamHeaders(
 			fetch => streamOpenAIResponses(xaiResponsesModel(), context, { apiKey: "sk-test", fetch }),
 			createResponsesSse(),
 		);
 		expect(captured.url).toBe("https://api.x.ai/v1/responses");
 		expect(captured.userAgent).toBe(USER_AGENT);
-		expect(captured.userAgent).toMatch(/^rva\/\d+\.\d+\.\d+$/);
+		expect(captured.userAgent).toMatch(/^reverse\/\d+\.\d+\.\d+$/);
 	});
 
-	test("xAI OAuth Responses POST sends omp User-Agent", async () => {
+	test("xAI OAuth Responses POST sends reverse User-Agent", async () => {
 		const captured = await captureStreamHeaders(
 			fetch => streamOpenAIResponses(xaiResponsesModel("xai-oauth"), context, { apiKey: "sk-test", fetch }),
 			createResponsesSse(),
@@ -140,7 +140,7 @@ describe("xAI stream User-Agent", () => {
 		expect(captured.userAgent).toBe(USER_AGENT);
 	});
 
-	test("OpenAI Completions POST does not send omp User-Agent", async () => {
+	test("OpenAI Completions POST does not send reverse User-Agent", async () => {
 		const captured = await captureStreamHeaders(
 			fetch => streamOpenAICompletions(openaiCompletionsModel(), context, { apiKey: "sk-test", fetch }),
 			createChatSse(),

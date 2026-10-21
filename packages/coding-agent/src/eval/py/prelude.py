@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-# OMP prelude helpers (loaded once into the runner namespace)
-if "__omp_prelude_loaded__" not in globals():
-    __omp_prelude_loaded__ = True
+# REVERSE prelude helpers (loaded once into the runner namespace)
+if "__reverse_prelude_loaded__" not in globals():
+    __reverse_prelude_loaded__ = True
     from pathlib import Path
     import asyncio, collections.abc, contextvars, inspect, os, json, math, re, time, types, typing
     from urllib.parse import unquote
 
 
-    # __omp_display is injected by runner.py before the prelude executes; it
+    # __reverse_display is injected by runner.py before the prelude executes; it
     # mirrors IPython's display() semantics with the same MIME bundle output.
-    _omp_display = __omp_display  # type: ignore[name-defined]
+    _reverse_display = __reverse_display  # type: ignore[name-defined]
 
     _PRESENTABLE_REPRS = (
         "_repr_mimebundle_",
@@ -26,23 +26,23 @@ if "__omp_prelude_loaded__" not in globals():
     def display(value):
         """Render a value. Falls back to a JSON+text/plain bundle for plain dict/list/tuple."""
         if isinstance(value, dict) and value.get("type") == "image":
-            _omp_display(value)
+            _reverse_display(value)
             return
         if any(hasattr(value, attr) for attr in _PRESENTABLE_REPRS):
-            _omp_display(value)
+            _reverse_display(value)
             return
         if isinstance(value, (dict, list, tuple)):
             try:
                 bundle = {"application/json": value, "text/plain": repr(value)}
-                _omp_display(bundle, raw=True)
+                _reverse_display(bundle, raw=True)
                 return
             except Exception:
                 pass
-        _omp_display(value)
+        _reverse_display(value)
 
     def _emit_status(op: str, **data):
         """Emit structured status event for TUI rendering."""
-        _omp_display({"application/x-omp-status": {"op": op, **data}}, raw=True)
+        _reverse_display({"application/x-reverse-status": {"op": op, **data}}, raw=True)
 
     def env(key: str | None = None, value: str | None = None):
         """Get/set environment variables."""
@@ -58,11 +58,11 @@ if "__omp_prelude_loaded__" not in globals():
         _emit_status("env", key=key, value=val, action="get")
         return val
 
-    _OMP_INTERNAL_URL_RE = re.compile(r"^([a-z][a-z0-9+.-]*)://(.*)$", re.IGNORECASE)
-    _OMP_ARTIFACT_ID_RE = re.compile(r"^\d+$")
-    _OMP_BARE_ARTIFACT_RE = re.compile(r"^artifact://\d+$", re.IGNORECASE)
+    _REVERSE_INTERNAL_URL_RE = re.compile(r"^([a-z][a-z0-9+.-]*)://(.*)$", re.IGNORECASE)
+    _REVERSE_ARTIFACT_ID_RE = re.compile(r"^\d+$")
+    _REVERSE_BARE_ARTIFACT_RE = re.compile(r"^artifact://\d+$", re.IGNORECASE)
 
-    def _omp_url_roots() -> dict:
+    def _reverse_url_roots() -> dict:
         """On-disk roots for internal-URL schemes, keyed by scheme (REVERSE_EVAL_LOCAL_ROOTS)."""
         try:
             roots = json.loads(os.environ.get("REVERSE_EVAL_LOCAL_ROOTS") or "{}")
@@ -77,13 +77,13 @@ if "__omp_prelude_loaded__" not in globals():
         (`artifact://3:raw:5-9`) stay with the read tool, which parses them."""
         if not isinstance(path, str):
             return False
-        match = _OMP_INTERNAL_URL_RE.match(path)
+        match = _REVERSE_INTERNAL_URL_RE.match(path)
         if match is None:
             return False
         scheme = match.group(1).lower()
-        if scheme not in _omp_url_roots():
+        if scheme not in _reverse_url_roots():
             return True
-        return scheme == "artifact" and not _OMP_ARTIFACT_ID_RE.match(match.group(2))
+        return scheme == "artifact" and not _REVERSE_ARTIFACT_ID_RE.match(match.group(2))
 
     def _read_line_selector(offset: int, limit: int | None) -> str | None:
         if offset <= 1 and limit is None:
@@ -102,7 +102,7 @@ if "__omp_prelude_loaded__" not in globals():
     def _artifact_file(path: str) -> Path | None:
         """This session's file for `artifact://<id>` (`<id>.<tool>.log` in its
         artifacts dir), or None when the id is not there or no dir is known."""
-        root = _omp_url_roots().get("artifact")
+        root = _reverse_url_roots().get("artifact")
         if not root:
             return None
         artifact_id = path[11:]
@@ -121,7 +121,7 @@ if "__omp_prelude_loaded__" not in globals():
         selector = _read_line_selector(offset, limit)
         return _read_tool_text(path if selector is None else f"{path}:{selector}")
 
-    def _resolve_omp_path(path: str | Path) -> Path:
+    def _resolve_reverse_path(path: str | Path) -> Path:
         """Map a helper path to a real filesystem Path.
 
         A `scheme://…` whose scheme has an injected on-disk root (via
@@ -132,11 +132,11 @@ if "__omp_prelude_loaded__" not in globals():
         `artifact://`, whose root is a lookup dir for reads, not a path prefix."""
         if not isinstance(path, str):
             return Path(path)
-        match = _OMP_INTERNAL_URL_RE.match(path)
+        match = _REVERSE_INTERNAL_URL_RE.match(path)
         if not match:
             return Path(path)
         scheme = match.group(1).lower()
-        root = _omp_url_roots().get(scheme)
+        root = _reverse_url_roots().get(scheme)
         if not root or scheme == "artifact":
             raise ValueError(f"Protocol paths are not supported by this helper: {path}")
         relative = unquote(match.group(2).replace("\\", "/"))
@@ -156,7 +156,7 @@ if "__omp_prelude_loaded__" not in globals():
 
     def read(path: str | Path, offset: int = 1, limit: int | None = None) -> str:
         """Read file or read-tool URI contents. offset/limit are 1-indexed lines."""
-        if isinstance(path, str) and _OMP_BARE_ARTIFACT_RE.match(path):
+        if isinstance(path, str) and _REVERSE_BARE_ARTIFACT_RE.match(path):
             if limit is not None and limit <= 0:
                 return ""
             p = _artifact_file(path)
@@ -174,7 +174,7 @@ if "__omp_prelude_loaded__" not in globals():
         elif _should_delegate_read(path):
             return _read_through_tool(path, offset, limit)
         else:
-            p = _resolve_omp_path(path)
+            p = _resolve_reverse_path(path)
         data = p.read_text(encoding="utf-8")
         lines = data.splitlines(keepends=True)
         if offset > 1 or limit is not None:
@@ -188,7 +188,7 @@ if "__omp_prelude_loaded__" not in globals():
 
     def write(path: str | Path, content: str) -> Path:
         """Write file contents (create parents)."""
-        p = _resolve_omp_path(path)
+        p = _resolve_reverse_path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
         _emit_status("write", path=str(p), chars=len(content))
@@ -433,18 +433,18 @@ if "__omp_prelude_loaded__" not in globals():
     # host-owned loopback endpoint must always connect directly.
     _BRIDGE_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
-    _OMP_CALL_IDENTITY = contextvars.ContextVar("omp_call_identity", default=None)
-    _OMP_CALL_OCCURRENCES = contextvars.ContextVar("omp_call_occurrences", default=None)
+    _REVERSE_CALL_IDENTITY = contextvars.ContextVar("reverse_call_identity", default=None)
+    _REVERSE_CALL_OCCURRENCES = contextvars.ContextVar("reverse_call_occurrences", default=None)
 
-    def __omp_reset_call_occurrences__():
-        _OMP_CALL_OCCURRENCES.set(None)
+    def __reverse_reset_call_occurrences__():
+        _REVERSE_CALL_OCCURRENCES.set(None)
 
-    async def __omp_with_call_site__(site_id: str, action, args):
-        occurrences = dict(_OMP_CALL_OCCURRENCES.get() or {})
+    async def __reverse_with_call_site__(site_id: str, action, args):
+        occurrences = dict(_REVERSE_CALL_OCCURRENCES.get() or {})
         occurrence = occurrences.get(site_id, 0)
         occurrences[site_id] = occurrence + 1
-        _OMP_CALL_OCCURRENCES.set(occurrences)
-        token = _OMP_CALL_IDENTITY.set(
+        _REVERSE_CALL_OCCURRENCES.set(occurrences)
+        token = _REVERSE_CALL_IDENTITY.set(
             {"siteId": site_id, "occurrence": occurrence}
         )
         try:
@@ -458,16 +458,16 @@ if "__omp_prelude_loaded__" not in globals():
                 return await result
             return result
         finally:
-            _OMP_CALL_IDENTITY.reset(token)
+            _REVERSE_CALL_IDENTITY.reset(token)
 
     def _bridge_call(name: str, args: dict):
         """POST one request to the host tool bridge and return its `value`."""
         base, token, session = _tool_proxy_from_env()
-        _run_id_getter = globals().get("__omp_current_run_id__")
+        _run_id_getter = globals().get("__reverse_current_run_id__")
         _run_id = (
             _run_id_getter()
             if callable(_run_id_getter)
-            else globals().get("__omp_run_id__")
+            else globals().get("__reverse_run_id__")
         )
         payload = {
             "session": session,
@@ -475,7 +475,7 @@ if "__omp_prelude_loaded__" not in globals():
             "name": name,
             "args": args,
         }
-        identity = _OMP_CALL_IDENTITY.get()
+        identity = _REVERSE_CALL_IDENTITY.get()
         if identity is not None:
             payload["identity"] = identity
         payload = json.dumps(payload).encode("utf-8")
@@ -519,7 +519,7 @@ if "__omp_prelude_loaded__" not in globals():
             mime_type = image.get("mimeType")
             if not isinstance(data, str) or not isinstance(mime_type, str):
                 continue
-            _omp_display({"application/x-omp-image": image}, raw=True)
+            _reverse_display({"application/x-reverse-image": image}, raw=True)
             displayed += 1
         if displayed == 0:
             return value
@@ -528,7 +528,7 @@ if "__omp_prelude_loaded__" not in globals():
         surfaced["images"] = f"({displayed} image{suffix} displayed)"
         return surfaced
 
-    async def _omp_prelude(name: str, parameters):
+    async def _reverse_prelude(name: str, parameters):
         """Invoke one enabled eval prelude capability through the host bridge."""
         value = await asyncio.to_thread(
             _bridge_call,
@@ -672,8 +672,8 @@ if "__omp_prelude_loaded__" not in globals():
                 "parameters": self.parameters,
             }
 
-    __omp_tools__: dict[str, _EvalTool] = {}
-    globals()["__omp_tools__"] = __omp_tools__
+    __reverse_tools__: dict[str, _EvalTool] = {}
+    globals()["__reverse_tools__"] = __reverse_tools__
     _TOOL_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 
     class _ToolProxy:
@@ -686,7 +686,7 @@ if "__omp_prelude_loaded__" not in globals():
         # speculative reads only when the binding carries this marker.
         # (`__slots__` is empty, so this lives on the class, not the
         # instance; accidental user collision is out of threat model.)
-        __omp_tool_bridge__ = True
+        __reverse_tool_bridge__ = True
 
         __slots__ = ()
 
@@ -708,7 +708,7 @@ if "__omp_prelude_loaded__" not in globals():
                 if isinstance(description, str) and description
                 else inspect.getdoc(fn) or f"Python tool {resolved_name}"
             )
-            __omp_tools__[resolved_name] = _EvalTool(
+            __reverse_tools__[resolved_name] = _EvalTool(
                 resolved_name,
                 fn,
                 resolved_description,
@@ -722,10 +722,10 @@ if "__omp_prelude_loaded__" not in globals():
             return fn
 
         def defined(self) -> list[str]:
-            return list(__omp_tools__)
+            return list(__reverse_tools__)
 
         def undefine(self, name) -> bool:
-            return __omp_tools__.pop(name, None) is not None
+            return __reverse_tools__.pop(name, None) is not None
 
         def __getattr__(self, name: str) -> _ToolCallable:
             if name.startswith("_"):
@@ -1154,7 +1154,7 @@ if "__omp_prelude_loaded__" not in globals():
 
     def phase(title):
         """Record the current readable phase and emit a status ``phase`` event."""
-        globals()["__omp_current_phase__"] = str(title)
+        globals()["__reverse_current_phase__"] = str(title)
         _emit_status("phase", title=str(title))
         return None
 

@@ -1,6 +1,6 @@
 /**
  * Tests for `AuthStorage.health.check()` — the per-credential auth probe
- * that powers `omp auth-gateway check`. Contract under test:
+ * that powers `reverse auth-gateway check`. Contract under test:
  *
  *   1. A working credential reports `ok: true` and surfaces the probe's
  *      `email`/`accountId` (so the user can identify the row).

@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { isEnoent, logger, slugify } from "@reverse/utils";
 import { YAML } from "bun";
 import { expandAtImports } from "../discovery/at-imports";

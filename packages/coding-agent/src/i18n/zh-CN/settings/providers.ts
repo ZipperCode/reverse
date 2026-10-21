@@ -4,7 +4,7 @@ export const providersSettingsZhCN: Record<string, SettingTranslation> = {
 	"providers.maxInFlightRequests": {
 		label: "最大并发请求数",
 		description:
-			'每个提供商 ID（例如 "openai" 或 "anthropic"）的最大并发 LLM 请求数，在同一配置根下的本地 OMP 进程间共享。省略的提供商表示不限制。',
+			'每个提供商 ID（例如 "openai" 或 "anthropic"）的最大并发 LLM 请求数，在同一配置根下的本地 REVERSE 进程间共享。省略的提供商表示不限制。',
 	},
 	"providers.ollama-cloud.maxConcurrency": {
 		label: "Ollama Cloud 最大并发",
@@ -286,7 +286,7 @@ export const providersSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"tts.localSpeed": {
 		label: "本地 TTS 速度",
-		description: "本地 TTS 后端的语速（tts 工具、omp say）。1 = 正常；限制在 0.5–2.5",
+		description: "本地 TTS 后端的语速（tts 工具、reverse say）。1 = 正常；限制在 0.5–2.5",
 		options: {
 			"0.5": { label: "0.5×" },
 			"0.75": { label: "0.75×" },
@@ -365,6 +365,6 @@ export const providersSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"telemetry.otlpExportEnabled": {
 		label: "OTLP 遥测导出",
-		description: "允许 OMP 使用 OTEL_* 端点导出追踪、日志和指标。更改在下次启动时生效。",
+		description: "允许 REVERSE 使用 OTEL_* 端点导出追踪、日志和指标。更改在下次启动时生效。",
 	},
 };

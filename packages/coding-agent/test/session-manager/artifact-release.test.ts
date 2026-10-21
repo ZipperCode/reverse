@@ -16,7 +16,7 @@ describe("SessionManager artifact terminal release", () => {
 	const managers: SessionManager[] = [];
 
 	beforeEach(() => {
-		tempDir = TempDir.createSync("@omp-artifact-release-");
+		tempDir = TempDir.createSync("@reverse-artifact-release-");
 	});
 
 	afterEach(async () => {

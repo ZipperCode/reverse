@@ -124,7 +124,7 @@ describe("skill command rejection of removed actions", () => {
 	});
 
 	test("skill list --json discovers local skills from fixture directory", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rva-skill-list-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-skill-list-"));
 		try {
 			const skillDir = path.join(tempDir, ".reverse", "skills", "fixture-tool");
 			await fs.mkdir(skillDir, { recursive: true });

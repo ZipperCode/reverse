@@ -13,7 +13,7 @@ afterEach(async () => {
 // key and assigns them back. Under Bun that also unloaded the host's ES modules,
 // so the next host import evaluated a second, uninitialized settings singleton.
 it("keeps host modules loaded when extension CommonJS clears and restores require.cache", async () => {
-	const dir = TempDir.createSync("@omp-require-cache-clear-");
+	const dir = TempDir.createSync("@reverse-require-cache-clear-");
 	tempDirs.push(dir);
 	await Bun.write(dir.join("package.json"), JSON.stringify({ name: "cache-clearing-extension", version: "1.0.0" }));
 	await Bun.write(

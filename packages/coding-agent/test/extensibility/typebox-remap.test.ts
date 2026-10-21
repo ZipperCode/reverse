@@ -12,7 +12,7 @@ import { removeWithRetries } from "@reverse/utils";
 
 // The remap installs a Bun.plugin onResolve hook plus an explicit
 // rewrite branch inside `rewriteBareImportsForLegacyExtension` that
-// redirects bare `@sinclair/typebox` specifiers to the omptype-backed
+// redirects bare `@sinclair/typebox` specifiers to the reversetype-backed
 // compatibility surface. Extensions should keep working unchanged without
 // `@sinclair/typebox` ever needing to be installed.
 installLegacyPiSpecifierShim();
@@ -26,7 +26,7 @@ afterAll(async () => {
 });
 
 async function writeFixtureExtension(source: string): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-typebox-remap-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-typebox-remap-"));
 	tempRoots.push(dir);
 	const entry = path.join(dir, "index.ts");
 	await fs.writeFile(entry, source, "utf8");
@@ -68,9 +68,9 @@ describe("legacy-pi TypeBox remap", () => {
 		};
 
 		expect(loaded.probe).toBe(TypeBoxShimType);
-		// `Type.Unsafe` is now a first-class omptype schema (so `Type.Optional`/
+		// `Type.Unsafe` is now a first-class reversetype schema (so `Type.Optional`/
 		// `Type.Object` can compose it), so a top-level Unsafe tool param takes the
-		// omptype wire path and is closed like every other tool param. Compare the
+		// reversetype wire path and is closed like every other tool param. Compare the
 		// JSON-serialized wire — internal memoization stamps are non-serialized.
 		const wire = toolWireSchema({ name: "fixture", description: "", parameters: loaded.schema });
 		expect(JSON.parse(JSON.stringify(wire))).toEqual({

@@ -12,7 +12,7 @@ export interface BunCliResult {
  *
  * Re-enters the running executable with `BUN_BE_BUN=1` instead of resolving
  * `bun` from `$PATH`: source and bundle installs already run under Bun, and the
- * standalone `omp` binary embeds Bun, so plugin installs never require a
+ * standalone `reverse` binary embeds Bun, so plugin installs never require a
  * separately installed Bun (#15480). Same mechanism as
  * `eval/js/package-installer.ts` and `@reverse/utils` runtime installs.
  */

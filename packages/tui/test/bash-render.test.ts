@@ -155,7 +155,7 @@ describe("bashToolRenderer", () => {
 			const output = (view.body ?? [])
 				.flatMap(node => ("k" in node ? (node.c ?? []) : []))
 				.find(node => "k" in node && node.k === "ansi");
-			expect(output).toMatchObject({ p: { role: "omp.tool.bash.output", text: "Wall time: 0.02 seconds" } });
+			expect(output).toMatchObject({ p: { role: "reverse.tool.bash.output", text: "Wall time: 0.02 seconds" } });
 		}
 	});
 

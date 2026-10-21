@@ -84,7 +84,7 @@ describe("dialogs under a native surface", () => {
 		const viaPointer = vi.fn();
 		const pointed = ask(viaPointer);
 		const press = (act: string) => {
-			const button = find(pointed.describe(CX), node => node.p?.role === "omp.btn" && node.key === act);
+			const button = find(pointed.describe(CX), node => node.p?.role === "reverse.btn" && node.key === act);
 			if (!button) throw new Error(`no ${act} button`);
 			pointed.handleNativeEvent({ type: "action", key: button.path, act, mods: [] });
 		};
@@ -106,7 +106,7 @@ describe("dialogs under a native surface", () => {
 		const dialog = ask(onSubmit);
 		const tabs = find(dialog.describe(CX), node => node.k === "tabs");
 		dialog.handleNativeEvent({ type: "select", key: tabs!.path, item: "1" });
-		const options = find(dialog.describe(CX), node => node.p?.role === "omp.ask.options");
+		const options = find(dialog.describe(CX), node => node.p?.role === "reverse.ask.options");
 		expect(options?.node.key).toBe("q1");
 		dialog.handleNativeEvent({ type: "activate", key: options!.path, item: "option:0" });
 		dialog.handleNativeEvent({ type: "action", key: "x", act: "submit", mods: [] });
@@ -130,9 +130,9 @@ describe("dialogs under a native surface", () => {
 			expect(harness.errors).toEqual([]);
 			expect(harness.region("layer")?.c ?? []).toEqual([]);
 			const dock = harness.region("dock")!;
-			// Framed as the prompt composer (an `omp.editor.*` root role), so Tern draws the composer's shell.
-			const root = dock.c?.find(node => node.p?.role === "omp.editor.ask");
-			expect(root?.c?.some(node => node.p?.role === "omp.ask.options")).toBe(true);
+			// Framed as the prompt composer (an `reverse.editor.*` root role), so Tern draws the composer's shell.
+			const root = dock.c?.find(node => node.p?.role === "reverse.editor.ask");
+			expect(root?.c?.some(node => node.p?.role === "reverse.ask.options")).toBe(true);
 			expect(harness.findAll(node => node.k === "overlay")).toEqual([]);
 		} finally {
 			harness.stop();
@@ -174,9 +174,9 @@ describe("dialogs under a native surface", () => {
 		const onSubmit = vi.fn();
 		const onCancel = vi.fn();
 		const dialog = ask(onSubmit, onCancel);
-		const options = () => find(dialog.describe(CX), node => node.p?.role === "omp.ask.options");
+		const options = () => find(dialog.describe(CX), node => node.p?.role === "reverse.ask.options");
 		const press = (act: string) => {
-			const button = find(dialog.describe(CX), node => node.p?.role === "omp.btn" && node.key === act);
+			const button = find(dialog.describe(CX), node => node.p?.role === "reverse.btn" && node.key === act);
 			if (!button) throw new Error(`no ${act} button`);
 			dialog.handleNativeEvent({ type: "action", key: button.path, act, mods: [] });
 		};
@@ -258,7 +258,7 @@ describe("dialogs under a native surface", () => {
 			expect(denied.onDeny).toHaveBeenCalledTimes(1);
 			const pointed = { onApprove: vi.fn(), onDeny: vi.fn() };
 			const clicked = new ApprovalDialogComponent(prompt, pointed);
-			const approve = find(clicked.describe(), node => node.p?.role === "omp.btn" && node.key === "approve");
+			const approve = find(clicked.describe(), node => node.p?.role === "reverse.btn" && node.key === "approve");
 			clicked.handleNativeEvent({ type: "action", key: approve!.path, act: "approve", mods: [] });
 			expect(pointed.onApprove).toHaveBeenCalledTimes(1);
 		} finally {
@@ -344,7 +344,7 @@ describe("dialogs under a native surface", () => {
 			vi.advanceTimersByTime(900);
 			expect(dialog.toggleDetails()).toBe(true);
 			vi.advanceTimersByTime(900);
-			const expand = find(dialog.describe(), node => node.p?.role === "omp.btn" && node.key === "expand");
+			const expand = find(dialog.describe(), node => node.p?.role === "reverse.btn" && node.key === "expand");
 			dialog.handleNativeEvent({ type: "action", key: expand!.path, act: "expand", mods: [] });
 			vi.advanceTimersByTime(900);
 			expect(onTimeoutReset).toHaveBeenCalledTimes(2);
@@ -388,9 +388,9 @@ describe("dialogs under a native surface", () => {
 		expect(routed).toEqual([]);
 		expect(body()).toContain("rm-rf~");
 		expect(body()).toContain("secondline");
-		const row = find(dialog.describe(), node => node.p?.role === "omp.approval.details")?.node.c?.[0];
+		const row = find(dialog.describe(), node => node.p?.role === "reverse.approval.details")?.node.c?.[0];
 		expect((row as NativeNode).p).not.toHaveProperty("truncate");
-		const expand = find(dialog.describe(), node => node.p?.role === "omp.btn" && node.key === "expand");
+		const expand = find(dialog.describe(), node => node.p?.role === "reverse.btn" && node.key === "expand");
 		dialog.handleNativeEvent({ type: "action", key: expand!.path, act: "expand", mods: [] });
 		expect(body()).not.toContain("rm-rf~");
 		// Without a full prompt there is nothing to expand, so no Details button.
@@ -418,8 +418,8 @@ describe("dialogs under a native surface", () => {
 		});
 		try {
 			expect(harness.errors).toEqual([]);
-			const root = harness.region("dock")!.c?.find(node => node.p?.role === "omp.editor.ask.approval");
-			const details = root?.c?.find(node => node.p?.role === "omp.approval.details");
+			const root = harness.region("dock")!.c?.find(node => node.p?.role === "reverse.editor.ask.approval");
+			const details = root?.c?.find(node => node.p?.role === "reverse.approval.details");
 			expect(details?.c?.map(node => node.p)).toEqual([
 				expect.objectContaining({ text: "Path: /tmp/out.txt", truncate: "end" }),
 			]);
@@ -446,7 +446,7 @@ describe("dialogs under a native surface", () => {
 		);
 		expect(pointed.nativeOverlay.head).toBe("Ship credits");
 		const body = pointed.describe();
-		expect(JSON.stringify(find(body, node => node.p?.role === "omp.plan.body")?.node)).not.toContain(
+		expect(JSON.stringify(find(body, node => node.p?.role === "reverse.plan.body")?.node)).not.toContain(
 			"# Ship credits",
 		);
 		pointed.handleNativeEvent({ type: "action", key: "tools/copyPlan", act: "copyPlan", mods: [] });
@@ -494,7 +494,7 @@ describe("dialogs under a native surface", () => {
 		dialog.showAuth("https://auth.example.com/authorize?x=1", "Enter code: ABCD-1234");
 		const waiting = dialog.describe();
 		// The device code copies itself; with nothing to answer, opening the page is the primary action.
-		expect(find(waiting, node => node.p?.role === "omp.login.code")?.node.p).toMatchObject({
+		expect(find(waiting, node => node.p?.role === "reverse.login.code")?.node.p).toMatchObject({
 			actions: { click: "copy" },
 			href: "ABCD-1234",
 		});

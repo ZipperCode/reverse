@@ -5,7 +5,7 @@
  * providers with provider-specific parameters exposed conditionally.
  */
 
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 import type { Api, AuthStorage, Model } from "@reverse/ai";
 import { modelKind } from "@reverse/catalog/types";
@@ -341,7 +341,7 @@ async function executeSearch(
  * Execute a web search query for CLI/testing workflows.
  *
  * `authStorage` may be omitted; in that case we discover one via the standard
- * factory (`discoverAuthStorage`), which honours `OMP_AUTH_BROKER_URL` and
+ * factory (`discoverAuthStorage`), which honours `REVERSE_AUTH_BROKER_URL` and
  * otherwise opens the local SQLite credential store.
  */
 export async function runSearchQuery(

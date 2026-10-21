@@ -1,6 +1,6 @@
 import type { Stats } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { prompt } from "@reverse/utils";

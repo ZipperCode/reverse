@@ -320,7 +320,7 @@ describe("MarketplacePluginDetailComponent", () => {
 
 	it("renders and updates settings from the marketplace runtime package", async () => {
 		const manager = new PluginManager(process.cwd());
-		const runtimePlugin = npm("omp-commit", {
+		const runtimePlugin = npm("reverse-commit", {
 			manifest: {
 				version: "1.0.0",
 				settings: {
@@ -335,7 +335,7 @@ describe("MarketplacePluginDetailComponent", () => {
 		spyOn(manager, "getPluginSettings").mockResolvedValue({});
 		const changes: Array<[string, string, unknown]> = [];
 		let renderRequests = 0;
-		const component = new MarketplacePluginDetailComponent(marketplace("omp-commit@market"), manager, {
+		const component = new MarketplacePluginDetailComponent(marketplace("reverse-commit@market"), manager, {
 			parsePluginId,
 			onEnabledChange: () => {},
 			onConfigChange: (pluginName, key, value) => changes.push([pluginName, key, value]),
@@ -349,12 +349,12 @@ describe("MarketplacePluginDetailComponent", () => {
 		component.handleInput("\x1b[B");
 		component.handleInput(" ");
 
-		expect(changes).toEqual([["omp-commit", "mainBranchProtection", false]]);
+		expect(changes).toEqual([["reverse-commit", "mainBranchProtection", false]]);
 	});
 
 	it("shortens home-relative install paths to ~ before rendering", async () => {
 		const home = os.homedir();
-		const installPath = `${home}/.omp/cache/plugins/sample@mkt`;
+		const installPath = `${home}/.reverse/cache/plugins/sample@mkt`;
 		const plugin = marketplace("sample@mkt", { entry: { installPath } });
 		const manager = new PluginManager(process.cwd());
 		spyOn(manager, "getPlugin").mockResolvedValue(undefined);
@@ -366,7 +366,7 @@ describe("MarketplacePluginDetailComponent", () => {
 			onBack: () => {},
 		});
 
-		const text = await renderMarketplaceDetail(component, "~/.omp/cache/plugins/sample@mkt");
+		const text = await renderMarketplaceDetail(component, "~/.reverse/cache/plugins/sample@mkt");
 		expect(text).not.toContain(home);
 	});
 });

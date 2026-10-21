@@ -9,7 +9,7 @@ describe("session-pins", () => {
 	let tempDir: string;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-session-pins-test-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-session-pins-test-"));
 	});
 
 	afterEach(async () => {
@@ -117,7 +117,7 @@ describe("session-pins", () => {
 
 	it("keeps every pin when many toggles race concurrently", async () => {
 		// Regression: toggleSessionPin used to load-modify-write without a lock,
-		// so overlapping toggles from multiple omp instances (CLI picker,
+		// so overlapping toggles from multiple reverse instances (CLI picker,
 		// interactive mode, collab guest) interleaved load-load-write-write and
 		// silently dropped each other's pins.
 		const ids = Array.from({ length: 24 }, (_, i) => `session-race-${i}`);

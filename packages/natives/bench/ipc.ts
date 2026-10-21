@@ -209,7 +209,7 @@ const cases: { name: string; run: (pair: Pair) => Promise<Sample>; echo: boolean
 	},
 ];
 
-const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-ipc-bench-"));
+const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-ipc-bench-"));
 try {
 	const transports = [
 		["native", nativePair],

@@ -136,7 +136,7 @@ describe("mergeDiscoveredModel", () => {
 	});
 
 	test("raw provider `!command` headers win over the discovery snapshot and re-resolve on rotation (#10458)", async () => {
-		const tokenFile = path.join(os.tmpdir(), `omp-rot-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
+		const tokenFile = path.join(os.tmpdir(), `reverse-rot-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
 		// Cross-platform + space-safe: re-invoke the running Bun to print the
 		// token file's contents. All paths are JSON-quoted so a temp dir with
 		// spaces survives both `/bin/sh -c` and `cmd.exe /c`, and the eval body
@@ -170,7 +170,7 @@ describe("mergeDiscoveredModel", () => {
 	});
 
 	test("authHeader+apiKey provider (no explicit headers) re-derives Authorization live on rotation (#10551)", async () => {
-		const tokenFile = path.join(os.tmpdir(), `omp-ah-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
+		const tokenFile = path.join(os.tmpdir(), `reverse-ah-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
 		const readScript = "process.stdout.write(await Bun.file(Bun.argv[1]).text())";
 		const apiKey = `!${JSON.stringify(process.execPath)} -e "${readScript}" ${JSON.stringify(tokenFile)}`;
 		await Bun.write(tokenFile, "token-A");

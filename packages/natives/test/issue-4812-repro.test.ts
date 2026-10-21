@@ -1,7 +1,7 @@
 /**
  * Repro for https://github.com/can1357/oh-my-pi/issues/4812
  *
- * A long-lived omp session that survives an in-place `bun install -g` upgrade
+ * A long-lived reverse session that survives an in-place `bun install -g` upgrade
  * keeps the previous pi-natives NAPI addon resident in the process. A tab
  * the new release (e.g. `16.3.11`), but `require` returns the resident old
  * exports reporting the PRIOR release (`16.3.10`) — via
@@ -56,7 +56,7 @@ describe("issue 4812: pi-natives release process-stale diagnosis", () => {
 		for (const resident of [reporting("16.3.10"), { __piNativesV16_3_10: () => {}, grep: () => {} }]) {
 			await withCandidate(stamped("16.3.11"), candidate => {
 				expect(() => validateLoadedBindings(ctx, resident, candidate)).toThrow("16.3.10");
-				expect(() => validateLoadedBindings(ctx, resident, candidate)).toThrow(/restart (?:rva|omp)/);
+				expect(() => validateLoadedBindings(ctx, resident, candidate)).toThrow(/restart reverse/);
 				expect(() => validateLoadedBindings(ctx, resident, candidate)).toThrow("Disk is already consistent");
 				expect(() => validateLoadedBindings(ctx, resident, candidate)).not.toThrow("reinstall to re-sync");
 			});
@@ -71,7 +71,7 @@ describe("issue 4812: pi-natives release process-stale diagnosis", () => {
 				"from a different release than this loader",
 			);
 			expect(() => validateLoadedBindings(ctx, stale, candidate)).toThrow("reinstall to re-sync");
-			expect(() => validateLoadedBindings(ctx, stale, candidate)).not.toThrow("restart omp");
+			expect(() => validateLoadedBindings(ctx, stale, candidate)).not.toThrow("restart reverse");
 		});
 	});
 

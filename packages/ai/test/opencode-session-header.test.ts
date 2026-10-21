@@ -223,7 +223,7 @@ describe("opencode and gpt session header on OpenAI transports", () => {
 		expect(conversation.headers["x-litellm-session-id"]).toBe("conversation");
 	});
 
-	it("applies omp's common User-Agent as the global inference default", async () => {
+	it("applies reverse's common User-Agent as the global inference default", async () => {
 		const userAgents: Array<string | null> = [];
 		const fetchMock = async (_input: string | URL | Request, init?: RequestInit) => {
 			userAgents.push(new Headers(init?.headers).get("User-Agent"));

@@ -41,7 +41,7 @@ async function appendTurn(sessionFile: string, text: string): Promise<void> {
 	await session.close();
 }
 
-describe("omp session unpack against a local copy", () => {
+describe("reverse session unpack against a local copy", () => {
 	let root: string;
 	let laptopAgent: string;
 	let cloudAgent: string;
@@ -50,7 +50,7 @@ describe("omp session unpack against a local copy", () => {
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 
 	beforeEach(async () => {
-		root = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-transfer-copy-"));
+		root = await fsp.mkdtemp(path.join(os.tmpdir(), "reverse-session-transfer-copy-"));
 		laptopAgent = path.join(root, "laptop-agent");
 		cloudAgent = path.join(root, "cloud-agent");
 		laptopCwd = path.join(root, "laptop", "project");

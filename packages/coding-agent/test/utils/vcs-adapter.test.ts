@@ -8,7 +8,7 @@ import { $ } from "bun";
 const repos: string[] = [];
 
 async function createRepo(): Promise<string> {
-	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "omp-git-vcs-adapter-"));
+	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-git-vcs-adapter-"));
 	repos.push(repo);
 	await $`git init --initial-branch=main`.cwd(repo).quiet();
 	await $`git config user.name "Test User"`.cwd(repo).quiet();

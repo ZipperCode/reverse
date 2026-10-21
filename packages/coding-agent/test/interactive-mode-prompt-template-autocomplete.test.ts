@@ -1,5 +1,5 @@
 /**
- * Issue #2462: prompt templates discovered from `cwd/.omp/prompts/` were never
+ * Issue #2462: prompt templates discovered from `cwd/.reverse/prompts/` were never
  * surfaced in the slash-command autocomplete picker. The runtime expansion in
  * `AgentSession.prompt()` worked, but `InteractiveMode.refreshSlashCommandState`
  * never passed `session.promptTemplates` into the autocomplete provider.
@@ -8,7 +8,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import { type Api, Effort, type Model } from "@reverse/ai";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";

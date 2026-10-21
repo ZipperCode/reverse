@@ -42,7 +42,7 @@ import { Memo } from "../native/memo";
 // `cursorIsAtPrompt()` permanently true and tags every subsequently painted
 // cell as `.input`. Combined with `cursor-click-to-move = true` (Ghostty's
 // default) that turns every left-click inside the pane into a burst of
-// synthesized arrow keys on omp's pty, slamming the editor caret to column 0
+// synthesized arrow keys on reverse's pty, slamming the editor caret to column 0
 // (#8030, #6115).
 //
 // `133;C` is therefore emitted immediately followed by `133;D;0` at the end of
@@ -218,7 +218,7 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 					"icon",
 					{
 						name: "copy",
-						role: "omp.user.tool",
+						role: "reverse.user.tool",
 						title: "Copy message",
 						aria: "Copy message",
 						actions: { click: "copy-message" },
@@ -230,7 +230,7 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 					"icon",
 					{
 						name: "rewind",
-						role: "omp.user.tool",
+						role: "reverse.user.tool",
 						title: "Rewind the conversation to an earlier message",
 						aria: "Rewind",
 						actions: { click: "rewind" },
@@ -244,12 +244,12 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 				tools.push(
 					node("text", { text: "·" }, undefined, "dot"),
 					text([span(at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12 }), "dim mono")], {
-						role: "omp.user.time",
+						role: "reverse.user.time",
 						title: at.toLocaleString([], { hour12 }),
 					}),
 				);
 			}
-			children.push(node("row", { gap: "xs", align: "center", role: "omp.user.tools" }, tools, "tools"));
+			children.push(node("row", { gap: "xs", align: "center", role: "reverse.user.tools" }, tools, "tools"));
 		}
 		// Videos keep their chip only: the native image node decodes stills.
 		const thumbs: NativeNode[] = [];
@@ -262,7 +262,7 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 			});
 		}
 		if (thumbs.length > 0) {
-			children.push(row(thumbs, { gap: "sm", wrap: true, align: "start", role: "omp.user.images" }));
+			children.push(row(thumbs, { gap: "sm", wrap: true, align: "start", role: "reverse.user.images" }));
 		}
 		const marks = this.#synthetic ? [] : tokenMarks(this.#text, this.#tokens, this.#imageLinks);
 		children.push(md(this.#text, marks.length > 0 ? { marks } : undefined));
@@ -276,17 +276,20 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 				}),
 			);
 		}
-		if (this.#reaction !== undefined) badges.push(node("badge", { text: this.#reaction, role: "omp.reaction" }));
+		if (this.#reaction !== undefined) badges.push(node("badge", { text: this.#reaction, role: "reverse.reaction" }));
 		if (badges.length > 0)
-			children.push(node("row", { gap: "xs", justify: "end", role: "omp.user.badges" }, badges, "badges"));
+			children.push(node("row", { gap: "xs", justify: "end", role: "reverse.user.badges" }, badges, "badges"));
 		this.#native = card(
-			{ role: this.#synthetic ? "omp.user.synthetic" : "omp.user", tone: this.#synthetic ? "muted" : "user" },
+			{
+				role: this.#synthetic ? "reverse.user.synthetic" : "reverse.user",
+				tone: this.#synthetic ? "muted" : "user",
+			},
 			children,
 		);
 		return this.#native;
 	}
 
-	/** Hover toolbar clicks: omp's own copy and rewind commands. */
+	/** Hover toolbar clicks: reverse's own copy and rewind commands. */
 	handleNativeEvent(event: NativeUiEvent): void {
 		if (event.type !== "action") return;
 		if (event.act === "copy-message") runTranscriptAction({ act: "copy", text: this.#text });
@@ -468,7 +471,7 @@ export class CollapsedSyntheticMessageComponent implements Component {
 		return this.#native.get([this.#expanded], () =>
 			card(
 				{
-					role: "omp.user.synthetic",
+					role: "reverse.user.synthetic",
 					tone: "muted",
 					head: [span(summarizeSyntheticInput(this.#text), "dim")],
 					collapsible: true,

@@ -416,7 +416,7 @@ function writeIfChangedSync(file: string, content: string): void {
  * absolute path. Best-effort — a failure here must never break session
  * creation.
  *
- * `sessionFile` may be relative (e.g. `--session .omp-sessions/work`); it is
+ * `sessionFile` may be relative (e.g. `--session .reverse-sessions/work`); it is
  * resolved against the recorded `cwd`, matching how the breadcrumb stores it.
  */
 function recordCustomSessionFile(cwd: string, sessionFile: string, scope: CustomSessionFileScope | undefined): void {

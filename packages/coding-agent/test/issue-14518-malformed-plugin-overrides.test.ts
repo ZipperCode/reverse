@@ -41,10 +41,10 @@ async function plantRoot(prefix: string): Promise<{ home: string; cwd: string; p
 	await writeJson(path.join(declaredDir, "package.json"), {
 		name: "declared-plugin",
 		version: "1.0.0",
-		omp: { extensions: ["ext.ts"] },
+		reverse: { extensions: ["ext.ts"] },
 	});
 	await writeJson(path.join(pluginsDir, "package.json"), { dependencies: { "declared-plugin": "1.0.0" } });
-	await writeJson(path.join(pluginsDir, "omp-plugins.lock.json"), {
+	await writeJson(path.join(pluginsDir, "reverse-plugins.lock.json"), {
 		plugins: { "declared-plugin": { version: "1.0.0", enabled: true, enabledFeatures: null } },
 		settings: {},
 	});
@@ -71,7 +71,7 @@ function overridesWarning(warn: {
 }
 
 test("a malformed project plugin-overrides.json is diagnosed instead of silently vanishing", async () => {
-	const { home, cwd } = await plantRoot("omp-plugin-overrides-malformed-");
+	const { home, cwd } = await plantRoot("reverse-plugin-overrides-malformed-");
 	const overridesPath = await writeOverrides(cwd, "{ not valid json");
 
 	const warn = spyOn(logger, "warn").mockImplementation(() => {});
@@ -91,11 +91,11 @@ test("a malformed project plugin-overrides.json is diagnosed instead of silently
 });
 
 test("getPluginSettings surfaces the same diagnostic for malformed project overrides", async () => {
-	const { cwd, pluginsDir } = await plantRoot("omp-plugin-overrides-settings-");
+	const { cwd, pluginsDir } = await plantRoot("reverse-plugin-overrides-settings-");
 	const overridesPath = await writeOverrides(cwd, "{ not valid json");
 
 	const getPluginsLockfile = spyOn(piUtils, "getPluginsLockfile").mockReturnValue(
-		path.join(pluginsDir, "omp-plugins.lock.json"),
+		path.join(pluginsDir, "reverse-plugins.lock.json"),
 	);
 	const warn = spyOn(logger, "warn").mockImplementation(() => {});
 	try {
@@ -111,7 +111,7 @@ test("getPluginSettings surfaces the same diagnostic for malformed project overr
 });
 
 test("a missing project plugin-overrides.json stays silent", async () => {
-	const { home, cwd } = await plantRoot("omp-plugin-overrides-missing-");
+	const { home, cwd } = await plantRoot("reverse-plugin-overrides-missing-");
 
 	const warn = spyOn(logger, "warn").mockImplementation(() => {});
 	try {
@@ -124,7 +124,7 @@ test("a missing project plugin-overrides.json stays silent", async () => {
 });
 
 test("a valid project plugin-overrides.json still disables its plugin", async () => {
-	const { home, cwd } = await plantRoot("omp-plugin-overrides-valid-");
+	const { home, cwd } = await plantRoot("reverse-plugin-overrides-valid-");
 	await writeOverrides(cwd, JSON.stringify({ disabled: ["declared-plugin"] }));
 
 	const plugins = await getEnabledPlugins(cwd, { home });

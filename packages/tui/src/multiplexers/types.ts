@@ -59,7 +59,7 @@ export interface TerminalMultiplexerBackgroundColorCache {
 	readonly settleMs: number;
 }
 
-/** Everything omp needs to recognize one terminal multiplexer and adapt to it. */
+/** Everything reverse needs to recognize one terminal multiplexer and adapt to it. */
 export interface TerminalMultiplexerModule<Id extends string = string> {
 	readonly id: Id;
 	readonly precedence: TerminalMultiplexerPrecedence;

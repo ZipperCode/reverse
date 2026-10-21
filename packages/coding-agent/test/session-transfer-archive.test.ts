@@ -40,7 +40,7 @@ function userImage(entries: FileEntry[]): ImageContent | undefined {
 	return undefined;
 }
 
-describe("omp session pack/unpack archive", () => {
+describe("reverse session pack/unpack archive", () => {
 	let root: string;
 	let agentA: string;
 	let agentB: string;
@@ -49,7 +49,7 @@ describe("omp session pack/unpack archive", () => {
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 
 	beforeEach(async () => {
-		root = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-transfer-"));
+		root = await fsp.mkdtemp(path.join(os.tmpdir(), "reverse-session-transfer-"));
 		agentA = path.join(root, "agent-a");
 		agentB = path.join(root, "agent-b");
 		cwdA = path.join(root, "laptop", "project");

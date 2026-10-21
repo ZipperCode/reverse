@@ -35,7 +35,7 @@ describe("handleRpcSteerSubagent", () => {
 		AgentRegistry.resetGlobalForTests();
 		AgentLifecycleManager.resetGlobalForTests();
 		sent = [];
-		sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-rpc-steer-"));
+		sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-rpc-steer-"));
 		ownSessionFile = path.join(sessionDir, "SubagentA.jsonl");
 		eventBus = new EventBus();
 		registry = new RpcSubagentRegistry(eventBus, () => {});

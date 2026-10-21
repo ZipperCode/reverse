@@ -689,7 +689,7 @@ describe("AgentSession retry recovery", () => {
 	};
 
 	it("retries a Codex steering rejection on the same model instead of consulting the fallback chain", async () => {
-		// Codex dropped the response because omp steered it mid-stream, after
+		// Codex dropped the response because reverse steered it mid-stream, after
 		// reasoning had streamed. The provider already stopped steering the
 		// session, so the primary replays cleanly; switching models fixes nothing.
 		const { primary, requestedModels, fallbackEvents, sessionManager } = await runFallbackChainRecovery(

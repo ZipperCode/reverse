@@ -7,13 +7,13 @@ import { CONFIG_DIR_NAME, removeWithRetries } from "@reverse/utils";
 
 const CLI_ENTRY = path.join(import.meta.dir, "..", "src", "cli.ts");
 
-describe("omp read skill resources", () => {
+describe("reverse read skill resources", () => {
 	let root: string;
 	let projectDir: string;
 	let agentDir: string;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-read-skill-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-read-skill-"));
 		projectDir = path.join(root, "project");
 		agentDir = path.join(root, "agent");
 		const skillDir = path.join(projectDir, CONFIG_DIR_NAME, "skills", "standalone-skill");
@@ -105,7 +105,7 @@ describe("omp read skill resources", () => {
 		expect(error).toBe("");
 	}, 60_000);
 
-	it("reads an extension skill configured outside .omp through the standalone CLI", async () => {
+	it("reads an extension skill configured outside .reverse through the standalone CLI", async () => {
 		const skillDir = path.join(projectDir, "ext-pkg", "skills", "ext-skill");
 		await fs.mkdir(skillDir, { recursive: true });
 		await Bun.write(

@@ -1,5 +1,5 @@
 import { expect } from "bun:test";
-import { type as arkType, type Type } from "@reverse/omptype";
+import { type as arkType, type Type } from "@reverse/reversetype";
 
 function formatIssues(error: unknown): string {
 	if (error instanceof Error) {

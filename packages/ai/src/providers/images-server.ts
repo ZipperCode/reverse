@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import * as AIError from "../error";
 import { isDataUrlMimeType } from "../images/shared";
 import type { ImageGenerationRequest, ImageGenerationResult } from "../images/types";

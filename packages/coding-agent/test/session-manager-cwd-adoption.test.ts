@@ -14,7 +14,7 @@ function makeTempDir(prefix: string): string {
 
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const originalPiProfile = process.env.PI_PROFILE;
-const originalOmpProfile = process.env.OMP_PROFILE;
+const originalReverseProfile = process.env.REVERSE_PROFILE;
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -31,7 +31,7 @@ beforeEach(() => {
 afterEach(async () => {
 	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("PI_PROFILE", originalPiProfile);
-	restoreEnv("OMP_PROFILE", originalOmpProfile);
+	restoreEnv("REVERSE_PROFILE", originalReverseProfile);
 	__resetDirsFromEnvForTests();
 	await Promise.all(tempDirs.splice(0).map(dir => dir.remove()));
 });
@@ -143,7 +143,7 @@ describe("SessionManager cwd adoption on resume", () => {
 		const launch = makeTempDir("@pi-cwd-launch-");
 		const store = makeTempDir("@pi-cwd-store-");
 		const goneProject = makeTempDir("@pi-cwd-gone-");
-		// The session file survives in `store` (like ~/.omp), but its header cwd
+		// The session file survives in `store` (like ~/.reverse), but its header cwd
 		// points at a project directory that we then delete.
 		const file = await writeSession(goneProject, store);
 		await removeWithRetries(goneProject);

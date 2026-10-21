@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import { type Api, Effort, type Model } from "@reverse/ai";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";

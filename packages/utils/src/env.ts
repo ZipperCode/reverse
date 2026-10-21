@@ -132,7 +132,7 @@ function readLaunchEnv(): ReadonlyMap<string, string> | undefined {
 }
 
 const launchEnvValues = readLaunchEnv();
-const projectEnvNamesLoadedByRva = new Set<string>();
+const projectEnvNamesLoadedByReverse = new Set<string>();
 
 function expandDotenvValues(values: Record<string, string>, env: Record<string, string>): Record<string, string> {
 	const expanded: Record<string, string> = {};
@@ -213,9 +213,9 @@ function filterChildShellEnvInternal(
 			}
 			continue;
 		}
-		if (runtimeLaunchEnvValues || projectEnvNamesLoadedByRva.has(key)) {
+		if (runtimeLaunchEnvValues || projectEnvNamesLoadedByReverse.has(key)) {
 			// Strong provenance: the launch environment is known and this name is
-			// absent from it, or OMP itself injected the value — either way it came
+			// absent from it, or reverse itself injected the value — either way it came
 			// from a project dotenv file, not the parent shell.
 			const value = result[key];
 			if (value !== undefined) onDotenvValue?.(value);
@@ -259,8 +259,7 @@ export function getDotenvEnvValues(
 
 /**
  * Parses a complete .env file with the runtime's dotenv grammar, then retains
- * only shell-identifier names and spawn-safe values before mirroring valid
- * `OMP_` variables to their `PI_` aliases.
+ * only shell-identifier names and spawn-safe values.
  */
 export function parseEnvFile(filePath: string): Record<string, string> {
 	const result: Record<string, string> = {};
@@ -293,12 +292,12 @@ for (const file of [projectEnv, agentEnv, piEnv, homeEnv]) {
 	for (const key in file) {
 		if (!isMacosMallocStackLoggingEnvName(key) && !Bun.env[key]) {
 			Bun.env[key] = file[key];
-			if (file === projectEnv) projectEnvNamesLoadedByRva.add(key);
+			if (file === projectEnv) projectEnvNamesLoadedByReverse.add(key);
 		}
 	}
 }
 
-// Directory-affecting keys (XDG_*_HOME, and in default mode RVA_CODING_AGENT_DIR)
+// Directory-affecting keys (XDG_*_HOME, and in default mode REVERSE_CODING_AGENT_DIR)
 // may have just arrived from the profile/agent `.env` applied above. The dirs
 // resolver cached its paths at module load — before this file ran — so rebuild
 // it now from the updated env. `getAgentDir()` already located the `.env` from

@@ -260,7 +260,7 @@ export class MCPManager {
 
 	/**
 	 * Install or clear a loader that creates the process-global instance on first {@link load}, so a
-	 * one-shot host (`omp read`) starts MCP servers only when a request actually reaches them.
+	 * one-shot host (`reverse read`) starts MCP servers only when a request actually reaches them.
 	 */
 	static setDeferredInstance(load: (() => Promise<MCPManager>) | undefined): void {
 		MCPManager.#deferred = load;
@@ -1008,7 +1008,7 @@ export class MCPManager {
 			// Pending tasks without cached tools used to be awaited synchronously here,
 			// which gated the entire UI on the slowest server's per-request timeout
 			// (issue #2100: a single unresponsive MCP server blocked startup for the
-			// full 30 s `OMP_MCP_TIMEOUT_MS`). Leave them in flight — the background
+			// full 30 s `REVERSE_MCP_TIMEOUT_MS`). Leave them in flight — the background
 			// `void toolsPromise.then(...)` chain above registers their tools and
 			// fires `#onToolsChanged` once the connect finishes, or logs the failure
 			// after `allowBackgroundLogging` flips below.
@@ -1281,7 +1281,7 @@ export class MCPManager {
 	/**
 	 * Wait for every in-flight connect, tool load, and reconnect to settle.
 	 *
-	 * One-shot callers (e.g. `omp read <mcp-resource>`) discover servers and read
+	 * One-shot callers (e.g. `reverse read <mcp-resource>`) discover servers and read
 	 * immediately; a server whose handshake outlasts the {@link connectServers}
 	 * startup race is still tracked in {@link #pendingConnections} /
 	 * {@link #pendingToolLoads} and therefore invisible to

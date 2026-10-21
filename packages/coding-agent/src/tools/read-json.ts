@@ -244,7 +244,7 @@ async function runJq(
 	const { signal, stopAfterLines } = options;
 	throwIfAborted(signal);
 
-	const stderrPath = path.join(os.tmpdir(), `omp-jq-${crypto.randomUUID()}.err`);
+	const stderrPath = path.join(os.tmpdir(), `reverse-jq-${crypto.randomUUID()}.err`);
 	// jaq parses any argument starting with `-` as flags even when shell-quoted;
 	// `--` keeps filters such as `-.price` positional.
 	const command = `jq ${flags.join(" ")} -- ${quotePosixArgument(query)} ${quotePosixArgument(filePath)} 2>${quotePosixArgument(stderrPath)}`;

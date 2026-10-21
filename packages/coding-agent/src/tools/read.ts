@@ -2,7 +2,7 @@ import type { ReadToolDetails } from "@reverse/tui/tools/read";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { type EditStore, notebookToEditableText } from "@reverse/natives";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -1731,7 +1731,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			return executeReadUrl(this.session, { path: parsedUrlTarget.path, raw: urlRaw }, signal);
 		}
 
-		// Handle native OMP URLs and custom-scheme resources advertised by MCP servers.
+		// Handle native REVERSE URLs and custom-scheme resources advertised by MCP servers.
 		const internalRouter = InternalUrlRouter.instance();
 		const delimitedInternalResult = internalRouter.canResolve(readPath)
 			? await this.#tryReadDelimitedPaths(readPath, signal, toolContext, entry => internalRouter.canResolve(entry))

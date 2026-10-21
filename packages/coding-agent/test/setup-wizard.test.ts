@@ -105,7 +105,7 @@ describe("setup wizard scene selection", () => {
 		expect(await selectSetupScenes(0, ALL_SCENES, ctx, { isTTY: false, force: true })).toEqual([]);
 	});
 
-	it("drops the glyph scene once the terminal renders omp's bundled icons in-band", async () => {
+	it("drops the glyph scene once the terminal renders reverse's bundled icons in-band", async () => {
 		setTerminalGlyphProtocol(true);
 		try {
 			const scenes = await selectSetupScenes(0, ALL_SCENES, fakeContextWithConfiguredModel(), { isTTY: true });
@@ -500,7 +500,7 @@ describe("setup wizard glyph scene", () => {
 	});
 });
 
-describe("omp setup onboarding trigger", () => {
+describe("reverse setup onboarding trigger", () => {
 	it("starts the normal interactive command with forced setup wizard", async () => {
 		let forceSetupWizard: boolean | undefined;
 		await runOnboardingSetup({

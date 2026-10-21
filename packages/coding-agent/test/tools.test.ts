@@ -197,7 +197,7 @@ function createBase256TarArchive(entry: Base256TarEntry): Buffer {
 }
 
 function createPaxHeader(typeFlag: "g" | "x", body: Buffer): Buffer {
-	return tarRecord(createTarHeader("./PaxHeaders/omp", body.byteLength, typeFlag), body);
+	return tarRecord(createTarHeader("./PaxHeaders/reverse", body.byteLength, typeFlag), body);
 }
 
 function paxRecord(key: string, value: string): Buffer {

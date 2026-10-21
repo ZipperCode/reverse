@@ -16,7 +16,7 @@ describe("jj workspace detection", () => {
 	});
 
 	async function createTempDir(): Promise<string> {
-		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-jj-utils-"));
+		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-jj-utils-"));
 		return tmpDir;
 	}
 
@@ -82,31 +82,31 @@ describe("isPureJjRepo", () => {
 	}
 
 	it("flags a pure jj workspace with no colocated git", async () => {
-		const dir = await createTempDir("omp-jj-pure-");
+		const dir = await createTempDir("reverse-jj-pure-");
 		await fs.mkdir(path.join(dir, ".jj", "repo", "store"), { recursive: true });
 		expect(vcs.isPureJj(dir)).toBe(true);
 	});
 
 	it("treats a colocated jj-git workspace as non-pure", async () => {
-		const dir = await createTempDir("omp-jj-colocated-");
+		const dir = await createTempDir("reverse-jj-colocated-");
 		await fs.mkdir(path.join(dir, ".jj", "repo", "store"), { recursive: true });
 		await initGit(dir);
 		expect(vcs.isPureJj(dir)).toBe(false);
 	});
 
 	it("returns false for a plain git checkout", async () => {
-		const dir = await createTempDir("omp-jj-plaingit-");
+		const dir = await createTempDir("reverse-jj-plaingit-");
 		await initGit(dir);
 		expect(vcs.isPureJj(dir)).toBe(false);
 	});
 
 	it("returns false when neither jj nor git metadata is present", async () => {
-		const dir = await createTempDir("omp-jj-empty-");
+		const dir = await createTempDir("reverse-jj-empty-");
 		expect(vcs.isPureJj(dir)).toBe(false);
 	});
 
 	it("flags a jj workspace nested inside an unrelated git checkout as pure", async () => {
-		const outer = await createTempDir("omp-jj-nested-outer-");
+		const outer = await createTempDir("reverse-jj-nested-outer-");
 		await initGit(outer);
 		const inner = path.join(outer, "nested");
 		await fs.mkdir(path.join(inner, ".jj", "repo", "store"), { recursive: true });
@@ -114,7 +114,7 @@ describe("isPureJjRepo", () => {
 	});
 
 	it("treats a nested git checkout under an outer jj workspace as non-pure", async () => {
-		const outer = await createTempDir("omp-jj-nested-jj-outer-");
+		const outer = await createTempDir("reverse-jj-nested-jj-outer-");
 		await fs.mkdir(path.join(outer, ".jj", "repo", "store"), { recursive: true });
 		const inner = path.join(outer, "vendor");
 		await fs.mkdir(inner, { recursive: true });
@@ -134,7 +134,7 @@ describe.skipIf(!jjBinary)("native JJ workspace queries", () => {
 
 	async function createRepo(): Promise<string> {
 		if (!jjBinary) throw new Error("jj skip guard failed");
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-jj-native-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-jj-native-"));
 		tempDirs.push(dir);
 		const proc = Bun.spawn([jjBinary, "git", "init", "--colocate", "."], {
 			cwd: dir,

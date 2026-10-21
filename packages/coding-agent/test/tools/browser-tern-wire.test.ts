@@ -87,12 +87,12 @@ describe("TernSocketClient", () => {
 		const failure = await client.connect().catch((error: unknown) => error);
 		expect(failure).toBeInstanceOf(TernError);
 		expect((failure as TernError).kind).toBe("connect");
-		expect((failure as TernError).message).toContain("without omp's JSON protocol");
+		expect((failure as TernError).message).toContain("without reverse's JSON protocol");
 		expect(isTernUnavailable(failure)).toBe(true);
 	});
 
 	it("fails to connect to a missing socket with an unavailable error", async () => {
-		client = new TernSocketClient({ socketPath: "/tmp/omp-tern-missing-daemon.sock" });
+		client = new TernSocketClient({ socketPath: "/tmp/reverse-tern-missing-daemon.sock" });
 		const failure = await client.connect().catch((error: unknown) => error);
 		expect(isTernUnavailable(failure)).toBe(true);
 		expect((failure as TernError).kind).toBe("connect");

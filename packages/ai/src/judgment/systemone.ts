@@ -42,12 +42,12 @@ function decodeSystemOne(payload: unknown): DecodedJudgment | undefined {
 
 /**
  * `state` with `items` added and every original value kept: arrays gain them at the end, objects
- * under the first free `__omp_judgment_images[_N]` key, and a string root becomes `[state, ...items]`.
+ * under the first free `__reverse_judgment_images[_N]` key, and a string root becomes `[state, ...items]`.
  */
 function stateWithImages(state: JudgmentRequest["state"], items: readonly JsonValue[]): JudgmentRequest["state"] {
 	if (Array.isArray(state)) return [...state, ...items];
 	if (!isRecord(state)) return [state, ...items];
-	const baseKey = "__omp_judgment_images";
+	const baseKey = "__reverse_judgment_images";
 	let key = baseKey;
 	for (let suffix = 1; Object.hasOwn(state, key); suffix++) key = `${baseKey}_${suffix}`;
 	return { ...state, [key]: items };

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { getManagedSkillsDir } from "@reverse/coding-agent/autolearn/managed-skills";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { resetActiveSkillsForTests, type Skill, setActiveSkills } from "@reverse/coding-agent/extensibility/skills";
@@ -120,9 +120,9 @@ describe("manage_skill execute", () => {
 
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-manage-skill-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-manage-skill-"));
 		spyOn(os, "homedir").mockReturnValue(tempHome);
-		setAgentDir(path.join(tempHome, ".omp", "agent"));
+		setAgentDir(path.join(tempHome, ".reverse", "agent"));
 	});
 
 	afterEach(async () => {
@@ -213,9 +213,9 @@ describe("learn execute", () => {
 
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-learn-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-learn-"));
 		spyOn(os, "homedir").mockReturnValue(tempHome);
-		setAgentDir(path.join(tempHome, ".omp", "agent"));
+		setAgentDir(path.join(tempHome, ".reverse", "agent"));
 		remembered = [];
 	});
 

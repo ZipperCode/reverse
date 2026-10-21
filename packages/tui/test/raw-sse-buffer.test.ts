@@ -153,7 +153,7 @@ describe("RawSseDebugBuffer", () => {
 
 		// Dropped records 1..5: each "data: N" is 7 chars → 9 chars/record → 45.
 		const text = buffer.toRawText();
-		expect(text.startsWith(": omp-debug-dropped records=5 chars=45\n\n")).toBe(true);
+		expect(text.startsWith(": reverse-debug-dropped records=5 chars=45\n\n")).toBe(true);
 
 		// Body data lines, oldest-first, are exactly records 6..1005 — no dropped
 		// record leaks and order survives the head-index window.
@@ -182,8 +182,8 @@ describe("RawSseDebugBuffer", () => {
 		const text = record.raw.join("\n");
 		expect(text).toContain("gen-head-marker");
 		expect(text).toContain('"usage":{"output_tokens":42}}');
-		expect(text).toContain(": omp-debug-elided chars=");
-		expect(record.raw.at(-1)).toBe(`: omp-debug-truncated originalChars=${record.originalChars}`);
+		expect(text).toContain(": reverse-debug-elided chars=");
+		expect(record.raw.at(-1)).toBe(`: reverse-debug-truncated originalChars=${record.originalChars}`);
 		expect(text.length).toBeLessThanOrEqual(64_000);
 	});
 
@@ -204,7 +204,7 @@ describe("RawSseDebugBuffer", () => {
 		const record = buffer.snapshot().records[0];
 		if (record.kind !== "event") throw new Error("expected event record");
 		expect(record.truncated).toBe(true);
-		expect(record.raw.at(-1)).toBe(`: omp-debug-truncated originalChars=${data.length + "data: ".length + 1}`);
+		expect(record.raw.at(-1)).toBe(`: reverse-debug-truncated originalChars=${data.length + "data: ".length + 1}`);
 		const parsed = JSON.parse(record.raw[0].slice("data: ".length));
 		expect(parsed.response.usage.input_tokens).toBe(7);
 		expect(parsed.response.tools).toHaveLength(20);

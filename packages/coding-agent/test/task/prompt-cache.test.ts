@@ -100,7 +100,7 @@ describe("task sibling prompt-cache routing", () => {
 	] as const)(
 		"%s without sharing child conversation or response state",
 		async (_name, provider, modelId, parentCacheKey, parentTaskKey, expected) => {
-			using directory = TempDir.createSync("@omp-task-cache-");
+			using directory = TempDir.createSync("@reverse-task-cache-");
 			vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network is disabled in this test"));
 			const authStorage = await AuthStorage.create(directory.join("auth.db"));
 			authStorage.keys.setRuntime(
@@ -321,7 +321,7 @@ describe("task sibling prompt-cache routing", () => {
 	] as const)(
 		"gates the authenticated fallback after deferred %s selection",
 		async (requested, provider, modelId, expected) => {
-			using directory = TempDir.createSync("@omp-task-cache-fallback-");
+			using directory = TempDir.createSync("@reverse-task-cache-fallback-");
 			vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network is disabled in this test"));
 			const requests: Array<{ model: Model; cacheKey: string | undefined }> = [];
 			const mock = createMockModel({ handler: { content: [{ type: "text", text: "Done." }] } });
@@ -376,7 +376,7 @@ describe("task sibling prompt-cache routing", () => {
 
 	const cacheModels = ["muse-spark-1.3-contributor", "muse-wonder-full-1.0-contributor"];
 	it.each(cacheModels)("rechecks %s while explicit session and request keys win", async modelId => {
-		using directory = TempDir.createSync("@omp-task-cache-model-");
+		using directory = TempDir.createSync("@reverse-task-cache-model-");
 		vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network is disabled in this test"));
 		const requests: Array<{ provider: string; options: SimpleStreamOptions | undefined; wireKey: unknown }> = [];
 		const mock = createMockModel({ handler: { content: [{ type: "text", text: "Done." }] } });

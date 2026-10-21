@@ -42,7 +42,7 @@ describe("profile directories", () => {
 	let originalAgentDir = "";
 	let originalProfile: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalRvaProfileEnv: string | undefined;
+	let originalReverseProfileEnv: string | undefined;
 	let originalConfigDir: string | undefined;
 	let originalXdgDataHome: string | undefined;
 	let originalXdgStateHome: string | undefined;
@@ -51,17 +51,17 @@ describe("profile directories", () => {
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
 		originalProfile = getActiveProfile();
-		originalAgentDirEnv = process.env.RVA_CODING_AGENT_DIR;
-		originalRvaProfileEnv = process.env.RVA_PROFILE;
-		originalConfigDir = process.env.RVA_CONFIG_DIR;
+		originalAgentDirEnv = process.env.REVERSE_CODING_AGENT_DIR;
+		originalReverseProfileEnv = process.env.REVERSE_PROFILE;
+		originalConfigDir = process.env.REVERSE_CONFIG_DIR;
 		originalXdgDataHome = process.env.XDG_DATA_HOME;
 		originalXdgStateHome = process.env.XDG_STATE_HOME;
 		originalXdgCacheHome = process.env.XDG_CACHE_HOME;
 		tempRoot = path.join(os.tmpdir(), "pi-utils-profiles", Snowflake.next());
-		configDir = `.rva-profile-test-${Snowflake.next()}`;
+		configDir = `.reverse-profile-test-${Snowflake.next()}`;
 		await fs.mkdir(tempRoot, { recursive: true });
-		process.env.RVA_CONFIG_DIR = configDir;
-		delete process.env.RVA_CODING_AGENT_DIR;
+		process.env.REVERSE_CONFIG_DIR = configDir;
+		delete process.env.REVERSE_CODING_AGENT_DIR;
 		// Other suites that run before this one (e.g. dirs-python-gateway) may have
 		// called `setAgentDir`, which permanently mutates the module-level
 		// pre-profile snapshot. Reset it here so each test starts from a clean
@@ -76,9 +76,9 @@ describe("profile directories", () => {
 	afterEach(async () => {
 		setProfile(undefined);
 		if (originalConfigDir === undefined) {
-			delete process.env.RVA_CONFIG_DIR;
+			delete process.env.REVERSE_CONFIG_DIR;
 		} else {
-			process.env.RVA_CONFIG_DIR = originalConfigDir;
+			process.env.REVERSE_CONFIG_DIR = originalConfigDir;
 		}
 		if (originalXdgDataHome === undefined) {
 			delete process.env.XDG_DATA_HOME;
@@ -102,10 +102,10 @@ describe("profile directories", () => {
 		} else {
 			setProfile(undefined);
 		}
-		if (originalRvaProfileEnv === undefined) {
-			delete process.env.RVA_PROFILE;
+		if (originalReverseProfileEnv === undefined) {
+			delete process.env.REVERSE_PROFILE;
 		} else {
-			process.env.RVA_PROFILE = originalRvaProfileEnv;
+			process.env.REVERSE_PROFILE = originalReverseProfileEnv;
 		}
 		await fs.rm(tempRoot, { recursive: true, force: true });
 		await fs.rm(path.join(os.homedir(), configDir), { recursive: true, force: true });
@@ -142,16 +142,16 @@ describe("profile directories", () => {
 		process.env.XDG_CACHE_HOME = path.join(tempRoot, "cache");
 		// Named profiles only adopt XDG when their *own* XDG path already exists,
 		// so the profile location stays stable across activations.
-		await fs.mkdir(path.join(process.env.XDG_DATA_HOME, "rva", "profiles", "work"), { recursive: true });
-		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "rva", "profiles", "work"), { recursive: true });
-		await fs.mkdir(path.join(process.env.XDG_CACHE_HOME, "rva", "profiles", "work"), { recursive: true });
+		await fs.mkdir(path.join(process.env.XDG_DATA_HOME, "reverse", "profiles", "work"), { recursive: true });
+		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "reverse", "profiles", "work"), { recursive: true });
+		await fs.mkdir(path.join(process.env.XDG_CACHE_HOME, "reverse", "profiles", "work"), { recursive: true });
 
 		setProfile("work");
 
-		expect(getAgentDbPath()).toBe(path.join(process.env.XDG_DATA_HOME, "rva", "profiles", "work", "agent.db"));
-		expect(getSessionsDir()).toBe(path.join(process.env.XDG_DATA_HOME, "rva", "profiles", "work", "sessions"));
+		expect(getAgentDbPath()).toBe(path.join(process.env.XDG_DATA_HOME, "reverse", "profiles", "work", "agent.db"));
+		expect(getSessionsDir()).toBe(path.join(process.env.XDG_DATA_HOME, "reverse", "profiles", "work", "sessions"));
 		expect(getPythonGatewayDir()).toBe(
-			path.join(process.env.XDG_STATE_HOME, "rva", "profiles", "work", "python-gateway"),
+			path.join(process.env.XDG_STATE_HOME, "reverse", "profiles", "work", "python-gateway"),
 		);
 	});
 
@@ -162,19 +162,19 @@ describe("profile directories", () => {
 		process.env.XDG_STATE_HOME = path.join(tempRoot, "state");
 		process.env.XDG_CACHE_HOME = path.join(tempRoot, "cache");
 
-		// Fresh install: XDG vars are set (typical Linux) but no $XDG/omp exists yet.
+		// Fresh install: XDG vars are set (typical Linux) but no $XDG/reverse exists yet.
 		// First activation must land in ~/<config-dir>/profiles/work because
 		// the profile-specific XDG path does not exist.
 		setProfile("work");
 		const firstAgentDir = getAgentDir();
 		expect(firstAgentDir).toBe(path.join(os.homedir(), configDir, "profiles", "work", "agent"));
 
-		// Later, the base XDG app dir materializes (e.g. via `omp config init-xdg`
+		// Later, the base XDG app dir materializes (e.g. via `reverse config init-xdg`
 		// migrating only the default-profile data). The named profile must stay
 		// in its original location until the user explicitly migrates it.
-		await fs.mkdir(path.join(process.env.XDG_DATA_HOME, "rva"), { recursive: true });
-		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "rva"), { recursive: true });
-		await fs.mkdir(path.join(process.env.XDG_CACHE_HOME, "rva"), { recursive: true });
+		await fs.mkdir(path.join(process.env.XDG_DATA_HOME, "reverse"), { recursive: true });
+		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "reverse"), { recursive: true });
+		await fs.mkdir(path.join(process.env.XDG_CACHE_HOME, "reverse"), { recursive: true });
 
 		setProfile(undefined);
 		setProfile("work");
@@ -193,11 +193,11 @@ describe("profile directories", () => {
 		}
 	});
 
-	it("restores the pre-profile RVA_CODING_AGENT_DIR override on reset", () => {
+	it("restores the pre-profile REVERSE_CODING_AGENT_DIR override on reset", () => {
 		const customAgentDir = path.join(tempRoot, "custom-agent");
 		setAgentDir(customAgentDir);
 		expect(getAgentDir()).toBe(customAgentDir);
-		expect(process.env.RVA_CODING_AGENT_DIR).toBe(customAgentDir);
+		expect(process.env.REVERSE_CODING_AGENT_DIR).toBe(customAgentDir);
 
 		setProfile("work");
 		expect(getActiveProfile()).toBe("work");
@@ -206,17 +206,17 @@ describe("profile directories", () => {
 		setProfile(undefined);
 		expect(getActiveProfile()).toBeUndefined();
 		// Critical: reset must restore the user's override, not delete it.
-		expect(process.env.RVA_CODING_AGENT_DIR).toBe(customAgentDir);
+		expect(process.env.REVERSE_CODING_AGENT_DIR).toBe(customAgentDir);
 		expect(getAgentDir()).toBe(customAgentDir);
 	});
 
-	it("clears RVA_CODING_AGENT_DIR on reset when nothing was set originally", () => {
-		delete process.env.RVA_CODING_AGENT_DIR;
+	it("clears REVERSE_CODING_AGENT_DIR on reset when nothing was set originally", () => {
+		delete process.env.REVERSE_CODING_AGENT_DIR;
 		// Force a baseline snapshot of "no override" via setProfile so a stale
 		// module-load snapshot from a previous test cannot leak in.
 		setProfile("work");
 		setProfile(undefined);
-		expect(process.env.RVA_CODING_AGENT_DIR).toBeUndefined();
+		expect(process.env.REVERSE_CODING_AGENT_DIR).toBeUndefined();
 	});
 
 	it("rejects Windows reserved device names case-insensitively", () => {
@@ -226,29 +226,29 @@ describe("profile directories", () => {
 	});
 
 	it("does not restore a profile-derived agent dir as the default baseline", () => {
-		// Reproduces a child process that inherited RVA_PROFILE=work plus the
-		// profile-derived RVA_CODING_AGENT_DIR that setProfile propagates to
+		// Reproduces a child process that inherited REVERSE_PROFILE=work plus the
+		// profile-derived REVERSE_CODING_AGENT_DIR that setProfile propagates to
 		// children. The module-load snapshot must not capture that profile dir as
 		// the default baseline, or setProfile(undefined) would resolve default
 		// mode into the work profile's agent dir.
 		setProfile("work");
 		const workAgentDir = path.join(os.homedir(), configDir, "profiles", "work", "agent");
 		expect(getAgentDir()).toBe(workAgentDir);
-		expect(process.env.RVA_CODING_AGENT_DIR).toBe(workAgentDir);
+		expect(process.env.REVERSE_CODING_AGENT_DIR).toBe(workAgentDir);
 
-		// Re-snapshot exactly as module load would, now that RVA_PROFILE and the
-		// profile-derived RVA_CODING_AGENT_DIR are present in the environment.
+		// Re-snapshot exactly as module load would, now that REVERSE_PROFILE and the
+		// profile-derived REVERSE_CODING_AGENT_DIR are present in the environment.
 		__resetProfileSnapshotForTests();
 
 		setProfile(undefined);
 		expect(getActiveProfile()).toBeUndefined();
-		expect(process.env.RVA_CODING_AGENT_DIR).toBeUndefined();
+		expect(process.env.REVERSE_CODING_AGENT_DIR).toBeUndefined();
 		expect(getAgentDir()).toBe(path.join(os.homedir(), configDir, "agent"));
 	});
 });
 
 describe("profile env + name validation", () => {
-	it("honors RVA_PROFILE and treats empty/default as the default profile", () => {
+	it("honors REVERSE_PROFILE and treats empty/default as the default profile", () => {
 		expect(resolveProfileEnv("work")).toBe("work");
 		expect(resolveProfileEnv("")).toBeUndefined();
 		expect(resolveProfileEnv("   ")).toBeUndefined();
@@ -312,7 +312,7 @@ describe("dirs module import behavior", () => {
 			const workerHostUrl = import.meta.resolve("@reverse/utils/worker-host");
 			const agentDir = path.join(root, "agent");
 			await fs.mkdir(agentDir, { recursive: true });
-			await Bun.write(path.join(agentDir, ".env"), "OMP_WORKER_HOST_PROBE=from-agent-env\n");
+			await Bun.write(path.join(agentDir, ".env"), "REVERSE_WORKER_HOST_PROBE=from-agent-env\n");
 			const probePath = path.join(root, "probe.ts");
 			await Bun.write(
 				probePath,
@@ -320,7 +320,7 @@ describe("dirs module import behavior", () => {
 					`import { declareWorkerHostEntry, workerHostEntry } from ${JSON.stringify(workerHostUrl)};`,
 					"declareWorkerHostEntry();",
 					"process.stdout.write(JSON.stringify({",
-					"	envProbe: process.env.OMP_WORKER_HOST_PROBE ?? null,",
+					"	envProbe: process.env.REVERSE_WORKER_HOST_PROBE ?? null,",
 					"	hostDeclared: workerHostEntry() === Bun.main,",
 					"}));",
 				].join("\n"),
@@ -328,9 +328,9 @@ describe("dirs module import behavior", () => {
 
 			const childEnv: Record<string, string | undefined> = {
 				...process.env,
-				RVA_CODING_AGENT_DIR: agentDir,
+				REVERSE_CODING_AGENT_DIR: agentDir,
 			};
-			delete childEnv.OMP_WORKER_HOST_PROBE;
+			delete childEnv.REVERSE_WORKER_HOST_PROBE;
 			const proc = Bun.spawn([process.execPath, probePath], {
 				stdout: "pipe",
 				stderr: "pipe",
@@ -352,16 +352,16 @@ describe("dirs module import behavior", () => {
 		}
 	});
 
-	it("ignores inherited profile agent dir when RVA_PROFILE explicitly selects default", async () => {
+	it("ignores inherited profile agent dir when REVERSE_PROFILE explicitly selects default", async () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-utils-dirs-default-profile-"));
-		const probeConfigDir = `.rva-default-profile-${Snowflake.next()}`;
+		const probeConfigDir = `.reverse-default-profile-${Snowflake.next()}`;
 		try {
 			const dirsUrl = url.pathToFileURL(path.join(import.meta.dir, "..", "src", "dirs.ts")).href;
 			const workAgentDir = path.join(os.homedir(), probeConfigDir, "profiles", "work", "agent");
 			const defaultAgentDir = path.join(os.homedir(), probeConfigDir, "agent");
 
-			for (const rvaProfile of ["", "default"]) {
-				const probePath = path.join(root, `default-profile-${rvaProfile || "empty"}.ts`);
+			for (const reverseProfile of ["", "default"]) {
+				const probePath = path.join(root, `default-profile-${reverseProfile || "empty"}.ts`);
 				await Bun.write(
 					probePath,
 					[
@@ -378,9 +378,9 @@ describe("dirs module import behavior", () => {
 					TMPDIR: process.env.TMPDIR,
 					HOME: os.homedir(),
 					USERPROFILE: os.homedir(),
-					RVA_CONFIG_DIR: probeConfigDir,
-					RVA_PROFILE: rvaProfile,
-					RVA_CODING_AGENT_DIR: workAgentDir,
+					REVERSE_CONFIG_DIR: probeConfigDir,
+					REVERSE_PROFILE: reverseProfile,
+					REVERSE_CODING_AGENT_DIR: workAgentDir,
 				};
 				const proc = Bun.spawn([process.execPath, probePath], {
 					stdout: "pipe",
@@ -410,7 +410,7 @@ describe("dirs module import behavior", () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-utils-profile-env-xdg-"));
 		const homeDir = path.join(root, "home");
 		const xdgStateRoot = path.join(root, "xdg-state");
-		const profileConfigDir = `.rva-env-xdg-${Snowflake.next()}`;
+		const profileConfigDir = `.reverse-env-xdg-${Snowflake.next()}`;
 		try {
 			const envUrl = url.pathToFileURL(path.join(import.meta.dir, "..", "src", "env.ts")).href;
 			const dirsUrl = url.pathToFileURL(path.join(import.meta.dir, "..", "src", "dirs.ts")).href;
@@ -421,7 +421,7 @@ describe("dirs module import behavior", () => {
 			// import time — the exact ordering refreshDirsFromEnv() guards.
 			await Bun.write(path.join(agentDir, ".env"), `XDG_STATE_HOME=${xdgStateRoot}\n`);
 			// Named profiles only adopt XDG when their own XDG path already exists.
-			const xdgProfileRoot = path.join(xdgStateRoot, "rva", "profiles", "work");
+			const xdgProfileRoot = path.join(xdgStateRoot, "reverse", "profiles", "work");
 			await fs.mkdir(xdgProfileRoot, { recursive: true });
 
 			const probePath = path.join(root, "probe.ts");
@@ -441,10 +441,10 @@ describe("dirs module import behavior", () => {
 			const childEnv: Record<string, string | undefined> = {
 				...process.env,
 				HOME: homeDir,
-				RVA_CONFIG_DIR: profileConfigDir,
-				RVA_PROFILE: "work",
+				REVERSE_CONFIG_DIR: profileConfigDir,
+				REVERSE_PROFILE: "work",
 			};
-			delete childEnv.RVA_CODING_AGENT_DIR;
+			delete childEnv.REVERSE_CODING_AGENT_DIR;
 			delete childEnv.XDG_DATA_HOME;
 			delete childEnv.XDG_STATE_HOME;
 			delete childEnv.XDG_CACHE_HOME;

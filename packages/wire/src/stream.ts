@@ -1,5 +1,5 @@
 /**
- * Wire types for terminal recording codec (`/record`, `rva play`).
+ * Wire types for terminal recording codec (`/record`, `reverse play`).
  */
 
 /** History rows retained per pane; older rows fall off the top. */

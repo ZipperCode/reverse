@@ -283,7 +283,7 @@ async function downloadTool(
 	tracker.update({ detail: "extracting" });
 
 	// Extract
-	const tmp = await TempDir.create("@omp-tools-extract-");
+	const tmp = await TempDir.create("@reverse-tools-extract-");
 
 	try {
 		if (!assetName.endsWith(".tar.gz") && !assetName.endsWith(".zip")) {

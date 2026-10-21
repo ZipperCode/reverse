@@ -136,7 +136,7 @@ describe("RpcPromptResults", () => {
 		]);
 	});
 
-	test("reports provider failures without OMP-local diagnostics and classifies retryability", async () => {
+	test("reports provider failures without REVERSE-local diagnostics and classifies retryability", async () => {
 		const { frames, session, results } = createHarness();
 		session.isStreaming = true;
 		// Still streaming when the results are written: the session is not settled.
@@ -147,7 +147,7 @@ describe("RpcPromptResults", () => {
 					stopReason: "error",
 					errorStatus: 400,
 					errorMessage:
-						"400 invalid_request_error: messages.0: bad block\nraw-http-request=/home/u/.omp/logs/x.json",
+						"400 invalid_request_error: messages.0: bad block\nraw-http-request=/home/u/.reverse/logs/x.json",
 				}),
 			]),
 		);

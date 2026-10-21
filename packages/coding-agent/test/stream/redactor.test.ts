@@ -9,7 +9,7 @@ let redactor: StreamRedactor;
 let cwd: string;
 
 beforeAll(async () => {
-	cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-stream-redactor-"));
+	cwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-stream-redactor-"));
 	redactor = await StreamRedactor.load(cwd, []);
 });
 

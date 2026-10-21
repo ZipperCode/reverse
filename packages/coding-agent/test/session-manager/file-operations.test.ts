@@ -177,7 +177,7 @@ describe("SessionManager temp cwd session dirs", () => {
 	}
 
 	beforeEach(() => {
-		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-session-dir-test-"));
+		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-session-dir-test-"));
 		setAgentDir(testAgentDir);
 	});
 
@@ -287,9 +287,9 @@ describe("SessionManager legacy session migration persistence", () => {
 		// terminal id (WT_SESSION/TMUX_PANE) points continueRecent at stale
 		// breadcrumb state from earlier tests in this file.
 		process.env.TMUX_PANE = "%legacy-migration-test";
-		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-session-manager-legacy-agent-"));
+		testAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-session-manager-legacy-agent-"));
 		setAgentDir(testAgentDir);
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-session-manager-legacy-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-session-manager-legacy-"));
 	});
 
 	afterEach(() => {

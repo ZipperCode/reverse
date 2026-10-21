@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createReadStream, type Stats } from "node:fs";
 import { stat } from "node:fs/promises";
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { prompt } from "@reverse/utils";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ToolSession } from "./index";

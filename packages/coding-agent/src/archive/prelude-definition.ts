@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { shortenPath } from "@reverse/tui/render/render-utils";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { EvalPreludeDefinition } from "../eval/preludes";

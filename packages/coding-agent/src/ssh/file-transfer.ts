@@ -121,7 +121,7 @@ export async function writeRemoteFile(
 		throw new Error("ssh://: destination is a directory path (trailing '/'); ssh:// write requires a file path");
 	}
 	const dest = quotePosixArgument(remotePath);
-	const tmp = quotePosixArgument(`${remotePath}.omp-tmp.${crypto.randomUUID()}`);
+	const tmp = quotePosixArgument(`${remotePath}.reverse-tmp.${crypto.randomUUID()}`);
 	// Stage stdin into the temp first (so the remote never blocks on an unread
 	// pipe and a dropped connection lands in the temp, never the destination).
 	// An EXIT trap removes the staged temp on every exit path (staging failure,

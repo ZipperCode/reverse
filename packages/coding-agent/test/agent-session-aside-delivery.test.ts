@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as path from "node:path";
 import { setImmediate } from "node:timers/promises";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
 import { AsyncJobManager } from "@reverse/coding-agent/async";
 import type { AssistantMessage, Context, ImageContent } from "@reverse/ai";

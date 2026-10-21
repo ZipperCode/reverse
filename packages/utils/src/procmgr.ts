@@ -32,7 +32,7 @@ let capturedChildShellEnv: Record<string, string> | undefined;
 /**
  * Project whose dotenv values the spawn environment filters out: the one current
  * when it was first built or captured.
- * That is normally the launch project, whose dotenv files Bun and omp load into
+ * That is normally the launch project, whose dotenv files Bun and reverse load into
  * `process.env`; a later session in another project must not receive them.
  */
 let spawnEnvProjectDir: string | undefined;

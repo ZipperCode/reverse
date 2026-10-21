@@ -248,7 +248,7 @@ test("a timed-out download releases its lock and partial archive so installation
 	}
 });
 
-const networkTest = process.env.OMP_TEST_BROWSER_INSTALL ? test : test.skip;
+const networkTest = process.env.REVERSE_TEST_BROWSER_INSTALL ? test : test.skip;
 networkTest(
 	"network: downloads and installs the pinned Chrome-for-Testing build",
 	async () => {

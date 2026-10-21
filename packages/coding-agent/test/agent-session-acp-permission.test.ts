@@ -6,7 +6,7 @@
  * behavior they have in the TUI.
  */
 import { afterAll, afterEach, beforeAll, expect, it, spyOn } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import { createMockModel, type MockModelOptions } from "@reverse/ai/providers/mock";
 import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";

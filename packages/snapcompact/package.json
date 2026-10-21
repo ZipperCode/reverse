@@ -3,7 +3,7 @@
   "name": "@reverse/snapcompact",
   "version": "18.11.2",
   "description": "Bitmap-frame context compression for vision-capable LLMs",
-  "homepage": "https://omp.sh",
+  "homepage": "https://github.com/ZipperCode/rev",
   "author": {
     "name": "Stencil Labs, Inc.",
     "url": "https://stencil.so"
@@ -11,11 +11,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/ZipperCode/rev.git",
     "directory": "packages/snapcompact"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/ZipperCode/rev/issues"
   },
   "keywords": [
     "context-compression",

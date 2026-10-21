@@ -244,7 +244,7 @@ export default function (pi: ExtensionAPI) {
     api: "local-command-api",
     streamSimple(model, context, options) {
       const stream = new AssistantMessageEventStream();
-      // Spawn the command, translate its output, and push canonical OMP events.
+      // Spawn the command, translate its output, and push canonical reverse events.
       // The implementation owns process cleanup, cancellation, and errors; the
       // helper needs `context` for the conversation and `options` for `signal`,
       // `cwd`, and the stable `sessionId`.
@@ -281,8 +281,8 @@ In interactive mode, `input` handlers run before the built-in first-message auto
 Also exposed:
 
 - `pi.logger`
-- `pi.arktype` (the omptype `type(...)` schema builder)
-- `pi.zod` (Zod-compatible builder backed by omptype)
+- `pi.arktype` (the reversetype `type(...)` schema builder)
+- `pi.zod` (Zod-compatible builder backed by reversetype)
 - `pi.typebox` (legacy TypeBox-compatible shim)
 - `pi.pi` (package exports)
 
@@ -359,7 +359,7 @@ Handlers and tool `execute` receive `ctx` with:
 - `getPendingPlanReview()`: the open interactive plan review still awaiting an answer, in the `plan_review_requested` shape, or `undefined`; use it to answer a review that opened before the extension loaded or reconnected
 - `openPlanReview()`: open the interactive plan review on the newest plan file, like `/plan-review`; resolves `true` once a review awaits an answer, without waiting for a choice. An already-open review is kept rather than replaced. Unlike `/plan-review` it never aborts work: it resolves `false`, silently, while the agent is streaming or compacting, when plan mode is inactive, or when no non-empty plan file exists
 - `getSystemPrompt()`
-- `isProjectTrusted()` — always `true`; OMP does not ask for per-directory trust before loading project inputs
+- `isProjectTrusted()` — always `true`; reverse does not ask for per-directory trust before loading project inputs
 - `agent` — the agent this session runs: `{ kind: "main" | "sub", id, name, depth, parentId? }`. Factories are rebound to every subagent session (task tool, eval `agent()`, `/tan` clones), so a handler can check `ctx.agent.kind === "sub"` or the lowercased agent definition `name` (for example `"explore"`) to act only in subagents. Use `kind`, not `depth`: `depth` counts `task` nesting only, so `/tan` clones are subagents at depth 0 and report `name: "sub"`. An advisor's own tool calls reach the session's `tool_call`/`tool_result` handlers with `{ kind: "sub", id: "advisor", name: "advisor", depth: 0, parentId }`, so `kind === "main"` also excludes advisor activity
 - `runEphemeralTurn(...)` (optional; see below)
 - `memory` (optional structured memory runtime — status/search/save across the configured backend)
@@ -606,7 +606,7 @@ Current runtime note: `ExtensionRunner.emitResourcesDiscover(...)` is implemente
 
 ## Tool authoring details
 
-`registerTool` uses `ToolDefinition` from `types.ts`. Its `parameters` field accepts omptype schemas; the injected TypeBox compatibility shim remains available for legacy extensions.
+`registerTool` uses `ToolDefinition` from `types.ts`. Its `parameters` field accepts reversetype schemas; the injected TypeBox compatibility shim remains available for legacy extensions.
 
 Prefer registration in the factory, but tools discovered later (for example in
 `session_start`) are also mounted into the live registry. Registrations made
@@ -645,7 +645,7 @@ supports it. Repeats (compared ignoring surrounding whitespace) are dropped at t
 identical to an earlier handler's on the same call, and a call's joined context identical to an earlier
 call's in the same batch. Raw tool output and other untrusted data must stay in the ordinary tool result.
 
-Distinct non-empty context from every non-blocking handler is preserved in registration order. OMP waits
+Distinct non-empty context from every non-blocking handler is preserved in registration order. reverse waits
 until the tool batch settles, then emits the context after the corresponding tool results in
 assistant tool-call order and before the next provider request. Handler context is delivered only when
 the call actually runs and returns a non-error result: if the call is blocked by this or a later
@@ -921,7 +921,7 @@ provider session or a native pane ID exists.
 The TUI host injects this capability; extensions do not need to import dispatcher
 code to use it.
 
-Built-in OMP callers can pass `classifyTerminalMultiplexer(env)` to
+Built-in reverse callers can pass `classifyTerminalMultiplexer(env)` to
 `getTerminalLaunchPlacement(...)` for support and presentation metadata or as the
 first argument to `createDefaultTerminalLaunchRequest(...)` for a validated
 provider-default request. The factory also takes a placement, command argv, cwd, and

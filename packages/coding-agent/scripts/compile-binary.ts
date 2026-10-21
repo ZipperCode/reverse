@@ -55,7 +55,7 @@ export async function compileCodingAgent(options: CodingAgentCompileOptions): Pr
 				"process.env.REVERSE_DOCS_EMBED": JSON.stringify((await buildDocsIndexPayload()).payload),
 			},
 			// Precompiled bytecode skips parsing the ~20 MB bundle at boot:
-			// `omp --version` 256 ms -> 30 ms on M4 Max (+52 MB binary).
+			// `reverse --version` 256 ms -> 30 ms on M4 Max (+52 MB binary).
 			// Keep import.meta.resolve in bundled dependencies valid under bytecode.
 			format: "esm",
 			bytecode: true,

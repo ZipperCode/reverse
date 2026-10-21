@@ -120,7 +120,7 @@ export function createDashboardController(): DashboardController {
 						...renderDashboardLines(runtime, width, theme, 8),
 					];
 					return new DashboardWidget(lines.join("\n"), cx =>
-						card({ role: "omp.widget.autoresearch", head: describeTitle(runtime) }, [
+						card({ role: "reverse.widget.autoresearch", head: describeTitle(runtime) }, [
 							...describeDashboard(runtime, 8, cx.supports("chart")),
 							hintsRow([
 								{ keys: ["ctrl+x"], label: "collapse" },
@@ -154,7 +154,11 @@ export function createDashboardController(): DashboardController {
 					return {
 						/** A glass sheet titled by the experiment; what it is follows, muted. */
 						get nativeOverlay() {
-							return { role: "omp.overlay.autoresearch", head: describeSheetHead(runtime), size: "lg" as const };
+							return {
+								role: "reverse.overlay.autoresearch",
+								head: describeSheetHead(runtime),
+								size: "lg" as const,
+							};
 						},
 						describe(cx: DescribeContext): NativeNode {
 							const state = runtime.state;
@@ -177,7 +181,7 @@ export function createDashboardController(): DashboardController {
 								() => {
 									const children = describeSheet(runtime, chart);
 									children.push(actionBar([null, actionButton("Close", "close", { keys: "escape" })]));
-									return { ...col(children, { gap: "md", role: "omp.app.autoresearch" }), scroll };
+									return { ...col(children, { gap: "md", role: "reverse.app.autoresearch" }), scroll };
 								},
 							);
 						},
@@ -264,12 +268,12 @@ function describeRunningOnly(runtime: AutoresearchDashboardRuntime, state: Exper
 	if (state.name) details.push(span(`| ${replaceTabs(state.name)}`, "dim"));
 	if (runtime.runningExperiment) details.push(span(` | ${replaceTabs(runtime.runningExperiment.command)}`, "dim"));
 	if (details.length > 0) children.push(text(details, { truncate: "end" }));
-	return row(children, { gap: "sm", role: "omp.widget.autoresearch" });
+	return row(children, { gap: "sm", role: "reverse.widget.autoresearch" });
 }
 
 /** One-line collapsed widget: run counts, best/baseline, confidence and mode. */
 function describeCollapsed(runtime: AutoresearchDashboardRuntime, state: ExperimentState): NativeNode {
-	const role = "omp.widget.autoresearch";
+	const role = "reverse.widget.autoresearch";
 	const hint = hintsRow([{ keys: ["ctrl+x"], label: "expand" }]);
 	if (runtime.lastRunSummary) {
 		const spans = [
@@ -491,7 +495,7 @@ function describeDashboard(runtime: AutoresearchDashboardRuntime, maxRows: numbe
 						...(best ? [span(` · best ${formatNum(best.result.metric, state.metricUnit)}`, "success")] : []),
 					],
 					size: "md",
-					role: "omp.autoresearch.trend",
+					role: "reverse.autoresearch.trend",
 				},
 				undefined,
 				"trend",
@@ -501,7 +505,7 @@ function describeDashboard(runtime: AutoresearchDashboardRuntime, maxRows: numbe
 	if (visible.length < indexed.length) {
 		children.push(keyed(text([span(`… ${indexed.length - visible.length} earlier runs hidden`, "dim")]), "hidden"));
 	}
-	children.push(node("table", { cols, rows, role: "omp.autoresearch.runs" }, undefined, "runs"));
+	children.push(node("table", { cols, rows, role: "reverse.autoresearch.runs" }, undefined, "runs"));
 	return [keyed(col(children, { gap: "sm" }), "dashboard")];
 }
 
@@ -591,7 +595,7 @@ function describeSheet(runtime: AutoresearchDashboardRuntime, chart: boolean): N
 		children.push(
 			keyed(
 				text([span(`${archived} ${archived === 1 ? "run" : "runs"} archived from earlier segments`)], {
-					role: "omp.autoresearch.note",
+					role: "reverse.autoresearch.note",
 				}),
 				"archived",
 			),
@@ -605,7 +609,7 @@ function describeIntro(runtime: AutoresearchDashboardRuntime, segmented: boolean
 	const state = runtime.state;
 	const children: NativeNode[] = [];
 	const goal = state.goal?.trim();
-	if (goal) children.push(keyed(text(replaceTabs(goal), { wrap: "word", role: "omp.autoresearch.goal" }), "goal"));
+	if (goal) children.push(keyed(text(replaceTabs(goal), { wrap: "word", role: "reverse.autoresearch.goal" }), "goal"));
 	const [mode, modeToken] = modeLabel(runtime);
 	const meta: TspSpan[] = [
 		span("● ", modeToken),
@@ -617,8 +621,8 @@ function describeIntro(runtime: AutoresearchDashboardRuntime, segmented: boolean
 	if (segmented) meta.push(span("  ·  "), span(`Segment ${state.currentSegment + 1}`));
 	if (state.maxExperiments !== null) meta.push(span("  ·  "), span(`${state.maxExperiments} runs per segment`));
 	if (state.branch) meta.push(span("  ·  "), span(replaceTabs(state.branch), "mono"));
-	children.push(keyed(text(meta, { truncate: "end", role: "omp.autoresearch.meta" }), "meta"));
-	return keyed(col(children, { gap: "xs", role: "omp.autoresearch.intro" }), "intro");
+	children.push(keyed(text(meta, { truncate: "end", role: "reverse.autoresearch.meta" }), "meta"));
+	return keyed(col(children, { gap: "xs", role: "reverse.autoresearch.intro" }), "intro");
 }
 
 /** What is happening right now: a benchmark running, or a finished run waiting to be logged. */
@@ -633,10 +637,10 @@ function describeNow(runtime: AutoresearchDashboardRuntime): NativeNode | undefi
 					elapsed(Date.now() - running.startedAt),
 					text([span(replaceTabs(running.command), "mono")], {
 						truncate: "end",
-						role: "omp.autoresearch.command",
+						role: "reverse.autoresearch.command",
 					}),
 				],
-				{ gap: "sm", align: "center", role: "omp.autoresearch.running", tone: "pending" },
+				{ gap: "sm", align: "center", role: "reverse.autoresearch.running", tone: "pending" },
 			),
 			"now",
 		);
@@ -656,10 +660,10 @@ function describeNow(runtime: AutoresearchDashboardRuntime): NativeNode | undefi
 				text(result, { truncate: "end" }),
 				text([span("Log it with "), span("log_experiment", "mono"), span(" before the next run")], {
 					truncate: "end",
-					role: "omp.autoresearch.next",
+					role: "reverse.autoresearch.next",
 				}),
 			],
-			{ gap: "md", align: "center", role: "omp.autoresearch.pending", tone: "warning" },
+			{ gap: "md", align: "center", role: "reverse.autoresearch.pending", tone: "warning" },
 		),
 		"now",
 	);
@@ -678,17 +682,17 @@ function describeEmpty(runtime: AutoresearchDashboardRuntime, archived: number):
 					]
 				: ["No experiments logged yet", "Turn autoresearch mode on to start measuring."];
 	const children: NativeNode[] = [
-		text([span(title)], { role: "omp.autoresearch.empty.title" }),
-		text([span(detail)], { wrap: "word", role: "omp.autoresearch.empty.detail" }),
+		text([span(title)], { role: "reverse.autoresearch.empty.title" }),
+		text([span(detail)], { wrap: "word", role: "reverse.autoresearch.empty.detail" }),
 	];
 	if (archived > 0) {
 		children.push(
 			text([span(`${archived} ${archived === 1 ? "run" : "runs"} archived from earlier segments`)], {
-				role: "omp.autoresearch.note",
+				role: "reverse.autoresearch.note",
 			}),
 		);
 	}
-	return keyed(col(children, { gap: "xs", align: "center", role: "omp.autoresearch.empty" }), "empty");
+	return keyed(col(children, { gap: "xs", align: "center", role: "reverse.autoresearch.empty" }), "empty");
 }
 
 /** One headline number: a label, the value, and one line saying what it means. */
@@ -696,18 +700,18 @@ function stat(key: string, label: string, value: TspSpan[], detail: NativeNode[]
 	return keyed(
 		col(
 			[
-				text(label, { role: "omp.autoresearch.stat.k" }),
-				text(value, { wrap: "none", truncate: "end", role: "omp.autoresearch.stat.v" }),
+				text(label, { role: "reverse.autoresearch.stat.k" }),
+				text(value, { wrap: "none", truncate: "end", role: "reverse.autoresearch.stat.v" }),
 				...detail,
 			],
-			{ role: "omp.autoresearch.stat" },
+			{ role: "reverse.autoresearch.stat" },
 		),
 		key,
 	);
 }
 
 function statDetail(spans: TspSpan[]): NativeNode {
-	return text(spans, { truncate: "end", role: "omp.autoresearch.stat.sub" });
+	return text(spans, { truncate: "end", role: "reverse.autoresearch.stat.sub" });
 }
 
 /** Best, baseline, confidence and the run tally, then the secondary metrics at the best run. */
@@ -798,14 +802,14 @@ function describeStats(runtime: AutoresearchDashboardRuntime, current: readonly 
 						},
 					],
 					size: "sm",
-					role: "omp.autoresearch.tally",
+					role: "reverse.autoresearch.tally",
 				}),
 				statDetail(tally),
 			],
 		),
 	);
 
-	const children: NativeNode[] = [row(tiles, { role: "omp.autoresearch.stats" })];
+	const children: NativeNode[] = [row(tiles, { role: "reverse.autoresearch.stats" })];
 	if (best && state.secondaryMetrics.length > 0) {
 		const baselineSecondary = findBaselineSecondary(state.results, state.currentSegment, state.secondaryMetrics);
 		const spans: TspSpan[] = [];
@@ -821,10 +825,10 @@ function describeStats(runtime: AutoresearchDashboardRuntime, current: readonly 
 			if (change) spans.push(span(` ${change}`, "mono"));
 		}
 		if (spans.length > 0) {
-			children.push(keyed(text(spans, { truncate: "end", role: "omp.autoresearch.secondary" }), "secondary"));
+			children.push(keyed(text(spans, { truncate: "end", role: "reverse.autoresearch.secondary" }), "secondary"));
 		}
 	}
-	return keyed(col(children, { role: "omp.autoresearch.summary" }), "summary");
+	return keyed(col(children, { role: "reverse.autoresearch.summary" }), "summary");
 }
 
 /** The primary metric per run, in run order. */
@@ -848,7 +852,7 @@ function describeTrend(
 			token: "accent",
 			summary: [span(`${state.metricName} per run, ${state.bestDirection} is better`)],
 			size: "md",
-			role: "omp.autoresearch.trend",
+			role: "reverse.autoresearch.trend",
 		},
 		undefined,
 		"trend",
@@ -923,7 +927,7 @@ function describeRuns(
 			});
 			return { id: String(index), cells };
 		});
-	return node("table", { cols, rows, role: "omp.autoresearch.runs" }, undefined, "runs");
+	return node("table", { cols, rows, role: "reverse.autoresearch.runs" }, undefined, "runs");
 }
 
 function statusCounts(results: readonly ExperimentResult[]): Record<ExperimentResult["status"], number> {

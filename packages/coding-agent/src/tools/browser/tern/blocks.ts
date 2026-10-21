@@ -35,7 +35,7 @@ export interface TernTarget {
 	docked: boolean;
 	/** Whether scripts drive it; omitted by Terns before block adoption. */
 	driven?: boolean;
-	/** The omp tab of this process holding it, if any. */
+	/** The reverse tab of this process holding it, if any. */
 	tab?: string;
 }
 
@@ -54,7 +54,7 @@ function oldTernNote(blocks: readonly TernBlockEntry[]): string {
 	return "";
 }
 
-/** The window's blocks as targets, naming the omp tab (`taken`) holding each. */
+/** The window's blocks as targets, naming the reverse tab (`taken`) holding each. */
 export function ternTargets(blocks: readonly TernBlockEntry[], taken: ReadonlyMap<number, string>): TernTarget[] {
 	return blocks.map(entry => {
 		const target: TernTarget = {
@@ -105,7 +105,7 @@ export async function listTernBlocks(
  * The block `target` names: the block whose id it is (all digits), else the
  * blocks whose URL or title contain it (case-insensitive). Among several,
  * one on screen wins, then one scripts do not drive (the user's own), then
- * the first listed. Blocks in `taken` (other omp tabs drive them) never match.
+ * the first listed. Blocks in `taken` (other reverse tabs drive them) never match.
  */
 export function pickTernBlock(
 	blocks: readonly TernBlockEntry[],
@@ -132,7 +132,7 @@ export function pickTernBlock(
 export function describeTernBlock(entry: TernBlockEntry, takenBy?: string): string {
 	const facts = [entry.owner === null ? "docked" : `picture-in-picture over block ${entry.owner}`];
 	if (entry.shown !== undefined) facts.push(entry.shown ? "on screen" : "not on screen");
-	if (takenBy !== undefined) facts.push(`driven by omp tab ${JSON.stringify(takenBy)}`);
+	if (takenBy !== undefined) facts.push(`driven by reverse tab ${JSON.stringify(takenBy)}`);
 	else if (entry.driven === true) facts.push("driven by a script");
 	return `${entry.block} ${JSON.stringify(entry.title)} ${entry.url} (${facts.join(", ")})`;
 }

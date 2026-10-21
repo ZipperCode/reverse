@@ -66,7 +66,7 @@ export class QueuedMessagesBand extends Container {
 					children.push(
 						node(
 							"badge",
-							{ text: `${count} queued`, title: `${count} messages queued`, role: "omp.queue.count" },
+							{ text: `${count} queued`, title: `${count} messages queued`, role: "reverse.queue.count" },
 							undefined,
 							"count",
 						),
@@ -76,7 +76,7 @@ export class QueuedMessagesBand extends Container {
 					node(
 						"row",
 						{
-							role: "omp.queue.edit",
+							role: "reverse.queue.edit",
 							gap: "xs",
 							align: "center",
 							title: editTitle,
@@ -89,14 +89,14 @@ export class QueuedMessagesBand extends Container {
 				pills.push(
 					node(
 						"row",
-						{ role: "omp.queue.item", align: "center", gap: "sm", title: group.label },
+						{ role: "reverse.queue.item", align: "center", gap: "sm", title: group.label },
 						children,
 						`${group.label}/${index}`,
 					),
 				);
 			});
 		}
-		this.#native = node("col", { role: "omp.queue", gap: "xs" }, pills);
+		this.#native = node("col", { role: "reverse.queue", gap: "xs" }, pills);
 	}
 
 	override describe(): NativeNode {

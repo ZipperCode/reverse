@@ -804,7 +804,7 @@ export class AssistantMessageComponent extends Container {
 	}
 
 	/**
-	 * A `col` (role `omp.assistant`) of `md` nodes keyed by content index, so
+	 * A `col` (role `reverse.assistant`) of `md` nodes keyed by content index, so
 	 * streamed deltas reach the terminal as `text append` on the same node;
 	 * the tail block carries `stream: true` until the message finalizes.
 	 * Thinking blocks are quiet collapsible `section`s: a muted "Thinking…"
@@ -953,7 +953,7 @@ export class AssistantMessageComponent extends Container {
 								"row",
 								{ gap: "sm", title },
 								[
-									node("spinner", { style: "starburst", role: "omp.thinking.spin" }),
+									node("spinner", { style: "starburst", role: "reverse.thinking.spin" }),
 									text([span("Thinking…", "muted")]),
 									elapsed(performance.now() - (this.#thinkingClock.get(index)?.start ?? performance.now())),
 									...(rate >= 0.05 ? [node("rate", { value: rate, unit: "tok/s" })] : []),
@@ -967,7 +967,7 @@ export class AssistantMessageComponent extends Container {
 							"section",
 							{
 								// `.live` while streaming: the body clamps to its tail under a fade.
-								role: thinkingLive ? "omp.thinking.live" : "omp.thinking",
+								role: thinkingLive ? "reverse.thinking.live" : "reverse.thinking",
 								collapsible: true,
 								// Open while it streams; a finished thought folds to its "Thought for 12s" line unless the user keeps thinking expanded.
 								collapsed:
@@ -1018,7 +1018,7 @@ export class AssistantMessageComponent extends Container {
 			children.push(
 				node(
 					"badge",
-					{ text: "↺ rewound", tone: "muted", role: "omp.assistant.rewound-tag" },
+					{ text: "↺ rewound", tone: "muted", role: "reverse.assistant.rewound-tag" },
 					undefined,
 					"rewound",
 				),
@@ -1035,7 +1035,7 @@ export class AssistantMessageComponent extends Container {
 						"icon",
 						{
 							name: "copy",
-							role: "omp.turn.copy",
+							role: "reverse.turn.copy",
 							title: "Copy answer",
 							aria: "Copy answer",
 							actions: { click: "copy-answer" },
@@ -1048,10 +1048,15 @@ export class AssistantMessageComponent extends Container {
 			}
 			line.push(node("text", { text: usage.text }, undefined, "text"));
 			children.push(
-				node("row", { role: "omp.turn.usage", gap: "xs", align: "center", title: usage.title }, line, "turn-usage"),
+				node(
+					"row",
+					{ role: "reverse.turn.usage", gap: "xs", align: "center", title: usage.title },
+					line,
+					"turn-usage",
+				),
 			);
 		}
-		return col(children, { role: this.#rewound ? "omp.assistant.rewound" : "omp.assistant" });
+		return col(children, { role: this.#rewound ? "reverse.assistant.rewound" : "reverse.assistant" });
 	}
 
 	/**
@@ -1071,7 +1076,7 @@ export class AssistantMessageComponent extends Container {
 			return node(
 				"section",
 				{
-					role: "omp.assistant.recovered",
+					role: "reverse.assistant.recovered",
 					head: [span(`↻ Recovered after ${attempt} ${attempt === 1 ? "retry" : "retries"}`, "muted")],
 					collapsible: true,
 					collapsed: true,
@@ -1083,7 +1088,11 @@ export class AssistantMessageComponent extends Container {
 		if (presentation.kind !== "full" || message.content.some(content => content.type === "toolCall"))
 			return undefined;
 		if (message.stopReason === "aborted") {
-			return text([span(presentation.text, "error")], { wrap: "word", key: "error", role: "omp.assistant.abort" });
+			return text([span(presentation.text, "error")], {
+				wrap: "word",
+				key: "error",
+				role: "reverse.assistant.abort",
+			});
 		}
 		const lines = presentation.text
 			.split("\n")
@@ -1101,14 +1110,14 @@ export class AssistantMessageComponent extends Container {
 				{ gap: "sm" },
 				[
 					text([span("Request failed", "error strong")]),
-					...(code ? [node("badge", { text: code[1]!, tone: "error", role: "omp.error.code" })] : []),
+					...(code ? [node("badge", { text: code[1]!, tone: "error", role: "reverse.error.code" })] : []),
 				],
 				"head",
 			),
 			text([span(errorText, "mono")], {
 				wrap: "word",
 				lines: this.#errorExpanded ? undefined : MAX_TRANSCRIPT_ERROR_ROWS,
-				role: "omp.error.message",
+				role: "reverse.error.message",
 				key: "message",
 			}),
 		];
@@ -1116,14 +1125,14 @@ export class AssistantMessageComponent extends Container {
 			const button = (act: string, label: string, keys: readonly string[], title: string): NativeNode =>
 				node(
 					"row",
-					{ gap: "xs", role: "omp.error.action", actions: { click: act }, title },
+					{ gap: "xs", role: "reverse.error.action", actions: { click: act }, title },
 					keys.length > 0 ? [text(label), node("kbd", { keys })] : [text(label)],
 					act,
 				);
 			children.push(
 				node(
 					"row",
-					{ gap: "sm", role: "omp.error.actions" },
+					{ gap: "sm", role: "reverse.error.actions" },
 					[
 						button("retry", "Retry", ["F5"], "Retry the failed turn"),
 						button("copy-error", "Copy error", [], "Copy the error message"),
@@ -1134,10 +1143,10 @@ export class AssistantMessageComponent extends Container {
 			);
 		}
 		this.#errorText = errorText;
-		return card({ role: "omp.error", tone: "error", key: "error" }, children);
+		return card({ role: "reverse.error", tone: "error", key: "error" }, children);
 	}
 
-	/** Control clicks (the error frame's actions, the turn footer's Copy): omp's own retry, clipboard and model-picker paths. */
+	/** Control clicks (the error frame's actions, the turn footer's Copy): reverse's own retry, clipboard and model-picker paths. */
 	#handleAction(act: string): void {
 		if (act === "retry") runTranscriptAction({ act: "retry" });
 		else if (act === "switch-model") runTranscriptAction({ act: "switch-model" });

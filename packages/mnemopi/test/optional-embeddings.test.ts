@@ -132,9 +132,9 @@ describe("optional embeddings", () => {
 			fetch: async request => {
 				requests += 1;
 				expect(request.headers.get("content-type")).toBe("application/json");
-				expect(request.headers.get("user-agent")).toBe(`rva/${packageJson.version}`);
+				expect(request.headers.get("user-agent")).toBe(`reverse/${packageJson.version}`);
 				expect(request.headers.get("http-referer")).toBe("https://github.com/ZipperCode/rev");
-				expect(request.headers.get("x-openrouter-title")).toBe("rva");
+				expect(request.headers.get("x-openrouter-title")).toBe("reverse");
 				expect(request.headers.get("x-openrouter-categories")).toBe("cli-agent");
 				expect(request.headers.get("x-title")).toBeNull();
 				expect(request.headers.get("authorization")).toBeNull();

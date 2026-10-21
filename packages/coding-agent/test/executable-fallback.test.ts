@@ -32,8 +32,8 @@ describe("executable fallback on unlinked binary", () => {
 		const whichSpy = vi.spyOn(utils, "$which");
 
 		expect(resolveCliEntryCmd()).toEqual([process.execPath]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [process.execPath, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__reverse_worker_test")).toEqual({
+			cmd: [process.execPath, "__reverse_worker_test"],
 		});
 		expect(whichSpy).not.toHaveBeenCalled();
 	});
@@ -43,58 +43,58 @@ describe("executable fallback on unlinked binary", () => {
 		// The launcher must be fully qualified on the host platform: on Windows a rooted path
 		// without a drive letter is drive-relative and intentionally not trusted.
 		const root = process.platform === "win32" ? "C:" : "";
-		const missingPath = `${root}/opt/homebrew/Cellar/omp/18.1.8/bin/omp`;
-		const originalLauncher = `${root}/opt/homebrew/bin/omp`;
-		const otherOmpInPath = `${root}/usr/local/bin/omp`;
+		const missingPath = `${root}/opt/homebrew/Cellar/reverse/18.1.8/bin/reverse`;
+		const originalLauncher = `${root}/opt/homebrew/bin/reverse`;
+		const otherReverseInPath = `${root}/usr/local/bin/reverse`;
 
 		setProcessProp("execPath", missingPath);
 		setProcessProp("argv0", originalLauncher);
 
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
-			if (cmd === "omp") return otherOmpInPath;
+			if (cmd === "reverse") return otherReverseInPath;
 			return null;
 		});
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
-			return p === originalLauncher || p === otherOmpInPath;
+			return p === originalLauncher || p === otherReverseInPath;
 		});
 
 		expect(resolveCliEntryCmd()).toEqual([originalLauncher]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [originalLauncher, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__reverse_worker_test")).toEqual({
+			cmd: [originalLauncher, "__reverse_worker_test"],
 		});
 	});
 
 	it("falls back to PATH when original absolute launcher exists but is not executable", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/opt/homebrew/Cellar/omp/18.1.8/bin/omp";
-		const originalLauncher = "/opt/homebrew/bin/omp";
-		const otherOmpInPath = "/usr/local/bin/omp";
+		const missingPath = "/opt/homebrew/Cellar/reverse/18.1.8/bin/reverse";
+		const originalLauncher = "/opt/homebrew/bin/reverse";
+		const otherReverseInPath = "/usr/local/bin/reverse";
 
 		setProcessProp("execPath", missingPath);
 		setProcessProp("argv0", originalLauncher);
 
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
-			if (cmd === "omp") return otherOmpInPath;
+			if (cmd === "reverse") return otherReverseInPath;
 			return null;
 		});
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
 			// Launcher is not executable (e.g. root-owned, mode 0644, or directory)
-			return p === otherOmpInPath;
+			return p === otherReverseInPath;
 		});
 
-		expect(resolveCliEntryCmd()).toEqual([otherOmpInPath]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [otherOmpInPath, "__omp_worker_test"],
+		expect(resolveCliEntryCmd()).toEqual([otherReverseInPath]);
+		expect(resolveWorkerSpawnCmd("__reverse_worker_test")).toEqual({
+			cmd: [otherReverseInPath, "__reverse_worker_test"],
 		});
 	});
 
 	it("does not resolve relative argv0 against the working tree", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/opt/homebrew/Cellar/omp/18.1.8/bin/omp";
+		const missingPath = "/opt/homebrew/Cellar/reverse/18.1.8/bin/reverse";
 		setProcessProp("execPath", missingPath);
-		setProcessProp("argv0", "./omp");
+		setProcessProp("argv0", "./reverse");
 
-		const cwdRogueBinary = path.resolve("./omp");
+		const cwdRogueBinary = path.resolve("./reverse");
 		vi.spyOn(utils, "$which").mockReturnValue(null);
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
 			return p === cwdRogueBinary;
@@ -104,11 +104,11 @@ describe("executable fallback on unlinked binary", () => {
 		expect(resolveExecutablePath()).toBe(missingPath);
 	});
 
-	it("does not treat Windows drive-relative paths (e.g. C:omp) as bare commands", () => {
+	it("does not treat Windows drive-relative paths (e.g. C:reverse) as bare commands", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "C:\\Tools\\omp.exe";
+		const missingPath = "C:\\Tools\\reverse.exe";
 		setProcessProp("execPath", missingPath);
-		setProcessProp("argv0", "C:omp");
+		setProcessProp("argv0", "C:reverse");
 
 		let whichCalledWith: string | undefined;
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
@@ -119,19 +119,19 @@ describe("executable fallback on unlinked binary", () => {
 
 		resolveExecutablePath();
 
-		// Should not pass "C:omp" to which as a bare name; only "omp" generic fallback is queried
-		expect(whichCalledWith).toBe("omp");
+		// Should not pass "C:reverse" to which as a bare name; only "reverse" generic fallback is queried
+		expect(whichCalledWith).toBe("reverse");
 	});
 
-	it("falls back to $which('omp') when original execPath was unlinked and argv0 has no path", () => {
+	it("falls back to $which('reverse') when original execPath was unlinked and argv0 has no path", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/opt/homebrew/Cellar/omp/18.1.8/bin/omp";
+		const missingPath = "/opt/homebrew/Cellar/reverse/18.1.8/bin/reverse";
 		setProcessProp("execPath", missingPath);
-		setProcessProp("argv0", "omp");
+		setProcessProp("argv0", "reverse");
 
-		const mockUpgradedPath = "/opt/homebrew/bin/omp";
+		const mockUpgradedPath = "/opt/homebrew/bin/reverse";
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
-			if (cmd === "omp") return mockUpgradedPath;
+			if (cmd === "reverse") return mockUpgradedPath;
 			return null;
 		});
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
@@ -139,20 +139,20 @@ describe("executable fallback on unlinked binary", () => {
 		});
 
 		expect(resolveCliEntryCmd()).toEqual([mockUpgradedPath]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [mockUpgradedPath, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__reverse_worker_test")).toEqual({
+			cmd: [mockUpgradedPath, "__reverse_worker_test"],
 		});
 	});
 
-	it("falls back to process.argv0 when $which('omp') is unavailable", () => {
+	it("falls back to process.argv0 when $which('reverse') is unavailable", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/custom/install/bin/omp";
+		const missingPath = "/custom/install/bin/reverse";
 		setProcessProp("execPath", missingPath);
-		setProcessProp("argv0", "my-omp");
+		setProcessProp("argv0", "my-reverse");
 
-		const mockCustomPath = "/usr/local/bin/my-omp";
+		const mockCustomPath = "/usr/local/bin/my-reverse";
 		vi.spyOn(utils, "$which").mockImplementation((cmd: string) => {
-			if (cmd === "my-omp") return mockCustomPath;
+			if (cmd === "my-reverse") return mockCustomPath;
 			return null;
 		});
 		vi.spyOn(utils, "isExecutable").mockImplementation((p: string) => {
@@ -164,7 +164,7 @@ describe("executable fallback on unlinked binary", () => {
 
 	it("does not perform fallback lookup when isCompiledBinary is false", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(false);
-		const missingPath = "/opt/homebrew/Cellar/omp/18.1.8/bin/omp";
+		const missingPath = "/opt/homebrew/Cellar/reverse/18.1.8/bin/reverse";
 		setProcessProp("execPath", missingPath);
 
 		const whichSpy = vi.spyOn(utils, "$which");
@@ -177,7 +177,7 @@ describe("executable fallback on unlinked binary", () => {
 
 	it("returns original execPath gracefully if no fallback candidate exists", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "/nonexistent/omp";
+		const missingPath = "/nonexistent/reverse";
 		setProcessProp("execPath", missingPath);
 		vi.spyOn(utils, "$which").mockReturnValue(null);
 		vi.spyOn(utils, "isExecutable").mockReturnValue(false);

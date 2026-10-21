@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { getBundledModel } from "@reverse/catalog/models";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { type CustomTool, createAgentSession } from "@reverse/coding-agent/sdk";
@@ -22,7 +22,7 @@ const mcpTool: CustomTool = {
 describe("/tan prompt-cache tool presentation", () => {
 	for (const xdev of [true, false]) {
 		it(`preserves the parent's request tools with xd:// ${xdev ? "enabled" : "disabled"}`, async () => {
-			using dir = TempDir.createSync("@omp-tan-tools-");
+			using dir = TempDir.createSync("@reverse-tan-tools-");
 			const cwd = dir.path();
 			const settings = Settings.isolated({ "tools.xdev": xdev, "marketplace.autoUpdate": "off" });
 			const base = {

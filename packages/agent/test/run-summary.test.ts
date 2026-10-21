@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { agentLoop, agentLoopDetailed } from "@reverse/agent/agent-loop";
 import {
 	type AgentRunSummary,
@@ -16,7 +16,7 @@ import {
 	emptyAgentRunCoverage,
 	emptyAgentRunSummary,
 } from "@reverse/agent/run-collector";
-import { EXECUTE_TOOL_STATUS_ATTR, GenAIAttr, OmpGenAIAggregateAttr } from "@reverse/agent/telemetry";
+import { EXECUTE_TOOL_STATUS_ATTR, GenAIAttr, ReverseGenAIAggregateAttr } from "@reverse/agent/telemetry";
 import type { AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "@reverse/agent/types";
 import type { AssistantMessage, Message } from "@reverse/ai";
 import { createMockModel } from "@reverse/ai/providers/mock";
@@ -299,7 +299,7 @@ describe("AgentRunSummary aggregation", () => {
 		expect(blockedSpan?.attributes[GenAIAttr.ErrorType]).toBe("tool_blocked");
 	});
 
-	it("populates aggregate omp.gen_ai.agent.* attributes on the invoke_agent span", async () => {
+	it("populates aggregate reverse.gen_ai.agent.* attributes on the invoke_agent span", async () => {
 		const tracer = new RecordingTracer();
 		const tool = buildTool({ name: "alpha", behavior: "ok" });
 		const mock = createMockModel({
@@ -324,12 +324,12 @@ describe("AgentRunSummary aggregation", () => {
 		await detailed.detailed();
 		const invokeSpan = tracer.findSpan("invoke_agent");
 		expect(invokeSpan).toBeDefined();
-		expect(invokeSpan?.attributes[OmpGenAIAggregateAttr.ChatsCount]).toBe(2);
-		expect(invokeSpan?.attributes[OmpGenAIAggregateAttr.ToolsCount]).toBe(1);
-		expect(invokeSpan?.attributes[OmpGenAIAggregateAttr.ToolsOkCount]).toBe(1);
-		expect(invokeSpan?.attributes[OmpGenAIAggregateAttr.UsageInputTokensTotal]).toBe(6);
-		expect(invokeSpan?.attributes[OmpGenAIAggregateAttr.UsageTotalTokensTotal]).toBe(13);
-		expect(invokeSpan?.attributes[OmpGenAIAggregateAttr.ToolsInvoked]).toEqual(["alpha"]);
+		expect(invokeSpan?.attributes[ReverseGenAIAggregateAttr.ChatsCount]).toBe(2);
+		expect(invokeSpan?.attributes[ReverseGenAIAggregateAttr.ToolsCount]).toBe(1);
+		expect(invokeSpan?.attributes[ReverseGenAIAggregateAttr.ToolsOkCount]).toBe(1);
+		expect(invokeSpan?.attributes[ReverseGenAIAggregateAttr.UsageInputTokensTotal]).toBe(6);
+		expect(invokeSpan?.attributes[ReverseGenAIAggregateAttr.UsageTotalTokensTotal]).toBe(13);
+		expect(invokeSpan?.attributes[ReverseGenAIAggregateAttr.ToolsInvoked]).toEqual(["alpha"]);
 	});
 });
 

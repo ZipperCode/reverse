@@ -13,8 +13,8 @@
  * The SQL implementing both lives in `db.ts` (`FRUSTRATION_COUNTS_SQL`).
  *
  * Verdicts come from a single process-wide judge run over the unjudged prose,
- * using the judge the omp host registered through `startServer`. Standalone
- * `omp-stats` has none and only shows the regex fallback.
+ * using the judge the reverse host registered through `startServer`. Standalone
+ * `reverse-stats` has none and only shows the regex fallback.
  */
 import { type Judge, judgeQuestions, type Model } from "@reverse/ai";
 import { compareRevision, parseRevision } from "@reverse/catalog/compat/revision";
@@ -41,12 +41,12 @@ import type {
 	FrustrationModelStats,
 } from "./shared-types";
 
-/** Judge supplied by the omp host process; `primaryModel` prices the pre-run estimate. */
+/** Judge supplied by the reverse host process; `primaryModel` prices the pre-run estimate. */
 export interface StatsJudge extends Judge {
 	primaryModel(): Model | undefined;
 }
 
-/** Lazily resolves the host judge on first estimate/run so `omp stats` startup stays fast. */
+/** Lazily resolves the host judge on first estimate/run so `reverse stats` startup stays fast. */
 export type StatsJudgeProvider = () => Promise<StatsJudge>;
 
 /**
@@ -79,7 +79,7 @@ const ATTEMPTS_PER_TEXT = 3;
 const CIRCUIT_BREAKER_FAILURES = 25;
 
 const NO_PROVIDER_REASON =
-	"This dashboard was started without a judge (standalone omp-stats). Run `omp stats` to classify.";
+	"This dashboard was started without a judge (standalone reverse-stats). Run `reverse stats` to classify.";
 const NO_MODEL_REASON = "No judge model is available. Configure the `judge` model role.";
 
 let judgeProvider: StatsJudgeProvider | undefined;

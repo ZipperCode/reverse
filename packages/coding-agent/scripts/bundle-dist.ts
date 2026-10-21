@@ -48,7 +48,7 @@ function formatBytes(bytes: number): string {
 }
 
 async function cleanBundleOutputs(outDir: string): Promise<void> {
-	// dist/ is shared with the dev binary (dist/omp); only remove assets
+	// dist/ is shared with the dev binary (dist/reverse); only remove assets
 	// emitted by this script.
 	let entries: string[];
 	try {
@@ -85,7 +85,7 @@ export async function bundleDist(outDir: string = defaultOutDir): Promise<void> 
 	// One payload for both consumers: inlined into dist/cli.js via `--define` for
 	// the bundled CLI entrypoint, and written to dist/docs-index.generated.txt so
 	// SDK consumers importing `@reverse/coding-agent/*` (TypeScript source, no
-	// build-time embed) can still resolve omp:// docs (see src/internal-urls/docs-index.ts).
+	// build-time embed) can still resolve reverse:// docs (see src/internal-urls/docs-index.ts).
 	try {
 		const docsPayload = await buildDocsIndexPayload();
 		// Build in-process: the docs embed payload is far larger than Linux's

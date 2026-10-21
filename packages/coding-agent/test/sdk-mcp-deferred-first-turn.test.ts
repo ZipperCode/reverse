@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { createMockModel } from "@reverse/ai/providers/mock";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { Settings } from "@reverse/coding-agent/config/settings";

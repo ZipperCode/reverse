@@ -347,7 +347,7 @@ export function stripUnpairedOpenAIResponsesComputerReasoningIdsForReplay(items:
  * the model then fills - `""` → `"\n\n"` → stray words → non-Latin residue -
  * and each contaminated item is replayed in turn, so the drift compounds until
  * the visible answer collapses. Codex CLI replays the empty item too
- * (openai/codex#32389); this is the layer where omp can refuse to.
+ * (openai/codex#32389); this is the layer where reverse can refuse to.
  */
 export function sanitizeOpenAIResponsesAssistantHistoryItemsForReplay(
 	items: Array<Record<string, unknown>>,

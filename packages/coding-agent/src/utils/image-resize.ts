@@ -228,12 +228,12 @@ function readImageHeaderDimensions(buffer: Uint8Array): ImageHeaderDimensions | 
 }
 
 /**
- * Read `OMP_NO_WEBP` per-call so runtime toggles take effect.
+ * Read `REVERSE_NO_WEBP` per-call so runtime toggles take effect.
  * Only `"1"` and `"true"` (case-insensitive) enable exclusion — an empty string
  * or `"0"` MUST be treated as disabled.
  */
 function isWebPExcluded(): boolean {
-	const raw = Bun.env.OMP_NO_WEBP;
+	const raw = Bun.env.REVERSE_NO_WEBP;
 	if (raw === undefined) return false;
 	const v = raw.toLowerCase();
 	return v === "1" || v === "true";
@@ -302,7 +302,7 @@ function encodedResult(
  * Accepts an `ImageContent` (base64), raw bytes, or {@link ImageBytesInput}; passing
  * bytes avoids a base64 round-trip when the caller already holds them.
  *
- * Set OMP_NO_WEBP to exclude WebP from encoding (llama.cpp STB doesn't decode it).
+ * Set REVERSE_NO_WEBP to exclude WebP from encoding (llama.cpp STB doesn't decode it).
  *
  * Backed by `Bun.Image`: a chainable native pipeline that runs decode/transform/encode
  * off the JS thread when the terminal (`.bytes()`) is awaited.
@@ -415,7 +415,7 @@ export async function resizeImage(
 
 		// Lossy encoder for quality/dimension fallback ladders. PNG is excluded since
 		// it's lossless and doesn't respond to quality parameters. WebP is included
-		// unless OMP_NO_WEBP is set (llama.cpp STB incompatibility); JPEG unless the
+		// unless REVERSE_NO_WEBP is set (llama.cpp STB incompatibility); JPEG unless the
 		// image is translucent. Ladder steps pass a lossless PNG already at the target
 		// size, so each step only decodes that small intermediate instead of re-decoding
 		// and re-resizing the source; when `width`/`height` are given the source is
@@ -460,7 +460,7 @@ export async function resizeImage(
 
 		// First attempt: resize to target and try PNG/JPEG (+ WebP) in parallel, pick the
 		// smallest. PNG wins for line art / few-color UI; JPEG wins for photographic
-		// content; WebP usually beats JPEG by 25–35% but is disabled when OMP_NO_WEBP is
+		// content; WebP usually beats JPEG by 25–35% but is disabled when REVERSE_NO_WEBP is
 		// set because many local inference backends (llama.cpp STB) don't decode it.
 		// The lossless PNG doubles as the intermediate for the quality ladder below. A
 		// translucent image's lossy encode starts from its premultiplied resize, so waits for it.

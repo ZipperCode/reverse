@@ -33,7 +33,7 @@ describe.skipIf(process.platform === "win32")("resume picker across git worktree
 	let repo: string;
 
 	beforeEach(async () => {
-		root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "omp-picker-wt-")));
+		root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "reverse-picker-wt-")));
 		Object.assign(process.env, {
 			GIT_CONFIG_GLOBAL: "/dev/null",
 			GIT_CONFIG_NOSYSTEM: "1",
@@ -100,7 +100,7 @@ describe.skipIf(process.platform === "win32")("resume picker across git worktree
 
 	it("keeps a removed worktree's session listed and relocates it into the checkout on resume", async () => {
 		const moved = await sessionMovedByWt("wt/gone");
-		// `omp worktree clear` removes and prunes: git no longer knows the worktree.
+		// `reverse worktree clear` removes and prunes: git no longer knows the worktree.
 		await $`git worktree remove --force ${moved.worktree} && git worktree prune`.cwd(repo).quiet();
 
 		const listed = (await SessionManager.listForPicker(repo)).find(s => s.id === moved.id);

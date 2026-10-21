@@ -115,7 +115,7 @@ Streaming/UI behavior:
 - The interactive selector is UI-driven instead of model-driven. It swaps TUI components, appends status lines to the chat pane, opens files in external viewers, writes archives/temp files, or starts the process-wide JavaScriptCore inspector socket.
 
 Side-channel artifacts outside the model tool result:
-- `createReportBundle()` writes `omp-report-<timestamp>.tar.gz` under the reports dir and returns the filesystem path to the UI handler.
+- `createReportBundle()` writes `reverse-report-<timestamp>.tar.gz` under the reports dir and returns the filesystem path to the UI handler.
 - `#handleWorkReport()` writes `/tmp/work-profile-<Date.now()>.svg` before opening it.
 - `RawSseViewerComponent` and `DebugLogViewerComponent` can copy captured text to the clipboard.
 
@@ -162,7 +162,7 @@ Side-channel artifacts outside the model tool result:
   - `attach`: explicit `adapter` wins; otherwise remote `port` prefers `debugpy`, then native debuggers, then first available adapter.
 - **Custom adapter config**
   - Debug adapters can be added or overridden with `dap.json`, `.dap.json`, `dap.yaml`, `.dap.yaml`, `dap.yml`, or `.dap.yml`.
-  - Search order: selected cwd, its project config dirs (`.omp/`, `.claude/`, `.codex/`, `.gemini/`), enabled user config dirs (`~/.omp/agent/`, Claude's active config directory, `~/.codex/`, `~/.gemini/`), plugin roots, then home-root fallback. `CLAUDE_CONFIG_DIR` overrides Claude's user directory. Files are merged from lowest to highest priority.
+  - Search order: selected cwd, its project config dirs (`.reverse/`, `.claude/`, `.codex/`, `.gemini/`), enabled user config dirs (`~/.reverse/agent/`, Claude's active config directory, `~/.codex/`, `~/.gemini/`), plugin roots, then home-root fallback. `CLAUDE_CONFIG_DIR` overrides Claude's user directory. Files are merged from lowest to highest priority.
   - Config shape may be either `{ "adapters": { ... } }` or a top-level adapter map.
   - Adapter fields:
     - `command`: executable name or path. Required.
@@ -175,7 +175,7 @@ Side-channel artifacts outside the model tool result:
     - `connectMode`: `"stdio"` (default), `"socket"` (Delve-style platform-dependent socket/callback), or `"tcp"` (spawn a local DAP server with `${port}` substituted into `args`).
     - `acceptsDirectoryProgram`: set `true` for adapters such as `dlv` that can launch a package/project directory.
 
-Example `.omp/dap.json`:
+Example `.reverse/dap.json`:
 
 ```json
 {
@@ -308,7 +308,7 @@ GDB example for an OpenOCD remote target:
 - Raw SSE buffer caps in `packages/tui/src/apps/debug/raw-sse-buffer.ts`:
   - `MAX_RAW_SSE_EVENTS = 1_000`
   - `MAX_RAW_SSE_CHARS = 512_000`
-  - `MAX_RAW_SSE_EVENT_CHARS = 64_000` per event; over-budget events first compact long `tools` schemas/descriptions to 200-character previews (name/type retained), then, if still oversized, use head+tail trimming with `: omp-debug-elided chars=...`. Trimmed events end with `: omp-debug-truncated originalChars=...`.
+  - `MAX_RAW_SSE_EVENT_CHARS = 64_000` per event; over-budget events first compact long `tools` schemas/descriptions to 200-character previews (name/type retained), then, if still oversized, use head+tail trimming with `: reverse-debug-elided chars=...`. Trimmed events end with `: reverse-debug-truncated originalChars=...`.
 - Log viewer window in `packages/tui/src/apps/debug/log-viewer.ts`:
   - `INITIAL_LOG_CHUNK = 50`
   - `LOAD_OLDER_CHUNK = 50`
@@ -355,7 +355,7 @@ GDB example for an OpenOCD remote target:
 
 ## Notes
 - `packages/coding-agent/src/prompts/tools/debug.md` tells the model only one active root session is supported. Adapter-requested child sessions belong to that root tree.
-- The default JavaScript/TypeScript adapter runs vscode-js-debug's `dapDebugServer.js` over TCP. Install it one of these ways; the first and last are auto-discovered by `resolveJsDebugServerPath()` in `packages/coding-agent/src/dap/config.ts`. (Don't try `npm i -g js-debug-adapter` — it 404s; `js-debug-adapter` is the omp adapter id, not an npm package.)
+- The default JavaScript/TypeScript adapter runs vscode-js-debug's `dapDebugServer.js` over TCP. Install it one of these ways; the first and last are auto-discovered by `resolveJsDebugServerPath()` in `packages/coding-agent/src/dap/config.ts`. (Don't try `npm i -g js-debug-adapter` — it 404s; `js-debug-adapter` is the reverse adapter id, not an npm package.)
   - Release tarball, extracted so `dapDebugServer.js` lands at `~/.local/opt/js-debug/src/dapDebugServer.js`:
     ```sh
     curl -sL -o js-debug-dap.tar.gz \
@@ -365,7 +365,7 @@ GDB example for an OpenOCD remote target:
     Replace `v1.117.0` with the latest tag from the [releases page](https://github.com/microsoft/vscode-js-debug/releases).
   - Any other location via `JS_DEBUG_DAP_SERVER=<path-to-dapDebugServer.js>`.
   - Neovim users with Mason: `:MasonInstall js-debug-adapter` → discovered at `~/.local/share/nvim/mason/packages/js-debug-adapter/js-debug/src/dapDebugServer.js`.
-- The adapter runs under `node` if on `PATH`, otherwise under the omp host (Bun); `resolveDefaultJsDebugAdapter()` falls back to `process.execPath`, so a Bun-only setup is supported.
+- The adapter runs under `node` if on `PATH`, otherwise under the reverse host (Bun); `resolveDefaultJsDebugAdapter()` falls back to `process.execPath`, so a Bun-only setup is supported.
 - `configurationDone` is sent automatically during root and child launch/attach handshakes and lazily before later requests if the initial handshake did not complete.
 - `startDebugging` reverse requests create recursive child sessions on the same TCP server; a stopped child becomes the target for thread-level actions.
 - `output` exposes the active session's merged DAP `output` events and `runInTerminal` stdout. DAP stdout/stderr/console categories are not separated; the terminal-spawn path does not add its separately drained stderr to this cache.

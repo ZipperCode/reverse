@@ -201,7 +201,7 @@ describe("headless persistence-failure surface", () => {
 		const originalId = creator.getSessionId();
 		await creator.close();
 
-		// Another live omp process wrote this session first and still has it open.
+		// Another live reverse process wrote this session first and still has it open.
 		const storage = new FileSessionStorage();
 		const claim = storage.claimSession.bind(storage);
 		spyOn(storage, "claimSession").mockImplementation((sessionId, sessionPath) =>

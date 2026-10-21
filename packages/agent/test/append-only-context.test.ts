@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { AppendOnlyContextManager, AppendOnlyLog, StablePrefix } from "@reverse/agent/append-only-context";
 import { invalidateMessageCache } from "@reverse/agent/compaction/message-cache";
 import type { AgentContext, AgentTool } from "@reverse/agent/types";

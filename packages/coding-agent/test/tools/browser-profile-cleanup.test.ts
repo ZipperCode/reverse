@@ -2,7 +2,7 @@
  * Regression test for issue #7058: on Windows, puppeteer-core deletes its temp
  * Chrome profile with an unretried `rm()` from an eager process-exit hook, so an
  * EBUSY on the still-locked profile surfaces as an unhandled rejection that
- * crashes OMP. OMP now owns the profile directory and removes it itself with a
+ * crashes REVERSE. REVERSE now owns the profile directory and removes it itself with a
  * lock-tolerant, warn-and-leave cleanup.
  */
 
@@ -27,7 +27,7 @@ import type { DaemonSnapshot, DaemonState } from "@reverse/tui/tools/daemon";
 import * as piUtils from "@reverse/utils";
 
 async function makeProfileDir(): Promise<string> {
-	const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-chrome-profile-test-"));
+	const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reverse-chrome-profile-test-"));
 	await Bun.write(path.join(dir, "SingletonLock"), "lock");
 	await Bun.write(path.join(dir, "Default", "Preferences"), "{}");
 	return dir;
@@ -177,7 +177,7 @@ describe("headless Chromium profile cleanup (issue #7058)", () => {
 
 describe("owned Chromium profile preferences", () => {
 	it("disables password leak detection while keeping a reused profile's other preferences", async () => {
-		const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-chrome-profile-test-"));
+		const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reverse-chrome-profile-test-"));
 		const file = path.join(dir, "Default", "Preferences");
 		try {
 			await Bun.write(
@@ -201,7 +201,7 @@ describe("owned Chromium profile preferences", () => {
 	});
 
 	it("warns instead of failing the launch and leaves no staged file when the write fails", async () => {
-		const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-chrome-profile-test-"));
+		const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reverse-chrome-profile-test-"));
 		const renameSpy = spyOn(fs.promises, "rename").mockRejectedValue(
 			Object.assign(new Error("EBUSY: resource busy or locked"), { code: "EBUSY" }),
 		);
@@ -219,7 +219,7 @@ describe("owned Chromium profile preferences", () => {
 
 	it("lets only the client that launches the shared Chrome write its Preferences when two cold starts race", async () => {
 		const seed = browserLaunch.seedOwnedProfilePreferences;
-		const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-shared-profile-race-"));
+		const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reverse-shared-profile-race-"));
 		const name = sharedBrowserDaemonName(true);
 		const prefsFile = path.join(daemonRuntimeDir(projectDir), `${name}.profile`, "Default", "Preferences");
 		const wsEndpoint = "ws://127.0.0.1:9222/devtools/browser/race";
@@ -271,7 +271,7 @@ describe("owned Chromium profile preferences", () => {
 
 describe("shared Chromium session-restore state", () => {
 	it("discards the previous Chrome's sessions before a cold start and never touches a live Chrome's", async () => {
-		const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-shared-profile-sessions-"));
+		const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reverse-shared-profile-sessions-"));
 		const name = sharedBrowserDaemonName(true);
 		const sessionsDir = path.join(daemonRuntimeDir(projectDir), `${name}.profile`, "Default", "Sessions");
 		const wsEndpoint = "ws://127.0.0.1:9222/devtools/browser/sessions";
@@ -323,7 +323,7 @@ describe("shared Chromium session-restore state", () => {
 	});
 
 	it("starts Chrome only while holding the profile claim, though an unclaimed client may adopt it", async () => {
-		const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-shared-profile-claim-"));
+		const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reverse-shared-profile-claim-"));
 		const name = sharedBrowserDaemonName(true);
 		const sessionsDir = path.join(daemonRuntimeDir(projectDir), `${name}.profile`, "Default", "Sessions");
 		const wsEndpoint = "ws://127.0.0.1:9222/devtools/browser/claim";
@@ -336,14 +336,16 @@ describe("shared Chromium session-restore state", () => {
 		const warnSpy = spyOn(piUtils.logger, "warn").mockImplementation(() => {});
 		let lockSpy: { mockRestore(): void } | undefined;
 		const holdClaimElsewhere = () => {
-			lockSpy = spyOn(piUtils, "acquireFileLock").mockRejectedValue(new Error("lock held by another omp process"));
+			lockSpy = spyOn(piUtils, "acquireFileLock").mockRejectedValue(
+				new Error("lock held by another reverse process"),
+			);
 		};
 		const releaseClaim = () => {
 			lockSpy?.mockRestore();
 			lockSpy = undefined;
 		};
 		try {
-			// Another omp process holds the claim past the wait, so this client
+			// Another reverse process holds the claim past the wait, so this client
 			// cannot prepare the profile and must not launch Chrome on it.
 			await Bun.write(path.join(sessionsDir, "Session_13435785841408923"), "previous chrome");
 			holdClaimElsewhere();
@@ -366,7 +368,7 @@ describe("shared Chromium session-restore state", () => {
 	});
 
 	it("restarts the shared browser without restoring the stopped Chrome's pages", async () => {
-		const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-shared-profile-restart-"));
+		const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reverse-shared-profile-restart-"));
 		const name = sharedBrowserDaemonName(true);
 		const sessionsDir = path.join(daemonRuntimeDir(projectDir), `${name}.profile`, "Default", "Sessions");
 		const wsEndpoint = "ws://127.0.0.1:9222/devtools/browser/restart";

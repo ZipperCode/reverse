@@ -56,8 +56,8 @@ const STARTUP_TIMEOUT_MS = 10_000;
 const INTERRUPT_ESCALATION_MS = 5_000;
 
 const PYTHON_RESERVED_PRELUDE_EXPORTS: Record<string, true> = {
-	__omp_tools__: true,
-	_omp_prelude: true,
+	__reverse_tools__: true,
+	_reverse_prelude: true,
 	AgentHandle: true,
 	CompletionHandle: true,
 	JudgmentBatch: true,
@@ -257,8 +257,8 @@ export class PythonKernel extends BaseKernel<PythonKernelExecuteOptions> {
 		const source: string[] = [];
 		if (removedExports.length > 0) {
 			source.push(
-				`for __omp_export in ${JSON.stringify(removedExports)}:\n    globals().pop(__omp_export, None)`,
-				'globals().pop("__omp_export", None)',
+				`for __reverse_export in ${JSON.stringify(removedExports)}:\n    globals().pop(__reverse_export, None)`,
+				'globals().pop("__reverse_export", None)',
 			);
 		}
 		for (const prelude of changed) source.push(prelude.source);
@@ -302,7 +302,7 @@ export class PythonKernel extends BaseKernel<PythonKernelExecuteOptions> {
 		spawnEnv.PYTHONUNBUFFERED = "1";
 		spawnEnv.PYTHONIOENCODING = "utf-8";
 
-		const scriptPath = await stageRunnerScript("omp-python-runner", "py", RUNNER_SCRIPT);
+		const scriptPath = await stageRunnerScript("reverse-python-runner", "py", RUNNER_SCRIPT);
 		const kernel = new PythonKernel(Snowflake.next());
 
 		const proc = Bun.spawn([runtime.pythonPath, "-u", scriptPath], {
@@ -393,10 +393,10 @@ function buildInitScript(cwd: string, env?: Record<string, string | undefined>):
 	const envPayload = Object.fromEntries(envEntries);
 	return [
 		"import os, sys",
-		`__omp_cwd = ${JSON.stringify(cwd)}`,
-		"os.chdir(__omp_cwd)",
-		`__omp_env = ${JSON.stringify(envPayload)}`,
-		"for __omp_key, __omp_val in __omp_env.items():\n    os.environ[__omp_key] = __omp_val",
-		"if __omp_cwd not in sys.path:\n    sys.path.insert(0, __omp_cwd)",
+		`__reverse_cwd = ${JSON.stringify(cwd)}`,
+		"os.chdir(__reverse_cwd)",
+		`__reverse_env = ${JSON.stringify(envPayload)}`,
+		"for __reverse_key, __reverse_val in __reverse_env.items():\n    os.environ[__reverse_key] = __reverse_val",
+		"if __reverse_cwd not in sys.path:\n    sys.path.insert(0, __reverse_cwd)",
 	].join("\n");
 }

@@ -5,8 +5,8 @@ import { TempDir } from "@reverse/utils";
 
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 
-test("omp dry-balance routes by account policies from a --config overlay", async () => {
-	const agentDir = TempDir.createSync("@omp-dry-balance-config-");
+test("reverse dry-balance routes by account policies from a --config overlay", async () => {
+	const agentDir = TempDir.createSync("@reverse-dry-balance-config-");
 	try {
 		await Bun.write(
 			path.join(agentDir.path(), "models.yml"),

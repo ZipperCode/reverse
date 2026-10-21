@@ -148,7 +148,7 @@ describe("SessionManager usage statistics", () => {
 	});
 
 	it("replays a dangling late-usage leaf to the newest real entry", async () => {
-		using tempDir = TempDir.createSync("@omp-dangling-usage-leaf-");
+		using tempDir = TempDir.createSync("@reverse-dangling-usage-leaf-");
 		const session = SessionManager.create(tempDir.path(), tempDir.path());
 		const ownerParent = session.appendMessage({ role: "user", content: "owner", timestamp: 1 });
 		const successor = session.appendMessage({ role: "user", content: "successor", timestamp: 2 });

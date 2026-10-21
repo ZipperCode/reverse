@@ -72,7 +72,7 @@ describe("grep native view", () => {
 	it("shows the first two files while collapsed and every file expanded", () => {
 		const small = grepToolRenderer.describeResult(result, collapsed, { pattern: "hit" });
 		const full = grepToolRenderer.describeResult(result, expanded, { pattern: "hit" });
-		const files = (view: typeof small) => collect(view.body, n => role(n) === "omp.tool.search.file");
+		const files = (view: typeof small) => collect(view.body, n => role(n) === "reverse.tool.search.file");
 		expect(files(small)).toHaveLength(2);
 		expect(files(full)).toHaveLength(3);
 		expect(small.inline).toBe(true);
@@ -80,7 +80,7 @@ describe("grep native view", () => {
 
 	it("splits non-adjacent match lines into numbered runs with a gap row between", () => {
 		const view = grepToolRenderer.describeResult(result, expanded, { pattern: "hit" });
-		const first = collect(view.body, n => role(n) === "omp.tool.search.file")[0]!;
+		const first = collect(view.body, n => role(n) === "reverse.tool.search.file")[0]!;
 		expect(codeStarts(first.c)).toEqual([9, 40]);
 		const kinds = (first.c ?? []).filter(isNode).map(n => n.k);
 		expect(kinds).toEqual(["row", "code", "text", "code"]);
@@ -97,7 +97,7 @@ describe("grep native view", () => {
 			{ pattern: "hit" },
 		);
 		const body = (view.body ?? []).filter(isNode);
-		expect(body.map(role)).toEqual(["omp.tool.search.file"]);
+		expect(body.map(role)).toEqual(["reverse.tool.search.file"]);
 		const kinds = (body[0]!.c ?? []).filter(isNode).map(n => n.k);
 		expect(kinds).toEqual(["row", "code", "text", "code"]);
 		expect(codeStarts(body[0]!.c)).toEqual([9, 40]);
@@ -163,7 +163,7 @@ describe("read group tool node", () => {
 			status: "error",
 			collapsed: true,
 		});
-		const rows = collect(tool.c, n => role(n) === "omp.tool.file");
+		const rows = collect(tool.c, n => role(n) === "reverse.tool.file");
 		expect(rows).toHaveLength(1);
 		const sections = collect(tool.c, n => n.k === "section");
 		expect(sections).toHaveLength(1);
@@ -201,7 +201,7 @@ describe("read group tool node", () => {
 			table,
 			fence,
 		]);
-		expect(collect(collapsed.c, n => role(n) === "omp.tool.stats")).toHaveLength(0);
+		expect(collect(collapsed.c, n => role(n) === "reverse.tool.stats")).toHaveLength(0);
 
 		group.setExpanded(true);
 		expect(
@@ -227,9 +227,9 @@ describe("glob native view", () => {
 			{ content: [], details: { fileCount: 7, files: files(7) } },
 			collapsed,
 		);
-		expect(collect(few.body, n => role(n) === "omp.tool.file")).toHaveLength(6);
-		expect(collect(few.body, n => role(n) === "omp.tool.chip")).toHaveLength(0);
-		expect(collect(many.body, n => role(n) === "omp.tool.chip")).toHaveLength(7);
+		expect(collect(few.body, n => role(n) === "reverse.tool.file")).toHaveLength(6);
+		expect(collect(few.body, n => role(n) === "reverse.tool.chip")).toHaveLength(0);
+		expect(collect(many.body, n => role(n) === "reverse.tool.chip")).toHaveLength(7);
 	});
 });
 
@@ -248,7 +248,7 @@ describe("lsp native view", () => {
 		expect(view?.tone).toBe("error");
 		expect(view?.inline).not.toBe(true);
 		expect((view?.tool?.meta ?? []).map(plain).join(" ")).not.toContain("No issues");
-		expect(collect(view?.body, n => role(n) === "omp.tool.error")).toHaveLength(1);
+		expect(collect(view?.body, n => role(n) === "reverse.tool.error")).toHaveLength(1);
 	});
 
 	it("parses grouped diagnostics into file:line:col rows and frames them", () => {
@@ -265,7 +265,7 @@ describe("lsp native view", () => {
 			args,
 		);
 		expect(view?.inline).not.toBe(true);
-		const rows = collect(view?.body, n => role(n) === "omp.tool.diagnostic");
+		const rows = collect(view?.body, n => role(n) === "reverse.tool.diagnostic");
 		expect(rows).toHaveLength(2);
 		const texts = collect(rows[0]!.c, n => n.k === "text").map(n => (n.k === "text" ? plain(n.p?.spans) : ""));
 		expect(texts[0]).toBe("src/frame.rs:12:5");

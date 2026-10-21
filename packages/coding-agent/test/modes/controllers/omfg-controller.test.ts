@@ -12,7 +12,7 @@ import { Container, type TUI } from "@reverse/tui";
 import { CONFIG_DIR_NAME, removeWithRetries } from "@reverse/utils";
 import { clearCache, readDirEntries } from "@reverse/coding-agent/capability/fs";
 
-const PROJECT_OPTION = "This project (.omp/rules)";
+const PROJECT_OPTION = "This project (.reverse/rules)";
 
 const usage: Usage = {
 	input: 0,

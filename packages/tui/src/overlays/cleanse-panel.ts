@@ -63,7 +63,7 @@ export class CleansePanelComponent extends OverlayPanel {
 	readonly #content: StreamingPanelContent;
 
 	constructor(options: CleansePanelComponentOptions) {
-		super(options.request ? `/cleanse ${replaceTabs(options.request)}` : "/cleanse", "omp.overlay.cleanse");
+		super(options.request ? `/cleanse ${replaceTabs(options.request)}` : "/cleanse", "reverse.overlay.cleanse");
 		this.#tui = options.tui;
 		this.#model = options.model;
 		this.#request = options.request === undefined ? undefined : replaceTabs(options.request);
@@ -193,7 +193,7 @@ export class CleansePanelComponent extends OverlayPanel {
 				: [span("/cleanse", "accent"), span(` ${this.#request}`)];
 		const head = node(
 			"row",
-			{ role: "omp.sheet.head", gap: "sm", align: "center" },
+			{ role: "reverse.sheet.head", gap: "sm", align: "center" },
 			[...(this.#outcome === undefined ? [node("spinner", {})] : []), text(title, { truncate: "end", lines: 1 })],
 			"head",
 		);

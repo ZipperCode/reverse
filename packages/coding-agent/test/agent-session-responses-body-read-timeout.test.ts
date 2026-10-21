@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
 import { DEFAULT_SHAKE_CONFIG } from "@reverse/agent/compaction";
 import { streamSimple } from "@reverse/ai/stream";

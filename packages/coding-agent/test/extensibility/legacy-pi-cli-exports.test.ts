@@ -11,7 +11,7 @@ import { toolReadsSkillUris } from "@reverse/coding-agent/system-prompt";
 
 describe("legacy shim CLI exports", () => {
 	it("re-exports parseArgs and CONFIG_DIR_NAME from the legacy package root", () => {
-		expect(CONFIG_DIR_NAME).toBe(".rva");
+		expect(CONFIG_DIR_NAME).toBe(".reverse");
 		expect(parseArgs(["hello"]).messages).toEqual(["hello"]);
 	});
 });

@@ -108,7 +108,7 @@ async function connected(server: Bun.Server<undefined>, timeout: number): Promis
 
 /**
  * State the deadline a transport resolves instead of inheriting it from
- * `OMP_MCP_TIMEOUT_MS`. A spy on the module the transports read keeps the run
+ * `REVERSE_MCP_TIMEOUT_MS`. A spy on the module the transports read keeps the run
  * hermetic without mutating any global; `vi.restoreAllMocks()` undoes it.
  */
 function pinDeadline(ms: number): void {
@@ -128,7 +128,7 @@ describe("MCP waits that outlast the socket idle timer", () => {
 					BUN_CONFIG_HTTP_IDLE_TIMEOUT: CHILD_IDLE_SECONDS,
 					// Pin the configuration under test so an inherited override
 					// cannot give the probe a deadline of its own.
-					OMP_MCP_TIMEOUT_MS: "0",
+					REVERSE_MCP_TIMEOUT_MS: "0",
 				},
 				stdin: "ignore",
 				stdout: "pipe",

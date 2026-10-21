@@ -19,7 +19,7 @@ describe("collectThreads", () => {
 	let tempDir: string;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-collect-threads-test-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-collect-threads-test-"));
 	});
 
 	afterEach(async () => {

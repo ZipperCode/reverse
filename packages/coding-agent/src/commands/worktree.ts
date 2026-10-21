@@ -1,5 +1,5 @@
 /**
- * List and clean up agent-managed git worktrees under `~/.omp/wt`.
+ * List and clean up agent-managed git worktrees under `~/.reverse/wt`.
  */
 
 import { getProjectDir } from "@reverse/utils";
@@ -13,7 +13,7 @@ export default class Worktree extends Command {
 	static aliases = ["wt"];
 
 	static args = {
-		// A positional action keeps `omp worktree` (the no-arg form) useful.
+		// A positional action keeps `reverse worktree` (the no-arg form) useful.
 		action: Args.string({
 			description: "list (default), clear, or add",
 			required: false,
@@ -68,20 +68,20 @@ export default class Worktree extends Command {
 	};
 
 	static examples = [
-		"omp worktree",
-		"omp worktree list --json",
-		"omp worktree add ../feature",
-		"omp worktree add -b feature ../feature origin/main",
-		"omp worktree add --detach ../review HEAD~2",
-		"omp worktree clear",
-		"omp worktree clear --dry-run",
-		"omp worktree clear --all",
+		"reverse worktree",
+		"reverse worktree list --json",
+		"reverse worktree add ../feature",
+		"reverse worktree add -b feature ../feature origin/main",
+		"reverse worktree add --detach ../review HEAD~2",
+		"reverse worktree clear",
+		"reverse worktree clear --dry-run",
+		"reverse worktree clear --all",
 	];
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Worktree);
 		// Load settings so the `worktree.base` override is applied before we scan
-		// — otherwise this command would inspect ~/.omp/wt while the agent created
+		// — otherwise this command would inspect ~/.reverse/wt while the agent created
 		// its worktrees under the configured base.
 		if (args.action === "add") {
 			if (!args.path) {

@@ -1,11 +1,11 @@
 ---
 name: authoring-extensions
-description: Use when creating a new omp extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
+description: Use when creating a new reverse extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
 ---
 
 # Authoring Extensions
 
-Extensions are the primary way to add capabilities to `omp`. A single extension module can register tools the LLM can call, slash commands users can invoke, and event handlers that run throughout the session lifecycle — all from one TypeScript file. Its default factory may initialize synchronously or return a promise.
+Extensions are the primary way to add capabilities to `reverse`. A single extension module can register tools the LLM can call, slash commands users can invoke, and event handlers that run throughout the session lifecycle — all from one TypeScript file. Its default factory may initialize synchronously or return a promise.
 
 ## Minimum viable extension
 
@@ -19,7 +19,7 @@ export default function (pi: ExtensionAPI) {
 }
 ```
 
-That is a working extension. Drop it into `~/.omp/agent/extensions/hello.ts` and restart omp to see the notification.
+That is a working extension. Drop it into `~/.reverse/agent/extensions/hello.ts` and restart reverse to see the notification.
 
 ## Full example
 
@@ -75,40 +75,40 @@ export default function myExtension(pi: ExtensionAPI) {
 
 ## Discovery paths
 
-omp loads extension modules from these sources:
+reverse loads extension modules from these sources:
 
-1. Native `.omp` locations discovered through the capability system:
-   - project/ancestor `.omp/extensions/` directories within the discovery boundary
-   - `~/.omp/agent/extensions/`
-   - legacy extension paths listed in `.omp/settings.json#extensions` or `~/.omp/agent/settings.json#extensions`
+1. Native `.reverse` locations discovered through the capability system:
+   - project/ancestor `.reverse/extensions/` directories within the discovery boundary
+   - `~/.reverse/agent/extensions/`
+   - legacy extension paths listed in `.reverse/settings.json#extensions` or `~/.reverse/agent/settings.json#extensions`
 2. Discovered JavaScript/TypeScript hook factories (`hooks/pre/` and `hooks/post/`), bound through the extension runner.
-3. Enabled installed plugins under `~/.omp/plugins/node_modules` or a project plugin root — including npm, marketplace, and `omp plugin link` installs — via their `omp.extensions`/`pi.extensions` manifests.
-4. Explicit configured paths passed by the CLI (`omp --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
+3. Enabled installed plugins under `~/.reverse/plugins/node_modules` or a project plugin root — including npm, marketplace, and `reverse plugin link` installs — via their `reverse.extensions`/`pi.extensions` manifests.
+4. Explicit configured paths passed by the CLI (`reverse --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
 
 The runtime de-duplicates by resolved absolute path — first seen wins.
 
 `--no-extensions` disables ambient discovery but still permits explicit `--extension`/`--hook` paths and their bundled capabilities. For an exact module-file allowlist, repeat `--trusted-extension /absolute/path/to/module.ts`: paths must exist and be files, ambient extension discovery is disabled, and those files are not treated as package roots for sibling capability discovery. It cannot be combined with `--extension`, `-e`, or `--hook`; a trusted-module load error aborts startup. This is discovery control, not a sandbox for extension code.
 
-The user directory is the active profile's agent directory: the default is `~/.omp/agent`, while `omp --profile <name>` uses `~/.omp/profiles/<name>/agent` under the default layout. `PI_CODING_AGENT_DIR` overrides the default profile's agent directory; named profiles derive their own directory instead. Initialized XDG roots can change these locations.
+The user directory is the active profile's agent directory: the default is `~/.reverse/agent`, while `reverse --profile <name>` uses `~/.reverse/profiles/<name>/agent` under the default layout. `PI_CODING_AGENT_DIR` overrides the default profile's agent directory; named profiles derive their own directory instead. Initialized XDG roots can change these locations.
 
-When a path points to a directory, omp resolves the entry point in this order:
+When a path points to a directory, reverse resolves the entry point in this order:
 
-1. `package.json` with `omp.extensions` (or legacy `pi.extensions`) field
+1. `package.json` with `reverse.extensions` (or legacy `pi.extensions`) field
 2. `index.ts`
 3. `index.js`
 
-When scanning an `extensions/` directory, omp also loads direct `*.ts`/`*.js` files and one-level subdirectories that have `index.ts`, `index.js`, or a manifest.
+When scanning an `extensions/` directory, reverse also loads direct `*.ts`/`*.js` files and one-level subdirectories that have `index.ts`, `index.js`, or a manifest.
 
-Extension packages can also bundle sibling capability directories. When a package is loaded through `extensions:` or `--extension`/`-e`, the `omp-plugins` provider discovers its `skills/`, `hooks/pre|post/`, `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json`.
+Extension packages can also bundle sibling capability directories. When a package is loaded through `extensions:` or `--extension`/`-e`, the `reverse-plugins` provider discovers its `skills/`, `hooks/pre|post/`, `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json`.
 
 ## package.json manifest
 
-To package an extension as an installable plugin, add an `omp` field to `package.json`:
+To package an extension as an installable plugin, add an `reverse` field to `package.json`:
 
 ```json
 {
-  "name": "my-omp-extension",
-  "omp": {
+  "name": "my-reverse-extension",
+  "reverse": {
     "extensions": ["./src/main.ts"]
   }
 }
@@ -128,7 +128,7 @@ Multiple entry points are supported:
 
 ```json
 {
-  "omp": {
+  "reverse": {
     "extensions": ["./src/safety.ts", "./src/tools.ts"]
   }
 }
@@ -168,7 +168,7 @@ Use command contexts for switching, branching, tree navigation, and reload. `com
 ## Registering tools
 
 Tools are called by the LLM. Parameter definitions may use the injected
-Zod-compatible omptype builder; `pi.arktype` and the legacy-compatible
+Zod-compatible reversetype builder; `pi.arktype` and the legacy-compatible
 `pi.typebox` are also available:
 
 ```ts
@@ -237,10 +237,10 @@ New authoring should use `ExtensionAPI`. Discovered JS/TS hook factories are loa
 
 ## Debugging
 
-omp writes structured logs under the active state root's `logs/` directory (by default `~/.omp/logs/`; debug level is always on, and nothing is written to the console because that would corrupt the TUI). Records are written in batches, so a debug line can take up to a second to appear while `warn` and `error` lines are written immediately. Each filename includes the process ID, and a process creates its file only when it first logs. Tail today's default-profile logs to see extension load diagnostics:
+reverse writes structured logs under the active state root's `logs/` directory (by default `~/.reverse/logs/`; debug level is always on, and nothing is written to the console because that would corrupt the TUI). Records are written in batches, so a debug line can take up to a second to appear while `warn` and `error` lines are written immediately. Each filename includes the process ID, and a process creates its file only when it first logs. Tail today's default-profile logs to see extension load diagnostics:
 
 ```
-tail -f ~/.omp/logs/omp.$(date +%F).*.log
+tail -f ~/.reverse/logs/reverse.$(date +%F).*.log
 ```
 
 Failed extension loads are logged with their path and error. Loaded extensions may also emit their own debug logs via `pi.logger`.
@@ -248,7 +248,7 @@ Failed extension loads are logged with their path and error. Loaded extensions m
 To temporarily disable a specific extension module by name without removing the file:
 
 ```yaml
-# ~/.omp/agent/config.yml
+# ~/.reverse/agent/config.yml
 disabledExtensions:
   - extension-module:my-ext
 ```

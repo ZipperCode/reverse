@@ -89,7 +89,7 @@ describe("Bedrock caller headers", () => {
 });
 
 describe("amazon-bedrock user-agent default", () => {
-	it("defaults user-agent to the shared omp UA when no headers are set", async () => {
+	it("defaults user-agent to the shared reverse UA when no headers are set", async () => {
 		const seen: { headers?: Record<string, string> } = {};
 		await withSkippedBedrockAuth(async () => {
 			const stream = streamBedrock(model(), context, { region: "us-east-1", fetch: capturingBedrockFetch(seen) });

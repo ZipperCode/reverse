@@ -88,7 +88,7 @@ describe("Z.AI web search provider", () => {
 			);
 		};
 		const response = await searchZai({
-			query: "omp z.ai search",
+			query: "reverse z.ai search",
 			authStorage,
 			fetch: fetchImpl,
 			sessionId: "session-zai-test",

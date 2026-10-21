@@ -10,14 +10,14 @@ import * as path from "node:path";
 import { loadExtensions } from "@reverse/coding-agent/extensibility/extensions/loader";
 import { TempDir } from "@reverse/utils";
 
-const EVENTS_KEY = "__ompExtensionLoaderConcurrencyEvents";
-const RELEASE_KEY = "__ompExtensionLoaderConcurrencyRelease";
-const FAST_EVALUATED_KEY = "__ompExtensionLoaderConcurrencyFastEvaluated";
+const EVENTS_KEY = "__reverseExtensionLoaderConcurrencyEvents";
+const RELEASE_KEY = "__reverseExtensionLoaderConcurrencyRelease";
+const FAST_EVALUATED_KEY = "__reverseExtensionLoaderConcurrencyFastEvaluated";
 
 interface EventsGlobal {
-	__ompExtensionLoaderConcurrencyEvents?: string[];
-	__ompExtensionLoaderConcurrencyRelease?: Promise<void>;
-	__ompExtensionLoaderConcurrencyFastEvaluated?: () => void;
+	__reverseExtensionLoaderConcurrencyEvents?: string[];
+	__reverseExtensionLoaderConcurrencyRelease?: Promise<void>;
+	__reverseExtensionLoaderConcurrencyFastEvaluated?: () => void;
 }
 
 const eventsGlobal = globalThis as EventsGlobal;
@@ -26,7 +26,7 @@ describe("extension loader concurrency (#7615)", () => {
 	let project: TempDir | undefined;
 
 	beforeEach(() => {
-		project = TempDir.createSync("@omp-ext-concurrency-");
+		project = TempDir.createSync("@reverse-ext-concurrency-");
 		eventsGlobal[EVENTS_KEY] = [];
 	});
 

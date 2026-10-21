@@ -8,7 +8,7 @@ describe("headless startup resume", () => {
 	test.each(["print", "json", "rpc", "rpc-ui"])(
 		"does not send a saved transcript to the settings default in %s mode",
 		async mode => {
-			using tempDir = TempDir.createSync("@omp-resume-model-");
+			using tempDir = TempDir.createSync("@reverse-resume-model-");
 			const requests: string[] = [];
 			const server = Bun.serve({
 				hostname: "127.0.0.1",
@@ -171,7 +171,7 @@ describe("headless runtime session switch", () => {
 			waitFor: (type: string) => Promise<RpcFrame>;
 		}) => Promise<void>,
 	): Promise<void> {
-		using tempDir = TempDir.createSync("@omp-switch-model-");
+		using tempDir = TempDir.createSync("@reverse-switch-model-");
 		const cwd = tempDir.path();
 		const requests: { provider: string; body: string }[] = [];
 		const server = Bun.serve({

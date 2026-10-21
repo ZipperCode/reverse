@@ -45,7 +45,7 @@ describe("InteractiveMode shutdown when the session store keeps failing (#12238)
 
 	beforeEach(async () => {
 		resetSettingsForTest();
-		tempDir = TempDir.createSync("@omp-shutdown-store-failure-");
+		tempDir = TempDir.createSync("@reverse-shutdown-store-failure-");
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
 		const modelRegistry = new ModelRegistry(authStorage);

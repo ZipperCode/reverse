@@ -96,7 +96,7 @@ export class InternalUrlRouter {
 	#handlers = new Map<string, ProtocolHandler>();
 	/** Scheme whose handler resolves resources of unregistered custom schemes (MCP resource URIs). */
 	readonly #resourceFallbackScheme: string;
-	/** Schemes the constructor registers: OMP-owned, never replaced by hosts. */
+	/** Schemes the constructor registers: REVERSE-owned, never replaced by hosts. */
 	readonly #builtinSchemes: ReadonlySet<string>;
 
 	constructor() {
@@ -113,7 +113,7 @@ export class InternalUrlRouter {
 		this.register(new ProcProtocolHandler());
 		this.register(new CfgProtocolHandler());
 		this.register(new SshProtocolHandler());
-		// Reserved OMP-owned security-analysis namespace; vendor adapters normalize into its store.
+		// Reserved REVERSE-owned security-analysis namespace; vendor adapters normalize into its store.
 		this.register(new SecurityProtocolHandler());
 		this.register(new VaultProtocolHandler());
 		this.register(new IssueProtocolHandler());
@@ -167,7 +167,7 @@ export class InternalUrlRouter {
 		this.#handlers.set(scheme.toLowerCase(), handler);
 	}
 
-	/** Whether the router constructor registered `scheme` (case-insensitive): an OMP-owned scheme hosts may not replace. */
+	/** Whether the router constructor registered `scheme` (case-insensitive): an REVERSE-owned scheme hosts may not replace. */
 	isBuiltin(scheme: string): boolean {
 		return this.#builtinSchemes.has(scheme.toLowerCase());
 	}

@@ -40,7 +40,7 @@ const shellNeutralWord = /^[A-Za-z0-9_./-]+$/;
  * written before the Herdr surface exists so a local failure leaves no orphaned pane or tab.
  */
 async function prepareLaunchScript(request: TerminalLaunchRequest): Promise<{ directory: string; typed: string }> {
-	const directory = await fs.mkdtemp(path.join(path.resolve(os.tmpdir()), "omp-herdr-"));
+	const directory = await fs.mkdtemp(path.join(path.resolve(os.tmpdir()), "reverse-herdr-"));
 	try {
 		const script = path.join(directory, "launch");
 		if (!shellNeutralWord.test(script)) {

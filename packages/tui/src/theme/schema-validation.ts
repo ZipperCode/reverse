@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { SpinnerFramesOverride } from "./symbols";
 import type { ThemeJson } from "./schema";
 
@@ -119,7 +119,7 @@ const themeJsonSchema = type({
 	},
 });
 
-/** Validate a custom theme with the full omptype contract. */
+/** Validate a custom theme with the full reversetype contract. */
 export function validateThemeJson(value: unknown): ThemeJson {
 	const parsed = themeJsonSchema(value);
 	if (parsed instanceof type.errors) throw new Error(parsed.summary);

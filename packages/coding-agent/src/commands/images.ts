@@ -22,12 +22,12 @@ export default class Images extends Command {
 		timeout: Flags.integer({ description: "External health probe timeout in seconds" }),
 	};
 	static examples = [
-		"omp images",
-		"omp images status --json",
-		"omp images doctor",
-		"omp images probe --timeout 15",
-		"omp images purge",
-		"omp images purge --all --apply",
+		"reverse images",
+		"reverse images status --json",
+		"reverse images doctor",
+		"reverse images probe --timeout 15",
+		"reverse images purge",
+		"reverse images purge --all --apply",
 	];
 
 	async run(): Promise<void> {

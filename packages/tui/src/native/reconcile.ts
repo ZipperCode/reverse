@@ -22,7 +22,7 @@
  * after the `settle` hint; only a weak identity, its root kind, root prop
  * names and child ids survive. A later change is sent as targeted ops by id
  * (`set` of the root props, `del` + `add` of its children), never by diffing
- * against state omp no longer keeps.
+ * against state reverse no longer keeps.
  *
  * `overlay` nodes described anywhere but directly under `layer` are hoisted
  * into `layer`; their anchor keypaths are rewritten to wire ids.

@@ -840,7 +840,7 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 
 /**
  * SQLite `PRAGMA data_version` of the open connection, or null before
- * {@link initDb}. It moves only when another connection (another omp process)
+ * {@link initDb}. It moves only when another connection (another reverse process)
  * commits, so a caller can detect foreign writes without scanning.
  */
 export function getDataVersion(): number | null {

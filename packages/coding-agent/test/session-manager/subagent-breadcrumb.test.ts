@@ -49,7 +49,7 @@ describe("SessionManager subagent breadcrumb isolation", () => {
 	beforeEach(async () => {
 		// Deterministic, non-TTY terminal id so breadcrumb read/write is stable.
 		process.env.TMUX_PANE = "%subagent-breadcrumb-test";
-		testAgentDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-subagent-crumb-"));
+		testAgentDir = await fsp.mkdtemp(path.join(os.tmpdir(), "reverse-subagent-crumb-"));
 		setAgentDir(testAgentDir);
 		cwd = path.join(testAgentDir, "project");
 		fs.mkdirSync(cwd, { recursive: true });

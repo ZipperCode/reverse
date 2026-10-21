@@ -132,7 +132,7 @@ describe("RpcHostToolBridge", () => {
 
 describe("RpcClient custom tools", () => {
 	it("registers host custom tools and serves tool calls over the RPC transport", async () => {
-		const scriptPath = path.join(os.tmpdir(), `omp-rpc-host-tools-${Date.now()}.js`);
+		const scriptPath = path.join(os.tmpdir(), `reverse-rpc-host-tools-${Date.now()}.js`);
 		tempPaths.push(scriptPath);
 		await Bun.write(
 			scriptPath,
@@ -253,7 +253,7 @@ function handle(frame) {
 		}
 	});
 	it("preserves skill URI readability across the host tool wire frame", async () => {
-		const scriptPath = path.join(os.tmpdir(), `omp-rpc-host-skill-${Date.now()}.js`);
+		const scriptPath = path.join(os.tmpdir(), `reverse-rpc-host-skill-${Date.now()}.js`);
 		const capturePath = `${scriptPath}.tools.json`;
 		tempPaths.push(scriptPath, capturePath);
 		await Bun.write(

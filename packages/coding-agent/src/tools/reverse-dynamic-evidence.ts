@@ -1,6 +1,6 @@
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
 import type { OutputMeta } from "@reverse/tui/tools/output-meta";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
 import type { ToolSession } from "./index";

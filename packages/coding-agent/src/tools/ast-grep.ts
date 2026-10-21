@@ -1,5 +1,5 @@
 import type { AstGrepToolDetails } from "@reverse/tui/tools/ast-grep";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 import type { ToolExample } from "@reverse/ai";
 import { type AstFindMatch, astGrep, type ShellFilesystem } from "@reverse/natives";

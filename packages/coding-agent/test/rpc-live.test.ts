@@ -168,7 +168,7 @@ describe("RpcLiveBridge", () => {
 
 describe("live commands over RPC", () => {
 	test("start/mute/stop wire shapes; frames bypass set_event_filter; stdin end stops the session", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-live-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-rpc-live-"));
 		const child = Bun.spawn([process.execPath, path.join(import.meta.dir, "fixtures", "live-rpc-agent.ts")], {
 			cwd: dir,
 			env: { ...process.env, PI_CODING_AGENT_DIR: dir, PI_NO_TITLE: "1" },

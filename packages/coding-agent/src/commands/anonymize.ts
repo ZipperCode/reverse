@@ -16,9 +16,9 @@ export default class Anonymize extends Command {
 	};
 
 	static examples = [
-		"omp anonymize",
-		"omp anonymize 01a0285c -o ./bug-report",
-		"omp anonymize ~/.omp/agent/sessions/--work-pi--/session.jsonl",
+		"reverse anonymize",
+		"reverse anonymize 01a0285c -o ./bug-report",
+		"reverse anonymize ~/.reverse/agent/sessions/--work-pi--/session.jsonl",
 	];
 
 	async run(): Promise<void> {

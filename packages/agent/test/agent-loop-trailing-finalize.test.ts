@@ -8,7 +8,7 @@
  * `message_start`/`message_end` — symmetric with the done/error-event path.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { agentLoop } from "@reverse/agent/agent-loop";
 import type { AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "@reverse/agent/types";
 import type { AssistantMessage, AssistantMessageEvent, Context, Message } from "@reverse/ai";

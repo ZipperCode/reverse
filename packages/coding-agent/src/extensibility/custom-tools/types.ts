@@ -5,9 +5,9 @@
  * They can provide custom rendering for tool calls and results in the TUI.
  */
 
-import type { type as ArkType } from "@reverse/omptype";
-import type * as TypeBox from "@reverse/omptype/typebox";
-import type * as zod from "@reverse/omptype/zod";
+import type { type as ArkType } from "@reverse/reversetype";
+import type * as TypeBox from "@reverse/reversetype/typebox";
+import type * as zod from "@reverse/reversetype/zod";
 import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
@@ -73,7 +73,7 @@ export interface CustomToolAPI {
 	typebox: typeof TypeBox;
 	/** Injected arktype module for arktype-authored custom tools. */
 	arktype: typeof ArkType;
-	/** Injected Zod-compatible omptype builder for custom tools. */
+	/** Injected Zod-compatible reversetype builder for custom tools. */
 	zod: typeof zod;
 	/** Injected pi-coding-agent exports */
 	pi: typeof PiCodingAgent;
@@ -102,7 +102,7 @@ export interface CustomToolContext {
 	settings?: Settings;
 	/** Fetch implementation for outbound HTTP; defaults to global fetch when omitted. */
 	fetch?: FetchImpl;
-	/** Calling session's `local://` root mapping for tools that bridge out of the OMP process. */
+	/** Calling session's `local://` root mapping for tools that bridge out of the REVERSE process. */
 	localProtocolOptions?: LocalProtocolOptions;
 	/** Whether to auto-approve all destructive tool operations (--auto-approve CLI flag) */
 	autoApprove?: boolean;

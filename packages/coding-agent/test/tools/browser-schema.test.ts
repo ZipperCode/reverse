@@ -81,8 +81,8 @@ describe("browser prelude", () => {
 		const calls: unknown[] = [];
 		const displayed: unknown[] = [];
 		const context = createContext({
-			__omp_display__: (value: unknown) => displayed.push(value),
-			__omp_prelude__: async (name: string, parameters: unknown) => {
+			__reverse_display__: (value: unknown) => displayed.push(value),
+			__reverse_prelude__: async (name: string, parameters: unknown) => {
 				calls.push({ name, parameters });
 				if (parameters === null || typeof parameters !== "object") return { text: "", details: {} };
 				const action = Reflect.get(parameters, "action");

@@ -15,14 +15,14 @@ describe("legacy shim path helpers", () => {
 	afterEach(() => vi.restoreAllMocks());
 
 	it("getPackageDir resolves the coding-agent package root in source mode", () => {
-		// omp's canonical helper returns the package root containing package.json
+		// reverse's canonical helper returns the package root containing package.json
 		// (pi's "install directory of the coding-agent package" semantics).
 		const dir = shim.getPackageDir();
 		expect(path.basename(dir)).toBe("coding-agent");
 	});
 
 	// Pi's getPackageDir() is string-valued: extensions do
-	// `path.join(getPackageDir(), ...)`. omp's canonical helper returns
+	// `path.join(getPackageDir(), ...)`. reverse's canonical helper returns
 	// `undefined` inside a `bun --compile` binary (import.meta.dir is
 	// /$bunfs/root, no package.json — issue #1423), which would crash every
 	// such call in the shipped binary. The shim MUST fall back to a real

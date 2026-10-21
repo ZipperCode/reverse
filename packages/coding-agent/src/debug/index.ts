@@ -479,7 +479,7 @@ export class DebugSelectorComponent extends OverlayPanel {
 		if (!suppressed) {
 			const sessionName = this.ctx.sessionManager.getSessionName();
 			const notification: TerminalNotification = {
-				title: sessionName || "omp",
+				title: sessionName || "reverse",
 				body: "Terminal protocol test",
 				type: "test",
 				actions: "focus",

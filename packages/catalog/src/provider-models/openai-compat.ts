@@ -271,7 +271,7 @@ async function fetchCatalogPayload(
 /**
  * The wire effort tiers the catalog publishes for a model, in canonical order.
  * Undefined when the row has no effort-addressed thinking, or names no tier
- * omp knows.
+ * reverse knows.
  */
 function publishedEffortLadder(model: ModelsDevModel): Effort[] | undefined {
 	const values = model.reasoning_options?.find(option => option?.type === "effort")?.values;
@@ -369,8 +369,8 @@ async function loadPublishedEffortLadders(fetchImpl?: FetchImpl): Promise<Publis
 
 /**
  * The catalog provider keys this endpoint publishes under. A provider whose
- * catalog identity differs from its omp id (`moonshot` → `moonshotai`) is
- * resolved through its descriptors; the omp id stays as a candidate for
+ * catalog identity differs from its reverse id (`moonshot` → `moonshotai`) is
+ * resolved through its descriptors; the reverse id stays as a candidate for
  * providers the descriptors do not cover.
  */
 function catalogProviderKeys(providerId: string): readonly string[] {
@@ -391,7 +391,7 @@ function catalogProviderKeys(providerId: string): readonly string[] {
  * holds it only while every publishing host agrees that it takes an effort
  * dial and on which tiers. A host serving the id that published it without a
  * dial is this deployment's own answer and outranks any other host's ladder,
- * so it vetoes the candidate here; a dialless host omp cannot recognize as the
+ * so it vetoes the candidate here; a dialless host reverse cannot recognize as the
  * server already kept the id out of `byId` when the index was built.
  */
 function lookupPublishedEffortLadder(
@@ -419,7 +419,7 @@ function lookupPublishedEffortLadder(
 }
 
 /**
- * Fill the effort ladder of discovered reasoning models whose tiers omp would
+ * Fill the effort ladder of discovered reasoning models whose tiers reverse would
  * otherwise guess from the neutral wire or provider-wide unknown-class default.
  *
  * Source precedence is unchanged: a provider that reports its own thinking
@@ -669,7 +669,7 @@ async function fetchOllamaNativeModels(
  * Ollama's cloud catalog reports for stock models.
  */
 const OLLAMA_FALLBACK_CONTEXT_WINDOW = 128_000;
-/** Cap max output tokens at a value that matches OMP's other openai-responses defaults. */
+/** Cap max output tokens at a value that matches Reverse's other openai-responses defaults. */
 const OLLAMA_DEFAULT_MAX_TOKENS = 8192;
 
 interface OllamaResolvedMetadata {
@@ -1620,7 +1620,7 @@ function deepinfraTags(metadata: Record<string, unknown>): readonly string[] {
  * Map one DeepInfra catalog entry to a chat model spec. Non-`chat` entries
  * (`tts`, `stt`, `embed`, `image-gen`, `video-gen`) are dropped — those
  * surfaces are served by dedicated tool backends, not the chat catalog.
- * DeepInfra reports token prices in USD per 1M tokens — omp's `ModelCost`
+ * DeepInfra reports token prices in USD per 1M tokens — Reverse's `ModelCost`
  * unit, used verbatim. A bundled reference (when the generated catalog has
  * one) is spread first so compat/tooling metadata can contribute, but the
  * live metadata always wins for limits, pricing, and modalities.
@@ -3468,7 +3468,7 @@ function openCodeModelManagerOptions(
 					apiKey,
 					// Live discovery hits the OpenCode gateway outside any
 					// conversation: attribute with the stable install id
-					// (x-opencode-session required from 09/06) and omp's UA
+					// (x-opencode-session required from 09/06) and reverse's UA
 					// instead of Bun's default.
 					headers: { "User-Agent": USER_AGENT, "x-opencode-session": getInstallId() },
 					mapModel: (entry, defaults) => {
@@ -4524,7 +4524,7 @@ function toSyntheticStringList(value: unknown): readonly string[] {
 
 /**
  * Translate Synthetic's per-model `reasoning_effort` vocabulary into an effort
- * ladder. Every advertised value that names an OMP tier maps verbatim; `none`
+ * ladder. Every advertised value that names a Reverse tier maps verbatim; `none`
  * is the thinking-off state rather than a tier of its own, so it backs the
  * `minimal` selector through the wire map (same shape as the Fireworks
  * `minimal → none` map) and gives these routes a real no-thinking tier.
@@ -4727,9 +4727,9 @@ export interface BasetenModelManagerConfig {
 	fetch?: FetchImpl;
 }
 
-// A previous version of OMP shipped these models without reasoning levels.
+// A previous version of Reverse shipped these models without reasoning levels.
 // We've since fixed that (V4-generation whitelist). This const lets us bust
-// the cache so that users on that version of OMP pick up the reasoning levels
+// the cache so that users on that version of Reverse pick up the reasoning levels
 // immediately.
 const BASETEN_CACHE_MIGRATION_MODEL_IDS = [
 	"zai-org/GLM-5.3",
@@ -4759,10 +4759,10 @@ export function basetenModelManagerOptions(
 			const features = Array.isArray(raw.supported_features) ? raw.supported_features : [];
 			const modalities = Array.isArray(raw.input_modalities) ? raw.input_modalities : [];
 
-			// Baseten's discovery flags are not enough to enable OMP reasoning for every
+			// Baseten's discovery flags are not enough to enable Reverse reasoning for every
 			// model. Only models with a verified Baseten reasoning policy are enabled
 			// here; an unknown model may use a different reasoning wire shape or effort
-			// vocabulary, which OMP must not guess.
+			// vocabulary, which Reverse must not guess.
 			const identity = classifyModel("baseten", defaults.id, { lenient: true });
 			const isSupportedBasetenReasoningModel =
 				(identity.class === "kimi" && identity.family === "k3") ||
@@ -5416,7 +5416,7 @@ interface StepfunModelRecord extends OpenAICompatibleModelRecord {
 
 /**
  * Translate StepFun's per-model `reasoning_effort_support_list` into a ladder.
- * Every advertised value that names an OMP tier maps verbatim, in OMP's tier
+ * Every advertised value that names a Reverse tier maps verbatim, in Reverse's tier
  * order; a row advertising nothing (or only tiers this client does not know)
  * resolves to no thinking, so the wire path never sends a `reasoning_effort`
  * the endpoint rejects. Same shape as `mapOpenRouterThinking` for OpenRouter's
@@ -5431,7 +5431,7 @@ function mapStepfunThinking(entry: StepfunModelRecord): ThinkingConfig | undefin
 }
 
 /**
- * Whether a StepFun `/v1/models` id is a chat model omp can route. StepFun's
+ * Whether a StepFun `/v1/models` id is a chat model reverse can route. StepFun's
  * roster interleaves its audio and image SKUs with the chat models; the
  * exclusion policy itself lives in `runtime/behavior.kdl` (`exclude-models
  * provider="stepfun"`), not here.
@@ -5447,7 +5447,7 @@ export function isStepfunChatModelId(id: string): boolean {
  * `api.stepfun.ai/v1`. A successful `/v1/models` snapshot is authoritative over
  * the bundled seed rows (`providers/stepfun.kdl`), so a model StepFun retires
  * leaves the picker instead of lingering as a dead seed row, while models added
- * later become selectable without an omp release.
+ * later become selectable without a reverse release.
  */
 export function stepfunModelManagerOptions(
 	config?: StepfunModelManagerConfig,

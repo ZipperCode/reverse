@@ -46,7 +46,7 @@ function tempDir(): TempDir {
 	return dir;
 }
 
-/** One omp process: a session over `sessionManager` with its own Mnemopi state on the store in `storeDir`. */
+/** One reverse process: a session over `sessionManager` with its own Mnemopi state on the store in `storeDir`. */
 function startProcess(
 	storeDir: TempDir,
 	sessionManager: SessionManager,
@@ -449,7 +449,7 @@ describe("Hindsight recall across a resume", () => {
 		retainMode: "full-session",
 		retainEveryNTurns: 3,
 		retainOverlapTurns: 2,
-		retainContext: "omp",
+		retainContext: "reverse",
 		recallBudget: "mid",
 		recallMaxTokens: 1024,
 		recallTypes: [],

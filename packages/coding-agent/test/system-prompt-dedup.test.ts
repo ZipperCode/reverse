@@ -72,7 +72,7 @@ describe("SYSTEM.md prompt assembly", () => {
 
 	it("renders SYSTEM.md exactly once when it is used as the custom base prompt", async () => {
 		const projectDir = path.join(tempDir, "project");
-		const systemDir = path.join(projectDir, ".omp");
+		const systemDir = path.join(projectDir, ".reverse");
 		const systemPrompt = "You are the project SYSTEM prompt.";
 		fs.mkdirSync(systemDir, { recursive: true });
 		fs.writeFileSync(path.join(systemDir, "SYSTEM.md"), systemPrompt);
@@ -140,8 +140,8 @@ describe("SYSTEM.md prompt assembly", () => {
 	it("suppresses discovered SYSTEM.md while preserving the project footer", async () => {
 		const projectDir = path.join(tempDir, "project");
 		const appendPrompt = "Extra append instructions";
-		fs.mkdirSync(path.join(projectDir, ".omp"), { recursive: true });
-		fs.writeFileSync(path.join(projectDir, ".omp", "SYSTEM.md"), "Discovered project SYSTEM prompt");
+		fs.mkdirSync(path.join(projectDir, ".reverse"), { recursive: true });
+		fs.writeFileSync(path.join(projectDir, ".reverse", "SYSTEM.md"), "Discovered project SYSTEM prompt");
 
 		const { systemPrompt } = await buildSystemPrompt({
 			cwd: projectDir,

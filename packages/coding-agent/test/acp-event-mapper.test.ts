@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentSideConnection, SessionNotification } from "@reverse/utils/acp";
 
 const arkSessionNotification = type({
@@ -871,7 +871,7 @@ describe("ACP event mapper", () => {
 	});
 
 	it("replays assistant tool_use input through the ACP dispatcher without wrapping", async () => {
-		const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-acp-replay-contract-"));
+		const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reverse-acp-replay-contract-"));
 		const cwd = path.join(root, "cwd");
 		const sessionDir = path.join(root, "sessions");
 		const initialSessionDir = path.join(root, "initial-session");

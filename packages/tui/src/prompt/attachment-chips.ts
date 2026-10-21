@@ -22,7 +22,7 @@ import { cachedImageDimensions, setCachedImageDimensions } from "./image-referen
 import { theme } from "../theme/theme";
 import type { ComposerChipDescriptor, CustomEditor, TextAttachment } from "./custom-editor";
 
-/** Chip card geometry (mirrors omp2): a 12x4 content area inside a 1-cell rounded border. */
+/** Chip card geometry: a 12x4 content area inside a 1-cell rounded border. */
 const INNER_COLS = 12;
 const INNER_ROWS = 4;
 const CARD_COLS = INNER_COLS + 2;
@@ -32,7 +32,7 @@ const RESET_FG = "\x1b[39m";
  *  probe cache): Kitty's `f=100` transmit accepts only PNG, so non-PNG attachments
  *  (pastes are usually re-encoded JPEG/WebP) convert before transmit — the same pipeline
  *  the transcript uses. `null` = conversion in flight or failed. */
-const kImagePng = Symbol("omp.imagePng");
+const kImagePng = Symbol("reverse.imagePng");
 
 interface ImageContentWithPng extends ImageContent {
 	[kImagePng]?: ImageContent | null;
@@ -59,7 +59,7 @@ export class AttachmentChipsBand implements Component {
 		| undefined;
 
 	/**
-	 * A wrapping `row` of chip `card`s (`omp.composer.chip`) titled with the
+	 * A wrapping `row` of chip `card`s (`reverse.composer.chip`) titled with the
 	 * buffer token (`<icon> #N`): images and videos show the image itself,
 	 * pastes their leading lines; the caption carries pixel size or line/char
 	 * count. Hidden while nothing is staged.
@@ -105,10 +105,15 @@ export class AttachmentChipsBand implements Component {
 			const children: NativeNode[] = [content];
 			if (caption) children.push(node("text", { spans: [span(caption, "dim")], wrap: "none" }));
 			cards.push(
-				node("card", { role: "omp.composer.chip", tone: "accent", head }, children, `${chip.kind}:${chip.n}`),
+				node("card", { role: "reverse.composer.chip", tone: "accent", head }, children, `${chip.kind}:${chip.n}`),
 			);
 		}
-		const described = row(cards, { gap: "sm", wrap: true, role: "omp.composer.chips", hidden: cards.length === 0 });
+		const described = row(cards, {
+			gap: "sm",
+			wrap: true,
+			role: "reverse.composer.chips",
+			hidden: cards.length === 0,
+		});
 		this.#native = { chips, node: described, images };
 		return described;
 	}

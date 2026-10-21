@@ -3,7 +3,7 @@
   "name": "@reverse/tui",
   "version": "18.11.2",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
-  "homepage": "https://omp.sh",
+  "homepage": "https://github.com/ZipperCode/rev",
   "author": {
     "name": "Stencil Labs, Inc.",
     "url": "https://stencil.so"
@@ -14,11 +14,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/ZipperCode/rev.git",
     "directory": "packages/tui"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/ZipperCode/rev/issues"
   },
   "keywords": [
     "tui",
@@ -41,7 +41,7 @@
     "gen:glyphs": "bun scripts/gen-glyphs.ts"
   },
   "dependencies": {
-    "@reverse/omptype": "catalog:",
+    "@reverse/reversetype": "catalog:",
     "@reverse/agent": "catalog:",
     "@reverse/ai": "catalog:",
     "@reverse/catalog": "catalog:",

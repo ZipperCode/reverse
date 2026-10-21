@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import * as vcs from "@reverse/natives/vcs";
 import type { CommitAgentState, GitOverviewSnapshot } from "../../../commit/agentic/state";
 import { DEFAULT_CONVENTIONAL_GENERATION_CONFIG } from "../../../commit/conventional/config";

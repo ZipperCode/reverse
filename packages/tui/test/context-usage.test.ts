@@ -6,7 +6,7 @@
  * internals, which massively overcounts.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { buildModel } from "@reverse/catalog/build";
 import type { Model, ModelSpec } from "@reverse/catalog/types";
 import { Tokenizer } from "@reverse/agent";

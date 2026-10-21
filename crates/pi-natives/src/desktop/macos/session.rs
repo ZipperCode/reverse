@@ -13,7 +13,7 @@ use crate::power::platform::{AssertionInner, AssertionKind};
 /// up; absent while unlocked.
 const SCREEN_LOCKED_KEY: &str = "CGSSessionScreenIsLocked";
 /// Shown by `pmset -g assertions` next to the holding process.
-const DISPLAY_AWAKE_REASON: &str = "oh-my-pi computer tool is operating the desktop";
+const DISPLAY_AWAKE_REASON: &str = "reverse computer tool is operating the desktop";
 const MAX_ONLINE_DISPLAYS: u32 = 32;
 
 /// `display_asleep` covers the session's displays: the selected one for a

@@ -53,7 +53,7 @@ async function shutdown(client: DaemonBrokerClient, broker: Promise<void>, name:
 
 describe("daemon wait generation binding", () => {
 	it("rejects a pattern wait when the observed generation automatically restarts", async () => {
-		using tempDir = TempDir.createSync("@omp-wait-generation-");
+		using tempDir = TempDir.createSync("@reverse-wait-generation-");
 		const projectDir = path.join(tempDir.path(), "project");
 		const runtimeDir = path.join(tempDir.path(), "runtime");
 		await fs.mkdir(projectDir);
@@ -103,7 +103,7 @@ describe("daemon wait generation binding", () => {
 	}, 25_000);
 
 	it("wakes a pattern wait when the process exits without printing the pattern", async () => {
-		using tempDir = TempDir.createSync("@omp-wait-exit-");
+		using tempDir = TempDir.createSync("@reverse-wait-exit-");
 		const projectDir = path.join(tempDir.path(), "project");
 		const runtimeDir = path.join(tempDir.path(), "runtime");
 		await fs.mkdir(projectDir);
@@ -138,7 +138,7 @@ describe("daemon wait generation binding", () => {
 	}, 25_000);
 
 	it("stops polling a wait its client cancelled or aborted", async () => {
-		using tempDir = TempDir.createSync("@omp-wait-cancel-");
+		using tempDir = TempDir.createSync("@reverse-wait-cancel-");
 		const projectDir = path.join(tempDir.path(), "project");
 		const runtimeDir = path.join(tempDir.path(), "runtime");
 		await fs.mkdir(projectDir);

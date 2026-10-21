@@ -164,7 +164,7 @@ export class IdaWorker {
 		lock: FileLockHandle,
 		idleCloseMs: number,
 	): Promise<IdaWorker> {
-		const script = await stageRunnerScript("omp-ida-worker", "py", IDA_WORKER);
+		const script = await stageRunnerScript("reverse-ida-worker", "py", IDA_WORKER);
 		const proc = Bun.spawn([runtime.pythonPath, "-u", script], {
 			cwd: loc.dir,
 			env: runtime.env,
@@ -466,7 +466,7 @@ export class IdaWorker {
 
 	#appendStderr(text: string): void {
 		if (!text) return;
-		// The host's output is the daemon log (`omp ps logs`).
+		// The host's output is the daemon log (`reverse ps logs`).
 		process.stderr.write(text);
 		const tail = this.#stderrTail + text;
 		this.#stderrTail = tail.length > STDERR_TAIL_CHARS ? tail.slice(-STDERR_TAIL_CHARS) : tail;

@@ -105,7 +105,7 @@ interface CdpProxy {
 
 const LARGE_MESSAGE_BYTES = 1024 * 1024;
 
-/** Forward CDP to Chrome, applying `options` to what omp sends. */
+/** Forward CDP to Chrome, applying `options` to what reverse sends. */
 function startCdpProxy(chromePort: number, options: ProxyOptions): CdpProxy {
 	const proxy = { port: 0, filePathCalls: 0, stop: () => {} };
 	const server = Bun.serve<ProxiedSocket>({
@@ -184,13 +184,13 @@ function routeProxy(route: UploadRoute, options: ProxyOptions = {}): ProxyOption
 }
 
 /**
- * Launch a Chrome omp did not start, open a fixture page in it over `app.cdp_url` through a CDP proxy, and run cells
+ * Launch a Chrome reverse did not start, open a fixture page in it over `app.cdp_url` through a CDP proxy, and run cells
  * there.
  */
 async function openConnectedTab(toolCallId: string, options: { page?: string; proxy?: ProxyOptions } = {}) {
 	const exe = await ensureChromiumExecutable();
 	if (!exe) throw new Error("Expected a Chromium executable");
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-upload-connected-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-upload-connected-"));
 	const port = await findFreeCdpPort();
 	const child = Bun.spawn(
 		[
@@ -265,7 +265,7 @@ const readDigests = `return await tab.evaluate(() => Promise.all([
 })));`;
 
 beforeAll(async () => {
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-upload-"));
+	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-upload-"));
 	site = Bun.serve({
 		hostname: "127.0.0.1",
 		port: 0,
@@ -284,17 +284,17 @@ afterAll(async () => {
 	if (tempDir) await fs.rm(tempDir, { recursive: true, force: true });
 	// Connected tabs leave their staging folders for the sweep; this process made them.
 	for (const name of await stagingFolders()) {
-		if (name.startsWith(`omp-uploads-${process.pid}-`))
+		if (name.startsWith(`reverse-uploads-${process.pid}-`))
 			await fs.rm(path.join(os.tmpdir(), name), { recursive: true, force: true });
 	}
 });
 
-/** omp's upload staging folders now in the temp directory. */
+/** reverse's upload staging folders now in the temp directory. */
 async function stagingFolders(): Promise<Set<string>> {
-	return new Set((await fs.readdir(os.tmpdir())).filter(name => name.startsWith("omp-uploads-")));
+	return new Set((await fs.readdir(os.tmpdir())).filter(name => name.startsWith("reverse-uploads-")));
 }
 
-describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser omp did not launch", () => {
+describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser reverse did not launch", () => {
 	describe.each(["paths", "contents"] as const)("on the %s route", route => {
 		test("hands over each file as the user's own pick would, readable after the original is gone", async () => {
 			const before = await stagingFolders();
@@ -339,14 +339,14 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser omp did 
 				// The route check, then one call per path upload, versus only the refused route check.
 				expect(proxy.filePathCalls).toBe(route === "paths" ? 6 : 1);
 				created = [...(await stagingFolders())].filter(
-					name => !before.has(name) && name.startsWith(`omp-uploads-${process.pid}-`),
+					name => !before.has(name) && name.startsWith(`reverse-uploads-${process.pid}-`),
 				);
 				// One folder for the tab's copies; the contents route copies nothing, so it makes none.
 				expect(created).toHaveLength(route === "paths" ? 1 : 0);
 			} finally {
 				await close();
 			}
-			// A page omp only attached to can outlive omp's tab, so its staged copies stay for the sweep.
+			// A page reverse only attached to can outlive reverse's tab, so its staged copies stay for the sweep.
 			const left = await stagingFolders();
 			expect(created.filter(name => left.has(name))).toEqual(created);
 		}, 60_000);
@@ -517,7 +517,7 @@ ${collectErrors(`() => tab.uploadFile("#direct", "slow.bin"),`).replace("return 
 	}, 60_000);
 });
 
-describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser omp launched", () => {
+describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser reverse launched", () => {
 	test("keeps a tab's staged copies when it moves to a new worker, and removes them with the page", async () => {
 		const session = makeSession();
 		const prelude = createBrowserPrelude(session);
@@ -547,21 +547,21 @@ return "done";`);
 		} finally {
 			await prelude.invoke({ action: "close", name }, context);
 		}
-		// omp closed the page it launched, the last reader of the copies.
+		// reverse closed the page it launched, the last reader of the copies.
 		expect([...(await stagingFolders())].filter(folder => !before.has(folder))).toEqual([]);
 	}, 60_000);
 });
 
-test("sweeps a staging folder a day after its last upload unless an open tab or a running omp owns it", async () => {
+test("sweeps a staging folder a day after its last upload unless an open tab or a running reverse owns it", async () => {
 	const now = Date.now();
 	const dayAgo = new Date(now - 25 * 60 * 60 * 1000);
 	// No process has a pid this large; the parent of this test process is running.
 	const folders = {
-		open: [`omp-uploads-${process.pid}-sweep-open`, dayAgo],
-		recent: [`omp-uploads-${process.pid}-sweep-recent`, new Date(now)],
-		closed: [`omp-uploads-${process.pid}-sweep-closed`, dayAgo],
-		orphaned: [`omp-uploads-99999999-sweep-orphaned`, dayAgo],
-		otherOmp: [`omp-uploads-${process.ppid}-sweep-other`, dayAgo],
+		open: [`reverse-uploads-${process.pid}-sweep-open`, dayAgo],
+		recent: [`reverse-uploads-${process.pid}-sweep-recent`, new Date(now)],
+		closed: [`reverse-uploads-${process.pid}-sweep-closed`, dayAgo],
+		orphaned: [`reverse-uploads-99999999-sweep-orphaned`, dayAgo],
+		otherOmp: [`reverse-uploads-${process.ppid}-sweep-other`, dayAgo],
 	} as const;
 	for (const [name, modified] of Object.values(folders)) {
 		const folder = path.join(os.tmpdir(), name);
@@ -691,7 +691,7 @@ test("stages a file again when it changes without moving its size or mtime", asy
 test("marks the staging folder used when an upload reuses a copy, so the sweep keeps it", async () => {
 	const file = path.join(tempDir, "reused.txt");
 	await Bun.write(file, "reused");
-	const directory = path.join(os.tmpdir(), `omp-uploads-${process.pid}-reuse-${crypto.randomUUID().slice(0, 8)}`);
+	const directory = path.join(os.tmpdir(), `reverse-uploads-${process.pid}-reuse-${crypto.randomUUID().slice(0, 8)}`);
 	const staging = new UploadStaging(directory);
 	try {
 		await staging.stage([await openUploadSource(file)]);

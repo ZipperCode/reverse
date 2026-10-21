@@ -1,6 +1,6 @@
 # @reverse/wire
 
-Shared TypeScript wire contracts for omp collab live sessions.
+Shared TypeScript wire contracts for reverse collab live sessions.
 
 The package contains only JSON-safe protocol shapes and constants. It has no runtime dependencies and is consumed by both the host CLI (`@reverse/coding-agent`) and browser guest (`@reverse/tool-views`).
 
@@ -21,7 +21,7 @@ Key groups:
 
 ## Protocol boundary
 
-`pi-wire` does not encode, decode, validate, encrypt, or route frames. It defines the shared contract used at those boundaries:
+`@reverse/wire` does not encode, decode, validate, encrypt, or route frames. It defines the shared contract used at those boundaries:
 
 1. callers build a `GuestFrame` or `HostFrame`,
 2. transport code serializes it as JSON inside an encrypted payload,

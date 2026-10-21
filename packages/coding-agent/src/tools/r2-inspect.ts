@@ -1,6 +1,6 @@
 import { stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
 import { prompt } from "@reverse/utils";
 import r2InspectDescription from "../prompts/tools/r2-inspect.md" with { type: "text" };

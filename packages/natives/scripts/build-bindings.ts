@@ -5,10 +5,10 @@
  * scripts/bazel-natives.ts); release addons build through Bazel with explicit
  * //:natives-* targets. Host target only — no cross-compilation.
  *
- * `OMP_NATIVE_CARGO_PROFILE` selects the cargo profile (default `local`:
+ * `REVERSE_NATIVE_CARGO_PROFILE` selects the cargo profile (default `local`:
  * incremental, unstripped). Image builds set `ci` for a stripped addon.
  *
- * `OMP_NATIVE_FEATURES` passes extra cargo features to `napi build --features`
+ * `REVERSE_NATIVE_FEATURES` passes extra cargo features to `napi build --features`
  * (e.g. `wayland-pipewire`). Cargo path only; Bazel builds ignore it.
  */
 
@@ -234,7 +234,7 @@ const napiArgs = [
 ];
 
 // Local-only opt-in: pass extra cargo features through to napi build, e.g.
-// OMP_NATIVE_FEATURES=wayland-pipewire bun --cwd=packages/natives run build
+// REVERSE_NATIVE_FEATURES=wayland-pipewire bun --cwd=packages/natives run build
 const extraFeatures = Bun.env.REVERSE_NATIVE_FEATURES?.trim();
 if (extraFeatures) {
 	napiArgs.push("--features", extraFeatures);

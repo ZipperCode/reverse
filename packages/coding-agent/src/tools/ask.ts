@@ -16,7 +16,7 @@ import type { AskToolDetails, QuestionResult } from "@reverse/tui/tools/ask";
  *   - Questions may time out and auto-select the recommended option (configurable, disabled in plan mode)
  */
 
-import { type as arkType } from "@reverse/omptype";
+import { type as arkType } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 import { type ImageContent, type TextContent, type ToolExample, validateToolArguments } from "@reverse/ai";
 import { replaceTabs, TERMINAL, truncateToWidth } from "@reverse/tui";
@@ -583,7 +583,7 @@ export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 		const method = cfgAskNotify.get(this.session.settings);
 		if (method === "off") return;
 		TERMINAL.sendNotification({
-			title: "omp",
+			title: "reverse",
 			body: "Waiting for input",
 			type: "ask",
 			urgency: "normal",

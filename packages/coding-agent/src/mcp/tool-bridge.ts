@@ -474,7 +474,7 @@ export function createMCPToolName(serverName: string, toolName: string): string 
  * order. Empty when the name is not `mcp__`-prefixed or is already canonical.
  *
  * {@link createMCPToolName} joins the sanitized server and tool with a SINGLE
- * underscore, but OMP presents itself as Claude Code, whose convention is
+ * underscore, but REVERSE presents itself as Claude Code, whose convention is
  * `mcp__<server>__<tool>` — so a primed model reliably emits the doubled
  * separator, often keeping the raw unsanitized server spelling as well
  * (`mcp__seedpatch-client__bank` for a server named `seedpatch-client`). Those

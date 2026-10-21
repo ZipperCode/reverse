@@ -16,7 +16,7 @@ function extension(kind: Extension["kind"], name: string, provider: string): Ext
 		name,
 		displayName: name,
 		description: `${name} description`,
-		path: `/home/u/.omp/${kind}/${name}.md`,
+		path: `/home/u/.reverse/${kind}/${name}.md`,
 		source: { provider, providerName: provider, level: "user" },
 		state: "active",
 		raw: { content: `# ${name}` },
@@ -31,7 +31,7 @@ interface Fixture {
 function fixture(): Fixture {
 	const disabled: string[] = [];
 	const providers: ExtensionProvider[] = [
-		{ id: "native", displayName: "OMP", enabled: true, userSourceEnabled: true, foreignUserSource: false },
+		{ id: "native", displayName: "Reverse", enabled: true, userSourceEnabled: true, foreignUserSource: false },
 		{ id: "claude", displayName: "Claude Code", enabled: true, userSourceEnabled: true, foreignUserSource: false },
 	];
 	const extensions = [extension("skill", "alpha", "native"), extension("slash-command", "gamma", "claude")];

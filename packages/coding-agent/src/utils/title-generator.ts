@@ -37,11 +37,11 @@ import { cfgRetryModelFallback } from "../session/settings";
 const TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt);
 const TITLE_MARKER_INSTRUCTION = prompt.render(titleMarkerInstruction);
 
-// Plain π, not the nerd-font `icon.omp` glyph: window/tab titles render in the
+// Plain π, not the nerd-font `icon.reverse` glyph: window/tab titles render in the
 // OS UI font, which has no nerd-font PUA coverage.
 const DEFAULT_TERMINAL_TITLE = "π";
 /** The native tab title without a session name. */
-const NATIVE_TERMINAL_TITLE = "rva";
+const NATIVE_TERMINAL_TITLE = "reverse";
 const TERMINAL_TITLE_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 interface WindowsConsoleTitleApi {
@@ -109,7 +109,7 @@ const TITLE_MAX_TOKENS = 1024;
 
 /** Matches the title the model wraps in `<title>...</title>`. */
 const TITLE_MARKER_GLOBAL_RE = /<title>([\s\S]*?)<\/title>|<title\s*\/>|<title>\s*$/gi;
-const TITLE_VISIBILITY_SENTINEL = "\uE000omp-title-visible\uE000";
+const TITLE_VISIBILITY_SENTINEL = "\uE000reverse-title-visible\uE000";
 const THINKING_TAG_ENVELOPE_RE = /<(think|thinking|reasoning)>\s*[\s\S]*?<\/\1>/gi;
 const THINKING_FENCE_ENVELOPE_RE = /```(?:thinking|reasoning)\b[\s\S]*?```/gi;
 const LEADING_THINKING_TAG_RE = /^\s*<(think|thinking|reasoning)>\s*[\s\S]*?<\/\1>\s*/i;
@@ -667,13 +667,13 @@ export function nerdGlyphsActive(): boolean {
 }
 
 /** The OSC 1337 user variable Tern reads the session file from. */
-const TERN_SESSION_FILE_VAR = "omp_session_file";
+const TERN_SESSION_FILE_VAR = "reverse_session_file";
 /**
- * The OSC 1337 user variable telling Tern this omp understands `--restore`, set to
+ * The OSC 1337 user variable telling Tern this reverse understands `--restore`, set to
  * `1` before each session file report: Tern's daemon then relaunches it after a
  * crash with `--restore <file>` instead of `--resume <file>`.
  */
-const TERN_RESTORE_VAR = "omp_restore";
+const TERN_RESTORE_VAR = "reverse_restore";
 
 /** The live session as Tern hears about it (read from the interactive session manager). */
 export interface TerminalSessionSource {
@@ -694,8 +694,8 @@ let reportedCwd: string | undefined;
  * Name the live session's source. Every session title update (start, new
  * session, resume, cwd switch) and {@link reportTernSession} re-read it and, in
  * Tern, report what changed: the file, so Tern's daemon can relaunch
- * `omp --resume <file>` after it restarts, and the directory, which Tern names
- * in omp's composer bar.
+ * `reverse --resume <file>` after it restarts, and the directory, which Tern names
+ * in reverse's composer bar.
  */
 export function setTerminalSessionSource(source: TerminalSessionSource | undefined): void {
 	sessionSource = source;
@@ -866,7 +866,7 @@ export function buildTerminalTitleWithState(
 }
 
 /**
- * The tab title while a TSP terminal renders: the session name (`omp` before
+ * The tab title while a TSP terminal renders: the session name (`reverse` before
  * there is one) and the branch's pull request. The terminal shows run state
  * itself, so there is no brand or state separator.
  */

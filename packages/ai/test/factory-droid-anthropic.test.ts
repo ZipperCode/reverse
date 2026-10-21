@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { buildModel } from "@reverse/catalog/build";
 import { Effort } from "@reverse/catalog/effort";
 import { streamAnthropic } from "../src/providers/anthropic";

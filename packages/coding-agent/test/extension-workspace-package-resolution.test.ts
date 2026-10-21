@@ -25,7 +25,7 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
  * `workspaces` globs, honoring the member's exports conditions.
  */
 test("bare workspace-member imports resolve through the workspace root manifest", async () => {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-workspace-resolve-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-workspace-resolve-"));
 	tempRoots.push(root);
 	const repoRoot = path.join(root, "plugins", "node_modules", "monorepo-plugin");
 	const importer = path.join(repoRoot, "packages", "extension", "extensions", "entry.ts");
@@ -60,7 +60,7 @@ test("bare workspace-member imports resolve through the workspace root manifest"
 });
 
 test("installed node_modules copies shadow workspace members at the same level", async () => {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-workspace-shadow-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-workspace-shadow-"));
 	tempRoots.push(root);
 	const repoRoot = path.join(root, "monorepo-plugin");
 	const importer = path.join(repoRoot, "packages", "extension", "entry.ts");

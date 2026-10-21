@@ -3,7 +3,7 @@ import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { type AssistantMessage, createAssistantMessageEventStream, getCustomApi, type ToolCall } from "@reverse/ai";
 import { runCommitAgentSession } from "@reverse/coding-agent/commit/agentic/agent";
 import * as commitTools from "@reverse/coding-agent/commit/agentic/tools";
@@ -41,7 +41,7 @@ describe("restricted sessions sharing extension providers", () => {
 
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 	const originalPiProfile = process.env.PI_PROFILE;
-	const originalOmpProfile = process.env.OMP_PROFILE;
+	const originalReverseProfile = process.env.REVERSE_PROFILE;
 
 	beforeEach(() => {
 		tempDir = path.join(os.tmpdir(), `pi-sdk-restricted-provider-${Snowflake.next()}`);
@@ -63,7 +63,7 @@ describe("restricted sessions sharing extension providers", () => {
 		} finally {
 			restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
 			restoreEnv("PI_PROFILE", originalPiProfile);
-			restoreEnv("OMP_PROFILE", originalOmpProfile);
+			restoreEnv("REVERSE_PROFILE", originalReverseProfile);
 			__resetDirsFromEnvForTests();
 			removeSyncWithRetries(tempDir);
 		}
@@ -72,7 +72,7 @@ describe("restricted sessions sharing extension providers", () => {
 	afterAll(() => {
 		restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
 		restoreEnv("PI_PROFILE", originalPiProfile);
-		restoreEnv("OMP_PROFILE", originalOmpProfile);
+		restoreEnv("REVERSE_PROFILE", originalReverseProfile);
 		__resetDirsFromEnvForTests();
 	});
 

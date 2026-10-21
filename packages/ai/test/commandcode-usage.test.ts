@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { FetchImpl } from "@reverse/ai/types";
 import {
 	type UsageFetchContext,

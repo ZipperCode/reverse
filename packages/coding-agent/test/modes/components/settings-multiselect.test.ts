@@ -152,7 +152,7 @@ describe("extra context filenames editor", () => {
 	});
 
 	it("is not offered when the project config sets the list, so it cannot be copied to global", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-extra-ctx-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-extra-ctx-"));
 		try {
 			const cwd = path.join(root, "repo");
 			const agentDir = path.join(root, "agent");

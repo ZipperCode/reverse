@@ -38,12 +38,12 @@ async function plantRoot(prefix: string): Promise<{ home: string; cwd: string; m
 	await writeJson(path.join(declaredDir, "package.json"), {
 		name: "declared-plugin",
 		version: "1.0.0",
-		omp: { extensions: ["ext.ts"] },
+		reverse: { extensions: ["ext.ts"] },
 	});
 
 	const manifest = path.join(pluginsDir, "package.json");
 	await writeJson(manifest, { dependencies: { "declared-plugin": "1.0.0" } });
-	await writeJson(path.join(pluginsDir, "omp-plugins.lock.json"), {
+	await writeJson(path.join(pluginsDir, "reverse-plugins.lock.json"), {
 		plugins: { "declared-plugin": { version: "1.0.0", enabled: true, enabledFeatures: null } },
 		settings: {},
 	});
@@ -60,7 +60,7 @@ async function plantRoot(prefix: string): Promise<{ home: string; cwd: string; m
 // working plugin set, and it holds wherever the suite runs. Only the denial
 // needs mode bits to be enforced, which excludes root and Windows.
 test("a readable plugins root still loads its declared plugin", async () => {
-	const readable = await plantRoot("omp-plugin-readable-");
+	const readable = await plantRoot("reverse-plugin-readable-");
 	expect((await getEnabledPlugins(readable.cwd, { home: readable.home })).map(plugin => plugin.name)).toEqual([
 		"declared-plugin",
 	]);
@@ -69,7 +69,7 @@ test("a readable plugins root still loads its declared plugin", async () => {
 test.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
 	"an unreadable plugins root is skipped instead of failing plugin collection",
 	async () => {
-		const denied = await plantRoot("omp-plugin-denied-");
+		const denied = await plantRoot("reverse-plugin-denied-");
 		await fs.chmod(denied.manifest, 0o000);
 		restore.push(denied.manifest);
 		expect(await getEnabledPlugins(denied.cwd, { home: denied.home })).toEqual([]);
@@ -82,14 +82,14 @@ test.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
 		// The root's own manifest and lockfile are readable here, so the guards
 		// above have already passed: enumeration reads each plugin's manifest,
 		// and one denied package.json used to abort the whole collection.
-		const { home, cwd, pluginsDir } = await plantRoot("omp-plugin-sibling-");
+		const { home, cwd, pluginsDir } = await plantRoot("reverse-plugin-sibling-");
 		const otherDir = path.join(pluginsDir, "node_modules", "other-plugin");
 		await fs.mkdir(otherDir, { recursive: true });
 		const otherManifest = path.join(otherDir, "package.json");
 		await writeJson(otherManifest, {
 			name: "other-plugin",
 			version: "2.0.0",
-			omp: { extensions: ["ext.ts"] },
+			reverse: { extensions: ["ext.ts"] },
 		});
 		await writeJson(path.join(pluginsDir, "package.json"), {
 			dependencies: { "declared-plugin": "1.0.0", "other-plugin": "2.0.0" },

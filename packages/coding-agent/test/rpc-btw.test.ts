@@ -26,7 +26,7 @@ describe("RPC /btw", () => {
 	});
 
 	async function start() {
-		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-btw-"));
+		directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-rpc-btw-"));
 		const rpc = new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "btw-rpc-agent.ts")],
 			cwd: directory,
@@ -224,7 +224,7 @@ describe("RPC /btw", () => {
 	}, 30_000);
 
 	test("over raw stdio: the response precedes the turn's frames, and EOF saves a running question", async () => {
-		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-btw-"));
+		directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-rpc-btw-"));
 		const child = Bun.spawn([process.execPath, path.join(import.meta.dir, "fixtures", "btw-rpc-agent.ts")], {
 			cwd: directory,
 			env: { ...process.env, REVERSE_CODING_AGENT_DIR: directory, REVERSE_NO_TITLE: "1" },

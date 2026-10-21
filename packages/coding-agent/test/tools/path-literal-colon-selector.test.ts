@@ -437,7 +437,7 @@ describe("leading-colon path recovery (issue #5508)", () => {
 	}
 
 	it("strips a leading colon before an absolute path in resolveToCwd", () => {
-		expect(resolveToCwd(":/tmp/omp-colon-test.txt", tmpDir)).toBe("/tmp/omp-colon-test.txt");
+		expect(resolveToCwd(":/tmp/reverse-colon-test.txt", tmpDir)).toBe("/tmp/reverse-colon-test.txt");
 	});
 
 	it("strips a leading colon before `./` and `../` relative paths in resolveToCwd", () => {
@@ -520,7 +520,7 @@ describe("leading-colon path recovery (issue #5508)", () => {
 	});
 });
 
-// Regression: the `omp grep` CLI subcommand resolved its path argument with a
+// Regression: the `reverse grep` CLI subcommand resolved its path argument with a
 // bare `path.resolve`, bypassing `expandPath`, so the leading-colon strip from
 // #5529 never reached it — see issue #5624.
 describe("grep CLI subcommand leading-colon path (issue #5624)", () => {

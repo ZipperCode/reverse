@@ -14,7 +14,7 @@ describe("Claude plugin MCP timeout compatibility", () => {
 	let testAgentDir: string;
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalOmpProfileEnv: string | undefined;
+	let originalReverseProfileEnv: string | undefined;
 	let originalPiProfileEnv: string | undefined;
 	let originalClaudeConfigDir: string | undefined;
 
@@ -23,7 +23,7 @@ describe("Claude plugin MCP timeout compatibility", () => {
 		clearFsCache();
 		originalHome = process.env.HOME;
 		originalAgentDirEnv = process.env.REVERSE_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.REVERSE_PROFILE;
+		originalReverseProfileEnv = process.env.REVERSE_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 		delete process.env.CLAUDE_CONFIG_DIR;
@@ -32,7 +32,7 @@ describe("Claude plugin MCP timeout compatibility", () => {
 		process.env.HOME = tempDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempDir);
 		// Point the agent dir at a temp dir so user-scope discovery (native MCP
-		// config, skills, etc.) cannot read the real ~/.omp/agent profile.
+		// config, skills, etc.) cannot read the real ~/.reverse/agent profile.
 		setAgentDir(testAgentDir);
 		enableProvider("claude-plugins");
 	});
@@ -45,8 +45,8 @@ describe("Claude plugin MCP timeout compatibility", () => {
 		// so restore every env var it can touch before rebuilding the resolver.
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;
-		if (originalOmpProfileEnv === undefined) delete process.env.OMP_PROFILE;
-		else process.env.OMP_PROFILE = originalOmpProfileEnv;
+		if (originalReverseProfileEnv === undefined) delete process.env.REVERSE_PROFILE;
+		else process.env.REVERSE_PROFILE = originalReverseProfileEnv;
 		if (originalPiProfileEnv === undefined) delete process.env.PI_PROFILE;
 		else process.env.PI_PROFILE = originalPiProfileEnv;
 		if (originalAgentDirEnv === undefined) delete process.env.REVERSE_CODING_AGENT_DIR;
@@ -60,7 +60,7 @@ describe("Claude plugin MCP timeout compatibility", () => {
 
 	/**
 	 * Install a single user-scope marketplace plugin whose `.mcp.json` declares
-	 * one stdio server carrying `timeout` (milliseconds in OMP/Claude Code).
+	 * one stdio server carrying `timeout` (milliseconds in REVERSE/Claude Code).
 	 * Returns the temp paths involved.
 	 */
 	async function installPluginWithTimeout(timeout: unknown): Promise<void> {
@@ -102,7 +102,7 @@ describe("Claude plugin MCP timeout compatibility", () => {
 	test("drops a sub-1000ms .mcp.json timeout instead of passing 600ms verbatim (#12485)", async () => {
 		// Regression (#12485): SAP's official marketplace plugins ship
 		// `"timeout": 600`, which Claude Code itself ignores (values below 1000
-		// are invalid there and fall through to defaults). OMP read the value
+		// are invalid there and fall through to defaults). REVERSE read the value
 		// verbatim as milliseconds, giving npx-spawned servers a 600ms connect
 		// budget — they can never come up, so the plugin's tools never load.
 		await installPluginWithTimeout(600);
@@ -112,7 +112,7 @@ describe("Claude plugin MCP timeout compatibility", () => {
 
 		expect(server).toBeDefined();
 		// The invalid value must not survive: resolveMCPTimeoutMs(undefined)
-		// then applies OMP's 30s default instead of 600ms.
+		// then applies REVERSE's 30s default instead of 600ms.
 		expect(server?.timeout).toBeUndefined();
 		expect(warnings.some(w => w.includes("timeout"))).toBe(true);
 	});

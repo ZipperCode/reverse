@@ -16,7 +16,7 @@ afterEach(async () => {
 });
 
 async function makeRuntimeWithOnnxInstallScript(): Promise<string> {
-	const runtimeDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-tiny-runtime-install-"));
+	const runtimeDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-tiny-runtime-install-"));
 	tempDirs.push(runtimeDir);
 	const packageDir = path.join(runtimeDir, "node_modules", "onnxruntime-node");
 	await Bun.write(
@@ -71,7 +71,7 @@ describe("tiny runtime CUDA provider repair", () => {
 		await ensureOnnxRuntimeCudaProviders(runtimeDir, "cuda");
 
 		const diagnostic = await formatOnnxRuntimeCudaDiagnostics(
-			{ __ompRuntimeNodeModules: path.join(runtimeDir, "node_modules") },
+			{ __reverseRuntimeNodeModules: path.join(runtimeDir, "node_modules") },
 			"cuda",
 			new Error(
 				"CUDA failure 100: no CUDA-capable device is detected ; GPU=-1 ; expr=cudaSetDevice(info_.device_id);",
@@ -84,7 +84,7 @@ describe("tiny runtime CUDA provider repair", () => {
 
 	it("surfaces a deferred sidecar install failure through the CUDA diagnostics helper", async () => {
 		if (process.platform !== "linux" || process.arch !== "x64") return;
-		const runtimeDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-tiny-runtime-install-"));
+		const runtimeDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-tiny-runtime-install-"));
 		tempDirs.push(runtimeDir);
 		const packageDir = path.join(runtimeDir, "node_modules", "onnxruntime-node");
 		await Bun.write(
@@ -95,8 +95,8 @@ describe("tiny runtime CUDA provider repair", () => {
 
 		const diagnostic = await formatOnnxRuntimeCudaDiagnostics(
 			{
-				__ompRuntimeNodeModules: path.join(runtimeDir, "node_modules"),
-				__ompCudaRepairError:
+				__reverseRuntimeNodeModules: path.join(runtimeDir, "node_modules"),
+				__reverseCudaRepairError:
 					"Failed to install ONNX Runtime CUDA provider binaries: connect ENETUNREACH api.nuget.org",
 			},
 			"cuda",

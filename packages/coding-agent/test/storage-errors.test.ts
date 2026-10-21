@@ -34,7 +34,7 @@ async function expectQuarantinedDamage(dbPath: string, damaged: Uint8Array<Array
 }
 
 test("agent startup quarantines corruption and persists new usage", async () => {
-	await using tempDir = await TempDir.create("@omp-storage-errors-");
+	await using tempDir = await TempDir.create("@reverse-storage-errors-");
 	const dbPath = tempDir.join("agent.db");
 
 	AgentStorage.close();
@@ -61,7 +61,7 @@ test("agent startup quarantines corruption and persists new usage", async () => 
 });
 
 test("history startup quarantines corruption and persists searchable prompts", async () => {
-	await using tempDir = await TempDir.create("@omp-storage-errors-");
+	await using tempDir = await TempDir.create("@reverse-storage-errors-");
 	const dbPath = tempDir.join("history.db");
 
 	HistoryStorage.close();
@@ -94,7 +94,7 @@ test("history startup quarantines corruption and persists searchable prompts", a
 });
 
 test("auth startup quarantines corruption and persists new credentials", async () => {
-	await using tempDir = await TempDir.create("@omp-storage-errors-");
+	await using tempDir = await TempDir.create("@reverse-storage-errors-");
 	const dbPath = tempDir.join("auth.db");
 
 	const original = await SqliteAuthCredentialStore.open(dbPath);
@@ -121,7 +121,7 @@ test("auth startup quarantines corruption and persists new credentials", async (
 });
 
 test("concurrent agent and auth startup share one private recovered database", async () => {
-	await using tempDir = await TempDir.create("@omp-storage-errors-");
+	await using tempDir = await TempDir.create("@reverse-storage-errors-");
 	const dbPath = tempDir.join("agent.db");
 	const damaged = await corruptDatabase(dbPath);
 

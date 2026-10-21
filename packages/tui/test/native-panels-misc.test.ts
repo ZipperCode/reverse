@@ -275,7 +275,7 @@ describe("BtwHistoryPanel native events", () => {
 		// action, which copies the button's own label and never reaches the panel.
 		const copyAct = findNode(
 			history.describe(),
-			node => node.p?.role === "omp.btn" && String(node.p?.title).startsWith("Copy answer"),
+			node => node.p?.role === "reverse.btn" && String(node.p?.title).startsWith("Copy answer"),
 		)?.p?.actions?.click;
 		expect(copyAct).toBeDefined();
 		expect(copyAct).not.toBe("copy");

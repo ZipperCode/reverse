@@ -75,7 +75,7 @@ describe("native composer facts", () => {
 	it("keeps the git branch by the model chip, outlasting the other facts and opening /git", () => {
 		setNativeRendering(true);
 		const originalProjectDir = getProjectDir();
-		const repo = fs.mkdtempSync(path.join(os.tmpdir(), "omp-composer-git-"));
+		const repo = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-composer-git-"));
 		try {
 			// The repository's on-disk shape, written without invoking git (no hooks, signing or user config).
 			const gitDir = path.join(repo, ".git");

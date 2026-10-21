@@ -2735,7 +2735,7 @@ mod tests {
 		let out = dir.path().join("probe");
 		let mut env = HashMap::new();
 		env.insert("GIT_DIR".to_string(), "/primary/.git".to_string());
-		env.insert("OMP_GIT_ENV_PROBE".to_string(), "kept".to_string());
+		env.insert("REVERSE_GIT_ENV_PROBE".to_string(), "kept".to_string());
 		let config = ShellConfig {
 			session_env:   Some(env),
 			snapshot_path: None,
@@ -2750,7 +2750,7 @@ mod tests {
 		params.set_fd(OpenFiles::STDERR_FD, null_file().expect("null stderr"));
 
 		let command = format!(
-			"printf '%s|%s' \"${{GIT_DIR-unset}}\" \"$OMP_GIT_ENV_PROBE\" > {}",
+			"printf '%s|%s' \"${{GIT_DIR-unset}}\" \"$REVERSE_GIT_ENV_PROBE\" > {}",
 			quote_arg(out.to_str().expect("utf8 probe path"))
 		);
 		session
@@ -5678,7 +5678,7 @@ mod tests {
 	#[tokio::test(flavor = "multi_thread")]
 	async fn declare_readonly_listing_does_not_require_trace() {
 		let (result, output) =
-			execute_captured("readonly OMP_DECLARE_RO=1; declare -r | grep -c OMP_DECLARE_RO".into())
+			execute_captured("readonly REVERSE_DECLARE_RO=1; declare -r | grep -c REVERSE_DECLARE_RO".into())
 				.await;
 		assert_eq!(result.exit_code, Some(0), "{output}");
 		assert_eq!(output.trim(), "1");
@@ -7248,7 +7248,7 @@ replace = [{ pattern = "^.+$", replacement = "PWD" }]
 	/// Regression for the `suspended (tty input)` bug: an **interactive child
 	/// inside a pipeline** (`zsh -i ... | awk`) used to stay in the host
 	/// session, open `/dev/tty`, `tcsetpgrp` itself to the foreground, and
-	/// leave the embedded host (OMP) stopped on its next tty read. The earlier
+	/// leave the embedded host (Reverse) stopped on its next tty read. The earlier
 	/// embedded-host fix carved pipelines out of `detach_session` because a
 	/// later stage that `setpgid`-joined a detached leader failed with EPERM.
 	///

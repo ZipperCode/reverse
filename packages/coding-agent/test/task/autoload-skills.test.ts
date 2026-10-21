@@ -262,7 +262,7 @@ describe("autoloadSkills through task spawn", () => {
 	});
 
 	it("delivers a skill added after the parent session's skill list was loaded", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-late-skill-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-late-skill-"));
 		try {
 			const baseDir = path.join(root, "late-skill");
 			const filePath = path.join(baseDir, "SKILL.md");

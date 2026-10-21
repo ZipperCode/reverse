@@ -47,7 +47,7 @@ function startBroker(projectDir: string, runtimeDir: string): Promise<void> {
  */
 describe("supervised PTY startup input", () => {
 	it("reports only the client's byte as the program's first input", async () => {
-		using tempDir = TempDir.createSync("@omp-launch-pty-stdin-");
+		using tempDir = TempDir.createSync("@reverse-launch-pty-stdin-");
 		const projectDir = path.join(tempDir.path(), "project");
 		const runtimeDir = path.join(tempDir.path(), "runtime");
 		await fs.mkdir(projectDir);

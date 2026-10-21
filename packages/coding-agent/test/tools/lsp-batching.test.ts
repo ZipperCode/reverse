@@ -25,7 +25,7 @@ describe("createLspWritethrough batching", () => {
 	let tempDir: TempDir;
 
 	beforeEach(() => {
-		tempDir = TempDir.createSync("@omp-lsp-batch-");
+		tempDir = TempDir.createSync("@reverse-lsp-batch-");
 	});
 
 	afterEach(() => {
@@ -217,7 +217,7 @@ describe.skipIf(process.getuid?.() === 0)("createLspWritethrough batching with a
 	const disposers: Array<() => void> = [];
 
 	beforeEach(async () => {
-		tempDir = TempDir.createSync("@omp-lsp-batch-broker-");
+		tempDir = TempDir.createSync("@reverse-lsp-batch-broker-");
 		// The seam hands handlers a symlink-resolved path and `os.tmpdir()` sits
 		// under `/var` — itself a link — on macOS, so a lexical fixture root would
 		// differ from the brokered path for a reason unrelated to this test.

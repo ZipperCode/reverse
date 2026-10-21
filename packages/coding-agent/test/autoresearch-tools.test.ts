@@ -170,11 +170,11 @@ describe("init_experiment", () => {
 
 	beforeEach(() => {
 		dbOverride = makeTempDir("@pi-autoresearch-init-db-");
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride.path();
+		process.env.REVERSE_AUTORESEARCH_DB_DIR = dbOverride.path();
 	});
 
 	afterEach(async () => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.REVERSE_AUTORESEARCH_DB_DIR;
 		closeAllAutoresearchStorages();
 		await Bun.sleep(0);
 		await dbOverride.remove();
@@ -349,11 +349,11 @@ describe("run_experiment", () => {
 
 	beforeEach(() => {
 		dbOverride = makeTempDir("@pi-autoresearch-run-db-");
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride.path();
+		process.env.REVERSE_AUTORESEARCH_DB_DIR = dbOverride.path();
 	});
 
 	afterEach(async () => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.REVERSE_AUTORESEARCH_DB_DIR;
 		closeAllAutoresearchStorages();
 		await Bun.sleep(0);
 		await dbOverride.remove();
@@ -440,11 +440,11 @@ describe("log_experiment", () => {
 
 	beforeEach(() => {
 		dbOverride = makeTempDir("@pi-autoresearch-log-db-");
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride.path();
+		process.env.REVERSE_AUTORESEARCH_DB_DIR = dbOverride.path();
 	});
 
 	afterEach(async () => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.REVERSE_AUTORESEARCH_DB_DIR;
 		closeAllAutoresearchStorages();
 		await Bun.sleep(0);
 		await dbOverride.remove();
@@ -841,11 +841,11 @@ describe("update_notes", () => {
 
 	beforeEach(() => {
 		dbOverride = makeTempDir("@pi-autoresearch-notes-db-");
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbOverride.path();
+		process.env.REVERSE_AUTORESEARCH_DB_DIR = dbOverride.path();
 	});
 
 	afterEach(async () => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.REVERSE_AUTORESEARCH_DB_DIR;
 		closeAllAutoresearchStorages();
 		await Bun.sleep(0);
 		await dbOverride.remove().catch(() => {});

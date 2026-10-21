@@ -136,7 +136,7 @@ describe("skillful setting and /skillful session toggle", () => {
 	});
 
 	it("announces URI syntax without catalog rows for hidden-only skills mid-session", async () => {
-		const skillDir = path.join(tempDir, ".omp", "skills", "test-skill");
+		const skillDir = path.join(tempDir, ".reverse", "skills", "test-skill");
 		const skillFile = path.join(skillDir, "SKILL.md");
 		await Bun.write(
 			skillFile,

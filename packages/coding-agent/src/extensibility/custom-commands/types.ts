@@ -5,9 +5,9 @@
  * Unlike markdown commands which expand to prompts, custom commands can execute
  * arbitrary logic with full access to the hook context.
  */
-import type { type as ArkType } from "@reverse/omptype";
-import type * as TypeBox from "@reverse/omptype/typebox";
-import type * as zod from "@reverse/omptype/zod";
+import type { type as ArkType } from "@reverse/reversetype";
+import type * as TypeBox from "@reverse/reversetype/typebox";
+import type * as zod from "@reverse/reversetype/zod";
 import type { ExtensionUIContext } from "../extensions/types";
 import type { ExecOptions, ExecResult, HookCommandContext } from "../../extensibility/hooks/types";
 import type { AutocompleteItem } from "@reverse/tui";
@@ -32,9 +32,9 @@ export interface CustomCommandAPI {
 	exec(command: string, args: string[], options?: ExecOptions): Promise<ExecResult>;
 	/** Injected TypeBox shim (legacy/compat). */
 	typebox: typeof TypeBox;
-	/** Injected omptype schema builder for custom commands. */
+	/** Injected reversetype schema builder for custom commands. */
 	arktype: typeof ArkType & { type: typeof ArkType };
-	/** Injected Zod-compatible omptype builder for custom commands. */
+	/** Injected Zod-compatible reversetype builder for custom commands. */
 	zod: typeof zod;
 	/** Injected pi-coding-agent exports */
 	pi: typeof PiCodingAgent;

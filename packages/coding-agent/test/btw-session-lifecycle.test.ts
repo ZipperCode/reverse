@@ -62,7 +62,7 @@ describe("BTW session boundaries", () => {
 	beforeAll(() => initTheme());
 	beforeEach(async () => {
 		resetSettingsForTest();
-		directory = TempDir.createSync("@omp-btw-session-lifecycle-");
+		directory = TempDir.createSync("@reverse-btw-session-lifecycle-");
 		await Settings.init({ inMemory: true, cwd: directory.path() });
 		auth = await AuthStorage.create(path.join(directory.path(), "auth.db"));
 		const registry = new ModelRegistry(auth);

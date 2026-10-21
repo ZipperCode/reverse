@@ -27,7 +27,7 @@ ties; Git-safe automation uses `repo` instead.
 Two commands serve different purposes:
 
 - `bun --cwd=packages/natives run build:bindings` runs napi-rs for the host, installs a local variant addon and generated declarations, and regenerates explicit ESM/enum exports. Use this when the Rust public type surface changes.
-- `bun --cwd=packages/natives run build` invokes `scripts/bazel-natives.ts host --dest native`. The host target builds through the local cargo/napi-rs backend by default and therefore also regenerates declarations and exports; `OMP_NATIVE_BUILD_BACKEND=bazel` opts into Bazel, which leaves those committed files unchanged.
+- `bun --cwd=packages/natives run build` invokes `scripts/bazel-natives.ts host --dest native`. The host target builds through the local cargo/napi-rs backend by default and therefore also regenerates declarations and exports; `REVERSE_NATIVE_BUILD_BACKEND=bazel` opts into Bazel, which leaves those committed files unchanged.
 
 Release builds use Bazel targets and publish `.node` files in platform leaf packages. The core publish rewrite removes addons and injects lockstep optional dependencies generated from `LEAF_TARGETS` in `gen-npm-packages.ts`.
 
@@ -44,7 +44,7 @@ Release builds use Bazel targets and publish `.node` files in platform leaf pack
 - Use `task::blocking(tag, cancel_token, work)` for CPU-heavy or blocking work. It returns an `AsyncTask`, profiles the work, and catches panics before they cross the async-work FFI boundary.
 - Use `task::future(env, tag, future)` for Tokio async I/O. It returns a `PromiseRaw` through `Env::spawn_future`.
 - When the public options expose `timeoutMs` or `AbortSignal`, build `task::CancelToken::new(timeout_ms, signal)` and call `heartbeat()` at meaningful intervals in blocking loops. Cancellation is cooperative; a token that is never checked does not stop work.
-- Do not create runtimes or worker pools in module initialization. The JS loader performs the optional `__ompInstallTokioRuntime` post-load step after the dynamic-loader lock is released.
+- Do not create runtimes or worker pools in module initialization. The JS loader performs the optional `__reverseInstallTokioRuntime` post-load step after the dynamic-loader lock is released.
 
 Match an existing export with the same scheduling/error shape rather than introducing a second convention.
 
@@ -127,7 +127,7 @@ Confirm the export is present and `__piNativesBuildVersion()` reports the packag
 
 ### Stale variant or cache wins
 
-x64 candidate order is modern → baseline → unsuffixed for a modern host, and baseline → unsuffixed for a baseline host. Compiled and staged Windows loads can also win from `<getNativesDir()>/<version>` before package paths. The root honors `PI_NATIVES_DIR` first (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then `$XDG_DATA_HOME/omp/natives` when `$XDG_DATA_HOME/omp` exists, otherwise `~/.omp/natives`.
+x64 candidate order is modern → baseline → unsuffixed for a modern host, and baseline → unsuffixed for a baseline host. Compiled and staged Windows loads can also win from `<getNativesDir()>/<version>` before package paths. The root honors `PI_NATIVES_DIR` first (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then `$XDG_DATA_HOME/reverse/natives` when `$XDG_DATA_HOME/reverse` exists, otherwise `~/.reverse/natives`.
 
 Remove only the stale local artifacts/cache identified by loader diagnostics, then rebuild. The loader best-effort deletes older `major.minor.patch` cache directories after a successful load only when their mtime is at least ten minutes old; it preserves the current-version directory.
 

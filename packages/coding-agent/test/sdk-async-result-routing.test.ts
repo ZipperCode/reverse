@@ -13,10 +13,10 @@ describe("SDK subagent IRC follow-up delivery", () => {
 		["unique", "two roots with distinct agent ids"],
 	]) {
 		it(`persists the follow-up only in its owning session with ${scenario}`, () => {
-			const home = fs.mkdtempSync(path.join(os.tmpdir(), "omp-async-routing-"));
+			const home = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-async-routing-"));
 			try {
 				const result = Bun.spawnSync([process.execPath, probe, mode], {
-					env: { ...process.env, HOME: home, OMP_PROFILE: "omp-desktop-test" },
+					env: { ...process.env, HOME: home, REVERSE_PROFILE: "reverse-desktop-test" },
 					stdout: "pipe",
 					stderr: "pipe",
 					timeout: 45_000,

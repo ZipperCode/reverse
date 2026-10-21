@@ -3,7 +3,7 @@ import { type ChildProcess, execSync, spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Effort } from "@reverse/ai";
 import { __resetVertexTokenCache } from "@reverse/ai/providers/google-auth";
 import { getEnvApiKey } from "@reverse/ai/env-api-key";
@@ -682,7 +682,7 @@ describe("Generate E2E Tests", () => {
 			const originalLocation = Bun.env.VERTEX_LOCATION;
 			const originalApiKey = Bun.env.GOOGLE_CLOUD_API_KEY;
 			const originalGac = Bun.env.GOOGLE_APPLICATION_CREDENTIALS;
-			const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-vertex-impersonation-"));
+			const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-vertex-impersonation-"));
 			const adcPath = path.join(tmpDir, "impersonated-adc.json");
 			await Bun.write(
 				adcPath,

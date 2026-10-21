@@ -262,7 +262,7 @@ export interface FrustrationDashboardStats {
 	overall: FrustrationCounts;
 	/** Every model with messages in range, ordered by class, then revision, then family. */
 	byModel: FrustrationModelStats[];
-	/** Whether this dashboard host can run the judge (standalone `omp-stats` cannot). */
+	/** Whether this dashboard host can run the judge (standalone `reverse-stats` cannot). */
 	judgeAvailable: boolean;
 	job: FrustrationJobStatus;
 }

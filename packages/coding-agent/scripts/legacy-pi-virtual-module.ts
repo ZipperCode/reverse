@@ -2,9 +2,9 @@ import * as path from "node:path";
 import { isEnoent } from "@reverse/utils/fs-error";
 
 /** Build-time specifier resolved to bundled legacy Pi module namespaces. */
-export const LEGACY_PI_MODULES_SPECIFIER = "omp-legacy-pi-modules";
+export const LEGACY_PI_MODULES_SPECIFIER = "reverse-legacy-pi-modules";
 
-const VIRTUAL_NAMESPACE = "omp-legacy-pi-modules-build";
+const VIRTUAL_NAMESPACE = "reverse-legacy-pi-modules-build";
 const packageDir = path.resolve(import.meta.dir, "..");
 const repoRoot = path.resolve(packageDir, "..", "..");
 
@@ -208,9 +208,9 @@ export function __renderLegacyPiVirtualModule(entries: readonly BundledPiEntry[]
 export async function createLegacyPiVirtualModulePlugin(): Promise<Bun.BunPlugin> {
 	const source = __renderLegacyPiVirtualModule(await collectBundledPiEntries());
 	return {
-		name: "omp:legacy-pi-modules",
+		name: "reverse:legacy-pi-modules",
 		setup(build) {
-			build.onResolve({ filter: /^omp-legacy-pi-modules$/ }, () => ({
+			build.onResolve({ filter: /^reverse-legacy-pi-modules$/ }, () => ({
 				path: LEGACY_PI_MODULES_SPECIFIER,
 				namespace: VIRTUAL_NAMESPACE,
 			}));

@@ -659,17 +659,17 @@ function describeStatusEvent(event: EvalStatusEvent, expanded: boolean): NativeN
 			spans.push(span(` ${key}=`, "muted"), span(previewLine(sanitizeText(String(value)), STATUS_VALUE_WIDTH)));
 		}
 	}
-	const line = text(spans, { truncate: "end", role: "omp.tool.eval.status" });
+	const line = text(spans, { truncate: "end", role: "reverse.tool.eval.status" });
 	const preview = expanded ? eventString(event.preview)?.trimEnd() : undefined;
 	if (!preview) return line;
 	const head = cappedHeadLines(sanitizeDisplayLines(preview), PREVIEW_LIMITS.OUTPUT_EXPANDED).lines;
 	const path = eventString(event.path);
 	const lang = path ? getLanguageFromPath(splitPathAndSel(path).path) : undefined;
-	return node("col", { role: "omp.tool.eval.status.event", gap: "none" }, [
+	return node("col", { role: "reverse.tool.eval.status.event", gap: "none" }, [
 		keyed(line, "line"),
 		keyed(
 			code(head.join("\n"), {
-				role: "omp.tool.eval.status.preview",
+				role: "reverse.tool.eval.status.preview",
 				lang,
 				wrap: false,
 				preview: { lines: PREVIEW_LIMITS.COLLAPSED_LINES },
@@ -776,7 +776,11 @@ function evalOutputNodes(output: string, markdown: boolean, previewLines: number
 	if (markdown) return [keyed(md(output), "output")];
 	return splitConsoleTables(output).map((part, i) =>
 		part.kind === "text"
-			? runOutput(part.text, { role: "omp.tool.eval.output", previewLines, key: i === 0 ? "output" : `output-${i}` })
+			? runOutput(part.text, {
+					role: "reverse.tool.eval.output",
+					previewLines,
+					key: i === 0 ? "output" : `output-${i}`,
+				})
 			: node(
 					"table",
 					{
@@ -786,7 +790,7 @@ function evalOutputNodes(output: string, markdown: boolean, previewLines: number
 							id: `r${r}`,
 							cells: Object.fromEntries(cells.map((cell, c) => [`c${c}`, cell])),
 						})),
-						role: "omp.tool.eval.table",
+						role: "reverse.tool.eval.table",
 					},
 					undefined,
 					`table-${i}`,
@@ -798,7 +802,7 @@ function evalOutputNodes(output: string, markdown: boolean, previewLines: number
 const RUN_STATUS_TAIL = 8;
 
 /**
- * A status log's events (`omp.run.status`): all kept ones when expanded, else
+ * A status log's events (`reverse.run.status`): all kept ones when expanded, else
  * the newest {@link RUN_STATUS_TAIL}, after a muted `N earlier` line that also
  * counts events already dropped from the log's front.
  */
@@ -813,7 +817,7 @@ function evalStatusSection(log: StatusEventLog, expanded: boolean): NativeNode |
 		.map((event, i) => keyed(describeStatusEvent(event, expanded), `s${hidden + i}`));
 	return node(
 		"col",
-		{ role: "omp.run.status", gap: "none" },
+		{ role: "reverse.run.status", gap: "none" },
 		compact<NativeNode>([hidden > 0 && keyed(text([span(`${hidden} earlier`, "muted")]), "earlier"), ...lines]),
 		"status",
 	);
@@ -854,14 +858,14 @@ function evalCellBox(cell: EvalCellRun, index: number, total: number): NativeNod
 		const spans: TspSpan[] = [span(`${index + 1}/${total}`, "muted")];
 		const title = plainText(cell.title ?? "").trim();
 		if (title) spans.push(span(` ${title}`, "toolTitle"));
-		caption = keyed(text(spans, { role: "omp.run.caption" }), "caption");
+		caption = keyed(text(spans, { role: "reverse.run.caption" }), "caption");
 	}
 	return runBox(
 		[
 			caption,
 			cell.code.trim().length > 0 &&
 				runInput(cell.code, {
-					role: "omp.tool.eval.input",
+					role: "reverse.tool.eval.input",
 					lang: languageForHighlighter(cell.language),
 					wrap: false,
 				}),

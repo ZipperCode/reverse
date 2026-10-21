@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { streamAzureOpenAIResponses } from "@reverse/ai/providers/azure-openai-responses";
 import { streamOpenAICodexResponses } from "@reverse/ai/providers/openai-codex-responses";
 import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";

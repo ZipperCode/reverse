@@ -2,8 +2,8 @@
   "type": "module",
   "name": "@reverse/mnemopi",
   "version": "18.11.2",
-  "description": "Local SQLite memory engine for omp agents",
-  "homepage": "https://omp.sh",
+  "description": "Local SQLite memory engine for reverse agents",
+  "homepage": "https://github.com/ZipperCode/rev",
   "author": {
     "name": "Stencil Labs, Inc.",
     "url": "https://stencil.so"
@@ -14,11 +14,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/ZipperCode/rev.git",
     "directory": "packages/mnemopi"
   },
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/ZipperCode/rev/issues"
   },
   "keywords": [
     "memory",
@@ -31,8 +31,7 @@
   "module": "./src/index.ts",
   "types": "./src/index.ts",
   "bin": {
-    "reverse-memory": "src/cli.ts",
-    "rva-memory": "src/cli.ts"
+    "reverse-memory": "src/cli.ts"
   },
   "scripts": {
     "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",

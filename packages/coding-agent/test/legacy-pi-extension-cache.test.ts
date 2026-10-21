@@ -11,11 +11,11 @@ const tempDirs: TempDir[] = [];
 
 async function runProbe(cacheRoot: string, script: string = probePath, args: string[] = []): Promise<string> {
 	const env: Record<string, string | undefined> = { ...process.env, XDG_CACHE_HOME: cacheRoot };
-	for (const key of ["PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE", "PI_CONFIG_DIR"]) {
+	for (const key of ["PI_CODING_AGENT_DIR", "REVERSE_PROFILE", "PI_PROFILE", "PI_CONFIG_DIR"]) {
 		delete env[key];
 	}
 	// XDG is honored only on Linux/macOS; elsewhere point the config root
-	// (home/PI_CONFIG_DIR) at the same `<cacheRoot>/omp` layout.
+	// (home/PI_CONFIG_DIR) at the same `<cacheRoot>/reverse` layout.
 	if (process.platform === "win32") {
 		env.HOME = cacheRoot;
 		env.USERPROFILE = cacheRoot;
@@ -116,7 +116,7 @@ test("legacy extension parse cache opens in WAL mode (#9549)", async () => {
 	// WAL is persisted in the db header, so a fresh connection reports it. The
 	// default delete-journal mode serialized cache writes behind per-entry
 	// journal create/delete + fsync and blocked startup for ~20s under
-	// concurrent omp processes.
+	// concurrent reverse processes.
 	const cachePath = path.join(cacheRoot, APP_NAME, "cache", "legacy-pi-extension-cache.db");
 	const db = new Database(cachePath);
 	try {
@@ -143,8 +143,8 @@ test("oversized-cache eviction keeps the parse cache usable when a concurrent pr
 	seed.run("INSERT INTO extension_parse_cache VALUES ('big', 'module', ?, 0)", ["x".repeat(9 * 1024 * 1024)]);
 	seed.close();
 
-	// A concurrent omp process holds the cache open in WAL mode with
-	// uncheckpointed frames in its `-wal` (as a concurrently-starting omp does
+	// A concurrent reverse process holds the cache open in WAL mode with
+	// uncheckpointed frames in its `-wal` (as a concurrently-starting reverse does
 	// while writing its own parse-cache entries).
 	const concurrent = new Database(cachePath, { create: true });
 	try {

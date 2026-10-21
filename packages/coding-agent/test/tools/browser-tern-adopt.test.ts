@@ -98,7 +98,7 @@ describe("pickTernBlock", () => {
 		expect(pickTernBlock([entry(8, {}), entry(9, {})], "x.example")?.block).toBe(8);
 	});
 
-	it("never matches a block another omp tab drives", () => {
+	it("never matches a block another reverse tab drives", () => {
 		const blocks = [entry(1, { shown: true }), entry(2, { shown: false })];
 		expect(pickTernBlock(blocks, "x.example", new Map([[1, "docs"]]))?.block).toBe(2);
 		expect(pickTernBlock(blocks, "1", new Map([[1, "docs"]]))).toBeUndefined();
@@ -193,7 +193,7 @@ describe("Tern open result", () => {
 		const text = await open(await startWindow({ shown: false }), "hidden-pip");
 		expect(text).toStartWith('Opened tab "hidden-pip" on Tern browser picture-in-picture (pane 3)');
 		expect(text).toContain("Not on screen");
-		expect(text).toContain("this omp pane (block 3)");
+		expect(text).toContain("this reverse pane (block 3)");
 	});
 
 	it("names the user's adopted block and that closing releases it", async () => {

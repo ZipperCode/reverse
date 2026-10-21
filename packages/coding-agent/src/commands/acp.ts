@@ -1,5 +1,5 @@
 /**
- * Run omp as an ACP (Agent Client Protocol) server over stdio.
+ * Run reverse as an ACP (Agent Client Protocol) server over stdio.
  *
  * Thin wrapper around the launch flow that forces `mode: "acp"` unless the
  * ACP terminal-auth flag asks the same command to open the interactive TUI.

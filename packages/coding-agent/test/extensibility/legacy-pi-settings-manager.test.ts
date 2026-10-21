@@ -17,7 +17,7 @@ import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } f
 // Issue #10397: pi-vim (and any pi extension) does, at module/session_start scope:
 //   const s = SettingsManager.create(cwd), g = s.getGlobalSettings(), p = s.getProjectSettings();
 // Upstream Pi's `SettingsManager.create(cwd)` is synchronous and returns a manager
-// exposing `getGlobalSettings()`/`getProjectSettings()`. The omp shim previously
+// exposing `getGlobalSettings()`/`getProjectSettings()`. The reverse shim previously
 // returned `Settings.init(...)` — a `Promise<Settings>` with no such methods — so the
 // extension crashed on startup and never registered its editor component. These tests
 // pin the sync shape and the raw-layer accessors through the public package specifier.

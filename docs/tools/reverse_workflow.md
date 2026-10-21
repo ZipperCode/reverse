@@ -63,7 +63,7 @@
 ## Security & Storage
 - **No Arbitrary Execution**: The orchestrator is a bounded state machine that plans and tracks tool calls; it never silently spawns background shell commands or executes arbitrary scripts.
 - **Evidence Ledger Integrity**: Cross-tool evidence associations are strictly verified against existing evidence IDs in the project ledger (`EvidenceStore`). Fake verification or dangling IDs are rejected with actionable errors.
-- **Isolated Project State**: Workflows are stored under `~/.omp/agent/reverse-workflows/<project-key>/<workflow-id>.json`. State never pollutes the workspace repository.
+- **Isolated Project State**: Workflows are stored under `~/.reverse/agent/reverse-workflows/<project-key>/<workflow-id>.json`. State never pollutes the workspace repository.
 - **Concurrency & Atomicity**: Backed by cross-process advisory file locks (`store.lock`) and atomic temporary-file replacement.
 - **Bounded Output**: Markdown and JSON exports enforce a 32 KiB cap with automatic session artifact spilling for large reports.
 - **Approval Tiers**: Read actions (`plan`, `status`, `export`) use tier `"read"`; state-mutating actions (`create`, `record`, `retry`, `destroy`) use tier `"write"`.

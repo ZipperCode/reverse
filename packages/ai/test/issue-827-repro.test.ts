@@ -8,7 +8,7 @@
  * reasoning for that single turn rather than dropping `tool_choice` outright.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
 import type { Context, Model, ModelSpec, Tool } from "@reverse/ai/types";
 import { buildModel } from "@reverse/catalog/build";

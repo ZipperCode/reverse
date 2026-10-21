@@ -27,7 +27,7 @@ const SCRATCH_GLOB = new Bun.Glob(`**/${COMPRESS_SCRATCH_PREFIX}*`);
  * recursively removes only directories gc created; a session artifact can
  * carry any name.
  */
-const SCRATCH_OWNER_MARKER = ".omp-gc-compress-owner";
+const SCRATCH_OWNER_MARKER = ".reverse-gc-compress-owner";
 
 /** Formats whose bytes are already compressed; the filesystem would store them as-is. */
 const INCOMPRESSIBLE_EXTENSIONS: Record<string, true> = {
@@ -273,7 +273,7 @@ function unchangedSinceSelection(candidate: CompressCandidate): boolean {
 /**
  * Rename `copyPath` over `candidate.path` if the original is unchanged, checked
  * immediately before the rename. Transcripts swap under the session publish
- * lock, which serializes them against appends from any omp binary.
+ * lock, which serializes them against appends from any reverse binary.
  */
 function swapIfUnchanged(
 	storage: FileSessionStorage,

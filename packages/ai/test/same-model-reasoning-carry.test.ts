@@ -90,7 +90,7 @@ function completionsAssistant(model: Model<"openai-completions">, messages: Mess
 }
 
 /**
- * The assistant-side input items of the Responses request omp sends on a fresh
+ * The assistant-side input items of the Responses request reverse sends on a fresh
  * provider session (the state right after a host switch), captured before any
  * network call.
  */
@@ -127,7 +127,7 @@ async function responsesAssistantItems(
 	);
 }
 
-/** Captures the Cascade request omp's Devin provider sends, without a model call. */
+/** Captures the Cascade request reverse's Devin provider sends, without a model call. */
 async function devinRequest(model: Model<"devin-agent">, messages: Message[]) {
 	const authPayload = toBinary(GetUserJwtResponseSchema, create(GetUserJwtResponseSchema, { userJwt: "jwt" }));
 	let requestPayload: Uint8Array | undefined;
@@ -348,7 +348,7 @@ describe("same-model reasoning carry", () => {
 
 	it("keeps demoting a family that is not declared portable, even with a matching identity", async () => {
 		// gpt-5.6-sol and gpt-5.6-terra share class/family/revision; GPT reasoning
-		// reaches omp as summaries plus encrypted content, so it is not declared.
+		// reaches reverse as summaries plus encrypted content, so it is not declared.
 		const terra: Source = { provider: "openai-codex", api: "openai-codex-responses", model: "gpt-5.6-terra" };
 
 		const items = await responsesAssistantItems(

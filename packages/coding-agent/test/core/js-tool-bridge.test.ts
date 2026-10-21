@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { callSessionTool } from "@reverse/coding-agent/eval/js/tool-bridge";

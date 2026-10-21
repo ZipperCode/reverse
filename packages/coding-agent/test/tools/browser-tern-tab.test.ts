@@ -12,7 +12,7 @@ import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "./tern-fake-d
 interface FakePage {
 	/** Event batches the `events` op hands out, one per poll. */
 	eventBatches: Array<Array<Record<string, unknown>>>;
-	/** Kit method stubs (isolated-world `__ompTernKit` calls). */
+	/** Kit method stubs (isolated-world `__reverseTernKit` calls). */
 	kit: Record<string, (args: unknown[]) => unknown>;
 	/** Which `events` answer (0-based) first reports the PiP's initial about:blank load (default 0). */
 	blankLoadPoll?: number;
@@ -60,7 +60,7 @@ async function startPage(page: FakePage): Promise<FakeDaemon> {
 				};
 			case "eval": {
 				const args = Array.isArray(op.args) ? op.args : [];
-				if (String(op.function).includes("__ompTernKit") && typeof args[0] === "string") {
+				if (String(op.function).includes("__reverseTernKit") && typeof args[0] === "string") {
 					const stub = page.kit[args[0]];
 					if (!stub) return { error: { kind: "js", message: `Error: kit method ${args[0]} not stubbed` } };
 					return { ok: { value: { value: stub(Array.isArray(args[1]) ? args[1] : []) } } };
@@ -83,7 +83,7 @@ function capture(message: Record<string, unknown>): Record<string, unknown> {
 		world: "page",
 		main: true,
 		url: "https://example.test/",
-		body: JSON.stringify({ omp: "tern", ts: 1, ...message }),
+		body: JSON.stringify({ reverse: "tern", ts: 1, ...message }),
 	};
 }
 
@@ -251,10 +251,10 @@ describe("TernTab", () => {
 		});
 		const tab = await openTab(fake);
 		expect(await tab.dialog()).toEqual({ open: true, type: "prompt", message: "Name?", defaultValue: "x" });
-		await tab.handleDialog({ accept: true, text: "omp" });
+		await tab.handleDialog({ accept: true, text: "reverse" });
 		expect(fake.requests.find(request => request.op.op === "dialog")!.op).toMatchObject({
 			accept: true,
-			text: "omp",
+			text: "reverse",
 		});
 		expect(await tab.dialog()).toEqual({ open: false });
 	});

@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
 import { prompt } from "@reverse/utils";
 import * as fs from "node:fs/promises";

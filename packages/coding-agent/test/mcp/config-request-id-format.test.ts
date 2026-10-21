@@ -8,7 +8,7 @@
  * transports read. A field missing from either step silently degrades to the
  * snowflake-string default, which is the hang the option exists to avoid.
  *
- * Both OMP-native loaders are covered: `.omp/mcp.json` (native provider) and a
+ * Both reverse-native loaders are covered: `.reverse/mcp.json` (native provider) and a
  * standalone project-root `.mcp.json` (mcp-json provider).
  *
  * Separately, `isSameMCPConnection` treats two differently-named entries with the
@@ -37,9 +37,9 @@ let originalHome: string | undefined;
 
 beforeEach(async () => {
 	originalHome = process.env.HOME;
-	tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reqid-home-"));
-	tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reqid-agent-"));
-	tempCwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reqid-cwd-"));
+	tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-mcp-reqid-home-"));
+	tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-mcp-reqid-agent-"));
+	tempCwd = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-mcp-reqid-cwd-"));
 	process.env.HOME = tempHome;
 	vi.spyOn(os, "homedir").mockReturnValue(tempHome);
 	setAgentDir(tempAgentDir);
@@ -69,7 +69,7 @@ async function loadFrom(file: string, mcpServers: Record<string, unknown>) {
 	return configs;
 }
 
-test("requestIdFormat from .omp/mcp.json reaches the transport config", async () => {
+test("requestIdFormat from .reverse/mcp.json reaches the transport config", async () => {
 	const configs = await loadFrom(path.join(CONFIG_DIR_NAME, "mcp.json"), {
 		xcode: { type: "stdio", command: "/usr/bin/xcrun", args: ["mcpbridge"], requestIdFormat: "number" },
 		plain: { type: "stdio", command: "/bin/echo" },

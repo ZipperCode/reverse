@@ -1,7 +1,7 @@
 /**
  * Mnemopi local-embeddings worker: the onnxruntime child of the machine-shared
  * embedding server (`embed-server.ts`), re-entered through the agent CLI's
- * hidden `__omp_worker_mnemopi_embed` selector. The whole point of this module
+ * hidden `__reverse_worker_mnemopi_embed` selector. The whole point of this module
  * is that `loadFastembed()` — and therefore `onnxruntime-node`'s NAPI
  * constructor + finalizer — only ever runs in this child address space. The
  * server `SIGKILL`s us on wedge, idle exit, and shutdown so the destructor

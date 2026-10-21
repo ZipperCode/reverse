@@ -25,7 +25,7 @@ describe("native addon directory override", () => {
 			originalEnv[key] = process.env[key];
 			delete process.env[key];
 		}
-		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-natives-dir-"));
+		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-natives-dir-"));
 		home = path.join(tempRoot, "home");
 		await fs.mkdir(home);
 		process.env.HOME = home;

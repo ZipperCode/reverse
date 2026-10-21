@@ -2,8 +2,8 @@
  * Print mode (single-shot): Send prompts, output result, exit.
  *
  * Used for:
- * - `omp -p "prompt"` - text output
- * - `omp --mode json "prompt"` - JSON event stream
+ * - `reverse -p "prompt"` - text output
+ * - `reverse --mode json "prompt"` - JSON event stream
  */
 import type { AgentMessage } from "@reverse/agent";
 import type { ImageContent } from "@reverse/ai";
@@ -263,7 +263,7 @@ async function runPrintModeCore(
 				`Warning: MCP server "${server}" failed to connect: ${singleLine(error)}; its tools are unavailable for this run.`,
 			);
 		}
-		if ($flag("OMP_MCP_REQUIRE_READY") && unavailable.length > 0) {
+		if ($flag("REVERSE_MCP_REQUIRE_READY") && unavailable.length > 0) {
 			writeStderrLine(`Error: MCP servers not ready: ${unavailable.join(", ")}`);
 			strictMCPFailure = true;
 		}
@@ -358,7 +358,7 @@ async function runPrintModeCore(
 	await stdoutTail;
 	// Dispose before returning the status instead of hard-exiting ahead of it:
 	// the awaited `dispose()` runs the browser reaper (releaseTabsForOwner), so
-	// an OMP-owned Chromium cannot survive the exit (issue #5643).
+	// an REVERSE-owned Chromium cannot survive the exit (issue #5643).
 	//
 	// A latched store failure rethrows from `dispose()`; report it as lost
 	// durability rather than letting it escape as a raw fatal dump.

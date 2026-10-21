@@ -73,7 +73,7 @@ document.addEventListener("dragover", event => event.preventDefault());
 document.addEventListener("drop", event => event.preventDefault());
 </script>`;
 
-// A zone that reads the dropped file and leaves the page from a microtask, before omp's drop settles. An about:blank
+// A zone that reads the dropped file and leaves the page from a microtask, before reverse's drop settles. An about:blank
 // navigation needs no network, so it can commit and destroy the page's worlds before the drop's own task runs.
 const navigatingHtml = `<!doctype html>
 <div id="zone" style="padding:16px">Drop to upload</div>
@@ -108,7 +108,7 @@ function makeSession(): ToolSession {
 }
 
 beforeAll(async () => {
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-upload-"));
+	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-upload-"));
 	await Bun.write(path.join(tempDir, "alpha.txt"), "alpha");
 	site = Bun.serve({
 		hostname: "127.0.0.1",

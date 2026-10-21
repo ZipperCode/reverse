@@ -30,7 +30,7 @@ export const TUI_TRANSLATIONS_ZH_CN: TuiTranslations = {
 		},
 		memory: {
 			label: "记忆",
-			lead: "omp 跨会话记住什么，以及保存在哪里。",
+			lead: "reverse 跨会话记住什么，以及保存在哪里。",
 		},
 		files: {
 			label: "文件",

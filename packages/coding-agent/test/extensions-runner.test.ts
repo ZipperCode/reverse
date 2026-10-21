@@ -5,7 +5,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Type } from "@reverse/omptype/typebox";
+import { Type } from "@reverse/reversetype/typebox";
 import type { AgentMessage, AgentTool, AgentToolContext } from "@reverse/agent";
 import { streamAnthropic } from "@reverse/ai/providers/anthropic";
 import type { MessageCreateParams } from "@reverse/ai/providers/anthropic-wire";
@@ -2277,14 +2277,14 @@ describe("ExtensionRunner", () => {
 			const extCode = `
 				export default function(pi) {
 					pi.on("session_start", async (_event, ctx) => {
-						globalThis.__ompMemoryStatus = await ctx.memory.status();
+						globalThis.__reverseMemoryStatus = await ctx.memory.status();
 					});
 				}
 			`;
 			const explicitExtensionPath = path.join(tempDir.path(), "memory-context.ts");
 			fs.writeFileSync(explicitExtensionPath, extCode);
-			const globalState = globalThis as typeof globalThis & { __ompMemoryStatus?: unknown };
-			delete globalState.__ompMemoryStatus;
+			const globalState = globalThis as typeof globalThis & { __reverseMemoryStatus?: unknown };
+			delete globalState.__reverseMemoryStatus;
 
 			const result = await loadTestExtensions([explicitExtensionPath]);
 			const runner = new ExtensionRunner(
@@ -2334,12 +2334,12 @@ describe("ExtensionRunner", () => {
 
 			await runner.emit({ type: "session_start" });
 
-			expect(globalState.__ompMemoryStatus).toMatchObject({
+			expect(globalState.__reverseMemoryStatus).toMatchObject({
 				backend: "mnemopi",
 				active: true,
 				searchable: true,
 			});
-			delete globalState.__ompMemoryStatus;
+			delete globalState.__reverseMemoryStatus;
 		});
 	});
 

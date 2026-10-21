@@ -132,7 +132,7 @@ describe("AgentSession bash session ownership", () => {
 		});
 		const spawnHook = vi.fn(spawn => ({
 			...spawn,
-			env: { ...spawn.env, OMP_USER_SHELL_ENV: "extension-value" },
+			env: { ...spawn.env, REVERSE_USER_SHELL_ENV: "extension-value" },
 		}));
 		const definition = createBashTool(tempDir.path(), { spawnHook });
 		const extensionRunner = {
@@ -143,14 +143,14 @@ describe("AgentSession bash session ownership", () => {
 		} as unknown as ExtensionRunner;
 		createSession(undefined, extensionRunner);
 
-		const result = await session.executeBash('printf "%s" "$OMP_USER_SHELL_ENV"', undefined, {
+		const result = await session.executeBash('printf "%s" "$REVERSE_USER_SHELL_ENV"', undefined, {
 			useUserShell: true,
 		});
 
 		expect(result.output).toBe("extension-value");
 		expect(spawnHook).toHaveBeenCalledWith(
 			expect.objectContaining({
-				command: 'printf "%s" "$OMP_USER_SHELL_ENV"',
+				command: 'printf "%s" "$REVERSE_USER_SHELL_ENV"',
 				cwd: tempDir.path(),
 			}),
 		);
@@ -172,12 +172,12 @@ describe("AgentSession bash session ownership", () => {
 			env: { PATH: Bun.env.PATH ?? "", HOME: tempDir.path(), SHELL: shell },
 			prefix: undefined,
 		});
-		const previousMirror = process.env.OMP_USER_SHELL_MIRROR;
-		process.env.OMP_USER_SHELL_MIRROR = "mirrored-value";
+		const previousMirror = process.env.REVERSE_USER_SHELL_MIRROR;
+		process.env.REVERSE_USER_SHELL_MIRROR = "mirrored-value";
 		try {
 			const spawnHook = vi.fn(spawn => ({
 				...spawn,
-				env: { ...spawn.env, OMP_USER_SHELL_MIRROR: "mirrored-value" },
+				env: { ...spawn.env, REVERSE_USER_SHELL_MIRROR: "mirrored-value" },
 			}));
 			const definition = createBashTool(tempDir.path(), { spawnHook });
 			const extensionRunner = {
@@ -188,14 +188,14 @@ describe("AgentSession bash session ownership", () => {
 			} as unknown as ExtensionRunner;
 			createSession(undefined, extensionRunner);
 
-			const result = await session.executeBash('printf "%s" "$OMP_USER_SHELL_MIRROR"', undefined, {
+			const result = await session.executeBash('printf "%s" "$REVERSE_USER_SHELL_MIRROR"', undefined, {
 				useUserShell: true,
 			});
 
 			expect(result.output).toBe("mirrored-value");
 		} finally {
-			if (previousMirror === undefined) delete process.env.OMP_USER_SHELL_MIRROR;
-			else process.env.OMP_USER_SHELL_MIRROR = previousMirror;
+			if (previousMirror === undefined) delete process.env.REVERSE_USER_SHELL_MIRROR;
+			else process.env.REVERSE_USER_SHELL_MIRROR = previousMirror;
 		}
 	});
 
@@ -219,7 +219,7 @@ describe("AgentSession bash session ownership", () => {
 		};
 		vi.spyOn(Settings.prototype, "getShellConfig").mockReturnValue(cachedShellConfig);
 		const spawnHook = vi.fn(context => {
-			context.env.OMP_INJECTED_TOKEN = "injected-value";
+			context.env.REVERSE_INJECTED_TOKEN = "injected-value";
 			return context;
 		});
 		const definition = createBashTool(tempDir.path(), { spawnHook });
@@ -236,9 +236,9 @@ describe("AgentSession bash session ownership", () => {
 		await session.executeBash("true", undefined, { useUserShell: true });
 
 		expect(executeBashSpy).toHaveBeenCalledTimes(2);
-		expect(executeBashSpy.mock.calls[0]?.[1]?.env).toEqual({ OMP_INJECTED_TOKEN: "injected-value" });
-		expect(executeBashSpy.mock.calls[1]?.[1]?.env).toEqual({ OMP_INJECTED_TOKEN: "injected-value" });
-		expect(cachedShellConfig.env).not.toHaveProperty("OMP_INJECTED_TOKEN");
+		expect(executeBashSpy.mock.calls[0]?.[1]?.env).toEqual({ REVERSE_INJECTED_TOKEN: "injected-value" });
+		expect(executeBashSpy.mock.calls[1]?.[1]?.env).toEqual({ REVERSE_INJECTED_TOKEN: "injected-value" });
+		expect(cachedShellConfig.env).not.toHaveProperty("REVERSE_INJECTED_TOKEN");
 	});
 
 	it("does not run the shell environment hook when a user_bash handler replaces the result", async () => {

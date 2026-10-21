@@ -53,7 +53,7 @@ function makeSession(): ToolSession {
 }
 
 beforeAll(async () => {
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-upload-"));
+	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-upload-"));
 	await Bun.write(path.join(tempDir, "alpha.txt"), "alpha");
 	await Bun.write(path.join(tempDir, "beta.txt"), "beta");
 	site = Bun.serve({

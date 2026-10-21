@@ -1,5 +1,5 @@
 /**
- * `omp --restore` end to end for a subagent: a transcript a crash cut off mid tool
+ * `reverse --restore` end to end for a subagent: a transcript a crash cut off mid tool
  * call is revived from disk, its cut-off call runs again, the agent answers, and the
  * parent receives the answer as the subagent's job.
  */
@@ -25,7 +25,7 @@ import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const AGENT_ID = "Restored";
 const MOCK_API_SOURCE = "test/restore-revive";
-const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "REVERSE_PROFILE", "PI_PROFILE"] as const;
 
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;
@@ -43,12 +43,12 @@ function restoreEnvValue(key: string, value: string | undefined): void {
 
 beforeEach(async () => {
 	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-restore-revive-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-restore-revive-"));
 	const home = path.join(root, "home");
 	await fs.mkdir(home, { recursive: true });
 	restoreEnvValue("HOME", home);
 	vi.spyOn(os, "homedir").mockReturnValue(home);
-	setAgentDir(path.join(home, ".omp", "agent"));
+	setAgentDir(path.join(home, ".reverse", "agent"));
 	AgentRegistry.resetGlobalForTests();
 	AgentLifecycleManager.resetGlobalForTests();
 	registerMockApi(MOCK_API_SOURCE);

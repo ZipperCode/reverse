@@ -1,7 +1,7 @@
 /**
  * HTTP + WebSocket server for the browser relay.
  *
- * Impersonates Chrome's CDP discovery endpoint so the omp browser tool (and
+ * Impersonates Chrome's CDP discovery endpoint so the reverse browser tool (and
  * any puppeteer client) can connect with a plain `browserURL`:
  * - `GET /json/version` → 200 with `webSocketDebuggerUrl` once the extension
  *   is connected, 503 with a {@link RelayUnavailableInfo} body before that
@@ -28,15 +28,15 @@ export interface RelayServerOptions {
 
 /** Body of the 503 `/json/version` answer while no extension is connected. */
 export interface RelayUnavailableInfo {
-	/** Version of the OMP binary serving this relay. */
-	rvaRelayVersion: string;
+	/** Version of the REVERSE binary serving this relay. */
+	reverseRelayVersion: string;
 	error: string;
 	/** An extension completed the hello handshake at least once in this server's lifetime. */
 	extensionSeen: boolean;
 	/** Milliseconds this server has been listening. */
 	uptimeMs: number;
 	/** Downstream CDP clients connected to this relay. */
-	rvaRelayCdpClients: number;
+	reverseRelayCdpClients: number;
 	/** Milliseconds since the last connected extension went away; absent if none has connected yet. */
 	disconnectedMs?: number;
 }
@@ -58,8 +58,8 @@ type RelayWebSocket = Bun.ServerWebSocket<SocketData>;
 const WS_KEEPALIVE_MS = 30_000;
 /** Screenshots travel base64-encoded through both websocket legs. */
 const MAX_PAYLOAD_BYTES = 256 * 1024 * 1024;
-/** Default appearance of the omp tab group. */
-const DEFAULT_GROUP = { title: "rva", color: "cyan" } as const;
+/** Default appearance of the reverse tab group. */
+const DEFAULT_GROUP = { title: "reverse", color: "cyan" } as const;
 /** True when `raw` can serve as the authority of a `ws://` URL: no whitespace,
  *  slashes, userinfo, fragments, or control characters, and URL-parseable. */
 function isWsAuthority(raw: string): boolean {
@@ -118,11 +118,11 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 				if (!bridge.ready) {
 					const disconnectedMs = bridge.extensionGoneForMs;
 					const info: RelayUnavailableInfo = {
-						rvaRelayVersion: VERSION,
+						reverseRelayVersion: VERSION,
 						error: "relay extension is not connected",
 						extensionSeen: bridge.extensionSeen,
 						uptimeMs: Date.now() - startedAt,
-						rvaRelayCdpClients: bridge.cdpClientCount,
+						reverseRelayCdpClients: bridge.cdpClientCount,
 						...(disconnectedMs === null ? {} : { disconnectedMs }),
 					};
 					return Response.json(info, { status: 503 });

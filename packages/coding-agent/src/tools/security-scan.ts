@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
 import securityScanDescription from "../prompts/tools/security-scan.md" with { type: "text" };
 import { selectSecurityOAuthAccount } from "../security/auth";
@@ -109,7 +109,7 @@ export class SecurityScanTool implements AgentTool<typeof securityScanSchema, Se
 	readonly approval: ToolTier = "exec";
 	readonly label = "Security Scan";
 	readonly loadMode = "discoverable";
-	readonly summary = "Run OMP-native scans and explicit Codex Security cloud operations";
+	readonly summary = "Run REVERSE-native scans and explicit Codex Security cloud operations";
 	readonly description = securityScanDescription.trim();
 	readonly parameters = securityScanSchema;
 	readonly strict = true;

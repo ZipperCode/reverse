@@ -4,7 +4,7 @@
  * Provides a normalized schema to represent multiple limit windows, model tiers,
  * and shared quotas across providers.
  */
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { FetchImpl, Provider } from "./types";
 export type UsageUnit = "percent" | "tokens" | "requests" | "credits" | "usd" | "minutes" | "bytes" | "unknown";
 
@@ -144,7 +144,7 @@ export interface UsageReport {
 	resetCredits?: UsageResetCredits;
 	/**
 	 * Provider-wide disclaimers shown once above per-account sections.
-	 * Use this for caveats that apply to every limit (e.g. "OMP-observed
+	 * Use this for caveats that apply to every limit (e.g. "Reverse-observed
 	 * spend only"). Per-limit notes that differ per window (e.g. "Overage
 	 * requests: N") stay on {@link UsageLimit.notes}.
 	 */
@@ -237,7 +237,7 @@ export interface ClientUsageReport {
 	installId: string;
 	/** Human-readable machine name for display surfaces. */
 	hostname?: string;
-	/** Application label for the process that burned the tokens (e.g. `omp`, `robomp`). */
+	/** Application label for the process that burned the tokens (e.g. `reverse`, `reverse`). */
 	app?: string;
 	entries: ObservedUsageEntry[];
 }

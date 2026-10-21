@@ -181,7 +181,7 @@ describe("Python runner shell output streaming", () => {
 	it("gives processes started by plain user code EOF on stdin instead of the control channel", async () => {
 		// Without an explicit stdin, a child inherits the runner's fd 0. That
 		// must not be the host's control pipe, which stays open for the
-		// kernel's whole life: a stdin-reading child (e.g. `omp -p`) would block
+		// kernel's whole life: a stdin-reading child (e.g. `reverse -p`) would block
 		// until the timeout below, or steal frames meant for the runner.
 		const child = "import sys; print('read=' + repr(sys.stdin.read()))";
 		const [first, second] = await runCells([

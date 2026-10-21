@@ -2931,7 +2931,7 @@ const EMPTY_OLLAMA_LENGTH_COMPLETION_MESSAGE =
  * Detect a server-declared repetition stop on a streamed choice.
  *
  * vLLM and other OpenAI-compatible servers report a generation that degenerated
- * into repetition as a terminal signal rather than a content pattern OMP can
+ * into repetition as a terminal signal rather than a content pattern Reverse can
  * see: `finish_reason: "repetition"`, and/or `stop_reason: "repetition_detected"`.
  * The `stop_reason` form arrives alongside an ordinary `finish_reason: "stop"`,
  * or with no `finish_reason` at all, so it has to be read independently of it —

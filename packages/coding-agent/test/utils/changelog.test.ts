@@ -118,7 +118,7 @@ describe("parseChangelogView", () => {
 });
 
 async function withTempAgentDir<T>(callback: (agentDir: string) => Promise<T>): Promise<T> {
-	const agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-changelog-marker-"));
+	const agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-changelog-marker-"));
 	try {
 		const result = await callback(agentDir);
 		return result;
@@ -396,7 +396,7 @@ describe.skipIf(!hasPtyHarness)("interactive startup changelog PTY smoke", () =>
 		"does not dump packaged changelog history on first install with uncollapsed notes",
 		async () => {
 			await withTempAgentDir(async agentDir => {
-				const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-changelog-pty-"));
+				const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-changelog-pty-"));
 				try {
 					await fs.mkdir(path.join(root, "xdg-config"), { recursive: true });
 					await fs.mkdir(path.join(root, "xdg-state"), { recursive: true });

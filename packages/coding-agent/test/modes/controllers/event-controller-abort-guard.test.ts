@@ -45,7 +45,7 @@ beforeEach(async () => {
 	resetSettingsForTest();
 	// Neutral baseline for notification gates; afterEach restores the suite's inherited value.
 	delete process.env.WARP_CLI_AGENT_PROTOCOL_VERSION;
-	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-abortguard-"));
+	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-abortguard-"));
 	await Settings.init({ inMemory: true, cwd: tempDir });
 });
 

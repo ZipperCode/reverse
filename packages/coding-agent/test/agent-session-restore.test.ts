@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import type { AssistantMessage, Message, Model } from "@reverse/ai";
 import { createMockModel, type MockResponse } from "@reverse/ai/providers/mock";
@@ -35,7 +35,7 @@ function assistant(model: Model, fields: Partial<AssistantMessage>): AssistantMe
 	};
 }
 
-describe("AgentSession.restoreInterruptedTurn (omp --restore)", () => {
+describe("AgentSession.restoreInterruptedTurn (reverse --restore)", () => {
 	let tempDir: TempDir;
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;

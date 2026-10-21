@@ -1,5 +1,5 @@
 /**
- * Anthropic subscription slow mode — omp's port of Claude Code's `/low-priority`,
+ * Anthropic subscription slow mode — reverse's port of Claude Code's `/low-priority`,
  * enabled on Anthropic models by `/slow on` (`providers.anthropic.slowMode: auto`).
  *
  * Past a Claude subscription's usage limit, requests move through two stages:

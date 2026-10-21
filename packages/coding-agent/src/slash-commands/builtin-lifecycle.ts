@@ -838,7 +838,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "restart",
 		icon: "restart",
-		description: "Restart omp with the same launch flags, resuming this session",
+		description: "Restart reverse with the same launch flags, resuming this session",
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.restart();

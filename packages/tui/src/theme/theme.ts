@@ -814,7 +814,7 @@ export async function getResolvedThemeColors(themeName?: string): Promise<Record
 /** One appearance variant of {@link NativeThemePalette}: token name → `#rrggbb`. */
 export type NativeThemeVariant = Record<string, string>;
 
-/** omp's resolved theme for a Tern Surface Protocol terminal (the `t` verb body minus `sf`). */
+/** reverse's resolved theme for a Tern Surface Protocol terminal (the `t` verb body minus `sf`). */
 export interface NativeThemePalette {
 	dark?: NativeThemeVariant;
 	light?: NativeThemeVariant;
@@ -850,7 +850,7 @@ function nativeThemeVariant(name: string): { light: boolean; colors: NativeTheme
 }
 
 /**
- * omp's theme for a native surface: with auto theme, the configured dark and
+ * reverse's theme for a native surface: with auto theme, the configured dark and
  * light themes; otherwise (or while the theme selector previews one) the
  * active theme under its own appearance only. Themes without a loadable
  * definition (in-memory instances) contribute nothing.

@@ -371,7 +371,7 @@ describe("browser run cancellation", () => {
 
 	it("keeps a real worker alive after floating browser and continuation rejections", async () => {
 		vi.useRealTimers();
-		using workerDir = TempDir.createSync("@omp-browser-rejections-");
+		using workerDir = TempDir.createSync("@reverse-browser-rejections-");
 		const workerPath = workerDir.join("worker.ts");
 		await Bun.write(
 			workerPath,

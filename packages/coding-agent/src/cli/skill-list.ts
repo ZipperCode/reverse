@@ -110,13 +110,13 @@ export async function resolveSkillTarget(args: string[], cwd: string, usage: str
 }
 
 /**
- * `omp skill list [dir] [--json]`: report the skills a session in `dir` would
+ * `reverse skill list [dir] [--json]`: report the skills a session in `dir` would
  * resolve. Terminal output is one `name<TAB>description` row per skill on
  * stdout, with notices and warnings on stderr; `--json` emits the full result
  * including discovery warnings.
  */
 export async function handleSkillList(args: string[], cwd: string, json: boolean): Promise<number> {
-	const target = await resolveSkillTarget(args, cwd, "usage: omp skill list [dir] [--json]");
+	const target = await resolveSkillTarget(args, cwd, "usage: reverse skill list [dir] [--json]");
 	const result = await runSkillsCommand({ cwd: target });
 	if (json) {
 		process.stdout.write(`${JSON.stringify(result)}\n`);

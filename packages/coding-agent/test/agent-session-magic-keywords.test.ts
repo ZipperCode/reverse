@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import { Effort } from "@reverse/ai";
 import { getBundledModel } from "@reverse/catalog/models";
@@ -69,7 +69,7 @@ describe("AgentSession magic keyword settings", () => {
 	let modelRegistry: ModelRegistry;
 
 	beforeAll(async () => {
-		authRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-magic-keywords-auth-"));
+		authRoot = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-magic-keywords-auth-"));
 		authStorage = await AuthStorage.create(path.join(authRoot, "auth.db"));
 		authStorage.keys.setRuntime("anthropic", "test-key");
 		modelRegistry = new ModelRegistry(authStorage, path.join(authRoot, "models.yml"));

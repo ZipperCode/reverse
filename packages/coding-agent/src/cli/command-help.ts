@@ -1,6 +1,6 @@
 import { APP_NAME } from "@reverse/utils/dirs";
-import { getEffectiveLocale } from "../config/persisted-locale";
 import type { CommandMetadata } from "@reverse/utils/cli";
+import type * as PersistedLocale from "../config/persisted-locale";
 
 export const acpHelp = {
 	get description() {
@@ -57,6 +57,8 @@ export const compressHelp = {
 
 export const configHelp = {
 	get description() {
+		// 静态导入会在 --profile 解析前加载默认 agent .env。
+		const { getEffectiveLocale }: typeof PersistedLocale = require("../config/persisted-locale");
 		return getEffectiveLocale() === "zh-CN" ? "管理配置设置" : "Manage configuration settings";
 	},
 } satisfies CommandMetadata;
@@ -131,6 +133,8 @@ export const sessionHelp = {
 
 export const setupHelp = {
 	get description() {
+		// 帮助元数据可被启动解析器导入；此时仍须延后读取配置。
+		const { getEffectiveLocale }: typeof PersistedLocale = require("../config/persisted-locale");
 		return getEffectiveLocale() === "zh-CN"
 			? "运行入职设置或配置系统组件（providers、add、reverse、python、speech）"
 			: "Run onboarding setup or configure system components (providers, add, reverse, python, speech)";

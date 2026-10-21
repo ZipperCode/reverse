@@ -12,8 +12,8 @@ describe("Local skills discovery & CLI command routing", () => {
 	let tempProject: string;
 
 	beforeEach(async () => {
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "rva-skill-cli-home-"));
-		tempProject = await fs.mkdtemp(path.join(os.tmpdir(), "rva-skill-cli-project-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-skill-cli-home-"));
+		tempProject = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-skill-cli-project-"));
 	});
 
 	afterEach(async () => {
@@ -40,37 +40,37 @@ describe("Local skills discovery & CLI command routing", () => {
 		});
 	}
 
-	it("discovers local skills from .rva/skills in project and home via real CLI", async () => {
-		// Set up project fixture skill under <project>/.rva/skills
-		const projectSkillDir = path.join(tempProject, ".rva", "skills", "project-fixture-tool");
+	it("discovers local skills from .reverse/skills in project and home via real CLI", async () => {
+		// Set up project fixture skill under <project>/.reverse/skills
+		const projectSkillDir = path.join(tempProject, ".reverse", "skills", "project-fixture-tool");
 		await fs.mkdir(projectSkillDir, { recursive: true });
 		await fs.writeFile(
 			path.join(projectSkillDir, "SKILL.md"),
 			"---\nname: project-fixture-tool\ndescription: Project local fixture tool\n---\n# Project Fixture Tool\n",
 		);
 
-		// Set up user fixture skill under ~/.rva/agent/skills
-		const userSkillDir = path.join(tempHome, ".rva", "agent", "skills", "user-fixture-tool");
+		// Set up user fixture skill under ~/.reverse/agent/skills
+		const userSkillDir = path.join(tempHome, ".reverse", "agent", "skills", "user-fixture-tool");
 		await fs.mkdir(userSkillDir, { recursive: true });
 		await fs.writeFile(
 			path.join(userSkillDir, "SKILL.md"),
 			"---\nname: user-fixture-tool\ndescription: User local fixture tool\n---\n# User Fixture Tool\n",
 		);
-		// Set up legacy .omp skills which must NOT be discovered
-		const legacyProjSkillDir = path.join(tempProject, ".omp", "skills", "legacy-omp-project-skill");
-		const legacyUserSkillDir = path.join(tempHome, ".omp", "agent", "skills", "legacy-omp-user-skill");
+		// Set up legacy unrelated skills which must NOT be discovered
+		const legacyProjSkillDir = path.join(tempProject, ".legacy-other", "skills", "legacy-other-project-skill");
+		const legacyUserSkillDir = path.join(tempHome, ".legacy-other", "agent", "skills", "legacy-other-user-skill");
 		await fs.mkdir(legacyProjSkillDir, { recursive: true });
 		await fs.mkdir(legacyUserSkillDir, { recursive: true });
 		await fs.writeFile(
 			path.join(legacyProjSkillDir, "SKILL.md"),
-			"---\nname: legacy-omp-project-skill\ndescription: Legacy OMP skill\n---\n",
+			"---\nname: legacy-other-project-skill\ndescription: Legacy skill\n---\n",
 		);
 		await fs.writeFile(
 			path.join(legacyUserSkillDir, "SKILL.md"),
-			"---\nname: legacy-omp-user-skill\ndescription: Legacy OMP user skill\n---\n",
+			"---\nname: legacy-other-user-skill\ndescription: Legacy user skill\n---\n",
 		);
 
-		// Run real CLI: rva skill list --json
+		// Run real CLI: reverse skill list --json
 		const proc = runCli(["skill", "list", "--json"]);
 		const [stdout, stderr, exitCode] = await Promise.all([
 			new Response(proc.stdout).text(),
@@ -86,8 +86,8 @@ describe("Local skills discovery & CLI command routing", () => {
 		const names = parsed.skills.map(s => s.name);
 		expect(names).toContain("project-fixture-tool");
 		expect(names).toContain("user-fixture-tool");
-		expect(names).not.toContain("legacy-omp-project-skill");
-		expect(names).not.toContain("legacy-omp-user-skill");
+		expect(names).not.toContain("legacy-other-project-skill");
+		expect(names).not.toContain("legacy-other-user-skill");
 	});
 
 	it("rejects removed and unknown skill actions with usage error", async () => {
@@ -152,7 +152,7 @@ describe("Local skills discovery & CLI command routing", () => {
 			}),
 		);
 
-		// Run real CLI: rva install <pluginDir>
+		// Run real CLI: reverse install <pluginDir>
 		const proc = runCli(["install", pluginDir]);
 		const [stdout, stderr, exitCode] = await Promise.all([
 			new Response(proc.stdout).text(),
@@ -163,10 +163,10 @@ describe("Local skills discovery & CLI command routing", () => {
 		expect(exitCode, stderr).toBe(0);
 		expect(stdout).toContain("Linked local-fixture-plugin");
 
-		// Verifies that plugins directory was created inside isolated tempHome/.rva
-		const rvaPluginsDir = path.join(tempHome, ".rva", "plugins");
+		// Verifies that plugins directory was created inside isolated tempHome/.reverse
+		const reversePluginsDir = path.join(tempHome, ".reverse", "plugins");
 		const exists = await fs
-			.stat(rvaPluginsDir)
+			.stat(reversePluginsDir)
 			.then(s => s.isDirectory())
 			.catch(() => false);
 		expect(exists).toBe(true);

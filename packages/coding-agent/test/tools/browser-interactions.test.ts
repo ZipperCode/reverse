@@ -78,7 +78,7 @@ function makeSession(): ToolSession {
 }
 
 beforeAll(async () => {
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-interactions-"));
+	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-interactions-"));
 	uploadPath = path.join(tempDir, "drop-fixture.txt");
 	await Bun.write(uploadPath, "drop contents");
 });
@@ -232,7 +232,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser interaction parity", () => {
 await tab.click("#link");
 await tab.evaluate(${JSON.stringify(`(function () {\n${TERN_KIT_SOURCE}\n})()`)});
 const ternHit = await tab.evaluate(async () => {
-	const target = await globalThis.__ompTernKit.target({ engine: "css", query: "#link" }, "click");
+	const target = await globalThis.__reverseTernKit.target({ engine: "css", query: "#link" }, "click");
 	return target.ok ? document.elementFromPoint(target.x, target.y)?.id : target.reason;
 });
 return { fragments, clicked: await tab.evaluate(() => window.clicked), ternHit };`,
@@ -375,10 +375,10 @@ return tab.attr("#late", "data-clicked");`,
 				code: `const pending = tab.highlight("#highlight", { duration: 1000 });
 // The overlay is injected asynchronously and removed once the helper's
 // host-side hold elapses, so wait for the node instead of sampling the count.
-await tab.waitForSelector("[data-omp-highlight-overlay]", { timeout: 5000 });
-const during = await tab.evaluate(() => document.querySelectorAll("[data-omp-highlight-overlay]").length);
+await tab.waitForSelector("[data-reverse-highlight-overlay]", { timeout: 5000 });
+const during = await tab.evaluate(() => document.querySelectorAll("[data-reverse-highlight-overlay]").length);
 await pending;
-const after = await tab.evaluate(() => document.querySelectorAll("[data-omp-highlight-overlay]").length);
+const after = await tab.evaluate(() => document.querySelectorAll("[data-reverse-highlight-overlay]").length);
 return { during, after };`,
 			});
 			expect(valueFrom<{ during: number; after: number }>(highlight)).toEqual({ during: 1, after: 0 });

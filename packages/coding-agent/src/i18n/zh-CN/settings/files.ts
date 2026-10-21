@@ -12,7 +12,7 @@ export const filesSettingsZhCN: Record<string, SettingTranslation> = {
 	"lsp.shared": {
 		label: "共享语言服务器",
 		description:
-			"通过按项目的守护进程代理启动语言服务器。每个连接获得自己的服务器。项目中有其他 omp 实例运行时，已释放的服务器会保持热状态，下一个连接复用它而不是冷启动（不可用时回退到私有服务器）",
+			"通过按项目的守护进程代理启动语言服务器。每个连接获得自己的服务器。项目中有其他 reverse 实例运行时，已释放的服务器会保持热状态，下一个连接复用它而不是冷启动（不可用时回退到私有服务器）",
 	},
 	"lsp.formatOnWrite": {
 		label: "写入时格式化",

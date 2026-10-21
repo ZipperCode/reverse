@@ -182,7 +182,7 @@ export class PauseScreenComponent implements Component, OverlayFocusOwner {
 	}
 
 	/** A glass sheet titled "Paused" (not the whole pane: the transcript stays visible, frozen). */
-	readonly nativeOverlay = { role: "omp.overlay.pause", size: "md", anchor: "center", head: "Paused" } as const;
+	readonly nativeOverlay = { role: "reverse.overlay.pause", size: "md", anchor: "center", head: "Paused" } as const;
 
 	/**
 	 * The sheet: a hero (the pause glyph beside the live hold clock and the
@@ -194,7 +194,7 @@ export class PauseScreenComponent implements Component, OverlayFocusOwner {
 		const resumeKey = boundKeys("app.interrupt", ["escape"])[0] ?? "escape";
 		const hero = row(
 			[
-				node("icon", { name: "pause", role: "omp.pause.glyph" }, undefined, "glyph"),
+				node("icon", { name: "pause", role: "reverse.pause.glyph" }, undefined, "glyph"),
 				col(
 					[
 						node(
@@ -202,7 +202,7 @@ export class PauseScreenComponent implements Component, OverlayFocusOwner {
 							{
 								age: Date.now() - this.#startedAt,
 								format: "clock",
-								role: "omp.pause.clock",
+								role: "reverse.pause.clock",
 								title: "Paused for",
 							},
 							undefined,
@@ -210,7 +210,7 @@ export class PauseScreenComponent implements Component, OverlayFocusOwner {
 						),
 						keyed(
 							text([span(this.host.sessionName ?? "Every agent in this session", "muted")], {
-								role: "omp.pause.session",
+								role: "reverse.pause.session",
 								wrap: "none",
 								truncate: "end",
 							}),
@@ -220,7 +220,7 @@ export class PauseScreenComponent implements Component, OverlayFocusOwner {
 					{ gap: "none", grow: 1, shrink: 1 },
 				),
 			],
-			{ role: "omp.pause.hero", gap: "md", align: "center" },
+			{ role: "reverse.pause.hero", gap: "md", align: "center" },
 		);
 		const facts = col(
 			HOLD_FACTS.map(([icon, what, detail], index) =>
@@ -234,12 +234,12 @@ export class PauseScreenComponent implements Component, OverlayFocusOwner {
 								shrink: 1,
 							}),
 						],
-						{ role: "omp.pause.fact", gap: "md", align: "start" },
+						{ role: "reverse.pause.fact", gap: "md", align: "start" },
 					),
 					`fact-${index}`,
 				),
 			),
-			{ role: "omp.pause.facts", gap: "md" },
+			{ role: "reverse.pause.facts", gap: "md" },
 		);
 		this.#native = col(
 			[
@@ -247,7 +247,7 @@ export class PauseScreenComponent implements Component, OverlayFocusOwner {
 				keyed(facts, "facts"),
 				actionBar([
 					keyed(
-						text([span("Each agent continues where it stopped.", "muted")], { role: "omp.pause.note" }),
+						text([span("Each agent continues where it stopped.", "muted")], { role: "reverse.pause.note" }),
 						"note",
 					),
 					null,

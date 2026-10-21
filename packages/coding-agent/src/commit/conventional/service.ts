@@ -18,7 +18,7 @@ import {
 	type CommitInferenceRequest,
 	type CommitInferenceResponse,
 	type CommitProgress,
-	OmpCommitInference,
+	ReverseCommitInference,
 } from "./inference";
 import { detectRepositoryContext, formatRepositoryContext } from "./repo-context";
 
@@ -73,7 +73,7 @@ export async function generateGitCommit(options: GenerateGitCommitOptions): Prom
 	const numstat = renderNumstat(numstatEntries);
 	const context = await collectGenerationContext(options.cwd, options.signal);
 
-	const inference = new LazyCommitInference(() => createOmpInference(options, settings, config));
+	const inference = new LazyCommitInference(() => createReverseInference(options, settings, config));
 	try {
 		const result = await generateConventionalCommit({ diff, stat, numstat, config, inference, context });
 		return { ...result, stagedAll };
@@ -82,11 +82,11 @@ export async function generateGitCommit(options: GenerateGitCommitOptions): Prom
 	}
 }
 
-async function createOmpInference(
+async function createReverseInference(
 	options: GenerateGitCommitOptions,
 	settings: Settings,
 	config: ConventionalGenerationConfig,
-): Promise<OmpCommitInference> {
+): Promise<ReverseCommitInference> {
 	options.signal?.throwIfAborted();
 	const authStorage = await discoverAuthStorage(undefined, { settings });
 	try {
@@ -100,7 +100,7 @@ async function createOmpInference(
 		const cache = config.cacheEnabled
 			? await CommitInferenceCache.open(getCommitCacheDbPath(), config.cacheTtlDays)
 			: null;
-		return new OmpCommitInference({
+		return new ReverseCommitInference({
 			primary,
 			smol,
 			forcePrimaryForEveryRole: options.modelOverride !== undefined,
@@ -163,10 +163,10 @@ async function projectNames(cwd: string): Promise<string[]> {
 }
 
 class LazyCommitInference implements CommitInference {
-	readonly #create: () => Promise<OmpCommitInference>;
-	#instance: Promise<OmpCommitInference> | undefined;
+	readonly #create: () => Promise<ReverseCommitInference>;
+	#instance: Promise<ReverseCommitInference> | undefined;
 
-	constructor(create: () => Promise<OmpCommitInference>) {
+	constructor(create: () => Promise<ReverseCommitInference>) {
 		this.#create = create;
 	}
 

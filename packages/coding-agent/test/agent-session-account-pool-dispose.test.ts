@@ -24,7 +24,7 @@ describe("AgentSession account pools after a dispose deadline", () => {
 	let sessions: AgentSession[] = [];
 
 	beforeEach(async () => {
-		tempDir = TempDir.createSync("@omp-pool-dispose-");
+		tempDir = TempDir.createSync("@reverse-pool-dispose-");
 		authStorage = createInMemoryAuthStorage();
 		await authStorage.credentials.set(
 			"anthropic",

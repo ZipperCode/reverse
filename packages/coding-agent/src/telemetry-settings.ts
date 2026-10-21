@@ -4,7 +4,7 @@
  */
 import { register } from "./config/registry";
 
-/** Whether OMP may register process-global OTLP exporters. */
+/** Whether REVERSE may register process-global OTLP exporters. */
 export const cfgTelemetryOtlpExportEnabled = register({
 	id: "telemetry.otlpExportEnabled",
 	type: "boolean",
@@ -14,6 +14,6 @@ export const cfgTelemetryOtlpExportEnabled = register({
 		group: "Privacy",
 		label: "OTLP Telemetry Export",
 		description:
-			"Allow OMP to export traces, logs, and metrics using OTEL_* endpoints. Changes take effect on the next launch.",
+			"Allow REVERSE to export traces, logs, and metrics using OTEL_* endpoints. Changes take effect on the next launch.",
 	},
 });

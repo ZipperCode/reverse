@@ -406,8 +406,8 @@ fn drops_a_copied_more_lines_notice_like_the_other_read_notices() {
 		"[6 more lines in file. Use :3 to continue]",
 		"[6 more lines in notebook. Use :3 to continue]",
 		"[6 more lines in archive entry. Use :3 to continue]",
-		"[6 more lines in artifact. Use https://omp.sh/a:3 to continue]",
-		"[More lines in artifact (1.2 MB total; not scanned to EOF). Use https://omp.sh/a:3 to \
+		"[6 more lines in artifact. Use https://reverse.sh/a:3 to continue]",
+		"[More lines in artifact (1.2 MB total; not scanned to EOF). Use https://reverse.sh/a:3 to \
 		 continue]",
 		"[\u{2026}6ln elided; re-read needed ranges with a.txt:3-8]",
 	] {

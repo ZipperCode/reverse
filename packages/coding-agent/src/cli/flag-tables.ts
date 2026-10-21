@@ -291,12 +291,12 @@ export const OPTIONAL_VALUE_FLAGS: ReadonlySet<string> = new Set(Object.keys(OPT
  * value of a preceding optional/extension flag. `parseArgs` ignores it, but its
  * flag-looking shape preserves argv boundaries during the second parse.
  */
-export const PROFILE_BOOTSTRAP_BOUNDARY_ARG = "--omp-profile-boundary";
+export const PROFILE_BOOTSTRAP_BOUNDARY_ARG = "--reverse-profile-boundary";
 
 /**
  * Long-form launch flags that take NO value (booleans). The bootstrap pre-parser
  * needs this to tell a known value-less flag (whose successor is a fresh
- * argument — `omp --print --profile work` still selects a profile) apart from an
+ * argument — `reverse --print --profile work` still selects a profile) apart from an
  * UNKNOWN long option that might be an extension string flag consuming the next
  * token as its value (so the bootstrap must not steal that token as a global
  * `--profile`/`--alias`). MUST mirror the value-less flag arms of `parseArgs`
@@ -354,7 +354,7 @@ export function isUnknownLongValueCandidate(arg: string): boolean {
  * Whether a leading option `flag` consumes the following argv token `next` as
  * its value, applying the same contract as `extractProfileFlags` / `parseArgs`.
  * Single source of truth so subcommand detection ({@link resolveCliArgv}) skips
- * a flag's value instead of mistaking it for the subcommand — `omp --model acp`
+ * a flag's value instead of mistaking it for the subcommand — `reverse --model acp`
  * means model `acp`, not the `acp` subcommand, exactly as the launch parser
  * reads it.
  */

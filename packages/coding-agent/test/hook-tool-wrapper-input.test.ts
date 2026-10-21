@@ -4,7 +4,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Type } from "@reverse/omptype/typebox";
+import { Type } from "@reverse/reversetype/typebox";
 import type { AgentTool, AgentToolContext } from "@reverse/agent";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { HookRunner, type LoadedHook } from "@reverse/coding-agent/extensibility/hooks";

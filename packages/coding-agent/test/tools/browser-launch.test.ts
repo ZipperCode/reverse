@@ -200,7 +200,7 @@ describe("browser executable selection", () => {
 			const result = Bun.spawnSync([process.execPath, EXECUTABLE_PROBE], {
 				env: {
 					...process.env,
-					OMP_BROWSER_PROBE_PLATFORM: "win32",
+					REVERSE_BROWSER_PROBE_PLATFORM: "win32",
 					ProgramFiles: tempDir.path(),
 					"ProgramFiles(x86)": path.join(tempDir.path(), "missing-x86"),
 					LOCALAPPDATA: path.join(tempDir.path(), "missing-local"),
@@ -229,7 +229,7 @@ describe("browser executable selection", () => {
 				const home = path.join(tempDir.path(), "home");
 				const xdgCache = path.join(tempDir.path(), "cache");
 				// resolveIf() (packages/utils/src/dirs.ts) only redirects to an XDG
-				// root when its `<XDG>/omp` dir already exists, so create them to pin
+				// root when its `<XDG>/reverse` dir already exists, so create them to pin
 				// the child's puppeteer cache to this isolated location.
 				for (const xdg of [xdgCache, path.join(tempDir.path(), "data"), path.join(tempDir.path(), "state")]) {
 					fs.mkdirSync(path.join(xdg, APP_NAME), { recursive: true });
@@ -240,7 +240,7 @@ describe("browser executable selection", () => {
 					XDG_CACHE_HOME: xdgCache,
 					XDG_DATA_HOME: path.join(tempDir.path(), "data"),
 					XDG_STATE_HOME: path.join(tempDir.path(), "state"),
-					OMP_BROWSER_PROBE_PLATFORM: "darwin",
+					REVERSE_BROWSER_PROBE_PLATFORM: "darwin",
 					PUPPETEER_EXECUTABLE_PATH: "",
 				};
 
@@ -252,7 +252,7 @@ describe("browser executable selection", () => {
 
 				// Seed the isolated Chrome for Testing binary in the child's cache so the
 				// probe resolves it without a network download. getPuppeteerDir() resolves
-				// to `<XDG_CACHE_HOME>/omp/puppeteer` given the dirs created above.
+				// to `<XDG_CACHE_HOME>/reverse/puppeteer` given the dirs created above.
 				const cacheDir = path.join(xdgCache, APP_NAME, "puppeteer");
 				// The child emulates macOS on this host's CPU, so Chrome for Testing resolves to mac/mac_arm.
 				const platform = os.arch() === "arm64" ? BrowserPlatform.MAC_ARM : BrowserPlatform.MAC;

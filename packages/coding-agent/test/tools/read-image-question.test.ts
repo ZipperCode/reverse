@@ -168,7 +168,7 @@ describe("read image questions", () => {
 	let imagePath: string;
 
 	beforeAll(() => {
-		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-read-image-question-"));
+		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-read-image-question-"));
 		imagePath = path.join(testDir, "screen.png");
 		fs.writeFileSync(imagePath, Buffer.from(TINY_PNG_BASE64, "base64"));
 	});

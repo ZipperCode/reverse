@@ -1000,7 +1000,7 @@ describe("completion() through eval runtimes", () => {
 	});
 
 	it("exposes plain and structured completion() in the JavaScript runtime", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-completion-js-");
+		using tempDir = TempDir.createSync("@reverse-eval-completion-js-");
 		const sessionFile = path.join(tempDir.path(), "session.jsonl");
 		const sessionId = `js-completion:${crypto.randomUUID()}`;
 		vi.spyOn(ai, "completeSimple")
@@ -1024,7 +1024,7 @@ describe("completion() through eval runtimes", () => {
 	});
 
 	it("waits for a completion started in an earlier JavaScript cell", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-completion-cells-");
+		using tempDir = TempDir.createSync("@reverse-eval-completion-cells-");
 		const options = {
 			cwd: tempDir.path(),
 			sessionId: `js-completion-cells:${crypto.randomUUID()}`,
@@ -1046,7 +1046,7 @@ describe("completion() through eval runtimes", () => {
 	});
 
 	it("times out waiting on a running completion started in an earlier JavaScript cell", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-completion-cells-timeout-");
+		using tempDir = TempDir.createSync("@reverse-eval-completion-cells-timeout-");
 		const options = {
 			cwd: tempDir.path(),
 			sessionId: `js-completion-cells-timeout:${crypto.randomUUID()}`,
@@ -1073,7 +1073,7 @@ describe("completion() through eval runtimes", () => {
 	});
 
 	it("exposes plain and structured completion() in the Python runtime", async () => {
-		const tempDir = TempDir.createSync("@omp-eval-completion-py-");
+		const tempDir = TempDir.createSync("@reverse-eval-completion-py-");
 		try {
 			const result = await runPythonCompletionsInSubprocess(tempDir);
 			expect(result.exitCode).toBe(0);

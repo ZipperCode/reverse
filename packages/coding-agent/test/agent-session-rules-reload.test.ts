@@ -2,7 +2,7 @@
  * Regression tests for sticky `RULES.md` reload on in-process session reset.
  *
  * `RULES.md` is a sticky always-apply rule rendered into the system prompt's
- * generic-rules section. Creating or editing it while omp runs and then
+ * generic-rules section. Creating or editing it while reverse runs and then
  * resetting the context (`/clear`) or starting a new session (`/new`) MUST make
  * the next prompt observe the current file — otherwise the rule set stays frozen
  * at session creation until the process restarts (issue #10940).
@@ -83,7 +83,7 @@ async function expectStickyRuleReload(
 	const original = `ORIGINAL_STICKY_${marker}`;
 	const updated = `UPDATED_STICKY_${marker}`;
 	// User scope: `<agentDir>/RULES.md` via the process-global getAgentDir().
-	// Project scope: nearest `.omp/RULES.md` walking up from cwd.
+	// Project scope: nearest `.reverse/RULES.md` walking up from cwd.
 	if (opts.scope === "user") setAgentDir(tempDir.path());
 	const rulesMd =
 		opts.scope === "user"
@@ -154,7 +154,7 @@ describe("AgentSession session-local rule snapshot reload on session reset", () 
 		const marker = Bun.nanoseconds().toString(36);
 		const body = `RULEBOOK_BODY_${marker}`;
 		const ruleName = `reload-book-${marker}`;
-		// Empty `.omp/rules/` keeps the project config scope present without any rulebook rule yet.
+		// Empty `.reverse/rules/` keeps the project config scope present without any rulebook rule yet.
 		const rulesDir = path.join(tempDir.path(), CONFIG_DIR_NAME, "rules");
 		await fs.mkdir(rulesDir, { recursive: true });
 

@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import type { AgentTool, AgentToolContext, AgentToolResult, ToolTier } from "@reverse/agent";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { getProjectDir } from "@reverse/utils";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";

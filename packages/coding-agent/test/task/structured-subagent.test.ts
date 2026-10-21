@@ -159,12 +159,12 @@ describe("structured subagent primitive", () => {
 
 	it("rescans agents when a plugin provider is disabled while an earlier discovery is in flight", async () => {
 		const previouslyDisabled = getDisabledProviders();
-		enableProvider("rva-plugins");
+		enableProvider("reverse-plugins");
 		const firstEntered = Promise.withResolvers<void>();
 		const releaseFirst = Promise.withResolvers<void>();
 		let scans = 0;
 		vi.spyOn(discoveryModule, "discoverAgents").mockImplementation(async () => {
-			const pluginsEnabled = isProviderEnabled("rva-plugins");
+			const pluginsEnabled = isProviderEnabled("reverse-plugins");
 			if (++scans === 1) {
 				firstEntered.resolve();
 				await releaseFirst.promise;
@@ -175,7 +175,7 @@ describe("structured subagent primitive", () => {
 		try {
 			const first = resolveEffectiveSubagentPolicy(request({ agent: "plugin-worker" }));
 			await firstEntered.promise;
-			disableProvider("rva-plugins");
+			disableProvider("reverse-plugins");
 			const second = resolveEffectiveSubagentPolicy(request({ agent: "plugin-worker" }));
 			releaseFirst.resolve();
 
@@ -273,7 +273,7 @@ describe("structured subagent primitive", () => {
 		expect(discover).not.toHaveBeenCalled();
 	});
 	it("reloads project task and retry policy before resolving an agent added during the session", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-task-hot-reload-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-task-hot-reload-"));
 		const projectDir = path.join(root, "project");
 		const agentDir = path.join(root, "agent");
 		await fs.mkdir(projectDir, { recursive: true });
@@ -341,7 +341,7 @@ describe("structured subagent primitive", () => {
 	});
 
 	it("reloads persisted per-agent service-tier overrides before each launch", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-task-tier-reload-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-task-tier-reload-"));
 		const projectDir = path.join(root, "project");
 		const agentDir = path.join(root, "agent");
 		await fs.mkdir(path.join(projectDir, CONFIG_DIR_NAME), { recursive: true });
@@ -581,7 +581,7 @@ describe("structured subagent primitive", () => {
 			mode: "permissive",
 			data: { ok: true },
 		});
-		expect(path.basename(settled.artifactsDir)).toStartWith("omp-task-");
+		expect(path.basename(settled.artifactsDir)).toStartWith("reverse-task-");
 		await fs.rm(settled.artifactsDir, { recursive: true, force: true });
 	});
 
@@ -664,10 +664,10 @@ describe("structured subagent primitive", () => {
 	});
 
 	it("persists nested patch text with the compatible recovery path and wording", async () => {
-		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-structured-subagent-"));
+		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-structured-subagent-"));
 		const completed = result();
 		completed.patchPath = "/recovery/Worker.patch";
-		completed.branchName = "omp/task/Worker";
+		completed.branchName = "reverse/task/Worker";
 		completed.nestedPatches = [{ relativePath: "sub/nested", patch: "diff --git a/file b/file\n" }];
 
 		const hint = await buildStructuredSubagentRecoveryHint(completed, artifactsDir);
@@ -675,7 +675,7 @@ describe("structured subagent primitive", () => {
 
 		expect(hint).toContain("Captured patch preserved at /recovery/Worker.patch.");
 		expect(hint).toContain(`Captured nested patch preserved at ${nestedPath}.`);
-		expect(hint).toContain("Captured branch preserved as omp/task/Worker.");
+		expect(hint).toContain("Captured branch preserved as reverse/task/Worker.");
 		expect(await fs.readFile(nestedPath, "utf8")).toBe("diff --git a/file b/file\n");
 		await fs.rm(artifactsDir, { recursive: true, force: true });
 	});
@@ -683,7 +683,7 @@ describe("structured subagent primitive", () => {
 	it("names the failure when nested patches cannot be written as a fallback", async () => {
 		// `Bun.write` creates missing parents, so a genuine failure needs a path
 		// that cannot become a directory: a regular file in its place.
-		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "omp-structured-subagent-unwritable-"));
+		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-structured-subagent-unwritable-"));
 		const artifactsDir = path.join(parent, "artifacts");
 		await fs.writeFile(artifactsDir, "");
 		const completed = result();
@@ -941,7 +941,7 @@ describe("structured subagent primitive", () => {
 		vi.spyOn(isolationRunner, "prepareIsolationContext").mockResolvedValue({ repoRoot: "/tmp" } as never);
 		vi.spyOn(isolationRunner, "runIsolatedSubprocess").mockImplementation(async () => ({
 			...result(),
-			branchName: "omp/task/Worker",
+			branchName: "reverse/task/Worker",
 			branchBaseSha: "base",
 			nestedPatches: [{ relativePath: "inner", patch: "diff --git a/b.txt b/b.txt\n" }],
 			error: "Nested patch capture failed: ENOSPC. Isolation workspace retained at /wt/abc.",
@@ -951,7 +951,7 @@ describe("structured subagent primitive", () => {
 			request({ session: session({ isolationEnabled: true }), isolation: { requested: true } }),
 		);
 
-		expect(settled.mergeSummary).toContain("omp/task/Worker");
+		expect(settled.mergeSummary).toContain("reverse/task/Worker");
 		await fs.rm(settled.artifactsDir, { recursive: true, force: true });
 	});
 
@@ -1008,7 +1008,7 @@ describe("structured subagent primitive", () => {
 
 describe("agent frontmatter structured opt-in", () => {
 	const MOCK_API_SOURCE = "test/structured-subagent-opt-in";
-	const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+	const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "REVERSE_PROFILE", "PI_PROFILE"] as const;
 	let savedEnv: Record<string, string | undefined> = {};
 	let root: string;
 
@@ -1045,7 +1045,7 @@ describe("agent frontmatter structured opt-in", () => {
 
 	beforeEach(async () => {
 		savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-structured-opt-in-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-structured-opt-in-"));
 		const home = path.join(root, "home");
 		await fs.mkdir(home, { recursive: true });
 		restoreEnvValue("HOME", home);
@@ -1075,7 +1075,7 @@ describe("agent frontmatter structured opt-in", () => {
 	])(
 		"task.structured=$setting: yield and schema follow the agent opt-in",
 		async ({ setting, structured }) => {
-			// Under the isolated HOME so project discovery stops before the developer's real ~/.omp.
+			// Under the isolated HOME so project discovery stops before the developer's real ~/.reverse.
 			const cwd = path.join(root, "home", "work");
 			await fs.mkdir(cwd, { recursive: true });
 			const agentsDir = path.join(root, "home", CONFIG_DIR_NAME, "agent", "agents");

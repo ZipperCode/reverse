@@ -1,5 +1,5 @@
 /**
- * Regression for #12008 review: `omp --no-session --resume` (bare, native) must
+ * Regression for #12008 review: `reverse --no-session --resume` (bare, native) must
  * fail with `--resume requires session persistence` instead of falling through
  * to the startup session picker. The picker branch runs before the deferred
  * (extension-flag-aware) persistence validation, so it has to be skipped under
@@ -22,7 +22,7 @@ class ProcessExitSignal extends Error {
 
 describe("runRootCommand — --no-session --resume", () => {
 	it("rejects a bare native --resume without invoking the picker", async () => {
-		using tempDir = TempDir.createSync("@omp-no-session-resume-");
+		using tempDir = TempDir.createSync("@reverse-no-session-resume-");
 		const sessionDir = tempDir.path();
 		// A valid session exists, so a picker fall-through would open the picker
 		// (not the "No sessions found" probe) — proving the guard, not empty state.

@@ -16,7 +16,7 @@
  * requires when tool history is present.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
 import type { AssistantMessage, Context, Model, ModelSpec, Tool } from "@reverse/ai/types";
 import { buildModel } from "@reverse/catalog/build";

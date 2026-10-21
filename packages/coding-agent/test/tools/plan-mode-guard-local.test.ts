@@ -45,7 +45,7 @@ describe("resolvePlanPath local:// support", () => {
 	it("falls back to os tmp root when artifacts dir is unavailable", async () => {
 		const session = makeSession({ artifactsDir: null, sessionId: "session-42" });
 		expect(await resolvePlanPath(session, "local://memo.txt")).toBe(
-			path.join(os.tmpdir(), "omp-local", "session-42", "memo.txt"),
+			path.join(os.tmpdir(), "reverse-local", "session-42", "memo.txt"),
 		);
 	});
 });

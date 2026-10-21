@@ -1,7 +1,7 @@
 /**
  * The native project walk-up must never treat home or temporary roots as project config dirs.
  * A cwd under home with no closer repo root (Windows temp dirs, scratch folders)
- * otherwise loads the user's ~/.omp/SYSTEM.md, RULES.md and AGENTS.md as project
+ * otherwise loads the user's ~/.reverse/SYSTEM.md, RULES.md and AGENTS.md as project
  * config, even when the agent dir points elsewhere (profiles, isolated runs).
  */
 import { afterEach, beforeEach, expect, test, vi } from "bun:test";
@@ -207,7 +207,7 @@ test("an overridden discovery home does not make the process home a native proje
 	}).toEqual({ prompts: [], rules: [], contexts: [], skills: [] });
 });
 
-test("a cwd under home without a repo does not load ~/.omp files as project config", async () => {
+test("a cwd under home without a repo does not load ~/.reverse files as project config", async () => {
 	const cwd = path.join(home, "AppData", "Local", "Temp", "work");
 	fs.mkdirSync(cwd, { recursive: true });
 	const ctx: LoadContext = { cwd, home, repoRoot: null };
@@ -224,7 +224,7 @@ test("a cwd under home without a repo does not load ~/.omp files as project conf
 	expect(skills.filter(s => fromHome(s.path))).toEqual([]);
 });
 
-test("a project .omp between cwd and home is still found", async () => {
+test("a project .reverse between cwd and home is still found", async () => {
 	const project = path.join(home, "scratch");
 	const cwd = path.join(project, "nested");
 	fs.mkdirSync(cwd, { recursive: true });

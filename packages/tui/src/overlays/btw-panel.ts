@@ -36,7 +36,7 @@ export class BtwPanelComponent extends OverlayPanel {
 
 	constructor(options: BtwPanelComponentOptions) {
 		const baseTitle = `/btw ${replaceTabs(options.question)}`;
-		super(baseTitle, "omp.overlay.btw");
+		super(baseTitle, "reverse.overlay.btw");
 		this.#baseTitle = baseTitle;
 		this.#question = replaceTabs(options.question);
 		this.#tui = options.tui;
@@ -140,7 +140,7 @@ export class BtwPanelComponent extends OverlayPanel {
 		// Inline in the dock, styled as a sheet by role: a borderless column headed by the question.
 		const title = text([span("/btw", "accent"), span(` ${this.#question}`)], { truncate: "end", lines: 1 });
 		const live = this.#state === "running" || this.#state === "branching";
-		const head = node("row", { role: "omp.sheet.head", gap: "sm", align: "center" }, [
+		const head = node("row", { role: "reverse.sheet.head", gap: "sm", align: "center" }, [
 			...(live ? [node("spinner", {})] : []),
 			title,
 		]);

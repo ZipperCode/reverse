@@ -29,7 +29,7 @@ export async function captureBrowserSession(
 		const [puppeteer, executablePath] = await untilAborted(lifetime, () =>
 			Promise.all([loadPuppeteer(), ensureChromiumExecutable()]),
 		);
-		userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-sso-profile-"));
+		userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-sso-profile-"));
 		lifetime.throwIfAborted();
 		// Do not race launch: retain ownership even if cancellation happens before it resolves.
 		// Unlike general browser tooling, authentication keeps sandbox and TLS checks enabled.

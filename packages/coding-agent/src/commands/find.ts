@@ -1,5 +1,5 @@
 /**
- * Semantic search from the shell: `omp find "<query>" [path]`.
+ * Semantic search from the shell: `reverse find "<query>" [path]`.
  */
 
 import { Args, Command, Flags } from "@reverse/utils/cli";
@@ -10,7 +10,7 @@ export default class Find extends Command {
 	static description = commandHelp.description;
 	static args = {
 		query: Args.string({ description: "What to find, in plain language", required: false }),
-		path: Args.string({ description: "Directory or omp:// docs scope to search", required: false }),
+		path: Args.string({ description: "Directory or reverse:// docs scope to search", required: false }),
 	};
 
 	static flags = {

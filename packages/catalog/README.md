@@ -1,6 +1,6 @@
 # @reverse/catalog
 
-Model catalog for [omp](https://github.com/can1357/oh-my-pi): bundled model database, provider discovery, model identity, classification, and equivalence.
+Model catalog for [reverse](https://github.com/ZipperCode/rev): bundled model database, provider discovery, model identity, classification, and equivalence.
 
 ## What's inside
 
@@ -56,11 +56,11 @@ Timestamps are Unix milliseconds; omitted timestamps use the current time for sc
 
 `ModelCost.timeBased` is optional typed metadata (`TimeBasedCost`): `offPeakMultiplier`, `peakWindows` (UTC `weekdays`, Sunday = 0, and start-inclusive/end-exclusive `startMinute`/`endMinute`), and optional `effectiveRates`. Each effective rate is a complete `TokenCost` with an `effectiveFrom` Unix-millisecond timestamp and optional `longContext` tier, replacing the base card from that instant. A schedule with no peak windows at a 1x off-peak multiplier has no recurring tariff, only dated rate cards: `cost-patch`/`cost-fallback` `effective-rates` compile to one, so a row built before a scheduled price change still prices later requests at the new card.
 
-Pass the request-start timestamp when estimating request usage, then preserve the resulting monetary amounts rather than repricing history at display time. OMP does this using the assistant message timestamp; it is an estimation convention, not a claim about server billing across boundaries. Prefer monetary costs reported by a provider when available.
+Pass the request-start timestamp when estimating request usage, then preserve the resulting monetary amounts rather than repricing history at display time. reverse does this using the assistant message timestamp; it is an estimation convention, not a claim about server billing across boundaries. Prefer monetary costs reported by a provider when available.
 
 Schedules are materialized from the [`time-based-cost` KDL axis](src/compat/rules/README.md#time-based-pricing); this does not add a `timeBased` input field to the coding agent's `models.yml`. See [user-facing pricing behavior](../../docs/models.md#usage-costs-and-time-based-pricing) for DeepSeek rates, dates, and footer indicators.
 
 ## References
 
-- [Monorepo README](https://github.com/can1357/oh-my-pi#readme)
+- [Monorepo README](https://github.com/ZipperCode/rev#readme)
 - [CHANGELOG](./CHANGELOG.md)

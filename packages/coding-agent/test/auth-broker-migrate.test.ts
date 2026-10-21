@@ -37,10 +37,10 @@ describe("auth-broker migrate", () => {
 	const savedEnv: Record<string, string | undefined> = {};
 
 	beforeEach(async () => {
-		savedEnv.OMP_AUTH_BROKER_URL = process.env.OMP_AUTH_BROKER_URL;
-		savedEnv.OMP_AUTH_BROKER_TOKEN = process.env.OMP_AUTH_BROKER_TOKEN;
-		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-migrate-client-"));
-		brokerAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-migrate-broker-"));
+		savedEnv.REVERSE_AUTH_BROKER_URL = process.env.REVERSE_AUTH_BROKER_URL;
+		savedEnv.REVERSE_AUTH_BROKER_TOKEN = process.env.REVERSE_AUTH_BROKER_TOKEN;
+		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-migrate-client-"));
+		brokerAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-migrate-broker-"));
 		setAgentDir(agentDir);
 
 		brokerStore = await SqliteAuthCredentialStore.open(path.join(brokerAgentDir, "agent.db"));
@@ -52,8 +52,8 @@ describe("auth-broker migrate", () => {
 			bearerTokens: [token],
 			disableRefresher: true,
 		});
-		process.env.OMP_AUTH_BROKER_URL = handle.url;
-		process.env.OMP_AUTH_BROKER_TOKEN = token;
+		process.env.REVERSE_AUTH_BROKER_URL = handle.url;
+		process.env.REVERSE_AUTH_BROKER_TOKEN = token;
 	});
 
 	afterEach(async () => {
@@ -62,7 +62,7 @@ describe("auth-broker migrate", () => {
 		brokerStore?.close();
 		await removeWithRetries(agentDir);
 		await removeWithRetries(brokerAgentDir);
-		for (const key of ["OMP_AUTH_BROKER_URL", "OMP_AUTH_BROKER_TOKEN"] as const) {
+		for (const key of ["REVERSE_AUTH_BROKER_URL", "REVERSE_AUTH_BROKER_TOKEN"] as const) {
 			if (savedEnv[key] === undefined) delete process.env[key];
 			else process.env[key] = savedEnv[key];
 		}

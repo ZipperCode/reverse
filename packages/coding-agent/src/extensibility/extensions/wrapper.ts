@@ -28,10 +28,10 @@ import type { ExtensionRunner } from "./runner";
 import type { ExtensionAgentIdentity, RegisteredTool, ToolCallEventResult } from "./types";
 
 /**
- * Second `renderCall` argument that satisfies both the omp and the upstream-pi
+ * Second `renderCall` argument that satisfies both the reverse and the upstream-pi
  * renderer contracts.
  *
- * omp invokes renderers as `renderCall(args, options, theme)` (see
+ * reverse invokes renderers as `renderCall(args, options, theme)` (see
  * `packages/tui/src/tools/renderer.ts`), while pi-era renderers — including
  * every third-party plugin written against pi's published example — are
  * declared `renderCall(args, theme, context)`. Both shapes take three
@@ -149,7 +149,7 @@ export function wrapRegisteredTools(registeredTools: RegisteredTool[], runner: E
 	return registeredTools.map(rt => wrapRegisteredTool(rt, runner));
 }
 
-const LOOP_DISPATCH_CONTEXT = Symbol("omp.loop-dispatch");
+const LOOP_DISPATCH_CONTEXT = Symbol("reverse.loop-dispatch");
 type LoopAwareToolContext = AgentToolContext & { [LOOP_DISPATCH_CONTEXT]?: true };
 
 function computerSafetyChecks(context: AgentToolContext | undefined): ComputerSafetyCheck[] {

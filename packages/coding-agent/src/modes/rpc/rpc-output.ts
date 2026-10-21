@@ -69,7 +69,7 @@ export class RpcOutputWriter {
 
 	#append(line: string): void {
 		if (!this.#spool) {
-			const dir = TempDir.createSync("@omp-rpc-output-");
+			const dir = TempDir.createSync("@reverse-rpc-output-");
 			try {
 				const file = dir.join("output");
 				const handle = Bun.file(file);

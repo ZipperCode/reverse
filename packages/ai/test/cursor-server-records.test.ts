@@ -364,7 +364,7 @@ describe("Cursor server records", () => {
 		});
 
 		expect(result.stopReason).toBe("stop");
-		// Default system prompt, the user message omp builds, then the server's
+		// Default system prompt, the user message reverse builds, then the server's
 		// records; the paired tool result is not rebuilt beside them.
 		expect(root).toHaveLength(2 + SPAN.length);
 		expect(root.slice(2)).toEqual(SPAN_IDS);

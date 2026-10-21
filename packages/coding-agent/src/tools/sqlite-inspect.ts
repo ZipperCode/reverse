@@ -4,7 +4,7 @@ import type { Stats } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@reverse/agent";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { formatBytes, prompt } from "@reverse/utils";
 import type { ToolSession } from "./index";

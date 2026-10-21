@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { Tool } from "@reverse/ai/types";
 import { validateToolArguments } from "@reverse/ai/utils/validation";
 
 // Issue #8886 — some providers (notably Gemini) serialize array arguments as
 // flattened property paths (`questions[0].id`) instead of a nested array.
 
-// Mirrors the shape of OMP's `ask` tool (`packages/coding-agent/src/tools/ask.ts`).
+// Mirrors the shape of Reverse's `ask` tool (`packages/coding-agent/src/tools/ask.ts`).
 const questionItem = type({
 	id: type("string"),
 	question: type("string"),

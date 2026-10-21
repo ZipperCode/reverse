@@ -24,7 +24,7 @@ import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 const AGENT_ID = "FocusedYield";
 const PARENT_ID = "Main";
 const MOCK_API_SOURCE = "test/focused-subagent-manual-yield";
-const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "REVERSE_PROFILE", "PI_PROFILE"] as const;
 
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;
@@ -42,12 +42,12 @@ function restoreEnvValue(key: string, value: string | undefined): void {
 
 beforeEach(async () => {
 	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-focused-yield-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-focused-yield-"));
 	const home = path.join(root, "home");
 	await fs.mkdir(home, { recursive: true });
 	restoreEnvValue("HOME", home);
 	vi.spyOn(os, "homedir").mockReturnValue(home);
-	setAgentDir(path.join(home, ".omp", "agent"));
+	setAgentDir(path.join(home, ".reverse", "agent"));
 	AgentRegistry.resetGlobalForTests();
 	AgentLifecycleManager.resetGlobalForTests();
 	registerMockApi(MOCK_API_SOURCE);
@@ -98,7 +98,7 @@ function resultForLatestPrompt(messages: ReadonlyArray<{ role: string; content: 
 async function spawnKeptAliveChild() {
 	// Under the isolated HOME: project discovery walks up from cwd and stops at os.homedir(). On Windows
 	// os.tmpdir() lives under the real home, so a cwd outside the fake HOME would walk into the real
-	// ~/.omp and load the developer's installed plugins as project plugins.
+	// ~/.reverse and load the developer's installed plugins as project plugins.
 	const cwd = path.join(root, "home", "work");
 	const artifactsDir = path.join(root, "artifacts");
 	await fs.mkdir(cwd, { recursive: true });

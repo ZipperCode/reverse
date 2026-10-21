@@ -1,5 +1,5 @@
 import type { AstEditToolDetails } from "@reverse/tui/tools/ast-edit";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type {
 	AgentTool,
 	AgentToolContext,

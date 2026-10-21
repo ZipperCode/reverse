@@ -42,7 +42,7 @@ function result(id: string): SingleResult {
  * returns how many times a task branch was committed.
  */
 async function commitsAcrossRelease(id: string, runEndPatch: string, releasePatch: string): Promise<number> {
-	const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-release-"));
+	const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-isolation-release-"));
 	tempRoots.push(artifactsDir);
 	const baseline = {
 		root: { repoRoot: "/repo", headCommit: "base", staged: "", unstaged: "", untracked: [], untrackedPatch: "" },
@@ -58,7 +58,7 @@ async function commitsAcrossRelease(id: string, runEndPatch: string, releasePatc
 	vi.spyOn(worktreeModule, "cleanupIsolation").mockResolvedValue();
 	vi.spyOn(worktreeModule, "captureDeltaPatch").mockResolvedValue({ rootPatch: releasePatch, nestedPatches: [] });
 	const commitSpy = vi.spyOn(worktreeModule, "commitToBranch").mockResolvedValue({
-		branchName: `omp/task/${id}`,
+		branchName: `reverse/task/${id}`,
 		baseSha: "base",
 		rootPatch: runEndPatch,
 		nestedPatches: [],

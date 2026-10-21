@@ -25,7 +25,7 @@ afterAll(async () => {
 });
 
 async function writeFixtureExtension(source: string): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-legacy-upstream-bridges-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-legacy-upstream-bridges-"));
 	tempRoots.push(dir);
 	const entry = path.join(dir, "index.ts");
 	await fs.writeFile(entry, source, "utf8");

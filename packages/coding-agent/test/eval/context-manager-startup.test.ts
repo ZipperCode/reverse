@@ -12,7 +12,7 @@ import type { ToolSession } from "@reverse/coding-agent/tools";
 
 setDefaultTimeout(2_000);
 
-const EXECUTION_MARKER = `OMP_EVAL_HOST_EXECUTION_${crypto.randomUUID().replaceAll("-", "_")}`;
+const EXECUTION_MARKER = `REVERSE_EVAL_HOST_EXECUTION_${crypto.randomUUID().replaceAll("-", "_")}`;
 
 interface FailingHandleState {
 	runMessages: number;

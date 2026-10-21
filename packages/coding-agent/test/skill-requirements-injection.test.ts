@@ -19,7 +19,7 @@ async function createSkill(
 	body: string,
 	requirements?: readonly ToolRequirement[],
 ): Promise<{ dir: string; skill: Skill }> {
-	const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), `rva-skill-req-${name}-`)));
+	const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), `reverse-skill-req-${name}-`)));
 	tempDirs.push(dir);
 	const filePath = path.join(dir, "SKILL.md");
 	await Bun.write(filePath, `---\nname: ${name}\ndescription: ${name} fixture\n---\n\n${body}\n`);
@@ -41,10 +41,10 @@ afterEach(async () => {
 
 describe("skill dependency notice injection", () => {
 	it("prepends a missing required dependency notice to /skill-style prompts", async () => {
-		const { skill } = await createSkill("dep-prompt", "Do the thing.", [{ id: "rva-injection-absent-fixture" }]);
+		const { skill } = await createSkill("dep-prompt", "Do the thing.", [{ id: "reverse-injection-absent-fixture" }]);
 		const built = await buildSkillPromptMessage(skill, { args: "" }, "user");
 		expect(built.message.startsWith("[Missing tool dependencies:")).toBe(true);
-		expect(built.message).toContain("rva-injection-absent-fixture");
+		expect(built.message).toContain("reverse-injection-absent-fixture");
 		expect(built.message).toContain('[IMPORTANT: User invoked the "dep-prompt" skill');
 	});
 
@@ -57,7 +57,7 @@ describe("skill dependency notice injection", () => {
 
 	it("stays silent for missing optional dependencies", async () => {
 		const { skill } = await createSkill("optional-dep", "Do the thing.", [
-			{ id: "rva-injection-absent-fixture", optional: true },
+			{ id: "reverse-injection-absent-fixture", optional: true },
 		]);
 		const built = await buildSkillPromptMessage(skill, { args: "" }, "autoload");
 		expect(built.message).not.toContain("Missing tool dependencies");
@@ -65,7 +65,7 @@ describe("skill dependency notice injection", () => {
 
 	it("prepends the notice to skill:// instruction reads but not subpath reads", async () => {
 		const { dir, skill } = await createSkill("protocol-dep", "Instruction body.", [
-			{ id: "rva-injection-absent-fixture" },
+			{ id: "reverse-injection-absent-fixture" },
 		]);
 		await fs.mkdir(path.join(dir, "references"), { recursive: true });
 		await Bun.write(path.join(dir, "references", "notes.md"), "Reference body.\n");
@@ -85,13 +85,13 @@ describe("skill dependency notice injection", () => {
 	});
 
 	it("loads metadata.requires from a real SKILL.md and injects it into prompt and read", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "rva-skill-required-e2e-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-skill-required-e2e-"));
 		tempDirs.push(root);
 		const skillDir = path.join(root, "required-deps");
 		await fs.mkdir(skillDir, { recursive: true });
 		await Bun.write(
 			path.join(skillDir, "SKILL.md"),
-			"---\nname: required-deps\ndescription: Required dependency fixture\nmetadata:\n  requires: rva-e2e-absent-fixture\n---\n\nInstruction body.\n",
+			"---\nname: required-deps\ndescription: Required dependency fixture\nmetadata:\n  requires: reverse-e2e-absent-fixture\n---\n\nInstruction body.\n",
 		);
 
 		const { skills } = await loadSkills({
@@ -107,11 +107,11 @@ describe("skill dependency notice injection", () => {
 		});
 		const skill = skills.find(candidate => candidate.name === "required-deps");
 		expect(skill).toBeDefined();
-		expect(skill!.requirements).toEqual([{ id: "rva-e2e-absent-fixture" }]);
+		expect(skill!.requirements).toEqual([{ id: "reverse-e2e-absent-fixture" }]);
 
 		const built = await buildSkillPromptMessage(skill!, { args: "" }, "user");
 		expect(built.message).toContain("[Missing tool dependencies:");
-		expect(built.message).toContain("rva-e2e-absent-fixture");
+		expect(built.message).toContain("reverse-e2e-absent-fixture");
 
 		const session: ToolSession = {
 			cwd: skillDir,
@@ -124,12 +124,12 @@ describe("skill dependency notice injection", () => {
 		const read = await new ReadTool(session).execute("read-required-e2e", { path: "skill://required-deps" });
 		const text = read.content.flatMap(block => (block.type === "text" ? [block.text] : [])).join("\n");
 		expect(text).toContain("[Missing tool dependencies:");
-		expect(text).toContain("rva-e2e-absent-fixture");
+		expect(text).toContain("reverse-e2e-absent-fixture");
 	});
 
 	it("injects the notice through the real read tool, and not for subpaths or raw reads", async () => {
 		const { dir, skill } = await createSkill("read-path-dep", "Instruction body.", [
-			{ id: "rva-injection-absent-fixture" },
+			{ id: "reverse-injection-absent-fixture" },
 		]);
 		await fs.mkdir(path.join(dir, "references"), { recursive: true });
 		await Bun.write(path.join(dir, "references", "notes.md"), "Reference body.\n");
@@ -148,7 +148,7 @@ describe("skill dependency notice injection", () => {
 			.flatMap(block => (block.type === "text" ? [block.text] : []))
 			.join("\n");
 		expect(instructionText).toContain("[Missing tool dependencies:");
-		expect(instructionText).toContain("rva-injection-absent-fixture");
+		expect(instructionText).toContain("reverse-injection-absent-fixture");
 		expect(instructionText.indexOf("[Missing tool dependencies:")).toBeLessThan(
 			instructionText.indexOf("[Skill file:"),
 		);
@@ -167,16 +167,18 @@ describe("skill dependency notice injection", () => {
 	});
 
 	it.skipIf(process.platform === "win32")("stays silent when the required executable is on PATH", async () => {
-		const binDir = await fs.mkdtemp(path.join(os.tmpdir(), "rva-skill-req-bin-"));
+		const binDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-skill-req-bin-"));
 		tempDirs.push(binDir);
-		const binary = path.join(binDir, "rva-injection-present-fixture");
+		const binary = path.join(binDir, "reverse-injection-present-fixture");
 		await Bun.write(binary, "#!/bin/sh\nexit 0\n");
 		await fs.chmod(binary, 0o755);
 
 		const originalPath = process.env.PATH;
 		restoreEnvValue("PATH", `${binDir}${path.delimiter}${originalPath ?? ""}`);
 		try {
-			const { skill } = await createSkill("present-dep", "Do the thing.", [{ id: "rva-injection-present-fixture" }]);
+			const { skill } = await createSkill("present-dep", "Do the thing.", [
+				{ id: "reverse-injection-present-fixture" },
+			]);
 			const built = await buildSkillPromptMessage(skill, { args: "" }, "user");
 			expect(built.message).not.toContain("Missing tool dependencies");
 

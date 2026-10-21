@@ -3,9 +3,9 @@ import type { TinyLocalModelKey } from "./models";
 /**
  * Wire protocol between `TinyTitleClient` and a tiny-model worker.
  *
- * One worker per local model: the ONNX worker (`worker.ts`, the omp binary
+ * One worker per local model: the ONNX worker (`worker.ts`, the reverse binary
  * re-entered with {@link TINY_WORKER_ARG}) or the MLX worker (`mlx-server.py`)
- * owns a Unix socket / named pipe named after the model, serves every omp
+ * owns a Unix socket / named pipe named after the model, serves every reverse
  * process on the machine over newline-delimited JSON, and exits on its own
  * once idle. Requests are message-level so both workers render the chat
  * template with their own tokenizer; the client owns prompt construction and
@@ -16,7 +16,7 @@ import type { TinyLocalModelKey } from "./models";
  * Hidden subcommand on the main CLI that boots the ONNX tiny-model worker.
  * Kept in sync with the dispatch in `cli.ts`.
  */
-export const TINY_WORKER_ARG = "__rva_worker_tiny_inference";
+export const TINY_WORKER_ARG = "__reverse_worker_tiny_inference";
 /** Env var carrying the endpoint the ONNX worker must own. */
 export const TINY_WORKER_SOCKET_ENV = "REVERSE_TINY_WORKER_SOCKET";
 /** Env var naming the single local model the ONNX worker serves. */

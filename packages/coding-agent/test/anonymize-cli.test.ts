@@ -9,11 +9,11 @@ const SESSION = `${JSON.stringify({ type: "session", version: 3, id: "01a0c9ac",
 ${JSON.stringify({ type: "message", id: "a1b2c3d4", parentId: null, timestamp: "2026-10-01T00:00:01.000Z", message: { role: "user", content: "keep me", timestamp: 1 } })}
 `;
 
-describe("omp anonymize output", () => {
+describe("reverse anonymize output", () => {
 	let tempDir: TempDir;
 
 	beforeEach(() => {
-		tempDir = TempDir.createSync("@omp-anonymize-");
+		tempDir = TempDir.createSync("@reverse-anonymize-");
 	});
 
 	afterEach(async () => {

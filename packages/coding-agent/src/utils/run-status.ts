@@ -6,7 +6,7 @@
  * scraping the title.
  *
  * A report replaces the terminal's record whole, so each one carries `app` and
- * the full status. omp only writes the root record; teardown and opting out
+ * the full status. reverse only writes the root record; teardown and opting out
  * send `state=clear` so no stale record outlives the session.
  */
 import { writeTerminalSequence } from "@reverse/tui";
@@ -133,7 +133,7 @@ export function initProgramStatus(): void {
 }
 
 /**
- * Remove omp's record and latch reporting off at UI teardown, before the
+ * Remove reverse's record and latch reporting off at UI teardown, before the
  * terminal goes back to the shell. A `done` record would otherwise survive the
  * exit and advertise a result nobody is left to show.
  */

@@ -6,7 +6,7 @@ import { formatExtensionLoadNotifications } from "@reverse/coding-agent/extensib
 describe("extension load startup notifications", () => {
 	it("formats load failures as sanitized single-line warnings for TUI and print startup paths", () => {
 		const homeDir = os.homedir();
-		const extensionPath = path.join(homeDir, "omp-notification-fixture", "plugin\tname", "extension.ts");
+		const extensionPath = path.join(homeDir, "reverse-notification-fixture", "plugin\tname", "extension.ts");
 		const tailMarker = "TAIL_MARKER_AFTER_TRUNCATION";
 		const [message] = formatExtensionLoadNotifications([
 			{
@@ -16,7 +16,7 @@ describe("extension load startup notifications", () => {
 		]);
 
 		expect(message).toBeDefined();
-		expect(message?.startsWith("Failed to load extension ~/omp-notification-fixture/plugin")).toBe(true);
+		expect(message?.startsWith("Failed to load extension ~/reverse-notification-fixture/plugin")).toBe(true);
 		expect(message).toContain("name/extension.ts: SyntaxError: Missing named export at extension loader");
 		expect(message).not.toContain(homeDir);
 		expect(message).not.toContain("\n");

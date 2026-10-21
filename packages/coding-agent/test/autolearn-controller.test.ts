@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
 import type { AssistantMessage, FetchImpl, Model, ProviderSessionState, Usage } from "@reverse/ai";
 import { streamGoogle } from "@reverse/ai/providers/google";

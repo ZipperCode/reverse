@@ -67,7 +67,7 @@ async function captureLaunch(
 
 it.skipIf(!tmuxPath)("preserves literal semicolons in tmux operands and direct command argv", async () => {
 	// Canonical path: the pane reports its realpath cwd (macOS tmpdir sits behind /var -> /private/var).
-	const root = await fsp.realpath(await fsp.mkdtemp(path.join(os.tmpdir(), "omp-tmux-injection-")));
+	const root = await fsp.realpath(await fsp.mkdtemp(path.join(os.tmpdir(), "reverse-tmux-injection-")));
 	const socket = path.join(root, "private.sock");
 	const seedSession = `tmux-injection-seed-${process.pid}`;
 	const targetSession = `tmux-injection-target-${process.pid};`;
@@ -169,7 +169,7 @@ it.skipIf(!tmuxPath)("preserves literal semicolons in tmux operands and direct c
 
 it.skipIf(!tmuxPath)("opens a literal # cwd and runs shell mode without the tmux default-shell", async () => {
 	// Canonical path: the pane reports its realpath cwd (macOS tmpdir sits behind /var -> /private/var).
-	const root = await fsp.realpath(await fsp.mkdtemp(path.join(os.tmpdir(), "omp-tmux-format-")));
+	const root = await fsp.realpath(await fsp.mkdtemp(path.join(os.tmpdir(), "reverse-tmux-format-")));
 	const socket = path.join(root, "private.sock");
 	const session = `tmux-format-${process.pid}`;
 	// Unescaped, tmux runs #(…) as a job and expands #S, opening the pane in $HOME instead.

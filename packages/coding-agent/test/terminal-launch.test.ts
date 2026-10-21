@@ -190,11 +190,11 @@ describe("generic terminal launch construction", () => {
 	});
 
 	it("rejects unconfirmed shell grammar and leaves optional provider defaults unset", () => {
-		const unconfirmed = createDefaultTerminalLaunchRequest("cmux", "pane", ["omp", "--resume"], "/repo");
+		const unconfirmed = createDefaultTerminalLaunchRequest("cmux", "pane", ["reverse", "--resume"], "/repo");
 		if (!("error" in unconfirmed)) throw new Error("shell-input request unexpectedly omitted its grammar error");
 		expect(unconfirmed.error).toContain('requires shellGrammar: "posix"');
 
-		const confirmed = createDefaultTerminalLaunchRequest("cmux", "pane", ["omp", "--resume"], "/repo", "posix");
+		const confirmed = createDefaultTerminalLaunchRequest("cmux", "pane", ["reverse", "--resume"], "/repo", "posix");
 		if ("error" in confirmed) throw new Error(confirmed.error);
 		for (const option of ["target", "focus", "direction", "execution"]) {
 			expect(Object.hasOwn(confirmed.request, option)).toBe(false);
@@ -211,7 +211,7 @@ describe("terminal launch dispatcher", () => {
 		const result = await launch({
 			multiplexer: "tmux",
 			placement: "pane",
-			command: ["omp", "--fork", "session.jsonl"],
+			command: ["reverse", "--fork", "session.jsonl"],
 			cwd: "/workspace/project",
 			target: "%7",
 			focus: false,
@@ -234,7 +234,7 @@ describe("terminal launch dispatcher", () => {
 					"-F",
 					"#{pane_id}",
 					"--",
-					"omp",
+					"reverse",
 					"--fork",
 					"session.jsonl",
 				],
@@ -281,7 +281,7 @@ describe("terminal launch dispatcher", () => {
 			{ stdout: "%24\n", exitCode: 0 },
 		]);
 		const cwd = "/work/#S/#(touch pwned)/##{pane_id}";
-		await launch({ multiplexer: "tmux", placement: "pane", command: ["omp", "--resume"], cwd });
+		await launch({ multiplexer: "tmux", placement: "pane", command: ["reverse", "--resume"], cwd });
 
 		expect(calls[0]!.argv[calls[0]!.argv.indexOf("-c") + 1]).toBe("/work/##S/##(touch pwned)/####{pane_id}");
 		expect(calls[0]!.cwd).toBe(cwd);
@@ -338,7 +338,7 @@ describe("terminal launch dispatcher", () => {
 		const result = await launch({
 			multiplexer: "tmux",
 			placement: "window",
-			command: ["omp", "--resume"],
+			command: ["reverse", "--resume"],
 			cwd: "/repo",
 		});
 
@@ -351,7 +351,7 @@ describe("terminal launch dispatcher", () => {
 			"-F",
 			"#{window_id}",
 			"--",
-			"omp",
+			"reverse",
 			"--resume",
 		]);
 		expect(result).toEqual({ multiplexer: "tmux", placement: "window", id: "@6" });
@@ -361,7 +361,7 @@ describe("terminal launch dispatcher", () => {
 		const { calls, launch } = createHarness({ TMUX: "/tmp/tmux.sock,1,0" }, []);
 		for (const target of ["%7", "@4"]) {
 			await expect(
-				launch({ multiplexer: "tmux", placement: "window", command: ["omp"], cwd: "/repo", target }),
+				launch({ multiplexer: "tmux", placement: "window", command: ["reverse"], cwd: "/repo", target }),
 			).rejects.toThrow("session ID or name");
 		}
 		expect(calls).toEqual([]);
@@ -369,14 +369,14 @@ describe("terminal launch dispatcher", () => {
 
 	it("does not infer tmux capability from TERM and requires a pane target", async () => {
 		const { calls, launch } = createHarness({ TERM: "tmux-256color" }, []);
-		await expect(launch({ multiplexer: "tmux", placement: "pane", command: ["omp"], cwd: "/repo" })).rejects.toThrow(
-			"active TMUX session",
-		);
+		await expect(
+			launch({ multiplexer: "tmux", placement: "pane", command: ["reverse"], cwd: "/repo" }),
+		).rejects.toThrow("active TMUX session");
 		expect(calls).toEqual([]);
 
 		const noPane = createHarness({ TMUX: "/tmp/tmux.sock,1,0" }, []);
 		await expect(
-			noPane.launch({ multiplexer: "tmux", placement: "pane", command: ["omp"], cwd: "/repo" }),
+			noPane.launch({ multiplexer: "tmux", placement: "pane", command: ["reverse"], cwd: "/repo" }),
 		).rejects.toThrow("target pane ID or TMUX_PANE");
 		expect(noPane.calls).toEqual([]);
 	});
@@ -386,7 +386,7 @@ describe("terminal launch dispatcher", () => {
 		const paneResult = await pane.launch({
 			multiplexer: "tmux",
 			placement: "pane",
-			command: ["omp"],
+			command: ["reverse"],
 			cwd: "/repo",
 			target: "%7",
 		});
@@ -397,7 +397,7 @@ describe("terminal launch dispatcher", () => {
 		const windowResult = await window.launch({
 			multiplexer: "tmux",
 			placement: "window",
-			command: ["omp"],
+			command: ["reverse"],
 			cwd: "/repo",
 			target: "session:review",
 		});
@@ -411,7 +411,7 @@ describe("terminal launch dispatcher", () => {
 			const request = {
 				multiplexer,
 				placement: "pane",
-				command: ["omp"],
+				command: ["reverse"],
 				cwd: "/repo",
 			} as unknown as TerminalLaunchRequest;
 
@@ -423,10 +423,10 @@ describe("terminal launch dispatcher", () => {
 
 	it("rejects malformed requests with TypeError and relative cwd before invoking a CLI", async () => {
 		const { calls, launch } = createHarness({ TMUX: "/tmp/tmux.sock,1,0", TMUX_PANE: "%2" }, []);
-		const unknown = { multiplexer: "kitty", placement: "pane", command: ["omp"], cwd: "/repo" };
+		const unknown = { multiplexer: "kitty", placement: "pane", command: ["reverse"], cwd: "/repo" };
 		await expect(launch(unknown as unknown as TerminalLaunchRequest)).rejects.toBeInstanceOf(TypeError);
 
-		const relative = launch({ multiplexer: "tmux", placement: "pane", command: ["omp"], cwd: "sub" });
+		const relative = launch({ multiplexer: "tmux", placement: "pane", command: ["reverse"], cwd: "sub" });
 		await expect(relative).rejects.toBeInstanceOf(TerminalLaunchError);
 		await expect(relative).rejects.toThrow("must be an absolute path");
 		expect(calls).toEqual([]);
@@ -540,33 +540,45 @@ describe("terminal launch dispatcher", () => {
 		expect(result).toEqual({ multiplexer: "zellij", placement: "pane", id: "terminal_12" });
 
 		// The probed version is reused for later launches.
-		await launch({ multiplexer: "zellij", placement: "pane", command: ["omp"], cwd: "/workspace", focus: false });
+		await launch({ multiplexer: "zellij", placement: "pane", command: ["reverse"], cwd: "/workspace", focus: false });
 		expect(calls.slice(3).map(call => call.argv.slice(0, 3))).toEqual([["zellij", "action", "new-pane"]]);
 	});
 
 	it("names the minimum Zellij version instead of passing flags an older CLI rejects", async () => {
 		const noFocus = createHarness({ ZELLIJ: "0" }, [{ stdout: "zellij 0.44.3\n", exitCode: 0 }]);
 		await expect(
-			noFocus.launch({ multiplexer: "zellij", placement: "window", command: ["omp"], cwd: "/repo", focus: false }),
+			noFocus.launch({
+				multiplexer: "zellij",
+				placement: "window",
+				command: ["reverse"],
+				cwd: "/repo",
+				focus: false,
+			}),
 		).rejects.toThrow("new-tab --no-focus requires Zellij 0.45.0 or newer (found 0.44.3)");
 		expect(noFocus.calls.map(call => call.argv)).toEqual([["zellij", "--version"]]);
 
 		const tabTarget = createHarness({ ZELLIJ: "0" }, [{ stdout: "zellij 0.44.0\n", exitCode: 0 }]);
 		await expect(
-			tabTarget.launch({ multiplexer: "zellij", placement: "pane", command: ["omp"], cwd: "/repo", target: "8" }),
+			tabTarget.launch({
+				multiplexer: "zellij",
+				placement: "pane",
+				command: ["reverse"],
+				cwd: "/repo",
+				target: "8",
+			}),
 		).rejects.toThrow("new-pane --tab-id requires Zellij 0.44.1 or newer (found 0.44.0)");
 		expect(tabTarget.calls.map(call => call.argv)).toEqual([["zellij", "--version"]]);
 
 		const tab = createHarness({ ZELLIJ: "0" }, [{ stdout: "zellij 0.43.1\n", exitCode: 0 }]);
 		await expect(
-			tab.launch({ multiplexer: "zellij", placement: "window", command: ["omp"], cwd: "/repo" }),
+			tab.launch({ multiplexer: "zellij", placement: "window", command: ["reverse"], cwd: "/repo" }),
 		).rejects.toThrow("new-tab -- <command> requires Zellij 0.44.0 or newer (found 0.43.1)");
 		expect(tab.calls.map(call => call.argv)).toEqual([["zellij", "--version"]]);
 	});
 
 	it("reports a Zellij launch without an ID when an older CLI prints none", async () => {
 		const { calls, launch } = createHarness({ ZELLIJ: "0" }, [{ stdout: "", exitCode: 0 }]);
-		const result = await launch({ multiplexer: "zellij", placement: "pane", command: ["omp"], cwd: "/repo" });
+		const result = await launch({ multiplexer: "zellij", placement: "pane", command: ["reverse"], cwd: "/repo" });
 
 		expect(result).toEqual({ multiplexer: "zellij", placement: "pane" });
 		expect(calls).toHaveLength(1);
@@ -590,7 +602,7 @@ describe("terminal launch dispatcher", () => {
 		const request = {
 			multiplexer: "zellij",
 			placement: "pane",
-			command: ["omp"],
+			command: ["reverse"],
 			cwd: "/repo",
 			floating: true,
 			direction: "right",
@@ -708,7 +720,7 @@ describe("terminal launch dispatcher", () => {
 				launch({
 					multiplexer: "herdr",
 					placement: "window",
-					command: ["omp", "--resume"],
+					command: ["reverse", "--resume"],
 					cwd: "/repo",
 					target: "w1",
 					label: "agent",
@@ -746,7 +758,7 @@ describe("terminal launch dispatcher", () => {
 				try {
 					const { calls, launch } = createHarness({ HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1" }, []);
 					await expect(
-						launch({ multiplexer: "herdr", placement: "pane", command: ["omp"], cwd: "/repo" }),
+						launch({ multiplexer: "herdr", placement: "pane", command: ["reverse"], cwd: "/repo" }),
 					).rejects.toThrow("temporary directory path");
 					expect(calls).toEqual([]);
 					expect(await fs.readdir(tempRoot)).toEqual([]);
@@ -759,9 +771,9 @@ describe("terminal launch dispatcher", () => {
 
 	it("rejects Herdr launches on Windows before creating a surface", async () => {
 		const { calls, launch } = createHarness({ HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1" }, [], "win32");
-		await expect(launch({ multiplexer: "herdr", placement: "pane", command: ["omp"], cwd: "/repo" })).rejects.toThrow(
-			"not supported on Windows",
-		);
+		await expect(
+			launch({ multiplexer: "herdr", placement: "pane", command: ["reverse"], cwd: "/repo" }),
+		).rejects.toThrow("not supported on Windows");
 		expect(calls).toEqual([]);
 	});
 
@@ -862,7 +874,7 @@ describe("terminal launch dispatcher", () => {
 		const result = await launch({
 			multiplexer: "cmux",
 			placement: "window",
-			command: ["omp"],
+			command: ["reverse"],
 			cwd: "/repo",
 			shellGrammar: "posix",
 		});
@@ -877,7 +889,7 @@ describe("terminal launch dispatcher", () => {
 		const request = {
 			multiplexer: "tmux",
 			placement: "pane",
-			command: ["omp", "--token", "TOP SECRET ARGUMENT"],
+			command: ["reverse", "--token", "TOP SECRET ARGUMENT"],
 			cwd: "/repo",
 		} as const;
 
@@ -890,7 +902,7 @@ describe("terminal launch dispatcher", () => {
 		expect(caught).toBeInstanceOf(Error);
 		expect((caught as Error).message).toContain("exit 23");
 		expect((caught as Error).message).not.toContain("TOP SECRET ARGUMENT");
-		expect((caught as Error).message).not.toContain("omp");
+		expect((caught as Error).message).not.toContain("reverse");
 	});
 
 	it("rejects malformed backend output instead of returning a guessed ID", async () => {
@@ -898,7 +910,7 @@ describe("terminal launch dispatcher", () => {
 			{ stdout: "not-a-pane-id", exitCode: 0 },
 		]);
 		await expect(
-			tmux.launch({ multiplexer: "tmux", placement: "pane", command: ["omp"], cwd: "/repo" }),
+			tmux.launch({ multiplexer: "tmux", placement: "pane", command: ["reverse"], cwd: "/repo" }),
 		).rejects.toThrow("invalid ID");
 
 		// Herdr writes its launch script under the real temp dir before creating a pane;
@@ -906,13 +918,13 @@ describe("terminal launch dispatcher", () => {
 		if (process.platform !== "win32") {
 			const herdr = createHarness({ HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1" }, [{ stdout: "not-json", exitCode: 0 }]);
 			await expect(
-				herdr.launch({ multiplexer: "herdr", placement: "pane", command: ["omp"], cwd: "/repo" }),
+				herdr.launch({ multiplexer: "herdr", placement: "pane", command: ["reverse"], cwd: "/repo" }),
 			).rejects.toThrow("invalid JSON");
 		}
 
 		const zellij = createHarness({ ZELLIJ: "1" }, [{ stdout: "terminal_not-a-number", exitCode: 0 }]);
 		await expect(
-			zellij.launch({ multiplexer: "zellij", placement: "pane", command: ["omp"], cwd: "/repo" }),
+			zellij.launch({ multiplexer: "zellij", placement: "pane", command: ["reverse"], cwd: "/repo" }),
 		).rejects.toThrow("invalid ID");
 
 		const cmux = createHarness({ CMUX_WORKSPACE_ID: "workspace:1" }, [{ stdout: "OK workspace-2\n", exitCode: 0 }]);
@@ -920,7 +932,7 @@ describe("terminal launch dispatcher", () => {
 			cmux.launch({
 				multiplexer: "cmux",
 				placement: "window",
-				command: ["omp"],
+				command: ["reverse"],
 				cwd: "/repo",
 				shellGrammar: "posix",
 			}),
@@ -936,13 +948,13 @@ describe("terminal launch dispatcher", () => {
 		const cmuxPaneRequest = {
 			multiplexer: "cmux",
 			placement: "pane",
-			command: ["omp"],
+			command: ["reverse"],
 			cwd: "/repo",
 		} as unknown as TerminalLaunchRequest;
 		const cmuxWindowRequest = {
 			multiplexer: "cmux",
 			placement: "window",
-			command: ["omp"],
+			command: ["reverse"],
 			cwd: "/repo",
 		} as unknown as TerminalLaunchRequest;
 
@@ -970,7 +982,7 @@ describe("terminal launch dispatcher", () => {
 			cmux.launch({
 				multiplexer: "cmux",
 				placement: "pane",
-				command: ["omp"],
+				command: ["reverse"],
 				cwd: "/repo\u0003",
 				shellGrammar: "posix",
 			}),
@@ -1080,7 +1092,7 @@ describe("terminal launch dispatcher", () => {
 		const result = await launch({
 			multiplexer: "orca",
 			placement: "pane",
-			command: ["omp", "--fork", "/tmp/source.jsonl"],
+			command: ["reverse", "--fork", "/tmp/source.jsonl"],
 			cwd: "/tmp",
 			shellGrammar: "posix",
 		});
@@ -1144,7 +1156,7 @@ describe("terminal launch dispatcher", () => {
 		const implicit = await launch({
 			multiplexer: "orca",
 			placement: "window",
-			command: ["omp"],
+			command: ["reverse"],
 			cwd: "/repo",
 			focus: false,
 			shellGrammar: "posix",
@@ -1166,7 +1178,7 @@ describe("terminal launch dispatcher", () => {
 				"terminal",
 				"create",
 				"--worktree=id:worktree-from-runtime",
-				"--command=cd '/repo' && 'omp'",
+				"--command=cd '/repo' && 'reverse'",
 				"--json",
 			],
 		]);
@@ -1199,7 +1211,7 @@ describe("terminal launch dispatcher", () => {
 		await launch({
 			multiplexer: "orca",
 			placement: "window",
-			command: ["omp"],
+			command: ["reverse"],
 			cwd: "/repo",
 			target: "id:worktree-1",
 			shellGrammar: "posix",
@@ -1224,7 +1236,7 @@ describe("terminal launch dispatcher", () => {
 		const request = {
 			multiplexer: "orca",
 			placement: "window",
-			command: ["omp"],
+			command: ["reverse"],
 			cwd: "/repo",
 			shellGrammar: "posix",
 		} as const;
@@ -1241,7 +1253,7 @@ describe("terminal launch dispatcher", () => {
 			noPaneKey.launch({
 				multiplexer: "orca",
 				placement: "pane",
-				command: ["omp"],
+				command: ["reverse"],
 				cwd: "/repo",
 				shellGrammar: "posix",
 			}),
@@ -1262,7 +1274,7 @@ describe("terminal launch dispatcher", () => {
 			noMatch.launch({
 				multiplexer: "orca",
 				placement: "pane",
-				command: ["omp"],
+				command: ["reverse"],
 				cwd: "/repo",
 				shellGrammar: "posix",
 			}),
@@ -1283,7 +1295,7 @@ describe("terminal launch dispatcher", () => {
 			ambiguous.launch({
 				multiplexer: "orca",
 				placement: "pane",
-				command: ["omp"],
+				command: ["reverse"],
 				cwd: "/repo",
 				shellGrammar: "posix",
 			}),
@@ -1340,7 +1352,7 @@ describe("terminal launch dispatcher", () => {
 			missing.launch({
 				multiplexer: "orca",
 				placement: "pane",
-				command: ["omp"],
+				command: ["reverse"],
 				cwd: "/repo",
 				target: "term-target",
 				shellGrammar: "posix",
@@ -1365,7 +1377,7 @@ describe("terminal launch dispatcher", () => {
 				launch({
 					multiplexer: "orca",
 					placement: "window",
-					command: ["omp"],
+					command: ["reverse"],
 					cwd: `/repo${control}`,
 					target: "id:worktree-1",
 					shellGrammar: "posix",

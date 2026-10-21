@@ -128,7 +128,7 @@ export interface WorkerTabSession extends TabSessionBase<PuppeteerBrowserHandle>
 	reattached?: boolean;
 	/**
 	 * The tab's upload staging folder. It outlives the tab's workers, since Chrome reads a picked file only when the page
-	 * does, and goes with the page when omp closes it; a page left open in the user's browser keeps it until the sweep.
+	 * does, and goes with the page when reverse closes it; a page left open in the user's browser keeps it until the sweep.
 	 */
 	uploadDir: string;
 }
@@ -140,7 +140,7 @@ export interface CmuxTabSession extends TabSessionBase<CmuxBrowserHandle> {
 	cmuxAttachedSurface?: string;
 }
 
-/** A tab shown as a Tern browser picture-in-picture over omp's pane, or the user's browser block it adopted. */
+/** A tab shown as a Tern browser picture-in-picture over reverse's pane, or the user's browser block it adopted. */
 export interface TernTabSession extends TabSessionBase<TernBrowserHandle> {
 	backend: "tern";
 	/** The PiP's driver. */
@@ -591,7 +591,7 @@ async function acquireTabImpl(
 	worker.onMessage(msg => handleTabMessage(tab, msg));
 	tabs.set(name, tab);
 	sweepClosedTabUploads();
-	// Durably record ownership so another live omp process can reap this page if
+	// Durably record ownership so another live reverse process can reap this page if
 	// this process dies abnormally before its own teardown closes the tab.
 	const scope = sharedScopeOf(browser);
 	if (scope) void recordSharedTarget(scope, info.targetId);
@@ -765,7 +765,7 @@ async function adoptsSameBlock(existing: TernTabSession, opts: AcquireTabOptions
 }
 
 /**
- * Open a Tern browser PiP over omp's pane and configure it before its first
+ * Open a Tern browser PiP over reverse's pane and configure it before its first
  * real navigation (the PiP closes again when anything after `open` fails), or
  * with `opts.target` adopt the user's browser block it names (released again,
  * never closed, on failure and on close).
@@ -1027,7 +1027,7 @@ async function runInTabWithSnapshot(
 				}
 				if (error.reason === USER_CANCELLED_DEBUGGER) {
 					// The relay hides a tab whose debugging bar the user cancelled, so a re-adoption cannot succeed.
-					const cancelled = `${error.message}. The user cancelled Chrome's debugging bar${landed}. omp released the tab; the relay hides it until its URL changes, so navigate it in Chrome, then open it again`;
+					const cancelled = `${error.message}. The user cancelled Chrome's debugging bar${landed}. reverse released the tab; the relay hides it until its URL changes, so navigate it in Chrome, then open it again`;
 					if (tabs.get(name) === tab && tab.state === "alive") await forceKillTab(name, cancelled);
 					if (opts.signal?.aborted) throw new ToolAbortError();
 					throw new ToolError(cancelled);
@@ -1036,7 +1036,7 @@ async function runInTabWithSnapshot(
 				// its loading would cancel a navigation the call itself started. Chrome reports the same reason when the
 				// tab itself closes, so only a re-adoption that worked names another extension's frame as the cause.
 				const detached = `${error.message}. ${DEBUGGER_DETACH_CAUSE}${landed}`;
-				const lost = `${error.message}${landed}. omp could not reattach to the tab, so it was released: either the tab was closed, or ${DEBUGGER_DETACH_REFUSAL}. If the tab is still open, open it again once that frame is gone; if Chrome refused the attach, the relay hides the tab until its URL changes, so navigate it in Chrome first`;
+				const lost = `${error.message}${landed}. reverse could not reattach to the tab, so it was released: either the tab was closed, or ${DEBUGGER_DETACH_REFUSAL}. If the tab is still open, open it again once that frame is gone; if Chrome refused the attach, the relay hides the tab until its URL changes, so navigate it in Chrome first`;
 				const reattached = await recoverWorkerTab(tab, name, opts.timeoutMs, lost, {
 					recover: false,
 					failedReason: lost,
@@ -1046,14 +1046,14 @@ async function runInTabWithSnapshot(
 				if (!reattached) throw new ToolError(lost);
 				if (error.when === "during" || opts.readopted) {
 					throw new ToolError(
-						`${detached}. omp reattached to the same tab on a new worker without reloading it, so the next call works; check the page before repeating this one. ${WORKER_RESETS}.`,
+						`${detached}. reverse reattached to the same tab on a new worker without reloading it, so the next call works; check the page before repeating this one. ${WORKER_RESETS}.`,
 					);
 				}
 				// Nothing ran: run the call on the new worker, within what the re-adoption left of its budget.
 				const remainingMs = Math.floor(opts.timeoutMs - (performance.now() - startedAt));
 				if (remainingMs <= 0) {
 					throw new ToolError(
-						`${detached}. omp reattached to the same tab on a new worker without reloading it, but that used up this call's ${opts.timeoutMs}ms budget, so the call was not run again; repeat it. ${WORKER_RESETS}.`,
+						`${detached}. reverse reattached to the same tab on a new worker without reloading it, but that used up this call's ${opts.timeoutMs}ms budget, so the call was not run again; repeat it. ${WORKER_RESETS}.`,
 					);
 				}
 				// Its pending entry must go first, or the tab reads as busy.
@@ -1065,7 +1065,7 @@ async function runInTabWithSnapshot(
 				);
 				result.displays.unshift({
 					type: "text",
-					text: `Chrome had detached omp from this tab since the last call (${DEBUGGER_DETACH_CAUSE}); omp reattached to the same tab on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
+					text: `Chrome had detached reverse from this tab since the last call (${DEBUGGER_DETACH_CAUSE}); reverse reattached to the same tab on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
 				});
 				return result;
 			}
@@ -1276,9 +1276,9 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 		}
 	}
 	await tab.worker.terminate().catch(() => undefined);
-	// omp closes the pages of browsers it launched, and with them goes the last reader of their staged uploads.
+	// reverse closes the pages of browsers it launched, and with them goes the last reader of their staged uploads.
 	if (tab.kindTag === "headless") await removeUploadStaging(tab.uploadDir);
-	// A recycled worker adopted the omp-owned headless page and leaves it open on close, so close it here.
+	// A recycled worker adopted the reverse-owned headless page and leaves it open on close, so close it here.
 	if ((forced || (wasAlive && tab.reattached)) && tab.kindTag === "headless") {
 		try {
 			// `false` is "not confirmed closed" (the CDP session could not be
@@ -1314,7 +1314,7 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 				// that was never closed, and re-check the browser itself: a
 				// Chromium that stopped answering its CDP endpoint holds every
 				// unclosable target and must be replaced, not left to grow until
-				// the last omp client in the project exits.
+				// the last reverse client in the project exits.
 				recheckSharedBrowser(scope);
 			} else {
 				void forgetSharedTarget(scope, tab.targetId);
@@ -1363,7 +1363,7 @@ export async function releaseTabsForOwner(ownerId: string, opts: ReleaseTabOptio
 }
 
 /**
- * Tabs this settle machinery may ever touch: OMP-launched headless puppeteer
+ * Tabs this settle machinery may ever touch: REVERSE-launched headless puppeteer
  * tabs (`kindTag === "headless"` covers hidden and visible shared-daemon
  * tabs) that are alive and not opted out with `persist`. Connected, relay,
  * and spawned tabs drive the user's own pages/apps, and cmux surfaces are a
@@ -1720,7 +1720,7 @@ async function buildInitPayload(browser: PuppeteerBrowserHandle, opts: AcquireTa
 			browserWSEndpoint,
 			safeDir,
 			uploadDir,
-			// Visible launches still need an OMP-owned page, stealth setup, and
+			// Visible launches still need an REVERSE-owned page, stealth setup, and
 			// independent lifecycle; only their fixed device emulation is disabled.
 			emulateViewport: browser.kind.headless,
 			viewport: opts.viewport,
@@ -2137,7 +2137,7 @@ async function spawnTabWorker(): Promise<WorkerHandle> {
 	try {
 		const hostEntry = workerHostEntry();
 		const worker = hostEntry
-			? new Worker(hostEntry, { type: "module", argv: ["__rva_worker_tab"] })
+			? new Worker(hostEntry, { type: "module", argv: ["__reverse_worker_tab"] })
 			: new Worker(new URL("./tab-worker-entry.ts", import.meta.url).href, { type: "module" });
 		return wrapBunWorker(worker);
 	} catch (err) {

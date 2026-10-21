@@ -58,7 +58,7 @@ describe("experimental context tool registration", () => {
 		expect(tools.map(tool => tool.name)).not.toContain("new_context");
 	});
 	test("SDK preserves the recovery-capable notes pair in an explicit runtime tool set", async () => {
-		using tempDir = TempDir.createSync("@omp-context-tools-sdk-");
+		using tempDir = TempDir.createSync("@reverse-context-tools-sdk-");
 		const authStorage = await AuthStorage.create(tempDir.join("auth.db"));
 		const fetchSpy = vi
 			.spyOn(globalThis, "fetch")

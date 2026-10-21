@@ -1,6 +1,6 @@
 /**
  * Server side of TypeSafe's System One wire format (`POST /v1/systemone`),
- * served by the auth-gateway so TypeSafe SDKs and omp's own `NativeJudge`
+ * served by the auth-gateway so TypeSafe SDKs and reverse's own `NativeJudge`
  * can point `TYPESAFE_BASE_URL` at the gateway and never hold the real key.
  *
  * Requests are validated only as far as routing needs — the `model` id, the
@@ -8,7 +8,7 @@
  * maps — and otherwise forwarded to the selected native judgment wire.
  * Validation failures answer `422` like TypeSafe.
  */
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import * as AIError from "../error";
 import { isEmbeddedImageContent } from "../images/shared";
 import type { JudgmentRequest, JudgmentResult } from "../judgment/types";

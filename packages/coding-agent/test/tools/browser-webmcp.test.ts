@@ -196,7 +196,7 @@ context.registerTool({
 		await invoke({ action: "close", name: "webmcp-iframe", kill: true });
 	}, 30_000);
 
-	// The hook reaches a loaded page when omp attaches to it: a context the page set up itself is
+	// The hook reaches a loaded page when reverse attaches to it: a context the page set up itself is
 	// patched directly, not through Chromium's ModelContext prototype.
 	it.each([
 		{
@@ -342,7 +342,7 @@ ModelContext.prototype.registerTool = window.pageRegister;`,
 			page.on("error", () => {
 				crashed = true;
 			});
-			// The replacement document is the frame's second; reading its context binds a second time if omp
+			// The replacement document is the frame's second; reading its context binds a second time if reverse
 			// created one in the first.
 			const html = `<script>reportSurface((document.modelContext ?? navigator.modelContext).constructor.name);</script>`;
 			await realm.evaluate(`location.href = "javascript:" + ${JSON.stringify(JSON.stringify(html))}; null;`);
@@ -389,7 +389,7 @@ Object.defineProperty(document, "modelContext", { configurable: true, value: pag
 			await realm.evaluate(
 				`pageContext.registerTool({ name: "native_tool", description: "Page tool.", inputSchema: { type: "object" }, execute: () => ({ value: 42 }) })`,
 			);
-			// The page-side mirror, which is all omp has when the browser lacks WebMCP over CDP.
+			// The page-side mirror, which is all reverse has when the browser lacks WebMCP over CDP.
 			const snapshot = await realm.evaluate(webMcpSnapshotInPage, WEBMCP_BRIDGE_KEY);
 			expect(snapshot.tools.map(tool => tool.name)).toEqual(["native_tool"]);
 			await controller.dispose();

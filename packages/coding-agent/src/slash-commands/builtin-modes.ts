@@ -66,7 +66,7 @@ export function refreshStatusLine(ctx: InteractiveModeContext): void {
 }
 
 /**
- * Resolve a `/model` / `/switch` selector the way `omp bench` and `--model`
+ * Resolve a `/model` / `/switch` selector the way `reverse bench` and `--model`
  * do: exact `provider/id`, fuzzy ids (`opus`), role aliases (`@smol`, `smol`),
  * and `:level` thinking suffixes. Unqualified selectors prefer the session's
  * `--models` scope, else the authenticated set, before the full catalog.
@@ -1023,8 +1023,8 @@ export async function runInteractivePythonSetup(
 			lines.push(
 				"",
 				isZh
-					? "> **提示**：系统未找到可用的 Python 3 解释器。可在终端中运行 `rva setup python` 诊断，或在设置中配置 `python.interpreter`。"
-					: "> **Action**: No working Python 3 found. Run `rva setup python` in terminal or configure `python.interpreter` in settings.",
+					? "> **提示**：系统未找到可用的 Python 3 解释器。可在终端中运行 `reverse setup python` 诊断，或在设置中配置 `python.interpreter`。"
+					: "> **Action**: No working Python 3 found. Run `reverse setup python` in terminal or configure `python.interpreter` in settings.",
 			);
 		}
 		if (typeof ctx.showCommandReport === "function") {
@@ -1441,7 +1441,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "security",
 		icon: "shield",
-		description: "Plan, run, inspect, import, and compare OMP-native security scans",
+		description: "Plan, run, inspect, import, and compare REVERSE-native security scans",
 		allowArgs: true,
 		acpInputHint: "<plan|scan|status|cancel|scans|show|import|export|validate|compare|disposition>",
 		subcommands: [
@@ -1453,7 +1453,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			{ name: "show", description: "Render a scan or security:// resource" },
 			{ name: "import", description: "Import SARIF or a Codex Security bundle" },
 			{ name: "export", description: "Export a canonical bundle, SARIF, or report" },
-			{ name: "validate", description: "Validate one finding with OMP-native tools" },
+			{ name: "validate", description: "Validate one finding with REVERSE-native tools" },
 			{ name: "compare", description: "Compare finding lineage across two scans" },
 			{ name: "disposition", description: "Set a finding disposition with rationale" },
 		],

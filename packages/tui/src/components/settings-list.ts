@@ -679,7 +679,7 @@ export class SettingsList implements Component {
 		if (cached && cached.body === body && cached.hint === hint) return cached.node;
 		const children: NativeChild[] = [body];
 		if (hint) children.push(node("text", { spans: [span(hint, "muted")] }, undefined, "hint"));
-		const root = col(children, { role: "omp.settings", gap: "sm" });
+		const root = col(children, { role: "reverse.settings", gap: "sm" });
 		this.#nativeRoot = { body, hint, node: root };
 		return root;
 	}
@@ -731,7 +731,7 @@ export class SettingsList implements Component {
 		if (item.heading) {
 			described = node(
 				"item",
-				{ label: [span(plainLine(item.label), "strong")], disabled: true, role: "omp.settings.heading" },
+				{ label: [span(plainLine(item.label), "strong")], disabled: true, role: "reverse.settings.heading" },
 				undefined,
 				item.id,
 			);

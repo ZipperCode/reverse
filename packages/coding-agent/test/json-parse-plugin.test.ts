@@ -6,7 +6,7 @@ import { createJsonParsePlugin } from "../scripts/json-parse-plugin";
 describe("large JSON build assets", () => {
 	for (const compiled of [false, true]) {
 		it(`preserves JSON values after relocating a ${compiled ? "compiled executable" : "bundle"}`, async () => {
-			using dir = TempDir.createSync("@omp-json-assets-");
+			using dir = TempDir.createSync("@reverse-json-assets-");
 			const source = dir.join("source with spaces");
 			const first = JSON.parse(
 				'{"__proto__":{"safe":true},"text":"quotes \\\" and slash \\\\ and ☃","nested":[null,false,0,-3.5,{"π":"😀"}]}',
@@ -57,7 +57,7 @@ describe("large JSON build assets", () => {
 	}
 
 	it("rejects invalid large JSON while building", async () => {
-		using dir = TempDir.createSync("@omp-json-invalid-");
+		using dir = TempDir.createSync("@reverse-json-invalid-");
 		await Bun.write(dir.join("invalid.json"), '{"broken":');
 		await Bun.write(dir.join("entry.ts"), 'import data from "./invalid.json"; console.log(data);');
 		const result = await Bun.build({

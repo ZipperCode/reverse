@@ -95,7 +95,7 @@ describe("snapcompact archive read by a Claude model", () => {
 	const sessions: AgentSession[] = [];
 
 	beforeAll(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snapcompact-reader-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-snapcompact-reader-"));
 		setAgentDir(path.join(tempDir, "agent"));
 		authStorage = await AuthStorage.create(":memory:");
 		authStorage.keys.setRuntime("anthropic", "test-key");

@@ -359,7 +359,7 @@ describe("disposeTerminalTitleState", () => {
 	});
 });
 
-// Tern names omp's directory in its composer bar from the OSC 7 omp writes, as
+// Tern names reverse's directory in its composer bar from the OSC 7 reverse writes, as
 // it does for a shell's prompt; other terminals must not hear it.
 describe("reporting the session to Tern", () => {
 	const OSC7 = /\x1b\]7;([^\x07]*)\x07/g;

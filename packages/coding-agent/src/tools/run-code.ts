@@ -4,12 +4,12 @@ const NON_SERIALIZABLE_RUN_ARGUMENT = "Run argument is not JSON-serializable; pa
 
 /** Marker that renders a serialized function as an executable run argument. */
 export interface FnArgMarker {
-	__omp_fn: string;
+	__reverse_fn: string;
 }
 
 /** Marker that renders a serialized regular expression as an executable run argument. */
 export interface RegExpArgMarker {
-	__omp_re: {
+	__reverse_re: {
 		source: string;
 		flags?: string;
 	};
@@ -30,12 +30,12 @@ function hasSoleOwnKey(value: Record<string, unknown>, key: string): boolean {
 export function renderRunArg(value: unknown): string {
 	if (value === undefined) return "undefined";
 
-	if (isPlainObject(value) && hasSoleOwnKey(value, "__omp_fn") && typeof value.__omp_fn === "string") {
-		return `(${value.__omp_fn})`;
+	if (isPlainObject(value) && hasSoleOwnKey(value, "__reverse_fn") && typeof value.__reverse_fn === "string") {
+		return `(${value.__reverse_fn})`;
 	}
 
-	if (isPlainObject(value) && hasSoleOwnKey(value, "__omp_re")) {
-		const marker = value.__omp_re;
+	if (isPlainObject(value) && hasSoleOwnKey(value, "__reverse_re")) {
+		const marker = value.__reverse_re;
 		if (
 			isPlainObject(marker) &&
 			typeof marker.source === "string" &&

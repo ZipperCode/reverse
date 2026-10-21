@@ -178,14 +178,14 @@ describe("callMCP", () => {
 			"http://127.0.0.1:1/mcp",
 			"tools/call",
 			{ name: "web_search" },
-			{ fetch: fetchMock, headers: { "User-Agent": "omp/test" }, signal },
+			{ fetch: fetchMock, headers: { "User-Agent": "reverse/test" }, signal },
 		);
 
 		expect(capturedUrl).toBe("http://127.0.0.1:1/mcp");
 		expect(capturedRequest?.headers).toEqual({
 			"Content-Type": "application/json",
 			Accept: "application/json, text/event-stream",
-			"User-Agent": "omp/test",
+			"User-Agent": "reverse/test",
 		});
 		expect(capturedRequest?.signal).toBe(signal);
 		expect(response.result).toEqual({ ok: true });

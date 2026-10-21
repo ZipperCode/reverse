@@ -34,7 +34,7 @@ describe.skipIf(!e2eApiKey("ANTHROPIC_API_KEY"))("RPC mode", () => {
 	let sessionDir: string;
 
 	beforeEach(() => {
-		sessionDir = path.join(os.tmpdir(), `omp-rpc-test-${Snowflake.next()}`);
+		sessionDir = path.join(os.tmpdir(), `reverse-rpc-test-${Snowflake.next()}`);
 		client = new RpcClient({
 			cliPath: path.join(import.meta.dir, "..", "dist", "cli.js"),
 			cwd: path.join(import.meta.dir, ".."),
@@ -319,7 +319,7 @@ describe("RPC fast mode with unsupported Fireworks model and priority tier", () 
 	let sessionDir: string;
 
 	beforeEach(async () => {
-		sessionDir = path.join(os.tmpdir(), `omp-rpc-fast-mode-test-${Snowflake.next()}`);
+		sessionDir = path.join(os.tmpdir(), `reverse-rpc-fast-mode-test-${Snowflake.next()}`);
 		await Bun.write(path.join(sessionDir, "config.yml"), ["providers:", "  fireworksTier: priority", ""].join("\n"));
 		client = new RpcClient({
 			cliPath: path.join(import.meta.dir, "..", "src", "cli.ts"),

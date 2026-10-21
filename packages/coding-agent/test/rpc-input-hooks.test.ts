@@ -20,7 +20,7 @@ describe("RPC native input handlers", () => {
 	let directory: string;
 
 	beforeEach(async () => {
-		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-input-hook-"));
+		directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-rpc-input-hook-"));
 		client = new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "input-hook-rpc-agent.ts")],
 			cwd: directory,

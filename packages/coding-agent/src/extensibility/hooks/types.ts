@@ -1,8 +1,8 @@
 import { type HookMessageRenderer } from "@reverse/tui/chat/extension-types";
 export { type HookMessageRenderOptions, type HookMessageRenderer } from "@reverse/tui/chat/extension-types";
-import type { type as ArkType } from "@reverse/omptype";
-import type * as TypeBox from "@reverse/omptype/typebox";
-import type * as zod from "@reverse/omptype/zod";
+import type { type as ArkType } from "@reverse/reversetype";
+import type * as TypeBox from "@reverse/reversetype/typebox";
+import type * as zod from "@reverse/reversetype/zod";
 import type { ImageContent, Message, Model, TextContent } from "@reverse/ai";
 import type { Component, TUI } from "@reverse/tui";
 import type { logger as PiLogger } from "@reverse/utils";
@@ -573,9 +573,9 @@ export interface HookAPI {
 	logger: typeof PiLogger;
 	/** Injected TypeBox shim (legacy/compat — prefer `arktype`). */
 	typebox: typeof TypeBox;
-	/** Injected omptype schema builder for hooks. */
+	/** Injected reversetype schema builder for hooks. */
 	arktype: typeof ArkType;
-	/** Injected Zod-compatible omptype builder for hooks. */
+	/** Injected Zod-compatible reversetype builder for hooks. */
 	zod: typeof zod;
 	/** Injected pi-coding-agent exports */
 	pi: typeof PiCodingAgent;

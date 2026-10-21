@@ -6,7 +6,7 @@
  * flags, OpenAI's strict-tools and reasoning-effort fallbacks. The map holding
  * them is non-serializable, so `pi-native-client` strips it from the wire and
  * `pi-native-server` refuses it — a gateway client cannot supply one. Without a
- * server-side owner, every containerized / robomp turn re-pays the rejected
+ * server-side owner, every containerized / reverse turn re-pays the rejected
  * upstream round-trip that already taught the lesson.
  */
 import { describe, expect, it, spyOn } from "bun:test";

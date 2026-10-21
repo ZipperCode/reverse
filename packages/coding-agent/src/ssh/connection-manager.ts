@@ -26,7 +26,7 @@ export interface SSHHostInfo {
 	os: SSHHostOs;
 	shell: SSHHostShell;
 	/**
-	 * Shell name OMP verified can execute the POSIX transfer snippets
+	 * Shell name REVERSE verified can execute the POSIX transfer snippets
 	 * (`head`/`cat`/`mv`/`test`/`ls`) `ssh://` uses. Probed by running
 	 * `sh -lc` / `bash -lc` / `zsh -lc` against the remote and keeping the
 	 * first one that round-trips a known marker. Independent of `shell`
@@ -83,7 +83,7 @@ export function sshControlFallbackDir(canonicalDir: string, uid: number, tmpBase
 		.digest("hex")
 		.slice(0, 20);
 	// Only ControlMaster (POSIX) platforms reach this, so the socket dir is a POSIX path.
-	return path.posix.join(tmpBase, `omp-${key}`);
+	return path.posix.join(tmpBase, `reverse-${key}`);
 }
 
 interface ControlDirChoice {

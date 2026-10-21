@@ -23,7 +23,7 @@ const HOOK_SOURCE = `export default function(pi) {
  * would leave the flag undefined and skip the test on every host.
  */
 const probeSymlinks = (): boolean => {
-	const dir = nodeFs.mkdtempSync(path.join(os.tmpdir(), "omp-symlink-probe-"));
+	const dir = nodeFs.mkdtempSync(path.join(os.tmpdir(), "reverse-symlink-probe-"));
 	try {
 		const target = path.join(dir, "target.ts");
 		nodeFs.writeFileSync(target, HOOK_SOURCE);
@@ -45,15 +45,15 @@ describe("native hook discovery", () => {
 	let sharedHooks: string;
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalOmpProfileEnv: string | undefined;
+	let originalReverseProfileEnv: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();
 		clearFsCache();
 		originalHome = process.env.HOME;
 		originalAgentDirEnv = process.env.REVERSE_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.REVERSE_PROFILE;
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-builtin-hooks-"));
+		originalReverseProfileEnv = process.env.REVERSE_PROFILE;
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-builtin-hooks-"));
 		const home = path.join(root, "home");
 		project = path.join(root, "project");
 		projectPre = path.join(project, CONFIG_DIR_NAME, "hooks", "pre");
@@ -75,7 +75,7 @@ describe("native hook discovery", () => {
 		clearFsCache();
 		vi.restoreAllMocks();
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("REVERSE_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("REVERSE_PROFILE", originalReverseProfileEnv);
 		restoreEnvValue("REVERSE_CODING_AGENT_DIR", originalAgentDirEnv);
 		__resetDirsFromEnvForTests();
 		await removeWithRetries(root);

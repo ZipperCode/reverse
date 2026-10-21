@@ -80,7 +80,7 @@ describe("config list output", () => {
 
 	beforeEach(() => {
 		resetSettingsForTest();
-		agentDir = TempDir.createSync("@omp-config-credentials-");
+		agentDir = TempDir.createSync("@reverse-config-credentials-");
 		setAgentDir(agentDir.path());
 	});
 

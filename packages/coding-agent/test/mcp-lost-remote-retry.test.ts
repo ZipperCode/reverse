@@ -58,7 +58,7 @@ describe("MCP lost remote server retry schedule", () => {
 	});
 
 	async function connected(policy: MCPReconnectPolicy) {
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-lost-remote-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-mcp-lost-remote-"));
 		flaky = startFlakyHttpMcpServer();
 		manager = new MCPManager(workDir, null, undefined, policy);
 		const statuses: McpConnectionStatusEvent["type"][] = [];
@@ -145,7 +145,7 @@ describe("MCP lost remote server retry schedule", () => {
 	});
 
 	it("does not schedule a server that never connected", async () => {
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-lost-remote-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-mcp-lost-remote-"));
 		flaky = startFlakyHttpMcpServer();
 		flaky.setDown(true);
 		manager = new MCPManager(workDir, null, undefined, FAST);

@@ -6,22 +6,22 @@
  * evaluation is unnecessary in an ordinary interactive process.
  */
 /** Blob-broker selector shared by the CLI dispatcher and worker launcher. */
-export const BLOB_BROKER_WORKER_ARG = "__rva_worker_blob_broker";
+export const BLOB_BROKER_WORKER_ARG = "__reverse_worker_blob_broker";
 /** Computer-worker selector shared by the CLI dispatcher and worker launcher. */
-export const COMPUTER_WORKER_ARG = "__rva_worker_computer";
+export const COMPUTER_WORKER_ARG = "__reverse_worker_computer";
 /** Daemon-broker selector shared by the CLI dispatcher and worker launcher. */
-export const DAEMON_BROKER_WORKER_ARG = "__rva_worker_daemon_broker";
+export const DAEMON_BROKER_WORKER_ARG = "__reverse_worker_daemon_broker";
 /** IDA-host selector shared by the CLI dispatcher and the broker daemon spec. */
-export const IDA_HOST_WORKER_ARG = "__rva_worker_ida_host";
+export const IDA_HOST_WORKER_ARG = "__reverse_worker_ida_host";
 /** Mnemopi shared embedding-server selector shared by the CLI dispatcher and `embed-client.ts`. */
-export const MNEMOPI_EMBED_SERVER_WORKER_ARG = "__rva_worker_mnemopi_embed_server";
+export const MNEMOPI_EMBED_SERVER_WORKER_ARG = "__reverse_worker_mnemopi_embed_server";
 /** LSP-multiplexer selector shared by the CLI dispatcher and worker launcher. */
-export const LSP_MUX_WORKER_ARG = "__rva_worker_lsp_mux";
+export const LSP_MUX_WORKER_ARG = "__reverse_worker_lsp_mux";
 /** Parent-death watchdog thread selector shared by the CLI dispatcher and `startParentWatchdog`. */
-export const PARENT_WATCHDOG_WORKER_ARG = "__rva_worker_parent_watchdog";
+export const PARENT_WATCHDOG_WORKER_ARG = "__reverse_worker_parent_watchdog";
 /** Activity-worker selector shared by the CLI dispatcher and worker launcher. */
-export const STATS_ACTIVITY_WORKER_ARG = "__rva_worker_stats_activity";
+export const STATS_ACTIVITY_WORKER_ARG = "__reverse_worker_stats_activity";
 /** Text-prediction daemon selector shared by the CLI dispatcher and the broker daemon spec. */
-export const TEXT_PREDICT_WORKER_ARG = "__rva_worker_text_predict";
+export const TEXT_PREDICT_WORKER_ARG = "__reverse_worker_text_predict";
 /** Terminal-output selector shared by the CLI dispatcher and worker launcher. */
-export const TERMINAL_OUTPUT_WORKER_ARG = "__rva_worker_terminal_output";
+export const TERMINAL_OUTPUT_WORKER_ARG = "__reverse_worker_terminal_output";

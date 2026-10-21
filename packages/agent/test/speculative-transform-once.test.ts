@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { agentLoop } from "@reverse/agent/agent-loop";
 import { SpeculativeOperationCoordinator } from "@reverse/agent/speculative-execution";
 import type { AgentTool, AgentMessage, AgentContext, AgentLoopConfig } from "@reverse/agent/types";

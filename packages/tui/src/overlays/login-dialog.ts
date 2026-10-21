@@ -85,7 +85,7 @@ export class LoginDialogComponent extends OverlayPanel {
 	) {
 		const providerInfo = getOAuthProviders().find(p => p.id === providerId);
 		const providerName = providerInfo?.name || providerId;
-		super(`Login to ${providerName}`, "omp.overlay.login");
+		super(`Login to ${providerName}`, "reverse.overlay.login");
 		this.#providerName = providerName;
 		this.#tui = tui;
 		this.#onComplete = onComplete;
@@ -133,7 +133,7 @@ export class LoginDialogComponent extends OverlayPanel {
 	/**
 	 * Called by the OAuth `onAuth` callback. Renders the full authorization URL
 	 * as the primary copy target — that works from any machine, including
-	 * SSH/WSL/headless sessions where the OMP-hosted `launchUrl` would resolve
+	 * SSH/WSL/headless sessions where the Reverse-hosted `launchUrl` would resolve
 	 * against the user's local browser and fail. When `launchUrl` is present it
 	 * is offered as an additional local shortcut so narrow local terminals still
 	 * have a truncation-safe copy target (viewport clipping on a long authorize
@@ -324,14 +324,14 @@ export class LoginDialogComponent extends OverlayPanel {
 		const field = this.#activeField();
 		const body: NativeChild[] = [];
 		if (auth) {
-			body.push(keyed(text(this.#lead(auth), { role: "omp.login.lead", wrap: "word" }), "lead"));
+			body.push(keyed(text(this.#lead(auth), { role: "reverse.login.lead", wrap: "word" }), "lead"));
 			if (auth.device) body.push(this.#describeCode(auth.device.code));
 			body.push(this.#describeLink(auth.url));
 			if (auth.launchUrl) {
 				body.push(
 					keyed(
 						text([span("On this machine  ", "dim"), span(auth.launchUrl, "mono", { href: auth.launchUrl })], {
-							role: "omp.login.shortcut",
+							role: "reverse.login.shortcut",
 							truncate: "middle",
 							lines: 1,
 							title: auth.launchUrl,
@@ -358,7 +358,7 @@ export class LoginDialogComponent extends OverlayPanel {
 				body.push(
 					node(
 						"row",
-						{ role: "omp.login.answer", gap: "sm", align: "baseline" },
+						{ role: "reverse.login.answer", gap: "sm", align: "baseline" },
 						[
 							keyed(text(label, { truncate: "end", lines: 1 }), "label"),
 							keyed(text(step.answer || "—", { truncate: "end", lines: 1 }), "value"),
@@ -370,8 +370,8 @@ export class LoginDialogComponent extends OverlayPanel {
 				body.push(
 					node(
 						"col",
-						{ role: "omp.login.prompt", gap: "sm" },
-						[keyed(text(label, { role: "omp.login.label", wrap: "word" }), "label"), step.field],
+						{ role: "reverse.login.prompt", gap: "sm" },
+						[keyed(text(label, { role: "reverse.login.label", wrap: "word" }), "label"), step.field],
 						`i${index}`,
 					),
 				);
@@ -379,7 +379,7 @@ export class LoginDialogComponent extends OverlayPanel {
 		}
 		// The provider reports nothing while the browser half runs (GitHub's device poll): say so.
 		if (auth && live === -1 && !field) status.push(this.#describeLive(BROWSER_WAIT, "browser"));
-		if (status.length > 0) body.push(node("col", { role: "omp.login.status", gap: "xs" }, status, "status"));
+		if (status.length > 0) body.push(node("col", { role: "reverse.login.status", gap: "xs" }, status, "status"));
 
 		const cancelKey = getKeybindings().getKeys("tui.select.cancel")[0];
 		const cancel = actionButton("Cancel", "cancel", cancelKey ? { keys: cancelKey } : {});
@@ -404,7 +404,11 @@ export class LoginDialogComponent extends OverlayPanel {
 				size: "md",
 				modal: true,
 			},
-			[col([node("col", { role: "omp.login.body", gap: "md" }, body, "body"), actionBar(buttons)], { gap: "lg" })],
+			[
+				col([node("col", { role: "reverse.login.body", gap: "md" }, body, "body"), actionBar(buttons)], {
+					gap: "lg",
+				}),
+			],
 			"sheet",
 		);
 		this.#nativeRoot = col([sheet]);
@@ -422,7 +426,7 @@ export class LoginDialogComponent extends OverlayPanel {
 	#describeCode(code: string): NativeNode {
 		return node(
 			"row",
-			{ role: "omp.login.code", align: "center", actions: { click: "copy" }, href: code, title: "Copy code" },
+			{ role: "reverse.login.code", align: "center", actions: { click: "copy" }, href: code, title: "Copy code" },
 			[keyed(text([span(code, "mono")]), "value"), node("icon", { name: "copy" }, undefined, "icon")],
 			"code",
 		);
@@ -431,21 +435,21 @@ export class LoginDialogComponent extends OverlayPanel {
 	/** The sign-in link as a read-only field: the full URL (middle-truncated; a click opens it) and Copy. */
 	#describeLink(url: string): NativeNode {
 		const shown = text([span(url, "mono", { href: url })], {
-			role: "omp.login.url",
+			role: "reverse.login.url",
 			truncate: "middle",
 			lines: 1,
 			title: url,
 		});
 		return node(
 			"row",
-			{ role: "omp.login.link", gap: "sm", align: "center" },
+			{ role: "reverse.login.link", gap: "sm", align: "center" },
 			[
 				node("icon", { name: "link" }, undefined, "icon"),
 				keyed(shown, "url"),
 				node(
 					"row",
 					{
-						role: "omp.btn",
+						role: "reverse.btn",
 						align: "center",
 						actions: { click: "copy" },
 						href: url,
@@ -464,7 +468,7 @@ export class LoginDialogComponent extends OverlayPanel {
 		return node(
 			"row",
 			{
-				role: "omp.btn",
+				role: "reverse.btn",
 				gap: "xs",
 				align: "center",
 				actions: { click: "open" },
@@ -481,7 +485,7 @@ export class LoginDialogComponent extends OverlayPanel {
 	#describeLive(message: string, key: string): NativeNode {
 		return node(
 			"row",
-			{ role: "omp.login.waiting", gap: "sm", align: "center" },
+			{ role: "reverse.login.waiting", gap: "sm", align: "center" },
 			[node("spinner", { style: "orbit", label: sheetText(message), tone: "muted" })],
 			key,
 		);
@@ -492,7 +496,7 @@ export class LoginDialogComponent extends OverlayPanel {
 		const problem = PROGRESS_PROBLEM.test(message);
 		return node(
 			"row",
-			{ role: "omp.login.done", gap: "sm", align: "baseline", ...(problem ? { tone: "warning" as const } : {}) },
+			{ role: "reverse.login.done", gap: "sm", align: "baseline", ...(problem ? { tone: "warning" as const } : {}) },
 			[
 				node("icon", { name: problem ? "warn" : "check" }, undefined, "icon"),
 				keyed(text(sheetText(message).replace(/…$/, ""), { wrap: "word" }), "text"),

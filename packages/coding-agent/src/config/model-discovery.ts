@@ -453,7 +453,7 @@ export function discoverModelsByProviderType(
 
 /**
  * Offers Apple's on-device model when the in-process bridge reports it usable;
- * an ineligible device, disabled Apple Intelligence, or an omp build without
+ * an ineligible device, disabled Apple Intelligence, or an reverse build without
  * the bridge yields no models.
  */
 async function discoverAppleFoundationModels(providerConfig: DiscoveryProviderConfig): Promise<Model<Api>[]> {

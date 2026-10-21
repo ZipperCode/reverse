@@ -12,7 +12,7 @@ const packageRoot = path.resolve(import.meta.dir, "..");
  * then resolves to the asset for every extensionless importer.
  */
 test("every src module resolves to itself when the package is installed under node_modules", async () => {
-	using tempDir = TempDir.createSync("@omp-installed-source-resolution-");
+	using tempDir = TempDir.createSync("@reverse-installed-source-resolution-");
 	const installedRoot = tempDir.join("node_modules", "@oh-my-pi", "pi-coding-agent");
 	await fs.mkdir(path.dirname(installedRoot), { recursive: true });
 	await fs.symlink(packageRoot, installedRoot, "dir");

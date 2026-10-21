@@ -5,8 +5,8 @@
  * directories do not depend on workspace module resolution.
  */
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
-import * as zod from "@reverse/omptype/zod";
+import { type } from "@reverse/reversetype";
+import * as zod from "@reverse/reversetype/zod";
 import type { AgentToolResult } from "@reverse/agent";
 import { logger } from "@reverse/utils";
 import { toolCapability } from "../../capability/tool";
@@ -225,7 +225,7 @@ export async function loadCustomTools(
 /**
  * Collect the absolute tool-source paths to load, without importing or
  * binding factories. Hot path on session startup — the scan walks
- * `.omp/tools/`, `.claude/tools/`, the plugin tree, and any configured paths.
+ * `.reverse/tools/`, `.claude/tools/`, the plugin tree, and any configured paths.
  *
  * Subagents reuse the parent's collected paths via the SDK's
  * `preloadedCustomToolPaths` option, then call `loadCustomTools` themselves
@@ -268,7 +268,7 @@ export async function discoverCustomToolPaths(
 		});
 	}
 
-	// 2. Plugin tools: ~/.omp/plugins/node_modules/*/
+	// 2. Plugin tools: ~/.reverse/plugins/node_modules/*/
 	for (const pluginPath of await getAllPluginToolPaths(cwd)) {
 		addPath(pluginPath, { provider: "plugin", providerName: "Plugin", level: "user" });
 	}
@@ -284,7 +284,7 @@ export async function discoverCustomToolPaths(
 /**
  * Discover and load tools from standard locations via capability system:
  * 1. User and project tools discovered by capability providers
- * 2. Installed plugins (~/.omp/plugins/node_modules/*)
+ * 2. Installed plugins (~/.reverse/plugins/node_modules/*)
  * 3. Explicitly configured paths from settings or CLI
  *
  * Composed of {@link discoverCustomToolPaths} (FS scan) + {@link loadCustomTools}

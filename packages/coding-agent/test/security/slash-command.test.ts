@@ -20,7 +20,7 @@ let settings: Settings;
 let output: string[] = [];
 
 beforeEach(async () => {
-	temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-security-slash-"));
+	temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-security-slash-"));
 	repositoryRoot = path.join(temporaryRoot, "repo");
 	await fs.mkdir(repositoryRoot);
 	previousStateHome = process.env.XDG_STATE_HOME;
@@ -135,7 +135,7 @@ describe("/security", () => {
 		expect(JSON.parse(await Bun.file(path.join(repositoryRoot, "exported.sarif")).text())).toHaveProperty("version");
 	});
 
-	test("validate returns a static OMP-native residual prompt", async () => {
+	test("validate returns a static REVERSE-native residual prompt", async () => {
 		const result = await command("validate secscan_fixture secf_fixture");
 		expect(result).toEqual({
 			prompt: expect.stringContaining("security://scans/secscan_fixture/findings/secf_fixture"),

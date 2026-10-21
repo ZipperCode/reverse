@@ -39,7 +39,7 @@ pub struct WasmGrammarInfo {
 /// Points the addon at the directory holding downloaded wasm grammars
 /// (`<dir>/<file>`). The loader (`native/loader-state.js`) calls this once
 /// with `<natives dir>/grammars`; grammars then load lazily from it.
-#[napi(js_name = "__ompSetGrammarDir")]
+#[napi(js_name = "__reverseSetGrammarDir")]
 pub fn set_grammar_dir(dir: String) {
 	grammar::set_grammar_dir(PathBuf::from(dir));
 }

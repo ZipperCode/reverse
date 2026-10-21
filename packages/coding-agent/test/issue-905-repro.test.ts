@@ -7,7 +7,7 @@
  * settings. The original `--list-models` short-circuit in `runRootCommand`
  * exited before extensions were loaded.
  *
- * Contract under test: the `omp models` listing entry point loads extensions
+ * Contract under test: the `reverse models` listing entry point loads extensions
  * (CLI `-e` paths and configured `settings.extensions`) before listing, so
  * extension-registered providers/models appear in the output.
  */
@@ -81,7 +81,7 @@ export default function () {}
 	);
 	await fs.writeFile(
 		tmp.join("explicit-package", "package.json"),
-		JSON.stringify({ name: "explicit-package", omp: { extensions: ["./src/main.ts"] } }),
+		JSON.stringify({ name: "explicit-package", reverse: { extensions: ["./src/main.ts"] } }),
 	);
 	await fs.writeFile(
 		tmp.join("explicit-package", "hooks", "pre", "models-poison.ts"),
@@ -135,7 +135,7 @@ afterAll(async () => {
 	await tmp.remove();
 });
 
-test("omp models surfaces extension-registered providers (issue #905)", async () => {
+test("reverse models surfaces extension-registered providers (issue #905)", async () => {
 	const authStorage = await AuthStorage.create(dbPath);
 	try {
 		const modelRegistry = new ModelRegistry(authStorage);
@@ -167,7 +167,7 @@ test("omp models surfaces extension-registered providers (issue #905)", async ()
 	}
 });
 
-test("omp models does not execute ambient hooks while retaining explicit providers", async () => {
+test("reverse models does not execute ambient hooks while retaining explicit providers", async () => {
 	const authStorage = await AuthStorage.create(":memory:");
 	try {
 		const modelRegistry = new ModelRegistry(authStorage);
@@ -199,7 +199,7 @@ test("omp models does not execute ambient hooks while retaining explicit provide
 	}
 });
 
-test("omp models emits extension shutdown after listing (issue #6297)", async () => {
+test("reverse models emits extension shutdown after listing (issue #6297)", async () => {
 	const authStorage = await AuthStorage.create(":memory:");
 	try {
 		const modelRegistry = new ModelRegistry(authStorage);
@@ -218,7 +218,7 @@ test("omp models emits extension shutdown after listing (issue #6297)", async ()
 	}
 });
 
-test("omp models explicit-only mode resolves a package and excludes settings providers", async () => {
+test("reverse models explicit-only mode resolves a package and excludes settings providers", async () => {
 	const authStorage = await AuthStorage.create(":memory:");
 	try {
 		const modelRegistry = new ModelRegistry(authStorage);
@@ -252,7 +252,7 @@ test("omp models explicit-only mode resolves a package and excludes settings pro
 	}
 });
 
-test("omp models prints invalid models.yml schema errors before listing output", async () => {
+test("reverse models prints invalid models.yml schema errors before listing output", async () => {
 	const modelsPath = tmp.join("invalid-models.yml");
 	await fs.writeFile(
 		modelsPath,

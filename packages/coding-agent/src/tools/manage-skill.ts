@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import {
 	deleteManagedSkill,

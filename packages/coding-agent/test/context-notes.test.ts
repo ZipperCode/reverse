@@ -69,7 +69,7 @@ function codexModel() {
 
 describe("experimental context notes", () => {
 	it("accepts an omitted text on the model wire and reads saved notes without modifying the journal", async () => {
-		using tempDir = TempDir.createSync("@omp-context-notes-read-");
+		using tempDir = TempDir.createSync("@reverse-context-notes-read-");
 		const sessionDir = path.join(tempDir.path(), "sessions");
 		const manager = SessionManager.create(tempDir.path(), sessionDir);
 		const settings = Settings.isolated({ "compaction.experimentalContextManagement": true });
@@ -160,7 +160,7 @@ describe("experimental context notes", () => {
 	});
 
 	it("persists a replacement for resume and refuses disabled or parent-bound tool sessions", async () => {
-		using tempDir = TempDir.createSync("@omp-context-notes-");
+		using tempDir = TempDir.createSync("@reverse-context-notes-");
 		const sessionDir = path.join(tempDir.path(), "sessions");
 		const sessionManager = SessionManager.create(tempDir.path(), sessionDir);
 		const settings = Settings.isolated({ "compaction.experimentalContextManagement": true });

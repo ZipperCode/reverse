@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { prompt } from "@reverse/utils";
 import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import memoryEditDescription from "../prompts/tools/memory-edit.md" with { type: "text" };

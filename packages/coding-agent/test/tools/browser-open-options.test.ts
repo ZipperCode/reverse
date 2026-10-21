@@ -87,7 +87,7 @@ describe("browser open options CDP helpers", () => {
 	});
 
 	it("loads existing init-script files and preserves inline source", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-init-test-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-init-test-"));
 		tempDirs.push(directory);
 		await Bun.write(path.join(directory, "init.js"), "globalThis.fromFile = true;");
 		expect(await resolveInitScriptSources(["init.js", "globalThis.inline = true;"], directory)).toEqual([
@@ -100,8 +100,8 @@ describe("browser open options CDP helpers", () => {
 		send: (method: string, params: unknown) => Promise<unknown> = async () => undefined,
 		perTab = true,
 	) {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-download-test-"));
-		const elsewhere = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-download-test-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-download-test-"));
+		const elsewhere = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-download-test-"));
 		tempDirs.push(directory, elsewhere);
 		const listeners = new Map<string, (event: unknown) => void>();
 		const session = {
@@ -305,14 +305,14 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 			action: "open",
 			name,
 			url: "data:text/html,<title>first</title>",
-			init_scripts: ["globalThis.__omp_init = (globalThis.__omp_init || 0) + 1"],
+			init_scripts: ["globalThis.__reverse_init = (globalThis.__reverse_init || 0) + 1"],
 		});
 		expect(
 			returnedValue(
 				await invoke({
 					action: "run",
 					name,
-					code: "return await tab.evaluate(() => globalThis.__omp_init);",
+					code: "return await tab.evaluate(() => globalThis.__reverse_init);",
 				}),
 			),
 		).toBe(1);
@@ -321,7 +321,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				await invoke({
 					action: "run",
 					name,
-					code: "await tab.goto('data:text/html,<title>second</title>'); return await tab.evaluate(() => globalThis.__omp_init);",
+					code: "await tab.goto('data:text/html,<title>second</title>'); return await tab.evaluate(() => globalThis.__reverse_init);",
 				}),
 			),
 		).toBe(1);
@@ -329,7 +329,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 			await invoke({
 				action: "call",
 				name,
-				chain: [{ method: "addInitScript", args: ["globalThis.__omp_runtime = 42"] }],
+				chain: [{ method: "addInitScript", args: ["globalThis.__reverse_runtime = 42"] }],
 			}),
 		) as { id: string };
 		expect(typeof added.id).toBe("string");
@@ -338,7 +338,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				await invoke({
 					action: "run",
 					name,
-					code: "await tab.goto('data:text/html,<title>third</title>'); return await tab.evaluate(() => globalThis.__omp_runtime);",
+					code: "await tab.goto('data:text/html,<title>third</title>'); return await tab.evaluate(() => globalThis.__reverse_runtime);",
 				}),
 			),
 		).toBe(42);
@@ -346,7 +346,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 			returnedValue(await invoke({ action: "call", name, chain: [{ method: "initScripts", args: [] }] })),
 		).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ id: added.id, source: expect.stringContaining("__omp_runtime") }),
+				expect.objectContaining({ id: added.id, source: expect.stringContaining("__reverse_runtime") }),
 			]),
 		);
 		await invoke({
@@ -359,7 +359,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				await invoke({
 					action: "run",
 					name,
-					code: "await tab.goto('data:text/html,<title>fourth</title>'); return await tab.evaluate(() => globalThis.__omp_runtime);",
+					code: "await tab.goto('data:text/html,<title>fourth</title>'); return await tab.evaluate(() => globalThis.__reverse_runtime);",
 				}),
 			),
 		).toBeUndefined();
@@ -377,7 +377,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 		try {
 			const invoke = browserHost();
 			const name = `ua-${crypto.randomUUID()}`;
-			await invoke({ action: "open", name, url: server.url.href, user_agent: "omp-open-options/1.0" });
+			await invoke({ action: "open", name, url: server.url.href, user_agent: "reverse-open-options/1.0" });
 			expect(
 				returnedValue(
 					await invoke({
@@ -386,8 +386,8 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 						code: "return await tab.evaluate(() => navigator.userAgent);",
 					}),
 				),
-			).toBe("omp-open-options/1.0");
-			expect(await seen.promise).toBe("omp-open-options/1.0");
+			).toBe("reverse-open-options/1.0");
+			expect(await seen.promise).toBe("reverse-open-options/1.0");
 		} finally {
 			server.stop(true);
 		}
@@ -511,8 +511,8 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				});
 			},
 		});
-		const first = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-download-test-"));
-		const second = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-download-test-"));
+		const first = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-download-test-"));
+		const second = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-download-test-"));
 		tempDirs.push(first, second);
 		try {
 			const invoke = browserHost();
@@ -575,7 +575,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				return new Response(body, { headers: { "content-type": "text/html" } });
 			},
 		});
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-download-test-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-download-test-"));
 		tempDirs.push(directory);
 		try {
 			const invoke = browserHost();
@@ -617,7 +617,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				});
 			},
 		});
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-download-test-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-browser-download-test-"));
 		tempDirs.push(directory);
 		try {
 			const invoke = browserHost();
@@ -681,7 +681,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				}),
 			) as { path: string; bytes: number };
 			tempDirs.push(path.dirname(download.path));
-			expect(path.dirname(download.path)).toStartWith(path.join(os.tmpdir(), "omp-downloads-"));
+			expect(path.dirname(download.path)).toStartWith(path.join(os.tmpdir(), "reverse-downloads-"));
 			expect(download.bytes).toBe(payload.byteLength);
 			expect(new Uint8Array(await Bun.file(download.path).arrayBuffer())).toEqual(payload);
 		} finally {

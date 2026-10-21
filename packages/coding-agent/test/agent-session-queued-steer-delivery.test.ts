@@ -15,7 +15,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@reverse/agent";
 import { createMockModel, type MockModel, type MockResponse } from "@reverse/ai/providers/mock";
 import { getBundledModel } from "@reverse/catalog/models";

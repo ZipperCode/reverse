@@ -76,7 +76,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-	tmpAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-prose-color-"));
+	tmpAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-prose-color-"));
 	setAgentDir(tmpAgentDir);
 	setTerminalImageProtocol(null);
 });

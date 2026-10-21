@@ -6,7 +6,7 @@ import { getProxyForProvider, withProxyInit } from "./proxy";
 import { createFetchRequestDebugSession, isRequestDebugEnabled } from "./request-debug";
 
 /** Stamped on a fetch already built by {@link transportFetch}. */
-const TRANSPORT_FETCH = Symbol("omp.transportFetch");
+const TRANSPORT_FETCH = Symbol("reverse.transportFetch");
 
 type TransportFetch = FetchImpl & { [TRANSPORT_FETCH]?: true };
 

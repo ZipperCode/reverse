@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { FetchImpl } from "@reverse/utils";
 import { collapseVariants, type VariantCollapseTable } from "../compat/collapse";
 import type { ModelSpec } from "../types";

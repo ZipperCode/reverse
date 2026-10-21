@@ -34,7 +34,7 @@ describe("runInteractiveBashPty", () => {
 
 	beforeEach(async () => {
 		initTheme();
-		tempDir = TempDir.createSync("@omp-bash-pty-env-");
+		tempDir = TempDir.createSync("@reverse-bash-pty-env-");
 		resetSettingsForTest();
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		// The spawn env is filtered `Bun.env` plus procmgr's fixed keys. Those keys
@@ -56,8 +56,8 @@ describe("runInteractiveBashPty", () => {
 				// call has a user at the keyboard.
 				GIT_EDITOR: "shell-git-editor",
 				GPG_TTY: "shell-gpg-tty",
-				OMP_PTY_RUNTIME_PROBE: "from-shell-env",
-				OMP_PTY_LAYER: "shell",
+				REVERSE_PTY_RUNTIME_PROBE: "from-shell-env",
+				REVERSE_PTY_LAYER: "shell",
 			},
 			prefix: undefined,
 		});
@@ -72,7 +72,7 @@ describe("runInteractiveBashPty", () => {
 	/** Run the env probe on a real PTY with `direnvEnv` as the command's overrides. */
 	async function probe(direnvEnv: Record<string, string>): Promise<string> {
 		const result = await runInteractiveBashPty(headlessUi(), {
-			command: `printf 'probe=%s layer=%s term=%s ci=%s no_color=%s git_editor=%s gpg_tty=%s\\n' "\${OMP_PTY_RUNTIME_PROBE-unset}" "\${OMP_PTY_LAYER-unset}" "$TERM" "\${CI-unset}" "\${NO_COLOR-unset}" "\${GIT_EDITOR-unset}" "\${GPG_TTY-unset}"`,
+			command: `printf 'probe=%s layer=%s term=%s ci=%s no_color=%s git_editor=%s gpg_tty=%s\\n' "\${REVERSE_PTY_RUNTIME_PROBE-unset}" "\${REVERSE_PTY_LAYER-unset}" "$TERM" "\${CI-unset}" "\${NO_COLOR-unset}" "\${GIT_EDITOR-unset}" "\${GPG_TTY-unset}"`,
 			cwd: tempDir.path(),
 			timeoutMs: 15_000,
 			env: direnvEnv,
@@ -84,7 +84,7 @@ describe("runInteractiveBashPty", () => {
 	it.skipIf(ptyUnavailable)(
 		"runs the command with the shell spawn env minus its non-interactive guards, direnv overrides on top, and a real TERM",
 		async () => {
-			const output = await probe({ OMP_PTY_LAYER: "direnv" });
+			const output = await probe({ REVERSE_PTY_LAYER: "direnv" });
 
 			expect(output).toContain("probe=from-shell-env layer=direnv term=xterm-256color");
 			// The native environ underneath may hold its own values for these

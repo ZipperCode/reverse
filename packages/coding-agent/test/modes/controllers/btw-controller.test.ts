@@ -300,7 +300,7 @@ describe("BtwController", () => {
 	});
 
 	it("keeps focused-agent side conversations apart from main history in the shared artifacts directory", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-btw-focused-scope-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-btw-focused-scope-"));
 		const mainTurn = vi.fn(async () => ({
 			replyText: "Main answer",
 			assistantMessage: createAssistantMessage("Main"),
@@ -704,7 +704,7 @@ describe("BtwController", () => {
 	});
 
 	it("keeps closed answers across resume without changing the main journal or model context", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-btw-history-controller-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-btw-history-controller-"));
 		const manager = SessionManager.create(directory, directory);
 		const session = makeFakeSession(async () => ({
 			replyText: "Saved side answer",
@@ -747,7 +747,7 @@ describe("BtwController", () => {
 	});
 
 	it("persists cancellation and ignores late output after switching sessions", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-btw-cancel-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-btw-cancel-"));
 		const pending = Promise.withResolvers<RunEphemeralTurnResult>();
 		const run = vi.fn((_args: RunEphemeralTurnArgs) => pending.promise);
 		const ctx = makeCtx(makeFakeSession(run));

@@ -51,7 +51,7 @@ async function makeSessionFile(cwd: string, id: string): Promise<string> {
 
 describe("--resume <path> — missing path (#13928)", () => {
 	it("exits non-zero naming the path and does not create a session there", async () => {
-		using tempDir = TempDir.createSync("@omp-resume-missing-path-");
+		using tempDir = TempDir.createSync("@reverse-resume-missing-path-");
 		const sessionDir = tempDir.path();
 		const missingPath = path.join(sessionDir, "ghost-zz9q.jsonl");
 		const authStorage = await AuthStorage.create(path.join(sessionDir, "auth.db"));
@@ -102,7 +102,7 @@ describe("--resume <path> — missing path (#13928)", () => {
 
 describe("--resume <path> — existing path (#13928)", () => {
 	it("still resumes the session file at that path", async () => {
-		using tempDir = TempDir.createSync("@omp-resume-existing-path-");
+		using tempDir = TempDir.createSync("@reverse-resume-existing-path-");
 		const sessionDir = tempDir.path();
 		const existingPath = await makeSessionFile(sessionDir, "019ea530-0000-7000-0000-000000000000");
 

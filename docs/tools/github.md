@@ -114,7 +114,7 @@ If `repo` is omitted, `gh` repository resolution is used.
 
 `repo` defaults to the current checkout's GitHub repository. Omitting `branch` asks GitHub for the repository's default branch. Every path segment is URL-encoded independently. Empty/absolute paths are rejected; directory responses are rejected as not a file. API errors identify the requested repo, revision, and path without guessing whether a 404 means a missing resource or denied access. Text decoding preserves whitespace. Images use `images.autoResize` and the active model's WebP compatibility handling. The model-facing prompt requires this operation rather than `curl` or `wget` for repository-hosted files.
 
-Single-issue and single-PR reads live in the `issue://<N>` / `pr://<N>` URL schemes (see `docs/tools/read.md`). They share `~/.omp/cache/github-cache.db` (override via `OMP_GITHUB_CACHE_DB`) and the `github.cache.softTtlSec` / `github.cache.hardTtlSec` / `github.cache.enabled` settings. The cache retains rendered Markdown plus the raw JSON payload returned by `gh`, including private bodies, comments, reviews, and review comments when comments are enabled; rows are scoped by the local GitHub credential fingerprint. Root and repo-scoped reads (`issue://`, `pr://owner/repo`) issue a live `gh issue list` / `gh pr list` for browsing; query params `state`, `limit`, `author`, `label` pass through to `gh` (`issue://` accepts `state=open|closed|all`; `pr://` also accepts `merged`). PR diffs ride the same cache under `pr://<N>/diff[/…]`: the listing, full diff, and per-file slices all share one `pr-diff` row keyed by repo and PR number.
+Single-issue and single-PR reads live in the `issue://<N>` / `pr://<N>` URL schemes (see `docs/tools/read.md`). They share `~/.reverse/cache/github-cache.db` (override via `REVERSE_GITHUB_CACHE_DB`) and the `github.cache.softTtlSec` / `github.cache.hardTtlSec` / `github.cache.enabled` settings. The cache retains rendered Markdown plus the raw JSON payload returned by `gh`, including private bodies, comments, reviews, and review comments when comments are enabled; rows are scoped by the local GitHub credential fingerprint. Root and repo-scoped reads (`issue://`, `pr://owner/repo`) issue a live `gh issue list` / `gh pr list` for browsing; query params `state`, `limit`, `author`, `label` pass through to `gh` (`issue://` accepts `state=open|closed|all`; `pr://` also accepts `merged`). PR diffs ride the same cache under `pr://<N>/diff[/…]`: the listing, full diff, and per-file slices all share one `pr-diff` row keyed by repo and PR number.
 
 ### `pr_create`
 
@@ -143,7 +143,7 @@ Branches:
 
 Worktree and metadata behavior:
 - Local branch name is always `pr-<number>`.
-- Worktree path is `getWorktreeDir("<number>-<repo-hash>")` = `path.join(getWorktreesDir(), "<number>-<repo-hash>")`, where `<number>` is the PR number and `<repo-hash>` is `hashPath(primaryRepoRoot)` (a 7-hex digest of the primary repo root). `getWorktreesDir()` resolves the base in this order: a valid `OMP_WORKTREE_DIR`, the applied `worktree.base` setting, then the profile/XDG-aware data-root default (normally `~/.omp/wt`). Both overrides expand a leading `~` and must resolve to an absolute path; an invalid relative value is ignored and resolution falls through. `resolveAvailableWorktreePath()` appends a `-2`/`-3`… suffix when the resulting path is already registered with git or present on disk.
+- Worktree path is `getWorktreeDir("<number>-<repo-hash>")` = `path.join(getWorktreesDir(), "<number>-<repo-hash>")`, where `<number>` is the PR number and `<repo-hash>` is `hashPath(primaryRepoRoot)` (a 7-hex digest of the primary repo root). `getWorktreesDir()` resolves the base in this order: a valid `REVERSE_WORKTREE_DIR`, the applied `worktree.base` setting, then the profile/XDG-aware data-root default (normally `~/.reverse/wt`). Both overrides expand a leading `~` and must resolve to an absolute path; an invalid relative value is ignored and resolution falls through. `resolveAvailableWorktreePath()` appends a `-2`/`-3`… suffix when the resulting path is already registered with git or present on disk.
 - Existing worktree detection is by branch ref `refs/heads/pr-<number>` from `repository.worktrees()` (`@reverse/natives/vcs`).
 - New worktree creation calls `repository.worktreeAdd(finalWorktreePath, localBranch, { detach: false, clone, backend }, signal)` after choosing an unused path. `clone` follows `worktree.clone` (default `true`); `backend` follows `isolation.backend` (default `"auto"`). Clone failure falls back to plain checkout with a warning; successful clone metadata appears as `clonedWith`.
 - For same-repo PRs, remote is `origin`. For cross-repo PRs, the tool resolves a clone URL for the head repo, reuses an existing remote with the same URL when possible, or creates `fork-<owner>` / `fork-<owner>-<n>`.
@@ -151,10 +151,10 @@ Worktree and metadata behavior:
   - `branch.pr-<number>.remote`
   - `branch.pr-<number>.merge`
   - `branch.pr-<number>.pushRemote`
-  - `branch.pr-<number>.ompPrHeadRef`
-  - `branch.pr-<number>.ompPrUrl`
-  - `branch.pr-<number>.ompPrIsCrossRepository`
-  - `branch.pr-<number>.ompPrMaintainerCanModify`
+  - `branch.pr-<number>.reversePrHeadRef`
+  - `branch.pr-<number>.reversePrUrl`
+  - `branch.pr-<number>.reversePrIsCrossRepository`
+  - `branch.pr-<number>.reversePrMaintainerCanModify`
 - When no matching worktree exists, an existing `refs/heads/pr-<number>` at a different commit fails unless `force=true`, which resets the branch to the fetched head.
 - An existing matching worktree is reused with `reused: true`; the remote is fetched and push metadata refreshed, but its local branch is not reset, even with `force=true`.
 
@@ -168,7 +168,7 @@ Worktree and metadata behavior:
 | Batching | None |
 | Output | `# Pushed Pull Request Branch` summary with local branch, remote, remote branch, remote URL, PR URL, and force-with-lease flag. `sourceUrl = prUrl` when known. |
 
-Push target resolution reads the `branch.<name>.ompPrHeadRef`, `pushRemote`/`remote`, `ompPrUrl`, `ompPrMaintainerCanModify`, and `ompPrIsCrossRepository` git-config keys written by `pr_checkout`. If the current checked-out branch matches the target branch, the source ref is `HEAD`; otherwise it pushes `refs/heads/<branch>`. The refspec is `HEAD:refs/heads/<headRef>` or `refs/heads/<branch>:refs/heads/<headRef>`.
+Push target resolution reads the `branch.<name>.reversePrHeadRef`, `pushRemote`/`remote`, `reversePrUrl`, `reversePrMaintainerCanModify`, and `reversePrIsCrossRepository` git-config keys written by `pr_checkout`. If the current checked-out branch matches the target branch, the source ref is `HEAD`; otherwise it pushes `refs/heads/<branch>`. The refspec is `HEAD:refs/heads/<headRef>` or `refs/heads/<branch>:refs/heads/<headRef>`.
 
 ### `search_issues`
 
@@ -254,7 +254,7 @@ Watch flow:
 ## Side Effects
 - Filesystem
   - `pr_create` may create a temp dir under `os.tmpdir()` named `gh-pr-body-*`, write `body.md`, then remove the dir in `finally`.
-  - `pr_checkout` may create worktree directories named `<pr-number>-<repo-hash>` under the base selected by `OMP_WORKTREE_DIR`, then `worktree.base`, then the profile/XDG-aware default (normally `~/.omp/wt`), and add git worktrees there.
+  - `pr_checkout` may create worktree directories named `<pr-number>-<repo-hash>` under the base selected by `REVERSE_WORKTREE_DIR`, then `worktree.base`, then the profile/XDG-aware default (normally `~/.reverse/wt`), and add git worktrees there.
   - `run_watch` may write a session artifact with full failed-job logs.
 - Network
   - Every op shells out to `gh`, which then talks to GitHub APIs except `pr_push`.
@@ -300,7 +300,7 @@ Watch flow:
   - invalid `run` format
   - `fill` combined with `title` or `body`
   - missing git repo / branch / HEAD context for checkout, push, or watch
-  - `pr_push` on a branch without `ompPrHeadRef` metadata
+  - `pr_push` on a branch without `reversePrHeadRef` metadata
   - an existing PR branch at a different commit without `force` when no matching worktree exists, or exhaustion of the 100 worktree-path candidates
   - PR identifiers beginning with `-`
   - an absolute `file_read` path (a leading `/`) or a contents-API response that is not a file

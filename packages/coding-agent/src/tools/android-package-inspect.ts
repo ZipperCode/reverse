@@ -3,7 +3,7 @@ import type { Stats } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import * as zlib from "node:zlib";
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { prompt } from "@reverse/utils";
 import androidPackageInspectDescription from "../prompts/tools/android-package-inspect.md" with { type: "text" };

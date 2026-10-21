@@ -8,7 +8,7 @@
  * target against at startup is empty; the online discovery pass runs only
  * later. The main `--model` path already defers to post-discovery resolution,
  * but the prewalk block gave up synchronously and printed
- * `prewalk disabled — Model "…" not found` for ids `omp models` lists. It now
+ * `prewalk disabled — Model "…" not found` for ids `reverse models` lists. It now
  * refreshes only the provider named by the selector, then retries after that
  * provider's cache-aware discovery completes.
  */

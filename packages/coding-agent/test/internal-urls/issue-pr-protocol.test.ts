@@ -1,7 +1,7 @@
 /**
  * `issue://` / `pr://` protocol handler tests.
  *
- * Every test isolates `OMP_GITHUB_CACHE_DB` to a temp file and resets the
+ * Every test isolates `REVERSE_GITHUB_CACHE_DB` to a temp file and resets the
  * cache + router singletons. `github.json` / `github.text` are spied
  * per-test and restored in `afterEach`.
  */
@@ -21,9 +21,8 @@ let originalEnv: string | undefined;
 let originalGhToken: string | undefined;
 beforeEach(async () => {
 	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "issue-pr-protocol-"));
-	originalEnv = process.env.REVERSE_GITHUB_CACHE_DB ?? process.env.OMP_GITHUB_CACHE_DB;
+	originalEnv = process.env.REVERSE_GITHUB_CACHE_DB;
 	process.env.REVERSE_GITHUB_CACHE_DB = path.join(tempDir, "github-cache.db");
-	process.env.OMP_GITHUB_CACHE_DB = path.join(tempDir, "github-cache.db");
 	originalGhToken = process.env.GH_TOKEN;
 	process.env.GH_TOKEN = "test-token";
 	resetCacheForTests();
@@ -35,10 +34,8 @@ afterEach(async () => {
 	InternalUrlRouter.resetForTests();
 	if (originalEnv === undefined) {
 		delete process.env.REVERSE_GITHUB_CACHE_DB;
-		delete process.env.OMP_GITHUB_CACHE_DB;
 	} else {
 		process.env.REVERSE_GITHUB_CACHE_DB = originalEnv;
-		process.env.OMP_GITHUB_CACHE_DB = originalEnv;
 	}
 	if (originalGhToken === undefined) {
 		delete process.env.GH_TOKEN;

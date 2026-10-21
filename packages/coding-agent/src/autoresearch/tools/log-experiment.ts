@@ -1,7 +1,7 @@
 import { logExperimentToolRenderer } from "@reverse/tui/tools/autoresearch";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import * as vcs from "@reverse/natives/vcs";
 
 import type { ToolDefinition } from "../../extensibility/extensions";

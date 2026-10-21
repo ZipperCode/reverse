@@ -8,14 +8,14 @@ import { CONFIG_DIR_NAME, removeWithRetries } from "@reverse/utils";
 const CLI_ENTRY = path.join(import.meta.dir, "..", "src", "cli.ts");
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "resources-no-templates-mcp.ts");
 
-describe("omp read MCP resources", () => {
+describe("reverse read MCP resources", () => {
 	let root: string;
 	let projectDir: string;
 	let agentDir: string;
 	let probePath: string;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-read-mcp-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-read-mcp-"));
 		projectDir = path.join(root, "project");
 		agentDir = path.join(root, "agent");
 		const localSkillDir = path.join(projectDir, CONFIG_DIR_NAME, "skills", "local-skill");

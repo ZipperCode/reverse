@@ -90,7 +90,7 @@ describe("structured output sidecar lifecycle", () => {
 	});
 
 	it("drops a stale sidecar instead of leaving it behind when the replacement write fails", async () => {
-		artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-sidecar-test-"));
+		artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-sidecar-test-"));
 		const id = "SidecarProbe";
 		const sidecarPath = path.join(artifactsDir, `${id}.json`);
 		await fs.writeFile(sidecarPath, JSON.stringify({ summary: "stale from an earlier turn" }));
@@ -134,7 +134,7 @@ describe("structured output sidecar lifecycle", () => {
 		// `undefined` (e.g. `structured.data === undefined`) — previously
 		// neither a write nor a removal happened, leaving a stale sidecar
 		// from an earlier turn behind (PR #10625 review).
-		artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-sidecar-test-"));
+		artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-sidecar-test-"));
 		const id = "UndefinedDataProbe";
 		const sidecarPath = path.join(artifactsDir, `${id}.json`);
 		await fs.writeFile(sidecarPath, JSON.stringify({ summary: "stale from an earlier turn" }));
@@ -180,7 +180,7 @@ describe("structured output sidecar lifecycle", () => {
 		// Regression: previously the sidecar was written only for
 		// `status === "valid"`, so an oversized invalid payload had no
 		// recovery path beyond the truncated inline preview.
-		artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-sidecar-test-"));
+		artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-sidecar-test-"));
 		const id = "InvalidSidecarProbe";
 
 		// `ok` is a string, not a boolean — violates the schema below, but the

@@ -8,7 +8,7 @@
  * previous `<parameter>`-per-key JSON Schema dump dropped entirely.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { Model, Usage } from "@reverse/ai";
 import { formatSessionDumpText, formatSubagentDumpText } from "@reverse/coding-agent/session/session-dump-format";
 import { INTENT_FIELD } from "@reverse/wire";

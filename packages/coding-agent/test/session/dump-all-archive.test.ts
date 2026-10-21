@@ -68,7 +68,7 @@ describe("AgentSession.dumpSessionArchiveToTmpDir", () => {
 	}
 
 	beforeEach(() => {
-		tempDir = TempDir.createSync("@omp-dump-all-");
+		tempDir = TempDir.createSync("@reverse-dump-all-");
 		session = createSession("main prompt");
 	});
 

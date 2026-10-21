@@ -1,7 +1,7 @@
 /**
  * Client half of the pi-native auth-gateway protocol.
  *
- * Dispatches a {@link streamSimple}-shaped request to an `omp auth-gateway`
+ * Dispatches a {@link streamSimple}-shaped request to a `reverse auth-gateway`
  * via `POST /v1/pi/stream`, reads the SSE event stream back, and pushes the
  * parsed events into a local {@link AssistantMessageEventStream} — the same
  * stream type every other provider client produces. Callers downstream of
@@ -11,7 +11,7 @@
  *
  * Activated when a {@link Model} has `transport: "pi-native"` set; the
  * dispatch hook lives in `streamSimple()` (see `../stream.ts`). Used by
- * containerized omp deployments (such as robomp slots) that
+ * containerized reverse deployments (such as reverse slots) that
  * route every LLM call through a credential-holding sidecar so the slot
  * itself stays credential-free.
  */
@@ -120,11 +120,11 @@ function buildHeaders(model: Model<Api>, apiKey: string | undefined): Record<str
 		Accept: "text/event-stream",
 		// Usage-attribution identity: the gateway reports this request's token
 		// burn to the broker under the ORIGINATING client, not the gateway host.
-		// Attribution-only — the gateway never forwards x-omp-* upstream. Header
+		// Attribution-only — the gateway never forwards x-reverse-* upstream. Header
 		// values must stay ISO-8859-1-safe, hence the hostname scrub.
-		"x-omp-install-id": getInstallId(),
-		"x-omp-hostname": os.hostname().replace(/[^\x20-\x7e]/g, "?"),
-		"x-omp-app": getAppName(),
+		"x-reverse-install-id": getInstallId(),
+		"x-reverse-hostname": os.hostname().replace(/[^\x20-\x7e]/g, "?"),
+		"x-reverse-app": getAppName(),
 		...model.headers,
 	};
 	if (apiKey && !headers.Authorization) {
@@ -134,7 +134,7 @@ function buildHeaders(model: Model<Api>, apiKey: string | undefined): Record<str
 }
 
 /**
- * Stream a turn through an `omp auth-gateway` over the pi-native protocol.
+ * Stream a turn through a `reverse auth-gateway` over the pi-native protocol.
  *
  * The returned {@link AssistantMessageEventStream} receives each parsed
  * `AssistantMessageEvent` verbatim from the gateway; the terminal `done` /

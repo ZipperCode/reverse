@@ -30,7 +30,7 @@ describe("handleRpcCancelSubagent", () => {
 	let ownSessionFile: string;
 
 	beforeEach(() => {
-		sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-rpc-cancel-"));
+		sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-rpc-cancel-"));
 		ownSessionFile = path.join(sessionDir, "SubagentA.jsonl");
 		AgentRegistry.resetGlobalForTests();
 		AgentLifecycleManager.resetGlobalForTests();

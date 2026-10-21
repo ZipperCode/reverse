@@ -215,7 +215,7 @@ export type RpcPromptStatus = "completed" | "aborted" | "error";
 
 /**
  * Failure detail for a `prompt_result` with `status: "error"`. `message` is the
- * provider's error text without OMP-local diagnostics (e.g. request dump paths).
+ * provider's error text without REVERSE-local diagnostics (e.g. request dump paths).
  */
 export interface RpcPromptError {
 	message: string;
@@ -223,7 +223,7 @@ export interface RpcPromptError {
 	model?: string;
 	/** HTTP status reported by the provider, when the failure came from a request. */
 	httpStatus?: number;
-	/** The failure is classified transient: resubmitting later may succeed. OMP's own retries are already exhausted. */
+	/** The failure is classified transient: resubmitting later may succeed. REVERSE's own retries are already exhausted. */
 	retryable: boolean;
 }
 

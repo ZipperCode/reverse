@@ -72,7 +72,7 @@ describe("autoresearch before_agent_start handler", () => {
 
 	beforeEach(() => {
 		dbDir = TempDir.createSync("@pi-autoresearch-bas-test-");
-		process.env.OMP_AUTORESEARCH_DB_DIR = dbDir.path();
+		process.env.REVERSE_AUTORESEARCH_DB_DIR = dbDir.path();
 		cwdDir = TempDir.createSync("@pi-autoresearch-bas-cwd-");
 		vi.spyOn(vcs, "git").mockReturnValue({
 			currentBranch: async () => "autoresearch/test",
@@ -88,7 +88,7 @@ describe("autoresearch before_agent_start handler", () => {
 	});
 
 	afterEach(() => {
-		delete process.env.OMP_AUTORESEARCH_DB_DIR;
+		delete process.env.REVERSE_AUTORESEARCH_DB_DIR;
 		closeAllAutoresearchStorages();
 		cwdDir.removeSync();
 		dbDir.removeSync();

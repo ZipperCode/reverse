@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import { logger, prompt, untilAborted } from "@reverse/utils";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";

@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
 import { mapOpenAIResponsesToolChoiceForTools } from "@reverse/ai/providers/openai-responses";
 import { getProviderDefinition } from "@reverse/ai/registry/registry";

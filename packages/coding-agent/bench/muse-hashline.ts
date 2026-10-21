@@ -6,13 +6,13 @@ import { buildParams } from "@reverse/ai/providers/openai-responses";
 import { buildModel } from "@reverse/catalog/build";
 import { getBundledModel } from "@reverse/catalog/models";
 import { EditSession, EditStore, editDescription, type EditPolicy } from "@reverse/natives";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { editDescriptionCompact } from "../src/edit/index";
 
 const WARMUP = 10;
 const SAMPLES = 41;
 const REQUEST_REPETITIONS = 100;
-const root = path.join(os.tmpdir(), "omp-bench-muse-hashline");
+const root = path.join(os.tmpdir(), "reverse-bench-muse-hashline");
 const target = path.join(root, "fixture.ts");
 const fixture =
 	Array.from(

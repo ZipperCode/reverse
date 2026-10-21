@@ -1,4 +1,4 @@
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import { prompt } from "@reverse/utils";
 import { sanitizeSkillName, writeManagedSkill } from "../autolearn/managed-skills";

@@ -48,7 +48,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 	let tmpDir: string;
 
 	beforeEach(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-proj-scope-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-proj-scope-"));
 	});
 
 	afterEach(() => {
@@ -57,9 +57,9 @@ describe("resolveActiveProjectRegistryPath", () => {
 		removeSyncWithRetries(tmpDir);
 	});
 
-	it("walk-up finds nearest .omp/ directory", async () => {
-		// Layout: tmpDir/.omp/   +   tmpDir/sub/nested/  (cwd)
-		// Resolver must climb from cwd → sub → tmpDir and find .omp/ there.
+	it("walk-up finds nearest .reverse/ directory", async () => {
+		// Layout: tmpDir/.reverse/   +   tmpDir/sub/nested/  (cwd)
+		// Resolver must climb from cwd → sub → tmpDir and find .reverse/ there.
 		fs.mkdirSync(path.join(tmpDir, CONFIG_DIR_NAME), { recursive: true });
 		const cwd = path.join(tmpDir, "sub", "nested");
 		fs.mkdirSync(cwd, { recursive: true });
@@ -69,9 +69,9 @@ describe("resolveActiveProjectRegistryPath", () => {
 		expect(result).toBe(path.join(tmpDir, CONFIG_DIR_NAME, "plugins", "installed_plugins.json"));
 	});
 
-	it("walk-up stops at the nearest .omp/ — does not skip to a more distant one", async () => {
-		// Layout: tmpDir/.omp/   +   tmpDir/sub/.omp/   +   tmpDir/sub/nested/  (cwd)
-		// Resolver must stop at tmpDir/sub/.omp/, not climb further to tmpDir/.omp/.
+	it("walk-up stops at the nearest .reverse/ — does not skip to a more distant one", async () => {
+		// Layout: tmpDir/.reverse/   +   tmpDir/sub/.reverse/   +   tmpDir/sub/nested/  (cwd)
+		// Resolver must stop at tmpDir/sub/.reverse/, not climb further to tmpDir/.reverse/.
 		fs.mkdirSync(path.join(tmpDir, CONFIG_DIR_NAME), { recursive: true });
 		fs.mkdirSync(path.join(tmpDir, "sub", CONFIG_DIR_NAME), { recursive: true });
 		const cwd = path.join(tmpDir, "sub", "nested");
@@ -82,9 +82,9 @@ describe("resolveActiveProjectRegistryPath", () => {
 		expect(result).toBe(path.join(tmpDir, "sub", CONFIG_DIR_NAME, "plugins", "installed_plugins.json"));
 	});
 
-	it("falls back to .git root when no .omp/ exists", async () => {
+	it("falls back to .git root when no .reverse/ exists", async () => {
 		// Layout: tmpDir/.git/   +   tmpDir/sub/  (cwd)
-		// No .omp/ anywhere → second pass finds .git/ at tmpDir.
+		// No .reverse/ anywhere → second pass finds .git/ at tmpDir.
 		// Returned path is relative to the .git root, not .git itself.
 		fs.mkdirSync(path.join(tmpDir, ".git"), { recursive: true });
 		const cwd = path.join(tmpDir, "sub");
@@ -95,7 +95,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 		expect(result).toBe(path.join(tmpDir, CONFIG_DIR_NAME, "plugins", "installed_plugins.json"));
 	});
 
-	it("does not load a temporary root's .omp/plugins from an unanchored scratch directory", async () => {
+	it("does not load a temporary root's .reverse/plugins from an unanchored scratch directory", async () => {
 		const tempRoot = path.join(tmpDir, "tmp");
 		const cwd = path.join(tempRoot, "scratch", "work");
 		fs.mkdirSync(path.join(tempRoot, CONFIG_DIR_NAME, "plugins"), { recursive: true });
@@ -117,7 +117,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 		expect(await resolveActiveProjectRegistryPath(cwd)).toBeNull();
 	});
 
-	it("still finds a project's .omp below the temporary root", async () => {
+	it("still finds a project's .reverse below the temporary root", async () => {
 		const tempRoot = path.join(tmpDir, "tmp");
 		const project = path.join(tempRoot, "project");
 		const cwd = path.join(project, "sub");
@@ -153,7 +153,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 		},
 	);
 
-	it("skips another account's .omp/agent root and falls back to the cwd's git anchor", async () => {
+	it("skips another account's .reverse/agent root and falls back to the cwd's git anchor", async () => {
 		const foreignHome = path.join(tmpDir, "other-user");
 		const cwd = path.join(foreignHome, "Development", "project");
 		fs.mkdirSync(path.join(foreignHome, CONFIG_DIR_NAME, "agent"), { recursive: true });
@@ -167,7 +167,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 		expect(await resolveOrDefaultProjectRegistryPath(foreignHome)).toBeUndefined();
 	});
 
-	it("keeps an active repo-local .omp/agent directory in project scope", async () => {
+	it("keeps an active repo-local .reverse/agent directory in project scope", async () => {
 		const project = path.join(tmpDir, "project");
 		const agentDir = path.join(project, CONFIG_DIR_NAME, "agent");
 		fs.mkdirSync(agentDir, { recursive: true });
@@ -179,24 +179,24 @@ describe("resolveActiveProjectRegistryPath", () => {
 		expect(await resolveOrDefaultProjectRegistryPath(project)).toBe(registry);
 	});
 
-	it.each([".", "nested"])("keeps .omp/agent at or below a git root (%s) in project scope", async subdir => {
+	it.each([".", "nested"])("keeps .reverse/agent at or below a git root (%s) in project scope", async subdir => {
 		const project = path.join(tmpDir, "project");
 		const anchor = path.join(project, subdir);
 		const cwd = path.join(anchor, "work");
 		const home = path.join(tmpDir, "isolated-home");
 		const pluginsDir = path.join(anchor, CONFIG_DIR_NAME, "plugins");
-		const pluginDir = path.join(pluginsDir, "node_modules", "omp-project-agent");
+		const pluginDir = path.join(pluginsDir, "node_modules", "reverse-project-agent");
 		fs.mkdirSync(path.join(project, ".git"), { recursive: true });
 		fs.mkdirSync(path.join(anchor, CONFIG_DIR_NAME, "agent"), { recursive: true });
 		fs.mkdirSync(cwd, { recursive: true });
 		fs.mkdirSync(pluginDir, { recursive: true });
 		await Bun.write(
 			path.join(pluginsDir, "package.json"),
-			JSON.stringify({ dependencies: { "omp-project-agent": "*" } }),
+			JSON.stringify({ dependencies: { "reverse-project-agent": "*" } }),
 		);
 		await Bun.write(
 			path.join(pluginDir, "package.json"),
-			JSON.stringify({ name: "omp-project-agent", version: "1.0.0", omp: { tools: "tools" } }),
+			JSON.stringify({ name: "reverse-project-agent", version: "1.0.0", reverse: { tools: "tools" } }),
 		);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
 		vi.spyOn(piUtils, "getAgentDir").mockReturnValue(path.join(home, CONFIG_DIR_NAME, "agent"));
@@ -206,7 +206,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 		expect(await resolveOrDefaultProjectRegistryPath(anchor)).toBe(registry);
 		const plugins = await getEnabledPlugins(cwd, { home });
 		expect(plugins.map(plugin => [plugin.name, plugin.scope, plugin.path])).toEqual([
-			["omp-project-agent", "project", pluginDir],
+			["reverse-project-agent", "project", pluginDir],
 		]);
 	});
 
@@ -224,7 +224,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 		expect(await resolveOrDefaultProjectRegistryPath(foreignHome)).toBeUndefined();
 	});
 
-	it("still prefers a plain ancestor .omp above the git root", async () => {
+	it("still prefers a plain ancestor .reverse above the git root", async () => {
 		const cwd = path.join(tmpDir, "project");
 		fs.mkdirSync(path.join(tmpDir, CONFIG_DIR_NAME), { recursive: true });
 		fs.mkdirSync(path.join(cwd, ".git"), { recursive: true });
@@ -235,8 +235,8 @@ describe("resolveActiveProjectRegistryPath", () => {
 		);
 	});
 
-	it("returns null when neither .omp/ nor .git/ found anywhere in the tree", async () => {
-		// Start at the filesystem root — guaranteed to have no .omp/ or .git/ ancestors.
+	it("returns null when neither .reverse/ nor .git/ found anywhere in the tree", async () => {
+		// Start at the filesystem root — guaranteed to have no .reverse/ or .git/ ancestors.
 		const result = await resolveActiveProjectRegistryPath(path.sep);
 
 		expect(result).toBeNull();
@@ -244,8 +244,8 @@ describe("resolveActiveProjectRegistryPath", () => {
 
 	it("does not treat ~/.git as a project root (pass-2 home-dir guard)", async () => {
 		// Simulate a dotfiles repo managed with a bare-git technique: ~/.git exists.
-		// resolveActiveProjectRegistryPath must NOT return ~/.omp/.../installed_plugins.json.
-		const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-proj-scope-home-"));
+		// resolveActiveProjectRegistryPath must NOT return ~/.reverse/.../installed_plugins.json.
+		const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-proj-scope-home-"));
 		vi.spyOn(os, "homedir").mockReturnValue(homeDir);
 		const fakeHomeGit = path.join(homeDir, ".git");
 		await fs.promises.mkdir(fakeHomeGit, { recursive: true });
@@ -253,8 +253,8 @@ describe("resolveActiveProjectRegistryPath", () => {
 		await fs.promises.mkdir(cwd, { recursive: true });
 		try {
 			const result = await resolveActiveProjectRegistryPath(cwd);
-			const homeOmpPath = path.join(homeDir, CONFIG_DIR_NAME, "plugins", "installed_plugins.json");
-			expect(result).not.toBe(homeOmpPath);
+			const homeReversePath = path.join(homeDir, CONFIG_DIR_NAME, "plugins", "installed_plugins.json");
+			expect(result).not.toBe(homeReversePath);
 			expect(result).toBeNull();
 		} finally {
 			removeSyncWithRetries(homeDir);
@@ -340,16 +340,16 @@ describe("resolveActiveProjectRegistryPath", () => {
 describe("listClaudePluginRoots — project shadows user", () => {
 	let tmpHome: string;
 	let tmpProject: string;
-	/** Path where listClaudePluginRoots reads the user OMP registry. */
+	/** Path where listClaudePluginRoots reads the user REVERSE registry. */
 	let userRegPath: string;
 	/** Path where listClaudePluginRoots reads the project registry (resolved from tmpProject). */
 	let projectRegPath: string;
 
 	beforeEach(() => {
-		tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "omp-shadow-home-"));
-		tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), "omp-shadow-proj-"));
+		tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-shadow-home-"));
+		tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-shadow-proj-"));
 
-		// Create .omp/ in project so resolveActiveProjectRegistryPath finds it.
+		// Create .reverse/ in project so resolveActiveProjectRegistryPath finds it.
 		fs.mkdirSync(path.join(tmpProject, CONFIG_DIR_NAME, "plugins"), { recursive: true });
 
 		userRegPath = path.join(tmpHome, CONFIG_DIR_NAME, "plugins", "installed_plugins.json");

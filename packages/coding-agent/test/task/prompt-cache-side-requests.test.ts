@@ -37,7 +37,7 @@ it.each([
 ] as const)(
 	"keeps primary, ephemeral, and handoff routing consistent for %s",
 	async (_name, switchToLuna, explicit) => {
-		using dir = TempDir.createSync("@omp-task-side-cache-");
+		using dir = TempDir.createSync("@reverse-task-side-cache-");
 		const auth = await AuthStorage.create(dir.join("auth.db"));
 		auth.keys.setRuntime("muse-code", "test-key");
 		auth.keys.setRuntime("openai-codex", "test-key");

@@ -253,14 +253,13 @@ function pathSegments(filePath: string): string[] {
 	return normalized.split(flavor.sep).filter(part => part.length > 0 && part !== ".");
 }
 
-/** Project-local items only. Uses the directory that contains `.omp`, when present. */
+/** Project-local items only. Uses the directory that contains `.reverse`, when present. */
 export function projectListHint(ext: Extension): string | undefined {
 	if (ext.source.level !== "project") return undefined;
 	const parts = pathSegments(ext.path);
-	const rvaIndex = parts.lastIndexOf(".rva");
-	const ompIndex = rvaIndex !== -1 ? rvaIndex : parts.lastIndexOf(".omp");
-	if (ompIndex <= 0) return undefined;
-	const parent = parts[ompIndex - 1];
+	const reverseIndex = parts.lastIndexOf(".reverse");
+	if (reverseIndex <= 0) return undefined;
+	const parent = parts[reverseIndex - 1];
 	return parent && parent !== "." ? parent : undefined;
 }
 

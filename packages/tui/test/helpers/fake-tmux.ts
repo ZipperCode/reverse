@@ -15,7 +15,7 @@ export async function withFakeTmux<T>(
 	replies: Readonly<Record<string, string>>,
 	run: (binDir: string) => Promise<T>,
 ): Promise<T> {
-	const binDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-fake-tmux-"));
+	const binDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-fake-tmux-"));
 	try {
 		const cases = Object.entries(replies)
 			.map(([args, reply]) => `${shellQuote(args)}) printf '%s\\n' ${shellQuote(reply)} ;;`)

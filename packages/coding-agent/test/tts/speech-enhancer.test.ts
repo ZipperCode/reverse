@@ -19,7 +19,7 @@ async function createRegistry(settings: Settings, models: Model[]): Promise<Mode
 	for (const model of models) {
 		authStorage.keys.setRuntime(model.provider, model.provider === "local" ? "local-inference" : "test-key");
 	}
-	const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-speech-enhancer-"));
+	const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-speech-enhancer-"));
 	modelConfigDirs.push(configDir);
 	const registry = new ModelRegistry(authStorage, path.join(configDir, "models.yml"), { settings });
 	vi.spyOn(registry, "getAvailable").mockReturnValue(models);

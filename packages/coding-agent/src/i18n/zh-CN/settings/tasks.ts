@@ -40,7 +40,7 @@ export const tasksSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"worktree.onExit": {
 		label: "退出时处理工作树",
-		description: "退出时如何处理自 omp 启动以来创建的工作树（启动时或通过 `/wt`）",
+		description: "退出时如何处理自 reverse 启动以来创建的工作树（启动时或通过 `/wt`）",
 		options: {
 			keep: { label: "保留", description: "保留工作树" },
 			ask: { label: "询问", description: "退出时询问" },
@@ -73,7 +73,7 @@ export const tasksSettingsZhCN: Record<string, SettingTranslation> = {
 	"worktree.base": {
 		label: "工作树基础目录",
 		description:
-			"代理管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `omp worktree` 清理都位于此处。未设置时使用 ~/.omp/wt。必须是绝对路径或 ~ 相对路径；相对路径会被忽略。OMP_WORKTREE_DIR 环境变量会覆盖此设置。",
+			"代理管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `reverse worktree` 清理都位于此处。未设置时使用 ~/.reverse/wt。必须是绝对路径或 ~ 相对路径；相对路径会被忽略。REVERSE_WORKTREE_DIR 环境变量会覆盖此设置。",
 	},
 	"task.eager": {
 		label: "偏好任务委派",
@@ -202,7 +202,7 @@ export const tasksSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"plan.autosaveDir": {
 		label: "自动保存目录",
-		description: "自动保存计划的目录。支持 ~、绝对路径和 cwd 相对路径。留空使用 <project>/.omp/plans/。",
+		description: "自动保存计划的目录。支持 ~、绝对路径和 cwd 相对路径。留空使用 <project>/.reverse/plans/。",
 	},
 	"goal.enabled": {
 		label: "目标模式",

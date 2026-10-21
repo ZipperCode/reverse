@@ -1,7 +1,7 @@
 /**
  * Regression for https://github.com/can1357/oh-my-pi/issues/12067
  *
- * Headless `omp -p` could exit successfully with no output while first-turn
+ * Headless `reverse -p` could exit successfully with no output while first-turn
  * mnemopi recall awaited an embedding response. The embeddings subprocess was
  * unref'd while idle, and a pending Promise is not an event-loop handle. Keep
  * the worker referenced for the exact lifetime of each pending request so the

@@ -6,7 +6,7 @@ import {
 	type ProcessTerminalRenderHarness,
 } from "./process-terminal-render-harness";
 
-// Progressive-enhancement probe ordering contract. omp sends `CSI ? u \\ CSI c`
+// Progressive-enhancement probe ordering contract. reverse sends `CSI ? u \\ CSI c`
 // at startup: the kitty reply (`CSI ? <flags> u`) authoritatively says the
 // terminal speaks the kitty keyboard protocol; the DA1 reply (`CSI ? ... c`)
 // is only a sentinel that guarantees a reply even from terminals that ignore
@@ -135,10 +135,10 @@ describe("ProcessTerminal kitty keyboard progressive-enhancement ordering", () =
 	});
 
 	it("enables modifyOtherKeys fallback under tmux so extended-keys panes keep modified keys (#5620)", async () => {
-		// tmux answers DA1 but not `CSI ? u`. omp must still request the xterm
+		// tmux answers DA1 but not `CSI ? u`. reverse must still request the xterm
 		// modifyOtherKeys fallback; tmux honors it under `extended-keys on`/`always`
 		// (delivering Ctrl+H and Shift+Enter distinctly) and ignores it under
-		// `extended-keys off`, so tmux — not omp — is the capability gate. A blanket
+		// `extended-keys off`, so tmux — not reverse — is the capability gate. A blanket
 		// tmux exclusion (#5502) collapsed those keys to legacy bytes in every pane.
 		Bun.env.TMUX = "/tmp/tmux-501/default,1234,0";
 		delete Bun.env.SSH_CONNECTION;
@@ -220,7 +220,7 @@ describe("ProcessTerminal kitty keyboard progressive-enhancement ordering", () =
 			// Kitty keyboard flags are per-screen, so the matching pop must precede
 			// the alt-screen exit to balance the push from overlay entry. Windows
 			// Terminal 1.25–1.27 drop the main-screen flags on `?1049l`
-			// (microsoft/terminal#20763), so omp replaces them right after.
+			// (microsoft/terminal#20763), so reverse replaces them right after.
 			expect(exitOut).toContain(`\x1b[<u\x1b[?1049l\x1b[=${flags};1u`);
 		},
 	);

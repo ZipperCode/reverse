@@ -7,7 +7,7 @@ import { getShellArgs, getShellConfig, isPosixShell, resolveWindowsShell } from 
 
 describe("getShellConfig", () => {
 	it("directs invalid custom shell paths to the canonical config file", () => {
-		const missingShell = path.join(os.tmpdir(), `omp-missing-shell-${process.pid}`, "bash");
+		const missingShell = path.join(os.tmpdir(), `reverse-missing-shell-${process.pid}`, "bash");
 		const configPath = path.join(getAgentDir(), MAIN_CONFIG_FILENAMES[0]);
 		expect(() => getShellConfig(missingShell)).toThrow(
 			`Custom shell path not found: ${missingShell}\nPlease update shellPath in ${configPath}`,
@@ -16,7 +16,7 @@ describe("getShellConfig", () => {
 
 	it("falls back to the default shell once a custom shell path is cleared", () => {
 		const defaultShell = getShellConfig().shell;
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-custom-shell-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-custom-shell-"));
 		try {
 			const customShell = path.join(dir, "bash");
 			fs.writeFileSync(customShell, "");
@@ -40,7 +40,7 @@ describe("refreshShellConfigCache", () => {
 	});
 
 	function tempProject(dotenv: string): string {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-refresh-project-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-refresh-project-"));
 		tempDirs.push(dir);
 		fs.writeFileSync(path.join(dir, ".env"), dotenv);
 		return dir;
@@ -73,16 +73,20 @@ describe("refreshShellConfigCache", () => {
 	it.skipIf(process.platform !== "linux")(
 		"keeps a launcher-exported value the project's dotenv file repeats, and drops dotenv-only values",
 		async () => {
-			const project = tempProject("OMP_REFRESH_SHARED=same\nOMP_REFRESH_DOTENV_ONLY=from-dotenv\n");
-			const result = await probe(project, { OMP_REFRESH_SHARED: "same", OMP_REFRESH_DOTENV_ONLY: undefined }, [
-				"refreshShellConfigCache();",
-				"const env = getShellConfig().env;",
-				"process.stdout.write(JSON.stringify({",
-				"  shared: env.OMP_REFRESH_SHARED ?? null,",
-				"  dotenvOnly: env.OMP_REFRESH_DOTENV_ONLY ?? null,",
-				"  loaded: process.env.OMP_REFRESH_DOTENV_ONLY ?? null,",
-				"}));",
-			]);
+			const project = tempProject("REVERSE_REFRESH_SHARED=same\nREVERSE_REFRESH_DOTENV_ONLY=from-dotenv\n");
+			const result = await probe(
+				project,
+				{ REVERSE_REFRESH_SHARED: "same", REVERSE_REFRESH_DOTENV_ONLY: undefined },
+				[
+					"refreshShellConfigCache();",
+					"const env = getShellConfig().env;",
+					"process.stdout.write(JSON.stringify({",
+					"  shared: env.REVERSE_REFRESH_SHARED ?? null,",
+					"  dotenvOnly: env.REVERSE_REFRESH_DOTENV_ONLY ?? null,",
+					"  loaded: process.env.REVERSE_REFRESH_DOTENV_ONLY ?? null,",
+					"}));",
+				],
+			);
 			expect(result).toEqual({ shared: "same", dotenvOnly: null, loaded: "from-dotenv" });
 		},
 	);
@@ -94,15 +98,15 @@ describe("refreshShellConfigCache", () => {
 		["a build", "getShellConfig();"],
 	] as const) {
 		it(`keeps the launch project's dotenv values out of another project's session after ${first} in the launch project`, async () => {
-			const launch = tempProject("OMP_REFRESH_LAUNCH_SECRET=a-secret\n");
+			const launch = tempProject("REVERSE_REFRESH_LAUNCH_SECRET=a-secret\n");
 			const other = tempProject("");
-			const result = await probe(launch, { OMP_REFRESH_LAUNCH_SECRET: undefined }, [
+			const result = await probe(launch, { REVERSE_REFRESH_LAUNCH_SECRET: undefined }, [
 				firstLine,
 				`setProjectDir(${JSON.stringify(other)});`,
 				"refreshShellConfigCache();",
 				"process.stdout.write(JSON.stringify({",
-				"  child: getShellConfig().env.OMP_REFRESH_LAUNCH_SECRET ?? null,",
-				"  loaded: process.env.OMP_REFRESH_LAUNCH_SECRET ?? null,",
+				"  child: getShellConfig().env.REVERSE_REFRESH_LAUNCH_SECRET ?? null,",
+				"  loaded: process.env.REVERSE_REFRESH_LAUNCH_SECRET ?? null,",
 				"}));",
 			]);
 			expect(result).toEqual({ child: null, loaded: "a-secret" });
@@ -173,7 +177,7 @@ describe("resolveWindowsShell", () => {
 	});
 
 	function makeGitRoot(): string {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "omp-git-root-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-git-root-"));
 		tempDirs.push(root);
 		fs.mkdirSync(path.join(root, "bin"), { recursive: true });
 		fs.writeFileSync(path.join(root, "bin", "bash.exe"), "");
@@ -188,7 +192,7 @@ describe("resolveWindowsShell", () => {
 	});
 
 	it("finds Git Bash in the default scoop app dir via USERPROFILE", () => {
-		const profile = fs.mkdtempSync(path.join(os.tmpdir(), "omp-profile-"));
+		const profile = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-profile-"));
 		tempDirs.push(profile);
 		const root = path.join(profile, "scoop", "apps", "git", "current");
 		fs.mkdirSync(path.join(root, "bin"), { recursive: true });
@@ -197,7 +201,7 @@ describe("resolveWindowsShell", () => {
 	});
 
 	it("prefers a Git for Windows install root over the cmd.exe fallback", () => {
-		const programFiles = fs.mkdtempSync(path.join(os.tmpdir(), "omp-programfiles-"));
+		const programFiles = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-programfiles-"));
 		tempDirs.push(programFiles);
 		const bash = path.join(programFiles, "Git", "bin", "bash.exe");
 		fs.mkdirSync(path.dirname(bash), { recursive: true });

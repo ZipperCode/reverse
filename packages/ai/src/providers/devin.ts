@@ -751,7 +751,7 @@ function buildUserPrompt(msg: UserMessage | DeveloperMessage, messageId: string)
 	return create(ChatMessagePromptSchema, { messageId, source: ChatMessageSource.USER, prompt, images });
 }
 
-/** Map omp `Message` history onto Cascade `ChatMessagePrompt`s (USER / SYSTEM / TOOL channels). */
+/** Map reverse `Message` history onto Cascade `ChatMessagePrompt`s (USER / SYSTEM / TOOL channels). */
 function buildChatMessagePrompts(
 	messages: Message[],
 	cascadeId: string,

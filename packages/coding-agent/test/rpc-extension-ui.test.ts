@@ -39,7 +39,7 @@ const featuresQuestion: ExtensionAskDialogQuestion = {
 };
 
 /**
- * Scripted model: a user message ending in ask arguments as JSON becomes an ask call (omp may prepend
+ * Scripted model: a user message ending in ask arguments as JSON becomes an ask call (reverse may prepend
  * context to the first user message); a tool result ends the turn.
  */
 const scriptedAskProvider = `
@@ -505,7 +505,7 @@ describe("RPC ask dialog", () => {
 	});
 
 	it.each([
-		["omp's timer fires", 5, undefined],
+		["reverse's timer fires", 5, undefined],
 		["the host reports its own timeout", undefined, { cancelled: true, timedOut: true }],
 	])("answers every question with its recommended option when %s", async (_case, timeout, response) => {
 		const pendingRequests = new Map<string, PendingExtensionRequest>();
@@ -541,7 +541,7 @@ describe("RPC ask dialog", () => {
 			],
 		});
 		expect(onTimeout).toHaveBeenCalledTimes(1);
-		// omp settled the dialog; only its own timer must tell the host to close it.
+		// reverse settled the dialog; only its own timer must tell the host to close it.
 		const request = requireRequest(output.mock.calls[0]?.[0]);
 		const cancels = output.mock.calls
 			.map(([frame]) => frame)

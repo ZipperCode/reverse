@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { TaskTool, taskSchema } from "@reverse/coding-agent/task";
 import * as discoveryModule from "@reverse/coding-agent/task/discovery";

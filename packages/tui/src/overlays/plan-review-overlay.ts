@@ -1524,7 +1524,7 @@ export class PlanReviewOverlay implements Component {
 		if (this.#nativeOverlay?.title !== title) {
 			this.#nativeOverlay = {
 				title,
-				props: { role: "omp.overlay.planReview", size: "lg", anchor: "center", head: title },
+				props: { role: "reverse.overlay.planReview", size: "lg", anchor: "center", head: title },
 			};
 		}
 		return this.#nativeOverlay.props;
@@ -1566,7 +1566,7 @@ export class PlanReviewOverlay implements Component {
 			: content.body;
 		const bodyCol = node(
 			"col",
-			{ role: "omp.plan.body", grow: 1, gap: "md", tone: this.#focus === "body" ? "accent" : undefined },
+			{ role: "reverse.plan.body", grow: 1, gap: "md", tone: this.#focus === "body" ? "accent" : undefined },
 			body,
 			"body",
 		);
@@ -1574,7 +1574,7 @@ export class PlanReviewOverlay implements Component {
 			const tocSection = this.#toc[this.#tocCursor];
 			const toc = selectList("toc", content.toc, {
 				selected: tocSection === undefined ? null : `h${tocSection}`,
-				role: "omp.plan.toc",
+				role: "reverse.plan.toc",
 				tone: this.#focus === "toc" ? "accent" : undefined,
 			});
 			const sidebar = node("col", { max: { w: "32ch" }, shrink: 0 }, [toc], "sidebar");
@@ -1583,7 +1583,7 @@ export class PlanReviewOverlay implements Component {
 			children.push(bodyCol);
 		}
 		if (this.#promptTitle) {
-			children.push(keyed(text([span(this.#promptTitle, "muted")], { role: "omp.plan.prompt" }), "prompt"));
+			children.push(keyed(text([span(this.#promptTitle, "muted")], { role: "reverse.plan.prompt" }), "prompt"));
 		}
 		if (this.#committed) {
 			const label = this.#committedLabel ? `${this.#committedLabel} — submitting…` : "Submitting…";
@@ -1609,7 +1609,7 @@ export class PlanReviewOverlay implements Component {
 			children.push(
 				selectList("options", optionItems, {
 					selected: this.#selectedIndex >= 0 ? `o${this.#selectedIndex}` : null,
-					role: "omp.plan.options",
+					role: "reverse.plan.options",
 					tone: this.#focus === "actions" ? "accent" : undefined,
 				}),
 			);
@@ -1641,7 +1641,7 @@ export class PlanReviewOverlay implements Component {
 			buttons.push(actionButton("Cancel", "cancel", cancelKeyId ? { keys: cancelKeyId } : {}));
 		}
 		if (buttons.length === 0) return undefined;
-		return node("row", { role: "omp.plan.tools", gap: "sm", align: "center", justify: "end" }, buttons, "tools");
+		return node("row", { role: "reverse.plan.tools", gap: "sm", align: "center", justify: "end" }, buttons, "tools");
 	}
 
 	handleNativeEvent(event: NativeUiEvent): void {
@@ -1722,7 +1722,7 @@ export class PlanReviewOverlay implements Component {
 					note.push(text([span(annotation.target.context, "muted")], { truncate: "end", lines: 1 }));
 				}
 				note.push(text(sanitizeText(annotation.note), { wrap: "word" }));
-				children.push(node("col", { role: "omp.plan.note", gap: "xs" }, note, `n${n}`));
+				children.push(node("col", { role: "reverse.plan.note", gap: "xs" }, note, `n${n}`));
 			}
 			body.push(keyed(col(children, { gap: "sm" }), key));
 		}
@@ -1732,7 +1732,7 @@ export class PlanReviewOverlay implements Component {
 			return item(`h${sectionIndex}`, {
 				label: section.title || "(untitled)",
 				value: count > 0 ? [span(`✎${count}`, "warning")] : undefined,
-				role: `omp.plan.toc.depth${section.level - this.#tocBaseLevel}`,
+				role: `reverse.plan.toc.depth${section.level - this.#tocBaseLevel}`,
 			});
 		});
 		this.#nativeContent = { sections: this.#sections, rev: this.#annotationRev, body, toc };
@@ -1748,7 +1748,7 @@ export class PlanReviewOverlay implements Component {
 				items: slider.segments.map((segment, i) => ({ id: `t${i}`, label: segment.label })),
 				active: `t${this.#sliderIndex}`,
 				actions: { click: "select" },
-				role: "omp.plan.strategy",
+				role: "reverse.plan.strategy",
 			},
 			undefined,
 			"tabs",
@@ -1796,11 +1796,11 @@ export class PlanReviewOverlay implements Component {
 			];
 			if (this.#editingAnnotation) hints.push({ keys: [], label: "empty deletes" });
 			if (this.#externalEditorLabel) hints.push({ keys: [], label: `${this.#externalEditorLabel} editor` });
-			// The feedback field, inline under the plan: its caption names the anchor, omp's editor holds the text.
+			// The feedback field, inline under the plan: its caption names the anchor, reverse's editor holds the text.
 			return [
 				node(
 					"col",
-					{ role: "omp.plan.feedback", gap: "xs" },
+					{ role: "reverse.plan.feedback", gap: "xs" },
 					[
 						keyed(
 							text([span("Note on ", "muted"), span(location, "accent")], { truncate: "end" }),

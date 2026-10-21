@@ -1,6 +1,6 @@
 /**
  * Regression tests for issue #10022: the project-shared broker-owned Chromium
- * (`omp.browser.headless`) retains page targets created by omp processes that
+ * (`reverse.browser.headless`) retains page targets created by reverse processes that
  * ended abnormally, because tab ownership was tracked only in per-process
  * memory. `orphan-registry` records ownership durably and reaps targets whose
  * owning process is gone.
@@ -26,11 +26,11 @@ import {
 } from "@reverse/coding-agent/tools/browser/orphan-registry";
 import type { Browser } from "puppeteer-core";
 
-const DAEMON_NAME = "omp.browser.headless";
+const DAEMON_NAME = "reverse.browser.headless";
 
 /** Unique per-test scope so registry dirs never collide across the suite. */
 function makeScope(): SharedTargetScope {
-	const projectDir = path.join("/tmp", `omp-orphan-test-${crypto.randomUUID()}`);
+	const projectDir = path.join("/tmp", `reverse-orphan-test-${crypto.randomUUID()}`);
 	return { projectDir, daemonName: DAEMON_NAME };
 }
 

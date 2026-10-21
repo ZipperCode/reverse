@@ -27,7 +27,7 @@ afterAll(async () => {
 });
 
 async function writePackage(files: Record<string, string>): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-legacy-inplace-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-legacy-inplace-"));
 	tempRoots.push(dir);
 	for (const rel in files) {
 		const abs = path.join(dir, rel);
@@ -1363,7 +1363,7 @@ describe("legacy-pi in-place module loading (issue #1674)", () => {
 			}),
 			"node_modules/dual/esm.js": 'import "./shared.js"; export const mode = "esm";',
 			"node_modules/dual/cjs.js": 'if (false) require("./shared.js"); module.exports = { mode: "cjs" };',
-			"node_modules/dual/shared.js": "globalThis.__ompDualGraphLoaded = true;",
+			"node_modules/dual/shared.js": "globalThis.__reverseDualGraphLoaded = true;",
 			"node_modules/dual-consumer/package.json": JSON.stringify({
 				name: "dual-consumer",
 				version: "1.0.0",

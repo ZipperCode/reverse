@@ -53,7 +53,7 @@ describe("MCP catalog-change after connect", () => {
 
 	beforeEach(() => {
 		resetSettingsForTest();
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-catalog-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-mcp-catalog-"));
 		gate = path.join(workDir, "release-catalog");
 		manager = new MCPManager(workDir);
 	});
@@ -102,7 +102,7 @@ describe("MCP catalog-change after connect", () => {
 			{
 				name: SERVER,
 				command: process.execPath,
-				_source: { provider: "native", providerName: "OMP", level: "user", path: workDir },
+				_source: { provider: "native", providerName: "REVERSE", level: "user", path: workDir },
 			},
 			manager,
 		);

@@ -53,7 +53,7 @@ export function getTemplate(): string {
 
 export interface ExportOptions {
 	outputPath?: string;
-	/** `"web"` bundles the omp web themes; `"theme"` bundles TUI themes. */
+	/** `"web"` bundles the reverse web themes; `"theme"` bundles TUI themes. */
 	palette?: "web" | "theme";
 	/** Legacy single TUI theme name. Prefer `themeNames` for dual-theme exports. */
 	themeName?: string;

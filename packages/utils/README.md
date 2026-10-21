@@ -1,14 +1,14 @@
 # @reverse/utils
 
-Shared utilities for [omp](https://github.com/can1357/oh-my-pi) packages. Zero ceremony, Bun-first.
+Shared utilities for [reverse](https://github.com/ZipperCode/rev) packages. Zero ceremony, Bun-first.
 
 ## Notable modules
 
 | Module                                                                                                             | Purpose                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `logger`                                                                                                           | Centralized logger writing to `~/.omp/logs/` with rotation (TUI-safe — never stdout)         |
+| `logger`                                                                                                           | Centralized logger writing to `~/.reverse/logs/` with rotation (TUI-safe — never stdout)     |
 | `prompt`                                                                                                           | Handlebars-based prompt templating and formatting helpers                                    |
-| `dirs`                                                                                                             | Path helpers for omp config directories (`~/.omp`, XDG-aware on Linux)                       |
+| `dirs`                                                                                                             | Path helpers for reverse config directories (`~/.reverse`, XDG-aware on Linux)               |
 | `stream`                                                                                                           | `readStream` / `readLines` helpers over `ReadableStream`                                     |
 | `ptree` / `procmgr`                                                                                                | Process trees, `ChildProcess` wrapper, process lifecycle management                          |
 | `postmortem`                                                                                                       | Cleanup callbacks on exit, signals, and fatal exceptions                                     |

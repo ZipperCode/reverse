@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { Settings } from "@reverse/coding-agent/config/settings";

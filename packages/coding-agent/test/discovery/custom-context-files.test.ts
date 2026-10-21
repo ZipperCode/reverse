@@ -45,13 +45,13 @@ describe("contextFiles.extra", () => {
 		originalHome = process.env.HOME;
 		originalUserProfile = process.env.USERPROFILE;
 		originalAgentDir = process.env.PI_CODING_AGENT_DIR;
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-extra-ctx-home-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-extra-ctx-home-"));
 		dirs.push(tempHome);
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 		vi.spyOn(os, "homedir").mockReturnValue(tempHome);
-		setAgentDir(path.join(tempHome, ".omp", "agent"));
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-extra-ctx-"));
+		setAgentDir(path.join(tempHome, ".reverse", "agent"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-extra-ctx-"));
 		dirs.push(tempDir);
 	});
 
@@ -174,7 +174,7 @@ describe("contextFiles.extra", () => {
 	});
 
 	test("loads a user-agent-dir extra file without shadowing user AGENTS.md", async () => {
-		const agentDir = path.join(tempHome, ".omp", "agent");
+		const agentDir = path.join(tempHome, ".reverse", "agent");
 		await fs.mkdir(agentDir, { recursive: true });
 		await fs.writeFile(path.join(agentDir, "AGENTS.md"), "# user shared\n");
 		await fs.writeFile(path.join(agentDir, "AGENTS.local.md"), "# user personal\n");
@@ -191,7 +191,7 @@ describe("contextFiles.extra", () => {
 	});
 
 	test("a project-configured list does not read the user agent directory", async () => {
-		const agentDir = path.join(tempHome, ".omp", "agent");
+		const agentDir = path.join(tempHome, ".reverse", "agent");
 		await fs.mkdir(agentDir, { recursive: true });
 		await fs.writeFile(path.join(agentDir, "secrets.md"), "# user secret\n");
 		await fs.writeFile(path.join(tempDir, "secrets.md"), "# project file\n");

@@ -17,7 +17,7 @@ describe("PI_TUI_WRITE_LOG", () => {
 		["BEL", "\x07"],
 		["ST", "\x1b\\"],
 	] as const)("records an OSC 52 clipboard write ended by %s as its payload length", async (_terminator, end) => {
-		using dir = TempDir.createSync("@omp-tui-write-log-");
+		using dir = TempDir.createSync("@reverse-tui-write-log-");
 		const logPath = path.join(dir.path(), "writes.log");
 		Bun.env.PI_TUI_WRITE_LOG = logPath;
 		const terminal = new ProcessTerminal({ conpty: false });

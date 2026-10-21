@@ -33,7 +33,7 @@ function createExtensionSkill(packageDir: string, skillName: string): void {
 	fs.mkdirSync(path.join(packageDir, "skills", skillName), { recursive: true });
 	fs.writeFileSync(
 		path.join(packageDir, "package.json"),
-		JSON.stringify({ name: path.basename(packageDir), omp: { extensions: ["./extension.ts"] } }),
+		JSON.stringify({ name: path.basename(packageDir), reverse: { extensions: ["./extension.ts"] } }),
 	);
 	fs.writeFileSync(path.join(packageDir, "extension.ts"), "export default function extension() {}\n");
 	fs.writeFileSync(
@@ -69,7 +69,7 @@ describe("createAgentSession skills option", () => {
 
 	beforeEach(() => {
 		tempDir = path.join(os.tmpdir(), `pi-sdk-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-		// Create skill in .rva/skills/ for native project-level discovery
+		// Create skill in .reverse/skills/ for native project-level discovery
 		skillsDir = path.join(tempDir, CONFIG_DIR_NAME, "skills", "test-skill");
 		fs.mkdirSync(skillsDir, { recursive: true });
 		originalHome = process.env.HOME;
@@ -141,7 +141,7 @@ Loaded via symbolic link.
 		fs.mkdirSync(path.join(tempHomeDir, CONFIG_DIR_NAME, "plugins"), { recursive: true });
 		fs.writeFileSync(
 			path.join(tempHomeDir, CONFIG_DIR_NAME, "plugins", "package.json"),
-			JSON.stringify({ name: "omp-plugins", dependencies: { "sdk-installed-extension": "1.0.0" } }),
+			JSON.stringify({ name: "reverse-plugins", dependencies: { "sdk-installed-extension": "1.0.0" } }),
 		);
 
 		const previousAgentDir = getAgentDir();

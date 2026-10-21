@@ -5,7 +5,7 @@ import { TempDir } from "@reverse/utils";
 let tempDir: TempDir | null = null;
 
 async function freshStorage(): Promise<HistoryStorage> {
-	tempDir = TempDir.createSync("@omp-history-search-");
+	tempDir = TempDir.createSync("@reverse-history-search-");
 	HistoryStorage.close();
 	return HistoryStorage.open(tempDir.join("history.db"));
 }

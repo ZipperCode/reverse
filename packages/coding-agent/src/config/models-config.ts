@@ -2,7 +2,7 @@
  * Custom model/provider config file handle and validation.
  */
 
-import type { FluentType } from "@reverse/omptype";
+import type { FluentType } from "@reverse/reversetype";
 import type { Api, ModelSpec } from "@reverse/ai/types";
 import { AXES } from "@reverse/catalog/compat/axes";
 import { type ModelKind, servedKinds } from "@reverse/catalog/types";

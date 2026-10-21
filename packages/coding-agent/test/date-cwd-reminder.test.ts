@@ -26,14 +26,14 @@ describe("date-cwd-reminder", () => {
 			const context: Context = { systemPrompt, messages };
 			const injector = new DateCwdReminderInjector();
 
-			const out = injector.transform(context, "2026-08-14", "/work/omp");
+			const out = injector.transform(context, "2026-08-14", "/work/reverse");
 
 			expect(out).not.toBe(context);
 			expect(out.systemPrompt).toBe(systemPrompt);
 			expect(out.messages).not.toBe(messages);
 			expect(out.messages[0]).toEqual({
 				role: "user",
-				content: `${renderDateCwdReminder("2026-08-14", "/work/omp")}\n\nhello`,
+				content: `${renderDateCwdReminder("2026-08-14", "/work/reverse")}\n\nhello`,
 				timestamp: 1,
 			});
 			expect(out.messages[1]).toBe(messages[1]);
@@ -52,10 +52,10 @@ describe("date-cwd-reminder", () => {
 				],
 			};
 
-			const out = new DateCwdReminderInjector().transform(context, "2026-08-14", "/work/omp");
+			const out = new DateCwdReminderInjector().transform(context, "2026-08-14", "/work/reverse");
 
 			expect(out.messages[0]?.content).toEqual([
-				{ type: "text", text: renderDateCwdReminder("2026-08-14", "/work/omp") },
+				{ type: "text", text: renderDateCwdReminder("2026-08-14", "/work/reverse") },
 				{ type: "image", data: "img", mimeType: "image/png" },
 			]);
 		});
@@ -101,8 +101,12 @@ describe("date-cwd-reminder", () => {
 			const firstUser: Message = { role: "user", content: "first", timestamp: 1 };
 			const context: Context = { systemPrompt: ["system"], messages: [firstUser] };
 
-			const first = injector.transform(context, "2026-08-14", "/work/omp");
-			const replay = injector.transform({ ...context, messages: [...context.messages] }, "2026-08-14", "/work/omp");
+			const first = injector.transform(context, "2026-08-14", "/work/reverse");
+			const replay = injector.transform(
+				{ ...context, messages: [...context.messages] },
+				"2026-08-14",
+				"/work/reverse",
+			);
 
 			expect(replay.messages[0]).toBe(first.messages[0]);
 		});

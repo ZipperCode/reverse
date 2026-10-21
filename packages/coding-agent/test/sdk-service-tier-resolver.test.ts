@@ -196,7 +196,7 @@ describe.serial("createAgentSession resolveServiceTierByFamily", () => {
 	}
 
 	it("routes prewarm and the first SDK turn from the final model and exact-agent tier override", async () => {
-		using tempDir = TempDir.createSync("@omp-service-tier-prewarm-first-turn-");
+		using tempDir = TempDir.createSync("@reverse-service-tier-prewarm-first-turn-");
 		const authStorage = openAuthStorage();
 		installCapturingWebSocket();
 		const { session } = await createAgentSession({
@@ -232,7 +232,7 @@ describe.serial("createAgentSession resolveServiceTierByFamily", () => {
 	});
 
 	it("keeps omitted and explicit default tiers distinct during Codex prewarm and the first turn", async () => {
-		using tempDir = TempDir.createSync("@omp-service-tier-prewarm-default-");
+		using tempDir = TempDir.createSync("@reverse-service-tier-prewarm-default-");
 		const createDeferredSession = async (
 			resolveServiceTierByFamily?: (model: Model | undefined) => ServiceTierByFamily,
 		) =>
@@ -285,7 +285,7 @@ describe.serial("createAgentSession resolveServiceTierByFamily", () => {
 	});
 
 	it("evaluates the resolver against the model resolved from a deferred pattern and replaces the configured tiers", async () => {
-		using tempDir = TempDir.createSync("@omp-service-tier-resolver-");
+		using tempDir = TempDir.createSync("@reverse-service-tier-resolver-");
 		const authStorage = openAuthStorage();
 		const resolvedModels: Array<Model | undefined> = [];
 		const { session } = await createAgentSession({
@@ -316,7 +316,7 @@ describe.serial("createAgentSession resolveServiceTierByFamily", () => {
 	});
 
 	it("persists an empty resolved tier map so a reopened session does not re-derive tiers from settings", async () => {
-		using tempDir = TempDir.createSync("@omp-service-tier-resolver-reopen-");
+		using tempDir = TempDir.createSync("@reverse-service-tier-resolver-reopen-");
 		const authStorage = openAuthStorage();
 		const sessionFile = path.join(tempDir.path(), "session.jsonl");
 		// The settings a cold revival rebuilds from say `priority`; the spawn's

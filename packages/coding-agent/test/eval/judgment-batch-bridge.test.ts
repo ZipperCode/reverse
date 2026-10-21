@@ -313,7 +313,7 @@ describe("judge_batch bridge", () => {
 	});
 
 	it("keeps malformed images as per-item failures without dropping valid sibling judgments", async () => {
-		const tempDir = TempDir.createSync("@omp-eval-judge-batch-bad-image-");
+		const tempDir = TempDir.createSync("@reverse-eval-judge-batch-bad-image-");
 		try {
 			const brokenPath = path.join(tempDir.path(), "broken.png");
 			await Bun.write(brokenPath, "not an image");
@@ -619,7 +619,7 @@ describe("judge_batch bridge", () => {
 
 describe("judgeBatch() JS runtime", () => {
 	it("routes mapped images and settles malformed attachments per item through the actual bridge", async () => {
-		const tempDir = TempDir.createSync("@omp-eval-judge-batch-js-");
+		const tempDir = TempDir.createSync("@reverse-eval-judge-batch-js-");
 		try {
 			const completions: Array<{ prompt: string; images: unknown[] }> = [];
 			const complete = vi.spyOn(ai, "completeSimple").mockImplementation(async (_model, context, options) => {
@@ -778,7 +778,7 @@ process.exit(0);
 
 describe("judge_batch() Python prelude", () => {
 	it("drains across cells and re-attaches by id", async () => {
-		const tempDir = TempDir.createSync("@omp-eval-judge-batch-py-");
+		const tempDir = TempDir.createSync("@reverse-eval-judge-batch-py-");
 		try {
 			const result = await runPythonJudgeBatchInSubprocess(tempDir);
 			expect(result.exitCode).toBe(0);

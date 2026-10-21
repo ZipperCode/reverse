@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { completeSimple, Effort, retryTransientCompletion } from "@reverse/ai";
 import { clampThinkingLevelForModel } from "@reverse/catalog/model-thinking";
 import { prompt, withFileLock } from "@reverse/utils";

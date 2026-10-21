@@ -38,7 +38,7 @@ async function expectReleased(reference: WeakRef<Uint8Array>): Promise<void> {
 }
 
 await initTheme(false);
-await using root = await TempDir.create("@omp-pending-blobs-");
+await using root = await TempDir.create("@reverse-pending-blobs-");
 const cache = mode.startsWith("cache-") ? root.join("blobs") : undefined;
 if (cache) await fs.mkdir(cache);
 const record = mode === "cache-held" ? root.join("record.jsonl") : undefined;

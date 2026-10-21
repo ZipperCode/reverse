@@ -1,6 +1,6 @@
 import { type UpdateNotesDetails } from "@reverse/tui/tools/autoresearch";
 import { updateNotesToolRenderer } from "@reverse/tui/tools/autoresearch";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import * as vcs from "@reverse/natives/vcs";
 
 import type { ToolDefinition } from "../../extensibility/extensions";

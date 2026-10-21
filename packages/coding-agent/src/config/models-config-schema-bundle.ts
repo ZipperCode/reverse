@@ -1,4 +1,4 @@
-import { type NarrowContext, type } from "@reverse/omptype";
+import { type NarrowContext, type } from "@reverse/reversetype";
 import { MODEL_KINDS, RUNNER_API_KINDS } from "@reverse/catalog/types";
 import { once } from "@reverse/utils";
 
@@ -368,10 +368,10 @@ export const getModelsConfigSchemaBundle = once(() => {
 		 */
 		"requestMetadata?": { "[string]": "string" },
 		/**
-		 * Streaming transport override. When set to `"pi-native"`, omp dispatches
+		 * Streaming transport override. When set to `"pi-native"`, reverse dispatches
 		 * every model under this provider via the auth-gateway's
 		 * `POST /v1/pi/stream` endpoint instead of the per-provider SDK. The
-		 * provider's `baseUrl` must point at a compatible `omp auth-gateway`
+		 * provider's `baseUrl` must point at a compatible `reverse auth-gateway`
 		 * and `apiKey` must carry the gateway bearer.
 		 */
 		"transport?": '"pi-native"',

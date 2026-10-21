@@ -6,7 +6,7 @@
  * / `write xd://<tool>`).
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { CustomToolAdapter } from "@reverse/coding-agent/extensibility/custom-tools/wrapper";
 import type { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";

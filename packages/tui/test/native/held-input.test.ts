@@ -21,7 +21,7 @@ afterEach(() => {
 	harness = undefined;
 });
 
-/** Started the way omp's prepaint starts inside Tern. */
+/** Started the way reverse's prepaint starts inside Tern. */
 const TERN_PREPAINT = { expected: true, deferInput: true } as const;
 
 describe("keystrokes during a Tern startup prepaint", () => {

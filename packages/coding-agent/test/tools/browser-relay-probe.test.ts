@@ -49,11 +49,11 @@ describe("waitForRelayExtension", () => {
 
 	it("fails fast when the relay outlived the dial window without ever seeing an extension", async () => {
 		const info: RelayUnavailableInfo = {
-			rvaRelayVersion: VERSION,
+			reverseRelayVersion: VERSION,
 			error: "relay extension is not connected",
 			extensionSeen: false,
 			uptimeMs: 60_000,
-			rvaRelayCdpClients: 0,
+			reverseRelayCdpClients: 0,
 		};
 		fake = Bun.serve({
 			hostname: "127.0.0.1",
@@ -70,8 +70,8 @@ describe("waitForRelayExtension", () => {
 			error: "relay extension is not connected",
 			extensionSeen: true,
 			uptimeMs: 600_000,
-			rvaRelayCdpClients: 0,
-			rvaRelayVersion: VERSION,
+			reverseRelayCdpClients: 0,
+			reverseRelayVersion: VERSION,
 			disconnectedMs: 120_000,
 		};
 		let probes = 0;
@@ -97,7 +97,7 @@ describe("waitForRelayExtension", () => {
 						error: "relay extension is not connected",
 						extensionSeen: true,
 						uptimeMs: 600_000,
-						rvaRelayVersion: "0.0.0-other",
+						reverseRelayVersion: "0.0.0-other",
 						disconnectedMs: 120_000,
 					},
 					{ status: 503 },
@@ -117,8 +117,8 @@ describe("waitForRelayExtension", () => {
 					error: "relay extension is not connected",
 					extensionSeen: true,
 					uptimeMs: 600_000,
-					rvaRelayCdpClients: 0,
-					rvaRelayVersion: VERSION,
+					reverseRelayCdpClients: 0,
+					reverseRelayVersion: VERSION,
 					disconnectedMs: disconnects[Math.min(probes++, disconnects.length - 1)],
 				};
 				return Response.json(info, { status: 503 });
@@ -151,23 +151,23 @@ describe("waitForRelayExtension", () => {
 			port: 0,
 			fetch: () =>
 				Response.json({
-					rvaRelayVersion: "18.5.1",
-					rvaRelayDiscardedTabsProtocol: "1",
-					rvaExtensionDiscardedTabsProtocol: "0",
+					reverseRelayVersion: "18.5.1",
+					reverseRelayDiscardedTabsProtocol: "1",
+					reverseExtensionDiscardedTabsProtocol: "0",
 				}),
 		});
 		expect(await waitForRelayExtension(`http://127.0.0.1:${fake.port}`)).toBe("outdated-relay");
 	});
 
-	it("accepts a compatible relay from another OMP version", async () => {
+	it("accepts a compatible relay from another REVERSE version", async () => {
 		fake = Bun.serve({
 			hostname: "127.0.0.1",
 			port: 0,
 			fetch: () =>
 				Response.json({
-					rvaRelayVersion: "18.5.1",
-					rvaRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
-					rvaExtensionDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
+					reverseRelayVersion: "18.5.1",
+					reverseRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
+					reverseExtensionDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
 				}),
 		});
 		expect(await waitForRelayExtension(`http://127.0.0.1:${fake.port}`)).toBe("ready");
@@ -186,10 +186,10 @@ describe("waitForRelayExtension", () => {
 				port: 0,
 				fetch: () =>
 					Response.json({
-						rvaRelayVersion: version,
-						rvaRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
-						rvaExtensionDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
-						rvaRelayCdpClients: clients,
+						reverseRelayVersion: version,
+						reverseRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
+						reverseExtensionDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
+						reverseRelayCdpClients: clients,
 					}),
 			});
 			expect(await waitForRelayExtension(`http://127.0.0.1:${fake.port}`)).toBe(outcome);

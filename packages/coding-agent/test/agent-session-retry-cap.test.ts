@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import type { ApiKey, AssistantMessage, TextContent, ThinkingContent, ToolCall, ToolResultMessage } from "@reverse/ai";
 import { unregisterCustomApis } from "@reverse/ai/api-registry";

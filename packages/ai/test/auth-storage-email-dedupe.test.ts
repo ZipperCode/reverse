@@ -830,7 +830,7 @@ describe("AuthStorage persistent session stickiness", () => {
 	let dbPath = "";
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-auth-test-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-auth-test-"));
 		dbPath = path.join(tempDir, "auth.db");
 	});
 

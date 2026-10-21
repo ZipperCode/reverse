@@ -14,7 +14,7 @@ import {
 // from `@earendil-works/pi-coding-agent`, which aliases to this shim. The shim's
 // `export * from "../index"` never forwarded the `is<Tool>ToolResult` guard
 // family (dropped from the public API in 10.2.3), so a named import threw Bun's
-// static "Export named X not found" error and aborted `omp install`.
+// static "Export named X not found" error and aborted `reverse install`.
 
 function resultEvent(toolName: string): ToolResultEvent {
 	return {

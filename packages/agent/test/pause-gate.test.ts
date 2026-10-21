@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { agentLoop, agentPauseGate } from "@reverse/agent";
 import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@reverse/agent/types";
 import type { Message } from "@reverse/ai";

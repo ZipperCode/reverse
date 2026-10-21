@@ -95,7 +95,7 @@ const HAR_CAPTURE = JSON.stringify({
 });
 
 beforeAll(async () => {
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "rva-websocket-observe-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-websocket-observe-"));
 });
 
 afterAll(async () => {

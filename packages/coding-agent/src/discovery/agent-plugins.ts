@@ -31,7 +31,7 @@ import {
 } from "./agent-plugin-format";
 import { resolveContainedPath } from "./contained-path";
 import { compareSkillOrder, createSourceMeta, listClaudePluginRoots } from "./helpers";
-import { listRvaExtensionRoots } from "./rva-extension-roots";
+import { listReverseExtensionRoots } from "./reverse-extension-roots";
 
 const PROVIDER_ID = "agent-plugins";
 const DISPLAY_NAME = "Agent Plugins";
@@ -60,7 +60,7 @@ interface CandidateRoot {
 async function listCandidateRoots(ctx: LoadContext): Promise<CandidateRoot[]> {
 	const [marketplace, extensionRoots] = await Promise.all([
 		listClaudePluginRoots(ctx.home, ctx.cwd),
-		listRvaExtensionRoots(ctx),
+		listReverseExtensionRoots(ctx),
 	]);
 	const seen = new Set<string>();
 	const candidates: CandidateRoot[] = [];

@@ -9,7 +9,7 @@ describe("ArtifactManager write integrity", () => {
 	const dirs: string[] = [];
 
 	function freshDir(): string {
-		const dir = path.join(os.tmpdir(), `omp-artifact-integrity-${crypto.randomUUID()}`);
+		const dir = path.join(os.tmpdir(), `reverse-artifact-integrity-${crypto.randomUUID()}`);
 		dirs.push(dir);
 		return dir;
 	}

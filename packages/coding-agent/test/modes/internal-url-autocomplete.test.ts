@@ -32,7 +32,7 @@ function rule(name: string, description?: string): Rule {
 describe("internal-url-autocomplete", () => {
 	beforeEach(() => {
 		setActiveSkills([skill("humanizer", "Remove AI tells"), skill("react", "React UI"), skill("tla", "TLA+ specs")]);
-		setActiveRules([rule("python", "robomp rules"), rule("style")]);
+		setActiveRules([rule("python", "robreverse rules"), rule("style")]);
 	});
 
 	afterEach(() => {

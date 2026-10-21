@@ -8,7 +8,7 @@
  * (see issues #3389 and #4963).
  */
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
 import { createMockModel, type MockModel, type MockResponse } from "@reverse/ai/providers/mock";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";

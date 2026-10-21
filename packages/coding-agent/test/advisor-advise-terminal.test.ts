@@ -5,7 +5,7 @@
  * advises AND keeps investigating is untouched — the loop continues normally.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool } from "@reverse/agent";
 import { createMockModel, type MockResponse } from "@reverse/ai/providers/mock";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";

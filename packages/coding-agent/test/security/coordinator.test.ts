@@ -43,7 +43,7 @@ const gitAdapter: SecurityGitAdapter = {
 // Credentials and the bundled-model view are immutable fixtures. Keep their SQLite
 // store and registry for the suite; repository/store state remains fresh per test.
 beforeAll(async () => {
-	registryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-security-coordinator-auth-"));
+	registryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-security-coordinator-auth-"));
 	credentialStore = await SqliteAuthCredentialStore.open(path.join(registryRoot, "agent.db"));
 	authStorage = new AuthStorage(credentialStore);
 	await authStorage.credentials.set("openai-codex", {
@@ -63,7 +63,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-	temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-security-coordinator-"));
+	temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-security-coordinator-"));
 	repositoryRoot = path.join(temporaryRoot, "repo");
 	stateRoot = path.join(temporaryRoot, "state");
 	await fs.mkdir(path.join(repositoryRoot, "src"), { recursive: true });
@@ -352,7 +352,7 @@ describe("native security coordinator", () => {
 		});
 		const interrupted: SecurityScanBundle = {
 			scan: {
-				documentType: "omp-security.scan",
+				documentType: "reverse-security.scan",
 				schemaVersion: "1.0",
 				id: scanId,
 				projectKey: store.projectKey,

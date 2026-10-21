@@ -28,8 +28,8 @@ const CHROMIUM_AVAILABLE = await chromiumAvailable();
 // Headful launches additionally need a display; `CHROMIUM_AVAILABLE` only
 // checks headless CDP on Linux, which does not require an X server.
 // Never open a desktop window during ordinary test runs; exercise this manual
-// viewport smoke test only with OMP_TEST_VISIBLE_BROWSER=1.
-const VISIBLE_BROWSER_AVAILABLE = process.env.OMP_TEST_VISIBLE_BROWSER === "1" && (await visibleBrowserAvailable());
+// viewport smoke test only with REVERSE_TEST_VISIBLE_BROWSER=1.
+const VISIBLE_BROWSER_AVAILABLE = process.env.REVERSE_TEST_VISIBLE_BROWSER === "1" && (await visibleBrowserAvailable());
 
 class FakeStartupWorker {
 	#errorHandlers = new Set<(error: Error) => void>();
@@ -72,8 +72,8 @@ class FakeStartupWorker {
 const initPayload = {
 	mode: "headless" as const,
 	browserWSEndpoint: "ws://127.0.0.1/devtools/browser/test",
-	safeDir: "/tmp/omp-puppeteer",
-	uploadDir: "/tmp/omp-uploads-test",
+	safeDir: "/tmp/reverse-puppeteer",
+	uploadDir: "/tmp/reverse-uploads-test",
 };
 
 describe("browser tab worker startup", () => {
@@ -229,7 +229,7 @@ describe("browser init deadline carry-over", () => {
 	);
 });
 
-describe("OMP-owned browser evaluation", () => {
+describe("REVERSE-owned browser evaluation", () => {
 	it.skipIf(!CHROMIUM_AVAILABLE)(
 		"adopts isolated element arguments into the main world without consuming caller handles",
 		async () => {
@@ -249,7 +249,7 @@ describe("OMP-owned browser evaluation", () => {
 				});
 				const result = await runInTab(name, {
 					code: `
-						await tab.evaluate("globalThis.__ompPageMarker = 'main-world'");
+						await tab.evaluate("globalThis.__reversePageMarker = 'main-world'");
 						const first = await tab.waitForSelector("#first");
 						const second = await tab.waitForSelector("#second");
 						if (!first || !second) throw new Error("Expected both buttons");
@@ -266,7 +266,7 @@ describe("OMP-owned browser evaluation", () => {
 
 						const evaluated = await tab.evaluate(
 							(firstElement, secondElement, existingMainElement, existingMainObject, data) => ({
-								marker: globalThis.__ompPageMarker,
+								marker: globalThis.__reversePageMarker,
 								texts: [firstElement.textContent, secondElement.textContent],
 								mainText: existingMainElement.textContent,
 								mainValue: existingMainObject.value,
@@ -288,7 +288,7 @@ describe("OMP-owned browser evaluation", () => {
 							callbackFailure = error instanceof Error ? error.message : String(error);
 						}
 
-						const stringMarker = await tab.evaluate("globalThis.__ompPageMarker", first, second);
+						const stringMarker = await tab.evaluate("globalThis.__reversePageMarker", first, second);
 						const handlesAfterward = [
 							await first.evaluate(element => element.textContent),
 							await second.evaluate(element => element.textContent),
@@ -322,7 +322,7 @@ describe("OMP-owned browser evaluation", () => {
 	);
 });
 
-describe("OMP-owned browser input", () => {
+describe("REVERSE-owned browser input", () => {
 	it.skipIf(!CHROMIUM_AVAILABLE)(
 		"clicks background tabs through selector, observed handle, and raw Puppeteer actions",
 		async () => {
@@ -368,7 +368,7 @@ describe("OMP-owned browser input", () => {
 	);
 });
 
-describe("visible OMP-owned browser tabs", () => {
+describe("visible REVERSE-owned browser tabs", () => {
 	it.skipIf(!VISIBLE_BROWSER_AVAILABLE)(
 		"creates independent pages without pinning the resizable window viewport",
 		async () => {
@@ -384,7 +384,7 @@ describe("visible OMP-owned browser tabs", () => {
 				names.push(firstName);
 
 				// Shared broker launches use --no-startup-window. Mirror that
-				// OMP-owned-only target set, but only after the owned page exists:
+				// REVERSE-owned-only target set, but only after the owned page exists:
 				// a headful Chromium quits when its last window closes, so closing
 				// every page first would kill the browser this test still needs.
 				for (const page of await browser.browser.pages()) {

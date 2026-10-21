@@ -9,7 +9,7 @@ describe("auth-gateway serve --clients reload", () => {
 	let dir = "";
 
 	beforeEach(async () => {
-		dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-gateway-clients-"));
+		dir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-gateway-clients-"));
 	});
 
 	afterEach(async () => {

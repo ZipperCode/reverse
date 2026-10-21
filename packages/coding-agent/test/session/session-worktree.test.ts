@@ -84,7 +84,7 @@ describe("session worktree helpers (real git)", () => {
 	const branch = "wt/test-session";
 
 	beforeEach(async () => {
-		root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "omp-session-wt-")));
+		root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reverse-session-wt-")));
 		repo = path.join(root, "repo");
 		await fs.mkdir(repo);
 		savedEnv = process.env.REVERSE_WORKTREE_DIR;
@@ -213,7 +213,7 @@ describe("session worktree helpers (real git)", () => {
 		expect(plan.map(p => p.worktree.branch)).toEqual(["wt/newer", "wt/older"]);
 		process.chdir(newer.path);
 		expect(await removeExitWorktrees(plan)).toEqual([
-			`Removed worktree ${shortenPath(newer.path)}. Resuming opens in the directory you launch omp from.`,
+			`Removed worktree ${shortenPath(newer.path)}. Resuming opens in the directory you launch reverse from.`,
 		]);
 		expect(await fs.realpath(process.cwd())).toBe(repo);
 		expect(worktreePaths(repo)).toEqual([repo]);
@@ -268,7 +268,7 @@ describe("session worktree helpers (real git)", () => {
 		expect(plan.map(p => p.worktree)).toEqual([wt]);
 		process.chdir(wt.path);
 		expect(await removeExitWorktrees(plan)).toEqual([
-			`Removed worktree ${shortenPath(wt.path)}. Resuming opens in the directory you launch omp from; its commits are on branch ${branch}.`,
+			`Removed worktree ${shortenPath(wt.path)}. Resuming opens in the directory you launch reverse from; its commits are on branch ${branch}.`,
 		]);
 		expect(await exists(wt.path)).toBe(false);
 		expect(branchSha(repo, branch)).toBe(tip);

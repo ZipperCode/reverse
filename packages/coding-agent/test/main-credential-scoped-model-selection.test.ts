@@ -26,7 +26,7 @@ const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 let agentDirRoot: string | undefined;
 
 beforeEach(async () => {
-	agentDirRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-14075-agent-dir-"));
+	agentDirRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "reverse-14075-agent-dir-"));
 	const agentDir = path.join(agentDirRoot, "agent");
 	await fsp.mkdir(agentDir);
 	setAgentDir(agentDir);

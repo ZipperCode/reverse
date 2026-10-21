@@ -712,7 +712,7 @@ export interface SummaryOptions {
 	/**
 	 * Optional telemetry handle. When provided, every LLM call emitted during
 	 * compaction is wrapped in an OTEL chat span tagged with
-	 * `omp.gen_ai.oneshot.kind` (`compaction_summary`, `compaction_short_summary`,
+	 * `reverse.gen_ai.oneshot.kind` (`compaction_summary`, `compaction_short_summary`,
 	 * or `compaction_turn_prefix`). `undefined` keeps the call paths zero-cost.
 	 */
 	telemetry?: AgentTelemetry;
@@ -1075,7 +1075,7 @@ export interface HandoffOptions {
 	metadata?: Record<string, unknown>;
 	/**
 	 * Optional telemetry handle. When provided, the handoff LLM call is
-	 * wrapped in an OTEL chat span tagged with `omp.gen_ai.oneshot.kind = "handoff"`.
+	 * wrapped in an OTEL chat span tagged with `reverse.gen_ai.oneshot.kind = "handoff"`.
 	 */
 	telemetry?: AgentTelemetry;
 	/**

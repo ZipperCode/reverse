@@ -399,7 +399,7 @@ export function describeGroupedOutput(
 				: undefined;
 		const head = fileRow(current.path, { chip, key: "file" });
 		files.push(
-			keyed(col([head, ...current.children], { gap: "xs", role: "omp.tool.search.file" }), `f:${current.path}`),
+			keyed(col([head, ...current.children], { gap: "xs", role: "reverse.tool.search.file" }), `f:${current.path}`),
 		);
 		current = undefined;
 	};

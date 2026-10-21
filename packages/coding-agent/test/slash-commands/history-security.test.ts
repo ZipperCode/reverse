@@ -26,8 +26,8 @@ describe("shouldSkipHistory — security filter for slash command history", () =
 	});
 
 	it("skips /join with a link argument (carries 32-byte room key and write token)", () => {
-		expect(shouldSkipHistory("/join omp://share/abc123def456...")).toBe(true);
-		expect(shouldSkipHistory("/join omp:abc123def456...")).toBe(true);
+		expect(shouldSkipHistory("/join reverse://share/abc123def456...")).toBe(true);
+		expect(shouldSkipHistory("/join reverse:abc123def456...")).toBe(true);
 	});
 
 	it("does not skip /join without arguments", () => {

@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 async function fixture() {
-	const dir = TempDir.createSync("@omp-task-cache-forks-");
+	const dir = TempDir.createSync("@reverse-task-cache-forks-");
 	const auth = await AuthStorage.create(dir.join("auth.db"));
 	auth.keys.setRuntime("muse-code", "test-key");
 	auth.keys.setRuntime("openai-codex", "test-key");
@@ -157,7 +157,7 @@ it.each([false, true])(
 		const launches: TerminalLaunchRequest[] = [];
 		const controller = new CommandController(h.context(parent), {
 			environment: () => ({ TMUX: "server,1,0", TMUX_PANE: "%1" }),
-			resolveCliEntryCmd: () => ["omp-entry"],
+			resolveCliEntryCmd: () => ["reverse-entry"],
 			getActiveProfile: () => undefined,
 			argv: () => [],
 			launchTerminal: async request => {
@@ -168,7 +168,7 @@ it.each([false, true])(
 		await controller.handleForkCommand("pane");
 		expect(launches).toHaveLength(1);
 		const command = launches[0]!.command;
-		const parsed = parseArgs(command.slice(command.indexOf("omp-entry") + 1));
+		const parsed = parseArgs(command.slice(command.indexOf("reverse-entry") + 1));
 		expect(parsed.providerPromptCacheKey).toBe(explicit ? "explicit-cache" : undefined);
 		const childManager = await SessionManager.forkFrom(
 			manager.getSessionFile()!,

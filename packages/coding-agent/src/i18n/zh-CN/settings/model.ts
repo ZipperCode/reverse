@@ -404,7 +404,7 @@ export const modelSettingsZhCN: Record<string, SettingTranslation> = {
 			global: { label: "全局", description: "将角色模型保存在当前配置档（当前行为）" },
 			project: {
 				label: "按项目",
-				description: "将项目角色模型保存在 .omp/config.yml；缺失的项目角色使用全局默认值",
+				description: "将项目角色模型保存在 .reverse/config.yml；缺失的项目角色使用全局默认值",
 			},
 		},
 	},

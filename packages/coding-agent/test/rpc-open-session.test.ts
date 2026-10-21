@@ -47,7 +47,7 @@ describe("openRpcSession", () => {
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-open-session-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-rpc-open-session-"));
 		setAgentDir(path.join(root, "agent"));
 		cwd = path.join(root, "project");
 		threadDir = path.join(root, "threads", "thread-a");

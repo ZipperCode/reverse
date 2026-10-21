@@ -157,7 +157,7 @@ describe("provider context image budgets", () => {
 		["Claude on Cursor", CURSOR_CLAUDE_MODEL, 64_000_000],
 		["GPT on Cursor", CURSOR_GPT_MODEL, 64_000_000],
 	] as const)(
-		"keeps %s under its measured body limit at omp's 500 KiB image resize target",
+		"keeps %s under its measured body limit at reverse's 500 KiB image resize target",
 		(_label, model, bodyLimit) => {
 			// No byte budget applies on these hosts, so the count alone bounds the
 			// inline bytes of resized screenshots (`images.autoResize`, on by default).

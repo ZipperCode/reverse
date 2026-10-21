@@ -698,7 +698,7 @@ export function buildCompactionV2ReplacementHistory(
 }
 
 function isRetainedUserMessageForCompactionV2(item: Record<string, unknown>): boolean {
-	// Responses input messages may omit `type`: omp serializes turns as
+	// Responses input messages may omit `type`: reverse serializes turns as
 	// `{ role, content }`, which the API reads as `type: "message"`.
 	const isMessage = item.type === "message" || (item.type === undefined && typeof item.role === "string");
 	return isMessage && item.role === "user" && !isContextualUserMessage(item);

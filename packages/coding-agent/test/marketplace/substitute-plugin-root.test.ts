@@ -36,8 +36,8 @@ describe("substitutePluginRoot", () => {
 		expect(substitutePluginRoot("no-vars-here", ROOT)).toBe("no-vars-here");
 	});
 
-	it("leaves legacy OMP_PLUGIN_ROOT unexpanded (no legacy alias)", () => {
-		const OMP_VAR = "$" + "{OMP_PLUGIN_ROOT}";
-		expect(substitutePluginRoot(`${OMP_VAR}/server`, ROOT)).toBe(`${OMP_VAR}/server`);
+	it("leaves unrelated plugin variables unexpanded", () => {
+		const otherVariable = "$" + "{OTHER_PLUGIN_ROOT}";
+		expect(substitutePluginRoot(`${otherVariable}/server`, ROOT)).toBe(`${otherVariable}/server`);
 	});
 });

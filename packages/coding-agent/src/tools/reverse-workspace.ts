@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import type { AgentTool, AgentToolContext, AgentToolResult, ToolTier } from "@reverse/agent";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { prompt, getProjectDir } from "@reverse/utils";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";

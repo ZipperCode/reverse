@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import { ProcessTerminal } from "@reverse/tui/terminal";
 import { setTerminalHeadless } from "@reverse/utils";
 
-// #8542: a terminal Device-Attributes reply to omp's startup capability probe
+// #8542: a terminal Device-Attributes reply to reverse's startup capability probe
 // leaks into the composer as literal text (`1;22;...;52c`) when it arrives
 // after the DA1 sentinel FIFO has already drained. The extra SSH+zmx PTY hops
 // slow the query->response round-trip enough to make the race observable.

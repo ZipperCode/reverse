@@ -7,12 +7,12 @@ import {
 } from "@reverse/coding-agent/internal-urls";
 
 describe("ReverseProtocolHandler", () => {
-	it("registers reverse on InternalUrlRouter and rejects legacy rva", () => {
+	it("registers reverse on InternalUrlRouter and rejects unregistered scheme", () => {
 		const router = InternalUrlRouter.instance();
 		expect(router.isBuiltin("reverse")).toBe(true);
-		expect(router.isBuiltin("rva")).toBe(false);
+		expect(router.isBuiltin("other-agent")).toBe(false);
 		expect(router.getHandler("reverse")).toBeInstanceOf(ReverseProtocolHandler);
-		expect(router.getHandler("rva")).toBeUndefined();
+		expect(router.getHandler("other-agent")).toBeUndefined();
 	});
 
 	it("resolves documentation files via canonical reverse://", async () => {

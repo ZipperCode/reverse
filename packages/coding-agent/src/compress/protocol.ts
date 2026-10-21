@@ -1,5 +1,5 @@
 /**
- * The two-tool protocol behind `omp compress`.
+ * The two-tool protocol behind `reverse compress`.
  *
  * The agent sees exactly two tools. `rewrite` submits a complete draft plus every
  * loss the agent chose to accept; `approve` accepts the newest draft and ends the
@@ -13,7 +13,7 @@
  * const tools = [protocol.rewriteTool(), protocol.approveTool()];
  * // …drive a session, then read protocol.latest / protocol.approved
  */
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Tokenizer } from "@reverse/agent";
 import type { ToolDefinition } from "../extensibility/extensions";
 import approveDescription from "../prompts/tools/approve.md" with { type: "text" };

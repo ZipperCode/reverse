@@ -22,7 +22,7 @@ This document describes how MCP servers are discovered, connected, exposed as to
 
 `createAgentSession()` in `src/sdk.ts` performs MCP startup when `enableMCP` is true (default) and tool names are not restricted. A supplied `mcpManager` is reused without discovery. Otherwise there are two paths:
 
-- **Headless/SDK** (no UI, no provided manager): awaits `discoverAndLoadMCPTools(cwd, { ... })` and merges the returned tools into the startup `customTools` set. Print mode alone then waits for configured servers' tool handshakes or failures before its first prompt (bounded by `OMP_MCP_TIMEOUT_MS`, default 30 seconds), refreshes the session's tool registry, and warns per unavailable server; `OMP_MCP_REQUIRE_READY=1` instead exits 1 without sending the prompt. `OMP_MCP_TIMEOUT_MS=0` disables this barrier deadline and may wait indefinitely.
+- **Headless/SDK** (no UI, no provided manager): awaits `discoverAndLoadMCPTools(cwd, { ... })` and merges the returned tools into the startup `customTools` set. Print mode alone then waits for configured servers' tool handshakes or failures before its first prompt (bounded by `REVERSE_MCP_TIMEOUT_MS`, default 30 seconds), refreshes the session's tool registry, and warns per unavailable server; `REVERSE_MCP_REQUIRE_READY=1` instead exits 1 without sending the prompt. `REVERSE_MCP_TIMEOUT_MS=0` disables this barrier deadline and may wait indefinitely.
 - **Interactive/TUI** (`hasUI: true`, no provided manager): constructs `MCPManager` immediately (with cache + auth storage), defers `discoverAndConnect()` to a background task started after the session exists, then binds tools via `session.refreshMCPTools(...)` (disposing the manager if the session was torn down mid-connect).
   The first turn of such a session (interactive or `--mode rpc-ui`) waits up to 1.5 s for this MCP startup, so its system prompt includes servers connected by then; slower servers register later and change the next turn's prompt.
 
@@ -102,7 +102,7 @@ For each discovered server in `connectServers()`:
 - answers server-to-client `ping` and `roots/list` requests; unsupported request methods return JSON-RPC `-32601`,
 - sends `notifications/initialized` before any further session traffic,
 - for Streamable HTTP, starts the background SSE listener only after `notifications/initialized`,
-- uses timeout precedence `OMP_MCP_TIMEOUT_MS`, then `config.timeout`, then 30s; `0` disables the client-side timeout,
+- uses timeout precedence `REVERSE_MCP_TIMEOUT_MS`, then `config.timeout`, then 30s; `0` disables the client-side timeout,
 - records the server's negotiated protocol revision; Streamable HTTP carries it on subsequent requests in `MCP-Protocol-Version`,
 - closes transport on init failure.
 
@@ -111,7 +111,7 @@ For each discovered server in `connectServers()`:
 `connectServers()` waits on a race between:
 
 - all connect/tool-load tasks settled, and
-- `resolveMCPStartupTimeoutMs`: `OMP_MCP_STARTUP_TIMEOUT_MS` env override, else `mcp.startupTimeoutMs`, else 250 ms; `0` waits until initial loads settle.
+- `resolveMCPStartupTimeoutMs`: `REVERSE_MCP_STARTUP_TIMEOUT_MS` env override, else `mcp.startupTimeoutMs`, else 250 ms; `0` waits until initial loads settle.
 
 After the startup window:
 
@@ -140,7 +140,7 @@ Each pending `toolsPromise` also has a background continuation that eventually:
 
 `createAgentSession()` then pushes these tools into `customTools`, which are wrapped and added to the runtime tool registry with names like `mcp__<server>_<tool>`.
 
-Server and tool name components are lowercased and sanitized to letters, digits, and underscores; repeated/edge underscores are collapsed/trimmed, and a redundant server prefix on the tool is stripped. Names longer than 64 characters are capped with a deterministic hash suffix. If two distinct origins mint the same runtime name, OMP logs the collision and keeps a deterministic winner based on the original server/tool identity, so reconnect ordering cannot change ownership.
+Server and tool name components are lowercased and sanitized to letters, digits, and underscores; repeated/edge underscores are collapsed/trimmed, and a redundant server prefix on the tool is stripped. Names longer than 64 characters are capped with a deterministic hash suffix. If two distinct origins mint the same runtime name, reverse logs the collision and keeps a deterministic winner based on the original server/tool identity, so reconnect ordering cannot change ownership.
 
 Connected manager tools become enabled immediately. Presentation is reconciled with the session's current tool policy: tools may be mounted under `xd://` rather than exposed as top-level function definitions. Registry identity and original server/tool ownership remain intact regardless of presentation.
 

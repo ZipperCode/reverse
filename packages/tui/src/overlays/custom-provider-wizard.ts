@@ -213,7 +213,7 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 		const effectiveLocale = locale ?? resolveEffectiveLocale();
 		const title = effectiveLocale === "zh-CN" ? "添加自定义大模型提供商" : "Add Custom Model Provider";
 		ensureThemeSync();
-		super(title, "rva.overlay.customProviderAdd");
+		super(title, "reverse.overlay.customProviderAdd");
 		this.#deps = deps;
 		this.#locale = effectiveLocale;
 		this.#onCompleteCallback = onComplete;
@@ -336,7 +336,9 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 			this.#validationError = null;
 		}
 
-		const caption = options.hint ? text(options.hint, { role: "rva.customProvider.note", wrap: "word" }) : undefined;
+		const caption = options.hint
+			? text(options.hint, { role: "reverse.customProvider.note", wrap: "word" })
+			: undefined;
 
 		this.#show(
 			new WizardStep({
@@ -349,7 +351,12 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 				lead: options.lead,
 				optional: options.optional,
 				body: [
-					node("col", { role: "rva.customProvider.field", gap: "xs" }, compact([field.input, caption]), "field"),
+					node(
+						"col",
+						{ role: "reverse.customProvider.field", gap: "xs" },
+						compact([field.input, caption]),
+						"field",
+					),
 				],
 				actions: {
 					back: this.#currentStep === "providerId" ? undefined : this.#t("Back", "返回"),
@@ -750,7 +757,7 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 				body: compact([
 					node(
 						"col",
-						{ role: "rva.customProvider.search", gap: "xs" },
+						{ role: "reverse.customProvider.search", gap: "xs" },
 						[
 							node(
 								"input",
@@ -765,9 +772,9 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 						],
 						"search-input",
 					),
-					text(countHint, { role: "rva.customProvider.help", wrap: "word" }),
+					text(countHint, { role: "reverse.customProvider.help", wrap: "word" }),
 					this.#validationError
-						? text(this.#validationError, { role: "rva.customProvider.error", tone: "error", wrap: "word" })
+						? text(this.#validationError, { role: "reverse.customProvider.error", tone: "error", wrap: "word" })
 						: undefined,
 				]),
 				choices: nativeChoices,
@@ -838,7 +845,7 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 				title: this.#t("Confirm Configuration", "确认配置"),
 				body: [
 					text(this.#t("Summary of Custom Provider:", "自定义提供商汇总："), {
-						role: "rva.customProvider.summaryTitle",
+						role: "reverse.customProvider.summaryTitle",
 					}),
 					text(`Provider ID: ${this.#providerId}`),
 					text(`API Protocol: ${this.#api}`),
@@ -851,7 +858,7 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 						return text(`• ${m.id}${nameStr} - ${meta}`);
 					}),
 					...(this.#validationError
-						? [text(this.#validationError, { role: "rva.customProvider.error", tone: "error", wrap: "word" })]
+						? [text(this.#validationError, { role: "reverse.customProvider.error", tone: "error", wrap: "word" })]
 						: []),
 				],
 				actions: {
@@ -1156,17 +1163,17 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 		const step = this.#nativeStep;
 		const titleRow = row(
 			compact([
-				text(step.title, { role: "rva.customProvider.title", wrap: "word" }),
-				step.optional && text(this.#t("Optional", "可选"), { role: "rva.customProvider.tag" }),
+				text(step.title, { role: "reverse.customProvider.title", wrap: "word" }),
+				step.optional && text(this.#t("Optional", "可选"), { role: "reverse.customProvider.tag" }),
 			]),
 			{ gap: "sm", align: "center" },
 		);
 		const head = compact([
 			titleRow,
-			step.lead ? text(step.lead, { role: "rva.customProvider.lead", wrap: "word" }) : undefined,
+			step.lead ? text(step.lead, { role: "reverse.customProvider.lead", wrap: "word" }) : undefined,
 		]);
 		const children: NativeChild[] = [
-			node("col", { role: "rva.customProvider.head", gap: "xs" }, head, "head"),
+			node("col", { role: "reverse.customProvider.head", gap: "xs" }, head, "head"),
 			...step.body,
 		];
 		if (step.choices) {
@@ -1186,7 +1193,7 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 			children.push(
 				node(
 					"list",
-					{ selected: selectedKey, role: "rva.customProvider.choices" },
+					{ selected: selectedKey, role: "reverse.customProvider.choices" },
 					items,
 					`choices-${this.#currentStep}`,
 				),

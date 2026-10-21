@@ -104,7 +104,7 @@ bun scripts/gen-bazel-lock.ts --check   # bazel fetch --repo=@crates --lockfile_
 # Addon for the current host (x64 hosts pick modern vs baseline via AVX2
 # detection), installed into packages/natives/native/. The host target builds
 # through the local cargo/napi-rs backend by default; set
-# OMP_NATIVE_BUILD_BACKEND=bazel (or pass bazel args after `--`) for bazel:
+# REVERSE_NATIVE_BUILD_BACKEND=bazel (or pass bazel args after `--`) for bazel:
 bun --cwd=packages/natives run build          # = bun ../../scripts/bazel-natives.ts host --dest native
 # same, from the repo root:
 bun run build:native
@@ -120,7 +120,7 @@ bazelisk build //:natives-darwin-arm64
 bazelisk build //:natives-all
 ```
 
-The driver builds `host` through the local cargo/napi-rs path (`packages/natives/scripts/build-bindings.ts`) unless Bazel is requested via `OMP_NATIVE_BUILD_BACKEND=bazel` or extra Bazel args. The Cargo path also regenerates declarations and ESM/enum exports. `OMP_NATIVE_BUILD_BACKEND=cargo` forces that host-only path; Windows hosts always use it and cannot build explicit Bazel cross targets. `OMP_NATIVE_CARGO_PROFILE` selects the Cargo profile (default `local`; `ci` is stripped). `OMP_NATIVE_FEATURES` passes extra cargo features to `napi build --features` on that path (e.g. `OMP_NATIVE_FEATURES=wayland-pipewire`); Bazel builds ignore it. For explicit targets it runs one `bazel build` for all requested targets, locates outputs via `bazel cquery --output=files` (falling back to the `bazel-bin/natives-<t>/<canonical>.node` path convention), and copies them dereferenced into `--dest` (default `packages/natives/native`). Extra args after `--` go to bazel verbatim. It resolves `bazelisk` (or `bazel`) from `PATH` and honors an `OMP_BAZEL_RC` env var as a `--bazelrc=` startup option (that's how CI injects cache wiring).
+The driver builds `host` through the local cargo/napi-rs path (`packages/natives/scripts/build-bindings.ts`) unless Bazel is requested via `REVERSE_NATIVE_BUILD_BACKEND=bazel` or extra Bazel args. The Cargo path also regenerates declarations and ESM/enum exports. `REVERSE_NATIVE_BUILD_BACKEND=cargo` forces that host-only path; Windows hosts always use it and cannot build explicit Bazel cross targets. `REVERSE_NATIVE_CARGO_PROFILE` selects the Cargo profile (default `local`; `ci` is stripped). `REVERSE_NATIVE_FEATURES` passes extra cargo features to `napi build --features` on that path (e.g. `REVERSE_NATIVE_FEATURES=wayland-pipewire`); Bazel builds ignore it. For explicit targets it runs one `bazel build` for all requested targets, locates outputs via `bazel cquery --output=files`, copies them into `--dest`, and runs the load probe on host-loadable outputs.
 
 Building `all` into one dest would clobber gnu addons with musl ones (shared basenames) — the driver refuses; use separate invocations with separate `--dest` dirs.
 
@@ -157,7 +157,7 @@ build --tls_certificate=infra/bazel-remote/ca.crt
 
 **Pull requests never build or validate Rust.** Native-affecting PRs are rare enough that they don't warrant a PR-side bazel build: `rust_validate` is skipped entirely (`if: github.event_name != 'pull_request'`), and `native_addons` restores the linux-x64 pair main built for the same native sources from actions/cache (`natives-linux-x64-v1-<hash>`, hashed over every native build input: Cargo/Bazel/toolchain settings plus `crates/**` and root `BUILD.bazel`). Without an exact entry (the PR changes native inputs, or main has not built that state yet) it takes main's newest entry, and without any entry the latest `@reverse/natives-linux-x64` npm release. It smoke-loads the pair, uploads it as the `natives-linux-x64` workflow artifact, and emits a notice whenever the addons are not source-matched. The loader skips its version sentinel for workspace loads, so any of these load fine under a newer checkout; a symbol added after that build is a throwing stub that names the addon and the rebuild command, rather than `undefined`. A PR whose TypeScript tests depend on its own native changes fails visibly; the Rust side is validated post-merge on main and again at release. Only main saves the cache entry (other refs' entries are unreadable elsewhere but still count against the 10 GB repo quota) and prunes all but the newest two.
 
-On non-PR events all three jobs run on `omp-kata` pods against the cluster remote cache. `rust_validate` runs:
+On non-PR events all three jobs run on `reverse-kata` pods against the cluster remote cache. `rust_validate` runs:
 
 ```bash
 bazelisk --bazelrc="$rc" test //crates/...                 # full Rust suite
@@ -176,7 +176,7 @@ bazelisk --bazelrc="$rc" build --config=rustfmt //crates/...
 - `--config=clippy-ported` retains zero rustc warnings while allowing the clippy groups permitted by the ported `pi-builtins` manifest.
 - `--config=rustfmt` = rustfmt aspect against the workspace `rustfmt.toml`.
 
-On main, `native_addons` builds `NATIVES_X64_TARGETS` and `native_addons_cross` builds `NATIVES_CROSS_TARGETS` in parallel, each one target per invocation to avoid concurrent-link OOMs; the cross job then checks that the two lists together equal the `//:natives-all` srcs, and that the darwin-arm64 addon embeds the Apple Foundation Models bridge dylib while linking neither the Swift runtime nor FoundationModels (the addon dlopens the bridge only on macOS 27+). The TS fan-out waits only for the pair. `native_addons` uploads the pair as `natives-linux-x64` and also stashes it content-addressed on the shared runner-cache PVC (`/opt/bazel-repo-cache/ci-natives/<sha256>.node`, pruned after two days); `native_addons_cross` uploads everything else as `native-addons`. Downstream jobs use `.github/actions/native-artifacts`: on omp-kata it restores the pair from the stash by the digests in `native_addons`' `stash` output (re-verified, falling back to the artifact on any miss), elsewhere it downloads `natives-linux-x64`; it adds `native-addons` only when a requested target is outside that pair, and installs the requested target set without invoking Bazel.
+On main, `native_addons` builds `NATIVES_X64_TARGETS` and `native_addons_cross` builds `NATIVES_CROSS_TARGETS` in parallel, each one target per invocation to avoid concurrent-link OOMs; the cross job then checks that the two lists together equal the `//:natives-all` srcs, and that the darwin-arm64 addon embeds the Apple Foundation Models bridge dylib while linking neither the Swift runtime nor FoundationModels (the addon dlopens the bridge only on macOS 27+). The TS fan-out waits only for the pair. `native_addons` uploads the pair as `natives-linux-x64` and also stashes it content-addressed on the shared runner-cache PVC (`/opt/bazel-repo-cache/ci-natives/<sha256>.node`, pruned after two days); `native_addons_cross` uploads everything else as `native-addons`. Downstream jobs use `.github/actions/native-artifacts`: on reverse-kata it restores the pair from the stash by the digests in `native_addons`' `stash` output (re-verified, falling back to the artifact on any miss), elsewhere it downloads `natives-linux-x64`; it adds `native-addons` only when a requested target is outside that pair, and installs the requested target set without invoking Bazel.
 
 Bazel native jobs need no toolchain setup: bazelisk is baked into the kata runner image, while Bazel fetches Rust/zig/LLVM/xwin/Swift and the macOS SDK hermetically (the SDK unpack needs the image's python3). `macos-15` and `windows-11-arm` only run the release smoke tests; they build nothing.
 
@@ -186,7 +186,7 @@ Bazel native jobs need no toolchain setup: bazelisk is baked into the kata runne
 
 ### `bazel-cache` action (`.github/actions/bazel-cache`)
 
-Single source of truth for cache wiring, emitted as a bazelrc fragment (its `rc` output) that consumers pass via `bazelisk --bazelrc=...` or `OMP_BAZEL_RC`. Every Bazel job runs on omp-kata, where the pod env's `BAZEL_REMOTE_USER`/`BAZEL_REMOTE_PASSWORD` select the cluster remote cache: a temporary output root, `--config=ci`, the PVC-backed repository/xwin caches, `--config=cache-rw`, the in-cluster TLS remote-cache endpoint and masked Basic-auth header, plus `--remote_download_toplevel`. Without those credentials the fragment carries only `--config=ci` and the build runs uncached. The remote endpoint resolves only inside the cluster.
+Single source of truth for cache wiring, emitted as a bazelrc fragment (its `rc` output) that consumers pass via `bazelisk --bazelrc=...` or `REVERSE_BAZEL_RC`. Every Bazel job runs on reverse-kata, where the pod env's `BAZEL_REMOTE_USER`/`BAZEL_REMOTE_PASSWORD` select the cluster remote cache: a temporary output root, `--config=ci`, the PVC-backed repository/xwin caches, `--config=cache-rw`, the in-cluster TLS remote-cache endpoint and masked Basic-auth header, plus `--remote_download_toplevel`. Without those credentials the fragment carries only `--config=ci` and the build runs uncached. The remote endpoint resolves only inside the cluster.
 
 ### Native artifact actions
 
@@ -235,7 +235,7 @@ bazelisk build --nobuild //:natives-win32-x64-baseline
 
 ### Cache behavior
 
-- **omp-kata:** read-write gRPC to the in-cluster bazel-remote (`grpcs://bazel-remote.bazel-cache.svc.cluster.local:9092`, TLS via the committed `infra/bazel-remote/ca.crt`, htpasswd user `ci`). `--remote_local_fallback` plus retries make an outage degrade to local execution rather than fail the build.
+- **reverse-kata:** read-write gRPC to the in-cluster bazel-remote (`grpcs://bazel-remote.bazel-cache.svc.cluster.local:9092`, TLS via the committed `infra/bazel-remote/ca.crt`, htpasswd user `ci`). `--remote_local_fallback` plus retries make an outage degrade to local execution rather than fail the build.
 - **GitHub-hosted:** no cluster access and no Bazel builds; PR runs restore main's linux-x64 pair from actions/cache.
 - **darwin repos:** `@llvm_darwin_tools` (~2 GiB LLVM 23.1.3), `@swift_linux` (~1.1 GiB Swift 6.4.0) and `@macos_sdk` (~70 MiB Command Line Tools package) are sha256-pinned, repository-cache backed and opt into the repo contents cache. The SDK input set is ~50k files, staged into every darwin compile/link sandbox.
 - **msvc repos:** the ~2 GiB LLVM download is sha256-pinned and repository-cache backed; the ~1 GiB xwin CRT/SDK splat is fetched from the Microsoft CDN inside the repo rule and is **not** repo-cache backed — a cold output base re-downloads it. Microsoft advances the VS channel payload over time, so remote-cache hit rates for win32 actions degrade gracefully after an MS bump (same property the previous cross toolchain had). Win32 link actions also don't share cache entries across host OSes (linux vs mac clang binaries).
@@ -267,8 +267,8 @@ Runtime x64 candidate order also includes the unsuffixed default filename after 
 
 ## Runtime flags
 
-- `PI_NATIVES_DIR`: overrides the native addon extraction/staging root before XDG/default paths; the loader appends the package version. Values are trimmed, `~`-expanded, and normalized; empty or relative values are ignored. Downloaded tree-sitter grammars live in its `grammars/` subdirectory, which the loader passes to the addon and version cleanup leaves alone; other application data stays at its usual location. The directory must be writable only by the user(s) running `omp`: reuse checks only the file size, and the version sentinel is read after the addon is loaded, so a same-sized file planted by another user would be loaded.
-  A directory shared by several `omp` versions is subject to the normal stale-version cleanup: a newer version's successful load removes older version directories idle for ten minutes, so a long-running older-version run whose directory was deleted re-extracts on its next fresh process start.
+- `PI_NATIVES_DIR`: overrides the native addon extraction/staging root before XDG/default paths; the loader appends the package version. Values are trimmed, `~`-expanded, and normalized; empty or relative values are ignored. Downloaded tree-sitter grammars live in its `grammars/` subdirectory, which the loader passes to the addon and version cleanup leaves alone; other application data stays at its usual location. The directory must be writable only by the user(s) running `reverse`: reuse checks only the file size, and the version sentinel is read after the addon is loaded, so a same-sized file planted by another user would be loaded.
+  A directory shared by several `reverse` versions is subject to the normal stale-version cleanup: a newer version's successful load removes older version directories idle for ten minutes, so a long-running older-version run whose directory was deleted re-extracts on its next fresh process start.
 - `PI_NATIVE_VARIANT`: x64 runtime override; valid values are `modern` and `baseline`. Invalid values are ignored; the inherited variant cache is consulted before detection.
 - `PI_DEBUG_STARTUP`: writes synchronous `[startup] native:…` markers to stderr around loader entry, embedded extraction, candidate loads, and native Tokio runtime installation; use it to localize startup hangs.
 - `PI_COMPILED`: compiled-mode signal. Release compilation constant-folds `process.env.PI_COMPILED` to `"true"`; a populated embedded-addon manifest and Bun embedded URL markers also signal compiled mode.
@@ -305,12 +305,12 @@ Typical local loop:
 
 In compiled mode (`PI_COMPILED`, Bun embedded URL markers, or populated embedded manifest):
 
-1. Loader computes versioned cache dir: `<getNativesDir()>/<packageVersion>`. The root is `PI_NATIVES_DIR` first (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then `$XDG_DATA_HOME/omp/natives` when `$XDG_DATA_HOME/omp` already exists, otherwise `~/.omp/natives`.
+1. Loader computes versioned cache dir: `<getNativesDir()>/<packageVersion>`. The root is `PI_NATIVES_DIR` first (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then `$XDG_DATA_HOME/reverse/natives` when `$XDG_DATA_HOME/reverse` already exists, otherwise `~/.reverse/natives`.
 2. If the embedded manifest matches platform+version and has a selectable file, loader decompresses all missing or wrong-sized manifest files from their embedded `<addon>.node.zst` frames into that versioned directory.
 3. Runtime candidate order includes:
    - extracted versioned cache path, if available,
    - versioned cache dir,
-   - legacy compiled-binary dir (`%LOCALAPPDATA%/omp` on Windows, `~/.local/bin` elsewhere),
+   - legacy compiled-binary dir (`%LOCALAPPDATA%/reverse` on Windows, `~/.local/bin` elsewhere),
    - package/executable directories.
 4. The first successfully loaded addon that passes release validation (including legacy identity/compatibility rules) is returned.
 
@@ -374,74 +374,3 @@ bun --cwd=packages/natives run build:bindings
 # Compile a standalone binary embedding the host addon (CROSS_TARGET=<id> for another target)
 bun --cwd=packages/coding-agent run build
 ```
-
-## Orchestrator-side content-addressed build cache (robomp)
-
-When `pi-natives` is built inside the robomp orchestrator (`python/robomp/`), workspaces share built artifacts through a content-addressed cache instead of rebuilding from scratch in every per-issue worktree. The cache is **orchestrator-side only** — `bun --cwd=packages/natives run build` itself is unchanged; the cache lives outside the build pipeline and is populated/captured around `ensure_workspace` and post-task success in `python/robomp/src/natives_cache.py`.
-
-### What is cached
-
-The cache captures the following files from `packages/natives/native/` under the computed key. Correct reuse assumes the worktree contents of keyed paths match committed `HEAD`; because the key ignores uncommitted changes, a build from a dirty keyed path can otherwise be captured under and later reused from the unchanged key:
-
-- `pi_natives.<platform>-<arch>[-variant].node` (glob `pi_natives.*.node`)
-- `index.d.ts`
-- `index.js`
-- `embedded-addon.js`
-- `manifest.json` (cache metadata: key, target triple, capture timestamp, source workspace, commit)
-
-An entry is only considered a hit when the `.node` glob matches AND every companion plus the manifest is present. GC removes manifest-less and dot-prefixed staging directories; an entry with a manifest but missing a companion is a miss, not automatically purged for that reason.
-
-### Cache key
-
-The key is `sha256` over `(path \t git-tree-hash \n)` pairs for the following inputs, in this order (order is significant), followed by the target triple:
-
-1. `crates` (whole subtree — pi-natives transitively depends on other workspace crates)
-2. `Cargo.lock`
-3. `Cargo.toml`
-4. `rust-toolchain.toml`
-5. `packages/natives` (whole subtree — build script, `scripts/*`, package.json)
-
-Tree hashes come from one `git cat-file --batch-check` invocation against `HEAD`; paths missing from `HEAD` fold in as a fixed null hash so the key stays deterministic across repos that don't ship every input. The target suffix is `<platform>-<arch>` on non-x64. On x64 it is `<platform>-<arch>-<TARGET_VARIANT>`, or `<platform>-<arch>-host` when `TARGET_VARIANT` is unset; the Python cache does not perform AVX2 detection.
-
-Anything outside this input set (Bazel definition files such as `MODULE.bazel`/`BUILD.bazel`, host glibc, env vars other than the target suffix) is **not** in the key. The content hashes also describe committed `HEAD`, not uncommitted worktree changes. Delete the relevant cache entry after an out-of-key or uncommitted build-input change; committing a change under one of the five keyed paths produces a new key automatically.
-
-### Layout and ownership
-
-- Root: `/data/cache/pi-natives` (provisioned by `entrypoint.sh` alongside the cargo caches, owned `root:omp`, mode `02770` setgid so cached files inherit `gid=omp` and stay readable by every slot user).
-- Per-repo subdirectory: `<root>/<repo-slug>/` where the slug is `owner__repo` (mirrors `SandboxManager.pool_path`).
-- Per-entry directory: `<root>/<repo-slug>/<sha256-key>/` containing the cached files plus `manifest.json`.
-- Per-repo lockfile: `<root>/<repo-slug>/.lock` (advisory `fcntl.flock`, exclusive on capture and GC).
-- Staging dirs (`.<key>.tmp.<pid>`) during capture; renamed atomically into the final entry path. Stale staging dirs from crashed captures are swept on GC.
-
-### Populate and capture semantics
-
-- **Populate** (workspace ← cache) runs inside `ensure_workspace`. On a key hit the `.node` is **hardlinked** into the workspace (zero-copy, shared inode); the companion `index.d.ts` / `index.js` / `embedded-addon.js` are **copied** (independent inodes) because the bindings regeneration flow (`build-bindings.ts`'s `installGeneratedBindings` and `gen-enums.ts`) rewrites those files via `open(..., 'w')` — an in-place truncate that would otherwise propagate through a hardlink and corrupt the cache. Cross-device hardlink failures (`EXDEV`) fall back to copy.
-- **Capture** (cache ← workspace) runs from the post-task success path when the build produced a complete artifact set. Capture uses **copy**, not hardlink: hardlinking a slot-owned workspace file would preserve slot UID ownership on the cached inode and defeat the shared-group model. Copying creates a fresh root-owned, `gid=omp` inode via the setgid cache root. Capture is idempotent under the per-repo flock: a concurrent capture for the same key returns the existing entry.
-
-### Garbage collection
-
-A periodic GC loop runs in `WorkerPool` with two caps per repo. When either cap is exceeded, oldest entries (by `manifest.json.captured_at`) are dropped first:
-
-- entry count cap (`max_entries_per_repo`, default 8)
-- byte cap (`max_bytes`, default 4 GiB); values at or below zero disable it, and byte-cap eviction always retains at least one entry, even if that entry alone exceeds the cap.
-
-Workspaces that hardlinked a `.node` before GC retain access via the kernel inode refcount — `rmtree` of the cache entry does not delete the file from the workspace.
-
-### Configuration (settings on `robomp.config.Settings`)
-
-| Env var                                     | Default                  | Effect                                                                                              |
-| ------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------- |
-| `ROBOMP_NATIVES_CACHE_ENABLED`              | `true`                   | Master switch. When false the populate/capture hooks no-op and every workspace builds from scratch. |
-| `ROBOMP_NATIVES_CACHE_ROOT`                 | `/data/cache/pi-natives` | Cache root directory. Must be `root:omp 02770` for cross-slot reads.                                |
-| `ROBOMP_NATIVES_CACHE_MAX_ENTRIES_PER_REPO` | `8`                      | LRU entry-count cap, per repo slug.                                                                 |
-| `ROBOMP_NATIVES_CACHE_MAX_BYTES`            | `4294967296` (4 GiB)     | Byte cap per repo slug; disabled at ≤0 and retains at least one entry. |
-| `ROBOMP_NATIVES_CACHE_GC_INTERVAL_SECONDS`  | `3600`                   | Period of the background GC loop in `WorkerPool`; ≤0 disables periodic GC (capture still collects). |
-
-### Manual invalidation
-
-- One key: `rm -rf /data/cache/pi-natives/<repo-slug>/<sha256>`.
-- One repo: `rm -rf /data/cache/pi-natives/<repo-slug>`.
-- Everything: `rm -rf /data/cache/pi-natives/*` (preserve the root so its setgid mode survives).
-- Stuck lock: `rm /data/cache/pi-natives/<repo-slug>/.lock` (only when no orchestrator process is touching the repo).
-
-For a fixed target suffix, a committed `HEAD` change under `crates/`, `Cargo.lock`, `Cargo.toml`, `rust-toolchain.toml`, or `packages/natives/` produces an automatic miss. Changing platform/architecture, or `TARGET_VARIANT` on x64, also selects a different key. Merely editing an uncommitted worktree changes neither the `HEAD` hashes nor the key.

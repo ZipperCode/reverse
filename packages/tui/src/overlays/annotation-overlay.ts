@@ -153,7 +153,7 @@ function isTextSource(value: readonly ReviewDiffFile[] | TextReviewSource): valu
 
 /** The native sheet: full-pane glass, titled by the review kind with what is under review after it. */
 interface NativeSheet {
-	readonly role: "omp.overlay.codeReview" | "omp.overlay.annotateText";
+	readonly role: "reverse.overlay.codeReview" | "reverse.overlay.annotateText";
 	readonly size: "full";
 	readonly head: TspSpan[];
 }
@@ -210,7 +210,7 @@ function modeSpans(mode: string): TspSpan[] {
 	return mode.split("`").flatMap((part, index) => (part ? [span(part, index % 2 === 1 ? "code" : "muted")] : []));
 }
 
-/** A fullscreen, annotated diff picker that only relies on public OMP APIs. */
+/** A fullscreen, annotated diff picker that only relies on public Reverse APIs. */
 export class AnnotationOverlay implements Focusable {
 	focused = false;
 	#scrollView: ScrollView;
@@ -1395,7 +1395,7 @@ export class AnnotationOverlay implements Focusable {
 				? [span(sanitizeStatusText(this.#textSource.label), "muted")]
 				: modeSpans(sanitizeStatusText(this.#mode));
 			this.#nativeSheet = {
-				role: this.#textSource ? "omp.overlay.annotateText" : "omp.overlay.codeReview",
+				role: this.#textSource ? "reverse.overlay.annotateText" : "reverse.overlay.codeReview",
 				size: "full",
 				head: [span(this.#textSource ? TEXT_SHEET_TITLE : DIFF_SHEET_TITLE), ...subtitle],
 			};
@@ -1438,17 +1438,17 @@ export class AnnotationOverlay implements Focusable {
 			// Past 200 rows the terminal virtualizes the list itself (fixed one-line rows).
 			max: { lines: this.#bodyHeight },
 			empty: [span(this.#textSource ? "This text is empty" : "Nothing to review", "muted")],
-			role: this.#textSource ? "omp.review.text" : "omp.review.diff",
+			role: this.#textSource ? "reverse.review.text" : "reverse.review.diff",
 			tone: this.#focus === "diff" && !editing ? "accent" : undefined,
 		});
 		const pane: NativeChild[] = [this.#describePaneHead()];
 		pane.push(lines);
 		const composer = this.#describeComposer();
 		if (composer) pane.push(composer);
-		const main = node("col", { role: "omp.review.pane", grow: 1, min: { w: 0 } }, pane, "pane");
+		const main = node("col", { role: "reverse.review.pane", grow: 1, min: { w: 0 } }, pane, "pane");
 		const children: NativeChild[] = [];
 		if (this.#sidebarShown) {
-			children.push(keyed(rowNode([this.#describeRail(editing), main], { role: "omp.review.split" }), "split"));
+			children.push(keyed(rowNode([this.#describeRail(editing), main], { role: "reverse.review.split" }), "split"));
 		} else {
 			children.push(main);
 		}
@@ -1530,7 +1530,7 @@ export class AnnotationOverlay implements Focusable {
 					icon: "pen",
 					disabled: true,
 					tone: "warning",
-					role: "omp.review.note",
+					role: "reverse.review.note",
 				}),
 			);
 		const notice = (key: string, label: string, icon: string) =>
@@ -1642,7 +1642,9 @@ export class AnnotationOverlay implements Focusable {
 		}
 		const total: NativeChild[] = [text([span(plural(this.#files.length, "file"))], { grow: 1, wrap: "none" })];
 		if (this.#annotations.length > 0) {
-			total.push(text([span(plural(this.#annotations.length, "note"))], { role: "omp.review.count", wrap: "none" }));
+			total.push(
+				text([span(plural(this.#annotations.length, "note"))], { role: "reverse.review.count", wrap: "none" }),
+			);
 		}
 		total.push(
 			text([span(`+${added}`, "toolDiffAdded mono"), span(" "), span(`−${removed}`, "toolDiffRemoved mono")], {
@@ -1676,14 +1678,14 @@ export class AnnotationOverlay implements Focusable {
 				selected: this.#files.length > 0 ? `f${this.#fileIndex}` : null,
 				max: { lines: this.#bodyHeight },
 				empty: [span("No files", "muted")],
-				role: "omp.review.files",
+				role: "reverse.review.files",
 				tone: this.#focus === "files" && !editing ? "accent" : undefined,
 			},
 		);
 		return node(
 			"col",
-			{ role: "omp.review.rail" },
-			[node("row", { role: "omp.review.total", gap: "sm", align: "center" }, total, "total"), files],
+			{ role: "reverse.review.rail" },
+			[node("row", { role: "reverse.review.total", gap: "sm", align: "center" }, total, "total"), files],
 			"rail",
 		);
 	}
@@ -1694,11 +1696,11 @@ export class AnnotationOverlay implements Focusable {
 	 */
 	#describePaneHead(): NativeNode {
 		const children: NativeChild[] = [];
-		const props = { role: "omp.review.head", gap: "sm", align: "center" } as const;
+		const props = { role: "reverse.review.head", gap: "sm", align: "center" } as const;
 		if (this.#textSource) {
 			children.push(text([span(plural(this.#textLines.length, "line"))], { grow: 1, wrap: "none" }));
 			const notes = this.#textAnnotations.length;
-			if (notes) children.push(text([span(plural(notes, "note"))], { role: "omp.review.count", wrap: "none" }));
+			if (notes) children.push(text([span(plural(notes, "note"))], { role: "reverse.review.count", wrap: "none" }));
 			return node("row", props, children, "head");
 		}
 		const file = this.#currentFile();
@@ -1720,7 +1722,7 @@ export class AnnotationOverlay implements Focusable {
 		if (what) {
 			children.push(
 				text([span(what)], {
-					role: "omp.review.status",
+					role: "reverse.review.status",
 					tone: FILE_STATUS_TONE[status],
 					truncate: "end",
 					min: { w: 0 },
@@ -1729,7 +1731,7 @@ export class AnnotationOverlay implements Focusable {
 		}
 		children.push(node("spacer", { grow: 1 }));
 		const count = this.#annotationCount(this.#fileIndex);
-		if (count) children.push(text([span(plural(count, "note"))], { role: "omp.review.count", wrap: "none" }));
+		if (count) children.push(text([span(plural(count, "note"))], { role: "reverse.review.count", wrap: "none" }));
 		if (!file.isBinary) {
 			children.push(
 				text(
@@ -1772,7 +1774,7 @@ export class AnnotationOverlay implements Focusable {
 			});
 			return node(
 				"col",
-				{ role: "omp.review.composer" },
+				{ role: "reverse.review.composer" },
 				[
 					keyed(text([span("Edit which note?", "strong")]), "caption"),
 					selectList("chooser", entries, { selected: `c${chooser.selected}`, tone: "accent" }),
@@ -1783,7 +1785,7 @@ export class AnnotationOverlay implements Focusable {
 		if (!this.#annotating) return undefined;
 		return node(
 			"col",
-			{ role: "omp.review.composer" },
+			{ role: "reverse.review.composer" },
 			[keyed(text(this.#noteCaption(), { truncate: "end" }), "caption"), this.#editor],
 			"composer",
 		);
@@ -1840,7 +1842,7 @@ export class AnnotationOverlay implements Focusable {
 		}
 		return node(
 			"row",
-			{ role: "omp.actions", gap: "sm", align: "center" },
+			{ role: "reverse.actions", gap: "sm", align: "center" },
 			[hintsRow(this.#footerHints()), ...buttons],
 			"actions",
 		);

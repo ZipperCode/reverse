@@ -1,12 +1,12 @@
 /**
  * Client half of the machine-shared workers: one detached process per worker
- * name that owns an IPC endpoint under a runtime directory, serves every omp
+ * name that owns an IPC endpoint under a runtime directory, serves every reverse
  * process on the machine, and exits on its own once idle (its server half is
  * `JsonLineServer` in `jsonl-server.ts`). A caller describes how to start the
  * worker ({@link SharedWorkerLaunch}); {@link connectSharedWorker} adopts a
  * live worker answering with the same launch tag, replaces a stale one, or
  * spawns one. Used by the tiny-model workers and the mnemopi embedding server
- * so their models are loaded once per machine instead of once per omp process.
+ * so their models are loaded once per machine instead of once per reverse process.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -228,7 +228,7 @@ async function probeSharedWorker(endpoint: string, tag: string): Promise<ProbeRe
 	return { kind: "absent" };
 }
 
-/** Detach a worker so it outlives this omp process; its output goes to `logPath`. */
+/** Detach a worker so it outlives this reverse process; its output goes to `logPath`. */
 export function spawnDetached(
 	cmd: string[],
 	cwd: string | undefined,
@@ -268,7 +268,7 @@ async function logTail(logPath: string): Promise<string> {
 		const text = await Bun.file(logPath).text();
 		return text
 			.split("\n")
-			.filter(line => !/^omp .+ listening on /.test(line))
+			.filter(line => !/^reverse .+ listening on /.test(line))
 			.join("\n")
 			.trim()
 			.slice(-500);
@@ -289,7 +289,7 @@ async function awaitSpawnedWorker(
 		const result = await probeSharedWorker(endpoint, launch.tag);
 		if (result.kind === "live") return result.channel;
 		if (spawned.proc.exitCode !== null) {
-			// Our child is gone: either it lost the bind race to a sibling omp
+			// Our child is gone: either it lost the bind race to a sibling reverse
 			// (adopted by the probe above if so) or it crashed.
 			const tail = await logTail(spawned.logPath);
 			throw new Error(`${launch.label} exited with code ${spawned.proc.exitCode}${tail ? `: ${tail}` : ""}`);
@@ -301,7 +301,7 @@ async function awaitSpawnedWorker(
 
 /**
  * Connect to the worker called `name` under `runtimeDir`, spawning it when
- * absent or replacing it when its launch tag is stale. A concurrent omp
+ * absent or replacing it when its launch tag is stale. A concurrent reverse
  * process may win the spawn race; our child then fails to bind (`EADDRINUSE`)
  * and exits while the probe adopts the winner.
  */

@@ -630,16 +630,16 @@ describe("auth-broker wire surface", () => {
 		expect(second?.providers[0]).toMatchObject({ provider: "openai-codex", requests: 1 });
 
 		// App-labeled usage lands in its own (install, app, provider) aggregate
-		// row — "what did robomp spend" must not fold into the unlabeled bucket.
+		// row — "what did reverse spend" must not fold into the unlabeled bucket.
 		await client.reportClientUsage({
 			installId: "install-2",
-			app: "robomp",
+			app: "reverse",
 			entries: [{ ...entry, provider: "openai-codex", model: "gpt-y", requests: 4, costUsd: 1.5 }],
 		});
 		const withApps = await client.fetchClientUsageSummary();
 		const labeled = withApps.clients.find(c => c.installId === "install-2");
 		expect(labeled?.providers).toHaveLength(2);
-		expect(labeled?.providers.find(p => p.app === "robomp")).toMatchObject({
+		expect(labeled?.providers.find(p => p.app === "reverse")).toMatchObject({
 			provider: "openai-codex",
 			requests: 4,
 			costUsd: 1.5,
@@ -1058,7 +1058,7 @@ describe("client_usage app column migration", () => {
 		try {
 			migrated.recordClientUsage({
 				installId: "legacy-install",
-				app: "robomp",
+				app: "reverse",
 				entries: [
 					{
 						at: now,
@@ -1080,7 +1080,7 @@ describe("client_usage app column migration", () => {
 				requests: 5,
 				inputTokens: 100,
 			});
-			expect(client?.providers.find(p => p.app === "robomp")).toMatchObject({
+			expect(client?.providers.find(p => p.app === "reverse")).toMatchObject({
 				provider: "anthropic",
 				requests: 1,
 				inputTokens: 10,

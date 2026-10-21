@@ -51,7 +51,7 @@ describe("RPC goal command", () => {
 		plan?: boolean;
 		persist?: boolean;
 	}): Promise<RpcClient> {
-		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-goal-"));
+		directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-rpc-goal-"));
 		client = new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "goal-rpc-agent.ts")],
 			cwd: directory,

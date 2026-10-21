@@ -37,7 +37,7 @@ const originalExitCode = process.exitCode;
 
 beforeEach(async () => {
 	settingsState = beginSettingsTest();
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-gc-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-gc-"));
 	writes = [];
 	stderrWrites = [];
 	process.exitCode = 0;
@@ -296,7 +296,7 @@ describe("runGcCommand blob sweep", () => {
 
 		// A relative --session-dir transcript stored outside the managed roots.
 		const projectDir = path.join(root, "project");
-		const externalDir = path.join(projectDir, ".omp-sessions");
+		const externalDir = path.join(projectDir, ".reverse-sessions");
 		await fs.mkdir(externalDir, { recursive: true });
 		const externalFile = path.join(externalDir, "work.jsonl");
 		await Bun.write(
@@ -311,7 +311,7 @@ describe("runGcCommand blob sweep", () => {
 		// would miss this transcript and delete its blob.
 		const crumbDir = getTerminalSessionsDir(root);
 		await fs.mkdir(crumbDir, { recursive: true });
-		await Bun.write(path.join(crumbDir, "tty-1"), `${projectDir}\n.omp-sessions/work.jsonl\n`);
+		await Bun.write(path.join(crumbDir, "tty-1"), `${projectDir}\n.reverse-sessions/work.jsonl\n`);
 
 		const result = await runGcCommand({ flags: { agentDir: root, blobs: true, apply: true } });
 
@@ -2461,11 +2461,11 @@ describe("runGcCommand stale state", () => {
 		const agentDir = path.join(root, "agent");
 		const reportsDir = path.join(root, "reports");
 		const collabDir = path.join(root, "collab");
-		const newestReport = await writeAged(reportsDir, "omp-report-newest.tar.gz", "r", 10);
-		const youngReport = await writeAged(reportsDir, "omp-report-young.tar.gz", "r", 20);
+		const newestReport = await writeAged(reportsDir, "reverse-report-newest.tar.gz", "r", 10);
+		const youngReport = await writeAged(reportsDir, "reverse-report-young.tar.gz", "r", 20);
 		const oldReports = [
-			await writeAged(reportsDir, "omp-report-old.tar.gz", "r", 40),
-			await writeAged(reportsDir, "omp-report-older.tar.gz", "r", 50),
+			await writeAged(reportsDir, "reverse-report-old.tar.gz", "r", 40),
+			await writeAged(reportsDir, "reverse-report-older.tar.gz", "r", 50),
 		];
 		const unrelated = await writeAged(reportsDir, "notes.txt", "keep", 100);
 		const liveReplica = await writeAged(collabDir, "room-live.jsonl", "{}\n", 1);
@@ -2607,7 +2607,9 @@ describe("runGcCommand session compression", () => {
 			expect(after.mtimeNs).toBe(before[index].mtimeNs);
 			expect(after.allocated).toBeLessThan(after.size);
 		}
-		expect((await fs.readdir(path.dirname(file))).filter(name => name.startsWith(".omp-gc-compress-"))).toEqual([]);
+		expect((await fs.readdir(path.dirname(file))).filter(name => name.startsWith(".reverse-gc-compress-"))).toEqual(
+			[],
+		);
 
 		const rerun = await runGcCommand({ flags: { agentDir: root, compress: true, apply: true } });
 		expect(rerun.compress).toMatchObject({ wouldCompress: 0, compressed: 0 });
@@ -2639,15 +2641,15 @@ describe("runGcCommand session compression", () => {
 
 	test.skipIf(!onApfs)("--apply removes only the scratch dirs a killed run left behind", async () => {
 		const { file, artifact } = await writeIdleSession(Bun.randomUUIDv7());
-		const inSessions = path.join(path.dirname(file), ".omp-gc-compress-a1b2c3");
-		const inArchive = path.join(root, "archive", "sessions", "project", "x", ".omp-gc-compress-d4e5f6");
+		const inSessions = path.join(path.dirname(file), ".reverse-gc-compress-a1b2c3");
+		const inArchive = path.join(root, "archive", "sessions", "project", "x", ".reverse-gc-compress-d4e5f6");
 		for (const dir of [inSessions, inArchive]) {
 			await fs.mkdir(dir, { recursive: true });
-			await Bun.write(path.join(dir, ".omp-gc-compress-owner"), "");
+			await Bun.write(path.join(dir, ".reverse-gc-compress-owner"), "");
 			await Bun.write(path.join(dir, "copy.jsonl"), filler);
 		}
 		// An artifact that merely shares the name carries no owner marker.
-		const userArtifact = path.join(path.dirname(artifact), ".omp-gc-compress-notes", "keep.txt");
+		const userArtifact = path.join(path.dirname(artifact), ".reverse-gc-compress-notes", "keep.txt");
 		await fs.mkdir(path.dirname(userArtifact), { recursive: true });
 		await Bun.write(userArtifact, "keep");
 

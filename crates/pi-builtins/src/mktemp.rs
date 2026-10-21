@@ -671,15 +671,15 @@ mod tests {
 	#[test]
 	fn bsd_t_prefix_creates_file_in_tmpdir() {
 		let (_dir, root) = canonical_tempdir();
-		let (code, stdout, stderr) = run_in(root.clone(), &tmpdir_env(&root), &["-t", "omp"]);
+		let (code, stdout, stderr) = run_in(root.clone(), &tmpdir_env(&root), &["-t", "reverse"]);
 		assert_eq!(code, 0);
 		assert_eq!(stderr, "");
 		let printed = PathBuf::from(stdout.trim_end_matches('\n'));
 		assert!(printed.is_file());
 		assert_eq!(printed.parent(), Some(root.as_path()));
 		let name = printed.file_name().unwrap().to_str().unwrap();
-		assert!(name.starts_with("omp."));
-		assert_eq!(name.len(), "omp.".len() + 10);
+		assert!(name.starts_with("reverse."));
+		assert_eq!(name.len(), "reverse.".len() + 10);
 	}
 
 	#[test]

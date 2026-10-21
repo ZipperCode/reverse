@@ -1,5 +1,5 @@
 /**
- * Turn engine for `omp if-bench`.
+ * Turn engine for `reverse if-bench`.
  *
  * One model = one growing conversation: the system prompt and every earlier
  * turn stay byte-identical, so the whole prefix is cacheable and turn N only
@@ -172,7 +172,7 @@ async function runTarget(target: BenchTarget, options: IfBenchRunOptions): Promi
 		report.failure = {
 			turn: 0,
 			kind: "provider",
-			detail: `No credentials for provider "${model.provider}". Run \`omp\` and use /login, or set the provider API key.`,
+			detail: `No credentials for provider "${model.provider}". Run \`reverse\` and use /login, or set the provider API key.`,
 		};
 		options.observer?.modelFinished?.(report);
 		return report;

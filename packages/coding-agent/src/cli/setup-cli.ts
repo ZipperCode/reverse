@@ -1,7 +1,7 @@
 /**
  * Setup CLI command handler.
  *
- * Handles `omp setup` for onboarding and `omp setup <component>` for optional dependencies.
+ * Handles `reverse setup` for onboarding and `reverse setup <component>` for optional dependencies.
  */
 import * as readline from "node:readline";
 import * as path from "node:path";
@@ -117,7 +117,7 @@ export async function checkPythonSetup(cwd: string, interpreter?: string): Promi
  * Install Python packages using uv (preferred) or pip.
  */
 // Python installation helper removed: the subprocess runner has no Python
-// package dependencies beyond a working interpreter. `omp setup python --check`
+// package dependencies beyond a working interpreter. `reverse setup python --check`
 // remains as a probe; users install optional libs (pandas, matplotlib, ...)
 // directly via pip or the in-process `%pip` magic.
 
@@ -427,7 +427,7 @@ export function buildSpeechComponents(settings: Settings, registry: ModelRegistr
 }
 
 /**
- * Unified `omp setup speech` flow. Drives every {@link SpeechComponent} through
+ * Unified `reverse setup speech` flow. Drives every {@link SpeechComponent} through
  * one path: report (`--json`/`--check`) or install (interactive pick + ensure
  * with single-line progress; non-TTY skips pickers and installs configured
  * values).

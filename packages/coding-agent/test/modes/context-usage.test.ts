@@ -5,7 +5,7 @@ import { applyToolProxy } from "../../src/extensibility/tool-proxy";
 
 const tokenizer = new Tokenizer();
 
-/** External arktype copies expose bind on callable schemas, unlike omptype. */
+/** External arktype copies expose bind on callable schemas, unlike reversetype. */
 function bindCapableSchema() {
 	return Object.assign((value: unknown) => value, {
 		toJsonSchema: () => ({ type: "object", properties: { a: { type: "string" } } }),

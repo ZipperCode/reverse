@@ -5,7 +5,7 @@ import { getEditorTheme, initTheme } from "@reverse/tui/theme";
 
 /**
  * Regression for issue #4766: plugins written against upstream pi subclass
- * `CustomEditor`/`Editor` and forward `super(tui, theme, keybindings)`. omp's
+ * `CustomEditor`/`Editor` and forward `super(tui, theme, keybindings)`. reverse's
  * `setEditorComponent` factory contract advertises exactly that arg order, so
  * the base constructor must resolve the real theme by shape (not position) or
  * every render throws `undefined is not an object (evaluating
@@ -26,7 +26,7 @@ describe("CustomEditor upstream-pi constructor compatibility (#4766)", () => {
 		expect(editor.tui).toBe(tui);
 	});
 
-	it("still accepts omp's own (theme) constructor", async () => {
+	it("still accepts reverse's own (theme) constructor", async () => {
 		await initTheme();
 		const editor = new CustomEditor(getEditorTheme());
 		editor.setText("hello");

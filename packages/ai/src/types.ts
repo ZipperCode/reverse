@@ -1,7 +1,7 @@
 export * from "@reverse/catalog/effort";
 export * from "@reverse/catalog/types";
 
-import type { Type } from "@reverse/omptype";
+import type { Type } from "@reverse/reversetype";
 import type { AnthropicSlowModeHooks } from "./providers/anthropic-slow-mode";
 import type {
 	DeleteArgs,
@@ -61,7 +61,7 @@ export type { StopDetails } from "./providers/anthropic-wire";
 export type { AssistantMessageEventStream } from "./utils/event-stream";
 
 /**
- * Ceiling on the output-token count omp requests from any OpenAI-family endpoint
+ * Ceiling on the output-token count reverse requests from any OpenAI-family endpoint
  * (openai-responses, azure/xai responses, and openai-completions).
  *
  * Catalog `maxTokens` frequently reflects a model's context window rather than a
@@ -631,7 +631,7 @@ export interface StreamOptions {
 	/**
 	 * Optional per-provider concurrent request cap for LLM stream calls. Keys are
 	 * provider ids (`model.provider`); positive numeric values cap in-flight
-	 * requests across local OMP processes that share the same config root. Omitted
+	 * requests across local Reverse processes that share the same config root. Omitted
 	 * providers are unlimited. Non-chat provider APIs that bypass stream helpers
 	 * are not covered.
 	 */

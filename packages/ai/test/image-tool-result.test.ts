@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { Api, Context, Model, Tool, ToolResultMessage } from "@reverse/ai";
 import { complete } from "@reverse/ai";
 import type { OptionsForApi } from "@reverse/ai/types";

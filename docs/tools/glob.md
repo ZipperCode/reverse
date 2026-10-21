@@ -19,7 +19,7 @@
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `path` | `string` | No | Glob, file, directory, internal URL, or internal-URL glob; host paths can form a semicolon-delimited list (`"src/**/*.ts; test/**/*.ts"`). Omitted defaults to `.`; an explicit empty string is rejected. The registered built-in also treats slash-only inputs such as `/` as the session cwd. Existing delimiter-containing paths stay literal; otherwise semicolon splitting needs no existence check, while comma/whitespace splitting is existence-validated. Each target becomes its own walk root and multi-target scans run concurrently. Internal URLs glob below their root (`local://*.md`, `omp://**/*.md`); `ssh://` requires `exec` approval and is rejected at this tool's `read` tier. |
+| `path` | `string` | No | Glob, file, directory, internal URL, or internal-URL glob; host paths can form a semicolon-delimited list (`"src/**/*.ts; test/**/*.ts"`). Omitted defaults to `.`; an explicit empty string is rejected. The registered built-in also treats slash-only inputs such as `/` as the session cwd. Existing delimiter-containing paths stay literal; otherwise semicolon splitting needs no existence check, while comma/whitespace splitting is existence-validated. Each target becomes its own walk root and multi-target scans run concurrently. Internal URLs glob below their root (`local://*.md`, `reverse://**/*.md`); `ssh://` requires `exec` approval and is rejected at this tool's `read` tier. |
 | `hidden` | `boolean` | No | Include hidden files. Defaults to `true`. |
 | `gitignore` | `boolean` | No | Respect `.gitignore` during local native globbing. Defaults to `true`; set `false` to include gitignored files. |
 | `limit` | `number` | No | Max returned paths. Defaults to `200`; finite positive inputs are floored then clamped to `1..200`. |
@@ -71,7 +71,7 @@ The tool returns a single text block plus structured `details`.
 - **Single glob path**: one input parsed by `parseFindPattern()`.
 - **Multi-path search**: multiple inputs resolved by `resolveExplicitFindPatterns()` into per-entry targets, each walked as its own root concurrently and merged afterwards.
 - **Partial multi-path search with missing inputs**: local multi-path calls skip missing base paths and surface them as `missingPaths` / `Skipped missing paths: ...`.
-- **Internal URL input**: native glob walks URLs through the URL filesystem: file-backed schemes (`skill://<name>` walks the skill directory, `local://notes/*.md`, `memory://root/**/*.md`) redirect to their host files, virtual schemes list their rendered entries (`omp://tools/*.md`). Results are full URLs. Schemes above the `read` tier (`ssh://`) are refused before any handler resolves them, so remote hosts are never contacted.
+- **Internal URL input**: native glob walks URLs through the URL filesystem: file-backed schemes (`skill://<name>` walks the skill directory, `local://notes/*.md`, `memory://root/**/*.md`) redirect to their host files, virtual schemes list their rendered entries (`reverse://tools/*.md`). Results are full URLs. Schemes above the `read` tier (`ssh://`) are refused before any handler resolves them, so remote hosts are never contacted.
 - **Custom delegated search**: uses injected `GlobOperations` instead of local fs + native glob.
 
 ## Side Effects

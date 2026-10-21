@@ -81,7 +81,7 @@ test("dry-balance samples leave no session pins in the credential store", async 
 		);
 
 		expect(summary.success.total).toBe(sessionIds.length);
-		// A later omp process reads pins from the store; the samples must not have left any.
+		// A later reverse process reads pins from the store; the samples must not have left any.
 		const laterProcess = new AuthStorage(store);
 		await laterProcess.credentials.reload();
 		for (const sessionId of sessionIds) {

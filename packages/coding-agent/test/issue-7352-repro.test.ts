@@ -1,9 +1,9 @@
 /**
  * Regression for https://github.com/can1357/oh-my-pi/issues/7352
  *
- * A headless `omp --mode json --no-session -p @<file>` run with
+ * A headless `reverse --mode json --no-session -p @<file>` run with
  * `memory.backend: mnemopi` hung after its turn completed and left an
- * unreaped `__omp_worker_mnemopi_embed` child. The embed-worker IPC request
+ * unreaped `__reverse_worker_mnemopi_embed` child. The embed-worker IPC request
  * (`embed`) had no timeout, so a wedged native runtime (fastembed /
  * onnxruntime hanging, cf. #4792) blocked whatever awaited the embed — the
  * turn's memory recall or the shutdown consolidation — forever. #5753 only

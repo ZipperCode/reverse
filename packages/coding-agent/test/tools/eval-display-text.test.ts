@@ -214,7 +214,7 @@ describe("EvalTool display() text surfacing", () => {
 	});
 
 	it("keeps oversized display details bounded and spills the full value to the artifact", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-display-");
+		using tempDir = TempDir.createSync("@reverse-eval-display-");
 		const artifactPath = tempDir.join("eval.log");
 		const huge = `start-${"x".repeat(100_000)}-end`;
 		vi.spyOn(pyKernel, "checkPythonKernelAvailability").mockResolvedValue({ ok: true });
@@ -263,7 +263,7 @@ describe("EvalTool display() text surfacing", () => {
 	});
 
 	it("restores the full display value when the artifact write fails", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-display-fail-");
+		using tempDir = TempDir.createSync("@reverse-eval-display-fail-");
 		// Parent directory is never created, so the spill FileSink cannot open —
 		// OutputSink swallows the error, so persistence must be treated as
 		// unconfirmed and the full value restored into details.
@@ -291,7 +291,7 @@ describe("EvalTool display() text surfacing", () => {
 	});
 
 	it("restores the full display value when the artifact cap cut the spill", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-display-capped-");
+		using tempDir = TempDir.createSync("@reverse-eval-display-capped-");
 		const artifactPath = tempDir.join("eval.log");
 		// 3 MiB spill against a 1 MB artifact cap: the middle of the value is
 		// never written, so the artifact cannot stand in for it.

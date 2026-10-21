@@ -48,7 +48,7 @@ export class OmfgPanelComponent extends OverlayPanel {
 	#native: NativeNode | undefined;
 
 	constructor(options: OmfgPanelComponentOptions) {
-		super(`/omfg ${replaceTabs(options.complaint)}`, "omp.overlay.omfg");
+		super(`/omfg ${replaceTabs(options.complaint)}`, "reverse.overlay.omfg");
 		this.#tui = options.tui;
 		this.#complaint = replaceTabs(options.complaint);
 		this.#content = new StreamingPanelContent(() => ({
@@ -130,7 +130,7 @@ export class OmfgPanelComponent extends OverlayPanel {
 					? "warning"
 					: undefined;
 		// Inline in the dock, styled as a sheet by role: a borderless column headed by the complaint.
-		const head = node("row", { role: "omp.sheet.head", gap: "sm", align: "center" }, [
+		const head = node("row", { role: "reverse.sheet.head", gap: "sm", align: "center" }, [
 			...(LIVE_STATES[this.#state] ? [node("spinner", {})] : []),
 			text([span("/omfg", "accent"), span(` ${this.#complaint}`)], { truncate: "end", lines: 1 }),
 		]);

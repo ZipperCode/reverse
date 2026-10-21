@@ -59,7 +59,7 @@ async function call<T>(params: Record<string, unknown>, cwd = app): Promise<T> {
 }
 
 beforeEach(() => {
-	root = fs.mkdtempSync(path.join(os.tmpdir(), "omp-archive-"));
+	root = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-archive-"));
 	app = path.join(root, "app");
 	lib = path.join(root, "lib");
 	HistoryStorage.close();

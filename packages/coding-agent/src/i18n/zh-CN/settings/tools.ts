@@ -16,7 +16,7 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 	"ida.maxOpen": {
 		label: "IDA 最大打开数据库数",
 		description:
-			"每个项目同时打开的 IDA 数据库上限（omp ps 中的 omp.ida.* 守护进程）；再打开一个时会保存并关闭最久未使用的空闲数据库",
+			"每个项目同时打开的 IDA 数据库上限（reverse ps 中的 reverse.ida.* 守护进程）；再打开一个时会保存并关闭最久未使用的空闲数据库",
 		options: {
 			"2": { label: "2" },
 			"4": { label: "4" },
@@ -283,7 +283,7 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"github.cache.enabled": {
 		label: "GitHub 视图缓存",
-		description: "将渲染后的议题/PR 视图输出缓存到 ~/.omp/cache/github-cache.db，使重复读取无需开销",
+		description: "将渲染后的议题/PR 视图输出缓存到 ~/.reverse/cache/github-cache.db，使重复读取无需开销",
 	},
 	"github.cache.softTtlSec": {
 		label: "GitHub 缓存软 TTL",
@@ -299,7 +299,7 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"security.enabled": {
 		label: "安全",
-		description: "启用 OMP 原生安全扫描规划、执行以及只读 security:// 资源命名空间",
+		description: "启用 REVERSE 原生安全扫描规划、执行以及只读 security:// 资源命名空间",
 	},
 	"ask.enabled": {
 		label: "询问",
@@ -367,7 +367,7 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"extensionHandlers.toolCallTimeoutMs": {
 		label: "工具调用处理器超时（毫秒）",
-		description: "扩展 tool_call 处理器的正有限活动工作超时；无效值使用 30000ms，等待 OMP 自有对话框的时间不计入",
+		description: "扩展 tool_call 处理器的正有限活动工作超时；无效值使用 30000ms，等待 REVERSE 自有对话框的时间不计入",
 	},
 	"browser.enabled": {
 		label: "浏览器",
@@ -381,11 +381,11 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 	"browser.relay": {
 		label: "浏览器中继",
 		description:
-			"通过 omp 浏览器中继驱动你自己的 Chrome 标签页。安装一次扩展（`omp browser-relay install`）；浏览器前奏需要时中继服务器会自动启动。优先于浏览器 CDP URL；设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 可覆盖。",
+			"通过 reverse 浏览器中继驱动你自己的 Chrome 标签页。安装一次扩展（`reverse browser-relay install`）；浏览器前奏需要时中继服务器会自动启动。优先于浏览器 CDP URL；设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 可覆盖。",
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继 URL",
-		description: "omp 浏览器中继端点（默认 http://127.0.0.1:9224）。",
+		description: "reverse 浏览器中继端点（默认 http://127.0.0.1:9224）。",
 	},
 	"browser.headless": {
 		label: "无头浏览器",
@@ -399,17 +399,17 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 	"browser.tern": {
 		label: "Tern 浏览器",
 		description:
-			"在 Tern 窗格内，将浏览器标签页作为画中画打开在 omp 窗格上（原生 Web 视图），而不是无头 Chromium；没有可承载的 Tern 窗口时回退到 Chromium。显式 app 选项、中继和浏览器 CDP URL 优先；app.tern:false 可使单次打开退出。设置 PI_BROWSER_TERN=0 或 PI_BROWSER_TERN=1 可覆盖。",
+			"在 Tern 窗格内，将浏览器标签页作为画中画打开在 reverse 窗格上（原生 Web 视图），而不是无头 Chromium；没有可承载的 Tern 窗口时回退到 Chromium。显式 app 选项、中继和浏览器 CDP URL 优先；app.tern:false 可使单次打开退出。设置 PI_BROWSER_TERN=0 或 PI_BROWSER_TERN=1 可覆盖。",
 	},
 	"browser.freezeOnTurnEnd": {
 		label: "轮次结束时冻结浏览器标签页",
 		description:
-			"轮次稳定时冻结 OMP 拥有的无头浏览器标签页，使动画页面在空闲时停止消耗 CPU/GPU。标签页下次使用时自动解冻；打开时传 persist:true 可使标签页退出此行为。",
+			"轮次稳定时冻结 REVERSE 拥有的无头浏览器标签页，使动画页面在空闲时停止消耗 CPU/GPU。标签页下次使用时自动解冻；打开时传 persist:true 可使标签页退出此行为。",
 	},
 	"browser.idleCloseSec": {
 		label: "浏览器空闲关闭超时",
 		description:
-			"关闭空闲超过这么多秒的 OMP 拥有的无头浏览器标签页和 Tern 浏览器画中画（0 = 从不；会话释放仍会回收）。绝不影响中继/CDP/派生的浏览器或其他会话的标签页。",
+			"关闭空闲超过这么多秒的 REVERSE 拥有的无头浏览器标签页和 Tern 浏览器画中画（0 = 从不；会话释放仍会回收）。绝不影响中继/CDP/派生的浏览器或其他会话的标签页。",
 		options: {
 			"0": { label: "从不" },
 			"900": { label: "15 分钟" },

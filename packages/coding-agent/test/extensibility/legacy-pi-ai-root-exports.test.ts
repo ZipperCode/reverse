@@ -28,12 +28,12 @@ import {
 } from "@reverse/coding-agent/extensibility/legacy-pi-ai-shim";
 
 // Issue #6859: pi extensions import runtime helpers from the `@earendil-works/pi-ai`
-// (aliased to `@reverse/ai`) package root that omp's barrel no longer forwards.
+// (aliased to `@reverse/ai`) package root that reverse's barrel no longer forwards.
 // `isContextOverflow` moved under `@reverse/ai/error` and the JSON-repair
 // helpers moved to `@reverse/utils`, so `export * from "@reverse/ai"` left
 // them off the shim surface and a named import tripped Bun's static
 // "No matching export" check during plugin validation (e.g.
-// `omp plugin install pi-blackhole`). This pins the bridged root surface so it
+// `reverse plugin install pi-blackhole`). This pins the bridged root surface so it
 // cannot silently regress the way #6583 / #6648 did one symbol at a time.
 function createErrorMessage(errorMessage: string): AssistantMessage {
 	return {
@@ -172,7 +172,7 @@ describe("legacy pi-ai shim root exports", () => {
 });
 
 // Upstream pi-ai 1.x exposes the transcript-replay module from its package
-// root (present since at least 1.0.2). omp forked before it existed and has
+// root (present since at least 1.0.2). reverse forked before it existed and has
 // no equivalent, so `export *` could not satisfy named imports of e.g.
 // `getCurrentSystemMessage` (observed consumer: `pi-optchat`, which replays
 // tool state when rebuilding the system prompt of its bounded memory view).

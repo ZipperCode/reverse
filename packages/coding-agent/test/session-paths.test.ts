@@ -42,8 +42,8 @@ afterEach(() => {
 
 describe("legacy session directory migration", () => {
 	test("keeps a colliding live legacy session reachable through its path", () => {
-		const sessionsRoot = makeTempDir("omp-session-root-");
-		const cwd = makeTempDir("omp-session-cwd-");
+		const sessionsRoot = makeTempDir("reverse-session-root-");
+		const cwd = makeTempDir("reverse-session-cwd-");
 		const storage = new FileSessionStorage();
 		const canonicalDir = computeDefaultSessionDir(cwd, storage, sessionsRoot);
 		const legacyDir = legacySessionDir(sessionsRoot, cwd);
@@ -63,8 +63,8 @@ describe("legacy session directory migration", () => {
 	});
 
 	test("preserves writes when an older process recreates its cached legacy directory", () => {
-		const sessionsRoot = makeTempDir("omp-session-root-");
-		const cwd = makeTempDir("omp-session-cwd-");
+		const sessionsRoot = makeTempDir("reverse-session-root-");
+		const cwd = makeTempDir("reverse-session-cwd-");
 		const storage = new FileSessionStorage();
 		const canonicalDir = computeDefaultSessionDir(cwd, storage, sessionsRoot);
 		const legacyDir = legacySessionDir(sessionsRoot, cwd);
@@ -83,8 +83,8 @@ describe("legacy session directory migration", () => {
 
 describe("hasPositiveMovedProjectEvidence", () => {
 	test("is true only when the continue cwd is the same directory inode", () => {
-		const from = makeTempDir("omp-cwd-from-");
-		const sibling = makeTempDir("omp-cwd-unrelated-");
+		const from = makeTempDir("reverse-cwd-from-");
+		const sibling = makeTempDir("reverse-cwd-unrelated-");
 		const identity = readCwdIdentity(from);
 		expect(identity).toBeDefined();
 		expect(hasPositiveMovedProjectEvidence(identity, sibling)).toBe(false);
@@ -99,15 +99,15 @@ describe("hasPositiveMovedProjectEvidence", () => {
 
 describe("custom session-file registry", () => {
 	test("records an exact relocated session file and skips managed JSONL files", () => {
-		const agentDir = makeTempDir("omp-agent-");
-		const cwd = makeTempDir("omp-cwd-");
+		const agentDir = makeTempDir("reverse-agent-");
+		const cwd = makeTempDir("reverse-cwd-");
 		const originalAgentDir = getAgentDir();
 		setAgentDir(agentDir);
 		try {
 			// A relative extensionless --session path resolves against cwd and
 			// lands in the registry as the exact file, not its parent directory.
-			writeTerminalBreadcrumb(cwd, path.join(".omp-sessions", "work"));
-			const expectedFile = path.join(cwd, ".omp-sessions", "work");
+			writeTerminalBreadcrumb(cwd, path.join(".reverse-sessions", "work"));
+			const expectedFile = path.join(cwd, ".reverse-sessions", "work");
 			const marker = path.join(getCustomSessionFilesDir(agentDir), hashPath(expectedFile));
 			expect(fs.readFileSync(marker, "utf8")).toBe(expectedFile);
 
@@ -123,8 +123,8 @@ describe("custom session-file registry", () => {
 	});
 
 	test("leaves identical breadcrumb and marker files unwritten when the same session is recorded again", () => {
-		const agentDir = makeTempDir("omp-agent-");
-		const cwd = makeTempDir("omp-cwd-");
+		const agentDir = makeTempDir("reverse-agent-");
+		const cwd = makeTempDir("reverse-cwd-");
 		const originalAgentDir = getAgentDir();
 		const originalTmuxPane = process.env.TMUX_PANE;
 		process.env.TMUX_PANE = "%pointer-write-test";
@@ -156,8 +156,8 @@ describe("custom session-file registry", () => {
 	});
 
 	test("records no marker for a session on a non-filesystem storage backend", async () => {
-		const globalAgentDir = makeTempDir("omp-agent-global-");
-		const cwd = makeTempDir("omp-cwd-");
+		const globalAgentDir = makeTempDir("reverse-agent-global-");
+		const cwd = makeTempDir("reverse-cwd-");
 		const originalAgentDir = getAgentDir();
 		setAgentDir(globalAgentDir);
 		try {

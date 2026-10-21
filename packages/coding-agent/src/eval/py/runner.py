@@ -1,4 +1,4 @@
-"""OMP Python runner — subprocess wrapper used by the coding-agent host.
+"""REVERSE Python runner — subprocess wrapper used by the coding-agent host.
 
 NDJSON protocol over stdin/stdout. Host writes one JSON object per line;
 wrapper writes typed frames back.
@@ -215,11 +215,11 @@ class _RunnerState:
 
 
 _CURRENT_RID: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "omp_current_rid", default=None
+    "reverse_current_rid", default=None
 )
 _CURRENT_DISPLAYED_MATPLOTLIB_FIGURE_IDS: contextvars.ContextVar[set[int] | None] = (
     contextvars.ContextVar(
-        "omp_displayed_matplotlib_figure_ids",
+        "reverse_displayed_matplotlib_figure_ids",
         default=None,
     )
 )
@@ -236,7 +236,7 @@ _SHADOW_UNSUPPORTED = object()
 # bridge. A retained non-JSON-safe user `tool` binding is omitted from the
 # shadow snapshot exactly like the genuine bridge, so snapshot absence alone
 # cannot tell them apart (see `_shadow_tool_available`).
-_TOOL_BRIDGE_MARKER = "__omp_tool_bridge__"
+_TOOL_BRIDGE_MARKER = "__reverse_tool_bridge__"
 
 # Runner-owned reference to the genuine prelude tool bridge, captured on first
 # sighting: kernel init executes the prelude before user cells, so the first
@@ -600,7 +600,7 @@ def _emit_shadow_plan(req: dict) -> None:
         )
         return
     # Mirror the `_compile_source` whole-cell instrumentation skip: when the
-    # cell binds `__omp_with_call_site__` anywhere, authoritative execution
+    # cell binds `__reverse_with_call_site__` anywhere, authoritative execution
     # runs zero instrumented calls, so the planner must admit zero operations
     # (per-call scoping is undecidable across call order; fail closed).
     if _cell_binds_call_site_helper(module):
@@ -895,7 +895,7 @@ def _start_capture_drain() -> None:
     if _CAPTURE_READ_FD is None:
         return
     thread = threading.Thread(
-        target=_drain_captured_stdout, name="omp-fd1-capture", daemon=True
+        target=_drain_captured_stdout, name="reverse-fd1-capture", daemon=True
     )
     thread.start()
 
@@ -1003,12 +1003,12 @@ def transform_cell(source: str) -> str:
 
     Rules
     -----
-    * ``%name args``              -> ``__omp_magic("name", "args")``
-    * ``%load path``              -> ``await __omp_magic_async("load", "path")``
-    * ``var = %name args``        -> ``var = __omp_magic("name", "args")``
-    * ``!cmd``                    -> ``__omp_shell("cmd")``
-    * ``var = !cmd``              -> ``var = __omp_shell("cmd")``
-    * ``%%name args\\n<body>``    -> ``__omp_magic_cell("name", "args", "<body>")``
+    * ``%name args``              -> ``__reverse_magic("name", "args")``
+    * ``%load path``              -> ``await __reverse_magic_async("load", "path")``
+    * ``var = %name args``        -> ``var = __reverse_magic("name", "args")``
+    * ``!cmd``                    -> ``__reverse_shell("cmd")``
+    * ``var = !cmd``              -> ``var = __reverse_shell("cmd")``
+    * ``%%name args\\n<body>``    -> ``__reverse_magic_cell("name", "args", "<body>")``
       (cell magic must be the first non-whitespace token of a top-level line and
       consumes the remainder of the cell)
 
@@ -1040,7 +1040,7 @@ def transform_cell(source: str) -> str:
             body_lines = lines[i + 1 :]
             body = "\n".join(body_lines)
             out.append(
-                f"{indent}__omp_magic_cell({_quote_arg(name)}, {_quote_arg(args)}, {_quote_arg(body)})"
+                f"{indent}__reverse_magic_cell({_quote_arg(name)}, {_quote_arg(args)}, {_quote_arg(body)})"
             )
             return "\n".join(out)
 
@@ -1051,7 +1051,7 @@ def transform_cell(source: str) -> str:
             indent = folded[: len(folded) - len(stripped_folded)]
             head, _ = _split_magic_head(stripped_folded[1:])
             name, args = head
-            call = "__omp_magic_async" if name == "load" else "__omp_magic"
+            call = "__reverse_magic_async" if name == "load" else "__reverse_magic"
             prefix = "await " if name == "load" else ""
             out.append(f"{indent}{prefix}{call}({_quote_arg(name)}, {_quote_arg(args)})")
             i += consumed
@@ -1062,7 +1062,7 @@ def transform_cell(source: str) -> str:
             stripped_folded = folded.lstrip()
             indent = folded[: len(folded) - len(stripped_folded)]
             cmd = stripped_folded[1:].strip()
-            out.append(f"{indent}__omp_shell({_quote_arg(cmd)})")
+            out.append(f"{indent}__reverse_shell({_quote_arg(cmd)})")
             i += consumed
             continue
 
@@ -1073,14 +1073,14 @@ def transform_cell(source: str) -> str:
             if rhs.startswith("!"):
                 cmd = rhs[1:].strip()
                 out.append(
-                    f"{m.group('indent')}{m.group('lhs').rstrip()} = __omp_shell({_quote_arg(cmd)})"
+                    f"{m.group('indent')}{m.group('lhs').rstrip()} = __reverse_shell({_quote_arg(cmd)})"
                 )
                 i += 1
                 continue
             if rhs.startswith("%") and not rhs.startswith("%%"):
                 head, _ = _split_magic_head(rhs[1:])
                 name, args = head
-                call = "__omp_magic_async" if name == "load" else "__omp_magic"
+                call = "__reverse_magic_async" if name == "load" else "__reverse_magic"
                 prefix = "await " if name == "load" else ""
                 out.append(
                     f"{m.group('indent')}{m.group('lhs').rstrip()} = {prefix}{call}({_quote_arg(name)}, {_quote_arg(args)})"
@@ -1133,7 +1133,7 @@ def cell_magic(
 
 
 def _emit_status(op: str, **data: Any) -> None:
-    bundle = {"application/x-omp-status": {"op": op, **data}}
+    bundle = {"application/x-reverse-status": {"op": op, **data}}
     rid = _CURRENT_RID.get()
     if rid is None:
         return
@@ -1570,19 +1570,19 @@ def _run_shell_body(body: str, *, shell_arg: str) -> int:
     return proc.returncode
 
 
-def __omp_magic(name: str, args: str) -> Any:
+def __reverse_magic(name: str, args: str) -> Any:
     fn = _LINE_MAGICS.get(name)
     if fn is None:
         raise NameError(f"UsageError: Line magic function '%{name}' not found.")
     return fn(args)
 
 
-async def __omp_magic_async(name: str, args: str) -> Any:
-    result = __omp_magic(name, args)
+async def __reverse_magic_async(name: str, args: str) -> Any:
+    result = __reverse_magic(name, args)
     return await result if inspect.isawaitable(result) else result
 
 
-def __omp_magic_cell(name: str, args: str, body: str) -> Any:
+def __reverse_magic_cell(name: str, args: str, body: str) -> Any:
     fn = _CELL_MAGICS.get(name)
     if fn is None:
         raise NameError(f"UsageError: Cell magic function '%%{name}' not found.")
@@ -1605,7 +1605,7 @@ class _ShellResult(list):
         return " ".join(self)
 
 
-def __omp_shell(cmd: str) -> _ShellResult:
+def __reverse_shell(cmd: str) -> _ShellResult:
     # stdin=DEVNULL: see _run_shell_body.
     proc = subprocess.Popen(
         cmd,
@@ -1695,7 +1695,7 @@ def _mime_bundle(value: Any) -> dict:
     ):
         image = dict(value)
         image["data"] = _coerce_image_bytes(image["data"])
-        return {"application/x-omp-image": image}
+        return {"application/x-reverse-image": image}
 
     bundle: dict[str, Any] = {}
     matplotlib_png = _matplotlib_figure_png(value)
@@ -1768,7 +1768,7 @@ def _emit_display(bundle: dict, *, kind: str = "display") -> None:
     _emit({"type": kind, "id": rid, "bundle": bundle})
 
 
-def __omp_display(value: Any, *, raw: bool = False, kind: str = "display") -> None:
+def __reverse_display(value: Any, *, raw: bool = False, kind: str = "display") -> None:
     if raw:
         if not isinstance(value, dict):
             raise TypeError("display(..., raw=True) requires a MIME bundle dict")
@@ -1819,13 +1819,13 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 
 
 def _install_builtins(ns: dict) -> None:
-    ns["display"] = __omp_display
-    ns["__omp_display"] = __omp_display
-    ns["__omp_magic"] = __omp_magic
-    ns["__omp_magic_async"] = __omp_magic_async
-    ns["__omp_magic_cell"] = __omp_magic_cell
-    ns["__omp_shell"] = __omp_shell
-    ns["__omp_current_run_id__"] = lambda: _CURRENT_RID.get()
+    ns["display"] = __reverse_display
+    ns["__reverse_display"] = __reverse_display
+    ns["__reverse_magic"] = __reverse_magic
+    ns["__reverse_magic_async"] = __reverse_magic_async
+    ns["__reverse_magic_cell"] = __reverse_magic_cell
+    ns["__reverse_shell"] = __reverse_shell
+    ns["__reverse_current_run_id__"] = lambda: _CURRENT_RID.get()
 
 
 _install_builtins(_STATE.user_ns)
@@ -1879,7 +1879,7 @@ async def _run_compiled_async(code, ns: dict, *, want_value: bool) -> Any:
 
 
 
-_CALL_SITE_HELPER_NAME = "__omp_with_call_site__"
+_CALL_SITE_HELPER_NAME = "__reverse_with_call_site__"
 
 # Runner-owned reference to the genuine instrumentation helper. The helper is
 # defined by the eval prelude inside the user namespace, so the first callable
@@ -1891,7 +1891,7 @@ _TRUSTED_CALL_SITE_HELPERS: dict[str, Any] = {}
 def _restore_call_site_helper(ns: dict) -> None:
     """Reinstall the genuine helper after retained-cell pollution.
 
-    A previous cell can assign or delete `__omp_with_call_site__`; without
+    A previous cell can assign or delete `__reverse_with_call_site__`; without
     this, the next rewritten `tool.read(...)` would resolve to
     user-controlled state and change ordinary eval behavior even with
     speculation disabled.
@@ -2012,7 +2012,7 @@ def _exec_source(source: str, ns: dict) -> None:
     if has_expr and expr_code is not None:
         value = _run_compiled_sync(expr_code, ns, want_value=True)
         if value is not None:
-            __omp_display(value, kind="result")
+            __reverse_display(value, kind="result")
 
 
 async def _exec_source_async(
@@ -2023,7 +2023,7 @@ async def _exec_source_async(
     linecache_source: str | None = None,
 ) -> None:
     """Compile + execute ``source``; if the last node is an expression, route
-    its value through ``__omp_display`` so dataframes/figures render rich.
+    its value through ``__reverse_display`` so dataframes/figures render rich.
     Top-level ``await`` / ``async for`` / ``async with`` is permitted; awaited
     regions yield to other requests in the runner's persistent event loop."""
     _restore_call_site_helper(ns)
@@ -2036,7 +2036,7 @@ async def _exec_source_async(
     if has_expr and expr_code is not None:
         value = await _run_compiled_async(expr_code, ns, want_value=True)
         if value is not None:
-            __omp_display(value, kind="result")
+            __reverse_display(value, kind="result")
 
 
 # ---------------------------------------------------------------------------
@@ -2127,7 +2127,7 @@ def _start_parent_watchdog() -> None:
                 return
             time.sleep(10)
 
-    thread = threading.Thread(target=watch, name="omp-parent-watchdog", daemon=True)
+    thread = threading.Thread(target=watch, name="reverse-parent-watchdog", daemon=True)
     thread.start()
 
 
@@ -2154,7 +2154,7 @@ def _handle_tool_request(req: dict) -> None:
     status = "ok"
     _emit({"type": "started", "id": rid})
     try:
-        tools = _STATE.user_ns.get("__omp_tools__") or {}
+        tools = _STATE.user_ns.get("__reverse_tools__") or {}
         op = req.get("op")
         if op == "describe":
             requested = req.get("names") or list(tools)
@@ -2199,11 +2199,11 @@ async def _handle_request_async(req: dict) -> None:
     token = _CURRENT_RID.set(rid)
     displayed_matplotlib_token = _CURRENT_DISPLAYED_MATPLOTLIB_FIGURE_IDS.set(set())
     _STATE.capture_rid = rid
-    reset_call_occurrences = _STATE.user_ns.get("__omp_reset_call_occurrences__")
+    reset_call_occurrences = _STATE.user_ns.get("__reverse_reset_call_occurrences__")
     if callable(reset_call_occurrences):
         reset_call_occurrences()
     _STATE.namespace_revision += 1
-    _STATE.user_ns["__omp_run_id__"] = rid
+    _STATE.user_ns["__reverse_run_id__"] = rid
     _STATE.cancel_requested = False
     _STATE.execution_count += 1
     execution_count = _STATE.execution_count
@@ -2397,7 +2397,7 @@ def _read_stdin(loop: asyncio.AbstractEventLoop, queue: asyncio.Queue, stdin) ->
             threading.Thread(
                 target=_handle_tool_request,
                 args=(req,),
-                name=f"omp-tool-{req.get('id')}",
+                name=f"reverse-tool-{req.get('id')}",
                 daemon=True,
             ).start()
             continue
@@ -2420,7 +2420,7 @@ async def _serve_posix(loop: asyncio.AbstractEventLoop, stdin) -> None:
     reader = threading.Thread(
         target=_read_stdin,
         args=(loop, queue, stdin),
-        name="omp-stdin-reader",
+        name="reverse-stdin-reader",
         daemon=True,
     )
     reader.start()
@@ -2495,7 +2495,7 @@ async def _serve_windows(loop: asyncio.AbstractEventLoop, stdin) -> None:
             threading.Thread(
                 target=_handle_tool_request,
                 args=(req,),
-                name=f"omp-tool-{req.get('id')}",
+                name=f"reverse-tool-{req.get('id')}",
                 daemon=True,
             ).start()
             continue

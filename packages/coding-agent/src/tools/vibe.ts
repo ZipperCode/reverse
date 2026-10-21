@@ -12,7 +12,7 @@ import { type VibeToolDetails } from "@reverse/tui/tools/vibe";
  * stacked, each showing its tool calls and streamed text as it works.
  */
 
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 
 import { prompt } from "@reverse/utils";

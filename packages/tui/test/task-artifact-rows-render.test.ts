@@ -52,8 +52,8 @@ describe("task renderer: isolation artifact row labels", () => {
 	it("keeps the Patch and Nested patch labels on sanitized artifact rows", async () => {
 		const text = await renderResultText(
 			makeResult({
-				patchPath: "/home/user/.omp/artifacts/Worker.patch",
-				nestedPatchPaths: ["/home/user/.omp/artifacts/Worker.nested-0-inner.patch"],
+				patchPath: "/home/user/.reverse/artifacts/Worker.patch",
+				nestedPatchPaths: ["/home/user/.reverse/artifacts/Worker.nested-0-inner.patch"],
 			}),
 		);
 		expect(text).toContain("Patch:");
@@ -61,16 +61,16 @@ describe("task renderer: isolation artifact row labels", () => {
 	});
 
 	it("keeps the Branch label on sanitized artifact rows", async () => {
-		const text = await renderResultText(makeResult({ branchName: "omp/task/Worker" }));
+		const text = await renderResultText(makeResult({ branchName: "reverse/task/Worker" }));
 		expect(text).toContain("Branch:");
 	});
 
 	it("hides the empty root Patch row for nested-only work", async () => {
 		const text = await renderResultText(
 			makeResult({
-				patchPath: "/home/user/.omp/artifacts/Worker.patch",
+				patchPath: "/home/user/.reverse/artifacts/Worker.patch",
 				hasRootChanges: false,
-				nestedPatchPaths: ["/home/user/.omp/artifacts/Worker.nested-0-inner.patch"],
+				nestedPatchPaths: ["/home/user/.reverse/artifacts/Worker.nested-0-inner.patch"],
 			}),
 		);
 		expect(text).not.toContain("Patch:");

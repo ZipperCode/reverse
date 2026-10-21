@@ -97,24 +97,24 @@ describe("LocalProtocolHandler", () => {
 
 	it("uses session id fallback root when artifacts dir is unavailable", async () => {
 		const root = resolveLocalRoot({ getSessionId: () => "session-fallback", getArtifactsDir: () => null });
-		expect(root).toContain(path.join("omp-local", "session-fallback"));
+		expect(root).toContain(path.join("reverse-local", "session-fallback"));
 		expect(resolveLocalUrlToPath("local://memo.txt", { getSessionId: () => "session-fallback" })).toBe(
 			path.join(root, "memo.txt"),
 		);
 	});
 
-	it("keeps the fallback root inside its own session dir under omp-local", () => {
+	it("keeps the fallback root inside its own session dir under reverse-local", () => {
 		for (const sessionId of ["..", "."]) {
 			const getSessionId = () => sessionId;
 			expect(resolveLocalRoot({ getSessionId, getArtifactsDir: () => null })).toBe(
-				path.join(os.tmpdir(), "omp-local", "session"),
+				path.join(os.tmpdir(), "reverse-local", "session"),
 			);
 		}
 	});
 
 	it("uses a stable short temp root for long Windows artifact paths", async () => {
 		const longArtifactsDir = path.join(os.tmpdir(), "a".repeat(220), "artifacts");
-		const expectedRoot = path.join(os.tmpdir(), "omp-local", "session_long");
+		const expectedRoot = path.join(os.tmpdir(), "reverse-local", "session_long");
 		const options = {
 			getArtifactsDir: () => longArtifactsDir,
 			getSessionId: () => "session:long",

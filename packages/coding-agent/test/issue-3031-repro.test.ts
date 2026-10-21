@@ -9,7 +9,7 @@
  *   - NPM install: NAPI finalizer segfault at process teardown.
  *
  * The fix relocates the embeddings stack into a Bun.spawn child process
- * (`__omp_worker_mnemopi_embed`) owned by the machine-shared embedding server;
+ * (`__reverse_worker_mnemopi_embed`) owned by the machine-shared embedding server;
  * the agent hands `mnemopi.setLocalModelInitializer` a wrapper that round-trips
  * through that server, and the server `SIGKILL`s the child so the destructor
  * never runs in any address space. These tests pin the child's contract so a
@@ -30,7 +30,7 @@ import type {
 describe("issue #3031 — mnemopi embeddings live in an isolated subprocess", () => {
 	it("ping/pongs through the spawned worker subprocess and tears it down cleanly", async () => {
 		// `smokeTestMnemopiEmbedWorker` is the runtime probe wired into
-		// `omp --smoke-test`. Run it in a child Bun process instead of this
+		// `reverse --smoke-test`. Run it in a child Bun process instead of this
 		// Bun-test worker: the test runner owns its own IPC channel and can
 		// starve nested Bun subprocess IPC on some Bun builds.
 		const repoRoot = path.resolve(import.meta.dir, "../../..");

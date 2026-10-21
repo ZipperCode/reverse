@@ -133,7 +133,7 @@ describe("resource links in chat markdown", () => {
 	let originalHyperlinks: boolean;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-markdown-links-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-markdown-links-"));
 		originalHyperlinks = terminalCaps.TERMINAL.hyperlinks;
 		terminalCaps.setTerminalHyperlinks(true);
 		await initTheme();
@@ -298,8 +298,8 @@ describe("applyHyperlinkSetting on project-scoped reload", () => {
 	// value while path links already track the new one (#10196 review).
 	it("reapplies the effective policy so the runtime flag tracks the reloaded setting", async () => {
 		const origHyperlinks = terminalCaps.TERMINAL.hyperlinks;
-		const dirA = path.join(os.tmpdir(), "omp-hyperlink-reload-a");
-		const dirB = path.join(os.tmpdir(), "omp-hyperlink-reload-b");
+		const dirA = path.join(os.tmpdir(), "reverse-hyperlink-reload-a");
+		const dirB = path.join(os.tmpdir(), "reverse-hyperlink-reload-b");
 		try {
 			terminalCaps.setTerminalHyperlinks(false);
 			cfgTuiHyperlinks.override(settings, "always");

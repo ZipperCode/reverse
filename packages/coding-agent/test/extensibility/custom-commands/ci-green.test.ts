@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@reverse/omptype";
-import type * as TypeBox from "@reverse/omptype/typebox";
-import * as zod from "@reverse/omptype/zod";
+import { type } from "@reverse/reversetype";
+import type * as TypeBox from "@reverse/reversetype/typebox";
+import * as zod from "@reverse/reversetype/zod";
 import * as piCodingAgent from "@reverse/coding-agent";
 import { GreenCommand } from "@reverse/coding-agent/extensibility/custom-commands/bundled/ci-green";
 import type { CustomCommandAPI } from "@reverse/coding-agent/extensibility/custom-commands/types";

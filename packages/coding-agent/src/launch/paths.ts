@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { ipcEndpoint } from "@reverse/natives";
 import { getDaemonRuntimeDir, hasFsCode, isEacces, isEisdir, isEnoent } from "@reverse/utils";
 
-/** Resolve the private runtime directory shared by omp processes in one project directory. */
+/** Resolve the private runtime directory shared by reverse processes in one project directory. */
 export { getDaemonRuntimeDir as daemonRuntimeDir };
 
 /** File in a broker runtime dir recording which project (or global service dir) owns the scope. */
@@ -40,7 +40,7 @@ export async function canonicalProjectDir(projectDir: string): Promise<string> {
 
 /**
  * Record the scope's canonical project directory inside its runtime dir.
- * Written by the broker at startup so out-of-process inspectors (`omp ps`)
+ * Written by the broker at startup so out-of-process inspectors (`reverse ps`)
  * can map a hash-keyed runtime dir back to its project.
  */
 export async function writeDaemonScopeMeta(runtimeDir: string, projectDir: string): Promise<void> {

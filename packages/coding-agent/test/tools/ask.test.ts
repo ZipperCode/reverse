@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentToolContext } from "@reverse/agent";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import type {
@@ -428,7 +428,7 @@ describe("AskTool option descriptions", () => {
 		const select = vi.fn(async (_prompt: string, options: ExtensionUISelectItem[]) => {
 			expect(options[0]).toEqual({
 				label: "Use local credentials",
-				description: "Authenticate with provider keys already configured under ~/.omp.",
+				description: "Authenticate with provider keys already configured under ~/.reverse.",
 			});
 			expect(options[1]).toEqual({
 				label: "Set up in terminal",
@@ -449,7 +449,7 @@ describe("AskTool option descriptions", () => {
 						options: [
 							{
 								label: "Use local credentials",
-								description: "Authenticate with provider keys already configured under ~/.omp.",
+								description: "Authenticate with provider keys already configured under ~/.reverse.",
 							},
 							{
 								label: "Set up in terminal",
@@ -482,7 +482,7 @@ describe("AskTool option descriptions", () => {
 				options: [
 					{
 						label: "Use local credentials",
-						description: "Authenticate with provider keys already configured under ~/.omp.",
+						description: "Authenticate with provider keys already configured under ~/.reverse.",
 					},
 					{
 						label: "Set up in terminal",
@@ -1627,7 +1627,7 @@ describe("AskTool rich ask dialog", () => {
 		let describeCalls: unknown[][];
 
 		beforeEach(async () => {
-			tempDir = await TempDir.create("@omp-ask-describe-");
+			tempDir = await TempDir.create("@reverse-ask-describe-");
 			describeCalls = [];
 			vi.spyOn(ai, "completeSimple").mockImplementation(completeImpl);
 		});

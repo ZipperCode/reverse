@@ -8,9 +8,9 @@
     "streams",
     "utilities"
   ],
-  "homepage": "https://omp.sh",
+  "homepage": "https://github.com/ZipperCode/rev",
   "bugs": {
-    "url": "https://github.com/can1357/oh-my-pi/issues"
+    "url": "https://github.com/ZipperCode/rev/issues"
   },
   "license": "MIT",
   "author": {
@@ -19,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "url": "git+https://github.com/ZipperCode/rev.git",
     "directory": "packages/utils"
   },
   "files": [

@@ -6,7 +6,7 @@ import { postmortem, setTerminalHeadless } from "@reverse/utils";
 
 // A Ctrl+C while shutdown() is still closing the session hard-exits through
 // postmortem.exitProcess(), which skips the postmortem cleanups — including the
-// terminal restore. The kitty keyboard frame omp pushed stayed on the terminal's
+// terminal restore. The kitty keyboard frame reverse pushed stayed on the terminal's
 // stack, so the parent shell received Ctrl+C as `CSI 99;5u` and zsh printed
 // `9;5u` at the prompt. The terminal must be handed back before the exit.
 

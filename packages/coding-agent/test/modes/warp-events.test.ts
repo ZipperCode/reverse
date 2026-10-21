@@ -125,7 +125,7 @@ describe("Warp CLI-agent events", () => {
 		const expectedBody = JSON.stringify({
 			event: "stop",
 			v: 1,
-			agent: "omp",
+			agent: "reverse",
 			session_id: "session-123",
 			cwd: process.cwd(),
 			project,
@@ -780,9 +780,9 @@ describe("Warp CLI-agent events", () => {
 		expect(body).toEqual({
 			event: "permission_request",
 			tool_name: "bash",
-			summary: "omp wants to run bash",
+			summary: "reverse wants to run bash",
 			v: 1,
-			agent: "omp",
+			agent: "reverse",
 			session_id: "session-123",
 			cwd: process.cwd(),
 			project,

@@ -45,7 +45,7 @@ let tempDir: string;
 
 beforeEach(async () => {
 	authStorage = await AuthStorage.create(":memory:");
-	tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-tts-chain-"));
+	tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-tts-chain-"));
 });
 
 afterEach(() => {

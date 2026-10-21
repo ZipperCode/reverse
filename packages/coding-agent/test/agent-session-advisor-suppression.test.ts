@@ -18,7 +18,7 @@
  *     follow-up stays queued for the next explicit resume rather than auto-running.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
 import type { ToolCall } from "@reverse/ai";
 import { createMockModel, type MockModel, type MockResponse } from "@reverse/ai/providers/mock";

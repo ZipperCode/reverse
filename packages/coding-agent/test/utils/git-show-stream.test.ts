@@ -10,7 +10,7 @@ describe("git show byte stream", () => {
 	const content = `${Array.from({ length: 2_000 }, (_, index) => `line ${index} 🚀`).join("\n")}\n`;
 
 	beforeAll(async () => {
-		repoDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-git-show-stream-"));
+		repoDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-git-show-stream-"));
 		await $`git init --initial-branch=main`.cwd(repoDir).quiet();
 		await $`git config user.name "Test User"`.cwd(repoDir).quiet();
 		await $`git config user.email "test@example.com"`.cwd(repoDir).quiet();

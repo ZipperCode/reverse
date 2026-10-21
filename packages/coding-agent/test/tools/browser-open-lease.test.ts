@@ -66,7 +66,7 @@ beforeEach(() => {
 	prevSocketPath = process.env.CMUX_SOCKET_PATH;
 	// Unique per test so the module-global browsers map (keyed by socket path)
 	// never carries a handle across tests.
-	process.env.CMUX_SOCKET_PATH = `/tmp/omp-open-lease-${process.pid}-${Math.random().toString(36).slice(2)}.sock`;
+	process.env.CMUX_SOCKET_PATH = `/tmp/reverse-open-lease-${process.pid}-${Math.random().toString(36).slice(2)}.sock`;
 });
 
 afterEach(async () => {
@@ -235,7 +235,7 @@ describe("browser open — an abandoned browser acquisition does not hold up the
 	});
 
 	it("keeps the replacement acquisition shared when the abandoned one settles while it is still connecting", async () => {
-		const kind = { kind: "cmux" as const, socketPath: `/tmp/omp-open-lease-${process.pid}-late.sock` };
+		const kind = { kind: "cmux" as const, socketPath: `/tmp/reverse-open-lease-${process.pid}-late.sock` };
 		const abandonedConnect = { entered: Promise.withResolvers<void>(), gate: Promise.withResolvers<void>() };
 		const replacementConnect = { entered: Promise.withResolvers<void>(), gate: Promise.withResolvers<void>() };
 		const gatedConnects = [abandonedConnect, replacementConnect];
@@ -313,7 +313,7 @@ describe("browser open — an abandoned browser acquisition does not hold up the
 });
 
 describe("browser open — failed spawned-app acquisition reaps its owned process (#9537)", () => {
-	it("kills the OMP-spawned process when no page target can be published", async () => {
+	it("kills the REVERSE-spawned process when no page target can be published", async () => {
 		const disconnectSpy = vi.fn();
 		const browser = {
 			key: "spawned:/tmp/chrome-headless-shell",

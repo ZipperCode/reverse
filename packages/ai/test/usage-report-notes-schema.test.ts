@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { usageReportSchema } from "@reverse/ai";
 import { usageResponseSchema } from "@reverse/ai/auth-broker/wire-schemas";
 

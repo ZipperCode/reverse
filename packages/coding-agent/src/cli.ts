@@ -181,14 +181,14 @@ async function runSmokeTest(): Promise<void> {
 	process.stdout.write("smoke-test: ok\n");
 }
 
-const TINY_WORKER_ARG = "__rva_worker_tiny_inference";
-const STATS_SYNC_WORKER_ARG = "__rva_worker_stats_sync";
-const TAB_WORKER_ARG = "__rva_worker_tab";
-const JS_EVAL_WORKER_ARG = "__rva_worker_js_eval";
-const JS_EVAL_PROCESS_ARG = "__rva_worker_js_eval_process";
-const STT_WORKER_ARG = "__rva_worker_stt";
-const TTS_WORKER_ARG = "__rva_worker_tts";
-const MNEMOPI_EMBED_WORKER_ARG = "__rva_worker_mnemopi_embed";
+const TINY_WORKER_ARG = "__reverse_worker_tiny_inference";
+const STATS_SYNC_WORKER_ARG = "__reverse_worker_stats_sync";
+const TAB_WORKER_ARG = "__reverse_worker_tab";
+const JS_EVAL_WORKER_ARG = "__reverse_worker_js_eval";
+const JS_EVAL_PROCESS_ARG = "__reverse_worker_js_eval_process";
+const STT_WORKER_ARG = "__reverse_worker_stt";
+const TTS_WORKER_ARG = "__reverse_worker_tts";
+const MNEMOPI_EMBED_WORKER_ARG = "__reverse_worker_mnemopi_embed";
 
 async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 	if (arg === TINY_WORKER_ARG) {
@@ -425,10 +425,10 @@ async function runIpcSubprocessWorker<In, Out>(
 
 /**
  * Hidden subcommand that boots the ONNX tiny-model worker for one model: a
- * detached process owning that model's socket (`OMP_TINY_WORKER_SOCKET`),
- * shared by every omp process on the machine and exiting on its own when
+ * detached process owning that model's socket (`REVERSE_TINY_WORKER_SOCKET`),
+ * shared by every reverse process on the machine and exiting on its own when
  * idle. It exists so `onnxruntime-node` (loaded transitively by
- * `@huggingface/transformers`) never runs in an omp address space — its NAPI
+ * `@huggingface/transformers`) never runs in an reverse address space — its NAPI
  * finalizer segfaults Bun on Windows (issue #1606).
  */
 async function runTinyWorker(): Promise<void> {
@@ -448,12 +448,12 @@ export async function runCli(argv: string[]): Promise<void> {
 		if (extracted.profile !== undefined) {
 			setProfile(extracted.profile);
 		} else {
-			// No explicit --profile: activate any OMP_PROFILE/PI_PROFILE inherited
+			// No explicit --profile: activate any REVERSE_PROFILE inherited
 			// from the environment. Module-load resolution deliberately swallows an
 			// invalid value to avoid an uncaught throw before this try/catch is in
 			// scope (see `readProfileFromEnvSafe` in dirs.ts), and callers may set
-			// OMP_PROFILE after importing this module (profile aliases/tests). Surfacing
-			// validation here turns `OMP_PROFILE=.. omp --version` into a clean error;
+			// REVERSE_PROFILE after importing this module (profile aliases/tests). Surfacing
+			// validation here turns `REVERSE_PROFILE=.. reverse --version` into a clean error;
 			// calling setProfile keeps every later path helper on the env-selected
 			// profile instead of the default agent directory.
 			setProfile(resolveProfileEnv(process.env.REVERSE_PROFILE));
@@ -584,7 +584,7 @@ if (isProcessEntry || !Bun.isMainThread) {
 	const postmortem: typeof Postmortem | undefined = isProcessEntry
 		? require("@reverse/utils/postmortem.js")
 		: undefined;
-	// A one-shot CLI run (`omp --help | head`, `omp --version | true`, `omp <sub> | grep -m1`)
+	// A one-shot CLI run (`reverse --help | head`, `reverse --version | true`, `reverse <sub> | grep -m1`)
 	// whose stdout consumer closes before the write drains gets an EPIPE that Bun surfaces as
 	// an unhandled rejection. Treat a vanished stdout peer as an ordinary Unix disconnect
 	// (graceful exit) rather than the fatal path. Interactive launches register their own

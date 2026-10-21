@@ -4,14 +4,14 @@ import Stats from "../src/commands/stats";
 import * as theme from "@reverse/tui/theme";
 import { DEFAULT_STATS_DASHBOARD_PORT, parseStatsDashboardArgs } from "../src/slash-commands/helpers/stats-dashboard";
 
-const TEST_CONFIG = { bin: "omp", version: "0.0.0-test", commands: new Map() };
+const TEST_CONFIG = { bin: "reverse", version: "0.0.0-test", commands: new Map() };
 
 afterEach(() => {
 	vi.restoreAllMocks();
 });
 
 describe("stats dashboard host arguments", () => {
-	it("forwards the real omp stats flags to the dashboard runner", async () => {
+	it("forwards the real reverse stats flags to the dashboard runner", async () => {
 		vi.spyOn(theme, "initTheme").mockResolvedValue();
 		const runStatsCommand = vi.spyOn(statsCli, "runStatsCommand").mockResolvedValue();
 		const command = new Stats(["--host", "::", "--port", "3850"], TEST_CONFIG);

@@ -21,7 +21,7 @@ export interface ReactPageEnvelope<T> {
 /** Page expression installing the minimal React DevTools hook; safe to run at document start or on a live page. */
 export const REACT_HOOK_INIT_SOURCE = `(() => {
 	const existing = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-	if (existing && existing.__ompReact) return true;
+	if (existing && existing.__reverseReact) return true;
 	const renderers = new Map();
 	const roots = new Map();
 	const fiberIds = new WeakMap();
@@ -141,7 +141,7 @@ export const REACT_HOOK_INIT_SOURCE = `(() => {
 			this.getFiberRoots(rendererId).add(root);
 			walkCommit(root && root.current);
 			if (recording.active) recording.commits += 1;
-			const vitals = globalThis.__ompBrowserVitals;
+			const vitals = globalThis.__reverseBrowserVitals;
 			if (vitals && !vitals.hydration) vitals.hydration = { framework: "React", hydratedAt: performance.now() };
 		},
 		onCommitFiberUnmount(_rendererId, fiber) {
@@ -149,7 +149,7 @@ export const REACT_HOOK_INIT_SOURCE = `(() => {
 			if (id !== undefined) fibersById.delete(id);
 		},
 	};
-	Object.defineProperty(hook, "__ompReact", {
+	Object.defineProperty(hook, "__reverseReact", {
 		value: {
 			roots,
 			fiberIds,
@@ -175,7 +175,7 @@ export const REACT_HOOK_INIT_SOURCE = `(() => {
 /** Page expression reporting whether the hook is installed and the first renderer's React version (`ReactEnableResult`). */
 export const REACT_ENABLE_READ_SOURCE = `(() => {
 	const hook = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-	if (!hook || !hook.__ompReact) return { installed: false };
+	if (!hook || !hook.__reverseReact) return { installed: false };
 	let reactVersion;
 	for (const renderer of hook.renderers.values()) {
 		if (renderer && typeof renderer.version === "string") {

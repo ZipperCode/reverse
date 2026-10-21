@@ -4,7 +4,7 @@ import { dropSettingsGroupShadows } from "@reverse/coding-agent/config/settings"
 describe("dropSettingsGroupShadows", () => {
 	it("drops a non-object leaf that would shadow a settings group", () => {
 		// `.claude/settings.json` is shared with other tools; Claude Code's own
-		// `"tui": "fullscreen"` must not replace omp's whole `tui.*` group.
+		// `"tui": "fullscreen"` must not replace reverse's whole `tui.*` group.
 		const result = dropSettingsGroupShadows({ tui: "fullscreen" }, "/proj/.claude/settings.json");
 		expect(result).toEqual({});
 	});
@@ -22,8 +22,8 @@ describe("dropSettingsGroupShadows", () => {
 		expect(result).toEqual({ auth: {}, autoResume: true });
 	});
 
-	it("drops Claude Code's top-level model string, which would shadow omp's model.* group", () => {
-		// Claude Code writes `"model": "opus"` at the top level; omp has no bare
+	it("drops Claude Code's top-level model string, which would shadow reverse's model.* group", () => {
+		// Claude Code writes `"model": "opus"` at the top level; reverse has no bare
 		// `model` leaf, only `model.*` settings, so the string is a shadow too.
 		const result = dropSettingsGroupShadows({ model: "opus" }, "/proj/.claude/settings.json");
 		expect(result).toEqual({});

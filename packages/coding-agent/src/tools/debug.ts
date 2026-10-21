@@ -1,6 +1,6 @@
 import { type DebugToolDetails, formatLocation, formatSessionSnapshot } from "@reverse/tui/tools/debug";
 import * as fs from "node:fs/promises";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type {
 	AgentTool,
 	AgentToolContext,

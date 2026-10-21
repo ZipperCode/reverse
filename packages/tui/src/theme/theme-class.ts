@@ -638,7 +638,7 @@ export class Theme {
 			advisor: this.#symbols["icon.advisor"],
 			advisorClosed: this.#symbols["icon.advisorClosed"],
 			time: this.#symbols["icon.time"],
-			omp: this.#symbols["icon.omp"],
+			reverse: this.#symbols["icon.reverse"],
 			ghost: this.#symbols["icon.ghost"],
 			agents: this.#symbols["icon.agents"],
 			job: this.#symbols["icon.job"],

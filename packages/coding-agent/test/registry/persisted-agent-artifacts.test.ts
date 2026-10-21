@@ -20,7 +20,7 @@ function transcript(): string {
 
 describe("persisted agent isolation artifacts", () => {
 	it("restores nested-repo patch files beside a transcript in capture order", async () => {
-		using tempDir = TempDir.createSync("@omp-artifacts-nested-");
+		using tempDir = TempDir.createSync("@reverse-artifacts-nested-");
 		const dir = tempDir.path();
 		const agentDir = path.join(dir, "main");
 		await Bun.write(path.join(dir, "main.jsonl"), "");

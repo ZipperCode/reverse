@@ -5,7 +5,7 @@ def _make_ratchet():
         return [value] if isinstance(value, str) else list(value)
 
     async def _call(flow, action, params):
-        response = await _omp_prelude(
+        response = await _reverse_prelude(
             "ratchet",
             {
                 **{key: value for key, value in params.items() if value is not None},

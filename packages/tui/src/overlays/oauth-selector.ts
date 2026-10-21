@@ -96,7 +96,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			locale?: SupportedLocale;
 		},
 	) {
-		super(mode === "login" ? "Select provider to login" : "Select provider to logout", "omp.overlay.oauth");
+		super(mode === "login" ? "Select provider to login" : "Select provider to logout", "reverse.overlay.oauth");
 		this.#mode = mode;
 		this.#authStorage = authStorage;
 		this.#onSelectCallback = onSelect;

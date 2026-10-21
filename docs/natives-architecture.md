@@ -71,7 +71,7 @@ The published core package contains loader JS, declarations, and metadata but no
 
 For a normal installed package, the platform leaf is probed before the core package's `native/` directory and `process.execPath` directory. Workspace development skips leaf resolution so local artifacts win.
 
-Compiled mode is detected by a populated embedded manifest, `PI_COMPILED`, or a Bun embedded marker in `import.meta.url`. It probes the versioned cache and legacy user-data directory before package/executable locations. `getNativesDir()` first honors `PI_NATIVES_DIR` (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then uses `$XDG_DATA_HOME/omp/natives` only when `$XDG_DATA_HOME/omp` already exists; otherwise it is `~/.omp/natives`.
+Compiled mode is detected by a populated embedded manifest, `PI_COMPILED`, or a Bun embedded marker in `import.meta.url`. It probes the versioned cache and legacy user-data directory before package/executable locations. `getNativesDir()` first honors `PI_NATIVES_DIR` (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then uses `$XDG_DATA_HOME/reverse/natives` only when `$XDG_DATA_HOME/reverse` already exists; otherwise it is `~/.reverse/natives`.
 
 A populated manifest references one `<addon>.node.zst` zstd frame per embedded variant. Extraction accepts only basename manifest filenames, decompresses missing or wrong-sized files atomically into `<getNativesDir()>/<version>`, and validates their sizes. On Windows `node_modules` installs, the loader instead stages a leaf/core addon in that versioned directory so a running process does not lock the copy Bun must replace during an update.
 
@@ -81,7 +81,7 @@ After an addon loads successfully, the loader best-effort removes cache director
 
 Install and compiled candidates normally must report `package.json#version` from `__piNativesBuildVersion()` or a legacy release sentinel. A pre-sentinel addon with no release identity can also pass a narrow compatibility check for token counting, shell execution, text width, and the legacy desktop methods, provided the disk file does not carry the expected current stamp. The version is not compiled in: `scripts/stamp-native-version.ts` writes it into a fixed placeholder slot after linking, during stamp-capable `scripts/bazel-natives.ts` installs, local Cargo binding builds, and Nix package builds (`nix/package.nix`), so a release bump does not recompile the addon crate. Workspace loads skip this check. The loader does not validate a complete symbol list.
 
-After `require(...)` and version validation, the loader calls `__ompInstallTokioRuntime()` when present. Rust deliberately avoids creating worker threads during `#[module_init]`, while the dynamic-loader lock is held. The post-load hook installs bounded Windows Tokio/Rayon pools; older addons without the hook use napi-rs defaults. Hook failure is best-effort and appears only in startup markers when enabled.
+After `require(...)` and version validation, the loader calls `__reverseInstallTokioRuntime()` when present. Rust deliberately avoids creating worker threads during `#[module_init]`, while the dynamic-loader lock is held. The post-load hook installs bounded Windows Tokio/Rayon pools; older addons without the hook use napi-rs defaults. Hook failure is best-effort and appears only in startup markers when enabled.
 
 Set `PI_DEBUG_STARTUP` to emit synchronous `[startup]` markers to stderr around addon loading, extraction, and runtime installation.
 

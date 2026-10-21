@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { complete } from "@reverse/ai/stream";
 import type { Api, AssistantMessage, Context, Message, Model, Tool, ToolResultMessage } from "@reverse/ai/types";
 import { getBundledModel } from "@reverse/catalog/models";

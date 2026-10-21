@@ -60,7 +60,7 @@ test("refresh without server-url recovery advertises no resource", async () => {
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 
 test("token refreshes and persists a rotating local MCP OAuth grant", async () => {
-	using tempDir = TempDir.createSync("@omp-token-mcp-oauth-");
+	using tempDir = TempDir.createSync("@reverse-token-mcp-oauth-");
 	const provider = "mcp_oauth:profile:default:https://mcp.example.test/MCP";
 	const dbPath = tempDir.join("agent.db");
 	const refreshTokens: string[] = [];
@@ -135,7 +135,7 @@ test("token refreshes and persists a rotating local MCP OAuth grant", async () =
 }, 30_000);
 
 test("token refuses a managed MCP id scoped to another profile", async () => {
-	using tempDir = TempDir.createSync("@omp-token-mcp-oauth-xprofile-");
+	using tempDir = TempDir.createSync("@reverse-token-mcp-oauth-xprofile-");
 	// A non-expired row that the fall-through resolver WOULD hand back verbatim.
 	const foreignProvider = "mcp_oauth:profile:work:https://mcp.example.test/mcp";
 	const dbPath = tempDir.join("agent.db");

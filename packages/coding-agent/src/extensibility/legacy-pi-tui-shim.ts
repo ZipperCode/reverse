@@ -14,10 +14,10 @@ export { decodePrintableKey as decodeKittyPrintable } from "@reverse/tui";
 
 /**
  * Legacy pi-tui `compositeTuiLine`, ported verbatim from upstream pi-tui
- * (identical in 1.0.2 and 1.1.0). NOT an alias of omp's `compositeLineAt`:
+ * (identical in 1.0.2 and 1.1.0). NOT an alias of reverse's `compositeLineAt`:
  * upstream's segment reset closes OSC 8 hyperlinks (`\x1b]8;;\x07`) so the
  * overlay and suffix cannot inherit an open link, and image-line bases pass
- * through untouched; omp's canonical version resets only SGR and replaces
+ * through untouched; reverse's canonical version resets only SGR and replaces
  * full-width overlays over image lines. Extensions built against upstream
  * (e.g. `pi-optchat` overlaying status text on hyperlink-bearing lines)
  * depend on the upstream reset semantics.

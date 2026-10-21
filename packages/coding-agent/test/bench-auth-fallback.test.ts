@@ -239,7 +239,7 @@ describe("bench discovery fallback", () => {
 
 describe("default bench runtime", () => {
 	it("hydrates credential-scoped model caches before selector resolution", async () => {
-		const tempDir = TempDir.createSync("@omp-bench-runtime-");
+		const tempDir = TempDir.createSync("@reverse-bench-runtime-");
 		const apiKey = "bench-cache-test-key";
 		const modelId = "cached-bench-model";
 		const cacheDbPath = getModelDbPath(tempDir.path());

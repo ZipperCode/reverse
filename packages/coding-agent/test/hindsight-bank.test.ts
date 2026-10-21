@@ -52,7 +52,7 @@ const baseConfig = (overrides: Partial<HindsightConfig> = {}): HindsightConfig =
 	retainMode: "full-session",
 	retainEveryNTurns: 3,
 	retainOverlapTurns: 2,
-	retainContext: "omp",
+	retainContext: "reverse",
 	recallBudget: "mid",
 	recallMaxTokens: 1024,
 	recallTypes: ["world", "experience"],
@@ -79,7 +79,7 @@ describe("computeBankScope", () => {
 		});
 
 		it("falls back to the default bank name when bankId is unset", () => {
-			expect(computeBankScope(baseConfig(), "/whatever")).toEqual({ bankId: "omp" });
+			expect(computeBankScope(baseConfig(), "/whatever")).toEqual({ bankId: "reverse" });
 		});
 
 		it("applies the configured prefix", () => {
@@ -92,19 +92,19 @@ describe("computeBankScope", () => {
 	describe("scoping=per-project", () => {
 		it("appends the cwd basename to the base bank id", () => {
 			expect(computeBankScope(baseConfig({ scoping: "per-project" }), "/work/proj")).toEqual({
-				bankId: "omp-proj",
+				bankId: "reverse-proj",
 			});
 		});
 
 		it("appends `unknown` for an empty cwd", () => {
 			expect(computeBankScope(baseConfig({ scoping: "per-project" }), "")).toEqual({
-				bankId: "omp-unknown",
+				bankId: "reverse-unknown",
 			});
 		});
 
 		it("lowercases the project segment so one checkout maps to one bank", () => {
 			expect(computeBankScope(baseConfig({ scoping: "per-project" }), "/work/General")).toEqual({
-				bankId: "omp-general",
+				bankId: "reverse-general",
 			});
 		});
 
@@ -120,7 +120,7 @@ describe("computeBankScope", () => {
 	describe("scoping=per-project-tagged", () => {
 		it("keeps the base bank id and emits project tags with `any` match", () => {
 			expect(computeBankScope(baseConfig({ scoping: "per-project-tagged" }), "/work/proj")).toEqual({
-				bankId: "omp",
+				bankId: "reverse",
 				retainTags: ["project:proj"],
 				recallTags: ["project:proj"],
 				recallTagsMatch: "any",
@@ -188,7 +188,7 @@ describe("computeBankScope", () => {
 
 		it("uses the primary root basename for the per-project bank id from a worktree", () => {
 			expect(computeBankScope(baseConfig({ scoping: "per-project" }), worktreeRoot)).toEqual({
-				bankId: "omp-myrepo",
+				bankId: "reverse-myrepo",
 			});
 		});
 
@@ -198,7 +198,7 @@ describe("computeBankScope", () => {
 			expect(fromA.retainTags).toEqual(["project:bare-repo.git"]);
 			expect(fromB).toEqual(fromA);
 			expect(computeBankScope(baseConfig({ scoping: "per-project" }), bareWorktreeB)).toEqual({
-				bankId: "omp-bare-repo.git",
+				bankId: "reverse-bare-repo.git",
 			});
 		});
 

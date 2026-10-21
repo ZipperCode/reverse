@@ -40,7 +40,7 @@ import {
 	cfgRetryModelFallback,
 } from "@reverse/coding-agent/session/settings";
 
-const runtimeSignalStoreKey = "__ompRuntimeSignals";
+const runtimeSignalStoreKey = "__reverseRuntimeSignals";
 
 type RuntimeSignalGlobal = typeof globalThis & { [runtimeSignalStoreKey]?: string[] };
 
@@ -56,7 +56,7 @@ function getRuntimeSignals(): string[] {
 type AgentStartGate = { entered: PromiseWithResolvers<void>; release: PromiseWithResolvers<void> };
 
 /** Hooks for the `/park` fixture command: run `action` synchronously, then await `gate` (if set). */
-type ParkCommandGlobals = typeof globalThis & { __ompParkGate?: Promise<void>; __ompParkAction?: () => void };
+type ParkCommandGlobals = typeof globalThis & { __reverseParkGate?: Promise<void>; __reverseParkAction?: () => void };
 
 /**
  * Regression test: auto-compaction completion should resume the agent loop when
@@ -86,11 +86,12 @@ describe("AgentSession auto-compaction queue resume", () => {
 			pi => {
 				pi.on("session_before_compact", async event => {
 					getRuntimeSignals().push("before_compact:enter");
-					const gate = (globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> })
-						.__ompManualCompactGate;
+					const gate = (globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> })
+						.__reverseManualCompactGate;
 					if (gate) await gate;
 					if (
-						(globalThis as typeof globalThis & { __ompManualCompactCancel?: boolean }).__ompManualCompactCancel
+						(globalThis as typeof globalThis & { __reverseManualCompactCancel?: boolean })
+							.__reverseManualCompactCancel
 					) {
 						return { cancel: true };
 					}
@@ -105,8 +106,8 @@ describe("AgentSession auto-compaction queue resume", () => {
 					};
 				});
 				pi.on("before_agent_start", async () => {
-					const gate = (globalThis as typeof globalThis & { __ompAgentStartGate?: AgentStartGate })
-						.__ompAgentStartGate;
+					const gate = (globalThis as typeof globalThis & { __reverseAgentStartGate?: AgentStartGate })
+						.__reverseAgentStartGate;
 					if (!gate) return;
 					gate.entered.resolve();
 					await gate.release.promise;
@@ -132,8 +133,8 @@ describe("AgentSession auto-compaction queue resume", () => {
 				pi.registerCommand("park", {
 					handler: async () => {
 						const globals = globalThis as ParkCommandGlobals;
-						globals.__ompParkAction?.();
-						if (globals.__ompParkGate) await globals.__ompParkGate;
+						globals.__reverseParkAction?.();
+						if (globals.__reverseParkGate) await globals.__reverseParkGate;
 						getRuntimeSignals().push("command:park");
 					},
 				});
@@ -196,14 +197,16 @@ describe("AgentSession auto-compaction queue resume", () => {
 				await Bun.sleep(0);
 			} finally {
 				getRuntimeSignals().length = 0;
-				(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+				(
+					globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }
+				).__reverseManualCompactGate = undefined;
+				(globalThis as typeof globalThis & { __reverseAgentStartGate?: AgentStartGate }).__reverseAgentStartGate =
 					undefined;
-				(globalThis as typeof globalThis & { __ompAgentStartGate?: AgentStartGate }).__ompAgentStartGate =
-					undefined;
-				(globalThis as ParkCommandGlobals).__ompParkGate = undefined;
-				(globalThis as ParkCommandGlobals).__ompParkAction = undefined;
-				(globalThis as typeof globalThis & { __ompManualCompactCancel?: boolean }).__ompManualCompactCancel =
-					undefined;
+				(globalThis as ParkCommandGlobals).__reverseParkGate = undefined;
+				(globalThis as ParkCommandGlobals).__reverseParkAction = undefined;
+				(
+					globalThis as typeof globalThis & { __reverseManualCompactCancel?: boolean }
+				).__reverseManualCompactCancel = undefined;
 				vi.restoreAllMocks();
 			}
 		}
@@ -373,7 +376,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Park compaction inside its awaited hook so we can queue a follow-up while
 		// the session is disconnected and abort has already run its finally.
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			gate.promise;
 
 		const compactPromise = session.compact();
@@ -508,7 +511,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Park the prompt inside its awaited before_agent_start hook: in-flight, but
 		// the message has not reached the agent.
 		const gate: AgentStartGate = { entered: Promise.withResolvers<void>(), release: Promise.withResolvers<void>() };
-		(globalThis as typeof globalThis & { __ompAgentStartGate?: AgentStartGate }).__ompAgentStartGate = gate;
+		(globalThis as typeof globalThis & { __reverseAgentStartGate?: AgentStartGate }).__reverseAgentStartGate = gate;
 		const pending = session.prompt("new request");
 		await gate.entered.promise;
 		expect(session.isStreaming).toBe(true);
@@ -602,7 +605,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Park the compaction inside its awaited hook so the prompt below arrives
 		// while it is in flight.
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			gate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -658,7 +661,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			gate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -721,7 +724,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			gate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -791,7 +794,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			gate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -842,7 +845,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			gate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -906,13 +909,14 @@ describe("AgentSession auto-compaction queue resume", () => {
 			});
 
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			compactGate.promise;
 		const startGate: AgentStartGate = {
 			entered: Promise.withResolvers<void>(),
 			release: Promise.withResolvers<void>(),
 		};
-		(globalThis as typeof globalThis & { __ompAgentStartGate?: AgentStartGate }).__ompAgentStartGate = startGate;
+		(globalThis as typeof globalThis & { __reverseAgentStartGate?: AgentStartGate }).__reverseAgentStartGate =
+			startGate;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
 			await Promise.resolve();
@@ -999,7 +1003,8 @@ describe("AgentSession auto-compaction queue resume", () => {
 			session.agent.state.isStreaming = false;
 		});
 		const promptSpy = vi.spyOn(session.agent, "prompt").mockImplementation(async () => {});
-		(globalThis as typeof globalThis & { __ompManualCompactCancel?: boolean }).__ompManualCompactCancel = true;
+		(globalThis as typeof globalThis & { __reverseManualCompactCancel?: boolean }).__reverseManualCompactCancel =
+			true;
 
 		await expect(session.compact()).rejects.toBeInstanceOf(CompactionCancelledError);
 		await session.waitForIdle();
@@ -1044,10 +1049,10 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			compactGate.promise;
 		const parkGate = Promise.withResolvers<void>();
-		(globalThis as ParkCommandGlobals).__ompParkGate = parkGate.promise;
+		(globalThis as ParkCommandGlobals).__reverseParkGate = parkGate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
 			await Promise.resolve();
@@ -1062,7 +1067,8 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Second manual pass while the command is still pending. Nothing is
 		// streaming, so it interrupts nothing of its own; the branch already ends
 		// in a compaction entry, so it may also reject as already compacted.
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate = undefined;
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
+			undefined;
 		await session.compact().catch(() => undefined);
 		await session.waitForIdle();
 		expect(prompted).toHaveLength(0);
@@ -1118,10 +1124,10 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			compactGate.promise;
 		const parkGate = Promise.withResolvers<void>();
-		(globalThis as ParkCommandGlobals).__ompParkGate = parkGate.promise;
+		(globalThis as ParkCommandGlobals).__reverseParkGate = parkGate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
 			await Promise.resolve();
@@ -1135,8 +1141,10 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Give the second pass something to compact so it reaches the hook, then
 		// veto it there.
 		appendAssistant("next answer");
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate = undefined;
-		(globalThis as typeof globalThis & { __ompManualCompactCancel?: boolean }).__ompManualCompactCancel = true;
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
+			undefined;
+		(globalThis as typeof globalThis & { __reverseManualCompactCancel?: boolean }).__reverseManualCompactCancel =
+			true;
 		await expect(session.compact(undefined, options)).rejects.toBeInstanceOf(CompactionCancelledError);
 		await session.waitForIdle();
 		expect(prompted).toHaveLength(0);
@@ -1204,10 +1212,10 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			compactGate.promise;
 		const parkGate = Promise.withResolvers<void>();
-		(globalThis as ParkCommandGlobals).__ompParkGate = parkGate.promise;
+		(globalThis as ParkCommandGlobals).__reverseParkGate = parkGate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
 			await Promise.resolve();
@@ -1265,14 +1273,14 @@ describe("AgentSession auto-compaction queue resume", () => {
 		});
 
 		let sent: Promise<boolean> | undefined;
-		(globalThis as ParkCommandGlobals).__ompParkAction = () => {
+		(globalThis as ParkCommandGlobals).__reverseParkAction = () => {
 			sent = session.sendCustomMessage(
 				{ customType: "extension-directive", content: "carry on with the new plan", display: false },
 				{ triggerTurn: true },
 			);
 		};
 		const compactGate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			compactGate.promise;
 		const compacted = session.compact();
 		while (!getRuntimeSignals().includes("before_compact:enter")) {
@@ -1318,7 +1326,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// #autoCompactionAbortController stays installed across the manual /compact
 		// startup abort below.
 		const gate = Promise.withResolvers<void>();
-		(globalThis as typeof globalThis & { __ompManualCompactGate?: Promise<void> }).__ompManualCompactGate =
+		(globalThis as typeof globalThis & { __reverseManualCompactGate?: Promise<void> }).__reverseManualCompactGate =
 			gate.promise;
 
 		const appendCompactionSpy = vi.spyOn(sessionManager, "appendCompaction");

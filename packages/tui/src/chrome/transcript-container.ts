@@ -958,7 +958,7 @@ export class TranscriptContainer extends Container {
 	/** Embedded as a child (transcript viewers): a stack of the {@link nativeBlocks}. */
 	override describe(): NativeNode {
 		const blocks = this.nativeBlocks();
-		this.#nativeNode ??= col(blocks, { role: "omp.transcript" });
+		this.#nativeNode ??= col(blocks, { role: "reverse.transcript" });
 		return this.#nativeNode;
 	}
 

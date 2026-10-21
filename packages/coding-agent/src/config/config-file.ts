@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { OmpErrors, type Type } from "@reverse/omptype";
+import { ReverseErrors, type Type } from "@reverse/reversetype";
 import { getAgentDir, isEnoent, logger, stringifyYamlConfig } from "@reverse/utils";
 import { JSONC, YAML } from "bun";
 
@@ -245,7 +245,7 @@ export class ConfigFile<T> implements IConfigFile<T> {
 			}
 
 			const checked = this.schema(parsed);
-			if (checked instanceof OmpErrors) {
+			if (checked instanceof ReverseErrors) {
 				const schemaErrors: ConfigSchemaError[] = checked.map(error => ({
 					instancePath: error.path.length === 0 ? "root" : error.path.join("."),
 					message: error.problem,

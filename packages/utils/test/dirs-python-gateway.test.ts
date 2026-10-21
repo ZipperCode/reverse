@@ -51,7 +51,7 @@ describe("python gateway directory", () => {
 		if (process.platform === "win32") return;
 
 		process.env.XDG_STATE_HOME = path.join(tempRoot, "state");
-		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "rva"), { recursive: true });
+		await fs.mkdir(path.join(process.env.XDG_STATE_HOME, "reverse"), { recursive: true });
 		const customAgentDir = path.join(tempRoot, "custom-agent");
 
 		setAgentDir(customAgentDir);

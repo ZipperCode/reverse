@@ -2,7 +2,7 @@ import type { GrepToolDetails } from "@reverse/tui/tools/grep";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolTier } from "@reverse/agent";
 import { type EditStore, type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@reverse/natives";
 import { prompt, untilAborted } from "@reverse/utils";
@@ -265,7 +265,7 @@ async function resolveArchiveSearchPaths(
 		}
 
 		if (!tempDir) {
-			tempDir = await mkdtemp(path.join(tmpdir(), "omp-search-archive-"));
+			tempDir = await mkdtemp(path.join(tmpdir(), "reverse-search-archive-"));
 		}
 		// Per-entry filename keeps the scratch path unique even when two selectors
 		// resolve to members with the same basename.

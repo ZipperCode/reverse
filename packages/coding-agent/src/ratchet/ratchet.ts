@@ -5,7 +5,7 @@
  * completeness and held-out leakage checks, and the round decision — so the
  * kernel facade only forwards arguments.
  *
- * On-disk layout (`.omp/ratchet/<flow>/`) follows the claude-api skill's eval
+ * On-disk layout (`.reverse/ratchet/<flow>/`) follows the claude-api skill's eval
  * layout so its report builders can read it: `_state.json`, `baseline/`,
  * `v<N>/` each holding `results.jsonl`, optional `errors.jsonl`, and
  * `traces/<id>_rep<k>.json` (train cases only).

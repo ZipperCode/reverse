@@ -801,6 +801,15 @@ export declare class VcsRepo {
 }
 
 /**
+ * Release version stamped into this `.node` after linking.
+ *
+ * `None` for an unstamped build. The JS loader compares it against
+ * `package.json#version` so a `.node` from another release fails at load time
+ * with an actionable error instead of a later `<sym> is not a function` crash.
+ */
+export declare function __piNativesBuildVersion(): string | null
+
+/**
  * Install the bounded Tokio runtime napi-rs adopts for async exports and the
  * bounded Rayon global pool used by native parallel iterators.
  *
@@ -825,23 +834,14 @@ export declare class VcsRepo {
  * current-thread-only global pool that cannot steal work from later native
  * calls. Idempotent.
  */
-export declare function __ompInstallTokioRuntime(): void
+export declare function __reverseInstallTokioRuntime(): void
 
 /**
  * Points the addon at the directory holding downloaded wasm grammars
  * (`<dir>/<file>`). The loader (`native/loader-state.js`) calls this once
  * with `<natives dir>/grammars`; grammars then load lazily from it.
  */
-export declare function __ompSetGrammarDir(dir: string): void
-
-/**
- * Release version stamped into this `.node` after linking.
- *
- * `None` for an unstamped build. The JS loader compares it against
- * `package.json#version` so a `.node` from another release fails at load time
- * with an actionable error instead of a later `<sym> is not a function` crash.
- */
-export declare function __piNativesBuildVersion(): string | null
+export declare function __reverseSetGrammarDir(dir: string): void
 
 /**
  * Reports whether the on-device model can generate, as an `availability`
@@ -2305,8 +2305,8 @@ export interface IpcConnectOptions {
  * Platform endpoint for `name` scoped to directory `dir`.
  *
  * Unix: `<dir>/<stem>.sock`; when that path does not fit `sun_path` (104 bytes
- * on macOS/BSD, 108 on Linux, including NUL), `/tmp/omp-<euid>/<hash16>.sock`.
- * Windows: `\\.\pipe\omp-<stem>-<hash16(lowercase(resolve(dir)))>`.
+ * on macOS/BSD, 108 on Linux, including NUL), `/tmp/reverse-<euid>/<hash16>.sock`.
+ * Windows: `\\.\pipe\reverse-<stem>-<hash16(lowercase(resolve(dir)))>`.
  * `stem` is `name` with every char outside `[A-Za-z0-9._-]` replaced by "_".
  * Pure and deterministic: every process computes the same endpoint.
  */
@@ -2652,7 +2652,7 @@ export interface MinimizerOptions {
    * Kill-switch to fall back to the pre-PR (legacy) filter behavior for
    * grep / find / pytest. When `Some(true)`, filters that opted into the
    * always-shrink Tier 1 / Tier 2 behavior skip the new code path. When
-   * `None`, defers to the `OMP_MINIMIZER_LEGACY_FILTERS` env var.
+   * `None`, defers to the `REVERSE_MINIMIZER_LEGACY_FILTERS` env var.
    */
   legacyFilters?: boolean
 }

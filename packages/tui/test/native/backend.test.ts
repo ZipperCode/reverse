@@ -159,7 +159,7 @@ describe("native backend", () => {
 
 	it("announces native rendering once its surface is open, on start and after a stop/start cycle", () => {
 		// Tern drops the shell's title when a command's first surface opens, so
-		// the tab title omp writes when rendering turns native must follow the `o`.
+		// the tab title reverse writes when rendering turns native must follow the `o`.
 		const h = new TspHarness(new TspTestTerminal({}), new ManualScheduler());
 		harness = h;
 		h.tui.addChild(new Probe(md("kept")));

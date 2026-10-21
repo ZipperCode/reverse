@@ -10,7 +10,7 @@ describe("BtwHistoryStore", () => {
 	let artifactsDir: string;
 
 	beforeEach(async () => {
-		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-btw-history-"));
+		directory = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-btw-history-"));
 		artifactsDir = path.join(directory, "session");
 	});
 

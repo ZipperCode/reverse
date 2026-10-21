@@ -52,7 +52,7 @@ describe("AuthStorage OAuth refresh race", () => {
 		if (!authStorage || !store) throw new Error("test setup failed");
 
 		// Seed the shared DB with one expired OAuth credential; this simulates the
-		// state two cooperating omp processes both load from the persisted row.
+		// state two cooperating reverse processes both load from the persisted row.
 		await authStorage.credentials.set("anthropic", [
 			{
 				type: "oauth",
@@ -77,6 +77,14 @@ describe("AuthStorage OAuth refresh race", () => {
 
 		// Mock mirrors Anthropic: only the stale refresh token is rejected, because
 		// real rotation invalidates the previous refresh token on use.
+		vi.spyOn(oauthUtils, "refreshOAuthToken").mockImplementation(async (_provider, creds) => {
+			if (creds.refresh === "stale-refresh") {
+				throw new Error(
+					'HTTP 400 invalid_grant {"error":"invalid_grant","error_description":"Refresh token not found or invalid"}',
+				);
+			}
+			return creds;
+		});
 		vi.spyOn(oauthUtils, "getOAuthApiKey").mockImplementation(async (provider, creds) => {
 			const credential = creds[provider];
 			if (credential?.refresh === "stale-refresh") {
@@ -127,6 +135,14 @@ describe("AuthStorage OAuth refresh race", () => {
 		// refresh token to our snapshot will therefore see the SAME stale token
 		// and fall through to the disable. We then race a peer rotation into the
 		// window between the pre-check and the CAS, which the CAS must detect.
+		vi.spyOn(oauthUtils, "refreshOAuthToken").mockImplementation(async (_provider, creds) => {
+			if (creds.refresh === "stale-refresh") {
+				throw new Error(
+					'HTTP 400 invalid_grant {"error":"invalid_grant","error_description":"Refresh token not found or invalid"}',
+				);
+			}
+			return creds;
+		});
 		vi.spyOn(oauthUtils, "getOAuthApiKey").mockImplementation(async (provider, creds) => {
 			const credential = creds[provider];
 			if (credential?.refresh === "stale-refresh") {
@@ -188,6 +204,9 @@ describe("AuthStorage OAuth refresh race", () => {
 			},
 		]);
 
+		vi.spyOn(oauthUtils, "refreshOAuthToken").mockImplementation(async () => {
+			throw new Error('HTTP 400 invalid_grant {"error":"invalid_grant"}');
+		});
 		vi.spyOn(oauthUtils, "getOAuthApiKey").mockImplementation(async () => {
 			throw new Error('invalid_grant {"error":"invalid_grant"}');
 		});

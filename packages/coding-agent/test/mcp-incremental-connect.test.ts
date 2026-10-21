@@ -70,11 +70,11 @@ describe("MCP incremental connectServers", () => {
 	let originalRequestTimeout: string | undefined;
 
 	beforeEach(() => {
-		originalStartupTimeout = Bun.env.OMP_MCP_STARTUP_TIMEOUT_MS;
-		delete Bun.env.OMP_MCP_STARTUP_TIMEOUT_MS;
-		originalRequestTimeout = Bun.env.OMP_MCP_TIMEOUT_MS;
-		delete Bun.env.OMP_MCP_TIMEOUT_MS;
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-incremental-"));
+		originalStartupTimeout = Bun.env.REVERSE_MCP_STARTUP_TIMEOUT_MS;
+		delete Bun.env.REVERSE_MCP_STARTUP_TIMEOUT_MS;
+		originalRequestTimeout = Bun.env.REVERSE_MCP_TIMEOUT_MS;
+		delete Bun.env.REVERSE_MCP_TIMEOUT_MS;
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-mcp-incremental-"));
 		manager = new MCPManager(workDir);
 	});
 
@@ -83,10 +83,10 @@ describe("MCP incremental connectServers", () => {
 			await manager.disconnectAll();
 			removeSyncWithRetries(workDir);
 		} finally {
-			if (originalStartupTimeout === undefined) delete Bun.env.OMP_MCP_STARTUP_TIMEOUT_MS;
-			else Bun.env.OMP_MCP_STARTUP_TIMEOUT_MS = originalStartupTimeout;
-			if (originalRequestTimeout === undefined) delete Bun.env.OMP_MCP_TIMEOUT_MS;
-			else Bun.env.OMP_MCP_TIMEOUT_MS = originalRequestTimeout;
+			if (originalStartupTimeout === undefined) delete Bun.env.REVERSE_MCP_STARTUP_TIMEOUT_MS;
+			else Bun.env.REVERSE_MCP_STARTUP_TIMEOUT_MS = originalStartupTimeout;
+			if (originalRequestTimeout === undefined) delete Bun.env.REVERSE_MCP_TIMEOUT_MS;
+			else Bun.env.REVERSE_MCP_TIMEOUT_MS = originalRequestTimeout;
 		}
 	});
 

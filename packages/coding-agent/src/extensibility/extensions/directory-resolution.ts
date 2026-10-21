@@ -4,7 +4,7 @@ import { hasFsCode, isEacces, isEnoent, isRecord } from "@reverse/utils";
 
 /** Selected extension files and whether a manifest suppresses convention fallback. */
 export interface ExtensionDirectoryResolution {
-	/** Whether package.json declares a non-empty omp/pi extensions array. */
+	/** Whether package.json declares a non-empty reverse/pi extensions array. */
 	declared: boolean;
 	/** Existing files selected by the authoritative manifest or directory conventions. */
 	files: string[];
@@ -66,7 +66,7 @@ function readDeclaredManifestEntries(
 		return { declared: false, files: [] };
 	}
 
-	const manifest = isRecord(pkg) ? (pkg.omp ?? pkg.pi) : undefined;
+	const manifest = isRecord(pkg) ? (pkg.reverse ?? pkg.pi) : undefined;
 	const entries = isRecord(manifest) ? manifest.extensions : undefined;
 	if (!Array.isArray(entries) || entries.length === 0) {
 		return { declared: false, files: [] };

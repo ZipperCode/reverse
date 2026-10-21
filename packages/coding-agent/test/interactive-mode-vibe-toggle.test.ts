@@ -9,7 +9,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@reverse/omptype";
+import { type } from "@reverse/reversetype";
 import { Agent, type AgentTool, type StreamFn } from "@reverse/agent";
 import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
