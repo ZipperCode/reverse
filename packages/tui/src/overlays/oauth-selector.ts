@@ -70,6 +70,8 @@ export class OAuthSelectorComponent extends OverlayPanel {
 	#statusMessage: string | undefined;
 	#validateAuthCallback?: (providerId: string) => Promise<boolean>;
 	#onAddCustomProvider?: () => void;
+	#onManageProviderModels?: (providerId: string) => void;
+	#configuredProviderIds: readonly string[];
 	#locale: SupportedLocale;
 	#requestRenderCallback?: () => void;
 	#authState: Map<string, "checking" | "valid" | "invalid"> = new Map();
@@ -92,6 +94,8 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			disabledProviders?: readonly string[];
 			validateAuth?: (providerId: string) => Promise<boolean>;
 			onAddCustomProvider?: () => void;
+			configuredProviderIds?: readonly string[];
+			onManageProviderModels?: (providerId: string) => void;
 			requestRender?: () => void;
 			locale?: SupportedLocale;
 		},
@@ -103,6 +107,8 @@ export class OAuthSelectorComponent extends OverlayPanel {
 		this.#onCancelCallback = onCancel;
 		this.#validateAuthCallback = options?.validateAuth;
 		this.#onAddCustomProvider = options?.onAddCustomProvider;
+		this.#onManageProviderModels = options?.onManageProviderModels;
+		this.#configuredProviderIds = options?.configuredProviderIds ?? [];
 		this.#locale = options?.locale ?? resolveEffectiveLocale();
 		this.#requestRenderCallback = options?.requestRender;
 		this.#menu = new MenuSelection<OAuthProviderInfo>([], {
@@ -171,6 +177,15 @@ export class OAuthSelectorComponent extends OverlayPanel {
 					available: true,
 				};
 				filtered.unshift(addCustomItem);
+			}
+			if (this.#onManageProviderModels) {
+				filtered.unshift(
+					...this.#configuredProviderIds.map(id => ({
+						id: `custom-manage-provider:${id}`,
+						name: this.#locale === "zh-CN" ? `管理模型：${id}` : `Manage models: ${id}`,
+						available: true,
+					})),
+				);
 			}
 			this.#menu.setItems(filtered);
 		}
@@ -448,6 +463,11 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			this.#onAddCustomProvider?.();
 			return;
 		}
+		if (selectedProvider?.id.startsWith("custom-manage-provider:")) {
+			this.stopValidation();
+			this.#onManageProviderModels?.(selectedProvider.id.slice("custom-manage-provider:".length));
+			return;
+		}
 		if (selectedProvider?.available) {
 			this.#statusMessage = undefined;
 			this.stopValidation();
@@ -495,11 +515,15 @@ export class OAuthSelectorComponent extends OverlayPanel {
 				? `env: ${origin.envVar}`
 				: ORIGIN_LABELS[origin.kind]
 			: undefined;
-		const detail = !source
-			? "Not configured"
-			: origin?.kind === "oauth"
-				? `Signed in · ${source}`
-				: `API key · ${source}`;
+		const detail = provider.id.startsWith("custom-manage-provider:")
+			? this.#locale === "zh-CN"
+				? "拉取模型列表、添加或删除模型"
+				: "Fetch available models, add or remove models"
+			: !source
+				? "Not configured"
+				: origin?.kind === "oauth"
+					? `Signed in · ${source}`
+					: `API key · ${source}`;
 		const initials = provider.name
 			.split(/[^\p{L}\p{N}]+/u)
 			.filter(word => word.length > 0)

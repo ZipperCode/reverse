@@ -43,7 +43,13 @@ import { formatModelSelectorValue } from "@reverse/tui/overlays/model-selector";
 import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
 import { CustomProviderWizard } from "@reverse/tui/overlays/custom-provider-wizard";
-import { saveCustomProvider } from "../../config/custom-provider-writer";
+import {
+	listConfiguredCustomProviders,
+	saveCustomProvider,
+	updateCustomProviderModels,
+} from "../../config/custom-provider-writer";
+import { kNoAuth } from "../../config/model-registry";
+import { resolveConfigHeaders } from "../../config/resolve-config-value";
 import { fetchDiscoveredProviderModels } from "../../config/model-discovery";
 import { resolveEffectiveLocale } from "@reverse/utils/i18n";
 import { createSettingsHost } from "../../config/settings-ui";
@@ -2251,6 +2257,14 @@ export class SelectorController {
 						done();
 						void this.showCustomProviderWizard();
 					},
+					configuredProviderIds: listConfiguredCustomProviders(this.ctx.settings.getAgentDir()).map(
+						p => p.providerId,
+					),
+					onManageProviderModels: selectedProviderId => {
+						selector.stopValidation();
+						done();
+						void this.showProviderModelsWizard(selectedProviderId);
+					},
 					locale: resolveEffectiveLocale(cfgLanguage.get(this.ctx.settings)),
 					requestRender: () => {
 						this.ctx.ui.requestRender();
@@ -2306,6 +2320,73 @@ export class SelectorController {
 					finish();
 					this.ctx.ui.requestRender();
 				},
+				() => this.ctx.ui.requestRender(),
+				locale,
+			);
+			const handle = this.#showFullscreenMenu(wizard);
+		});
+	}
+
+	showProviderModelsWizard(providerId: string): Promise<void> {
+		const locale = resolveEffectiveLocale(cfgLanguage.get(this.ctx.settings));
+		const provider = listConfiguredCustomProviders(this.ctx.settings.getAgentDir()).find(
+			p => p.providerId === providerId,
+		);
+		if (!provider) {
+			this.ctx.showError(
+				locale === "zh-CN"
+					? `提供商 "${providerId}" 未配置可管理的模型端点。`
+					: `Provider "${providerId}" is not configured for model management.`,
+			);
+			return Promise.resolve();
+		}
+		const registry = this.ctx.session.modelRegistry;
+		return new Promise<void>(resolve => {
+			let closed = false;
+			const finish = () => {
+				if (closed) return;
+				closed = true;
+				handle.hide();
+				// 嵌套设置页保留其焦点；仅在返回编辑器时重新定位当前可见的提示组件。
+				if (this.ctx.ui.getFocused() === this.ctx.editor) this.focusActiveEditorArea();
+				wizard.dispose();
+				resolve();
+				this.ctx.ui.requestRender();
+			};
+			const wizard = new CustomProviderWizard(
+				{
+					managedProvider: {
+						...provider,
+						models: provider.models.map(model => ({ ...model, name: model.name ?? model.id })),
+					},
+					fetchModels: async opts => {
+						// 每次刷新重新解析凭证，沿用环境变量、配置及凭证库的解析规则。
+						const apiKey = await registry.getApiKeyForProvider(providerId, this.ctx.session.sessionId, {
+							baseUrl: provider.baseUrl,
+							signal: opts.signal,
+						});
+						const headers = await resolveConfigHeaders(provider.headers, opts.signal);
+						return fetchDiscoveredProviderModels({
+							...opts,
+							apiKey: apiKey === kNoAuth ? undefined : apiKey,
+							headers,
+						});
+					},
+				},
+				async config => {
+					await updateCustomProviderModels(providerId, config.models, {
+						authStorage: registry.authStorage,
+						modelRegistry: registry,
+						agentDir: this.ctx.settings.getAgentDir(),
+					});
+					finish();
+					this.ctx.showStatus(
+						locale === "zh-CN"
+							? `已更新提供商 "${providerId}" 的模型（共 ${config.models.length} 个）。`
+							: `Updated models for provider "${providerId}" (${config.models.length} total).`,
+					);
+				},
+				finish,
 				() => this.ctx.ui.requestRender(),
 				locale,
 			);

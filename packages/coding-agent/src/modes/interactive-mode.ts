@@ -8248,6 +8248,10 @@ export class InteractiveMode implements InteractiveModeContext {
 		return this.#selectorController.showCustomProviderWizard();
 	}
 
+	showProviderModelsWizard(providerId: string): Promise<void> {
+		return this.#selectorController.showProviderModelsWizard(providerId);
+	}
+
 	showHookConfirm(title: string, message: string, dialogOptions?: InteractiveSelectorDialogOptions): Promise<boolean> {
 		return this.#extensionUiController.showHookConfirm(title, message, dialogOptions);
 	}

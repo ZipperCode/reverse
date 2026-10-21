@@ -17,12 +17,15 @@ import type { InteractiveModeContext } from "./types";
 import {
 	cfgColorBlindMode,
 	cfgComposerShape,
+	cfgLanguage,
 	cfgSetupVersion,
 	cfgSymbolPreset,
 	cfgThemeDark,
 	cfgThemeLight,
 } from "./settings";
+import { resolveEffectiveLocale } from "@reverse/utils/i18n";
 import { cfgDisabledProviders, cfgModelRoleStorage } from "../config/model-settings";
+import { listConfiguredCustomProviders } from "../config/custom-provider-writer";
 
 export { ALL_SCENES, CURRENT_SETUP_VERSION };
 export type { SetupScene, SetupSceneHost } from "@reverse/tui/setup/scenes/types";
@@ -47,6 +50,12 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 		},
 		get disabledProviders() {
 			return cfgDisabledProviders.get(ctx.settings);
+		},
+		get configuredProviderIds() {
+			return listConfiguredCustomProviders(ctx.settings.getAgentDir()).map(p => p.providerId);
+		},
+		get locale() {
+			return resolveEffectiveLocale(cfgLanguage.get(ctx.settings));
 		},
 		get authStorage() {
 			return ctx.session.modelRegistry.authStorage;
@@ -85,6 +94,7 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 		playWelcomeIntro: () => ctx.playWelcomeIntro(),
 		showError: message => ctx.showError(message),
 		showCustomProviderWizard: () => ctx.showCustomProviderWizard(),
+		showProviderModelsWizard: providerId => ctx.showProviderModelsWizard?.(providerId),
 	};
 }
 

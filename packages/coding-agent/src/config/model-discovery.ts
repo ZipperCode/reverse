@@ -1337,6 +1337,7 @@ export async function fetchDiscoveredProviderModels(options: {
 	baseUrl: string;
 	api: Api;
 	apiKey?: string;
+	headers?: Record<string, string>;
 	timeoutMs?: number;
 	fetch?: FetchImpl;
 	signal?: AbortSignal;
@@ -1380,6 +1381,12 @@ export async function fetchDiscoveredProviderModels(options: {
 		if (options.apiKey && options.apiKey.trim().length > 0) {
 			headers["authorization"] = `Bearer ${options.apiKey.trim()}`;
 		}
+	}
+	// 已配置提供商的自定义鉴权头沿用请求时的覆盖规则。
+	for (const [name, value] of Object.entries(options.headers ?? {})) {
+		const previous = Object.keys(headers).find(key => key.toLowerCase() === name.toLowerCase());
+		if (previous) delete headers[previous];
+		headers[name] = value;
 	}
 
 	const timeoutMs = options.timeoutMs ?? 10_000;

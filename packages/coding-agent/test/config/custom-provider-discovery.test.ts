@@ -59,6 +59,25 @@ async function withServer<T>(
 }
 
 describe("fetchDiscoveredProviderModels", () => {
+	test("configured custom authentication headers override protocol auth case-insensitively", async () => {
+		await withServer(
+			request =>
+				request.headers.get("authorization") === "Token custom-secret" &&
+				request.headers.get("x-team") === "local-team"
+					? jsonResponse({ data: [{ id: "team/model" }] })
+					: new Response("Unauthorized", { status: 401 }),
+			async server => {
+				const models = await fetchDiscoveredProviderModels({
+					baseUrl: server.baseUrl,
+					api: "openai-completions",
+					apiKey: "default-secret",
+					headers: { Authorization: "Token custom-secret", "X-Team": "local-team" },
+				});
+				expect(models.map(model => model.id)).toEqual(["team/model"]);
+			},
+		);
+	});
+
 	test("OpenAI discovery calls /v1/models with Bearer auth and reports endpoint metadata", async () => {
 		await withServer(
 			() =>

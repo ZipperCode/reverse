@@ -1,3 +1,6 @@
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { SessionSelectorComponent } from "@reverse/tui/overlays/session-selector";
 import { SelectorController } from "@reverse/coding-agent/modes/controllers/selector-controller";
@@ -287,5 +290,66 @@ describe("SelectorController.showCustomProviderWizard", () => {
 		expect(editor.getValue()).toBe("original editor input!");
 
 		tui.stop();
+	});
+});
+
+describe("SelectorController.showProviderModelsWizard", () => {
+	it("routes input to a prompt installed while management is open and preserves nested overlay focus", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reverse-manager-focus-"));
+		const terminal = new VirtualTerminal(100, 32);
+		const scheduler = new VirtualRenderScheduler();
+		const tui = new TUI(terminal, false, { renderScheduler: scheduler });
+		try {
+			fs.writeFileSync(
+				path.join(dir, "models.yml"),
+				"providers:\n  local-focus:\n    api: openai-completions\n    baseUrl: http://127.0.0.1:8080/v1\n    models:\n      - id: local-model\n",
+			);
+			const editor = new Input();
+			const prompt = new Input();
+			const slot = new Container();
+			slot.addChild(editor);
+			tui.addChild(slot);
+			tui.setFocus(editor);
+			const settings = await Settings.init({ cwd: dir, agentDir: dir });
+			const controller = new SelectorController({
+				editor,
+				editorContainer: slot,
+				settings,
+				ui: tui,
+				session: { modelRegistry: {} },
+				showError: (message: string) => {
+					throw new Error(message);
+				},
+			} as unknown as InteractiveModeContext);
+			tui.start();
+			const management = controller.showProviderModelsWizard("local-focus");
+			await scheduler.settle(terminal);
+			slot.clear();
+			slot.addChild(prompt);
+			terminal.sendInput("\x1b");
+			await management;
+			await scheduler.settle(terminal);
+			terminal.sendInput("approval");
+			await scheduler.settle(terminal);
+			expect(prompt.getValue()).toBe("approval");
+			expect(editor.getValue()).toBe("");
+
+			const background = new Input();
+			const backgroundHandle = tui.showOverlay(background, { fullscreen: true, width: "100%", maxHeight: "100%" });
+			tui.setFocus(background);
+			const nested = controller.showProviderModelsWizard("local-focus");
+			await scheduler.settle(terminal);
+			terminal.sendInput("\x1b");
+			await nested;
+			await scheduler.settle(terminal);
+			terminal.sendInput("setup");
+			await scheduler.settle(terminal);
+			expect(background.getValue()).toBe("setup");
+			expect(prompt.getValue()).toBe("approval");
+			backgroundHandle.hide();
+		} finally {
+			tui.stop();
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

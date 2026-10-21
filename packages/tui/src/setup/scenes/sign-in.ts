@@ -321,10 +321,24 @@ export class SignInScene implements SetupSceneController {
 			{
 				requestRender: () => this.#host.requestRender(),
 				disabledProviders: this.#host.ctx.disabledProviders,
+				locale: this.#host.ctx.locale,
 				onAddCustomProvider: () => {
 					void (async () => {
 						try {
 							await this.#host.ctx.showCustomProviderWizard?.();
+							if (this.#disposed) return;
+							this.#host.finish("done");
+						} catch (error) {
+							if (this.#disposed) return;
+							this.#host.ctx.showError(error instanceof Error ? error.message : String(error));
+						}
+					})();
+				},
+				configuredProviderIds: this.#host.ctx.configuredProviderIds,
+				onManageProviderModels: (providerId: string) => {
+					void (async () => {
+						try {
+							await this.#host.ctx.showProviderModelsWizard?.(providerId);
 							if (this.#disposed) return;
 							this.#host.finish("done");
 						} catch (error) {

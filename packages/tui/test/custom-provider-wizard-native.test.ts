@@ -722,4 +722,415 @@ describe("CustomProviderWizard ANSI keyboard path", () => {
 			tui.stop();
 		}
 	});
+
+	it("drives manage mode via single 'r' key, Space toggles, and Enter confirmation", async () => {
+		const terminal = new VirtualTerminal(100, 40);
+		const tui = new TUI(terminal);
+		const fetchGate = Promise.withResolvers<CustomWizardModel[]>();
+		const completionGate = Promise.withResolvers<CustomProviderWizardOutput>();
+
+		const managed: CustomProviderWizardOutput = {
+			providerId: "ansi-managed",
+			api: "openai-completions",
+			baseUrl: "http://127.0.0.1:8080/v1",
+			models: [
+				{ id: "stale-model", name: "Stale Model" },
+				{ id: "retained-model", name: "Retained Model" },
+			],
+		};
+
+		const wizard = new CustomProviderWizard(
+			{
+				fetchModels: () => fetchGate.promise,
+				managedProvider: managed,
+			},
+			res => {
+				completionGate.resolve(res);
+			},
+			() => {},
+			() => tui.requestRender(),
+			"en",
+		);
+
+		tui.addChild(wizard);
+		tui.setFocus(wizard);
+		tui.start();
+
+		try {
+			tui.renderNow();
+			expect(terminal.getViewport().join("\n")).toContain("Manage Models");
+			expect(terminal.getViewport().join("\n")).toContain("stale-model");
+			expect(terminal.getViewport().join("\n")).toContain("retained-model");
+
+			// Trigger R refresh via single 'r' key
+			terminal.sendInput("r");
+			fetchGate.resolve([
+				{ id: "retained-model", name: "Retained Model" },
+				{ id: "new-model", name: "New Model" },
+			]);
+			await fetchGate.promise;
+			await Promise.resolve();
+			await Promise.resolve();
+			tui.renderNow();
+			const afterRefresh = terminal.getViewport().join("\n");
+			expect(afterRefresh).toContain("new-model");
+
+			// Cursor is at index 0 (stale-model). Space toggles stale-model (uncheck it)
+			terminal.sendInput(" ");
+			tui.renderNow();
+
+			// Down to index 1 (retained-model)
+			terminal.sendInput("\x1b[B");
+			tui.renderNow();
+
+			// Down to index 2 (new-model)
+			terminal.sendInput("\x1b[B");
+			tui.renderNow();
+
+			// Space toggles new-model (check it)
+			terminal.sendInput(" ");
+			tui.renderNow();
+
+			// Enter advances to Confirm Model Changes
+			terminal.sendInput("\r");
+			tui.renderNow();
+
+			const confirmView = terminal.getViewport().join("\n");
+			expect(confirmView).toContain("Confirm Model Changes");
+			expect(confirmView).toContain("+ Added Models (1):");
+			expect(confirmView).toContain("- Removed Models (1):");
+
+			// Enter confirms and saves
+			terminal.sendInput("\r");
+			tui.renderNow();
+
+			const completedConfig = await completionGate.promise;
+			expect(completedConfig.models.map(m => m.id)).toEqual(["retained-model", "new-model"]);
+		} finally {
+			wizard.dispose();
+			tui.stop();
+		}
+	});
+});
+
+describe("CustomProviderWizard managedProvider native path", () => {
+	it("starts in model selection offline without network, allows removing a model, and saves", async () => {
+		let fetchCalled = false;
+		let output: CustomProviderWizardOutput | undefined;
+		const managed: CustomProviderWizardOutput = {
+			providerId: "local-gateway",
+			api: "openai-completions",
+			baseUrl: "http://127.0.0.1:8080/v1",
+			apiKey: "secret-key",
+			models: [
+				{ id: "stale-model", name: "Stale Model", contextWindow: 4096 },
+				{ id: "retained-model", name: "Retained Model", contextWindow: 8192 },
+			],
+		};
+
+		harness = await TspHarness.start(tui => {
+			const wizard = new CustomProviderWizard(
+				{
+					fetchModels: async () => {
+						fetchCalled = true;
+						return [];
+					},
+					managedProvider: managed,
+				},
+				res => {
+					output = res;
+				},
+				() => {},
+				() => tui.requestRender(),
+				"en",
+			);
+			tui.addChild(wizard);
+			tui.setFocus(wizard);
+		});
+		const h = harness;
+		await h.render();
+		const surface = h.terminal.surface!;
+
+		expect(fetchCalled).toBe(false);
+		expect(h.findAll(candidate => candidate.k === "text" && candidate.p?.text === "Manage Models")).toHaveLength(1);
+
+		const items = h.findAll(candidate => candidate.k === "item");
+		expect(items).toHaveLength(2);
+		expect(itemLabel(items[0]!)).toContain("[x] stale-model");
+		expect(itemLabel(items[1]!)).toContain("[x] retained-model");
+
+		const staleItem = items[0]!;
+		const detail = staleItem.k === "item" ? staleItem.p?.detail : undefined;
+		expect(String(detail)).toContain("(configured)");
+
+		// Deselect stale-model offline
+		const list = h.find(candidate => candidate.k === "list");
+		if (!list) throw new Error("list missing");
+		h.event({ ev: "activate", sf: surface, id: list.id, item: staleItem.id });
+		await h.render();
+
+		const updatedItems = h.findAll(candidate => candidate.k === "item");
+		expect(itemLabel(updatedItems[0]!)).toContain("[ ] stale-model");
+		expect(itemLabel(updatedItems[1]!)).toContain("[x] retained-model");
+
+		// Advance to confirm
+		await clickAction(h, surface, "next");
+		expect(
+			h.findAll(candidate => candidate.k === "text" && candidate.p?.text === "Confirm Model Changes"),
+		).toHaveLength(1);
+
+		const texts = nativeTexts(h).join("\n");
+		expect(texts).toContain("Unchanged (existing credentials)");
+		expect(texts).toContain("- Removed Models (1):");
+		expect(texts).toContain("- stale-model");
+		expect(texts).toContain("Final Configured Models (1):");
+		expect(texts).toContain("• retained-model");
+
+		await clickAction(h, surface, "next");
+		await h.until(() => output !== undefined);
+
+		expect(fetchCalled).toBe(false);
+		expect(output?.models).toEqual([
+			{
+				id: "retained-model",
+				name: "Retained Model",
+				contextWindow: 8192,
+				maxTokens: undefined,
+				input: undefined,
+				reasoning: undefined,
+			},
+		]);
+	});
+
+	it("allows deselecting all models in manage mode and confirms zero models", async () => {
+		let output: CustomProviderWizardOutput | undefined;
+		const managed: CustomProviderWizardOutput = {
+			providerId: "empty-target",
+			api: "openai-completions",
+			baseUrl: "http://127.0.0.1:8080/v1",
+			models: [{ id: "lone-model", name: "Lone Model" }],
+		};
+
+		harness = await TspHarness.start(tui => {
+			const wizard = new CustomProviderWizard(
+				{
+					fetchModels: async () => [],
+					managedProvider: managed,
+				},
+				res => {
+					output = res;
+				},
+				() => {},
+				() => tui.requestRender(),
+				"en",
+			);
+			tui.addChild(wizard);
+			tui.setFocus(wizard);
+		});
+		const h = harness;
+		await h.render();
+		const surface = h.terminal.surface!;
+
+		const list = h.find(candidate => candidate.k === "list");
+		const item = h.findAll(candidate => candidate.k === "item")[0]!;
+		// Deselect lone model -> 0 models selected
+		h.event({ ev: "activate", sf: surface, id: list!.id, item: item.id });
+		await h.render();
+
+		// Enter / next should succeed without error
+		await clickAction(h, surface, "next");
+		expect(
+			h.findAll(candidate => candidate.k === "text" && candidate.p?.text === "Confirm Model Changes"),
+		).toHaveLength(1);
+
+		const texts = nativeTexts(h).join("\n");
+		expect(texts).toContain("No models configured (0 selected).");
+		expect(texts).toContain("- Removed Models (1):");
+
+		await clickAction(h, surface, "next");
+		await h.until(() => output !== undefined);
+
+		expect(output?.models).toEqual([]);
+		expect(output?.providerId).toBe("empty-target");
+	});
+
+	it("cancels on Esc from initial manage selection", async () => {
+		let cancelled = false;
+		const managed: CustomProviderWizardOutput = {
+			providerId: "cancel-target",
+			api: "openai-completions",
+			baseUrl: "http://127.0.0.1:8080/v1",
+			models: [{ id: "m1", name: "M1" }],
+		};
+
+		harness = await TspHarness.start(tui => {
+			const wizard = new CustomProviderWizard(
+				{
+					fetchModels: async () => [],
+					managedProvider: managed,
+				},
+				() => {},
+				() => {
+					cancelled = true;
+				},
+				() => tui.requestRender(),
+				"en",
+			);
+			tui.addChild(wizard);
+			tui.setFocus(wizard);
+		});
+		const h = harness;
+		await h.render();
+		const surface = h.terminal.surface!;
+
+		await clickAction(h, surface, "cancel");
+		expect(cancelled).toBe(true);
+	});
+
+	it("R refresh merges existing-first, preserves selections, and marks new candidates unchecked", async () => {
+		let output: CustomProviderWizardOutput | undefined;
+		let fetchCallArgs: { baseUrl: string; api: string; apiKey?: string } | undefined;
+		const fetchGate = Promise.withResolvers<CustomWizardModel[]>();
+		const managed: CustomProviderWizardOutput = {
+			providerId: "merge-target",
+			api: "anthropic-messages",
+			baseUrl: "https://api.anthropic.example/v1",
+			apiKey: "anthropic-key",
+			models: [
+				{ id: "stale-model", name: "Custom Stale Name", contextWindow: 4096 },
+				{ id: "retained-model", name: "Custom Retained Name", contextWindow: 8192 },
+			],
+		};
+
+		harness = await TspHarness.start(tui => {
+			const wizard = new CustomProviderWizard(
+				{
+					fetchModels: async opts => {
+						fetchCallArgs = opts;
+						return fetchGate.promise;
+					},
+					managedProvider: managed,
+				},
+				res => {
+					output = res;
+				},
+				() => {},
+				() => tui.requestRender(),
+				"en",
+			);
+			tui.addChild(wizard);
+			tui.setFocus(wizard);
+		});
+		const h = harness;
+		await h.render();
+		const surface = h.terminal.surface!;
+
+		// Click native refresh action
+		await clickAction(h, surface, "refresh");
+		fetchGate.resolve([
+			{
+				id: "retained-model",
+				name: "Endpoint Discovered Name",
+				contextWindow: 16384,
+				contextSource: "endpoint",
+				maxTokens: 4096,
+				maxTokensSource: "endpoint",
+			},
+			{
+				id: "new-model",
+				name: "Brand New Model",
+				contextWindow: 32768,
+				contextSource: "endpoint",
+				maxTokens: 8192,
+				maxTokensSource: "endpoint",
+			},
+		]);
+		await h.until(() =>
+			h.findAll(candidate => candidate.k === "item").some(item => itemLabel(item).includes("new-model")),
+		);
+		expect(fetchCallArgs).toMatchObject({
+			baseUrl: "https://api.anthropic.example/v1",
+			api: "anthropic-messages",
+			apiKey: "anthropic-key",
+		});
+
+		const items = h.findAll(candidate => candidate.k === "item");
+		expect(items).toHaveLength(3);
+		// Order: stale-model, retained-model, new-model
+		expect(itemLabel(items[0]!)).toContain("[x] stale-model");
+		expect(itemLabel(items[1]!)).toContain("[x] retained-model");
+		expect(itemLabel(items[2]!)).toContain("[ ] new-model");
+
+		// Metadata check: existing retained-model custom name and contextWindow preserved!
+		const retainedDetail = items[1]!.k === "item" ? items[1]!.p?.detail : undefined;
+		expect(String(retainedDetail)).toContain("ctx: 8192 (configured)");
+		expect(String(retainedDetail)).toContain("max: 4096 (endpoint)");
+
+		// Check new-model
+		const list = h.find(candidate => candidate.k === "list");
+		h.event({ ev: "activate", sf: surface, id: list!.id, item: items[2]!.id });
+		await h.render();
+
+		// Deselect stale-model
+		h.event({ ev: "activate", sf: surface, id: list!.id, item: items[0]!.id });
+		await h.render();
+
+		await clickAction(h, surface, "next");
+		const texts = nativeTexts(h).join("\n");
+		expect(texts).toContain("+ Added Models (1):");
+		expect(texts).toContain("+ new-model");
+		expect(texts).toContain("- Removed Models (1):");
+		expect(texts).toContain("- stale-model");
+		expect(texts).toContain("Final Configured Models (2):");
+		expect(texts).toContain("• retained-model");
+		expect(texts).toContain("• new-model");
+
+		await clickAction(h, surface, "next");
+		await h.until(() => output !== undefined);
+
+		expect(output?.models.map(m => m.id)).toEqual(["retained-model", "new-model"]);
+	});
+
+	it("fetch error during refresh allows Esc to return to model list safely", async () => {
+		const managed: CustomProviderWizardOutput = {
+			providerId: "error-target",
+			api: "openai-completions",
+			baseUrl: "http://127.0.0.1:8080/v1",
+			models: [{ id: "safe-model", name: "Safe Model" }],
+		};
+
+		const fetchGate = Promise.withResolvers<CustomWizardModel[]>();
+		harness = await TspHarness.start(tui => {
+			const wizard = new CustomProviderWizard(
+				{
+					fetchModels: () => fetchGate.promise,
+					managedProvider: managed,
+				},
+				() => {},
+				() => {},
+				() => tui.requestRender(),
+				"en",
+			);
+			tui.addChild(wizard);
+			tui.setFocus(wizard);
+		});
+		const h = harness;
+		await h.render();
+		const surface = h.terminal.surface!;
+
+		// Click refresh -> fail via rejection
+		await clickAction(h, surface, "refresh");
+		fetchGate.reject(new Error("Network offline"));
+		await h.until(() => nativeTexts(h).some(t => t.includes("Network offline")));
+
+		// Click back (Esc) returns to selectModels
+		await clickAction(h, surface, "back");
+		await h.until(() =>
+			h.findAll(candidate => candidate.k === "item").some(item => itemLabel(item).includes("safe-model")),
+		);
+
+		const items = h.findAll(candidate => candidate.k === "item");
+		expect(items).toHaveLength(1);
+		expect(itemLabel(items[0]!)).toContain("[x] safe-model");
+	});
 });

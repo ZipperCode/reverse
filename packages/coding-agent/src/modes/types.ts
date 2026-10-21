@@ -514,6 +514,7 @@ export interface InteractiveModeContext {
 	showResetUsageSelector(): Promise<void>;
 	showProviderSetup(): Promise<void>;
 	showCustomProviderWizard(): Promise<void>;
+	showProviderModelsWizard(providerId: string): Promise<void>;
 	showHookConfirm(title: string, message: string, dialogOptions?: InteractiveSelectorDialogOptions): Promise<boolean>;
 	installReverseItem?(item: ReverseToolStatus | ReverseServiceStatus): Promise<{ success: boolean; message?: string }>;
 	isTTY?: boolean;

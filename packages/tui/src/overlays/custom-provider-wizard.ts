@@ -29,9 +29,9 @@ export interface CustomWizardModel {
 	id: string;
 	name: string;
 	contextWindow?: number;
-	contextSource?: "endpoint" | "catalog";
+	contextSource?: "endpoint" | "catalog" | "configured";
 	maxTokens?: number;
-	maxTokensSource?: "endpoint" | "catalog";
+	maxTokensSource?: "endpoint" | "catalog" | "configured";
 	input?: ("text" | "image")[];
 	reasoning?: boolean;
 }
@@ -53,6 +53,7 @@ export interface CustomProviderWizardDeps {
 		apiKey?: string;
 		signal?: AbortSignal;
 	}): Promise<CustomWizardModel[]>;
+	managedProvider?: CustomProviderWizardOutput;
 }
 
 export type CustomProviderWizardStep =
@@ -69,6 +70,8 @@ interface NativeStepActions {
 	backKey?: KeyName;
 	next?: string;
 	nextKey?: KeyName;
+	refresh?: string;
+	refreshKey?: KeyName;
 }
 
 interface NativeWizardStep {
@@ -90,16 +93,25 @@ function getFormTheme(): FormFieldTheme {
 	};
 }
 
+function formatProvenance(
+	source: "endpoint" | "catalog" | "configured" | undefined,
+	t: (en: string, zh: string) => string,
+): string {
+	if (source === "endpoint") return t("endpoint", "端点声明");
+	if (source === "catalog") return t("catalog", "官方目录");
+	return t("configured", "已配置");
+}
+
 function formatModelMetadata(m: CustomWizardModel, t: (en: string, zh: string) => string): string {
 	const metaParts: string[] = [];
 	if (m.contextWindow !== undefined) {
-		const src = m.contextSource === "endpoint" ? t("endpoint", "端点声明") : t("catalog", "官方目录");
+		const src = formatProvenance(m.contextSource, t);
 		metaParts.push(`ctx: ${m.contextWindow} (${src})`);
 	} else {
 		metaParts.push(t("ctx: unknown (runtime defaults apply)", "ctx: 未知 (运行时使用默认值)"));
 	}
 	if (m.maxTokens !== undefined) {
-		const src = m.maxTokensSource === "endpoint" ? t("endpoint", "端点声明") : t("catalog", "官方目录");
+		const src = formatProvenance(m.maxTokensSource, t);
 		metaParts.push(`max: ${m.maxTokens} (${src})`);
 	} else {
 		metaParts.push(t("max: unknown (output fallback applies)", "max: 未知 (运行时使用默认输出上限)"));
@@ -111,6 +123,19 @@ function formatModelMetadata(m: CustomWizardModel, t: (en: string, zh: string) =
 		metaParts.push("reasoning");
 	}
 	return metaParts.join(" · ");
+}
+
+function mergeModelMetadata(existing: CustomWizardModel, discovered: CustomWizardModel): CustomWizardModel {
+	return {
+		id: existing.id,
+		name: existing.name || discovered.name,
+		contextWindow: existing.contextWindow ?? discovered.contextWindow,
+		contextSource: existing.contextWindow !== undefined ? existing.contextSource : discovered.contextSource,
+		maxTokens: existing.maxTokens ?? discovered.maxTokens,
+		maxTokensSource: existing.maxTokens !== undefined ? existing.maxTokensSource : discovered.maxTokensSource,
+		input: existing.input ?? discovered.input,
+		reasoning: existing.reasoning ?? discovered.reasoning,
+	};
 }
 
 class ModelMultiSelectList implements Component {
@@ -171,6 +196,8 @@ class ModelMultiSelectList implements Component {
 export class CustomProviderWizard extends OverlayPanel implements Focusable {
 	#deps: CustomProviderWizardDeps;
 	#locale: SupportedLocale;
+	#isManageMode: boolean;
+	#initialManagedModels: Map<string, CustomWizardModel> = new Map();
 	#currentStep: CustomProviderWizardStep = "providerId";
 	#providerId = "";
 	#api: Api = "openai-completions";
@@ -211,14 +238,34 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 		locale?: SupportedLocale,
 	) {
 		const effectiveLocale = locale ?? resolveEffectiveLocale();
-		const title = effectiveLocale === "zh-CN" ? "添加自定义大模型提供商" : "Add Custom Model Provider";
+		const isManageMode = Boolean(deps.managedProvider);
+		const title = isManageMode
+			? effectiveLocale === "zh-CN"
+				? "管理自定义大模型提供商"
+				: "Manage Custom Model Provider"
+			: effectiveLocale === "zh-CN"
+				? "添加自定义大模型提供商"
+				: "Add Custom Model Provider";
 		ensureThemeSync();
-		super(title, "reverse.overlay.customProviderAdd");
+		super(title, isManageMode ? "reverse.overlay.customProviderManage" : "reverse.overlay.customProviderAdd");
 		this.#deps = deps;
 		this.#locale = effectiveLocale;
+		this.#isManageMode = isManageMode;
 		this.#onCompleteCallback = onComplete;
 		this.#onCancelCallback = onCancel;
 		this.#onRenderCallback = onRender ?? null;
+
+		if (isManageMode && deps.managedProvider) {
+			this.#providerId = deps.managedProvider.providerId;
+			this.#api = deps.managedProvider.api;
+			this.#baseUrl = deps.managedProvider.baseUrl;
+			this.#apiKey = deps.managedProvider.apiKey ?? "";
+			const initialModels = deps.managedProvider.models ?? [];
+			this.#discoveredModels = [...initialModels];
+			this.#selectedModelIds = new Set(initialModels.map(m => m.id));
+			this.#initialManagedModels = new Map(initialModels.map(m => [m.id, m]));
+			this.#currentStep = "selectModels";
+		}
 
 		this.addChild(new Spacer(1));
 		this.#contentContainer = new Container();
@@ -563,6 +610,14 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 		});
 	}
 
+	#triggerRefresh(): void {
+		this.#fetchAbort?.abort();
+		this.#currentStep = "fetching";
+		this.#fetchError = null;
+		this.#renderStep();
+		void this.#runFetchModels();
+	}
+
 	async #runFetchModels(): Promise<void> {
 		this.#fetchAbort?.abort();
 		const controller = new AbortController();
@@ -588,8 +643,42 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 				return;
 			}
 
-			this.#discoveredModels = models;
-			this.#selectedModelIds = new Set(models.map(m => m.id));
+			if (this.#isManageMode) {
+				const initialIds = new Set(this.#initialManagedModels.keys());
+				const endpointMap = new Map(models.map(m => [m.id, m]));
+				const merged: CustomWizardModel[] = [];
+
+				// 1. Existing models in their initial configured order:
+				for (const [id, initial] of this.#initialManagedModels) {
+					const endpoint = endpointMap.get(id);
+					if (endpoint) {
+						merged.push(mergeModelMetadata(initial, endpoint));
+					} else {
+						merged.push(initial);
+					}
+				}
+
+				// 2. Newly discovered candidates from endpoint (in endpoint order):
+				for (const endpoint of models) {
+					if (!initialIds.has(endpoint.id)) {
+						merged.push(endpoint);
+					}
+				}
+
+				// 3. Retain any other previously discovered models:
+				const seenIds = new Set(merged.map(m => m.id));
+				for (const prev of this.#discoveredModels) {
+					if (!seenIds.has(prev.id)) {
+						merged.push(prev);
+						seenIds.add(prev.id);
+					}
+				}
+
+				this.#discoveredModels = merged;
+			} else {
+				this.#discoveredModels = models;
+				this.#selectedModelIds = new Set(models.map(m => m.id));
+			}
 			this.#modelSearchInput.setValue("");
 			this.#modelSelectedIndex = 0;
 			this.#selectedIndex = 0;
@@ -625,19 +714,10 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 		if (this.#fetchError) {
 			container.addChild(new Text(theme.fg("error", `✗ ${this.#fetchError}`), 0, 0));
 			container.addChild(new Spacer(1));
-			container.addChild(
-				new Text(
-					theme.fg(
-						"dim",
-						this.#t(
-							"[Enter / R] Retry  [Esc] Back to edit API Key",
-							"[Enter / R] 重试  [Esc] 返回修改密钥与端点",
-						),
-					),
-					0,
-					0,
-				),
-			);
+			const retryHint = this.#isManageMode
+				? this.#t("[Enter / R] Retry  [Esc] Back to model list", "[Enter / R] 重试  [Esc] 返回模型列表")
+				: this.#t("[Enter / R] Retry  [Esc] Back to edit API Key", "[Enter / R] 重试  [Esc] 返回修改密钥与端点");
+			container.addChild(new Text(theme.fg("dim", retryHint), 0, 0));
 
 			this.#show(
 				new WizardStep({
@@ -651,7 +731,10 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 				}),
 				{
 					title: this.#t("Discovery Failed", "获取模型失败"),
-					body: [container],
+					body: [
+						text(this.#fetchError, { role: "reverse.customProvider.error", tone: "error", wrap: "word" }),
+						text(retryHint, { tone: "muted", wrap: "word" }),
+					],
 					actions: {
 						back: this.#t("Back", "返回"),
 						backKey: cancelKey,
@@ -730,10 +813,23 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 			container.addChild(new Text(theme.fg("error", `${theme.status.error} ${this.#validationError}`), 0, 0));
 		}
 
-		const countHint = this.#t(
-			`[${this.#selectedModelIds.size}/${this.#discoveredModels.length} selected] [Space] Toggle · [Enter] Continue · [Esc] Back`,
-			`[已选 ${this.#selectedModelIds.size}/${this.#discoveredModels.length}] [空格] 勾选/取消 · [Enter] 继续 · [Esc] 返回`,
-		);
+		const countHint = this.#isManageMode
+			? this.#t(
+					`[${this.#selectedModelIds.size}/${this.#discoveredModels.length} selected] [Space] Toggle · [R / Ctrl+R] Refresh · [Enter] Continue · [Esc] Cancel`,
+					`[已选 ${this.#selectedModelIds.size}/${this.#discoveredModels.length}] [空格] 勾选/取消 · [R / Ctrl+R] 刷新 · [Enter] 继续 · [Esc] 取消`,
+				)
+			: this.#t(
+					`[${this.#selectedModelIds.size}/${this.#discoveredModels.length} selected] [Space] Toggle · [Enter] Continue · [Esc] Back`,
+					`[已选 ${this.#selectedModelIds.size}/${this.#discoveredModels.length}] [空格] 勾选/取消 · [Enter] 继续 · [Esc] 返回`,
+				);
+
+		const stepHeading = this.#isManageMode
+			? this.#t("Manage Models", "管理模型")
+			: this.#t("Step 5: Select Models", "第 5 步：选择模型");
+
+		const nativeTitle = this.#isManageMode
+			? this.#t("Manage Models", "管理模型")
+			: this.#t("Select Models", "选择模型");
 
 		const filtered = this.#getFilteredDiscoveredModels();
 		const nativeChoices = filtered.map(m => ({
@@ -744,16 +840,12 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 		this.#show(
 			new WizardStep({
 				kind: "choice",
-				heading: new Text(
-					theme.fg("accent", theme.bold(this.#t("Step 5: Select Models", "第 5 步：选择模型"))),
-					0,
-					0,
-				),
+				heading: new Text(theme.fg("accent", theme.bold(stepHeading)), 0, 0),
 				content: container,
 				footer: new Text(theme.fg("muted", countHint), 0, 0),
 			}),
 			{
-				title: this.#t("Select Models", "选择模型"),
+				title: nativeTitle,
 				body: compact([
 					node(
 						"col",
@@ -779,10 +871,16 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 				]),
 				choices: nativeChoices,
 				actions: {
-					back: this.#t("Back", "返回"),
+					back: this.#isManageMode ? this.#t("Cancel", "取消") : this.#t("Back", "返回"),
 					backKey: cancelKey,
 					next: this.#t("Continue", "继续"),
 					nextKey: submitKey,
+					...(this.#isManageMode
+						? {
+								refresh: this.#t("Refresh", "刷新"),
+								refreshKey: "r" as KeyName,
+							}
+						: {}),
 				},
 			},
 		);
@@ -794,73 +892,224 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 		const submitKey = (getKeybindings().getKeys("tui.input.submit")[0] ?? "enter") as KeyName;
 		const container = new Container();
 
-		const authLabel = this.#apiKey
-			? this.#t("[Configured (securely stored in agent.db)]", "[已提供（安全存储于本地 SQLite 凭据库）]")
-			: this.#t("[Keyless / None]", "[免密 / 无密钥]");
+		const authLabel = this.#isManageMode
+			? this.#t("Unchanged (existing credentials)", "保持现有凭证")
+			: this.#apiKey
+				? this.#t("[Configured (securely stored in agent.db)]", "[已提供（安全存储于本地 SQLite 凭据库）]")
+				: this.#t("[Keyless / None]", "[免密 / 无密钥]");
 
 		const selectedModels = this.#discoveredModels.filter(m => this.#selectedModelIds.has(m.id));
 
-		container.addChild(new Text(theme.bold(this.#t("Summary of Custom Provider:", "自定义提供商汇总：")), 0, 0));
-		container.addChild(
-			new Text(`  ${theme.fg("dim", "Provider ID:")} ${theme.fg("accent", this.#providerId)}`, 0, 0),
-		);
-		container.addChild(new Text(`  ${theme.fg("dim", "API Protocol:")} ${this.#api}`, 0, 0));
-		container.addChild(new Text(`  ${theme.fg("dim", "Base URL:")}     ${this.#baseUrl}`, 0, 0));
-		container.addChild(new Text(`  ${theme.fg("dim", "API Key:")}      ${authLabel}`, 0, 0));
-		container.addChild(new Spacer(1));
-		container.addChild(
-			new Text(
-				theme.bold(this.#t(`Selected Models (${selectedModels.length}):`, `所选模型 (${selectedModels.length})：`)),
-				0,
-				0,
+		const nativeBody: NativeChild[] = [
+			text(
+				this.#isManageMode
+					? this.#t("Summary of Model Management:", "模型管理汇总：")
+					: this.#t("Summary of Custom Provider:", "自定义提供商汇总："),
+				{
+					role: "reverse.customProvider.summaryTitle",
+				},
 			),
-		);
+			text(`${this.#t("Provider ID:", "提供商标识:")} ${this.#providerId}`),
+			text(`${this.#t("API Protocol:", "API 协议:")} ${this.#api}`),
+			text(`${this.#t("Base URL:", "端点地址:")} ${this.#baseUrl}`),
+			text(`${this.#t("API Key:", "API 密钥:")} ${authLabel}`),
+		];
 
-		for (const m of selectedModels) {
-			const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
-			const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
-			container.addChild(new Text(`  • ${theme.fg("accent", m.id)}${nameStr} - ${theme.fg("dim", meta)}`, 0, 0));
+		if (this.#isManageMode) {
+			const initialIds = new Set(this.#initialManagedModels.keys());
+			const addedModels = selectedModels.filter(m => !initialIds.has(m.id));
+			const removedModels = Array.from(this.#initialManagedModels.values()).filter(
+				m => !this.#selectedModelIds.has(m.id),
+			);
+
+			container.addChild(new Text(theme.bold(this.#t("Summary of Model Management:", "模型管理汇总：")), 0, 0));
+			container.addChild(
+				new Text(
+					`  ${theme.fg("dim", this.#t("Provider ID:", "提供商标识:"))} ${theme.fg("accent", this.#providerId)}`,
+					0,
+					0,
+				),
+			);
+			container.addChild(new Text(`  ${theme.fg("dim", this.#t("API Protocol:", "API 协议:"))} ${this.#api}`, 0, 0));
+			container.addChild(
+				new Text(`  ${theme.fg("dim", this.#t("Base URL:", "端点地址:"))}     ${this.#baseUrl}`, 0, 0),
+			);
+			container.addChild(new Text(`  ${theme.fg("dim", this.#t("API Key:", "API 密钥:"))}      ${authLabel}`, 0, 0));
+			container.addChild(new Spacer(1));
+
+			if (addedModels.length > 0) {
+				container.addChild(
+					new Text(
+						theme.bold(
+							theme.fg(
+								"success",
+								this.#t(`+ Added Models (${addedModels.length}):`, `+ 新增模型 (${addedModels.length})：`),
+							),
+						),
+						0,
+						0,
+					),
+				);
+				for (const m of addedModels) {
+					const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+					const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
+					container.addChild(
+						new Text(`  + ${theme.fg("success", m.id)}${nameStr} - ${theme.fg("dim", meta)}`, 0, 0),
+					);
+				}
+				container.addChild(new Spacer(1));
+
+				nativeBody.push(
+					text(this.#t(`+ Added Models (${addedModels.length}):`, `+ 新增模型 (${addedModels.length})：`)),
+					...addedModels.map(m => {
+						const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+						const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
+						return text(`+ ${m.id}${nameStr} - ${meta}`);
+					}),
+				);
+			}
+
+			if (removedModels.length > 0) {
+				container.addChild(
+					new Text(
+						theme.bold(
+							theme.fg(
+								"error",
+								this.#t(
+									`- Removed Models (${removedModels.length}):`,
+									`- 移除模型 (${removedModels.length})：`,
+								),
+							),
+						),
+						0,
+						0,
+					),
+				);
+				for (const m of removedModels) {
+					const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+					container.addChild(new Text(`  - ${theme.fg("error", m.id)}${nameStr}`, 0, 0));
+				}
+				container.addChild(new Spacer(1));
+
+				nativeBody.push(
+					text(this.#t(`- Removed Models (${removedModels.length}):`, `- 移除模型 (${removedModels.length})：`)),
+					...removedModels.map(m => {
+						const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+						return text(`- ${m.id}${nameStr}`);
+					}),
+				);
+			}
+
+			if (selectedModels.length === 0) {
+				container.addChild(
+					new Text(
+						theme.fg("warning", this.#t("No models configured (0 selected).", "未配置任何模型 (已选 0 个)。")),
+						0,
+						0,
+					),
+				);
+				nativeBody.push(text(this.#t("No models configured (0 selected).", "未配置任何模型 (已选 0 个)。")));
+			} else {
+				container.addChild(
+					new Text(
+						theme.bold(
+							this.#t(
+								`Final Configured Models (${selectedModels.length}):`,
+								`最终保留模型 (${selectedModels.length})：`,
+							),
+						),
+						0,
+						0,
+					),
+				);
+				for (const m of selectedModels) {
+					const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+					const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
+					container.addChild(
+						new Text(`  • ${theme.fg("accent", m.id)}${nameStr} - ${theme.fg("dim", meta)}`, 0, 0),
+					);
+				}
+
+				nativeBody.push(
+					text(
+						this.#t(
+							`Final Configured Models (${selectedModels.length}):`,
+							`最终保留模型 (${selectedModels.length})：`,
+						),
+					),
+					...selectedModels.map(m => {
+						const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+						const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
+						return text(`• ${m.id}${nameStr} - ${meta}`);
+					}),
+				);
+			}
+		} else {
+			container.addChild(new Text(theme.bold(this.#t("Summary of Custom Provider:", "自定义提供商汇总：")), 0, 0));
+			container.addChild(
+				new Text(`  ${theme.fg("dim", "Provider ID:")} ${theme.fg("accent", this.#providerId)}`, 0, 0),
+			);
+			container.addChild(new Text(`  ${theme.fg("dim", "API Protocol:")} ${this.#api}`, 0, 0));
+			container.addChild(new Text(`  ${theme.fg("dim", "Base URL:")}     ${this.#baseUrl}`, 0, 0));
+			container.addChild(new Text(`  ${theme.fg("dim", "API Key:")}      ${authLabel}`, 0, 0));
+			container.addChild(new Spacer(1));
+			container.addChild(
+				new Text(
+					theme.bold(
+						this.#t(`Selected Models (${selectedModels.length}):`, `所选模型 (${selectedModels.length})：`),
+					),
+					0,
+					0,
+				),
+			);
+
+			for (const m of selectedModels) {
+				const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+				const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
+				container.addChild(new Text(`  • ${theme.fg("accent", m.id)}${nameStr} - ${theme.fg("dim", meta)}`, 0, 0));
+			}
+
+			nativeBody.push(
+				text(this.#t(`Selected Models (${selectedModels.length}):`, `所选模型 (${selectedModels.length})：`)),
+				...selectedModels.map(m => {
+					const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
+					const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
+					return text(`• ${m.id}${nameStr} - ${meta}`);
+				}),
+			);
 		}
 
 		if (this.#validationError) {
 			container.addChild(new Spacer(1));
 			container.addChild(new Text(theme.fg("error", `${theme.status.error} ${this.#validationError}`), 0, 0));
+			nativeBody.push(
+				text(this.#validationError, { role: "reverse.customProvider.error", tone: "error", wrap: "word" }),
+			);
 		}
 
-		const saveText = this.#t("Save Provider", "确认保存提供商");
+		const saveText = this.#isManageMode
+			? this.#t("Save Changes", "保存修改")
+			: this.#t("Save Provider", "确认保存提供商");
 		const cancelText = this.#t("Back", "返回");
 		const hint = this.#t(
 			`[${formatKeyHint("enter")} ${saveText} · ${editorKey("tui.select.cancel")} ${cancelText}]`,
 			`[${formatKeyHint("enter")} ${saveText} · ${editorKey("tui.select.cancel")} ${cancelText}]`,
 		);
 
+		const confirmTitle = this.#isManageMode
+			? this.#t("Confirm Model Changes", "确认模型变更")
+			: this.#t("Confirm Configuration", "确认配置");
+
 		this.#show(
 			new WizardStep({
 				kind: "confirm",
-				heading: new Text(theme.fg("accent", theme.bold(this.#t("Confirm Configuration", "确认配置"))), 0, 0),
+				heading: new Text(theme.fg("accent", theme.bold(confirmTitle)), 0, 0),
 				content: container,
 				footer: new Text(theme.fg("muted", hint), 0, 0),
 			}),
 			{
-				title: this.#t("Confirm Configuration", "确认配置"),
-				body: [
-					text(this.#t("Summary of Custom Provider:", "自定义提供商汇总："), {
-						role: "reverse.customProvider.summaryTitle",
-					}),
-					text(`Provider ID: ${this.#providerId}`),
-					text(`API Protocol: ${this.#api}`),
-					text(`Base URL: ${this.#baseUrl}`),
-					text(`API Key: ${authLabel}`),
-					text(this.#t(`Selected Models (${selectedModels.length}):`, `所选模型 (${selectedModels.length})：`)),
-					...selectedModels.map(m => {
-						const nameStr = m.name && m.name !== m.id ? ` (${m.name})` : "";
-						const meta = formatModelMetadata(m, (en, zh) => this.#t(en, zh));
-						return text(`• ${m.id}${nameStr} - ${meta}`);
-					}),
-					...(this.#validationError
-						? [text(this.#validationError, { role: "reverse.customProvider.error", tone: "error", wrap: "word" })]
-						: []),
-				],
+				title: confirmTitle,
+				body: nativeBody,
 				actions: {
 					back: cancelText,
 					backKey: cancelKey,
@@ -915,7 +1164,7 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 		}
 
 		if (matchesAppInterrupt(keyData)) {
-			if (this.#currentStep === "providerId") {
+			if (this.#currentStep === "providerId" || (this.#isManageMode && this.#currentStep === "selectModels")) {
 				this.#cancelWizard();
 				return;
 			}
@@ -967,8 +1216,15 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 				return;
 			}
 
+			const queryEmpty = this.#modelSearchInput.getValue().length === 0;
+			const isRefreshKey = keyData === "\x12" || (queryEmpty && keyData.toLowerCase() === "r");
+			if (this.#isManageMode && isRefreshKey) {
+				this.#triggerRefresh();
+				return;
+			}
+
 			if (matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
-				if (this.#selectedModelIds.size === 0) {
+				if (!this.#isManageMode && this.#selectedModelIds.size === 0) {
 					this.#validationError = this.#t("Please select at least one model.", "请至少选择一个模型。");
 					this.#renderStep();
 					return;
@@ -1068,10 +1324,15 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 				return;
 			case "back":
 				this.#fetchAbort?.abort();
-				if (this.#currentStep === "providerId") {
+				if (this.#currentStep === "providerId" || (this.#isManageMode && this.#currentStep === "selectModels")) {
 					this.#cancelWizard();
 				} else {
 					this.#goBack();
+				}
+				break;
+			case "refresh":
+				if (this.#currentStep === "selectModels" || this.#currentStep === "fetching") {
+					this.#triggerRefresh();
 				}
 				break;
 			case "next":
@@ -1082,7 +1343,7 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 					this.#renderStep();
 					void this.#runFetchModels();
 				} else if (this.#currentStep === "selectModels") {
-					if (this.#selectedModelIds.size === 0) {
+					if (!this.#isManageMode && this.#selectedModelIds.size === 0) {
 						this.#validationError = this.#t("Please select at least one model.", "请至少选择一个模型。");
 						this.#renderStep();
 						return;
@@ -1127,13 +1388,21 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 				break;
 			case "fetching":
 				this.#fetchAbort?.abort();
-				this.#currentStep = "apiKey";
+				if (this.#isManageMode) {
+					this.#currentStep = "selectModels";
+				} else {
+					this.#currentStep = "apiKey";
+				}
 				this.#renderStep();
 				break;
 			case "selectModels":
 				this.#fetchAbort?.abort();
-				this.#currentStep = "apiKey";
-				this.#renderStep();
+				if (this.#isManageMode) {
+					this.#cancelWizard();
+				} else {
+					this.#currentStep = "apiKey";
+					this.#renderStep();
+				}
 				break;
 			case "confirm":
 				this.#currentStep = "selectModels";
@@ -1151,6 +1420,9 @@ export class CustomProviderWizard extends OverlayPanel implements Focusable {
 		];
 		if (actions.back) {
 			buttons.push(actionButton(actions.back, "back", { keys: actions.backKey }));
+		}
+		if (actions.refresh) {
+			buttons.push(actionButton(actions.refresh, "refresh", { keys: actions.refreshKey }));
 		}
 		if (actions.next) {
 			buttons.push(actionButton(actions.next, "next", { keys: actions.nextKey, tone: "accent" }));

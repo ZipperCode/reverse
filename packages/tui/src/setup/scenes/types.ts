@@ -1,5 +1,6 @@
 import type { AuthStorage, Model } from "@reverse/ai";
 import type { OAuthBrowserSessionRequest } from "@reverse/ai/oauth/types";
+import type { SupportedLocale } from "@reverse/utils/i18n";
 import type { SgrMouseEvent } from "../../mouse";
 import type { ComposerPreviewStatusSource } from "../../overlays/composer-shape-preview";
 import type { ComposerShape } from "../../overlays/composer-shape-registry";
@@ -27,6 +28,8 @@ export interface SetupHost extends SetupUiHost {
 	readonly symbolPreset: SymbolPreset;
 	readonly colorBlindMode: boolean;
 	readonly disabledProviders: readonly string[];
+	readonly configuredProviderIds?: readonly string[];
+	readonly locale?: SupportedLocale;
 	readonly authStorage: AuthStorage;
 	readonly modelSource: ModelBrowserSource;
 	/** Available and catalog models of every kind; role chips resolve over all of them, rows list chat models. */
@@ -45,6 +48,7 @@ export interface SetupHost extends SetupUiHost {
 	playWelcomeIntro(): void;
 	showError(message: string): void;
 	showCustomProviderWizard?(): Promise<void> | void;
+	showProviderModelsWizard?(providerId: string): Promise<void> | void;
 }
 
 /** Outcome reported when an onboarding scene finishes. */

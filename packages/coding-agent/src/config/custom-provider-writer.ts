@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { YAML } from "bun";
+import { JSONC, YAML } from "bun";
 import type { Api } from "@reverse/ai";
 import type { AuthStorage } from "@reverse/ai";
 import { getBundledProviders } from "@reverse/catalog";
@@ -9,8 +9,8 @@ import { getAgentDir, withFileLock } from "@reverse/utils";
 import { stringifyYamlConfig } from "@reverse/utils/yaml-config";
 import { replaceFileAtomically } from "../utils/atomic-file";
 import type { ModelRegistry } from "./model-registry";
-import { ModelsConfigFile, validateProviderConfiguration } from "./models-config";
-import { ModelsConfigSchema } from "./models-config-schema";
+import { ModelsConfigFile, validateProviderConfiguration, type ProviderValidationConfig } from "./models-config";
+import { ModelsConfigSchema, type ProviderAuthMode, type ProviderDiscovery } from "./models-config-schema";
 
 export interface CustomModelInput {
 	id: string;
@@ -28,6 +28,14 @@ export interface CustomProviderInput {
 	apiKey?: string;
 	models: CustomModelInput[];
 }
+export interface ConfiguredCustomProviderDescriptor {
+	providerId: string;
+	baseUrl: string;
+	api: Api;
+	auth?: string;
+	headers?: Record<string, string>;
+	models: (CustomModelInput & Record<string, unknown>)[];
+}
 
 export interface SaveCustomProviderDeps {
 	authStorage: AuthStorage;
@@ -44,6 +52,27 @@ export interface SaveCustomProviderResult {
 
 const PROVIDER_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 const SUPPORTED_CUSTOM_APIS = new Set(["openai-completions", "openai-responses", "anthropic-messages"]);
+
+export function validateCustomModelInputs(models: CustomModelInput[]): string | undefined {
+	for (const [index, model] of models.entries()) {
+		const modelId = model.id?.trim();
+		if (!modelId) return `Model #${index + 1}: ID is required.`;
+		if (model.contextWindow !== undefined) {
+			if (!Number.isSafeInteger(model.contextWindow) || model.contextWindow <= 0) {
+				return `Model ${modelId}: contextWindow must be a positive integer.`;
+			}
+		}
+		if (model.maxTokens !== undefined) {
+			if (!Number.isSafeInteger(model.maxTokens) || model.maxTokens <= 0) {
+				return `Model ${modelId}: maxTokens must be a positive integer.`;
+			}
+			if (model.contextWindow !== undefined && model.maxTokens > model.contextWindow) {
+				return `Model ${modelId}: maxTokens cannot be larger than contextWindow.`;
+			}
+		}
+	}
+	return undefined;
+}
 
 export function validateCustomProviderInput(input: CustomProviderInput): string | undefined {
 	const id = input.providerId?.trim();
@@ -70,25 +99,7 @@ export function validateCustomProviderInput(input: CustomProviderInput): string 
 		return "At least one model must be defined.";
 	}
 
-	for (const [index, model] of input.models.entries()) {
-		const modelId = model.id?.trim();
-		if (!modelId) return `Model #${index + 1}: ID is required.`;
-		if (model.contextWindow !== undefined) {
-			if (!Number.isSafeInteger(model.contextWindow) || model.contextWindow <= 0) {
-				return `Model ${modelId}: contextWindow must be a positive integer.`;
-			}
-		}
-		if (model.maxTokens !== undefined) {
-			if (!Number.isSafeInteger(model.maxTokens) || model.maxTokens <= 0) {
-				return `Model ${modelId}: maxTokens must be a positive integer.`;
-			}
-			if (model.contextWindow !== undefined && model.maxTokens > model.contextWindow) {
-				return `Model ${modelId}: maxTokens cannot be larger than contextWindow.`;
-			}
-		}
-	}
-
-	return undefined;
+	return validateCustomModelInputs(input.models);
 }
 
 export function resolveModelsConfigPath(agentDir?: string): string {
@@ -99,6 +110,165 @@ export function resolveModelsConfigPath(agentDir?: string): string {
 		return yamlPath;
 	}
 	return ymlPath;
+}
+interface LoadedConfigState {
+	existingContent: string | null;
+	existingConfig: Record<string, unknown>;
+	sourceFile: string | null;
+}
+
+function loadExistingConfigForMutation(configPath: string, agentDir?: string): LoadedConfigState {
+	const dir = agentDir ?? path.dirname(configPath);
+	const ymlPath = path.join(dir, "models.yml");
+	const yamlPath = path.join(dir, "models.yaml");
+	const jsonPath = path.join(dir, "models.json");
+
+	let sourceFile: string | null = null;
+	if (fs.existsSync(ymlPath)) {
+		sourceFile = ymlPath;
+	} else if (fs.existsSync(yamlPath)) {
+		sourceFile = yamlPath;
+	} else if (fs.existsSync(jsonPath)) {
+		sourceFile = jsonPath;
+	}
+
+	if (!sourceFile) {
+		return { existingContent: null, existingConfig: {}, sourceFile: null };
+	}
+
+	let existingContent: string;
+	try {
+		existingContent = fs.readFileSync(sourceFile, "utf-8");
+	} catch {
+		throw new Error(
+			`Cannot modify "${configPath}": existing configuration has syntax or schema errors. Please resolve them first.`,
+		);
+	}
+
+	let existingConfig: Record<string, unknown> = {};
+	try {
+		if (sourceFile.endsWith(".json") || sourceFile.endsWith(".jsonc")) {
+			const parsed = JSONC.parse(existingContent);
+			if (parsed !== null && parsed !== undefined) {
+				if (typeof parsed !== "object" || Array.isArray(parsed)) {
+					throw new Error("Invalid JSON structure");
+				}
+				existingConfig = parsed as Record<string, unknown>;
+			}
+		} else {
+			const parsed = YAML.parse(existingContent);
+			if (parsed !== null && parsed !== undefined) {
+				if (typeof parsed !== "object" || Array.isArray(parsed)) {
+					throw new Error("Invalid YAML structure");
+				}
+				existingConfig = parsed as Record<string, unknown>;
+			}
+		}
+	} catch {
+		throw new Error(
+			`Cannot modify "${configPath}": existing configuration has syntax or schema errors. Please resolve them first.`,
+		);
+	}
+
+	const schemaCheck = ModelsConfigSchema(existingConfig);
+	if (schemaCheck instanceof ReverseErrors) {
+		throw new Error(
+			`Cannot modify "${configPath}": existing configuration has syntax or schema errors. Please resolve them first.`,
+		);
+	}
+
+	const loadResult = ModelsConfigFile.relocate(configPath).tryLoad();
+	if (loadResult.status === "error") {
+		throw new Error(
+			`Cannot modify "${configPath}": existing configuration has syntax or schema errors. Please resolve them first.`,
+		);
+	}
+
+	return { existingContent, existingConfig, sourceFile };
+}
+
+export function listConfiguredCustomProviders(agentDir?: string): ConfiguredCustomProviderDescriptor[] {
+	const configPath = resolveModelsConfigPath(agentDir);
+	const { existingConfig } = loadExistingConfigForMutation(configPath, agentDir);
+
+	if (
+		!existingConfig.providers ||
+		typeof existingConfig.providers !== "object" ||
+		Array.isArray(existingConfig.providers)
+	) {
+		return [];
+	}
+
+	const providers = existingConfig.providers as Record<string, unknown>;
+	const descriptors: ConfiguredCustomProviderDescriptor[] = [];
+
+	for (const [providerId, rawProvider] of Object.entries(providers)) {
+		if (!rawProvider || typeof rawProvider !== "object" || Array.isArray(rawProvider)) {
+			continue;
+		}
+		const provider = rawProvider as Record<string, unknown>;
+		const baseUrl = typeof provider.baseUrl === "string" ? provider.baseUrl.trim() : "";
+		if (!baseUrl || (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))) {
+			continue;
+		}
+
+		let api: Api | undefined;
+		if (typeof provider.api === "string" && SUPPORTED_CUSTOM_APIS.has(provider.api)) {
+			api = provider.api as Api;
+		}
+
+		const rawModels = Array.isArray(provider.models) ? provider.models : [];
+		if (!api && rawModels.length > 0) {
+			const modelApis = new Set<string>();
+			for (const m of rawModels) {
+				if (m && typeof m === "object" && typeof m.api === "string" && m.api.trim()) {
+					modelApis.add(m.api.trim());
+				}
+			}
+			if (modelApis.size === 1) {
+				const singleApi = Array.from(modelApis)[0];
+				if (SUPPORTED_CUSTOM_APIS.has(singleApi)) {
+					api = singleApi as Api;
+				}
+			}
+		}
+
+		if (!api) {
+			continue;
+		}
+
+		const models: (CustomModelInput & Record<string, unknown>)[] = rawModels
+			.filter(m => m && typeof m === "object" && typeof m.id === "string" && m.id.trim())
+			.map(m => {
+				const modelObj = m as Record<string, unknown>;
+				return {
+					...modelObj,
+					id: String(modelObj.id).trim(),
+					name: typeof modelObj.name === "string" ? modelObj.name : undefined,
+					contextWindow: typeof modelObj.contextWindow === "number" ? modelObj.contextWindow : undefined,
+					maxTokens: typeof modelObj.maxTokens === "number" ? modelObj.maxTokens : undefined,
+					input: Array.isArray(modelObj.input) ? (modelObj.input as ("text" | "image")[]) : undefined,
+					reasoning: typeof modelObj.reasoning === "boolean" ? modelObj.reasoning : undefined,
+				};
+			});
+
+		const auth = typeof provider.auth === "string" ? provider.auth : undefined;
+		const headers =
+			provider.headers && typeof provider.headers === "object" && !Array.isArray(provider.headers)
+				? (provider.headers as Record<string, string>)
+				: undefined;
+
+		descriptors.push({
+			providerId,
+			baseUrl,
+			api,
+			...(auth ? { auth } : {}),
+			...(headers ? { headers } : {}),
+			models,
+		});
+	}
+
+	return descriptors;
 }
 
 function checkProviderCollision(
@@ -147,27 +317,7 @@ export async function saveCustomProvider(
 
 	return await withFileLock(configPath, async () => {
 		// 1. Check existing models file status
-		let existingContent: string | null = null;
-		let existingConfig: Record<string, unknown> = {};
-
-		const loadResult = ModelsConfigFile.relocate(configPath).tryLoad();
-		if (loadResult.status === "error") {
-			throw new Error(
-				`Cannot modify "${configPath}": existing configuration has syntax or schema errors. Please resolve them first.`,
-			);
-		}
-
-		if (fs.existsSync(configPath)) {
-			try {
-				existingContent = await fs.promises.readFile(configPath, "utf-8");
-				const parsed = YAML.parse(existingContent);
-				if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-					existingConfig = parsed as Record<string, unknown>;
-				}
-			} catch (err) {
-				throw new Error(`Cannot parse existing configuration file "${configPath}": ${String(err)}`);
-			}
-		}
+		const { existingContent, existingConfig } = loadExistingConfigForMutation(configPath, deps.agentDir);
 
 		// 2. Check collision with existing config, built-in catalog, registry, and credentials
 		const providers = (existingConfig.providers ?? {}) as Record<string, unknown>;
@@ -178,14 +328,22 @@ export async function saveCustomProvider(
 			baseUrl,
 			api,
 			auth: keyless ? "none" : "apiKey",
-			models: input.models.map(m => ({
-				id: m.id.trim(),
-				...(m.name?.trim() ? { name: m.name.trim() } : {}),
-				...(m.contextWindow !== undefined ? { contextWindow: m.contextWindow } : {}),
-				...(m.maxTokens !== undefined ? { maxTokens: m.maxTokens } : {}),
-				...(m.input && m.input.length > 0 ? { input: m.input } : {}),
-				...(m.reasoning !== undefined ? { reasoning: m.reasoning } : {}),
-			})),
+			models: input.models.map(m => {
+				const modelObj: Record<string, unknown> = {
+					id: m.id.trim(),
+					...(m.name?.trim() ? { name: m.name.trim() } : {}),
+					...(m.contextWindow !== undefined ? { contextWindow: m.contextWindow } : {}),
+					...(m.maxTokens !== undefined ? { maxTokens: m.maxTokens } : {}),
+					...(m.input && m.input.length > 0 ? { input: m.input } : {}),
+					...(m.reasoning !== undefined ? { reasoning: m.reasoning } : {}),
+				};
+				for (const [k, v] of Object.entries(m)) {
+					if (!["id", "name", "contextWindow", "maxTokens", "input", "reasoning"].includes(k) && v !== undefined) {
+						modelObj[k] = v;
+					}
+				}
+				return modelObj;
+			}),
 		};
 
 		// 4. Update and validate candidate config with full ModelsConfigSchema & validateProviderConfiguration
@@ -302,6 +460,173 @@ export async function saveCustomProvider(
 			configPath,
 			keyless,
 			modelCount: input.models.length,
+		};
+	});
+}
+
+export async function updateCustomProviderModels(
+	providerId: string,
+	models: CustomModelInput[],
+	deps: SaveCustomProviderDeps,
+): Promise<SaveCustomProviderResult> {
+	const trimmedId = providerId?.trim();
+	if (!trimmedId) {
+		throw new Error("Provider ID is required.");
+	}
+
+	const modelValidationError = validateCustomModelInputs(models);
+	if (modelValidationError) {
+		throw new Error(modelValidationError);
+	}
+
+	const configPath = resolveModelsConfigPath(deps.agentDir);
+	const targetDir = path.dirname(configPath);
+	await fs.promises.mkdir(targetDir, { recursive: true, mode: 0o700 });
+
+	return await withFileLock(configPath, async () => {
+		const { existingConfig } = loadExistingConfigForMutation(configPath, deps.agentDir);
+
+		const providers = (existingConfig.providers ?? {}) as Record<string, unknown>;
+		let matchedKey: string | undefined;
+		for (const key of Object.keys(providers)) {
+			if (key.toLowerCase() === trimmedId.toLowerCase()) {
+				matchedKey = key;
+				break;
+			}
+		}
+
+		if (!matchedKey) {
+			throw new Error(`Provider "${trimmedId}" not found in configuration.`);
+		}
+
+		const existingProvider = providers[matchedKey] as Record<string, unknown>;
+		const updatedProvider: Record<string, unknown> = { ...existingProvider };
+
+		const existingModelsList = Array.isArray(existingProvider.models)
+			? (existingProvider.models as Record<string, unknown>[])
+			: [];
+		const existingModelMap = new Map<string, Record<string, unknown>>();
+		for (const m of existingModelsList) {
+			if (m && typeof m === "object" && typeof m.id === "string") {
+				existingModelMap.set(m.id, m);
+			}
+		}
+
+		// Determine effective API protocol
+		let effectiveApi: Api | undefined;
+		if (typeof existingProvider.api === "string" && SUPPORTED_CUSTOM_APIS.has(existingProvider.api)) {
+			effectiveApi = existingProvider.api as Api;
+		} else if (existingModelsList.length > 0) {
+			const modelApis = new Set<string>();
+			for (const m of existingModelsList) {
+				if (typeof m.api === "string" && m.api.trim()) {
+					modelApis.add(m.api.trim());
+				}
+			}
+			if (modelApis.size === 1) {
+				const singleApi = Array.from(modelApis)[0];
+				if (SUPPORTED_CUSTOM_APIS.has(singleApi)) {
+					effectiveApi = singleApi as Api;
+				}
+			}
+		}
+
+		if (!effectiveApi) {
+			throw new Error(`Provider "${trimmedId}": cannot determine API protocol.`);
+		}
+
+		// If provider-level api was omitted, promote effectiveApi to provider level
+		if (!existingProvider.api) {
+			updatedProvider.api = effectiveApi;
+		}
+
+		const updatedModels = models.map(inputModel => {
+			const modelId = inputModel.id.trim();
+			const existing = existingModelMap.get(modelId);
+			if (existing) {
+				return existing;
+			}
+			return {
+				id: modelId,
+				...(inputModel.name?.trim() ? { name: inputModel.name.trim() } : {}),
+				...(inputModel.contextWindow !== undefined ? { contextWindow: inputModel.contextWindow } : {}),
+				...(inputModel.maxTokens !== undefined ? { maxTokens: inputModel.maxTokens } : {}),
+				...(inputModel.input && inputModel.input.length > 0 ? { input: inputModel.input } : {}),
+				...(inputModel.reasoning !== undefined ? { reasoning: inputModel.reasoning } : {}),
+				...(!existingProvider.api ? { api: effectiveApi } : {}),
+			};
+		});
+
+		updatedProvider.models = updatedModels;
+
+		const updatedConfig = {
+			...existingConfig,
+			providers: {
+				...providers,
+				[matchedKey]: updatedProvider,
+			},
+		};
+
+		const schemaCheck = ModelsConfigSchema(updatedConfig);
+		if (schemaCheck instanceof ReverseErrors) {
+			const errorMsg = schemaCheck.map(e => `${e.path.join(".")}: ${e.problem}`).join("; ");
+			throw new Error(`Invalid provider configuration schema: ${errorMsg}`);
+		}
+
+		validateProviderConfiguration(
+			matchedKey,
+			{
+				baseUrl: updatedProvider.baseUrl as string,
+				api: updatedProvider.api as Api | undefined,
+				headers: updatedProvider.headers as Record<string, string> | undefined,
+				apiKey: updatedProvider.apiKey as string | undefined,
+				auth: (updatedProvider.auth ?? "apiKey") as ProviderAuthMode,
+				discovery: updatedProvider.discovery as ProviderDiscovery | undefined,
+				compat: updatedProvider.compat as ProviderValidationConfig["compat"],
+				remoteCompaction: updatedProvider.remoteCompaction,
+				disableStrictTools: updatedProvider.disableStrictTools as boolean | undefined,
+				guardrailIdentifier: updatedProvider.guardrailIdentifier as string | undefined,
+				requestMetadata: updatedProvider.requestMetadata as Record<string, string> | undefined,
+				modelOverrides: updatedProvider.modelOverrides as ProviderValidationConfig["modelOverrides"],
+				models: updatedModels.map(m => {
+					const mRecord = m as Record<string, unknown>;
+					return {
+						id: mRecord.id as string,
+						api: (mRecord.api ?? updatedProvider.api) as Api | undefined,
+						contextWindow: mRecord.contextWindow as number | undefined,
+						maxTokens: mRecord.maxTokens as number | undefined,
+					};
+				}),
+			},
+			"models-config",
+		);
+
+		const serialized = stringifyYamlConfig(updatedConfig);
+		const tempPath = path.join(targetDir, `.${path.basename(configPath)}.tmp.${process.pid}.${Date.now()}`);
+
+		try {
+			await fs.promises.writeFile(tempPath, serialized, { mode: 0o600 });
+			await replaceFileAtomically(tempPath, configPath);
+		} finally {
+			try {
+				if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath);
+			} catch {}
+		}
+
+		ModelsConfigFile.invalidate();
+		if (deps.modelRegistry) {
+			await deps.modelRegistry.refresh("offline");
+		}
+
+		const keyless =
+			updatedProvider.auth === "none" ||
+			(!updatedProvider.apiKey && !deps.authStorage?.credentials?.has(matchedKey));
+
+		return {
+			providerId: matchedKey,
+			configPath,
+			keyless,
+			modelCount: updatedModels.length,
 		};
 	});
 }
