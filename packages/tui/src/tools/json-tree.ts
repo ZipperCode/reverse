@@ -265,6 +265,7 @@ export function renderJsonTreeLines(
 	const rootGutter = `${hookPad} ${" ".repeat(Bun.stringWidth(bullet))} `;
 	let renderedLineCount = 0;
 	let scalarTruncated = false;
+	let depthTruncated = false;
 
 	const tree = new TreeView<JsonTreeNode, number>({
 		roots,
@@ -277,6 +278,7 @@ export function renderJsonTreeLines(
 				if (values.length === 0) {
 					children = [];
 				} else if (item.depth >= maxDepth) {
+					depthTruncated = true;
 					children = [
 						{
 							id: nextId++,
@@ -294,6 +296,7 @@ export function renderJsonTreeLines(
 				const record = item.value;
 				const keys = Object.keys(record);
 				if (item.depth >= maxDepth) {
+					depthTruncated = true;
 					children = [
 						{
 							id: nextId++,
@@ -368,12 +371,18 @@ export function renderJsonTreeLines(
 					}
 					body = scalarLines;
 				} else {
+					if (sanitized.length > maxScalarLen) {
+						scalarTruncated = true;
+					}
 					const scalar = escapeStringWhitespace
 						? formatScalar(sanitized, maxScalarLen)
 						: `"${truncateToWidth(sanitized, maxScalarLen)}"`;
 					body = [`${label}: ${theme.fg("syntaxString", scalar)}`];
 				}
 			} else {
+				if (String(item.value).length > maxScalarLen) {
+					scalarTruncated = true;
+				}
 				const color: ThemeColor =
 					typeof item.value === "number"
 						? "syntaxNumber"
@@ -387,7 +396,7 @@ export function renderJsonTreeLines(
 		},
 	});
 	const rendered = tree.renderWithState(Number.POSITIVE_INFINITY);
-	return { lines: [...rendered.lines], truncated: rendered.truncated || scalarTruncated };
+	return { lines: [...rendered.lines], truncated: rendered.truncated || scalarTruncated || depthTruncated };
 }
 
 /** Data caps for {@link describeJsonTree}. */

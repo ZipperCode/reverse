@@ -88,6 +88,7 @@ describe("AssistantMessageComponent transcript lifecycle", () => {
 			content: [{ type: "thinking", thinking }],
 		});
 		const component = new AssistantMessageComponent();
+		component.setExpandThinkingBlocks(true);
 		const transcript = new TranscriptContainer();
 		transcript.addChild(component);
 
@@ -149,6 +150,7 @@ describe("AssistantMessageComponent transcript lifecycle", () => {
 			content: [{ type: "thinking", thinking }],
 		});
 		const component = new AssistantMessageComponent();
+		component.setExpandThinkingBlocks(true);
 		const transcript = new TranscriptContainer();
 		transcript.addChild(component);
 		// `stream-revision "possible"`: bytes may be revised after they stream.
@@ -264,6 +266,10 @@ describe("AssistantMessageComponent thinking renderers", () => {
 				},
 				() => new Text("second note", 1, 0),
 			],
+			undefined,
+			true,
+			undefined,
+			true,
 		);
 
 		const rendered = Bun.stripANSI(component.render(120).join("\n"));
@@ -286,6 +292,10 @@ describe("AssistantMessageComponent thinking renderers", () => {
 					throw new Error("renderer failed");
 				},
 			],
+			undefined,
+			true,
+			undefined,
+			true,
 		);
 
 		const rendered = Bun.stripANSI(component.render(120).join("\n"));
@@ -316,6 +326,10 @@ describe("AssistantMessageComponent thinking renderers", () => {
 					return note;
 				},
 			],
+			undefined,
+			true,
+			undefined,
+			true,
 		);
 
 		expect(Bun.stripANSI(component.render(120).join("\n"))).toContain("translation loading");
@@ -344,6 +358,10 @@ describe("AssistantMessageComponent thinking renderers", () => {
 					return new Text("hidden note", 1, 0);
 				},
 			],
+			undefined,
+			true,
+			undefined,
+			true,
 		);
 
 		const rendered = Bun.stripANSI(component.render(120).join("\n"));

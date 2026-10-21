@@ -271,7 +271,7 @@ import { CleanseCommandController } from "./controllers/cleanse-command-controll
 import { CommandController } from "./controllers/command-controller";
 import { EventController } from "./controllers/event-controller";
 import { ExtensionUiController } from "./controllers/extension-ui-controller";
-import { InputController } from "./controllers/input-controller";
+import { InputController, isExpandable } from "./controllers/input-controller";
 import { LiveCommandController } from "./controllers/live-command-controller";
 import { MCPCommandController } from "./controllers/mcp-command-controller";
 import { OmfgController } from "./controllers/omfg-controller";
@@ -3513,18 +3513,17 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.hideToolActivity = hideToolActivity;
 			if (!hideToolActivity) this.toolOutputExpanded = false;
 			for (const child of this.chatContainer.children) {
-				if (
-					!hideToolActivity &&
-					(child instanceof ToolExecutionComponent || child instanceof ReadToolGroupComponent)
-				) {
+				if (!hideToolActivity && isExpandable(child)) {
 					child.setExpanded(false);
-				} else if (child instanceof AssistantMessageComponent) {
+				}
+				if (child instanceof AssistantMessageComponent) {
 					child.setToolResultImagesVisible(!hideToolActivity);
 				}
 			}
 			this.chatContainer.setToolActivityVisible(!hideToolActivity);
 			if (hideToolActivity) this.ui.clearInlineImages();
 			// Visibility changes must rebuild retired terminal history.
+			this.chatContainer.resetStableEmission();
 			resetDisplay = true;
 		}
 		if (any("terminal.showImages")) {
@@ -3561,7 +3560,8 @@ export class InteractiveMode implements InteractiveModeContext {
 			for (const child of this.chatContainer.children) {
 				if (child instanceof AssistantMessageComponent) child.setExpandThinkingBlocks(expandThinkingBlocks);
 			}
-			this.ui.requestRender(true);
+			this.chatContainer.resetStableEmission();
+			resetDisplay = true;
 		}
 
 		// Usage-row detection, compacted-history collapse, and markdown render

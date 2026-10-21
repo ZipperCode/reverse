@@ -80,7 +80,12 @@ describe("bash native run box", () => {
 			{ ...done, elapsedMs: 1720 },
 			{ command: "make", env: { CI: "1" }, i: "Building the project" },
 		);
-		expect(view.tool).toMatchObject({ target: "Building the project", targetKind: "text", command: 'CI="1" make' });
+		expect(view.tool).toMatchObject({
+			target: "Building the project",
+			targetKind: "text",
+			command: 'CI="1" make',
+			badges: [{ text: "CLI", tone: "muted" }],
+		});
 		expect(view.preview).toBe("children");
 		const [box, ...rest] = nodes(view.body);
 		expect(rest).toEqual([]);
@@ -124,6 +129,33 @@ describe("bash native run box", () => {
 			{ expanded: false, isPartial: true, executionStarted: true, elapsedMs: 900, cancelled: true },
 		);
 		expect(foot(nodes(cancelled.body)[0])).toMatchObject({ state: "Cancelled", time: { age: 900, stopped: 900 } });
+	});
+
+	it("sets CLI badge and visible head identity across pending call, success, and error results", () => {
+		const call = bashToolRenderer.describeCall({ command: "cargo build" }, { expanded: false, isPartial: true });
+		expect(call.tool?.title).toBe("Bash");
+		expect(call.tool?.command).toBe("cargo build");
+		expect(call.tool?.badges).toEqual([{ text: "CLI", tone: "muted" }]);
+
+		const successResult = bashToolRenderer.describeResult(
+			{ content: [{ type: "text", text: "Finished" }], details: { exitCode: 0 } },
+			done,
+			{ command: "cargo build" },
+		);
+		expect(successResult.tool?.title).toBe("Bash");
+		expect(successResult.tool?.command).toBe("cargo build");
+		expect(successResult.tool?.exit).toBeUndefined();
+		expect(successResult.tool?.badges).toEqual([{ text: "CLI", tone: "muted" }]);
+
+		const errorResult = bashToolRenderer.describeResult(
+			{ content: [{ type: "text", text: "error[E0425]" }], details: { exitCode: 101 }, isError: true },
+			done,
+			{ command: "cargo build" },
+		);
+		expect(errorResult.tool?.title).toBe("Bash");
+		expect(errorResult.tool?.command).toBe("cargo build");
+		expect(errorResult.tool?.exit).toBe(101);
+		expect(errorResult.tool?.badges).toEqual([{ text: "CLI", tone: "muted" }]);
 	});
 
 	it("keeps a running call's clock live", () => {

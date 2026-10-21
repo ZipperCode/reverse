@@ -1015,6 +1015,7 @@ export class ToolExecutionComponent extends Container {
 	 */
 	#nativeCollapsed(status: TspCardStatus, view: NativeToolView): boolean {
 		if (view.open) return false;
+		if (status === "error") return false;
 		const live = status === "pending" || status === "running";
 		return !this.#expanded && !(live && streamsBody(this.#toolName));
 	}

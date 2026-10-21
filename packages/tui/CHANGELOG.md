@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Collapsed thinking by default in classic and native transcripts, retaining live activity and measured completion summaries; transcript expansion reveals thinking and error details.
+- Added explicit CLI, MCP, and Skill channel labels while preserving specialized tool layouts, status, diagnostics, and source links.
+
+### Fixed
+
+- Made expanded grouped reads reveal retained content even when collapsed previews are disabled, and removed the 12-line expanded limit from generic and MCP text output.
+- Kept native tool errors open with bounded diagnostic previews and suppressed expansion hints when no details are hidden.
+
 ## [18.11.2] - 2026-10-16
 
 ### Changed

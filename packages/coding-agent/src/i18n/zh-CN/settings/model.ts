@@ -30,7 +30,7 @@ export const modelSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	expandThinkingBlocks: {
 		label: "展开思考块",
-		description: "轮次结束时保持已完成的思考块展开，而不是折叠",
+		description: "默认显示思考正文；展开记录详情时可临时查看已折叠内容",
 	},
 	proseOnlyThinking: {
 		label: "仅散文思考",

@@ -14,6 +14,8 @@
 
 ### Changed
 
+- `Ctrl+O` now expands transcript details across historical and streaming thinking, tools, Skill instructions, and errors, independently of tool visibility. `expandThinkingBlocks` now applies to classic terminals as well as native rendering.
+
 - Unified internal workspace packages and imports under `@reverse/*`, including build scripts, lockfile metadata, and SDK examples. No alternate scope aliases are provided.
 - Standalone outputs and startup branding now use `reverse`; bundled skills treat optional external analyzers as on-demand dependencies rather than startup requirements.
 - Completed the canonical `reverse` identity across environment variables, native UI roles, browser relay and HTML export, worker dispatch, and `reverse://` documentation URLs; the schema package is now `@reverse/reversetype` with `ReverseError` types.
@@ -21,6 +23,7 @@
 
 ### Fixed
 
+- Preserved thinking duration across visibility toggles and reapplied global expansion over native section overrides; `skill://` reads now use compact, expandable activity receipts without changing model-visible content.
 - Fixed reverse toolchain detection to require the actual Cargo Auditable, readelf, tshark, and vbindiff executables instead of treating unrelated fallback programs as installed.
 - Fixed setup prompts to honor the saved language and settle cleanly on interruption or EOF; CLI configuration descriptions now reuse the existing locale translations.
 - Corrected the session restore and HTML export paths in CLI help examples.

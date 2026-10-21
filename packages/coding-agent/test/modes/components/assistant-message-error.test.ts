@@ -30,8 +30,17 @@ function erroredMessage(errorMessage: string): AssistantMessage {
 	};
 }
 
-function renderLines(message: AssistantMessage, hideThinkingBlock = false): string[] {
-	const component = new AssistantMessageComponent(message, hideThinkingBlock);
+function renderLines(message: AssistantMessage, hideThinkingBlock = false, expandThinkingBlocks = false): string[] {
+	const component = new AssistantMessageComponent(
+		message,
+		hideThinkingBlock,
+		undefined,
+		[],
+		undefined,
+		true,
+		undefined,
+		expandThinkingBlocks,
+	);
 	return Bun.stripANSI(component.render(RENDER_WIDTH).join("\n"))
 		.split("\n")
 		.map(line => line.trimEnd());
@@ -133,9 +142,17 @@ describe("AssistantMessageComponent hidden thinking rendering", () => {
 		expect(lines.some(line => line.includes("Visible answer"))).toBe(true);
 	});
 
-	it("still renders thinking when it is not hidden", () => {
+	it("renders a collapsed thought summary by default when thinking is not hidden", () => {
 		const lines = renderLines(thinkingMessage());
+		expect(lines.some(line => line.includes("Thought"))).toBe(true);
+		expect(lines.some(line => line.includes("private reasoning"))).toBe(false);
+		expect(lines.some(line => line.includes("Visible answer"))).toBe(true);
+	});
+
+	it("renders thinking content when expanded", () => {
+		const lines = renderLines(thinkingMessage(), false, true);
 		expect(lines.some(line => line.includes("private reasoning"))).toBe(true);
+		expect(lines.some(line => line.includes("Visible answer"))).toBe(true);
 	});
 });
 
@@ -163,8 +180,17 @@ describe("AssistantMessageComponent streaming thinking pulse", () => {
 		};
 	}
 
-	function liveLines(message: AssistantMessage, hideThinkingBlock = true): string[] {
-		const component = new AssistantMessageComponent(undefined, hideThinkingBlock);
+	function liveLines(message: AssistantMessage, hideThinkingBlock = true, expandThinkingBlocks = false): string[] {
+		const component = new AssistantMessageComponent(
+			undefined,
+			hideThinkingBlock,
+			undefined,
+			[],
+			undefined,
+			true,
+			undefined,
+			expandThinkingBlocks,
+		);
 		component.updateContent(message);
 		const lines = Bun.stripANSI(component.render(RENDER_WIDTH).join("\n"))
 			.split("\n")
@@ -196,8 +222,14 @@ describe("AssistantMessageComponent streaming thinking pulse", () => {
 		expect(lines.some(line => line.includes("Visible answer"))).toBe(true);
 	});
 
-	it("does not show the pulse when thinking is visible", () => {
-		const lines = liveLines(streaming([{ type: "thinking", thinking: "private reasoning" }]), false);
+	it("shows the pulse when thinking streams collapsed by default", () => {
+		const lines = liveLines(streaming([{ type: "thinking", thinking: "private reasoning" }]), false, false);
+		expect(lines.some(line => line.includes(PULSE) && line.includes(THINKING_LABEL))).toBe(true);
+		expect(lines.some(line => line.includes("private reasoning"))).toBe(false);
+	});
+
+	it("does not show the pulse when thinking is expanded", () => {
+		const lines = liveLines(streaming([{ type: "thinking", thinking: "private reasoning" }]), false, true);
 		expect(lines.some(line => line.includes(PULSE))).toBe(false);
 		expect(lines.some(line => line.includes("private reasoning"))).toBe(true);
 	});

@@ -388,6 +388,7 @@ function shellToolHead(
 	const exit = settled && details?.exitCode !== undefined && details.exitCode !== 0 ? details.exitCode : undefined;
 	return {
 		title,
+		badges: [{ text: "CLI", tone: "muted" }],
 		target: intent,
 		targetKind: intent ? "text" : undefined,
 		command,
@@ -467,6 +468,7 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 									icon: options.spinnerFrame !== undefined ? "running" : "pending",
 									spinnerFrame: options.spinnerFrame,
 									title: config.resolveTitle(args, options),
+									badge: { label: "CLI", color: "muted" },
 								},
 								uiTheme,
 							);
@@ -503,10 +505,12 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 								? {
 										iconOverride: uiTheme.styledSymbol("tool.bash", "accent"),
 										title: config.resolveTitle(args, options),
+										badge: { label: "CLI", color: "muted" },
 									}
 								: {
 										icon: isPartial ? "pending" : isTimeout ? "warning" : "error",
 										title: config.resolveTitle(args, options),
+										badge: { label: "CLI", color: "muted" },
 									},
 							uiTheme,
 						);
@@ -723,5 +727,5 @@ export const bashToolRenderer = createShellRenderer<BashRenderArgs>({
 	resolveCommand: args => args?.command,
 	resolveCwd: args => args?.cwd,
 	resolveEnv: args => args?.env,
-	showHeader: false,
+	showHeader: true,
 });

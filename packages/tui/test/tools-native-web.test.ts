@@ -4,6 +4,8 @@ import { askToolRenderer } from "../src/tools/ask";
 import { describeDefaultToolExecution } from "../src/tools/default-renderer";
 import { describeMCPCall, describeMCPResult } from "../src/tools/mcp";
 import type { RenderResultOptions } from "../src/tools/renderer";
+import { ToolExecutionComponent } from "../src/chat/tool-execution";
+import type { TUI } from "../src/tui";
 import { webSearchToolRenderer } from "../src/tools/web-search";
 
 const opts = { expanded: false, isPartial: false } as RenderResultOptions;
@@ -89,5 +91,73 @@ describe("generic / MCP native views", () => {
 		const res = describeMCPResult({ content: [{ type: "text", text: "[1,2]" }] }, opts, { q: "hi" });
 		expect(nodes(res?.body).map(n => n.k)).toEqual(["tree"]);
 		expect(res?.tool?.target).toContain("hi");
+	});
+
+	it("clamps native error diagnostics to 4 lines while collapsed and reveals full text when expanded", () => {
+		const error30 = Array.from({ length: 30 }, (_, i) => `error stack line ${i + 1}`).join("\n");
+
+		// Generic fallback
+		const foldedGeneric = describeDefaultToolExecution({
+			label: "custom_proc",
+			args: { id: 42 },
+			result: { output: error30, isError: true },
+			options: { expanded: false, isPartial: false },
+		});
+		expect(foldedGeneric.tone).toBe("error");
+		expect(foldedGeneric.preview).toEqual({ lines: 4 });
+		const [genericNode] = nodes(foldedGeneric.body);
+		expect(genericNode.p).toMatchObject({ role: "reverse.tool.error", lines: 4 });
+
+		const expandedGeneric = describeDefaultToolExecution({
+			label: "custom_proc",
+			args: { id: 42 },
+			result: { output: error30, isError: true },
+			options: { expanded: true, isPartial: false },
+		});
+		const [expandedNode] = nodes(expandedGeneric.body);
+		expect(expandedNode.p).toMatchObject({ role: "reverse.tool.error", lines: undefined });
+
+		// MCP result
+		const foldedMcp = describeMCPResult(
+			{
+				content: [{ type: "text", text: error30 }],
+				details: { serverName: "db", mcpToolName: "query", isError: true },
+				isError: true,
+			},
+			{ expanded: false, isPartial: false },
+			{ query: "SELECT 1" },
+		);
+		expect(foldedMcp?.tone).toBe("error");
+		expect(foldedMcp?.preview).toEqual({ lines: 4 });
+		expect(foldedMcp?.tool?.badges).toEqual([{ text: "MCP", tone: "accent" }]);
+		const [mcpNode] = nodes(foldedMcp?.body);
+		expect(mcpNode.p).toMatchObject({ role: "reverse.tool.error", lines: 4 });
+
+		const expandedMcp = describeMCPResult(
+			{
+				content: [{ type: "text", text: error30 }],
+				details: { serverName: "db", mcpToolName: "query", isError: true },
+				isError: true,
+			},
+			{ expanded: true, isPartial: false },
+			{ query: "SELECT 1" },
+		);
+		const [expandedMcpNode] = nodes(expandedMcp?.body);
+		expect(expandedMcpNode.p).toMatchObject({ role: "reverse.tool.error", lines: undefined });
+	});
+
+	it("keeps final error card open with collapsed: false in ToolExecutionComponent", () => {
+		const ui = {
+			requestRender: () => {},
+			requestComponentRender: () => {},
+			resetDisplay: () => {},
+		} as unknown as TUI;
+		const tool = new ToolExecutionComponent("unknown_tool", { arg: "val" }, {}, undefined, ui);
+		tool.setArgsComplete("call-1");
+		tool.setExecutionStarted("call-1");
+		tool.updateResult({ content: [{ type: "text", text: "Fatal error" }], isError: true }, false);
+
+		const described = tool.describe();
+		expect(described.p).toMatchObject({ status: "error", collapsed: false });
 	});
 });

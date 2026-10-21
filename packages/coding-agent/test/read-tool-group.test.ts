@@ -6,6 +6,7 @@ import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/
 import "@reverse/coding-agent/internal-urls/router";
 
 import { ReadToolGroupComponent, readArgsCollapseIntoGroup } from "@reverse/tui/chat/read-tool-group";
+import type { DescribeContext } from "@reverse/tui/native/node";
 import * as themeModule from "@reverse/tui/theme";
 import { cfgReadToolResultPreview } from "@reverse/coding-agent/tools/settings";
 import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
@@ -427,12 +428,161 @@ describe("ReadToolGroupComponent", () => {
 		component.updateArgs({ path: readme, raw: true }, "read-md");
 		expect(Bun.stripANSI(component.render(120).join("\n"))).toContain("Some **bold** text.");
 	});
+
+	it("labels skill read rows with [Skill] and hides instructions by default while collapsed", () => {
+		const component = new ReadToolGroupComponent();
+		component.updateArgs({ path: "skill://my-helper" }, "read-skill");
+		component.updateResult(
+			{
+				content: [
+					{ type: "text", text: "# Helper Skill\nFirst instruction line\nMiddle line\nLast instruction line" },
+				],
+				details: {
+					displayContent: {
+						text: "# Helper Skill\nFirst instruction line\nMiddle line\nLast instruction line",
+						startLine: 1,
+					},
+				},
+			},
+			false,
+			"read-skill",
+		);
+
+		const rendered = Bun.stripANSI(component.render(120).join("\n"));
+		expect(rendered).toContain("Read [Skill] skill://my-helper");
+		expect(rendered).not.toContain("First instruction line");
+		expect(rendered).not.toContain("Last instruction line");
+	});
+
+	it("reveals full first and last instructions when expanded", () => {
+		const component = new ReadToolGroupComponent();
+		component.updateArgs({ path: "skill://my-helper" }, "read-skill");
+		component.updateResult(
+			{
+				content: [
+					{ type: "text", text: "# Helper Skill\nFirst instruction line\nMiddle line\nLast instruction line" },
+				],
+				details: {
+					displayContent: {
+						text: "# Helper Skill\nFirst instruction line\nMiddle line\nLast instruction line",
+						startLine: 1,
+					},
+				},
+			},
+			false,
+			"read-skill",
+		);
+
+		component.setExpanded(true);
+		const expanded = Bun.stripANSI(component.render(120).join("\n"));
+		expect(expanded).toContain("Read [Skill] skill://my-helper");
+		expect(expanded).toContain("First instruction line");
+		expect(expanded).toContain("Last instruction line");
+
+		component.setExpanded(false);
+		const collapsed = Bun.stripANSI(component.render(120).join("\n"));
+		expect(collapsed).toContain("Read [Skill] skill://my-helper");
+		expect(collapsed).not.toContain("First instruction line");
+	});
+
+	it("only tags true skill:// reads in mixed read groups, leaving ordinary SKILL.md untagged", () => {
+		const component = new ReadToolGroupComponent();
+		const normalPath = path.resolve("/tmp/normal.ts");
+		const ordinarySkillMd = path.resolve("/tmp/project/SKILL.md");
+		component.updateArgs({ path: normalPath }, "call-1");
+		component.updateArgs({ path: "skill://custom-skill" }, "call-2");
+		component.updateArgs({ path: ordinarySkillMd }, "call-3");
+		component.updateResult({ content: [{ type: "text", text: "normal code" }] }, false, "call-1");
+		component.updateResult({ content: [{ type: "text", text: "skill instructions" }] }, false, "call-2");
+		component.updateResult({ content: [{ type: "text", text: "file content" }] }, false, "call-3");
+
+		const rendered = Bun.stripANSI(component.render(120).join("\n"));
+		expect(rendered).toContain("Read (3)");
+		expect(rendered).toContain("[Skill] skill://custom-skill");
+		expect(rendered).not.toContain(`[Skill] ${normalPath}`);
+		expect(rendered).not.toContain(`[Skill] ${ordinarySkillMd}`);
+	});
+
+	it("native describe reflects Skill head badges, preserves conflicts and surfaces error diagnostics", () => {
+		const toolCx: DescribeContext = {
+			cols: 120,
+			reduceMotion: false,
+			dark: true,
+			supports: () => true,
+			feature: () => false,
+		};
+
+		// Single skill read with conflict badge
+		const single = new ReadToolGroupComponent();
+		single.updateArgs({ path: "skill://conflict-skill" }, "s1");
+		single.updateResult(
+			{
+				content: [{ type: "text", text: "instructions" }],
+				details: { conflictCount: 2, displayTarget: "/path/to/SKILL.md" },
+			},
+			false,
+			"s1",
+		);
+		interface TestSpan {
+			t?: string;
+			s?: string;
+		}
+		interface TestNode {
+			k: string;
+			key?: string;
+			p?: {
+				title?: string;
+				target?: string;
+				status?: string;
+				role?: string;
+				badges?: Array<{ text: string; tone?: string }>;
+				spans?: TestSpan[];
+				text?: TestSpan[] | string;
+			};
+			c?: TestNode[];
+		}
+
+		const singleTool = single.describe(toolCx) as unknown as TestNode;
+		expect(singleTool.k).toBe("tool");
+		expect(singleTool.p?.title).toBe("Read");
+		expect(singleTool.p?.target).toBe("skill://conflict-skill");
+		expect(singleTool.p?.badges).toEqual([{ text: "Skill" }, { text: "2 conflicts", tone: "warning" }]);
+
+		// Multi-row with error
+		const multi = new ReadToolGroupComponent();
+		multi.updateArgs({ path: "skill://failing-skill" }, "m1");
+		multi.updateArgs({ path: "/tmp/other.ts" }, "m2");
+		multi.updateResult(
+			{
+				content: [{ type: "text", text: "Error: Skill not found" }],
+				isError: true,
+			},
+			false,
+			"m1",
+		);
+		multi.updateResult({ content: [{ type: "text", text: "ok" }] }, false, "m2");
+
+		const multiTool = multi.describe(toolCx) as unknown as TestNode;
+		expect(multiTool.k).toBe("tool");
+		expect(multiTool.p?.target).toBe("2 files");
+		expect(multiTool.p?.status).toBe("error");
+
+		const fileRows = (multiTool.c ?? []).filter(n => n.p?.role === "reverse.tool.file");
+		expect(fileRows.length).toBeGreaterThan(0);
+		const skillRow = fileRows.find(r => r.key === "skill://failing-skill");
+		expect(skillRow).toBeDefined();
+
+		const detailTexts = skillRow?.c?.filter(n => n.k === "text");
+		const detailSpans = detailTexts?.flatMap(t =>
+			Array.isArray(t.p?.spans) ? t.p.spans : Array.isArray(t.p?.text) ? t.p.text : [],
+		);
+		expect(detailSpans?.some(s => s.t === "[Skill]" && s.s === "customMessageLabel")).toBe(true);
+		expect(detailSpans?.some(s => typeof s.t === "string" && s.t.includes("Skill not found"))).toBe(true);
+	});
 });
 
 describe("readArgsCollapseIntoGroup", () => {
 	it.each([
-		["skill://my-skill"],
-		["skill://my-skill/file.md"],
 		["reverse://docs/tools/read.md"],
 		["issue://123"],
 		["pr://can1357/oh-my-pi/456"],
@@ -453,11 +603,12 @@ describe("readArgsCollapseIntoGroup", () => {
 		["https://example.com/file"],
 		["xd://"],
 		["xd://generate_image"],
+		["skill://my-skill"],
+		["skill://my-skill/file.md"],
 	])("collapses %s into the read group", target => {
 		expect(readArgsCollapseIntoGroup({ path: target })).toBe(true);
 		expect(readArgsCollapseIntoGroup({ file_path: target })).toBe(true);
 	});
-
 	it("returns false for non-record / missing arguments", () => {
 		expect(readArgsCollapseIntoGroup(undefined)).toBe(false);
 		expect(readArgsCollapseIntoGroup(null)).toBe(false);

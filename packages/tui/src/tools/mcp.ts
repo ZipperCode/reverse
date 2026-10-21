@@ -8,11 +8,11 @@ import { type Component, Markdown } from "../index";
 
 import type { NativeToolHead, NativeToolView, RenderResultOptions } from "./renderer";
 import { INTENT_FIELD } from "@reverse/wire";
-import { ansi, md } from "../native/describe";
-import type { NativeChild } from "../native/node";
+import { ansi, code, md, span, text } from "../native/describe";
+import type { NativeChild, NativeNode } from "../native/node";
 import { OwnerMemo } from "../native/memo";
 import { plainText } from "../native/spans";
-import { errorText, noteText, truncationNotice } from "./native-view";
+import { noteText, truncationNotice } from "./native-view";
 import { getMarkdownTheme, type Theme } from "../theme/theme";
 import {
 	describeJsonTree,
@@ -26,8 +26,8 @@ import {
 	renderJsonTreeLines,
 } from "./json-tree";
 import { formatStyledTruncationWarning, stripOutputNotice } from "./output-meta";
-import { formatExpandHint, truncateToWidth } from "../render/render-utils";
-import { formatOutputPaneLines, styleToolOutputLine } from "../render/output-pane";
+import { formatExpandHint, replaceTabs, truncateToWidth } from "../render/render-utils";
+import { formatOutputPaneLines } from "../render/output-pane";
 import type { StatusLineOptions } from "../render/status-line";
 import { plainToolCard, type ToolCardPhase } from "../render/tool-card";
 
@@ -45,6 +45,34 @@ function buildMcpArgsSection(args: Record<string, unknown>, theme: Theme): reado
 	if (tree.truncated) lines.push(theme.fg("dim", "…"));
 	lines.push("");
 	return lines;
+}
+
+/** Visible MCP argument entries (streaming/intent bookkeeping keys dropped). */
+function visibleMcpArgs(args: Record<string, unknown> | undefined): [string, unknown][] {
+	if (!args || typeof args !== "object") return [];
+	return Object.entries(args).filter(([key]) => key !== INTENT_FIELD && key !== "__partialJson");
+}
+
+function styleMcpOutputLine(line: string, isError: boolean, theme: Theme): string {
+	const normalized = replaceTabs(line);
+	if (normalized.includes("\x1b[")) return normalized;
+	return theme.fg(isError ? "error" : "toolOutput", normalized);
+}
+
+function renderNativeMcpErrorNode(message: string, lines?: number): NativeNode {
+	const body = plainText(message).trim();
+	return body.includes("\n") && /^[{[]/.test(body)
+		? code(body, {
+				lang: "json",
+				tone: "error",
+				role: "reverse.tool.error",
+				preview: lines !== undefined ? { lines } : undefined,
+			})
+		: text([span(body, "error")], {
+				wrap: "word",
+				role: "reverse.tool.error",
+				lines,
+			});
 }
 
 /**
@@ -66,7 +94,7 @@ export function renderMCPCall(args: Record<string, unknown>, theme: Theme, label
 			}
 
 			return {
-				status: { icon: "pending", title: label },
+				status: { icon: "pending", title: label, badge: { label: "MCP", color: "accent" } },
 				phase: "pending",
 				body,
 				applyBg: false,
@@ -85,8 +113,9 @@ function renderMarkdownMCPResult(
 	theme: Theme,
 	args?: Record<string, unknown>,
 ): Component {
+	const isError = result.isError ?? result.details?.isError ?? false;
 	const markdown = new Markdown(trimmedOutput, 0, 0, getMarkdownTheme(), {
-		color: text => theme.fg("toolOutput", text),
+		color: text => theme.fg(isError ? "error" : "toolOutput", text),
 	});
 	// Args tree and output pane rows are spinner-invariant; rebuild only on
 	// expansion or width change instead of every animated frame.
@@ -109,10 +138,15 @@ function renderMarkdownMCPResult(
 						icon: options.spinnerFrame !== undefined ? "running" : "pending",
 						spinnerFrame: options.spinnerFrame,
 						title,
+						badge: { label: "MCP", color: "accent" },
 					}
 				: isError
-					? { icon: "error", title }
-					: { iconOverride: theme.styledSymbol("tool.mcp", "accent"), title };
+					? { icon: "error", title, badge: { label: "MCP", color: "accent" } }
+					: {
+							iconOverride: theme.styledSymbol("tool.mcp", "accent"),
+							title,
+							badge: { label: "MCP", color: "accent" },
+						};
 			const phase: ToolCardPhase = options.isPartial ? "partial" : isError ? "error" : "success";
 			return {
 				status,
@@ -146,18 +180,19 @@ function buildMarkdownMcpBody(
 		body.push(...buildMcpArgsSection(args, theme));
 	}
 	const rendered = markdown.render(Math.max(1, contentWidth));
-	body.push(
-		...formatOutputPaneLines(
-			{
-				lines: rendered,
-				expanded,
-				collapsedMaxLines: 4,
-				expandedMaxLines: 12,
-				showExpandHintWhenUncapped: true,
-			},
-			theme,
-		).lines,
+	const pane = formatOutputPaneLines(
+		{
+			lines: rendered,
+			expanded,
+			collapsedMaxLines: 4,
+		},
+		theme,
 	);
+	body.push(...pane.lines);
+	const hasVisibleArgs = visibleMcpArgs(args).length > 0;
+	if (!expanded && pane.hiddenCount === 0 && hasVisibleArgs) {
+		body.push(formatExpandHint(theme, false, true));
+	}
 	if (truncationWarning) body.push(truncationWarning);
 	return body;
 }
@@ -206,10 +241,15 @@ export function renderMCPResult(
 						icon: options.spinnerFrame !== undefined ? "running" : "pending",
 						spinnerFrame: options.spinnerFrame,
 						title,
+						badge: { label: "MCP", color: "accent" },
 					}
 				: isError
-					? { icon: "error", title }
-					: { iconOverride: theme.styledSymbol("tool.mcp", "accent"), title };
+					? { icon: "error", title, badge: { label: "MCP", color: "accent" } }
+					: {
+							iconOverride: theme.styledSymbol("tool.mcp", "accent"),
+							title,
+							badge: { label: "MCP", color: "accent" },
+						};
 			const phase: ToolCardPhase = options.isPartial ? "partial" : isError ? "error" : "success";
 			if (bodyMemo === undefined || bodyMemo.width !== contentWidth) {
 				bodyMemo = { width: contentWidth, lines: buildMcpResultBody(contentWidth) };
@@ -234,8 +274,13 @@ export function renderMCPResult(
 		// Output section. The body and spill metadata are normalized before
 		// component selection so the opt-in Markdown path can use its own renderer.
 
+		const isError = result.isError ?? result.details?.isError ?? false;
+		const hasVisibleArgs = visibleMcpArgs(args).length > 0;
 		if (!trimmedOutput) {
 			body.push(theme.fg("dim", "(no output)"));
+			if (!expanded && hasVisibleArgs) {
+				body.push(formatExpandHint(theme, false, true));
+			}
 			return body;
 		}
 
@@ -250,7 +295,9 @@ export function renderMCPResult(
 			if (tree.lines.length > 0) {
 				body.push(...tree.lines);
 				if (!expanded) {
-					body.push(formatExpandHint(theme, expanded, true));
+					if (tree.truncated || hasVisibleArgs) {
+						body.push(formatExpandHint(theme, false, true));
+					}
 				} else if (tree.truncated) {
 					body.push(theme.fg("dim", "…"));
 				}
@@ -260,29 +307,22 @@ export function renderMCPResult(
 		}
 
 		// Raw text output, capped to the first rows with an expand hint while collapsed.
-		body.push(
-			...formatOutputPaneLines(
-				{
-					lines: trimmedOutput.split("\n"),
-					expanded,
-					collapsedMaxLines: 4,
-					expandedMaxLines: 12,
-					styleLine: line => truncateToWidth(styleToolOutputLine(line, theme), contentWidth),
-					showExpandHintWhenUncapped: true,
-				},
-				theme,
-			).lines,
+		const pane = formatOutputPaneLines(
+			{
+				lines: trimmedOutput.split("\n"),
+				expanded,
+				collapsedMaxLines: 4,
+				styleLine: line => truncateToWidth(styleMcpOutputLine(line, isError, theme), contentWidth),
+			},
+			theme,
 		);
-
+		body.push(...pane.lines);
+		if (!expanded && pane.hiddenCount === 0 && hasVisibleArgs) {
+			body.push(formatExpandHint(theme, false, true));
+		}
 		if (truncationWarning) body.push(truncationWarning);
 		return body;
 	}
-}
-
-/** Visible MCP argument entries (streaming/intent bookkeeping keys dropped). */
-function visibleMcpArgs(args: Record<string, unknown> | undefined): [string, unknown][] {
-	if (!args || typeof args !== "object") return [];
-	return Object.entries(args).filter(([key]) => key !== INTENT_FIELD && key !== "__partialJson");
 }
 
 /** Inline args summary budget in characters (a data cap, not a width). */
@@ -295,7 +335,12 @@ function mcpHead(title: string, args: Record<string, unknown> | undefined): Nati
 		entries.length > 0
 			? formatArgsInline(Object.fromEntries(entries), MCP_ARGS_SUMMARY_CHARS, { characterBudget: true })
 			: "";
-	return { title, target: summary ? plainText(summary) : undefined, targetKind: "text" };
+	return {
+		title,
+		badges: [{ text: "MCP", tone: "accent" }],
+		target: summary ? plainText(summary) : undefined,
+		targetKind: "text",
+	};
 }
 
 /** Native MCP call view: the head only, inline while pending. */
@@ -312,11 +357,12 @@ const mcpResultMemo = new OwnerMemo<NativeToolView | undefined>();
  */
 export function describeMCPResult(
 	result: { content: Array<{ type: string; text?: string }>; details?: MCPToolDetails; isError?: boolean },
-	_options: RenderResultOptions,
+	options: RenderResultOptions,
 	args?: Record<string, unknown>,
 ): NativeToolView | undefined {
+	const expanded = options?.expanded ?? false;
 	// Callers allocate a fresh args object per streamed delta, so identity is a sound dep.
-	return mcpResultMemo.get(result, [renderMarkdownResults, args], () => {
+	return mcpResultMemo.get(result, [renderMarkdownResults, args, expanded], () => {
 		const textContent = (result.content ?? [])
 			.filter(block => block.type === "text")
 			.map(block => block.text ?? "")
@@ -336,11 +382,12 @@ export function describeMCPResult(
 				// Bracketed non-JSON text falls through to Markdown/raw output.
 			}
 		}
+		const previewLines = expanded ? undefined : 4;
 		if (!output) body.push(noteText("(no output)"));
-		else if (isError) body.push(errorText(output));
+		else if (isError) body.push(renderNativeMcpErrorNode(output, previewLines));
 		else if (isJson) body.push(describeJsonTree(parsed));
 		else if (renderMarkdownResults) body.push(md(output));
-		else body.push(ansi(output));
+		else body.push(ansi(output, { preview: previewLines ? { lines: previewLines } : undefined }));
 		const warning = truncationNotice(result.details?.meta);
 		if (warning) body.push(warning);
 		return {

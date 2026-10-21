@@ -23,8 +23,6 @@ import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
 import { extractImagePathFromText } from "@reverse/tui/prompt/custom-editor";
 import { HistorySearchComponent } from "@reverse/tui/overlays/history-search";
 import { HookEditorComponent } from "@reverse/tui/overlays/hook-editor";
-import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
-import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
 import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
 import {
 	chipLabel,
@@ -122,11 +120,11 @@ export function shouldSkipHistory(slashText: string): boolean {
 	return false;
 }
 
-interface Expandable {
+export interface Expandable {
 	setExpanded(expanded: boolean): void;
 }
 
-function isExpandable(obj: unknown): obj is Expandable {
+export function isExpandable(obj: unknown): obj is Expandable {
 	return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
 }
 
@@ -2671,14 +2669,8 @@ export class InputController {
 	}
 
 	toggleToolOutputExpansion(): void {
-		if (this.ctx.hideToolActivity) {
-			const visibilityKey = appKey(this.ctx.keybindings, "app.tools.toggleVisibility");
-			const visibilityHint = visibilityKey ? `${visibilityKey} or /settings` : "/settings";
-			this.ctx.showStatus(`Tool activity is hidden — show it with ${visibilityHint} before expanding`);
-			return;
-		}
 		this.setToolsExpanded(!this.ctx.toolOutputExpanded);
-		this.ctx.showStatus(`Tool output expansion: ${this.ctx.toolOutputExpanded ? "enabled" : "disabled"}`);
+		this.ctx.showStatus(`Transcript details: ${this.ctx.toolOutputExpanded ? "expanded" : "collapsed"}`);
 	}
 
 	toggleToolActivityVisibility(): void {
@@ -2690,12 +2682,10 @@ export class InputController {
 		}
 
 		for (const child of this.ctx.chatContainer.children) {
-			if (
-				!this.ctx.hideToolActivity &&
-				(child instanceof ToolExecutionComponent || child instanceof ReadToolGroupComponent)
-			) {
+			if (!this.ctx.hideToolActivity && isExpandable(child)) {
 				child.setExpanded(false);
-			} else if (child instanceof AssistantMessageComponent) {
+			}
+			if (child instanceof AssistantMessageComponent) {
 				child.setToolResultImagesVisible(!this.ctx.hideToolActivity);
 			}
 		}
@@ -2703,6 +2693,7 @@ export class InputController {
 
 		if (this.ctx.hideToolActivity) this.ctx.ui.clearInlineImages();
 		// A viewport-only repaint leaves tool rows already retired to terminal history unchanged.
+		this.ctx.chatContainer.resetStableEmission();
 		this.ctx.ui.resetDisplay();
 		this.ctx.showStatus(`Tool activity: ${this.ctx.hideToolActivity ? "hidden" : "visible"}`);
 	}
@@ -2714,9 +2705,8 @@ export class InputController {
 				child.setExpanded(expanded);
 			}
 		}
-		// Toggling expansion mutates every live block; blocks already committed to
-		// terminal history stay at their committed presentation.
-		this.ctx.ui.requestRender(true);
+		this.ctx.chatContainer.resetStableEmission();
+		this.ctx.ui.resetDisplay();
 	}
 
 	toggleThinkingBlockVisibility(): void {
@@ -2742,7 +2732,7 @@ export class InputController {
 
 		if (this.ctx.streamingComponent && this.ctx.streamingMessage) {
 			this.ctx.streamingComponent.setHideThinkingBlock(this.ctx.hideThinkingBlock);
-			this.ctx.streamingComponent.updateContent(this.ctx.streamingMessage);
+			this.ctx.streamingComponent.updateContent(this.ctx.streamingMessage, { transient: true });
 		}
 
 		// This is an explicit user display gesture: rebuild native history so the

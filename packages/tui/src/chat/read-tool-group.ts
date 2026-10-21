@@ -9,6 +9,7 @@ import { parseLineRanges, selectorLineRanges } from "../tools/line-ranges";
 import {
 	type ReadRenderArgs,
 	type ReadToolDetails,
+	isSkillPath,
 	readContentCode,
 	readResultIsMarkdown,
 	readSourceFsPath,
@@ -23,7 +24,7 @@ import { internalUrlSchemeSpec, splitUrlScheme } from "../tools/url-scheme-host"
 import type { ToolExecutionHandle } from "./tool-execution";
 import { formatUsageRow } from "../overlays/usage-row";
 import { formatCount } from "@reverse/utils";
-import type { TspCardStatus, TspSpan, TspText } from "@reverse/wire";
+import type { TspCardStatus, TspSpan, TspText, TspTone } from "@reverse/wire";
 import type { NativeToolHead } from "../tools/renderer";
 import { card, code, keyed, md, node, span, text, withHidden } from "../native/describe";
 import {
@@ -654,7 +655,11 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 			for (const entry of previews) {
 				const split = splitPathAndSel(entry.path);
 				const name = shortenPath(split.path);
-				const sectionHead: TspSpan[] = [span(name || "…", "path")];
+				const sectionHead: TspSpan[] = [];
+				if (isSkillPath(entry.path)) {
+					sectionHead.push(span("[Skill]", "customMessageLabel"), span(" "));
+				}
+				sectionHead.push(span(name || "…", "path"));
 				if (split.sel) sectionHead.push(span(`:${split.sel}`, "muted"));
 				body.push(node("section", { head: sectionHead }, this.#nativePreview(entry), `p${entry.toolCallId}`));
 				const usage = this.#usageRows.get(entry.toolCallId);
@@ -685,14 +690,19 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 		const filePath = shortenPath(split.sel ? split.path : row.targetPath);
 		const correctedFrom = this.#correctedFromForTargets(row.targets);
 		const conflicts = this.#conflictCountForTargets(row.targets);
+		const badges: { text: string; tone?: TspTone }[] = [];
+		if (isSkillPath(row.targetPath)) {
+			badges.push({ text: "Skill" });
+		}
+		if (conflicts) {
+			badges.push({ text: `${conflicts} conflict${conflicts === 1 ? "" : "s"}`, tone: "warning" });
+		}
 		return {
 			target: filePath ? `${filePath}${split.sel ? `:${split.sel}` : ""}` : "…",
 			targetKind: "path",
 			href: fileHref(linkPathForTargets(row.targets)),
 			meta: correctedFrom ? [`corrected from ${shortenPath(correctedFrom)}`] : undefined,
-			badges: conflicts
-				? [{ text: `${conflicts} conflict${conflicts === 1 ? "" : "s"}`, tone: "warning" }]
-				: undefined,
+			badges: badges.length > 0 ? badges : undefined,
 		};
 	}
 
@@ -703,12 +713,18 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 		const correctedFrom = this.#correctedFromForTargets(row.targets);
 		const conflicts = this.#conflictCountForTargets(row.targets);
 		const error = status === "error" ? this.#errorFor(row) : undefined;
-		const detail: TspText | undefined =
-			error !== undefined
-				? [span(`— ${error.split("\n", 1)[0]}`, "error")]
-				: correctedFrom
-					? `corrected from ${shortenPath(correctedFrom)}`
-					: undefined;
+		const detailSpans: TspSpan[] = [];
+		if (isSkillPath(row.targetPath)) {
+			detailSpans.push(span("[Skill]", "customMessageLabel"));
+		}
+		if (error !== undefined) {
+			if (detailSpans.length > 0) detailSpans.push(span(" "));
+			detailSpans.push(span(`— ${error.split("\n", 1)[0]}`, "error"));
+		} else if (correctedFrom) {
+			if (detailSpans.length > 0) detailSpans.push(span(" "));
+			detailSpans.push(span(`corrected from ${shortenPath(correctedFrom)}`, "muted"));
+		}
+		const detail: TspText | undefined = detailSpans.length > 0 ? detailSpans : undefined;
 		return fileRow(shortenPath(split.sel ? split.path : row.targetPath), {
 			range: split.sel ? `:${split.sel}` : undefined,
 			href: fileHref(linkPathForTargets(row.targets)),
@@ -813,13 +829,18 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 		for (const entry of previews) {
 			const split = splitPathAndSel(entry.path);
 			const pathValue = shortenPath(entry.path);
+			const headSpans: TspSpan[] = [title, span(" ")];
+			if (isSkillPath(entry.path)) {
+				headSpans.push(span("[Skill]", "customMessageLabel"), span(" "));
+			}
+			if (pathValue) headSpans.push(span(pathValue, "path"));
 			children.push(
 				node(
 					"card",
 					{
 						role: "reverse.tool.read.preview",
 						tone: READ_STATUS_TONE[entry.status],
-						head: pathValue ? [title, span(" "), span(pathValue, "path")] : [title],
+						head: headSpans,
 						collapsible: true,
 						collapsed: this.#previewCollapsed.get(entry.toolCallId) ?? !this.#expanded,
 						preview: { lines: COLLAPSED_PREVIEW_LINES },
@@ -867,6 +888,9 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 		const filePath = shortenPath(split.sel ? split.path : row.targetPath);
 		const linkPath = linkPathForTargets(row.targets);
 		const spans: TspSpan[] = [];
+		if (isSkillPath(row.targetPath)) {
+			spans.push(span("[Skill]", "customMessageLabel"), span(" "));
+		}
 		if (filePath) {
 			const href = linkPath && path.isAbsolute(linkPath) ? pathToFileURL(linkPath).href : undefined;
 			spans.push(span(filePath, "path", href ? { href } : undefined));
@@ -1144,6 +1168,9 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 		if (selectorSuffix) {
 			pathDisplay += theme.fg("accent", selectorSuffix);
 		}
+		if (isSkillPath(value)) {
+			pathDisplay = `${theme.fg("customMessageLabel", "[Skill]")} ${pathDisplay}`;
+		}
 		if (options.correctedFrom) {
 			pathDisplay += theme.fg("dim", ` (corrected from ${shortenPath(options.correctedFrom)})`);
 		}
@@ -1243,7 +1270,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 	}
 
 	#shouldRenderPreview(entry: ReadEntry): boolean {
-		return this.#showContentPreview && entry.contentText !== undefined;
+		return (this.#showContentPreview || this.#expanded) && entry.contentText !== undefined;
 	}
 
 	#formatStatus(status: ReadEntry["status"]): string {

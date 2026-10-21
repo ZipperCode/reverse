@@ -1,6 +1,9 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { ThinkingLevel } from "@reverse/agent";
 import type { AssistantMessage } from "@reverse/ai";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
+import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
 import { trimBlankEdges } from "@reverse/tui/chrome/transcript-container";
 import { initTheme } from "@reverse/tui/theme";
@@ -57,6 +60,7 @@ afterEach(() => {
 describe("AssistantMessageComponent streaming fast path", () => {
 	it("replays retired thinking prefixes after cache eviction, reflow, and finalization", () => {
 		const component = new AssistantMessageComponent();
+		component.setExpandThinkingBlocks(true);
 		const widths = [36, W];
 		const prefixes: Array<{ count: number; rows: readonly string[][] }> = [];
 		let thinking = "";
@@ -94,6 +98,7 @@ describe("AssistantMessageComponent streaming fast path", () => {
 
 	it("keeps earlier block boundaries immutable when later thinking blocks grow or revise", () => {
 		const component = new AssistantMessageComponent();
+		component.setExpandThinkingBlocks(true);
 		const first = "First reasoning paragraph.\n\nSecond paragraph.\n\nStill thinking";
 		component.updateContent(msg([{ type: "thinking", thinking: first }]), { transient: true });
 		component.render(W);
@@ -132,6 +137,7 @@ describe("AssistantMessageComponent streaming fast path", () => {
 		for (const tail of ["```ts\nlet y = 2;\n```", "<!-- -->\n\n```ts\nlet y = 2;\n```"]) {
 			const thinking = `First thought.\n\nSecond thought.\n\n${tail}\n\nThird thought.\n\nStill going`;
 			const component = new AssistantMessageComponent();
+			component.setExpandThinkingBlocks(true);
 			for (let end = 1; end <= thinking.length; end++) {
 				component.updateContent(msg([{ type: "thinking", thinking: thinking.slice(0, end) }]), { transient: true });
 				const rows = trimBlankEdges(component.render(W));
@@ -149,6 +155,7 @@ describe("AssistantMessageComponent streaming fast path", () => {
 		const first = "Columns:\tname\tsize.\n\nSecond paragraph of the answer.\n\nThird paragraph.";
 		const second = "Now reasoning about the next step.\n\nAnother paragraph here.\n\nAnd a closing line.";
 		const component = new AssistantMessageComponent();
+		component.setExpandThinkingBlocks(true);
 		const counts: number[] = [];
 		const stream = (content: AssistantMessage["content"]) => {
 			component.updateContent(msg(content), { transient: true });
@@ -344,6 +351,7 @@ Average Latency: 1,240 ms
 			}
 
 			reused.setHideThinkingBlock(false);
+			reused.setExpanded(true);
 			reused.invalidate();
 			const revealed = Bun.stripANSI(reused.render(W).join("\n"));
 			expect(revealed).toContain(latestReasoning);
@@ -367,8 +375,321 @@ Average Latency: 1,240 ms
 			},
 		] as unknown as AssistantMessage["content"]);
 		const component = new AssistantMessageComponent();
+		component.setExpandThinkingBlocks(true);
 		component.updateContent(m);
 		const rendered = Bun.stripANSI(component.render(W).join("\n"));
 		expect(rendered).toContain("keep me");
+	});
+});
+
+describe("AssistantMessageComponent thinking collapse and expansion (Step 1)", () => {
+	it("collapses 200-line streaming thinking by default, retains final answer, reveals on setExpanded", () => {
+		const component = new AssistantMessageComponent();
+		const startMarker = "START_REASONING_MARKER_CHECK";
+		const endMarker = "END_REASONING_MARKER_CHECK";
+		const lines = [startMarker, ...Array.from({ length: 198 }, (_, i) => `Reasoning line ${i}`), endMarker];
+		const fullThinking = lines.join("\n\n");
+
+		// Streaming thinking: pulse is shown, markers not shown
+		component.updateContent(msg([{ type: "thinking", thinking: fullThinking }]), { transient: true });
+		let rendered = Bun.stripANSI(component.render(W).join("\n"));
+		expect(rendered).toContain("Thinking");
+		expect(rendered).not.toContain(startMarker);
+		expect(rendered).not.toContain(endMarker);
+
+		// Switch to text and toolCall: thinking summary shown, final answer shown, markers not shown
+		component.updateContent(
+			msg([
+				{ type: "thinking", thinking: fullThinking },
+				{ type: "text", text: "Final answer content" },
+				{ type: "toolCall", id: "t1", name: "bash", arguments: { command: "ls" } },
+			]),
+			{ transient: true },
+		);
+		rendered = Bun.stripANSI(component.render(W).join("\n"));
+		expect(rendered).toContain("Thought");
+		expect(rendered).toContain("Final answer content");
+		expect(rendered).not.toContain(startMarker);
+		expect(rendered).not.toContain(endMarker);
+
+		// Finalize turn
+		component.markTranscriptBlockFinalized();
+		rendered = Bun.stripANSI(component.render(W).join("\n"));
+		expect(rendered).toContain("Thought");
+		expect(rendered).toContain("Final answer content");
+		expect(rendered).not.toContain(startMarker);
+		expect(rendered).not.toContain(endMarker);
+
+		// Expand details via setExpanded(true): reveals full thinking markers
+		component.setExpanded(true);
+		rendered = Bun.stripANSI(component.render(W).join("\n"));
+		expect(rendered).toContain(startMarker);
+		expect(rendered).toContain(endMarker);
+		expect(rendered).toContain("Final answer content");
+
+		// Collapse again: returns to summary
+		component.setExpanded(false);
+		rendered = Bun.stripANSI(component.render(W).join("\n"));
+		expect(rendered).toContain("Thought");
+		expect(rendered).toContain("Final answer content");
+		expect(rendered).not.toContain(startMarker);
+		expect(rendered).not.toContain(endMarker);
+	});
+
+	it("remembers setExpanded(true) on empty component before streaming starts", () => {
+		const startMarker = "EARLY_START_MARKER";
+		const endMarker = "EARLY_END_MARKER";
+		const component = new AssistantMessageComponent();
+		component.setExpanded(true);
+
+		component.updateContent(
+			msg([
+				{ type: "thinking", thinking: `${startMarker}\n\nIntermediate thoughts\n\n${endMarker}` },
+				{ type: "text", text: "Early text" },
+			]),
+			{ transient: true },
+		);
+		let rendered = Bun.stripANSI(component.render(W).join("\n"));
+		expect(rendered).toContain(startMarker);
+		expect(rendered).toContain(endMarker);
+		expect(rendered).toContain("Early text");
+
+		component.setExpanded(false);
+		rendered = Bun.stripANSI(component.render(W).join("\n"));
+		expect(rendered).not.toContain(startMarker);
+		expect(rendered).toContain("Early text");
+	});
+
+	it("excludes collapsed thinking body from transcript stable rows", () => {
+		const component = new AssistantMessageComponent();
+		for (let i = 1; i <= 10; i++) {
+			component.updateContent(
+				msg([{ type: "thinking", thinking: `Thinking paragraph ${i} with substantial text to wrap.` }]),
+				{ transient: true },
+			);
+			component.render(W);
+			expect(component.getTranscriptStableRows()).toEqual([]);
+			expect(component.renderTranscriptStableRows(0, W)).toEqual([]);
+		}
+	});
+
+	it("renders clean Thought without duration on replayed message without clock", () => {
+		const replayed = new AssistantMessageComponent(
+			msg([
+				{ type: "thinking", thinking: "Private reasoning from past turn" },
+				{ type: "text", text: "Historical answer" },
+			]),
+		);
+		const rendered = Bun.stripANSI(replayed.render(W).join("\n"));
+		expect(rendered).toContain("Thought");
+		expect(rendered).not.toContain("Thought for");
+		expect(rendered).not.toContain("Private reasoning");
+		expect(rendered).toContain("Historical answer");
+	});
+
+	it("handles empty and whitespace thinking blocks without blank summaries", () => {
+		for (const emptyThinking of ["", "   \n\t  ", "<!-- -->", ". . ."]) {
+			const component = new AssistantMessageComponent(
+				msg([
+					{ type: "thinking", thinking: emptyThinking },
+					{ type: "text", text: "Clean answer" },
+				]),
+			);
+			const rendered = Bun.stripANSI(component.render(W).join("\n"));
+			expect(rendered).not.toContain("Thought");
+			expect(rendered).toContain("Clean answer");
+		}
+	});
+
+	it("renders multi-block thinking and respects narrow widths", () => {
+		const component = new AssistantMessageComponent();
+		component.updateContent(
+			msg([
+				{ type: "thinking", thinking: "First reasoning step" },
+				{ type: "thinking", thinking: "Second reasoning step" },
+				{ type: "text", text: "Multi-block answer text" },
+			]),
+		);
+		const wide = Bun.stripANSI(component.render(W).join("\n"));
+		expect(wide).toContain("Multi-block answer text");
+
+		const narrow = Bun.stripANSI(component.render(36).join("\n"));
+		expect(narrow).toContain("Multi-block answer text");
+		for (const line of narrow.split("\n")) {
+			expect(Bun.stringWidth(line)).toBeLessThanOrEqual(36);
+		}
+	});
+
+	it("handles cancellation / error stopping thinking clock cleanly", () => {
+		const component = new AssistantMessageComponent();
+		component.updateContent(
+			msg([{ type: "thinking", thinking: "Reasoning before failure" }], {
+				stopReason: "error",
+				errorMessage: "Upstream failure",
+			}),
+			{ transient: true },
+		);
+		const rendered = Bun.stripANSI(component.render(W).join("\n"));
+		expect(rendered).toContain("Error:");
+		expect(rendered).not.toContain("Reasoning before failure");
+	});
+
+	it("preserves thinking clock across expand and collapse toggles without resetting", () => {
+		const component = new AssistantMessageComponent();
+		// Stream thinking
+		component.updateContent(msg([{ type: "thinking", thinking: "Step 1 reasoning" }]), { transient: true });
+		// Transition to text finishes the clock
+		component.updateContent(
+			msg([
+				{ type: "thinking", thinking: "Step 1 reasoning" },
+				{ type: "text", text: "Answer ready" },
+			]),
+			{ transient: true },
+		);
+		const initialRender = Bun.stripANSI(component.render(W).join("\n"));
+		expect(initialRender).toContain("Thought");
+		expect(initialRender).toContain("Answer ready");
+
+		// Toggle expanded and back; summary label must remain stable
+		component.setExpanded(true);
+		const expandedRender = Bun.stripANSI(component.render(W).join("\n"));
+		expect(expandedRender).toContain("Step 1 reasoning");
+
+		component.setExpanded(false);
+		const collapsedRender = Bun.stripANSI(component.render(W).join("\n"));
+		expect(collapsedRender).toBe(initialRender);
+	});
+
+	it("closes open thinking clocks when streaming transitions to a toolCall", () => {
+		const component = new AssistantMessageComponent();
+		component.updateContent(msg([{ type: "thinking", thinking: "Determining tool invocation" }]), {
+			transient: true,
+		});
+		// Transition immediately to toolCall without intermediate text
+		component.updateContent(
+			msg([
+				{ type: "thinking", thinking: "Determining tool invocation" },
+				{ type: "toolCall", id: "tc_1", name: "read", arguments: { path: "x" } },
+			]),
+			{ transient: true },
+		);
+		const rendered = Bun.stripANSI(component.render(W).join("\n"));
+		expect(rendered).toContain("Thought");
+		expect(rendered).not.toContain("Thinking");
+		expect(rendered).not.toContain("Determining tool invocation");
+	});
+
+	it("clears native per-section overrides in both directions and on same-value global expansion calls", () => {
+		const component = new AssistantMessageComponent();
+		component.updateContent(
+			msg([
+				{ type: "thinking", thinking: "Alpha thinking section" },
+				{ type: "text", text: "Alpha answer" },
+			]),
+		);
+
+		const getSectionCollapsed = (): boolean | undefined => {
+			const root = component.describe();
+			for (const child of root.c ?? []) {
+				if ("k" in child && child.k === "section" && child.key === "k0") {
+					return child.p?.collapsed;
+				}
+			}
+			return undefined;
+		};
+
+		// 1. Initial default state: collapsed
+		expect(getSectionCollapsed()).toBe(true);
+
+		// 2. Expand globally: k0 becomes open
+		component.setExpanded(true);
+		expect(getSectionCollapsed()).toBe(false);
+
+		// 3. User manually collapses k0 in native terminal
+		component.handleNativeEvent({ type: "toggle", key: "k0", collapsed: true });
+		expect(getSectionCollapsed()).toBe(true);
+
+		// 4. Same-value global expansion call (setExpanded(true) when outputExpanded is already true)
+		// must clear per-section override and rebuild, restoring k0 to expanded (collapsed: false)
+		component.setExpanded(true);
+		expect(getSectionCollapsed()).toBe(false);
+
+		// 5. User manually collapses k0 in native terminal again
+		component.handleNativeEvent({ type: "toggle", key: "k0", collapsed: true });
+		expect(getSectionCollapsed()).toBe(true);
+
+		// 6. Global collapse (setExpanded(false)): clears per-section overrides in the false direction
+		// and ensures k0 remains collapsed
+		component.setExpanded(false);
+		expect(getSectionCollapsed()).toBe(true);
+
+		// 7. User manually expands k0 in native terminal while globally collapsed
+		component.handleNativeEvent({ type: "toggle", key: "k0", collapsed: false });
+		expect(getSectionCollapsed()).toBe(false);
+
+		// 8. Same-value global collapse call (setExpanded(false) when outputExpanded is already false)
+		// must clear per-section override and rebuild, returning k0 to collapsed (collapsed: true)
+		component.setExpanded(false);
+		expect(getSectionCollapsed()).toBe(true);
+	});
+
+	it("preserves active streaming thinking clock across InputController visibility toggles", () => {
+		const nowSpy = spyOn(performance, "now");
+		let mockTime = 1_000;
+		nowSpy.mockImplementation(() => mockTime);
+
+		try {
+			const streamingComponent = new AssistantMessageComponent();
+			const streamingMessage = msg([{ type: "thinking", thinking: "Live reasoning in flight" }]);
+			streamingComponent.updateContent(streamingMessage, { transient: true });
+
+			const settings = Settings.isolated();
+			const ctx = {
+				hideThinkingBlock: false,
+				effectiveHideThinkingBlock: false,
+				settings,
+				session: { agent: { hideThinkingSummary: false }, thinkingLevel: ThinkingLevel.High },
+				chatContainer: {
+					children: [streamingComponent],
+					resetStableEmission: () => {},
+				},
+				streamingComponent,
+				streamingMessage,
+				showStatus: () => {},
+				ui: { resetDisplay: () => {} },
+			} as unknown as InteractiveModeContext;
+
+			const controller = new InputController(ctx);
+
+			// Advance time by 1s (to 2000ms) while still streaming
+			mockTime = 2_000;
+			// Toggle thinking visibility via InputController (hides thinking blocks)
+			controller.toggleThinkingBlockVisibility();
+			expect(ctx.hideThinkingBlock).toBe(true);
+
+			// Advance time by another 1s (to 3000ms) while still streaming
+			mockTime = 3_000;
+			// Toggle back (shows thinking blocks)
+			controller.toggleThinkingBlockVisibility();
+			expect(ctx.hideThinkingBlock).toBe(false);
+
+			// Streaming finishes at 6000ms (5 seconds total elapsed since start at 1000ms)
+			mockTime = 6_000;
+			streamingComponent.updateContent(
+				msg([
+					{ type: "thinking", thinking: "Live reasoning in flight" },
+					{ type: "text", text: "Answer arrived" },
+				]),
+				{ transient: true },
+			);
+			streamingComponent.markTranscriptBlockFinalized();
+
+			const rendered = Bun.stripANSI(streamingComponent.render(W).join("\n"));
+			// Total elapsed time must be 5s (6000 - 1000), not prematurely closed at 1s (2000 - 1000)
+			expect(rendered).toContain("Thought for 5s");
+			expect(rendered).not.toContain("Thought for 1s");
+		} finally {
+			nowSpy.mockRestore();
+		}
 	});
 });

@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import "@reverse/coding-agent/internal-urls/router";
 import {
 	buildSkillPromptMessage,
 	loadSkills,
@@ -334,5 +335,130 @@ describe("skill:// resolution honors skills.customDirectories (#7190)", () => {
 		const handler = new SkillProtocolHandler();
 		const resource = await handler.resolve(parseInternalUrl("skill://shared-name/"));
 		expect(resource.sourcePath).toBe(path.join(customSkill, "SKILL.md"));
+	});
+
+	it("formats routed ReadTool calls and renderer views with [Skill] and retains content with selectors/raw", async () => {
+		const tempDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "pi-routed-skills-")));
+		tempDirs.push(tempDir);
+		const skillDir = path.join(tempDir, "routed-skill");
+		await fs.mkdir(skillDir, { recursive: true });
+		const content = [
+			"---",
+			"name: routed-skill",
+			"description: routed skill test",
+			"---",
+			"",
+			"Line 1: first instruction line",
+			"Line 2: second instruction line",
+			"Line 3: third instruction line",
+			"Line 4: last instruction line",
+		].join("\n");
+		await Bun.write(path.join(skillDir, "SKILL.md"), content);
+
+		const { skills } = await loadSkills({
+			...ALL_DEFAULT_SOURCES_DISABLED,
+			customDirectories: [tempDir],
+		});
+		setActiveSkills(skills);
+
+		const session: ToolSession = {
+			cwd: tempDir,
+			hasUI: false,
+			getSessionFile: () => null,
+			getSessionSpawns: () => "*",
+			settings: Settings.isolated(),
+		};
+		const readTool = new ReadTool(session);
+
+		await initTheme(false, undefined, undefined, "dark", "light");
+		const uiTheme = await getThemeByName("dark");
+		if (!uiTheme) throw new Error("Dark theme required for test");
+
+		// 1. Basic read
+		const result = await readTool.execute("c1", { path: "skill://routed-skill" });
+		const text = result.content.flatMap(block => (block.type === "text" ? [block.text] : [])).join("\n");
+		expect(text).toContain("Line 1: first instruction line");
+		expect(text).toContain("Line 4: last instruction line");
+		expect(result.details?.meta?.source).toEqual({ type: "internal", value: "skill://routed-skill" });
+
+		const callComp = readToolRenderer.renderCall(
+			{ path: "skill://routed-skill" },
+			{ expanded: false, isPartial: false },
+			uiTheme,
+		);
+		const callRender = Bun.stripANSI(callComp.render(120).join("\n"));
+		expect(callRender).toContain("Read");
+		expect(callRender).toContain("[Skill]");
+		expect(callRender).toContain("skill://routed-skill");
+
+		const resultComp = readToolRenderer.renderResult(result, { expanded: false, isPartial: false }, uiTheme, {
+			path: "skill://routed-skill",
+		});
+		const resultRender = Bun.stripANSI(resultComp.render(120).join("\n"));
+		expect(resultRender).toContain("Read");
+		expect(resultRender).toContain("[Skill]");
+		expect(resultRender).toContain("skill://routed-skill");
+
+		const callView = readToolRenderer.describeCall({ path: "skill://routed-skill" });
+		expect(callView.tool?.title).toBe("Read");
+		expect(callView.tool?.badges).toEqual([{ text: "Skill" }]);
+		expect(callView.tool?.target).toBe("skill://routed-skill");
+
+		const resultView = readToolRenderer.describeResult(
+			result,
+			{ expanded: false, isPartial: false },
+			{ path: "skill://routed-skill" },
+		);
+		expect(resultView.tool?.title).toBe("Read");
+		expect(resultView.tool?.badges).toEqual([{ text: "Skill" }]);
+		expect(resultView.tool?.target).toBe("skill://routed-skill");
+
+		// 2. Read with line selector preserves selector and content
+		const selResult = await readTool.execute("c2", { path: "skill://routed-skill:6-7" });
+		const selText = selResult.content.flatMap(block => (block.type === "text" ? [block.text] : [])).join("\n");
+		expect(selText).toContain("Line 1: first instruction line");
+		expect(selText).toContain("Line 2: second instruction line");
+
+		const selCallComp = readToolRenderer.renderCall(
+			{ path: "skill://routed-skill:6-7" },
+			{ expanded: false, isPartial: false },
+			uiTheme,
+		);
+		const selCallRender = Bun.stripANSI(selCallComp.render(120).join("\n"));
+		expect(selCallRender).toContain("Read");
+		expect(selCallRender).toContain("[Skill]");
+		expect(selCallRender).toContain("skill://routed-skill:6-7");
+
+		const selCallView = readToolRenderer.describeCall({ path: "skill://routed-skill:6-7" });
+		expect(selCallView.tool?.target).toBe("skill://routed-skill:6-7");
+		expect(selCallView.tool?.badges).toEqual([{ text: "Skill" }]);
+
+		// 3. Raw read preserves raw content and targets
+		const rawResult = await readTool.execute("c3", { path: "skill://routed-skill:raw" });
+		const rawText = rawResult.content.flatMap(block => (block.type === "text" ? [block.text] : [])).join("\n");
+		expect(rawText).toContain("name: routed-skill");
+
+		const rawCallView = readToolRenderer.describeCall({ path: "skill://routed-skill:raw" });
+		expect(rawCallView.tool?.target).toBe("skill://routed-skill:raw");
+		expect(rawCallView.tool?.badges).toEqual([{ text: "Skill" }]);
+
+		// 4. Missing skill error
+		await expect(readTool.execute("c4", { path: "skill://nonexistent-skill" })).rejects.toThrow();
+		const errComp = readToolRenderer.renderResult(
+			{ content: [{ type: "text", text: "Error: Unknown skill: nonexistent-skill" }], isError: true },
+			{ expanded: false, isPartial: false },
+			uiTheme,
+			{ path: "skill://nonexistent-skill" },
+		);
+		const errRender = Bun.stripANSI(errComp.render(120).join("\n"));
+		expect(errRender).toContain("Read");
+		expect(errRender).toContain("[Skill]");
+		expect(errRender).toContain("skill://nonexistent-skill");
+		const errView = readToolRenderer.describeResult(
+			{ content: [{ type: "text", text: "Error: Unknown skill: nonexistent-skill" }], isError: true },
+			{ expanded: false, isPartial: false },
+			{ path: "skill://nonexistent-skill" },
+		);
+		expect(errView.tool?.badges).toEqual([{ text: "Skill" }]);
 	});
 });

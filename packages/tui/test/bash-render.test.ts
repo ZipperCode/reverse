@@ -90,22 +90,72 @@ describe("bashToolRenderer", () => {
 		expect(rendered).not.toContain("\t");
 	});
 
-	it("renders the pending call as a bordered block with the command in the body", async () => {
+	it("renders the pending call header with Bash title and CLI badge, keeping the command in the body", async () => {
 		const component = bashToolRenderer.renderCall(
 			{ command: "sleep 30" },
 			{ expanded: false, isPartial: true },
 			uiTheme,
 		);
 		const lines = Bun.stripANSI(component.render(60).join("\n")).split("\n");
-		// A block frames the command: a header bar, the command row, and a bottom border.
 		expect(lines.length).toBeGreaterThanOrEqual(3);
 		const header = lines[0]!;
 		const body = lines.slice(1, -1).join("\n");
-		// Bash commands already carry a `$` prompt in the body, so the frame header
-		// stays a plain rule instead of repeating "Bash" in the title bar.
-		expect(header).not.toContain("Bash");
+		expect(header).toContain("Bash");
+		expect(header).toContain("CLI");
 		expect(header).not.toContain("sleep 30");
 		expect(body).toContain("$ sleep 30");
+	});
+
+	it("renders observable CLI badge across pending, running, success, error, and service results", async () => {
+		const pendingCall = bashToolRenderer.renderCall(
+			{ command: "echo test" },
+			{ expanded: false, isPartial: true },
+			uiTheme,
+		);
+		const pendingText = Bun.stripANSI(pendingCall.render(100).join("\n"));
+		expect(pendingText).toContain("Bash");
+		expect(pendingText).toContain("CLI");
+
+		const runningCall = bashToolRenderer.renderCall(
+			{ command: "echo test" },
+			{ expanded: false, isPartial: true, spinnerFrame: 2 },
+			uiTheme,
+		);
+		const runningText = Bun.stripANSI(runningCall.render(100).join("\n"));
+		expect(runningText).toContain("Bash");
+		expect(runningText).toContain("CLI");
+
+		const successResult = bashToolRenderer.renderResult(
+			{ content: [{ type: "text", text: "success output" }], details: { exitCode: 0 }, isError: false },
+			{ expanded: false, isPartial: false },
+			uiTheme,
+			{ command: "echo test" },
+		);
+		const successText = Bun.stripANSI(successResult.render(100).join("\n"));
+		expect(successText).toContain("Bash");
+		expect(successText).toContain("CLI");
+		expect(successText).toContain("success output");
+
+		const errorResult = bashToolRenderer.renderResult(
+			{ content: [{ type: "text", text: "error output" }], details: { exitCode: 1 }, isError: true },
+			{ expanded: false, isPartial: false },
+			uiTheme,
+			{ command: "false" },
+		);
+		const errorText = Bun.stripANSI(errorResult.render(100).join("\n"));
+		expect(errorText).toContain("Bash");
+		expect(errorText).toContain("CLI");
+		expect(errorText).toContain("Exit: 1");
+
+		const serviceResult = bashToolRenderer.renderResult(
+			{ content: [{ type: "text", text: "ready" }], details: {}, isError: false },
+			{ expanded: false, isPartial: false },
+			uiTheme,
+			{ command: "bun dev", name: "server" },
+		);
+		const serviceText = Bun.stripANSI(serviceResult.render(100).join("\n"));
+		expect(serviceText).toContain("Bash · server");
+		expect(serviceText).toContain("CLI");
 	});
 
 	it("shows the effective timeout from result details when it differs from call args", async () => {

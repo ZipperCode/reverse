@@ -20,7 +20,8 @@ import type { NativeChild, NativeNode } from "../native/node";
 import { fileHref, footnoteText, inlineErrorView, resultText } from "./native-view";
 import { numberedCode } from "./grouped-file-output";
 import { getLanguageFromPath } from "../lang-from-path";
-import type { Theme } from "../theme/theme";
+import { theme, type Theme } from "../theme";
+import type { TspTone } from "@reverse/wire";
 import { fileHyperlink, renderCodeCell, renderMarkdownCell, renderStatusLine } from "../render";
 import { markFramedBlockComponent } from "../render/output-block";
 import { framedToolCard } from "../render/tool-card";
@@ -202,6 +203,12 @@ export function readSelectorRangeStart(selector: string): number | undefined {
 	}
 }
 
+/** Recognize real skill:// URLs (excluding ordinary SKILL.md files). */
+export function isSkillPath(rawPath: string): boolean {
+	if (!rawPath || typeof rawPath !== "string") return false;
+	const split = splitPathAndSel(rawPath);
+	return splitUrlScheme(split.path)?.scheme === "skill" || splitUrlScheme(rawPath)?.scheme === "skill";
+}
 // =============================================================================
 // TUI Renderer
 // =============================================================================
@@ -315,6 +322,7 @@ function formatReadPathLink(
 		suffixResolution?: { from: string; to: string };
 		offset?: number;
 		fallbackLabel?: string;
+		theme?: Theme;
 	},
 ): string {
 	const split = splitReadRenderPath(rawPath);
@@ -334,7 +342,12 @@ function formatReadPathLink(
 	const line = firstReadSelectorLine(split.sel) ?? options.offset;
 	const linkOptions = line !== undefined ? { line } : undefined;
 	const linkedPath = target ? fileHyperlink(target, plainDisplayPath, linkOptions) : plainDisplayPath;
-	return `${linkedPath}${selectorSuffix}`;
+	let result = `${linkedPath}${selectorSuffix}`;
+	if (isSkillPath(rawPath)) {
+		const activeTheme = options.theme ?? theme;
+		result = `${activeTheme.fg("customMessageLabel", "[Skill]")} ${result}`;
+	}
+	return result;
 }
 
 function readRawPath(args: ReadRenderArgs | undefined): string {
@@ -375,14 +388,20 @@ function readNativeHead(rawPath: string, args: ReadRenderArgs | undefined, detai
 		meta.push(`summary: ${n} elided span${n === 1 ? "" : "s"}`);
 	}
 	const conflicts = details?.conflictCount ?? 0;
+	const badges: { text: string; tone?: TspTone }[] = [];
+	if (isSkillPath(rawPath)) {
+		badges.push({ text: "Skill" });
+	}
+	if (conflicts > 0) {
+		badges.push({ text: `${conflicts} conflict${conflicts === 1 ? "" : "s"}`, tone: "warning" });
+	}
 	return {
 		title: "Read",
 		target: target || "…",
 		targetKind: "path",
 		href: fileHref(details?.resolvedPath ?? details?.displayTarget ?? readSourceFsPath(details)),
 		meta,
-		badges:
-			conflicts > 0 ? [{ text: `${conflicts} conflict${conflicts === 1 ? "" : "s"}`, tone: "warning" }] : undefined,
+		badges: badges.length > 0 ? badges : undefined,
 	};
 }
 
@@ -471,7 +490,7 @@ export const readToolRenderer = {
 		const offset = args.offset;
 		const limit = args.limit;
 
-		let pathDisplay = formatReadPathLink(rawPath, { offset, fallbackLabel: "…" }) || "…";
+		let pathDisplay = formatReadPathLink(rawPath, { offset, fallbackLabel: "…", theme: uiTheme }) || "…";
 		if (offset !== undefined || limit !== undefined) {
 			const startLine = offset ?? 1;
 			const endLine = limit !== undefined ? startLine + limit - 1 : "";
@@ -515,6 +534,7 @@ export const readToolRenderer = {
 				formatReadPathLink(rawPath, {
 					offset: args?.offset,
 					sourcePath: result.details?.displayTarget ?? readSourceFsPath(result.details),
+					theme: uiTheme,
 				}) || shortenPath(rawPath);
 			let title = filePath ? `Read ${filePath}` : "Read";
 			if (args?.offset !== undefined || args?.limit !== undefined) {
@@ -569,6 +589,7 @@ export const readToolRenderer = {
 				sourcePath: details?.displayTarget ?? readSourceFsPath(details),
 				suffixResolution: suffix,
 				fallbackLabel: "image",
+				theme: uiTheme,
 			});
 			const correction = suffix ? ` ${uiTheme.fg("dim", `(corrected from ${shortenPath(suffix.from)})`)}` : "";
 			const header = renderStatusLine(
@@ -601,6 +622,7 @@ export const readToolRenderer = {
 			sourcePath: details?.displayTarget ?? readSourceFsPath(details),
 			suffixResolution: suffix,
 			offset: args?.offset,
+			theme: uiTheme,
 		});
 		const correction = suffix ? ` ${uiTheme.fg("dim", `(corrected from ${shortenPath(suffix.from)})`)}` : "";
 		let title = displayPath ? `Read ${displayPath}${correction}` : "Read";

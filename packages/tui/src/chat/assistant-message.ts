@@ -25,7 +25,7 @@ import { isNativeRendering } from "../native/state";
 import { NativeImageCache, nativeMediaNode } from "../native/blobs";
 import { linkedImageText } from "../prompt/image-references";
 import { Memo } from "../native/memo";
-import { EMPTY_LINK_TARGETS, resolveImageOptions } from "../render/render-utils";
+import { EMPTY_LINK_TARGETS, formatExpandHint, resolveImageOptions } from "../render/render-utils";
 import { WidthAwareText } from "../render";
 import { cachedPngConversion, convertImageToPngShared, imagePayloadKey } from "./image-loading";
 import { canonicalizeMessage, formatThinkingForDisplay, hasDisplayableThinking } from "./thinking-display";
@@ -51,7 +51,7 @@ import { chartFence, hasChartTable, lookupTableChart, splitTableCharts } from ".
 const MAX_TRANSCRIPT_ERROR_ROWS = 8;
 const EMPTY_STABLE_RENDER: readonly string[] = [];
 
-/** The native head of a finished thinking block: "Thought for 12s", or "Thought" when it was never seen streaming. */
+/** The summary head of a finished thinking block: "Thought for 12s", or "Thought" when it was never seen streaming. Shared across ANSI and native renderers. */
 function thoughtLabel(clock: { start: number; end?: number } | undefined): string {
 	if (clock?.end === undefined) return "Thought";
 	const ms = clock.end - clock.start;
@@ -299,12 +299,10 @@ export class AssistantMessageComponent extends Container {
 	 */
 	#errorPinned = false;
 	/**
-	 * Whether the inline turn-ending error block renders its full body instead of
-	 * the {@link MAX_TRANSCRIPT_ERROR_ROWS}-capped preview. Toggled by
-	 * {@link setExpanded} so Ctrl+O (tool-output expansion) reveals a long
-	 * provider error whose tail would otherwise be unreachable in the live TUI.
+	 * Whether transcript details (inline error, thinking blocks) are expanded.
+	 * Toggled by {@link setExpanded} (Ctrl+O).
 	 */
-	#errorExpanded = false;
+	#outputExpanded = false;
 	/** The deduplicated message the native error frame shows (its "Copy error" copies it). */
 	#errorText: string | undefined;
 	/** A TTSR rule aborted this text; the turn re-streams below it. */
@@ -315,9 +313,9 @@ export class AssistantMessageComponent extends Container {
 	 * True when the current {@link updateContent} message carries a truncatable
 	 * inline provider error (the `#appendErrorBlock` path) — set whether or not
 	 * the inline block was actually drawn, so it stays true even while the error
-	 * is suppressed under a pinned banner. Gates {@link setExpanded} so toggling
-	 * expansion only re-renders assistant turns that carry such an error, not
-	 * every message in the transcript.
+	 * is suppressed under a pinned banner. Gates {@link setExpanded} alongside
+	 * displayable thinking so toggling expansion re-renders assistant turns carrying
+	 * truncatable errors or thinking blocks, skipping ordinary text-only turns.
 	 */
 	#hasTruncatableError = false;
 	/**
@@ -393,9 +391,9 @@ export class AssistantMessageComponent extends Container {
 	#displayedMessage: AssistantMessage | undefined;
 	/** Thinking-extension components per content index, recorded when the slow path mounts them. */
 	#thinkingExtensions = new Map<number, Component[]>();
-	/** Collapse state of thinking sections toggled in the terminal, by content index; cleared by {@link setHideThinkingBlock}. */
+	/** Collapse state of thinking sections toggled in the terminal, by content index; cleared by {@link setHideThinkingBlock} and {@link setExpanded}. */
 	#thinkingCollapsed = new Map<number, boolean>();
-	/** When each thinking block was seen streaming and when it stopped (native "Thought for 12s"), by content index. */
+	/** When each thinking block was seen streaming and when it stopped (shared across ANSI and native "Thought for 12s"), by content index. */
 	#thinkingClock = new Map<number, { start: number; end?: number; tokens: number }>();
 	#nativeViewVersion = 0;
 	readonly #native = new Memo();
@@ -529,6 +527,10 @@ export class AssistantMessageComponent extends Container {
 	#proseOnlyThinking: boolean;
 	#expandThinkingBlocks: boolean;
 
+	#effectiveThinkingExpanded(): boolean {
+		return this.#expandThinkingBlocks || this.#outputExpanded;
+	}
+
 	constructor(
 		message?: AssistantMessage,
 		hideThinkingBlock = false,
@@ -649,6 +651,15 @@ export class AssistantMessageComponent extends Container {
 		if (this.#expandThinkingBlocks === expand) return;
 		this.#expandThinkingBlocks = expand;
 		this.#nativeViewVersion++;
+		const hasThinking = Boolean(
+			!this.#hideThinkingBlock &&
+			this.#lastMessage?.content.some(
+				c => c.type === "thinking" && resolveThinkingDisplay(c, this.#proseOnlyThinking).visible,
+			),
+		);
+		if (hasThinking && this.#lastMessage) {
+			this.updateContent(this.#lastMessage, { transient: this.#lastUpdateTransient });
+		}
 	}
 
 	override dispose(): void {
@@ -665,7 +676,10 @@ export class AssistantMessageComponent extends Container {
 	 * Once text starts, a tool call streams, or the block is sealed, the pulse ends.
 	 */
 	#shouldAnimateThinking(message: AssistantMessage): boolean {
-		return this.#hideThinkingBlock && this.#thinkingTailIndex(message) !== undefined;
+		return (
+			(this.#hideThinkingBlock || !this.#effectiveThinkingExpanded()) &&
+			this.#thinkingTailIndex(message) !== undefined
+		);
 	}
 
 	/**
@@ -772,17 +786,26 @@ export class AssistantMessageComponent extends Container {
 	}
 
 	/**
-	 * Expand or collapse the inline turn-ending error block so Ctrl+O
-	 * (tool-output expansion) can reveal a long provider error's hidden tail.
-	 * Only re-renders when the current message carries a truncatable error, so
-	 * toggling expansion across the transcript skips ordinary turns. Works even
-	 * while the error is pinned in the banner: the inline block is drawn (in full)
-	 * when expanded so the complete body is reachable without sending a message.
+	 * Expand or collapse transcript details (inline provider error tail and thinking blocks)
+	 * so Ctrl+O (transcript expansion) reveals hidden details. Clears per-section manual
+	 * toggles in both directions so global expansion/collapse takes precedence across all
+	 * sections. Re-renders turns carrying truncatable errors or thinking blocks while
+	 * preserving state for empty turns. Works even while the error is pinned in the banner:
+	 * the inline block is drawn (in full) when expanded so the complete body is reachable
+	 * without sending a message.
 	 */
 	setExpanded(expanded: boolean): void {
-		if (this.#errorExpanded === expanded) return;
-		this.#errorExpanded = expanded;
-		if (this.#hasTruncatableError && this.#lastMessage) {
+		if (this.#outputExpanded === expanded && this.#thinkingCollapsed.size === 0) return;
+		this.#outputExpanded = expanded;
+		this.#thinkingCollapsed.clear();
+		this.#nativeViewVersion++;
+		const hasThinking = Boolean(
+			!this.#hideThinkingBlock &&
+			this.#lastMessage?.content.some(
+				c => c.type === "thinking" && resolveThinkingDisplay(c, this.#proseOnlyThinking).visible,
+			),
+		);
+		if ((this.#hasTruncatableError || hasThinking) && this.#lastMessage) {
 			this.updateContent(this.#lastMessage, { transient: this.#lastUpdateTransient });
 		}
 	}
@@ -825,7 +848,8 @@ export class AssistantMessageComponent extends Container {
 			this.#hideThinkingBlock,
 			this.#showImages,
 			this.#showToolResultImages,
-			this.#errorExpanded,
+			this.#outputExpanded,
+			this.#effectiveThinkingExpanded(),
 			this.#nativeViewVersion,
 			rate,
 			media,
@@ -842,6 +866,10 @@ export class AssistantMessageComponent extends Container {
 		if (this.#rewound) return;
 		this.#rewound = true;
 		this.#nativeViewVersion++;
+		const now = performance.now();
+		for (const clock of this.#thinkingClock.values()) {
+			if (clock.end === undefined) clock.end = now;
+		}
 	}
 
 	/** Mirrors a thinking section collapsed or expanded in the terminal; runs its controls' clicks. */
@@ -937,12 +965,6 @@ export class AssistantMessageComponent extends Container {
 					if (!display.visible) continue;
 					const thinkingLive = streaming && thinkingTail === index;
 					const clock = this.#thinkingClock.get(index);
-					if (thinkingLive) {
-						if (clock) clock.tokens = this.#thinkingTokens || clock.tokens;
-						else this.#thinkingClock.set(index, { start: performance.now(), tokens: this.#thinkingTokens });
-					} else if (clock && clock.end === undefined) {
-						clock.end = performance.now();
-					}
 					// Hidden (Ctrl+T): only the live "Thinking…" head shows; a finished thought leaves nothing.
 					if (this.#hideThinkingBlock && !thinkingLive) continue;
 					const tokens = thinkingLive ? this.#thinkingTokens : (clock?.tokens ?? 0);
@@ -972,7 +994,7 @@ export class AssistantMessageComponent extends Container {
 								// Open while it streams; a finished thought folds to its "Thought for 12s" line unless the user keeps thinking expanded.
 								collapsed:
 									this.#thinkingCollapsed.get(index) ??
-									(this.#hideThinkingBlock || (!thinkingLive && !this.#expandThinkingBlocks)),
+									(this.#hideThinkingBlock || !this.#effectiveThinkingExpanded()),
 								// Tern's fold head sums it into "Worked for 12s".
 								took: clock?.end === undefined ? undefined : Math.max(0, Math.round(clock.end - clock.start)),
 							},
@@ -1116,7 +1138,7 @@ export class AssistantMessageComponent extends Container {
 			),
 			text([span(errorText, "mono")], {
 				wrap: "word",
-				lines: this.#errorExpanded ? undefined : MAX_TRANSCRIPT_ERROR_ROWS,
+				lines: this.#outputExpanded ? undefined : MAX_TRANSCRIPT_ERROR_ROWS,
 				role: "reverse.error.message",
 				key: "message",
 			}),
@@ -1497,6 +1519,10 @@ export class AssistantMessageComponent extends Container {
 		this.#transcriptBlockFinalized = true;
 		this.#dropStableRenders();
 		this.#stopThinkingAnimation();
+		const now = performance.now();
+		for (const clock of this.#thinkingClock.values()) {
+			if (clock.end === undefined) clock.end = now;
+		}
 		// If the live pulse was on screen when the block sealed, drop the fast path
 		// and rebuild so the placeholder is removed — finalized blocks never animate.
 		if (this.#thinkingDots) {
@@ -1534,7 +1560,7 @@ export class AssistantMessageComponent extends Container {
 	 * {@link ErrorBannerComponent}. The caller owns the separating Spacer.
 	 */
 	#appendErrorBlock(message: string): void {
-		const maxRows = this.#errorExpanded ? Number.POSITIVE_INFINITY : MAX_TRANSCRIPT_ERROR_ROWS;
+		const maxRows = this.#outputExpanded ? Number.POSITIVE_INFINITY : MAX_TRANSCRIPT_ERROR_ROWS;
 		this.#contentContainer.addChild(
 			new WidthAwareText(
 				contentWidth =>
@@ -1698,8 +1724,9 @@ export class AssistantMessageComponent extends Container {
 	}
 
 	#computeShapeKey(message: AssistantMessage): string {
+		const activeThinkingTail = this.#thinkingTailIndex(message);
 		const parts: string[] = [
-			`htb:${this.#hideThinkingBlock ? 1 : 0}|pot:${this.#proseOnlyThinking ? 1 : 0}|etb:${this.#expandThinkingBlocks ? 1 : 0}`,
+			`htb:${this.#hideThinkingBlock ? 1 : 0}|pot:${this.#proseOnlyThinking ? 1 : 0}|etb:${this.#expandThinkingBlocks ? 1 : 0}|ete:${this.#effectiveThinkingExpanded() ? 1 : 0}|fin:${this.#transcriptBlockFinalized ? 1 : 0}|ati:${activeThinkingTail ?? -1}`,
 		];
 		for (const content of message.content) {
 			if (content.type === "text") {
@@ -1711,7 +1738,8 @@ export class AssistantMessageComponent extends Container {
 					// Match the pulse's empty/nonempty transition without formatting hidden text.
 					parts.push(canonicalizeMessage(content.thinking) ? "KH" : "K0");
 				} else {
-					parts.push(resolveThinkingDisplay(content, this.#proseOnlyThinking).visible ? "KV" : "K0");
+					const visible = resolveThinkingDisplay(content, this.#proseOnlyThinking).visible;
+					parts.push(!visible ? "K0" : this.#effectiveThinkingExpanded() ? "KV" : "KC");
 				}
 			} else {
 				// Non-rendered blocks (toolCall, redactedThinking, …) still occupy a
@@ -1732,7 +1760,7 @@ export class AssistantMessageComponent extends Container {
 		if (errorPresentation.kind === "compact-recovered") return false;
 		if (
 			errorPresentation.kind === "full" &&
-			!(message.stopReason === "error" && this.#errorPinned && !this.#errorExpanded)
+			!(message.stopReason === "error" && this.#errorPinned && !this.#outputExpanded)
 		) {
 			return false;
 		}
@@ -1806,6 +1834,33 @@ export class AssistantMessageComponent extends Container {
 		return true;
 	}
 
+	#updateThinkingClocks(message: AssistantMessage): void {
+		const isStreamingThinking =
+			this.#lastUpdateTransient &&
+			!this.#transcriptBlockFinalized &&
+			message.stopReason !== "error" &&
+			message.stopReason !== "aborted";
+		const activeTailIndex = isStreamingThinking ? this.#thinkingTailIndex(message) : undefined;
+		const now = performance.now();
+
+		if (activeTailIndex !== undefined) {
+			const currentTokens = message.usage.reasoningTokens ?? message.usage.output;
+			this.#thinkingTokens = currentTokens;
+			const clock = this.#thinkingClock.get(activeTailIndex);
+			if (clock) {
+				if (currentTokens > 0) clock.tokens = currentTokens;
+			} else {
+				this.#thinkingClock.set(activeTailIndex, { start: now, tokens: currentTokens });
+			}
+		}
+
+		for (const [index, clock] of this.#thinkingClock) {
+			if (clock.end === undefined && activeTailIndex !== index) {
+				clock.end = now;
+			}
+		}
+	}
+
 	updateContent(message: AssistantMessage, opts?: { transient?: boolean }): void {
 		this.#blockVersion++;
 		this.#lastMessage = message;
@@ -1814,6 +1869,7 @@ export class AssistantMessageComponent extends Container {
 		// verbatim message so re-renders re-derive the reaction deterministically.
 		message = this.#displayMessage(message, this.#lastUpdateTransient);
 		this.#displayedMessage = message;
+		this.#updateThinkingClocks(message);
 
 		// Streaming-speed gauge: only a live, in-flight render of the single
 		// animating hidden-thinking block feeds the shared session tracker. The
@@ -1872,15 +1928,6 @@ export class AssistantMessageComponent extends Container {
 		const previousFigures = this.#figureBlocks;
 		this.#figureBlocks = new Map();
 
-		const hasVisibleContent = message.content.some(
-			c =>
-				(c.type === "text" && canonicalizeMessage(c.text)) ||
-				(c.type === "image" && c.data && c.mimeType) ||
-				(!this.#hideThinkingBlock &&
-					c.type === "thinking" &&
-					resolveThinkingDisplay(c, this.#proseOnlyThinking).visible),
-		);
-
 		// Render content in order
 		let thinkingIndex = 0;
 		let hasRenderedContent = false;
@@ -1900,8 +1947,10 @@ export class AssistantMessageComponent extends Container {
 					continue;
 				}
 				const display = resolveThinkingDisplay(content, this.#proseOnlyThinking);
-				if (!display.visible) continue;
-				const thinkingText = display.text;
+				if (!display.visible) {
+					thinkingIndex += 1;
+					continue;
+				}
 				// Add spacing only when another visible assistant content block follows.
 				// This avoids a superfluous blank line before separately-rendered tool execution blocks.
 				const hasVisibleContentAfter = message.content
@@ -1910,19 +1959,40 @@ export class AssistantMessageComponent extends Container {
 						c =>
 							(c.type === "text" && canonicalizeMessage(c.text)) ||
 							(c.type === "image" && c.data && c.mimeType) ||
-							(c.type === "thinking" && resolveThinkingDisplay(c, this.#proseOnlyThinking).visible),
+							(!this.#hideThinkingBlock &&
+								c.type === "thinking" &&
+								resolveThinkingDisplay(c, this.#proseOnlyThinking).visible),
 					);
 
-				// Thinking traces in thinkingText color, italic
-				const md = this.#createMarkdown("thinking", thinkingText);
-				md.transientRenderCache = this.#lastUpdateTransient;
-				this.#contentContainer.addChild(md);
-				captureItems?.push({ md, contentIndex: i, blockType: "thinking", lastText: thinkingText });
-				this.#appendThinkingExtensions(i, thinkingIndex, thinkingText);
-				hasRenderedContent = true;
-				thinkingIndex += 1;
-				if (hasVisibleContentAfter) {
-					this.#contentContainer.addChild(new Spacer(1));
+				if (this.#effectiveThinkingExpanded()) {
+					const thinkingText = display.text;
+					const md = this.#createMarkdown("thinking", thinkingText);
+					md.transientRenderCache = this.#lastUpdateTransient;
+					this.#contentContainer.addChild(md);
+					captureItems?.push({ md, contentIndex: i, blockType: "thinking", lastText: thinkingText });
+					this.#appendThinkingExtensions(i, thinkingIndex, thinkingText);
+					hasRenderedContent = true;
+					thinkingIndex += 1;
+					if (hasVisibleContentAfter) {
+						this.#contentContainer.addChild(new Spacer(1));
+					}
+				} else {
+					thinkingIndex += 1;
+					const activeTailIndex = this.#thinkingTailIndex(message);
+					const isStreamingActive = this.#lastUpdateTransient && activeTailIndex === i;
+					if (isStreamingActive) {
+						// Streaming active thinking pulse is rendered below via #thinkingDots
+						continue;
+					}
+					const clock = this.#thinkingClock.get(i);
+					const label = theme.fg("muted", thoughtLabel(clock));
+					const hint = formatExpandHint(theme, false, true);
+					const summaryText = hint ? `${label} ${hint}` : label;
+					this.#contentContainer.addChild(new Text(summaryText, 1, 0));
+					hasRenderedContent = true;
+					if (hasVisibleContentAfter) {
+						this.#contentContainer.addChild(new Spacer(1));
+					}
 				}
 			} else if (content.type === "image" && content.data && content.mimeType) {
 				this.#renderImageEntries([{ image: content, key: `native:${i}` }], hasRenderedContent);
@@ -1934,7 +2004,9 @@ export class AssistantMessageComponent extends Container {
 		}
 
 		if (this.#shouldAnimateThinking(message)) {
-			if (hasVisibleContent) this.#contentContainer.addChild(new Spacer(1));
+			if (hasRenderedContent && !(this.#contentContainer.children.at(-1) instanceof Spacer)) {
+				this.#contentContainer.addChild(new Spacer(1));
+			}
 			this.#thinkingDots = new Text(this.#thinkingDotsLabel(), 1, 0);
 			this.#contentContainer.addChild(this.#thinkingDots);
 			this.#startThinkingAnimation();
@@ -1961,7 +2033,7 @@ export class AssistantMessageComponent extends Container {
 				// banner already shows the capped error there. When expanded, draw
 				// the inline block in full so the complete body is reachable without
 				// sending a message; the pinned banner stays a short reminder.
-				if (!(message.stopReason === "error" && this.#errorPinned) || this.#errorExpanded) {
+				if (!(message.stopReason === "error" && this.#errorPinned) || this.#outputExpanded) {
 					this.#contentContainer.addChild(new Spacer(1));
 					this.#appendErrorBlock(errorPresentation.text);
 				}

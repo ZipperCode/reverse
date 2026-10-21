@@ -1,13 +1,16 @@
 import type { Component } from "../index";
 import { isRecord } from "@reverse/utils";
 import type { NativeToolHead, NativeToolView, RenderResultOptions } from "./renderer";
-import { ansi } from "../native/describe";
+import { ansi, code, span, text } from "../native/describe";
+import type { NativeNode } from "../native/node";
+import { plainText } from "../native/spans";
+import { INTENT_FIELD } from "@reverse/wire";
 import { noteText } from "./native-view";
 import type { Theme } from "../theme/theme";
-import { formatOutputPaneLines, styleToolOutputLine } from "../render/output-pane";
+import { formatOutputPaneLines } from "../render/output-pane";
 import { renderStatusLine, type StatusLineOptions } from "../render/status-line";
 import { plainToolCard, type ToolCardPhase } from "../render/tool-card";
-import { truncateToWidth } from "../render/render-utils";
+import { formatExpandHint, replaceTabs, truncateToWidth } from "../render/render-utils";
 import {
 	describeJsonTree,
 	formatArgsInline,
@@ -19,7 +22,6 @@ import {
 	JSON_TREE_SCALAR_LEN_EXPANDED,
 	renderJsonTreeLines,
 } from "./json-tree";
-import { formatExpandHint } from "../render/render-utils";
 
 /** Inputs rendered by the fallback card used when a tool has no bespoke renderer. */
 export interface DefaultToolRenderInput {
@@ -68,15 +70,52 @@ function buildDefaultToolStatus(input: DefaultToolRenderInput): { status: Status
 	return { status, phase };
 }
 
+function styleDefaultToolOutputLine(line: string, isError: boolean, theme: Theme): string {
+	const normalized = replaceTabs(line);
+	if (normalized.includes("\x1b[")) return normalized;
+	return theme.fg(isError ? "error" : "toolOutput", normalized);
+}
+
+function hasHiddenGenericArgs(
+	args: unknown,
+	contentWidth: number,
+	theme: Theme,
+	renderedInlinePreview?: string,
+): boolean {
+	if (args === undefined || args === null) return false;
+	if (!isRecord(args)) {
+		return !Array.isArray(args) || args.length > 0;
+	}
+	const entries = Object.entries(args).filter(([key]) => key !== INTENT_FIELD && key !== "__partialJson");
+	if (entries.length === 0) return false;
+
+	for (const [, val] of entries) {
+		if (Array.isArray(val) && val.length > 0) return true;
+		if (val !== null && typeof val === "object" && Object.keys(val).length > 0) return true;
+		if (typeof val === "string" && val.includes("\n")) return true;
+	}
+
+	// 宽度截断器使用有符号 32 位整数；最大正值保留原文，也避免把字面省略号误判为截断。
+	const fullBudgetPreview = formatArgsInline(args, 0x7fffffff);
+	if (renderedInlinePreview !== undefined) {
+		return renderedInlinePreview !== fullBudgetPreview;
+	}
+	const inlineBudget = Math.max(20, contentWidth - Bun.stringWidth(theme.tree.last) - 2);
+	const preview = formatArgsInline(args, inlineBudget);
+	return preview !== fullBudgetPreview;
+}
+
 /** Args preview plus JSON-tree/raw output body; depends only on args, output, expansion and width. */
 function buildDefaultToolBody(input: DefaultToolRenderInput, uiTheme: Theme, contentWidth: number): string[] {
 	const { options, result } = input;
 	const body: string[] = [];
 	const args = isRecord(input.args) ? input.args : undefined;
+	let renderedInlinePreview: string | undefined;
 	if (!options.expanded && args && Object.keys(args).length > 0) {
 		const inlineBudget = Math.max(20, contentWidth - Bun.stringWidth(uiTheme.tree.last) - 2);
 		const preview = formatArgsInline(args, inlineBudget);
 		if (preview) {
+			renderedInlinePreview = preview;
 			body.push(` ${uiTheme.fg("dim", uiTheme.tree.last)} ${uiTheme.fg("dim", preview)}`);
 		}
 	}
@@ -102,6 +141,9 @@ function buildDefaultToolBody(input: DefaultToolRenderInput, uiTheme: Theme, con
 		const textContent = result.output.trimEnd();
 		if (!textContent) {
 			body.push(uiTheme.fg("dim", "(no output)"));
+			if (!options.expanded && hasHiddenGenericArgs(input.args, contentWidth, uiTheme, renderedInlinePreview)) {
+				body.push(formatExpandHint(uiTheme, false, true));
+			}
 		} else {
 			let renderedAsJson = false;
 			if (textContent.startsWith("{") || textContent.startsWith("[")) {
@@ -115,7 +157,12 @@ function buildDefaultToolBody(input: DefaultToolRenderInput, uiTheme: Theme, con
 					if (tree.lines.length > 0) {
 						body.push(...tree.lines);
 						if (!options.expanded) {
-							body.push(formatExpandHint(uiTheme, options.expanded, true));
+							if (
+								tree.truncated ||
+								hasHiddenGenericArgs(input.args, contentWidth, uiTheme, renderedInlinePreview)
+							) {
+								body.push(formatExpandHint(uiTheme, false, true));
+							}
 						} else if (tree.truncated) {
 							body.push(uiTheme.fg("dim", "…"));
 						}
@@ -126,19 +173,24 @@ function buildDefaultToolBody(input: DefaultToolRenderInput, uiTheme: Theme, con
 				}
 			}
 			if (!renderedAsJson) {
-				body.push(
-					...formatOutputPaneLines(
-						{
-							lines: textContent.split("\n"),
-							expanded: options.expanded,
-							collapsedMaxLines: 4,
-							expandedMaxLines: 12,
-							styleLine: line => truncateToWidth(styleToolOutputLine(line, uiTheme), contentWidth),
-							showExpandHintWhenUncapped: true,
-						},
-						uiTheme,
-					).lines,
+				const isError = result.isError ?? false;
+				const pane = formatOutputPaneLines(
+					{
+						lines: textContent.split("\n"),
+						expanded: options.expanded,
+						collapsedMaxLines: 4,
+						styleLine: line => truncateToWidth(styleDefaultToolOutputLine(line, isError, uiTheme), contentWidth),
+					},
+					uiTheme,
 				);
+				body.push(...pane.lines);
+				if (
+					!options.expanded &&
+					pane.hiddenCount === 0 &&
+					hasHiddenGenericArgs(input.args, contentWidth, uiTheme, renderedInlinePreview)
+				) {
+					body.push(formatExpandHint(uiTheme, false, true));
+				}
 			}
 		}
 	}
@@ -165,6 +217,26 @@ const NATIVE_RESULT_MAX_CHARS = 64 * 1024;
  * TSP view of the generic fallback card: the tool label with a one-line args
  * summary as the head target; the result as a JSON tree or raw `ansi` output.
  */
+function renderNativeErrorNode(message: string, lines?: number): NativeNode {
+	const body = plainText(message).trim();
+	return body.includes("\n") && /^[{[]/.test(body)
+		? code(body, {
+				lang: "json",
+				tone: "error",
+				role: "reverse.tool.error",
+				preview: lines !== undefined ? { lines } : undefined,
+			})
+		: text([span(body, "error")], {
+				wrap: "word",
+				role: "reverse.tool.error",
+				lines,
+			});
+}
+
+/**
+ * TSP view of the generic fallback card: the tool label with a one-line args
+ * summary as the head target; the result as a JSON tree or raw `ansi` output.
+ */
 export function describeDefaultToolExecution(input: DefaultToolRenderInput): NativeToolView {
 	const { result } = input;
 	const args = isRecord(input.args) ? input.args : undefined;
@@ -176,15 +248,35 @@ export function describeDefaultToolExecution(input: DefaultToolRenderInput): Nat
 	if (!result) return { tool };
 	const output = result.output.trimEnd().slice(0, NATIVE_RESULT_MAX_CHARS);
 	const tone = result.skipped ? "info" : result.isError ? "error" : undefined;
-	if (!output) return { tool, tone, body: [noteText("(no output)")] };
+	const expanded = input.options?.expanded ?? false;
+	const previewLines = expanded ? undefined : 4;
+	if (!output) return { tool, tone, body: [noteText("(no output)")], preview: { lines: 4 } };
+	if (result.isError) {
+		let errorChild: NativeNode;
+		if (output.startsWith("{") || output.startsWith("[")) {
+			try {
+				errorChild = describeJsonTree(JSON.parse(output));
+			} catch {
+				errorChild = renderNativeErrorNode(output, previewLines);
+			}
+		} else {
+			errorChild = renderNativeErrorNode(output, previewLines);
+		}
+		return { tool, tone: "error", body: [errorChild], preview: { lines: 4 } };
+	}
 	if (output.startsWith("{") || output.startsWith("[")) {
 		try {
-			return { tool, tone, body: [describeJsonTree(JSON.parse(output))] };
+			return { tool, tone, body: [describeJsonTree(JSON.parse(output))], preview: { lines: 4 } };
 		} catch {
 			// Not JSON: shown as raw output below.
 		}
 	}
-	return { tool, tone, body: [ansi(output)] };
+	return {
+		tool,
+		tone,
+		body: [ansi(output, { preview: previewLines ? { lines: previewLines } : undefined })],
+		preview: { lines: 4 },
+	};
 }
 
 /** Render the generic fallback as the state-tinted card used by direct custom tools. */
