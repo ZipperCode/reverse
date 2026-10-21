@@ -831,21 +831,25 @@ export function extractReportedModelLimits(item: unknown): {
 	const topProvider = isRecord(item.top_provider) ? item.top_provider : undefined;
 	const rawMaxTokens =
 		maxOutputTokens ??
+		toTokenLimitOrUndefined(item.outputTokenLimit) ??
 		toTokenLimitOrUndefined(item.max_output_tokens) ??
 		toTokenLimitOrUndefined(item.max_completion_tokens) ??
 		toTokenLimitOrUndefined(topProvider?.max_completion_tokens) ??
 		toTokenLimitOrUndefined(item.max_tokens);
 
 	const rawContext =
+		toTokenLimitOrUndefined(item.inputTokenLimit) ??
 		toTokenLimitOrUndefined(item.max_model_len) ??
 		toTokenLimitOrUndefined(item.context_length) ??
 		reportedLimitsContextWindow;
 	const rawName =
-		typeof item.display_name === "string" && item.display_name.trim().length > 0
-			? item.display_name.trim()
-			: typeof item.name === "string" && item.name.trim().length > 0
-				? item.name.trim()
-				: undefined;
+		typeof item.displayName === "string" && item.displayName.trim().length > 0
+			? item.displayName.trim()
+			: typeof item.display_name === "string" && item.display_name.trim().length > 0
+				? item.display_name.trim()
+				: typeof item.name === "string" && item.name.trim().length > 0
+					? item.name.trim()
+					: undefined;
 
 	const rawInput = extractOpenAIModelsListInputCapabilities(item);
 	return { rawContext, rawMaxTokens, rawName, rawInput };
@@ -1343,6 +1347,7 @@ export async function fetchDiscoveredProviderModels(options: {
 	signal?: AbortSignal;
 }): Promise<RawDiscoveredModelMetadata[]> {
 	const isAnthropic = options.api === "anthropic-messages";
+	const isGoogle = options.api === "google-generative-ai";
 	let modelsUrl: string;
 	if (isAnthropic) {
 		const raw = options.baseUrl.trim();
@@ -1367,6 +1372,31 @@ export async function fetchDiscoveredProviderModels(options: {
 					? `${trimmed}/models`
 					: `${trimmed}/v1/models`;
 		}
+	} else if (isGoogle) {
+		const raw = options.baseUrl.trim();
+		try {
+			const parsed = new URL(raw);
+			const pathname = parsed.pathname.replace(/\/+$/g, "");
+			if (pathname === "" || pathname === "/") {
+				parsed.pathname = "/v1beta/models";
+			} else if (pathname.endsWith("/models")) {
+				parsed.pathname = pathname;
+			} else if (pathname.endsWith("/v1") || pathname.endsWith("/v1beta")) {
+				parsed.pathname = `${pathname}/models`;
+			} else {
+				parsed.pathname = `${pathname}/models`;
+			}
+			modelsUrl = parsed.toString();
+		} catch {
+			const trimmed = raw.replace(/\/+$/g, "");
+			if (trimmed.endsWith("/models")) {
+				modelsUrl = trimmed;
+			} else if (trimmed.endsWith("/v1") || trimmed.endsWith("/v1beta")) {
+				modelsUrl = `${trimmed}/models`;
+			} else {
+				modelsUrl = `${trimmed}/v1beta/models`;
+			}
+		}
 	} else {
 		modelsUrl = appendModelsPath(normalizeOpenAIModelsListBaseUrl(options.baseUrl));
 	}
@@ -1376,6 +1406,10 @@ export async function fetchDiscoveredProviderModels(options: {
 		headers["anthropic-version"] = "2023-06-01";
 		if (options.apiKey && options.apiKey.trim().length > 0) {
 			headers["x-api-key"] = options.apiKey.trim();
+		}
+	} else if (isGoogle) {
+		if (options.apiKey && options.apiKey.trim().length > 0) {
+			headers["x-goog-api-key"] = options.apiKey.trim();
 		}
 	} else {
 		if (options.apiKey && options.apiKey.trim().length > 0) {
@@ -1440,6 +1474,21 @@ export async function fetchDiscoveredProviderModels(options: {
 				const url = new URL(modelsUrl);
 				url.searchParams.set("after_id", trimmedCursor);
 				currentUrl = url.toString();
+			} else if (
+				isGoogle &&
+				isRecord(payload) &&
+				typeof payload.nextPageToken === "string" &&
+				payload.nextPageToken.trim().length > 0
+			) {
+				const trimmedToken = payload.nextPageToken.trim();
+				if (seenCursors.has(trimmedToken)) {
+					throw new Error(`Pagination loop detected: repeated cursor "${trimmedToken}".`);
+				}
+				seenCursors.add(trimmedToken);
+
+				const url = new URL(modelsUrl);
+				url.searchParams.set("pageToken", trimmedToken);
+				currentUrl = url.toString();
 			} else {
 				break;
 			}
@@ -1456,9 +1505,34 @@ export async function fetchDiscoveredProviderModels(options: {
 	const seenIds = new Set<string>();
 
 	for (const item of items) {
-		const id = (
-			typeof item === "string" ? item : isRecord(item) && typeof item.id === "string" ? item.id : ""
-		).trim();
+		if (isGoogle && isRecord(item)) {
+			if (Array.isArray(item.supportedGenerationMethods)) {
+				const methods = item.supportedGenerationMethods.map(m => String(m).trim());
+				if (!methods.includes("generateContent")) {
+					continue;
+				}
+			}
+		}
+
+		let rawId = "";
+		if (typeof item === "string") {
+			rawId = item;
+		} else if (isRecord(item)) {
+			if (isGoogle) {
+				if (typeof item.name === "string" && item.name.trim().length > 0) {
+					rawId = item.name;
+				} else if (typeof item.id === "string" && item.id.trim().length > 0) {
+					rawId = item.id;
+				}
+			} else if (typeof item.id === "string" && item.id.trim().length > 0) {
+				rawId = item.id;
+			}
+		}
+
+		let id = rawId.trim();
+		if (isGoogle && id.startsWith("models/")) {
+			id = id.slice("models/".length).trim();
+		}
 		if (!id || seenIds.has(id)) continue;
 		seenIds.add(id);
 
@@ -1486,9 +1560,29 @@ export async function fetchDiscoveredProviderModels(options: {
 			maxTokensSource = "catalog";
 		}
 
-		const name = reported.rawName ?? reference?.name ?? id;
-		const input = reported.rawInput ?? reference?.input ?? undefined;
-		const reasoning = reference?.reasoning ?? undefined;
+		let name: string;
+		if (isGoogle) {
+			const displayName =
+				isRecord(item) && typeof item.displayName === "string" && item.displayName.trim().length > 0
+					? item.displayName.trim()
+					: isRecord(item) && typeof item.display_name === "string" && item.display_name.trim().length > 0
+						? item.display_name.trim()
+						: undefined;
+			name = displayName ?? reference?.name ?? id;
+		} else {
+			name = reported.rawName ?? reference?.name ?? id;
+		}
+
+		const input =
+			reported.rawInput ??
+			reference?.input ??
+			(isGoogle &&
+			(id.toLowerCase().includes("gemini") ||
+				id.toLowerCase().includes("vision") ||
+				id.toLowerCase().includes("image"))
+				? ["text", "image"]
+				: undefined);
+		const reasoning = reference?.reasoning ?? (isGoogle && id.toLowerCase().includes("thinking") ? true : undefined);
 
 		results.push({
 			id,

@@ -474,4 +474,178 @@ describe("fetchDiscoveredProviderModels", () => {
 			},
 		);
 	});
+
+	test("google-generative-ai normalizes URLs, auth header, resource IDs, and limits", async () => {
+		await withServer(
+			request => {
+				expect(request.headers.get("x-goog-api-key")).toBe("test-google-key");
+				expect(request.headers.get("authorization")).toBeNull();
+				return jsonResponse({
+					models: [
+						{
+							name: "models/gemini-2.0-flash",
+							displayName: "Gemini 2.0 Flash",
+							inputTokenLimit: 1048576,
+							outputTokenLimit: 8192,
+							supportedGenerationMethods: ["generateContent", "countTokens"],
+						},
+						{
+							name: "models/text-embedding-004",
+							displayName: "Text Embedding 004",
+							inputTokenLimit: 2048,
+							outputTokenLimit: 1,
+							supportedGenerationMethods: ["embedContent"],
+						},
+						{
+							name: "proxy-gemini-custom",
+							inputTokenLimit: 65536,
+							outputTokenLimit: 4096,
+						},
+					],
+				});
+			},
+			async server => {
+				// 1. Root base URL defaults to /v1beta/models
+				const rootModels = await fetchDiscoveredProviderModels({
+					baseUrl: server.baseUrl,
+					api: "google-generative-ai",
+					apiKey: "test-google-key",
+				});
+				expect(server.requests[0].url).toBe(`${server.baseUrl}/v1beta/models`);
+				expect(rootModels).toHaveLength(2);
+				expect(rootModels[0]).toMatchObject({
+					id: "gemini-2.0-flash",
+					name: "Gemini 2.0 Flash",
+					contextWindow: 1048576,
+					contextSource: "endpoint",
+					maxTokens: 8192,
+					maxTokensSource: "endpoint",
+					input: ["text", "image"],
+				});
+				expect(rootModels[1]).toMatchObject({
+					id: "proxy-gemini-custom",
+					name: "proxy-gemini-custom",
+					contextWindow: 65536,
+					contextSource: "endpoint",
+					maxTokens: 4096,
+					maxTokensSource: "endpoint",
+					input: ["text", "image"],
+				});
+
+				// 2. Version path appends /models
+				await fetchDiscoveredProviderModels({
+					baseUrl: `${server.baseUrl}/v1`,
+					api: "google-generative-ai",
+					apiKey: "test-google-key",
+				});
+				expect(server.requests[1].url).toBe(`${server.baseUrl}/v1/models`);
+
+				// 3. Existing /models avoids duplicate
+				await fetchDiscoveredProviderModels({
+					baseUrl: `${server.baseUrl}/v1beta/models`,
+					api: "google-generative-ai",
+					apiKey: "test-google-key",
+				});
+				expect(server.requests[2].url).toBe(`${server.baseUrl}/v1beta/models`);
+			},
+		);
+	});
+
+	test("google-generative-ai retains custom headers overriding case-insensitively", async () => {
+		await withServer(
+			request => {
+				expect(request.headers.get("x-goog-api-key")).toBe("custom-override-key");
+				expect(request.headers.get("authorization")).toBe("Bearer proxy-token");
+				return jsonResponse({
+					models: [
+						{
+							name: "models/gemini-1.5-pro",
+							displayName: "Gemini 1.5 Pro",
+							supportedGenerationMethods: ["generateContent"],
+						},
+					],
+				});
+			},
+			async server => {
+				const models = await fetchDiscoveredProviderModels({
+					baseUrl: server.baseUrl,
+					api: "google-generative-ai",
+					apiKey: "default-key",
+					headers: {
+						"X-Goog-Api-Key": "custom-override-key",
+						Authorization: "Bearer proxy-token",
+					},
+				});
+				expect(models[0].id).toBe("gemini-1.5-pro");
+			},
+		);
+	});
+
+	test("google-generative-ai paginates using pageToken and terminates when nextPageToken is omitted", async () => {
+		await withServer(
+			request => {
+				const url = new URL(request.url);
+				const pageToken = url.searchParams.get("pageToken");
+				if (!pageToken) {
+					return jsonResponse({
+						models: [
+							{
+								name: "models/gemini-page-1",
+								displayName: "Gemini Page 1",
+								supportedGenerationMethods: ["generateContent"],
+							},
+						],
+						nextPageToken: "cursor-page-2",
+					});
+				}
+				if (pageToken === "cursor-page-2") {
+					return jsonResponse({
+						models: [
+							{
+								name: "models/gemini-page-2",
+								displayName: "Gemini Page 2",
+								supportedGenerationMethods: ["generateContent"],
+							},
+						],
+					});
+				}
+				return jsonResponse({ models: [] });
+			},
+			async server => {
+				const models = await fetchDiscoveredProviderModels({
+					baseUrl: server.baseUrl,
+					api: "google-generative-ai",
+					apiKey: "test-key",
+				});
+				expect(models.map(m => m.id)).toEqual(["gemini-page-1", "gemini-page-2"]);
+				expect(server.requests).toHaveLength(2);
+				expect(new URL(server.requests[0].url).searchParams.get("pageToken")).toBeNull();
+				expect(new URL(server.requests[1].url).searchParams.get("pageToken")).toBe("cursor-page-2");
+			},
+		);
+	});
+
+	test("google-generative-ai aborts on pagination loop when cursor repeats", async () => {
+		await withServer(
+			() =>
+				jsonResponse({
+					models: [{ name: "models/gemini-loop", supportedGenerationMethods: ["generateContent"] }],
+					nextPageToken: "stuck-token",
+				}),
+			async server => {
+				let failure: unknown;
+				try {
+					await fetchDiscoveredProviderModels({
+						baseUrl: server.baseUrl,
+						api: "google-generative-ai",
+						apiKey: "test-key",
+					});
+				} catch (error) {
+					failure = error;
+				}
+				expect(failure).toBeInstanceOf(Error);
+				expect((failure as Error).message).toContain('Pagination loop detected: repeated cursor "stuck-token"');
+			},
+		);
+	});
 });

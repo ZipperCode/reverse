@@ -310,7 +310,7 @@ describe("SelectorController.showProviderModelsWizard", () => {
 			slot.addChild(editor);
 			tui.addChild(slot);
 			tui.setFocus(editor);
-			const settings = await Settings.init({ cwd: dir, agentDir: dir });
+			const settings = await Settings.loadIsolated({ cwd: dir, agentDir: dir });
 			const controller = new SelectorController({
 				editor,
 				editorContainer: slot,

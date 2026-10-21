@@ -656,4 +656,152 @@ providers:
 		);
 		expect(validateCustomModelInputs([{ id: "m1", contextWindow: 2000, maxTokens: 1000 }])).toBeUndefined();
 	});
+
+	test("listConfiguredCustomProviders discovers Google providers with explicit and inferred protocols", () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rev-google-list-"));
+		try {
+			const configContent = `
+providers:
+  kali-gemini:
+    baseUrl: "https://generativelanguage.googleapis.com"
+    api: "google-generative-ai"
+    auth: "apiKey"
+    headers:
+      x-goog-user-project: "my-project"
+    models:
+      - id: "gemini-2.0-flash"
+        name: "Gemini 2.0 Flash"
+        contextWindow: 1048576
+        customField: "preserved"
+  google-inferred:
+    baseUrl: "https://proxy.example.com"
+    models:
+      - id: "gemini-1.5-pro"
+        api: "google-generative-ai"
+        name: "Gemini 1.5 Pro"
+`;
+			fs.writeFileSync(path.join(tempDir, "models.yml"), configContent.trim(), "utf-8");
+
+			const descriptors = listConfiguredCustomProviders(tempDir);
+			const byId = new Map(descriptors.map(d => [d.providerId, d]));
+
+			expect(descriptors).toHaveLength(2);
+
+			const kaliGemini = byId.get("kali-gemini");
+			expect(kaliGemini).toBeDefined();
+			expect(kaliGemini?.api).toBe("google-generative-ai");
+			expect(kaliGemini?.baseUrl).toBe("https://generativelanguage.googleapis.com");
+			expect(kaliGemini?.auth).toBe("apiKey");
+			expect(kaliGemini?.headers).toEqual({ "x-goog-user-project": "my-project" });
+			expect(kaliGemini?.models).toHaveLength(1);
+			expect(kaliGemini?.models[0].id).toBe("gemini-2.0-flash");
+			expect(kaliGemini?.models[0].name).toBe("Gemini 2.0 Flash");
+			expect(kaliGemini?.models[0].contextWindow).toBe(1048576);
+			expect(kaliGemini?.models[0].customField).toBe("preserved");
+
+			const googleInferred = byId.get("google-inferred");
+			expect(googleInferred).toBeDefined();
+			expect(googleInferred?.api).toBe("google-generative-ai");
+			expect(googleInferred?.baseUrl).toBe("https://proxy.example.com");
+			expect(googleInferred?.models).toHaveLength(1);
+			expect(googleInferred?.models[0].id).toBe("gemini-1.5-pro");
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test("updateCustomProviderModels persists Google provider models preserving raw metadata and credentials", async () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rev-google-update-"));
+		const authStorage = await AuthStorage.create(path.join(tempDir, "agent.db"));
+		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models.yml"));
+
+		try {
+			await authStorage.credentials.set("kali-gemini", {
+				type: "api_key",
+				key: "goog-secret-key-456",
+			});
+
+			const initialYml = `
+providers:
+  kali-gemini:
+    baseUrl: "https://generativelanguage.googleapis.com"
+    api: "google-generative-ai"
+    auth: "apiKey"
+    headers:
+      x-goog-custom: "custom-val"
+    models:
+      - id: "gemini-2.0-flash"
+        name: "Gemini 2.0 Flash"
+        contextWindow: 1048576
+        customRawMeta: { deep: true }
+  inferred-google:
+    baseUrl: "https://proxy.example.com"
+    models:
+      - id: "gemini-old"
+        api: "google-generative-ai"
+        name: "Old Gemini"
+`;
+			fs.writeFileSync(path.join(tempDir, "models.yml"), initialYml.trim(), "utf-8");
+
+			const deps = {
+				agentDir: tempDir,
+				authStorage,
+				modelRegistry,
+			};
+
+			// Update kali-gemini: keep gemini-2.0-flash, add gemini-2.5-pro
+			const res1 = await updateCustomProviderModels(
+				"kali-gemini",
+				[
+					{ id: "gemini-2.0-flash", name: "Ignored override" },
+					{ id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", contextWindow: 2097152, maxTokens: 8192 },
+				],
+				deps,
+			);
+			expect(res1.providerId).toBe("kali-gemini");
+			expect(res1.modelCount).toBe(2);
+
+			// Update inferred-google: replace model, promotes api
+			const res2 = await updateCustomProviderModels(
+				"inferred-google",
+				[{ id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", contextWindow: 1048576 }],
+				deps,
+			);
+			expect(res2.providerId).toBe("inferred-google");
+
+			const parsedYml = YAML.parse(fs.readFileSync(path.join(tempDir, "models.yml"), "utf-8")) as Record<
+				string,
+				unknown
+			>;
+			const providers = parsedYml.providers as Record<string, Record<string, unknown>>;
+
+			const kali = providers["kali-gemini"];
+			expect(kali.api).toBe("google-generative-ai");
+			expect(kali.headers).toEqual({ "x-goog-custom": "custom-val" });
+			const kaliModels = kali.models as Record<string, unknown>[];
+			expect(kaliModels).toHaveLength(2);
+			const flash = kaliModels.find(m => m.id === "gemini-2.0-flash");
+			expect(flash?.name).toBe("Gemini 2.0 Flash");
+			expect(flash?.customRawMeta).toEqual({ deep: true });
+			const pro = kaliModels.find(m => m.id === "gemini-2.5-pro");
+			expect(pro?.name).toBe("Gemini 2.5 Pro");
+			expect(pro?.contextWindow).toBe(2097152);
+
+			const inferred = providers["inferred-google"];
+			expect(inferred.api).toBe("google-generative-ai");
+			const inferredModels = inferred.models as Record<string, unknown>[];
+			expect(inferredModels).toHaveLength(1);
+			expect(inferredModels[0].id).toBe("gemini-2.0-flash");
+
+			// Stored credentials retained
+			const cred = authStorage.credentials.get("kali-gemini");
+			expect(cred).toBeDefined();
+			if (cred?.type === "api_key") {
+				expect(cred.key).toBe("goog-secret-key-456");
+			}
+		} finally {
+			authStorage.close();
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
 });

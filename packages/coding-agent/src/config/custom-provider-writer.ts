@@ -52,6 +52,7 @@ export interface SaveCustomProviderResult {
 
 const PROVIDER_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 const SUPPORTED_CUSTOM_APIS = new Set(["openai-completions", "openai-responses", "anthropic-messages"]);
+const MANAGED_CUSTOM_APIS = new Set([...SUPPORTED_CUSTOM_APIS, "google-generative-ai"]);
 
 export function validateCustomModelInputs(models: CustomModelInput[]): string | undefined {
 	for (const [index, model] of models.entries()) {
@@ -213,7 +214,7 @@ export function listConfiguredCustomProviders(agentDir?: string): ConfiguredCust
 		}
 
 		let api: Api | undefined;
-		if (typeof provider.api === "string" && SUPPORTED_CUSTOM_APIS.has(provider.api)) {
+		if (typeof provider.api === "string" && MANAGED_CUSTOM_APIS.has(provider.api)) {
 			api = provider.api as Api;
 		}
 
@@ -227,7 +228,7 @@ export function listConfiguredCustomProviders(agentDir?: string): ConfiguredCust
 			}
 			if (modelApis.size === 1) {
 				const singleApi = Array.from(modelApis)[0];
-				if (SUPPORTED_CUSTOM_APIS.has(singleApi)) {
+				if (MANAGED_CUSTOM_APIS.has(singleApi)) {
 					api = singleApi as Api;
 				}
 			}
@@ -514,7 +515,7 @@ export async function updateCustomProviderModels(
 
 		// Determine effective API protocol
 		let effectiveApi: Api | undefined;
-		if (typeof existingProvider.api === "string" && SUPPORTED_CUSTOM_APIS.has(existingProvider.api)) {
+		if (typeof existingProvider.api === "string" && MANAGED_CUSTOM_APIS.has(existingProvider.api)) {
 			effectiveApi = existingProvider.api as Api;
 		} else if (existingModelsList.length > 0) {
 			const modelApis = new Set<string>();
@@ -525,7 +526,7 @@ export async function updateCustomProviderModels(
 			}
 			if (modelApis.size === 1) {
 				const singleApi = Array.from(modelApis)[0];
-				if (SUPPORTED_CUSTOM_APIS.has(singleApi)) {
+				if (MANAGED_CUSTOM_APIS.has(singleApi)) {
 					effectiveApi = singleApi as Api;
 				}
 			}

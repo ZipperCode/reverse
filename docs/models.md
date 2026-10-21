@@ -39,10 +39,11 @@ The wizard validates provider IDs, protocols (`openai-completions`, `openai-resp
 
 ### Updating models for an existing provider
 
-Run `/setup providers` or `/provider`, then select **Manage models: <provider-id>** (**管理模型：<提供商 ID>**). Configured OpenAI-compatible and Anthropic-compatible providers with a base URL appear alongside the login and add-provider entries.
+Run `/setup providers` or `/provider`, then select **Manage models: <provider-id>** (**管理模型：<提供商 ID>**). Configured OpenAI-compatible, Anthropic-compatible, and Google Generative AI (`google-generative-ai`) providers with a base URL appear alongside the login and add-provider entries.
 
 - Existing configured models are selected initially; opening the manager does not require network access.
 - Press **R** (or click **Refresh / 拉取模型列表**) to fetch the provider's latest model list using its existing credentials and custom headers. Newly discovered models start unchecked. Models missing from the endpoint remain selected until explicitly removed.
+- Google providers use their native model-list endpoint (`/v1beta/models` for a root URL), API-key header, and pagination. Model resource names are normalized to usable IDs, and endpoint input/output token limits are preserved.
 - Search and use **Space** to select new models or deselect models to delete. **Ctrl+R** also refreshes while searching.
 - Press **Enter** to review added/removed models, then **Enter** again to save. **Esc** returns or cancels without saving.
 
