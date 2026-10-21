@@ -9,7 +9,7 @@ import { parseArgs } from "../cli/args";
 import { setupHelp as commandHelp } from "../cli/command-help";
 import { runSetupCommand, type SetupCommandArgs, type SetupComponent } from "../cli/setup-cli";
 import { getAllLocalizedPanels, SETUP_PANEL_KEYS } from "../cli/setup-panels";
-import { getEffectiveLocale } from "../config/persisted-locale";
+import { getEffectiveLocale, loadEffectiveSettings } from "../config/persisted-locale";
 import { runRootCommand } from "../main";
 import { initTheme } from "@reverse/tui/theme";
 
@@ -47,18 +47,35 @@ async function promptSetupMenuIndex(title: string, labels: readonly string[]): P
 	const finish = (val: number | undefined) => {
 		if (settled) return;
 		settled = true;
+		process.off("SIGINT", onSigint);
+		rl.off("SIGINT", onSigint);
+		rl.off("close", onClose);
 		rl.close();
 		process.stdin.pause();
 		resolve(val);
 	};
 
-	rl.once("SIGINT", () => {
+	const onSigint = () => {
+		if (settled) return;
 		finish(undefined);
 		process.exit(130);
-	});
+	};
 
-	rl.question(`Enter number (1-${labels.length}): `, answer => {
+	const onClose = () => {
+		finish(undefined);
+	};
+
+	rl.once("SIGINT", onSigint);
+	process.once("SIGINT", onSigint);
+	rl.once("close", onClose);
+
+	const prompt = getEffectiveLocale() === "zh-CN" ? `请输入编号 (1-${labels.length}): ` : `Enter number (1-${labels.length}): `;
+	rl.question(prompt, answer => {
 		const trimmed = answer.trim();
+		if (trimmed.toLowerCase() === "q" || trimmed.toLowerCase() === "quit") {
+			finish(undefined);
+			return;
+		}
 		const index = Number.parseInt(trimmed, 10) - 1;
 		if (Number.isNaN(index) || index < 0 || index >= labels.length) {
 			finish(undefined);
@@ -95,6 +112,7 @@ export default class Setup extends Command {
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Setup);
+		await loadEffectiveSettings();
 		if (!args.component) {
 			if (flags.check || flags.json) {
 				throw new CliUsageError("setup --check/--json requires a COMPONENT (providers|add|reverse|python|speech)");

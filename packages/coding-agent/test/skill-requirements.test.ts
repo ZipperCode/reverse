@@ -183,4 +183,54 @@ describe("checkToolRequirements", () => {
 		expect(seen?.PATH).toContain("C:\\Users\\fixture\\AppData\\Local");
 		expect(seen?.PATH).toContain("platform-tools");
 	});
+
+	it("does not report cargo_auditable, tshark, readelf, or vbindiff when only fallback programs exist on PATH", () => {
+		const which = whichFrom({
+			rustc: "/usr/bin/rustc",
+			tcpdump: "/usr/sbin/tcpdump",
+			objdump: "/usr/bin/objdump",
+			radiff2: "/usr/bin/radiff2",
+		});
+		const statuses = checkToolRequirements(
+			[
+				{ id: "cargo_auditable" },
+				{ id: "tshark" },
+				{ id: "readelf" },
+				{ id: "vbindiff" },
+			],
+			{ which, platform: "linux" },
+		);
+		expect(statuses.map(s => s.foundPath)).toEqual([null, null, null, null]);
+
+		// Legitimate alternatives still work
+		const readelfGnu = checkToolRequirements([{ id: "readelf" }], {
+			which: whichFrom({ greadelf: "/opt/homebrew/bin/greadelf" }),
+			platform: "darwin",
+		});
+		expect(readelfGnu[0].foundPath).toBe("/opt/homebrew/bin/greadelf");
+
+		const readelfLlvm = checkToolRequirements([{ id: "readelf" }], {
+			which: whichFrom({ "llvm-readelf": "/usr/bin/llvm-readelf" }),
+			platform: "linux",
+		});
+		expect(readelfLlvm[0].foundPath).toBe("/usr/bin/llvm-readelf");
+
+		const tsharkValid = checkToolRequirements([{ id: "tshark" }], {
+			which: whichFrom({ tshark: "/usr/bin/tshark" }),
+			platform: "linux",
+		});
+		expect(tsharkValid[0].foundPath).toBe("/usr/bin/tshark");
+
+		const cargoAuditableValid = checkToolRequirements([{ id: "cargo_auditable" }], {
+			which: whichFrom({ "cargo-auditable": "/home/user/.cargo/bin/cargo-auditable" }),
+			platform: "linux",
+		});
+		expect(cargoAuditableValid[0].foundPath).toBe("/home/user/.cargo/bin/cargo-auditable");
+
+		const vbindiffValid = checkToolRequirements([{ id: "vbindiff" }], {
+			which: whichFrom({ vbindiff: "/usr/bin/vbindiff" }),
+			platform: "linux",
+		});
+		expect(vbindiffValid[0].foundPath).toBe("/usr/bin/vbindiff");
+	});
 });

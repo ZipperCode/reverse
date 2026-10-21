@@ -24,7 +24,7 @@ import * as readline from "node:readline";
 import { $which, APP_NAME, getMCPConfigPath, getProjectDir, WhichCachePolicy, type WhichOptions } from "@reverse/utils";
 import chalk from "@reverse/utils/chalk";
 import { theme } from "@reverse/tui/theme";
-import { getEffectiveLocale } from "../config/persisted-locale";
+import { getEffectiveLocale, loadEffectiveSettings } from "../config/persisted-locale";
 import {
 	SKILL_TOOL_CATALOG,
 	resolveReverseCapabilities,
@@ -661,10 +661,37 @@ async function runDefaultExecutor(
 function runDefaultPrompt(question: string): Promise<string> {
 	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 	const { promise, resolve } = Promise.withResolvers<string>();
-	rl.question(question, answer => {
+	let settled = false;
+
+	const finish = (val: string) => {
+		if (settled) return;
+		settled = true;
+		process.off("SIGINT", onSigint);
+		rl.off("SIGINT", onSigint);
+		rl.off("close", onClose);
 		rl.close();
-		resolve(answer.trim());
+		process.stdin.pause();
+		resolve(val);
+	};
+
+	const onSigint = () => {
+		if (settled) return;
+		finish("");
+		process.exit(130);
+	};
+
+	const onClose = () => {
+		finish("");
+	};
+
+	rl.once("SIGINT", onSigint);
+	process.once("SIGINT", onSigint);
+	rl.once("close", onClose);
+
+	rl.question(question, answer => {
+		finish(answer.trim());
 	});
+
 	return promise;
 }
 
@@ -800,6 +827,7 @@ export async function handleReverseSetup(
 	targetTool?: string,
 	deps: ReverseSetupDeps = {},
 ): Promise<number> {
+	await loadEffectiveSettings();
 	const write = deps.writeStdout ?? (text => process.stdout.write(text));
 	const writeErr = deps.writeStderr ?? (text => process.stderr.write(text));
 	const promptLine = deps.promptLine ?? runDefaultPrompt;

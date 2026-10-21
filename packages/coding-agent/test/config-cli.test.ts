@@ -259,3 +259,77 @@ describe("config CLI schema coverage", () => {
 		});
 	});
 });
+
+describe("config CLI locale description behavior", () => {
+	const CJK = /[\u4e00-\u9fff]/;
+	const originalLang = process.env.REVERSE_LANG;
+
+	afterEach(() => {
+		if (originalLang === undefined) delete process.env.REVERSE_LANG;
+		else process.env.REVERSE_LANG = originalLang;
+	});
+
+	async function jsonGet(key: string): Promise<{ key: string; value: unknown; type: string; description: string }> {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			await runConfigCommand({ action: "get", key, flags: { json: true } });
+			const payload = logSpy.mock.calls.at(-1)?.[0];
+			return JSON.parse(String(payload));
+		} finally {
+			logSpy.mockRestore();
+		}
+	}
+
+	async function jsonList(): Promise<Record<string, { value?: unknown; type: string; description: string }>> {
+		let raw = "";
+		const write = vi.spyOn(process.stdout, "write").mockImplementation(((
+			chunk: string | Uint8Array,
+			...rest: unknown[]
+		) => {
+			raw += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+			const done = rest.find(argument => typeof argument === "function");
+			if (typeof done === "function") (done as (error?: Error | null) => void)(null);
+			return true;
+		}) as typeof process.stdout.write);
+		try {
+			await runConfigCommand({ action: "list", flags: { json: true } });
+		} finally {
+			write.mockRestore();
+		}
+		return JSON.parse(raw);
+	}
+
+	it("outputs English descriptions in list --json and get --json by default", async () => {
+		delete process.env.REVERSE_LANG;
+		const item = await jsonGet("theme.dark");
+		expect(item.description.length).toBeGreaterThan(0);
+		expect(CJK.test(item.description)).toBe(false);
+
+		const list = await jsonList();
+		expect(list["theme.dark"]?.description.length).toBeGreaterThan(0);
+		expect(CJK.test(list["theme.dark"]!.description)).toBe(false);
+	});
+
+	it("outputs Chinese descriptions in list --json and get --json when REVERSE_LANG is zh-CN", async () => {
+		process.env.REVERSE_LANG = "zh-CN";
+		const item = await jsonGet("theme.dark");
+		expect(CJK.test(item.description)).toBe(true);
+
+		const list = await jsonList();
+		expect(CJK.test(list["theme.dark"]!.description)).toBe(true);
+	});
+
+	it("outputs Chinese descriptions when language is configured as zh-CN", async () => {
+		delete process.env.REVERSE_LANG;
+		await runConfigCommand({ action: "set", key: "language", value: "zh-CN", flags: { json: true } });
+		const item = await jsonGet("theme.dark");
+		expect(CJK.test(item.description)).toBe(true);
+	});
+
+	it("allows REVERSE_LANG to override configured language", async () => {
+		await runConfigCommand({ action: "set", key: "language", value: "zh-CN", flags: { json: true } });
+		process.env.REVERSE_LANG = "en";
+		const item = await jsonGet("theme.dark");
+		expect(CJK.test(item.description)).toBe(false);
+	});
+});

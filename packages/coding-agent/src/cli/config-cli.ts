@@ -12,6 +12,8 @@ import { type AnySetting, lookup } from "../config/registry";
 import { Settings, settings } from "../config/settings";
 import { getEffectiveLocale } from "../config/persisted-locale";
 import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
+import type { SupportedLocale } from "@reverse/utils/i18n";
+import { SETTING_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/settings";
 
 function cliText(key: string, vars?: Record<string, string>): string {
 	const locale = getEffectiveLocale();
@@ -93,21 +95,23 @@ type CliSettingDef = {
 /** Printed instead of a credential value in human output only. */
 const REDACTED = "********";
 
-function toSettingDef(setting: AnySetting): CliSettingDef {
+function toSettingDef(setting: AnySetting, locale?: SupportedLocale): CliSettingDef {
 	const ui = setting.ui;
+	const resolvedLocale = typeof locale === "string" ? locale : getEffectiveLocale();
+	const tr = resolvedLocale === "zh-CN" ? SETTING_TRANSLATIONS_ZH_CN[setting.id] : undefined;
 	return {
 		setting,
 		path: setting.id,
 		type: setting.type,
-		description: ui?.description ?? "",
+		description: tr?.description ?? ui?.description ?? "",
 		tab: ui?.tab ?? "internal",
 	};
 }
 
 /** Find setting definition by path */
-function findSettingDef(path: string): CliSettingDef | undefined {
+function findSettingDef(path: string, locale?: SupportedLocale): CliSettingDef | undefined {
 	const setting = lookup(path);
-	return setting ? toSettingDef(setting) : undefined;
+	return setting ? toSettingDef(setting, locale) : undefined;
 }
 
 // =============================================================================
@@ -249,7 +253,8 @@ async function writeStdout(text: string): Promise<void> {
 }
 
 async function handleList(flags: { json?: boolean }): Promise<void> {
-	const defs = orderedSettings().map(toSettingDef);
+	const locale = getEffectiveLocale();
+	const defs = orderedSettings().map(setting => toSettingDef(setting, locale));
 
 	if (flags.json) {
 		// A redacted entry omits `value` and says so, rather than substituting a

@@ -1618,11 +1618,11 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 
 	readelf: {
 		id: "readelf",
-		name: "readelf / objdump",
+		name: "readelf",
 		category: "binary",
 		description: "Display information about ELF object files, section headers, and symbols",
 		optional: true,
-		binaries: ["readelf", "greadelf", "llvm-readelf", "objdump", "gobjdump", "llvm-objdump"],
+		binaries: ["readelf", "greadelf", "llvm-readelf"],
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
@@ -1635,7 +1635,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		},
 		manualUrl: "https://sourceware.org/binutils/docs/binutils/readelf.html",
 		manualInstructions: {
-			darwin: "Install GNU binutils via 'brew install binutils' (provides greadelf and gobjdump).",
+			darwin: "Install GNU binutils via 'brew install binutils' (provides greadelf).",
 			linux: "Install binutils via system package manager (e.g. sudo apt install binutils).",
 			win32: "Install binutils via Chocolatey or MSYS2.",
 		},
@@ -1645,7 +1645,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 					manager: "brew",
 					command: "brew install binutils",
 					argv: ["brew", "install", "binutils"],
-					riskNote: "Installs GNU binutils via Homebrew (provides greadelf/gobjdump).",
+					riskNote: "Installs GNU binutils via Homebrew (provides greadelf).",
 				},
 			],
 			linux: [
@@ -1745,7 +1745,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		category: "binary",
 		description: "Visual binary diffing tool for displaying files in hex and ASCII",
 		optional: true,
-		binaries: ["vbindiff", "radiff2"],
+		binaries: ["vbindiff"],
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
@@ -1791,7 +1791,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		usage: {
 			canonical: "binary_diff(path_a: 'v1.bin', path_b: 'v2.bin')",
 			whenToUse:
-				"Use native binary_diff for offline deterministic hashes, similarity score, and block/byte diffs; use vbindiff or radiff2 CLI for visual interactive side-by-side terminal hex inspection.",
+				"Use native binary_diff for offline deterministic hashes, similarity score, and block/byte diffs; use vbindiff CLI for visual interactive side-by-side terminal hex inspection.",
 			examples: [
 				{
 					command: "vbindiff fileA.bin fileB.bin",
@@ -1807,7 +1807,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		category: "binary",
 		description: "Embed and inspect dependency trees in compiled Rust binaries",
 		optional: true,
-		binaries: ["cargo-auditable", "rustc"],
+		binaries: ["cargo-auditable"],
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
@@ -1990,11 +1990,11 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 
 	tshark: {
 		id: "tshark",
-		name: "tshark / tcpdump",
+		name: "tshark",
 		category: "network",
 		description: "Terminal network packet analyzer and capture utility",
 		optional: true,
-		binaries: ["tshark", "tcpdump"],
+		binaries: ["tshark"],
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,

@@ -5,7 +5,6 @@ import { TempDir } from "@reverse/utils";
 import { checkPythonSetup } from "../src/cli/setup-cli";
 import { Settings } from "../src/config/settings";
 import { restoreEnvValue } from "./helpers/settings-test-state";
-
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 
 // An activated venv/conda env legitimately outranks the project `.venv`
@@ -41,10 +40,19 @@ async function runSetupPython(cwd: string): Promise<CliProcessResult> {
 }
 
 async function runSetup(cwd: string, ...setupArgs: string[]): Promise<CliProcessResult> {
+	return runSetupWithEnv(cwd, {}, ...setupArgs);
+}
+
+async function runSetupWithEnv(
+	cwd: string,
+	extraEnv: NodeJS.ProcessEnv,
+	...setupArgs: string[]
+): Promise<CliProcessResult> {
 	const env: NodeJS.ProcessEnv = {
 		...process.env,
 		NO_COLOR: "1",
 		REVERSE_CODING_AGENT_DIR: path.join(cwd, "agent"),
+		...extraEnv,
 	};
 	const proc = Bun.spawn([process.execPath, cliEntry, "setup", ...setupArgs], {
 		cwd,
@@ -219,5 +227,33 @@ describe("reverse setup unified 5-panel components", () => {
 		projectDir = TempDir.createSync("@reverse-setup-invalid-");
 		const result = await runSetup(projectDir.path(), "nonexistent_component");
 		expect(result.exitCode).not.toBe(0);
+	});
+});
+describe("reverse setup persisted locale in child process", () => {
+	let projectDir: TempDir | undefined;
+
+	afterEach(async () => {
+		await projectDir?.remove();
+		projectDir = undefined;
+	});
+
+	it("honors persisted language zh-CN without REVERSE_LANG in CLI subcommand", async () => {
+		projectDir = TempDir.createSync("@reverse-setup-zh-");
+		const cwd = projectDir.path();
+		await Bun.write(path.join(cwd, ".reverse", "config.yml"), "language: zh-CN\n");
+
+		const result = await runSetupWithEnv(cwd, { REVERSE_LANG: "" }, "reverse", "--check");
+		expect(result.exitCode).toBe(0);
+		expect(result.output).toContain("逆向工程工具链");
+	});
+
+	it("preserves explicit REVERSE_LANG override over persisted config in CLI subcommand", async () => {
+		projectDir = TempDir.createSync("@reverse-setup-override-");
+		const cwd = projectDir.path();
+		await Bun.write(path.join(cwd, ".reverse", "config.yml"), "language: zh-CN\n");
+
+		const result = await runSetupWithEnv(cwd, { REVERSE_LANG: "en" }, "reverse", "--check");
+		expect(result.exitCode).toBe(0);
+		expect(result.output).toContain("Reverse engineering toolchain");
 	});
 });

@@ -587,6 +587,33 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		expect(output).toContain("Setup panel closed");
 	});
 
+	it("closes setup panel cleanly on EOF (empty selection)", async () => {
+		let output = "";
+		const which = mockWhich({
+			strings: "/usr/bin/strings",
+			file: "/usr/bin/file",
+			brew: "/opt/homebrew/bin/brew",
+		});
+
+		const promptSpy = vi.fn(async () => "");
+		const executorSpy = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+
+		const code = await handleReverseSetup({}, undefined, {
+			platform: "darwin",
+			which,
+			promptLine: promptSpy,
+			executor: executorSpy,
+			writeStdout: text => {
+				output += text;
+			},
+		});
+
+		expect(code).toBe(0);
+		expect(promptSpy).toHaveBeenCalledTimes(1);
+		expect(executorSpy).not.toHaveBeenCalled();
+		expect(output).toContain("Setup panel closed");
+	});
+
 	it("resolves capabilities correctly with synthetic MCP and CLI statuses", () => {
 		// Case 1: Node is installed, but playwright-mcp is unconfigured
 		const syntheticUnconfigured = resolveReverseCapabilities({
