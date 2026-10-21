@@ -615,9 +615,10 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		// Node alone MUST NOT make browser_debugger ready!
 		expect(browserCap?.ready).toBe(false);
 		expect(browserCap?.status).toBe("available_with_fallbacks");
-		expect(browserCap?.optionalExternalTools[0]?.id).toBe("playwright-mcp");
-		expect(browserCap?.optionalExternalTools[0]?.status).toBe("unconfigured");
-		expect(browserCap?.optionalExternalTools[0]?.connection).toBe("unknown");
+		const playwrightTool = browserCap?.optionalExternalTools.find(t => t.id === "playwright-mcp");
+		expect(playwrightTool?.id).toBe("playwright-mcp");
+		expect(playwrightTool?.status).toBe("unconfigured");
+		expect(playwrightTool?.connection).toBe("unknown");
 
 		// Java alone MUST NOT make android_native_emulation ready!
 		const androidCap = syntheticUnconfigured.find(c => c.id === "android_native_emulation");
@@ -645,8 +646,9 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		const browserCapConfigured = syntheticConfiguredUnknown.find(c => c.id === "browser_debugger");
 		expect(browserCapConfigured?.ready).toBe(false);
 		expect(browserCapConfigured?.status).toBe("available_with_fallbacks");
-		expect(browserCapConfigured?.optionalExternalTools[0]?.status).toBe("configured");
-		expect(browserCapConfigured?.optionalExternalTools[0]?.connection).toBe("unknown");
+		const playwrightToolConfigured = browserCapConfigured?.optionalExternalTools.find(t => t.id === "playwright-mcp");
+		expect(playwrightToolConfigured?.status).toBe("configured");
+		expect(playwrightToolConfigured?.connection).toBe("unknown");
 
 		// Case 3: playwright-mcp has verified connection handshake
 		const syntheticConnected = resolveReverseCapabilities({
@@ -668,7 +670,55 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		const browserCapConnected = syntheticConnected.find(c => c.id === "browser_debugger");
 		expect(browserCapConnected?.ready).toBe(true);
 		expect(browserCapConnected?.status).toBe("ready");
-		expect(browserCapConnected?.optionalExternalTools[0]?.status).toBe("ready");
-		expect(browserCapConnected?.optionalExternalTools[0]?.connection).toBe("connected");
+		const playwrightToolConnected = browserCapConnected?.optionalExternalTools.find(t => t.id === "playwright-mcp");
+		expect(playwrightToolConnected?.status).toBe("ready");
+		expect(playwrightToolConnected?.connection).toBe("connected");
+
+		// Case 4: jshookmcp with installed: false must not be ready even if node is present
+		const syntheticJshookNotInstalled = resolveReverseCapabilities({
+			platform: "darwin",
+			toolStatuses: [{ id: "node", status: "installed" }],
+			serviceStatuses: [
+				{
+					id: "jshookmcp",
+					name: "jshook MCP",
+					prerequisitesReady: true,
+					installed: false,
+					ready: false,
+					configured: true,
+					enabled: true,
+					connection: "unknown",
+				},
+			],
+		});
+		const jsDeobfCap = syntheticJshookNotInstalled.find(c => c.id === "js_deobfuscation");
+		expect(jsDeobfCap?.ready).toBe(false);
+		expect(jsDeobfCap?.status).toBe("available_with_fallbacks");
+		const jshookTool = jsDeobfCap?.optionalExternalTools.find(t => t.id === "jshookmcp");
+		expect(jshookTool?.status).toBe("missing");
+	});
+
+	it("reports jshookmcp with managed installed: false when tool directory is absent", () => {
+		const which = mockWhich({
+			strings: "/usr/bin/strings",
+			file: "/usr/bin/file",
+			node: "/usr/local/bin/node",
+			npx: "/usr/local/bin/npx",
+		});
+		const report = checkReverseTools({
+			platform: "darwin",
+			which,
+			agentDir: "/tmp/nonexistent-agent-dir-test",
+		});
+
+		const jshook = report.services.find(s => s.id === "jshookmcp");
+		expect(jshook).toBeDefined();
+		expect(jshook?.kind).toBe("mcp");
+		expect(jshook?.installer).toBe("jshookmcp");
+		expect(jshook?.installed).toBe(false);
+		expect(jshook?.prerequisitesReady).toBe(true);
+		expect(jshook?.ready).toBe(false);
+		expect(jshook?.status).toBe("missing");
+		expect(jshook?.installArgv).toBeNull();
 	});
 });

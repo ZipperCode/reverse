@@ -7,11 +7,12 @@
  * usage guidance an agent needs to call the service correctly.
  *
  * Only client-vetted entries belong here. Package installs are executed
- * exclusively by the setup panel after explicit interactive confirmation; no
- * skill, MCP server, or remote registry can inject an argv into that path.
+ * by the setup panel after interactive confirmation or explicit agent tool
+ * write approval; no skill, MCP server, or remote registry can inject an argv into that path.
  */
 import type { MCPServerConfig } from "../mcp/types";
 import type { PackageInstallCommand, SkillToolPlatform, ToolCategory, ToolUsageGuide } from "./skill-tool-catalog";
+import { getJshookMcpServer } from "./jshookmcp-install";
 
 export type McpServiceTransport = "stdio" | "http" | "sse";
 
@@ -49,12 +50,14 @@ export interface McpServiceDescriptor {
 	configPath: string;
 	/** Species/documentation URL for the server integration. */
 	docsUrl: string;
-	/** Upstream license identifier; sources must not be AGPL/GPL-only. */
+	/** Upstream license identifier for external services. Sources are never vendored or copied into reverse. */
 	license: string;
 	/** Packaging, privilege, network, or commercial-software warning. */
 	riskNote: string;
 	/** Canonical model-facing usage guidance. */
 	usage: ToolUsageGuide;
+	/** Dedicated installer helper identifier for services with custom lifecycle. */
+	installer?: "jshookmcp";
 }
 
 /** Config path hint shown by setup panels and the guide skill. */
@@ -68,9 +71,9 @@ export function mcpServerSnippet(descriptor: McpServiceDescriptor): { mcpServers
 /**
  * Built-in catalog of optional MCP helper services.
  *
- * Every package below is published by its upstream project or vendor and is
- * licensed permissively; AGPL/GPL-only reverse-engineering projects are not
- * vendored or copied here.
+ * Every package below is published by its upstream project or vendor.
+ * External service licenses (including AGPL-3.0) are declared for transparency;
+ * sources are never vendored or copied into reverse, running strictly out-of-process.
  */
 export const MCP_SERVICE_CATALOG: Readonly<Record<string, McpServiceDescriptor>> = {
 	"playwright-mcp": {
@@ -195,6 +198,67 @@ export const MCP_SERVICE_CATALOG: Readonly<Record<string, McpServiceDescriptor>>
 				{
 					description: "Launch the stdio server through r2pm",
 					command: "r2pm -r r2mcp",
+				},
+			],
+		},
+	},
+
+	jshookmcp: {
+		id: "jshookmcp",
+		name: "jshook MCP",
+		category: "web",
+		description:
+			"Multi-domain JavaScript analysis, CDP debugging, AST deobfuscation, and network inspection MCP server",
+		optional: true,
+		installer: "jshookmcp",
+		requires: ["node"],
+		manualUrl: "https://github.com/vmoranv/jshookmcp",
+		docsUrl: "https://github.com/vmoranv/jshookmcp",
+		license: "AGPL-3.0-only",
+		get startCommand() {
+			const server = getJshookMcpServer();
+			return `${server.command} ${(server.args ?? []).join(" ")}`;
+		},
+		serverName: "jshook",
+		get server() {
+			return getJshookMcpServer();
+		},
+		configPath: MCP_CONFIG_PATH_HINT,
+		installHints: {
+			darwin: [
+				"npm install --prefix ~/.reverse/agent/tools/jshookmcp --omit=dev --omit=optional --no-audit --no-fund @jshookmcp/jshook@0.4.2 webcrack@2.16.0",
+			],
+			linux: [
+				"npm install --prefix ~/.reverse/agent/tools/jshookmcp --omit=dev --omit=optional --no-audit --no-fund @jshookmcp/jshook@0.4.2 webcrack@2.16.0",
+			],
+			win32: [
+				"npm install --prefix %USERPROFILE%\\.reverse\\agent\\tools\\jshookmcp --omit=dev --omit=optional --no-audit --no-fund @jshookmcp/jshook@0.4.2 webcrack@2.16.0",
+			],
+		},
+		manualInstructions: {
+			darwin:
+				"Run 'reverse setup reverse jshookmcp --execute' or install into ~/.reverse/agent/tools/jshookmcp via npm.",
+			linux: "Run 'reverse setup reverse jshookmcp --execute' or install into ~/.reverse/agent/tools/jshookmcp via npm.",
+			win32: "Run 'reverse setup reverse jshookmcp --execute' or install into ~/.reverse/agent/tools/jshookmcp via npm.",
+		},
+		riskNote:
+			"Runs an AGPL-3.0 local Node.js process with CDP and JavaScript inspection capabilities. Operates over local stdio with search profile.",
+		usage: {
+			canonical: "search_tools -> describe_tool -> call_tool(deobfuscate) / activate_tools",
+			whenToUse:
+				"Complex web frontend reverse engineering, obfuscated JavaScript unpacking, runtime script hooks, and CDP inspection.",
+			prerequisites: ["node"],
+			outputLimits:
+				"Uses search profile with 8 meta-tools by default. Query search_tools with 2-4 keywords rather than dumping full tool lists.",
+			fallback: "Native browser_reverse_session and sourcemap_inspect when unavailable.",
+			examples: [
+				{
+					description: "Search for deobfuscation and hook tools",
+					command: 'search_tools(query: "deobfuscate webcrack hook")',
+				},
+				{
+					description: "Directly execute deobfuscation without full activation",
+					command: 'call_tool(name: "deobfuscate", arguments: { code: "...", unpack: true })',
 				},
 			],
 		},

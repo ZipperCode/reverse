@@ -42,7 +42,8 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "@reverse/tui";
-import { executeSafeCatalogCommand, type ReverseServiceStatus, type ReverseToolStatus } from "../cli/setup-reverse";
+import { executeSafeCatalogCommand, t, type ReverseServiceStatus, type ReverseToolStatus } from "../cli/setup-reverse";
+import { installJshookMcp } from "../extensibility/jshookmcp-install";
 import type { TerminalAppearanceRequestToken } from "@reverse/tui/terminal";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "@reverse/tui/native/node";
 import { col, kbd, node, row, span, text } from "@reverse/tui/native/describe";
@@ -8253,6 +8254,69 @@ export class InteractiveMode implements InteractiveModeContext {
 	async installReverseItem(
 		item: ReverseToolStatus | ReverseServiceStatus,
 	): Promise<{ success: boolean; message?: string }> {
+		if (item.kind === "mcp" && item.installer === "jshookmcp") {
+			try {
+				const cwd = this.sessionManager.getCwd();
+				const installed = await installJshookMcp({ cwd, scope: "user" });
+				let activated = false;
+				if (this.mcpManager) {
+					const loaded = await this.mcpManager.connectServers(
+						{ [installed.serverName]: installed.server },
+						{
+							[installed.serverName]: {
+								provider: "reverse",
+								providerName: "reverse",
+								path: installed.configPath,
+								level: "user",
+							},
+						},
+						undefined,
+						installed.server.timeout ?? 120_000,
+					);
+					const connectError = loaded.errors.get(installed.serverName);
+					if (connectError || this.mcpManager.getConnectionStatus(installed.serverName) !== "connected") {
+						return {
+							success: false,
+							message: t(
+								"cli.setup.reverse.serviceInstallFailed",
+								`MCP service ${item.name} installed, but session connection failed: ${connectError ?? "connection incomplete"}`,
+								{ name: item.name, error: connectError ?? "connection incomplete" },
+							),
+						};
+					}
+					await this.session.refreshMCPTools(this.mcpManager.getTools());
+					activated = true;
+				}
+				const successMessage = t(
+					"cli.setup.reverse.serviceInstallSuccess",
+					`MCP service ${item.name} installed and configured successfully (config: ${installed.configPath}, tools: ${installed.tools.join(", ")}).`,
+					{
+						name: item.name,
+						path: installed.configPath,
+						tools: installed.tools.join(", "),
+					},
+				);
+				return {
+					success: true,
+					message: activated
+						? `✅ ${successMessage}`
+						: `✅ ${successMessage} (${t("cli.setup.reverse.managerNotConnected", "MCP manager unavailable in this session; please reload to activate")})`,
+				};
+			} catch (err: unknown) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return {
+					success: false,
+					message: t(
+						"cli.setup.reverse.serviceInstallFailed",
+						`MCP service ${item.name} installation failed: ${msg}`,
+						{
+							name: item.name,
+							error: msg,
+						},
+					),
+				};
+			}
+		}
 		const result = await executeSafeCatalogCommand(item);
 		if (result.exitCode === 0) {
 			return { success: true };

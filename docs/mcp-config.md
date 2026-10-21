@@ -12,6 +12,16 @@ Source of truth in code:
 - Managed credential lookup: `packages/coding-agent/src/mcp/oauth-credentials.ts`
 - Portable plugin MCP discovery: `packages/coding-agent/src/discovery/agent-plugins.ts`
 
+## Managed jshookmcp installation
+
+Install the optional frontend reverse-engineering service with `reverse setup reverse jshookmcp --execute`, or open `/setup` → reverse toolchain → jshookmcp → install. The interactive installer downloads pinned `@jshookmcp/jshook@0.4.2` and `webcrack@2.16.0` into the active profile's managed tools directory, verifies the MCP handshake and tool discovery, then adds the `jshook` entry to the user MCP configuration. Existing unrelated entries are preserved; conflicting or disabled entries require an explicit configuration decision rather than being overwritten.
+
+The agent can perform the same installation through `reverse_capability(action: "install", service: "jshookmcp")` using normal write approval. `scope: "project"` selects project configuration. TUI and agent installation connect the service in the current session; a standalone CLI installation is discovered on the next client startup.
+
+Supported Node.js and npm are required. The service uses local stdio, search-based tool discovery, and disabled vector search by default. Deobfuscation retains `webcrack`; other optional engines and browser downloads are not installed automatically. Native dependencies may require build tools. `reverse setup reverse --json` stays a read-only status probe and never starts the server.
+
+Use jshook's `search_tools` → `describe_tool` → `call_tool` flow. Assign one controller to each browser target. Client-side MCP sampling is currently unavailable, so sampling-dependent LLM suggestions are separate from deterministic analysis tools. Upstream is AGPL-3.0-only and runs as an external service; review its license before redistribution or offering modified services to others.
+
 ## Preferred config locations
 
 reverse can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for reverse-native configuration you should usually use one of these primary files:

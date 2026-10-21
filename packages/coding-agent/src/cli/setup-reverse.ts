@@ -19,6 +19,7 @@
  */
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
+import * as path from "node:path";
 import * as readline from "node:readline";
 import { $which, APP_NAME, getMCPConfigPath, getProjectDir, WhichCachePolicy, type WhichOptions } from "@reverse/utils";
 import chalk from "@reverse/utils/chalk";
@@ -41,6 +42,7 @@ import {
 	type SkillRequirementWhich,
 } from "../extensibility/skill-requirements";
 import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
+import { getJshookMcpServer, inspectJshookMcp, installJshookMcp } from "../extensibility/jshookmcp-install";
 
 export interface ReverseToolStatus {
 	kind: "cli";
@@ -115,6 +117,8 @@ export interface ReverseServiceStatus {
 	packageManager: string | null;
 	installCommand: string | null;
 	installArgv: readonly string[] | null;
+	installer?: "jshookmcp";
+	installed?: boolean;
 	riskNote: string;
 	manualUrl: string;
 	manualInstructions: string;
@@ -157,6 +161,8 @@ export interface ReverseSetupDeps {
 	writeStdout?: (chunk: string) => void;
 	writeStderr?: (chunk: string) => void;
 	isTTY?: boolean;
+	/** Agent profile directory; defaults to getAgentDir() for managed tools. */
+	agentDir?: string;
 }
 
 /** Read an MCP config file without writing or starting anything. */
@@ -170,7 +176,7 @@ export function readMcpConfigFileSync(filePath: string): MCPConfigFile | null {
 	}
 }
 
-function t(key: string, fallback: string, vars?: Record<string, string>): string {
+export function t(key: string, fallback: string, vars?: Record<string, string>): string {
 	const locale = getEffectiveLocale();
 	let text = locale === "zh-CN" ? (CLI_TRANSLATIONS_ZH_CN[key] ?? fallback) : fallback;
 	if (vars) {
@@ -302,9 +308,10 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 	// repeating the catalog's display hint. Reading is probe-only: no file is
 	// written and no server is launched.
 	const cwd = deps.cwd ?? getProjectDir();
+	const userConfigPath = deps.agentDir ? path.join(deps.agentDir, "mcp.json") : getMCPConfigPath("user", cwd);
 	const configPaths: ReverseServiceConfigPaths = {
 		project: getMCPConfigPath("project", cwd),
-		user: getMCPConfigPath("user", cwd),
+		user: userConfigPath,
 	};
 	const readConfig = deps.readMcpConfig ?? readMcpConfigFileSync;
 	const configFiles: Record<"user" | "project", MCPConfigFile | null> = {
@@ -319,7 +326,13 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		const missingPrerequisites = prerequisites
 			.filter(status => status.foundPath === null || (status.secondaryMissing?.length ?? 0) > 0)
 			.map(status => status.id);
-		const ready = missingPrerequisites.length === 0;
+		const prereqsReady = missingPrerequisites.length === 0;
+
+		let installed: boolean | undefined = undefined;
+		if (desc.installer === "jshookmcp") {
+			const inspection = inspectJshookMcp({ agentDir: deps.agentDir });
+			installed = inspection.installed;
+		}
 
 		// Config presence is checked per scope. `enabled` stays null when the
 		// service is unconfigured: connection state cannot be observed without
@@ -337,6 +350,10 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			enabled = enabled === null ? scopeEnabled : enabled || scopeEnabled;
 		}
 		const configured = configuredScopes.length > 0;
+		// Readiness for managed services requires prerequisites (e.g. Node), managed package installed,
+		// and not explicitly disabled. For other services, readiness remains prerequisite-only.
+		const ready =
+			desc.installer === "jshookmcp" ? prereqsReady && installed === true && enabled !== false : prereqsReady;
 
 		// Readiness means the prerequisite CLI tools exist, not that the server
 		// package is installed. Offer the catalog install command in both states;
@@ -349,18 +366,25 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			id: desc.id,
 			name: desc.name,
 			category: desc.category,
-			description: desc.description,
+			description:
+				desc.installer === "jshookmcp" ? t("cli.setup.reverse.jshookmcp.desc", desc.description) : desc.description,
 			optional: true,
 			license: desc.license,
 			serverName: desc.serverName,
 			transport: desc.server.type ?? "stdio",
-			startCommand: desc.startCommand,
+			startCommand:
+				desc.installer === "jshookmcp"
+					? `${getJshookMcpServer({ agentDir: deps.agentDir }).command} ${(getJshookMcpServer({ agentDir: deps.agentDir }).args ?? []).join(" ")}`
+					: desc.startCommand,
 			configPath: desc.configPath,
 			configPaths,
-			configSnippet: { ...mcpServerSnippet(desc) },
+			configSnippet:
+				desc.installer === "jshookmcp"
+					? { mcpServers: { [desc.serverName]: getJshookMcpServer({ agentDir: deps.agentDir }) } }
+					: { ...mcpServerSnippet(desc) },
 			prerequisites,
 			missingPrerequisites,
-			prerequisitesReady: ready,
+			prerequisitesReady: prereqsReady,
 			ready,
 			configured,
 			configuredScopes,
@@ -370,7 +394,12 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			packageManager: chosenCmd?.manager ?? null,
 			installCommand: chosenCmd?.command ?? null,
 			installArgv: chosenCmd?.argv && chosenCmd.argv.length > 0 ? chosenCmd.argv : null,
-			riskNote: chosenCmd?.riskNote ?? desc.riskNote,
+			installer: desc.installer,
+			installed,
+			riskNote:
+				desc.installer === "jshookmcp"
+					? t("cli.setup.reverse.jshookmcp.risk", desc.riskNote)
+					: (chosenCmd?.riskNote ?? desc.riskNote),
 			manualUrl: desc.manualUrl,
 			manualInstructions: manualGuide,
 			hint: desc.installHints?.[platform]?.join(" or "),
@@ -710,6 +739,11 @@ function renderServiceTable(report: ReverseCheckReport, write: (text: string) =>
 		let detailStr: string;
 		if (service.ready) {
 			detailStr = `${chalk.dim(`prerequisites ok: ${service.prerequisites.map(p => p.id).join(", ") || "none"}; ${configStr}`)}`;
+		} else if (service.installer === "jshookmcp") {
+			const managedStatus = service.installed
+				? t("cli.setup.reverse.managedStatusInstalled", "package installed")
+				: t("cli.setup.reverse.managedStatusMissing", "package not installed");
+			detailStr = `${chalk.blue("[managed]")} ${managedStatus} ${chalk.dim(`(${configStr})`)}`;
 		} else if (service.installCommand) {
 			detailStr = `${chalk.blue(`[${service.packageManager}]`)} ${service.installCommand} ${chalk.dim(`(${configStr})`)}`;
 		} else {
@@ -804,11 +838,19 @@ export async function handleReverseSetup(
 			const config = service.configured
 				? `configured in ${service.configuredScopes.join(", ")}${service.enabled === false ? " (disabled)" : ""}`
 				: "not configured";
+			const managedNote =
+				service.installer === "jshookmcp"
+					? service.installed
+						? `; ${t("cli.setup.reverse.managedStatusInstalled", "managed package installed")}`
+						: `; ${t("cli.setup.reverse.managedStatusMissing", "managed package not installed")}`
+					: "";
 			const details = service.ready
-				? `prerequisites ok (${service.prerequisites.map(p => p.id).join(", ") || "none"}); ${config}; connection unverified; start: ${service.startCommand}${service.installCommand ? `; install: ${service.installCommand}` : ""}`
-				: service.installCommand
-					? `prerequisites missing (${service.missingPrerequisites.join(", ")}); ${config} - install: ${service.installCommand}`
-					: `prerequisites missing (${service.missingPrerequisites.join(", ")}); ${config} - manual: ${service.manualUrl}`;
+				? `prerequisites ok (${service.prerequisites.map(p => p.id).join(", ") || "none"})${managedNote}; ${config}; connection unverified; start: ${service.startCommand}${service.installCommand ? `; install: ${service.installCommand}` : ""}`
+				: service.installer === "jshookmcp"
+					? `prerequisites ${service.prerequisitesReady ? "ok" : "missing (" + service.missingPrerequisites.join(", ") + ")"}${managedNote}; ${config} - run: ${APP_NAME} setup reverse ${service.id} --execute`
+					: service.installCommand
+						? `prerequisites missing (${service.missingPrerequisites.join(", ")}); ${config} - install: ${service.installCommand}`
+						: `prerequisites missing (${service.missingPrerequisites.join(", ")}); ${config} - manual: ${service.manualUrl}`;
 			write(`  ${mark} ${chalk.bold(service.id)} (mcp): ${details} ${chalk.dim("(optional)")}\n`);
 		}
 		if (report.capabilities && report.capabilities.length > 0) {
@@ -964,7 +1006,9 @@ export async function handleReverseSetup(
 
 		if (selection.toLowerCase() === "all-missing") {
 			selectedTools.push(...report.tools.filter(t => t.status === "missing"));
-			selectedServices.push(...report.services.filter(service => !service.ready && service.installArgv));
+			selectedServices.push(
+				...report.services.filter(service => !service.ready && (service.installArgv || service.installer)),
+			);
 		} else {
 			const tokens = selection.split(/[\s,]+/);
 			for (const token of tokens) {
@@ -1191,7 +1235,11 @@ export async function handleReverseSetup(
 		write(
 			`${chalk.dim(`Category: ${service.category}`)} | ${chalk.dim(`Transport: ${service.transport}`)} | ${chalk.dim(`License: ${service.license}`)}\n`,
 		);
-		write(`${chalk.dim(service.description)}\n`);
+		const serviceDesc =
+			service.installer === "jshookmcp"
+				? t("cli.setup.reverse.jshookmcp.desc", service.description)
+				: service.description;
+		write(`${chalk.dim(serviceDesc)}\n`);
 		if (service.usage?.whenToUse) {
 			write(`\n${chalk.bold("When to use:")}\n  ${chalk.dim(service.usage.whenToUse)}\n`);
 		}
@@ -1226,7 +1274,14 @@ export async function handleReverseSetup(
 			write(`  ${chalk.dim(line)}\n`);
 		}
 
-		if (service.installCommand) {
+		if (service.installer === "jshookmcp") {
+			write(`\n${chalk.bold(t("cli.setup.reverse.managedInstallationLabel", "Managed service installation:"))}\n`);
+			write(
+				`  ${chalk.green(t("cli.setup.reverse.managedInstallationDesc", "@jshookmcp/jshook (isolated stdio MCP server in agent directory)"))}\n`,
+			);
+			const serviceRisk = t("cli.setup.reverse.jshookmcp.risk", service.riskNote);
+			write(`  ${chalk.dim(`Notes: ${serviceRisk}`)}\n`);
+		} else if (service.installCommand) {
 			write(`\n${chalk.bold("Recommended install command:")}\n`);
 			write(`  ${chalk.green(service.installCommand)}\n`);
 			if (service.riskNote) {
@@ -1243,7 +1298,96 @@ export async function handleReverseSetup(
 		write(`  Official URL: ${service.manualUrl}\n`);
 		write(`  Guide: ${service.manualInstructions}\n`);
 
-		if (!executeMode || !service.installArgv || service.installArgv.length === 0) {
+		if (!executeMode) {
+			continue;
+		}
+
+		if (service.installer === "jshookmcp") {
+			if (service.installed) {
+				const alreadyPrompt = t(
+					"cli.setup.reverse.alreadyInstalledService",
+					`MCP service ${service.name} is already installed. Re-verify and connect? [y/N]: `,
+					{ name: service.name },
+				);
+				const shouldReinstall = await confirm(alreadyPrompt);
+				if (!shouldReinstall) {
+					write(
+						chalk.dim(t("cli.setup.reverse.cancelled", `Skipped ${service.name}.`, { name: service.name })) +
+							"\n",
+					);
+					continue;
+				}
+			}
+
+			const proceedPrompt = t(
+				"cli.setup.reverse.confirmServicePrompt",
+				`Do you want to install MCP service ${service.name} now? [y/N]: `,
+				{ name: service.name },
+			);
+			const proceed = await confirm(proceedPrompt);
+			if (!proceed) {
+				write(
+					chalk.dim(
+						t("cli.setup.reverse.cancelled", `Installation cancelled for ${service.name}.`, {
+							name: service.name,
+						}),
+					) + "\n",
+				);
+				continue;
+			}
+
+			write(
+				chalk.cyan(
+					`\n${t("cli.setup.reverse.executingService", `Installing MCP service ${service.name}...`, { name: service.name })}\n`,
+				),
+			);
+
+			try {
+				const installResult = await installJshookMcp({
+					cwd: deps.cwd ?? getProjectDir(),
+					scope: "user",
+					agentDir: deps.agentDir,
+					onChunk: chunk => write(chalk.dim(chunk)),
+				});
+
+				const successIcon = theme?.status?.success ?? "✓";
+				write(
+					chalk.green(
+						`\n${successIcon} ${t(
+							"cli.setup.reverse.serviceInstallSuccess",
+							`MCP service ${service.name} installed and configured successfully at ${installResult.configPath}. Tools: ${installResult.tools.join(", ")}`,
+							{
+								name: service.name,
+								path: installResult.configPath,
+								tools: installResult.tools.join(", "),
+							},
+						)}\n`,
+					),
+				);
+				if (service.usage?.canonical) {
+					write(chalk.dim(`Next invocation: ${service.usage.canonical}\n`));
+				}
+			} catch (err: unknown) {
+				hasFailures = true;
+				const errIcon = theme?.status?.error ?? "✗";
+				const msg = err instanceof Error ? err.message : String(err);
+				writeErr(
+					chalk.red(
+						`\n${errIcon} ${t(
+							"cli.setup.reverse.serviceInstallFailed",
+							`Installation failed for ${service.name}: ${msg}`,
+							{
+								name: service.name,
+								error: msg,
+							},
+						)}\n`,
+					),
+				);
+			}
+			continue;
+		}
+
+		if (!service.installArgv || service.installArgv.length === 0) {
 			continue;
 		}
 		if (!isTrustedCatalogArgv(service)) {

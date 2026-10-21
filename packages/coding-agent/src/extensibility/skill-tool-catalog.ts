@@ -187,6 +187,7 @@ export interface ResolveCapabilitiesOptions {
 		name?: string;
 		ready?: boolean;
 		prerequisitesReady?: boolean;
+		installed?: boolean;
 		configured?: boolean;
 		enabled?: boolean | null;
 		connection?: "unknown" | string;
@@ -2313,12 +2314,12 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 			"Connects to running Chromium/WebKit instances via Chrome DevTools Protocol (CDP) or Playwright to set breakpoints, evaluate expressions in page context, inspect call stacks, and intercept frontend execution flow.",
 		why: "Enables runtime inspection of complex minified JavaScript code, single-page application state, and dynamic crypto/signature generation that cannot be resolved through static bundle analysis.",
 		recommendedNativeTool: "browser_reverse_session",
-		optionalExternalTools: ["playwright-mcp"],
+		optionalExternalTools: ["jshookmcp", "playwright-mcp"],
 		prerequisites: ["node"],
 		fallbacks: ["mitmproxy", "curl", "file"],
-		setupCommand: "reverse setup reverse playwright-mcp",
+		setupCommand: "reverse setup reverse jshookmcp --execute",
 		postInstallInvocation:
-			"Configure .reverse/mcp.json playwright entry or launch browser_reverse_session with target URL",
+			"jshook MCP search_tools -> describe_tool -> call_tool for browser/debugger tools; keep one browser controller per target",
 	},
 	websocket_capture: {
 		id: "websocket_capture",
@@ -2330,7 +2331,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 			"Captures real-time full-duplex WebSocket frames (text, binary, protobuf), decrypts TLS/WSS traffic, and parses frame headers, payload opcodes, and sequence events for protocol reverse engineering.",
 		why: "WebSocket connections bypass standard request-response HTTP inspection; frame-level capture is necessary to reconstruct streaming protocols, heartbeats, and push payloads.",
 		recommendedNativeTool: "websocket_observe",
-		optionalExternalTools: ["mitmproxy", "tshark"],
+		optionalExternalTools: ["jshookmcp", "mitmproxy", "tshark"],
 		prerequisites: [],
 		fallbacks: ["pcap_inspect", "strings", "curl"],
 		setupCommand: "reverse setup reverse mitmproxy",
@@ -2363,11 +2364,12 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 			"Applies syntax transforms, control flow unscrambling, string decryptor execution, and Hermes bytecode disassembling to turn obfuscated client bundles into intelligible logic.",
 		why: "Removes control flow flattening, dead code, and string encryption layers from frontend and mobile bundles.",
 		recommendedNativeTool: "sourcemap_inspect",
-		optionalExternalTools: ["hbctool"],
+		optionalExternalTools: ["jshookmcp", "hbctool"],
 		prerequisites: ["node"],
 		fallbacks: ["strings", "file"],
-		setupCommand: "reverse setup reverse hbctool",
-		postInstallInvocation: "hbctool disasm <index.android.bundle> <out_dir> or node deobfuscate.js",
+		setupCommand: "reverse setup reverse jshookmcp --execute",
+		postInstallInvocation:
+			"jshook MCP search_tools -> describe_tool -> call_tool for webcrack_unpack/AST transformations; hbctool remains the Hermes-specific option",
 	},
 	traffic_interception: {
 		id: "traffic_interception",
@@ -2379,7 +2381,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 			"Routes client network traffic through an inspecting proxy to capture headers, query parameters, multipart bodies, and cryptographic signatures in transit.",
 		why: "Uncovers client-server API contracts, authentication token flows, and cryptographic request signing algorithms.",
 		recommendedNativeTool: "pcap_inspect",
-		optionalExternalTools: ["mitmproxy", "tshark"],
+		optionalExternalTools: ["jshookmcp", "mitmproxy", "tshark"],
 		prerequisites: [],
 		fallbacks: ["curl", "strings"],
 		setupCommand: "reverse setup reverse mitmproxy",
@@ -2439,6 +2441,7 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			name?: string;
 			ready?: boolean;
 			prerequisitesReady?: boolean;
+			installed?: boolean;
 			configured?: boolean;
 			enabled?: boolean | null;
 			connection?: "unknown" | string;
@@ -2473,11 +2476,11 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 				const isConfigured = fromService.configured === true;
 				const isEnabled = fromService.enabled !== false;
 				const isConnected = fromService.connection === "connected";
-				const isReady = prereqsReady && isConfigured && isEnabled && isConnected;
+				const isReady = prereqsReady && fromService.installed !== false && isConfigured && isEnabled && isConnected;
 
 				const toolStatus: "ready" | "configured" | "unconfigured" | "missing" = isReady
 					? "ready"
-					: !prereqsReady
+					: !prereqsReady || fromService.installed === false
 						? "missing"
 						: isConfigured
 							? "configured"

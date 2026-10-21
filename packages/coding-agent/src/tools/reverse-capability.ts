@@ -8,15 +8,18 @@ import reverseCapabilityDescription from "../prompts/tools/reverse-capability.md
 import { checkReverseTools } from "../cli/setup-reverse";
 import {
 	getReverseCapabilities,
+	resolveReverseCapabilities,
 	type CapabilityDescriptor,
 	type ReverseCapabilityStatus,
 } from "../extensibility/skill-tool-catalog";
+import { getJshookMcpServer, installJshookMcp, JSHOOK_MCP_SERVER_NAME } from "../extensibility/jshookmcp-install";
+import { cfgMcpEnableProjectConfig } from "../mcp/settings";
 
 const reverseCapabilitySchema = type({
 	action: type
-		.enumerated("list", "resolve", "get")
+		.enumerated("list", "resolve", "get", "install")
 		.describe(
-			"Capability action: 'list' (enumerate all canonical reverse engineering capabilities), 'resolve' (evaluate host system availability, recommended native tools, fallbacks, and setup commands), 'get' (inspect a specific capability in detail by canonical ID)",
+			"Capability action: list, resolve or get host capability status; install provisions the trusted jshookmcp service and registers its MCP tools in this session (write approval required)",
 		),
 	"capability?": type("string").describe(
 		"Canonical capability ID (e.g. 'apk_unpacking', 'native_debugger', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception')",
@@ -25,16 +28,24 @@ const reverseCapabilitySchema = type({
 	"refresh?": type("boolean").describe(
 		"Bypass cached tool checks when resolving host capabilities (defaults to false)",
 	),
+	"service?": type.enumerated("jshookmcp").describe("Trusted service to install (required for install)"),
+	"scope?": type.enumerated("user", "project").describe("MCP configuration scope for install (default user)"),
 });
 
 export type ReverseCapabilityParams = typeof reverseCapabilitySchema.infer;
 
 export interface ReverseCapabilityDetails {
-	action: "list" | "resolve" | "get";
+	action: "list" | "resolve" | "get" | "install";
 	total?: number;
 	capability?: ReverseCapabilityStatus | CapabilityDescriptor;
 	capabilities?: ReverseCapabilityStatus[] | CapabilityDescriptor[];
 	platform?: string;
+	installation?: {
+		configPath: string;
+		serverName: string;
+		tools: string[];
+		connected: boolean;
+	};
 }
 
 export class ReverseCapabilityTool implements AgentTool<typeof reverseCapabilitySchema, ReverseCapabilityDetails> {
@@ -46,10 +57,28 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 	readonly parameters = reverseCapabilitySchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
-	readonly approval = (): ToolTier => "read";
+	readonly approval = (args: unknown): ToolTier =>
+		args && typeof args === "object" && "action" in args && args.action === "install" ? "write" : "read";
 
 	constructor(private readonly session: ToolSession) {
 		this.description = prompt.render(reverseCapabilityDescription);
+	}
+
+	private getReport(projectDir: string) {
+		const report = checkReverseTools({ cwd: projectDir });
+		const services = report.services.map(service => ({
+			...service,
+			connection:
+				this.session.mcpManager?.getConnectionStatus(service.serverName) === "connected" ? "connected" : "unknown",
+		}));
+		return {
+			...report,
+			capabilities: resolveReverseCapabilities({
+				platform: report.platform,
+				toolStatuses: report.tools,
+				serviceStatuses: services,
+			}),
+		};
 	}
 
 	async execute(
@@ -76,6 +105,71 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 		const capId = (params.capability ?? params.id)?.trim().toLowerCase();
 
 		switch (params.action) {
+			case "install": {
+				if (this.session.getPlanModeState?.()?.enabled) {
+					throw new ToolError("Plan mode is read-only. Install jshookmcp after leaving plan mode.");
+				}
+				if (params.service !== "jshookmcp") {
+					throw new ToolError(
+						"install requires service: 'jshookmcp'. Other catalog installers remain interactive.",
+					);
+				}
+				const manager = this.session.mcpManager;
+				if (this.session.enableMCP === false || !manager) {
+					throw new ToolError("MCP is unavailable in this session. Enable MCP before installing jshookmcp.");
+				}
+				const currentConnection = manager.getConnection(JSHOOK_MCP_SERVER_NAME);
+				if (currentConnection && !Bun.deepEquals(currentConnection.config, getJshookMcpServer())) {
+					throw new ToolError(
+						"A different jshook MCP configuration is already connected. Resolve the existing server before installing the managed service.",
+					);
+				}
+				const scope = params.scope ?? "user";
+				if (scope === "project" && !cfgMcpEnableProjectConfig.get(this.session.settings)) {
+					throw new ToolError(
+						"Project MCP configuration is disabled. Use user scope or enable project MCP discovery before installation.",
+					);
+				}
+				const installed = await installJshookMcp({ cwd: projectDir, scope, signal: abortSignal });
+				throwIfAborted(abortSignal);
+				// 复用会话的 MCP manager，连接成功后由现有工具刷新回调挂载到当前 agent。
+				const loaded = await manager.connectServers(
+					{ [installed.serverName]: installed.server },
+					{
+						[installed.serverName]: {
+							provider: "reverse",
+							providerName: "reverse",
+							path: installed.configPath,
+							level: scope,
+						},
+					},
+					undefined,
+					installed.server.timeout ?? 120_000,
+				);
+				const error = loaded.errors.get(installed.serverName);
+				if (error || manager.getConnectionStatus(installed.serverName) !== "connected") {
+					throw new ToolError(
+						`jshookmcp was installed and configured at ${installed.configPath}, but session activation failed: ${error ?? "connection incomplete"}`,
+					);
+				}
+				return {
+					content: [
+						{
+							type: "text",
+							text: `jshookmcp installed and connected. Config: ${installed.configPath}. Use its search_tools → describe_tool → call_tool flow. Keep one browser controller per target.`,
+						},
+					],
+					details: {
+						action: "install",
+						installation: {
+							configPath: installed.configPath,
+							serverName: installed.serverName,
+							tools: installed.tools,
+							connected: true,
+						},
+					},
+				};
+			}
 			case "list": {
 				const capabilities = getReverseCapabilities();
 				const lines: string[] = [`### Reverse Engineering Capabilities (${capabilities.length} total)`, ""];
@@ -106,7 +200,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 			}
 
 			case "resolve": {
-				const report = checkReverseTools({ cwd: projectDir });
+				const report = this.getReport(projectDir);
 				let targetCaps = report.capabilities;
 				if (capId) {
 					const matched = report.capabilities.filter(c => c.id.toLowerCase() === capId);
@@ -168,7 +262,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					throw new ToolError(`capability parameter is required for 'get' action. Valid capabilities: ${valid}`);
 				}
 
-				const report = checkReverseTools({ cwd: projectDir });
+				const report = this.getReport(projectDir);
 				const capStatus = report.capabilities.find(c => c.id.toLowerCase() === capId);
 				if (!capStatus) {
 					const valid = report.capabilities.map(c => c.id).join(", ");

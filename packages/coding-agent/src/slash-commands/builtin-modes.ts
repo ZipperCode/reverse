@@ -760,14 +760,28 @@ async function showItemDetails(
 				});
 			}
 		} else {
-			if (currentItem.installCommand) {
+			const isManaged = currentItem.installer === "jshookmcp";
+			const isInstalled = currentItem.installed === true;
+			if (currentItem.installCommand || isManaged) {
 				options.push({
-					label: isZh
-						? `安装服务包: ${currentItem.installCommand}`
-						: `Install Server Package: ${currentItem.installCommand}`,
-					description: currentItem.packageManager
-						? `[${currentItem.packageManager}] ${currentItem.riskNote}`
-						: currentItem.riskNote,
+					label: isManaged
+						? isInstalled
+							? isZh
+								? `检查/连接服务: ${currentItem.name}`
+								: `Verify/Connect Service: ${currentItem.name}`
+							: isZh
+								? `安装受信任服务: ${currentItem.name}`
+								: `Install Trusted Service: ${currentItem.name}`
+						: isZh
+							? `安装服务包: ${currentItem.installCommand}`
+							: `Install Server Package: ${currentItem.installCommand}`,
+					description: isManaged
+						? isZh
+							? `[内置管理] ${currentItem.riskNote}`
+							: `[managed] ${currentItem.riskNote}`
+						: currentItem.packageManager
+							? `[${currentItem.packageManager}] ${currentItem.riskNote}`
+							: currentItem.riskNote,
 				});
 			}
 			options.push({
@@ -854,7 +868,13 @@ async function showItemDetails(
 			action.startsWith("安装") ||
 			action.startsWith("Reinstall") ||
 			action.startsWith("重新安装") ||
-			action.includes("安装服务包")
+			action.startsWith("检查/连接服务") ||
+			action.startsWith("Verify/Connect Service") ||
+			action.includes("安装服务包") ||
+			action.includes("安装受信任服务") ||
+			action.includes("Install Trusted Service") ||
+			action.includes("Verify/Connect Service") ||
+			action.includes("检查/连接服务")
 		) {
 			const depsNote =
 				currentItem.kind === "cli"
@@ -875,10 +895,22 @@ async function showItemDetails(
 
 			const confirmTitle = isZh ? `确认执行安装: ${currentItem.name}` : `Confirm Installation: ${currentItem.name}`;
 
+			const isManaged = currentItem.kind === "mcp" && currentItem.installer === "jshookmcp";
+			const cmdDisplay =
+				currentItem.installCommand ??
+				(isManaged
+					? isZh
+						? "受管安装器 (npm @jshookmcp/jshook@0.4.2)"
+						: "Managed installer (npm @jshookmcp/jshook@0.4.2)"
+					: isZh
+						? "无"
+						: "none");
+			const pmDisplay = currentItem.packageManager ?? (isManaged ? "npm (managed)" : isZh ? "无" : "none");
+
 			const confirmLines = [
 				`${isZh ? "目标" : "Target"}: ${currentItem.name} (${currentItem.id})`,
-				`${isZh ? "执行命令" : "Command"}: ${currentItem.installCommand}`,
-				`${isZh ? "包管理器" : "Package Manager"}: ${currentItem.packageManager ?? (isZh ? "无" : "none")}`,
+				`${isZh ? "执行命令" : "Command"}: ${cmdDisplay}`,
+				`${isZh ? "包管理器" : "Package Manager"}: ${pmDisplay}`,
 				`${isZh ? "依赖要求" : "Dependencies"}: ${depsNote}`,
 				`${isZh ? "风险提示" : "Risk / Notes"}: ${currentItem.riskNote ?? (isZh ? "无" : "none")}`,
 			];

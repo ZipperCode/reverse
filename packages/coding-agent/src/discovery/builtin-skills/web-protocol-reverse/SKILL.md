@@ -38,6 +38,7 @@ Read `skill://reverse-lab/references/evidence.md` for report schemas.
 - **WebAssembly Inspection (`wasm_inspect`)**: Native built-in. Reports sections, imports/exports, function names, data/custom strings, and bounded byte matches without external tools. The optional `wabt` toolkit (`wasm2wat`) is only needed for full WAT disassembly.
 - **WebSocket Capture Analysis (`websocket_observe`)**: Native read-only built-in. Parses an existing HAR, structured JSON capture, or CDP `Network.webSocket*` NDJSON file and offers `inspect`, paged `list`/`search`, and sanitized `export`. It never records live traffic, connects to a target, replays frames, or runs scripts; obtain the capture with the browser relay or an authorized proxy first.
 - **Browser Relay / CDP**: Captures authorized live traffic into HAR/NDJSON and evaluates console state. Hand the resulting file to `websocket_observe` for offline frame review, and keep the original capture read-only.
+- **jshook MCP Service (`jshookmcp`)**: OPTIONAL independent local service for stateful browser debugging, script collection, deobfuscation with `webcrack`, protocol experiments, and WASM workflows. Install through `reverse setup reverse jshookmcp --execute` or, with user authorization, `reverse_capability(action: "install", service: "jshookmcp")`. Setup verifies the MCP handshake and writes configuration; agent/TUI installation also connects tools in the current session. Use `search_tools` → `describe_tool` → `call_tool`, with one browser controller per target.
 - **Playwright MCP Service (`playwright-mcp`)**: OPTIONAL (MCP Service). Automated multi-session browser control and DOM inspection for authorized dynamic web analysis. Configured as an MCP service via capability resolver (`browser_debugger`) rather than CLI PATH dependencies.
 - **PCAP / PCAPNG Network Analysis (`pcap_inspect`)**: Native built-in. Zero-dependency offline analysis of network packet captures: packet lists, protocol breakdowns (TCP, UDP, TLS with SNI, HTTP, DNS, ICMP, ARP), IP endpoints, conversations, and DNS queries without live packet capture or network replay.
 - **SQLite Database Inspection (`sqlite_inspect`)**: Native built-in. Zero-dependency offline read-only database analysis: schema, tables, columns, indexes, foreign keys, bounded table rows, and WAL metadata without mutation or arbitrary SQL execution.
@@ -46,9 +47,9 @@ Read `skill://reverse-lab/references/evidence.md` for report schemas.
 
 | Canonical Capability ID | Analytical Scenario | Recommended Native Tool | Optional External Tools | Trusted Setup Command | Fallback Tier |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`browser_debugger`** | Dynamic Web application inspection, DOM inspection, script debugging, source-map recovery, and automated CDP control | `browser_reverse_session` / `js_hook_preset` (native) | `playwright-mcp` (MCP), `node` | `reverse setup reverse playwright-mcp` | `curl`, `file` |
+| **`browser_debugger`** | Dynamic Web application inspection, DOM inspection, script debugging, source-map recovery, and automated CDP control | `browser_reverse_session` / `js_hook_preset` (native) | `jshookmcp`, `playwright-mcp` (MCP), `node` | `reverse setup reverse jshookmcp --execute` | `curl`, `file` |
 | **`websocket_capture`** | Intercept, monitor, record, decode, and analyze WebSocket frames and bidirectional streaming protocols | `websocket_observe` (native offline) | `mitmproxy`, `tshark` | `reverse setup reverse mitmproxy` | `pcap_inspect`, `strings`, `curl` |
-| **`js_deobfuscation`** | De-obfuscate minified/packed JavaScript, reconstruct AST, recover source maps, disassemble React Native Hermes bytecode | `sourcemap_inspect` / `ast_grep` (native) | `hbctool`, `node`, `ast-grep` | `reverse setup reverse hbctool` | `strings`, `file` |
+| **`js_deobfuscation`** | De-obfuscate minified/packed JavaScript, reconstruct AST, recover source maps, disassemble React Native Hermes bytecode | `sourcemap_inspect` / `ast_grep` (native) | `jshookmcp`, `hbctool`, `node`, `ast-grep` | `reverse setup reverse jshookmcp --execute` (`hbctool` for Hermes) | `strings`, `file` |
 | **`traffic_interception`** | Transparent network proxying, SSL/TLS decryption, request/response tampering, and API endpoint mapping | `pcap_inspect` (native offline) / `curl` | `mitmproxy`, `tshark` | `reverse setup reverse mitmproxy` | `curl`, `strings` |
 
 ### Capability Resolution Protocol
@@ -67,7 +68,7 @@ When dynamic instrumentation, live proxying, automated browser orchestration, or
    - For `js_deobfuscation`: Use native `sourcemap_inspect` for decoding/extracting source maps and `ast_grep` for structural AST pattern matching across minified JS.
    - For `traffic_interception`: Use native `pcap_inspect` for offline packet analysis and `curl` for bounded endpoint replays.
 3. **Present Setup Notice & Request Approval**:
-   When an external engine is required (e.g. `playwright-mcp` for headless multi-session browser control, `mitmproxy` for live SSL decryption and proxying, or `hbctool` for React Native Hermes bytecode disassembly), present the structured notice:
+   When an external engine is required (e.g. `jshookmcp` for browser debugging or JavaScript deobfuscation, `mitmproxy` for live SSL decryption and proxying, or `hbctool` for React Native Hermes bytecode disassembly), present the structured notice:
    ```text
    [Capability Notice] Required capability: <capability_id> ('<capability_name>')
      -> Recommended tool: '<tool>' (Status: <missing|installed>)
@@ -77,13 +78,13 @@ When dynamic instrumentation, live proxying, automated browser orchestration, or
      -> Post-install invocation: <postInstallInvocation>
      -> Fallback if declined: '<fallback_tool>'
    ```
-   Request explicit operator confirmation before executing setup. Do not execute unapproved setup commands.
+   Obtain operator authorization before installation. For jshookmcp, the agent can execute `reverse_capability(action: "install", service: "jshookmcp")` through the write approval boundary; the CLI/TUI setup path offers interactive confirmation.
 4. **Re-Resolve Post-Install**:
    After the operator executes the trusted setup command (`reverse setup reverse <tool>`), verify readiness:
    ```json
    reverse_capability({ action: "resolve", capability: "<capability_id>", refresh: true })
    ```
-   Confirm that `status` transitioned to `"ready"` and the tool is accessible on PATH.
+   For CLI tools, confirm PATH readiness. For MCP services, confirm managed installation, configuration, enablement, and a live connection; Node alone is insufficient.
 5. **Dispatch & Workflow Resumption / Audit**:
    - Dispatch the tool command using bounded options or canonical `postInstallInvocation`.
    - When recovering or resuming a workflow step following tool setup, record the canonical install-after resume metadata in `reverse_workflow`:
