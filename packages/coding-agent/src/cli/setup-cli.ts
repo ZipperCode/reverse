@@ -516,7 +516,7 @@ ${chalk.bold("Components:")}
 ${chalk.bold("Options:")}
   -c, --check    Check if dependencies are installed without installing
   --json         Output status as JSON
-  -x, --execute  Execute verified installation commands after interactive confirmation (reverse only)
+  -x, --execute  Execute verified installation commands (retained option; interactive mode defaults to installation with confirmation)
 ${chalk.bold("Examples:")}
   ${APP_NAME} setup                  Run interactive setup menu
   ${APP_NAME} setup providers        Configure model providers and OAuth logins

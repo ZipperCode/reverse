@@ -388,6 +388,17 @@ async function createSnapshot(
 
 	return null;
 }
+/** Invalidate all cached shell snapshots so next shell invocation takes fresh snapshot. */
+export function invalidateShellSnapshotCache(): void {
+	for (const snapshotPath of cachedSnapshots.values()) {
+		try {
+			fs.unlinkSync(snapshotPath);
+		} catch {}
+	}
+	cachedSnapshots.clear();
+	failedSnapshots.clear();
+	inflightSnapshots.clear();
+}
 
 postmortem.register("shell-snapshot", () => {
 	for (const snapshotPath of cachedSnapshots.values()) {

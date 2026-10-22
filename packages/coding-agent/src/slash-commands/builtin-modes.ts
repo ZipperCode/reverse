@@ -11,6 +11,11 @@ import {
 	type ReverseServiceStatus,
 	type ReverseToolStatus,
 } from "../cli/setup-reverse";
+import {
+	canInstallReverseItem,
+	getReverseInstallPlan,
+	type ReverseInstallPlan,
+} from "../extensibility/reverse-tool-install";
 import { buildSpeechComponents, checkPythonSetup, type SpeechComponent } from "../cli/setup-cli";
 import { getAllLocalizedPanels } from "../cli/setup-panels";
 import { enumeratePythonRuntimes } from "../eval/py/runtime";
@@ -500,14 +505,15 @@ function formatCompactReverseReport(report: ReverseCheckReport, targetTool?: str
 	}
 	lines.push(
 		isZh
-			? `> 提示：在终端中运行 \`${APP_NAME} setup reverse --execute\` 可交互式确认并安装工具。运行 \`/setup reverse <工具名>\` 查看具体工具说明。`
-			: `> Tip: Run \`${APP_NAME} setup reverse --execute\` in terminal to install with interactive confirmation. Run \`/setup reverse <tool>\` to view a specific tool.`,
+			? `> 提示：在终端中运行 \`${APP_NAME} setup reverse\` 可交互式选择并确认安装工具。运行 \`/setup reverse <工具名>\` 查看具体工具说明。`
+			: `> Tip: Run \`${APP_NAME} setup reverse\` in terminal to select and install tools with interactive confirmation. Run \`/setup reverse <tool>\` to view a specific tool.`,
 	);
 	return lines.join("\n");
 }
 
 export type ReverseInstallCallback = (
 	item: ReverseToolStatus | ReverseServiceStatus,
+	options?: { plan?: ReverseInstallPlan },
 ) => Promise<{ success: boolean; message?: string } | void>;
 
 function getInstallCallback(source: unknown): ReverseInstallCallback | undefined {
@@ -515,9 +521,10 @@ function getInstallCallback(source: unknown): ReverseInstallCallback | undefined
 		source &&
 		typeof source === "object" &&
 		"installReverseItem" in source &&
-		typeof source.installReverseItem === "function"
+		typeof (source as Record<string, unknown>).installReverseItem === "function"
 	) {
-		return source.installReverseItem as ReverseInstallCallback;
+		const fn = (source as Record<string, unknown>).installReverseItem as Function;
+		return fn.bind(source) as ReverseInstallCallback;
 	}
 	return undefined;
 }
@@ -571,20 +578,32 @@ export async function runInteractiveReverseSetup(
 	}
 
 	let report = checkReverseTools();
+	const selectedIds = new Set<string>();
 	let currentFilter: "all" | "missing" | "services" = "all";
 
 	if (targetTool) {
 		const norm = targetTool.toLowerCase();
-		const toolMatch = report.tools.find(t => t.id.toLowerCase() === norm || t.name.toLowerCase().includes(norm));
-		const serviceMatch = toolMatch
-			? undefined
-			: report.services.find(
+		// 1. Exact ID match first (prevents "ida" matching "frida")
+		let targetItem: ReverseToolStatus | ReverseServiceStatus | undefined =
+			report.tools.find(t => t.id.toLowerCase() === norm) ??
+			report.services.find(s => s.id.toLowerCase() === norm || s.serverName.toLowerCase() === norm);
+		// 2. Exact name match second
+		if (!targetItem) {
+			targetItem =
+				report.tools.find(t => t.name.toLowerCase() === norm) ??
+				report.services.find(s => s.name.toLowerCase() === norm);
+		}
+		// 3. Substring match last
+		if (!targetItem) {
+			targetItem =
+				report.tools.find(t => t.id.toLowerCase().includes(norm) || t.name.toLowerCase().includes(norm)) ??
+				report.services.find(
 					s =>
-						s.id.toLowerCase() === norm ||
-						s.serverName.toLowerCase() === norm ||
+						s.id.toLowerCase().includes(norm) ||
+						s.serverName.toLowerCase().includes(norm) ||
 						s.name.toLowerCase().includes(norm),
 				);
-		const targetItem = toolMatch ?? serviceMatch;
+		}
 		if (targetItem) {
 			await showItemDetails(
 				ctx,
@@ -605,9 +624,15 @@ export async function runInteractiveReverseSetup(
 
 	while (true) {
 		report = checkReverseTools();
+		const allItems: Array<ReverseToolStatus | ReverseServiceStatus> = [...report.tools, ...report.services];
 		const missingTools = report.tools.filter(t => t.status === "missing");
-		const missingServices = report.services.filter(s => !s.ready);
+		const missingServices = report.services.filter(s => !s.ready || !s.configured);
 		const totalMissing = missingTools.length + missingServices.length;
+
+		const missingSupportedItems = allItems.filter(item => {
+			const isMissing = item.kind === "cli" ? item.status === "missing" : !item.ready || !item.configured;
+			return isMissing && canInstallReverseItem(item);
+		});
 
 		const filterLabelAll =
 			currentFilter === "all"
@@ -651,16 +676,49 @@ export async function runInteractiveReverseSetup(
 			},
 		];
 
+		if (selectedIds.size > 0) {
+			items.push({
+				label: isZh ? `🚀 执行安装已选项目 (${selectedIds.size})` : `🚀 Install selected (${selectedIds.size})`,
+				description: isZh
+					? `一键安装或配置选中的 ${selectedIds.size} 个工具/服务（单次确认）`
+					: `Install or configure ${selectedIds.size} selected item(s) with single confirmation`,
+			});
+			items.push({
+				label: isZh ? "✕ 清空所选" : "✕ Clear selection",
+				description: isZh ? "取消所有已勾选的工具和服务" : "Deselect all selected items",
+			});
+		}
+
+		if (missingSupportedItems.length > 0) {
+			items.push({
+				label: isZh
+					? `⚡ 一键安装全部缺失 (${missingSupportedItems.length})`
+					: `⚡ Install all missing supported (${missingSupportedItems.length})`,
+				description: isZh
+					? `安装/配置所有支持自动化的缺失工具与服务 (${missingSupportedItems.length} 个)`
+					: `Install/configure all ${missingSupportedItems.length} missing supported item(s)`,
+			});
+		}
+
+		items.push({
+			label: isZh ? "📖 查看工具详情与指南..." : "📖 View item details & guides...",
+			description: isZh
+				? "查看具体工具的详细说明、安装指南与 MCP 配置片段"
+				: "Inspect detailed descriptions, guides, and MCP config snippets",
+		});
+
 		const visibleTools =
 			currentFilter === "services" ? [] : currentFilter === "missing" ? missingTools : report.tools;
-
 		const visibleServices = currentFilter === "missing" ? missingServices : report.services;
 
 		for (const tool of visibleTools) {
 			const isOk = tool.status === "installed";
 			const badge = isOk ? "✅" : "❌";
+			const installable = canInstallReverseItem(tool);
+			const isSelected = selectedIds.has(tool.id);
+			const checkmark = isSelected ? "[✓]" : installable ? "[ ]" : "[-]";
 			items.push({
-				label: `${badge} [CLI] ${tool.name} (${tool.id})`,
+				label: `${checkmark} ${badge} [CLI] ${tool.name} (${tool.id})`,
 				description: reverseSelectionDescription(
 					tool,
 					`[${tool.category}] ${
@@ -668,12 +726,16 @@ export async function runInteractiveReverseSetup(
 							? isZh
 								? `已安装 (${tool.foundPath ?? "已就绪"})`
 								: `Installed (${tool.foundPath ?? "ready"})`
-							: tool.installCommand
-								? `${isZh ? "安装" : "Install"}: ${tool.installCommand}`
+							: installable
+								? tool.installCommand
+									? `${isZh ? "支持自动安装" : "Install"}: ${tool.installCommand}`
+									: isZh
+										? "支持自动安装"
+										: "Supported auto-install"
 								: isZh
-									? "需手动下载安装"
-									: "Manual install required"
-					}`,
+									? "需手动下载安装（选择查看指南）"
+									: "Manual install required (select for guide)"
+					}${isSelected ? (isZh ? " • 已加入安装篮" : " • Selected for install") : ""}`,
 					isZh,
 				),
 			});
@@ -682,6 +744,9 @@ export async function runInteractiveReverseSetup(
 		if (currentFilter !== "all" || visibleServices.length > 0) {
 			for (const service of visibleServices) {
 				const badge = service.ready ? "✅" : "⚠️";
+				const installable = canInstallReverseItem(service);
+				const isSelected = selectedIds.has(service.id);
+				const checkmark = isSelected ? "[✓]" : installable ? "[ ]" : "[-]";
 				const configState = service.configured
 					? isZh
 						? `已配置(${service.configuredScopes.join(", ")})`
@@ -691,7 +756,7 @@ export async function runInteractiveReverseSetup(
 						: "not configured";
 				const connectionState = isZh ? "连接未验证" : "connection unverified";
 				items.push({
-					label: `${badge} [MCP] ${service.name} (${service.id})`,
+					label: `${checkmark} ${badge} [MCP] ${service.name} (${service.id})`,
 					description: reverseSelectionDescription(
 						service,
 						`[${service.category}] ${
@@ -706,7 +771,7 @@ export async function runInteractiveReverseSetup(
 									: isZh
 										? "前置依赖已就绪"
 										: "Prerequisites ready"
-						} • ${configState} • ${connectionState}`,
+						} • ${configState} • ${connectionState}${isSelected ? (isZh ? " • 已加入安装篮" : " • Selected for install") : ""}`,
 						isZh,
 					),
 				});
@@ -724,16 +789,91 @@ export async function runInteractiveReverseSetup(
 			break;
 		}
 
-		if (selected === filterLabelAll) {
+		if (
+			selected === filterLabelAll ||
+			selected.includes("Filter: All") ||
+			(selected.includes("全部") && selected.includes("筛选"))
+		) {
 			currentFilter = "all";
 			continue;
 		}
-		if (selected === filterLabelMissing) {
+		if (
+			selected === filterLabelMissing ||
+			selected.includes("Filter: Missing only") ||
+			(selected.includes("仅缺失") && selected.includes("筛选"))
+		) {
 			currentFilter = "missing";
 			continue;
 		}
-		if (selected === filterLabelServices) {
+		if (
+			selected === filterLabelServices ||
+			selected.includes("Filter: MCP services only") ||
+			(selected.includes("仅辅助服务") && selected.includes("筛选"))
+		) {
 			currentFilter = "services";
+			continue;
+		}
+
+		if (selected.includes("Clear selection") || selected.includes("清空所选")) {
+			selectedIds.clear();
+			ctx.showStatus?.(isZh ? "已清空所选项。" : "Cleared selection.");
+			continue;
+		}
+
+		if (selected.includes("Install selected") || selected.includes("安装已选项目")) {
+			const targets = allItems.filter(item => selectedIds.has(item.id) && canInstallReverseItem(item));
+			if (targets.length === 0) {
+				ctx.showWarning?.(isZh ? "未选择任何可安装的工具或服务。" : "No installable items selected.");
+				continue;
+			}
+			await runBatchInstall(
+				ctx,
+				targets,
+				selectedIds,
+				() => {
+					report = checkReverseTools();
+					return report;
+				},
+				installCallback,
+				isZh,
+			);
+			continue;
+		}
+
+		if (
+			selected.includes("Install all missing supported") ||
+			selected.includes("一键安装全部缺失") ||
+			selected.includes("安装全部缺失")
+		) {
+			if (missingSupportedItems.length === 0) {
+				ctx.showWarning?.(isZh ? "没有缺失的可安装工具或服务。" : "No missing installable items.");
+				continue;
+			}
+			await runBatchInstall(
+				ctx,
+				missingSupportedItems,
+				selectedIds,
+				() => {
+					report = checkReverseTools();
+					return report;
+				},
+				installCallback,
+				isZh,
+			);
+			continue;
+		}
+
+		if (selected.includes("View item details & guides") || selected.includes("查看工具详情与指南")) {
+			await showGuidePicker(
+				ctx,
+				allItems,
+				() => {
+					report = checkReverseTools();
+					return report;
+				},
+				installCallback,
+				isZh,
+			);
 			continue;
 		}
 
@@ -746,16 +886,301 @@ export async function runInteractiveReverseSetup(
 		const item = chosenTool ?? chosenService;
 		if (!item) continue;
 
-		await showItemDetails(
-			ctx,
-			item,
-			() => {
-				report = checkReverseTools();
-				return report;
-			},
-			installCallback,
-			isZh,
+		if (!canInstallReverseItem(item)) {
+			ctx.showStatus?.(isZh ? `${item.name} 仅支持手动安装。` : `${item.name} requires manual installation.`);
+			await showItemDetails(
+				ctx,
+				item,
+				() => {
+					report = checkReverseTools();
+					return report;
+				},
+				installCallback,
+				isZh,
+			);
+			continue;
+		}
+
+		if (selectedIds.has(chosenId)) {
+			selectedIds.delete(chosenId);
+			ctx.showStatus?.(isZh ? `已取消选择: ${item.name}` : `Deselected: ${item.name}`);
+		} else {
+			selectedIds.add(chosenId);
+			ctx.showStatus?.(isZh ? `已加入待安装列表: ${item.name}` : `Added to install basket: ${item.name}`);
+		}
+	}
+}
+
+function buildInstallConfirmationMessage(
+	targetPlans: Array<{ item: ReverseToolStatus | ReverseServiceStatus; plan: ReverseInstallPlan }>,
+	isZh: boolean,
+): { title: string; message: string } {
+	const count = targetPlans.length;
+	const title =
+		count === 1
+			? isZh
+				? `确认执行安装: ${targetPlans[0]!.item.name}`
+				: `Confirm Installation: ${targetPlans[0]!.item.name}`
+			: isZh
+				? `确认批量安装/配置 (${count} 项)`
+				: `Confirm Batch Installation (${count} items)`;
+
+	const lines: string[] = [
+		count === 1
+			? isZh
+				? `即将安装或配置以下工具/服务：`
+				: `Ready to install or configure:`
+			: isZh
+				? `即将安装或配置以下 ${count} 个逆向工程工具/服务：`
+				: `Ready to install or configure ${count} reverse engineering tool(s)/service(s):`,
+		"",
+	];
+
+	for (const { item, plan } of targetPlans) {
+		const typeTag = item.kind === "cli" ? "CLI" : "MCP";
+		lines.push(`• ${item.name} (${item.id}) [${typeTag}]`);
+
+		for (const step of plan.steps) {
+			if (step.isDependency) {
+				lines.push(`    - ${isZh ? "前置依赖" : "Prerequisite"}: ${step.name} (${step.command ?? "install"})`);
+			} else if (step.command) {
+				lines.push(`    - ${isZh ? "执行命令" : "Command"}: ${step.command}`);
+			}
+			if (step.riskNote) {
+				lines.push(`      ${isZh ? "风险与许可说明" : "Risk / License note"}: ${step.riskNote}`);
+			}
+		}
+
+		if (plan.missingDependencies.length > 0) {
+			lines.push(`    - ${isZh ? "前置依赖要求" : "Dependencies"}: ${plan.missingDependencies.join(", ")}`);
+		}
+
+		if (item.riskNote && !plan.steps.some(s => s.riskNote === item.riskNote)) {
+			lines.push(`    - ${isZh ? "风险提示" : "Risk / Notes"}: ${item.riskNote}`);
+		}
+		if (item.kind === "mcp") {
+			lines.push(
+				`    - ${isZh ? "目标配置路径" : "Config Scope"}: ${item.configPath} (${isZh ? "自动配置并热连接" : "auto-configured & hot connected"})`,
+			);
+		}
+	}
+
+	lines.push("");
+	lines.push(
+		count === 1
+			? isZh
+				? "是否现在开始执行安装？"
+				: "Do you want to run this installation command now?"
+			: isZh
+				? "是否现在确认并执行以上所有安装与配置？"
+				: "Do you want to confirm and execute all installations and configurations now?",
+	);
+
+	return { title, message: lines.join("\n") };
+}
+
+async function runBatchInstall(
+	ctx: InteractiveModeContext,
+	targets: Array<ReverseToolStatus | ReverseServiceStatus>,
+	selectedIds: Set<string>,
+	refreshReport: () => ReverseCheckReport,
+	installCallback: ReverseInstallCallback | undefined,
+	isZh: boolean,
+): Promise<void> {
+	if (targets.length === 0) {
+		ctx.showWarning?.(isZh ? "未选择任何可安装的工具或服务。" : "No installable items selected.");
+		return;
+	}
+
+	const callback =
+		installCallback ??
+		(typeof ctx.installReverseItem === "function" ? ctx.installReverseItem.bind(ctx) : getInstallCallback(ctx));
+
+	if (!callback) {
+		ctx.showWarning?.(
+			isZh
+				? "当前环境未配置安装执行器。无法执行自动安装。"
+				: "No installer executor available in current environment.",
 		);
+		return;
+	}
+
+	const validTargets: Array<{ item: ReverseToolStatus | ReverseServiceStatus; plan: ReverseInstallPlan }> = [];
+	for (const target of targets) {
+		let plan: ReverseInstallPlan;
+		try {
+			plan = getReverseInstallPlan(target);
+		} catch (err) {
+			ctx.showError?.(
+				isZh
+					? `无法生成 ${target.name} 的安全安装方案: ${err instanceof Error ? err.message : String(err)}`
+					: `Cannot resolve installation plan for ${target.name}: ${err instanceof Error ? err.message : String(err)}`,
+			);
+			continue;
+		}
+		if (!plan.canInstall) {
+			ctx.showError?.(
+				isZh
+					? `${target.name} 不支持自动安装: ${plan.reason ?? "缺少有效安装指令"}`
+					: `${target.name} cannot be installed automatically: ${plan.reason ?? "no valid recipe"}`,
+			);
+			continue;
+		}
+		validTargets.push({ item: target, plan });
+	}
+
+	if (validTargets.length === 0) {
+		ctx.showWarning?.(
+			isZh ? "没有可通过方案自动安装的有效项目。" : "No valid installable items with an actionable plan.",
+		);
+		return;
+	}
+
+	if (typeof ctx.showHookConfirm !== "function") {
+		ctx.showWarning?.(
+			isZh
+				? "当前环境缺少交互式确认界面，已拒绝执行安装。"
+				: "Interactive confirmation interface not available; installation refused.",
+		);
+		return;
+	}
+
+	const { title: confirmTitle, message: confirmMessage } = buildInstallConfirmationMessage(validTargets, isZh);
+	const confirmed = await ctx.showHookConfirm(confirmTitle, confirmMessage);
+	if (!confirmed) {
+		ctx.showStatus?.(isZh ? "已取消批量安装。" : "Batch installation cancelled.");
+		return;
+	}
+
+	let successCount = 0;
+	let failCount = 0;
+	const failureMessages: string[] = [];
+	const executedStepIds = new Set<string>();
+
+	for (const { item: target, plan } of validTargets) {
+		if (executedStepIds.has(target.id)) {
+			// Already installed and verified as a prerequisite dependency of an earlier item in this batch
+			successCount++;
+			selectedIds.delete(target.id);
+			ctx.showStatus?.(
+				isZh
+					? `✅ ${target.name} 已在前置依赖中安装并就绪。`
+					: `✅ ${target.name} was already installed and ready as a prerequisite dependency.`,
+			);
+			continue;
+		}
+
+		ctx.showStatus?.(
+			isZh ? `正在处理 ${target.name} (${target.id})...` : `Processing ${target.name} (${target.id})...`,
+		);
+		try {
+			const res = await callback(target, { plan });
+			if (res && typeof res === "object" && "success" in res) {
+				if (res.success) {
+					successCount++;
+					selectedIds.delete(target.id);
+					for (const step of plan.steps) {
+						executedStepIds.add(step.id);
+					}
+					executedStepIds.add(target.id);
+					ctx.showStatus?.(
+						res.message ?? (isZh ? `✅ ${target.name} 安装成功。` : `✅ Successfully installed ${target.name}.`),
+					);
+				} else {
+					failCount++;
+					const msg = res.message ?? (isZh ? "安装失败" : "Installation failed");
+					failureMessages.push(`${target.name}: ${msg}`);
+					ctx.showError?.(
+						isZh ? `❌ ${target.name} 安装失败: ${msg}` : `❌ ${target.name} installation failed: ${msg}`,
+					);
+				}
+			} else {
+				successCount++;
+				selectedIds.delete(target.id);
+				for (const step of plan.steps) {
+					executedStepIds.add(step.id);
+				}
+				executedStepIds.add(target.id);
+				ctx.showStatus?.(
+					isZh ? `✅ ${target.name} 安装命令已触发。` : `✅ Installation triggered for ${target.name}.`,
+				);
+			}
+		} catch (err) {
+			failCount++;
+			const msg = err instanceof Error ? err.message : String(err);
+			failureMessages.push(`${target.name}: ${msg}`);
+			ctx.showError?.(isZh ? `❌ ${target.name} 执行出错: ${msg}` : `❌ Error installing ${target.name}: ${msg}`);
+		}
+	}
+
+	refreshReport();
+
+	if (failCount > 0) {
+		ctx.showWarning?.(
+			isZh
+				? `批量安装完成：${successCount} 项成功，${failCount} 项失败。\n失败详情：\n${failureMessages.join("\n")}`
+				: `Batch installation complete: ${successCount} succeeded, ${failCount} failed.\nFailures:\n${failureMessages.join("\n")}`,
+		);
+	} else {
+		ctx.showStatus?.(
+			isZh
+				? `✅ 批量安装全部成功 (${successCount} 项)`
+				: `✅ Successfully completed batch installation (${successCount} item(s))`,
+		);
+	}
+}
+
+async function showGuidePicker(
+	ctx: InteractiveModeContext,
+	allItems: Array<ReverseToolStatus | ReverseServiceStatus>,
+	refreshReport: () => ReverseCheckReport,
+	installCallback: ReverseInstallCallback | undefined,
+	isZh: boolean,
+): Promise<void> {
+	const guideItems: Array<{ label: string; description?: string }> = allItems.map(item => {
+		const isOk = item.kind === "cli" ? item.status === "installed" : item.ready;
+		const badge = isOk ? "✅" : item.kind === "cli" ? "❌" : "⚠️";
+		const kindTag = item.kind === "cli" ? "[CLI]" : "[MCP]";
+		const statusText =
+			item.kind === "cli"
+				? isOk
+					? isZh
+						? "已安装"
+						: "Installed"
+					: isZh
+						? "未安装"
+						: "Missing"
+				: item.ready
+					? isZh
+						? "就绪"
+						: "Ready"
+					: isZh
+						? "未就绪"
+						: "Not ready";
+		return {
+			label: `${badge} ${kindTag} ${item.name} (${item.id})`,
+			description: reverseSelectionDescription(item, statusText, isZh),
+		};
+	});
+	guideItems.push({
+		label: isZh ? "← 返回列表" : "← Back to list",
+		description: isZh ? "返回逆向工具与服务列表" : "Return to tools and services list",
+	});
+
+	const choice = await ctx.showHookSelector(
+		isZh ? "查看工具详情与完整指南" : "Inspect Tool Details & Guide",
+		guideItems,
+		{ selectedDescriptionRows: 5 },
+	);
+	if (!choice || choice.includes("← Back") || choice.includes("← 返回")) {
+		return;
+	}
+
+	const match = /\(([^)]+)\)$/.exec(choice.trim());
+	const id = match ? match[1] : undefined;
+	const item = id ? allItems.find(i => i.id === id) : undefined;
+	if (item) {
+		await showItemDetails(ctx, item, refreshReport, installCallback, isZh);
 	}
 }
 
@@ -763,36 +1188,33 @@ async function showItemDetails(
 	ctx: InteractiveModeContext,
 	initialItem: ReverseToolStatus | ReverseServiceStatus,
 	refreshReport: () => ReverseCheckReport,
-	installCallback:
-		| ((item: ReverseToolStatus | ReverseServiceStatus) => Promise<{ success: boolean; message?: string } | void>)
-		| undefined,
+	installCallback: ReverseInstallCallback | undefined,
 	isZh: boolean,
 ): Promise<void> {
 	let currentItem = initialItem;
 
 	while (true) {
 		const isInstalled = currentItem.kind === "cli" ? currentItem.status === "installed" : currentItem.ready;
+		const canInstall = canInstallReverseItem(currentItem);
 		const options: Array<{ label: string; description?: string }> = [];
 
-		if (currentItem.kind === "cli") {
-			if (currentItem.installCommand) {
+		if (canInstall) {
+			if (currentItem.kind === "cli") {
 				options.push({
 					label: isInstalled
 						? isZh
-							? `重新安装: ${currentItem.installCommand}`
-							: `Reinstall: ${currentItem.installCommand}`
+							? `重新安装: ${currentItem.installCommand ?? currentItem.name}`
+							: `Reinstall: ${currentItem.installCommand ?? currentItem.name}`
 						: isZh
-							? `安装: ${currentItem.installCommand}`
-							: `Install: ${currentItem.installCommand}`,
+							? `安装: ${currentItem.installCommand ?? currentItem.name}`
+							: `Install: ${currentItem.installCommand ?? currentItem.name}`,
 					description: currentItem.packageManager
 						? `[${currentItem.packageManager}] ${currentItem.riskNote ?? ""}`
 						: (currentItem.riskNote ?? undefined),
 				});
-			}
-		} else {
-			const isManaged = currentItem.installer === "jshookmcp";
-			const isInstalled = currentItem.installed === true;
-			if (currentItem.installCommand || isManaged) {
+			} else {
+				const isManaged = currentItem.installer === "jshookmcp";
+				const isInstalled = currentItem.installed === true;
 				options.push({
 					label: isManaged
 						? isInstalled
@@ -802,9 +1224,13 @@ async function showItemDetails(
 							: isZh
 								? `安装受信任服务: ${currentItem.name}`
 								: `Install Trusted Service: ${currentItem.name}`
-						: isZh
-							? `安装服务包: ${currentItem.installCommand}`
-							: `Install Server Package: ${currentItem.installCommand}`,
+						: currentItem.installCommand
+							? isZh
+								? `安装服务包: ${currentItem.installCommand}`
+								: `Install Server Package: ${currentItem.installCommand}`
+							: isZh
+								? `配置并连接服务: ${currentItem.name}`
+								: `Configure & Connect Service: ${currentItem.name}`,
 					description: isManaged
 						? isZh
 							? `[内置管理] ${currentItem.riskNote}`
@@ -814,6 +1240,18 @@ async function showItemDetails(
 							: currentItem.riskNote,
 				});
 			}
+		} else {
+			options.push({
+				label: isZh ? `⚠️ [仅支持手动安装] ${currentItem.name}` : `⚠️ [Manual Install Only] ${currentItem.name}`,
+				description:
+					currentItem.manualInstructions ||
+					(isZh
+						? "此工具需手动下载和配置，无法自动安装"
+						: "This tool requires manual download and setup; automatic installation is not supported."),
+			});
+		}
+
+		if (currentItem.kind === "mcp") {
 			options.push({
 				label: isZh ? "查看 MCP 配置片段" : "Show MCP Config Snippet",
 				description: isZh
@@ -850,6 +1288,21 @@ async function showItemDetails(
 		const action = await ctx.showHookSelector(title, options);
 		if (!action || action.includes("← Back") || action.includes("← 返回")) {
 			break;
+		}
+
+		if (action.includes("Manual Install Only") || action.includes("仅支持手动安装")) {
+			const report = refreshReport();
+			const markdown = formatCompactReverseReport(report, currentItem.id, isZh);
+			ctx.showCommandReport({
+				title: `${currentItem.name} (${isZh ? "手动安装说明" : "Manual Installation"})`,
+				body: new Markdown(markdown.trim(), 0, 0, getMarkdownTheme()),
+			});
+			ctx.showWarning?.(
+				isZh
+					? `${currentItem.name} 仅支持手动安装。请参考下方指南中的手动步骤。`
+					: `${currentItem.name} requires manual installation. Please follow manual guide.`,
+			);
+			continue;
 		}
 
 		if (action.includes("View Full Guide") || action.includes("查看完整指南")) {
@@ -903,58 +1356,45 @@ async function showItemDetails(
 			action.includes("安装服务包") ||
 			action.includes("安装受信任服务") ||
 			action.includes("Install Trusted Service") ||
-			action.includes("Verify/Connect Service") ||
-			action.includes("检查/连接服务")
+			action.includes("配置并连接服务") ||
+			action.includes("Configure & Connect Service")
 		) {
-			const depsNote =
-				currentItem.kind === "cli"
-					? currentItem.secondaryMissing && currentItem.secondaryMissing.length > 0
-						? isZh
-							? `缺少依赖: ${currentItem.secondaryMissing.join(", ")}`
-							: `Missing prerequisite: ${currentItem.secondaryMissing.join(", ")}`
-						: isZh
-							? "前置依赖已满足"
-							: "Prerequisites satisfied"
-					: currentItem.missingPrerequisites.length > 0
-						? isZh
-							? `缺少依赖: ${currentItem.missingPrerequisites.join(", ")}`
-							: `Missing prerequisites: ${currentItem.missingPrerequisites.join(", ")}`
-						: isZh
-							? "前置依赖已满足"
-							: "Prerequisites satisfied";
-
-			const confirmTitle = isZh ? `确认执行安装: ${currentItem.name}` : `Confirm Installation: ${currentItem.name}`;
-
-			const isManaged = currentItem.kind === "mcp" && currentItem.installer === "jshookmcp";
-			const cmdDisplay =
-				currentItem.installCommand ??
-				(isManaged
-					? isZh
-						? "受管安装器 (npm @jshookmcp/jshook@0.4.2)"
-						: "Managed installer (npm @jshookmcp/jshook@0.4.2)"
-					: isZh
-						? "无"
-						: "none");
-			const pmDisplay = currentItem.packageManager ?? (isManaged ? "npm (managed)" : isZh ? "无" : "none");
-
-			const confirmLines = [
-				`${isZh ? "目标" : "Target"}: ${currentItem.name} (${currentItem.id})`,
-				`${isZh ? "执行命令" : "Command"}: ${cmdDisplay}`,
-				`${isZh ? "包管理器" : "Package Manager"}: ${pmDisplay}`,
-				`${isZh ? "依赖要求" : "Dependencies"}: ${depsNote}`,
-				`${isZh ? "风险提示" : "Risk / Notes"}: ${currentItem.riskNote ?? (isZh ? "无" : "none")}`,
-			];
-			if (currentItem.kind === "mcp") {
-				confirmLines.push(`${isZh ? "目标配置路径" : "Config Path"}: ${currentItem.configPath}`);
+			let plan: ReverseInstallPlan;
+			try {
+				plan = getReverseInstallPlan(currentItem);
+			} catch (err) {
+				ctx.showError?.(
+					isZh
+						? `无法生成 ${currentItem.name} 的安全安装方案: ${err instanceof Error ? err.message : String(err)}`
+						: `Cannot resolve installation plan for ${currentItem.name}: ${err instanceof Error ? err.message : String(err)}`,
+				);
+				continue;
 			}
-			confirmLines.push("");
-			confirmLines.push(isZh ? "是否现在开始执行安装？" : "Do you want to run this installation command now?");
 
-			const confirmed =
-				typeof ctx.showHookConfirm === "function"
-					? await ctx.showHookConfirm(confirmTitle, confirmLines.join("\n"))
-					: true;
+			if (!plan.canInstall) {
+				ctx.showError?.(
+					isZh
+						? `${currentItem.name} 不支持自动安装: ${plan.reason ?? "缺少有效安装指令"}`
+						: `${currentItem.name} cannot be installed automatically: ${plan.reason ?? "no valid recipe"}`,
+				);
+				continue;
+			}
 
+			if (typeof ctx.showHookConfirm !== "function") {
+				ctx.showWarning?.(
+					isZh
+						? "当前环境缺少交互式确认界面，已拒绝执行安装。"
+						: "Interactive confirmation interface not available; installation refused.",
+				);
+				continue;
+			}
+
+			const { title: confirmTitle, message: confirmMessage } = buildInstallConfirmationMessage(
+				[{ item: currentItem, plan }],
+				isZh,
+			);
+
+			const confirmed = await ctx.showHookConfirm(confirmTitle, confirmMessage);
 			if (!confirmed) {
 				ctx.showStatus?.(
 					isZh ? `已取消 ${currentItem.name} 的安装。` : `Installation cancelled for ${currentItem.name}.`,
@@ -966,7 +1406,7 @@ async function showItemDetails(
 				installCallback ??
 				(typeof ctx.installReverseItem === "function" ? ctx.installReverseItem.bind(ctx) : getInstallCallback(ctx));
 			if (callback) {
-				const res = await callback(currentItem);
+				const res = await callback(currentItem, { plan });
 				if (res && typeof res === "object" && "success" in res) {
 					if (res.success) {
 						ctx.showStatus?.(
@@ -997,8 +1437,8 @@ async function showItemDetails(
 			} else {
 				ctx.showWarning?.(
 					isZh
-						? `当前环境未配置安装执行器。请在终端中运行：\n${currentItem.installCommand}`
-						: `No installer executor available. Please run in terminal:\n${currentItem.installCommand}`,
+						? `当前环境未配置安装执行器。请在终端中运行：\n${currentItem.installCommand ?? currentItem.name}`
+						: `No installer executor available. Please run in terminal:\n${currentItem.installCommand ?? currentItem.name}`,
 				);
 			}
 		}

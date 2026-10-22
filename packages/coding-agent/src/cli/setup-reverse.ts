@@ -17,7 +17,6 @@
  * - Package manager agnostic: Detects brew/apt/choco/winget/pipx/npm/cargo
  *   and falls back to clear manual download instructions when none is available.
  */
-import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
@@ -42,8 +41,8 @@ import {
 	type SkillRequirementWhich,
 } from "../extensibility/skill-requirements";
 import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
-import { getJshookMcpServer, inspectJshookMcp, installJshookMcp } from "../extensibility/jshookmcp-install";
-
+import { getJshookMcpServer, inspectJshookMcp } from "../extensibility/jshookmcp-install";
+import { expandTilde } from "../tools/path-utils";
 export interface ReverseToolStatus {
 	kind: "cli";
 	id: string;
@@ -188,13 +187,60 @@ export function t(key: string, fallback: string, vars?: Record<string, string>):
 }
 
 /** Detect installed package managers on the host system. */
-export function detectPackageManagers(platform: SkillToolPlatform, which: SkillRequirementWhich): string[] {
+export function detectPackageManagers(
+	platform: SkillToolPlatform,
+	which: SkillRequirementWhich,
+	env: Record<string, string | undefined> = process.env,
+): string[] {
 	const candidates: Record<SkillToolPlatform, readonly string[]> = {
-		darwin: ["brew", "pipx", "pip", "python3", "npm", "cargo", "r2pm"],
-		linux: ["apt", "apt-get", "pacman", "dnf", "brew", "pipx", "pip", "python3", "npm", "cargo", "r2pm"],
-		win32: ["winget", "choco", "scoop", "pipx", "pip", "py", "npm", "cargo", "r2pm"],
+		darwin: ["brew", "pipx", "pip", "python3", "npm", "cargo", "r2pm", "sdkmanager"],
+		linux: [
+			"apt",
+			"apt-get",
+			"pacman",
+			"dnf",
+			"brew",
+			"pipx",
+			"pip",
+			"python3",
+			"npm",
+			"cargo",
+			"r2pm",
+			"sdkmanager",
+		],
+		win32: ["winget", "choco", "scoop", "pipx", "pip", "py", "npm", "cargo", "r2pm", "sdkmanager"],
 	};
 	const options: WhichOptions = { cache: WhichCachePolicy.Bypass, requireAbsolutePaths: true };
+	const separator = platform === "win32" ? ";" : path.delimiter;
+	const basePath = env.PATH ?? "";
+	const androidHome = env.ANDROID_HOME ?? env.ANDROID_SDK_ROOT;
+	const androidDirs = androidHome
+		? [path.join(androidHome, "cmdline-tools", "latest", "bin"), path.join(androidHome, "cmdline-tools", "bin")]
+		: [];
+	const extraDirs: string[] =
+		platform === "win32"
+			? [
+					path.win32.normalize(expandTilde("~/AppData/Local/Programs/Python/Python312/Scripts")),
+					path.win32.normalize(expandTilde("~/AppData/Roaming/npm")),
+					path.win32.normalize(expandTilde("~/AppData/Local/Android/Sdk/cmdline-tools/latest/bin")),
+					path.win32.normalize(expandTilde("~/AppData/Local/Android/Sdk/cmdline-tools/bin")),
+					...androidDirs,
+				]
+			: [
+					"/opt/homebrew/bin",
+					"/usr/local/bin",
+					expandTilde("~/.local/bin"),
+					"/snap/bin",
+					expandTilde("~/Library/Android/sdk/cmdline-tools/latest/bin"),
+					expandTilde("~/Library/Android/sdk/cmdline-tools/bin"),
+					expandTilde("~/Android/Sdk/cmdline-tools/latest/bin"),
+					expandTilde("~/Android/Sdk/cmdline-tools/bin"),
+					...androidDirs,
+				];
+	const searchPath = [basePath, ...extraDirs].filter(Boolean).join(separator);
+	if (searchPath) {
+		options.PATH = searchPath;
+	}
 	const found: string[] = [];
 	for (const candidate of candidates[platform] ?? []) {
 		if (which(candidate, options) !== null) {
@@ -234,8 +280,7 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 	const platform: SkillToolPlatform =
 		requestedPlatform === "darwin" || requestedPlatform === "win32" ? requestedPlatform : "linux";
 	const which: SkillRequirementWhich = deps.which ?? $which;
-	const detectedPackageManagers = detectPackageManagers(platform, which);
-
+	const detectedPackageManagers = detectPackageManagers(platform, which, deps.env);
 	const descriptors = Object.values(SKILL_TOOL_CATALOG);
 	const toolRequirements = descriptors.map(desc => ({ id: desc.id, optional: desc.optional ?? true }));
 	const statuses = checkToolRequirements(toolRequirements, {
@@ -484,6 +529,7 @@ export async function executeSafeCatalogCommand(
 		onChunk?: (chunk: string) => void;
 		allowNonTTY?: boolean;
 		isTTY?: boolean;
+		env?: Record<string, string | undefined>;
 	},
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	if (!isTrustedCatalogArgv(item)) {
@@ -506,11 +552,58 @@ export async function executeSafeCatalogCommand(
 	const argv = item.installArgv!;
 	const timeout = options?.timeoutMs ?? 180_000;
 
+	const whichOptions: WhichOptions = { cache: WhichCachePolicy.Bypass, requireAbsolutePaths: true };
+	const platform: SkillToolPlatform =
+		process.platform === "darwin" || process.platform === "win32" ? process.platform : "linux";
+	const separator = platform === "win32" ? ";" : path.delimiter;
+	const effectiveEnv = options?.env ?? process.env;
+	const basePath = effectiveEnv.PATH ?? "";
+	const androidHome = effectiveEnv.ANDROID_HOME ?? effectiveEnv.ANDROID_SDK_ROOT;
+	const androidDirs = androidHome
+		? [path.join(androidHome, "cmdline-tools", "latest", "bin"), path.join(androidHome, "cmdline-tools", "bin")]
+		: [];
+	const extraDirs: string[] =
+		platform === "win32"
+			? [
+					path.win32.normalize(expandTilde("~/AppData/Local/Programs/Python/Python312/Scripts")),
+					path.win32.normalize(expandTilde("~/AppData/Roaming/npm")),
+					path.win32.normalize(expandTilde("~/AppData/Local/Android/Sdk/cmdline-tools/latest/bin")),
+					path.win32.normalize(expandTilde("~/AppData/Local/Android/Sdk/cmdline-tools/bin")),
+					...androidDirs,
+				]
+			: [
+					"/opt/homebrew/bin",
+					"/usr/local/bin",
+					expandTilde("~/.local/bin"),
+					"/snap/bin",
+					expandTilde("~/Library/Android/sdk/cmdline-tools/latest/bin"),
+					expandTilde("~/Library/Android/sdk/cmdline-tools/bin"),
+					expandTilde("~/Android/Sdk/cmdline-tools/latest/bin"),
+					expandTilde("~/Android/Sdk/cmdline-tools/bin"),
+					...androidDirs,
+				];
+	const allDirs = [basePath, ...extraDirs].join(separator).split(separator).filter(Boolean);
+	const safePathDirs = allDirs.filter(d => path.isAbsolute(d));
+	const safeSearchPath = safePathDirs.join(separator);
+	whichOptions.PATH = safeSearchPath;
+
+	const resolvedBinary = path.isAbsolute(argv[0]) ? argv[0] : $which(argv[0], whichOptions);
+	if (!resolvedBinary) {
+		return {
+			exitCode: 1,
+			stdout: "",
+			stderr: `Cannot safely resolve trusted binary "${argv[0]}" to an absolute path in catalog search paths.`,
+		};
+	}
+	const effectiveArgv = [resolvedBinary, ...argv.slice(1)];
+	const spawnEnv = { ...effectiveEnv, PATH: safeSearchPath };
+
 	if (typeof Bun !== "undefined" && typeof Bun.spawn === "function") {
-		const proc = Bun.spawn(argv as string[], {
+		const proc = Bun.spawn(effectiveArgv as string[], {
 			stdin: "ignore",
 			stdout: "pipe",
 			stderr: "pipe",
+			env: spawnEnv,
 		});
 		let stdout = "";
 		let stderr = "";
@@ -562,7 +655,7 @@ export async function executeSafeCatalogCommand(
 	let stderr = "";
 	let settled = false;
 
-	const child = spawn(argv[0], argv.slice(1), { stdio: ["ignore", "pipe", "pipe"] });
+	const child = spawn(effectiveArgv[0], effectiveArgv.slice(1), { stdio: ["ignore", "pipe", "pipe"], env: spawnEnv });
 	const timer = setTimeout(() => {
 		if (!settled) {
 			settled = true;
@@ -598,66 +691,6 @@ export async function executeSafeCatalogCommand(
 
 	return promise;
 }
-
-async function runDefaultExecutor(
-	argv: readonly string[],
-	options?: { onChunk?: (chunk: string) => void },
-): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	if (argv.length === 0) {
-		return { exitCode: 1, stdout: "", stderr: "Empty command arguments." };
-	}
-
-	if (typeof Bun !== "undefined" && typeof Bun.spawn === "function") {
-		const proc = Bun.spawn(argv as string[], {
-			stdin: "inherit",
-			stdout: "pipe",
-			stderr: "pipe",
-		});
-		let stdout = "";
-		let stderr = "";
-		const readStream = async (stream: ReadableStream<Uint8Array>, isErr: boolean) => {
-			const reader = stream.getReader();
-			const decoder = new TextDecoder();
-			try {
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					const text = decoder.decode(value, { stream: true });
-					if (isErr) stderr += text;
-					else stdout += text;
-					options?.onChunk?.(text);
-				}
-			} finally {
-				reader.releaseLock();
-			}
-		};
-		await Promise.all([
-			readStream(proc.stdout as ReadableStream<Uint8Array>, false),
-			readStream(proc.stderr as ReadableStream<Uint8Array>, true),
-		]);
-		const exitCode = await proc.exited;
-		return { exitCode, stdout, stderr };
-	}
-
-	const { promise, resolve } = Promise.withResolvers<{ exitCode: number; stdout: string; stderr: string }>();
-	const child = spawn(argv[0], argv.slice(1), { stdio: ["inherit", "pipe", "pipe"] });
-	let stdout = "";
-	let stderr = "";
-	child.stdout?.on("data", chunk => {
-		const text = String(chunk);
-		stdout += text;
-		options?.onChunk?.(text);
-	});
-	child.stderr?.on("data", chunk => {
-		const text = String(chunk);
-		stderr += text;
-		options?.onChunk?.(text);
-	});
-	child.on("close", code => resolve({ exitCode: code ?? 1, stdout, stderr }));
-	child.on("error", err => resolve({ exitCode: 1, stdout, stderr: err.message }));
-	return promise;
-}
-
 function runDefaultPrompt(question: string): Promise<string> {
 	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 	const { promise, resolve } = Promise.withResolvers<string>();
@@ -832,8 +865,6 @@ export async function handleReverseSetup(
 	const writeErr = deps.writeStderr ?? (text => process.stderr.write(text));
 	const promptLine = deps.promptLine ?? runDefaultPrompt;
 	const confirm = deps.confirm ?? runDefaultConfirm;
-	const executor = deps.executor ?? runDefaultExecutor;
-
 	let report = checkReverseTools(deps);
 
 	if (flags.json) {
@@ -921,13 +952,12 @@ export async function handleReverseSetup(
 	}
 
 	// Interactive terminal panel
-	const executeMode = flags.execute ?? false;
 	const isTTY = deps.isTTY ?? Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
-	if (executeMode && !isTTY) {
+	if (!isTTY) {
 		const ttyError = t(
 			"cli.setup.reverse.executeRequiresTTY",
-			`${APP_NAME} setup reverse --execute requires an interactive TTY. Use --check or --json for non-interactive inspections.`,
+			`${APP_NAME} setup reverse requires an interactive TTY. Use --check or --json for non-interactive inspections.`,
 			{ app: APP_NAME },
 		);
 		writeErr(`${chalk.red(theme?.status?.error ?? "✗")} ${ttyError}\n`);
@@ -935,11 +965,9 @@ export async function handleReverseSetup(
 	}
 
 	write(`\n${chalk.bold.cyan("================================================================================")}\n`);
+	write(`  ${chalk.bold(t("cli.setup.reverse.title", `${APP_NAME} Reverse Engineering Toolchain Setup Panel`))}\n`);
 	write(
-		`  ${chalk.bold(t("cli.setup.reverse.title", `${APP_NAME} Reverse Engineering Toolchain Manual Setup Panel`))}\n`,
-	);
-	write(
-		`  ${chalk.dim(t("cli.setup.reverse.description", "Inspect tool status, manual installation guides, and copy-pastable commands"))}\n`,
+		`  ${chalk.dim(t("cli.setup.reverse.description", "Inspect tool status, select and install tools & MCP services with interactive confirmation"))}\n`,
 	);
 	write(`${chalk.bold.cyan("================================================================================")}\n`);
 
@@ -961,64 +989,171 @@ export async function handleReverseSetup(
 	const selectedTools: ReverseToolStatus[] = [];
 	const selectedServices: ReverseServiceStatus[] = [];
 
-	if (targetTool) {
-		const normalizedTarget = targetTool.trim().toLowerCase();
-		const match = report.tools.find(
-			tool => tool.id.toLowerCase() === normalizedTarget || tool.name.toLowerCase().includes(normalizedTarget),
-		);
-		const serviceMatch = match
-			? undefined
-			: report.services.find(
-					service =>
-						service.id.toLowerCase() === normalizedTarget ||
-						service.serverName.toLowerCase() === normalizedTarget ||
-						service.name.toLowerCase().includes(normalizedTarget),
-				);
-		const capMatch =
-			match || serviceMatch
-				? undefined
-				: report.capabilities?.find(
-						cap => cap.id.toLowerCase() === normalizedTarget || cap.name.toLowerCase().includes(normalizedTarget),
-					);
-		if (match) {
-			selectedTools.push(match);
-		} else if (serviceMatch) {
-			selectedServices.push(serviceMatch);
-		} else if (capMatch) {
-			write(`\n${chalk.cyan("--------------------------------------------------------------------------------")}\n`);
-			write(`${chalk.bold(`Capability: ${capMatch.name} (${capMatch.id})`)}\n`);
-			write(`${chalk.dim(`Category: ${capMatch.category}`)} | ${chalk.dim(`Status: ${capMatch.status}`)}\n`);
-			write(`${chalk.dim(`Scenario: ${capMatch.scenario}`)}\n`);
-			write(`\n${chalk.bold("Why:")} ${capMatch.why}\n`);
-			if (capMatch.recommendedNativeTool) {
-				write(`\n${chalk.bold("Recommended native tool:")} ${chalk.green(capMatch.recommendedNativeTool)}\n`);
-			}
-			if (capMatch.prerequisites && capMatch.prerequisites.length > 0) {
-				write(`\n${chalk.bold("Prerequisites:")} ${capMatch.prerequisites.join(", ")}\n`);
-			}
-			if (capMatch.fallbacks.length > 0) {
-				write(
-					`\n${chalk.bold("Fallbacks:")} ${capMatch.fallbacks.join(", ")} ${
-						capMatch.availableFallbacks.length > 0
-							? chalk.dim(`(available: ${capMatch.availableFallbacks.join(", ")})`)
-							: ""
-					}\n`,
-				);
-			}
-			write(`\n${chalk.bold("Setup command:")} ${chalk.green(capMatch.setupCommand)}\n`);
-			write(`\n${chalk.bold("Post-install invocation:")} ${chalk.cyan(capMatch.postInstallInvocation)}\n`);
-			write(`${chalk.cyan("--------------------------------------------------------------------------------")}\n`);
+	const addTool = (tool: ReverseToolStatus) => {
+		if (!selectedTools.some(t => t.id === tool.id)) {
+			selectedTools.push(tool);
+		}
+	};
 
-			for (const extTool of capMatch.optionalExternalTools) {
+	const addService = (service: ReverseServiceStatus) => {
+		if (!selectedServices.some(s => s.id === service.id)) {
+			selectedServices.push(service);
+		}
+	};
+
+	const findTarget = (
+		targetStr: string,
+	): {
+		tool?: ReverseToolStatus;
+		service?: ReverseServiceStatus;
+		cap?: ReverseCapabilityStatus;
+	} => {
+		const target = targetStr.trim().toLowerCase();
+		// 1. Exact ID match (highest priority, avoids "ida" matching "frida")
+		const exactTool = report.tools.find(t => t.id.toLowerCase() === target);
+		if (exactTool) return { tool: exactTool };
+
+		const exactService = report.services.find(
+			s => s.id.toLowerCase() === target || s.serverName.toLowerCase() === target,
+		);
+		if (exactService) return { service: exactService };
+
+		const exactCap = report.capabilities?.find(c => c.id.toLowerCase() === target);
+		if (exactCap) return { cap: exactCap };
+
+		// 2. Exact Name match
+		const nameTool = report.tools.find(t => t.name.toLowerCase() === target);
+		if (nameTool) return { tool: nameTool };
+
+		const nameService = report.services.find(s => s.name.toLowerCase() === target);
+		if (nameService) return { service: nameService };
+
+		const nameCap = report.capabilities?.find(c => c.name.toLowerCase() === target);
+		if (nameCap) return { cap: nameCap };
+
+		// 3. Substring/fuzzy Name match
+		const fuzzyTool = report.tools.find(t => t.name.toLowerCase().includes(target));
+		if (fuzzyTool) return { tool: fuzzyTool };
+
+		const fuzzyService = report.services.find(s => s.name.toLowerCase().includes(target));
+		if (fuzzyService) return { service: fuzzyService };
+
+		const fuzzyCap = report.capabilities?.find(c => c.name.toLowerCase().includes(target));
+		if (fuzzyCap) return { cap: fuzzyCap };
+
+		return {};
+	};
+
+	const resolveTargetToken = (token: string) => {
+		const trimmed = token.trim();
+		if (!trimmed) return;
+		if (trimmed.toLowerCase() === "all-missing") {
+			for (const t of report.tools) {
+				if (t.status === "missing") addTool(t);
+			}
+			for (const s of report.services) {
+				if (!s.ready || !s.configured) addService(s);
+			}
+			return;
+		}
+		const serviceNumber = /^s(\d+)$/i.exec(trimmed);
+		const num = serviceNumber ? Number.NaN : Number.parseInt(trimmed, 10);
+		if (!Number.isNaN(num) && num >= 1 && num <= report.tools.length) {
+			addTool(report.tools[num - 1]);
+			return;
+		}
+		if (serviceNumber) {
+			const index = Number.parseInt(serviceNumber[1], 10);
+			if (index >= 1 && index <= report.services.length) {
+				addService(report.services[index - 1]);
+			} else {
+				write(chalk.yellow(`Warning: Unrecognized MCP service selection "${trimmed}". Skipped.\n`));
+			}
+			return;
+		}
+
+		const { tool, service, cap } = findTarget(trimmed);
+		if (tool) {
+			addTool(tool);
+		} else if (service) {
+			addService(service);
+		} else if (cap) {
+			for (const extTool of cap.optionalExternalTools) {
 				const toolObj = report.tools.find(t => t.id.toLowerCase() === extTool.id.toLowerCase());
 				const servObj = report.services.find(s => s.id.toLowerCase() === extTool.id.toLowerCase());
-				if (toolObj && !selectedTools.includes(toolObj)) selectedTools.push(toolObj);
-				else if (servObj && !selectedServices.includes(servObj)) selectedServices.push(servObj);
+				if (toolObj) addTool(toolObj);
+				else if (servObj) addService(servObj);
 			}
 		} else {
-			const errIcon = theme?.status?.error ?? "✗";
-			writeErr(`${chalk.red(errIcon)} Unknown tool or MCP service: ${targetTool}\n`);
-			return 1;
+			write(chalk.yellow(`Warning: Unrecognized tool/service selection "${trimmed}". Skipped.\n`));
+		}
+	};
+
+	if (targetTool) {
+		const rawTokens = targetTool
+			.split(/[\s,]+/)
+			.map(t => t.trim())
+			.filter(Boolean);
+		if (rawTokens.length > 1) {
+			for (const token of rawTokens) {
+				resolveTargetToken(token);
+			}
+		} else {
+			const normalizedTarget = targetTool.trim().toLowerCase();
+			if (normalizedTarget === "all-missing") {
+				for (const t of report.tools) {
+					if (t.status === "missing") addTool(t);
+				}
+				for (const s of report.services) {
+					if (!s.ready || !s.configured) addService(s);
+				}
+			} else {
+				const { tool: match, service: serviceMatch, cap: capMatch } = findTarget(normalizedTarget);
+				if (match) {
+					addTool(match);
+				} else if (serviceMatch) {
+					addService(serviceMatch);
+				} else if (capMatch) {
+					write(
+						`\n${chalk.cyan("--------------------------------------------------------------------------------")}\n`,
+					);
+					write(`${chalk.bold(`Capability: ${capMatch.name} (${capMatch.id})`)}\n`);
+					write(`${chalk.dim(`Category: ${capMatch.category}`)} | ${chalk.dim(`Status: ${capMatch.status}`)}\n`);
+					write(`${chalk.dim(`Scenario: ${capMatch.scenario}`)}\n`);
+					write(`\n${chalk.bold("Why:")} ${capMatch.why}\n`);
+					if (capMatch.recommendedNativeTool) {
+						write(`\n${chalk.bold("Recommended native tool:")} ${chalk.green(capMatch.recommendedNativeTool)}\n`);
+					}
+					if (capMatch.prerequisites && capMatch.prerequisites.length > 0) {
+						write(`\n${chalk.bold("Prerequisites:")} ${capMatch.prerequisites.join(", ")}\n`);
+					}
+					if (capMatch.fallbacks.length > 0) {
+						write(
+							`\n${chalk.bold("Fallbacks:")} ${capMatch.fallbacks.join(", ")} ${
+								capMatch.availableFallbacks.length > 0
+									? chalk.dim(`(available: ${capMatch.availableFallbacks.join(", ")})`)
+									: ""
+							}\n`,
+						);
+					}
+					write(`\n${chalk.bold("Setup command:")} ${chalk.green(capMatch.setupCommand)}\n`);
+					write(`\n${chalk.bold("Post-install invocation:")} ${chalk.cyan(capMatch.postInstallInvocation)}\n`);
+					write(
+						`${chalk.cyan("--------------------------------------------------------------------------------")}\n`,
+					);
+
+					for (const extTool of capMatch.optionalExternalTools) {
+						const toolObj = report.tools.find(t => t.id.toLowerCase() === extTool.id.toLowerCase());
+						const servObj = report.services.find(s => s.id.toLowerCase() === extTool.id.toLowerCase());
+						if (toolObj) addTool(toolObj);
+						else if (servObj) addService(servObj);
+					}
+				} else {
+					const errIcon = theme?.status?.error ?? "✗";
+					writeErr(`${chalk.red(errIcon)} Unknown tool or MCP service: ${targetTool}\n`);
+					return 1;
+				}
+			}
 		}
 	} else {
 		const promptText = t(
@@ -1033,61 +1168,27 @@ export async function handleReverseSetup(
 		}
 
 		if (selection.toLowerCase() === "all-missing") {
-			selectedTools.push(...report.tools.filter(t => t.status === "missing"));
-			selectedServices.push(
-				...report.services.filter(service => !service.ready && (service.installArgv || service.installer)),
-			);
+			for (const t of report.tools) {
+				if (t.status === "missing") addTool(t);
+			}
+			for (const s of report.services) {
+				if (!s.ready || !s.configured) addService(s);
+			}
 		} else {
 			const tokens = selection.split(/[\s,]+/);
 			for (const token of tokens) {
-				const trimmed = token.trim();
-				if (!trimmed) continue;
-				const serviceNumber = /^s(\d+)$/i.exec(trimmed);
-				const num = serviceNumber ? Number.NaN : Number.parseInt(trimmed, 10);
-				if (!Number.isNaN(num) && num >= 1 && num <= report.tools.length) {
-					selectedTools.push(report.tools[num - 1]);
-				} else if (serviceNumber) {
-					const index = Number.parseInt(serviceNumber[1], 10);
-					if (index >= 1 && index <= report.services.length) selectedServices.push(report.services[index - 1]);
-					else write(chalk.yellow(`Warning: Unrecognized MCP service selection "${trimmed}". Skipped.\n`));
-				} else {
-					const match = report.tools.find(t => t.id.toLowerCase() === trimmed.toLowerCase());
-					const serviceMatch = match
-						? undefined
-						: report.services.find(
-								service =>
-									service.id.toLowerCase() === trimmed.toLowerCase() ||
-									service.serverName.toLowerCase() === trimmed.toLowerCase(),
-							);
-					const capMatch =
-						match || serviceMatch
-							? undefined
-							: report.capabilities?.find(cap => cap.id.toLowerCase() === trimmed.toLowerCase());
-					if (match) selectedTools.push(match);
-					else if (serviceMatch) selectedServices.push(serviceMatch);
-					else if (capMatch) {
-						for (const extTool of capMatch.optionalExternalTools) {
-							const toolObj = report.tools.find(t => t.id.toLowerCase() === extTool.id.toLowerCase());
-							const servObj = report.services.find(s => s.id.toLowerCase() === extTool.id.toLowerCase());
-							if (toolObj && !selectedTools.includes(toolObj)) selectedTools.push(toolObj);
-							else if (servObj && !selectedServices.includes(servObj)) selectedServices.push(servObj);
-						}
-					} else {
-						write(chalk.yellow(`Warning: Unrecognized tool/service selection "${trimmed}". Skipped.\n`));
-					}
-				}
+				resolveTargetToken(token);
 			}
 		}
 	}
 
 	if (selectedTools.length === 0 && selectedServices.length === 0) {
-		write(chalk.dim("No valid tools or services selected.\n"));
+		write(chalk.dim(t("cli.setup.reverse.noSelected", "No valid tools or services selected.\n")));
 		return 0;
 	}
 
-	let hasFailures = false;
-
-	for (const tool of selectedTools) {
+	if (targetTool && selectedTools.length === 1 && selectedServices.length === 0) {
+		const tool = selectedTools[0];
 		write(`\n${chalk.cyan("--------------------------------------------------------------------------------")}\n`);
 		write(
 			`${chalk.bold(t("cli.setup.reverse.detailTool", `Tool: ${tool.name} (${tool.id})`, { name: tool.name, id: tool.id }))}\n`,
@@ -1110,25 +1211,17 @@ export async function handleReverseSetup(
 		if (tool.usage?.canonical) {
 			write(`\n${chalk.bold("Canonical invocation:")}\n  ${chalk.cyan(tool.usage.canonical)}\n`);
 		}
-
 		if (tool.secondaryMissing && tool.secondaryMissing.length > 0) {
 			write(
 				`${chalk.yellow(`Prerequisite missing: ${tool.secondaryMissing.join(", ")} (requires Java runtime)`)}\n`,
 			);
 		}
-
 		if (tool.installCommand) {
 			write(`\n${chalk.bold("Recommended installation command:")}\n`);
 			write(`  ${chalk.green(tool.installCommand)}\n`);
 			if (tool.riskNote) {
 				write(`  ${chalk.dim(`Notes: ${tool.riskNote}`)}\n`);
 			}
-		} else {
-			write(
-				chalk.yellow(
-					`\n${t("cli.setup.reverse.noManagerFound", "No compatible package manager (e.g. brew/apt/choco) detected for automated install.")}\n`,
-				),
-			);
 		}
 		write(`\n${chalk.bold("Manual setup:")}\n`);
 		if (tool.manualUrl) {
@@ -1137,127 +1230,8 @@ export async function handleReverseSetup(
 		write(
 			`  ${t("cli.setup.reverse.manualGuide", `Guide: ${tool.manualInstructions}`, { guide: tool.manualInstructions })}\n`,
 		);
-
-		if (!executeMode) {
-			continue;
-		}
-
-		if (tool.status === "installed") {
-			const alreadyPrompt = t(
-				"cli.setup.reverse.alreadyInstalled",
-				`Tool ${tool.name} is already installed at ${tool.foundPath}. Reinstall? [y/N]: `,
-				{ name: tool.name, path: tool.foundPath ?? "PATH" },
-			);
-			const shouldReinstall = await confirm(alreadyPrompt);
-			if (!shouldReinstall) {
-				write(chalk.dim(t("cli.setup.reverse.cancelled", `Skipped ${tool.name}.`, { name: tool.name })) + "\n");
-				continue;
-			}
-		}
-
-		if (!tool.installArgv || tool.installArgv.length === 0) {
-			write(
-				chalk.yellow(
-					`\n${t("cli.setup.reverse.noManagerFound", "No compatible package manager (e.g. brew/apt/choco) detected for automated install.")}\n`,
-				),
-			);
-			continue;
-		}
-		if (!isTrustedCatalogArgv(tool)) {
-			writeErr(
-				chalk.red(`\nUntrusted installation command for ${tool.name}: argv does not match catalog definition.\n`),
-			);
-			continue;
-		}
-
-		write(
-			`${t("cli.setup.reverse.detailManager", `Package manager: ${tool.packageManager}`, { manager: tool.packageManager ?? "unknown" })}\n`,
-		);
-		write(
-			`${chalk.bold(t("cli.setup.reverse.detailCommand", `Command: ${tool.installCommand}`, { command: tool.installCommand ?? "" }))}\n`,
-		);
-		if (tool.riskNote) {
-			write(
-				`${chalk.yellow(t("cli.setup.reverse.detailRisk", `Risk / Note: ${tool.riskNote}`, { risk: tool.riskNote }))}\n`,
-			);
-		}
-
-		const proceedPrompt = t(
-			"cli.setup.reverse.confirmPrompt",
-			`Do you want to run this installation command now? [y/N]: `,
-		);
-		const proceed = await confirm(proceedPrompt);
-
-		if (!proceed) {
-			write(
-				chalk.dim(
-					t("cli.setup.reverse.cancelled", `Installation cancelled for ${tool.name}.`, {
-						name: tool.name,
-					}),
-				) + "\n",
-			);
-			continue;
-		}
-
-		write(
-			chalk.cyan(
-				`\n${t("cli.setup.reverse.executing", `Executing: ${tool.installCommand}...`, { command: tool.installCommand ?? "" })}\n`,
-			),
-		);
-
-		const result = await executor(tool.installArgv, {
-			onChunk: chunk => write(chalk.dim(chunk)),
-		});
-
-		if (result.exitCode === 0) {
-			const successIcon = theme?.status?.success ?? "✓";
-			write(
-				chalk.green(
-					`\n${successIcon} ${t("cli.setup.reverse.execSuccess", "Installation command finished successfully.")}\n`,
-				),
-			);
-			const refreshedStatuses = checkToolRequirements([{ id: tool.id }], {
-				platform: deps.platform,
-				which: deps.which,
-				env: deps.env,
-			});
-			const refreshed = refreshedStatuses[0];
-			if (refreshed?.foundPath) {
-				write(
-					chalk.green(
-						`${successIcon} ${t("cli.setup.reverse.verifiedFound", `Verified: ${tool.name} is now available at ${refreshed.foundPath}!`, { name: tool.name, path: refreshed.foundPath })}\n`,
-					),
-				);
-				if (tool.usage?.canonical) {
-					write(chalk.dim(`Next invocation: ${tool.usage.canonical}\n`));
-				}
-			} else {
-				write(
-					chalk.yellow(
-						`${t("cli.setup.reverse.verifiedNotFound", `Note: Command completed, but ${tool.id} was not yet discovered on PATH. You may need to reopen your terminal or reload environment variables.`, { name: tool.name })}\n`,
-					),
-				);
-			}
-		} else {
-			hasFailures = true;
-			const errIcon = theme?.status?.error ?? "✗";
-			writeErr(
-				chalk.red(
-					`\n${errIcon} ${t("cli.setup.reverse.execFailed", `Installation command failed with exit code ${result.exitCode}.`, { code: String(result.exitCode) })}\n`,
-				),
-			);
-			if (result.stderr) {
-				writeErr(`${chalk.dim(result.stderr)}\n`);
-			}
-			if (tool.manualUrl) {
-				write(
-					`  ${t("cli.setup.reverse.manualUrl", `Official URL: ${tool.manualUrl}`, { url: tool.manualUrl })}\n`,
-				);
-			}
-		}
-	}
-
-	for (const service of selectedServices) {
+	} else if (targetTool && selectedServices.length === 1 && selectedTools.length === 0) {
+		const service = selectedServices[0];
 		write(`\n${chalk.cyan("--------------------------------------------------------------------------------")}\n`);
 		write(`${chalk.bold(`MCP service: ${service.name} (${service.id})`)}\n`);
 		write(
@@ -1271,201 +1245,202 @@ export async function handleReverseSetup(
 		if (service.usage?.whenToUse) {
 			write(`\n${chalk.bold("When to use:")}\n  ${chalk.dim(service.usage.whenToUse)}\n`);
 		}
-		if (service.usage?.fallback) {
-			write(`\n${chalk.bold("Fallback:")}\n  ${chalk.dim(service.usage.fallback)}\n`);
-		}
-		write(
-			`${chalk.dim(`Prerequisites: ${service.ready ? "ready" : "missing"}`)}${
-				service.missingPrerequisites.length > 0 ? ` (${service.missingPrerequisites.join(", ")})` : ""
-			} | ${chalk.dim(`Configured: ${service.configured ? service.configuredScopes.join(", ") + (service.enabled === false ? " (disabled)" : "") : "no"}`)} | ${chalk.dim("Connection: unverified")}\n`,
-		);
-		write(`\n${chalk.bold("Prerequisites:")}\n`);
-		for (const prerequisite of service.prerequisites) {
-			const found = prerequisite.foundPath !== null && (prerequisite.secondaryMissing?.length ?? 0) === 0;
-			write(
-				`  ${found ? chalk.green("[ok]") : chalk.yellow("[missing]")} ${prerequisite.id}${prerequisite.foundPath ? `: ${prerequisite.foundPath}` : ""}\n`,
-			);
-		}
-		write(`\n${chalk.bold("Start command:")}\n  ${chalk.green(service.startCommand)}\n`);
-		write(`\n${chalk.bold("MCP config paths (resolved):")}\n`);
-		write(
-			`  project: ${service.configPaths.project}${service.configuredScopes.includes("project") ? chalk.green(" [entry found]") : ""}\n`,
-		);
-		write(
-			`  user: ${service.configPaths.user}${service.configuredScopes.includes("user") ? chalk.green(" [entry found]") : ""}\n`,
-		);
-		write(
-			`  ${chalk.dim("Inspection is read-only: it never writes mcp.json, starts the server, or verifies a connection.")}\n`,
-		);
-		write(`\n${chalk.bold("Config snippet:")}\n`);
-		for (const line of JSON.stringify(service.configSnippet, null, 2).split("\n")) {
-			write(`  ${chalk.dim(line)}\n`);
-		}
-
-		if (service.installer === "jshookmcp") {
-			write(`\n${chalk.bold(t("cli.setup.reverse.managedInstallationLabel", "Managed service installation:"))}\n`);
-			write(
-				`  ${chalk.green(t("cli.setup.reverse.managedInstallationDesc", "@jshookmcp/jshook (isolated stdio MCP server in agent directory)"))}\n`,
-			);
-			const serviceRisk = t("cli.setup.reverse.jshookmcp.risk", service.riskNote);
-			write(`  ${chalk.dim(`Notes: ${serviceRisk}`)}\n`);
-		} else if (service.installCommand) {
-			write(`\n${chalk.bold("Recommended install command:")}\n`);
-			write(`  ${chalk.green(service.installCommand)}\n`);
-			if (service.riskNote) {
-				write(`  ${chalk.dim(`Notes: ${service.riskNote}`)}\n`);
-			}
-		} else {
-			write(
-				chalk.yellow(
-					`\nNo automated install for this service. Configure the snippet above; uvx/npx resolve the server package on first launch.\n`,
-				),
-			);
-		}
-		write(`\n${chalk.bold("Manual setup:")}\n`);
-		write(`  Official URL: ${service.manualUrl}\n`);
-		write(`  Guide: ${service.manualInstructions}\n`);
-
-		if (!executeMode) {
-			continue;
-		}
-
-		if (service.installer === "jshookmcp") {
-			if (service.installed) {
-				const alreadyPrompt = t(
-					"cli.setup.reverse.alreadyInstalledService",
-					`MCP service ${service.name} is already installed. Re-verify and connect? [y/N]: `,
-					{ name: service.name },
-				);
-				const shouldReinstall = await confirm(alreadyPrompt);
-				if (!shouldReinstall) {
-					write(
-						chalk.dim(t("cli.setup.reverse.cancelled", `Skipped ${service.name}.`, { name: service.name })) +
-							"\n",
-					);
-					continue;
-				}
-			}
-
-			const proceedPrompt = t(
-				"cli.setup.reverse.confirmServicePrompt",
-				`Do you want to install MCP service ${service.name} now? [y/N]: `,
-				{ name: service.name },
-			);
-			const proceed = await confirm(proceedPrompt);
-			if (!proceed) {
-				write(
-					chalk.dim(
-						t("cli.setup.reverse.cancelled", `Installation cancelled for ${service.name}.`, {
-							name: service.name,
-						}),
-					) + "\n",
-				);
-				continue;
-			}
-
-			write(
-				chalk.cyan(
-					`\n${t("cli.setup.reverse.executingService", `Installing MCP service ${service.name}...`, { name: service.name })}\n`,
-				),
-			);
-
-			try {
-				const installResult = await installJshookMcp({
-					cwd: deps.cwd ?? getProjectDir(),
-					scope: "user",
-					agentDir: deps.agentDir,
-					onChunk: chunk => write(chalk.dim(chunk)),
-				});
-
-				const successIcon = theme?.status?.success ?? "✓";
-				write(
-					chalk.green(
-						`\n${successIcon} ${t(
-							"cli.setup.reverse.serviceInstallSuccess",
-							`MCP service ${service.name} installed and configured successfully at ${installResult.configPath}. Tools: ${installResult.tools.join(", ")}`,
-							{
-								name: service.name,
-								path: installResult.configPath,
-								tools: installResult.tools.join(", "),
-							},
-						)}\n`,
-					),
-				);
-				if (service.usage?.canonical) {
-					write(chalk.dim(`Next invocation: ${service.usage.canonical}\n`));
-				}
-			} catch (err: unknown) {
-				hasFailures = true;
-				const errIcon = theme?.status?.error ?? "✗";
-				const msg = err instanceof Error ? err.message : String(err);
-				writeErr(
-					chalk.red(
-						`\n${errIcon} ${t(
-							"cli.setup.reverse.serviceInstallFailed",
-							`Installation failed for ${service.name}: ${msg}`,
-							{
-								name: service.name,
-								error: msg,
-							},
-						)}\n`,
-					),
-				);
-			}
-			continue;
-		}
-
-		if (!service.installArgv || service.installArgv.length === 0) {
-			continue;
-		}
-		if (!isTrustedCatalogArgv(service)) {
-			writeErr(
-				chalk.red(
-					`\nUntrusted installation command for ${service.name}: argv does not match catalog definition.\n`,
-				),
-			);
-			continue;
-		}
-
-		const proceedPrompt = `Do you want to run this installation command for ${service.name} now? [y/N]: `;
-		const proceed = await confirm(proceedPrompt);
-		if (!proceed) {
-			write(chalk.dim(`Installation cancelled for ${service.name}.\n`));
-			continue;
-		}
-
-		write(chalk.cyan(`\nExecuting: ${service.installCommand}...\n`));
-		const result = await executor(service.installArgv, {
-			onChunk: chunk => write(chalk.dim(chunk)),
-		});
-		if (result.exitCode === 0) {
-			const successIcon = theme?.status?.success ?? "✓";
-			write(chalk.green(`\n${successIcon} Installation command finished successfully.\n`));
-			write(
-				chalk.dim(
-					`The server package was installed, but MCP services are not PATH binaries. Add the snippet above to ${service.configPath}, then start the client and verify with: ${service.startCommand}\n`,
-				),
-			);
-			if (service.usage?.canonical) {
-				write(chalk.dim(`Next invocation: ${service.usage.canonical}\n`));
-			}
-		} else {
-			hasFailures = true;
-			const errIcon = theme?.status?.error ?? "✗";
-			writeErr(chalk.red(`\n${errIcon} Installation command failed with exit code ${result.exitCode}.\n`));
-			if (result.stderr) writeErr(`${chalk.dim(result.stderr)}\n`);
+		if (service.manualUrl) {
 			write(`  Official URL: ${service.manualUrl}\n`);
 		}
+		write(`  Guide: ${service.manualInstructions}\n`);
 	}
 
-	if (!executeMode) {
+	const allSelectedItems: Array<ReverseToolStatus | ReverseServiceStatus> = [...selectedTools, ...selectedServices];
+
+	if (allSelectedItems.length === 0) {
+		write(chalk.dim(t("cli.setup.reverse.noSelected", "No valid tools or services selected.\n")));
+		return 0;
+	}
+
+	// Dynamic import to avoid circular dependency / initialization cycle between setup-reverse and reverse-tool-install
+	const { getReverseInstallPlan, installReverseItem } = await import("../extensibility/reverse-tool-install");
+
+	const planOptions = {
+		which: deps.which,
+		platform: deps.platform,
+		env: deps.env,
+		agentDir: deps.agentDir,
+		cwd: deps.cwd,
+	};
+
+	const plannedItems = allSelectedItems.map(item => ({
+		item,
+		plan: getReverseInstallPlan(item, planOptions),
+	}));
+
+	const installable = plannedItems.filter(p => p.plan.canInstall);
+	const unsupported = plannedItems.filter(p => !p.plan.canInstall);
+
+	if (unsupported.length > 0) {
+		write(`\n${chalk.yellow("--------------------------------------------------------------------------------")}\n`);
 		write(
-			`\n${chalk.dim(t("cli.setup.reverse.manualModeNotice", `[Manual mode] Run the commands above in your terminal, or run '${APP_NAME} setup reverse --execute' to execute interactively with confirmation.`))}\n`,
+			`${chalk.bold(t("cli.setup.reverse.planManualTitle", "Manual Setup / Unsupported Tools (no automated recipe):"))}\n`,
+		);
+		write(
+			`${chalk.dim(t("cli.setup.reverse.planManualNotice", "The following tools require manual setup or license prerequisites and cannot be automated:"))}\n\n`,
+		);
+		for (const { item, plan } of unsupported) {
+			const reason = plan.reason ?? item.manualInstructions;
+			write(`  - ${chalk.bold(item.name)} (${item.id}): ${chalk.yellow(reason)}\n`);
+			if (item.manualUrl) {
+				write(
+					`    ${t("cli.setup.reverse.manualUrl", `Official URL: ${item.manualUrl}`, { url: item.manualUrl })}\n`,
+				);
+			}
+		}
+		write(`${chalk.yellow("--------------------------------------------------------------------------------")}\n`);
+	}
+
+	if (installable.length === 0) {
+		write(
+			`\n${chalk.dim(t("cli.setup.reverse.noInstallableSelected", "No automatically installable items selected."))}\n`,
 		);
 		return 0;
 	}
 
-	// Refreshed status table after execute mode
+	write(`\n${chalk.cyan("================================================================================")}\n`);
+	write(`  ${chalk.bold(t("cli.setup.reverse.planTitle", "Installation Plan (Batch)"))}\n`);
+	write(`${chalk.cyan("================================================================================")}\n`);
+
+	write(`\n${chalk.bold(t("cli.setup.reverse.planTargets", "Target items:"))}\n`);
+	for (const { item } of installable) {
+		const kindLabel = item.kind === "mcp" ? "MCP service" : "CLI tool";
+		const isExisting = item.kind === "cli" ? item.status === "installed" : item.ready && item.configured;
+		const actionNote = isExisting ? chalk.yellow(" [configure environment / reinstall]") : "";
+		write(`  - ${chalk.bold(item.name)} (${item.id}) [${kindLabel}]${actionNote}\n`);
+	}
+
+	write(`\n${chalk.bold(t("cli.setup.reverse.planSteps", "Execution steps:"))}\n`);
+	let stepIndex = 1;
+	const seenStepIds = new Set<string>();
+	const risks: Array<{ name: string; note: string }> = [];
+
+	for (const { item, plan } of installable) {
+		for (const step of plan.steps) {
+			if (seenStepIds.has(step.id)) continue;
+			seenStepIds.add(step.id);
+
+			const prefix = step.isDependency ? chalk.yellow("[dependency] ") : "";
+			const cmdDesc = step.command
+				? `${chalk.blue(`[${step.packageManager ?? "pkg"}]`)} ${step.command}`
+				: chalk.dim("service configuration & setup");
+			write(`  ${stepIndex++}. ${prefix}${chalk.bold(step.name)} (${step.id}): ${cmdDesc}\n`);
+
+			if (step.riskNote) {
+				risks.push({ name: step.name, note: step.riskNote });
+			}
+		}
+		if (item.riskNote && !risks.some(r => r.name === item.name)) {
+			risks.push({ name: item.name, note: item.riskNote });
+		}
+	}
+
+	if (risks.length > 0) {
+		write(`\n${chalk.bold(t("cli.setup.reverse.planRisks", "Risks & Notes:"))}\n`);
+		for (const risk of risks) {
+			write(`  - ${chalk.yellow(risk.name)}: ${chalk.dim(risk.note)}\n`);
+		}
+	}
+	write(`\n${chalk.cyan("--------------------------------------------------------------------------------")}\n`);
+
+	const proceedPrompt = t(
+		"cli.setup.reverse.batchConfirmPrompt",
+		"Do you want to proceed with this installation plan now? [y/N]: ",
+	);
+	const proceed = await confirm(proceedPrompt);
+	if (!proceed) {
+		write(chalk.dim(t("cli.setup.reverse.batchCancelled", "Installation cancelled.")) + "\n");
+		return 0;
+	}
+
+	let hasFailures = false;
+	const executedStepIds = new Set<string>();
+
+	for (const { item, plan } of installable) {
+		if (executedStepIds.has(item.id)) {
+			// Already installed and verified as a prerequisite dependency of an earlier item in this batch
+			const successIcon = theme?.status?.success ?? "✓";
+			write(
+				chalk.green(
+					`\n${successIcon} ${t("cli.setup.reverse.verifiedFound", `Verified: ${item.name} is ready for use!`, { name: item.name, path: "ready" })}\n`,
+				),
+			);
+			continue;
+		}
+
+		write(
+			chalk.cyan(
+				`\n${t("cli.setup.reverse.executingTarget", `Installing and configuring ${item.name} (${item.id})...`, { name: item.name, id: item.id })}\n`,
+			),
+		);
+		try {
+			const result = await installReverseItem(item, {
+				plan,
+				cwd: deps.cwd ?? getProjectDir(),
+				agentDir: deps.agentDir,
+				which: deps.which,
+				platform: deps.platform,
+				env: deps.env,
+				executor: deps.executor,
+				onChunk: chunk => write(chalk.dim(chunk)),
+			});
+
+			if (result.success) {
+				for (const step of plan.steps) {
+					executedStepIds.add(step.id);
+				}
+				executedStepIds.add(item.id);
+
+				const successIcon = theme?.status?.success ?? "✓";
+				write(
+					chalk.green(
+						`${successIcon} ${t("cli.setup.reverse.verifiedFound", `Verified: ${item.name} is ready for use!`, { name: item.name, path: result.message ?? "ready" })}\n`,
+					),
+				);
+				if (result.message) {
+					write(chalk.dim(`  ${result.message}\n`));
+				}
+				if (item.usage?.canonical) {
+					write(chalk.dim(`  Next invocation: ${item.usage.canonical}\n`));
+				}
+			} else {
+				hasFailures = true;
+				const errIcon = theme?.status?.error ?? "✗";
+				const failureMsg = result.message || "Verification failed.";
+				writeErr(
+					chalk.red(
+						`${errIcon} ${t("cli.setup.reverse.execFailedTarget", `Failed to install/configure ${item.name}: ${failureMsg}`, { name: item.name, error: failureMsg })}\n`,
+					),
+				);
+				if (item.manualUrl) {
+					write(
+						`  ${t("cli.setup.reverse.manualUrl", `Official URL: ${item.manualUrl}`, { url: item.manualUrl })}\n`,
+					);
+				}
+			}
+		} catch (err: unknown) {
+			hasFailures = true;
+			const errIcon = theme?.status?.error ?? "✗";
+			const msg = err instanceof Error ? err.message : String(err);
+			writeErr(
+				chalk.red(
+					`${errIcon} ${t("cli.setup.reverse.execFailedTarget", `Failed to install/configure ${item.name}: ${msg}`, { name: item.name, error: msg })}\n`,
+				),
+			);
+			if (item.manualUrl) {
+				write(
+					`  ${t("cli.setup.reverse.manualUrl", `Official URL: ${item.manualUrl}`, { url: item.manualUrl })}\n`,
+				);
+			}
+		}
+	}
+
 	write(`\n${chalk.bold("Refreshed reverse toolchain status:")}\n`);
 	report = checkReverseTools(deps);
 	renderToolTable(report, write);

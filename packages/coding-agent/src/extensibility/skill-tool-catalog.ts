@@ -212,6 +212,9 @@ const ANDROID_BUILD_TOOLS_PATHS = {
 	darwin: [
 		"/opt/homebrew/bin",
 		"/usr/local/bin",
+		"${ANDROID_HOME}/build-tools/*",
+		"${ANDROID_SDK_ROOT}/build-tools/*",
+		"~/Library/Android/sdk/build-tools/*",
 		"~/Library/Android/sdk/build-tools/35.0.0",
 		"~/Library/Android/sdk/build-tools/34.0.0",
 		"~/Library/Android/sdk/build-tools/33.0.0",
@@ -219,11 +222,17 @@ const ANDROID_BUILD_TOOLS_PATHS = {
 	linux: [
 		"/usr/bin",
 		"/usr/local/bin",
+		"${ANDROID_HOME}/build-tools/*",
+		"${ANDROID_SDK_ROOT}/build-tools/*",
+		"~/Android/Sdk/build-tools/*",
 		"~/Android/Sdk/build-tools/35.0.0",
 		"~/Android/Sdk/build-tools/34.0.0",
 		"~/Android/Sdk/build-tools/33.0.0",
 	],
 	win32: [
+		"${ANDROID_HOME}/build-tools/*",
+		"${ANDROID_SDK_ROOT}/build-tools/*",
+		"${LOCALAPPDATA}/Android/Sdk/build-tools/*",
 		"${LOCALAPPDATA}/Android/Sdk/build-tools/35.0.0",
 		"${LOCALAPPDATA}/Android/Sdk/build-tools/34.0.0",
 		"${LOCALAPPDATA}/Android/Sdk/build-tools/33.0.0",
@@ -1030,7 +1039,41 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			linux: "Install via Android Studio SDK Manager or CLI: sdkmanager 'build-tools;35.0.0'. Add build-tools to PATH.",
 			win32: "Install via Android Studio SDK Manager -> SDK Tools -> Android SDK Build-Tools.",
 		},
-		installCommands: {},
+		installCommands: {
+			darwin: [
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+			linux: [
+				{
+					manager: "apt",
+					command: "apt install -y aapt",
+					argv: ["apt", "install", "-y", "aapt"],
+					riskNote: "Installs aapt package via apt. Requires root/sudo.",
+				},
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+			win32: [
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+		},
 	},
 
 	zipalign: {
@@ -1057,7 +1100,41 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			linux: "Install via Android Studio SDK Manager or CLI: sdkmanager 'build-tools;35.0.0'. Add build-tools to PATH.",
 			win32: "Install via Android Studio SDK Manager -> SDK Tools -> Android SDK Build-Tools.",
 		},
-		installCommands: {},
+		installCommands: {
+			darwin: [
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+			linux: [
+				{
+					manager: "apt",
+					command: "apt install -y zipalign",
+					argv: ["apt", "install", "-y", "zipalign"],
+					riskNote: "Installs zipalign package via apt. Requires root/sudo.",
+				},
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+			win32: [
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+		},
 	},
 
 	apksigner: {
@@ -1084,7 +1161,41 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			linux: "Install via Android Studio SDK Manager or CLI: sdkmanager 'build-tools;35.0.0'. Requires Java.",
 			win32: "Install via Android Studio SDK Manager -> SDK Tools -> Android SDK Build-Tools. Requires Java.",
 		},
-		installCommands: {},
+		installCommands: {
+			darwin: [
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+			linux: [
+				{
+					manager: "apt",
+					command: "apt install -y apksigner",
+					argv: ["apt", "install", "-y", "apksigner"],
+					riskNote: "Installs apksigner package via apt. Requires root/sudo.",
+				},
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+			win32: [
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+		},
 	},
 
 	dexdump: {
@@ -1111,7 +1222,87 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			linux: "Install via Android Studio SDK Manager or CLI: sdkmanager 'build-tools;35.0.0'.",
 			win32: "Located inside %LOCALAPPDATA%\\Android\\Sdk\\build-tools\\<version>\\dexdump.exe.",
 		},
-		installCommands: {},
+		installCommands: {
+			darwin: [
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+			linux: [
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+			win32: [
+				{
+					manager: "sdkmanager",
+					command: 'sdkmanager "build-tools;35.0.0"',
+					argv: ["sdkmanager", "build-tools;35.0.0"],
+					riskNote:
+						"Installs Android build-tools 35.0.0 via sdkmanager. Requires previously accepted Android SDK terms; run 'sdkmanager --licenses' manually first; setup cannot auto-accept.",
+				},
+			],
+		},
+	},
+
+	sdkmanager: {
+		id: "sdkmanager",
+		name: "Android SDK Manager",
+		category: "android",
+		description: "Official Android command-line SDK package manager",
+		optional: true,
+		binaries: ["sdkmanager"],
+		secondary: ["java"],
+		envPaths: [
+			{ env: "ANDROID_HOME", suffix: "/cmdline-tools/latest/bin" },
+			{ env: "ANDROID_HOME", suffix: "/cmdline-tools/bin" },
+			{ env: "ANDROID_HOME", suffix: "/tools/bin" },
+			{ env: "ANDROID_SDK_ROOT", suffix: "/cmdline-tools/latest/bin" },
+		],
+		searchPaths: {
+			darwin: [
+				"~/Library/Android/sdk/cmdline-tools/latest/bin",
+				"~/Library/Android/sdk/cmdline-tools/*/bin",
+				"~/Library/Android/sdk/tools/bin",
+				...UNIX_SEARCH_PATHS,
+			],
+			linux: [
+				"~/Android/Sdk/cmdline-tools/latest/bin",
+				"~/Android/Sdk/cmdline-tools/*/bin",
+				"~/Android/Sdk/tools/bin",
+				...UNIX_SEARCH_PATHS,
+			],
+			win32: ["${LOCALAPPDATA}/Android/Sdk/cmdline-tools/latest/bin", "${LOCALAPPDATA}/Android/Sdk/tools/bin"],
+		},
+		installHints: {
+			darwin: ["brew install --cask android-commandlinetools"],
+			linux: ["Install via Android Studio or download commandlinetools"],
+			win32: ["winget install Google.AndroidStudio"],
+		},
+		manualUrl: "https://developer.android.com/tools/sdkmanager",
+		manualInstructions: {
+			darwin: "Install Android Command-line Tools via Homebrew: brew install --cask android-commandlinetools",
+			linux: "Download commandlinetools from developer.android.com and extract to ~/Android/Sdk/cmdline-tools/latest",
+			win32: "Install Android Studio SDK Manager or commandlinetools",
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "brew",
+					command: "brew install --cask android-commandlinetools",
+					argv: ["brew", "install", "--cask", "android-commandlinetools"],
+					riskNote: "Installs Android Command-line Tools via Homebrew cask.",
+				},
+			],
+		},
 	},
 
 	unidbg: {
@@ -2175,8 +2366,15 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		binaries: ["java"],
 		envPaths: [{ env: "JAVA_HOME", suffix: "/bin" }, { env: "JAVA_HOME" }],
 		searchPaths: {
-			darwin: ["/Library/Java/JavaVirtualMachines/*/Contents/Home/bin", ...UNIX_SEARCH_PATHS],
-			linux: ["/usr/lib/jvm/*/bin", ...UNIX_SEARCH_PATHS],
+			darwin: [
+				"/opt/homebrew/opt/openjdk*/libexec/openjdk.jdk/Contents/Home/bin",
+				"/opt/homebrew/opt/openjdk*/bin",
+				"/usr/local/opt/openjdk*/libexec/openjdk.jdk/Contents/Home/bin",
+				"/usr/local/opt/openjdk*/bin",
+				"/Library/Java/JavaVirtualMachines/*/Contents/Home/bin",
+				...UNIX_SEARCH_PATHS,
+			],
+			linux: ["/usr/lib/jvm/*/bin", "/usr/lib/jvm/*", "/etc/alternatives", ...UNIX_SEARCH_PATHS],
 			win32: [
 				"${ProgramFiles}/Java/*/bin",
 				"${ProgramFiles}/Eclipse Adoptium/*/bin",

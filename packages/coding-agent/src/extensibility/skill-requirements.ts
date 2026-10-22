@@ -8,6 +8,7 @@
  * nothing when everything is present. Install hints come exclusively from
  * {@link SKILL_TOOL_CATALOG}; an unknown id is probed but never yields a hint.
  */
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { isRecord, $which, type WhichOptions, WhichCachePolicy } from "@reverse/utils";
 import type { SkillFrontmatter } from "../capability/skill";
@@ -94,6 +95,67 @@ export function readSkillRequirements(frontmatter?: SkillFrontmatter): ToolRequi
 	return requirements;
 }
 
+function expandWildcardPath(pattern: string, platformPath: typeof path.win32 | typeof path.posix): string[] {
+	if (!pattern.includes("*")) return [pattern];
+	const isWin = platformPath === path.win32;
+	const sep = isWin ? "\\" : "/";
+	const normalized = pattern.replaceAll(isWin ? "/" : "\\", sep);
+	const parts = normalized.split(sep);
+	let currentDirs = [normalized.startsWith(sep) ? sep : ""];
+	for (const part of parts) {
+		if (!part) continue;
+		const nextDirs: string[] = [];
+		for (const dir of currentDirs) {
+			if (part.includes("*")) {
+				try {
+					const entries = fs.readdirSync(dir, { withFileTypes: true });
+					const regex = new RegExp("^" + part.replaceAll(".", "\\.").replaceAll("*", ".*") + "$");
+					for (const entry of entries) {
+						if ((entry.isDirectory() || entry.isSymbolicLink()) && regex.test(entry.name)) {
+							nextDirs.push(platformPath.join(dir, entry.name));
+						}
+					}
+				} catch {}
+			} else {
+				nextDirs.push(platformPath.join(dir, part));
+			}
+		}
+		currentDirs = nextDirs;
+	}
+	return currentDirs.length > 0 ? currentDirs : [pattern];
+}
+export function findRealDarwinJdk(env?: Record<string, string | undefined>): string | null {
+	const javaHome = env?.JAVA_HOME ?? process.env.JAVA_HOME;
+	if (javaHome) {
+		const candidate = path.posix.join(javaHome, "bin", "java");
+		try {
+			if (path.isAbsolute(candidate) && fs.existsSync(candidate) && !fs.statSync(candidate).isDirectory()) {
+				fs.accessSync(candidate, fs.constants.X_OK);
+				return candidate;
+			}
+		} catch {}
+	}
+	const candidates = [
+		"/opt/homebrew/opt/openjdk*/libexec/openjdk.jdk/Contents/Home/bin/java",
+		"/opt/homebrew/opt/openjdk*/bin/java",
+		"/usr/local/opt/openjdk*/libexec/openjdk.jdk/Contents/Home/bin/java",
+		"/usr/local/opt/openjdk*/bin/java",
+		"/Library/Java/JavaVirtualMachines/*/Contents/Home/bin/java",
+	];
+	for (const pattern of candidates) {
+		const expanded = expandWildcardPath(pattern, path.posix);
+		for (const p of expanded) {
+			try {
+				if (path.isAbsolute(p) && fs.existsSync(p) && !fs.statSync(p).isDirectory()) {
+					fs.accessSync(p, fs.constants.X_OK);
+					return p;
+				}
+			} catch {}
+		}
+	}
+	return null;
+}
+
 /** PATH for one descriptor: ambient PATH plus its env- and platform-owned dirs. */
 function searchPathFor(
 	descriptor: SkillToolDescriptor,
@@ -113,7 +175,10 @@ function searchPathFor(
 	for (const raw of descriptor.searchPaths?.[platform] ?? []) {
 		const expanded = expandTilde(expandEnvVarsDeep(raw, envStrings));
 		if (expanded.length === 0 || expanded.includes("${")) continue;
-		extras.push(platformPath.normalize(expanded));
+		const expandedDirs = expandWildcardPath(expanded, platformPath);
+		for (const d of expandedDirs) {
+			extras.push(platformPath.normalize(d));
+		}
 	}
 	const basePath = env.PATH ?? "";
 	if (extras.length === 0) return basePath.length > 0 ? basePath : undefined;
@@ -169,12 +234,47 @@ export function checkToolRequirements(
 		let foundPath = descriptor.probe?.() ?? null;
 		if (foundPath === null) {
 			for (const binary of descriptor.binaries) {
-				foundPath = which(binary, options);
-				if (foundPath !== null) break;
+				const candidate = which(binary, options);
+				if (candidate !== null) {
+					try {
+						if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+							continue;
+						}
+					} catch {}
+					foundPath = candidate;
+					break;
+				}
 			}
 		}
-		const secondaryMissing =
-			foundPath === null ? [] : (descriptor.secondary ?? []).filter(binary => which(binary, options) === null);
+		if (
+			requirement.id === "java" &&
+			foundPath === "/usr/bin/java" &&
+			(platform === "darwin" || process.platform === "darwin") &&
+			(deps.which === undefined || deps.which === $which)
+		) {
+			foundPath = findRealDarwinJdk(env);
+		}
+		const secondaryMissing = (descriptor.secondary ?? []).filter(binary => {
+			const secDesc = SKILL_TOOL_CATALOG[binary];
+			const secOptions: WhichOptions = {
+				...options,
+				PATH: secDesc ? (searchPathFor(secDesc, platform, env) ?? options.PATH) : options.PATH,
+			};
+			let res = secDesc?.probe?.() ?? null;
+			if (res === null) {
+				res = which(binary, secOptions);
+			}
+			if (res === null) return true;
+			if (
+				binary === "java" &&
+				res === "/usr/bin/java" &&
+				(platform === "darwin" || process.platform === "darwin") &&
+				(deps.which === undefined || deps.which === $which)
+			) {
+				return findRealDarwinJdk(env) === null;
+			}
+			return false;
+		});
 		const missing = foundPath === null || secondaryMissing.length > 0;
 		return {
 			id: requirement.id,

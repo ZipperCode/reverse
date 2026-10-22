@@ -21,6 +21,7 @@ import type {
 import type { CompactOptions, PlanReviewChoice, PlanReviewRequestedEvent } from "../extensibility/extensions/types";
 import type { Skill } from "../extensibility/skills";
 import type { ReverseServiceStatus, ReverseToolStatus } from "../cli/setup-reverse";
+import type { ReverseInstallPlan } from "../extensibility/reverse-tool-install";
 import type { MCPManager } from "../mcp";
 import type { PlanApprovalDetails } from "../plan-mode/approved-plan";
 import type { AgentSession } from "../session/agent-session";
@@ -519,7 +520,10 @@ export interface InteractiveModeContext {
 	showCustomProviderWizard(): Promise<void>;
 	showProviderModelsWizard(providerId: string): Promise<void>;
 	showHookConfirm(title: string, message: string, dialogOptions?: InteractiveSelectorDialogOptions): Promise<boolean>;
-	installReverseItem?(item: ReverseToolStatus | ReverseServiceStatus): Promise<{ success: boolean; message?: string }>;
+	installReverseItem?(
+		item: ReverseToolStatus | ReverseServiceStatus,
+		options?: { plan?: ReverseInstallPlan },
+	): Promise<{ success: boolean; message?: string }>;
 	isTTY?: boolean;
 	showDebugSelector(): Promise<void>;
 	showAgentHub(options?: AgentHubOpenOptions): void;

@@ -548,6 +548,9 @@ export async function runCli(argv: string[]): Promise<void> {
 		await runSmokeTest();
 		return;
 	}
+	// Apply persisted reverse toolchain environment (JAVA_HOME, REVERSE_TOOL_PATHS) after worker dispatch
+	const { applyPersistedReverseEnvironment } = await import("./extensibility/reverse-tool-install");
+	applyPersistedReverseEnvironment();
 
 	try {
 		const [{ run }, { commands, resolveCliArgv }] = await Promise.all([

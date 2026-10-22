@@ -261,3 +261,8 @@ export function $which(command: string, options?: WhichOptions): string | null {
 	}
 	return result;
 }
+
+/** Clear the in-memory tool lookup cache. */
+export function clearWhichCache(): void {
+	toolCache.clear();
+}

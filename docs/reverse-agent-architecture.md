@@ -219,12 +219,13 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
      - **安全安装引导**：向用户展示受信命令（如 `reverse setup reverse unidbg`）。
 3. **Interactive Confirmation (用户显式审核确认)**：
    - 安装命令只能来自于受信 Catalog；Agent 绝不通过 arbitrary shell 偷偷执行下载。
-   - 用户在 CLI 或交互式 TUI 设置面板中查看命令明细、包管理器来源及风险提示，输入 `[y/N]` 显式授权。
-4. **Install-then-dispatch (安装完成即时调度)**：
+   - 用户在 CLI 或交互式 TUI 设置面板中支持多选或全选缺失项，一次性审核完整安装计划（包含前置依赖项、包管理器来源、配置变更与风险说明），经单次批量确认 `[y/N]` 后受控执行安装与环境持久化；非交互环境 `--check`/`--json` 保持严格只读探测。
+   - 商业授权软件（如 IDA Pro）与需接受 Android SDK 协议的依赖项显式标明人工前置条件，不作虚假安装断言。
+4. **Install-then-dispatch (安装完成即时调度与环境持久化)**：
+   - 安装成功后，工具环境（如 `JAVA_HOME`、`REVERSE_TOOL_PATHS`）被持久化至 Agent 用户目录下的窄域配置文件（`.env`），在后续 Agent 会话和子进程中自动加载生效，严禁污染用户全局 shell rc 文件（如 `~/.zshrc` 或 `~/.bashrc`）。
    - 安装成功并刷新检测后，Agent **立即无缝衔接调度该工具**（执行 `postInstallInvocation` 所对应的操作），推进下一步分析，不强制用户重新输入目标或重开会话。
 5. **Graceful Fallback (优雅降级保障)**：
    - 若用户选择暂不安装或当前环境无包管理器，Agent 绝不中断退出，而是回退到声明的降级工具链（如用 `readelf` 静态提取符号表 + `strings` 筛选关键词），继续记录 Fact 并标注未知项 (Unknown)。
-
 ## 审批与自动化边界
 
 - 静态读取、哈希、格式识别：可自动执行。

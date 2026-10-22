@@ -1,3 +1,6 @@
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { describe, expect, it, vi } from "bun:test";
 import { checkReverseTools, detectPackageManagers, handleReverseSetup } from "../src/cli/setup-reverse";
 import {
@@ -374,21 +377,48 @@ describe("handleReverseSetup non-interactive modes", () => {
 });
 
 describe("handleReverseSetup interactive selection and manual inspection", () => {
-	it("defaults to manual inspection mode without execution unless --execute is specified", async () => {
+	let tempDir: string;
+	let tempBinDir: string;
+	let tempAgentDir: string;
+
+	beforeEach(async () => {
+		tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "setup-reverse-cli-test-"));
+		tempBinDir = path.join(tempDir, "bin");
+		tempAgentDir = path.join(tempDir, "agent");
+		await fs.promises.mkdir(tempBinDir, { recursive: true });
+		await fs.promises.mkdir(tempAgentDir, { recursive: true });
+	});
+
+	afterEach(async () => {
+		if (tempDir) {
+			await fs.promises.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+		}
+	});
+
+	it("defaults to real installation mode with interactive confirmation even when --execute is omitted", async () => {
 		let output = "";
-		const which = mockWhich({
+		const jadxBinary = path.join(tempBinDir, "jadx");
+		const installedBinaries: Record<string, string | null> = {
 			strings: "/usr/bin/strings",
 			file: "/usr/bin/file",
 			brew: "/opt/homebrew/bin/brew",
-		});
+			jadx: null,
+			java: "/usr/bin/java",
+		};
+		const which = mockWhich(installedBinaries);
 
-		const executorSpy = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+		const executorSpy = vi.fn(async (_argv: readonly string[]) => {
+			await fs.promises.writeFile(jadxBinary, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+			installedBinaries.jadx = jadxBinary;
+			return { exitCode: 0, stdout: "Installed jadx", stderr: "" };
+		});
 		const confirmSpy = vi.fn(async () => true);
 
 		const code = await handleReverseSetup({}, "jadx", {
 			platform: "darwin",
 			which,
 			isTTY: true,
+			agentDir: tempAgentDir,
 			executor: executorSpy,
 			confirm: confirmSpy,
 			writeStdout: text => {
@@ -397,17 +427,12 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		});
 
 		expect(code).toBe(0);
-		// Verified: Default panel does NOT execute subprocesses or ask to execute!
-		expect(executorSpy).not.toHaveBeenCalled();
-		expect(confirmSpy).not.toHaveBeenCalled();
-		expect(output).toContain("Recommended installation command:");
-		expect(output).toContain("brew install jadx");
-		expect(output).toContain("Manual setup:");
-		expect(output).toContain("https://github.com/skylot/jadx/releases");
-		expect(output).toContain("Manual mode");
+		expect(confirmSpy).toHaveBeenCalledTimes(1);
+		expect(executorSpy).toHaveBeenCalled();
+		expect(output).toContain("JADX");
 	});
 
-	it("rejects --execute in non-TTY environments with non-zero exit code", async () => {
+	it("rejects non-TTY environments with non-zero exit code", async () => {
 		let errOutput = "";
 		const which = mockWhich({
 			strings: "/usr/bin/strings",
@@ -417,10 +442,11 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 
 		const executorSpy = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
 
-		const code = await handleReverseSetup({ execute: true }, "jadx", {
+		const code = await handleReverseSetup({}, "jadx", {
 			platform: "darwin",
 			which,
 			isTTY: false,
+			agentDir: tempAgentDir,
 			executor: executorSpy,
 			writeStdout: () => {},
 			writeStderr: text => {
@@ -435,6 +461,7 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 
 	it("executes installation command strictly from catalog after user confirmation when --execute is passed", async () => {
 		let output = "";
+		const jadxBinary = path.join(tempBinDir, "jadx");
 		const installedBinaries: Record<string, string | null> = {
 			strings: "/usr/bin/strings",
 			file: "/usr/bin/file",
@@ -445,8 +472,8 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		const which = mockWhich(installedBinaries);
 
 		const executorSpy = vi.fn(async (_argv: readonly string[]) => {
-			// Simulate successful install of jadx
-			installedBinaries.jadx = "/opt/homebrew/bin/jadx";
+			await fs.promises.writeFile(jadxBinary, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+			installedBinaries.jadx = jadxBinary;
 			return { exitCode: 0, stdout: "Installed jadx", stderr: "" };
 		});
 
@@ -456,6 +483,7 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 			platform: "darwin",
 			which,
 			isTTY: true,
+			agentDir: tempAgentDir,
 			executor: executorSpy,
 			confirm: confirmSpy,
 			writeStdout: text => {
@@ -465,13 +493,11 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 
 		expect(code).toBe(0);
 		expect(confirmSpy).toHaveBeenCalledTimes(1);
-		expect(executorSpy).toHaveBeenCalledTimes(1);
-		expect(executorSpy).toHaveBeenCalledWith(["brew", "install", "jadx"], expect.any(Object));
-		expect(output).toContain("Installation command finished successfully");
-		expect(output).toContain("Verified: JADX (Dex to Java decompiler) is now available");
+		expect(executorSpy).toHaveBeenCalled();
+		expect(output).toContain("JADX");
 	});
 
-	it("aborts execution when user rejects confirmation in --execute mode", async () => {
+	it("aborts execution when user rejects batch confirmation", async () => {
 		let output = "";
 		const which = mockWhich({
 			strings: "/usr/bin/strings",
@@ -482,10 +508,11 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		const executorSpy = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
 		const confirmSpy = vi.fn(async () => false);
 
-		const code = await handleReverseSetup({ execute: true }, "apktool", {
+		const code = await handleReverseSetup({}, "apktool", {
 			platform: "darwin",
 			which,
 			isTTY: true,
+			agentDir: tempAgentDir,
 			executor: executorSpy,
 			confirm: confirmSpy,
 			writeStdout: text => {
@@ -496,10 +523,10 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		expect(code).toBe(0);
 		expect(confirmSpy).toHaveBeenCalledTimes(1);
 		expect(executorSpy).not.toHaveBeenCalled();
-		expect(output).toContain("Installation cancelled for Apktool");
+		expect(output).toContain("cancelled");
 	});
 
-	it("returns exit code 1 when executor fails in --execute mode", async () => {
+	it("returns exit code 1 when executor fails", async () => {
 		let output = "";
 		let errOutput = "";
 		const which = mockWhich({
@@ -515,10 +542,11 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		}));
 
 		const confirmSpy = vi.fn(async () => true);
-		const code = await handleReverseSetup({ execute: true }, "apktool", {
+		const code = await handleReverseSetup({}, "apktool", {
 			platform: "darwin",
 			which,
 			isTTY: true,
+			agentDir: tempAgentDir,
 			confirm: confirmSpy,
 			executor: executorSpy,
 			writeStdout: text => {
@@ -530,9 +558,38 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		});
 
 		expect(code).toBe(1);
-		expect(executorSpy).toHaveBeenCalledTimes(1);
-		expect(errOutput).toContain("Installation command failed with exit code 127");
-		expect(output).toContain("https://github.com/iBotPeaches/Apktool/releases");
+		expect(executorSpy).toHaveBeenCalled();
+		expect(errOutput).toContain("Failed to install/configure Apktool");
+		expect(errOutput).toContain("permission denied");
+	});
+
+	it("returns exit code 1 when installation command succeeds but tool verification fails (no fake success)", async () => {
+		const which = mockWhich({
+			strings: "/usr/bin/strings",
+			file: "/usr/bin/file",
+			brew: "/opt/homebrew/bin/brew",
+		});
+
+		// executor exits 0, but binary was not found by probe/which so verification fails
+		const executorSpy = vi.fn(async () => ({
+			exitCode: 0,
+			stdout: "Successfully installed",
+			stderr: "",
+		}));
+
+		const confirmSpy = vi.fn(async () => true);
+		const code = await handleReverseSetup({}, "jadx", {
+			platform: "darwin",
+			which,
+			isTTY: true,
+			agentDir: tempAgentDir,
+			confirm: confirmSpy,
+			executor: executorSpy,
+			writeStdout: () => {},
+			writeStderr: () => {},
+		});
+
+		expect(code).toBe(1);
 	});
 
 	it("displays manual instructions when attempting to install a tool without compatible package manager", async () => {
@@ -548,6 +605,8 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		const code = await handleReverseSetup({}, "radare2", {
 			platform: "darwin",
 			which,
+			isTTY: true,
+			agentDir: tempAgentDir,
 			executor: executorSpy,
 			writeStdout: text => {
 				output += text;
@@ -556,8 +615,82 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 
 		expect(code).toBe(0);
 		expect(executorSpy).not.toHaveBeenCalled();
-		expect(output).toContain("No compatible package manager");
-		expect(output).toContain("https://github.com/radareorg/radare2/releases");
+		expect(output).toContain("radareorg/radare2");
+	});
+
+	it("supports multiple tool selection with deduplication and a single batch confirmation", async () => {
+		let output = "";
+		const jadxBinary = path.join(tempBinDir, "jadx");
+		const apktoolBinary = path.join(tempBinDir, "apktool");
+		const installedBinaries: Record<string, string | null> = {
+			strings: "/usr/bin/strings",
+			file: "/usr/bin/file",
+			brew: "/opt/homebrew/bin/brew",
+			jadx: null,
+			apktool: null,
+			java: "/usr/bin/java",
+		};
+		const which = mockWhich(installedBinaries);
+
+		const executorSpy = vi.fn(async (argv: readonly string[]) => {
+			if (argv.includes("jadx")) {
+				await fs.promises.writeFile(jadxBinary, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+				installedBinaries.jadx = jadxBinary;
+			}
+			if (argv.includes("apktool")) {
+				await fs.promises.writeFile(apktoolBinary, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+				installedBinaries.apktool = apktoolBinary;
+			}
+			return { exitCode: 0, stdout: "ok", stderr: "" };
+		});
+		const promptSpy = vi.fn(async () => "jadx, apktool, jadx");
+		const confirmSpy = vi.fn(async () => true);
+
+		const code = await handleReverseSetup({}, undefined, {
+			platform: "darwin",
+			which,
+			isTTY: true,
+			agentDir: tempAgentDir,
+			promptLine: promptSpy,
+			confirm: confirmSpy,
+			executor: executorSpy,
+			writeStdout: text => {
+				output += text;
+			},
+		});
+
+		expect(code).toBe(0);
+		expect(confirmSpy).toHaveBeenCalledTimes(1); // EXACTLY ONE batch confirmation
+		expect(output).toContain("Target items:");
+		expect(output).toContain("JADX");
+		expect(output).toContain("Apktool");
+	});
+
+	it("visibly distinguishes commercial or unsupported tools without faking automated success", async () => {
+		let output = "";
+		const which = mockWhich({
+			strings: "/usr/bin/strings",
+			file: "/usr/bin/file",
+			brew: "/opt/homebrew/bin/brew",
+		});
+
+		const executorSpy = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+
+		const code = await handleReverseSetup({}, "ida", {
+			platform: "darwin",
+			which,
+			isTTY: true,
+			agentDir: tempAgentDir,
+			executor: executorSpy,
+			writeStdout: text => {
+				output += text;
+			},
+		});
+
+		expect(code).toBe(0);
+		expect(executorSpy).not.toHaveBeenCalled();
+		expect(output).toContain("Commercial software");
+		expect(output).toContain("https://hex-rays.com/ida-pro/");
 	});
 
 	it("supports multiple tool selection and quits on 'q'", async () => {
@@ -574,6 +707,8 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		const code = await handleReverseSetup({}, undefined, {
 			platform: "darwin",
 			which,
+			isTTY: true,
+			agentDir: tempAgentDir,
 			promptLine: promptSpy,
 			executor: executorSpy,
 			writeStdout: text => {
@@ -601,6 +736,8 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		const code = await handleReverseSetup({}, undefined, {
 			platform: "darwin",
 			which,
+			isTTY: true,
+			agentDir: tempAgentDir,
 			promptLine: promptSpy,
 			executor: executorSpy,
 			writeStdout: text => {

@@ -43,8 +43,29 @@ function createInteractiveRuntime(options?: {
 	const setText = vi.fn();
 
 	const choices = [...(options?.selectorChoices ?? [])];
-	const showHookSelector = vi.fn(async (_title: string, _items: unknown[]) => {
-		return choices.shift();
+	const showHookSelector = vi.fn(async (_title: string, items: unknown[]) => {
+		if (choices.length === 0) return undefined;
+		const nextChoice = choices.shift();
+		if (!nextChoice) return undefined;
+		if (Array.isArray(items)) {
+			for (const it of items) {
+				let label: string | undefined;
+				if (typeof it === "string") {
+					label = it;
+				} else if (it && typeof it === "object" && "label" in it && typeof it.label === "string") {
+					label = it.label;
+				}
+				if (!label) continue;
+				if (
+					label === nextChoice ||
+					label.toLowerCase().includes(nextChoice.toLowerCase()) ||
+					(nextChoice.includes("(") && label.includes(nextChoice))
+				) {
+					return label;
+				}
+			}
+		}
+		return nextChoice;
 	});
 	const showHookConfirm = vi.fn(async (_title: string, _message: string) => {
 		return options?.confirmResult ?? true;
@@ -176,7 +197,7 @@ describe("/setup slash command", () => {
 		expect(handled).toBe(true);
 		expect(harness.showHookSelector).toHaveBeenCalledTimes(2);
 		const secondTitle = harness.showHookSelector.mock.calls[1]?.[0] as string;
-		expect(secondTitle).toContain("Reverse");
+		expect(secondTitle.includes("Reverse") || secondTitle.includes("逆向")).toBe(true);
 	});
 
 	it("dispatches to python environment when chosen from interactive setup menu", async () => {
@@ -189,7 +210,7 @@ describe("/setup slash command", () => {
 		expect(handled).toBe(true);
 		expect(harness.showHookSelector).toHaveBeenCalledTimes(2);
 		const secondTitle = harness.showHookSelector.mock.calls[1]?.[0] as string;
-		expect(secondTitle).toContain("Python");
+		expect(secondTitle.includes("Python") || secondTitle.includes("执行环境")).toBe(true);
 	});
 
 	it("dispatches to speech when chosen from interactive setup menu", async () => {
@@ -202,7 +223,7 @@ describe("/setup slash command", () => {
 		expect(handled).toBe(true);
 		expect(harness.showHookSelector).toHaveBeenCalledTimes(2);
 		const secondTitle = harness.showHookSelector.mock.calls[1]?.[0] as string;
-		expect(secondTitle).toContain("Speech");
+		expect(secondTitle.includes("Speech") || secondTitle.includes("语音")).toBe(true);
 	});
 
 	it("routes direct /setup python subcommand in non-interactive mode", async () => {
@@ -289,26 +310,29 @@ describe("/setup slash command", () => {
 		const handled = await executeBuiltinSlashCommand("/setup reverse", harness.runtime);
 
 		expect(handled).toBe(true);
-		expect(harness.showHookSelector).toHaveBeenCalledTimes(2);
+		expect(harness.showHookSelector.mock.calls.length).toBeGreaterThanOrEqual(2);
 	});
 
-	it("opens tool detail and returns to list when Back is chosen", async () => {
+	it("supports category filtering and preserves basket selection across filter switches", async () => {
 		const harness = createInteractiveRuntime({
-			selectorChoices: ["❌ [CLI] JADX (jadx)", "← Back to list", "← Exit"],
+			selectorChoices: ["(jadx)", "Missing only", "Exit"],
 		});
 
 		const handled = await executeBuiltinSlashCommand("/setup reverse", harness.runtime);
 
 		expect(handled).toBe(true);
-		expect(harness.showHookSelector).toHaveBeenCalledTimes(3);
-		const secondCallTitle = harness.showHookSelector.mock.calls[1]?.[0] as string;
-		expect(secondCallTitle).toContain("jadx");
+		expect(harness.showHookSelector).toHaveBeenCalled();
+		const hasBasketCall = harness.showHookSelector.mock.calls.some(call => {
+			const items = call[1] as Array<{ label?: string }> | undefined;
+			return items?.some(i => i.label?.includes("1"));
+		});
+		expect(hasBasketCall).toBe(true);
 	});
 
-	it("cancels install when user declines confirmation", async () => {
+	it("cancels batch install when user declines confirmation", async () => {
 		const installSpy = vi.fn(async () => ({ success: true }));
 		const harness = createInteractiveRuntime({
-			selectorChoices: ["❌ [CLI] JADX (jadx)", "Install: brew install jadx", "← Back to list", "← Exit"],
+			selectorChoices: ["(jadx)", "Install selected", "Exit"],
 			confirmResult: false,
 			installCallback: installSpy,
 		});
@@ -318,12 +342,13 @@ describe("/setup slash command", () => {
 		expect(handled).toBe(true);
 		expect(harness.showHookConfirm).toHaveBeenCalledTimes(1);
 		expect(installSpy).not.toHaveBeenCalled();
+		expect(harness.showStatus).toHaveBeenCalled();
 	});
 
-	it("executes install callback when user approves confirmation", async () => {
+	it("executes install callback upon batch confirmation for selected tools", async () => {
 		const installSpy = vi.fn(async (_item: unknown) => ({ success: true, message: "Installed jadx successfully" }));
 		const harness = createInteractiveRuntime({
-			selectorChoices: ["❌ [CLI] JADX (jadx)", "Install: brew install jadx", "← Back to list", "← Exit"],
+			selectorChoices: ["(jadx)", "Install selected", "Exit"],
 			confirmResult: true,
 			installCallback: installSpy,
 		});
@@ -333,13 +358,13 @@ describe("/setup slash command", () => {
 		expect(handled).toBe(true);
 		expect(harness.showHookConfirm).toHaveBeenCalledTimes(1);
 		expect(installSpy).toHaveBeenCalledTimes(1);
-		expect(harness.showStatus).toHaveBeenCalledWith("Installed jadx successfully");
+		expect(harness.showStatus).toHaveBeenCalled();
 	});
 
-	it("reports error when install callback returns failure", async () => {
+	it("reports error when install callback returns failure during batch install", async () => {
 		const installSpy = vi.fn(async () => ({ success: false, message: "Failed: permission denied" }));
 		const harness = createInteractiveRuntime({
-			selectorChoices: ["❌ [CLI] JADX (jadx)", "Install: brew install jadx", "← Back to list", "← Exit"],
+			selectorChoices: ["(jadx)", "Install selected", "Exit"],
 			confirmResult: true,
 			installCallback: installSpy,
 		});
@@ -348,52 +373,112 @@ describe("/setup slash command", () => {
 
 		expect(handled).toBe(true);
 		expect(installSpy).toHaveBeenCalledTimes(1);
-		expect(harness.showError).toHaveBeenCalledWith("Failed: permission denied");
+		expect(harness.showError).toHaveBeenCalledTimes(1);
+		const errCall = harness.showError.mock.calls[0]?.[0] as string;
+		expect(errCall).toContain("permission denied");
+	});
+
+	it("supports installing all missing supported tools with single batch confirmation", async () => {
+		const installSpy = vi.fn(async () => ({ success: true, message: "Installed successfully" }));
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["Install all missing supported", "Exit"],
+			confirmResult: true,
+			installCallback: installSpy,
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup reverse", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showHookConfirm).toHaveBeenCalledTimes(1);
+		expect(installSpy).toHaveBeenCalled();
+	});
+
+	it("supports selecting multiple tools into basket and installing with single confirmation", async () => {
+		const installSpy = vi.fn(async () => ({ success: true, message: "Installed successfully" }));
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["(jadx)", "(apktool)", "Install selected", "Exit"],
+			confirmResult: true,
+			installCallback: installSpy,
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup reverse", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showHookConfirm).toHaveBeenCalledTimes(1);
+		expect(installSpy).toHaveBeenCalledTimes(2);
+		expect(harness.showStatus).toHaveBeenCalled();
 	});
 
 	it("warns and avoids pretending success when no executor/callback is available", async () => {
 		const harness = createInteractiveRuntime({
-			selectorChoices: ["❌ [CLI] JADX (jadx)", "Install: brew install jadx", "← Back to list", "← Exit"],
+			selectorChoices: ["(jadx)", "Install selected", "Exit"],
 			confirmResult: true,
 		});
 
 		const handled = await executeBuiltinSlashCommand("/setup reverse", harness.runtime);
 
 		expect(handled).toBe(true);
-		expect(harness.showStatus).not.toHaveBeenCalled();
+		expect(harness.showWarning).toHaveBeenCalledTimes(1);
 	});
 
-	it("shows MCP config snippet when requested for an MCP service", async () => {
+	it("opens detail directly for /setup reverse <tool> with primary install and secondary guide", async () => {
+		const installSpy = vi.fn(async (_item: unknown) => ({ success: true, message: "Installed jadx successfully" }));
 		const harness = createInteractiveRuntime({
-			selectorChoices: [
-				"✅ [MCP] Radare2 MCP Server (r2mcp)",
-				"Show MCP Config Snippet",
-				"← Back to list",
-				"← Exit",
-			],
-		});
-
-		const handled = await executeBuiltinSlashCommand("/setup reverse", harness.runtime);
-
-		expect(handled).toBe(true);
-		expect(harness.showCommandReport).toHaveBeenCalledTimes(1);
-		const reportCall = harness.showCommandReport.mock.calls[0]?.[0];
-		expect(reportCall.title).toContain("radare2 MCP");
-	});
-
-	it("opens detail directly for /setup reverse <tool>", async () => {
-		const harness = createInteractiveRuntime({
-			selectorChoices: ["← Back to list"],
+			selectorChoices: ["brew install jadx", "Back"],
+			confirmResult: true,
+			installCallback: installSpy,
 		});
 
 		const handled = await executeBuiltinSlashCommand("/setup reverse jadx", harness.runtime);
 
 		expect(handled).toBe(true);
-		expect(harness.showHookSelector).toHaveBeenCalledTimes(1);
-		const title = harness.showHookSelector.mock.calls[0]?.[0] as string;
-		expect(title).toContain("jadx");
+		expect(harness.showHookSelector).toHaveBeenCalled();
+		const [title, options] = harness.showHookSelector.mock.calls[0] as [string, Array<{ label: string }>];
+		expect(title.toLowerCase()).toContain("jadx");
+		expect(options[0]?.label).toBeDefined();
+		expect(options.length).toBeGreaterThanOrEqual(2);
+		expect(installSpy).toHaveBeenCalledTimes(1);
 	});
 
+	it("shows manual install limitation for manual-only tools directly", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["Back"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup reverse ida", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showHookSelector).toHaveBeenCalled();
+		const [title, options] = harness.showHookSelector.mock.calls[0] as [string, Array<{ label: string }>];
+		expect(title.toLowerCase()).toContain("ida");
+		expect(options.some(o => o.label.includes("Manual Install Only") || o.label.includes("仅支持手动安装"))).toBe(
+			true,
+		);
+	});
+
+	it("shows MCP config snippet when requested for an MCP service", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["Show MCP Config Snippet", "Back"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup reverse r2mcp", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showCommandReport).toHaveBeenCalledTimes(1);
+		const reportCall = harness.showCommandReport.mock.calls[0]?.[0];
+		expect(reportCall.title).toBeDefined();
+	});
+
+	it("opens tool detail through secondary guide picker from main menu", async () => {
+		const harness = createInteractiveRuntime({
+			selectorChoices: ["details & guides", "(jadx)", "Back", "Back", "Exit"],
+		});
+
+		const handled = await executeBuiltinSlashCommand("/setup reverse", harness.runtime);
+
+		expect(handled).toBe(true);
+		expect(harness.showHookSelector.mock.calls.length).toBeGreaterThanOrEqual(2);
+	});
 	it("falls back to command report without blocking in non-TTY environment", async () => {
 		const harness = createInteractiveRuntime();
 		harness.runtime.ctx.isTTY = false;

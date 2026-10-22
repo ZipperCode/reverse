@@ -1,0 +1,1104 @@
+// oxlint-disable no-template-curly-in-string
+/**
+ * Shared Reverse Engineering Toolchain and Helper Service Installer.
+ *
+ * Provides a unified, safe installation API for CLI and TUI setup surfaces:
+ * - Single authoritative graph planner: validates against current platform and available package managers
+ * - Validates commands strictly against trusted catalogs (no arbitrary argv execution)
+ * - Resolves and installs missing catalog dependencies recursively in topological order
+ * - Recursively bootstraps package manager tools (e.g. sdkmanager -> java)
+ * - Probes package managers and tools using canonical checkToolRequirements and npm prefixes
+ * - Automatically configures and persists narrow tool environment (JAVA_HOME, REVERSE_TOOL_PATHS)
+ *   in the agent profile (.env), re-applied at bootstrap without shell rc mutation
+ * - Disallows fake success (exit 0 without working binary is treated as failure)
+ * - Configures and hot-connects MCP services in live sessions without clobbering user overrides
+ */
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { parseEnv } from "node:util";
+import { $which, clearWhichCache, getAgentDir, getProjectDir, isEnoent } from "@reverse/utils";
+import { refreshShellConfigCache } from "@reverse/utils/procmgr";
+import { invalidateShellSnapshotCache } from "../utils/shell-snapshot";
+import {
+	SKILL_TOOL_CATALOG,
+	type PackageInstallCommand,
+	type SkillToolDescriptor,
+	type SkillToolPlatform,
+} from "./skill-tool-catalog";
+import { getMcpService } from "./mcp-service-catalog";
+import {
+	checkReverseTools,
+	executeSafeCatalogCommand,
+	isTrustedCatalogArgv,
+	readMcpConfigFileSync,
+	t,
+	type ReverseServiceStatus,
+	type ReverseToolStatus,
+} from "../cli/setup-reverse";
+import {
+	getJshookInstallDir,
+	installJshookMcp,
+	JSHOOK_PACKAGE_NAME,
+	JSHOOK_PACKAGE_VERSION,
+	WEBCRACK_PACKAGE_NAME,
+	WEBCRACK_PACKAGE_VERSION,
+} from "./jshookmcp-install";
+import { readMCPConfigFile, setMcpServerEnabled, updateMCPServer } from "../mcp/config-writer";
+import type { MCPServerConnection } from "../mcp/types";
+import type { MCPManager } from "../mcp/manager";
+import type { AgentSession } from "../session/agent-session";
+import { checkToolRequirements, type SkillRequirementWhich } from "./skill-requirements";
+
+export interface ReverseInstallOptions {
+	cwd?: string;
+	agentDir?: string;
+	onChunk?: (chunk: string) => void;
+	executor?: (
+		argv: readonly string[],
+		options?: { onChunk?: (chunk: string) => void },
+	) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+	which?: SkillRequirementWhich;
+	platform?: NodeJS.Platform;
+	env?: Record<string, string | undefined>;
+	mcpManager?: Pick<MCPManager, "connectServers" | "getConnectionStatus" | "getTools">;
+	session?: Pick<AgentSession, "refreshMCPTools">;
+	signal?: AbortSignal;
+	plan?: ReverseInstallPlan;
+}
+
+export interface ReverseInstallStep {
+	id: string;
+	name: string;
+	kind: "cli" | "mcp";
+	packageManager?: string | null;
+	command?: string | null;
+	argv?: readonly string[] | null;
+	riskNote?: string | null;
+	isDependency?: boolean;
+	secondaryMissing?: string[];
+	manualInstructions?: string;
+	serverConfigSnapshot?: string;
+}
+
+export interface ReverseInstallPlan {
+	item: ReverseToolStatus | ReverseServiceStatus;
+	canInstall: boolean;
+	steps: ReverseInstallStep[];
+	missingDependencies: string[];
+	reason?: string;
+}
+
+/** Known bootstrap mappings: package manager -> catalog tool that provides it. */
+const MANAGER_BOOTSTRAP_TOOL: Record<string, string> = {
+	sdkmanager: "sdkmanager",
+	r2pm: "radare2",
+};
+
+/**
+ * Resolve JAVA_HOME directory from a found java executable binary.
+ * Resolves symlinks (e.g. Homebrew openjdk symlinks) and validates Contents/Home or bin/java.
+ * Explicitly rejects macOS stub wrapper /usr/bin/java so /usr is never returned.
+ */
+export function resolveJavaHomeFromBinary(javaBinaryPath: string): string | null {
+	try {
+		const real = fs.realpathSync(javaBinaryPath);
+		if (real === "/usr/bin/java" || real === "/usr") return null;
+
+		// macOS OpenJDK bundle structure (.../libexec/openjdk.jdk/Contents/Home/bin/java)
+		const contentsHomeIdx = real.indexOf("/Contents/Home");
+		if (contentsHomeIdx !== -1) {
+			const javaHome = real.slice(0, contentsHomeIdx + "/Contents/Home".length);
+			if (fs.existsSync(path.join(javaHome, "bin", "java"))) {
+				return javaHome;
+			}
+		}
+		// Standard Unix/Windows layout (.../bin/java or .../bin/java.exe)
+		const binDir = path.dirname(real);
+		if (path.basename(binDir).toLowerCase() === "bin") {
+			const parent = path.dirname(binDir);
+			if (parent === "/usr" || parent === "/usr/local") {
+				return null;
+			}
+			const ext = process.platform === "win32" ? ".exe" : "";
+			if (fs.existsSync(path.join(parent, "bin", `java${ext}`))) {
+				return parent;
+			}
+		}
+	} catch {}
+	return null;
+}
+
+function quoteEnvironmentValue(value: string): string {
+	if (/[\r\n]/.test(value) || (value.includes("'") && value.includes('"'))) {
+		throw new Error("Tool environment paths must fit a single quoted dotenv value.");
+	}
+	return value.includes('"') ? `'${value}'` : `"${value}"`;
+}
+
+/**
+ * Persist narrow, trusted reverse toolchain environment into the agent profile (.env).
+ * Preserves user's existing PATH and other custom variables. Persists ONLY REVERSE_TOOL_PATHS and JAVA_HOME.
+ */
+export async function persistToolEnvironment(
+	entries: { javaHome?: string; extraPaths?: string[] },
+	agentDir?: string,
+): Promise<void> {
+	const targetAgentDir = agentDir ?? getAgentDir();
+	await fs.promises.mkdir(targetAgentDir, { recursive: true, mode: 0o700 });
+	const envFile = path.join(targetAgentDir, ".env");
+
+	let currentLines: string[] = [];
+	try {
+		const content = await fs.promises.readFile(envFile, "utf-8");
+		currentLines = content.split(/\r?\n/);
+	} catch (error) {
+		if (!isEnoent(error)) {
+			throw error;
+		}
+	}
+	const existingKeys = new Map<string, number>();
+	for (let i = 0; i < currentLines.length; i++) {
+		const match = currentLines[i]?.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/);
+		if (match) {
+			existingKeys.set(match[1], i);
+		}
+	}
+
+	// 1. Persist JAVA_HOME
+	if (entries.javaHome) {
+		const line = `JAVA_HOME=${quoteEnvironmentValue(entries.javaHome)}`;
+		if (existingKeys.has("JAVA_HOME")) {
+			currentLines[existingKeys.get("JAVA_HOME")!] = line;
+		} else {
+			currentLines.push(line);
+		}
+		process.env.JAVA_HOME = entries.javaHome;
+		Bun.env.JAVA_HOME = entries.javaHome;
+	}
+
+	// 2. Persist tool directories into REVERSE_TOOL_PATHS (do NOT overwrite user's PATH line)
+	if (entries.extraPaths && entries.extraPaths.length > 0) {
+		const validDirs = entries.extraPaths.filter(d => {
+			try {
+				return path.isAbsolute(d) && fs.existsSync(d) && fs.statSync(d).isDirectory();
+			} catch {
+				return false;
+			}
+		});
+
+		if (validDirs.length > 0) {
+			let storedPaths: string[] = [];
+			const storedLineIdx = existingKeys.get("REVERSE_TOOL_PATHS");
+			if (storedLineIdx !== undefined) {
+				storedPaths = (parseEnv(currentLines.join("\n")).REVERSE_TOOL_PATHS ?? "")
+					.split(path.delimiter)
+					.filter(Boolean);
+			}
+
+			const merged = [...new Set([...validDirs, ...storedPaths])];
+			const storedLine = `REVERSE_TOOL_PATHS=${quoteEnvironmentValue(merged.join(path.delimiter))}`;
+			if (storedLineIdx !== undefined) {
+				currentLines[storedLineIdx] = storedLine;
+			} else {
+				currentLines.push(storedLine);
+			}
+
+			// Apply to live process PATH (in-memory only)
+			const currentProcessPath = process.env.PATH ?? "";
+			const pathParts = currentProcessPath.split(path.delimiter).filter(Boolean);
+			const newParts = [...merged.filter(d => !pathParts.includes(d)), ...pathParts];
+			const updatedPath = newParts.join(path.delimiter);
+			process.env.PATH = updatedPath;
+			Bun.env.PATH = updatedPath;
+		}
+	}
+
+	// Atomically write updated .env
+	const tmpFile = `${envFile}.${process.pid}.${Date.now()}.tmp`;
+	await fs.promises.writeFile(tmpFile, currentLines.filter(l => l !== undefined).join("\n") + "\n", {
+		mode: 0o600,
+	});
+	await fs.promises.rename(tmpFile, envFile);
+
+	refreshShellConfigCache();
+	clearWhichCache();
+	invalidateShellSnapshotCache();
+}
+
+/**
+ * Re-apply persisted tool environment from the agent profile (.env).
+ * Invoked during process bootstrap and interactive mode startup.
+ */
+export function applyPersistedReverseEnvironment(agentDir?: string): void {
+	const targetAgentDir = agentDir ?? getAgentDir();
+	const envFile = path.join(targetAgentDir, ".env");
+	if (!fs.existsSync(envFile)) return;
+
+	try {
+		const raw = fs.readFileSync(envFile, "utf-8");
+		const parsed = parseEnv(raw);
+
+		if (parsed.JAVA_HOME && typeof parsed.JAVA_HOME === "string") {
+			const jHome = parsed.JAVA_HOME.trim();
+			if (path.isAbsolute(jHome) && fs.existsSync(jHome)) {
+				process.env.JAVA_HOME = jHome;
+				Bun.env.JAVA_HOME = jHome;
+			}
+		}
+
+		if (parsed.REVERSE_TOOL_PATHS && typeof parsed.REVERSE_TOOL_PATHS === "string") {
+			const extraPaths = parsed.REVERSE_TOOL_PATHS.split(path.delimiter).filter(Boolean);
+			const valid = extraPaths.filter(d => {
+				try {
+					return path.isAbsolute(d) && fs.existsSync(d) && fs.statSync(d).isDirectory();
+				} catch {
+					return false;
+				}
+			});
+			if (valid.length > 0) {
+				const currentParts = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+				const combined = [...new Set([...valid.filter(d => !currentParts.includes(d)), ...currentParts])];
+				const newPath = combined.join(path.delimiter);
+				process.env.PATH = newPath;
+				Bun.env.PATH = newPath;
+			}
+		}
+
+		refreshShellConfigCache();
+		clearWhichCache();
+		invalidateShellSnapshotCache();
+	} catch {}
+}
+
+/**
+ * Authoritative single graph planner for installation steps and feasibility.
+ * Operates strictly on the requested platform and currently available package managers.
+ * Recursively resolves secondary dependencies, prerequisites, and package manager bootstrap tools.
+ */
+export function getReverseInstallPlan(
+	item: ReverseToolStatus | ReverseServiceStatus,
+	options: {
+		which?: SkillRequirementWhich;
+		platform?: NodeJS.Platform;
+		env?: Record<string, string | undefined>;
+		agentDir?: string;
+		cwd?: string;
+	} = {},
+): ReverseInstallPlan {
+	const reqPlatform = options.platform ?? process.platform;
+	const platform: SkillToolPlatform = reqPlatform === "darwin" || reqPlatform === "win32" ? reqPlatform : "linux";
+	const which: SkillRequirementWhich = options.which ?? $which;
+	const report = checkReverseTools({
+		platform: reqPlatform,
+		which,
+		env: options.env,
+		agentDir: options.agentDir,
+	});
+
+	const statusById: Record<string, ReverseToolStatus | ReverseServiceStatus> = {};
+	for (const t of report.tools) statusById[t.id] = t;
+	for (const s of report.services) statusById[s.id] = s;
+
+	const availableManagers = new Set(report.detectedPackageManagers);
+	const steps: ReverseInstallStep[] = [];
+	const missingDependencies: string[] = [];
+	const visited = new Set<string>();
+	const inProgress = new Set<string>();
+
+	function planTool(id: string): boolean {
+		if (visited.has(id)) return true;
+		if (inProgress.has(id)) return false; // Cycle guard
+		inProgress.add(id);
+
+		const desc = SKILL_TOOL_CATALOG[id];
+		if (!desc) {
+			inProgress.delete(id);
+			return false;
+		}
+
+		const currentStatus = statusById[id];
+		if (currentStatus?.status === "installed") {
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
+
+		// 1. Recursively plan secondary dependencies and known prerequisites that are catalog tools
+		const prereqIds = [
+			...(desc.secondary?.filter(sec => SKILL_TOOL_CATALOG[sec] && sec !== id) ?? []),
+			...(desc.usage?.prerequisites?.filter(p => p !== id && SKILL_TOOL_CATALOG[p]) ?? []),
+		];
+
+		for (const prereqId of prereqIds) {
+			const prereqStatus = statusById[prereqId];
+			if (!prereqStatus || prereqStatus.status !== "installed") {
+				if (!planTool(prereqId)) {
+					missingDependencies.push(prereqId);
+					inProgress.delete(id);
+					return false;
+				}
+			}
+		}
+		// 仅目录内已排入安装计划的依赖可以修复现有程序；npx 等随包提供的伴随程序仍需重装。
+		if (
+			id !== item.id &&
+			currentStatus?.kind === "cli" &&
+			currentStatus?.foundPath &&
+			(currentStatus.secondaryMissing ?? []).every(dependency => visited.has(dependency))
+		) {
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
+
+		// 2. Find a viable recipe strictly on this platform
+		const recipes = desc.installCommands?.[platform] ?? [];
+		let chosenRecipe: PackageInstallCommand | undefined;
+
+		for (const recipe of recipes) {
+			if (!recipe.argv || recipe.argv.length === 0) continue;
+			const bootId = MANAGER_BOOTSTRAP_TOOL[recipe.manager];
+			if (bootId && bootId !== id && SKILL_TOOL_CATALOG[bootId]) {
+				if (!planTool(bootId)) continue;
+				chosenRecipe = recipe;
+				break;
+			}
+			if (availableManagers.has(recipe.manager)) {
+				chosenRecipe = recipe;
+				break;
+			}
+		}
+
+		if (!chosenRecipe) {
+			inProgress.delete(id);
+			return false;
+		}
+
+		steps.push({
+			id: desc.id,
+			name: desc.name ?? desc.id,
+			kind: "cli",
+			packageManager: chosenRecipe.manager,
+			command: chosenRecipe.command,
+			argv: chosenRecipe.argv,
+			riskNote: chosenRecipe.riskNote,
+			isDependency: id !== item.id,
+			secondaryMissing: desc.secondary ? [...desc.secondary] : undefined,
+			manualInstructions: desc.manualInstructions?.[platform],
+		});
+
+		inProgress.delete(id);
+		visited.add(id);
+		return true;
+	}
+
+	let canInstall = false;
+	let reason: string | undefined;
+
+	if (item.kind === "cli") {
+		const desc = SKILL_TOOL_CATALOG[item.id];
+		const hasRecipe = Boolean(desc?.installCommands?.[platform]?.length);
+		if (item.status === "installed" && !hasRecipe) {
+			return {
+				item,
+				canInstall: false,
+				steps: [],
+				missingDependencies: [],
+				reason:
+					item.manualInstructions ||
+					`${item.name} is installed manually and has no automated package manager recipe.`,
+			};
+		}
+
+		canInstall = planTool(item.id);
+		if (!canInstall) {
+			reason = item.manualInstructions || `Automated installation is not supported for ${item.name} on ${platform}.`;
+		}
+	} else if (item.kind === "mcp") {
+		const service = getMcpService(item.id);
+		if (!service) {
+			return {
+				item,
+				canInstall: false,
+				steps: [],
+				missingDependencies: [],
+				reason: `MCP service "${item.id}" not found in catalog.`,
+			};
+		}
+
+		// Recursively plan prerequisite tools (e.g. node for jshook/playwright, radare2 for r2mcp)
+		let prereqsOk = true;
+		for (const reqId of service.requires) {
+			const reqStatus = statusById[reqId];
+			if (!reqStatus || reqStatus.status !== "installed") {
+				if (!planTool(reqId)) {
+					missingDependencies.push(reqId);
+					prereqsOk = false;
+					break;
+				}
+			}
+		}
+
+		if (!prereqsOk) {
+			canInstall = false;
+			reason = `Required prerequisites cannot be automatically installed on ${platform}: ${missingDependencies.join(", ")}.`;
+		} else if (service.installer === "jshookmcp") {
+			canInstall = true;
+			const installDir = getJshookInstallDir(options.agentDir);
+			const installCmd = `npm install --prefix ${installDir} --save-exact --omit=dev --omit=optional --no-audit --no-fund ${JSHOOK_PACKAGE_NAME}@${JSHOOK_PACKAGE_VERSION} ${WEBCRACK_PACKAGE_NAME}@${WEBCRACK_PACKAGE_VERSION}`;
+			const installArgv = [
+				"npm",
+				"install",
+				"--prefix",
+				installDir,
+				"--save-exact",
+				"--omit=dev",
+				"--omit=optional",
+				"--no-audit",
+				"--no-fund",
+				`${JSHOOK_PACKAGE_NAME}@${JSHOOK_PACKAGE_VERSION}`,
+				`${WEBCRACK_PACKAGE_NAME}@${WEBCRACK_PACKAGE_VERSION}`,
+			];
+			steps.push({
+				id: service.id,
+				name: service.name,
+				kind: "mcp",
+				packageManager: "npm",
+				command: installCmd,
+				argv: installArgv,
+				riskNote: `Installs managed ${JSHOOK_PACKAGE_NAME}@${JSHOOK_PACKAGE_VERSION} and ${WEBCRACK_PACKAGE_NAME}@${WEBCRACK_PACKAGE_VERSION} into ${installDir}. ${service.riskNote}`,
+				isDependency: false,
+				manualInstructions: service.manualInstructions[platform],
+			});
+		} else if (service.id === "playwright-mcp") {
+			canInstall = true;
+			steps.push({
+				id: service.id,
+				name: service.name,
+				kind: "mcp",
+				packageManager: "npm",
+				command: service.startCommand,
+				argv: null,
+				riskNote: service.riskNote,
+				isDependency: false,
+				manualInstructions: service.manualInstructions[platform],
+			});
+		} else {
+			const recipes = service.installCommands?.[platform] ?? [];
+			let chosenRecipe: PackageInstallCommand | undefined;
+			for (const recipe of recipes) {
+				if (!recipe.argv || recipe.argv.length === 0) continue;
+				if (availableManagers.has(recipe.manager)) {
+					chosenRecipe = recipe;
+					break;
+				}
+				const bootId = MANAGER_BOOTSTRAP_TOOL[recipe.manager];
+				if (bootId && (statusById[bootId]?.status === "installed" || planTool(bootId))) {
+					chosenRecipe = recipe;
+					break;
+				}
+			}
+
+			if (chosenRecipe) {
+				canInstall = true;
+				steps.push({
+					id: service.id,
+					name: service.name,
+					kind: "mcp",
+					packageManager: chosenRecipe.manager,
+					command: chosenRecipe.command,
+					argv: chosenRecipe.argv,
+					riskNote: chosenRecipe.riskNote,
+					isDependency: false,
+					manualInstructions: service.manualInstructions[platform],
+				});
+			} else {
+				canInstall = false;
+				reason =
+					service.manualInstructions[platform] ||
+					`No automated install recipe available for ${service.name} on ${platform}.`;
+			}
+		}
+	}
+
+	// 确认界面必须展示实际的覆盖配置；执行前再比对，避免审核后切换到另一条启动命令。
+	for (const step of steps) {
+		if (step.kind !== "mcp" || step.id === "jshookmcp") continue;
+		const service = getMcpService(step.id)!;
+		const projectConfig = readMcpConfigFileSync(path.join(options.cwd ?? getProjectDir(), ".reverse", "mcp.json"));
+		const userConfig = readMcpConfigFileSync(path.join(options.agentDir ?? getAgentDir(), "mcp.json"));
+		const server =
+			projectConfig?.mcpServers?.[service.serverName] ??
+			userConfig?.mcpServers?.[service.serverName] ??
+			service.server;
+		step.serverConfigSnapshot = JSON.stringify(server);
+		step.command = [step.command, `MCP ${step.serverConfigSnapshot}`].filter(Boolean).join("; ");
+	}
+
+	return {
+		item,
+		canInstall,
+		steps,
+		missingDependencies: [...new Set(missingDependencies)],
+		reason,
+	};
+}
+
+/** Check if an item can be installed through the authoritative planner. */
+export function canInstallReverseItem(
+	item: ReverseToolStatus | ReverseServiceStatus,
+	options: {
+		platform?: NodeJS.Platform;
+		which?: SkillRequirementWhich;
+		env?: Record<string, string | undefined>;
+		agentDir?: string;
+	} = {},
+): boolean {
+	if (item.status === "installed" || item.status === "ready") return true;
+	return getReverseInstallPlan(item, options).canInstall;
+}
+
+/** Construct a trusted catalog status item for validation against catalog definitions. */
+function makeCanonicalCatalogStatus(step: ReverseInstallStep): ReverseToolStatus | ReverseServiceStatus | null {
+	if (step.kind === "cli") {
+		const desc = SKILL_TOOL_CATALOG[step.id];
+		if (!desc) return null;
+		return {
+			kind: "cli",
+			id: desc.id,
+			name: desc.name ?? desc.id,
+			category: desc.category ?? "general",
+			description: desc.description ?? "",
+			optional: desc.optional ?? true,
+			systemTool: desc.systemTool ?? false,
+			status: "missing",
+			foundPath: null,
+			packageManager: step.packageManager ?? null,
+			installCommand: step.command ?? null,
+			installArgv: step.argv ?? null,
+			riskNote: step.riskNote ?? null,
+			manualUrl: desc.manualUrl ?? "",
+			manualInstructions: "",
+			usage: desc.usage,
+		};
+	}
+
+	if (step.kind === "mcp") {
+		const service = getMcpService(step.id);
+		if (!service) return null;
+		return {
+			kind: "mcp",
+			id: service.id,
+			name: service.name,
+			category: service.category,
+			description: service.description,
+			optional: true,
+			license: service.license,
+			serverName: service.serverName,
+			transport: service.server.type ?? "stdio",
+			startCommand: service.startCommand,
+			configPath: service.configPath,
+			configPaths: { project: ".reverse/mcp.json", user: ".reverse/agent/mcp.json" },
+			configSnippet: {},
+			prerequisites: [],
+			missingPrerequisites: [],
+			prerequisitesReady: true,
+			ready: false,
+			configured: false,
+			configuredScopes: [],
+			enabled: null,
+			connection: "unknown",
+			status: "missing",
+			packageManager: step.packageManager ?? null,
+			installCommand: step.command ?? null,
+			installArgv: step.argv ?? null,
+			installer: service.installer,
+			riskNote: step.riskNote ?? "",
+			manualUrl: service.manualUrl,
+			manualInstructions: "",
+			usage: service.usage,
+		};
+	}
+
+	return null;
+}
+
+/** Probe for installed CLI binary using the canonical checkToolRequirements engine. */
+function probeCliBinary(
+	descriptor: SkillToolDescriptor,
+	whichFn: SkillRequirementWhich,
+	env: Record<string, string | undefined>,
+	platform: SkillToolPlatform,
+): string | null {
+	const npmPrefix =
+		env?.NPM_CONFIG_PREFIX ??
+		env?.npm_config_prefix ??
+		process.env.NPM_CONFIG_PREFIX ??
+		process.env.npm_config_prefix;
+
+	const extraPaths: string[] = [];
+	if (npmPrefix) {
+		extraPaths.push(process.platform === "win32" ? npmPrefix : path.join(npmPrefix, "bin"));
+	}
+
+	const currentPath = env?.PATH ?? process.env.PATH ?? "";
+	const combinedPath = [...extraPaths, ...currentPath.split(path.delimiter)].filter(Boolean).join(path.delimiter);
+
+	const probeEnv: Record<string, string | undefined> = {
+		...process.env,
+		...env,
+		PATH: combinedPath,
+	};
+
+	const statuses = checkToolRequirements([{ id: descriptor.id }], {
+		which: whichFn,
+		platform,
+		env: probeEnv,
+	});
+	const st = statuses[0];
+	if (!st || !st.foundPath || (st.secondaryMissing && st.secondaryMissing.length > 0)) {
+		return null;
+	}
+	return st.foundPath;
+}
+
+/**
+ * Execute the full installation and configuration workflow for a reverse tool or MCP service.
+ */
+export async function installReverseItem(
+	item: ReverseToolStatus | ReverseServiceStatus,
+	options: ReverseInstallOptions = {},
+): Promise<{ success: boolean; message?: string; activated?: boolean }> {
+	const reqPlatform = options.platform ?? process.platform;
+	const platform: SkillToolPlatform = reqPlatform === "darwin" || reqPlatform === "win32" ? reqPlatform : "linux";
+	const which: SkillRequirementWhich = options.which ?? $which;
+	const plan = options.plan ?? getReverseInstallPlan(item, options);
+	if (options.plan && options.plan.item.id !== item.id) {
+		return {
+			success: false,
+			message: `Plan item "${options.plan.item.id}" does not match target item "${item.id}".`,
+		};
+	}
+
+	if (!plan.canInstall) {
+		return {
+			success: false,
+			message:
+				plan.reason ?? t("cli.setup.reverse.unsupported", `No automated installer available for ${item.name}.`),
+		};
+	}
+
+	// Preflight validate all steps against trusted catalog before executing anything
+	for (const step of plan.steps) {
+		const canonical = makeCanonicalCatalogStatus(step);
+		if (!canonical) {
+			return { success: false, message: `Item "${step.id}" is not in the trusted catalog.` };
+		}
+		if (step.id === "jshookmcp") {
+			const installDir = getJshookInstallDir(options.agentDir);
+			const expectedArgv = [
+				"npm",
+				"install",
+				"--prefix",
+				installDir,
+				"--save-exact",
+				"--omit=dev",
+				"--omit=optional",
+				"--no-audit",
+				"--no-fund",
+				`${JSHOOK_PACKAGE_NAME}@${JSHOOK_PACKAGE_VERSION}`,
+				`${WEBCRACK_PACKAGE_NAME}@${WEBCRACK_PACKAGE_VERSION}`,
+			];
+			if (
+				!step.argv ||
+				step.argv.length !== expectedArgv.length ||
+				!step.argv.every((v, i) => v === expectedArgv[i])
+			) {
+				return {
+					success: false,
+					message: `Untrusted installation command for ${step.name}: argv does not match managed installer definition.`,
+				};
+			}
+		} else if (step.argv && step.argv.length > 0 && !isTrustedCatalogArgv(canonical)) {
+			return {
+				success: false,
+				message: `Untrusted installation command for ${step.name}: argv does not match catalog definition.`,
+			};
+		}
+	}
+
+	// Pre-configure environment for any already-present prerequisites (e.g. Node for playwright/jshook, Java for sdkmanager/jadx)
+	const prePaths: string[] = [];
+	let preJavaHome: string | undefined;
+
+	const checkIds = new Set<string>();
+	if (item.kind === "cli") {
+		checkIds.add(item.id);
+		const desc = SKILL_TOOL_CATALOG[item.id];
+		for (const sec of desc?.secondary ?? []) checkIds.add(sec);
+	} else if (item.kind === "mcp") {
+		const service = getMcpService(item.id);
+		for (const req of service?.requires ?? []) checkIds.add(req);
+	}
+	checkIds.add("java");
+	checkIds.add("node");
+	for (const step of plan.steps) {
+		const managerTool = step.packageManager ? MANAGER_BOOTSTRAP_TOOL[step.packageManager] : undefined;
+		if (managerTool) checkIds.add(managerTool);
+	}
+
+	for (const id of checkIds) {
+		const desc = SKILL_TOOL_CATALOG[id];
+		if (desc) {
+			const found = probeCliBinary(desc, which, options.env ?? process.env, platform);
+			if (found && path.isAbsolute(found)) {
+				prePaths.push(path.dirname(found));
+				if (id === "java" && !preJavaHome) {
+					preJavaHome = resolveJavaHomeFromBinary(found) ?? undefined;
+				}
+			}
+		}
+	}
+
+	if (prePaths.length > 0 || preJavaHome) {
+		await persistToolEnvironment({ javaHome: preJavaHome, extraPaths: prePaths }, options.agentDir);
+	}
+
+	// Execute steps in plan order (dependencies first)
+	for (const step of plan.steps) {
+		const canonical = makeCanonicalCatalogStatus(step);
+		if (!canonical) {
+			return { success: false, message: `Item "${step.id}" is not in the trusted catalog.` };
+		}
+
+		if (step.kind === "cli") {
+			const descriptor = SKILL_TOOL_CATALOG[step.id];
+			if (!descriptor) {
+				return { success: false, message: `Tool "${step.id}" not found in catalog.` };
+			}
+
+			if (!step.argv || step.argv.length === 0) {
+				return { success: false, message: `No install command defined for ${step.name}.` };
+			}
+
+			// Validate strictly against catalog definitions before execution
+			if (!isTrustedCatalogArgv(canonical)) {
+				return {
+					success: false,
+					message: `Untrusted installation command for ${step.name}: argv does not match catalog definition.`,
+				};
+			}
+
+			// Skip re-executing dependency if it was already fulfilled earlier in this batch
+			if (step.isDependency) {
+				const already = probeCliBinary(descriptor, which, options.env ?? process.env, platform);
+				if (already) {
+					continue;
+				}
+			}
+
+			options.onChunk?.(
+				`[reverse] Installing ${step.isDependency ? "dependency " : ""}${step.name} (${step.command})...\n`,
+			);
+
+			let execRes: { exitCode: number; stdout: string; stderr: string };
+			if (options.executor) {
+				execRes = await options.executor(canonical.installArgv!, { onChunk: options.onChunk });
+			} else {
+				execRes = await executeSafeCatalogCommand(canonical, {
+					allowNonTTY: true,
+					isTTY: true,
+					timeoutMs: 180_000,
+					onChunk: options.onChunk,
+				});
+			}
+			if (execRes.exitCode !== 0) {
+				const combinedErr = `${execRes.stderr}\n${execRes.stdout}`;
+				if (combinedErr.toLowerCase().includes("license") && combinedErr.toLowerCase().includes("not accepted")) {
+					return {
+						success: false,
+						message: `Android SDK licenses have not been accepted yet. Please run 'sdkmanager --licenses' in your terminal to accept them.`,
+					};
+				}
+				return {
+					success: false,
+					message:
+						execRes.stderr.trim() ||
+						execRes.stdout.trim() ||
+						`Installation command failed with exit code ${execRes.exitCode}`,
+				};
+			}
+
+			// Reprobe binary to ensure real usability (exit 0 alone does not prove success)
+			const foundPath = probeCliBinary(descriptor, which, options.env ?? process.env, platform);
+			if (!foundPath) {
+				const licenseHint =
+					step.packageManager === "sdkmanager"
+						? " If the installation completed without writing binaries, ensure Android SDK licenses are accepted by running 'sdkmanager --licenses' in your terminal."
+						: "";
+				return {
+					success: false,
+					message: `Command completed with exit code 0, but ${step.name} executable was not found on PATH or catalog search paths.${licenseHint}`,
+				};
+			}
+
+			// Persist narrow environment
+			const toolDir = path.dirname(foundPath);
+			const envPayload: { javaHome?: string; extraPaths: string[] } = {
+				extraPaths: [toolDir],
+			};
+
+			if (step.id === "java") {
+				const javaHome = resolveJavaHomeFromBinary(foundPath);
+				if (javaHome) {
+					envPayload.javaHome = javaHome;
+				}
+			}
+
+			await persistToolEnvironment(envPayload, options.agentDir);
+		} else if (step.kind === "mcp") {
+			if (step.id === "jshookmcp") {
+				try {
+					const installed = await installJshookMcp({
+						cwd: options.cwd ?? getProjectDir(),
+						agentDir: options.agentDir,
+						scope: "user",
+						onChunk: options.onChunk,
+						signal: options.signal,
+					});
+
+					let activated = false;
+					if (options.mcpManager) {
+						const loaded = await options.mcpManager.connectServers(
+							{ [installed.serverName]: installed.server },
+							{
+								[installed.serverName]: {
+									provider: "reverse",
+									providerName: "reverse",
+									path: installed.configPath,
+									level: "user",
+								},
+							},
+							undefined,
+							installed.server.timeout ?? 120_000,
+						);
+						const connectError = loaded.errors.get(installed.serverName);
+						if (connectError || options.mcpManager.getConnectionStatus(installed.serverName) !== "connected") {
+							return {
+								success: false,
+								message: t(
+									"cli.setup.reverse.serviceInstallFailed",
+									`MCP service ${step.name} installed, but session connection failed: ${connectError ?? "connection incomplete"}`,
+									{ name: step.name, error: connectError ?? "connection incomplete" },
+								),
+							};
+						}
+						await options.session?.refreshMCPTools(options.mcpManager.getTools());
+						activated = true;
+					}
+
+					return {
+						success: true,
+						activated,
+						message: t(
+							"cli.setup.reverse.serviceInstallSuccess",
+							`MCP service ${step.name} installed and configured successfully (config: ${installed.configPath}, tools: ${installed.tools.join(", ")}).`,
+							{ name: step.name, path: installed.configPath, tools: installed.tools.join(", ") },
+						),
+					};
+				} catch (err: unknown) {
+					const msg = err instanceof Error ? err.message : String(err);
+					return {
+						success: false,
+						message: t(
+							"cli.setup.reverse.serviceInstallFailed",
+							`MCP service ${step.name} installation failed: ${msg}`,
+							{ name: step.name, error: msg },
+						),
+					};
+				}
+			} else {
+				// Non-jshook MCP service (e.g. playwright-mcp, r2mcp)
+				const service = getMcpService(step.id);
+				if (!service) {
+					return { success: false, message: `MCP service "${step.id}" not found in catalog.` };
+				}
+
+				if (step.argv && step.argv.length > 0) {
+					if (!isTrustedCatalogArgv(canonical)) {
+						return {
+							success: false,
+							message: `Untrusted installation command for ${step.name}: argv does not match catalog definition.`,
+						};
+					}
+
+					options.onChunk?.(`[reverse] Installing MCP package for ${step.name} (${step.command})...\n`);
+					let execRes: { exitCode: number; stdout: string; stderr: string };
+					if (options.executor) {
+						execRes = await options.executor(canonical.installArgv!, { onChunk: options.onChunk });
+					} else {
+						execRes = await executeSafeCatalogCommand(canonical, {
+							allowNonTTY: true,
+							isTTY: true,
+							timeoutMs: 180_000,
+							onChunk: options.onChunk,
+						});
+					}
+					if (execRes.exitCode !== 0) {
+						return {
+							success: false,
+							message:
+								execRes.stderr.trim() ||
+								execRes.stdout.trim() ||
+								`MCP installation failed with exit code ${execRes.exitCode}`,
+						};
+					}
+				}
+
+				// Read user and project configs to resolve effective configuration
+				const userConfigPath = path.join(options.agentDir ?? getAgentDir(), "mcp.json");
+				const projectConfigPath = path.join(options.cwd ?? getProjectDir(), ".reverse", "mcp.json");
+				const existingUserConfig = await readMCPConfigFile(userConfigPath);
+				const existingProjectConfig = await readMCPConfigFile(projectConfigPath);
+				const isProjectScope = Boolean(existingProjectConfig.mcpServers?.[service.serverName]);
+				const chosenScope: "project" | "user" = isProjectScope ? "project" : "user";
+				const chosenConfigPath = isProjectScope ? projectConfigPath : userConfigPath;
+				const effectiveServerConfig =
+					existingProjectConfig.mcpServers?.[service.serverName] ??
+					existingUserConfig.mcpServers?.[service.serverName] ??
+					service.server;
+				if (step.serverConfigSnapshot !== JSON.stringify(effectiveServerConfig)) {
+					return {
+						success: false,
+						message:
+							"MCP configuration changed after review; reopen setup and confirm the updated launch configuration.",
+					};
+				}
+				// Only write default to user config if unconfigured in both scopes
+				if (
+					!existingProjectConfig.mcpServers?.[service.serverName] &&
+					!existingUserConfig.mcpServers?.[service.serverName]
+				) {
+					await updateMCPServer(userConfigPath, service.serverName, service.server);
+				}
+
+				// Enable server using canonical helper (clears stale disabledServers denylist)
+				await setMcpServerEnabled({
+					userPath: userConfigPath,
+					projectPath: projectConfigPath,
+					name: service.serverName,
+					enabled: true,
+				});
+
+				const { expandEnvVarsDeep } = await import("../discovery/helpers");
+				const runtimeServerConfig = expandEnvVarsDeep(effectiveServerConfig);
+
+				// Standalone CLI verification: perform live handshake to ensure server is actually runnable
+				if (!options.mcpManager) {
+					const { connectToServer, disconnectServer, listTools } = await import("../mcp/client");
+					let conn: MCPServerConnection | undefined;
+					try {
+						// 首次通过 npx 下载服务时，与交互会话使用相同的启动等待时间。
+						const handshakeConfig = { ...runtimeServerConfig, timeout: runtimeServerConfig.timeout ?? 120_000 };
+						conn = await connectToServer(service.serverName, handshakeConfig, { signal: options.signal });
+						const tools = await listTools(conn);
+						if (!tools) {
+							return {
+								success: false,
+								message: `MCP service ${step.name} connected but failed to list tools.`,
+							};
+						}
+					} catch (err: unknown) {
+						const msg = err instanceof Error ? err.message : String(err);
+						return {
+							success: false,
+							message: `MCP service ${step.name} failed verification handshake: ${msg}`,
+						};
+					} finally {
+						if (conn) {
+							await disconnectServer(conn).catch(() => {});
+						}
+					}
+				}
+
+				let activated = false;
+				if (options.mcpManager) {
+					const loaded = await options.mcpManager.connectServers(
+						{ [service.serverName]: runtimeServerConfig },
+						{
+							[service.serverName]: {
+								provider: "reverse",
+								providerName: "reverse",
+								path: chosenConfigPath,
+								level: chosenScope,
+							},
+						},
+						undefined,
+						runtimeServerConfig.timeout ?? 120_000,
+					);
+					const connectErr = loaded.errors.get(service.serverName);
+					if (connectErr || options.mcpManager.getConnectionStatus(service.serverName) !== "connected") {
+						return {
+							success: false,
+							message: t(
+								"cli.setup.reverse.serviceInstallFailed",
+								`MCP service ${step.name} configured, but session connection failed: ${connectErr ?? "connection incomplete"}`,
+								{ name: step.name, error: connectErr ?? "connection incomplete" },
+							),
+						};
+					}
+					await options.session?.refreshMCPTools(options.mcpManager.getTools());
+					activated = true;
+				}
+
+				return {
+					success: true,
+					activated,
+					message: t(
+						"cli.setup.reverse.serviceInstallSuccess",
+						`MCP service ${step.name} configured successfully (config: ${chosenConfigPath}).`,
+						{ name: step.name, path: chosenConfigPath, tools: service.serverName },
+					),
+				};
+			}
+		}
+	}
+
+	// Reprobe the final target item to verify usability and persist its environment
+	if (item.kind === "cli") {
+		const desc = SKILL_TOOL_CATALOG[item.id];
+		if (!desc) {
+			return { success: false, message: `Tool "${item.id}" not found in catalog.` };
+		}
+		const finalPath = probeCliBinary(desc, which, options.env ?? process.env, platform);
+		if (!finalPath) {
+			return {
+				success: false,
+				message: `Installation steps finished, but ${item.name} executable was not found on PATH or catalog search paths.`,
+			};
+		}
+		const extraPaths = [path.dirname(finalPath)];
+		let javaHome: string | undefined;
+		if (item.id === "java") {
+			javaHome = resolveJavaHomeFromBinary(finalPath) ?? undefined;
+		}
+		for (const sec of desc.secondary ?? []) {
+			const sDesc = SKILL_TOOL_CATALOG[sec];
+			if (sDesc) {
+				const secPath = probeCliBinary(sDesc, which, options.env ?? process.env, platform);
+				if (secPath) {
+					extraPaths.push(path.dirname(secPath));
+					if (sec === "java" && !javaHome) {
+						javaHome = resolveJavaHomeFromBinary(secPath) ?? undefined;
+					}
+				}
+			}
+		}
+		await persistToolEnvironment({ javaHome, extraPaths }, options.agentDir);
+	}
+
+	return {
+		success: true,
+		message: `Successfully installed and configured ${item.name}.`,
+	};
+}
