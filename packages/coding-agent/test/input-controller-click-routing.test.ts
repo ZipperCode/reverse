@@ -15,10 +15,12 @@ const ESC = String.fromCharCode(27);
 // candidates below resolve it to the toggle sentinel.
 const EXPANDER_CLICK = `${ESC}[<0;5;3M`;
 
-function makeHarness() {
+function makeHarness(options?: { detailClickResult?: boolean; candidatesAtRow?: (index: number) => string[] }) {
 	const listeners: Array<(data: string) => { consume?: boolean; data?: string } | undefined> = [];
 	const focused: string[] = [];
 	let toggled = 0;
+	let requestRenderCount = 0;
+	const routedDetailClicks: Array<{ index: number; col: number }> = [];
 	const ctx = {
 		ui: {
 			addInputListener: (fn: (data: string) => { consume?: boolean; data?: string } | undefined) => {
@@ -26,7 +28,10 @@ function makeHarness() {
 			},
 			getMutableViewport: () => ({ top: 0, length: 5 }),
 			hasOverlay: () => false,
-			requestRender: () => {},
+			requestRender: () => {
+				requestRenderCount++;
+			},
+			resetDisplay: () => {},
 			addStartListener: () => {},
 			getFocused: () => undefined,
 		},
@@ -44,7 +49,12 @@ function makeHarness() {
 		session: {
 			extensionRunner: undefined,
 		},
-		resolveViewportClickCandidates: (index: number) => (index === 2 ? [PINNED_HUD_TOGGLE_ID] : []),
+		resolveViewportClickCandidates:
+			options?.candidatesAtRow ?? ((index: number) => (index === 2 ? [PINNED_HUD_TOGGLE_ID] : [])),
+		routeViewportDetailClick: (index: number, col: number) => {
+			routedDetailClicks.push({ index, col });
+			return options?.detailClickResult ?? false;
+		},
 		focusedAgentId: undefined,
 		focusAgentSession: async (id: string) => {
 			focused.push(id);
@@ -58,11 +68,18 @@ function makeHarness() {
 	const controller = new InputController(ctx);
 	controller.setupKeyHandlers();
 	return {
-		click: () => {
-			for (const listener of listeners) listener(EXPANDER_CLICK);
+		click: (data: string = EXPANDER_CLICK) => {
+			let consumed: boolean | undefined;
+			for (const listener of listeners) {
+				const res = listener(data);
+				if (res?.consume) consumed = true;
+			}
+			return consumed;
 		},
 		focused,
 		toggled: () => toggled,
+		routedDetailClicks,
+		requestRenderCount: () => requestRenderCount,
 	};
 }
 
@@ -97,5 +114,57 @@ describe("InputController click routing", () => {
 		h.click();
 		expect(h.toggled()).toBe(1);
 		expect(h.focused).toEqual([]);
+	});
+
+	it("bypasses mouse events when tui.mouse is disabled", () => {
+		cfgTuiMouse.set(settings, false);
+		const h = makeHarness();
+		const consumed = h.click();
+		expect(consumed).toBeUndefined();
+		expect(h.toggled()).toBe(0);
+		expect(h.focused).toEqual([]);
+	});
+
+	it("routes left clicks on non-agent rows to detail routing and requests render on toggle", () => {
+		cfgTuiMouse.set(settings, true);
+		const h = makeHarness({ detailClickResult: true });
+		// Click at row 1 (1-based y=2, col 5 -> 1-based x=6)
+		const clickRow1 = `${ESC}[<0;6;2M`;
+		const consumed = h.click(clickRow1);
+		expect(consumed).toBe(true);
+		expect(h.routedDetailClicks).toEqual([{ index: 1, col: 5 }]);
+		expect(h.requestRenderCount()).toBe(1);
+		expect(h.toggled()).toBe(0);
+		expect(h.focused).toEqual([]);
+	});
+
+	it("does not request render when detail click routing returns false (body click no-op)", () => {
+		cfgTuiMouse.set(settings, true);
+		const h = makeHarness({ detailClickResult: false });
+		const clickRow1 = `${ESC}[<0;6;2M`;
+		const consumed = h.click(clickRow1);
+		expect(consumed).toBe(true);
+		expect(h.routedDetailClicks).toEqual([{ index: 1, col: 5 }]);
+		expect(h.requestRenderCount()).toBe(0);
+	});
+
+	it("gives agent candidate priority over detail routing", () => {
+		cfgTuiMouse.set(settings, true);
+		AgentRegistry.global().register({
+			id: "LiveWorker",
+			displayName: "Live Worker",
+			kind: "sub",
+			session: {} as unknown as AgentSession,
+			sessionFile: null,
+		});
+		const h = makeHarness({
+			detailClickResult: true,
+			candidatesAtRow: (index: number) => (index === 1 ? ["LiveWorker"] : []),
+		});
+		const clickRow1 = `${ESC}[<0;6;2M`;
+		h.click(clickRow1);
+		expect(h.focused).toEqual(["LiveWorker"]);
+		expect(h.routedDetailClicks).toEqual([]);
+		expect(h.requestRenderCount()).toBe(0);
 	});
 });

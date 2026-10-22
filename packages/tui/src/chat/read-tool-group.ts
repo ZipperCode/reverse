@@ -4,6 +4,7 @@ import type { AssistantMessage, Usage } from "@reverse/ai";
 import { type Component } from "../tui";
 import { Container } from "../tui";
 import { Text } from "../components/text";
+import type { MouseRoutable, SgrMouseEvent } from "../mouse";
 import { getLanguageFromPath, theme } from "../theme";
 import { parseLineRanges, selectorLineRanges } from "../tools/line-ranges";
 import {
@@ -358,7 +359,7 @@ function formatMergedSelectorParts(selectors: string[]): string {
 	return `${first},${second},…,${last}`;
 }
 
-export class ReadToolGroupComponent extends Container implements ToolExecutionHandle {
+export class ReadToolGroupComponent extends Container implements ToolExecutionHandle, MouseRoutable {
 	#entries = new Map<string, ReadEntry>();
 	#usageRows = new Map<string, ReadUsageRow>();
 	#usageBatchByToolCallId = new Map<string, string>();
@@ -384,6 +385,8 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 	readonly #native = new Memo();
 	/** Content previews toggled in the terminal, by tool call id. */
 	#previewCollapsed = new Map<string, boolean>();
+	#lastRenderWidth: number | undefined;
+	#headerText = "";
 
 	constructor(options: ReadToolGroupOptions = {}) {
 		super();
@@ -395,6 +398,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 
 	override render(width: number): readonly string[] {
 		if (!this.#toolActivityVisible) return [];
+		this.#lastRenderWidth = width;
 		return super.render(width);
 	}
 	isTranscriptBlockFinalized(): boolean {
@@ -562,6 +566,21 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 		this.#expanded = expanded;
 		this.#previewCollapsed.clear();
 		this.#updateDisplay();
+	}
+
+	get expanded(): boolean {
+		return this.#expanded;
+	}
+
+	routeMouse(event: SgrMouseEvent, line: number, _col: number): boolean {
+		if (!event.leftClick) return false;
+		const width = Math.max(1, this.#lastRenderWidth ?? 80);
+		const headerLines = new Text(this.#headerText, 0, 0).render(width).length;
+		if (line < Math.max(1, headerLines)) {
+			this.setExpanded(!this.#expanded);
+			return true;
+		}
+		return false;
 	}
 
 	setToolActivityVisible(visible: boolean): void {
@@ -934,6 +953,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 				const statusSymbol = this.#formatStatus(this.#statusForTargets(row.targets));
 				const pathDisplay = this.#formatRowPath(row);
 				const lines = [` ${statusSymbol} ${theme.fg("toolTitle", theme.bold("Read"))} ${pathDisplay}`.trimEnd()];
+				this.#headerText = lines[0]!;
 				const usageRows = this.#usageRowsBySummaryRow(displayRows).get(0) ?? [];
 				this.#appendUsageRows(lines, usageRows, "   ");
 				this.#text.setText(lines.join("\n"));
@@ -948,6 +968,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 
 		const header = `${theme.fg("toolTitle", theme.bold("Read"))}${theme.fg("dim", ` (${displayRows.length})`)}`;
 		const lines = [` ${theme.format.bullet} ${header}`];
+		this.#headerText = lines[0]!;
 		const entriesWithoutPreview = entries.filter(entry => !this.#shouldRenderPreview(entry));
 		const summaryTargets = this.#displayTargetsForEntries(entriesWithoutPreview);
 		const rows = this.#buildSummaryRows(summaryTargets);

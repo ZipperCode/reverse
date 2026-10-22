@@ -770,7 +770,7 @@ export class InputController {
 		const event = parseSgrMouse(data);
 		if (!event) return undefined;
 		if (event.motion) this.#updateHoverHighlight(event.row);
-		else if (event.leftClick) this.#focusClickedAgent(event.row);
+		else if (event.leftClick) this.#handleInlineLeftClick(event.row, event.col);
 		return { consume: true };
 	}
 
@@ -807,27 +807,33 @@ export class InputController {
 		this.#lastHoverClickId = undefined;
 	}
 
-	#focusClickedAgent(screenRow: number): void {
+	#handleInlineLeftClick(screenRow: number, col: number): void {
 		const candidates = this.#viewportCandidates(screenRow);
-		if (candidates.length === 0) return;
-		const refs = AgentRegistry.global().list();
-		const scoped = refs.filter(ref => candidates.includes(ref.id));
-		// A live agent wins over the expander sentinel: task names are
-		// user-controlled, so an agent id can equal the toggle id. The toggle
-		// row itself names no agent and still toggles.
-		if (candidates.includes(PINNED_HUD_TOGGLE_ID) && scoped.length === 0) {
-			this.ctx.togglePinnedHudExpanded();
-			return;
+		if (candidates.length > 0) {
+			const refs = AgentRegistry.global().list();
+			const scoped = refs.filter(ref => candidates.includes(ref.id));
+			if (candidates.includes(PINNED_HUD_TOGGLE_ID) && scoped.length === 0) {
+				this.ctx.togglePinnedHudExpanded();
+				return;
+			}
+			const nextId = pickRecentFocusableAgentId(scoped, this.ctx.focusedAgentId);
+			if (nextId !== undefined) {
+				this.#focusResolvedAgent(nextId);
+				return;
+			}
+			if (candidates.some(c => c !== PINNED_HUD_TOGGLE_ID)) {
+				this.ctx.showStatus("That subagent is gone — open the hub for live agents");
+				return;
+			}
 		}
-		// No global fallback: when every candidate is gone (aborted, released),
-		// focusing an unrelated recent agent would open something other than
-		// what the click displayed.
-		const nextId = pickRecentFocusableAgentId(scoped, this.ctx.focusedAgentId);
-		if (nextId === undefined) {
-			this.ctx.showStatus("That subagent is gone — open the hub for live agents");
-			return;
+
+		const viewport = this.ctx.ui.getMutableViewport();
+		const local = screenRow - viewport.top;
+		if (viewport.length === 0 || local < 0 || local >= viewport.length) return;
+		const handled = this.ctx.routeViewportDetailClick?.(local, col);
+		if (handled) {
+			this.ctx.ui.requestRender();
 		}
-		this.#focusResolvedAgent(nextId);
 	}
 
 	/** Focus a resolved agent id, ignoring already-viewing and surfacing errors as status. */

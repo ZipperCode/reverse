@@ -42,6 +42,7 @@ import {
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "@reverse/tui";
+import type { DetailClickResult, SgrMouseEvent } from "@reverse/tui/mouse";
 import { executeSafeCatalogCommand, t, type ReverseServiceStatus, type ReverseToolStatus } from "../cli/setup-reverse";
 import { installJshookMcp } from "../extensibility/jshookmcp-install";
 import type { TerminalAppearanceRequestToken } from "@reverse/tui/terminal";
@@ -1650,6 +1651,9 @@ export class InteractiveMode implements InteractiveModeContext {
 		return this.composer.viewportClickCandidates(index);
 	}
 
+	routeViewportDetailClick(index: number, col: number, event?: SgrMouseEvent): boolean | DetailClickResult {
+		return this.composer.routeViewportDetailClick(index, col, event);
+	}
 	/** Flip the pinned jump list between its collapsed few and the full list, overriding the setting. */
 	togglePinnedHudExpanded(): void {
 		const mode = cfgDisplayPinnedAgents.get(settings);

@@ -15,6 +15,7 @@
 ### Changed
 
 - `Ctrl+O` now expands transcript details across historical and streaming thinking, tools, Skill instructions, and errors, independently of tool visibility. `expandThinkingBlocks` now applies to classic terminals as well as native rendering.
+- Enabled `tui.mouse` by default while preserving explicit opt-outs; clicking visible detail headers now toggles their content, and existing single-click subagent navigation remains unchanged.
 
 - Unified internal workspace packages and imports under `@reverse/*`, including build scripts, lockfile metadata, and SDK examples. No alternate scope aliases are provided.
 - Standalone outputs and startup branding now use `reverse`; bundled skills treat optional external analyzers as on-demand dependencies rather than startup requirements.

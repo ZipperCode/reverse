@@ -25,6 +25,7 @@ import { isNativeRendering } from "../native/state";
 import { NativeImageCache, nativeMediaNode } from "../native/blobs";
 import { linkedImageText } from "../prompt/image-references";
 import { Memo } from "../native/memo";
+import type { MouseRoutable, SgrMouseEvent } from "../mouse";
 import { EMPTY_LINK_TARGETS, formatExpandHint, resolveImageOptions } from "../render/render-utils";
 import { WidthAwareText } from "../render";
 import { cachedPngConversion, convertImageToPngShared, imagePayloadKey } from "./image-loading";
@@ -253,7 +254,7 @@ function lerpHex(from: string, to: string, t: number): string {
  * scrollback while the block still streams — a long reasoning trace is no
  * longer clipped to the mutable viewport.
  */
-export class AssistantMessageComponent extends Container {
+export class AssistantMessageComponent extends Container implements MouseRoutable {
 	readonly transcriptBlockMode = "appendOnly" as const;
 	#contentContainer: Container;
 	#markerSlot: Container;
@@ -393,6 +394,8 @@ export class AssistantMessageComponent extends Container {
 	#thinkingExtensions = new Map<number, Component[]>();
 	/** Collapse state of thinking sections toggled in the terminal, by content index; cleared by {@link setHideThinkingBlock} and {@link setExpanded}. */
 	#thinkingCollapsed = new Map<number, boolean>();
+	#thinkingHeaderComponents = new Map<Component, number>();
+	#thinkingHeaderSpans: Array<{ contentIndex: number; start: number; end: number }> = [];
 	/** When each thinking block was seen streaming and when it stopped (shared across ANSI and native "Thought for 12s"), by content index. */
 	#thinkingClock = new Map<number, { start: number; end?: number; tokens: number }>();
 	#nativeViewVersion = 0;
@@ -676,10 +679,10 @@ export class AssistantMessageComponent extends Container {
 	 * Once text starts, a tool call streams, or the block is sealed, the pulse ends.
 	 */
 	#shouldAnimateThinking(message: AssistantMessage): boolean {
-		return (
-			(this.#hideThinkingBlock || !this.#effectiveThinkingExpanded()) &&
-			this.#thinkingTailIndex(message) !== undefined
-		);
+		const tail = this.#thinkingTailIndex(message);
+		if (tail === undefined) return false;
+		if (this.#hideThinkingBlock) return true;
+		return this.#thinkingCollapsed.get(tail) ?? !this.#effectiveThinkingExpanded();
 	}
 
 	/**
@@ -823,7 +826,43 @@ export class AssistantMessageComponent extends Container {
 	override render(width: number): readonly string[] {
 		const rows = super.render(width);
 		this.#publishStableSnapshot(rows, width);
+		this.#thinkingHeaderSpans = [];
+		if (this.#thinkingHeaderComponents.size > 0) {
+			let currentLine = 0;
+			for (const child of this.#contentContainer.children) {
+				const contentIndex = this.#thinkingHeaderComponents.get(child);
+				const childHeight = child.render(width).length;
+				if (contentIndex !== undefined) {
+					this.#thinkingHeaderSpans.push({
+						contentIndex,
+						start: currentLine,
+						end: currentLine + childHeight,
+					});
+				}
+				currentLine += childHeight;
+			}
+		}
 		return rows;
+	}
+
+	routeMouse(event: SgrMouseEvent, line: number, _col: number): boolean {
+		if (!event.leftClick) return false;
+		if (this.#hideThinkingBlock) return false;
+		for (const span of this.#thinkingHeaderSpans) {
+			if (line >= span.start && line < span.end) {
+				const currentCollapsed =
+					this.#thinkingCollapsed.get(span.contentIndex) ?? !this.#effectiveThinkingExpanded();
+				this.#thinkingCollapsed.set(span.contentIndex, !currentCollapsed);
+				this.#nativeViewVersion++;
+				if (this.#lastMessage) {
+					this.updateContent(this.#lastMessage, { transient: this.#lastUpdateTransient });
+				}
+				this.invalidate();
+				this.#onImageUpdate?.();
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -1286,6 +1325,9 @@ export class AssistantMessageComponent extends Container {
 		const parts: StablePart[] = [];
 		let itemIndex = 0;
 		for (const child of this.#contentContainer.children) {
+			if (this.#thinkingHeaderComponents.has(child)) {
+				break;
+			}
 			const item = items[itemIndex];
 			if (item?.md === child) {
 				const md = item.md;
@@ -1728,7 +1770,8 @@ export class AssistantMessageComponent extends Container {
 		const parts: string[] = [
 			`htb:${this.#hideThinkingBlock ? 1 : 0}|pot:${this.#proseOnlyThinking ? 1 : 0}|etb:${this.#expandThinkingBlocks ? 1 : 0}|ete:${this.#effectiveThinkingExpanded() ? 1 : 0}|fin:${this.#transcriptBlockFinalized ? 1 : 0}|ati:${activeThinkingTail ?? -1}`,
 		];
-		for (const content of message.content) {
+		for (let i = 0; i < message.content.length; i++) {
+			const content = message.content[i]!;
 			if (content.type === "text") {
 				parts.push(
 					!canonicalizeMessage(content.text) ? "T0" : this.#liftsFigures(content.text.trim()) ? "TF" : "T1",
@@ -1739,7 +1782,8 @@ export class AssistantMessageComponent extends Container {
 					parts.push(canonicalizeMessage(content.thinking) ? "KH" : "K0");
 				} else {
 					const visible = resolveThinkingDisplay(content, this.#proseOnlyThinking).visible;
-					parts.push(!visible ? "K0" : this.#effectiveThinkingExpanded() ? "KV" : "KC");
+					const isCollapsed = this.#thinkingCollapsed.get(i) ?? !this.#effectiveThinkingExpanded();
+					parts.push(!visible ? "K0" : !isCollapsed ? "KV" : "KC");
 				}
 			} else {
 				// Non-rendered blocks (toolCall, redactedThinking, …) still occupy a
@@ -1918,6 +1962,7 @@ export class AssistantMessageComponent extends Container {
 		this.#kittyPreviouslyDisplayed = this.#kittyDisplayed;
 		this.#kittyDisplayed = new Map();
 		this.#thinkingExtensions.clear();
+		this.#thinkingHeaderComponents.clear();
 		this.#emergencyText = undefined;
 		this.#thinkingDots = undefined;
 		this.#hasTruncatableError = false;
@@ -1964,8 +2009,18 @@ export class AssistantMessageComponent extends Container {
 								resolveThinkingDisplay(c, this.#proseOnlyThinking).visible),
 					);
 
-				if (this.#effectiveThinkingExpanded()) {
+				const isCollapsed = this.#thinkingCollapsed.get(i) ?? !this.#effectiveThinkingExpanded();
+				if (!isCollapsed) {
 					const thinkingText = display.text;
+					const showExpandedHeader =
+						!this.#expandThinkingBlocks || this.#outputExpanded || this.#thinkingCollapsed.has(i);
+					if (showExpandedHeader) {
+						const clock = this.#thinkingClock.get(i);
+						const label = theme.fg("muted", thoughtLabel(clock));
+						const headerText = new Text(label, 1, 0);
+						this.#contentContainer.addChild(headerText);
+						this.#thinkingHeaderComponents.set(headerText, i);
+					}
 					const md = this.#createMarkdown("thinking", thinkingText);
 					md.transientRenderCache = this.#lastUpdateTransient;
 					this.#contentContainer.addChild(md);
@@ -1988,7 +2043,9 @@ export class AssistantMessageComponent extends Container {
 					const label = theme.fg("muted", thoughtLabel(clock));
 					const hint = formatExpandHint(theme, false, true);
 					const summaryText = hint ? `${label} ${hint}` : label;
-					this.#contentContainer.addChild(new Text(summaryText, 1, 0));
+					const headerText = new Text(summaryText, 1, 0);
+					this.#contentContainer.addChild(headerText);
+					this.#thinkingHeaderComponents.set(headerText, i);
 					hasRenderedContent = true;
 					if (hasVisibleContentAfter) {
 						this.#contentContainer.addChild(new Spacer(1));
@@ -2008,6 +2065,10 @@ export class AssistantMessageComponent extends Container {
 				this.#contentContainer.addChild(new Spacer(1));
 			}
 			this.#thinkingDots = new Text(this.#thinkingDotsLabel(), 1, 0);
+			const tail = this.#thinkingTailIndex(message);
+			if (tail !== undefined) {
+				this.#thinkingHeaderComponents.set(this.#thinkingDots, tail);
+			}
 			this.#contentContainer.addChild(this.#thinkingDots);
 			this.#startThinkingAnimation();
 		} else {

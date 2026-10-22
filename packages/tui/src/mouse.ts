@@ -2,7 +2,7 @@
  * SGR mouse report parsing (`\x1b[<button;col;rowM` / `…m`).
  *
  * Mouse tracking is enabled while a fullscreen overlay holds the alternate
- * screen (see tui.ts MOUSE_TRACKING_ON), or — opt-in via `tui.mouse` — on the
+ * screen (see tui.ts MOUSE_TRACKING_ON), or — controlled by `tui.mouse` — on the
  * normal buffer whenever no overlay is visible. Consumers hit-test
  * against their own rendered frame: the frame paints from screen row 0, hence
  * `row`/`col` are exposed 0-based for direct indexing into rendered lines.
@@ -104,7 +104,17 @@ export function routeSelectListMouse(target: SelectListMouseTarget, event: SgrMo
  * coordinates. Hosts translate screen coordinates to the component's own
  * rendered lines before forwarding.
  */
+export interface DetailClickResult {
+	consumed: boolean;
+	requiresHistoryReset?: boolean;
+}
+
 export interface MouseRoutable {
-	/** `line`/`col` are 0-based within the component's rendered output. */
-	routeMouse(event: SgrMouseEvent, line: number, col: number): void;
+	/** `line`/`col` are 0-based within the component's rendered output. Returns true or DetailClickResult when consumed. */
+	routeMouse(event: SgrMouseEvent, line: number, col: number): boolean | DetailClickResult | void;
+}
+
+/** Structural check whether `target` accepts routed mouse events. */
+export function hasMouseRouter(target: unknown): target is MouseRoutable {
+	return Boolean(target && typeof (target as Partial<MouseRoutable>).routeMouse === "function");
 }

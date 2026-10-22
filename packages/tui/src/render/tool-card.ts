@@ -142,6 +142,7 @@ export class ToolCard implements Component {
 	#plainKey = "";
 	#renderedChildren: Component[] = [];
 	#disposed = false;
+	#lastHeader: string | undefined;
 	#native: NativeCardMemo | undefined;
 
 	constructor(theme: Theme, options: ToolCardOptions, build: (context: ToolCardBuildContext) => ToolCardSnapshot) {
@@ -151,6 +152,10 @@ export class ToolCard implements Component {
 		this.#plainText = new Text("", options.paddingX ?? 0, options.paddingY ?? 0);
 		this.#plainText.setIgnoreTight(options.ignoreTight ?? true);
 		if (options.variant === "framed") markFramedBlockComponent(this);
+	}
+
+	hasHeader(): boolean {
+		return this.#lastHeader !== undefined;
 	}
 
 	render(width: number): readonly string[] {
@@ -202,6 +207,7 @@ export class ToolCard implements Component {
 
 		const state = toolCardState(snapshot.phase);
 		const header = snapshot.header ?? (snapshot.status ? renderStatusLine(snapshot.status, this.#theme) : undefined);
+		this.#lastHeader = header;
 		if (this.#options.variant === "framed") {
 			const previousOptions = this.#lastBlockOptions;
 			const previousSections = previousOptions?.sections;

@@ -4,6 +4,10 @@ import { Agent } from "@reverse/agent";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
+import { SkillMessageComponent } from "@reverse/tui/chat/skill-message";
+import type { AssistantMessage } from "@reverse/ai";
 import { Composer } from "@reverse/tui/prompt/composer";
 import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
 import { initTheme } from "@reverse/tui/theme";
@@ -265,5 +269,527 @@ describe("inline click-to-focus geometry", () => {
 		await clickRow("show less");
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("more — expand")));
 		expect(plainRows(term.getViewport()).some(row => row.includes("ToggleAgent3"))).toBe(false);
+	});
+
+	it("expands and collapses tool execution through SGR clicks on header, body clicks no-op", async () => {
+		cfgTuiMouse.set(mode.settings, true);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const tool = new ToolExecutionComponent(
+			"bash",
+			{ command: "run_test_cmd" },
+			{},
+			undefined,
+			{
+				requestRender: () => mode.ui.requestRender(),
+				requestComponentRender: () => {},
+				resetDisplay: () => {},
+			},
+			tempDir.path(),
+		);
+		const outputLines = Array.from({ length: 15 }, (_, i) => `Bash output line ${i}`).join("\n");
+		tool.updateResult({ content: [{ type: "text", text: outputLines }] }, false);
+		mode.chatContainer.addChild(tool);
+		mode.ui.requestRender();
+
+		const clickRow = async (marker: string): Promise<void> => {
+			await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes(marker)));
+			const viewport = plainRows(term.getViewport());
+			const screenRow = viewport.findIndex(row => row.includes(marker));
+			expect(screenRow).toBeGreaterThanOrEqual(0);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		};
+
+		// By default collapsed: tool header (Bash) is visible
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Bash")));
+		expect(tool.expanded).toBe(false);
+
+		// Click on body command line -> must be NO-OP (does not expand)
+		await clickRow("run_test_cmd");
+		await term.waitForRender();
+		expect(tool.expanded).toBe(false);
+
+		await clickRow("Bash");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Bash output line 14")));
+		expect(tool.expanded).toBe(true);
+
+		// Click on header again -> collapses
+		await clickRow("Bash");
+		await term.waitForRender(() => tool.expanded === false);
+		expect(tool.expanded).toBe(false);
+	});
+
+	it("expands and collapses thinking blocks through SGR clicks on header, body clicks no-op, preserves across streaming", async () => {
+		cfgTuiMouse.set(mode.settings, true);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const asst = new AssistantMessageComponent();
+		const msgData: AssistantMessage = {
+			role: "assistant",
+			content: [
+				{ type: "thinking", thinking: "My deep thinking line 1\nMy deep thinking line 2" },
+				{ type: "text", text: "Visible answer text" },
+			],
+			api: "anthropic-messages",
+			provider: "anthropic",
+			model: "m",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "stop",
+			timestamp: 0,
+		};
+		asst.updateContent(msgData);
+		mode.chatContainer.addChild(asst);
+		mode.ui.requestRender();
+
+		const clickRow = async (marker: string): Promise<void> => {
+			await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes(marker)));
+			const viewport = plainRows(term.getViewport());
+			const screenRow = viewport.findIndex(row => row.includes(marker));
+			expect(screenRow).toBeGreaterThanOrEqual(0);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		};
+
+		// Collapsed by default: summary is visible, thinking body is hidden
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Thought")));
+		expect(plainRows(term.getViewport()).some(row => row.includes("My deep thinking line 1"))).toBe(false);
+
+		// Click on answer prose text -> NO-OP (does not toggle thinking)
+		await clickRow("Visible answer text");
+		await term.waitForRender();
+		expect(plainRows(term.getViewport()).some(row => row.includes("My deep thinking line 1"))).toBe(false);
+
+		// Click on thinking header -> expands!
+		await clickRow("Thought");
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("My deep thinking line 1")),
+		);
+		expect(plainRows(term.getViewport()).some(row => row.includes("My deep thinking line 1"))).toBe(true);
+
+		// Streaming update while expanded preserves expanded state
+		const updatedMsg: AssistantMessage = {
+			...msgData,
+			content: [
+				{ type: "thinking", thinking: "My deep thinking line 1\nMy deep thinking line 2\nThinking line 3 added" },
+				{ type: "text", text: "Visible answer text updated" },
+			],
+		};
+		asst.updateContent(updatedMsg, { transient: true });
+		mode.ui.requestRender();
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Thinking line 3 added")));
+		expect(plainRows(term.getViewport()).some(row => row.includes("Thinking line 3 added"))).toBe(true);
+
+		// Click on thinking header again -> collapses
+		await clickRow("Thought");
+		await term.waitForRender(
+			() => !plainRows(term.getViewport()).some(row => row.includes("My deep thinking line 1")),
+		);
+		expect(plainRows(term.getViewport()).some(row => row.includes("My deep thinking line 1"))).toBe(false);
+	});
+
+	it("expands and collapses actively streaming thinking mid-stream BEFORE text delta arrives", async () => {
+		cfgTuiMouse.set(mode.settings, true);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const asst = new AssistantMessageComponent();
+		const streamingReasoning: AssistantMessage = {
+			role: "assistant",
+			content: [{ type: "thinking", thinking: "Active reasoning line 1\nActive reasoning line 2" }],
+			api: "anthropic-messages",
+			provider: "anthropic",
+			model: "m",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "stop",
+			timestamp: 0,
+		};
+		asst.updateContent(streamingReasoning, { transient: true });
+		mode.chatContainer.addChild(asst);
+		mode.ui.requestRender();
+
+		const clickRow = async (marker: string): Promise<void> => {
+			await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes(marker)));
+			const viewport = plainRows(term.getViewport());
+			const screenRow = viewport.findIndex(row => row.includes(marker));
+			expect(screenRow).toBeGreaterThanOrEqual(0);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		};
+
+		// 1. By default collapsed while streaming: shows live pulse "Thinking…"
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Thinking")));
+		expect(plainRows(term.getViewport()).some(row => row.includes("Active reasoning line 1"))).toBe(false);
+
+		// 2. Click on the active streaming Thinking pulse -> opens thinking text!
+		await clickRow("Thinking");
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("Active reasoning line 1")),
+		);
+		expect(plainRows(term.getViewport()).some(row => row.includes("Active reasoning line 1"))).toBe(true);
+
+		// 3. Click on the concise header "Thought" while STILL streaming -> collapses back to pulse BEFORE text arrives!
+		await clickRow("Thought");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Thinking")));
+		expect(plainRows(term.getViewport()).some(row => row.includes("Active reasoning line 1"))).toBe(false);
+
+		// 4. Now text arrives (delta transition from thinking to text)
+		const withText: AssistantMessage = {
+			...streamingReasoning,
+			content: [
+				{ type: "thinking", thinking: "Active reasoning line 1\nActive reasoning line 2" },
+				{ type: "text", text: "Answer after thinking" },
+			],
+		};
+		asst.updateContent(withText, { transient: true });
+		mode.ui.requestRender();
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Answer after thinking")));
+		expect(plainRows(term.getViewport()).some(row => row.includes("Answer after thinking"))).toBe(true);
+		expect(plainRows(term.getViewport()).some(row => row.includes("Active reasoning line 1"))).toBe(false);
+	});
+
+	it("expands and collapses read tool group through SGR clicks on header", async () => {
+		cfgTuiMouse.set(mode.settings, true);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const readGroup = new ReadToolGroupComponent({ showContentPreview: false });
+		readGroup.updateArgs({ path: "src/sample-file.ts" }, "read_1");
+		readGroup.updateResult(
+			{ content: [{ type: "text", text: "line 1 content\nline 2 content\nline 3 content\n" }] },
+			false,
+			"read_1",
+		);
+		readGroup.finalize();
+		mode.chatContainer.addChild(readGroup);
+		mode.ui.requestRender();
+
+		const clickRow = async (marker: string): Promise<void> => {
+			await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes(marker)));
+			const viewport = plainRows(term.getViewport());
+			const screenRow = viewport.findIndex(row => row.includes(marker));
+			expect(screenRow).toBeGreaterThanOrEqual(0);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		};
+
+		// Collapsed by default: header shows Read src/sample-file.ts
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("sample-file.ts")));
+		expect(readGroup.expanded).toBe(false);
+
+		// Click header -> expands preview
+		await clickRow("sample-file.ts");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("line 1 content")));
+		expect(readGroup.expanded).toBe(true);
+
+		// Click preview content body -> NO-OP
+		await clickRow("line 1 content");
+		await term.waitForRender();
+		expect(readGroup.expanded).toBe(true);
+
+		// Click header again -> collapses
+		await clickRow("sample-file.ts");
+		await term.waitForRender(() => readGroup.expanded === false);
+		expect(readGroup.expanded).toBe(false);
+	});
+
+	it("expands and collapses skill prompt disclosure through SGR clicks on header", async () => {
+		cfgTuiMouse.set(mode.settings, true);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const skillCard = new SkillMessageComponent({
+			role: "custom",
+			customType: "skill-prompt",
+			content: "stage all tracked files",
+			display: true,
+			details: {
+				name: "atomic-commit",
+				path: path.join(tempDir.path(), "SKILL.md"),
+				lineCount: 1,
+			},
+			timestamp: Date.now(),
+		});
+		mode.chatContainer.addChild(skillCard);
+		mode.ui.requestRender();
+
+		const clickRow = async (marker: string): Promise<void> => {
+			await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes(marker)));
+			const viewport = plainRows(term.getViewport());
+			const screenRow = viewport.findIndex(row => row.includes(marker));
+			expect(screenRow).toBeGreaterThanOrEqual(0);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		};
+
+		// Collapsed by default: header shows test-skill chip
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("atomic-commit")));
+		expect(skillCard.expanded).toBe(false);
+		expect(plainRows(term.getViewport()).some(row => row.includes("stage all tracked files"))).toBe(false);
+
+		// Click header -> expands prompt
+		await clickRow("atomic-commit");
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("stage all tracked files")),
+		);
+		expect(skillCard.expanded).toBe(true);
+
+		// Click prompt content body -> NO-OP
+		await clickRow("stage all tracked files");
+		await term.waitForRender();
+		expect(skillCard.expanded).toBe(true);
+
+		// Click header again -> collapses
+		await clickRow("atomic-commit");
+		await term.waitForRender(() => skillCard.expanded === false);
+		expect(skillCard.expanded).toBe(false);
+
+		// Click top rail padding row0 -> must be NO-OP (does not toggle)
+		const chipRow = plainRows(term.getViewport()).findIndex(row => row.includes("atomic-commit"));
+		expect(chipRow).toBeGreaterThan(0);
+		term.sendInput(`\x1b[<0;5;${chipRow}M`);
+		await term.waitForRender();
+		expect(skillCard.expanded).toBe(false);
+
+		// Click visible chip header -> expands
+		await clickRow("atomic-commit");
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("stage all tracked files")),
+		);
+		expect(skillCard.expanded).toBe(true);
+	});
+
+	it("bypasses detail clicks when tui.mouse is disabled", async () => {
+		cfgTuiMouse.set(mode.settings, false);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const tool = new ToolExecutionComponent(
+			"bash",
+			{ command: "bypass_test_cmd" },
+			{},
+			undefined,
+			{
+				requestRender: () => mode.ui.requestRender(),
+				requestComponentRender: () => {},
+				resetDisplay: () => {},
+			},
+			tempDir.path(),
+		);
+		tool.updateResult({ content: [{ type: "text", text: "bypass output" }] }, false);
+		mode.chatContainer.addChild(tool);
+		mode.ui.requestRender();
+
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Bash")));
+		const viewport = plainRows(term.getViewport());
+		const screenRow = viewport.findIndex(row => row.includes("Bash"));
+		expect(screenRow).toBeGreaterThanOrEqual(0);
+
+		// Send SGR click with mouse disabled
+		term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		await term.waitForRender();
+		expect(tool.expanded).toBe(false);
+	});
+
+	it("headerless think tool body clicks are no-op and never expand", async () => {
+		cfgTuiMouse.set(mode.settings, true);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const tool = new ToolExecutionComponent(
+			"think",
+			{ thoughts: "Reflecting on test cases\nConsidering boundary conditions" },
+			{},
+			undefined,
+			{
+				requestRender: () => mode.ui.requestRender(),
+				requestComponentRender: () => {},
+				resetDisplay: () => {},
+			},
+			tempDir.path(),
+		);
+		mode.chatContainer.addChild(tool);
+		mode.ui.requestRender();
+
+		const clickRow = async (marker: string): Promise<void> => {
+			await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes(marker)));
+			const viewport = plainRows(term.getViewport());
+			const screenRow = viewport.findIndex(row => row.includes(marker));
+			expect(screenRow).toBeGreaterThanOrEqual(0);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		};
+
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("Reflecting on test cases")),
+		);
+		expect(tool.expanded).toBe(false);
+
+		// Clicking any row of headerless think tool must be a NO-OP
+		await clickRow("Reflecting on test cases");
+		await term.waitForRender();
+		expect(tool.expanded).toBe(false);
+
+		await clickRow("Considering boundary conditions");
+		await term.waitForRender();
+		expect(tool.expanded).toBe(false);
+	});
+
+	it("multi-file edit toggles expanded on file header click, diff body clicks are no-op", async () => {
+		cfgTuiMouse.set(mode.settings, true);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const tool = new ToolExecutionComponent(
+			"edit",
+			{
+				file_path: "multi.ts",
+				edits: [
+					{ path: "alpha.ts", oldText: "oldAlpha", newText: "newAlpha" },
+					{ path: "beta.ts", oldText: "oldBeta", newText: "newBeta" },
+				],
+			},
+			{},
+			undefined,
+			{
+				requestRender: () => mode.ui.requestRender(),
+				requestComponentRender: () => {},
+				resetDisplay: () => {},
+			},
+			tempDir.path(),
+		);
+		tool.updateResult(
+			{
+				content: [],
+				details: {
+					perFileResults: [
+						{
+							path: path.join(tempDir.path(), "alpha.ts"),
+							diff: " 1|keep\n-2|oldA\n+2|newA\n+3|moreA\n+4|extraA",
+							firstChangedLine: 2,
+							op: "update",
+						},
+						{
+							path: path.join(tempDir.path(), "beta.ts"),
+							diff: " 1|keep\n-2|oldB\n+2|newB",
+							firstChangedLine: 2,
+							op: "update",
+						},
+					],
+				},
+			},
+			false,
+		);
+		mode.chatContainer.addChild(tool);
+		mode.ui.requestRender();
+
+		const clickRow = async (marker: string): Promise<void> => {
+			await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes(marker)));
+			const viewport = plainRows(term.getViewport());
+			const screenRow = viewport.findIndex(row => row.includes(marker));
+			expect(screenRow).toBeGreaterThanOrEqual(0);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		};
+
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("alpha.ts")));
+		expect(tool.expanded).toBe(false);
+
+		// Click diff body row inside alpha.ts -> must be NO-OP
+		if (plainRows(term.getViewport()).some(row => row.includes("oldA"))) {
+			await clickRow("oldA");
+			await term.waitForRender();
+			expect(tool.expanded).toBe(false);
+		}
+
+		// Click file header (alpha.ts) -> toggles expanded
+		await clickRow("alpha.ts");
+		await term.waitForRender(() => tool.expanded === true);
+		expect(tool.expanded).toBe(true);
+
+		// Click file header (beta.ts) -> toggles collapsed
+		await clickRow("beta.ts");
+		await term.waitForRender(() => tool.expanded === false);
+		expect(tool.expanded).toBe(false);
+	});
+
+	it("multi-file read tool group toggles expanded on header, tree summary rows are no-op", async () => {
+		cfgTuiMouse.set(mode.settings, true);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const readGroup = new ReadToolGroupComponent({ showContentPreview: false });
+		readGroup.updateArgs({ path: "src/first.ts" }, "read_1");
+		readGroup.updateResult(
+			{
+				content: [{ type: "text", text: "first file content line 1\nfirst file content line 2\n" }],
+				details: { displayContent: { text: "first file content line 1\nfirst file content line 2\n" } },
+			},
+			false,
+			"read_1",
+		);
+		readGroup.updateArgs({ path: "src/second.ts" }, "read_2");
+		readGroup.updateResult(
+			{
+				content: [{ type: "text", text: "second file content\n" }],
+				details: { displayContent: { text: "second file content\n" } },
+			},
+			false,
+			"read_2",
+		);
+		readGroup.finalize();
+		mode.chatContainer.addChild(readGroup);
+		mode.ui.requestRender();
+
+		const clickRow = async (marker: string): Promise<void> => {
+			await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes(marker)));
+			const viewport = plainRows(term.getViewport());
+			const screenRow = viewport.findIndex(row => row.includes(marker));
+			expect(screenRow).toBeGreaterThanOrEqual(0);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		};
+
+		// Collapsed by default: header shows "Read (2)" and summary rows show "first.ts" and "second.ts"
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Read (2)")));
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("first.ts")));
+		expect(readGroup.expanded).toBe(false);
+
+		// Click tree summary row ("first.ts") -> MUST NOT toggle expanded
+		await clickRow("first.ts");
+		await term.waitForRender();
+		expect(readGroup.expanded).toBe(false);
+
+		// Click header row ("Read (2)") -> toggles expanded
+		await clickRow("Read (2)");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("first file content")));
+		expect(readGroup.expanded).toBe(true);
+
+		// Click preview content body -> NO-OP
+		await clickRow("first file content");
+		await term.waitForRender();
+		expect(readGroup.expanded).toBe(true);
+
+		// Click header row again -> collapses
+		await clickRow("Read (2)");
+		await term.waitForRender(() => readGroup.expanded === false);
+		expect(readGroup.expanded).toBe(false);
 	});
 });

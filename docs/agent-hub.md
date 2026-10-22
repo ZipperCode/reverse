@@ -88,9 +88,9 @@ The list stays short: it shows a few rows plus an expander (`display.pinnedAgent
 
 Set `display.subagentLivePreview: true` to add a second line under each row showing what that agent is doing: its current tool call (or, between calls, the most recent one) with a one-line detail, plus the elapsed time once a call runs longer than five seconds. Off by default.
 
-Enable `tui.mouse` to click live subagent cards and jump-list rows directly in the main session, without opening the Hub first. A click focuses that card's most recent agent (a jump-list row focuses its exact agent); focusing a parked agent revives it. Hovering a live target lights it up first, so you can see what a click will open.
+`tui.mouse` is enabled by default. Click live subagent cards and jump-list rows directly in the main session, without opening the Hub first. A click focuses that card's most recent agent (a jump-list row focuses its exact agent); focusing a parked agent revives it. Hovering a live target lights it up first, so you can see what a click will open. Ordinary thinking, tool, grouped-read, and Skill disclosure headers toggle their details instead; output text does not toggle them.
 
-Only rows currently in the live viewport are clickable — retired transcript rows live in terminal scrollback, where clicks cannot map back to content. Enabling capture changes terminal gestures while on: text selection becomes Shift+drag and wheel scroll becomes Shift+wheel. Off by default.
+Only rows currently in the live viewport are clickable — retired transcript rows live in terminal scrollback, where clicks cannot map back to content. While capture is enabled, text selection uses Shift+drag and terminal scrolling uses Shift+wheel. Set `tui.mouse: false` to disable capture; an existing explicit `false` preference remains unchanged.
 
 ## Persisted agents and advisors
 

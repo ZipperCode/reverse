@@ -8,6 +8,7 @@ import { Markdown } from "../components/markdown";
 import { Spacer } from "../components/spacer";
 import { Text } from "../components/text";
 import { getMarkdownTheme, theme } from "../theme";
+import type { MouseRoutable, SgrMouseEvent } from "../mouse";
 import type { CustomMessage, SkillPromptDetails } from "./messages";
 import { fileHyperlink } from "../render";
 import { collapseSkillTokens, skillChipLabel, skillChipStyle, skillToken } from "../prompt/composer-attachments";
@@ -30,7 +31,7 @@ import { Memo } from "../native/memo";
  * In both, the chip is an OSC 8 link to the SKILL.md. Expanding (tool-output
  * toggle) appends the rendered skill prompt.
  */
-export class SkillMessageComponent extends Container {
+export class SkillMessageComponent extends Container implements MouseRoutable {
 	// Canonical and replayed skill cards finalize immediately so they retire to
 	// native scrollback like any settled block. An optimistically-painted
 	// `/skill:` row (issue #11217) is instead held live until its canonical
@@ -47,6 +48,10 @@ export class SkillMessageComponent extends Container {
 	readonly #message: CustomMessage<SkillPromptDetails>;
 	readonly #imageLinks?: readonly (string | undefined)[];
 	#expanded = false;
+	#headerComponent: Component | undefined;
+	#summaryComponent: Component | undefined;
+	#leading = false;
+	#lastRenderWidth: number | undefined;
 	readonly #native = new Memo();
 
 	constructor(message: CustomMessage<SkillPromptDetails>, imageLinks?: readonly (string | undefined)[]) {
@@ -60,6 +65,38 @@ export class SkillMessageComponent extends Container {
 	setExpanded(expanded: boolean): void {
 		this.#expanded = expanded;
 		this.#disclosure?.setExpanded(expanded);
+	}
+
+	override render(width: number): readonly string[] {
+		this.#lastRenderWidth = width;
+		return super.render(width);
+	}
+
+	get expanded(): boolean {
+		return this.#expanded;
+	}
+
+	routeMouse(event: SgrMouseEvent, line: number, _col: number): boolean {
+		if (!event.leftClick) return false;
+		const width = Math.max(1, this.#lastRenderWidth ?? 80);
+		if (this.#leading) {
+			// In SkillCallout (Box with paddingY=1), row 0 is top rail padding.
+			// The visible skill chip header starts at row 1 and spans headerLines.
+			const headerLines = this.#headerComponent ? this.#headerComponent.render(Math.max(1, width - 3)).length : 1;
+			if (line >= 1 && line < 1 + headerLines) {
+				this.setExpanded(!this.#expanded);
+				return true;
+			}
+			return false;
+		}
+		// In inline/non-leading mode, summary is UserMessageComponent.
+		// Row 0 is top padding; visible user message lines are 1 .. summaryLines - 2.
+		const summaryLines = this.#summaryComponent ? this.#summaryComponent.render(width).length : 1;
+		if (line >= 1 && line < Math.max(1, summaryLines - 1)) {
+			this.setExpanded(!this.#expanded);
+			return true;
+		}
+		return false;
 	}
 
 	handleNativeEvent(event: NativeUiEvent): void {
@@ -168,9 +205,13 @@ export class SkillMessageComponent extends Container {
 			skillPath: candidate => (candidate === name ? details?.path : undefined),
 		};
 
+		this.#leading = leading;
 		if (!leading) {
+			const summary = new UserMessageComponent(display, bubble);
+			this.#summaryComponent = summary;
+			this.#headerComponent = undefined;
 			this.#disclosure = new Disclosure({
-				summary: new UserMessageComponent(display, bubble),
+				summary,
 				// Prompt extraction and Markdown layout stay lazy: the factory
 				// runs on the first expanded render, reading the current theme.
 				body: () =>
@@ -182,7 +223,10 @@ export class SkillMessageComponent extends Container {
 		}
 
 		const body = display.slice(label.length).trim();
-		const children: Component[] = [new Text(this.#header(label, details), 0, 0)];
+		const headerComponent = new Text(this.#header(label, details), 0, 0);
+		this.#headerComponent = headerComponent;
+		this.#summaryComponent = undefined;
+		const children: Component[] = [headerComponent];
 		if (body) children.push(new Spacer(1), this.#markdown(body, bubble));
 		// The prompt disclosure nests inside the one callout so the
 		// skill-colored rail stays continuous across summary and detail.

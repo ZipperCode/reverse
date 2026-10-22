@@ -5,6 +5,7 @@ import { initTheme } from "@reverse/tui/theme";
 import { Container, type Component } from "@reverse/tui";
 import { VirtualTerminal } from "./virtual-terminal";
 import { routeViewportClick, type ViewportClickSpan } from "@reverse/tui/prompt/composer";
+import type { MouseRoutable, SgrMouseEvent } from "@reverse/tui/mouse";
 
 function span(start: number, end: number, ids: string[]): ViewportClickSpan {
 	return { start, end, candidates: () => ids };
@@ -215,6 +216,128 @@ describe("composer chrome span recording", () => {
 			expect(hudRow).toBeGreaterThanOrEqual(0);
 			expect(composer.viewportClickCandidates(hudRow)).toEqual(["AgentH"]);
 			expect(first.renders).toBe(1);
+		} finally {
+			composer.stop();
+		}
+	});
+});
+
+class DetailBlock implements Component, MouseRoutable {
+	public expanded = false;
+	constructor(
+		private readonly rows: readonly string[],
+		private readonly headerRow: number,
+	) {}
+	isTranscriptBlockFinalized(): boolean {
+		return false;
+	}
+	render(): readonly string[] {
+		return this.expanded ? [...this.rows, "Expanded detail body"] : this.rows;
+	}
+	routeMouse(_event: SgrMouseEvent, line: number): boolean {
+		if (line === this.headerRow) {
+			this.expanded = !this.expanded;
+			return true;
+		}
+		return false;
+	}
+}
+
+describe("composer detail click coordinate resolution", () => {
+	it("maps viewport rows to exact component row origin through blank trimming", () => {
+		const term = new VirtualTerminal(80, 24);
+		const composer = new Composer({ terminal: term, preferences: { ...COMPOSER_DEFAULTS, quiet: true } });
+		composer.start();
+		try {
+			const transcript = new TranscriptContainer();
+			// Component has 1 leading blank line (row 0), 1 header line (row 1), 1 body line (row 2)
+			const block = new DetailBlock(["", "Header row", "Body row"], 1);
+			transcript.addChild(block);
+			composer.setRuntimeChildren([transcript]);
+
+			const frame = composer.renderFrame({ columns: 80, rows: 24 });
+			const headerViewportRow = frame.viewport.findIndex(line => line.includes("Header row"));
+			const bodyViewportRow = frame.viewport.findIndex(line => line.includes("Body row"));
+			expect(headerViewportRow).toBeGreaterThanOrEqual(0);
+			expect(bodyViewportRow).toBeGreaterThanOrEqual(0);
+
+			// Body row click must return false and not toggle expanded
+			const bodyHandled = composer.routeViewportDetailClick(bodyViewportRow, 7);
+			expect(bodyHandled).toBe(false);
+			expect(block.expanded).toBe(false);
+
+			// Header row click maps to row 1 (the untrimmed header row), toggling expanded
+			const headerHandled = composer.routeViewportDetailClick(headerViewportRow, 7);
+			expect(headerHandled).toBe(true);
+			expect(block.expanded).toBe(true);
+		} finally {
+			composer.stop();
+		}
+	});
+
+	it("rejects clicks on visible body rows when header is clipped off by viewport drop", () => {
+		const term = new VirtualTerminal(80, 10);
+		const composer = new Composer({ terminal: term, preferences: { ...COMPOSER_DEFAULTS, quiet: true } });
+		composer.start();
+		try {
+			const transcript = new TranscriptContainer();
+			// Row 0 is the header; rows 1-7 are body rows
+			const block = new DetailBlock(
+				["Header row", "Body 1", "Body 2", "Body 3", "Body 4", "Body 5", "Body 6", "Body 7"],
+				0,
+			);
+			transcript.addChild(block);
+			// Large chrome below forcing drop/clipping of the header row
+			const chrome = new Container();
+			chrome.addChild(new RowTarget(["C1", "C2", "C3", "C4", "C5", "C6"], ["AgentC"]));
+			composer.setRuntimeChildren([transcript, chrome]);
+
+			const frame = composer.renderFrame({ columns: 80, rows: 10 });
+			// Header row is clipped off by drop; only body rows survive in the viewport
+			expect(frame.viewport.some(line => line.includes("Header row"))).toBe(false);
+			const visibleFirst = frame.viewport.findIndex(line => line.includes("Body"));
+			expect(visibleFirst).toBeGreaterThanOrEqual(0);
+
+			// Clicking any visible clipped body row in the transcript area MUST NOT trigger header toggle
+			for (let r = visibleFirst; r < frame.viewport.length && frame.viewport[r]!.includes("Body"); r++) {
+				const handled = composer.routeViewportDetailClick(r, 3);
+				expect(handled).toBe(false);
+				expect(block.expanded).toBe(false);
+			}
+		} finally {
+			composer.stop();
+		}
+	});
+
+	it("routes clicks only to header when header and body are both visible in constrained viewport", () => {
+		const term = new VirtualTerminal(80, 10);
+		const composer = new Composer({ terminal: term, preferences: { ...COMPOSER_DEFAULTS, quiet: true } });
+		composer.start();
+		try {
+			const transcript = new TranscriptContainer();
+			const block1 = new DetailBlock(["Old header", "Old body"], 0);
+			const block2 = new DetailBlock(["Header row", "Body 1", "Body 2", "Body 3"], 0);
+			transcript.addChild(block1);
+			transcript.addChild(block2);
+			const chrome = new Container();
+			chrome.addChild(new RowTarget(["C1", "C2", "C3", "C4"], ["AgentC"]));
+			composer.setRuntimeChildren([transcript, chrome]);
+
+			const frame = composer.renderFrame({ columns: 80, rows: 10 });
+			const headerRow = frame.viewport.findIndex(line => line.includes("Header row"));
+			const bodyRow = frame.viewport.findIndex(line => line.includes("Body 1"));
+			expect(headerRow).toBeGreaterThanOrEqual(0);
+			expect(bodyRow).toBeGreaterThanOrEqual(0);
+
+			// Clicking visible body row must return false and NOT toggle
+			const bodyHandled = composer.routeViewportDetailClick(bodyRow, 3);
+			expect(bodyHandled).toBe(false);
+			expect(block2.expanded).toBe(false);
+
+			// Clicking visible header row must return true and toggle
+			const headerHandled = composer.routeViewportDetailClick(headerRow, 3);
+			expect(headerHandled).toBe(true);
+			expect(block2.expanded).toBe(true);
 		} finally {
 			composer.stop();
 		}

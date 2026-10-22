@@ -26,6 +26,7 @@ import { type AnimationFrame, TranscriptContainer } from "../chrome/transcript-c
 import { WelcomeComponent } from "./welcome";
 import { ensureThemeSync, getEditorTheme, theme } from "../theme/theme";
 
+import { type DetailClickResult, hasMouseRouter, type SgrMouseEvent } from "../mouse";
 const DOUBLE_INTERRUPT_MS = 500;
 // How long idle chrome must hold its height after a turn before it is treated as permanent.
 const IDLE_CHROME_SETTLE_MS = 250;
@@ -181,6 +182,50 @@ export function routeViewportClick(spans: readonly ViewportClickSpan[], index: n
  */
 export const PINNED_HUD_TOGGLE_ID = "@reverse:toggle-pinned-hud";
 
+/** One transcript detail target's row span within the mutable viewport (half-open `[start, end)`). */
+export interface ViewportDetailClickSpan {
+	start: number;
+	end: number;
+	component: Component;
+	getComponentRow: (local: number) => number | undefined;
+}
+
+/**
+ * Route a detail click to the component under mutable-viewport line `index`.
+ * Resolves the component-local row and forwards via `MouseRoutable.routeMouse`.
+ */
+export function routeViewportDetailClick(
+	spans: readonly ViewportDetailClickSpan[],
+	index: number,
+	col: number,
+	event?: SgrMouseEvent,
+): boolean | DetailClickResult {
+	if (!Number.isInteger(index) || index < 0) return false;
+	for (const span of spans) {
+		if (index < span.start || index >= span.end) continue;
+		const componentRow = span.getComponentRow(index - span.start);
+		if (componentRow === undefined) return false;
+		if (hasMouseRouter(span.component)) {
+			const mouseEvent: SgrMouseEvent = event ?? {
+				button: 0,
+				col,
+				row: index,
+				release: false,
+				wheel: null,
+				motion: false,
+				leftClick: true,
+			};
+			const res = span.component.routeMouse(mouseEvent, componentRow, col);
+			if (typeof res === "object" && res !== null && "consumed" in res) {
+				return res;
+			}
+			return res === true;
+		}
+		return false;
+	}
+	return false;
+}
+
 /**
  * Nested background opens inside a hovered row. The band wraps the line, so a
  * surviving nested open would paint over it for every cell it covers; the
@@ -257,6 +302,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 	#retiredHeaderRows: readonly string[] | undefined;
 	/** Click spans of the last `renderFrame` viewport, in viewport coordinates. */
 	#lastClickSpans: ViewportClickSpan[] = [];
+	#lastDetailSpans: ViewportDetailClickSpan[] = [];
 	/** Click-candidate id under the pointer, painted with the hover band. Id-anchored so it follows streaming rows. */
 	#hoveredClickId: string | undefined;
 	// Hard-row prefix currently above the native viewport. The first resize
@@ -506,6 +552,24 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		for (const span of activeSpans) shift(span, before.length - drop);
 		for (const span of afterSpans) shift(span, slack + before.length + active.length - drop);
 		this.#lastClickSpans = spans;
+		const transcriptSpans = transcript.getLastViewportSpans();
+		const activeBase = before.length - drop;
+		const detailSpans: ViewportDetailClickSpan[] = [];
+		for (const span of transcriptSpans) {
+			const start = span.start + activeBase;
+			const end = Math.min(span.end + activeBase, viewportLength);
+			const clamped = Math.max(0, start);
+			if (end > clamped) {
+				const skew = clamped - start;
+				detailSpans.push({
+					start: clamped,
+					end,
+					component: span.component,
+					getComponentRow: (local: number) => span.getComponentRow?.(local + skew),
+				});
+			}
+		}
+		this.#lastDetailSpans = detailSpans;
 		if (history !== undefined && this.#offeredHistory?.source === "header") {
 			const visibleHeaderRows = Math.max(0, rows - (mutable.length + drop));
 			this.#retiredHeaderStart = Math.max(0, history.rows.length - visibleHeaderRows);
@@ -627,6 +691,14 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 	 */
 	viewportClickCandidates(index: number): string[] {
 		return routeViewportClick(this.#lastClickSpans, index);
+	}
+
+	/**
+	 * Route a click on a mutable-viewport line to a detail target (thinking, tool, read, skill).
+	 * Returns true if the target consumed the event.
+	 */
+	routeViewportDetailClick(index: number, col: number, event?: SgrMouseEvent): boolean | DetailClickResult {
+		return routeViewportDetailClick(this.#lastDetailSpans, index, col, event);
 	}
 
 	/**

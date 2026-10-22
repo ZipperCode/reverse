@@ -19,6 +19,8 @@ import {
 	type ToolRenderer,
 	toolRenderers,
 } from "../tools/index";
+import type { MouseRoutable, SgrMouseEvent } from "../mouse";
+import { ToolCard } from "../render/tool-card";
 import { describeDefaultToolExecution, formatDefaultToolExecution } from "../tools/default-renderer";
 import { INTENT_FIELD, type TspCardStatus, type TspPreview, type TspText, type TspTone } from "@reverse/wire";
 import { card, col, EMPTY_NODE, node, span, text, withHidden } from "../native/describe";
@@ -148,6 +150,10 @@ class SafeToolRendererComponent implements Component {
 		if (isFramedBlockComponent(component)) {
 			markFramedBlockComponent(this);
 		}
+	}
+
+	getInnerComponent(): Component {
+		return this.#component;
 	}
 
 	render(width: number): readonly string[] {
@@ -358,7 +364,7 @@ let toolExecutionInstanceSeq = 0;
 /**
  * Component that renders a tool call with its result (updateable)
  */
-export class ToolExecutionComponent extends Container {
+export class ToolExecutionComponent extends Container implements MouseRoutable {
 	#contentBox: Box; // Used for custom tools and bash visual truncation
 	#contentText: WidthAwareText; // Generic fallback (no custom/built-in renderer)
 	// Which container the constructor mounted: bespoke/built-in renderers use
@@ -366,6 +372,7 @@ export class ToolExecutionComponent extends Container {
 	#usesContentBox = false;
 	#multiFileBoxes: (Box | Spacer)[] = []; // Extra boxes for multi-file edit results
 	#imageComponents: Image[] = [];
+	#lastRenderWidth: number | undefined;
 	#imageSpacers: Spacer[] = [];
 	/** The renderer's {@link ToolRenderer.figure} drawing; kept across rebuilds while its language is unchanged, so it redraws in place and its raster survives them. */
 	#figure: FenceFigure | undefined;
@@ -920,6 +927,53 @@ export class ToolExecutionComponent extends Container {
 		this.#updateDisplay();
 	}
 
+	get expanded(): boolean {
+		return this.#expanded;
+	}
+
+	#hasHeader(): boolean {
+		if (this.#allocation < 3) return true;
+		if (!this.#usesContentBox) return true;
+		if (this.#multiFileBoxes.length > 0) return true;
+		const firstChild = this.#contentBox.children[0];
+		if (!firstChild) return false;
+		const inner = firstChild instanceof SafeToolRendererComponent ? firstChild.getInnerComponent() : firstChild;
+		if (inner instanceof ToolCard) return inner.hasHeader();
+		if (isFramedBlockComponent(inner)) return true;
+		return false;
+	}
+
+	#getHeaderLines(width: number): number[] {
+		if (this.#allocation < 3) return [0];
+		if (!this.#hasHeader()) return [];
+		if (this.#multiFileBoxes.length > 0) {
+			const headers: number[] = [];
+			let current = 0;
+			for (const child of this.#multiFileBoxes) {
+				const childLines = child.render(width);
+				if (child instanceof Box && childLines.length > 0) {
+					headers.push(current);
+				}
+				current += childLines.length;
+			}
+			return headers;
+		}
+		if (!this.#usesContentBox) return [1];
+		return [1];
+	}
+
+	routeMouse(event: SgrMouseEvent, line: number, _col: number): boolean {
+		if (!event.leftClick) return false;
+		if (this.#toolName === "task") return false;
+		const width = Math.max(1, this.#lastRenderWidth ?? 80);
+		const headerLines = this.#getHeaderLines(width);
+		if (headerLines.includes(line)) {
+			this.setExpanded(!this.#expanded);
+			return true;
+		}
+		return false;
+	}
+
 	/** Mirrors the card collapsed or expanded in the terminal, so `Ctrl+O` and native toggles share one state. */
 	handleNativeEvent(event: NativeUiEvent): void {
 		const expanded = rootToggleExpanded(event);
@@ -1335,6 +1389,7 @@ export class ToolExecutionComponent extends Container {
 		if (!this.#toolActivityVisible || this.#allocation === 0 || (this.#toolName === "wait" && this.#isBenignSkip())) {
 			return [];
 		}
+		this.#lastRenderWidth = width;
 		let lines = super.render(width);
 		if (this.#allocation < 3) {
 			// A squeezed allocation degrades only blocks that genuinely overflow it.

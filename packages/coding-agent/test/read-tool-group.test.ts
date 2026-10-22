@@ -10,7 +10,7 @@ import type { DescribeContext } from "@reverse/tui/native/node";
 import * as themeModule from "@reverse/tui/theme";
 import { cfgReadToolResultPreview } from "@reverse/coding-agent/tools/settings";
 import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
-
+import type { SgrMouseEvent } from "@reverse/tui/mouse";
 function extractLinkUris(text: string): string[] {
 	return [...text.matchAll(/\x1b\]8;[^;]*;([^\x1b]+)\x1b\\/g)].map(match => match[1]!);
 }
@@ -581,6 +581,114 @@ describe("ReadToolGroupComponent", () => {
 	});
 });
 
+describe("ReadToolGroupComponent routeMouse", () => {
+	it("toggles expanded on header click and ignores clicks on tree summary rows", () => {
+		const group = new ReadToolGroupComponent({ showContentPreview: false });
+		group.updateArgs({ path: "src/alpha.ts" }, "r1");
+		group.updateResult(
+			{
+				content: [{ type: "text", text: "alpha content line 1\nalpha content line 2\n" }],
+				details: { displayContent: { text: "alpha content line 1\nalpha content line 2\n" } },
+			},
+			false,
+			"r1",
+		);
+		group.updateArgs({ path: "src/beta.ts" }, "r2");
+		group.updateResult(
+			{
+				content: [{ type: "text", text: "beta content\n" }],
+				details: { displayContent: { text: "beta content\n" } },
+			},
+			false,
+			"r2",
+		);
+		group.finalize();
+
+		const lines = group.render(80);
+		expect(lines.length).toBeGreaterThan(2);
+		expect(group.expanded).toBe(false);
+
+		const mouse = (line: number, leftClick = true): SgrMouseEvent => ({
+			button: 0,
+			col: 5,
+			row: line,
+			release: false,
+			wheel: null,
+			motion: false,
+			leftClick,
+		});
+
+		// Tree summary row (row 1 or 2) MUST NOT toggle expanded
+		expect(group.routeMouse(mouse(1), 1, 5)).toBe(false);
+		expect(group.expanded).toBe(false);
+		expect(group.routeMouse(mouse(2), 2, 5)).toBe(false);
+		expect(group.expanded).toBe(false);
+
+		// Header row (row 0) toggles expanded
+		expect(group.routeMouse(mouse(0), 0, 5)).toBe(true);
+		expect(group.expanded).toBe(true);
+
+		// When expanded, preview body rows (row >= 3) MUST NOT toggle expanded
+		const expandedLines = group.render(80);
+		const plainExpanded = Bun.stripANSI(expandedLines.join("\n"));
+		expect(plainExpanded).toContain("alpha content");
+		const previewBodyRow = expandedLines.findIndex(l => Bun.stripANSI(l).includes("alpha content"));
+		expect(previewBodyRow).toBeGreaterThan(0);
+		expect(group.routeMouse(mouse(previewBodyRow), previewBodyRow, 5)).toBe(false);
+		expect(group.expanded).toBe(true);
+
+		// Header row toggles collapsed again
+		expect(group.routeMouse(mouse(0), 0, 5)).toBe(true);
+		expect(group.expanded).toBe(false);
+
+		// Non-left click on header is a no-op
+		expect(group.routeMouse(mouse(0, false), 0, 5)).toBe(false);
+		expect(group.expanded).toBe(false);
+	});
+
+	it("toggles expanded on header click and ignores error diagnostic body rows", () => {
+		const group = new ReadToolGroupComponent();
+		group.updateArgs({ path: "missing.ts" }, "err1");
+		group.updateResult(
+			{ content: [{ type: "text", text: "Error: ENOENT: no such file or directory" }], isError: true },
+			false,
+			"err1",
+		);
+		group.updateArgs({ path: "ok.ts" }, "ok1");
+		group.updateResult({ content: [{ type: "text", text: "ok content" }] }, false, "ok1");
+		group.finalize();
+
+		const lines = group.render(80);
+		expect(lines.length).toBeGreaterThan(1);
+		// Diagnostic / error body rows MUST NOT toggle expanded
+		for (let r = 1; r < lines.length; r++) {
+			const ev: SgrMouseEvent = {
+				button: 0,
+				col: 5,
+				row: r,
+				release: false,
+				wheel: null,
+				motion: false,
+				leftClick: true,
+			};
+			expect(group.routeMouse(ev, r, 5)).toBe(false);
+			expect(group.expanded).toBe(false);
+		}
+
+		// Header row toggles expanded
+		const headerEv: SgrMouseEvent = {
+			button: 0,
+			col: 5,
+			row: 0,
+			release: false,
+			wheel: null,
+			motion: false,
+			leftClick: true,
+		};
+		expect(group.routeMouse(headerEv, 0, 5)).toBe(true);
+		expect(group.expanded).toBe(true);
+	});
+});
 describe("readArgsCollapseIntoGroup", () => {
 	it.each([
 		["reverse://docs/tools/read.md"],

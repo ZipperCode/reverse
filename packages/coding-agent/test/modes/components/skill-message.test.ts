@@ -9,6 +9,7 @@ import { getThemeByName, setThemeInstance, type Theme } from "@reverse/tui/theme
 import type { CustomMessage, SkillPromptDetails } from "../../../src/session/messages";
 
 import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
+import type { SgrMouseEvent } from "@reverse/tui/mouse";
 
 // Drop SGR colors and OSC 8 hyperlink wrappers so assertions see the visible text only.
 const strip = (lines: readonly string[]): string =>
@@ -139,5 +140,96 @@ describe("SkillMessageComponent", () => {
 		const text = strip(expanded.render(80));
 		expect(text).toContain("prompt");
 		expect(text).toContain(body);
+	});
+});
+
+describe("SkillMessageComponent routeMouse", () => {
+	const skillPath = path.join(os.homedir(), ".agent/skills/atomic-commit/SKILL.md");
+
+	it("toggles expanded on chip header, ignores rail padding and user prompt body", () => {
+		const details: SkillPromptDetails = {
+			name: "atomic-commit",
+			path: skillPath,
+			lineCount: 42,
+			args: "stage all tracked files\nsecond instruction line",
+			prompt: "/skill:atomic-commit stage all tracked files\nsecond instruction line",
+		};
+		const component = new SkillMessageComponent(makeMessage(details, "Use the atomic-commit workflow."));
+
+		const lines = component.render(80);
+		expect(component.expanded).toBe(false);
+
+		const mouse = (line: number, leftClick = true): SgrMouseEvent => ({
+			button: 0,
+			col: 5,
+			row: line,
+			release: false,
+			wheel: null,
+			motion: false,
+			leftClick,
+		});
+
+		// Row 0 is rail padding: MUST NOT toggle
+		expect(component.routeMouse(mouse(0), 0, 5)).toBe(false);
+		expect(component.expanded).toBe(false);
+
+		// User body starts at row >= 2: MUST NOT toggle
+		const bodyRow = lines.findIndex(l => strip([l]).includes("stage all tracked files"));
+		expect(bodyRow).toBeGreaterThanOrEqual(2);
+		expect(component.routeMouse(mouse(bodyRow), bodyRow, 5)).toBe(false);
+		expect(component.expanded).toBe(false);
+
+		// Clicking chip header row (row 1) toggles expanded
+		expect(component.routeMouse(mouse(1), 1, 5)).toBe(true);
+		expect(component.expanded).toBe(true);
+
+		// When expanded, clicking expanded prompt lines MUST NOT toggle
+		const expandedLines = component.render(80);
+		expect(strip(expandedLines)).toContain("prompt");
+		const lastRow = expandedLines.length - 1;
+		expect(component.routeMouse(mouse(lastRow), lastRow, 5)).toBe(false);
+		expect(component.expanded).toBe(true);
+
+		// Clicking chip header row (row 1) toggles back
+		expect(component.routeMouse(mouse(1), 1, 5)).toBe(true);
+		expect(component.expanded).toBe(false);
+
+		// Non-left click is ignored
+		expect(component.routeMouse(mouse(1, false), 1, 5)).toBe(false);
+		expect(component.expanded).toBe(false);
+	});
+
+	it("toggles on user message bubble in mid-prompt invocation and ignores expanded prompt body", () => {
+		const details: SkillPromptDetails = { name: "atomic-commit", path: skillPath, lineCount: 42 };
+		const component = new SkillMessageComponent(
+			makeMessage(details, "Please run /skill:atomic-commit and commit everything cleanly."),
+		);
+
+		component.render(80);
+		expect(component.expanded).toBe(false);
+		const mouse = (line: number): SgrMouseEvent => ({
+			button: 0,
+			col: 5,
+			row: line,
+			release: false,
+			wheel: null,
+			motion: false,
+			leftClick: true,
+		});
+
+		// Row 0 is top padding: MUST NOT toggle
+		expect(component.routeMouse(mouse(0), 0, 5)).toBe(false);
+		expect(component.expanded).toBe(false);
+
+		// User message line 1 toggles expanded
+		expect(component.routeMouse(mouse(1), 1, 5)).toBe(true);
+		expect(component.expanded).toBe(true);
+
+		// Prompt disclosure body lines after expansion do not toggle
+		const expandedLines = component.render(80);
+		expect(strip(expandedLines)).toContain("prompt");
+		const promptRow = expandedLines.length - 1;
+		expect(component.routeMouse(mouse(promptRow), promptRow, 5)).toBe(false);
+		expect(component.expanded).toBe(true);
 	});
 });

@@ -2,6 +2,7 @@ import type { AgentMessage } from "@reverse/agent";
 import type { CompactionOutcome } from "@reverse/agent/compaction";
 import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@reverse/ai";
 import type { Component, Container, EditorTheme, KeyId, Loader, TUI } from "@reverse/tui";
+import type { DetailClickResult, SgrMouseEvent } from "@reverse/tui/mouse";
 import type { TspText } from "@reverse/wire";
 import type { StatusNotice } from "@reverse/tui/chrome/status-notice";
 import type { KeybindingsManager } from "@reverse/tui/app-keybindings";
@@ -160,6 +161,8 @@ export interface InteractiveModeContext {
 	invalidatePendingFocus(): void;
 	/** Candidate subagent ids under a mutable-viewport line, for click-to-focus. Empty when the line has no target. */
 	resolveViewportClickCandidates(index: number): string[];
+	/** Route an ANSI left-click at a mutable-viewport line and column to detail targets (thinking, tool, read, skill). Returns true if consumed. */
+	routeViewportDetailClick(index: number, col: number, event?: SgrMouseEvent): boolean | DetailClickResult;
 	/** Flip the pinned jump list between its collapsed few and the full list. */
 	togglePinnedHudExpanded(): void;
 	/** Point the inline hover band at a click-candidate id (or clear it). */

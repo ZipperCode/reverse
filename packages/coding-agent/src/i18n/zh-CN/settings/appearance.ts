@@ -206,9 +206,9 @@ export const appearanceSettingsZhCN: Record<string, SettingTranslation> = {
 		description: "用 OSC 8 超链接包裹路径和 URL，以支持终端原生点击打开（auto：检测支持；off：从不；always：无条件）",
 	},
 	"tui.mouse": {
-		label: "鼠标点击聚焦",
+		label: "鼠标交互",
 		description:
-			"在主会话中捕获鼠标点击，使实时子代理卡片和 HUD 行可点击聚焦，并在目标上显示悬停高亮。开启时，原生文本选择变为 Shift+拖动，滚轮滚动变为 Shift+滚轮",
+			"点击可见的思考和工具标题可展开或折叠详情，点击实时子代理卡片和 HUD 行可进入对应会话。开启时，选择文字使用 Shift+拖动，滚轮滚动使用 Shift+滚轮",
 	},
 	"tui.tight": {
 		label: "紧凑布局",

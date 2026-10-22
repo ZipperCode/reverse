@@ -6,6 +6,7 @@
 
 - Collapsed thinking by default in classic and native transcripts, retaining live activity and measured completion summaries; transcript expansion reveals thinking and error details.
 - Added explicit CLI, MCP, and Skill channel labels while preserving specialized tool layouts, status, diagnostics, and source links.
+- Added mouse expansion and collapse for visible thinking, tool-card, grouped-read, and Skill disclosure headers, with rendered-row hit testing that excludes body text and retired scrollback.
 
 ### Fixed
 

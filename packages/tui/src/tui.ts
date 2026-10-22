@@ -98,7 +98,7 @@ const PAINT_END = `${ENABLE_AUTOWRAP}${SYNC_OUTPUT_END}`;
 const PAINT_BEGIN_NO_SYNC = `${HIDE_CURSOR}${DISABLE_AUTOWRAP}`;
 const PAINT_END_NO_SYNC = ENABLE_AUTOWRAP;
 // Mouse reporting is scoped to fullscreen overlays that opt into pointer
-// interaction, plus the opt-in normal-buffer click capture (`tui.mouse`).
+// interaction, plus product-configured normal-buffer click capture (`tui.mouse`).
 // 1000h = button click tracking, 1003h = any-motion tracking for hover
 // targets, and 1006h = SGR extended coordinates past column/row 223.
 // Selection-first surfaces leave these modes disabled so the terminal retains
@@ -1034,7 +1034,7 @@ export class TUI extends Container {
 	// against the next one.
 	#altActive = false;
 	#mouseTracking: MouseTrackingState = "off";
-	/** Product-owned probe for opt-in normal-buffer click capture (`tui.mouse`). Read every frame. */
+	/** Product-owned probe for normal-buffer click capture (`tui.mouse`). Read every frame. */
 	#inlineMouseProvider: (() => boolean) | undefined;
 	#altPreviousLines: string[] = [];
 	#altPreparedRows: PreparedLine[] = [];
