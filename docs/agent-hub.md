@@ -84,13 +84,13 @@ Contexts without a local focusable session use the Hub's full-screen transcript 
 
 While subagents run, a pinned `Subagents` block above the editor lists every live agent — sync task calls and detached background spawns alike.
 
-The list stays short: it shows a few rows plus an expander (`display.pinnedAgents: collapsed`, the default), lists everything (`full`), or hides entirely (`off`). Clicking the expander toggles between the two while `tui.mouse` is on.
+The list stays short: it shows a few rows plus an expander (`display.pinnedAgents: collapsed`, the default), lists everything (`full`), or hides entirely (`off`). Clicking the expander toggles between the two when `tui.mouse` is on.
 
 Set `display.subagentLivePreview: true` to add a second line under each row showing what that agent is doing: its current tool call (or, between calls, the most recent one) with a one-line detail, plus the elapsed time once a call runs longer than five seconds. Off by default.
 
-`tui.mouse` is enabled by default. Click live subagent cards and jump-list rows directly in the main session, without opening the Hub first. A click focuses that card's most recent agent (a jump-list row focuses its exact agent); focusing a parked agent revives it. Hovering a live target lights it up first, so you can see what a click will open. Ordinary thinking, tool, grouped-read, and Skill disclosure headers toggle their details instead; output text does not toggle them.
+`tui.mouse` is disabled by default to preserve native terminal scrolling and selection (`Ctrl+O` still expands details). Enable `tui.mouse` to click live subagent cards and jump-list rows directly in the main session, without opening the Hub first. A click focuses that card's most recent agent (a jump-list row focuses its exact agent); focusing a parked agent revives it. Hovering a live target lights it up first, so you can see what a click will open. Ordinary thinking, tool, grouped-read, and Skill disclosure headers toggle their details instead; output text does not toggle them.
 
-Only rows currently in the live viewport are clickable — retired transcript rows live in terminal scrollback, where clicks cannot map back to content. While capture is enabled, text selection uses Shift+drag and terminal scrolling uses Shift+wheel. Set `tui.mouse: false` to disable capture; an existing explicit `false` preference remains unchanged.
+Only rows currently in the live viewport are clickable — retired transcript rows live in terminal scrollback, where clicks cannot map back to content. While capture is enabled, text selection uses Shift+drag and terminal scrolling uses Shift+wheel (where supported). Leave `tui.mouse: false` (the default) to retain native terminal scrolling and selection unhindered.
 
 ## Persisted agents and advisors
 

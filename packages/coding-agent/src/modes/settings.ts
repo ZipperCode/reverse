@@ -556,17 +556,19 @@ export const cfgTuiHyperlinks = register({
 // effective value, so pi-tui renderers gating on the shared flag track it the same instant path links do.
 effect(cfgTuiHyperlinks, applyHyperlinkSetting);
 
+// 默认关闭：普通缓冲区开启鼠标捕获会拦截滚轮事件，终端原生回滚与选区依赖关闭鼠标捕获。
 export const cfgTuiMouse = register({
 	id: "tui.mouse",
 	type: "boolean",
-	default: true,
+	default: false,
 	ui: {
 		tab: "appearance",
 		group: "Display",
 		label: "Mouse Interaction",
 		get description() {
 			const shift = formatKeyHint("shift");
-			return `Click visible thinking and tool headers to expand or collapse details, and live subagent cards and HUD rows to focus their session. Native text selection uses ${shift}+drag and wheel scroll uses ${shift}+wheel while on`;
+			const ctrlO = formatKeyHint("ctrl+o");
+			return `Default off preserves native terminal scrolling and selection (${ctrlO} still expands details). When enabled, click visible thinking and tool headers or live subagent cards; terminal scrolling and selection then require ${shift} (where supported)`;
 		},
 	},
 });
