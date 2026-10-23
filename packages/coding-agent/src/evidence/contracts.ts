@@ -112,6 +112,8 @@ export interface VerifyHypothesisInput {
 	status?: "verified" | "refuted";
 	title?: string;
 	facts?: string[];
+	target?: string;
+	targetSha256?: string;
 }
 
 export interface EvidenceListFilter {

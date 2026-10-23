@@ -48,6 +48,7 @@ import * as AIError from "../error";
 import type {
 	AnthropicFallbackCreditHandle,
 	Api,
+	AssistantErrorDiagnostic,
 	AssistantMessage,
 	Context,
 	Model,
@@ -61,7 +62,6 @@ import type {
 	Usage,
 } from "../types";
 import { AssistantMessageEventStream } from "../utils/event-stream";
-
 /** The API string this provider serves. */
 export const MOCK_API = "mock" as const;
 export type MockApi = typeof MOCK_API;
@@ -92,7 +92,8 @@ export interface MockResponse {
 	fallbackCreditHandle?: AnthropicFallbackCreditHandle;
 	/** Error text paired with an explicit `"error"` stop reason. */
 	errorMessage?: string;
-	/** Usage stats. Missing fields default to 0; missing `cost.total` is recomputed from components. */
+	/** Error id paired with an explicit `"error"` stop reason. */
+	errorId?: number;
 	usage?: Partial<Omit<Usage, "cost">> & { cost?: Partial<Usage["cost"]> };
 	/** Service tier the mock reports serving the turn, as a real provider's response echo would. */
 	serviceTier?: ServiceTier;
@@ -112,6 +113,8 @@ export interface MockResponse {
 	responseStatus?: number;
 	/** Pre-set requestId surfaced via {@link ProviderResponseMetadata.requestId}. */
 	responseRequestId?: string;
+	/** Structured error diagnostic attached to the terminal message. */
+	errorDiagnostic?: AssistantErrorDiagnostic;
 }
 
 /** Handler resolved per call: static script or function. */
@@ -364,7 +367,7 @@ async function runMock(
 				: response.throw instanceof Error
 					? response.throw.message
 					: String(response.throw);
-		emitTerminalError(stream, model, startedAt, perfStart, "error", message);
+		emitTerminalError(stream, model, startedAt, perfStart, "error", message, response.errorDiagnostic);
 		return;
 	}
 
@@ -411,15 +414,26 @@ async function runMock(
 	partial.stopDetails = response.stopDetails;
 	partial.fallbackCreditHandle = response.fallbackCreditHandle;
 	partial.errorMessage = response.errorMessage;
+	partial.errorId = response.errorId;
+	partial.errorDiagnostic = response.errorDiagnostic;
 	partial.usage = mergeUsage(response.usage);
 	partial.serviceTier = response.serviceTier;
 	partial.duration = performance.now() - perfStart;
 
 	if (reason === "aborted" || reason === "error") {
+		const errorMessage = partial.errorMessage ?? "mock error";
+		if (partial.errorId === undefined) {
+			partial.errorId = AIError.classifyMessage({
+				api: model.api,
+				provider: model.provider,
+				model: model.id,
+				errorMessage,
+			});
+		}
 		stream.push({
 			type: "error",
 			reason,
-			error: { ...partial, errorMessage: partial.errorMessage ?? "mock error" },
+			error: { ...partial, errorMessage },
 		});
 		return;
 	}
@@ -486,7 +500,14 @@ function emitTerminalError(
 	perfStart: number,
 	reason: "aborted" | "error",
 	message: string,
+	diagnostic?: AssistantErrorDiagnostic,
 ): void {
+	const errorId = AIError.classifyMessage({
+		api: model.api,
+		provider: model.provider,
+		model: model.id,
+		errorMessage: message,
+	});
 	const failure: AssistantMessage = {
 		role: "assistant",
 		content: [],
@@ -496,6 +517,8 @@ function emitTerminalError(
 		usage: emptyUsage(),
 		stopReason: reason as StopReason,
 		errorMessage: message,
+		errorId,
+		errorDiagnostic: diagnostic,
 		timestamp: startedAt,
 		duration: performance.now() - perfStart,
 	};

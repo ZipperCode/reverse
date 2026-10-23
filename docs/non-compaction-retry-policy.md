@@ -134,6 +134,14 @@ Delay override inputs can come from parsed retry headers (`retry-after-ms`, `ret
 
 If the delay exceeds `retry.maxDelayMs` and no switch succeeds, retry normally fails immediately. `retry.waitForUsageReset: true` permits a longer usage-limit wait only when timing is authoritative (parsed provider reset timing or a complete usage-report future reset), not a guessed exhaustion backoff. Long waits remain abortable and are chunked to avoid timer overflow; they also hold unattended/subagent runs.
 
+### Zero-progress bounded retry cap
+
+Repeated identical canonical stream drop failures (such as `incomplete-stream` where a stream closes before terminal envelope) with zero tool execution or artifact progress are bounded to a single retry attempt instead of exhausting the full 10-attempt retry budget.
+
+When a retry succeeds and real tool progress occurs (a tool call successfully executes and records its result), the failure counter resets.
+
+Explicit structured terminal statuses (such as content-blocked safety filters or policy rejections) stop immediately with zero retries.
+
 ## Abort mechanics
 
 ### Explicit retry abort

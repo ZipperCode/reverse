@@ -1,3 +1,4 @@
+import type { AssistantErrorDiagnostic } from "../types";
 import { ProviderHttpError } from "./classes";
 import { attach, create, Flag } from "./flags";
 
@@ -22,6 +23,9 @@ export interface ProviderResponseErrorOptions {
 	provider?: string;
 	kind?: ProviderResponseErrorKind;
 	cause?: unknown;
+	rawTerminal?: AssistantErrorDiagnostic["rawTerminal"];
+	transportError?: AssistantErrorDiagnostic["transportError"];
+	diagnostic?: AssistantErrorDiagnostic;
 }
 
 /**
@@ -32,12 +36,18 @@ export interface ProviderResponseErrorOptions {
 export class ProviderResponseError extends Error {
 	readonly provider: string | undefined;
 	readonly kind: ProviderResponseErrorKind;
+	readonly rawTerminal?: AssistantErrorDiagnostic["rawTerminal"];
+	readonly transportError?: AssistantErrorDiagnostic["transportError"];
+	readonly diagnostic?: AssistantErrorDiagnostic;
 
 	constructor(message: string, options: ProviderResponseErrorOptions = {}) {
 		super(message, options.cause === undefined ? undefined : { cause: options.cause });
 		this.name = "ProviderResponseError";
 		this.provider = options.provider;
 		this.kind = options.kind ?? "output";
+		this.rawTerminal = options.rawTerminal ?? options.diagnostic?.rawTerminal;
+		this.transportError = options.transportError ?? options.diagnostic?.transportError;
+		this.diagnostic = options.diagnostic;
 		// A safety filter block is terminal and intentionally non-retryable.
 		if (this.kind === "content-blocked") attach(this, create(Flag.ContentBlocked));
 		// A logically empty completed output needs a session-level reminder that

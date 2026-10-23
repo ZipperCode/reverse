@@ -3822,6 +3822,11 @@
 				},
 				"errorId": {
 					"type": "integer"
+				},
+				"errorDiagnostic": {
+					"type": "object",
+					"properties": {},
+					"additionalProperties": {}
 				}
 			},
 			"required": [
@@ -3846,6 +3851,11 @@
 				},
 				"finalError": {
 					"type": "string"
+				},
+				"errorDiagnostic": {
+					"type": "object",
+					"properties": {},
+					"additionalProperties": {}
 				},
 				"retryErrors": {
 					"type": "array",

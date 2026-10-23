@@ -878,6 +878,7 @@ export interface AutoRetryStartEvent {
 	delayMs: number;
 	errorMessage: string;
 	errorId?: number;
+	errorDiagnostic?: Record<string, unknown>;
 }
 
 export interface AutoRetryEndEvent {
@@ -885,6 +886,7 @@ export interface AutoRetryEndEvent {
 	success: boolean;
 	attempt: number;
 	finalError?: string;
+	errorDiagnostic?: Record<string, unknown>;
 	/** Persisted retry errors whose presentation changed when the retry settled. */
 	retryErrors?: Record<string, unknown>[];
 }

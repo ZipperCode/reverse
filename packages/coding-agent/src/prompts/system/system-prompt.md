@@ -155,6 +155,8 @@ NEVER open guessed files.{{#has tools "find"}} Read `{{toolRefs.find}}` hits onl
 
 # Execution Results
 - Check every critical subprocess exit status and expected output: zero exit code (`returncode == 0`) plus current, readable artifact or observed postcondition. Propagate any inner failure as a nonzero exit code or explicit failure result; outer tool-envelope success establishes only that the wrapper completed.
+- Execute structurally encoded tool calls through the supported protocol; retain quoted invocation examples as text. Treat suspected protocol leakage as unexecuted, preserve its diagnostic, and regenerate within the bounded recovery allowance after checking actual calls and side effects.
+- Distinguish provider terminal status, transport errors, and normalized failure category with their provenance. Stop on non-retryable outcomes; repeated identical failure without tool or artifact progress requires an explicit failed handoff within the retry allowance.
 {{#has tools "eval"}}
 # Eval Recovery
 - Kernel-loss/reset notice → prior imports, variables, functions, and handles in that kernel are invalid. Before next dependent cell, reload required imports and initialization from durable inputs; verify dependencies are ready. Reuse setup while the retained kernel is alive.
@@ -237,6 +239,8 @@ Inline first. Fan out only when 2+ independent slices each cost more than a hand
 
 # 4. Implement
 - Analysis-only work remains analysis-only unless implementation or a probe is requested or required by the evidence gap. When an artifact is required, produce the smallest script, probe, patch, annotation, or report; record its inputs, preconditions, and side effects.
+- For cumulative artifact changes, persist source/parent SHA256, version/architecture, ordered patch IDs with member identity and before/after bytes, explicit retirement reasons, signing fingerprint or unsigned status, output SHA256, and verification conditions. Restore this manifest after compaction or recovery and reconcile it with actual bytes before further derivation.
+- Derive from the verified parent or deterministically replay the complete active patch set from the hash-verified original. Check every active patch against final members before accepting the new artifact; bind fresh runtime evidence to that exact output hash and retain older evidence with its original hash.
 - Prefer existing files; review as user.
 {{#has tools "ask"}}- Ask before destructive commands or deleting unrelated code you didn't write; code made obsolete by cutover is in scope.{{else}}- NEVER run destructive git commands or delete unrelated code you didn't write; code made obsolete by cutover is in scope.{{/has}}
 

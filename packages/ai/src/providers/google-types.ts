@@ -157,6 +157,7 @@ export interface Candidate {
 	content?: Content;
 	finishReason?: FinishReason;
 	index?: number;
+	safetyRatings?: unknown[];
 }
 
 /** Cumulative token accounting attached to the trailing chunk. */

@@ -1,6 +1,6 @@
 import type { AgentEvent, ThinkingLevel } from "@reverse/agent";
 import type { CompactionResult } from "@reverse/agent/compaction";
-import type { Effort } from "@reverse/ai";
+import type { AssistantErrorDiagnostic, Effort } from "@reverse/ai";
 import type { Rule } from "../capability/rule";
 import type { RetryErrorUpdate } from "../extensibility/shared-events";
 import type { Goal } from "@reverse/tui/tools/goal";
@@ -51,6 +51,7 @@ export type AgentSessionEvent =
 			delayMs: number;
 			errorMessage: string;
 			errorId?: number;
+			errorDiagnostic?: AssistantErrorDiagnostic;
 	  }
 	| {
 			type: "auto_retry_end";
@@ -58,6 +59,7 @@ export type AgentSessionEvent =
 			attempt: number;
 			finalError?: string;
 			retryErrors?: RetryErrorUpdate[];
+			errorDiagnostic?: AssistantErrorDiagnostic;
 	  }
 	| ({ type: "cache_warming_start" } & CacheWarmingRefreshStart)
 	| ({ type: "cache_warming_end" } & CacheWarmingRefreshEnd)

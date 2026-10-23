@@ -20,7 +20,8 @@ import * as sdkModule from "@reverse/coding-agent/sdk";
 import type { AgentMessage } from "@reverse/agent";
 import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
 import { attachIrcWakeTurnMonitor, runSubagentFollowUpTurn, runSubprocess } from "@reverse/coding-agent/task/executor";
-import type { AgentDefinition } from "@reverse/coding-agent/task/types";
+import { TASK_SUBAGENT_EVENT_CHANNEL, type AgentDefinition, type SubagentEventPayload } from "@reverse/coding-agent/task";
+import { formatTaskResultSummary } from "@reverse/coding-agent/task/result-summary";
 import type { ToolSession } from "@reverse/coding-agent/tools";
 import { WaitTool } from "@reverse/coding-agent/tools/wait";
 import { ReadTool } from "@reverse/coding-agent/tools/read";
@@ -64,6 +65,8 @@ interface SessionHarness {
 	emitTerminalYield: (data: unknown) => void;
 	/** End an assistant message carrying `text` and no tool calls. */
 	emitAssistantText: (text: string) => void;
+	/** Emit an arbitrary session event through the session event stream. */
+	emitSessionEvent: (event: AgentSessionEvent) => void;
 	/** The observer factory installed by {@link attachIrcWakeTurnMonitor}, if any. */
 	wakeObserver: () =>
 		| ((records: AgentMessage[]) => ((error?: unknown) => void | Promise<void>) | undefined)
@@ -156,6 +159,7 @@ function createHarness(options?: { hangPrompt?: boolean; asyncJobManager?: Async
 		promptEntered: promptEntered.promise,
 		emitTerminalYield,
 		emitAssistantText,
+		emitSessionEvent: emit,
 		wakeObserver: () => wakeObserver,
 	};
 }
@@ -659,6 +663,70 @@ describe("runSubprocess result acceptance", () => {
 			expect(IrcBus.global().take("Parent")).toBeUndefined();
 		} finally {
 			await manager.dispose({ timeoutMs: 1000 });
+		}
+	});
+
+	it("fails the subagent run on zero-progress retry exhaustion and propagates taskId via eventbus", async () => {
+		const harness = createHarness();
+		registerRunning(harness.session);
+
+		const eventBus = new EventBus();
+		const subagentEvents: SubagentEventPayload[] = [];
+		eventBus.on(TASK_SUBAGENT_EVENT_CHANNEL, (data: unknown) => {
+			subagentEvents.push(data as SubagentEventPayload);
+		});
+
+		// Emulate session prompt failure where retry budget was exhausted with 0 tools
+		harness.session.prompt = async () => {
+			// Emulate the model emitting prose before the stream dies
+			harness.emitAssistantText("This request was blocked by Gemini's filters. Please rephrase.");
+			// Fire auto_retry_start and then auto_retry_end (failed, 0 tools executed)
+			harness.emitSessionEvent({
+				type: "auto_retry_end",
+				success: false,
+				attempt: 1,
+				finalError: "Retry budget exhausted after 1 retry: Google API stream ended without a finish reason (missing terminal envelope)",
+				errorDiagnostic: {
+					normalizedKind: "incomplete-stream",
+					retryable: true,
+				},
+			});
+			return false;
+		};
+
+		vi.spyOn(sdkModule, "createAgentSession").mockResolvedValue({
+			session: harness.session,
+			extensionsResult: {} as unknown as LoadExtensionsResult,
+			setToolUIContext: () => {},
+			eventBus,
+		} as CreateAgentSessionResult);
+
+		const result = await runSubprocess({
+			cwd: "/tmp",
+			agent: baseAgent,
+			task: "run failing child",
+			index: 0,
+			id: AGENT_ID,
+			eventBus,
+		});
+
+		// The subagent run must FAIL (exit 1), never completed
+		expect(result.exitCode).toBe(1);
+		expect(result.error).toContain("Retry budget exhausted after 1 retry");
+
+		// Task result summary envelope must render as failed
+		const summary = formatTaskResultSummary(result, { totalDurationMs: result.durationMs });
+		expect(summary).toContain("failed (exit 1)");
+		expect(summary).not.toContain("status: completed");
+
+		// Subagent event bus must have received the failure event with correlated taskId
+		const retryEndEvent = subagentEvents.find(e => e.event.type === "auto_retry_end");
+		expect(retryEndEvent).toBeDefined();
+		expect(retryEndEvent?.id).toBe(AGENT_ID);
+		const endPayload = retryEndEvent?.event;
+		expect(endPayload?.type).toBe("auto_retry_end");
+		if (endPayload?.type === "auto_retry_end") {
+			expect(endPayload.errorDiagnostic?.taskId).toBe(AGENT_ID);
 		}
 	});
 });

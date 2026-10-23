@@ -95,10 +95,13 @@ describe("AgentSession retry delay cap", () => {
 			"github-copilot",
 			"zai",
 			"cursor",
+			"google",
 		]) {
 			authStorage.keys.removeRuntime(provider);
 		}
 		authStorage.keys.setRuntime("anthropic", "anthropic-test-key");
+		authStorage.keys.setRuntime("google", "controlled-google-key");
+		authStorage.keys.setRuntime("mock", "controlled-mock-key");
 		modelRegistry.clearSuppressedSelectors();
 	});
 
@@ -4025,5 +4028,190 @@ describe("AgentSession retry delay cap", () => {
 		const last = lastAssistant(session);
 		expect(last.stopReason).toBe("stop");
 		expect(last.content).toContainEqual({ type: "text", text: "recovered after default 502 retry budget" });
+	});
+
+	it("recovers transient stream drop on first retry attempt", async () => {
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		if (!model) throw new Error("Expected bundled Anthropic test model to exist");
+		let attempts = 0;
+		const mock = createMockModel();
+		registerMockApi(RETRY_CAP_MOCK_API_SOURCE);
+
+		const agent = new Agent({
+			getApiKey: m => `${m.provider}-test-key`,
+			initialState: {
+				model,
+				systemPrompt: ["Test"],
+				tools: [],
+				messages: [],
+			},
+			streamFn: (_requestedModel, context, options) => {
+				attempts += 1;
+				if (attempts === 1) {
+					mock.push({
+						stopReason: "error",
+						errorMessage: "Google API stream ended without a finish reason (missing terminal envelope)",
+						errorDiagnostic: {
+							normalizedKind: "incomplete-stream",
+							retryable: true,
+						},
+					});
+				} else {
+					mock.push({ content: ["recovered after transient drop"] });
+				}
+				return mock.stream(mock.model, context, options);
+			},
+		});
+
+		const settings = Settings.isolated({ "compaction.enabled": false });
+		settings.setModelRole("default", `${model.provider}/${model.id}`);
+
+		session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings,
+			modelRegistry,
+		});
+
+		vi.spyOn(Math, "random").mockReturnValue(0);
+		mockSchedulerWaitWithClock();
+		const retryStartEvents: AutoRetryStartEvent[] = [];
+		const retryEndEvents: AutoRetryEndEvent[] = [];
+		session.subscribe(event => {
+			if (event.type === "auto_retry_start") retryStartEvents.push(event);
+			if (event.type === "auto_retry_end") retryEndEvents.push(event);
+		});
+
+		await session.prompt("Run transient test");
+		await session.waitForIdle();
+
+		expect(attempts).toBe(2);
+		expect(retryStartEvents).toHaveLength(1);
+		expect(retryEndEvents).toHaveLength(1);
+		expect(retryEndEvents[0]).toMatchObject({ success: true, attempt: 1 });
+		const last = lastAssistant(session);
+		expect(last.stopReason).toBe("stop");
+		expect(last.content).toContainEqual({ type: "text", text: "recovered after transient drop" });
+	});
+
+	it("bounds persistent zero-progress stream drop to 1 retry instead of 10", async () => {
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		if (!model) throw new Error("Expected bundled Anthropic test model to exist");
+		let attempts = 0;
+		const mock = createMockModel();
+		registerMockApi(RETRY_CAP_MOCK_API_SOURCE);
+
+		const agent = new Agent({
+			getApiKey: m => `${m.provider}-test-key`,
+			initialState: {
+				model,
+				systemPrompt: ["Test"],
+				tools: [],
+				messages: [],
+			},
+			streamFn: (_requestedModel, context, options) => {
+				attempts += 1;
+				mock.push({
+					stopReason: "error",
+					errorMessage: "Google API stream ended without a finish reason (missing terminal envelope)",
+					errorDiagnostic: {
+						normalizedKind: "incomplete-stream",
+						retryable: true,
+					},
+				});
+				return mock.stream(mock.model, context, options);
+			},
+		});
+
+		const settings = Settings.isolated({ "compaction.enabled": false });
+		settings.setModelRole("default", `${model.provider}/${model.id}`);
+
+		session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings,
+			modelRegistry,
+		});
+
+		vi.spyOn(Math, "random").mockReturnValue(0);
+		mockSchedulerWaitWithClock();
+		const retryStartEvents: AutoRetryStartEvent[] = [];
+		const retryEndEvents: AutoRetryEndEvent[] = [];
+		session.subscribe(event => {
+			if (event.type === "auto_retry_start") retryStartEvents.push(event);
+			if (event.type === "auto_retry_end") retryEndEvents.push(event);
+		});
+
+		await session.prompt("Trigger persistent drop");
+		await session.waitForIdle();
+
+		// Must stop after 1 retry (2 total attempts) rather than repeating 10 times
+		expect(attempts).toBe(2);
+		expect(retryStartEvents).toHaveLength(1);
+		expect(retryEndEvents).toHaveLength(1);
+		expect(retryEndEvents[0]).toMatchObject({ success: false, attempt: 1 });
+		expect(retryEndEvents[0].finalError).toContain("Google API stream ended without a finish reason");
+		const last = lastAssistant(session);
+		expect(last.stopReason).toBe("error");
+		expect(last.errorMessage).toContain("Retry budget exhausted after 1 retry");
+	});
+
+	it("stops structured non-retryable terminal error with zero unnecessary retries", async () => {
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		if (!model) throw new Error("Expected bundled Anthropic test model to exist");
+		let attempts = 0;
+		const mock = createMockModel();
+		registerMockApi(RETRY_CAP_MOCK_API_SOURCE);
+
+		const agent = new Agent({
+			getApiKey: m => `${m.provider}-test-key`,
+			initialState: {
+				model,
+				systemPrompt: ["Test"],
+				tools: [],
+				messages: [],
+			},
+			streamFn: (_requestedModel, context, options) => {
+				attempts += 1;
+				mock.push({
+					stopReason: "error",
+					errorMessage: "Generation was blocked by Google (SAFETY)",
+					errorDiagnostic: {
+						rawTerminal: { finishReason: "SAFETY" },
+						normalizedKind: "content-blocked",
+						retryable: false,
+					},
+				});
+				return mock.stream(mock.model, context, options);
+			},
+		});
+
+		const settings = Settings.isolated({ "compaction.enabled": false });
+		settings.setModelRole("default", `${model.provider}/${model.id}`);
+
+		session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings,
+			modelRegistry,
+		});
+
+		vi.spyOn(Math, "random").mockReturnValue(0);
+		mockSchedulerWaitWithClock();
+		const retryStartEvents: AutoRetryStartEvent[] = [];
+		const retryEndEvents: AutoRetryEndEvent[] = [];
+		session.subscribe(event => {
+			if (event.type === "auto_retry_start") retryStartEvents.push(event);
+			if (event.type === "auto_retry_end") retryEndEvents.push(event);
+		});
+
+		await session.prompt("Trigger structured safety terminal");
+		await session.waitForIdle();
+
+		// Content-blocked terminal stops immediately: 0 retries
+		expect(attempts).toBe(1);
+		expect(retryStartEvents).toHaveLength(0);
+		const last = lastAssistant(session);
+		expect(last.stopReason).toBe("error");
 	});
 });

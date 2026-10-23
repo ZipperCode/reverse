@@ -8,10 +8,24 @@ import {
 	type ReverseWorkflowRecord,
 	type TargetFormat,
 	type WorkflowStepRecord,
+	type BuildArtifactRecord,
+	type BuildSignatureStatus,
+	type BuildVerificationResult,
+	type PatchRetirementAuditEntry,
+	type PatchStatus,
 	encodeWorkflowProjectKey,
 	createWorkflowId,
+	createBuildId,
 	normalizeTargetFormat,
 } from "./contracts";
+import { EvidenceStore } from "../evidence/store";
+import {
+	hashFileSha256,
+	resolveSignatureInfo,
+	verifyActivePatches,
+	verifySourceOriginalBytes,
+	accumulatePatches,
+} from "./lineage";
 import { generateDeterministicPlan } from "./planner";
 
 const PRIVATE_DIR_MODE = 0o700;
@@ -57,6 +71,41 @@ export interface CreateWorkflowOptions {
 	runtime_session_ids?: string[];
 	metadata?: Record<string, unknown>;
 	max_attempts?: number;
+}
+
+export interface RegisterDerivativeOptions {
+	build_id?: string;
+	target_path: string;
+	output_sha256?: string;
+	original_sha256?: string;
+	parent_sha256?: string;
+	parent_build_id?: string;
+	target_version?: string;
+	abi?: string;
+	architecture?: string;
+	patches?: Array<{
+		patch_id: string;
+		member_path?: string;
+		offset: number;
+		original_bytes: string;
+		expected_bytes: string;
+		status?: PatchStatus;
+		retirement_reason?: string;
+		evidence_id?: string;
+	}>;
+	retired_patches?: Array<{
+		patch_id: string;
+		reason: string;
+	}>;
+	signature?: {
+		status?: BuildSignatureStatus;
+		scheme?: string;
+		fingerprint?: string;
+	};
+	verification_conditions?: Record<string, unknown> | string[];
+	evidence_ids?: string[];
+	runtime_evidence_ids?: string[];
+	metadata?: Record<string, unknown>;
 }
 
 export class ReverseWorkflowStore {
@@ -126,15 +175,18 @@ export class ReverseWorkflowStore {
 		return path.join(this.projectDirectory, `${safeId}.json`);
 	}
 
-	async save(record: ReverseWorkflowRecord): Promise<void> {
+	private async writeWorkflowFileUnlocked(record: ReverseWorkflowRecord): Promise<void> {
 		await this.ensureDir();
 		const targetPath = this.workflowFilePath(record.id);
 		const tempPath = `${targetPath}.${process.pid}.${Bun.randomUUIDv7().slice(0, 8)}.tmp`;
 		const payload = JSON.stringify(record, null, 2);
+		await fs.writeFile(tempPath, payload, "utf8");
+		await replaceFileAtomically(tempPath, targetPath);
+	}
 
+	async save(record: ReverseWorkflowRecord): Promise<void> {
 		await withWorkflowStoreWrite(this.projectDirectory, this.lockPath, async () => {
-			await fs.writeFile(tempPath, payload, "utf8");
-			await replaceFileAtomically(tempPath, targetPath);
+			await this.writeWorkflowFileUnlocked(record);
 		});
 	}
 
@@ -151,8 +203,17 @@ export class ReverseWorkflowStore {
 		}
 	}
 
-	async list(): Promise<ReverseWorkflowRecord[]> {
-		await this.ensureDir();
+	async list(options: { readOnly?: boolean } = {}): Promise<ReverseWorkflowRecord[]> {
+		if (!options.readOnly) {
+			await this.ensureDir();
+		} else {
+			try {
+				await fs.stat(this.projectDirectory);
+			} catch (err) {
+				if (isEnoent(err)) return [];
+				throw err;
+			}
+		}
 		try {
 			const entries = await fs.readdir(this.projectDirectory, { withFileTypes: true });
 			const records: ReverseWorkflowRecord[] = [];
@@ -168,7 +229,6 @@ export class ReverseWorkflowStore {
 				}
 			}
 
-			// Sort by updated_at descending
 			records.sort((a, b) => {
 				const timeA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
 				const timeB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
@@ -195,5 +255,418 @@ export class ReverseWorkflowStore {
 				);
 			}
 		});
+	}
+
+	async registerDerivative(workflowId: string, input: RegisterDerivativeOptions): Promise<BuildArtifactRecord> {
+		const resolvedPath = path.isAbsolute(input.target_path)
+			? input.target_path
+			: path.resolve(this.repositoryRoot, input.target_path);
+
+		try {
+			await fs.stat(resolvedPath);
+		} catch (err) {
+			throw new ToolError(
+				`Derivative target file '${input.target_path}' does not exist on disk: ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
+
+		const actualSha256 = await hashFileSha256(resolvedPath);
+		if (input.output_sha256 && input.output_sha256.trim().toLowerCase() !== actualSha256.toLowerCase()) {
+			throw new ToolError(
+				`Derivative target '${input.target_path}' output SHA-256 mismatch (tampered/drifted): expected '${input.output_sha256}', actual '${actualSha256}'`,
+			);
+		}
+
+		return await withWorkflowStoreWrite(this.projectDirectory, this.lockPath, async () => {
+			const workflow = await this.get(workflowId);
+			if (!workflow) {
+				throw new ToolError(`Workflow '${workflowId}' not found.`);
+			}
+
+			const baseTargetPath = workflow.target_abs_path ?? path.resolve(this.repositoryRoot, workflow.target);
+			let originalSha256: string;
+			try {
+				originalSha256 = await hashFileSha256(baseTargetPath);
+			} catch (err) {
+				const recorded = workflow.base_target_sha256 ?? workflow.target_sha256;
+				if (recorded) {
+					originalSha256 = recorded;
+				} else {
+					throw new ToolError(
+						`Cannot determine original base target SHA-256 for workflow '${workflowId}': base file '${workflow.target}' cannot be read: ${err instanceof Error ? err.message : String(err)}`,
+					);
+				}
+			}
+
+			const recordedBase = workflow.base_target_sha256 ?? workflow.target_sha256;
+			if (recordedBase && recordedBase.toLowerCase() !== originalSha256.toLowerCase()) {
+				throw new ToolError(
+					`Original base target '${workflow.target}' hash has drifted from registered hash '${recordedBase}' to '${originalSha256}'.`,
+				);
+			}
+			if (input.original_sha256 && input.original_sha256.trim().toLowerCase() !== originalSha256.toLowerCase()) {
+				throw new ToolError(
+					`original_sha256 '${input.original_sha256}' does not match workflow base target SHA-256 '${originalSha256}'`,
+				);
+			}
+
+			let parentBuild: BuildArtifactRecord | undefined;
+			let parentSha256: string;
+
+			if (input.parent_build_id) {
+				parentBuild = workflow.build_lineage?.find(b => b.build_id === input.parent_build_id);
+				if (!parentBuild) {
+					throw new ToolError(
+						`Parent build '${input.parent_build_id}' not found in workflow '${workflowId}' build lineage.`,
+					);
+				}
+				if (input.parent_sha256 && input.parent_sha256.trim().toLowerCase() !== parentBuild.output_sha256.toLowerCase()) {
+					throw new ToolError(
+						`parent_sha256 '${input.parent_sha256}' does not match parent build '${parentBuild.build_id}' output SHA-256 '${parentBuild.output_sha256}'`,
+					);
+				}
+				parentSha256 = parentBuild.output_sha256;
+			} else if (input.parent_sha256) {
+				const cleanParent = input.parent_sha256.trim().toLowerCase();
+				const matched = workflow.build_lineage?.find(b => b.output_sha256.toLowerCase() === cleanParent);
+				if (matched) {
+					parentBuild = matched;
+					parentSha256 = matched.output_sha256;
+				} else if (cleanParent === originalSha256.toLowerCase()) {
+					parentSha256 = originalSha256;
+				} else {
+					throw new ToolError(
+						`parent_sha256 '${input.parent_sha256}' is neither the base SHA-256 nor a recognized prior derivative output SHA-256.`,
+					);
+				}
+			} else if (workflow.current_baseline_build_id) {
+				parentBuild = workflow.build_lineage?.find(b => b.build_id === workflow.current_baseline_build_id);
+				parentSha256 = parentBuild ? parentBuild.output_sha256 : originalSha256;
+			} else {
+				parentSha256 = originalSha256;
+			}
+
+			if (parentBuild) {
+				const parentPath = path.isAbsolute(parentBuild.target_path)
+					? parentBuild.target_path
+					: path.resolve(this.repositoryRoot, parentBuild.target_path);
+				try {
+					const diskParentHash = await hashFileSha256(parentPath);
+					if (diskParentHash.toLowerCase() !== parentBuild.output_sha256.toLowerCase()) {
+						throw new ToolError(
+							`Stale parent source: file '${parentBuild.target_path}' on disk hash (${diskParentHash}) has drifted from registered hash (${parentBuild.output_sha256}).`,
+						);
+					}
+				} catch (err) {
+					if (!isEnoent(err)) {
+						if (err instanceof ToolError) throw err;
+						throw new ToolError(
+							`Failed to verify parent source '${parentBuild.target_path}': ${err instanceof Error ? err.message : String(err)}`,
+						);
+					}
+				}
+			} else if (parentSha256 === originalSha256) {
+				try {
+					const diskBaseHash = await hashFileSha256(baseTargetPath);
+					if (diskBaseHash.toLowerCase() !== originalSha256.toLowerCase()) {
+						throw new ToolError(
+							`Stale original base source: file '${workflow.target}' on disk hash (${diskBaseHash}) has drifted from registered hash (${originalSha256}).`,
+						);
+					}
+				} catch (err) {
+					if (isEnoent(err)) {
+						throw new ToolError(
+							`Original base source file '${workflow.target}' does not exist on disk. Cannot replay or derive directly from missing original base.`,
+						);
+					}
+					if (err instanceof ToolError) throw err;
+					throw new ToolError(
+						`Failed to verify original base source '${workflow.target}': ${err instanceof Error ? err.message : String(err)}`,
+					);
+				}
+			}
+
+			let baselineBuild: BuildArtifactRecord | undefined;
+			if (workflow.current_baseline_build_id) {
+				baselineBuild = workflow.build_lineage?.find(b => b.build_id === workflow.current_baseline_build_id);
+				if (!baselineBuild) {
+					throw new ToolError(
+						`Corrupt baseline reference: current_baseline_build_id '${workflow.current_baseline_build_id}' was not found in workflow '${workflowId}' build lineage.`,
+					);
+				}
+			}
+			const baseCumulativePatches = baselineBuild?.cumulative_patches ?? parentBuild?.cumulative_patches;
+
+			const allRetirements: Array<{ patch_id: string; reason: string }> = [
+				...(workflow.retired_patches_audit?.map(a => ({ patch_id: a.patch_id, reason: a.reason })) ?? []),
+				...(input.retired_patches ?? []),
+			];
+
+			const buildId = input.build_id ?? createBuildId("bld");
+			if (workflow.build_lineage?.some(b => b.build_id === buildId)) {
+				throw new ToolError(
+					`Derivative with build_id '${buildId}' already exists in workflow '${workflowId}' build lineage. Duplicate build IDs are rejected to prevent ambiguous baselines.`,
+				);
+			}
+			const cumulativePatches = accumulatePatches(
+				baseCumulativePatches,
+				input.patches,
+				allRetirements,
+				buildId,
+			);
+
+			if (input.patches && input.patches.length > 0) {
+				const candidateSourcePath = parentBuild
+					? (path.isAbsolute(parentBuild.target_path) ? parentBuild.target_path : path.resolve(this.repositoryRoot, parentBuild.target_path))
+					: baseTargetPath;
+				try {
+					await fs.stat(candidateSourcePath);
+				} catch (err) {
+					if (isEnoent(err)) {
+						throw new ToolError(
+							`Physical source file '${candidateSourcePath}' does not exist on disk. Cannot introduce new patches without verifying source original_bytes.`,
+						);
+					}
+					throw new ToolError(
+						`Failed to access physical source file '${candidateSourcePath}': ${err instanceof Error ? err.message : String(err)}`,
+					);
+				}
+				await verifySourceOriginalBytes(candidateSourcePath, input.patches);
+			}
+
+			const verificationResult = await verifyActivePatches(resolvedPath, cumulativePatches);
+			if (verificationResult.status !== "verified") {
+				throw new ToolError(
+					`Derivative '${buildId}' registration rejected: ${verificationResult.failure_reason}`,
+				);
+			}
+
+			const signatureInfo = resolveSignatureInfo(input.signature);
+
+			const validatedRuntimeEvidenceIds: string[] = [];
+			const runtimeEvidenceConditions: Array<{
+				evidence_id: string;
+				method: string;
+				command: string;
+				result: string;
+				reproducibility: string;
+			}> = [];
+
+			if (input.runtime_evidence_ids && input.runtime_evidence_ids.length > 0) {
+				const evidenceStore = new EvidenceStore({ repositoryRoot: this.repositoryRoot });
+				for (const evId of input.runtime_evidence_ids) {
+					const rec = await evidenceStore.getRecord(evId);
+					if (!rec) {
+						throw new ToolError(`Runtime evidence '${evId}' not found in project evidence ledger.`);
+					}
+					if (rec.kind !== "conclusion") {
+						throw new ToolError(
+							`Runtime evidence '${evId}' is of kind '${rec.kind}', not 'conclusion'. Only verified conclusion evidence may be bound to build runtime status.`,
+						);
+					}
+					if (rec.status !== "verified") {
+						throw new ToolError(
+							`Runtime evidence '${evId}' conclusion status is '${rec.status}', not 'verified'.`,
+						);
+					}
+					if (!rec.targetSha256 || rec.targetSha256.toLowerCase() !== actualSha256.toLowerCase()) {
+						throw new ToolError(
+							`Runtime evidence '${evId}' is bound to target SHA-256 '${rec.targetSha256 ?? "undefined"}', which does not match derivative output SHA-256 '${actualSha256}'. Prior revision runtime evidence cannot be inherited by a new revision.`,
+						);
+					}
+					validatedRuntimeEvidenceIds.push(evId);
+					runtimeEvidenceConditions.push({
+						evidence_id: rec.id,
+						method: rec.method,
+						command: rec.command,
+						result: rec.result,
+						reproducibility: rec.reproducibility,
+					});
+				}
+				const mergedConditions: Record<string, unknown> = {
+					...(input.verification_conditions
+						? { declared_conditions: input.verification_conditions }
+						: {}),
+					runtime_evidence: runtimeEvidenceConditions,
+				};
+				verificationResult.runtime_status = "verified";
+				verificationResult.conditions = mergedConditions;
+			} else {
+				verificationResult.runtime_status = "pending";
+				verificationResult.conditions = input.verification_conditions;
+			}
+			const now = new Date().toISOString();
+			const derivativeRecord: BuildArtifactRecord = {
+				build_id: buildId,
+				workflow_id: workflow.id,
+				target_path: path.relative(this.repositoryRoot, resolvedPath) || input.target_path,
+				output_sha256: actualSha256,
+				original_sha256: originalSha256,
+				parent_sha256: parentSha256,
+				...(parentBuild ? { parent_build_id: parentBuild.build_id } : {}),
+				...(input.target_version ?? parentBuild?.target_version ?? baselineBuild?.target_version
+					? { target_version: input.target_version ?? parentBuild?.target_version ?? baselineBuild?.target_version }
+					: {}),
+				...(input.abi ?? parentBuild?.abi ?? baselineBuild?.abi
+					? { abi: input.abi ?? parentBuild?.abi ?? baselineBuild?.abi }
+					: {}),
+				...(input.architecture ?? parentBuild?.architecture ?? baselineBuild?.architecture
+					? { architecture: input.architecture ?? parentBuild?.architecture ?? baselineBuild?.architecture }
+					: {}),
+				cumulative_patches: cumulativePatches,
+				signature: signatureInfo,
+				...(verificationResult.conditions ? { verification_conditions: verificationResult.conditions } : {}),
+				verification_result: verificationResult,
+				...(input.evidence_ids ? { evidence_ids: input.evidence_ids } : {}),
+				...(validatedRuntimeEvidenceIds.length > 0 ? { runtime_evidence_ids: validatedRuntimeEvidenceIds } : {}),
+				...(input.metadata ? { metadata: input.metadata } : {}),
+				created_at: now,
+				updated_at: now,
+			};
+
+			workflow.build_lineage = [...(workflow.build_lineage ?? []), derivativeRecord];
+			workflow.current_baseline_build_id = derivativeRecord.build_id;
+			workflow.base_target_sha256 = originalSha256;
+			workflow.updated_at = now;
+
+			await this.writeWorkflowFileUnlocked(workflow);
+			return derivativeRecord;
+		});
+	}
+
+	async retirePatch(
+		workflowId: string,
+		patchId: string,
+		reason: string,
+		buildId?: string,
+	): Promise<PatchRetirementAuditEntry> {
+		return await withWorkflowStoreWrite(this.projectDirectory, this.lockPath, async () => {
+			const workflow = await this.get(workflowId);
+			if (!workflow) {
+				throw new ToolError(`Workflow '${workflowId}' not found.`);
+			}
+			if (!reason || reason.trim().length === 0) {
+				throw new ToolError("A non-empty retirement reason is required to retire a patch.");
+			}
+
+			let targetBuild: BuildArtifactRecord | undefined;
+			if (buildId) {
+				targetBuild = workflow.build_lineage?.find(b => b.build_id === buildId);
+				if (!targetBuild) {
+					throw new ToolError(
+						`Target build '${buildId}' not found in workflow '${workflowId}' build lineage.`,
+					);
+				}
+			} else if (workflow.current_baseline_build_id) {
+				targetBuild = workflow.build_lineage?.find(b => b.build_id === workflow.current_baseline_build_id);
+				if (!targetBuild) {
+					throw new ToolError(
+						`Corrupt baseline reference: current_baseline_build_id '${workflow.current_baseline_build_id}' not found in workflow '${workflowId}' build lineage.`,
+					);
+				}
+			} else {
+				throw new ToolError(
+					`No active baseline or derivative established in workflow '${workflowId}' to retire patch from.`,
+				);
+			}
+
+			const activePatch = targetBuild.cumulative_patches.find(
+				p => p.patch_id === patchId && p.status === "active",
+			);
+			if (!activePatch) {
+				throw new ToolError(
+					`Patch '${patchId}' is not an active patch in baseline '${targetBuild.build_id}'. Cannot retire unknown or already retired patch.`,
+				);
+			}
+
+			const now = new Date().toISOString();
+			const auditEntry: PatchRetirementAuditEntry = {
+				patch_id: patchId,
+				reason: reason.trim(),
+				retired_at: now,
+				build_id: targetBuild.build_id,
+			};
+
+			workflow.retired_patches_audit = [...(workflow.retired_patches_audit ?? []), auditEntry];
+			workflow.updated_at = now;
+
+			await this.writeWorkflowFileUnlocked(workflow);
+			return auditEntry;
+		});
+	}
+
+	async verifyDerivative(workflowId: string, buildId?: string, targetPath?: string): Promise<BuildVerificationResult> {
+		const workflow = await this.get(workflowId);
+		if (!workflow) {
+			throw new ToolError(`Workflow '${workflowId}' not found.`);
+		}
+
+		let derivative: BuildArtifactRecord | undefined;
+		if (buildId) {
+			derivative = workflow.build_lineage?.find(b => b.build_id === buildId);
+			if (!derivative) {
+				throw new ToolError(
+					`Build ID '${buildId}' not found in workflow '${workflowId}' build lineage.`,
+				);
+			}
+		} else if (workflow.current_baseline_build_id) {
+			derivative = workflow.build_lineage?.find(b => b.build_id === workflow.current_baseline_build_id);
+			if (!derivative) {
+				throw new ToolError(
+					`Corrupt baseline reference: current_baseline_build_id '${workflow.current_baseline_build_id}' not found in workflow '${workflowId}' build lineage.`,
+				);
+			}
+		} else {
+			throw new ToolError(
+				`No active baseline or derivative established in workflow '${workflowId}'.`,
+			);
+		}
+
+		const checkPath = targetPath ?? derivative.target_path;
+		const resolvedPath = path.isAbsolute(checkPath) ? checkPath : path.resolve(this.repositoryRoot, checkPath);
+
+		let diskSha256: string;
+		try {
+			diskSha256 = await hashFileSha256(resolvedPath);
+		} catch (err) {
+			return {
+				status: "failed",
+				static_status: "failed",
+				runtime_status: derivative.verification_result.runtime_status,
+				checked_patches_count: 0,
+				failure_reason: `Target file '${checkPath}' unreadable: ${err instanceof Error ? err.message : String(err)}`,
+			};
+		}
+
+		if (diskSha256.toLowerCase() !== derivative.output_sha256.toLowerCase()) {
+			return {
+				status: "failed",
+				static_status: "failed",
+				runtime_status: derivative.verification_result.runtime_status,
+				checked_patches_count: 0,
+				failure_reason: `Derivative output SHA-256 mismatch (tampered/drifted): expected '${derivative.output_sha256}', actual '${diskSha256}'`,
+			};
+		}
+
+		return await verifyActivePatches(resolvedPath, derivative.cumulative_patches);
+	}
+
+	async getBaseline(workflowId: string): Promise<BuildArtifactRecord | null> {
+		const workflow = await this.get(workflowId);
+		if (!workflow || !workflow.build_lineage || workflow.build_lineage.length === 0) return null;
+		if (workflow.current_baseline_build_id) {
+			return workflow.build_lineage.find(b => b.build_id === workflow.current_baseline_build_id) ?? null;
+		}
+		return workflow.build_lineage[workflow.build_lineage.length - 1] ?? null;
+	}
+
+	async listDerivatives(workflowId: string): Promise<BuildArtifactRecord[]> {
+		const workflow = await this.get(workflowId);
+		return workflow?.build_lineage ?? [];
+	}
+
+	async getDerivative(workflowId: string, buildId: string): Promise<BuildArtifactRecord | null> {
+		const workflow = await this.get(workflowId);
+		return workflow?.build_lineage?.find(b => b.build_id === buildId) ?? null;
 	}
 }

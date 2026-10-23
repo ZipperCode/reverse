@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserved structured Google terminal reasons and observed transport errors separately; missing terminal envelopes retain partial output without inferring filter or network causes from generated text (#11).
+
+
 ## [18.11.2] - 2026-10-16
 
 ### Breaking Changes

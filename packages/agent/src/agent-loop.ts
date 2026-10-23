@@ -21,6 +21,7 @@ import {
 	type ToolResultMessage,
 	type ToolResultProviderMetadata,
 	type TSchema,
+	type Usage,
 	toolWireSchema,
 	type UserMessage,
 } from "@reverse/ai";
@@ -53,6 +54,13 @@ import {
 	signalListLabel,
 } from "@reverse/ai/utils/harmony-leak";
 import { isDsmlLeakRecoveryTarget, removeDsmlToolMarkupLeak } from "@reverse/ai/utils/dsml-leak";
+import {
+	detectProtocolLeakInMessage,
+	formatMalformedToolNameMessage,
+	formatProtocolLeakRecoveryPrompt,
+	isMalformedToolCallName,
+} from "@reverse/ai/utils/protocol-leak";
+import type { ProtocolAnomalyDiagnostic } from "@reverse/ai/types";
 import { cloneJsonTree, logger, sanitizeText, structuredCloneJSON } from "@reverse/utils";
 import { INTENT_FIELD } from "@reverse/wire";
 import { LiveSteeringChannel } from "./live-steering";
@@ -125,6 +133,20 @@ const MAX_PAUSED_TURN_CONTINUATIONS = 8;
  * whenever a turn carries tool calls.
  */
 const MAX_DSML_LEAK_NUDGES = 2;
+
+/**
+ * Cap on consecutive nudges for a turn that emitted unexecuted tool-call markup
+ * in visible text and no structured call. Bounded recovery: if the model keeps
+ * leaking after this many attempts, the loop exits with explicit error.
+ */
+const MAX_PROTOCOL_LEAK_NUDGES = 2;
+
+/**
+ * Cap on consecutive turns with ONLY malformed tool names (zero valid tool executions).
+ * Bounded recovery: if the model keeps emitting invalid tool names without progress,
+ * the loop exits with explicit error.
+ */
+const MAX_MALFORMED_TOOL_TURNS = 2;
 
 /**
  * Cap on consecutive forced escalations for a single soft tool requirement.
@@ -784,6 +806,17 @@ async function emitTurnEnd(
 	});
 }
 
+function createZeroUsage(): Usage {
+	return {
+		input: 0,
+		output: 0,
+		cacheRead: 0,
+		cacheWrite: 0,
+		totalTokens: 0,
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+	};
+}
+
 function createGateStopMessage(model: Model, reason: string | undefined): AssistantMessage {
 	return {
 		role: "assistant",
@@ -791,14 +824,7 @@ function createGateStopMessage(model: Model, reason: string | undefined): Assist
 		api: model.api,
 		provider: model.provider,
 		model: model.id,
-		usage: {
-			input: 0,
-			output: 0,
-			cacheRead: 0,
-			cacheWrite: 0,
-			totalTokens: 0,
-			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-		},
+		usage: createZeroUsage(),
 		stopReason: "aborted",
 		errorMessage: reason ?? "Stopped before model call",
 		timestamp: Date.now(),
@@ -1243,6 +1269,8 @@ async function runLoopBody(
 		let harmonyTruncateResumeCount = 0;
 		let pausedTurnContinuations = 0;
 		let dsmlLeakNudges = 0;
+		let protocolLeakNudges = 0;
+		let consecutiveMalformedTurns = 0;
 
 		// Soft tool requirement lifecycle (reminder then escalation; see SoftToolRequirement).
 		// The host-owned state survives only a gate stop between Agent.prompt calls.
@@ -1704,9 +1732,76 @@ async function runLoopBody(
 					hasMoreToolCalls = false;
 				}
 
-				if (toolCalls.length > 0) {
+				const textLeak = detectProtocolLeakInMessage(message);
+				if (textLeak && !message.errorDiagnostic) {
+					message.errorDiagnostic = {
+						model: message.model,
+						provider: message.provider,
+						normalizedKind: "protocol-leak",
+						protocolAnomaly: {
+							kind: "unexecuted_protocol_leak",
+							rawName: textLeak.rawName,
+							rawCall: textLeak.rawSnippet,
+							toolCallId: textLeak.toolCallId,
+							unexecuted: true,
+							details: { tag: textLeak.tag, snippet: textLeak.rawSnippet, model: message.model, provider: message.provider },
+						},
+					};
+				}
+
+				const hasRealValidToolCall = toolCalls.some(c => !isMalformedToolCallName(c.name));
+				if (hasRealValidToolCall) {
 					pausedTurnContinuations = 0;
 					dsmlLeakNudges = 0;
+					protocolLeakNudges = 0;
+					consecutiveMalformedTurns = 0;
+					// If plaintext leak occurred alongside valid structured calls, nudge the model
+					// after the valid tool results settle so the plaintext call is not forgotten
+					if (textLeak && protocolLeakNudges < MAX_PROTOCOL_LEAK_NUDGES) {
+						const recoveryPrompt = formatProtocolLeakRecoveryPrompt(textLeak);
+						const nudge = injectExecutionAdditionalContext(
+							currentContext,
+							newMessages,
+							stream,
+							recoveryPrompt,
+						);
+						if (nudge) additionalMessages.push(nudge);
+						protocolLeakNudges++;
+					}
+				} else if (toolCalls.length > 0) {
+					consecutiveMalformedTurns++;
+					if (consecutiveMalformedTurns >= MAX_MALFORMED_TOOL_TURNS) {
+						const malformedTerminalMsg: AssistantMessage = {
+							role: "assistant",
+							content: [{ type: "text", text: "Protocol error: model repeatedly emitted malformed tool calls without executing any valid tools." }],
+							api: message.api,
+							provider: message.provider,
+							model: message.model,
+							usage: createZeroUsage(),
+							stopReason: "error",
+							errorMessage: "Protocol error: model repeatedly emitted malformed tool calls without executing any valid tools.",
+							errorDiagnostic: {
+								model: message.model,
+								provider: message.provider,
+								normalizedKind: "protocol-leak",
+								retryable: false,
+								protocolAnomaly: {
+									kind: "malformed_tool_name",
+									unexecuted: true,
+									details: { model: message.model, provider: message.provider },
+								},
+							},
+							timestamp: Date.now(),
+						};
+						currentContext.messages.push(malformedTerminalMsg);
+						newMessages.push(malformedTerminalMsg);
+						stream.push({ type: "message_start", message: malformedTerminalMsg });
+						stream.push({ type: "message_end", message: malformedTerminalMsg });
+						message.stopReason = "error";
+						message.errorMessage = malformedTerminalMsg.errorMessage;
+						if (message.errorDiagnostic) message.errorDiagnostic.retryable = false;
+						hasMoreToolCalls = false;
+					}
 				} else if (
 					!hasMoreToolCalls &&
 					message.stopReason === "stop" &&
@@ -1739,6 +1834,59 @@ async function runLoopBody(
 					if (nudge) additionalMessages.push(nudge);
 					dsmlLeakNudges++;
 					hasMoreToolCalls = true;
+				} else if (
+					!hasMoreToolCalls &&
+					message.stopReason === "stop" &&
+					textLeak
+				) {
+					if (protocolLeakNudges < MAX_PROTOCOL_LEAK_NUDGES) {
+						const recoveryPrompt = formatProtocolLeakRecoveryPrompt(textLeak);
+						const nudge = injectExecutionAdditionalContext(
+							currentContext,
+							newMessages,
+							stream,
+							recoveryPrompt,
+						);
+						if (nudge) additionalMessages.push(nudge);
+						protocolLeakNudges++;
+						hasMoreToolCalls = true;
+					} else {
+						// Persistent leak: emit terminal error message so session & persistence record it
+						const terminalErrorMsg: AssistantMessage = {
+							role: "assistant",
+							content: [{ type: "text", text: `Protocol error: model repeatedly emitted unexecuted tool-call markup as plain text (${textLeak.tag}) without structured tool calls.` }],
+							api: message.api,
+							provider: message.provider,
+							model: message.model,
+							usage: createZeroUsage(),
+							stopReason: "error",
+							errorMessage: `Protocol error: model repeatedly emitted unexecuted tool-call markup as plain text (${textLeak.tag}) without structured tool calls.`,
+							errorDiagnostic: {
+								model: message.model,
+								provider: message.provider,
+								normalizedKind: "protocol-leak",
+								retryable: false,
+								protocolAnomaly: {
+									kind: "unexecuted_protocol_leak",
+									rawName: textLeak.rawName,
+									rawCall: textLeak.rawSnippet,
+									toolCallId: textLeak.toolCallId,
+									unexecuted: true,
+									details: { tag: textLeak.tag, snippet: textLeak.rawSnippet, model: message.model, provider: message.provider },
+								},
+							},
+							timestamp: Date.now(),
+						};
+						message.errorMessage = terminalErrorMsg.errorMessage;
+						if (message.errorDiagnostic) message.errorDiagnostic.retryable = false;
+						currentContext.messages.push(terminalErrorMsg);
+						newMessages.push(terminalErrorMsg);
+						stream.push({ type: "message_start", message: terminalErrorMsg });
+						stream.push({ type: "message_end", message: terminalErrorMsg });
+						message.stopReason = "error";
+						message.errorMessage = terminalErrorMsg.errorMessage;
+						hasMoreToolCalls = false;
+					}
 				}
 
 				await emitTurnEnd(stream, currentContext, message, toolResults, config, signal, {
@@ -2799,6 +2947,7 @@ interface PreparedToolCall {
 	/** Transform failure retained for execution's scheduled error result. */
 	transformError?: unknown;
 	validationErrorMessage?: string;
+	protocolAnomaly?: ProtocolAnomalyDiagnostic;
 	blocked?: boolean;
 	blockReason?: string;
 	prepareError?: unknown;
@@ -2863,6 +3012,7 @@ function suggestToolNames(
 	tools: ReadonlyArray<Pick<AgentTool, "name" | "customWireName">> | undefined,
 	fallbackNames?: Iterable<string>,
 ): string[] {
+	if (isMalformedToolCallName(name)) return [];
 	const candidates: string[] = [];
 	for (const tool of tools ?? []) {
 		candidates.push(tool.name);
@@ -2904,6 +3054,7 @@ function formatToolNotFoundMessage(
 	tools: ReadonlyArray<Pick<AgentTool, "name" | "customWireName">> | undefined,
 	fallbackNames?: Iterable<string>,
 ): string {
+	if (isMalformedToolCallName(name)) return formatMalformedToolNameMessage(name);
 	const suggestions = suggestToolNames(name, tools, fallbackNames);
 	if (suggestions.length === 0) return `Tool ${name} not found`;
 	if (suggestions.length === 1) return `Tool ${name} not found. Did you mean ${suggestions[0]}?`;
@@ -3067,6 +3218,26 @@ async function prepareToolCallDispatch(
 		}
 		const validate = (args: Record<string, unknown>): Record<string, unknown> | undefined => {
 			try {
+				if (isMalformedToolCallName(toolCall.name)) {
+					const anomaly: ProtocolAnomalyDiagnostic = {
+						kind: "malformed_tool_name",
+						rawName: toolCall.name,
+						rawCall: { id: toolCall.id, name: toolCall.name, arguments: toolCall.arguments },
+						toolCallId: toolCall.id,
+						unexecuted: true,
+						details: { model: assistantMessage.model, provider: assistantMessage.provider },
+					};
+					entry.protocolAnomaly = anomaly;
+					if (!assistantMessage.errorDiagnostic) {
+						assistantMessage.errorDiagnostic = {
+							model: assistantMessage.model,
+							provider: assistantMessage.provider,
+							normalizedKind: "protocol-leak",
+							protocolAnomaly: anomaly,
+						};
+					}
+					throw new Error(formatMalformedToolNameMessage(toolCall.name, toolCall.id));
+				}
 				if (!tool) {
 					throw new Error(formatToolNotFoundMessage(toolCall.name, context.tools, suggestFallbackToolNames?.()));
 				}
@@ -3296,6 +3467,7 @@ async function executeToolCalls(
 			toolResultMessage: undefined as ToolResultMessage | undefined,
 			resultEmitted: false,
 			validationErrorMessage: prepared.validationErrorMessage,
+			protocolAnomaly: prepared.protocolAnomaly,
 			blocked: prepared.blocked === true,
 			blockReason: prepared.blockReason,
 			prepareError: prepared.prepareError,
@@ -3463,11 +3635,23 @@ async function executeToolCalls(
 		// failure recorded there surfaces here at the record's scheduled slot so
 		// result emission keeps batch order.
 		if (record.validationErrorMessage !== undefined) {
+			const details: Record<string, unknown> = {
+				isError: true,
+				error: record.validationErrorMessage,
+			};
+			if (record.protocolAnomaly) {
+				details.protocolAnomaly = record.protocolAnomaly;
+				details.unexecuted = true;
+				details.rawName = record.protocolAnomaly.rawName;
+				details.toolCallId = record.protocolAnomaly.toolCallId;
+				details.model = assistantMessage.model;
+				details.provider = assistantMessage.provider;
+			}
 			emitToolResult(
 				record,
 				{
 					content: [{ type: "text" as const, text: record.validationErrorMessage }],
-					details: { isError: true, error: record.validationErrorMessage },
+					details,
 				},
 				true,
 			);

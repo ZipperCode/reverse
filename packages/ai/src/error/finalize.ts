@@ -1,7 +1,7 @@
-import type { Api } from "../types";
+import type { Api, AssistantErrorDiagnostic } from "../types";
 import type { AbortSourceTracker } from "../utils/abort";
 import type { CapturedHttpErrorResponse, RawHttpRequestDump } from "../utils/http-inspector";
-import { classify, classifyMessage, status } from "./flags";
+import { classify, classifyMessage, Flag, status } from "./flags";
 import { formatMessage } from "./format";
 
 /** Context a provider catch block hands to {@link finalize}. */
@@ -20,6 +20,8 @@ export interface FinalizeOptions {
 	rawRequestDump?: RawHttpRequestDump;
 	/** Captured non-2xx response body, used for status fallback and message detail. */
 	capturedErrorResponse?: CapturedHttpErrorResponse;
+	/** Explicit structured error diagnostic. */
+	diagnostic?: AssistantErrorDiagnostic;
 }
 
 /** The full bundle a provider assigns onto its `AssistantMessage` error fields. */
@@ -32,6 +34,8 @@ export interface FinalizeResult {
 	stopReason: "aborted" | "error";
 	/** User-facing message from {@link formatMessage}, or a local abort reason. */
 	message: string;
+	/** Structured error and diagnostic details. */
+	diagnostic?: AssistantErrorDiagnostic;
 }
 
 /**
@@ -71,10 +75,35 @@ export async function finalize(error: unknown, opts: FinalizeOptions = {}): Prom
 		errorStatus: currentStatus,
 	});
 
+	let diagnostic: AssistantErrorDiagnostic | undefined = opts.diagnostic;
+	if (!diagnostic && error && typeof error === "object") {
+		const obj = error as {
+			diagnostic?: AssistantErrorDiagnostic;
+			rawTerminal?: AssistantErrorDiagnostic["rawTerminal"];
+			transportError?: AssistantErrorDiagnostic["transportError"];
+			kind?: string;
+		};
+		if (obj.diagnostic) {
+			diagnostic = obj.diagnostic;
+		} else if (obj.rawTerminal || obj.transportError) {
+			diagnostic = {
+				rawTerminal: obj.rawTerminal,
+				transportError: obj.transportError,
+				normalizedKind: obj.kind,
+				provider: opts.provider,
+				model: opts.model,
+			};
+		}
+	}
+	if (diagnostic && diagnostic.retryable === undefined) {
+		diagnostic.retryable = !((id & Flag.ContentBlocked) !== 0);
+	}
+
 	return {
 		id,
 		status: currentStatus,
 		stopReason: aborted ? "aborted" : "error",
 		message,
+		diagnostic,
 	};
 }

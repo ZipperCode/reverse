@@ -1247,6 +1247,38 @@ export interface ContextSnapshot {
 	lastMessageTimestamp?: number;
 }
 
+export interface ProtocolAnomalyDiagnostic {
+	kind: "malformed_tool_name" | "unexecuted_protocol_leak" | string;
+	rawName?: string;
+	rawCall?: unknown;
+	toolCallId?: string;
+	unexecuted?: boolean;
+	details?: unknown;
+}
+
+export interface AssistantErrorDiagnostic {
+	rawTerminal?: {
+		finishReason?: string;
+		blockReason?: string;
+		blockReasonMessage?: string;
+		safetyRatings?: unknown;
+		details?: unknown;
+	};
+	transportError?: {
+		name?: string;
+		message?: string;
+		status?: number;
+		code?: string | number;
+		details?: unknown;
+	};
+	normalizedKind?: string;
+	retryable?: boolean;
+	taskId?: string;
+	provider?: string;
+	model?: string;
+	protocolAnomaly?: ProtocolAnomalyDiagnostic;
+}
+
 export interface AssistantMessage {
 	role: "assistant";
 	content: (
@@ -1311,6 +1343,8 @@ export interface AssistantMessage {
 	errorStatus?: number;
 	/** Structured machine-readable error classifier; see `utils/error-id.ts` for bit layout and helpers. */
 	errorId?: number;
+	/** Structured error and diagnostic details separating raw provider status, transport failure, and normalized classification. */
+	errorDiagnostic?: AssistantErrorDiagnostic;
 	/**
 	 * Stable identifiers for request features the provider silently dropped
 	 * during this turn (e.g. `"priority"`). Set when a server-side rejection

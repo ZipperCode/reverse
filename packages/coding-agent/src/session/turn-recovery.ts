@@ -358,6 +358,10 @@ export class TurnRecovery {
 	#unexpectedStopRetryCount = 0;
 	#malformedFunctionCallRetryCount = 0;
 	#streamStallContinueCount = 0;
+	#lastCanonicalFailureFingerprint: string | undefined;
+	#repeatedSameFailureCount = 0;
+	#lastSuccessfulToolProgressMarker = 0;
+	#lastPromptGeneration = -1;
 	#acceptTerminalEmptyStopForPrompt = false;
 	// Three fields sit near the word "serve" and are deliberately distinct:
 	// `#activeRetryFallback.served` gates the one-shot `retry_fallback_succeeded`
@@ -827,6 +831,8 @@ export class TurnRecovery {
 	/** Resolve the pending retry promise; the saga is over, and so is its refusal walk. */
 	resolveRetry(): void {
 		this.#refusalWalkTried.clear();
+		this.#lastCanonicalFailureFingerprint = undefined;
+		this.#repeatedSameFailureCount = 0;
 		if (this.#retryResolve) {
 			this.#retryResolve();
 			this.#retryResolve = undefined;
@@ -854,9 +860,11 @@ export class TurnRecovery {
 			if (record.retryErrors) retryErrors = await this.#markPendingRetryErrors(record.retryErrors);
 		} finally {
 			try {
+				const errorDiagnostic = !end.success ? (end.errorDiagnostic ?? record.terminalTurn?.errorDiagnostic) : undefined;
 				await this.#host.emitSessionEvent({
 					type: "auto_retry_end",
 					...end,
+					...(errorDiagnostic ? { errorDiagnostic } : {}),
 					...(retryErrors ? { retryErrors } : {}),
 				});
 			} finally {
@@ -1527,6 +1535,10 @@ export class TurnRecovery {
 				AIError.retriable(id)) &&
 			this.#unexecutedToolCallsReplaySafe(message);
 		if (this.#hasReplayUnsafeOutput(message) && !replaySafeUnexecutedTools) return false;
+		if (message.errorDiagnostic?.retryable !== undefined) {
+			if (!message.errorDiagnostic.retryable) return false;
+			if (!this.#hasReplayUnsafeOutput(message)) return true;
+		}
 		if (AIError.is(id, AIError.Flag.AccountPolicy) || this.isClassifierRefusal(message)) return true;
 		return AIError.retriable(id);
 	}
@@ -1720,6 +1732,50 @@ export class TurnRecovery {
 				block.type === "toolCall" ||
 				(block.type === "text" && block.text.trim().length > 0),
 		);
+	}
+
+	#getSuccessfulToolExecutionCount(): number {
+		const messages = this.#host.agent.state.messages;
+		let count = 0;
+		for (const msg of messages) {
+			if (msg.role === "toolResult" && !msg.isError) {
+				const details = msg.details as { executed?: boolean } | undefined;
+				if (details?.executed !== false) {
+					count++;
+				}
+			}
+		}
+		return count;
+	}
+
+	#computeErrorFingerprint(message: AssistantMessage, id: number): string {
+		const diag = message.errorDiagnostic;
+		const rawTerminal = diag?.rawTerminal;
+		const transport = diag?.transportError;
+		const parts: string[] = [
+			message.provider ?? "",
+			message.model ?? "",
+			diag?.normalizedKind ?? "",
+		];
+		if (rawTerminal) {
+			if (rawTerminal.finishReason) parts.push(`finish:${rawTerminal.finishReason}`);
+			if (rawTerminal.blockReason) parts.push(`block:${rawTerminal.blockReason}`);
+		}
+		if (transport) {
+			if (transport.name) parts.push(`trans_name:${transport.name}`);
+			if (transport.code) parts.push(`trans_code:${transport.code}`);
+			if (transport.status) parts.push(`trans_status:${transport.status}`);
+		}
+		if (message.errorStatus) {
+			parts.push(`status:${message.errorStatus}`);
+		}
+		if (id) {
+			parts.push(`id:${id}`);
+		}
+		if (parts.length === 3) {
+			parts.push(`stop:${message.stopReason}`);
+		}
+		return parts.join("|");
 	}
 
 	/** Checks whether a provider error represents a classifier refusal. */
@@ -2548,13 +2604,48 @@ export class TurnRecovery {
 		// (every rotation sets switchedCredential and skips it), so without
 		// this last resort a provider-wide usage cap never fails over to the
 		// configured chain.
-		const maxRetries = this.#isBoundedThinkingStreamClose(message)
-			? Math.min(retrySettings.maxRetries, 1)
-			: retrySettings.maxRetries;
-		const retryBudgetExhausted = this.#retryAttempt > maxRetries;
-
 		const errorMessage = message.errorMessage || "Unknown error";
 		const id = this.#classifyRetryMessage(message);
+
+		const currentToolCount = this.#getSuccessfulToolExecutionCount();
+		const currentFingerprint = this.#computeErrorFingerprint(message, id);
+
+		const isIncompleteStreamFailure =
+			message.errorDiagnostic?.normalizedKind === "incomplete-stream";
+
+		if (generation !== this.#lastPromptGeneration) {
+			this.#lastPromptGeneration = generation;
+			this.#lastSuccessfulToolProgressMarker = currentToolCount;
+			this.#repeatedSameFailureCount = 0;
+			this.#lastCanonicalFailureFingerprint = undefined;
+		} else if (currentToolCount > this.#lastSuccessfulToolProgressMarker) {
+			this.#lastSuccessfulToolProgressMarker = currentToolCount;
+			this.#repeatedSameFailureCount = 0;
+			this.#lastCanonicalFailureFingerprint = undefined;
+		} else if (currentToolCount < this.#lastSuccessfulToolProgressMarker) {
+			this.#lastSuccessfulToolProgressMarker = currentToolCount;
+		}
+
+		if (isIncompleteStreamFailure) {
+			if (this.#lastCanonicalFailureFingerprint === currentFingerprint) {
+				this.#repeatedSameFailureCount++;
+			} else {
+				this.#lastCanonicalFailureFingerprint = currentFingerprint;
+				this.#repeatedSameFailureCount = 1;
+			}
+		} else {
+			this.#repeatedSameFailureCount = 0;
+			this.#lastCanonicalFailureFingerprint = undefined;
+		}
+
+		const isZeroProgressRepeatedFailure = isIncompleteStreamFailure && this.#repeatedSameFailureCount > 1;
+
+		const maxRetries = this.#isBoundedThinkingStreamClose(message)
+			? Math.min(retrySettings.maxRetries, 1)
+			: isZeroProgressRepeatedFailure
+				? Math.min(retrySettings.maxRetries, 1)
+				: retrySettings.maxRetries;
+		const retryBudgetExhausted = this.#retryAttempt > maxRetries;
 		const preserveFailedTurn =
 			options?.preserveFailedTurn === true ||
 			((classifierRefusal || AIError.is(id, AIError.Flag.MalformedFunctionCall) || AIError.retriable(id)) &&
@@ -2830,7 +2921,7 @@ export class TurnRecovery {
 				const attempt = this.#retryAttempt - 1;
 				message.errorMessage = `Retry budget exhausted after ${attempt} ${attempt === 1 ? "retry" : "retries"}: ${errorMessage}`;
 				await this.#closeRetrySaga(
-					{ success: false, attempt, finalError: errorMessage },
+					{ success: false, attempt, finalError: errorMessage, errorDiagnostic: message.errorDiagnostic },
 					{ terminalTurn: message, retryErrors: { status: "superseded" } },
 				);
 				return false;
@@ -2840,7 +2931,10 @@ export class TurnRecovery {
 			// same-route budget: every distinct account must be tried first.
 			if (switchedModel) this.#retryAttempt = 1;
 		}
-		if ((classifierRefusal || accountPolicyDenial) && !switchedCredential && !switchedModel) {
+		const structuredNonRetryable =
+			message.errorDiagnostic?.retryable === false ||
+			(message.errorDiagnostic?.normalizedKind === "content-blocked" && message.errorDiagnostic.rawTerminal !== undefined);
+		if ((classifierRefusal || accountPolicyDenial || structuredNonRetryable) && !switchedCredential && !switchedModel) {
 			// A prior attempt in this saga already announced `auto_retry_start`
 			// (retryAttempt was incremented for each call to this method, so > 1
 			// means at least one earlier attempt started the loop) but this
@@ -2850,7 +2944,7 @@ export class TurnRecovery {
 			// an announcement that never resolves.
 			if (this.#retryAttempt > 1) {
 				await this.#closeRetrySaga(
-					{ success: false, attempt: this.#retryAttempt - 1, finalError: errorMessage },
+					{ success: false, attempt: this.#retryAttempt - 1, finalError: errorMessage, errorDiagnostic: message.errorDiagnostic },
 					{ terminalTurn: message },
 				);
 			}
@@ -2927,7 +3021,8 @@ export class TurnRecovery {
 			maxAttempts: maxRetries,
 			delayMs,
 			errorMessage,
-			errorId: message.errorId,
+			errorId: id,
+			errorDiagnostic: message.errorDiagnostic,
 		});
 		if (this.#host.abortInProgress() || this.#host.promptGeneration() !== generation) {
 			return this.#endCancelledRetry();

@@ -100,6 +100,15 @@ prompt("Read config.json")
 └─ agent_end
 ```
 
+### Tool Protocol Anomaly Handling
+
+The agent validates tool protocols to ensure safe execution:
+
+- **Malformed Tool Names**: Tool calls with corrupted or delimiter-laden names (e.g. `tool_use id=... name=_bash`) are rejected before execution with structured diagnostics preserving the raw name, model, provider, and call ID. Fuzzy name suggestions are disabled for malformed names to prevent unintended invocations.
+- **Protocol Leak Recovery**: When a model emits tool invocation markup (such as `[tool_use ...]` or `<tool_call>...`) as visible plain text instead of structured tool calls, the text is **never** executed as code. The agent injects an execution recovery prompt to guide the model into standard structured tool calling. Recovery is bounded; persistent unexecuted leaks fail explicitly rather than silently stopping.
+- **Inert Quoted Mentions**: Tool call syntax appearing inside Markdown code fences, inline code backticks, or blockquotes is treated as documentation/example references and remains inert with normal completion.
+- **Mixed Batches**: In turns containing both valid tool calls and malformed calls or plain text leaks, legitimate tool calls are executed exactly once.
+
 ### continue() Event Sequence
 
 `continue()` resumes from existing context without adding a new message. Use it for retries after errors.

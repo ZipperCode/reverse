@@ -11,7 +11,7 @@
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `action` | `string` | Yes | Action: `"create"`, `"plan"`, `"status"`, `"record"`, `"retry"`, `"recover"`, `"retry_plan"`, `"export"`, `"destroy"`. |
+| `action` | `string` | Yes | Action: `"create"`, `"plan"`, `"status"`, `"record"`, `"retry"`, `"recover"`, `"retry_plan"`, `"export"`, `"destroy"`, `"advance"`, `"auto_advance"`, `"register_derivative"`, `"verify_lineage"`, `"retire_patch"`. |
 | `workflow_id` | `string` | No* | Unique workflow identifier (alias `id`). Required for `record`, `retry`, `recover`, `retry_plan`, `export`, `destroy`; optional for `status`. |
 | `id` | `string` | No | Alias for `workflow_id`. |
 | `target` | `string` | No* | Target binary, package, capture, or script path relative to project (alias `path`). Required for `create`. |
@@ -34,6 +34,22 @@
 | `format_type` | `string` | No | Export report format: `"markdown"` (default) or `"json"`. |
 | `to_artifact` | `boolean` | No | Force exporting full report to session artifact instead of inline response. |
 | `limit` | `number` | No | Maximum workflows to list in `status` when `workflow_id` is omitted (default 20). |
+| `build_id` | `string` | No | Derivative build identifier (e.g. `'bld_mod1'`). |
+| `derivative_path` | `string` | No | Path to modified derivative artifact file (alias for `target` in `register_derivative`). |
+| `output_sha256` | `string` | No | Expected SHA-256 hash of the built derivative artifact. |
+| `original_sha256` | `string` | No | SHA-256 hash of the clean base target. |
+| `parent_sha256` | `string` | No | SHA-256 hash of the immediate parent derivative or base target. |
+| `parent_build_id` | `string` | No | Build ID of the immediate parent derivative. |
+| `target_version` | `string` | No | Target application version (e.g. `'v9.5.0'`). |
+| `abi` | `string` | No | Target ABI or architecture (e.g. `'arm64-v8a'`). |
+| `architecture` | `string` | No | Target CPU architecture. |
+| `patches` | `unknown` | No | Array of cumulative or new patch records: `[{ patch_id, member_path?, offset, original_bytes, expected_bytes, status?, retirement_reason?, evidence_id? }]`. |
+| `retired_patches` | `unknown` | No | Array of patches explicitly retired in this revision: `[{ patch_id, reason }]`. |
+| `patch_id` | `string` | No | Patch identifier for `retire_patch` action. |
+| `reason` | `string` | No | Mandatory reason when retiring a patch. |
+| `signature_status` | `string` | No | Signature status: `"signed"`, `"unsigned"`, `"unknown"`. |
+| `signature_fingerprint` | `string` | No | Certificate or signature fingerprint (SHA-256). |
+| `runtime_evidence_ids` | `string[]` | No | Array of evidence IDs bound to this exact derivative output SHA-256. |
 
 ## Actions
 
@@ -46,6 +62,9 @@
 - **retry_plan**: Previews the failure attribution, cause, alternatives, and deterministic parameter/tool corrections without mutating step status or persistent workflow state.
 - **export**: Generates a bounded Markdown or JSON report of the entire workflow, step statuses, outputs, failure recovery history, and hydrated evidence ledger records. Spills to a session artifact (`artifact://<id>`) when requested or when output exceeds inline bounds.
 - **destroy**: Permanently deletes the workflow JSON file from the project's state store.
+- **register_derivative**: Registers a modified binary, archive, or package derivative into durable build lineage. Strictly validates container member bytes (via `@reverse/utils/ar` or seek-read binary) against all expected active patches before registering. Retains cumulative patchset from active baseline, so clean original replays cannot drop verified patches without explicit retirement. Rejects tampered source or output hashes. Enforces runtime evidence binding directly to the exact output hash; prior revision successes are never promoted.
+- **verify_lineage**: Re-verifies an artifact on disk against its registered cumulative patches, source/parent hashes, and container member bytes.
+- **retire_patch**: Explicitly retires a patch in derivative lineage with a mandatory reason, preventing accidental regression without mutating historical records.
 
 ## Target-First Deterministic Tool Routing
 

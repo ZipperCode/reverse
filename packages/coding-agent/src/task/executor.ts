@@ -2160,6 +2160,11 @@ function createSubagentRunMonitor(args: RunMonitorArgs): SubagentRunMonitor {
 			scheduleProgress(true);
 		};
 		return session.subscribe(event => {
+			if (event.type === "auto_retry_start" || event.type === "auto_retry_end") {
+				if (event.errorDiagnostic) {
+					event.errorDiagnostic.taskId ??= id;
+				}
+			}
 			emitSubagentEvent(event);
 			publishAdvisorState(session);
 			publishServingModel();
@@ -2183,6 +2188,7 @@ function createSubagentRunMonitor(args: RunMonitorArgs): SubagentRunMonitor {
 						attempt,
 						errorMessage: event.finalError ?? "Auto-retry failed",
 					};
+					terminalError ??= event.finalError ?? "Auto-retry failed";
 				}
 				scheduleProgress(true);
 				return;
@@ -2657,6 +2663,11 @@ async function driveSessionToResult(
 				exitCode = 1;
 				error ??= attributeSubagentError(lastAssistant.errorMessage, lastAssistant);
 			}
+		}
+
+		if (monitor.progress.retryFailure) {
+			exitCode = 1;
+			error ??= monitor.progress.retryFailure.errorMessage;
 		}
 
 		// A budget-stopped run that still produced no result (no yield, or no

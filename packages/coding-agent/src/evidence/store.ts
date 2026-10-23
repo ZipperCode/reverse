@@ -351,8 +351,10 @@ export class EvidenceStore {
 				reproducibility: redactEvidenceText(reproducibility),
 				status,
 				verifiedAt: new Date().toISOString(),
-				...(hypothesis.target ? { target: hypothesis.target } : {}),
-				...(hypothesis.targetSha256 ? { targetSha256: hypothesis.targetSha256 } : {}),
+				...(input.target ?? hypothesis.target ? { target: input.target ?? hypothesis.target } : {}),
+				...(input.targetSha256 ?? hypothesis.targetSha256
+					? { targetSha256: input.targetSha256 ?? hypothesis.targetSha256 }
+					: {}),
 				...(hypothesis.classification ? { classification: hypothesis.classification } : {}),
 				...(hypothesis.tags ? { tags: hypothesis.tags } : {}),
 			};

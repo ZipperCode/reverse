@@ -1067,7 +1067,7 @@ export const streamGoogleGeminiCli: StreamFunction<"google-gemini-cli"> = (
 
 					if (!sawFinishReason) {
 						throw new AIError.ProviderResponseError(
-							"Cloud Code Assist stream ended without a finish reason (connection dropped or response truncated)",
+							"Cloud Code Assist stream ended without a finish reason (missing terminal envelope)",
 							{ provider: model.provider, kind: "incomplete-stream" },
 						);
 					}
@@ -1119,7 +1119,11 @@ export const streamGoogleGeminiCli: StreamFunction<"google-gemini-cli"> = (
 			output.errorStatus = result.status;
 			output.errorId = result.id;
 			output.errorMessage = result.message;
-			output.duration = performance.now() - startTime;
+			output.errorDiagnostic = result.diagnostic ?? output.errorDiagnostic;
+			if (output.errorDiagnostic) {
+				output.errorDiagnostic.provider ??= model.provider;
+				output.errorDiagnostic.model ??= model.id;
+			}
 			if (firstTokenTime) output.ttft = firstTokenTime - startTime;
 			stream.push({ type: "error", reason: output.stopReason, error: output });
 			stream.end();

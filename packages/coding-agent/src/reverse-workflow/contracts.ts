@@ -163,6 +163,109 @@ export interface WorkflowStepRecord {
 	created_at: string;
 	updated_at: string;
 }
+export type PatchStatus = "active" | "retired";
+
+export interface CumulativePatchRecord {
+	patch_id: string;
+	/** Member path inside container (e.g. 'lib/arm64-v8a/libEaglet.so', 'classes.dex') or undefined for plain binary */
+	member_path?: string;
+	/** Byte offset from beginning of file or container member */
+	offset: number;
+	/** Original bytes in hex */
+	original_bytes: string;
+	/** Expected bytes in hex after patch */
+	expected_bytes: string;
+	/** Active or retired status */
+	status: PatchStatus;
+	/** Mandatory reason if status is 'retired' */
+	retirement_reason?: string;
+	/** Timestamp when patch was retired */
+	retired_at?: string;
+	/** Build identifier where the retirement took effect */
+	retired_in_build_id?: string;
+	/** Linked evidence identifier if verified via evidence ledger */
+	evidence_id?: string;
+	created_at: string;
+}
+
+export type BuildSignatureStatus = "signed" | "unsigned" | "unknown";
+
+export interface BuildSignatureInfo {
+	status: BuildSignatureStatus;
+	scheme?: string;
+	fingerprint?: string;
+	details?: string;
+}
+
+export interface BuildVerificationResult {
+	/** Overall status: 'verified' requires static_status === 'verified' */
+	status: "verified" | "failed" | "unverified";
+	/** Static member/binary byte verification across all active cumulative patches */
+	static_status: "verified" | "failed";
+	/** Runtime execution proof: 'pending' until runtime evidence bound to exact output_sha256 is recorded */
+	runtime_status: "pending" | "verified" | "failed";
+	verified_at?: string;
+	conditions?: Record<string, unknown> | string[];
+	checked_patches_count: number;
+	failed_patch_id?: string;
+	failure_reason?: string;
+}
+
+export interface BuildArtifactRecord {
+	build_id: string;
+	workflow_id: string;
+	target_path: string;
+	output_sha256: string;
+	original_sha256: string;
+	parent_sha256: string;
+	parent_build_id?: string;
+	target_version?: string;
+	abi?: string;
+	architecture?: string;
+	cumulative_patches: CumulativePatchRecord[];
+	signature: BuildSignatureInfo;
+	verification_conditions?: Record<string, unknown> | string[];
+	verification_result: BuildVerificationResult;
+	evidence_ids?: string[];
+	runtime_evidence_ids?: string[];
+	metadata?: Record<string, unknown>;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface PatchRetirementAuditEntry {
+	patch_id: string;
+	reason: string;
+	retired_at: string;
+	build_id?: string;
+}
+
+export interface WorkflowBaselineSummary {
+	workflow_id: string;
+	current_baseline_build_id?: string;
+	base_target_sha256?: string;
+	active_baseline?: {
+		build_id: string;
+		target_path: string;
+		output_sha256: string;
+		parent_sha256: string;
+		active_patches_count: number;
+		active_patches: Array<{
+			patch_id: string;
+			member_path?: string;
+			offset: number;
+			expected_bytes: string;
+		}>;
+		retired_patches: Array<{
+			patch_id: string;
+			reason: string;
+		}>;
+		static_status: "verified" | "failed";
+		runtime_status: "pending" | "verified" | "failed";
+		runtime_evidence_ids?: string[];
+	};
+}
+
 
 export interface ReverseWorkflowRecord {
 	id: string;
@@ -180,6 +283,10 @@ export interface ReverseWorkflowRecord {
 	metadata?: Record<string, unknown>;
 	knowledge_refs?: string[];
 	progression_audit?: ProgressionAuditEntry[];
+	build_lineage?: BuildArtifactRecord[];
+	current_baseline_build_id?: string;
+	base_target_sha256?: string;
+	retired_patches_audit?: PatchRetirementAuditEntry[];
 }
 
 export interface WorkflowMetrics {
@@ -277,4 +384,8 @@ export function encodeWorkflowProjectKey(repositoryRoot: string): string {
 		.replace(/^-+|-+$/g, "")
 		.slice(-80);
 	return `${readable || "project"}-${Bun.SHA256.hash(normalized, "hex").slice(0, 12)}`;
+}
+
+export function createBuildId(prefix = "bld"): string {
+	return `${prefix}_${Bun.randomUUIDv7()}`;
 }

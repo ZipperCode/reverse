@@ -96,12 +96,14 @@ export const eventDefs = {
 		delayMs: "number.integer",
 		errorMessage: "string",
 		"errorId?": "number.integer",
+		"errorDiagnostic?": JSON_OBJECT,
 	},
 	AutoRetryEndEvent: {
 		type: "'auto_retry_end'",
 		success: "boolean",
 		attempt: "number.integer",
 		"finalError?": "string",
+		"errorDiagnostic?": JSON_OBJECT,
 		retryErrors: absentAs(
 			doc(`${JSON_OBJECT}[]`, "Persisted retry errors whose presentation changed when the retry settled."),
 			[],

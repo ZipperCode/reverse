@@ -39,6 +39,8 @@
 - Restored skill-first and schema-first reverse workflows and truthful behavioral verification, including MCP activation-budget recovery (#5, #6).
 - Marked recreated eval kernels explicitly, requiring dependency setup again without replaying side-effectful history (#7).
 - Applied the default 30-second Frida execution watchdog to enumeration and inspection, with bounded output draining, owned child-tree cleanup, and timeout/cancellation diagnostics (#8).
+- Persisted hash-bound build lineage and cumulative member-byte patches, rejecting omitted patches and stale runtime evidence; provider context reloads the recorded baseline after history compaction or session restoration (#10).
+- Preserved structured provider terminal and transport diagnostics through retry/task events, with bounded no-progress recovery for repeated incomplete streams (#11).
 
 ## [18.11.2] - 2026-10-16
 

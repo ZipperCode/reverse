@@ -44,6 +44,13 @@ Actions:
   - **Decision & Audit Trail**: Records structured `ProgressionAuditEntry` records with decision rationale, risk classification, and attached active knowledge references.
   - **Bounded Execution**: Restricts automatic evaluations to bounded steps (max 5, default 1).
 
+- `register_derivative`: Register a modified binary, archive, or package derivative into durable build lineage.
+  - Records original and parent SHA-256, target version/ABI or architecture, cumulative ordered patches, signature fingerprint or unsigned/unknown status, output SHA-256, verification conditions, and verification results.
+  - Strictly validates container member bytes (or plain binary bytes) against all expected active patches before registering. Tampered artifacts or missing patches fail verification and reject registration.
+  - Replays from clean original (A + B) are fully supported: active baseline controls the cumulative patchset so clean-source replays cannot drop verified patches without explicit retirement.
+  - Runtime evidence IDs must bind strictly to the exact derivative output SHA-256; prior hash successes never promote new revisions.
+- `verify_lineage`: Re-verify an artifact on disk against its registered cumulative patches, source/parent hashes, and container member bytes.
+- `retire_patch`: Explicitly retire/withdraw a patch in derivative lineage with a mandatory reason, preventing accidental regression without mutating historical records.
 Security & Guardrails:
 - Does not execute arbitrary shell commands or launch uncontrolled background processes.
 - Target files are accessed strictly read-only.
@@ -81,6 +88,17 @@ reverse_workflow(action: "recover", workflow_id: "wf_rw_018f...", step_id: "apk_
 // 7. Preview a recovery plan without mutating step state
 reverse_workflow(action: "retry_plan", workflow_id: "wf_rw_018f...", step_id: "apk_step_3", error: "droidasc not found on PATH")
 
+// 8. Register a verified modified derivative with cumulative patches
+reverse_workflow(action: "register_derivative", workflow_id: "wf_rw_018f...", target: "dist/mod1.apk", parent_build_id: undefined, patches: [{ patch_id: "patch_A", member_path: "lib/arm64-v8a/libnative.so", offset: 256, original_bytes: "00000000", expected_bytes: "1f2003d5" }])
+
+// 9. Register a second derivative retaining Patch A and introducing Patch B
+reverse_workflow(action: "register_derivative", workflow_id: "wf_rw_018f...", target: "dist/mod2.apk", parent_build_id: "bld_mod1", patches: [{ patch_id: "patch_B", member_path: "classes.dex", offset: 512, original_bytes: "1000", expected_bytes: "1001" }])
+
+// 10. Explicitly retire a patch with mandatory reason
+reverse_workflow(action: "retire_patch", workflow_id: "wf_rw_018f...", patch_id: "patch_A", reason: "Condition replaced by upstream check in mod3")
+
+// 11. Re-verify artifact on disk against registered lineage
+reverse_workflow(action: "verify_lineage", workflow_id: "wf_rw_018f...", build_id: "bld_mod2")
 // 8. Export full workflow report with recovery audit trail to Markdown
 reverse_workflow(action: "export", workflow_id: "wf_rw_018f...", format_type: "markdown")
 

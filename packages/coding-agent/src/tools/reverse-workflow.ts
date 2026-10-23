@@ -41,6 +41,10 @@ import {
 	MAX_INLINE_CHARS,
 	DEFAULT_MAX_ATTEMPTS,
 	HARD_MAX_ATTEMPTS,
+	type BuildArtifactRecord,
+	type BuildVerificationResult,
+	type PatchRetirementAuditEntry,
+	type RegisterDerivativeOptions,
 } from "../reverse-workflow";
 import type { OutputMeta } from "@reverse/tui/tools/output-meta";
 const reverseWorkflowSchema = type({
@@ -57,6 +61,9 @@ const reverseWorkflowSchema = type({
 			"destroy",
 			"advance",
 			"auto_advance",
+			"register_derivative",
+			"verify_lineage",
+			"retire_patch",
 		)
 		.describe(
 			"Workflow orchestrator action: create (initialize target-routed workflow plan), plan (preview/generate deterministic plan), status (inspect workflow and step progress), record (record step execution, outputs, and evidence ledger links), retry (retry failed step with bounded attempts and caller params), recover (diagnose failure, attribute category, propose deterministic fallback/corrected params, record audit trail, and transition to pending), retry_plan (preview failure attribution and recovery plan without mutating state), export (produce bounded Markdown/JSON report), destroy (delete workflow), advance (progress or record next allowlisted low-risk static step), auto_advance (progress next allowlisted read/static triage step, attaching verified prior knowledge and halting on dynamic/high-risk tools or ambiguous targets)",
@@ -135,6 +142,32 @@ const reverseWorkflowSchema = type({
 	"max_steps?": type("number.integer >= 1").describe("Maximum steps to evaluate in auto_advance (default 1, max 5)"),
 	"propose_only?": type("boolean").describe("Only propose the next low-risk static step without mutating state"),
 	"limit?": type("number.integer >= 1").describe("Maximum items to list in 'status' action (default 20)"),
+	"build_id?": type("string").describe("Derivative build identifier (e.g. 'bld_mod1' or 'mod1')"),
+	"derivative_path?": type("string").describe(
+		"Path to derivative artifact file (alias for target in register_derivative)",
+	),
+	"output_sha256?": type("string").describe("Expected SHA-256 hash of the built derivative artifact"),
+	"original_sha256?": type("string").describe("SHA-256 hash of the clean base target"),
+	"parent_sha256?": type("string").describe("SHA-256 hash of the immediate parent derivative or base target"),
+	"parent_build_id?": type("string").describe("Build ID of the immediate parent derivative"),
+	"target_version?": type("string").describe("Target application version (e.g. 'v9.5.0')"),
+	"abi?": type("string").describe("Target ABI or architecture (e.g. 'arm64-v8a', 'x86_64')"),
+	"architecture?": type("string").describe("Target CPU architecture"),
+	"patches?": type("unknown").describe(
+		"Array of cumulative or new patch records: [{ patch_id, member_path?, offset, original_bytes, expected_bytes, status?, retirement_reason?, evidence_id? }]",
+	),
+	"retired_patches?": type("unknown").describe(
+		"Array of patches explicitly retired in this revision: [{ patch_id, reason }]",
+	),
+	"patch_id?": type("string").describe("Patch identifier for retire_patch action"),
+	"reason?": type("string").describe("Mandatory reason when retiring a patch"),
+	"signature_status?": type.enumerated("signed", "unsigned", "unknown").describe("Signature status of the derivative"),
+	"signature_fingerprint?": type("string").describe("Signature certificate or block fingerprint (SHA-256)"),
+	"signature_scheme?": type("string").describe("Signature scheme (e.g. 'v1', 'v2', 'v3', 'Authenticode')"),
+	"runtime_evidence_ids?": type("string[]").describe(
+		"Array of evidence IDs bound to this exact derivative output SHA-256",
+	),
+	"verification_conditions?": type("unknown").describe("Optional verification conditions or requirements"),
 });
 
 export type ReverseWorkflowParams = typeof reverseWorkflowSchema.infer;
@@ -151,7 +184,15 @@ export interface ReverseWorkflowDetails {
 		| "export"
 		| "destroy"
 		| "advance"
-		| "auto_advance";
+		| "auto_advance"
+		| "register_derivative"
+		| "verify_lineage"
+		| "retire_patch";
+	derivative?: BuildArtifactRecord;
+	derivatives?: BuildArtifactRecord[];
+	baseline?: BuildArtifactRecord;
+	verification_result?: BuildVerificationResult;
+	retirement_audit?: PatchRetirementAuditEntry;
 	workflow?: ReverseWorkflowRecord;
 	workflows?: ReverseWorkflowRecord[];
 	step?: WorkflowStepRecord;
@@ -209,6 +250,8 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				action === "destroy" ||
 				action === "advance" ||
 				action === "auto_advance" ||
+				action === "register_derivative" ||
+				action === "retire_patch" ||
 				(action === "export" &&
 					(("to_workspace" in args && Boolean(args.to_workspace)) ||
 						("workspace_path" in args && Boolean(args.workspace_path))))
@@ -633,6 +676,18 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 								"",
 							]
 						: []),
+					...(workflow.build_lineage && workflow.build_lineage.length > 0
+						? [
+								"",
+								`Build Lineage (${workflow.build_lineage.length} derivatives):`,
+								`- Current Baseline: \`${workflow.current_baseline_build_id ?? "none"}\``,
+								...workflow.build_lineage.map(b => {
+									const activeP = b.cumulative_patches.filter(p => p.status === "active").length;
+									const isBase = b.build_id === workflow.current_baseline_build_id ? " [ACTIVE BASELINE]" : "";
+									return `  - \`${b.build_id}\`${isBase}: ${b.target_path} (Output: ${b.output_sha256.slice(0, 12)}...) | Static: ${b.verification_result.static_status.toUpperCase()} (${activeP} active patches) | Runtime: ${b.verification_result.runtime_status.toUpperCase()}`;
+								}),
+							]
+						: []),
 					"Steps:",
 					stepRows.join("\n"),
 					"",
@@ -645,7 +700,13 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 
 				return {
 					content: [{ type: "text", text }],
-					details: { action: "status", workflow, metrics },
+					details: {
+						action: "status",
+						workflow,
+						metrics,
+						baseline: workflow.build_lineage?.find(b => b.build_id === workflow.current_baseline_build_id),
+						derivatives: workflow.build_lineage,
+					},
 				};
 			}
 
@@ -1505,6 +1566,202 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						decision_reason: progressionResult.reason,
 						progression_audit: progressionResult.audit_entries,
 						knowledge_refs: progressionResult.knowledge_refs,
+					},
+				};
+			}
+
+			case "register_derivative": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) {
+					throw new ToolError("workflow_id is required for 'register_derivative' action.");
+				}
+
+				const targetFile = params.target ?? params.path ?? params.derivative_path;
+				if (!targetFile) {
+					throw new ToolError(
+						"Derivative target file path ('target', 'path', or 'derivative_path') is required.",
+					);
+				}
+
+				let parsedPatches: RegisterDerivativeOptions["patches"];
+				if (params.patches) {
+					if (typeof params.patches === "string") {
+						try {
+							parsedPatches = JSON.parse(params.patches);
+						} catch (e) {
+							throw new ToolError(
+								`Failed to parse 'patches' parameter as JSON: ${e instanceof Error ? e.message : String(e)}`,
+							);
+						}
+					} else if (Array.isArray(params.patches)) {
+						parsedPatches = params.patches as RegisterDerivativeOptions["patches"];
+					} else {
+						throw new ToolError("'patches' must be an array of patch definitions.");
+					}
+				}
+
+				let parsedRetiredPatches: RegisterDerivativeOptions["retired_patches"];
+				if (params.retired_patches) {
+					if (typeof params.retired_patches === "string") {
+						try {
+							parsedRetiredPatches = JSON.parse(params.retired_patches);
+						} catch (e) {
+							throw new ToolError(
+								`Failed to parse 'retired_patches' parameter as JSON: ${e instanceof Error ? e.message : String(e)}`,
+							);
+						}
+					} else if (Array.isArray(params.retired_patches)) {
+						parsedRetiredPatches = params.retired_patches as RegisterDerivativeOptions["retired_patches"];
+					} else {
+						throw new ToolError("'retired_patches' must be an array of { patch_id, reason } objects.");
+					}
+				}
+
+				const signatureOption =
+					params.signature_status || params.signature_fingerprint || params.signature_scheme
+						? {
+								status: params.signature_status,
+								fingerprint: params.signature_fingerprint,
+								scheme: params.signature_scheme,
+							}
+						: undefined;
+
+				const derivative = await store.registerDerivative(workflowId, {
+					build_id: params.build_id,
+					target_path: targetFile,
+					output_sha256: params.output_sha256,
+					original_sha256: params.original_sha256,
+					parent_sha256: params.parent_sha256,
+					parent_build_id: params.parent_build_id,
+					target_version: params.target_version,
+					abi: params.abi,
+					architecture: params.architecture,
+					patches: parsedPatches,
+					retired_patches: parsedRetiredPatches,
+					signature: signatureOption,
+					runtime_evidence_ids: params.runtime_evidence_ids,
+					verification_conditions: params.verification_conditions as Record<string, unknown> | undefined,
+				});
+
+				const activeCount = derivative.cumulative_patches.filter(p => p.status === "active").length;
+				const retiredCount = derivative.cumulative_patches.filter(p => p.status === "retired").length;
+
+				const lines = [
+					`Registered Derivative: \`${derivative.build_id}\` for workflow \`${workflowId}\``,
+					`- **Target Path**: \`${derivative.target_path}\``,
+					`- **Output SHA-256**: \`${derivative.output_sha256}\``,
+					`- **Original SHA-256**: \`${derivative.original_sha256}\``,
+					`- **Parent SHA-256**: \`${derivative.parent_sha256}\`${derivative.parent_build_id ? ` (Parent Build: \`${derivative.parent_build_id}\`)` : ""}`,
+					`- **Static Verification**: **${derivative.verification_result.static_status.toUpperCase()}** (${activeCount} active patches verified in container/binary${retiredCount > 0 ? `, ${retiredCount} retired` : ""})`,
+					`- **Runtime Status**: **${derivative.verification_result.runtime_status.toUpperCase()}**${derivative.runtime_evidence_ids?.length ? ` (Bound Evidence: ${derivative.runtime_evidence_ids.join(", ")})` : " (Pending direct execution proof on this output hash)"}`,
+					`- **Signature**: ${derivative.signature.status}${derivative.signature.fingerprint ? ` (${derivative.signature.fingerprint.slice(0, 16)}...)` : ""}`,
+					"",
+					"Cumulative Patches:",
+					...derivative.cumulative_patches.map(p => {
+						const loc = p.member_path
+							? `\`${p.member_path}\`+0x${p.offset.toString(16)}`
+							: `offset 0x${p.offset.toString(16)}`;
+						const statusStr =
+							p.status === "active" ? "[ACTIVE]" : `[RETIRED: ${p.retirement_reason ?? "reason not recorded"}]`;
+						return `  - ${statusStr} \`${p.patch_id}\` (${loc}): expected \`${p.expected_bytes}\``;
+					}),
+					"",
+					`Current verified baseline updated to \`${derivative.build_id}\`.`,
+				];
+
+				const updatedWorkflow = await store.get(workflowId);
+
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action: "register_derivative",
+						workflow: updatedWorkflow ?? undefined,
+						derivative,
+						baseline: derivative,
+						verification_result: derivative.verification_result,
+					},
+				};
+			}
+
+			case "verify_lineage": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) {
+					throw new ToolError("workflow_id is required for 'verify_lineage' action.");
+				}
+
+				const targetFile = params.target ?? params.path ?? params.derivative_path;
+				const verificationResult = await store.verifyDerivative(workflowId, params.build_id, targetFile);
+
+				const workflow = await store.get(workflowId);
+				const derivative = params.build_id
+					? workflow?.build_lineage?.find(b => b.build_id === params.build_id)
+					: workflow?.build_lineage?.find(b => b.build_id === workflow.current_baseline_build_id);
+
+				const lines = [
+					`Lineage Verification Result for Workflow \`${workflowId}\`${params.build_id ? ` (Build: \`${params.build_id}\`)` : ""}`,
+					`- **Overall Status**: **${verificationResult.status.toUpperCase()}**`,
+					`- **Static Status**: ${verificationResult.static_status.toUpperCase()} (${verificationResult.checked_patches_count} active patches checked)`,
+					`- **Runtime Status**: ${verificationResult.runtime_status.toUpperCase()}`,
+				];
+
+				if (verificationResult.failure_reason) {
+					lines.push(`- **Failure Reason**: ${verificationResult.failure_reason}`);
+				}
+				if (verificationResult.failed_patch_id) {
+					lines.push(`- **Failed Patch**: \`${verificationResult.failed_patch_id}\``);
+				}
+				if (verificationResult.verified_at) {
+					lines.push(`- **Verified At**: ${verificationResult.verified_at}`);
+				}
+
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action: "verify_lineage",
+						workflow: workflow ?? undefined,
+						derivative,
+						verification_result: verificationResult,
+					},
+				};
+			}
+
+			case "retire_patch": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) {
+					throw new ToolError("workflow_id is required for 'retire_patch' action.");
+				}
+
+				const patchId = params.patch_id;
+				if (!patchId) {
+					throw new ToolError("patch_id is required for 'retire_patch' action.");
+				}
+
+				const reason = params.reason ?? params.failure_reason ?? params.error;
+				if (!reason || reason.trim().length === 0) {
+					throw new ToolError("reason is required for 'retire_patch' action.");
+				}
+
+				const audit = await store.retirePatch(workflowId, patchId, reason, params.build_id);
+				const workflow = await store.get(workflowId);
+
+				const text = [
+					`Explicit Patch Retirement Recorded for Workflow \`${workflowId}\``,
+					`- **Patch ID**: \`${audit.patch_id}\``,
+					`- **Retirement Reason**: ${audit.reason}`,
+					`- **Timestamp**: ${audit.retired_at}`,
+					audit.build_id ? `- **Target Build ID**: \`${audit.build_id}\`` : undefined,
+					"",
+					"This patch will be recognized as explicitly retired in subsequent derivative registrations and will not cause missing-patch verification failure.",
+				]
+					.filter(Boolean)
+					.join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: {
+						action: "retire_patch",
+						workflow: workflow ?? undefined,
+						retirement_audit: audit,
 					},
 				};
 			}

@@ -420,6 +420,26 @@ export function mapStopReason(reason: FinishReason): StopReason {
 }
 
 /**
+ * Returns whether a Gemini finish reason represents explicit content blocking.
+ */
+export function isGoogleContentBlockedFinishReason(reason: string | undefined): boolean {
+	if (!reason) return false;
+	switch (reason) {
+		case "BLOCKLIST":
+		case "PROHIBITED_CONTENT":
+		case "SPII":
+		case "SAFETY":
+		case "IMAGE_SAFETY":
+		case "IMAGE_PROHIBITED_CONTENT":
+		case "IMAGE_RECITATION":
+		case "RECITATION":
+			return true;
+		default:
+			return false;
+	}
+}
+
+/**
  * Map string finish reason to our StopReason (for raw API responses).
  */
 export function mapStopReasonString(reason: string): StopReason {
@@ -739,65 +759,145 @@ export async function consumeGoogleStream<T extends GoogleApiType>(args: {
 	let firstTokenSeen = false;
 	let sawFinishReason = false;
 
-	for await (const chunk of googleStream) {
-		if (chunk.error) throw googleStreamChunkError(chunk.error, model.provider);
-		if (!chunk.candidates?.length && chunk.promptFeedback?.blockReason) {
-			const detail = chunk.promptFeedback.blockReasonMessage;
-			throw new AIError.ProviderResponseError(
-				`Request blocked by Google (${chunk.promptFeedback.blockReason})${detail ? `: ${detail}` : ""}`,
-				{ provider: model.provider, kind: "content-blocked" },
-			);
-		}
-		const candidate = chunk.candidates?.[0];
-		if (candidate?.content?.parts) {
-			for (const part of candidate.content.parts) {
-				if (part.text && !firstTokenSeen) {
-					firstTokenSeen = true;
-					onFirstToken?.();
+	try {
+		for await (const chunk of googleStream) {
+			if (chunk.error) throw googleStreamChunkError(chunk.error, model.provider);
+			if (chunk.promptFeedback?.blockReason) {
+				const detail = chunk.promptFeedback.blockReasonMessage;
+				const rawTerminal = {
+					blockReason: chunk.promptFeedback.blockReason,
+					blockReasonMessage: detail,
+					safetyRatings: chunk.promptFeedback.safetyRatings,
+				};
+				output.errorDiagnostic = {
+					rawTerminal,
+					normalizedKind: "content-blocked",
+					retryable: false,
+					provider: model.provider,
+					model: model.id,
+				};
+				throw new AIError.ProviderResponseError(
+					`Request blocked by Google (${chunk.promptFeedback.blockReason})${detail ? `: ${detail}` : ""}`,
+					{ provider: model.provider, kind: "content-blocked", rawTerminal, diagnostic: output.errorDiagnostic },
+				);
+			}
+			const candidate = chunk.candidates?.[0];
+			if (candidate?.content?.parts) {
+				for (const part of candidate.content.parts) {
+					if (part.text && !firstTokenSeen) {
+						firstTokenSeen = true;
+						onFirstToken?.();
+					}
+					textBlocks.push(part);
+
+					if (part.functionCall) {
+						textBlocks.close();
+
+						// Generate unique ID if not provided or if it's a duplicate
+						const providedId = part.functionCall.id;
+						const needsNewId = !providedId || output.content.some(b => b.type === "toolCall" && b.id === providedId);
+						const toolCallId = needsNewId ? nextToolCallId(part.functionCall.name || "tool") : providedId;
+
+						const toolCall: ToolCall = {
+							type: "toolCall",
+							id: toolCallId,
+							name: part.functionCall.name || "",
+							arguments: (part.functionCall.args ?? {}) as Record<string, any>,
+							...(part.thoughtSignature && { thoughtSignature: part.thoughtSignature }),
+						};
+
+						output.content.push(toolCall);
+						pushToolCallEvents(toolCall, blockIndex(), output, stream);
+					}
 				}
-				textBlocks.push(part);
+			}
 
-				if (part.functionCall) {
-					textBlocks.close();
-
-					// Generate unique ID if not provided or if it's a duplicate
-					const providedId = part.functionCall.id;
-					const needsNewId = !providedId || output.content.some(b => b.type === "toolCall" && b.id === providedId);
-					const toolCallId = needsNewId ? nextToolCallId(part.functionCall.name || "tool") : providedId;
-
-					const toolCall: ToolCall = {
-						type: "toolCall",
-						id: toolCallId,
-						name: part.functionCall.name || "",
-						arguments: (part.functionCall.args ?? {}) as Record<string, any>,
-						...(part.thoughtSignature && { thoughtSignature: part.thoughtSignature }),
+			if (candidate?.finishReason) {
+				sawFinishReason = true;
+				const mapped = mapStopReason(candidate.finishReason);
+				// Only let a trailing tool call upgrade benign finishes; SAFETY/MALFORMED_FUNCTION_CALL
+				// and friends must surface as errors even when earlier chunks carried valid tool calls.
+				if ((mapped === "stop" || mapped === "length") && output.content.some(b => b.type === "toolCall")) {
+					output.stopReason = "toolUse";
+				} else {
+					output.stopReason = mapped;
+					if (mapped === "error") {
+						output.errorMessage = `Generation failed with finish reason: ${candidate.finishReason}`;
+					}
+				}
+				const rawTerminal = {
+					finishReason: candidate.finishReason,
+					safetyRatings: candidate.safetyRatings,
+				};
+				const isBlocked = isGoogleContentBlockedFinishReason(candidate.finishReason);
+				if (isBlocked) {
+					output.errorDiagnostic = {
+						rawTerminal,
+						normalizedKind: "content-blocked",
+						retryable: false,
+						provider: model.provider,
+						model: model.id,
 					};
-
-					output.content.push(toolCall);
-					pushToolCallEvents(toolCall, blockIndex(), output, stream);
+				} else if (mapped === "error") {
+					output.errorDiagnostic = {
+						rawTerminal,
+						normalizedKind: "output",
+						retryable: false,
+						provider: model.provider,
+						model: model.id,
+					};
+				} else {
+					output.errorDiagnostic = {
+						...output.errorDiagnostic,
+						rawTerminal,
+						provider: model.provider,
+						model: model.id,
+					};
 				}
 			}
-		}
-
-		if (candidate?.finishReason) {
-			sawFinishReason = true;
-			const mapped = mapStopReason(candidate.finishReason);
-			// Only let a trailing tool call upgrade benign finishes; SAFETY/MALFORMED_FUNCTION_CALL
-			// and friends must surface as errors even when earlier chunks carried valid tool calls.
-			if ((mapped === "stop" || mapped === "length") && output.content.some(b => b.type === "toolCall")) {
-				output.stopReason = "toolUse";
-			} else {
-				output.stopReason = mapped;
-				if (mapped === "error") {
-					output.errorMessage = `Generation failed with finish reason: ${candidate.finishReason}`;
-				}
+			if (chunk.usageMetadata) {
+				output.usage = mapGoogleUsage(chunk.usageMetadata);
+				calculateCost(model, output.usage, output.timestamp);
 			}
 		}
-
-		if (chunk.usageMetadata) {
-			output.usage = mapGoogleUsage(chunk.usageMetadata);
-			calculateCost(model, output.usage, output.timestamp);
+	} catch (streamError) {
+		textBlocks.close();
+		if (
+			options?.signal?.aborted ||
+			streamError instanceof AIError.AbortError ||
+			streamError instanceof AIError.ProviderResponseError ||
+			streamError instanceof AIError.GoogleApiError ||
+			streamError instanceof AIError.ProviderHttpError
+		) {
+			throw streamError;
 		}
+		const transportError = {
+			name: (streamError as Error)?.name || "TransportError",
+			message: (streamError as Error)?.message || String(streamError),
+			details: streamError,
+		};
+		const isBlocked = output.errorDiagnostic?.normalizedKind === "content-blocked";
+		output.errorDiagnostic = {
+			...output.errorDiagnostic,
+			transportError,
+			normalizedKind: isBlocked ? "content-blocked" : (output.errorDiagnostic?.normalizedKind ?? "incomplete-stream"),
+			retryable: isBlocked ? false : (output.errorDiagnostic?.retryable ?? true),
+			provider: model.provider,
+			model: model.id,
+		};
+		throw new AIError.ProviderResponseError(
+			isBlocked
+				? `Request blocked by Google (${output.errorDiagnostic?.rawTerminal?.blockReason || output.errorDiagnostic?.rawTerminal?.finishReason})`
+				: `Google API transport failed during streaming: ${transportError.message}`,
+			{
+				provider: model.provider,
+				kind: isBlocked ? "content-blocked" : "incomplete-stream",
+				cause: streamError,
+				transportError,
+				rawTerminal: output.errorDiagnostic?.rawTerminal,
+				diagnostic: output.errorDiagnostic,
+			},
+		);
 	}
 
 	textBlocks.close();
@@ -807,16 +907,30 @@ export async function consumeGoogleStream<T extends GoogleApiType>(args: {
 	}
 
 	if (!sawFinishReason) {
+		output.errorDiagnostic = {
+			...output.errorDiagnostic,
+			normalizedKind: "incomplete-stream",
+			retryable: true,
+			provider: model.provider,
+			model: model.id,
+		};
 		throw new AIError.ProviderResponseError(
-			"Google API stream ended without a finish reason (connection dropped or response truncated)",
-			{ provider: model.provider, kind: "incomplete-stream" },
+			"Google API stream ended without a finish reason (missing terminal envelope)",
+			{
+				provider: model.provider,
+				kind: "incomplete-stream",
+				diagnostic: output.errorDiagnostic,
+			},
 		);
 	}
 
 	if (output.stopReason === "aborted" || output.stopReason === "error") {
+		const isBlocked = output.errorDiagnostic?.normalizedKind === "content-blocked";
 		throw new AIError.ProviderResponseError(output.errorMessage ?? "An unknown error occurred", {
 			provider: model.provider,
-			kind: "output",
+			kind: isBlocked ? "content-blocked" : "output",
+			rawTerminal: output.errorDiagnostic?.rawTerminal,
+			diagnostic: output.errorDiagnostic,
 		});
 	}
 }
@@ -1100,7 +1214,11 @@ export function streamGoogleGenAI<T extends "google-generative-ai" | "google-ver
 			output.errorStatus = result.status;
 			output.errorId = result.id;
 			output.errorMessage = result.message;
-			output.duration = performance.now() - startTime;
+			output.errorDiagnostic = result.diagnostic ?? output.errorDiagnostic;
+			if (output.errorDiagnostic) {
+				output.errorDiagnostic.provider ??= model.provider;
+				output.errorDiagnostic.model ??= model.id;
+			}
 			if (firstTokenTime) output.ttft = firstTokenTime - startTime;
 			stream.push({ type: "error", reason: output.stopReason, error: output });
 			stream.end();

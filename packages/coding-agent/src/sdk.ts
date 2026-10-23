@@ -166,6 +166,7 @@ import mcpXdevGuidanceTemplate from "./prompts/system/mcp-xdev-guidance.md" with
 import lateDiagnosticTemplate from "./prompts/tools/lsp-late-diagnostic.md" with { type: "text" };
 import { AgentLifecycleManager } from "./registry/agent-lifecycle";
 import { type AgentKind, type AgentRef, AgentRegistry, MAIN_AGENT_ID } from "./registry/agent-registry";
+import { formatBuildLineageContext } from "./reverse-workflow";
 import {
 	buildSecretObfuscator,
 	deobfuscateSessionContext,
@@ -4272,9 +4273,24 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			return obfuscateMessages(obfuscator, converted);
 		};
 
+		const withBuildLineageContext = async (messages: AgentMessage[]): Promise<AgentMessage[]> => {
+			// 从持久化清单重建当前基线，压缩或恢复后也不依赖历史文件名与旧截图。
+			const content = await formatBuildLineageContext(sessionManager.getCwd());
+			const retained = messages.filter(message => message.role !== "custom" || message.customType !== "build-lineage-context");
+			if (!content) return retained.length === messages.length ? messages : retained;
+			return [...retained, {
+				role: "custom",
+				customType: "build-lineage-context",
+				content,
+				display: false,
+				attribution: "agent",
+				timestamp: Date.now(),
+			}];
+		};
+
 		const transformContext = async (messages: AgentMessage[], signal?: AbortSignal) => {
 			const withContext = await extensionRunner.emitContext(messages, signal);
-			return wrapSteeringForModel(withContext);
+			return wrapSteeringForModel(await withBuildLineageContext(withContext));
 		};
 		// Per-request provider-context transforms. Obfuscate FIRST so secrets are
 		// redacted from text before snapcompact rasterizes it into PNG frames. Clamp
@@ -5294,7 +5310,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					cwd: sessionManager.getCwd(),
 					cwdResolver: () => sessionManager.getCwd(),
 					convertToLlm: convertToLlmFinal,
-					transformContext: async messages => wrapSteeringForModel(messages),
+					transformContext: async messages => wrapSteeringForModel(await withBuildLineageContext(messages)),
 					transformProviderContext: async (context, transformModel) => {
 						let transformed = obfuscator ? obfuscateProviderContext(obfuscator, context) : context;
 						transformed = capArchiveFrameBytes(transformed, transformModel);
