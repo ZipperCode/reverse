@@ -20,7 +20,7 @@ import type {
 	MCPTransport,
 } from "../../mcp/types";
 import { toJsonRpcError } from "../../mcp/types";
-import { createMCPJsonRpcError, MCPTransportError, normalizeMCPTransportError } from "../errors";
+import { createMCPJsonRpcError, extractSecretArgValues, MCPTransportError, normalizeMCPTransportError, sanitizeCommandArgv, sanitizeDiagnosticTail } from "../errors";
 import { RequestIdAllocator } from "../request-id";
 import { isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "../timeout";
 import { isThenable } from "../../utils/ipc";
@@ -542,17 +542,54 @@ export async function terminateStdioProcess(
  * Stdio transport for MCP servers.
  * Spawns a subprocess and communicates via stdin/stdout.
  */
+const MAX_STDERR_CHARS = 8192;
+
+/** Formats a structured message describing how and when an MCP subprocess terminated. */
+export function formatSubprocessExitMessage(options: {
+	exitCode?: number | null;
+	signalCode?: string | null;
+	phase?: string;
+	stderr?: string;
+	knownSecrets?: readonly string[];
+}): string {
+	const { exitCode, signalCode, phase, stderr, knownSecrets } = options;
+	const phaseClause = phase && phase !== "connected" && phase !== "idle" ? ` during "${phase}"` : "";
+	let base: string;
+	if (exitCode !== null && exitCode !== undefined) {
+		const signalPart = signalCode ? ` (${signalCode})` : "";
+		base = `MCP subprocess exited with code ${exitCode}${signalPart}${phaseClause} before responding`;
+	} else if (signalCode) {
+		base = `MCP subprocess killed by signal ${signalCode}${phaseClause} before responding`;
+	} else {
+		base = `MCP subprocess closed stdout${phaseClause} before responding`;
+	}
+	const trimmedStderr = stderr ? sanitizeDiagnosticTail(stderr, 500, knownSecrets).trim() : "";
+	if (trimmedStderr) {
+		return `${base}: ${trimmedStderr}`;
+	}
+	return base;
+}
+
 export class StdioTransport implements MCPTransport {
 	#process: Subprocess<"pipe", "pipe", "pipe"> | null = null;
 	#pendingRequests = new Map<
 		string | number,
 		{
+			method: string;
 			resolve: (value: unknown) => void;
 			reject: (error: Error) => void;
 		}
 	>();
 	#connected = false;
+	#writable = false;
+	#closed = false;
 	#readLoop: Promise<void> | null = null;
+	#stderrLoop: Promise<void> | null = null;
+	#stderrBuffer = "";
+	#discardingUntilNewline = false;
+	#commandStr = "";
+	#currentPhase = "spawn";
+	#knownSecrets: string[] = [];
 	/**
 	 * Set from `resolveStdioSpawnCommand()`'s `detached` flag in `connect()`.
 	 * Gates process-group signaling in `close()` — only a transport that
@@ -566,10 +603,69 @@ export class StdioTransport implements MCPTransport {
 	onNotification?: (method: string, params: unknown) => void;
 	onRequest?: (method: string, params: unknown) => Promise<unknown>;
 
-	constructor(private config: MCPStdioServerConfig) {}
+	constructor(private config: MCPStdioServerConfig) {
+		this.#commandStr = sanitizeCommandArgv(config.command, config.args);
+		this.#knownSecrets = extractSecretArgValues(config.command, config.args);
+	}
 
 	get connected(): boolean {
 		return this.#connected;
+	}
+
+	get writable(): boolean {
+		return this.#connected && this.#writable;
+	}
+
+	get stderr(): string {
+		return sanitizeDiagnosticTail(this.#stderrBuffer, MAX_STDERR_CHARS, this.#knownSecrets).trim();
+	}
+
+	get command(): string {
+		return this.#commandStr;
+	}
+
+	get phase(): string {
+		return this.#getActivePhase();
+	}
+
+	get exitCode(): number | null | undefined {
+		return this.#process?.exitCode;
+	}
+
+	get signalCode(): string | null | undefined {
+		return this.#process?.signalCode;
+	}
+
+	#appendStderr(text: string): void {
+		let incoming = text;
+		if (this.#discardingUntilNewline) {
+			const nl = incoming.indexOf("\n");
+			if (nl === -1) {
+				return;
+			}
+			incoming = incoming.slice(nl + 1);
+			this.#discardingUntilNewline = false;
+		}
+
+		this.#stderrBuffer += incoming;
+		if (this.#stderrBuffer.length > MAX_STDERR_CHARS) {
+			const start = this.#stderrBuffer.length - MAX_STDERR_CHARS;
+			const nextNewline = this.#stderrBuffer.indexOf("\n", start);
+			if (nextNewline !== -1) {
+				this.#stderrBuffer = this.#stderrBuffer.slice(nextNewline + 1);
+				this.#discardingUntilNewline = false;
+			} else {
+				this.#stderrBuffer = "";
+				this.#discardingUntilNewline = true;
+			}
+		}
+	}
+
+	#getActivePhase(): string {
+		for (const [, pending] of this.#pendingRequests) {
+			if (pending.method) return pending.method;
+		}
+		return this.#currentPhase;
 	}
 
 	/**
@@ -590,6 +686,9 @@ export class StdioTransport implements MCPTransport {
 			hostHasInheritableConsole: hostHasInheritableConsole(),
 		});
 
+		this.#commandStr = sanitizeCommandArgv(this.config.command, this.config.args);
+		this.#currentPhase = "spawn";
+
 		// Platform-derived session and console-window handling come from
 		// `resolveStdioSpawnCommand`: Linux/other POSIX detach into their own
 		// session to escape terminal job-control signals (SIGTSTP, SIGTTIN);
@@ -600,25 +699,41 @@ export class StdioTransport implements MCPTransport {
 		// triggers macOS Apple Events TCC prompts uses the same shape; the
 		// one-object `{ cmd }` overload timed out before prompting for `mcpbridge`
 		// even with `detached: false` (#5085).
-		this.#process = Bun.spawn(spawnCommand.cmd, {
-			cwd,
-			env,
-			stdin: "pipe",
-			stdout: "pipe",
-			stderr: "pipe",
-			windowsHide: spawnCommand.windowsHide,
-			detached: spawnCommand.detached,
-			windowsVerbatimArguments: spawnCommand.windowsVerbatimArguments,
-		});
+		try {
+			this.#process = Bun.spawn(spawnCommand.cmd, {
+				cwd,
+				env,
+				stdin: "pipe",
+				stdout: "pipe",
+				stderr: "pipe",
+				windowsHide: spawnCommand.windowsHide,
+				detached: spawnCommand.detached,
+				windowsVerbatimArguments: spawnCommand.windowsVerbatimArguments,
+			});
+		} catch (error) {
+			throw new MCPTransportError({
+				transport: "stdio",
+				stage: "connect",
+				failure: "connect",
+				phase: "spawn",
+				command: this.#commandStr,
+				message: `Failed to spawn MCP subprocess "${this.#commandStr}": ${error instanceof Error ? error.message : String(error)}`,
+				retryable: false,
+				cause: error,
+			});
+		}
 		this.#detached = spawnCommand.detached;
 
 		this.#connected = true;
+		this.#writable = true;
+		this.#closed = false;
+		this.#currentPhase = "connected";
 
 		// Start reading stdout
 		this.#readLoop = this.#startReadLoop();
 
-		// Log stderr for debugging
-		this.#startStderrLoop();
+		// Capture stderr for diagnostics and debugging
+		this.#stderrLoop = this.#startStderrLoop();
 	}
 
 	async #startReadLoop(): Promise<void> {
@@ -637,23 +752,50 @@ export class StdioTransport implements MCPTransport {
 			closeError = normalizeMCPTransportError(error, {
 				transport: "stdio",
 				stage: error instanceof SyntaxError ? "decode" : "receive",
+				phase: this.#getActivePhase(),
+				command: this.#commandStr,
+				stderr: this.stderr || undefined,
 			});
 			if (this.#connected) {
 				this.onError?.(closeError);
 			}
 		} finally {
+			this.#writable = false;
 			if (this.#connected && closeError === undefined) {
+				const proc = this.#process;
+				if (proc) {
+					// Subprocess closed stdout. Wait briefly for process exit status and stderr to drain.
+					if (proc.exitCode === null && proc.exited) {
+						await Promise.race([proc.exited, Bun.sleep(250)]).catch(() => {});
+					}
+					if (this.#stderrLoop) {
+						await Promise.race([this.#stderrLoop, Bun.sleep(150)]).catch(() => {});
+					}
+				}
+
 				const exitCode = this.#process?.exitCode;
+				const signalCode = this.#process?.signalCode;
+				const stderr = this.stderr;
+				const activePhase = this.#getActivePhase();
+				const message = formatSubprocessExitMessage({
+					exitCode,
+					signalCode,
+					phase: activePhase,
+					stderr,
+					knownSecrets: this.#knownSecrets,
+				});
+
 				closeError = new MCPTransportError({
 					transport: "stdio",
 					stage: "receive",
 					failure: "eof",
-					message:
-						exitCode === null || exitCode === undefined
-							? "MCP subprocess closed stdout before responding"
-							: `MCP subprocess exited with code ${exitCode} before responding`,
-					retryable: true,
+					phase: activePhase,
+					command: this.#commandStr,
 					code: exitCode ?? undefined,
+					signal: signalCode ?? undefined,
+					stderr: stderr || undefined,
+					message,
+					retryable: true,
 				});
 			}
 			this.#handleClose(closeError);
@@ -667,20 +809,26 @@ export class StdioTransport implements MCPTransport {
 		const decoder = new TextDecoder();
 
 		try {
-			while (this.#connected) {
+			while (!this.#closed) {
 				const { done, value } = await reader.read();
-				if (done) break;
-				// Log stderr but don't treat as error - servers use it for logging
+				if (done) {
+					const flushed = decoder.decode();
+					if (flushed) this.#appendStderr(flushed);
+					break;
+				}
 				const text = decoder.decode(value, { stream: true });
-				if (text.trim()) {
-					// Could expose via onStderr callback if needed
-					// For now, silent - MCP spec says clients MAY capture/ignore
+				if (text) {
+					this.#appendStderr(text);
 				}
 			}
 		} catch {
 			// Ignore stderr read errors
 		} finally {
-			reader.releaseLock();
+			try {
+				reader.releaseLock();
+			} catch {
+				// Sink may already be released
+			}
 		}
 	}
 
@@ -731,7 +879,7 @@ export class StdioTransport implements MCPTransport {
 	}
 
 	#sendResponse(id: string | number, result?: unknown, error?: JsonRpcError): void {
-		if (!this.#connected || !this.#process?.stdin) return;
+		if (!this.#connected || !this.#writable || !this.#process?.stdin) return;
 		const response = error
 			? { jsonrpc: "2.0" as const, id, error }
 			: { jsonrpc: "2.0" as const, id, result: result ?? {} };
@@ -741,20 +889,55 @@ export class StdioTransport implements MCPTransport {
 	}
 
 	#handleClose(error?: Error): void {
-		if (!this.#connected) return;
+		if (!this.#connected && this.#closed) return;
+		this.#writable = false;
 		this.#connected = false;
+		this.#closed = true;
 
-		const closeError =
+		const defaultCloseError =
 			error ??
 			new MCPTransportError({
 				transport: "stdio",
 				stage: "receive",
 				failure: "closed",
+				phase: this.#currentPhase,
+				command: this.#commandStr,
+				stderr: this.stderr || undefined,
 				message: "Transport closed",
 				retryable: true,
 			});
+
 		for (const [, pending] of this.#pendingRequests) {
-			pending.reject(closeError);
+			if (error instanceof MCPTransportError && pending.method) {
+				const specificMessage =
+					error.failure === "eof"
+						? formatSubprocessExitMessage({
+								exitCode: typeof error.code === "number" ? error.code : undefined,
+								signalCode: error.signal,
+								phase: pending.method,
+								stderr: error.stderr,
+								knownSecrets: this.#knownSecrets,
+							})
+						: error.message;
+				const specificError = new MCPTransportError({
+					transport: error.transport,
+					stage: error.stage,
+					failure: error.failure,
+					phase: pending.method,
+					command: error.command ?? this.#commandStr,
+					code: error.code,
+					signal: error.signal,
+					stderr: error.stderr,
+					data: error.data,
+					traceId: error.traceId,
+					message: specificMessage,
+					retryable: error.retryable,
+					cause: error.cause ?? error,
+				});
+				pending.reject(specificError);
+			} else {
+				pending.reject(defaultCloseError);
+			}
 		}
 		this.#pendingRequests.clear();
 
@@ -766,11 +949,14 @@ export class StdioTransport implements MCPTransport {
 		params?: Record<string, unknown>,
 		options?: MCPRequestOptions,
 	): Promise<T> {
-		if (!this.#connected || !this.#process?.stdin) {
+		if (!this.#connected || !this.#writable || !this.#process?.stdin) {
 			throw new MCPTransportError({
 				transport: "stdio",
 				stage: "connect",
 				failure: "closed",
+				phase: method,
+				command: this.#commandStr,
+				stderr: this.stderr || undefined,
 				message: "Transport not connected",
 				retryable: true,
 			});
@@ -819,7 +1005,9 @@ export class StdioTransport implements MCPTransport {
 			signal.addEventListener("abort", onAbort, { once: true });
 		}
 
+		this.#currentPhase = method;
 		this.#pendingRequests.set(id, {
+			method,
 			resolve: (value: unknown) => {
 				cleanup();
 				resolve(value as T);
@@ -833,12 +1021,21 @@ export class StdioTransport implements MCPTransport {
 		if (isMCPTimeoutEnabled(timeout)) {
 			timer = setTimeout(() => {
 				cleanup();
+				const stderr = this.stderr;
+				const exitCode = this.#process?.exitCode;
+				const signalCode = this.#process?.signalCode;
+				const stderrPart = stderr ? `: ${sanitizeDiagnosticTail(stderr, 500, this.#knownSecrets)}` : "";
 				reject(
 					new MCPTransportError({
 						transport: "stdio",
 						stage: "receive",
 						failure: "timeout",
-						message: `Request timeout after ${timeout}ms`,
+						phase: method,
+						command: this.#commandStr,
+						code: exitCode ?? undefined,
+						signal: signalCode ?? undefined,
+						stderr: stderr || undefined,
+						message: `Request "${method}" timed out after ${timeout}ms${stderrPart}`,
 						retryable: false,
 					}),
 				);
@@ -850,7 +1047,13 @@ export class StdioTransport implements MCPTransport {
 		const failFromSend = (error: unknown) => {
 			if (settled) return;
 			cleanup();
-			reject(normalizeMCPTransportError(error, { transport: "stdio", stage: "send" }));
+			reject(normalizeMCPTransportError(error, {
+				transport: "stdio",
+				stage: "send",
+				phase: method,
+				command: this.#commandStr,
+				stderr: this.stderr || undefined,
+			}));
 		};
 		try {
 			// Never `await` write/flush. Bun's FileSink returns a pending Promise
@@ -874,11 +1077,14 @@ export class StdioTransport implements MCPTransport {
 	}
 
 	async notify(method: string, params?: Record<string, unknown>): Promise<void> {
-		if (!this.#connected || !this.#process?.stdin) {
+		if (!this.#connected || !this.#writable || !this.#process?.stdin) {
 			throw new MCPTransportError({
 				transport: "stdio",
 				stage: "connect",
 				failure: "closed",
+				phase: method,
+				command: this.#commandStr,
+				stderr: this.stderr || undefined,
 				message: "Transport not connected",
 				retryable: true,
 			});
@@ -900,12 +1106,22 @@ export class StdioTransport implements MCPTransport {
 		// `initializeConnection()` runs before the manager installs its
 		// `onClose` handler, so a swallowed failure there would yield a
 		// "connected" handle wrapping a dead transport. See #1710.
+		this.#currentPhase = method;
 		if (!writeFrame(this.#process.stdin, `${JSON.stringify(notification)}\n`)) {
+			const stderr = this.stderr;
+			const stderrPart = stderr ? `: ${sanitizeDiagnosticTail(stderr, 500, this.#knownSecrets)}` : "";
+			const exitCode = this.#process?.exitCode;
+			const signalCode = this.#process?.signalCode;
 			const error = new MCPTransportError({
 				transport: "stdio",
 				stage: "send",
 				failure: "eof",
-				message: `Transport closed while sending notification "${method}"`,
+				phase: method,
+				command: this.#commandStr,
+				code: exitCode ?? undefined,
+				signal: signalCode ?? undefined,
+				stderr: stderr || undefined,
+				message: `Transport closed while sending notification "${method}"${stderrPart}`,
 				retryable: true,
 			});
 			this.#handleClose(error);
@@ -921,6 +1137,7 @@ export class StdioTransport implements MCPTransport {
 		// alive in that path, so we MUST keep cleaning up regardless. Each
 		// step is individually guarded so this remains idempotent across
 		// repeat calls.
+		this.#closed = true;
 		if (this.#connected) {
 			this.#handleClose();
 		}
@@ -952,6 +1169,10 @@ export class StdioTransport implements MCPTransport {
 			// Do not block/await the read loop as it can hang indefinitely in some environments
 			this.#readLoop.catch(() => {});
 			this.#readLoop = null;
+		}
+		if (this.#stderrLoop) {
+			this.#stderrLoop.catch(() => {});
+			this.#stderrLoop = null;
 		}
 	}
 }

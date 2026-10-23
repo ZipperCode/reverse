@@ -1,5 +1,8 @@
 import * as fs from "node:fs";
+import * as path from "node:path";
 
+import { createKernelResetStatusEvent, formatKernelRecreatedNotice, type KernelResetReason } from "../kernel-reset";
+import { updateEvalState } from "../state";
 import { getProjectDir, logger, Snowflake } from "@reverse/utils";
 import type { OutputArtifactError } from "@reverse/tui/tools/streaming-output";
 import type { ToolSession } from "../../tools";
@@ -127,6 +130,9 @@ export interface PythonExecutorOptions {
 	bridgeSessionId?: string;
 	/** @internal Bridge endpoint info, set by `executePython` before delegating. */
 	bridge?: { url: string; token: string };
+	initialNotice?: string;
+	initialEvents?: JsStatusEvent[];
+	generation?: number;
 }
 
 export interface PythonKernelExecutor {
@@ -219,9 +225,6 @@ function requireRemainingTimeoutMs(deadlineMs?: number): number | undefined {
 // ---------------------------------------------------------------------------
 
 const formatTimeoutAnnotation = formatSessionTimeoutAnnotation;
-
-const formatKernelTimeoutAnnotation = formatSessionKernelTimeoutAnnotation;
-
 function createCancelledPythonResult(timedOut: boolean, timeoutMs?: number): PythonResult {
 	const output = timedOut ? (formatTimeoutAnnotation(timeoutMs) ?? "Command timed out") : "";
 	return createCancelledKernelResult(output);
@@ -304,8 +307,15 @@ async function replaceSessionKernel(
 				await next.shutdown().catch(() => undefined);
 				throw new PythonExecutionCancelledError(false);
 			}
+			const previousGen = session.generation;
 			session.kernel = next;
 			session.generation += 1;
+			sessionGenerations.set(session.sessionKey, session.generation);
+			pendingPythonRecreationNotices.set(session.sessionKey, {
+				previousGeneration: previousGen,
+				currentGeneration: session.generation,
+				reason: "kernel_loss",
+			});
 			deferred.resolve(next);
 		} catch (err) {
 			deferred.reject(err);
@@ -360,17 +370,104 @@ async function executeWithKernel(
 		options?.signal,
 		Math.max(1, remainingMs ?? 10_000),
 	);
-	return executeWithKernelBase<PythonExecutorOptions>({
+	const normalizedCwd = normalizeKernelSessionCwd(options?.cwd ?? getProjectDir());
+	const sessionKey = options?.sessionId
+		? `${options.sessionId}\0${normalizedCwd}\0${normalizeExplicitInterpreter(normalizedCwd, options.interpreter)}`
+		: undefined;
+
+	const isPerCall = options?.kernelMode === "per-call";
+	let currentGen = isPerCall ? 1 : sessionKey ? (sessionGenerations.get(sessionKey) ?? 1) : 1;
+	let initialNotice: string | undefined;
+	const initialEvents: JsStatusEvent[] = [];
+
+	if (!isPerCall && sessionKey && pendingPythonRecreationNotices.has(sessionKey)) {
+		const recreation = pendingPythonRecreationNotices.get(sessionKey)!;
+		pendingPythonRecreationNotices.delete(sessionKey);
+		currentGen = recreation.currentGeneration;
+		initialNotice = formatKernelRecreatedNotice({
+			language: "python",
+			generation: recreation.currentGeneration,
+			previousGeneration: recreation.previousGeneration,
+			reason: recreation.reason,
+		});
+		const recreatedEvent = createKernelResetStatusEvent({
+			type: "recreated",
+			language: "python",
+			generation: recreation.currentGeneration,
+			previousGeneration: recreation.previousGeneration,
+			reason: recreation.reason,
+		});
+		initialEvents.push(recreatedEvent);
+	}
+
+	if (!isPerCall && options?.toolSession) {
+		const kernelId = "id" in kernel && typeof kernel.id === "string" ? kernel.id : undefined;
+		updateEvalState(options.toolSession, {
+			language: "python",
+			kernelId,
+			alive: true,
+			generation: currentGen,
+		});
+	}
+
+	const result = await executeWithKernelBase<PythonExecutorOptions>({
 		kernel,
 		code,
-		options,
+		options: {
+			...options,
+			initialNotice,
+			initialEvents: initialEvents.length > 0 ? initialEvents : undefined,
+			generation: currentGen,
+		},
 		runIdPrefix: "py",
 		errorLogLabel: "Python",
 		cancelledErrorClass: PythonExecutionCancelledError,
 		buildKernelEnvPatch: buildManagedKernelEnvPatch,
-		formatKernelTimeoutAnnotation,
+		formatKernelTimeoutAnnotation: (timeoutMs, kernelKilled) =>
+			formatSessionKernelTimeoutAnnotation(timeoutMs, kernelKilled, currentGen, "python"),
 		formatTimeoutAnnotation,
+		onKernelKilled: (gen, reason) => {
+			if (isPerCall) return;
+			const lostGen = gen ?? currentGen;
+			if (sessionKey) {
+				sessionGenerations.set(sessionKey, lostGen + 1);
+				pendingPythonRecreationNotices.set(sessionKey, {
+					previousGeneration: lostGen,
+					currentGeneration: lostGen + 1,
+					reason: reason === "timeout" ? "timeout" : "kernel_died",
+				});
+			}
+			if (options?.toolSession) {
+				const kernelId = "id" in kernel && typeof kernel.id === "string" ? kernel.id : undefined;
+				updateEvalState(options.toolSession, {
+					language: "python",
+					kernelId,
+					alive: false,
+					generation: lostGen,
+				});
+			}
+		},
 	});
+
+	if (
+		!isPerCall &&
+		options?.toolSession &&
+		options.filename &&
+		path.isAbsolute(options.filename) &&
+		result.exitCode === 0 &&
+		!result.cancelled
+	) {
+		const kernelId = "id" in kernel && typeof kernel.id === "string" ? kernel.id : undefined;
+		updateEvalState(options.toolSession, {
+			language: "python",
+			kernelId,
+			alive: true,
+			generation: currentGen,
+			loadedPath: options.filename,
+		});
+	}
+
+	return result;
 }
 
 async function ensureKernelAvailable(cwd: string, options: PythonExecutorOptions): Promise<void> {
@@ -406,6 +503,12 @@ async function executePerCall(code: string, cwd: string, options: PythonExecutor
 		await kernel.shutdown().catch(() => undefined);
 	}
 }
+const sessionGenerations = new Map<string, number>();
+const pendingPythonRecreationNotices = new Map<
+	string,
+	{ previousGeneration: number; currentGeneration: number; reason: KernelResetReason }
+>();
+
 
 const sessionRegistry = createKernelSessionRegistry<PythonKernel, PythonExecutorOptions, PythonResult, PythonSession>({
 	languageLabel: "Python",
@@ -414,13 +517,28 @@ const sessionRegistry = createKernelSessionRegistry<PythonKernel, PythonExecutor
 		const normalizedCwd = normalizeKernelSessionCwd(cwd);
 		return `${sessionId}\0${normalizedCwd}\0${normalizeExplicitInterpreter(normalizedCwd, interpreter)}`;
 	},
-	createSession: session => ({ ...session, generation: 0 }),
+	createSession: session => {
+		const gen = sessionGenerations.get(session.sessionKey) ?? 1;
+		sessionGenerations.set(session.sessionKey, gen);
+		return { ...session, generation: gen };
+	},
 	startKernel,
 	executeWithKernel,
 	replaceSessionKernel,
 	acquireLiveSessionKernel,
 	invalidateSession: session => {
+		const previousGen = session.generation;
 		session.generation += 1;
+		sessionGenerations.set(session.sessionKey, session.generation);
+		pendingPythonRecreationNotices.set(session.sessionKey, {
+			previousGeneration: previousGen,
+			currentGeneration: session.generation,
+			reason: "reset",
+		});
+	},
+	onSessionDisposed: session => {
+		sessionGenerations.delete(session.sessionKey);
+		pendingPythonRecreationNotices.delete(session.sessionKey);
 	},
 	shutdownSession: session => shutdownInvalidatedSession(session),
 	validateKernel: (session, kernel) => session.kernel === kernel,

@@ -24,7 +24,16 @@ describe("reverse-tool-install shared API", () => {
 	});
 
 	afterEach(async () => {
-		process.env = originalEnv;
+		for (const key of Object.keys(process.env)) {
+			if (!(key in originalEnv)) {
+				delete process.env[key];
+			}
+		}
+		for (const [key, value] of Object.entries(originalEnv)) {
+			if (value !== undefined) {
+				process.env[key] = value;
+			}
+		}
 		if (originalBunEnvPath !== undefined) Bun.env.PATH = originalBunEnvPath;
 		try {
 			await fs.promises.rm(tempDir, { recursive: true, force: true });
@@ -53,7 +62,7 @@ describe("reverse-tool-install shared API", () => {
 			expect(canInstallReverseItem(tool)).toBe(true);
 		});
 
-		it("returns false for manual-only tools with no installArgv (e.g. IDA Pro, unidbg)", () => {
+		it("returns false for manual-only tools with no installArgv (e.g. IDA Pro)", () => {
 			const ida: ReverseToolStatus = {
 				kind: "cli",
 				id: "ida",
@@ -72,25 +81,6 @@ describe("reverse-tool-install shared API", () => {
 				manualInstructions: "Commercial license required.",
 			};
 			expect(canInstallReverseItem(ida)).toBe(false);
-
-			const unidbg: ReverseToolStatus = {
-				kind: "cli",
-				id: "unidbg",
-				name: "Unidbg",
-				category: "android",
-				description: "ARM emulator",
-				optional: true,
-				systemTool: false,
-				status: "missing",
-				foundPath: null,
-				packageManager: null,
-				installCommand: null,
-				installArgv: null,
-				riskNote: null,
-				manualUrl: "https://github.com/zhkl0228/unidbg",
-				manualInstructions: "Clone and build via Maven.",
-			};
-			expect(canInstallReverseItem(unidbg)).toBe(false);
 		});
 
 		it("returns true for managed jshookmcp and configurable MCP services", () => {

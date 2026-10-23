@@ -16,7 +16,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseEnv } from "node:util";
-import { $which, clearWhichCache, getAgentDir, getProjectDir, isEnoent } from "@reverse/utils";
+import { $which, APP_NAME, clearWhichCache, getAgentDir, getProjectDir, isEnoent } from "@reverse/utils";
 import { refreshShellConfigCache } from "@reverse/utils/procmgr";
 import { invalidateShellSnapshotCache } from "../utils/shell-snapshot";
 import {
@@ -43,6 +43,7 @@ import {
 	WEBCRACK_PACKAGE_NAME,
 	WEBCRACK_PACKAGE_VERSION,
 } from "./jshookmcp-install";
+import { getPortableToolRecipe, installPortableTool } from "./portable-tool-install";
 import { readMCPConfigFile, setMcpServerEnabled, updateMCPServer } from "../mcp/config-writer";
 import type { MCPServerConnection } from "../mcp/types";
 import type { MCPManager } from "../mcp/manager";
@@ -78,6 +79,7 @@ export interface ReverseInstallStep {
 	secondaryMissing?: string[];
 	manualInstructions?: string;
 	serverConfigSnapshot?: string;
+	installer?: "jshookmcp" | "portable" | "unidbg";
 }
 
 export interface ReverseInstallPlan {
@@ -368,17 +370,38 @@ export function getReverseInstallPlan(
 				break;
 			}
 		}
-
 		if (!chosenRecipe) {
+			const portableRecipe = getPortableToolRecipe(id);
+			if (portableRecipe && (platform === "win32" || availableManagers.has("portable"))) {
+				steps.push({
+					id: desc.id,
+					name: desc.name ?? desc.id,
+					kind: "cli",
+					packageManager: "portable",
+					installer: "portable",
+					command: `reverse setup reverse ${desc.id} (portable upstream download)`,
+					argv: ["reverse", "setup", "reverse", desc.id, "--execute"],
+					riskNote: `Downloads portable ${portableRecipe.name} v${portableRecipe.version} directly from upstream into agent tools directory.`,
+					isDependency: id !== item.id,
+					secondaryMissing: desc.secondary ? [...desc.secondary] : undefined,
+					manualInstructions: desc.manualInstructions?.[platform],
+				});
+				inProgress.delete(id);
+				visited.add(id);
+				return true;
+			}
 			inProgress.delete(id);
 			return false;
 		}
+
+		const isPortable = chosenRecipe.manager === "portable";
 
 		steps.push({
 			id: desc.id,
 			name: desc.name ?? desc.id,
 			kind: "cli",
 			packageManager: chosenRecipe.manager,
+			installer: isPortable ? "portable" : undefined,
 			command: chosenRecipe.command,
 			argv: chosenRecipe.argv,
 			riskNote: chosenRecipe.riskNote,
@@ -394,6 +417,29 @@ export function getReverseInstallPlan(
 
 	let canInstall = false;
 	let reason: string | undefined;
+
+	if (item.kind === "cli" && item.id === "unidbg") {
+		const desc = SKILL_TOOL_CATALOG.unidbg;
+		const steps: ReverseInstallStep[] = [
+			{
+				id: "unidbg",
+				name: desc?.name ?? "Unidbg (ARM32/ARM64 Android Native Library Emulator)",
+				kind: "cli",
+				packageManager: "build",
+				installer: "unidbg",
+				command: `${APP_NAME} unidbg build`,
+				argv: [APP_NAME, "unidbg", "build"],
+				riskNote: "Builds upstream Unidbg using validated JDK 8 and Maven wrapper.",
+				isDependency: false,
+			},
+		];
+		return {
+			item,
+			canInstall: true,
+			steps,
+			missingDependencies: [],
+		};
+	}
 
 	if (item.kind === "cli") {
 		const desc = SKILL_TOOL_CATALOG[item.id];
@@ -719,6 +765,8 @@ export async function installReverseItem(
 					message: `Untrusted installation command for ${step.name}: argv does not match managed installer definition.`,
 				};
 			}
+		} else if (step.installer === "portable" || step.packageManager === "portable" || step.installer === "unidbg" || step.id === "unidbg") {
+			// Trusted internal portable/build installer
 		} else if (step.argv && step.argv.length > 0 && !isTrustedCatalogArgv(canonical)) {
 			return {
 				success: false,
@@ -780,6 +828,80 @@ export async function installReverseItem(
 			if (!step.argv || step.argv.length === 0) {
 				return { success: false, message: `No install command defined for ${step.name}.` };
 			}
+			if (step.installer === "unidbg" || step.id === "unidbg") {
+				options.onChunk?.(`[reverse] Building Unidbg from source with verified JDK 8...\n`);
+				const { buildUnidbg } = await import("./unidbg-builder");
+				const javaHome = options.env?.JAVA_HOME ?? process.env.JAVA_HOME;
+				const unidbgDir =
+					options.env?.UNIDBG_HOME ??
+					options.env?.UNIDBG_ROOT ??
+					process.env.UNIDBG_HOME ??
+					process.env.UNIDBG_ROOT;
+				const mirror =
+					options.env?.MAVEN_MIRROR === "default" || options.env?.REVERSE_MAVEN_MIRROR === "default"
+						? "default"
+						: "aliyun";
+
+				const buildRes = await buildUnidbg({
+					unidbgDir,
+					javaHome,
+					mirror,
+					onLog: options.onChunk,
+					signal: options.signal,
+				});
+				if (!buildRes.success) {
+					return {
+						success: false,
+						message: buildRes.error ?? `Unidbg build failed with exit code ${buildRes.exitCode}`,
+					};
+				}
+				await persistToolEnvironment(
+					{
+						javaHome,
+						extraPaths: [buildRes.unidbgDir],
+					},
+					options.agentDir,
+				);
+				return {
+					success: true,
+					message: `Unidbg built successfully in ${buildRes.unidbgDir} (${buildRes.jarPaths.length} JARs compiled).`,
+				};
+			}
+
+			if (step.installer === "portable" || step.packageManager === "portable") {
+				options.onChunk?.(
+					`[reverse] Installing portable ${step.isDependency ? "dependency " : ""}${step.name}...\n`,
+				);
+				const installRes = await installPortableTool(step.id, {
+					agentDir: options.agentDir,
+					onChunk: options.onChunk,
+					signal: options.signal,
+					platform,
+				});
+				if (!installRes.success) {
+					return {
+						success: false,
+						message: installRes.message ?? `Portable installation failed for ${step.name}.`,
+					};
+				}
+				const extraPaths = Array.from(
+					new Set([...(installRes.binDirs ?? []), installRes.installDir, path.join(installRes.installDir, "bin")]),
+				).filter(d => fs.existsSync(d));
+				await persistToolEnvironment(
+					{
+						extraPaths,
+					},
+					options.agentDir,
+				);
+				const foundPath = probeCliBinary(descriptor, which, options.env ?? process.env, platform);
+				if (!foundPath) {
+					return {
+						success: false,
+						message: `Portable installation completed, but ${step.name} executable was not found on PATH or catalog search paths.`,
+					};
+				}
+				continue;
+			}
 
 			// Validate strictly against catalog definitions before execution
 			if (!isTrustedCatalogArgv(canonical)) {
@@ -788,7 +910,6 @@ export async function installReverseItem(
 					message: `Untrusted installation command for ${step.name}: argv does not match catalog definition.`,
 				};
 			}
-
 			// Skip re-executing dependency if it was already fulfilled earlier in this batch
 			if (step.isDependency) {
 				const already = probeCliBinary(descriptor, which, options.env ?? process.env, platform);
@@ -994,7 +1115,7 @@ export async function installReverseItem(
 				const runtimeServerConfig = expandEnvVarsDeep(effectiveServerConfig);
 
 				// Standalone CLI verification: perform live handshake to ensure server is actually runnable
-				if (!options.mcpManager) {
+				if (!options.mcpManager && !options.executor) {
 					const { connectToServer, disconnectServer, listTools } = await import("../mcp/client");
 					let conn: MCPServerConnection | undefined;
 					try {

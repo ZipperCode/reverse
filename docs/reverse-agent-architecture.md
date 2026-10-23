@@ -196,7 +196,7 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
 
 | 能力标识 (`id`) | 场景说明 | 推荐原生工具 | 可选外部工具 | 降级链 (Fallbacks) | 受信安装命令 | 安装后即时调度 |
 |---|---|---|---|---|---|---|
-| `android_native_emulation` | ARM32/ARM64 Android .so 原生库无设备模拟执行与 JNI 调用 | `android_package_inspect` | `unidbg` | `frida`, `readelf`, `radare2` | `reverse setup reverse unidbg` | 编写 Maven Java 测试用例或 McpToolkit 运行原生库仿真 |
+| `android_native_emulation` | ARM32/ARM64 Android .so 原生库无设备模拟执行与 JNI 调用 | `android_package_inspect` | `unidbg` | `frida`, `readelf`, `radare2` | `reverse setup reverse unidbg` | 执行 `reverse unidbg build / scaffold / launch` 自动化生成脚手架并动态挂载 SSE MCP 调试工具 |
 | `apk_unpacking` | APK/AAB 资源解码、Manifest 解析与 Dalvik 字节码反编译 | `android_package_inspect` | `apktool`, `jadx`, `baksmali`, `dexdump` | `file`, `strings` | `reverse setup reverse apktool` | 执行 `apktool d -f -o <dir> <apk>` 或 `jadx -d <dir> <apk>` |
 | `browser_debugger` | 网页应用 DOM 调试、JS 动态断点、执行流分析与 CDP 自动化 | `browser_reverse_session` | `playwright-mcp` | `mitmproxy`, `curl`, `file` | `reverse setup reverse playwright-mcp` | 配置 .reverse/mcp.json playwright 服务或建立 CDP 调试会话 |
 | `websocket_capture` | WebSocket 全双工数据帧实时截获、协议解包与序列分析 | `websocket_observe` | `mitmproxy`, `tshark` | `pcap_inspect`, `strings`, `curl` | `reverse setup reverse mitmproxy` | 启动 `mitmweb --web-port 8081` 或 `tshark -Y websocket` |
@@ -204,6 +204,14 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
 | `js_deobfuscation` | Minified/Packed JS 语法树解构、SourceMap 还原与 Hermes 字节码反汇编 | `sourcemap_inspect` | `hbctool` | `strings`, `file` | `reverse setup reverse hbctool` | 执行 `hbctool disasm <bundle> <out>` 或脚本解混淆 |
 | `traffic_interception` | HTTP/HTTPS 与网络协议透明代理、解密与重放 | `pcap_inspect` | `mitmproxy`, `tshark` | `curl`, `strings` | `reverse setup reverse mitmproxy` | 启动 `mitmproxy -p 8080` 代理捕获 |
 
+### 2.1 Unidbg 模拟执行与参数编码契约 (Unidbg Emulation Contract)
+
+`unidbg` 针对 Android JNI 和 iOS IPA 原生二进制提供端到端无机模拟执行，自动接入上游 MCP 调试器 (`http://127.0.0.1:<port>/sse`)：
+- **字节数组 (`bytes` / `byte[]`)**：支持普通文本（按 UTF-8 编码为字节数组）、`0x` 前缀十六进制串（如 `0x1234abcd`）或 `b64:` / `base64:` 前缀 Base64 编码数据。
+- **整数与长整型 (`int` / `long`)**：支持十进制数值字符串（如 `"32"`, `"1000"`）或 `0x` 前缀十六进制（如 `"0x20"`）。
+- **字符串 (`string`)**：支持普通字符串，对于包含空格的文本支持 `b64:` 前缀 Base64 字符串（规避调试器控制台的分词截断）。
+- **原生符号调用与 Hex 语义**：上游 `call_symbol` 原生参数默认按 16 进制解析地址与数值（如 `0x20` 即十进制 32）；自定义生成的 `McpTool` 则对命名参数提供类型化解析与真实返回值回显。
+- **安全隔离与本地回环绑定**：生成的 Harness 在 JVM 启动时安装 `SecurityManager.checkAccept` 校验，在 Socket Accept 层拦截所有非回环网卡（LAN/公网）TCP 连接，保证调试服务仅受控响应 `127.0.0.1`。
 ### 3. 用户面向的 Discover-before-stop / Install-then-dispatch 闭环流程
 
 当逆向分析深入并需要特定外部高级能力时，Agent 严格执行以下五步连贯工作流，杜绝直接报错或卡死：

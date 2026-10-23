@@ -49,6 +49,7 @@ export const BUILTIN_TOOL_NAMES = [
 	"reverse_workspace",
 	"reverse_dynamic_evidence",
 	"reverse_capability",
+	"unidbg",
 	"task",
 	"wait",
 	"todo",

@@ -1,4 +1,5 @@
-import { MCP_TOOL_NAME_PREFIX, type MCPToolDetails } from "@reverse/tui/tools/mcp";
+import { MCP_TOOL_NAME_PREFIX } from "@reverse/tui/tools/mcp";
+import type { MCPToolDetails } from "@reverse/tui/tools/mcp";
 /**
  * MCP to CustomTool bridge.
  *
@@ -21,6 +22,7 @@ import { InternalUrlRouter } from "../internal-urls/router";
 import type { Theme } from "@reverse/tui/theme";
 import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
+import { recordMcpToolExecution, setMcpTargetBinding } from "../extensibility/capability-state";
 import { callTool } from "./client";
 import { formatMCPToolFailure, MCPTransportError } from "./errors";
 import { describeMCPCall, describeMCPResult, renderMCPCall, renderMCPResult } from "@reverse/tui/tools/mcp";
@@ -305,6 +307,214 @@ function buildResult(
 		toolResult.isError = true;
 	}
 	return toolResult;
+}
+const MCP_META_TOOL_NAMES: ReadonlySet<string> = new Set([
+	"search_tools",
+	"route_tool",
+	"describe_tool",
+	"activate_tools",
+	"deactivate_tools",
+	"activate_domain",
+	"coverage_report",
+]);
+
+interface InspectedPayloadOutcome {
+	innerSuccess: boolean | null;
+	errorMessage?: string;
+	target?: string;
+	isClosing: boolean;
+}
+
+function inspectPayloadTree(payload: unknown, depth = 0): InspectedPayloadOutcome {
+	const outcome: InspectedPayloadOutcome = {
+		innerSuccess: null,
+		isClosing: false,
+	};
+	if (!payload || typeof payload !== "object" || depth > 2) return outcome;
+
+	if (Array.isArray(payload)) {
+		for (const item of payload) {
+			const child = inspectPayloadTree(item, depth + 1);
+			if (child.innerSuccess !== null && outcome.innerSuccess === null) {
+				outcome.innerSuccess = child.innerSuccess;
+			}
+			if (child.errorMessage && !outcome.errorMessage) outcome.errorMessage = child.errorMessage;
+			if (child.target && !outcome.target) outcome.target = child.target;
+			if (child.isClosing) outcome.isClosing = true;
+		}
+		return outcome;
+	}
+
+	const obj = payload as Record<string, unknown>;
+	if (obj.success === false || obj.isError === true) outcome.innerSuccess = false;
+	if (obj.ok === false || obj.allPassed === false) outcome.innerSuccess = false;
+	if (typeof obj.returncode === "number" && obj.returncode !== 0) outcome.innerSuccess = false;
+	if (typeof obj.exitCode === "number" && obj.exitCode !== 0) outcome.innerSuccess = false;
+	if (obj.status === "error" || obj.status === "failed") outcome.innerSuccess = false;
+	if (typeof obj.error === "string") {
+		outcome.innerSuccess = false;
+		outcome.errorMessage = obj.error;
+	}
+	if (typeof obj.stderr === "string" && obj.stderr.trim().length > 0) {
+		if (obj.success === false || (typeof obj.exitCode === "number" && obj.exitCode !== 0)) {
+			outcome.errorMessage = obj.stderr.trim();
+		}
+	}
+	if (obj.browserClosed === true) {
+		outcome.isClosing = true;
+	}
+	if (typeof obj.target === "string") outcome.target = obj.target;
+	if (typeof obj.boundTarget === "string") outcome.target = obj.boundTarget;
+	if (typeof obj.library === "string") outcome.target = obj.library;
+	if (obj._tabContext && typeof obj._tabContext === "object") {
+		const tab = obj._tabContext as { url?: unknown };
+		if (typeof tab.url === "string") outcome.target = tab.url;
+	}
+
+	if (outcome.innerSuccess === null) {
+		if (obj.success === true || obj.ok === true || obj.allPassed === true) {
+			outcome.innerSuccess = true;
+		} else if (typeof obj.returncode === "number" && obj.returncode === 0) {
+			outcome.innerSuccess = true;
+		} else if (typeof obj.exitCode === "number" && obj.exitCode === 0) {
+			outcome.innerSuccess = true;
+		}
+	}
+
+	if (obj.result && typeof obj.result === "object") {
+		const child = inspectPayloadTree(obj.result, depth + 1);
+		if (child.innerSuccess !== null && outcome.innerSuccess === null) outcome.innerSuccess = child.innerSuccess;
+		if (child.errorMessage && !outcome.errorMessage) outcome.errorMessage = child.errorMessage;
+		if (child.target && !outcome.target) outcome.target = child.target;
+		if (child.isClosing) outcome.isClosing = true;
+	}
+	if (obj.details && typeof obj.details === "object") {
+		const child = inspectPayloadTree(obj.details, depth + 1);
+		if (child.innerSuccess !== null && outcome.innerSuccess === null) outcome.innerSuccess = child.innerSuccess;
+		if (child.errorMessage && !outcome.errorMessage) outcome.errorMessage = child.errorMessage;
+		if (child.target && !outcome.target) outcome.target = child.target;
+		if (child.isClosing) outcome.isClosing = true;
+	}
+	if (Array.isArray(obj.results)) {
+		const child = inspectPayloadTree(obj.results, depth + 1);
+		if (child.innerSuccess !== null && outcome.innerSuccess === null) outcome.innerSuccess = child.innerSuccess;
+		if (child.errorMessage && !outcome.errorMessage) outcome.errorMessage = child.errorMessage;
+		if (child.target && !outcome.target) outcome.target = child.target;
+		if (child.isClosing) outcome.isClosing = true;
+	}
+
+	return outcome;
+}
+function recordExecutionOutcome(
+	serverName: string,
+	toolName: string,
+	args: unknown,
+	toolResult: CustomToolResult<MCPToolDetails>,
+	sessionKey?: object,
+	connection?: object,
+): void {
+	if (!sessionKey || typeof sessionKey !== "object") return;
+	const isError = Boolean(toolResult.details?.isError);
+
+	let concreteToolName = toolName;
+	let concreteArgs = args;
+	if (toolName === "call_tool" && args && typeof args === "object") {
+		if ("name" in args && typeof args.name === "string") {
+			concreteToolName = args.name;
+		}
+		const rawSubArgs =
+			"args" in args
+				? args.args
+				: "arguments" in args
+					? args.arguments
+					: "parameters" in args
+						? args.parameters
+						: undefined;
+		if (rawSubArgs && typeof rawSubArgs === "object") {
+			concreteArgs = rawSubArgs;
+		} else if (typeof rawSubArgs === "string") {
+			try {
+				const parsed = JSON.parse(rawSubArgs);
+				if (parsed && typeof parsed === "object") concreteArgs = parsed;
+			} catch {
+				// not JSON
+			}
+		}
+	}
+
+	const isMetaTool = MCP_META_TOOL_NAMES.has(concreteToolName);
+
+	let target: string | undefined;
+	if (concreteArgs && typeof concreteArgs === "object" && !isMetaTool) {
+		const targetVal =
+			"target" in concreteArgs
+				? concreteArgs.target
+				: "targetPath" in concreteArgs
+					? concreteArgs.targetPath
+					: "library" in concreteArgs
+						? concreteArgs.library
+						: (concreteToolName === "browser_navigate" || concreteToolName === "page_navigate") && "url" in concreteArgs
+							? concreteArgs.url
+							: undefined;
+		if (typeof targetVal === "string") target = targetVal;
+	}
+
+	const parsedState = {
+		innerSuccess: (isError ? false : null) as boolean | null,
+		errorMessage: isError
+			? toolResult.content.map(c => (c.type === "text" ? c.text : "")).join(" ").trim()
+			: undefined,
+		target,
+		isClosing: concreteToolName === "browser_close",
+	};
+
+	if (toolResult.details?.structuredContent) {
+		const outcome = inspectPayloadTree(toolResult.details.structuredContent);
+		if (outcome.innerSuccess !== null) parsedState.innerSuccess = outcome.innerSuccess;
+		if (outcome.errorMessage) parsedState.errorMessage = outcome.errorMessage;
+		if (outcome.target) parsedState.target = outcome.target;
+		if (outcome.isClosing) parsedState.isClosing = true;
+	}
+
+	for (const block of toolResult.content) {
+		if (block.type === "text") {
+			try {
+				const parsed = JSON.parse(block.text);
+				const outcome = inspectPayloadTree(parsed);
+				if (outcome.innerSuccess !== null) parsedState.innerSuccess = outcome.innerSuccess;
+				if (outcome.errorMessage) parsedState.errorMessage = outcome.errorMessage;
+				if (outcome.target) parsedState.target = outcome.target;
+				if (outcome.isClosing) parsedState.isClosing = true;
+			} catch {
+				// not JSON text block
+			}
+		}
+	}
+
+	const hasSucceeded = !isError && parsedState.innerSuccess === true;
+	if (parsedState.isClosing && !isError && parsedState.innerSuccess !== false) {
+		setMcpTargetBinding(serverName, { targetMatched: false }, sessionKey, connection);
+	}
+	if (!parsedState.isClosing && parsedState.target && hasSucceeded && !isMetaTool) {
+		setMcpTargetBinding(serverName, { targetMatched: true, target: parsedState.target }, sessionKey, connection);
+	}
+
+	recordMcpToolExecution(
+		serverName,
+		{
+			tool: concreteToolName,
+			timestamp: Date.now(),
+			isError,
+			innerSuccess: parsedState.innerSuccess,
+			target: isMetaTool ? undefined : parsedState.target,
+			error:
+				parsedState.innerSuccess === false || isError
+					? parsedState.errorMessage || "Tool execution failed"
+					: undefined,
+		},
+		sessionKey,
+		connection,
+	);
 }
 
 /** Build an error CustomToolResult from a caught exception. */
@@ -715,32 +925,64 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		signal?: AbortSignal,
 	): Promise<CustomToolResult<MCPToolDetails>> {
 		throwIfAborted(signal);
+		const sessionKey = _ctx.sessionManager ?? _ctx;
 		const args = await prepareOutboundArgs(params, this.tool.inputSchema, _ctx);
 		const provider = this.connection._source?.provider;
 		const providerName = this.connection._source?.providerName;
-
 		try {
-			const attempt = await callToolWithAuthRetry(this.connection, this.tool.name, args, this.reconnect, signal);
+			const outcome = await this.#executeInner(args, provider, providerName, signal);
+			recordExecutionOutcome(this.connection.name, this.tool.name, args, outcome.result, sessionKey, outcome.connection);
+			return outcome.result;
+		} catch (error) {
+			recordExecutionOutcome(
+				this.connection.name,
+				this.tool.name,
+				args,
+				buildErrorResult(error, this.connection.name, this.tool.name, provider, providerName),
+				sessionKey,
+				this.connection,
+			);
+			throw error;
+		}
+	}
+
+	async #executeInner(
+		args: Record<string, unknown> | undefined,
+		provider?: string,
+		providerName?: string,
+		signal?: AbortSignal,
+	): Promise<{ result: CustomToolResult<MCPToolDetails>; connection: MCPServerConnection }> {
+		try {
+			const attempt = await callToolWithAuthRetry(this.connection, this.tool.name, args ?? {}, this.reconnect, signal);
 			if (attempt.error !== undefined) {
-				return buildErrorResult(attempt.error, this.connection.name, this.tool.name, provider, providerName);
+				return {
+					result: buildErrorResult(attempt.error, this.connection.name, this.tool.name, provider, providerName),
+					connection: attempt.connection,
+				};
 			}
 			if (!attempt.result) {
-				return buildErrorResult(
-					new Error("MCP tool call returned no result"),
-					this.connection.name,
-					this.tool.name,
-					provider,
-					providerName,
-				);
+				return {
+					result: buildErrorResult(
+						new Error("MCP tool call returned no result"),
+						this.connection.name,
+						this.tool.name,
+						provider,
+						providerName,
+					),
+					connection: attempt.connection,
+				};
 			}
 			this.connection = attempt.connection;
-			return buildResult(
-				attempt.result,
-				attempt.connection.name,
-				this.tool.name,
-				attempt.connection._source?.provider ?? provider,
-				attempt.connection._source?.providerName ?? providerName,
-			);
+			return {
+				result: buildResult(
+					attempt.result,
+					attempt.connection.name,
+					this.tool.name,
+					attempt.connection._source?.provider ?? provider,
+					attempt.connection._source?.providerName ?? providerName,
+				),
+				connection: attempt.connection,
+			};
 		} catch (error) {
 			rethrowIfAborted(error, signal);
 			if (this.reconnect && isRetriableConnectionError(error)) {
@@ -751,21 +993,30 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 					const retryProvider = newConn._source?.provider ?? provider;
 					const retryProviderName = newConn._source?.providerName ?? providerName;
 					try {
-						const result = await callTool(newConn, this.tool.name, args, { signal });
-						return buildResult(result, newConn.name, this.tool.name, retryProvider, retryProviderName);
+						const result = await callTool(newConn, this.tool.name, args ?? {}, { signal });
+						return {
+							result: buildResult(result, newConn.name, this.tool.name, retryProvider, retryProviderName),
+							connection: newConn,
+						};
 					} catch (retryError) {
 						rethrowIfAborted(retryError, signal);
-						return buildErrorResult(
-							retryError,
-							this.connection.name,
-							this.tool.name,
-							retryProvider,
-							retryProviderName,
-						);
+						return {
+							result: buildErrorResult(
+								retryError,
+								this.connection.name,
+								this.tool.name,
+								retryProvider,
+								retryProviderName,
+							),
+							connection: newConn,
+						};
 					}
 				}
 			}
-			return buildErrorResult(error, this.connection.name, this.tool.name, provider, providerName);
+			return {
+				result: buildErrorResult(error, this.connection.name, this.tool.name, provider, providerName),
+				connection: this.connection,
+			};
 		}
 	}
 }
@@ -849,40 +1100,71 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		signal?: AbortSignal,
 	): Promise<CustomToolResult<MCPToolDetails>> {
 		throwIfAborted(signal);
+		const sessionKey = _ctx.sessionManager ?? _ctx;
 		const args = await prepareOutboundArgs(params, this.tool.inputSchema, _ctx);
 		const provider = this.#fallbackProvider;
 		const providerName = this.#fallbackProviderName;
+		try {
+			const outcome = await this.#executeInner(args, provider, providerName, signal);
+			recordExecutionOutcome(this.serverName, this.tool.name, args, outcome.result, sessionKey, outcome.connection);
+			return outcome.result;
+		} catch (error) {
+			recordExecutionOutcome(
+				this.serverName,
+				this.tool.name,
+				args,
+				buildErrorResult(error, this.serverName, this.tool.name, provider, providerName),
+				sessionKey,
+			);
+			throw error;
+		}
+	}
 
+	async #executeInner(
+		args: Record<string, unknown> | undefined,
+		provider?: string,
+		providerName?: string,
+		signal?: AbortSignal,
+	): Promise<{ result: CustomToolResult<MCPToolDetails>; connection?: MCPServerConnection }> {
 		try {
 			const connection = await untilAborted(signal, () => this.getConnection());
 			throwIfAborted(signal);
 			try {
-				const attempt = await callToolWithAuthRetry(connection, this.tool.name, args, this.reconnect, signal);
+				const attempt = await callToolWithAuthRetry(connection, this.tool.name, args ?? {}, this.reconnect, signal);
 				if (attempt.error !== undefined) {
-					return buildErrorResult(
-						attempt.error,
+					return {
+						result: buildErrorResult(
+							attempt.error,
+							this.serverName,
+							this.tool.name,
+							attempt.connection._source?.provider ?? provider,
+							attempt.connection._source?.providerName ?? providerName,
+						),
+						connection: attempt.connection,
+					};
+				}
+				if (!attempt.result) {
+					return {
+						result: buildErrorResult(
+							new Error("MCP tool call returned no result"),
+							this.serverName,
+							this.tool.name,
+							provider,
+							providerName,
+						),
+						connection: attempt.connection,
+					};
+				}
+				return {
+					result: buildResult(
+						attempt.result,
 						this.serverName,
 						this.tool.name,
 						attempt.connection._source?.provider ?? provider,
 						attempt.connection._source?.providerName ?? providerName,
-					);
-				}
-				if (!attempt.result) {
-					return buildErrorResult(
-						new Error("MCP tool call returned no result"),
-						this.serverName,
-						this.tool.name,
-						provider,
-						providerName,
-					);
-				}
-				return buildResult(
-					attempt.result,
-					this.serverName,
-					this.tool.name,
-					attempt.connection._source?.provider ?? provider,
-					attempt.connection._source?.providerName ?? providerName,
-				);
+					),
+					connection: attempt.connection,
+				};
 			} catch (callError) {
 				rethrowIfAborted(callError, signal);
 				if (this.reconnect && isRetriableConnectionError(callError)) {
@@ -891,46 +1173,60 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 						const retryProvider = newConn._source?.provider ?? provider;
 						const retryProviderName = newConn._source?.providerName ?? providerName;
 						try {
-							const result = await callTool(newConn, this.tool.name, args, { signal });
-							return buildResult(result, this.serverName, this.tool.name, retryProvider, retryProviderName);
+							const result = await callTool(newConn, this.tool.name, args ?? {}, { signal });
+							return {
+								result: buildResult(result, this.serverName, this.tool.name, retryProvider, retryProviderName),
+								connection: newConn,
+							};
 						} catch (retryError) {
 							rethrowIfAborted(retryError, signal);
-							return buildErrorResult(
-								retryError,
-								this.serverName,
-								this.tool.name,
-								retryProvider,
-								retryProviderName,
-							);
+							return {
+								result: buildErrorResult(
+									retryError,
+									this.serverName,
+									this.tool.name,
+									retryProvider,
+									retryProviderName,
+								),
+								connection: newConn,
+							};
 						}
 					}
 				}
-				return buildErrorResult(callError, this.serverName, this.tool.name, provider, providerName);
+				return {
+					result: buildErrorResult(callError, this.serverName, this.tool.name, provider, providerName),
+					connection,
+				};
 			}
 		} catch (connError) {
-			// getConnection() failed — server never connected or connection lost.
-			// This is always worth a reconnect attempt for deferred tools, since the
-			// error ("MCP server not connected") isn't a network error from callTool.
 			rethrowIfAborted(connError, signal);
 			if (this.reconnect) {
 				const newConn = await reconnectWithAbort(this.reconnect, signal);
 				if (newConn) {
 					try {
-						const result = await callTool(newConn, this.tool.name, args, { signal });
-						return buildResult(
-							result,
-							this.serverName,
-							this.tool.name,
-							newConn._source?.provider ?? provider,
-							newConn._source?.providerName ?? providerName,
-						);
+						const result = await callTool(newConn, this.tool.name, args ?? {}, { signal });
+						return {
+							result: buildResult(
+								result,
+								this.serverName,
+								this.tool.name,
+								newConn._source?.provider ?? provider,
+								newConn._source?.providerName ?? providerName,
+							),
+							connection: newConn,
+						};
 					} catch (retryError) {
 						rethrowIfAborted(retryError, signal);
-						return buildErrorResult(retryError, this.serverName, this.tool.name, provider, providerName);
+						return {
+							result: buildErrorResult(retryError, this.serverName, this.tool.name, provider, providerName),
+							connection: newConn,
+						};
 					}
 				}
 			}
-			return buildErrorResult(connError, this.serverName, this.tool.name, provider, providerName);
+			return {
+				result: buildErrorResult(connError, this.serverName, this.tool.name, provider, providerName),
+			};
 		}
 	}
 }

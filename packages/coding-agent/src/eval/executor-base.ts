@@ -1,5 +1,6 @@
 import { logger } from "@reverse/utils";
 import { Settings } from "../config/settings";
+import { createKernelResetStatusEvent, formatKernelLossNotice } from "./kernel-reset";
 import { type OutputArtifactError, OutputSink } from "@reverse/tui/tools/streaming-output";
 import { statusEventKey } from "@reverse/tui/tools/eval";
 import type { ToolSession } from "../tools";
@@ -77,6 +78,9 @@ export interface KernelExecutorBaseOptions {
 	bridgeSessionId?: string;
 	artifactId?: string;
 	artifactPath?: string;
+	initialNotice?: string;
+	initialEvents?: JsStatusEvent[];
+	generation?: number;
 }
 
 /** Normalised execution result produced by {@link executeWithKernelBase}. */
@@ -425,6 +429,7 @@ export interface ExecuteWithKernelBaseParams<
 	buildKernelEnvPatch: (options: TOptions) => TEnv;
 	formatKernelTimeoutAnnotation: (executionTimeoutMs: number | undefined, kernelKilled: boolean) => string;
 	formatTimeoutAnnotation: (executionTimeoutMs: number | undefined) => string | undefined;
+	onKernelKilled?: (generation: number | undefined, reason: string) => void;
 }
 
 export async function executeWithKernelBase<
@@ -452,6 +457,11 @@ export async function executeWithKernelBase<
 		artifactMaxBytes: resolveOutputSinkArtifactMaxBytes(settings),
 		maxColumns: resolveOutputMaxColumns(settings),
 	});
+	if (options?.initialNotice) {
+		sink.push(`${options.initialNotice}\n\n`);
+	}
+
+
 
 	const display = new DisplayOutputCollector<KernelDisplayOutput>();
 	const displayOutputs = display.outputs;
@@ -483,6 +493,11 @@ export async function executeWithKernelBase<
 		}
 		display.push(output);
 	};
+	if (options?.initialEvents) {
+		for (const event of options.initialEvents) {
+			collectDisplay({ type: "status", event });
+		}
+	}
 
 	const emitStatus: (event: JsStatusEvent) => void =
 		options?.emitStatus ?? (event => collectDisplay({ type: "status", event }));
@@ -527,12 +542,35 @@ export async function executeWithKernelBase<
 
 		if (result.cancelled || abortShield.abortRequested) {
 			const timedOut = result.timedOut || abortShield.timedOut;
+			const kernelKilled = result.kernelKilled ?? false;
+			if (kernelKilled) {
+				const gen = options?.generation ?? 1;
+				params.onKernelKilled?.(gen, timedOut ? "timeout" : "kernel_died");
+				const lossEvent = createKernelResetStatusEvent({
+					type: "loss",
+					language: errorLogLabel.toLowerCase() === "javascript" ? "js" : "python",
+					generation: gen,
+					nextGeneration: gen + 1,
+					kernelKilled: true,
+					reason: timedOut ? "timeout" : "kernel_died",
+				});
+				collectDisplay({ type: "status", event: lossEvent });
+			}
 			const annotation = timedOut
-				? formatKernelTimeoutAnnotation(executionTimeoutMs ?? options?.idleTimeoutMs, result.kernelKilled ?? false)
-				: result.kernelKilled && !abortShield.abortRequested
-					? "Kernel died during execution; completion is uncertain. The cell was not replayed; check for partial side effects before retrying."
+				? formatKernelTimeoutAnnotation(executionTimeoutMs ?? options?.idleTimeoutMs, kernelKilled)
+				: kernelKilled && !abortShield.abortRequested
+					? `Kernel died during execution; completion is uncertain. The cell was not replayed; check for partial side effects before retrying.\n${formatKernelLossNotice({
+							language: errorLogLabel.toLowerCase() === "javascript" ? "js" : "python",
+							generation: options?.generation ?? 1,
+							nextGeneration: (options?.generation ?? 1) + 1,
+							kernelKilled: true,
+							reason: "kernel_died",
+					  })}`
 					: undefined;
-			const dumped = await sink.dump(annotation);
+			if (annotation) {
+				sink.push(`${annotation}\n`);
+			}
+			const dumped = await sink.dump();
 			return {
 				exitCode: undefined,
 				cancelled: true,

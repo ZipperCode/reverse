@@ -106,6 +106,7 @@ import { ReverseKnowledgeTool } from "./reverse-knowledge";
 import { ReverseWorkspaceTool } from "./reverse-workspace";
 import { ReverseDynamicEvidenceTool } from "./reverse-dynamic-evidence";
 import { ReverseCapabilityTool } from "./reverse-capability";
+import { UnidbgTool } from "./unidbg";
 import { isMountableUnderXdev, resolveXdevTool, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
 
@@ -643,6 +644,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	reverse_workspace: s => new ReverseWorkspaceTool(s),
 	reverse_dynamic_evidence: s => new ReverseDynamicEvidenceTool(s),
 	reverse_capability: s => new ReverseCapabilityTool(s),
+	unidbg: s => new UnidbgTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),

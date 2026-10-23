@@ -117,14 +117,14 @@ Server-initiated notifications are surfaced through transport `onNotification`; 
   - derive platform spawn behavior: Linux/other non-macOS POSIX detach into a new session, macOS remains attached for TCC prompts, Windows remains attached and resolves npm shims/batch commands with platform-specific escaping
   - mark connected
   - start stdout read loop (`readJsonl`)
-  - start stderr loop (read/discard; currently silent)
+  - start stderr loop: captures an 8 KB line-buffered rolling tail of subprocess stderr for startup and runtime failure diagnostics (dropping severed partial lines on rollover to preserve credential prefix integrity)
 - `close()`:
   - `#handleClose()`: mark disconnected, reject all pending requests (`Transport closed`), emit `onClose`
   - close stdin, send SIGTERM, wait a bounded grace period, then escalate to SIGKILL if needed
   - detached POSIX subprocesses are signaled as a process group; a final group SIGKILL sweep also runs after a cooperative leader exit to catch surviving descendants
   - detach read loop without awaiting (it can hang indefinitely)
 
-If the read loop exits unexpectedly, `finally` triggers `#handleClose()` with the decode/receive error or an EOF error describing stdout closure/process exit. Explicit `close()` still cleans up subprocess resources even when this callback already marked the transport disconnected.
+If the read loop exits unexpectedly, the transport immediately marks the connection unwritable (`#writable = false`) to prevent new outbound requests or notifications from executing or replaying against a closing process. In `finally`, the transport waits a bounded grace period (up to 250ms for process reap, 150ms for trailing stderr) to capture the exact exit code, termination signal, bounded stderr output, and protocol phase (e.g. `spawn`, `initialize`, `tools/list`), ensuring early child exit causes are never masked as generic stdout closures. Then `#handleClose()` rejects in-flight pending requests with the rich diagnostic error and fires `onClose`. Explicit `close()` still cleans up subprocess resources even when this callback already marked the transport disconnected.
 
 ## Timeout and cancellation
 

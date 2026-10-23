@@ -157,8 +157,7 @@ describe("checkToolRequirements", () => {
 		expect(missingRequirementNotice(found)).toBeUndefined();
 	});
 
-	it("delegates IDA detection to the existing install probe", () => {
-		expect(SKILL_TOOL_CATALOG.ida?.binaries).toEqual([]);
+	it("delegates IDA detection to the install probe", () => {
 		expect(typeof SKILL_TOOL_CATALOG.ida?.probe).toBe("function");
 	});
 

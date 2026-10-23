@@ -59,7 +59,7 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
   - Windows: `py -m pip install --user frida-tools`
 
 - **`unidbg`** (Host JVM ARM32/ARM64 CPU emulation & JNI invoker):
-  - Requires `java` (JRE 17+ recommended)
+  - Requires `java` (JDK 8 / OpenJDK 8)
   - Install / Setup: `reverse setup reverse unidbg`
   - Invocation: Custom target Java harness (must exist in project; obtain actual invocation from project; no standalone CLI binary exists)
   - Fallback: `android_native_workflow` library inspection + `ghidra_inspect` / `r2_inspect` static analysis.
@@ -87,7 +87,7 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
 - **`wabt`** (`wasm2wat`, `wat2wasm`) — optional, only needed for full WAT output:
   - macOS: `brew install wabt`
   - Linux: `apt install wabt`
-  - Windows: `choco install wabt`
+  - Windows: `scoop install wabt` or `reverse setup reverse wabt`
 - **`ast-grep`** (external CLI fallback when native `ast_grep` is unavailable):
   - macOS / Linux: `brew install ast-grep` (or `cargo install ast-grep`)
   - Windows: `cargo install ast-grep`
@@ -116,7 +116,7 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
 - **`binwalk`** (CLI firmware analysis and extraction carver):
   - macOS: `brew install binwalk`
   - Linux: `apt install binwalk`
-  - Windows: `pip install binwalk`
+  - Windows: `cargo install binwalk`
 
 ### 6. Go/Rust Metadata, EVM & Binary Diff Toolchain
 - **`binary_metadata_inspect`** (Built-in tool): Zero-dependency native offline Go runtime build info (`\xff Go buildinf:`, module dependencies, flags) and Rust `cargo-auditable` (`.dep-v0`, rustc commit/version, panic strategy, allocator) inspection. Always available.
@@ -125,7 +125,7 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
 - **`vbindiff`** (Visual binary diff):
   - macOS: `brew install vbindiff`
   - Linux: `apt install vbindiff`
-  - Windows: `choco install vbindiff`
+  - Windows: `reverse setup reverse vbindiff`
 - **`cast`** (Foundry EVM CLI):
   - All Platforms: `curl -L https://foundry.paradigm.xyz | bash && foundryup`
 
@@ -258,7 +258,7 @@ When an analytical step requires tools that may not be installed or configured, 
   [Capability Notice] Required capability: android_native_emulation ('Android Native Library Emulation (JNI / ARM)')
     -> Recommended tool: 'unidbg' (Status: missing)
     -> Why: Simulates Dalvik/ART JVM runtime and Linux ARM CPU environment to execute exported or obfuscated JNI native methods directly from local .so binaries
-    -> Prerequisites: java (JRE 17+ recommended)
+    -> Prerequisites: java (JDK 8 / OpenJDK 8)
     -> Trusted setup: reverse setup reverse unidbg (Requires operator approval)
     -> Post-install invocation: Custom target Java harness (must exist in project; obtain actual invocation from project)
     -> Fallback if declined: 'android_native_workflow' + 'r2_inspect' static disassembly

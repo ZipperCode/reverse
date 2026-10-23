@@ -78,6 +78,7 @@ So startup does not fail the whole agent session when individual MCP servers fai
 - `connecting` if pending connect, pending tool load, or pending reconnect,
 - `disconnected` otherwise.
 
+`getServerFailure(name)` returns the recorded startup failure message (including exit code, signal, protocol phase, and bounded stderr) when a server failed, allowing callers to inspect the failure without masking causes while the host stays in a degraded, stable state.
 ## Connection establishment and startup timing
 
 ### Per-server connect pipeline

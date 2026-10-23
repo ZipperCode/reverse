@@ -1,9 +1,10 @@
+import { Process } from "@reverse/natives";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
-import { prompt, $which } from "@reverse/utils";
+import { logger, prompt, $which } from "@reverse/utils";
 import fridaDescription from "../prompts/tools/frida.md" with { type: "text" };
 import {
 	checkToolRequirements,
@@ -147,6 +148,13 @@ export interface FridaFallbackInfo {
 	executed: false;
 }
 
+export interface FridaCleanupInfo {
+	attempted: boolean;
+	completed: boolean;
+	treeKilled?: boolean;
+	error?: string;
+}
+
 export interface FridaDetails {
 	action: FridaAction;
 	status: FridaStatus;
@@ -164,7 +172,7 @@ export interface FridaDetails {
 	traceSummary?: FridaTraceSummary;
 	scriptSource?: "inline" | "file";
 	scriptPath?: string;
-	exitCode?: number;
+	exitCode?: number | null;
 	stdout?: string;
 	stderr?: string;
 	outputBytes?: number;
@@ -174,16 +182,26 @@ export interface FridaDetails {
 	artifactPath?: string;
 	redactions?: number;
 	error?: string;
+	timeout?: number;
+	command?: string[];
+	pid?: number;
+	reason?: string;
+	cleanup?: FridaCleanupInfo;
 }
 
 export interface FridaRunResult {
 	stdout: Uint8Array;
 	stderr: string;
-	exitCode: number;
+	exitCode: number | null;
 	outputBytes: number;
 	truncated: boolean;
 	timedOut: boolean;
 	killedOnOverflow?: boolean;
+	pid?: number;
+	command?: string[];
+	timeoutMs?: number;
+	reason?: string;
+	cleanup?: FridaCleanupInfo;
 }
 
 export type FridaRunner = (
@@ -206,8 +224,13 @@ const DEFAULT_TIMEOUT_SECONDS = 30;
 const DEFAULT_MAX_BYTES = 256 * 1024;
 const DEFAULT_MAX_EVENTS = 100;
 
-function clampTimeout(timeout?: number): number | undefined {
-	if (timeout === undefined) return undefined;
+/**
+ * 约束并规范化超时秒数。
+ * 未显式传入 timeout 时，必须回退至 DEFAULT_TIMEOUT_SECONDS (30秒) 默认看门狗，
+ * 严禁返回 undefined 导致底层执行陷入无期限挂起。
+ */
+function clampTimeout(timeout?: number): number {
+	if (timeout === undefined) return DEFAULT_TIMEOUT_SECONDS;
 	if (Number.isNaN(timeout) || timeout <= 0) return DEFAULT_TIMEOUT_SECONDS;
 	if (!Number.isFinite(timeout)) throw new ToolError("timeout must be a finite positive number");
 	return Math.max(1, Math.round(timeout));
@@ -655,6 +678,106 @@ export function resolveScriptPath(rawPath: string, cwd: string): string {
 	return path.isAbsolute(expanded) ? path.normalize(expanded) : path.resolve(cwd, expanded);
 }
 
+/**
+ * 针对本次调用拥有的完整子进程树执行有界回收清理。
+ *
+ * 说明：
+ * 1. Windows 下 exe 包装器（如 frida-ls-devices.exe）衍生出的 python.exe 会继承 stdio 管道句柄，
+ *    若只杀外层，python.exe 残留且管道不关闭会导致读取 EOF 无限阻塞；
+ * 2. Windows 严格利用派生初期持有的 rootProcess 原生稳定句柄（Toolhelp32 快照）执行递归整树终结，
+ *    绝不重新解析原始 PID，避免 Windows 内核重用 PID 导致误伤无关进程；
+ * 3. 严格限定在本次调用拥有的 child 进程树范围，不波及 reverse 宿主、ADB server 或模拟器；
+ * 4. POSIX 下子进程以 detached: true 派生，拥有独立进程组（PGID == pid）。无论根进程是否已先退出，
+ *    无条件向 -pid 发送 SIGKILL 终结由继承管道孤儿维持活跃的完整会话组，辅以原生句柄兜底。
+ */
+export async function cleanupChildProcessTree(
+	pid: number,
+	rootProcess?: Process,
+): Promise<FridaCleanupInfo> {
+	let completed = false;
+	let treeKilled = false;
+	let cleanupError: string | undefined;
+
+	try {
+		if (process.platform === "win32") {
+			// Windows: 利用派生时锁定的 Process 原生稳定句柄递归终结整棵子进程树
+			if (rootProcess) {
+				try {
+					// 1. rootProcess.killTree() 即使根进程已退出，也会通过底层 Toolhelp 快照信号整棵子树
+					const count = rootProcess.killTree();
+					if (count > 0) treeKilled = true;
+				} catch {}
+				try {
+					// 2. 根进程已退出时，terminate 会早退；但 rootProcess.children() 带有 creationTime 保护，
+					// 可以安全枚举孤儿后代，针对每个存活的直接子节点递归调用 terminate
+					const children = rootProcess.children();
+					if (children.length > 0) {
+						await Promise.allSettled(
+							children.map(child => child.terminate({ gracefulMs: -1, timeoutMs: 1000 })),
+						);
+						treeKilled = true;
+					}
+				} catch {}
+				try {
+					// 3. 根节点 terminate 兜底
+					completed = await rootProcess.terminate({
+						gracefulMs: -1,
+						timeoutMs: 1000,
+					});
+					treeKilled = true;
+				} catch (err: unknown) {
+					cleanupError = String(err);
+				}
+			}
+		} else {
+			// POSIX: 子进程以 detached 独立进程组派生，即便根进程已死，继承管道的孤儿后代依然归属该 PGID。
+			// 无条件向 -pid 发送 SIGKILL 彻底清空整个进程组
+			try {
+				process.kill(-pid, "SIGKILL");
+				treeKilled = true;
+				completed = true;
+			} catch (err: unknown) {
+				if (typeof err === "object" && err !== null && "code" in err && err.code !== "ESRCH") {
+					cleanupError = String(err);
+				}
+			}
+			if (rootProcess) {
+				try {
+					const children = rootProcess.children();
+					if (children.length > 0) {
+						await Promise.allSettled(
+							children.map(child => child.terminate({ gracefulMs: -1, timeoutMs: 1000, group: true })),
+						);
+						treeKilled = true;
+					}
+				} catch {}
+				try {
+					await rootProcess.terminate({
+						gracefulMs: -1,
+						timeoutMs: 1000,
+						group: true,
+					});
+					treeKilled = true;
+					completed = true;
+				} catch {}
+			}
+			try {
+				process.kill(pid, "SIGKILL");
+				treeKilled = true;
+			} catch {}
+		}
+	} catch (err) {
+		cleanupError = String(err);
+	}
+
+	return {
+		attempted: true,
+		completed,
+		treeKilled,
+		...(cleanupError ? { error: cleanupError } : {}),
+	};
+}
+
 export async function defaultFridaRunner(
 	binary: string,
 	args: string[],
@@ -665,45 +788,206 @@ export async function defaultFridaRunner(
 		signal?: AbortSignal;
 	},
 ): Promise<FridaRunResult> {
+	const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
+	const maxStderrBytes = Math.min(maxBytes, 64 * 1024);
+	const isWindows = process.platform === "win32";
+	// 未传 timeoutMs 时默认使用文档约定的 30 秒看门狗
+	const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_SECONDS * 1000;
+
+	// 派生子进程：POSIX 下使用 detached: true 建立独立会话组便于整组清理
 	const child = Bun.spawn([binary, ...args], {
 		cwd: options.cwd,
 		stdout: "pipe",
 		stderr: "pipe",
 		stdin: "ignore",
+		windowsHide: true,
+		detached: !isWindows,
 	});
+
+	const pid = child.pid;
+	// Windows 下立即通过 Process.fromPid 锁定原生句柄保留 PID 标识，防止启动器提前退出后无法枚举子树
+	const rootProcess = Process.fromPid(pid) ?? undefined;
+
 	let timedOut = false;
+	let aborted = false;
+	let isCutoff = false;
+	let cleanupInfo: FridaCleanupInfo | undefined;
+
+	const stdoutChunks: Uint8Array[] = [];
+	const stderrChunks: Uint8Array[] = [];
+	let stdoutBytes = 0;
+	let stderrBytes = 0;
+	let truncated = false;
+
+	const stdoutReader = child.stdout.getReader();
+	const stderrReader = child.stderr.getReader();
+
+	// 管道切断：使用 150ms 超时竞态，防止 Windows 管道被锁死时 reader.cancel 无限挂起
+	const cutOffPipes = async () => {
+		isCutoff = true;
+		try {
+			await Promise.race([
+				Promise.allSettled([
+					stdoutReader.cancel().catch(() => {}),
+					stderrReader.cancel().catch(() => {}),
+				]),
+				Bun.sleep(150),
+			]);
+		} catch {}
+	};
+
+	// 幂等的有界清理：并行/先杀死进程树以促使内核关闭写端句柄，再取消读取器
+	let cleanupPromise: Promise<FridaCleanupInfo> | undefined;
+	const performCleanup = (): Promise<FridaCleanupInfo> => {
+		if (!cleanupPromise) {
+			cleanupPromise = (async () => {
+				const cleanupP = cleanupChildProcessTree(pid, rootProcess);
+				const cutoffP = cutOffPipes();
+				const [info] = await Promise.all([cleanupP, cutoffP]);
+				cleanupInfo = info;
+				return info;
+			})();
+		}
+		return cleanupPromise;
+	};
+
 	let timer: NodeJS.Timeout | undefined;
-	if (options.timeoutMs !== undefined && options.timeoutMs > 0) {
+	const { promise: watchdogPromise, resolve: triggerWatchdog } = Promise.withResolvers<"timeout" | "abort">();
+
+	if (timeoutMs > 0) {
 		timer = setTimeout(() => {
 			timedOut = true;
-			child.kill();
-		}, options.timeoutMs);
+			triggerWatchdog("timeout");
+		}, timeoutMs);
+		timer.unref?.();
 	}
+
 	const onAbort = () => {
-		child.kill();
+		aborted = true;
+		triggerWatchdog("abort");
 	};
-	options.signal?.addEventListener("abort", onAbort, { once: true });
-	if (options.signal?.aborted) child.kill();
-	try {
-		const [stdoutBuffer, stderrBuffer, exitCode] = await Promise.all([
-			new Response(child.stdout).arrayBuffer(),
-			new Response(child.stderr).arrayBuffer(),
-			child.exited,
-		]);
-		const stdout = new Uint8Array(stdoutBuffer);
-		const stderr = Buffer.from(stderrBuffer).toString("utf8");
-		return {
-			stdout,
-			stderr,
-			exitCode,
-			outputBytes: stdout.length,
-			truncated: false,
-			timedOut,
-		};
-	} finally {
-		clearTimeout(timer);
-		options.signal?.removeEventListener("abort", onAbort);
+
+	if (options.signal) {
+		if (options.signal.aborted) {
+			aborted = true;
+			triggerWatchdog("abort");
+		} else {
+			options.signal.addEventListener("abort", onAbort, { once: true });
+		}
 	}
+
+	// 增量收集 stdout，遇到 cutoff 立即退出循环
+	const readStdout = (async () => {
+		try {
+			while (!isCutoff) {
+				const { done, value } = await stdoutReader.read();
+				if (done || !value) break;
+				stdoutBytes += value.byteLength;
+				if (stdoutBytes <= maxBytes * 2) {
+					stdoutChunks.push(value);
+				} else {
+					truncated = true;
+				}
+			}
+		} catch {}
+		finally {
+			try { stdoutReader.releaseLock(); } catch {}
+		}
+	})();
+
+	// 增量收集 stderr，上限约束在 maxStderrBytes
+	const readStderr = (async () => {
+		try {
+			while (!isCutoff) {
+				const { done, value } = await stderrReader.read();
+				if (done || !value) break;
+				stderrBytes += value.byteLength;
+				if (stderrBytes <= maxStderrBytes) {
+					stderrChunks.push(value);
+				}
+			}
+		} catch {}
+		finally {
+			try { stderrReader.releaseLock(); } catch {}
+		}
+	})();
+
+	// 监控子进程正常退出与管道释放；若子进程已退出但子代孤儿进程残留管道，给 500ms 宽限后清理整树
+	const exitPromise = child.exited.catch(() => null).then(async (code) => {
+		const pipesSettled = await Promise.race([
+			Promise.all([readStdout, readStderr]).then(() => true),
+			Bun.sleep(500).then(() => false),
+		]);
+		if (!pipesSettled) {
+			await performCleanup();
+		}
+		return code;
+	});
+
+	// 竞态调度：正常完成 vs 看门狗超时 vs 用户取消
+	const outcome = await Promise.race([
+		exitPromise.then(code => ({ type: "exit" as const, code })),
+		watchdogPromise.then(type => ({ type })),
+	]);
+
+	clearTimeout(timer);
+	if (options.signal) options.signal.removeEventListener("abort", onAbort);
+
+	let exitCode: number | null = null;
+
+	if (outcome.type === "exit") {
+		exitCode = outcome.code;
+	} else {
+		// 超时或被取消，执行有界清理
+		await performCleanup();
+		const raced = await Promise.race([
+			child.exited.catch(() => null),
+			Bun.sleep(500).then(() => null),
+		]);
+		exitCode = typeof raced === "number" ? raced : null;
+	}
+
+	// 组装收集到的全部输出
+	const stdoutTotalLength = stdoutChunks.reduce((acc, c) => acc + c.byteLength, 0);
+	const stdout = new Uint8Array(stdoutTotalLength);
+	let offset = 0;
+	for (const chunk of stdoutChunks) {
+		stdout.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+
+	const stderrBuffer = Buffer.concat(stderrChunks);
+	const stderr = stderrBuffer.toString("utf8");
+
+	// 用户取消时清理完毕后抛出 ToolError，附带取消上下文与诊断
+	if (aborted || options.signal?.aborted) {
+		const cancelContext: Record<string, unknown> = {
+			command: [binary, ...args],
+			pid,
+			timeoutMs,
+			stdout: Buffer.from(stdout).toString("utf8"),
+			stderr,
+			outputBytes: stdoutBytes,
+			cleanup: cleanupInfo,
+			reason: "Operation cancelled",
+		};
+		logger.info("Frida execution cancelled", cancelContext);
+		throwIfAborted(options.signal);
+		throw new ToolError("Execution cancelled by caller", cancelContext);
+	}
+	return {
+		stdout,
+		stderr,
+		exitCode,
+		outputBytes: stdoutBytes,
+		truncated: truncated || stdoutBytes > maxBytes,
+		timedOut,
+		pid,
+		command: [binary, ...args],
+		timeoutMs,
+		reason: timedOut ? `Execution watchdog timed out after ${Math.round(timeoutMs / 1000)}s` : undefined,
+		cleanup: cleanupInfo,
+	};
 }
 
 export function fridaDependency(which?: SkillRequirementWhich): FridaDependencyStatus {
@@ -1374,8 +1658,11 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 		}
 
 		// 7. Execute bounded runner
-		const watchdogAllowanceSec = 3;
-		const timeoutMs = timeoutSeconds !== undefined ? (timeoutSeconds + watchdogAllowanceSec) * 1000 : undefined;
+		// 对于 action: "devices" 与 "ps"，CLI 工具（frida-ls-devices/frida-ps）本身不支持 -t 参数，
+		// 完全由宿主看门狗直接在 timeoutSeconds 期限内管控并终结；
+		// 对于 action: "exec"，CLI 自身有 -t 内部超时，宿主看门狗附加 3 秒宽限期
+		const hasCliTimeout = action === "exec";
+		const timeoutMs = hasCliTimeout ? (timeoutSeconds + 3) * 1000 : timeoutSeconds * 1000;
 		let run: FridaRunResult;
 		try {
 			run = await runner(binary, args, {
@@ -1385,7 +1672,18 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 				signal,
 			});
 		} catch (error) {
-			throwIfAborted(signal);
+			if (signal?.aborted) {
+				const cancelContext: Record<string, unknown> = {
+					action,
+					command: [binary, ...args],
+					timeout: timeoutSeconds,
+					reason: "Execution cancelled by caller",
+					...(error instanceof ToolError && error.context ? error.context : {}),
+				};
+				logger.info("Frida action cancelled", cancelContext);
+				throwIfAborted(signal);
+				throw new ToolError("Execution cancelled by caller", cancelContext);
+			}
 			throw new ToolError(`Failed to execute Frida: ${error instanceof Error ? error.message : String(error)}`);
 		}
 
@@ -1403,10 +1701,14 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 					target: targetLabel,
 					targetMode,
 					...(targetDevice ? { device: targetDevice } : {}),
+					timeout: timeoutSeconds,
+					command: [binary, ...args],
+					...(run.pid ? { pid: run.pid } : {}),
 					exitCode: run.exitCode,
 					stderr: run.stderr,
 					stdout: rawOutput,
 					error: issue.reason,
+					...(run.cleanup ? { cleanup: run.cleanup } : {}),
 				},
 			};
 		}
@@ -1428,12 +1730,17 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 							scriptSource: hasScriptPath ? "file" : hasScript ? "inline" : undefined,
 							scriptPath: resolvedScriptPath,
 							script: scriptContent,
+							timeout: timeoutSeconds,
+							command: [binary, ...args],
+							...(run.pid ? { pid: run.pid } : {}),
 							exitCode: run.exitCode,
 							stdout: rawOutput,
 							stderr: run.stderr,
 							outputBytes: run.outputBytes,
 							truncated: false,
 							timedOut: run.timedOut,
+							...(run.timedOut ? { reason: `Execution watchdog timed out after ${timeoutSeconds}s` } : {}),
+							...(run.cleanup ? { cleanup: run.cleanup } : {}),
 						},
 						null,
 						2,
@@ -1451,77 +1758,135 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 		const lines: string[] = [];
 		const isTruncated = rawOutput.length > maxBytes;
 		const displayOutput = isTruncated ? rawOutput.slice(0, maxBytes) : rawOutput;
+
 		// Format output by action
 		if (action === "devices") {
-			const devices = parseFridaDevices(rawOutput);
-			lines.push(`frida devices (${devices.length} attached):`);
-			for (const dev of devices) {
-				lines.push(`  - [${dev.type}] ${dev.id} (${dev.name})`);
+			if (status === "timeout") {
+				lines.push(`frida devices timed out after ${timeoutSeconds}s:`);
+				lines.push(`- command: ${[binary, ...args].join(" ")}`);
+				if (run.pid) lines.push(`- PID: ${run.pid}`);
+				lines.push(`- reason: Execution watchdog timed out after ${timeoutSeconds}s; process tree cleaned up`);
+				if (displayOutput.trim().length > 0) {
+					lines.push(`- partial output:\n${displayOutput.trimEnd()}`);
+				}
+				if (run.stderr.trim().length > 0) {
+					lines.push(`- stderr:\n${run.stderr.trimEnd()}`);
+				}
+			} else if (status === "ok") {
+				const devices = parseFridaDevices(rawOutput);
+				lines.push(`frida devices (${devices.length} attached):`);
+				for (const dev of devices) {
+					lines.push(`  - [${dev.type}] ${dev.id} (${dev.name})`);
+				}
+			} else {
+				lines.push(`frida devices failed${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
+				if (displayOutput.trim().length > 0) lines.push(displayOutput.trimEnd());
+				if (run.stderr.trim().length > 0) lines.push(`[stderr]\n${run.stderr.trimEnd()}`);
 			}
 			return {
 				content: [{ type: "text", text: lines.join("\n") }],
 				details: {
 					action,
 					status,
-					devices,
+					...(status === "ok" ? { devices: parseFridaDevices(rawOutput) } : {}),
+					timeout: timeoutSeconds,
+					command: [binary, ...args],
+					...(run.pid ? { pid: run.pid } : {}),
 					outputBytes: run.outputBytes,
 					truncated: run.truncated,
 					exitCode: run.exitCode,
 					stdout: rawOutput,
+					stderr: run.stderr,
+					timedOut: run.timedOut,
+					...(status === "timeout" ? { reason: `Execution watchdog timed out after ${timeoutSeconds}s` } : {}),
+					...(run.cleanup ? { cleanup: run.cleanup } : {}),
+					...(status === "error" && run.stderr ? { error: run.stderr.trim() } : {}),
 				},
 			};
 		}
 
 		if (action === "ps") {
-			let processes = parseFridaProcesses(rawOutput);
-			if (params.filter) {
-				const q = params.filter.toLowerCase();
-				processes = processes.filter(
-					p => p.name.toLowerCase().includes(q) || (p.identifier && p.identifier.toLowerCase().includes(q)),
-				);
-			}
 			const targetTransport = hasUsb ? "usb" : (params.device ?? params.host ?? "local");
-			lines.push(`frida ps: ${targetTransport} (${processes.length} processes):`);
-			for (const p of processes) {
-				lines.push(`  - PID ${p.pid}: ${p.name}${p.identifier ? ` (${p.identifier})` : ""}`);
+			let processes: FridaProcessInfo[] = [];
+			if (status === "timeout") {
+				lines.push(`frida ps timed out on ${targetTransport} after ${timeoutSeconds}s:`);
+				lines.push(`- command: ${[binary, ...args].join(" ")}`);
+				if (run.pid) lines.push(`- PID: ${run.pid}`);
+				lines.push(`- reason: Execution watchdog timed out after ${timeoutSeconds}s; process tree cleaned up`);
+				if (displayOutput.trim().length > 0) lines.push(`- partial output:\n${displayOutput.trimEnd()}`);
+				if (run.stderr.trim().length > 0) lines.push(`- stderr:\n${run.stderr.trimEnd()}`);
+			} else if (status === "ok") {
+				processes = parseFridaProcesses(rawOutput);
+				if (params.filter) {
+					const q = params.filter.toLowerCase();
+					processes = processes.filter(
+						p => p.name.toLowerCase().includes(q) || (p.identifier && p.identifier.toLowerCase().includes(q)),
+					);
+				}
+				lines.push(`frida ps: ${targetTransport} (${processes.length} processes):`);
+				for (const p of processes) {
+					lines.push(`  - PID ${p.pid}: ${p.name}${p.identifier ? ` (${p.identifier})` : ""}`);
+				}
+			} else {
+				lines.push(`frida ps failed${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
+				if (displayOutput.trim().length > 0) lines.push(displayOutput.trimEnd());
+				if (run.stderr.trim().length > 0) lines.push(`[stderr]\n${run.stderr.trimEnd()}`);
 			}
 			return {
 				content: [{ type: "text", text: lines.join("\n") }],
 				details: {
 					action,
 					status,
-					processes,
+					...(status === "ok" ? { processes } : {}),
+					timeout: timeoutSeconds,
+					command: [binary, ...args],
+					...(run.pid ? { pid: run.pid } : {}),
 					outputBytes: run.outputBytes,
 					truncated: run.truncated,
 					exitCode: run.exitCode,
 					stdout: rawOutput,
+					stderr: run.stderr,
+					timedOut: run.timedOut,
+					...(status === "timeout" ? { reason: `Execution watchdog timed out after ${timeoutSeconds}s` } : {}),
+					...(run.cleanup ? { cleanup: run.cleanup } : {}),
+					...(status === "error" && run.stderr ? { error: run.stderr.trim() } : {}),
 				},
 			};
 		}
 
 		if (action === "modules" || action === "inspect") {
-			let modules = parseFridaModules(rawOutput);
-			if (params.filter) {
-				const q = params.filter.toLowerCase();
-				modules = modules.filter(m => m.name.toLowerCase().includes(q) || m.path.toLowerCase().includes(q));
-			}
-			if (params.module) {
-				const q = params.module.toLowerCase();
-				modules = modules.filter(m => m.name.toLowerCase().includes(q));
-			}
-			if (modules.length > 0) {
-				lines.push(`frida modules: ${targetLabel} (${modules.length} modules):`);
-				for (const m of modules) {
-					lines.push(`  - ${m.name} (base: ${m.base}, size: ${m.size}, path: ${m.path})`);
-				}
+			let modules: FridaModuleInfo[] = [];
+			if (status === "timeout") {
+				lines.push(`frida modules timed out on ${targetLabel} after ${timeoutSeconds}s:`);
+				lines.push(`- command: ${[binary, ...args].join(" ")}`);
+				if (run.pid) lines.push(`- PID: ${run.pid}`);
+				lines.push(`- reason: Execution watchdog timed out after ${timeoutSeconds}s; process tree cleaned up`);
+				if (displayOutput.trim().length > 0) lines.push(`- partial output:\n${displayOutput.trimEnd()}`);
+				if (run.stderr.trim().length > 0) lines.push(`- stderr:\n${run.stderr.trimEnd()}`);
 			} else {
-				if (status === "ok") {
-					lines.push(`frida modules completed on ${targetLabel}:`);
-				} else {
-					lines.push(`frida modules failed on ${targetLabel} (exit code ${run.exitCode}):`);
+				modules = parseFridaModules(rawOutput);
+				if (params.filter) {
+					const q = params.filter.toLowerCase();
+					modules = modules.filter(m => m.name.toLowerCase().includes(q) || m.path.toLowerCase().includes(q));
 				}
-				if (rawOutput.length > 0) lines.push(rawOutput.trimEnd());
-				if (run.stderr.length > 0) lines.push(`[stderr]\n${run.stderr.trimEnd()}`);
+				if (params.module) {
+					const q = params.module.toLowerCase();
+					modules = modules.filter(m => m.name.toLowerCase().includes(q));
+				}
+				if (modules.length > 0) {
+					lines.push(`frida modules: ${targetLabel} (${modules.length} modules):`);
+					for (const m of modules) {
+						lines.push(`  - ${m.name} (base: ${m.base}, size: ${m.size}, path: ${m.path})`);
+					}
+				} else {
+					if (status === "ok") {
+						lines.push(`frida modules completed on ${targetLabel}:`);
+					} else {
+						lines.push(`frida modules failed on ${targetLabel}${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
+					}
+					if (rawOutput.length > 0) lines.push(rawOutput.trimEnd());
+					if (run.stderr.length > 0) lines.push(`[stderr]\n${run.stderr.trimEnd()}`);
+				}
 			}
 			return {
 				content: [{ type: "text", text: lines.join("\n") }],
@@ -1530,22 +1895,58 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 					status,
 					target: targetLabel,
 					targetMode,
-					...(modules.length > 0 ? { modules } : {}),
+					...(status === "ok" ? { modules } : {}),
+					timeout: timeoutSeconds,
+					command: [binary, ...args],
+					...(run.pid ? { pid: run.pid } : {}),
 					outputBytes: run.outputBytes,
 					truncated: run.truncated,
 					exitCode: run.exitCode,
 					stdout: rawOutput,
 					stderr: run.stderr,
+					timedOut: run.timedOut,
+					...(status === "timeout" ? { reason: `Execution watchdog timed out after ${timeoutSeconds}s` } : {}),
+					...(run.cleanup ? { cleanup: run.cleanup } : {}),
+					...(status === "error" && run.stderr ? { error: run.stderr.trim() } : {}),
 				},
 			};
 		}
+
 		if (action === "trace") {
+			if (status === "timeout") {
+				lines.push(`frida trace timed out on ${targetLabel} after ${timeoutSeconds}s:`);
+				lines.push(`- command: ${[binary, ...args].join(" ")}`);
+				if (run.pid) lines.push(`- PID: ${run.pid}`);
+				lines.push(`- reason: Execution watchdog timed out after ${timeoutSeconds}s; process tree cleaned up`);
+				if (displayOutput.trim().length > 0) lines.push(`- partial output:\n${displayOutput.trimEnd()}`);
+				if (run.stderr.trim().length > 0) lines.push(`- stderr:\n${run.stderr.trimEnd()}`);
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action,
+						status,
+						target: targetLabel,
+						targetMode,
+						timeout: timeoutSeconds,
+						command: [binary, ...args],
+						...(run.pid ? { pid: run.pid } : {}),
+						stdout: rawOutput,
+						stderr: run.stderr,
+						outputBytes: run.outputBytes,
+						truncated: run.truncated,
+						exitCode: run.exitCode,
+						timedOut: run.timedOut,
+						reason: `Execution watchdog timed out after ${timeoutSeconds}s`,
+						...(run.cleanup ? { cleanup: run.cleanup } : {}),
+					},
+				};
+			}
 			const traceResult = parseFridaTrace(rawOutput);
 			if (traceResult.events.length === 0) {
 				if (status === "ok") {
 					lines.push(`frida trace completed on ${targetLabel}:`);
 				} else {
-					lines.push(`frida trace failed on ${targetLabel} (exit code ${run.exitCode}):`);
+					lines.push(`frida trace failed on ${targetLabel}${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
 				}
 				if (rawOutput.length > 0) lines.push(rawOutput.trimEnd());
 				if (run.stderr.length > 0) lines.push(`[stderr]\n${run.stderr.trimEnd()}`);
@@ -1556,11 +1957,16 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 						status,
 						target: targetLabel,
 						targetMode,
+						timeout: timeoutSeconds,
+						command: [binary, ...args],
+						...(run.pid ? { pid: run.pid } : {}),
 						stdout: rawOutput,
 						stderr: run.stderr,
 						outputBytes: run.outputBytes,
 						truncated: run.truncated,
 						exitCode: run.exitCode,
+						timedOut: run.timedOut,
+						...(status === "error" && run.stderr ? { error: run.stderr.trim() } : {}),
 					},
 				};
 			}
@@ -1596,6 +2002,9 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 					status,
 					target: targetLabel,
 					targetMode,
+					timeout: timeoutSeconds,
+					command: [binary, ...args],
+					...(run.pid ? { pid: run.pid } : {}),
 					events: eventsToReturn,
 					traceSummary,
 					redactions: 0,
@@ -1603,6 +2012,8 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 					truncated: run.truncated,
 					exitCode: run.exitCode,
 					stdout: rawOutput,
+					stderr: run.stderr,
+					timedOut: run.timedOut,
 				},
 			};
 		}
@@ -1612,10 +2023,13 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 			lines.push(`frida completed successfully on ${targetLabel} (exit code 0):`);
 		} else if (status === "timeout") {
 			lines.push(
-				`frida timed out on ${targetLabel}${timeoutSeconds !== undefined ? ` after ${timeoutSeconds}s` : ""}:`,
+				`frida timed out on ${targetLabel} after ${timeoutSeconds}s:`,
 			);
+			lines.push(`- command: ${[binary, ...args].join(" ")}`);
+			if (run.pid) lines.push(`- PID: ${run.pid}`);
+			lines.push(`- reason: Execution watchdog timed out after ${timeoutSeconds}s; process tree cleaned up`);
 		} else {
-			lines.push(`frida failed on ${targetLabel} (exit code ${run.exitCode}):`);
+			lines.push(`frida failed on ${targetLabel}${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
 		}
 
 		if (displayOutput.length > 0) {
@@ -1649,15 +2063,22 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 				...(params.usb ? { usb: true } : {}),
 				scriptSource: hasScriptPath ? "file" : hasScript ? "inline" : undefined,
 				...(resolvedScriptPath ? { scriptPath: resolvedScriptPath } : {}),
+				timeout: timeoutSeconds,
+				command: [binary, ...args],
+				...(!params.pid && run.pid ? { pid: run.pid } : {}),
 				exitCode: run.exitCode,
 				stdout: rawOutput,
 				stderr: run.stderr,
 				outputBytes: run.outputBytes,
 				truncated: isTruncated,
 				timedOut: run.timedOut,
+				...(status === "timeout" ? { reason: `Execution watchdog timed out after ${timeoutSeconds}s` } : {}),
+				...(run.cleanup ? { cleanup: run.cleanup } : {}),
 				...(artifactId ? { artifactId } : {}),
 				...(artifactPath ? { artifactPath } : {}),
-				...(run.exitCode !== 0 ? { error: run.stderr.trim() || `Exit code ${run.exitCode}` } : {}),
+				...(status === "error" && run.exitCode !== 0
+					? { error: run.stderr.trim() || (run.exitCode !== null ? `Exit code ${run.exitCode}` : "Process terminated") }
+					: {}),
 			},
 		};
 	}

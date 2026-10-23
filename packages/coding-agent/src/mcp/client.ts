@@ -7,6 +7,7 @@ import * as path from "node:path";
 import * as url from "node:url";
 import { getProjectDir, logger, untilAborted, withTimeout } from "@reverse/utils";
 import { describeMCPTimeout, isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "./timeout";
+import { sanitizeCommandString, sanitizeDiagnosticTail } from "./errors";
 import { createHttpTransport } from "./transports/http";
 import { LegacySseConnectionTimeoutError, createSseTransport } from "./transports/sse";
 import { createStdioTransport } from "./transports/stdio";
@@ -133,6 +134,9 @@ async function initializeConnection(
 export class MCPConnectionTimeoutError extends Error {
 	readonly serverName: string;
 	readonly timeoutMs: number;
+	phase?: string;
+	stderr?: string;
+	command?: string;
 
 	constructor(serverName: string, timeoutMs: number) {
 		super(`Connection to MCP server "${serverName}" timed out after ${describeMCPTimeout(timeoutMs)}`);
@@ -207,12 +211,36 @@ export async function connectToServer(
 		}
 		return await withTimeout(connect(), timeoutMs, timeoutError, options?.signal);
 	} catch (error) {
+		const targetError = error instanceof LegacySseConnectionTimeoutError ? timeoutError : error;
+		if (
+			targetError instanceof MCPConnectionTimeoutError &&
+			!(error instanceof LegacySseConnectionTimeoutError) &&
+			transport &&
+			"stderr" in transport &&
+			"phase" in transport
+		) {
+			const phase = typeof transport.phase === "string" && transport.phase.length > 0 ? transport.phase : "initialize";
+			const rawStderr = typeof transport.stderr === "string" && transport.stderr.length > 0
+				? transport.stderr
+				: undefined;
+			const rawCommand = "command" in transport && typeof transport.command === "string" && transport.command.length > 0
+				? transport.command
+				: undefined;
+			const stderr = rawStderr ? sanitizeDiagnosticTail(rawStderr, 2000) : undefined;
+			const command = rawCommand ? sanitizeCommandString(rawCommand) : undefined;
+			const stderrSummary = stderr ? (stderr.length <= 500 ? stderr : `...${stderr.slice(-500)}`) : undefined;
+			const enrichedMessage = `${targetError.message} during "${phase}"${stderrSummary ? `: ${stderrSummary}` : ""}`;
+			Object.defineProperty(targetError, "message", { value: enrichedMessage });
+			targetError.phase = phase;
+			if (stderr) targetError.stderr = stderr;
+			if (command) targetError.command = command;
+		}
 		// If the timeout or the signal won while connect() was still pending,
 		// the transport may be alive with an open SSE listener. Close it.
 		if (transport) {
 			void transport.close().catch(() => {});
 		}
-		throw error instanceof LegacySseConnectionTimeoutError ? timeoutError : error;
+		throw targetError;
 	}
 }
 

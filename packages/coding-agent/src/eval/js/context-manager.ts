@@ -15,6 +15,7 @@ import { getEnabledEvalPreludes } from "../preludes";
 import { attachSessionOwner, EvalKernelNotRunningError, type SessionOwners } from "../executor-base";
 import { shouldDetachKernel } from "../py/spawn-options";
 import { updateEvalState } from "../state";
+import { createKernelResetStatusEvent, formatKernelRecreatedNotice, type KernelResetReason } from "../kernel-reset";
 import type { EvalShadowCellSession } from "../speculation/cell-session";
 import { getActiveEvalShadowCell } from "../speculation/runtime-context";
 import type { ShadowPlan } from "../speculation/types";
@@ -94,6 +95,7 @@ interface JsSession {
 	sessionKey: string;
 	sessionId: string;
 	kernelId: string;
+	generation: number;
 	cwd: string;
 	packageRoot?: string;
 	packageEnvironment?: string;
@@ -114,6 +116,12 @@ interface StartingJsSession extends SessionOwners {
 const sessions = new Map<string, JsSession>();
 const startingSessions = new Map<string, StartingJsSession>();
 const resettingSessions = new Map<string, Promise<void>>();
+export const sessionGenerations = new Map<string, number>();
+export const pendingJsRecreationNotices = new Map<
+	string,
+	{ previousGeneration: number; currentGeneration: number; reason: KernelResetReason }
+>();
+
 // Worker startup (module-graph import + WorkerCore construction) is infrastructure
 // cost, not user compute. Floor it independently of Bun's 5s default per-test timeout
 // so a slow cold-start under load isn't aborted mid-init — terminating a still-
@@ -200,6 +208,25 @@ export async function executeInVmContext(options: {
 		options.timeoutMs,
 		options.ownerId,
 	);
+	const recreation = pendingJsRecreationNotices.get(sessionKey);
+	if (recreation) {
+		pendingJsRecreationNotices.delete(sessionKey);
+		const noticeText = formatKernelRecreatedNotice({
+			language: "js",
+			generation: recreation.currentGeneration,
+			previousGeneration: recreation.previousGeneration,
+			reason: recreation.reason,
+		});
+		options.runState.onText?.(`${noticeText}\n\n`);
+		const recreatedEvent = createKernelResetStatusEvent({
+			type: "recreated",
+			language: "js",
+			generation: recreation.currentGeneration,
+			previousGeneration: recreation.previousGeneration,
+			reason: recreation.reason,
+		});
+		options.runState.onDisplay?.({ type: "status", event: recreatedEvent });
+	}
 	const result = await runOnce(session, options);
 	if (session.state === "alive" && path.isAbsolute(options.filename)) {
 		updateEvalState(options.session, {
@@ -392,6 +419,14 @@ export async function resetVmContext(sessionKey: string): Promise<void> {
 	const session = sessions.get(sessionKey) ?? (await startingSessions.get(sessionKey)?.promise.catch(() => undefined));
 	if (!session) return;
 	sessions.delete(sessionKey);
+	const lostGen = session.generation;
+	const nextGen = lostGen + 1;
+	sessionGenerations.set(sessionKey, nextGen);
+	pendingJsRecreationNotices.set(sessionKey, {
+		previousGeneration: lostGen,
+		currentGeneration: nextGen,
+		reason: "reset",
+	});
 	await killSession(session, new ToolError("JS context reset"), { force: false });
 }
 
@@ -461,6 +496,7 @@ export async function smokeTestJsEvalWorker(): Promise<void> {
 		sessionKey: "smoke",
 		sessionId: "smoke",
 		kernelId: `js-${Snowflake.next()}`,
+		generation: 1,
 		cwd: process.cwd(),
 		worker,
 		state: "alive",
@@ -629,6 +665,7 @@ async function acquireSession(
 			sessionKey,
 			sessionId: snapshot.sessionId,
 			kernelId: `js-${Snowflake.next()}`,
+			generation: sessionGenerations.get(sessionKey) ?? 1,
 			cwd: snapshot.cwd,
 			packageRoot: snapshot.packageRoot,
 			packageEnvironment: snapshot.packageEnvironment,
@@ -872,6 +909,14 @@ async function killSessionFor(session: JsSession, error: Error, options: { force
 	if (sessions.get(session.sessionKey) === session) {
 		sessions.delete(session.sessionKey);
 	}
+	const lostGen = session.generation;
+	const nextGen = lostGen + 1;
+	sessionGenerations.set(session.sessionKey, nextGen);
+	pendingJsRecreationNotices.set(session.sessionKey, {
+		previousGeneration: lostGen,
+		currentGeneration: nextGen,
+		reason: "kernel_loss",
+	});
 	await killSession(session, error, options);
 }
 
@@ -879,7 +924,12 @@ async function killSession(session: JsSession, error: Error, options: { force: b
 	if (session.state === "dead") return;
 	session.state = "dead";
 	for (const toolSession of session.stateSessions) {
-		updateEvalState(toolSession, { language: "js", kernelId: session.kernelId, alive: false });
+		updateEvalState(toolSession, {
+			language: "js",
+			kernelId: session.kernelId,
+			alive: false,
+			generation: session.generation,
+		});
 	}
 	for (const pending of session.pending.values()) {
 		if (pending.settled) continue;
@@ -907,6 +957,7 @@ function markJsSessionAlive(session: JsSession, toolSession: ToolSession, enviro
 		language: "js",
 		kernelId: session.kernelId,
 		alive: true,
+		generation: session.generation,
 		environment,
 		interpreter: `Bun ${Bun.version}`,
 	});

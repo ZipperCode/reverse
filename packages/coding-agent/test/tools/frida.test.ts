@@ -1,3 +1,5 @@
+import type { Subprocess } from "bun";
+import * as syncFs from "node:fs";
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -568,8 +570,8 @@ describe("frida execution and action modes", () => {
 			await removeTestDir(tempDir);
 		}
 	});
-	it("omits -t flag and timeout watchdog when timeout is not passed", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-no-timeout-"));
+	it("applies default 30s timeout and watchdog when timeout is omitted across actions (Issue #8 contract)", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-default-timeout-"));
 		try {
 			let capturedOpts: { timeoutMs?: number } | undefined;
 			const calls: Array<{ binary: string; args: string[] }> = [];
@@ -577,10 +579,10 @@ describe("frida execution and action modes", () => {
 				calls.push({ binary, args });
 				capturedOpts = opts;
 				return {
-					stdout: Buffer.from("No timeout execution"),
+					stdout: Buffer.from("Default timeout execution"),
 					stderr: "",
 					exitCode: 0,
-					outputBytes: 20,
+					outputBytes: 25,
 					truncated: false,
 					timedOut: false,
 				};
@@ -589,14 +591,17 @@ describe("frida execution and action modes", () => {
 			const which = (cmd: string) => (cmd === "frida" ? "/usr/local/bin/frida" : null);
 			const tool = new FridaTool(createTestSession(tempDir), { runner, which });
 
-			await tool.execute("call-no-t", {
+			const result = await tool.execute("call-default-t", {
 				pid: 1234,
 				script: "console.log(1)",
 			});
 
 			expect(calls).toHaveLength(1);
-			expect(calls[0].args).not.toContain("-t");
-			expect(capturedOpts?.timeoutMs).toBeUndefined();
+			expect(calls[0].args).toContain("-t");
+			expect(calls[0].args).toContain("30");
+			expect(capturedOpts?.timeoutMs).toBe(33000);
+			const details = result.details as FridaDetails;
+			expect(details.timeout).toBe(30);
 		} finally {
 			await removeTestDir(tempDir);
 		}
@@ -755,6 +760,350 @@ describe("frida CLI spawn pause semantics and literal parsing", () => {
 			controller.abort();
 			await expect(tool.execute("call-abort", { action: "devices" }, controller.signal)).rejects.toThrow();
 		} finally {
+			await removeTestDir(tempDir);
+		}
+	});
+});
+
+describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regression)", () => {
+	it(
+		"real controlled child: terminates hanging descendant on default 30s watchdog when timeout is omitted (Issue #8 acceptance)",
+		async () => {
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-real-def30-"));
+			let workerPid: number | undefined;
+			try {
+				const workerScript = path.join(tempDir, "def30-worker.js");
+				syncFs.writeFileSync(workerScript, "setInterval(() => {}, 1000);\n");
+
+				const launcherScript = path.join(tempDir, "def30-launcher.js");
+				syncFs.writeFileSync(
+					launcherScript,
+					`const child = Bun.spawn([process.execPath, ${JSON.stringify(workerScript)}], {
+						stdin: "ignore",
+						stdout: "inherit",
+						stderr: "inherit",
+						windowsHide: true,
+					});
+					console.log("Id Type Name");
+					console.log("WORKER_PID:" + child.pid);
+					await child.exited;
+					`,
+				);
+
+				const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "fake-def30-ls.cmd" : "fake-def30-ls");
+				if (process.platform === "win32") {
+					syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${launcherScript}" %*\r\n`);
+				} else {
+					syncFs.writeFileSync(launcherExecutable, `#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`);
+					syncFs.chmodSync(launcherExecutable, 0o755);
+				}
+
+				const which = (cmd: string) => (cmd === "frida-ls-devices" ? launcherExecutable : null);
+				const tool = new FridaTool(createTestSession(tempDir), { which });
+
+				const start = performance.now();
+				// 未显式传入 timeout，必须在 30 秒默认看门狗期限触发
+				const result = await tool.execute("call-hang-def30", { action: "devices" });
+				const elapsed = performance.now() - start;
+
+				expect(elapsed).toBeGreaterThanOrEqual(29000);
+				expect(elapsed).toBeLessThan(36000);
+				const details = result.details as FridaDetails;
+				expect(details.status).toBe("timeout");
+				expect(details.timedOut).toBe(true);
+				expect(details.timeout).toBe(30);
+				expect(details.stdout).toContain("WORKER_PID:");
+				expect(details.reason).toContain("timed out after 30s");
+
+				const match = /WORKER_PID:(\d+)/.exec(details.stdout ?? "");
+				if (match) {
+					workerPid = Number.parseInt(match[1], 10);
+					let isAlive = false;
+					try {
+						process.kill(workerPid, 0);
+						isAlive = true;
+					} catch {}
+					expect(isAlive).toBe(false);
+				}
+			} finally {
+				if (workerPid) {
+					try { process.kill(workerPid, "SIGKILL"); } catch {}
+				}
+				await removeTestDir(tempDir);
+			}
+		},
+		40000,
+	);
+
+	it("real controlled child: terminates hanging descendant with inherited pipes on watchdog timeout", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-real-hang-"));
+		let workerPid: number | undefined;
+		try {
+			const workerScript = path.join(tempDir, "hang-worker.js");
+			syncFs.writeFileSync(workerScript, "setInterval(() => {}, 1000);\n");
+
+			const launcherScript = path.join(tempDir, "hang-launcher.js");
+			syncFs.writeFileSync(
+				launcherScript,
+				`const child = Bun.spawn([process.execPath, ${JSON.stringify(workerScript)}], {
+					stdin: "ignore",
+					stdout: "inherit",
+					stderr: "inherit",
+					windowsHide: true,
+				});
+				console.log("Id Type Name");
+				console.log("WORKER_PID:" + child.pid);
+				await child.exited;
+				`,
+			);
+
+			const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "fake-frida-ls.cmd" : "fake-frida-ls");
+			if (process.platform === "win32") {
+				syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${launcherScript}" %*\r\n`);
+			} else {
+				syncFs.writeFileSync(launcherExecutable, `#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`);
+				syncFs.chmodSync(launcherExecutable, 0o755);
+			}
+
+			const which = (cmd: string) => (cmd === "frida-ls-devices" ? launcherExecutable : null);
+			// 使用真实的 defaultFridaRunner 测试真实 OS 进程树与继承管道
+			const tool = new FridaTool(createTestSession(tempDir), { which });
+
+			const start = performance.now();
+			const result = await tool.execute("call-hang", { action: "devices", timeout: 1 });
+			const elapsed = performance.now() - start;
+
+			expect(elapsed).toBeLessThan(3500);
+			const details = result.details as FridaDetails;
+			expect(details.status).toBe("timeout");
+			expect(details.timedOut).toBe(true);
+			expect(details.timeout).toBe(1);
+			if (typeof details.exitCode === "number") {
+				expect(details.exitCode).toBeGreaterThan(0);
+			} else {
+				expect(details.exitCode).toBeNull();
+			}
+			expect(details.exitCode).not.toBe(0);
+			expect(details.stdout).toContain("WORKER_PID:");
+			expect(details.reason).toContain("timed out after 1s");
+			expect(details.cleanup?.attempted).toBe(true);
+
+			const match = /WORKER_PID:(\d+)/.exec(details.stdout ?? "");
+			if (match) {
+				workerPid = Number.parseInt(match[1], 10);
+				const deadline = Date.now() + 1000;
+				let isAlive = true;
+				while (isAlive && Date.now() < deadline) {
+					try {
+						process.kill(workerPid, 0);
+						await Bun.sleep(20);
+					} catch {
+						isAlive = false;
+					}
+				}
+				expect(isAlive).toBe(false);
+			}
+		} finally {
+			if (workerPid) {
+				try { process.kill(workerPid, "SIGKILL"); } catch {}
+			}
+			await removeTestDir(tempDir);
+		}
+	});
+
+	it("real controlled child: cleans up pipe-holding descendant when root exits immediately", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-dead-root-"));
+		let workerPid: number | undefined;
+		try {
+			const workerScript = path.join(tempDir, "dead-worker.js");
+			syncFs.writeFileSync(workerScript, "setInterval(() => {}, 1000);\n");
+
+			const launcherScript = path.join(tempDir, "dead-launcher.js");
+			syncFs.writeFileSync(
+				launcherScript,
+				`const child = Bun.spawn([process.execPath, ${JSON.stringify(workerScript)}], {
+					stdin: "ignore",
+					stdout: "inherit",
+					stderr: "inherit",
+					windowsHide: true,
+				});
+				console.log("Id Type Name");
+				console.log("WORKER_PID:" + child.pid);
+				process.exit(0);
+				`,
+			);
+
+			const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "fake-dead-ls.cmd" : "fake-dead-ls");
+			if (process.platform === "win32") {
+				syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${launcherScript}" %*\r\n`);
+			} else {
+				syncFs.writeFileSync(launcherExecutable, `#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`);
+				syncFs.chmodSync(launcherExecutable, 0o755);
+			}
+
+			const which = (cmd: string) => (cmd === "frida-ls-devices" ? launcherExecutable : null);
+			const tool = new FridaTool(createTestSession(tempDir), { which });
+
+			const start = performance.now();
+			const result = await tool.execute("call-dead-root", { action: "devices", timeout: 1 });
+			const elapsed = performance.now() - start;
+
+			expect(elapsed).toBeLessThan(3500);
+			const details = result.details as FridaDetails;
+			expect(details.stdout).toContain("WORKER_PID:");
+
+			const match = /WORKER_PID:(\d+)/.exec(details.stdout ?? "");
+			if (match) {
+				workerPid = Number.parseInt(match[1], 10);
+				const deadline = Date.now() + 1000;
+				let isAlive = true;
+				while (isAlive && Date.now() < deadline) {
+					try {
+						process.kill(workerPid, 0);
+						await Bun.sleep(20);
+					} catch {
+						isAlive = false;
+					}
+				}
+				expect(isAlive).toBe(false);
+			}
+		} finally {
+			if (workerPid) {
+				try { process.kill(workerPid, "SIGKILL"); } catch {}
+			}
+			await removeTestDir(tempDir);
+		}
+	});
+
+	it("real controlled child: cancellation via AbortSignal aborts and cleans up descendant", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-real-abort-"));
+		let workerPid: number | undefined;
+		try {
+			const workerScript = path.join(tempDir, "abort-worker.js");
+			syncFs.writeFileSync(workerScript, "setInterval(() => {}, 1000);\n");
+
+			const pidFile = path.join(tempDir, "worker.pid");
+			const launcherScript = path.join(tempDir, "abort-launcher.js");
+			syncFs.writeFileSync(
+				launcherScript,
+				`import * as fs from "node:fs";
+				const child = Bun.spawn([process.execPath, ${JSON.stringify(workerScript)}], {
+					stdin: "ignore",
+					stdout: "inherit",
+					stderr: "inherit",
+					windowsHide: true,
+				});
+				fs.writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
+				console.log("Id Type Name");
+				await child.exited;
+				`,
+			);
+
+			const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "fake-abort-ls.cmd" : "fake-abort-ls");
+			if (process.platform === "win32") {
+				syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${launcherScript}" %*\r\n`);
+			} else {
+				syncFs.writeFileSync(launcherExecutable, `#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`);
+				syncFs.chmodSync(launcherExecutable, 0o755);
+			}
+
+			const which = (cmd: string) => (cmd === "frida-ls-devices" ? launcherExecutable : null);
+			const tool = new FridaTool(createTestSession(tempDir), { which });
+
+			const controller = new AbortController();
+			const runPromise = tool.execute("call-abort", { action: "devices", timeout: 10 }, controller.signal);
+			// Real OS process coordination: wait until launcher wrote pidFile before aborting
+			const startWait = Date.now();
+			while (!syncFs.existsSync(pidFile) && Date.now() - startWait < 2000) {
+				await Bun.sleep(20);
+			}
+			controller.abort();
+
+			await expect(runPromise).rejects.toThrow();
+
+			if (syncFs.existsSync(pidFile)) {
+				workerPid = Number.parseInt(syncFs.readFileSync(pidFile, "utf8").trim(), 10);
+				const deadline = Date.now() + 1000;
+				let isAlive = true;
+				while (isAlive && Date.now() < deadline) {
+					try {
+						process.kill(workerPid, 0);
+						await Bun.sleep(20);
+					} catch {
+						isAlive = false;
+					}
+				}
+				expect(isAlive).toBe(false);
+			}
+		} finally {
+			if (workerPid) {
+				try { process.kill(workerPid, "SIGKILL"); } catch {}
+			}
+			await removeTestDir(tempDir);
+		}
+	});
+
+	it("preserves session resumability and ownership isolation", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-resumable-"));
+		let unrelatedProc: Subprocess | undefined;
+		try {
+			// 1. 启动一个完全无关的后台常驻进程，用于验证隔离边界（不得被误杀）
+			const proc = Bun.spawn([process.execPath, "-e", "await Bun.sleep(20_000);"], {
+				stdin: "ignore",
+				stdout: "ignore",
+				stderr: "ignore",
+			});
+			unrelatedProc = proc;
+
+			const fastOutput = "Id Type Name\nlocal local Local System\nemulator-5554 usb Android Emulator 5554\n";
+			const fastScript = path.join(tempDir, "fast-launcher.js");
+			syncFs.writeFileSync(
+				fastScript,
+				`if (process.argv.includes("--hang")) {
+					setInterval(() => {}, 1000);
+				} else {
+					process.stdout.write(${JSON.stringify(fastOutput)});
+					process.exit(0);
+				}`,
+			);
+
+			const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "frida-switch.cmd" : "frida-switch");
+			if (process.platform === "win32") {
+				syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${fastScript}" %*\r\n`);
+			} else {
+				syncFs.writeFileSync(launcherExecutable, `#!/bin/sh\nexec "${process.execPath}" "${fastScript}" "$@"\n`);
+				syncFs.chmodSync(launcherExecutable, 0o755);
+			}
+
+			const which = (cmd: string) => (cmd === "frida-ls-devices" ? launcherExecutable : null);
+			const tool = new FridaTool(createTestSession(tempDir), { which });
+
+			// 2. 触发一次挂起调用并超时
+			const timedOutResult = await tool.execute("call-hang-turn", {
+				action: "devices",
+				cli_args: ["--hang"],
+				timeout: 1,
+			});
+			expect((timedOutResult.details as FridaDetails).status).toBe("timeout");
+
+			// 3. 验证无关的独立进程未受影响（仍存活）
+			let unrelatedAlive = false;
+			try {
+				process.kill(proc.pid, 0);
+				unrelatedAlive = true;
+			} catch {}
+			expect(unrelatedAlive).toBe(true);
+
+			// 4. 在同一个会话 / tool 实例上继续执行下一个简单调用，验证会话未损坏并能立即快速返回
+			const fastResult = await tool.execute("call-fast-turn", { action: "devices" });
+			const fastDetails = fastResult.details as FridaDetails;
+			expect(fastDetails.status).toBe("ok");
+			expect(fastDetails.devices).toHaveLength(2);
+			expect(fastDetails.devices?.[0].id).toBe("local");
+		} finally {
+			if (unrelatedProc) {
+				try { process.kill(unrelatedProc.pid, "SIGKILL"); } catch {}
+			}
 			await removeTestDir(tempDir);
 		}
 	});

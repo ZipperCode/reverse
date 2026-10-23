@@ -102,7 +102,7 @@ When an analytical scenario requires a capability that is either uninstalled or 
 2. **Recommend Optional Tool (`推荐工具`)**:
    Examine whether a native tool covers the baseline (e.g., `android_package_inspect` for APK structure). If the task requires specialized capabilities (e.g., full Java source decompilation or host JNI execution), recommend the catalog tool and clearly explain the technical benefit over the baseline.
 3. **Explain Installation (`说明安装路径与前提`)**:
-   Detail companion prerequisites (e.g., Java JRE 17+ for JADX/Unidbg) and display the official catalog installation path:
+   Detail companion prerequisites (e.g., Java JRE 17+ for JADX, JDK 8 for Unidbg) and display the official catalog installation path:
    `reverse setup reverse <tool-id>` (or guided interactive TUI).
 4. **Ask User Approval (`请求显式确认`)**:
    Present the structured decision to the operator:

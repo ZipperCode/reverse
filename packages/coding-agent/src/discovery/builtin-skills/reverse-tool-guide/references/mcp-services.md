@@ -65,7 +65,7 @@ For r2mcp and Playwright, merge the snippet and verify the connection in the cli
 - **Agent installation**: `reverse_capability(action: "install", service: "jshookmcp")`; `scope: "project"` is available when project-only configuration is desired. Obtain authorization for installation first.
 - **Runtime**: supported Node.js and npm; installs `@jshookmcp/jshook@0.4.2` and `webcrack@2.16.0` in the active profile's managed tools directory. Native dependencies may require a local compiler.
 - **Defaults**: independent local stdio MCP named `jshook`, search profile, vector search disabled. Browser downloads and other optional engines are separate actions.
-- **Dispatch**: use the mounted jshook `search_tools` → `describe_tool` → `call_tool` tools for debugging, AST transforms, protocol analysis, and signature experiments. Query schemas rather than guessing arguments.
+- **Dispatch**: use the mounted jshook `search_tools` → `describe_tool` → `activate_tools` → `call_tool` tools for debugging, AST transforms, protocol analysis, and signature experiments. Query schemas rather than guessing arguments. If the tool activation budget is reached, free unused tools with `deactivate_tools` before retrying rather than attempting to raise limits.
 - **Ownership**: one controller per browser target. Let jshook own targets under active debugging; use reverse native tools for separate static analysis.
 - **License**: upstream AGPL-3.0-only, installed as an external service; source is not copied into reverse. Review obligations before redistribution or providing modified services to others.
 - **Limits**: reverse currently does not advertise MCP sampling; client-sampling-dependent LLM suggestions are unavailable. The main agent can reason about deterministic tool outputs directly.
@@ -73,7 +73,7 @@ For r2mcp and Playwright, merge the snippet and verify the connection in the cli
 ## 3. Unidbg Integration Note (Manual Maven Java Harness)
 
 - **Upstream Status**: Upstream `zhkl0228/unidbg` is a Java library, not a standalone pre-packaged CLI server executable. While unidbg supports MCP via `McpToolkit` within a running JVM debugger session, it requires manual Java project integration.
-- **Requires**: Java (JDK 17+) and Maven.
+- **Requires**: Java (JDK 8 / OpenJDK 8) and Maven.
 - **Install/Compile**: `git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests`.
 - **Harness Setup**: Implement a Maven test case or standalone Java application initializing `AndroidEmulator` and registering custom tools via `McpToolkit`.
 - **Fallback**: `android_native_workflow` (built-in ELF & JNI triage), live device instrumentation via `frida_session`, or static disassembly via `r2_inspect` / `ghidra_inspect`.
@@ -82,7 +82,9 @@ For r2mcp and Playwright, merge the snippet and verify the connection in the cli
 ## Verification checklist
 
 1. `reverse setup reverse --json` — read `prerequisitesReady`, `configured`, and `configPaths`; `connection` stays `"unknown"` until you verify it yourself.
-2. `reverse setup reverse <service-id>` — read the start command and exact snippet.
-3. For jshookmcp, run its confirmed setup installation; the installer verifies and writes configuration. For other services, merge the displayed snippet.
-4. In an active TUI or agent installation, jshook tools are connected in the current session; standalone CLI installation is loaded when the client next starts.
-5. If the server fails, keep the equivalent CLI fallback in the loop rather than blocking the analysis.
+2. `reverse_capability(action: "status")` — inspect observable runtime state distinguishing configured, connected, discovered, targetMatched, and executed.
+3. `reverse setup reverse <service-id>` — read the start command and exact snippet.
+4. For jshookmcp, run its confirmed setup installation; the installer verifies and writes configuration. For other services, merge the displayed snippet.
+5. In search-mode MCP (jshook), follow the sequence: `search_tools` → `describe_tool` → `activate_tools` → `call_tool`. If the activation budget is exhausted, call `deactivate_tools` to free unneeded tools before retrying. When tools list is unrefreshed, invoke via the `call_tool` bridge.
+6. Retain single-owner control for stateful targets, emulators, debuggers, and browser controllers; delegate only independent, bounded sub-tasks.
+7. If the server fails or target is unmatched, keep the equivalent CLI fallback in the loop with a brief verifiable rationale rather than blocking the analysis.

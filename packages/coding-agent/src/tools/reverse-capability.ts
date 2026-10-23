@@ -14,12 +14,19 @@ import {
 } from "../extensibility/skill-tool-catalog";
 import { getJshookMcpServer, installJshookMcp, JSHOOK_MCP_SERVER_NAME } from "../extensibility/jshookmcp-install";
 import { cfgMcpEnableProjectConfig } from "../mcp/settings";
+import { getActiveUnidbgHarnesses } from "../extensibility/unidbg-runner";
+import {
+	getMcpServerRuntimeState,
+	getRecordedSkillLoads,
+	type McpToolExecutionRecord,
+	type SkillLoadRecord,
+} from "../extensibility/capability-state";
 
 const reverseCapabilitySchema = type({
 	action: type
-		.enumerated("list", "resolve", "get", "install")
+		.enumerated("list", "resolve", "get", "install", "status")
 		.describe(
-			"Capability action: list, resolve or get host capability status; install provisions the trusted jshookmcp service and registers its MCP tools in this session (write approval required)",
+			"Capability action: list, resolve or get host capability status; status inspects observable MCP/skill lifecycle states (configured/connected/discovered/targetMatched/executed/succeeded); install provisions the trusted jshookmcp service and registers its MCP tools in this session (write approval required)",
 		),
 	"capability?": type("string").describe(
 		"Canonical capability ID (e.g. 'apk_unpacking', 'native_debugger', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception')",
@@ -30,16 +37,37 @@ const reverseCapabilitySchema = type({
 	),
 	"service?": type.enumerated("jshookmcp").describe("Trusted service to install (required for install)"),
 	"scope?": type.enumerated("user", "project").describe("MCP configuration scope for install (default user)"),
+	"server?": type("string").describe("MCP server name to filter status (e.g. 'jshook', 'unidbg')"),
+	"target?": type("string").describe(
+		"Expected target URL or file path to evaluate against active server bindings in this session",
+	),
 });
 
 export type ReverseCapabilityParams = typeof reverseCapabilitySchema.infer;
 
+export interface McpDetailedServiceStatus {
+	id: string;
+	serverName: string;
+	configured: boolean;
+	configuredScopes: string[];
+	connected: boolean;
+	discovered: boolean;
+	discoveredTools: string[];
+	targetMatched: boolean;
+	target: string | null;
+	executed: boolean;
+	executionCount: number;
+	lastExecution: McpToolExecutionRecord | null;
+}
+
 export interface ReverseCapabilityDetails {
-	action: "list" | "resolve" | "get" | "install";
+	action: "list" | "resolve" | "get" | "install" | "status";
 	total?: number;
 	capability?: ReverseCapabilityStatus | CapabilityDescriptor;
 	capabilities?: ReverseCapabilityStatus[] | CapabilityDescriptor[];
 	platform?: string;
+	mcpServices?: McpDetailedServiceStatus[];
+	skills?: { recorded: SkillLoadRecord[] };
 	installation?: {
 		configPath: string;
 		serverName: string;
@@ -71,13 +99,32 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 			connection:
 				this.session.mcpManager?.getConnectionStatus(service.serverName) === "connected" ? "connected" : "unknown",
 		}));
+		const capabilities = resolveReverseCapabilities({
+			platform: report.platform,
+			toolStatuses: report.tools,
+			serviceStatuses: services,
+		});
+
+		const activeHarnesses = getActiveUnidbgHarnesses(this.session);
+		const androidHarness = activeHarnesses.find(
+			h => h.ready && h.type === "jni" && this.session.mcpManager?.getConnectionStatus(h.serverName) === "connected",
+		);
+		const androidCap = capabilities.find(c => c.id === "android_native_emulation");
+		if (androidCap) {
+			if (androidHarness) {
+				androidCap.status = "ready";
+				androidCap.ready = true;
+				androidCap.postInstallInvocation = `Active Unidbg SSE MCP server running on port ${androidHarness.port} (PID ${androidHarness.pid}) with target ${androidHarness.targetPath || "loaded binary"}. Server: ${androidHarness.serverName}`;
+			} else {
+				androidCap.status = "available_with_fallbacks";
+				androidCap.ready = false;
+				androidCap.postInstallInvocation = `Run 'reverse unidbg scaffold' and 'reverse unidbg launch' to start an active emulation session.`;
+			}
+		}
+
 		return {
 			...report,
-			capabilities: resolveReverseCapabilities({
-				platform: report.platform,
-				toolStatuses: report.tools,
-				serviceStatuses: services,
-			}),
+			capabilities,
 		};
 	}
 
@@ -324,6 +371,138 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					},
 				};
 			}
+			case "status": {
+				const sessionKey = this.session.sessionManager ?? this.session;
+				const report = this.getReport(projectDir);
+				const manager = this.session.mcpManager;
+				const filterServer = params.server?.trim().toLowerCase();
+				const expectedTarget = params.target?.trim();
+
+				const catalogServices = report.services;
+				const knownServerNames = new Set(catalogServices.map(s => s.serverName.toLowerCase()));
+				const liveServerNames = manager ? manager.getAllServerNames() : [];
+
+				const allServices: Array<{
+					id: string;
+					serverName: string;
+					configured: boolean;
+					configuredScopes: string[];
+				}> = catalogServices.map(s => ({
+					id: s.id,
+					serverName: s.serverName,
+					configured: s.configured,
+					configuredScopes: s.configuredScopes,
+				}));
+
+				for (const liveName of liveServerNames) {
+					if (!knownServerNames.has(liveName.toLowerCase())) {
+						const source = manager?.getSource(liveName);
+						const isConfigured = Boolean(
+							source && source.path && source.path !== "in-memory" && source.level !== "native",
+						);
+						const scopes: string[] = isConfigured && source?.level ? [source.level] : [];
+						allServices.push({
+							id: liveName,
+							serverName: liveName,
+							configured: isConfigured,
+							configuredScopes: scopes,
+						});
+					}
+				}
+
+				const mcpServices: McpDetailedServiceStatus[] = allServices
+					.filter(
+						s =>
+							!filterServer ||
+							s.serverName.toLowerCase() === filterServer ||
+							s.id.toLowerCase() === filterServer,
+					)
+					.map(s => {
+						const serverName = s.serverName;
+						const conn = manager?.getConnection(serverName);
+						const connStatus = manager?.getConnectionStatus(serverName);
+						const isConnected = connStatus === "connected";
+						const toolsFromConn = conn?.tools?.map(t => t.name) ?? [];
+						const toolsFromManager = manager
+							? manager
+									.getTools()
+									.filter(t => "mcpServerName" in t && t.mcpServerName === serverName)
+									.map(t => t.name)
+							: [];
+						const uniqueTools = Array.from(new Set([...toolsFromConn, ...toolsFromManager]));
+						const isDiscovered = isConnected && uniqueTools.length > 0;
+						const runtimeState = getMcpServerRuntimeState(serverName, sessionKey);
+						const isCurrentConn = isConnected && Boolean(conn) && runtimeState?.connection === conn;
+						const observedTarget = isCurrentConn ? (runtimeState?.target ?? null) : null;
+						const targetMatched =
+							isCurrentConn &&
+							Boolean(runtimeState?.targetMatched) &&
+							(!expectedTarget || observedTarget === expectedTarget);
+						const target = observedTarget;
+						const executed = isCurrentConn && (runtimeState?.executionCount ?? 0) > 0;
+						const executionCount = isCurrentConn ? (runtimeState?.executionCount ?? 0) : 0;
+						const lastExecution = isCurrentConn ? (runtimeState?.lastExecution ?? null) : null;
+						return {
+							id: s.id,
+							serverName: s.serverName,
+							configured: s.configured,
+							configuredScopes: s.configuredScopes,
+							connected: isConnected,
+							discovered: isDiscovered,
+							discoveredTools: uniqueTools,
+							targetMatched,
+							target,
+							executed,
+							executionCount,
+							lastExecution,
+						};
+					});
+
+				const skillLoads = getRecordedSkillLoads(sessionKey);
+
+				const lines: string[] = [
+					`### Reverse Engineering MCP Services & Evidence Status (${mcpServices.length} services)`,
+					"",
+				];
+				for (const s of mcpServices) {
+					lines.push(`#### \`${s.serverName}\` (ID: ${s.id})`);
+					lines.push(`- **Configured**: ${s.configured ? "Yes (" + s.configuredScopes.join(", ") + ")" : "No"}`);
+					lines.push(`- **Connected**: ${s.connected ? "Connected" : "Not connected"}`);
+					lines.push(
+						`- **Discovered**: ${s.discovered ? `Yes (${s.discoveredTools.length} tools: ${s.discoveredTools.slice(0, 5).join(", ")}${s.discoveredTools.length > 5 ? "..." : ""})` : "No"}`,
+					);
+					lines.push(`- **Target Matched**: ${s.targetMatched ? `Yes (target: ${s.target ?? "unspecified"})` : "No"}`);
+					lines.push(`- **Executed Tools**: ${s.executed ? `Yes (${s.executionCount} calls)` : "No"}`);
+					if (s.lastExecution) {
+						lines.push(
+							`  - Last Tool Call: ${s.lastExecution.tool} (isError: ${s.lastExecution.isError}, innerSuccess: ${s.lastExecution.innerSuccess}${s.lastExecution.error ? `, error: ${s.lastExecution.error}` : ""})`,
+						);
+					}
+					lines.push("");
+				}
+
+				lines.push(`### Recorded Skill Loads (${skillLoads.length} recorded)`);
+				if (skillLoads.length === 0) {
+					lines.push("- No skills read yet in this session.");
+				} else {
+					for (const sl of skillLoads) {
+						lines.push(
+							`- **\`${sl.name}\`**: ${sl.loaded ? "Loaded [OK]" : "Failed [ERROR]"}${sl.error ? ` (${sl.error})` : ""}${sl.fallback ? ` -> Fallback: ${sl.fallback}` : ""}`,
+						);
+					}
+				}
+
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action: "status",
+						mcpServices,
+						skills: { recorded: skillLoads },
+						platform: report.platform,
+					},
+				};
+			}
+
 
 			default:
 				throw new ToolError(`Unknown reverse_capability action: '${String(params.action)}'`);

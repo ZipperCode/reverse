@@ -11,6 +11,7 @@
 - Added local standalone installation/check/uninstallation helpers with bounded version probes and collision-preserving backups.
 - Added managed jshookmcp setup through CLI, interactive TUI, and write-approved agent installation, with pinned local packages, search-profile stdio configuration, verified deobfuscation, and immediate session tool activation.
 - Added live selected-tool descriptions and usage guidance to the reverse toolchain setup list, with a reserved detail area for keyboard navigation, filtering, and compact terminals.
+- Added `unidbg` CLI and agent tools for JDK 8-validated source builds, JNI/IPA harness generation, supervised SSE startup, and session-owned in-memory MCP registration.
 
 ### Changed
 
@@ -20,6 +21,7 @@
 - Standalone outputs and startup branding now use `reverse`; bundled skills treat optional external analyzers as on-demand dependencies rather than startup requirements.
 - Completed the canonical `reverse` identity across environment variables, native UI roles, browser relay and HTML export, worker dispatch, and `reverse://` documentation URLs; the schema package is now `@reverse/reversetype` with `ReverseError` types.
 - Recordings now use `.reversecast` and a `reversecast` header, native plugin manifests use `.reverse-plugin`, and optional SQL session storage defaults to `reverse_session_files`. Existing files and databases are left untouched; previous recording formats and default SQL tables are not automatically migrated.
+- Reverse workflows now distinguish MCP configuration, connection, discovery, target binding, and concrete execution; APK delivery reports build, installation, launch, UI, input, navigation, and target behavior separately.
 
 ### Fixed
 
@@ -31,6 +33,13 @@
 - Fixed keyboard input in the custom provider wizard during first-launch setup by opening a focused nested overlay and waiting for it to close before advancing to model selection.
 - Fixed custom provider wizard model discovery to abort in-flight requests on cancel, back, and dispose, ignoring stale asynchronous responses; resolved native UI content duplication in model selection; and clearly displayed runtime output fallback for models with unknown `maxTokens` without persisting fabricated values.
 - Aligned reverse tool execution with the agent's call-ID, parameters, and cancellation contract; corrected DEX offsets, manifest flags, evidence findings, and runtime recovery types without suppressing diagnostics.
+- Fixed IDA 9 and Windows launcher discovery, source/JAR-aware unidbg detection, portable Windows tool installation, and the binwalk Cargo installation route (#1).
+- Fixed compiled builtin skill body/reference resolution and distinct unknown, stale, and missing-resource errors (#3).
+- Preserved MCP stdio startup phase, exit status, signal, and bounded redacted stderr while keeping failed services degraded (#4).
+- Restored skill-first and schema-first reverse workflows and truthful behavioral verification, including MCP activation-budget recovery (#5, #6).
+- Marked recreated eval kernels explicitly, requiring dependency setup again without replaying side-effectful history (#7).
+- Applied the default 30-second Frida execution watchdog to enumeration and inspection, with bounded output draining, owned child-tree cleanup, and timeout/cancellation diagnostics (#8).
+
 ## [18.11.2] - 2026-10-16
 
 ### Added

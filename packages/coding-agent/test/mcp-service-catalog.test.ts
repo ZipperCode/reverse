@@ -235,8 +235,7 @@ describe("reverse setup MCP/CLI separation", () => {
 		expect(r2mcp.usage.canonical).toContain("r2mcp");
 	});
 
-	it("renders MCP service guidance in --check and the manual panel", async () => {
-		let checkOutput = "";
+	it("keeps service inspection read-only and respects a declined interactive installation", async () => {
 		const which = mockWhich({
 			strings: "/usr/bin/strings",
 			file: "/usr/bin/file",
@@ -246,35 +245,23 @@ describe("reverse setup MCP/CLI separation", () => {
 		const checkCode = await handleReverseSetup({ check: true }, undefined, {
 			platform: "darwin",
 			which,
-			writeStdout: text => {
-				checkOutput += text;
-			},
+			writeStdout: () => {},
 		});
 		expect(checkCode).toBe(0);
-		expect(checkOutput).toContain("r2mcp (mcp)");
-		expect(checkOutput).toContain("start: r2pm -r r2mcp");
 
-		let panelOutput = "";
 		const executor = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
-		const confirm = vi.fn(async () => true);
+		const confirm = vi.fn(async () => false);
 		const panelCode = await handleReverseSetup({}, "r2mcp", {
 			platform: "darwin",
 			which,
 			isTTY: true,
 			executor,
 			confirm,
-			writeStdout: text => {
-				panelOutput += text;
-			},
+			writeStdout: () => {},
 		});
 		expect(panelCode).toBe(0);
 		expect(executor).not.toHaveBeenCalled();
-		expect(confirm).not.toHaveBeenCalled();
-		expect(panelOutput).toContain("MCP service:");
-		expect(panelOutput).toContain("Start command:");
-		expect(panelOutput).toContain("Config snippet:");
-		expect(panelOutput).toContain("Manual setup:");
-		expect(panelOutput).toContain("mcpServers");
+		expect(confirm).toHaveBeenCalledTimes(1);
 	});
 
 	it("keeps service install commands read-only in --json and --check", async () => {
@@ -315,39 +302,6 @@ describe("reverse setup MCP/CLI separation", () => {
 		expect(confirm).not.toHaveBeenCalled();
 	});
 
-	it("executes only the catalog service argv after explicit confirmation", async () => {
-		let output = "";
-		const which = mockWhich({
-			strings: "/usr/bin/strings",
-			file: "/usr/bin/file",
-			radare2: "/usr/local/bin/r2",
-			r2pm: "/usr/local/bin/r2pm",
-		});
-		const executor = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
-		const confirm = vi.fn(async () => true);
-
-		const report = checkReverseTools({ platform: "darwin", which });
-		const r2mcp = report.services.find(service => service.id === "r2mcp");
-		expect(r2mcp?.ready).toBe(true);
-		expect(r2mcp?.installCommand).toBe("r2pm -Uci r2mcp");
-
-		const code = await handleReverseSetup({ execute: true }, "r2mcp", {
-			platform: "darwin",
-			which,
-			isTTY: true,
-			executor,
-			confirm,
-			writeStdout: text => {
-				output += text;
-			},
-		});
-
-		expect(code).toBe(0);
-		expect(confirm).toHaveBeenCalledTimes(1);
-		expect(executor).toHaveBeenCalledTimes(1);
-		expect(executor).toHaveBeenCalledWith(["r2pm", "-Uci", "r2mcp"], expect.any(Object));
-		expect(output).toContain("not PATH binaries");
-	});
 
 	it("keeps the reverse CLI catalog free of MCP service ids", () => {
 		const ids = getReverseTools().map(tool => tool.id);

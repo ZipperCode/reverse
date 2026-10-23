@@ -8,6 +8,8 @@ import {
 import { isEvalTimeoutControlEvent, withBridgeTimeoutPause } from "../bridge-timeout";
 import { DisplayOutputCollector } from "../executor-base";
 import { executeInVmContext, type JsDisplayOutput } from "./context-manager";
+import { createKernelResetStatusEvent, formatKernelLossNotice } from "../kernel-reset";
+import { pendingJsRecreationNotices, sessionGenerations } from "./context-manager";
 import { installJsPackages } from "./package-installer";
 import type { JsPackageEnvironmentMode } from "./package-installer";
 import type { JsStatusEvent } from "./shared/types";
@@ -209,12 +211,33 @@ export async function executeJs(code: string, options: JsExecutorOptions): Promi
 				? Boolean(timeoutSignal?.aborted) || isTimeoutReason(options.signal?.reason)
 				: isTimeoutReason(packageSignal?.reason);
 			if (timedOut) {
-				const annotation = runtimeEntered
-					? formatJsTimeoutAnnotation(runtimeTimeoutMs ?? options.idleTimeoutMs)
-					: packageWorkComplete
+				if (runtimeEntered) {
+					const genLost = Math.max(1, (sessionGenerations.get(options.sessionId) ?? 2) - 1);
+					const lossNotice = formatKernelLossNotice({
+						language: "js",
+						generation: genLost,
+						nextGeneration: genLost + 1,
+						kernelKilled: true,
+						reason: "timeout",
+					});
+					const lossEvent = createKernelResetStatusEvent({
+						type: "loss",
+						language: "js",
+						generation: genLost,
+						nextGeneration: genLost + 1,
+						kernelKilled: true,
+						reason: "timeout",
+					});
+					display.push({ type: "status", event: lossEvent });
+					options.onStatus?.(lossEvent);
+					const annotation = `${formatJsTimeoutAnnotation(runtimeTimeoutMs ?? options.idleTimeoutMs)}\n${lossNotice}`;
+					outputSink.push(`${annotation}\n`);
+				} else {
+					const annotation = packageWorkComplete
 						? "Command timed out before JavaScript execution began. Any existing retained JS worker remains available."
 						: formatPackageInstallTimeoutAnnotation(packageTimeoutSignal?.aborted === true);
-				outputSink.push(annotation);
+					outputSink.push(`${annotation}\n`);
+				}
 			}
 			const summary = await outputSink.dump();
 			return {
@@ -233,7 +256,29 @@ export async function executeJs(code: string, options: JsExecutorOptions): Promi
 			};
 		}
 		const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
-		outputSink.push(message);
+		if (pendingJsRecreationNotices.has(options.sessionId)) {
+			const recreation = pendingJsRecreationNotices.get(options.sessionId)!;
+			const lossNotice = formatKernelLossNotice({
+				language: "js",
+				generation: recreation.previousGeneration,
+				nextGeneration: recreation.currentGeneration,
+				kernelKilled: true,
+				reason: "worker_error",
+			});
+			const lossEvent = createKernelResetStatusEvent({
+				type: "loss",
+				language: "js",
+				generation: recreation.previousGeneration,
+				nextGeneration: recreation.currentGeneration,
+				kernelKilled: true,
+				reason: "worker_error",
+			});
+			display.push({ type: "status", event: lossEvent });
+			options.onStatus?.(lossEvent);
+			outputSink.push(`${message}\n${lossNotice}`);
+		} else {
+			outputSink.push(message);
+		}
 		const summary = await outputSink.dump();
 		return {
 			output: summary.output,

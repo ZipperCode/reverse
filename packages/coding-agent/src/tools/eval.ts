@@ -1074,7 +1074,12 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 						statusEventsElided: callStatus.statusEventsElided,
 						isError: true,
 					};
-					if (notice) details.notice = notice;
+					const resetEvent = callStatus.statusEvents?.find(e => e.op === "kernel_reset");
+					if (resetEvent && typeof resetEvent.message === "string") {
+						details.notice = notice ? `${notice} ${resetEvent.message}` : resetEvent.message;
+					} else if (notice) {
+						details.notice = notice;
+					}
 
 					return toolResult(details)
 						.content([{ type: "text", text: outputText }, ...images])
@@ -1108,7 +1113,12 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 				statusEvents: callStatus.statusEvents,
 				statusEventsElided: callStatus.statusEventsElided,
 			};
-			if (notice) details.notice = notice;
+			const resetEvent = callStatus.statusEvents?.find(e => e.op === "kernel_reset");
+			if (resetEvent && typeof resetEvent.message === "string") {
+				details.notice = notice ? `${notice} ${resetEvent.message}` : resetEvent.message;
+			} else if (notice) {
+				details.notice = notice;
+			}
 
 			return toolResult(details)
 				.content([{ type: "text", text: outputText }, ...images])

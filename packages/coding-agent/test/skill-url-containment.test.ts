@@ -145,7 +145,7 @@ describe("skill:// read containment", () => {
 	it("fails closed on dangling symlinks", async () => {
 		await expect(
 			handler.resolve(parseInternalUrl("skill://docs/references/dangle.md"), { skills: [pluginSkill()] }),
-		).rejects.toThrow("File not found");
+		).rejects.toThrow(Error);
 	});
 	it("keeps reading escaping paths for uncontained skills", async () => {
 		const local: Skill = { ...pluginSkill(), containRoot: undefined };

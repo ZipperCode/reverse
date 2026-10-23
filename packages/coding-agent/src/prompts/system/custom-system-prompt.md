@@ -4,7 +4,7 @@
 {{customPrompt}}
 {{#if skills.length}}
 Skills are specialized knowledge. Scan descriptions for your task domain.
-If a skill applies, you MUST read `skill://<name>` before proceeding.
+If a skill applies, you MUST read `skill://<name>` before proceeding. Count loaded only after its body is returned; on read failure, record the error and use verified fallbacks.
 <skills>
 {{#list skills join="\n"}}
 <skill name="{{name}}">

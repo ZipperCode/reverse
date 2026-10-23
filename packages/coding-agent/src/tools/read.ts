@@ -45,7 +45,9 @@ import {
 	type SchemeSpec,
 	sessionResolveContext,
 	skillInstructionRequirementNotice,
+	skillInstructionName,
 } from "../internal-urls";
+import { recordSkillLoad } from "../extensibility/capability-state";
 import { isMarkdownPath } from "@reverse/tui/lang-from-path";
 import readDescription from "../prompts/tools/read.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
@@ -1739,20 +1741,53 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		if (delimitedInternalResult) return delimitedInternalResult;
 
 		let located: LocatedRead | undefined;
+		const sessionKey = this.session.sessionManager ?? this.session;
 		const normalizedPath = internalRouter.normalize(readPath);
+		const isSkillUri = extractUriScheme(normalizedPath) === "skill";
+		const peeled = internalRouter.split(normalizedPath);
+		const parsed = parseSel(peeled.sel);
+		if (peeled.sel !== undefined && parsed.kind === "none") {
+			throw new ToolError(
+				`Invalid selector ':${peeled.sel}' on '${peeled.path}'. Use :N, :N-M, :N+K, :N- (open-ended), :-N (last N lines), a comma-separated list of ranges, :raw, :img for SVG rendering, or a range combined with raw (e.g. :raw:50-100).`,
+			);
+		}
+		const skillName = isSkillUri
+			? skillInstructionName(parseInternalUrl(peeled.path), this.session.skills)
+			: undefined;
 		if (internalRouter.canResolve(normalizedPath)) {
-			// Reject a malformed peeled selector before any handler resolves the URL.
-			const peeled = internalRouter.split(normalizedPath);
-			const parsed = parseSel(peeled.sel);
-			if (peeled.sel !== undefined && parsed.kind === "none") {
-				throw new ToolError(
-					`Invalid selector ':${peeled.sel}' on '${peeled.path}'. Use :N, :N-M, :N+K, :N- (open-ended), :-N (last N lines), a comma-separated list of ranges, :raw, :img for SVG rendering, or a range combined with raw (e.g. :raw:50-100).`,
-				);
+			let target;
+			try {
+				target = await internalRouter.target(normalizedPath, sessionResolveContext(this.session, { signal }));
+			} catch (err) {
+				if (skillName) {
+					recordSkillLoad(
+						skillName,
+						{ loaded: false, error: err instanceof Error ? err.message : String(err) },
+						sessionKey,
+					);
+				}
+				throw err;
 			}
-			const target = await internalRouter.target(normalizedPath, sessionResolveContext(this.session, { signal }));
 			if (target) {
 				const url = target.url.rawHref ?? target.url.href;
-				if (target.kind === "resource") return this.#handleInternalUrl(url, target.spec, parsed, question, signal);
+				if (target.kind === "resource") {
+					try {
+						const res = await this.#handleInternalUrl(url, target.spec, parsed, question, signal);
+						if (skillName) {
+							recordSkillLoad(skillName, { loaded: true }, sessionKey);
+						}
+						return res;
+					} catch (err) {
+						if (skillName) {
+							recordSkillLoad(
+								skillName,
+								{ loaded: false, error: err instanceof Error ? err.message : String(err) },
+								sessionKey,
+							);
+						}
+						throw err;
+					}
+				}
 				located = { url, path: target.path, sel: target.sel, spec: target.spec };
 			}
 		}
@@ -1768,34 +1803,51 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		}
 		// A located URL reads its backing file through the filesystem pipeline (images, `:img`,
 		// `?q=`, archives, sqlite, streaming, paging) while the URL stays the read's identity.
-		const result = await this.#readFilesystemPath(located.path, {
-			located,
-			question,
-			questionPath: readPath,
-			signal,
-			toolContext,
-		});
+		let result: AgentToolResult<ReadToolDetails>;
+		try {
+			result = await this.#readFilesystemPath(located.path, {
+				located,
+				question,
+				questionPath: readPath,
+				signal,
+				toolContext,
+			});
+		} catch (err) {
+			if (skillName) {
+				recordSkillLoad(
+					skillName,
+					{ loaded: false, error: err instanceof Error ? err.message : String(err) },
+					sessionKey,
+				);
+			}
+			throw err;
+		}
 		const details: ReadToolDetails = result.details ?? {};
 		details.resolvedPath ??= located.path;
 		// Protocol reads render Markdown regardless of `read.renderMarkdown`, as their resources always did.
 		if (!details.contentType && isMarkdownPath(located.path)) details.contentType = "text/markdown";
 		details.meta = { ...details.meta, source: { type: "internal", value: located.url } };
 		// Nested skill reads need their own provenance: the outer invocation may belong to another plugin.
-		if (extractUriScheme(located.url) === "skill" && !isRawSelector(parseSel(located.sel))) {
-			// Located file-backed reads bypass `SkillProtocolHandler.resolve`, so the
-			// missing-dependency notice is injected here for instruction reads only.
-			const requirementNotice = skillInstructionRequirementNotice(
-				parseInternalUrl(located.url),
-				this.session.skills,
-			);
-			const provenance =
-				requirementNotice === undefined
-					? `[Skill file: ${located.path}]`
-					: `${requirementNotice}\n[Skill file: ${located.path}]`;
-			const firstText = result.content.find((block): block is TextContent => block.type === "text");
-			// The TUI falls back to this block when no structured display content exists.
-			if (firstText) firstText.text = `${provenance}\n${firstText.text}`;
-			else result.content.unshift({ type: "text", text: provenance });
+		if (extractUriScheme(located.url) === "skill") {
+			if (skillName && parsed.kind !== "conflicts" && !result.isError) {
+				recordSkillLoad(skillName, { loaded: true }, sessionKey);
+			}
+			if (!isRawSelector(parseSel(located.sel))) {
+				// Located file-backed reads bypass `SkillProtocolHandler.resolve`, so the
+				// missing-dependency notice is injected here for instruction reads only.
+				const requirementNotice = skillInstructionRequirementNotice(
+					parseInternalUrl(located.url),
+					this.session.skills,
+				);
+				const provenance =
+					requirementNotice === undefined
+						? `[Skill file: ${located.path}]`
+						: `${requirementNotice}\n[Skill file: ${located.path}]`;
+				const firstText = result.content.find((block): block is TextContent => block.type === "text");
+				// The TUI falls back to this block when no structured display content exists.
+				if (firstText) firstText.text = `${provenance}\n${firstText.text}`;
+				else result.content.unshift({ type: "text", text: provenance });
+			}
 		}
 		return { ...result, details };
 	}
@@ -1925,7 +1977,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		let fileSize = 0;
 		let specialKind: string | undefined;
 		try {
-			const stat = await Bun.file(absolutePath).stat();
+			const stat = (await Bun.file(absolutePath).stat()) ?? (await fs.stat(absolutePath));
 			fileSize = stat.size;
 			isDirectory = stat.isDirectory();
 			specialKind = specialFileKind(stat);
@@ -1949,12 +2001,16 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					const suffixMatch = await findSuffixMatchCached(this.session, suffixCache, localReadPath, signal);
 					if (suffixMatch) {
 						try {
-							const retryStat = await Bun.file(suffixMatch.absolutePath).stat();
-							absolutePath = suffixMatch.absolutePath;
-							fileSize = retryStat.size;
-							isDirectory = retryStat.isDirectory();
-							specialKind = specialFileKind(retryStat);
-							suffixResolution = { from: localReadPath, to: suffixMatch.displayPath };
+							const retryStat =
+								(await Bun.file(suffixMatch.absolutePath).stat()) ??
+								(await fs.stat(suffixMatch.absolutePath));
+							if (retryStat) {
+								absolutePath = suffixMatch.absolutePath;
+								fileSize = retryStat.size;
+								isDirectory = retryStat.isDirectory();
+								specialKind = specialFileKind(retryStat);
+								suffixResolution = { from: localReadPath, to: suffixMatch.displayPath };
+							}
 						} catch {
 							// Suffix match candidate no longer stats — continue through
 							// approved-plan recovery and the original not-found error.
@@ -1967,12 +2023,16 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					const approvedPlanPath = await this.#approvedPlanAlias(absolutePath, signal);
 					if (approvedPlanPath) {
 						try {
-							const approvedPlanStat = await Bun.file(approvedPlanPath).stat();
-							absolutePath = approvedPlanPath;
-							fileSize = approvedPlanStat.size;
-							isDirectory = approvedPlanStat.isDirectory();
-							specialKind = specialFileKind(approvedPlanStat);
-							recoveredApprovedPlan = true;
+							const approvedPlanStat =
+								(await Bun.file(approvedPlanPath).stat()) ??
+								(await fs.stat(approvedPlanPath));
+							if (approvedPlanStat) {
+								absolutePath = approvedPlanPath;
+								fileSize = approvedPlanStat.size;
+								isDirectory = approvedPlanStat.isDirectory();
+								specialKind = specialFileKind(approvedPlanStat);
+								recoveredApprovedPlan = true;
+							}
 						} catch {
 							// The referenced plan disappeared after resolution; continue through
 							// the ordinary delimited-path fallback and not-found error.

@@ -1,5 +1,6 @@
 import * as path from "node:path";
 
+import { formatKernelLossNotice } from "./kernel-reset";
 import { logger } from "@reverse/utils";
 import {
 	attachSessionOwner,
@@ -78,6 +79,7 @@ interface KernelSessionRegistryDescriptor<
 		context: KernelSessionRegistryContext<TKernel, TOptions, TSession>,
 	) => Promise<TKernel>;
 	invalidateSession?: (session: TSession) => void;
+	onSessionDisposed?: (session: TSession) => void;
 	shutdownSession?: (session: TSession, resetting: boolean) => Promise<RegistryKernelShutdownResult>;
 	clearResetsOnDisposeAll?: boolean;
 	logBeforeReplacement?: boolean;
@@ -121,10 +123,23 @@ export function formatSessionTimeoutAnnotation(timeoutMs?: number): string {
 	return `Command timed out after ${secs} seconds`;
 }
 
-export function formatSessionKernelTimeoutAnnotation(timeoutMs: number | undefined, kernelKilled: boolean): string {
+export function formatSessionKernelTimeoutAnnotation(
+	timeoutMs: number | undefined,
+	kernelKilled: boolean,
+	generation?: number,
+	language: "python" | "js" = "python",
+): string {
 	const secs = timeoutMs === undefined ? undefined : Math.max(1, Math.round(timeoutMs / 1000));
 	if (kernelKilled) {
-		return "eval cell timed out and the kernel was unresponsive to interrupt; the kernel has been killed and will be recreated on the next call.";
+		const gen = generation ?? 1;
+		const notice = formatKernelLossNotice({
+			language,
+			generation: gen,
+			nextGeneration: gen + 1,
+			kernelKilled: true,
+			reason: "timeout",
+		});
+		return `eval cell timed out and the kernel was unresponsive to interrupt; the kernel has been killed and will be recreated on the next call.\n${notice}`;
 	}
 	const duration = secs === undefined ? "the configured timeout" : `${secs}s`;
 	return `eval cell timed out after ${duration}; kernel interrupted but remains running. Reset the kernel via { reset: true } if state appears corrupted.`;
@@ -326,6 +341,7 @@ export function createKernelSessionRegistry<
 		if (descriptor.clearResetsOnDisposeAll) resettingSessions.clear();
 		const all = [...sessions.entries()];
 		for (const [id, session] of all) {
+			descriptor.onSessionDisposed?.(session);
 			descriptor.invalidateSession?.(session);
 			if (sessions.get(id) === session) sessions.delete(id);
 		}
@@ -377,6 +393,7 @@ export function createKernelSessionRegistry<
 			starting.ownerIds.delete(ownerId);
 		}
 		for (const session of toShutdown) {
+			descriptor.onSessionDisposed?.(session);
 			descriptor.invalidateSession?.(session);
 			if (sessions.get(session.sessionKey) === session) sessions.delete(session.sessionKey);
 		}
@@ -385,6 +402,7 @@ export function createKernelSessionRegistry<
 		for (const result of started) {
 			if (result.status !== "fulfilled") continue;
 			const session = result.value;
+			descriptor.onSessionDisposed?.(session);
 			descriptor.invalidateSession?.(session);
 			if (sessions.get(session.sessionKey) === session) sessions.delete(session.sessionKey);
 			toShutdown.push(session);

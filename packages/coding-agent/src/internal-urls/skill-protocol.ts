@@ -12,12 +12,13 @@
 import type * as fsTypes from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger, withTimeout } from "@reverse/utils";
+import { isEnoent, isEnotdir, logger, withTimeout } from "@reverse/utils";
 import { resolveContainedPath } from "../discovery/contained-path";
 import { getActiveSkills, type Skill } from "../extensibility/skills";
 import { checkToolRequirements, missingRequirementNotice } from "../extensibility/skill-requirements";
 import { MCPManager } from "../mcp/manager";
 import skillDoc from "../prompts/internal-urls/skill.md" with { type: "text" };
+import { resolveBuiltinSkillTarget } from "../discovery/builtin-skills";
 import {
 	buildDirectoryResource,
 	contentTypeForPath,
@@ -39,6 +40,14 @@ import type {
 
 /** No loaded skill owns the URL's name; the only miss an MCP server may fill. */
 class UnknownSkillError extends Error {}
+
+export class MissingSkillResourceError extends Error {
+	readonly code = "ENOENT";
+}
+
+export class StaleSkillMetadataError extends Error {
+	readonly code = "ENOENT";
+}
 
 /**
  * Most an unknown `skill://` name waits for MCP (deferred startup included) to advertise it: long
@@ -105,17 +114,24 @@ async function skillTargetPath(
 	const relativeUrlPath = urlPath ? decodeURIComponent(urlPath).replace(/^\/+/, "") : "";
 	const instruction = !directory && (!urlPath || urlPath === "/" || relativeUrlPath === "SKILL.md");
 	let resolvedPath: string;
-	if (instruction) {
-		resolvedPath = path.resolve(skill.filePath);
-	} else if (!urlPath || urlPath === "/") {
+	if (directory && (!urlPath || urlPath === "/")) {
 		resolvedPath = path.resolve(skill.baseDir);
 	} else {
-		const relativePath = decodeURIComponent(urlPath.slice(1));
-		validateRelativePath(relativePath, "skill");
-		resolvedPath = path.resolve(skill.baseDir, relativePath);
-		const resolvedBaseDir = path.resolve(skill.baseDir);
-		if (!resolvedPath.startsWith(resolvedBaseDir + path.sep) && resolvedPath !== resolvedBaseDir) {
-			throw new Error("Path traversal is not allowed");
+		const logical = resolveBuiltinSkillTarget(skill, instruction ? "SKILL.md" : relativeUrlPath);
+		if (logical) {
+			resolvedPath = path.resolve(logical);
+		} else if (instruction) {
+			resolvedPath = path.resolve(skill.filePath);
+		} else if (!urlPath || urlPath === "/") {
+			resolvedPath = path.resolve(skill.baseDir);
+		} else {
+			const relativePath = decodeURIComponent(urlPath.slice(1));
+			validateRelativePath(relativePath, "skill");
+			resolvedPath = path.resolve(skill.baseDir, relativePath);
+			const resolvedBaseDir = path.resolve(skill.baseDir);
+			if (!resolvedPath.startsWith(resolvedBaseDir + path.sep) && resolvedPath !== resolvedBaseDir) {
+				throw new Error("Path traversal is not allowed");
+			}
 		}
 	}
 	// Agent Plugin skills (§4.1): every target, including the bare instruction
@@ -150,6 +166,22 @@ export function skillInstructionRequirementNotice(url: InternalUrl, skills?: rea
 	const relativeUrlPath = urlPath ? decodeURIComponent(urlPath).replace(/^\/+/, "") : "";
 	if (urlPath && urlPath !== "/" && relativeUrlPath !== "SKILL.md") return undefined;
 	return missingRequirementNotice(checkToolRequirements(matched.skill.requirements ?? []));
+}
+
+/**
+ * Returns canonical skill name if the URL addresses a skill instruction body,
+ * or undefined if it addresses a subpath or directory within the skill.
+ */
+export function skillInstructionName(url: InternalUrl, skills?: readonly Skill[]): string | undefined {
+	const matched = skillForUrl(url, skills ?? getActiveSkills());
+	if (!matched) {
+		const rawName = url.rawHost || url.hostname;
+		return rawName || undefined;
+	}
+	const urlPath = matched.urlPath;
+	const relativeUrlPath = urlPath ? decodeURIComponent(urlPath).replace(/^\/+/, "") : "";
+	if (urlPath && urlPath !== "/" && relativeUrlPath !== "SKILL.md") return undefined;
+	return matched.skill.name;
 }
 
 /**
@@ -208,40 +240,51 @@ export class SkillProtocolHandler implements ProtocolHandler {
 			return { ...resource, unbounded: false };
 		}
 
-		let stats: fsTypes.Stats;
+		let stats: fsTypes.Stats | undefined;
 		try {
 			stats = await fs.stat(target.path);
 		} catch (error) {
-			if (isEnoent(error)) {
-				throw new Error(`File not found: ${target.path}`);
+			if (!isEnoent(error) && !isEnotdir(error)) throw error;
+		}
+
+		if (stats) {
+			if (stats.isDirectory()) {
+				return buildDirectoryResource(url.href, target.path);
 			}
-			throw error;
+			if (!stats.isFile()) {
+				throw new Error(`skill:// URL must resolve to a file or directory: ${url.href}`);
+			}
+			const rawContent = await Bun.file(target.path).text();
+			const notice = target.instruction
+				? missingRequirementNotice(checkToolRequirements(target.skill.requirements ?? []))
+				: undefined;
+			const content = notice === undefined ? rawContent : `${notice}\n\n${rawContent}`;
+			return {
+				url: url.href,
+				content,
+				contentType: contentTypeForPath(target.path),
+				size: Buffer.byteLength(content, "utf-8"),
+				sourcePath: target.path,
+				notes: [],
+			};
 		}
 
-		if (stats.isDirectory()) {
-			return buildDirectoryResource(url.href, target.path);
-		}
-		if (!stats.isFile()) {
-			throw new Error(`skill:// URL must resolve to a file or directory: ${url.href}`);
+		// Actionable named diagnostics for stale metadata vs missing resource:
+		if (target.instruction) {
+			const provider = target.skill._source?.provider ?? target.skill.source;
+			throw new StaleSkillMetadataError(
+				`Stale skill metadata: skill "${target.skill.name}" is registered from provider "${provider}" but its instruction file is missing: ${target.path}\n` +
+					`Remediation: Ensure the skill files are installed at the target path, or refresh skill discovery to remove stale entries.`,
+			);
 		}
 
-		// Requirement checks are advisory and only apply to the instruction file:
-		// subpath reads (scripts/, references/) keep their untouched content.
-		const rawContent = await Bun.file(target.path).text();
-		const notice = target.instruction
-			? missingRequirementNotice(checkToolRequirements(target.skill.requirements ?? []))
-			: undefined;
-		const content = notice === undefined ? rawContent : `${notice}\n\n${rawContent}`;
-		return {
-			url: url.href,
-			content,
-			contentType: contentTypeForPath(target.path),
-			size: Buffer.byteLength(content, "utf-8"),
-			sourcePath: target.path,
-			notes: [],
-		};
+		throw new MissingSkillResourceError(
+			`Skill resource missing: ${url.href}\n` +
+				`Skill: ${target.skill.name}\n` +
+				`Resolved target: ${target.path}\n` +
+				`Remediation: Verify that the referenced file exists in "${target.skill.baseDir}", or update references in ${target.skill.name}/SKILL.md.`,
+		);
 	}
-
 	/**
 	 * Skill file or directory; `options.directory` maps a bare `skill://<name>` to the skill base dir.
 	 * Null for a missing entry (or dangling symlink) without `create`, plugin skill or not, and for a
@@ -263,7 +306,7 @@ export class SkillProtocolHandler implements ProtocolHandler {
 			await fs.stat(targetPath);
 			return targetPath;
 		} catch (error) {
-			if (isEnoent(error)) return null;
+			if (isEnoent(error) || isEnotdir(error)) return null;
 			throw error;
 		}
 	}

@@ -15,7 +15,7 @@ import type { SkillFrontmatter } from "../capability/skill";
 import { expandEnvVarsDeep } from "../discovery/helpers";
 import { expandTilde } from "../tools/path-utils";
 import { SKILL_TOOL_CATALOG, type SkillToolDescriptor, type SkillToolPlatform } from "./skill-tool-catalog";
-
+import type { Settings } from "../config/settings";
 /** Most ids read from one skill; keeps untrusted frontmatter from growing context. */
 const MAX_REQUIREMENTS = 32;
 const REQUIREMENT_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
@@ -35,6 +35,7 @@ export interface RequirementCheckDeps {
 	platform?: NodeJS.Platform;
 	/** Defaults to the ambient environment (PATH and catalog `${VAR}` expansion). */
 	env?: Record<string, string | undefined>;
+	settings?: Settings;
 }
 
 export interface RequirementStatus {
@@ -231,7 +232,7 @@ export function checkToolRequirements(
 		const searchPath = searchPathFor(descriptor, platform, env);
 		if (searchPath !== undefined) options.PATH = searchPath;
 
-		let foundPath = descriptor.probe?.() ?? null;
+		let foundPath = descriptor.probe?.({ env, platform, which, settings: deps.settings }) ?? null;
 		if (foundPath === null) {
 			for (const binary of descriptor.binaries) {
 				const candidate = which(binary, options);

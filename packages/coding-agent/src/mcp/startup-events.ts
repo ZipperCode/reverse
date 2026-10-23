@@ -13,6 +13,11 @@ export type McpConnectionFailure = {
 	serverName: string;
 	error: string;
 	sourcePath?: string;
+	phase?: string;
+	exitCode?: number;
+	signal?: string;
+	stderr?: string;
+	command?: string;
 };
 
 export type McpConnectionStatusEvent =
@@ -113,7 +118,12 @@ export function isMcpConnectionStatusEvent(data: unknown): data is McpConnection
 			return (
 				typeof data.serverName === "string" &&
 				typeof data.error === "string" &&
-				(data.sourcePath === undefined || typeof data.sourcePath === "string")
+				(data.sourcePath === undefined || typeof data.sourcePath === "string") &&
+				(data.phase === undefined || typeof data.phase === "string") &&
+				(data.exitCode === undefined || typeof data.exitCode === "number") &&
+				(data.signal === undefined || typeof data.signal === "string") &&
+				(data.stderr === undefined || typeof data.stderr === "string") &&
+				(data.command === undefined || typeof data.command === "string")
 			);
 		default:
 			return false;

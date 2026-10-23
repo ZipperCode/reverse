@@ -16,6 +16,7 @@ export type EvalStateLanguage = "python" | "js";
 export interface EvalStateUpdate {
 	language: EvalStateLanguage;
 	kernelId?: string;
+	generation?: number;
 	alive: boolean;
 	environment?: string;
 	interpreter?: string;
@@ -187,6 +188,7 @@ export function updateEvalState(session: ToolSession, update: EvalStateUpdate): 
 		}
 		if (!runtime) return;
 		runtime.alive = false;
+		if (update.generation !== undefined) runtime.generation = update.generation;
 		runtime.environment = environment ?? runtime.environment;
 		runtime.interpreter = interpreter ?? runtime.interpreter;
 		runtime.updatedAt = Date.now();
@@ -220,7 +222,7 @@ export function updateEvalState(session: ToolSession, update: EvalStateUpdate): 
 		runtime = {
 			language: update.language,
 			kernelId,
-			generation: predecessor ? predecessor[1].generation + 1 : 1,
+			generation: update.generation ?? (predecessor ? predecessor[1].generation + 1 : 1),
 			alive: true,
 			environment,
 			interpreter,
@@ -239,6 +241,7 @@ export function updateEvalState(session: ToolSession, update: EvalStateUpdate): 
 	} else {
 		runtime.ownerIds.add(ownerId);
 		runtime.alive = true;
+		if (update.generation !== undefined) runtime.generation = update.generation;
 		runtime.environment = environment ?? runtime.environment;
 		runtime.interpreter = interpreter ?? runtime.interpreter;
 		runtime.cwd = cwd;

@@ -29,6 +29,10 @@ interface MCPTransportErrorOptions {
 	data?: string;
 	traceId?: string;
 	cause?: unknown;
+	phase?: string;
+	signal?: string;
+	stderr?: string;
+	command?: string;
 }
 
 const MAX_MESSAGE_CHARS = 1_000;
@@ -61,6 +65,14 @@ export class MCPTransportError extends Error {
 	readonly data: string | undefined;
 	/** Safe server trace or request identifier. */
 	readonly traceId: string | undefined;
+	/** Protocol or lifecycle phase reached before failure (e.g. "spawn", "initialize", "tools/list"). */
+	readonly phase: string | undefined;
+	/** Subprocess termination signal when available (e.g. "SIGSEGV", "SIGKILL"). */
+	readonly signal: string | undefined;
+	/** Bounded subprocess stderr output captured before or during failure. */
+	readonly stderr: string | undefined;
+	/** Subprocess command that failed. */
+	readonly command: string | undefined;
 
 	constructor(options: MCPTransportErrorOptions) {
 		super(
@@ -75,6 +87,10 @@ export class MCPTransportError extends Error {
 		this.code = options.code;
 		this.data = options.data;
 		this.traceId = options.traceId;
+		this.phase = options.phase;
+		this.signal = options.signal;
+		this.stderr = options.stderr ? sanitizeDiagnosticTail(options.stderr, MAX_DATA_CHARS) : undefined;
+		this.command = options.command ? sanitizeCommandString(options.command) : undefined;
 	}
 }
 
@@ -88,17 +104,147 @@ function sanitizeDiagnosticText(value: string, maxChars: number): string {
 	return (
 		value
 			.replace(FETCH_VERBOSE_ADVICE, "")
+			// Redact URL userinfo credentials across any URI scheme (e.g. postgresql://user:secret@host)
+			.replace(/([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)[^:\s/]+:[^@\s/]+@/gi, "$1[redacted]:[redacted]@")
+			// Redact quoted JSON sensitive keys first while JSON quote/escape boundaries are intact
+			.replace(
+				/("([A-Za-z0-9_-]*(?:authorization|bearer|cookie|signature|access[-_]?token|api[-_]?key|key|token|secret|password|pwd|credential|private[-_]?key|client[-_]?secret|signing[-_]?secret)[A-Za-z0-9_-]*)"\s*:\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,}]+)/gi,
+				'$1"[redacted]"',
+			)
+			// Redact entire Cookie and Set-Cookie header lines (handling both literal newlines and escaped \n / \r)
+			.replace(/((?:\b(?:cookie|set[-_]?cookie)\b\s*[:=]\s*))(?:\\.[^"'\r\n\\]*|[^"'\r\n\\])+/gi, "$1[redacted]")
+			// Redact entire Authorization and Proxy-Authorization header lines (leaving WWW-Authenticate intact)
+			.replace(/((?:\b(?:authorization|proxy-authorization)\b\s*[:=]\s*))(?:\\.[^"'\r\n\\]*|[^"'\r\n\\])+/gi, "$1[redacted]")
 			// A credential is token68 and never contains `"`; `Bearer name="…"` is a
 			// WWW-Authenticate challenge whose params (resource_metadata, scope, error)
-			// drive OAuth discovery, so leave it intact.
-			.replace(/\b(Bearer|Basic)\s+(?![\w.~+/-]+\s*=\s*")[^\s,;]+/gi, "$1 [redacted]")
+			// drive OAuth discovery, so leave it intact. Exclude quotes so adjacent JSON is not swallowed.
+			.replace(/\b(Bearer|Basic)\s+(?![\w.~+/-]+\s*=\s*")[^\s,;"']+/gi, "$1 [redacted]")
 			.replace(/([?&](?:access[-_]?token|api[-_]?key|key|token|secret|password)=)[^&#\s]+/gi, "$1[redacted]")
 			.replace(
-				/((?:authorization|api[-_]?key|private[-_]?key|access[-_]?key|token|secret|passw(?:or)?d|pwd|credential)\s*[:=]\s*)[^\s,;}]+/gi,
+				/((?:api[-_]?key|private[-_]?key|access[-_]?key|client[-_]?secret|signing[-_]?secret|token|secret|passw(?:or)?d|pwd|credential)\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;}]+)/gi,
+				"$1[redacted]",
+			)
+			.replace(
+				/((?:--?(?:access[-_]?token|api[-_]?key|key|token|secret|password|pwd|client[-_]?secret|access[-_]?key))\s+)[^\s,;}]+/gi,
 				"$1[redacted]",
 			)
 			.slice(0, maxChars)
 			.trim()
+	);
+}
+
+/** Sanitize diagnostic text while preserving the trailing tail of the buffer (critical for stderr logs). */
+export function sanitizeDiagnosticTail(
+	value: string,
+	maxChars: number,
+	extraSecrets: readonly string[] = [],
+): string {
+	let sanitized = sanitizeDiagnosticText(value, Number.MAX_SAFE_INTEGER);
+	for (const secret of extraSecrets) {
+		if (secret && secret.length >= 3) {
+			sanitized = sanitized.replaceAll(secret, "[redacted]");
+		}
+	}
+	if (sanitized.length <= maxChars) return sanitized;
+	let start = sanitized.length - maxChars;
+	const code = sanitized.charCodeAt(start);
+	if (code >= 0xdc00 && code <= 0xdfff) {
+		start++;
+	}
+	return sanitized.slice(start);
+}
+
+/** Extract known sensitive argument values from a command line for targeted redaction. */
+export function extractSecretArgValues(command: string, args: readonly string[] = []): string[] {
+	const secrets: string[] = [];
+	const tokens = [command, ...args];
+	for (let i = 0; i < tokens.length; i++) {
+		const token = tokens[i];
+		if (!token) continue;
+
+		const urlMatch = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^:\s/]+:([^@\s/]+)@/i.exec(token);
+		if (urlMatch && urlMatch[1]) {
+			secrets.push(urlMatch[1]);
+		}
+
+		if (token.startsWith("-")) {
+			const eqIndex = token.indexOf("=");
+			if (eqIndex > 0) {
+				const flag = token.slice(0, eqIndex);
+				const val = token.slice(eqIndex + 1);
+				if (SECRET_KEY.test(flag) && val) {
+					secrets.push(val);
+				}
+				continue;
+			}
+
+			if (SECRET_KEY.test(token)) {
+				if (i + 1 < tokens.length) {
+					const val = tokens[i + 1];
+					if (val) {
+						secrets.push(val);
+					}
+					i++;
+				}
+				continue;
+			}
+		}
+	}
+	return secrets.filter(s => s.length >= 3);
+}
+/** Redact sensitive credentials from CLI argument vectors before recording or logging. */
+export function sanitizeCommandArgv(command: string, args: readonly string[] = []): string {
+	const sanitized: string[] = [];
+	const tokens = [command, ...args];
+	for (let i = 0; i < tokens.length; i++) {
+		const token = tokens[i];
+		if (!token) continue;
+		// When an argument follows an inline script flag (-e, -c, --eval), omit the inline code body
+		if (i > 0 && (/^-(?:e|c|-eval)$/i.test(tokens[i - 1]))) {
+			sanitized.push("[script]");
+			continue;
+		}
+
+		if (token.startsWith("-")) {
+			const eqIndex = token.indexOf("=");
+			if (eqIndex > 0) {
+				const flag = token.slice(0, eqIndex);
+				if (SECRET_KEY.test(flag)) {
+					sanitized.push(`${flag}=[redacted]`);
+					continue;
+				}
+			}
+
+			if (SECRET_KEY.test(token)) {
+				sanitized.push(token);
+				if (i + 1 < tokens.length) {
+					sanitized.push("[redacted]");
+					i++;
+				}
+				continue;
+			}
+		}
+
+		sanitized.push(sanitizeDiagnosticText(token, MAX_MESSAGE_CHARS));
+	}
+	return sanitized.join(" ");
+}
+
+/** Redact command strings that may already be serialized. */
+export function sanitizeCommandString(command: string): string {
+	if (!command) return "";
+	return sanitizeDiagnosticText(
+		command
+			.replace(/(^|\s)(-(?:e|c|-eval))\s+(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s]+)/gi, "$1$2 [script]")
+			.replace(
+				/((?:--?(?:access[-_]?token|api[-_]?key|key|token|secret|password|pwd|client[-_]?secret|access[-_]?key))\s*[=:]\s*)[^\s,;]+/gi,
+				"$1[redacted]",
+			)
+			.replace(
+				/((?:--?(?:access[-_]?token|api[-_]?key|key|token|secret|password|pwd|client[-_]?secret|access[-_]?key))\s+)[^\s,;]+/gi,
+				"$1[redacted]",
+			),
+		MAX_MESSAGE_CHARS,
 	);
 }
 
@@ -191,9 +337,41 @@ export function createMCPJsonRpcError(
 /** Classify an arbitrary transport exception while removing runtime-only advice. */
 export function normalizeMCPTransportError(
 	error: unknown,
-	options: { transport: MCPTransportKind; stage: MCPFailureStage; traceId?: string },
+	options: {
+		transport: MCPTransportKind;
+		stage: MCPFailureStage;
+		traceId?: string;
+		phase?: string;
+		signal?: string;
+		stderr?: string;
+		command?: string;
+	},
 ): MCPTransportError {
-	if (error instanceof MCPTransportError) return error;
+	if (error instanceof MCPTransportError) {
+		if (
+			(options.phase && !error.phase) ||
+			(options.signal && !error.signal) ||
+			(options.stderr && !error.stderr) ||
+			(options.command && !error.command)
+		) {
+			return new MCPTransportError({
+				transport: error.transport,
+				stage: error.stage,
+				failure: error.failure,
+				message: error.message,
+				retryable: error.retryable,
+				code: error.code,
+				data: error.data,
+				traceId: error.traceId,
+				cause: error.cause ?? error,
+				phase: error.phase ?? options.phase,
+				signal: error.signal ?? options.signal,
+				stderr: error.stderr ?? options.stderr,
+				command: error.command ?? options.command,
+			});
+		}
+		return error;
+	}
 	const message = sanitizeDiagnosticText(error instanceof Error ? error.message : String(error), MAX_MESSAGE_CHARS);
 	let code = errorCode(error);
 	const normalizedCode = typeof code === "string" ? code.toUpperCase() : code;
@@ -241,11 +419,32 @@ export function normalizeMCPTransportError(
 		retryable,
 		code,
 		traceId: safeTraceId(options.traceId),
+		phase: options.phase,
+		signal: options.signal,
+		stderr: options.stderr,
+		command: options.command,
 		cause: error,
 	});
 }
 
 function nextStep(error: MCPTransportError): string {
+	if (error.transport === "stdio" && (error.failure === "eof" || error.failure === "connect")) {
+		if (error.phase === "spawn" || error.failure === "connect") {
+			return "Verify that the command executable exists and has execution permissions.";
+		}
+		if (error.stderr) {
+			if (/dll|shared library|cannot open shared object/i.test(error.stderr)) {
+				return "The MCP server is missing required shared libraries/DLLs. Ensure dependencies are in PATH.";
+			}
+			return "Inspect the subprocess stderr above, resolve the server failure, then retry.";
+		}
+		if (error.code !== undefined && error.code !== 0) {
+			return `Subprocess exited with code ${error.code}. Check the server command arguments and environment.`;
+		}
+		if (error.signal) {
+			return `Subprocess was terminated by signal ${error.signal}. Check for crashes or external signals.`;
+		}
+	}
 	switch (error.failure) {
 		case "connect":
 			return "Check that the MCP server is running and reachable, then retry.";
@@ -287,7 +486,11 @@ export function formatMCPToolFailure(error: unknown, serverName: string, toolNam
 		`retryable: ${diagnostic.retryable ? "yes" : "no"}`,
 		`message: ${diagnostic.message}`,
 	];
+	if (diagnostic.phase !== undefined) lines.push(`phase: ${diagnostic.phase}`);
+	if (diagnostic.command !== undefined) lines.push(`command: ${diagnostic.command}`);
 	if (diagnostic.code !== undefined) lines.push(`code: ${String(diagnostic.code)}`);
+	if (diagnostic.signal !== undefined) lines.push(`signal: ${diagnostic.signal}`);
+	if (diagnostic.stderr !== undefined) lines.push(`stderr: ${diagnostic.stderr}`);
 	if (diagnostic.traceId !== undefined) lines.push(`trace_id: ${diagnostic.traceId}`);
 	if (diagnostic.data !== undefined) lines.push(`data: ${diagnostic.data}`);
 	lines.push(`next: ${nextStep(diagnostic)}`);

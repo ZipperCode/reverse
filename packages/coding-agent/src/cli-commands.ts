@@ -237,6 +237,11 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.usageHelp,
 	},
 	{
+		name: "unidbg",
+		load: () => import("./commands/unidbg").then(m => m.default),
+		help: commandHelp.unidbgHelp,
+	},
+	{
 		name: "tiny-models",
 		load: () => import("./commands/tiny-models").then(m => m.default),
 		help: commandHelp.tinyModelsHelp,

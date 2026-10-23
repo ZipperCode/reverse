@@ -4,6 +4,9 @@ import { resolveEffectiveLocale, type SupportedLocale } from "@reverse/utils/i18
 
 let cachedReadOnlySettings: Settings | undefined;
 
+export function getCachedReadOnlySettings(): Settings | undefined {
+	return cachedReadOnlySettings;
+}
 /**
  * Returns effective settings for reading locale without writing or opening storage.
  * If global Settings singleton is initialized, reuses it.

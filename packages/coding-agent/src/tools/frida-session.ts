@@ -154,7 +154,7 @@ export interface FridaSessionRunEntry {
 	scriptSnippet?: string;
 	scriptSource?: "inline" | "file";
 	scriptPath?: string;
-	exitCode?: number;
+	exitCode?: number | null;
 	outputBytes?: number;
 	truncated?: boolean;
 	error?: string;
@@ -191,7 +191,7 @@ export interface FridaSessionDetails {
 	sessions?: FridaSessionRecord[];
 	target?: string;
 	targetMode?: string;
-	exitCode?: number;
+	exitCode?: number | null;
 	stdout?: string;
 	stderr?: string;
 	outputBytes?: number;
@@ -483,7 +483,7 @@ export function parseFridaOutputIntoEvents(
 	startSeq: number,
 	context: {
 		command?: string;
-		exitCode?: number;
+		exitCode?: number | null;
 		durationMs?: number;
 	} = {},
 ): { events: DynamicSessionEvent[]; spawnedPid?: number } {
@@ -1117,7 +1117,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 
 		let initialStdout = "";
 		let initialStderr = "";
-		let initialExitCode = 0;
+		let initialExitCode: number | null = 0;
 		const initialHistory: FridaSessionRunEntry[] = [];
 		let activeChildPid: number | undefined;
 
@@ -2800,7 +2800,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 	): Promise<{
 		stdout: string;
 		stderr: string;
-		exitCode: number;
+		exitCode: number | null;
 		outputBytes: number;
 		truncated: boolean;
 		timedOut: boolean;

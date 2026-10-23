@@ -5,27 +5,98 @@
  * Detection is synchronous because tool gating and prompt rendering are synchronous; it runs
  * once per settings input change (memoized by the registry), never per call.
  */
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $env, logger } from "@reverse/utils";
+import { $env, $which, logger, type WhichOptions } from "@reverse/utils";
 import { combine } from "../config/registry";
+import type { Settings } from "../config/settings";
 import { cfgIdaEnabled, cfgIdaInstallDir } from "./settings";
 
-const IDALIB =
-	process.platform === "darwin" ? "libidalib.dylib" : process.platform === "win32" ? "idalib.dll" : "libidalib.so";
+export interface LocateIdaOptions {
+	env?: Record<string, string | undefined>;
+	platform?: NodeJS.Platform;
+	which?: (cmd: string, options?: WhichOptions) => string | null;
+	requireIdalib?: boolean;
+	settings?: Settings;
+}
+const IDA_BINARIES: Record<string, readonly string[]> = {
+	win32: ["ida.exe", "idat.exe", "ida64.exe", "idat64.exe", "idaq.exe", "idaq64.exe", "idalib.dll"],
+	darwin: ["ida", "ida64", "idat", "idat64", "libidalib.dylib"],
+	linux: ["ida", "ida64", "idat", "idat64", "libidalib.so"],
+};
 
-function hasIdalib(dir: string): boolean {
-	return fs.existsSync(path.join(dir, IDALIB));
+export function hasIdalib(dir: string, platform: NodeJS.Platform = process.platform): boolean {
+	const idalib = platform === "darwin" ? "libidalib.dylib" : platform === "win32" ? "idalib.dll" : "libidalib.so";
+	return fs.existsSync(path.join(dir, idalib));
+}
+
+export function hasIdaBinary(dir: string, platform: NodeJS.Platform = process.platform): boolean {
+	const bins = IDA_BINARIES[platform] ?? IDA_BINARIES.linux;
+	for (const b of bins) {
+		try {
+			const candidate = path.join(dir, b);
+			if (fs.existsSync(candidate) && !fs.statSync(candidate).isDirectory()) {
+				return true;
+			}
+		} catch {}
+	}
+	return false;
+}
+
+let memoizedRegistryDirs: string[] | null = null;
+
+export function readRegistryIdaDirs(): string[] {
+	if (process.platform !== "win32") return [];
+	if (memoizedRegistryDirs !== null) return memoizedRegistryDirs;
+	const dirs: string[] = [];
+	const regQueries = [
+		["query", "HKCU\\Software\\Hex-Rays\\IDA Pro", "/v", "InstallDir"],
+		["query", "HKLM\\Software\\Hex-Rays\\IDA Pro", "/v", "InstallDir"],
+		["query", "HKLM\\Software\\WOW6432Node\\Hex-Rays\\IDA Pro", "/v", "InstallDir"],
+		["query", "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\ida.exe"],
+		["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\ida.exe"],
+		["query", "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\IDA Pro_is1", "/v", "InstallLocation"],
+		["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\IDA Pro_is1", "/v", "InstallLocation"],
+	];
+	for (const args of regQueries) {
+		try {
+			const res = execFileSync("reg.exe", args, {
+				encoding: "utf8",
+				timeout: 1000,
+				stdio: ["ignore", "pipe", "ignore"],
+			});
+			for (const line of res.split(/\r?\n/)) {
+				const match = line.match(/(?:InstallDir|InstallLocation|Path|\(Default\))\s+REG_\w+\s+([^\r\n]+)/i);
+				if (match && match[1]) {
+					let candidate = match[1].trim().replace(/^["']+|["']+$/g, "");
+					if (candidate.toLowerCase().endsWith(".exe") || candidate.toLowerCase().endsWith(".bat")) {
+						candidate = path.dirname(candidate);
+					}
+					if (candidate && !dirs.includes(candidate)) {
+						dirs.push(candidate);
+					}
+				}
+			}
+		} catch {}
+	}
+	memoizedRegistryDirs = dirs;
+	return dirs;
 }
 
 /** `Paths.ida-install-dir` from each `ida-config.json` idalib itself would consult, in order. */
-function configuredInstallDirs(): string[] {
-	const userDirs = ($env.IDAUSR ?? "").split(path.delimiter).filter(Boolean);
+function configuredInstallDirs(
+	env: Record<string, string | undefined> = process.env,
+	platform: NodeJS.Platform = process.platform,
+): string[] {
+	const idausr = env.IDAUSR ?? $env.IDAUSR ?? "";
+	const userDirs = idausr.split(path.delimiter).filter(Boolean);
+	const homedir = env.HOME ?? env.USERPROFILE ?? os.homedir();
 	userDirs.push(
-		process.platform === "win32"
-			? path.join($env.APPDATA ?? path.join(os.homedir(), "AppData", "Roaming"), "Hex-Rays", "IDA Pro")
-			: path.join(os.homedir(), ".idapro"),
+		platform === "win32"
+			? path.join(env.APPDATA ?? path.join(homedir, "AppData", "Roaming"), "Hex-Rays", "IDA Pro")
+			: path.join(homedir, ".idapro"),
 	);
 	const dirs: string[] = [];
 	for (const userDir of userDirs) {
@@ -56,16 +127,40 @@ function childDirs(parent: string, prefix: string, suffix = ""): string[] {
 		.map(name => path.join(parent, name, suffix));
 }
 
-/** Standard install locations per platform. */
-function defaultInstallDirs(): string[] {
-	switch (process.platform) {
+/** Standard install locations per platform across drives. */
+function defaultInstallDirs(
+	platform: NodeJS.Platform = process.platform,
+	env: Record<string, string | undefined> = process.env,
+): string[] {
+	switch (platform) {
 		case "darwin":
 			return [
 				...childDirs("/Applications", "ida", "Contents/MacOS"),
 				...childDirs(path.join(os.homedir(), "Applications"), "ida", "Contents/MacOS"),
 			];
-		case "win32":
-			return childDirs($env.ProgramFiles ?? "C:\\Program Files", "ida");
+		case "win32": {
+			const dirs: string[] = [];
+			const progFiles = [
+				env.ProgramFiles ?? "C:\\Program Files",
+				env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)",
+				env.ProgramW6432,
+				"D:\\Program Files",
+				"D:\\Program Files (x86)",
+				"E:\\Program Files",
+				"E:\\Program Files (x86)",
+			].filter((d): d is string => typeof d === "string" && Boolean(d));
+
+			for (const pf of progFiles) {
+				dirs.push(...childDirs(pf, "ida"));
+			}
+			for (const drive of ["C:\\", "D:\\", "E:\\"]) {
+				dirs.push(...childDirs(drive, "ida"));
+			}
+			if (env.LOCALAPPDATA) {
+				dirs.push(...childDirs(path.join(env.LOCALAPPDATA, "Programs"), "ida"));
+			}
+			return dirs;
+		}
 		default:
 			return [...childDirs(os.homedir(), "ida"), ...childDirs("/opt", "ida")];
 	}
@@ -76,20 +171,114 @@ function defaultInstallDirs(): string[] {
  * An explicit `configured` directory is authoritative: when it lacks idalib, nothing else is tried.
  * Otherwise checks `$IDADIR`, `ida-config.json`, then standard install locations.
  */
-export function locateIdaInstall(configured: string | undefined): string | undefined {
-	if (configured) {
-		if (hasIdalib(configured)) return configured;
-		logger.warn("ida.installDir has no idalib; IDA features stay hidden", { installDir: configured });
+export function locateIdaInstall(
+	configured?: string,
+	options: LocateIdaOptions = {},
+): string | undefined {
+	const targetPlatform = options.platform ?? process.platform;
+	const env = options.env ?? process.env;
+	const requireIdalib = options.requireIdalib ?? false;
+
+	let effectiveConfigured = configured?.trim() || undefined;
+	if (!effectiveConfigured && options.settings) {
+		effectiveConfigured = cfgIdaInstallDir.get(options.settings)?.trim() || undefined;
+	}
+
+	if (effectiveConfigured) {
+		if (hasIdalib(effectiveConfigured, targetPlatform)) {
+			return effectiveConfigured;
+		}
+		if (!requireIdalib && hasIdaBinary(effectiveConfigured, targetPlatform)) {
+			return effectiveConfigured;
+		}
+		logger.warn("ida.installDir has no idalib; IDA features stay hidden", {
+			installDir: effectiveConfigured,
+		});
 		return undefined;
 	}
-	const candidates = [$env.IDADIR, ...configuredInstallDirs(), ...defaultInstallDirs()];
-	return candidates.find((dir): dir is string => !!dir && hasIdalib(dir));
+
+	const whichFn = options.which ?? $which;
+	const pathDirs: string[] = [];
+	const bins = targetPlatform === "win32" ? ["ida.exe", "ida", "ida64.exe", "ida64", "idat.exe", "idat"] : ["ida", "ida64", "idat"];
+	for (const b of bins) {
+		try {
+			const found = whichFn(b);
+			if (found && fs.existsSync(found)) {
+				pathDirs.push(path.dirname(found));
+				if (found.endsWith(".bat") || found.endsWith(".cmd")) {
+					try {
+						const content = fs.readFileSync(found, "utf8");
+						const match = content.match(/"([^"]*ida(?:64|t|t64|q|q64)?\.exe)"/i) || content.match(/([A-Za-z]:\\[^"'\r\n;]*ida(?:64|t|t64|q|q64)?\.exe)/i);
+						if (match && match[1]) {
+							const targetDir = path.dirname(match[1].trim());
+							if (!pathDirs.includes(targetDir)) pathDirs.push(targetDir);
+						}
+					} catch {}
+				}
+				try {
+					const real = fs.realpathSync(found);
+					const realDir = path.dirname(real);
+					if (!pathDirs.includes(realDir)) pathDirs.push(realDir);
+				} catch {}
+			}
+		} catch {}
+	}
+
+	const registryDirs = targetPlatform === "win32" ? readRegistryIdaDirs() : [];
+	const candidates = [
+		options.env?.IDADIR ?? $env.IDADIR,
+		...configuredInstallDirs(env, targetPlatform),
+		...registryDirs,
+		...pathDirs,
+		...defaultInstallDirs(targetPlatform, env),
+	].filter((dir): dir is string => typeof dir === "string" && dir.length > 0 && fs.existsSync(dir));
+
+	const withIdalib = candidates.find(dir => hasIdalib(dir, targetPlatform));
+	if (withIdalib) return withIdalib;
+
+	if (requireIdalib) return undefined;
+
+	return candidates.find(dir => hasIdaBinary(dir, targetPlatform));
+}
+
+/**
+ * Probe IDA tool presence for the skill tool catalog (setup reverse / CLI).
+ * First checks for an idalib-enabled installation via {@link locateIdaInstall}.
+ * If absent, checks whether IDA GUI/CLI executables exist in candidate install paths
+ * or on PATH via launcher scripts (e.g. ida.bat / ida.exe).
+ */
+export function probeIdaTool(options: LocateIdaOptions = {}): string | null {
+	const idalibInstall = locateIdaInstall(undefined, options);
+	if (idalibInstall) return idalibInstall;
+
+	const targetPlatform = options.platform ?? process.platform;
+	const env = options.env ?? process.env;
+
+	if (options.which) {
+		const bins = targetPlatform === "win32" ? ["ida.exe", "ida", "ida64.exe", "ida64", "idat.exe", "idat"] : ["ida", "ida64", "idat"];
+		for (const b of bins) {
+			const found = options.which(b);
+			if (found && fs.existsSync(found)) {
+				return found;
+			}
+		}
+	}
+
+	const registryDirs = targetPlatform === "win32" ? readRegistryIdaDirs() : [];
+	const candidates = [
+		options.env?.IDADIR ?? $env.IDADIR,
+		...configuredInstallDirs(env, targetPlatform),
+		...registryDirs,
+		...defaultInstallDirs(targetPlatform, env),
+	].filter((dir): dir is string => typeof dir === "string" && dir.length > 0 && fs.existsSync(dir));
+
+	return candidates.find(dir => hasIdaBinary(dir, targetPlatform)) ?? null;
 }
 
 /** IDA install directory when `ida.enabled` is on and an install is found; undefined otherwise. */
 export const cfgIdaInstall = combine(
 	{ enabled: cfgIdaEnabled, installDir: cfgIdaInstallDir },
-	({ enabled, installDir }) => (enabled ? locateIdaInstall(installDir?.trim() || undefined) : undefined),
+	({ enabled, installDir }) => (enabled ? locateIdaInstall(installDir?.trim() || undefined, { requireIdalib: true }) : undefined),
 );
 
 /** Whether IDA features (`read` views, the `ida` tool) are exposed. */

@@ -377,6 +377,7 @@ function formatStatusEvent(event: EvalStatusEvent, theme: Theme): string {
 		workpool: "icon.package",
 		log: "icon.package",
 		phase: "icon.package",
+		kernel_reset: "icon.package",
 	};
 
 	const iconKey = opIcons[op] ?? "icon.file";
@@ -469,6 +470,17 @@ function formatStatusEvent(event: EvalStatusEvent, theme: Theme): string {
 			break;
 		case "phase":
 			parts.push(String(data.title ?? ""));
+			break;
+		case "kernel_reset":
+			if (data.generation !== undefined) {
+				parts.push(`generation ${data.generation}`);
+			}
+			if (data.reason) {
+				parts.push(String(data.reason));
+			}
+			if (data.message) {
+				parts.push(String(data.message));
+			}
 			break;
 		default:
 			if (data.detail !== undefined) {

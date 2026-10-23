@@ -13,8 +13,10 @@
  * Automated commands are only ever executed after explicit user selection
  * and interactive confirmation in the setup panel.
  */
-import { locateIdaInstall } from "../ida/install";
-
+import { probeIdaTool } from "../ida/install";
+import { locateUnidbg } from "./unidbg-detect";
+import type { SkillRequirementWhich } from "./skill-requirements";
+import type { Settings } from "../config/settings";
 export type SkillToolPlatform = "darwin" | "linux" | "win32";
 
 export type ToolCategory = "android" | "binary" | "decompiler" | "web" | "network" | "system" | "general";
@@ -86,7 +88,7 @@ export interface SkillToolDescriptor {
 	/** Trusted, display-only install hints per platform. */
 	installHints?: Partial<Record<SkillToolPlatform, readonly string[]>>;
 	/** Custom synchronous detector (used for installs that are not PATH commands). */
-	probe?: () => string | null;
+	probe?: (deps?: { env?: Record<string, string | undefined>; platform?: SkillToolPlatform; which?: SkillRequirementWhich; settings?: Settings }) => string | null;
 	/** Official download page or release repository URL for manual installation. */
 	manualUrl?: string;
 	/** Manual installation instructions per platform when automated install is unavailable. */
@@ -911,18 +913,24 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
-			win32: ["${LOCALAPPDATA}/Programs/wabt/bin", "~/wabt/bin"],
+			win32: [
+				"${LOCALAPPDATA}/Programs/wabt/bin",
+				"${LOCALAPPDATA}/Programs/wabt",
+				"${USERPROFILE}/.reverse/agent/tools/wabt/bin",
+				"~/.reverse/agent/tools/wabt/bin",
+				"~/wabt/bin",
+			],
 		},
 		installHints: {
 			darwin: ["brew install wabt"],
 			linux: ["apt install wabt"],
-			win32: ["choco install wabt"],
+			win32: ["reverse setup reverse wabt", "scoop install wabt", "Download prebuilt release from https://github.com/WebAssembly/wabt/releases"],
 		},
 		manualUrl: "https://github.com/WebAssembly/wabt/releases",
 		manualInstructions: {
 			darwin: "Install via 'brew install wabt' or download prebuilt tarball from GitHub releases.",
 			linux: "Install via 'apt install wabt' or download prebuilt release from GitHub releases.",
-			win32: "Install via 'choco install wabt' or download Windows release zip from GitHub releases.",
+			win32: "Download wabt-*-windows-x64.tar.gz from https://github.com/WebAssembly/wabt/releases and unpack to %LOCALAPPDATA%\\Programs\\wabt\\bin.",
 		},
 		installCommands: {
 			darwin: [
@@ -943,10 +951,10 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			],
 			win32: [
 				{
-					manager: "choco",
-					command: "choco install -y wabt",
-					argv: ["choco", "install", "-y", "wabt"],
-					riskNote: "Installs wabt via Chocolatey.",
+					manager: "portable",
+					command: "reverse setup reverse wabt",
+					argv: ["reverse", "setup", "reverse", "wabt", "--execute"],
+					riskNote: "Downloads portable WABT windows-x64 release from GitHub into agent tools directory.",
 				},
 				{
 					manager: "scoop",
@@ -1312,43 +1320,49 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		description:
 			"Emulate Android ARM32 and ARM64 native JNI libraries (.so) on the host JVM via Maven Java test harness (manual integration required)",
 		optional: true,
-		binaries: ["unidbg"],
-		envPaths: [{ env: "UNIDBG_HOME", suffix: "/bin" }, { env: "UNIDBG_HOME" }, { env: "UNIDBG_ROOT" }],
+		binaries: [],
+		probe: deps => locateUnidbg(deps),
+		envPaths: [{ env: "UNIDBG_HOME" }, { env: "UNIDBG_ROOT" }, { env: "UNIDBG_JAR" }],
 		searchPaths: {
 			darwin: ["~/.unidbg", "/usr/local/share/unidbg", "~/unidbg", ...UNIX_SEARCH_PATHS],
 			linux: ["~/.unidbg", "/opt/unidbg", "~/unidbg", ...UNIX_SEARCH_PATHS],
-			win32: ["${USERPROFILE}/unidbg", "${ProgramFiles}/unidbg"],
+			win32: ["${USERPROFILE}/unidbg", "C:/unidbg", "D:/unidbg", "${ProgramFiles}/unidbg"],
 		},
 		secondary: ["java"],
 		installHints: {
 			darwin: [
-				"brew install openjdk maven && git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests",
+				"git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && ./mvnw -DskipTests package (JDK 8 required)",
 			],
 			linux: [
-				"sudo apt install -y default-jdk maven && git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests",
+				"git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && ./mvnw -DskipTests package (JDK 8 required)",
 			],
-			win32: ["winget install Microsoft.OpenJDK.17 && git clone https://github.com/zhkl0228/unidbg.git"],
+			win32: [
+				"winget install EclipseAdoptium.Temurin.8.JDK && git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvnw.cmd -DskipTests package (JDK 8 required)",
+			],
 		},
 		manualUrl: "https://github.com/zhkl0228/unidbg",
 		manualInstructions: {
 			darwin:
-				"Clone https://github.com/zhkl0228/unidbg, compile with 'mvn package -DskipTests', and run tests or implement custom McpToolkit harness in Java.",
-			linux: "Clone https://github.com/zhkl0228/unidbg, compile with 'mvn package -DskipTests', and run tests or implement custom McpToolkit harness in Java.",
-			win32: "Clone https://github.com/zhkl0228/unidbg, compile with Maven, and run tests or implement custom McpToolkit harness in Java.",
+				"Clone https://github.com/zhkl0228/unidbg, compile with './mvnw -DskipTests package' using JDK 8. To enable AI integration, launch McpServer (SSE at http://localhost:9239/sse) or use McpToolkit.",
+			linux:
+				"Clone https://github.com/zhkl0228/unidbg, compile with './mvnw -DskipTests package' using JDK 8. To enable AI integration, launch McpServer (SSE at http://localhost:9239/sse) or use McpToolkit.",
+			win32:
+				"Clone https://github.com/zhkl0228/unidbg, compile with 'mvnw.cmd -DskipTests package' using JDK 8. To enable AI integration, launch McpServer (SSE at http://localhost:9239/sse) or use McpToolkit.",
 		},
 		installCommands: {},
 		usage: {
-			canonical: "mvn test -Dtest=<HarnessTest> (unidbg Java harness) or McpToolkit",
+			canonical: "reverse unidbg scaffold <target> --entry <func> && reverse unidbg launch <harness>",
 			whenToUse:
-				"Emulating Android JNI native cryptographic algorithms, token generators, or anti-debug routines on host JVM without an Android device or emulator.",
+				"Emulating Android JNI native cryptographic algorithms, token generators, or anti-debug routines on host JVM without an Android device or emulator; or connecting via Unidbg MCP Server.",
 			prerequisites: ["java"],
 			outputLimits:
 				"Capture bounded execution traces and returned buffers; avoid full memory block dumps in conversation context.",
 			fallback: "Native ELF triage via readelf/r2_inspect or dynamic device instrumentation via frida_session.",
 			examples: [
 				{
-					description: "Execute native emulation harness via Maven",
-					command: "mvn test -Dtest=MyNativeHarnessTest",
+					description: "Scaffold and launch Android JNI native emulation harness with MCP debugger",
+					command:
+						"reverse unidbg scaffold libcrypto.so --class com/example/Crypto --entry encrypt && reverse unidbg launch Harness.java",
 				},
 			],
 		},
@@ -1366,13 +1380,18 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
-			win32: ["${LOCALAPPDATA}/Programs/bundletool", "~/AppData/Local/Programs/bundletool"],
+			win32: [
+				"${LOCALAPPDATA}/Programs/bundletool",
+				"~/AppData/Local/Programs/bundletool",
+				"${USERPROFILE}/.reverse/agent/tools/bundletool",
+				"~/.reverse/agent/tools/bundletool",
+			],
 		},
 		secondary: ["java"],
 		installHints: {
 			darwin: ["brew install bundletool"],
 			linux: ["Download bundletool jar from https://github.com/google/bundletool/releases and wrap in shell script"],
-			win32: ["winget install Google.Bundletool", "choco install bundletool"],
+			win32: ["reverse setup reverse bundletool"],
 		},
 		manualUrl: "https://github.com/google/bundletool/releases",
 		manualInstructions: {
@@ -1392,16 +1411,11 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			],
 			win32: [
 				{
-					manager: "winget",
-					command: "winget install -e --id Google.Bundletool",
-					argv: ["winget", "install", "-e", "--id", "Google.Bundletool"],
-					riskNote: "Installs bundletool via Windows Package Manager.",
-				},
-				{
-					manager: "choco",
-					command: "choco install -y bundletool",
-					argv: ["choco", "install", "-y", "bundletool"],
-					riskNote: "Installs bundletool via Chocolatey.",
+					manager: "portable",
+					command: "reverse setup reverse bundletool",
+					argv: ["reverse", "setup", "reverse", "bundletool", "--execute"],
+					riskNote:
+						"Downloads portable bundletool-all.jar from GitHub into agent tools directory and generates launcher shim. Requires Java runtime.",
 				},
 			],
 		},
@@ -1502,19 +1516,25 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
-			win32: ["${LOCALAPPDATA}/smali", "~/AppData/Local/smali"],
+			win32: [
+				"${LOCALAPPDATA}/Programs/smali",
+				"${LOCALAPPDATA}/smali",
+				"~/AppData/Local/smali",
+				"${USERPROFILE}/.reverse/agent/tools/smali",
+				"~/.reverse/agent/tools/smali",
+			],
 		},
 		secondary: ["java"],
 		installHints: {
 			darwin: ["brew install smali"],
 			linux: ["apt install -y smali"],
-			win32: ["choco install smali"],
+			win32: ["reverse setup reverse baksmali (portable upstream download)", "Download baksmali and smali jars from Bitbucket and wrap in PATH"],
 		},
-		manualUrl: "https://github.com/google/smali/releases",
+		manualUrl: "https://bitbucket.org/JesusFreke/smali/downloads/",
 		manualInstructions: {
 			darwin: "Download baksmali.jar from GitHub releases and wrap it in an executable script in /usr/local/bin.",
 			linux: "Download baksmali.jar from GitHub releases and wrap it in an executable script in /usr/local/bin.",
-			win32: "Download baksmali.jar from GitHub releases and wrap it in a baksmali.bat script in PATH.",
+			win32: "Download baksmali-2.5.2.jar and smali-2.5.2.jar from https://bitbucket.org/JesusFreke/smali/downloads/ and wrap them in baksmali.bat and smali.bat in PATH.",
 		},
 		installCommands: {
 			darwin: [
@@ -1535,10 +1555,11 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			],
 			win32: [
 				{
-					manager: "choco",
-					command: "choco install -y smali",
-					argv: ["choco", "install", "-y", "smali"],
-					riskNote: "Installs smali/baksmali via Chocolatey.",
+					manager: "portable",
+					command: "reverse setup reverse baksmali (portable upstream download)",
+					argv: ["reverse", "setup", "reverse", "baksmali", "--execute"],
+					riskNote:
+						"Downloads portable baksmali and smali JARs from Bitbucket into agent tools directory and generates launcher shims. Requires Java runtime.",
 				},
 			],
 		},
@@ -1713,26 +1734,31 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
-			win32: ["${LOCALAPPDATA}/Programs/Il2CppDumper", "~/Il2CppDumper"],
+			win32: [
+				"${LOCALAPPDATA}/Programs/Il2CppDumper",
+				"~/Il2CppDumper",
+				"${USERPROFILE}/.reverse/agent/tools/Il2CppDumper",
+				"~/.reverse/agent/tools/Il2CppDumper",
+			],
 		},
 		installHints: {
 			darwin: ["Download release from https://github.com/Perfare/Il2CppDumper/releases"],
 			linux: ["Download release from https://github.com/Perfare/Il2CppDumper/releases"],
-			win32: ["choco install il2cppdumper or download GitHub release"],
+			win32: ["reverse setup reverse il2cppdumper (portable upstream download)", "Download GitHub release Il2CppDumper-win-v*.zip"],
 		},
 		manualUrl: "https://github.com/Perfare/Il2CppDumper/releases",
 		manualInstructions: {
 			darwin: "Download the cross-platform release from GitHub releases and run with dotnet.",
 			linux: "Download the release from GitHub releases and run with dotnet.",
-			win32: "Install via 'choco install il2cppdumper' or extract release zip from GitHub releases.",
+			win32: "Download Il2CppDumper-win-v*.zip from GitHub releases and extract into %LOCALAPPDATA%\\Programs\\Il2CppDumper or agent tools directory.",
 		},
 		installCommands: {
 			win32: [
 				{
-					manager: "choco",
-					command: "choco install -y il2cppdumper",
-					argv: ["choco", "install", "-y", "il2cppdumper"],
-					riskNote: "Installs Il2CppDumper via Chocolatey.",
+					manager: "portable",
+					command: "reverse setup reverse il2cppdumper (portable upstream download)",
+					argv: ["reverse", "setup", "reverse", "il2cppdumper", "--execute"],
+					riskNote: "Downloads portable Il2CppDumper release from GitHub into agent tools directory.",
 				},
 			],
 		},
@@ -1877,20 +1903,25 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		optional: true,
 		binaries: ["binwalk"],
 		searchPaths: {
-			darwin: UNIX_SEARCH_PATHS,
-			linux: UNIX_SEARCH_PATHS,
-			win32: ["${LOCALAPPDATA}/Programs/binwalk", "C:/binwalk"],
+			darwin: ["~/.cargo/bin", ...UNIX_SEARCH_PATHS],
+			linux: ["~/.cargo/bin", ...UNIX_SEARCH_PATHS],
+			win32: [
+				"~/.cargo/bin",
+				"${USERPROFILE}/.cargo/bin",
+				"${LOCALAPPDATA}/Programs/binwalk",
+				"C:/binwalk",
+			],
 		},
 		installHints: {
-			darwin: ["brew install binwalk"],
-			linux: ["apt install binwalk"],
-			win32: ["pip install binwalk"],
+			darwin: ["brew install binwalk", "cargo install binwalk"],
+			linux: ["apt install binwalk", "cargo install binwalk"],
+			win32: ["cargo install binwalk"],
 		},
 		manualUrl: "https://github.com/ReFirmLabs/binwalk",
 		manualInstructions: {
-			darwin: "Install via Homebrew: brew install binwalk.",
-			linux: "Install via system package manager (e.g. sudo apt install binwalk).",
-			win32: "Install via pip: pip install binwalk.",
+			darwin: "Install via Homebrew: brew install binwalk or cargo: cargo install binwalk.",
+			linux: "Install via system package manager (e.g. sudo apt install binwalk) or cargo: cargo install binwalk.",
+			win32: "Install via Cargo (Rust rewrite v3.x): cargo install binwalk.",
 		},
 		installCommands: {
 			darwin: [
@@ -1900,6 +1931,12 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 					argv: ["brew", "install", "binwalk"],
 					riskNote: "Installs binwalk via Homebrew.",
 				},
+				{
+					manager: "cargo",
+					command: "cargo install binwalk",
+					argv: ["cargo", "install", "binwalk"],
+					riskNote: "Installs binwalk (v3.x Rust rewrite) via Cargo.",
+				},
 			],
 			linux: [
 				{
@@ -1908,13 +1945,19 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 					argv: ["apt", "install", "-y", "binwalk"],
 					riskNote: "Installs binwalk package via apt. May require root/sudo.",
 				},
+				{
+					manager: "cargo",
+					command: "cargo install binwalk",
+					argv: ["cargo", "install", "binwalk"],
+					riskNote: "Installs binwalk (v3.x Rust rewrite) via Cargo.",
+				},
 			],
 			win32: [
 				{
-					manager: "pip",
-					command: "pip install binwalk",
-					argv: ["pip", "install", "binwalk"],
-					riskNote: "Installs binwalk via pip.",
+					manager: "cargo",
+					command: "cargo install binwalk",
+					argv: ["cargo", "install", "binwalk"],
+					riskNote: "Installs binwalk (v3.x Rust rewrite) via Cargo.",
 				},
 			],
 		},
@@ -1940,18 +1983,24 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		searchPaths: {
 			darwin: UNIX_SEARCH_PATHS,
 			linux: UNIX_SEARCH_PATHS,
-			win32: ["C:/vbindiff"],
+			win32: [
+				"${LOCALAPPDATA}/Programs/vbindiff",
+				"C:/vbindiff",
+				"~/vbindiff",
+				"${USERPROFILE}/.reverse/agent/tools/vbindiff",
+				"~/.reverse/agent/tools/vbindiff",
+			],
 		},
 		installHints: {
 			darwin: ["brew install vbindiff"],
 			linux: ["apt install vbindiff"],
-			win32: ["choco install vbindiff"],
+			win32: ["reverse setup reverse vbindiff (portable upstream download)", "Download VBinDiff from https://www.cjmweb.net/vbindiff/"],
 		},
 		manualUrl: "https://www.cjmweb.net/vbindiff/",
 		manualInstructions: {
 			darwin: "Install via Homebrew: brew install vbindiff.",
 			linux: "Install via package manager: apt install vbindiff.",
-			win32: "Download from https://www.cjmweb.net/vbindiff/ or install via choco.",
+			win32: "Download VBinDiff-3.0_beta5.zip from https://www.cjmweb.net/vbindiff/ and extract vbindiff.exe into PATH.",
 		},
 		installCommands: {
 			darwin: [
@@ -1972,10 +2021,10 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			],
 			win32: [
 				{
-					manager: "choco",
-					command: "choco install -y vbindiff",
-					argv: ["choco", "install", "-y", "vbindiff"],
-					riskNote: "Installs vbindiff via Chocolatey.",
+					manager: "portable",
+					command: "reverse setup reverse vbindiff (portable upstream download)",
+					argv: ["reverse", "setup", "reverse", "vbindiff", "--execute"],
+					riskNote: "Downloads portable VBinDiff from cjmweb.net into agent tools directory.",
 				},
 			],
 		},
@@ -2432,10 +2481,21 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		category: "decompiler",
 		description: "Interactive Disassembler and decompiler with idalib integration",
 		optional: true,
-		binaries: [],
-		// IDA is an application bundle: reuse the one existing install detector
-		// instead of teaching the generic resolver another platform matrix.
-		probe: () => locateIdaInstall(undefined) ?? null,
+		binaries: ["ida", "ida64", "idat", "idat64"],
+		probe: deps => probeIdaTool(deps),
+		envPaths: [{ env: "IDADIR" }],
+		searchPaths: {
+			darwin: ["/Applications/IDA*/Contents/MacOS", "~/Applications/IDA*/Contents/MacOS", ...UNIX_SEARCH_PATHS],
+			linux: ["~/ida*", "/opt/ida*", ...UNIX_SEARCH_PATHS],
+			win32: [
+				"${IDADIR}",
+				"${ProgramFiles}/IDA*",
+				"C:/Program Files/IDA*",
+				"D:/Program Files/IDA*",
+				"${LOCALAPPDATA}/Programs/IDA*",
+				"${USERPROFILE}/.local/bin",
+			],
+		},
 		installHints: {
 			darwin: ["Install IDA Pro with idalib, then set ida.installDir or IDADIR"],
 			linux: ["Install IDA Pro with idalib, then set ida.installDir or IDADIR"],
@@ -2478,13 +2538,13 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		description:
 			"Simulates Dalvik/ART JVM runtime and Linux ARM CPU environment to execute exported or obfuscated JNI native methods (e.g. signature calculation, token generation, anti-tamper routines) directly from local .so binaries.",
 		why: "Bypasses device environment detection, root checks, and emulator restrictions by executing JNI code directly inside a controlled CPU emulation harness.",
-		recommendedNativeTool: "android_package_inspect",
+		recommendedNativeTool: "unidbg",
 		optionalExternalTools: ["unidbg"],
 		prerequisites: ["java"],
 		fallbacks: ["frida", "readelf", "radare2"],
 		setupCommand: "reverse setup reverse unidbg",
 		postInstallInvocation:
-			"Manual Maven Java harness integration required (git clone https://github.com/zhkl0228/unidbg, implement McpToolkit or test harness with JavaVM/DalvikModule, run with Maven)",
+			"reverse unidbg scaffold <target> && reverse unidbg launch <harness> to run ARM32/ARM64 native JNI library emulation with automated McpToolkit & MCP debugger",
 	},
 	apk_unpacking: {
 		id: "apk_unpacking",
@@ -2729,10 +2789,14 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			}
 		}
 
+		// Emulation capabilities (such as android_native_emulation) require an active session
+		// runtime or running harness to be truly ready. In static catalog evaluation, an installed
+		// tool/JAR provides availability with fallbacks rather than instant runtime readiness.
+		const isDynamicEmulation = cap.id === "android_native_emulation";
 		let status: "ready" | "available_with_fallbacks" | "missing";
-		if (hasInstalledTool) {
+		if (hasInstalledTool && !isDynamicEmulation) {
 			status = "ready";
-		} else if (availableFallbacks.length > 0 || cap.recommendedNativeTool) {
+		} else if (availableFallbacks.length > 0 || cap.recommendedNativeTool || hasInstalledTool) {
 			status = "available_with_fallbacks";
 		} else {
 			status = "missing";
@@ -2746,7 +2810,7 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			description: cap.description,
 			why: cap.why,
 			status,
-			ready: hasInstalledTool,
+			ready: hasInstalledTool && !isDynamicEmulation,
 			recommendedNativeTool: cap.recommendedNativeTool,
 			optionalExternalTools: toolRefs,
 			prerequisites: cap.prerequisites,

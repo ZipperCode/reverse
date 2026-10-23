@@ -173,3 +173,12 @@ export const usageHelp = {
 export const worktreeHelp = {
 	description: "Add, list, or clear git worktrees (clone-first when enabled)",
 } satisfies CommandMetadata;
+
+export const unidbgHelp = {
+	get description() {
+		const { getEffectiveLocale }: typeof PersistedLocale = require("../config/persisted-locale");
+		return getEffectiveLocale() === "zh-CN"
+			? "管理 Unidbg 逆向模拟执行：构建上游源码、生成 JNI/IPA 调用程序、启动 MCP 调试服务"
+			: "Manage Unidbg native emulation: build upstream source, scaffold JNI/IPA harnesses, launch MCP debuggers";
+	},
+} satisfies CommandMetadata;

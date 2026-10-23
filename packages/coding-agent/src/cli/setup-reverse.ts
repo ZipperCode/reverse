@@ -23,7 +23,8 @@ import * as readline from "node:readline";
 import { $which, APP_NAME, getMCPConfigPath, getProjectDir, WhichCachePolicy, type WhichOptions } from "@reverse/utils";
 import chalk from "@reverse/utils/chalk";
 import { theme } from "@reverse/tui/theme";
-import { getEffectiveLocale, loadEffectiveSettings } from "../config/persisted-locale";
+import { getCachedReadOnlySettings, getEffectiveLocale, loadEffectiveSettings } from "../config/persisted-locale";
+import { isSettingsInitialized, settings, type Settings } from "../config/settings";
 import {
 	SKILL_TOOL_CATALOG,
 	resolveReverseCapabilities,
@@ -162,6 +163,7 @@ export interface ReverseSetupDeps {
 	isTTY?: boolean;
 	/** Agent profile directory; defaults to getAgentDir() for managed tools. */
 	agentDir?: string;
+	settings?: Settings;
 }
 
 /** Read an MCP config file without writing or starting anything. */
@@ -208,7 +210,7 @@ export function detectPackageManagers(
 			"r2pm",
 			"sdkmanager",
 		],
-		win32: ["winget", "choco", "scoop", "pipx", "pip", "py", "npm", "cargo", "r2pm", "sdkmanager"],
+		win32: ["winget", "choco", "scoop", "pipx", "pip", "py", "npm", "cargo", "r2pm", "sdkmanager", "portable"],
 	};
 	const options: WhichOptions = { cache: WhichCachePolicy.Bypass, requireAbsolutePaths: true };
 	const separator = platform === "win32" ? ";" : path.delimiter;
@@ -243,7 +245,7 @@ export function detectPackageManagers(
 	}
 	const found: string[] = [];
 	for (const candidate of candidates[platform] ?? []) {
-		if (which(candidate, options) !== null) {
+		if (candidate === "portable" || which(candidate, options) !== null) {
 			found.push(candidate);
 		}
 	}
@@ -252,6 +254,7 @@ export function detectPackageManagers(
 
 function isManagerAvailable(manager: string, availableManagers: readonly string[]): boolean {
 	if (availableManagers.includes(manager)) return true;
+	if (manager === "portable") return true;
 	if (manager === "apt" && availableManagers.includes("apt-get")) return true;
 	if (manager === "pip" && (availableManagers.includes("python3") || availableManagers.includes("py"))) return true;
 	return false;
@@ -283,10 +286,13 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 	const detectedPackageManagers = detectPackageManagers(platform, which, deps.env);
 	const descriptors = Object.values(SKILL_TOOL_CATALOG);
 	const toolRequirements = descriptors.map(desc => ({ id: desc.id, optional: desc.optional ?? true }));
+	const effectiveSettings =
+		deps.settings ?? (isSettingsInitialized() ? settings : getCachedReadOnlySettings());
 	const statuses = checkToolRequirements(toolRequirements, {
 		platform: requestedPlatform,
 		which,
 		env: deps.env,
+		settings: effectiveSettings,
 	});
 	const statusById: Record<string, RequirementStatus> = Object.fromEntries(statuses.map(s => [s.id, s]));
 
@@ -479,6 +485,7 @@ export function isTrustedCatalogArgv(item: ReverseToolStatus | ReverseServiceSta
 	if (item.kind === "cli") {
 		const desc = SKILL_TOOL_CATALOG[item.id];
 		if (!desc || !desc.installCommands) return false;
+		if (item.packageManager === "portable") return true;
 		for (const cmds of Object.values(desc.installCommands)) {
 			if (!cmds) continue;
 			for (const cmd of cmds) {
@@ -789,7 +796,12 @@ function renderServiceTable(report: ReverseCheckReport, write: (text: string) =>
 
 	report.services.forEach((service, index) => {
 		const idxStr = ` ${index + 1}`.padEnd(4);
-		const statusBadge = service.ready ? chalk.green("[READY]".padEnd(11)) : chalk.yellow("[MISSING]".padEnd(11));
+		const isConfiguredOnly = service.ready && service.configured;
+		const statusBadge = isConfiguredOnly
+			? chalk.cyan("[CONFIG]".padEnd(11))
+			: service.ready
+				? chalk.yellow("[PREREQ]".padEnd(11))
+				: chalk.yellow("[MISSING]".padEnd(11));
 		const serviceStr = chalk.bold(service.id.padEnd(20));
 		const catStr = chalk.cyan(service.category.padEnd(12));
 		const transportStr = chalk.dim(service.transport.padEnd(11));
@@ -860,12 +872,13 @@ export async function handleReverseSetup(
 	targetTool?: string,
 	deps: ReverseSetupDeps = {},
 ): Promise<number> {
-	await loadEffectiveSettings();
+	const loadedSettings = deps.settings ?? (await loadEffectiveSettings());
+	const effectiveDeps: ReverseSetupDeps = { ...deps, settings: loadedSettings };
 	const write = deps.writeStdout ?? (text => process.stdout.write(text));
 	const writeErr = deps.writeStderr ?? (text => process.stderr.write(text));
 	const promptLine = deps.promptLine ?? runDefaultPrompt;
 	const confirm = deps.confirm ?? runDefaultConfirm;
-	let report = checkReverseTools(deps);
+	let report = checkReverseTools(effectiveDeps);
 
 	if (flags.json) {
 		write(`${JSON.stringify(report, null, 2)}\n`);
@@ -893,7 +906,12 @@ export async function handleReverseSetup(
 			write(`  ${mark} ${chalk.bold(tool.id)}: ${details} ${typeBadge}\n`);
 		}
 		for (const service of report.services) {
-			const mark = service.ready ? chalk.green("[ready]") : chalk.yellow("[missing]");
+			const isConfiguredOnly = service.ready && service.configured;
+			const mark = isConfiguredOnly
+				? chalk.cyan("[configured]")
+				: service.ready
+					? chalk.yellow("[prereq]")
+					: chalk.yellow("[missing]");
 			const config = service.configured
 				? `configured in ${service.configuredScopes.join(", ")}${service.enabled === false ? " (disabled)" : ""}`
 				: "not configured";
@@ -1242,9 +1260,17 @@ export async function handleReverseSetup(
 				? t("cli.setup.reverse.jshookmcp.desc", service.description)
 				: service.description;
 		write(`${chalk.dim(serviceDesc)}\n`);
+		if (service.startCommand) {
+			write(`\n${chalk.bold("Start command:")}\n  ${chalk.cyan(service.startCommand)}\n`);
+		}
+		if (service.configSnippet) {
+			write(`\n${chalk.bold("Config snippet:")}\n`);
+			write(`  ${chalk.dim(JSON.stringify(service.configSnippet, null, 2).split("\n").join("\n  "))}\n`);
+		}
 		if (service.usage?.whenToUse) {
 			write(`\n${chalk.bold("When to use:")}\n  ${chalk.dim(service.usage.whenToUse)}\n`);
 		}
+		write(`\n${chalk.bold("Manual setup:")}\n`);
 		if (service.manualUrl) {
 			write(`  Official URL: ${service.manualUrl}\n`);
 		}
@@ -1442,7 +1468,7 @@ export async function handleReverseSetup(
 	}
 
 	write(`\n${chalk.bold("Refreshed reverse toolchain status:")}\n`);
-	report = checkReverseTools(deps);
+	report = checkReverseTools(effectiveDeps);
 	renderToolTable(report, write);
 	renderServiceTable(report, write);
 	renderCapabilityTable(report, write);

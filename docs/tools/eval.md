@@ -247,6 +247,16 @@ With `eval.tools.enabled` (default on), a cell can turn a function into a tool o
 - Cancellation is destructive when needed: JS terminates its worker; managed kernels interrupt and may escalate to shutdown. A reset is likewise destructive to concurrent work sharing that backend session.
 - Eval-driven `agent()` children stay registered as keep-alive agents; owner teardown cancels their jobs, releases completion handles/judgment batches, and closes the owner's work pools.
 
+## Kernel state reset and recovery protocol
+
+When a retained kernel (Python or JavaScript) is force-terminated—due to cell timeout escalation, unresponsive execution, process crash/exit, or explicit `{ reset: true }`:
+
+1. **Loss notification**: The killing cell's result includes a structured `kernel_reset` status event (op: `kernel_reset`) and text notice stating the lost generation (e.g. `[eval kernel reset: Python kernel was terminated (generation 1 lost)...]`). The host marks the runtime as `dead` in `getEvalState`.
+2. **First recreated execution notice**: The subsequent cell starts on fresh kernel generation $N+1$ with a clean memory namespace. Its execution output and status events expose a structured recreation notice (e.g. `[eval kernel notice: Python kernel generation 2 initialized with clean namespace...]`).
+3. **No transparent replay or swallowed exceptions**: Failed or timed-out cells are never automatically replayed. Subsequent code that references symbols from prior generations will raise truthful `NameError` (Python) or `ReferenceError` (JavaScript).
+4. **Explicit dependency recovery**: The agent must explicitly re-import modules and re-initialize prerequisites in the fresh kernel rather than assuming prior in-memory state persists.
+5. **Subprocess routing for heavy tasks**: Heavy or long-running compilation, deobfuscation, packaging, or signing operations should be routed to managed subprocess tools (such as `bash`), reserving interactive `eval` for structured analysis and inspection.
+
 ## Limits and errors
 
 - Default timeout: 30 seconds; `0` disables. Nonzero timeouts are clamped through `clampTimeout("eval", ..., tools.maxTimeout)`.

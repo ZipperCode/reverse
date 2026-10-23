@@ -91,31 +91,6 @@ describe("Reverse toolchain catalog", () => {
 		expect(getReverseTools().length).toBeGreaterThanOrEqual(20);
 	});
 
-	it("contains unidbg and Android companion tools with proper descriptors", () => {
-		const unidbg = SKILL_TOOL_CATALOG.unidbg;
-		expect(unidbg).toBeDefined();
-		expect(unidbg.category).toBe("android");
-		expect(unidbg.optional).toBe(true);
-		expect(unidbg.binaries).toContain("unidbg");
-		expect(unidbg.secondary).toContain("java");
-		expect(unidbg.usage?.canonical).toContain("unidbg");
-
-		const bundletool = SKILL_TOOL_CATALOG.bundletool;
-		expect(bundletool).toBeDefined();
-		expect(bundletool.category).toBe("android");
-
-		const dex2jar = SKILL_TOOL_CATALOG.dex2jar;
-		expect(dex2jar).toBeDefined();
-		expect(dex2jar.category).toBe("android");
-
-		const baksmali = SKILL_TOOL_CATALOG.baksmali;
-		expect(baksmali).toBeDefined();
-		expect(baksmali.category).toBe("android");
-
-		const scrcpy = SKILL_TOOL_CATALOG.scrcpy;
-		expect(scrcpy).toBeDefined();
-		expect(scrcpy.category).toBe("android");
-	});
 });
 
 describe("Package manager detection", () => {

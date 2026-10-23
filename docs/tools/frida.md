@@ -22,7 +22,7 @@ The unified `frida` tool provides open dynamic instrumentation without artificia
    - `action: "modules"` (or `"inspect"`): Enumerate loaded modules in the target process.
    - `action: "trace"`: Trace module loading (`module_load`) or exported symbols (`exports`).
 - **CLI pass-through**: Pass raw CLI arguments via `cli_args` (e.g. `["--runtime=v8", "--realm=native"]`).
-- **Engineering controls**: Execution timeout (`timeout`), output bounding (`max_bytes`), abort signal integration, and session artifact storage (`to_artifact`).
+- **Engineering controls**: Execution timeout watchdog (`timeout`, default 30s across all batch actions), owned process tree cleanup on timeout or cancellation (reclaiming Windows PE wrapper descendants and inherited pipes without affecting host or emulator), bounded output capture (`max_bytes`), abort signal integration, and session artifact storage (`to_artifact`).
 
 ## Inputs
 
@@ -46,7 +46,7 @@ The unified `frida` tool provides open dynamic instrumentation without artificia
 | `template`     | `string`                                               | No          | Built-in trace template (`module_load`, `exports`) or custom template name. Custom scripts can also be supplied via `script` or `script_path`. |
 | `max_events`   | integer `>= 1`                                         | No          | Maximum trace events captured or displayed in trace summary (default 100, no artificial limit).                                                |
 | `cli_args`     | `string[] \| string`                                   | No          | Extra raw CLI arguments passed directly to the command (e.g. `["--runtime=v8"]`).                                                              |
-| `timeout`      | number `>= 1`                                          | No          | Execution watchdog timeout in seconds (default 30, no artificial limit; bounded only by runtime/session resources).                            |
+| `timeout`      | number `>= 1`                                          | No          | Execution watchdog timeout in seconds (default 30 across all batch paths). On timeout or cancellation, bounded cleanup reclaims the full child process tree, preserves partial output, and reports diagnostics with `null` exit code when unobserved. |
 | `max_bytes`    | integer `>= 1`                                         | No          | Output cap in bytes (default 256 KiB, no artificial limit; bounded only by runtime/session resources; use `to_artifact` for full persistence). |
 | `to_artifact`  | `boolean`                                              | No          | Save full execution output and script metadata to session artifact.                                                                            |
 
@@ -64,5 +64,5 @@ The unified `frida` tool provides open dynamic instrumentation without artificia
 - `device_required`: Multiple devices attached without selection.
 - `device_unavailable`: Unable to connect to target frida-server.
 - `version_mismatch`: Frida client and target frida-server major version mismatch.
-- `timeout`: Execution timed out.
+- `timeout`: Execution watchdog timed out (returns truthful `exitCode: null` when killed without normal exit, bounded partial output, and process tree cleanup diagnostics).
 - `error`: Subprocess non-zero exit code or execution error.

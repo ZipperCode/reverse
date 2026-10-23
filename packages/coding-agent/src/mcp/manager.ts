@@ -40,7 +40,8 @@ import {
 	refreshStoredManagedMcpOAuthCredential,
 } from "./oauth-credentials";
 import type { MCPStoredOAuthCredential } from "./oauth-flow";
-import type { McpConnectionStatusEvent } from "./startup-events";
+import { MCPTransportError } from "./errors";
+import type { McpConnectionFailure, McpConnectionStatusEvent } from "./startup-events";
 import { resolveMCPStartupTimeoutMs } from "./timeout";
 
 import type { MCPToolDetails } from "@reverse/tui/tools/mcp";
@@ -84,10 +85,31 @@ type TrackedPromise<T> = {
 	reason?: unknown;
 };
 
-function createMcpStartupFailure(serverName: string, error: string, source?: SourceMeta): McpConnectionStatusEvent {
-	return source
-		? { type: "failed", serverName, error, sourcePath: source.path }
-		: { type: "failed", serverName, error };
+function createMcpStartupFailure(
+	serverName: string,
+	error: unknown,
+	source?: SourceMeta,
+): McpConnectionStatusEvent {
+	const message = error instanceof Error ? error.message : String(error);
+	const failure: McpConnectionFailure = {
+		serverName,
+		error: message,
+	};
+	if (source) failure.sourcePath = source.path;
+	if (error instanceof MCPTransportError) {
+		if (error.phase) failure.phase = error.phase;
+		if (error.transport === "stdio" && error.failure === "eof" && typeof error.code === "number") {
+			failure.exitCode = error.code;
+		}
+		if (error.signal) failure.signal = error.signal;
+		if (error.stderr) failure.stderr = error.stderr;
+		if (error.command) failure.command = error.command;
+	} else if (error instanceof MCPConnectionTimeoutError) {
+		if (error.phase) failure.phase = error.phase;
+		if (error.stderr) failure.stderr = error.stderr;
+		if (error.command) failure.command = error.command;
+	}
+	return { type: "failed", ...failure };
 }
 
 /**
@@ -373,7 +395,7 @@ export class MCPManager {
 	}
 
 	#emitConnectionStatus(event: McpConnectionStatusEvent): void {
-		if (event.type === "failed" && this.#startupServers.has(event.serverName)) {
+		if (event.type === "failed") {
 			this.#startupFailures.set(event.serverName, event.error);
 		} else if (event.type === "connected") {
 			this.#startupFailures.delete(event.serverName);
@@ -953,7 +975,7 @@ export class MCPManager {
 						return;
 					this.#pendingToolLoads.delete(name);
 					const message = error instanceof Error ? error.message : String(error);
-					notify(createMcpStartupFailure(name, message, sources[name]));
+					notify(createMcpStartupFailure(name, error, sources[name]));
 					if (allowBackgroundLogging && !reportedErrors.has(name)) {
 						logger.error("MCP tool load failed", { path: `mcp:${name}`, error: message });
 					}
@@ -1241,6 +1263,13 @@ export class MCPManager {
 		)
 			return "connecting";
 		return "disconnected";
+	}
+
+	/**
+	 * Get the recorded startup failure message for a server, if any.
+	 */
+	getServerFailure(name: string): string | undefined {
+		return this.#startupFailures.get(name);
 	}
 
 	/**

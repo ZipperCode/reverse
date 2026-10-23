@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPTransportError } from "@reverse/coding-agent/mcp/errors";
+import { formatMCPToolFailure, MCPTransportError } from "@reverse/coding-agent/mcp/errors";
 import { resolveStdioSpawnCommand, StdioTransport, writeFrame } from "@reverse/coding-agent/mcp/transports/stdio";
 import { removeWithRetries } from "@reverse/utils";
 
@@ -751,6 +751,254 @@ describe("StdioTransport request failure diagnostics", () => {
 			failure: "malformed_response",
 			retryable: false,
 		});
+	});
+	it("captures bounded stderr, exit code, and phase when subprocess exits during initialize handshake", async () => {
+		transport = new StdioTransport({
+			type: "stdio",
+			command: process.execPath,
+			args: [
+				"-e",
+				"process.stderr.write('r2mcp: missing library r_core.dll\\n'); process.exit(42)",
+			],
+			timeout: 3_000,
+		});
+		await transport.connect();
+		const error = await transport.request("initialize", {}).then(
+			() => undefined,
+			reason => reason,
+		);
+		if (!(error instanceof MCPTransportError)) throw error;
+
+		expect(error).toMatchObject({
+			transport: "stdio",
+			stage: "receive",
+			failure: "eof",
+			phase: "initialize",
+			code: 42,
+			retryable: true,
+		});
+		expect(error.stderr).toContain("missing library r_core.dll");
+		expect(error.message).toContain("42");
+		expect(error.message).toContain('"initialize"');
+		expect(error.message).toContain("missing library r_core.dll");
+	});
+
+	it("captures exit code 0 and phase when subprocess exits early with code 0", async () => {
+		transport = new StdioTransport({
+			type: "stdio",
+			command: process.execPath,
+			args: ["-e", "process.exit(0)"],
+			timeout: 2_000,
+		});
+		await transport.connect();
+		const error = await transport.request("initialize", {}).then(
+			() => undefined,
+			reason => reason,
+		);
+		if (!(error instanceof MCPTransportError)) throw error;
+
+		expect(error.code).toBe(0);
+		expect(error.phase).toBe("initialize");
+		expect(error.message).toContain("exited with code 0");
+	});
+
+	it("captures phase tools/list when process exits while fetching tool list", async () => {
+		transport = new StdioTransport({
+			type: "stdio",
+			command: process.execPath,
+			args: [
+				"-e",
+				"process.stdin.once('data', () => { process.stderr.write('failed listing\\n'); process.exit(17); }); process.stdin.resume()",
+			],
+			timeout: 2_000,
+		});
+		await transport.connect();
+		const error = await transport.request("tools/list", {}).then(
+			() => undefined,
+			reason => reason,
+		);
+		if (!(error instanceof MCPTransportError)) throw error;
+
+		expect(error.phase).toBe("tools/list");
+		expect(error.code).toBe(17);
+		expect(error.stderr).toContain("failed listing");
+		expect(error.message).toContain('"tools/list"');
+	});
+
+	it("captures phase spawn and command when command fails to spawn", async () => {
+		transport = new StdioTransport({
+			type: "stdio",
+			command: "/nonexistent/path/to/binary-" + Date.now(),
+		});
+		const error = await transport.connect().then(
+			() => undefined,
+			reason => reason,
+		);
+		if (!(error instanceof MCPTransportError)) throw error;
+
+		expect(error.stage).toBe("connect");
+		expect(error.failure).toBe("connect");
+		expect(error.phase).toBe("spawn");
+		expect(error.command).toContain("/nonexistent/path/to/binary-");
+		expect(error.message).toContain("Failed to spawn MCP subprocess");
+	});
+
+	it("captures phase initialize and stderr when subprocess hangs and times out during handshake", async () => {
+		transport = new StdioTransport({
+			type: "stdio",
+			command: process.execPath,
+			args: [
+				"-e",
+				"process.stderr.write('server starting up slowly...\\n'); await Bun.sleep(60_000)",
+			],
+			timeout: 100,
+		});
+		await transport.connect();
+		const error = await transport.request("initialize", {}).then(
+			() => undefined,
+			reason => reason,
+		);
+		if (!(error instanceof MCPTransportError)) throw error;
+
+		expect(error.phase).toBe("initialize");
+		expect(error.failure).toBe("timeout");
+		expect(error.stderr).toContain("server starting up slowly...");
+		expect(error.message).toContain('"initialize"');
+		expect(error.message).toContain("timed out");
+		expect(error.message).toContain("server starting up slowly...");
+	});
+
+	it("bounds stderr buffer to MAX_STDERR_CHARS and preserves the tail", async () => {
+		const longText = "A".repeat(5000) + "\n" + "B".repeat(5000) + "\nTAIL_MARKER\n";
+		transport = new StdioTransport({
+			type: "stdio",
+			command: process.execPath,
+			args: [
+				"-e",
+				`process.stderr.write(${JSON.stringify(longText)}); process.exit(1)`,
+			],
+			timeout: 3_000,
+		});
+		await transport.connect();
+		const error = await transport.request("initialize", {}).then(
+			() => undefined,
+			reason => reason,
+		);
+		if (!(error instanceof MCPTransportError)) throw error;
+
+		expect(transport.stderr.length).toBeLessThanOrEqual(8192);
+		expect(transport.stderr).toContain("TAIL_MARKER");
+		expect(transport.stderr).not.toContain("A".repeat(5000));
+		expect(error.stderr).toContain("TAIL_MARKER");
+		expect(error.message).toContain("TAIL_MARKER");
+	});
+
+	it("redacts credentials in CLI arguments from command and diagnostics", async () => {
+		transport = new StdioTransport({
+			type: "stdio",
+			command: process.execPath,
+			args: [
+				"-e",
+				"process.stderr.write('fatal auth error\\nCookie: theme=dark; sid=SECRET_SESSION_COOKIE\\nAuthorization: token GITHUB_SECRET_TOKEN_456\\nWWW-Authenticate: Bearer realm=\"test\"\\n'); process.exit(1)",
+				"--",
+				"--api-key",
+				"TOP_SECRET_API_KEY",
+				"--token=TOP_SECRET_TOKEN",
+				"--client-secret",
+				"TOP_SECRET_CLIENT_SECRET",
+				"https://user:SUPER_SECRET_PASSWORD@api.example.com/v1",
+				"postgresql://mcpuser:SECRET_DB_PASS@postgres.internal:5432/mcpdb",
+			],
+			timeout: 2_000,
+		});
+
+		expect(transport.command).toContain("--api-key [redacted]");
+		expect(transport.command).toContain("--token=[redacted]");
+		expect(transport.command).toContain("--client-secret [redacted]");
+		expect(transport.command).toContain("https://[redacted]:[redacted]@api.example.com/v1");
+		expect(transport.command).toContain("postgresql://[redacted]:[redacted]@postgres.internal:5432/mcpdb");
+		expect(transport.command).not.toContain("TOP_SECRET");
+		expect(transport.command).not.toContain("SUPER_SECRET_PASSWORD");
+		expect(transport.command).not.toContain("SECRET_DB_PASS");
+
+		await transport.connect();
+		const error = await transport.request("initialize", {}).then(
+			() => undefined,
+			reason => reason,
+		);
+		if (!(error instanceof MCPTransportError)) throw error;
+
+		expect(error.command).toContain("--api-key [redacted]");
+		expect(error.command).toContain("--token=[redacted]");
+		expect(error.command).not.toContain("TOP_SECRET_API_KEY");
+		expect(error.command).not.toContain("TOP_SECRET_TOKEN");
+		expect(error.command).not.toContain("SECRET_DB_PASS");
+		expect(error.message).not.toContain("TOP_SECRET");
+		expect(error.stderr).toContain("Cookie: [redacted]");
+		expect(error.stderr).toContain("Authorization: [redacted]");
+		expect(error.stderr).toContain('WWW-Authenticate: Bearer realm="test"');
+		expect(error.stderr).not.toContain("SECRET_SESSION_COOKIE");
+		expect(error.stderr).not.toContain("GITHUB_SECRET_TOKEN_456");
+		expect(error.message).not.toContain("GITHUB_SECRET_TOKEN_456");
+
+		const formatted = formatMCPToolFailure(error, "auth-server", "login");
+		expect(formatted).toContain("--api-key [redacted]");
+		expect(formatted).not.toContain("TOP_SECRET");
+		expect(formatted).not.toContain("SECRET_DB_PASS");
+		expect(formatted).not.toContain("GITHUB_SECRET_TOKEN_456");
+		expect(formatted).not.toContain("SECRET_SESSION_COOKIE");
+	});
+
+	it("redacts credentials in stderr JSON payloads and preserves the tail", async () => {
+		transport = new StdioTransport({
+			type: "stdio",
+			command: process.execPath,
+			args: [
+				"-e",
+				"process.stderr.write('fatal: {\"authorization\":\"Bearer ABC_SECRET\",\"api_key\":\"DEF_SECRET\",\"access_token\":\"BEARER_IN_JSON\",\"access_key\":\"SECRET_KEY\"}\\ntoken=\"QUOTED_SECRET WITH SPACES\"\\nSet-Cookie: session=QUOTED_COOKIE\\n'); process.exit(1)",
+			],
+			timeout: 2_000,
+		});
+
+		await transport.connect();
+		const error = await transport.request("initialize", {}).then(
+			() => undefined,
+			reason => reason,
+		);
+		if (!(error instanceof MCPTransportError)) throw error;
+		expect(error.stderr).toContain("[redacted]");
+		expect(error.stderr).not.toContain("ABC_SECRET");
+		expect(error.stderr).not.toContain("DEF_SECRET");
+		expect(error.stderr).not.toContain("BEARER_IN_JSON");
+		expect(error.stderr).not.toContain("SECRET_KEY");
+		expect(error.stderr).not.toContain("QUOTED_SECRET");
+		expect(error.stderr).not.toContain("WITH SPACES");
+		expect(error.stderr).not.toContain("QUOTED_COOKIE");
+		expect(error.message).not.toContain("ABC_SECRET");
+		expect(error.message).not.toContain("DEF_SECRET");
+		expect(error.message).not.toContain("QUOTED_SECRET");
+		expect(error.message).not.toContain("WITH SPACES");
+		expect(error.message).not.toContain("QUOTED_COOKIE");
+	});
+
+	it("formats rich tool failure diagnostic with phase, command, code, stderr, and actionable advice", () => {
+		const err = new MCPTransportError({
+			transport: "stdio",
+			stage: "receive",
+			failure: "eof",
+			phase: "initialize",
+			command: "r2mcp.exe",
+			code: 1,
+			stderr: "error while loading shared libraries: r_core.dll: not found",
+			message: "MCP subprocess exited with code 1 during \"initialize\" before responding: error while loading shared libraries: r_core.dll: not found",
+			retryable: true,
+		});
+		const formatted = formatMCPToolFailure(err, "radare2", "disassemble");
+		expect(formatted).toContain("phase: initialize");
+		expect(formatted).toContain("command: r2mcp.exe");
+		expect(formatted).toContain("code: 1");
+		expect(formatted).toContain("stderr: error while loading shared libraries: r_core.dll: not found");
+		expect(formatted).toContain("next: The MCP server is missing required shared libraries/DLLs");
 	});
 });
 
