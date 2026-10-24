@@ -13,6 +13,10 @@
  * Automated commands are only ever executed after explicit user selection
  * and interactive confirmation in the setup panel.
  */
+import * as child_process from "node:child_process";
+import * as fs from "node:fs";
+import { $which } from "@reverse/utils";
+import { enumeratePythonRuntimes } from "../eval/py/runtime";
 import { probeIdaTool } from "../ida/install";
 import { locateUnidbg } from "./unidbg-detect";
 import type { SkillRequirementWhich } from "./skill-requirements";
@@ -88,7 +92,12 @@ export interface SkillToolDescriptor {
 	/** Trusted, display-only install hints per platform. */
 	installHints?: Partial<Record<SkillToolPlatform, readonly string[]>>;
 	/** Custom synchronous detector (used for installs that are not PATH commands). */
-	probe?: (deps?: { env?: Record<string, string | undefined>; platform?: SkillToolPlatform; which?: SkillRequirementWhich; settings?: Settings }) => string | null;
+	probe?: (deps?: {
+		env?: Record<string, string | undefined>;
+		platform?: SkillToolPlatform;
+		which?: SkillRequirementWhich;
+		settings?: Settings;
+	}) => string | null;
 	/** Official download page or release repository URL for manual installation. */
 	manualUrl?: string;
 	/** Manual installation instructions per platform when automated install is unavailable. */
@@ -172,6 +181,20 @@ export interface ReverseCapabilityStatus {
 	setupCommand: string;
 	/** How to invoke the tool after installation completes. */
 	postInstallInvocation: string;
+	/** Blocked external tools or prerequisites preventing full readiness. */
+	blockedRequirements?: readonly string[];
+	/** Pipeline readiness breakdown distinguishing offline operations from signed generation and device verification. */
+	pipelineStages?: {
+		offline: { ready: boolean; requiredTools: readonly string[]; missingTools: readonly string[] };
+		signing: { ready: boolean; requiredTools: readonly string[]; missingTools: readonly string[] };
+		device: {
+			ready: boolean;
+			hostPrerequisitesReady: boolean;
+			requiredTools: readonly string[];
+			missingTools: readonly string[];
+			deviceConnected?: boolean;
+		};
+	};
 }
 
 /** Options for resolving capability availability on the host system. */
@@ -924,7 +947,11 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		installHints: {
 			darwin: ["brew install wabt"],
 			linux: ["apt install wabt"],
-			win32: ["reverse setup reverse wabt", "scoop install wabt", "Download prebuilt release from https://github.com/WebAssembly/wabt/releases"],
+			win32: [
+				"reverse setup reverse wabt",
+				"scoop install wabt",
+				"Download prebuilt release from https://github.com/WebAssembly/wabt/releases",
+			],
 		},
 		manualUrl: "https://github.com/WebAssembly/wabt/releases",
 		manualInstructions: {
@@ -1344,10 +1371,8 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		manualInstructions: {
 			darwin:
 				"Clone https://github.com/zhkl0228/unidbg, compile with './mvnw -DskipTests package' using JDK 8. To enable AI integration, launch McpServer (SSE at http://localhost:9239/sse) or use McpToolkit.",
-			linux:
-				"Clone https://github.com/zhkl0228/unidbg, compile with './mvnw -DskipTests package' using JDK 8. To enable AI integration, launch McpServer (SSE at http://localhost:9239/sse) or use McpToolkit.",
-			win32:
-				"Clone https://github.com/zhkl0228/unidbg, compile with 'mvnw.cmd -DskipTests package' using JDK 8. To enable AI integration, launch McpServer (SSE at http://localhost:9239/sse) or use McpToolkit.",
+			linux: "Clone https://github.com/zhkl0228/unidbg, compile with './mvnw -DskipTests package' using JDK 8. To enable AI integration, launch McpServer (SSE at http://localhost:9239/sse) or use McpToolkit.",
+			win32: "Clone https://github.com/zhkl0228/unidbg, compile with 'mvnw.cmd -DskipTests package' using JDK 8. To enable AI integration, launch McpServer (SSE at http://localhost:9239/sse) or use McpToolkit.",
 		},
 		installCommands: {},
 		usage: {
@@ -1528,7 +1553,10 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		installHints: {
 			darwin: ["brew install smali"],
 			linux: ["apt install -y smali"],
-			win32: ["reverse setup reverse baksmali (portable upstream download)", "Download baksmali and smali jars from Bitbucket and wrap in PATH"],
+			win32: [
+				"reverse setup reverse baksmali (portable upstream download)",
+				"Download baksmali and smali jars from Bitbucket and wrap in PATH",
+			],
 		},
 		manualUrl: "https://bitbucket.org/JesusFreke/smali/downloads/",
 		manualInstructions: {
@@ -1744,7 +1772,10 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		installHints: {
 			darwin: ["Download release from https://github.com/Perfare/Il2CppDumper/releases"],
 			linux: ["Download release from https://github.com/Perfare/Il2CppDumper/releases"],
-			win32: ["reverse setup reverse il2cppdumper (portable upstream download)", "Download GitHub release Il2CppDumper-win-v*.zip"],
+			win32: [
+				"reverse setup reverse il2cppdumper (portable upstream download)",
+				"Download GitHub release Il2CppDumper-win-v*.zip",
+			],
 		},
 		manualUrl: "https://github.com/Perfare/Il2CppDumper/releases",
 		manualInstructions: {
@@ -1905,12 +1936,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		searchPaths: {
 			darwin: ["~/.cargo/bin", ...UNIX_SEARCH_PATHS],
 			linux: ["~/.cargo/bin", ...UNIX_SEARCH_PATHS],
-			win32: [
-				"~/.cargo/bin",
-				"${USERPROFILE}/.cargo/bin",
-				"${LOCALAPPDATA}/Programs/binwalk",
-				"C:/binwalk",
-			],
+			win32: ["~/.cargo/bin", "${USERPROFILE}/.cargo/bin", "${LOCALAPPDATA}/Programs/binwalk", "C:/binwalk"],
 		},
 		installHints: {
 			darwin: ["brew install binwalk", "cargo install binwalk"],
@@ -1994,7 +2020,10 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		installHints: {
 			darwin: ["brew install vbindiff"],
 			linux: ["apt install vbindiff"],
-			win32: ["reverse setup reverse vbindiff (portable upstream download)", "Download VBinDiff from https://www.cjmweb.net/vbindiff/"],
+			win32: [
+				"reverse setup reverse vbindiff (portable upstream download)",
+				"Download VBinDiff from https://www.cjmweb.net/vbindiff/",
+			],
 		},
 		manualUrl: "https://www.cjmweb.net/vbindiff/",
 		manualInstructions: {
@@ -2475,6 +2504,71 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		},
 	},
 
+	python: {
+		id: "python",
+		name: "Python 3 Runtime",
+		category: "system",
+		systemTool: true,
+		description: "Python 3.9+ runtime used by reverse engineering analysis workers and DEX/APK tool pipelines",
+		optional: true,
+		binaries: ["python3", "python"],
+		probe: deps => probePythonTool(deps),
+		searchPaths: {
+			darwin: UNIX_SEARCH_PATHS,
+			linux: UNIX_SEARCH_PATHS,
+			win32: ["${LOCALAPPDATA}/Programs/Python/Python3*", "${ProgramFiles}/Python3*", "${SystemDrive}/Python3*"],
+		},
+		installHints: {
+			darwin: ["brew install python3"],
+			linux: ["apt install -y python3"],
+			win32: ["winget install Python.Python.3.12"],
+		},
+		manualUrl: "https://www.python.org/downloads/",
+		manualInstructions: {
+			darwin: "Install Python 3 via Homebrew ('brew install python3') or download from python.org.",
+			linux: "Install Python 3 via your package manager ('apt install python3' or 'dnf install python3').",
+			win32: "Install Python 3 via winget ('winget install Python.Python.3.12') or download from python.org.",
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "brew",
+					command: "brew install python3",
+					argv: ["brew", "install", "python3"],
+					riskNote: "Installs Python 3 via Homebrew.",
+				},
+			],
+			linux: [
+				{
+					manager: "apt",
+					command: "apt install -y python3",
+					argv: ["apt", "install", "-y", "python3"],
+					riskNote: "Installs python3 via apt. Requires root/sudo.",
+				},
+			],
+			win32: [
+				{
+					manager: "winget",
+					command: "winget install -e --id Python.Python.3.12",
+					argv: ["winget", "install", "-e", "--id", "Python.Python.3.12"],
+					riskNote: "Installs Python 3.12 via winget.",
+				},
+			],
+		},
+		usage: {
+			canonical: "python3 -c 'import sys; print(sys.version)'",
+			whenToUse:
+				"Executing Python-based reverse engineering analysis workers and DEX/APK bytecode processing pipelines.",
+			fallback: "Native dexdump, droidasc, or smali disassembly through apktool.",
+			examples: [
+				{
+					description: "Check Python interpreter version",
+					command: "python3 --version",
+				},
+			],
+		},
+	},
+
 	ida: {
 		id: "ida",
 		name: "IDA Pro",
@@ -2522,6 +2616,81 @@ export function getReverseTool(id: string): SkillToolDescriptor | undefined {
 	return SKILL_TOOL_CATALOG[id.trim().toLowerCase()];
 }
 
+export interface ProbePythonOptions {
+	env?: Record<string, string | undefined>;
+	platform?: SkillToolPlatform;
+	which?: SkillRequirementWhich;
+	cwd?: string;
+	candidates?: readonly string[];
+}
+
+/**
+ * Synchronous probe function for Python 3.9+ runtime.
+ *
+ * Verifies that a candidate Python interpreter physically exists on disk and satisfies sys.version_info >= (3, 9).
+ * Enumerates candidates via enumeratePythonRuntimes and PATH lookups (or takes explicit test candidates);
+ * never returns nonexistent paths or assumes success without actual execution check.
+ */
+export function probePythonTool(deps?: ProbePythonOptions): string | null {
+	const cwd = deps?.cwd ?? process.cwd();
+	const env = deps?.env ?? process.env;
+	const which = deps?.which ?? $which;
+
+	const candidatePaths: string[] = [];
+	if (deps?.candidates !== undefined) {
+		candidatePaths.push(...deps.candidates);
+	} else {
+		if (deps?.which !== undefined) {
+			for (const binName of ["python3", "python"]) {
+				const candidate = which(binName);
+				if (candidate && !candidatePaths.includes(candidate)) {
+					candidatePaths.push(candidate);
+				}
+			}
+		}
+
+		try {
+			const runtimes = enumeratePythonRuntimes(cwd, env);
+			for (const r of runtimes) {
+				if (!candidatePaths.includes(r.pythonPath)) {
+					candidatePaths.push(r.pythonPath);
+				}
+			}
+		} catch {}
+
+		if (deps?.which === undefined) {
+			for (const binName of ["python3", "python"]) {
+				const candidate = which(binName);
+				if (candidate && !candidatePaths.includes(candidate)) {
+					candidatePaths.push(candidate);
+				}
+			}
+		}
+	}
+
+	for (const candidate of candidatePaths) {
+		try {
+			if (!fs.existsSync(candidate) || fs.statSync(candidate).isDirectory()) {
+				continue;
+			}
+		} catch {
+			continue;
+		}
+
+		try {
+			const res = child_process.spawnSync(
+				candidate,
+				["-c", "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"],
+				{ timeout: 1500, windowsHide: true },
+			);
+			if (res.status === 0) {
+				return candidate;
+			}
+		} catch {}
+	}
+
+	return null;
+}
 /**
  * Built-in catalog of canonical reverse engineering capabilities.
  *
@@ -2561,6 +2730,40 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		fallbacks: ["file", "strings"],
 		setupCommand: "reverse setup reverse apktool",
 		postInstallInvocation: "apktool d -f -o <output_dir> <target.apk> or jadx -d <output_dir> <target.apk>",
+	},
+	dex_patching: {
+		id: "dex_patching",
+		name: "DEX Bytecode Inspection, Validation & Semantic Patching",
+		category: "android",
+		scenario:
+			"Inspect Dalvik bytecode instruction sequences, validate DEX structures/headers, and apply deterministic byte-level opcode patches.",
+		description:
+			"Locates method instructions by class, method name, and signature; validates DEX headers, Adler32 checksums, SHA-1 signatures, and instruction boundaries; applies semantic bytecode patches (e.g. conditional branch inversion, return value overrides, nop padding) with automatic header recalculation.",
+		why: "Direct bytecode editing avoids full smali disassembly/reassembly failures on obfuscated or anti-decompilation APKs, preserving layout, resources, and unaffected code without introducing assembly noise.",
+		recommendedNativeTool: "dex_patch",
+		optionalExternalTools: ["python", "jadx", "baksmali"],
+		prerequisites: ["python"],
+		fallbacks: ["droidasc", "dexdump", "strings"],
+		setupCommand: "reverse setup reverse python",
+		postInstallInvocation:
+			'dex_patch(action: "inspect", path: "<target.apk_or_dex>", class: "<Lpkg/Class;>", method: "<method>") or dex_patch(action: "patch", path: "<target.dex>", out: "<out.dex>", dry_run: false, specs: [...])',
+	},
+	apk_artifact_generation: {
+		id: "apk_artifact_generation",
+		name: "APK Artifact Generation, Repackaging & Signing Pipeline",
+		category: "android",
+		scenario:
+			"Diff container entries, assemble modified APK containers, align archives, apply v1-v3 APK signatures, and verify package integrity.",
+		description:
+			"Performs entry-level archive comparison, repacks modified DEX files into APK containers with uncompressed/aligned resources, executes 4-byte zipalign and 16KiB page alignment for native libraries, signs containers with apksigner (v1-v3 schemes), and validates signature blocks.",
+		why: "Produces deployable, structurally valid Android packages while preventing corrupted resource alignments, invalid ZIP checksums, and broken signature blocks.",
+		recommendedNativeTool: "apk_artifact",
+		optionalExternalTools: ["python", "zipalign", "apksigner", "java", "adb"],
+		prerequisites: ["python", "java"],
+		fallbacks: ["apktool", "unzip", "file"],
+		setupCommand: "reverse setup reverse apksigner",
+		postInstallInvocation:
+			'apk_artifact(action: "diff", original_path: "<orig.apk>", modified_path: "<mod.apk>") or apk_artifact(action: "repack", path: "<orig.apk>", output_path: "<out.apk>", dex_files: { "classes.dex": "<mod.dex>" }) or apk_artifact(action: "sign", path: "<in.apk>", output_path: "<out.apk>", keystore_path: "<ks>", key_alias: "<alias>")',
 	},
 	browser_debugger: {
 		id: "browser_debugger",
@@ -2794,12 +2997,117 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 		// tool/JAR provides availability with fallbacks rather than instant runtime readiness.
 		const isDynamicEmulation = cap.id === "android_native_emulation";
 		let status: "ready" | "available_with_fallbacks" | "missing";
-		if (hasInstalledTool && !isDynamicEmulation) {
-			status = "ready";
-		} else if (availableFallbacks.length > 0 || cap.recommendedNativeTool || hasInstalledTool) {
-			status = "available_with_fallbacks";
+		let isReady: boolean;
+		let setupCommand = cap.setupCommand;
+		let blockedRequirements: string[] | undefined;
+		let pipelineStages: ReverseCapabilityStatus["pipelineStages"];
+
+		if (cap.id === "apk_artifact_generation") {
+			const pythonReady = toolMap["python"]?.status === "installed";
+			const zipalignReady = toolMap["zipalign"]?.status === "installed";
+			const javaReady = toolMap["java"]?.status === "installed";
+			const apksignerInstalled = toolMap["apksigner"]?.status === "installed";
+			const apksignerReady = apksignerInstalled && javaReady;
+			const signingReady = pythonReady && zipalignReady && apksignerReady;
+			const adbReady = toolMap["adb"]?.status === "installed";
+			const deviceHostReady = pythonReady && adbReady;
+
+			const missingOffline = pythonReady ? [] : ["python"];
+			const missingSigning: string[] = [];
+			if (!pythonReady) missingSigning.push("python");
+			if (!zipalignReady) missingSigning.push("zipalign");
+			if (!apksignerInstalled) missingSigning.push("apksigner");
+			if (!javaReady) missingSigning.push("java");
+
+			const missingDevice: string[] = [];
+			if (!pythonReady) missingDevice.push("python");
+			if (!adbReady) missingDevice.push("adb");
+
+			pipelineStages = {
+				offline: {
+					ready: pythonReady,
+					requiredTools: ["python"],
+					missingTools: missingOffline,
+				},
+				signing: {
+					ready: signingReady,
+					requiredTools: ["python", "zipalign", "apksigner", "java"],
+					missingTools: missingSigning,
+				},
+				device: {
+					ready: false,
+					hostPrerequisitesReady: deviceHostReady,
+					requiredTools: ["python", "adb"],
+					missingTools: missingDevice,
+					deviceConnected: false,
+				},
+			};
+
+			const unionMissing = Array.from(new Set([...missingOffline, ...missingSigning]));
+			if (unionMissing.length > 0) {
+				blockedRequirements = unionMissing;
+				if (!pythonReady) {
+					setupCommand = "reverse setup reverse python";
+				} else if (!apksignerInstalled) {
+					setupCommand = "reverse setup reverse apksigner";
+				} else if (!zipalignReady) {
+					setupCommand = "reverse setup reverse zipalign";
+				} else if (!javaReady) {
+					setupCommand = "reverse setup reverse java";
+				}
+			}
+
+			// apk_artifact_generation is only fully ready when both offline engine and complete signing pipeline are ready
+			isReady = pythonReady && signingReady;
+			if (isReady) {
+				status = "ready";
+			} else if (pythonReady || availableFallbacks.length > 0 || hasInstalledTool) {
+				status = "available_with_fallbacks";
+			} else {
+				status = "missing";
+			}
+		} else if (cap.id === "dex_patching") {
+			const pythonReady = toolMap["python"]?.status === "installed";
+			const missingOffline = pythonReady ? [] : ["python"];
+			pipelineStages = {
+				offline: {
+					ready: pythonReady,
+					requiredTools: ["python"],
+					missingTools: missingOffline,
+				},
+				signing: {
+					ready: true,
+					requiredTools: [],
+					missingTools: [],
+				},
+				device: {
+					ready: true,
+					hostPrerequisitesReady: true,
+					requiredTools: [],
+					missingTools: [],
+				},
+			};
+			if (!pythonReady) {
+				blockedRequirements = ["python"];
+				setupCommand = "reverse setup reverse python";
+			}
+			isReady = pythonReady;
+			if (isReady) {
+				status = "ready";
+			} else if (availableFallbacks.length > 0 || hasInstalledTool) {
+				status = "available_with_fallbacks";
+			} else {
+				status = "missing";
+			}
 		} else {
-			status = "missing";
+			isReady = hasInstalledTool && !isDynamicEmulation;
+			if (isReady) {
+				status = "ready";
+			} else if (availableFallbacks.length > 0 || cap.recommendedNativeTool || hasInstalledTool) {
+				status = "available_with_fallbacks";
+			} else {
+				status = "missing";
+			}
 		}
 
 		results.push({
@@ -2810,14 +3118,16 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			description: cap.description,
 			why: cap.why,
 			status,
-			ready: hasInstalledTool && !isDynamicEmulation,
+			ready: isReady,
 			recommendedNativeTool: cap.recommendedNativeTool,
 			optionalExternalTools: toolRefs,
 			prerequisites: cap.prerequisites,
 			fallbacks: cap.fallbacks,
 			availableFallbacks,
-			setupCommand: cap.setupCommand,
+			setupCommand,
 			postInstallInvocation: cap.postInstallInvocation,
+			...(blockedRequirements ? { blockedRequirements } : {}),
+			...(pipelineStages ? { pipelineStages } : {}),
 		});
 	}
 

@@ -2,8 +2,8 @@
 name: android-reverse
 description: Android application and native library reverse engineering specialist. Focuses on APK/DEX static decompilation, smali patching, JNI native library triage, and ADB/Frida dynamic instrumentation.
 metadata:
-  requiresOptional: jadx, apktool, adb, frida, droidasc, unidbg, bundletool, dex2jar, baksmali, scrcpy
-  capabilities: apk_unpacking, android_native_emulation
+  requiresOptional: jadx, apktool, adb, frida, droidasc, unidbg, bundletool, dex2jar, baksmali, scrcpy, python, zipalign, apksigner
+  capabilities: apk_unpacking, dex_patching, apk_artifact_generation, android_native_emulation
 ---
 
 # Android Reverse Engineering Specialist
@@ -36,6 +36,8 @@ Read `skill://reverse-lab/references/evidence.md` for artifact formats.
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **`apk_unpacking`** | Container triage, DEX decompilation, manifest decoding, smali patching | `android_package_inspect` (built-in) / `droidasc` | `jadx`, `apktool`, `baksmali`, `dexdump` | `reverse setup reverse jadx` / `apktool` | `droidasc` ➔ `dexdump` ➔ `unzip -p <apk> AndroidManifest.xml` / `strings` |
 | **`android_native_emulation`** | Headless ARM32/ARM64 CPU emulation and JNI invocation of native `.so` crypto algorithms without a device | `android_native_workflow` (built-in triage) | `unidbg` (Maven Java harness) | `reverse setup reverse unidbg` | `frida` / `frida_session` (live device) ➔ static `r2_inspect` / `ghidra_inspect` / `readelf` |
+| **`dex_patching`** | Direct Dalvik bytecode inspection, DEX header validation, and semantic byte patching | `dex_patch` (built-in) | `python`, `jadx`, `baksmali` | `reverse setup reverse python` | `droidasc` ➔ `dexdump` ➔ smali patch |
+| **`apk_artifact_generation`** | Container entry diff, archive repackaging, 4-byte/16KiB page alignment, v1-v3 signing | `apk_artifact` (built-in) | `python`, `zipalign`, `apksigner`, `java`, `adb` | `reverse setup reverse apksigner` | `apktool b` + `unzip` |
 
 ### Core Toolchain & Prerequisites
 
@@ -44,6 +46,8 @@ Read `skill://reverse-lab/references/evidence.md` for artifact formats.
 - **Primary Decompiler (`jadx`)**: OPTIONAL external decompiler. Used for structured Java decompilation, control flow analysis, and cross-reference mapping.
 - **Resource & Smali Engine (`apktool`)**: OPTIONAL external tool. Used for decoding XML resources (`res/values/strings.xml`) and smali bytecode re-assembly.
 - **Native SO, JNI & Emulation Orchestration (`android_native_workflow`, `unidbg`)**: OPTIONAL (Built-in tool `android_native_workflow`). Use `android_native_workflow` to inventory native `.so` libraries, parse ELF machine architectures, map JNI exported functions (`Java_*`), link DEX native declarations (`ACC_NATIVE`) to dynamic `RegisterNatives` / `JNI_OnLoad`, and extract libraries directly to `./artifacts/extracted_so/`. When analyzing native cryptography or token algorithms without a connected phone or emulator, invoke `unidbg` to emulate ARM instructions headlessly on the host JVM.
+- **Direct Dalvik Bytecode Patcher (`dex_patch`)**: BUILT-IN. Provides targeted Dalvik bytecode inspection, structural validation (headers, Adler32 checksums, SHA-1 signatures, instruction boundaries), and semantic bytecode patching (e.g. conditional branch inversion, return value overrides, nop padding) with dry-run safety and automatic checksum recalculation. Eliminates whole-application smali reassembly failures on obfuscated or anti-tamper APKs. Requires Python 3.9+ runtime (`reverse_capability({ action: "resolve", capability: "dex_patching" })`).
+- **APK Artifact Generator & Signer (`apk_artifact`)**: BUILT-IN. Manages container entry diffing, deterministic repacking with uncompressed/aligned resources, archive alignment (4-byte for data, 16KiB page alignment for native `.so`), v1-v3 APK signing via `apksigner`, and non-root install/launch verification. Distinguishes offline repack/diff from signed generation pipeline (`reverse_capability({ action: "resolve", capability: "apk_artifact_generation" })`).
 - **Dynamic Instrumentation (`frida`, `frida_session`, `adb_observe`, `adb`)**: OPTIONAL. Use the built-in `frida` tool for open dynamic execution and inspection: execute custom Frida JavaScript scripts (`script` or `script_path`) against processes via attach (`pid`/`process`) or spawn (`spawn`), supporting hook implementation replacement and memory inspection, as well as device discovery, process enumeration, module listing, and trace observation; record dynamic evidence to `./artifacts` and cite in evidence findings. Use the built-in `frida_session` tool for persistent multi-turn dynamic analysis sessions with active child/target persistence (create/run/status/stop/destroy) without re-attaching each turn. Use the built-in `adb_observe` tool for read-only device evidence with fixed commands: device discovery, installed packages, running processes, bounded logcat, system properties, and screenshots saved as artifacts.
 
 ### Capability Resolution & Dispatch Protocol (Discover-Before-Stop / Install-Then-Dispatch)
@@ -132,11 +136,90 @@ When primary tools are absent, operators SHOULD consult `skill://reverse-lab/ref
    - Extract target `.so` binaries safely into artifacts using `android_native_workflow(action: "extract", path: "<target.apk>", abi: "arm64-v8a")`.
    - Formulate structured analysis steps and verify toolchain availability using `android_native_workflow(action: "plan", path: "<target.apk>")`.
    - When analyzing native cryptography or token algorithms without a physical Android device or emulator, resolve capability `reverse_capability({ action: "resolve", capability: "android_native_emulation" })`. If `unidbg` is missing, present setup notice for `reverse setup reverse unidbg`, re-resolve with `refresh: true`, and dispatch headless JNI emulation; fallback to static disassembly via `r2_inspect` or `ghidra_inspect` if declined.
-4. **Smali Modification & Static Patching (Authorized Targets Only) (`apk_unpacking`)**:
-   - Resolve capability `apk_unpacking` for resource decoding and smali rebuilding.
-   - Decode bytecode with `apktool d <target.apk> -o ./artifacts/apk_src`.
-   - Invert conditional branches (`if-eqz` ➔ `if-nez`) or force return values (`const/4 v0, 0x1` / `return v0`).
-   - Re-assemble with `apktool b`, align with `zipalign`, and sign with `apksigner`, saving exclusively to `./artifacts/`.
+4. **DEX Bytecode Patching & Package Generation (`dex_patching` & `apk_artifact_generation`)**:
+   - **Pre-Patch Layer Triage**: Confirm layer ownership before patching. Check whether the target behavior lives in Java/Dalvik DEX, Native C/C++ `.so`, Flutter/Dart (`libapp.so`), or a Server-Side API check. A DEX patch cannot alter native algorithms, Flutter AOT logic, or server-enforced security checks.
+   - **JNI Dynamic Registration Check**: If analyzing native bridges, verify whether native methods use static `Java_<pkg>_<class>_<method>` symbols or dynamic registration inside `JNI_OnLoad` via `RegisterNatives`.
+   - **Bytecode Inspection & Validation (`dex_patching`)**:
+     ```json
+     dex_patch({ action: "inspect", path: "<target.apk_or_dex>", entry: "classes.dex", class: "Lcom/example/Auth;", method: "checkLicense", desc: "()Z" })
+     dex_patch({ action: "validate", path: "<target.dex>" })
+     ```
+   - **Semantic Bytecode Patch (`dex_patching`)**:
+     Execute a dry-run first, then generate a fresh patched DEX to a new artifact path (never overwrite inputs):
+     ```json
+     dex_patch({
+       action: "patch",
+       path: "<target.dex>",
+       out: "./artifacts/classes_patched.dex",
+       dry_run: false,
+       specs: [{ class: "Lcom/example/Auth;", method: "checkLicense", desc: "()Z", match: { kind: "const4", literal: 1 }, replace: { kind: "bytes", bytes: "1230" } }]
+     })
+     ```
+   - **Container Repack & Entry Diff (`apk_artifact_generation`)**:
+     Repack the modified DEX into the APK container with preserved resource alignments (STORED 4-byte for resources.arsc, 16KiB page alignment for native libraries):
+     ```json
+     apk_artifact({
+       action: "repack",
+       path: "<target.apk>",
+       output_path: "./artifacts/repacked_unsigned.apk",
+       dex_files: { "classes.dex": "./artifacts/classes_patched.dex" },
+       strip_signatures: true,
+       page_align_so: true
+     })
+     apk_artifact({
+       action: "diff",
+       original_path: "<target.apk>",
+       modified_path: "./artifacts/repacked_unsigned.apk"
+     })
+     ```
+   - **Zero-Change Control & Lineage Registration**: Run an unmodified original through the identical repackaging and signing pipeline as an experimental control baseline. Confirm only intended entries differ via entry diff, and register derivative lineage with exact hashes:
+     ```json
+     reverse_workflow({
+       action: "register_derivative",
+       workflow_id: "<wf_id>",
+       step_id: "<step_id>",
+       build_id: "bld_patch1",
+       derivative_path: "./artifacts/repacked_unsigned.apk",
+       original_sha256: "<orig_sha256>",
+       output_sha256: "<output_sha256>",
+       signature_status: "unsigned"
+     })
+     ```
+   - **Archive Alignment & v1-v3 Signing (`apk_artifact_generation`)**:
+     Resolve signing tools (`zipalign`, `apksigner`, `java`, `python`) before signing:
+     ```json
+     apk_artifact({
+       action: "sign",
+       path: "./artifacts/repacked_unsigned.apk",
+       output_path: "./artifacts/target_patched_signed.apk",
+       keystore_path: "~/.android/debug.keystore",
+       key_alias: "androiddebugkey",
+       ks_pass_env: "KEYSTORE_PASS",
+       page_align_so: true
+     })
+     apk_artifact({ action: "verify", path: "./artifacts/target_patched_signed.apk" })
+     ```
+   - **Install & Launch Verification (`apk_artifact_generation`)**:
+     ```json
+     apk_artifact({
+       action: "install_verify",
+       path: "./artifacts/target_patched_signed.apk",
+       package_name: "com.example.app",
+       activity: ".MainActivity",
+       serial: "<device_serial>",
+       output_dir: "./artifacts/install_verify_run"
+     })
+     ```
+   - **Symptom-Driven Failure Knowledge**:
+     - *Signature & Align Failures*: If runtime install fails with `INSTALL_FAILED_INVALID_APK` or native library loading crashes, verify 4-byte resource alignment and 16KiB page alignment for `.so` (`page_align_so: true`), and confirm v1-v3 scheme compliance. Container alignment cannot fix an ELF whose internal `PT_LOAD` segments were linked with 4KiB page size; both container 16KiB alignment and proper ELF segment linking are required.
+     - *Stale Cache & Server Overrides*: If patched bytecode executes but application behavior remains unchanged, investigate cached remote configurations, SharedPreferences flags, or dynamic CDN config TTLs via non-destructive observation (`adb_observe`) rather than issuing destructive data resets. Never invoke `pm clear` by default as it destroys session state and application data; perform an isolated test profile or targeted data reset only after explicit operator approval and preserving necessary credentials.
+     - *Zero-Event Trace Control*: When dynamic tracing observes no events, do not assume the check passed; verify that the hook was actually installed and that execution reached the target class/method.
+   - **Verification Level Separation**:
+     1. *Static Validation*: DEX structure/header Adler32/SHA-1 and ZIP layout integrity.
+     2. *Signed Artifact Verification*: Cryptographic signature verification via `apksigner verify` (v1-v3 schemes).
+     3. *Install & Launch Verification*: Device deployment and Activity startup via `apk_artifact(action: "install_verify")`.
+     4. *Exact-Feature Verification*: Discrete operator testing of the specific target feature. Launch stability MUST NOT be treated as feature verification.
+   - **Fallback Tier (Smali Rebuild)**: If direct DEX patching is unsuitable (e.g. multi-instruction method restructuring required), fall back to `apktool d` smali disassembly, manual editing, and `apktool b` reassembly into `./artifacts/`.
 5. **Dynamic Verification (Isolated Runtime Only)**:
    - Start with `adb_observe(action: "devices")`, then pass the target `serial` explicitly whenever more than one device is attached.
    - Confirm the running package and process with `adb_observe(action: "packages", serial: "<serial>", package: "<package>")` and `adb_observe(action: "processes", serial: "<serial>", package: "<package>")`.

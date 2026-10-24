@@ -229,7 +229,22 @@ When an investigative step requires an external tool or when a preferred engine 
    - *Step 6 (Dispatch)*: Invoke `jadx -d ./artifacts/jadx_out --single-class com.example.AuthService target.apk`.
    - *Step 7 (Workflow Record)*: `reverse_workflow({ action: "record", workflow_id: "wf_rw_1", step_id: "apk_step_2", status: "completed", outputs: "Decompiled target class to ./artifacts/jadx_out", evidence_ids: ["ev_fact_apk_class"] })`. If declined: `reverse_workflow({ action: "record", workflow_id: "wf_rw_1", step_id: "apk_step_2", status: "completed", outputs: "Operator declined jadx setup; engaged fallback droidasc", fallback_tool: "droidasc" })`.
 
-3. **`browser_debugger` (Web Runtime JS Debugging)**:
+3. **`dex_patching` (Dalvik Bytecode Semantic Patching)**:
+   - *Scenario*: Directly modifying Dalvik bytecode instructions (inverting conditional branches, overriding boolean returns, nop-padding checks) without decompiling to smali or reassembling the entire APK.
+   - *Step 1 (Resolve)*: `reverse_capability({ action: "resolve", capability: "dex_patching" })`.
+   - *Step 2 (Native Check)*: `recommendedNativeTool: "dex_patch"`. Verifies DEX structures, Adler32 checksums, SHA-1 signatures, and method instruction boundaries. If Python 3.9+ runtime is missing, present setup notice for `reverse setup reverse python`.
+   - *Step 3 (Inspect & Dry-Run)*: `dex_patch({ action: "inspect", path: "sample.apk", entry: "classes.dex", class: "Lcom/example/Auth;", method: "checkLicense", desc: "()Z" })` followed by dry-run patch.
+   - *Step 4 (Patch Execution)*: `dex_patch({ action: "patch", path: "classes.dex", out: "./artifacts/classes_patched.dex", dry_run: false, specs: [{ class: "Lcom/example/Auth;", method: "checkLicense", desc: "()Z", match: { kind: "const4", literal: 1 }, replace: { kind: "bytes", bytes: "1230" } }] })`.
+   - *Step 5 (Lineage Record)*: Register derivative via `reverse_workflow({ action: "register_derivative", workflow_id: "<wf_id>", step_id: "<step_id>", build_id: "bld_patch1", derivative_path: "./artifacts/classes_patched.dex", original_sha256: "<orig_sha>", output_sha256: "<output_sha>", signature_status: "unsigned" })`.
+
+4. **`apk_artifact_generation` (APK Container Repackaging & Signing)**:
+   - *Scenario*: Assembling modified DEX bytecode into a valid APK container, enforcing 4-byte/16KiB page alignments, applying v1-v3 APK signatures, and verifying container integrity.
+   - *Step 1 (Resolve)*: `reverse_capability({ action: "resolve", capability: "apk_artifact_generation" })`. Check readiness: offline repack/diff uses Python stdlib; signed pipeline requires `python`, `zipalign`, `apksigner`, and `java`.
+   - *Step 2 (Repack & Diff)*: `apk_artifact({ action: "repack", path: "target.apk", output_path: "./artifacts/repacked_unsigned.apk", dex_files: { "classes.dex": "./artifacts/classes_patched.dex" }, strip_signatures: true, page_align_so: true })` followed by `apk_artifact({ action: "diff", original_path: "target.apk", modified_path: "./artifacts/repacked_unsigned.apk" })` for zero-change control. Pass the unmodified original package through the identical repackaging and signing pipeline as an experimental control baseline before evaluating semantic modifications.
+   - *Step 3 (Signing & Verification)*: `apk_artifact({ action: "sign", path: "./artifacts/repacked_unsigned.apk", output_path: "./artifacts/target_signed.apk", keystore_path: "~/.android/debug.keystore", key_alias: "androiddebugkey", ks_pass_env: "KEYSTORE_PASS", page_align_so: true })` followed by `apk_artifact({ action: "verify", path: "./artifacts/target_signed.apk" })`.
+   - *Step 4 (Install Verification)*: When device/emulator is connected: `apk_artifact({ action: "install_verify", path: "./artifacts/target_signed.apk", package_name: "com.example.app", activity: ".MainActivity", serial: "<device_serial>", output_dir: "./artifacts/install_verify_run" })`. Note: Launch stability confirms container validity, but discrete feature verification remains mandatory before declaring success.
+
+5. **`browser_debugger` (Web Runtime JS Debugging)**:
    - *Scenario*: Dynamic Web application inspection, DOM inspection, script debugging, source-map recovery, and automated Chrome DevTools Protocol control.
    - *Step 1 (Resolve)*: `reverse_capability({ action: "resolve", capability: "browser_debugger" })`.
    - *Step 2 (Native Check)*: `recommendedNativeTool: "browser_reverse_session"` + `js_hook_preset` is ready immediately for CDP evaluation and script injection. If persistent multi-session browser orchestration is requested via MCP, evaluate `playwright-mcp`.
@@ -239,7 +254,7 @@ When an investigative step requires an external tool or when a preferred engine 
    - *Step 6 (Dispatch)*: Execute browser session commands or dispatch native `browser_reverse_session({ action: "eval", expression: "window.__CONFIG__" })`.
    - *Step 7 (Workflow Record)*: `reverse_workflow({ action: "record", workflow_id: "wf_rw_1", step_id: "web_step_2", status: "completed", outputs: "Captured runtime crypto state", evidence_ids: ["ev_fact_web_crypto"] })`. If declined: record fallback `browser_reverse_session` in `reverse_workflow`.
 
-4. **`native_debugger` (Binary Runtime Tracing & Stepping)**:
+6. **`native_debugger` (Binary Runtime Tracing & Stepping)**:
    - *Scenario*: Dynamic instruction tracing, hardware breakpoints, register state analysis, and memory inspection on native ELF, PE, and Mach-O binaries.
    - *Step 1 (Resolve)*: `reverse_capability({ action: "resolve", capability: "native_debugger" })`.
    - *Step 2 (Native Check)*: `recommendedNativeTool: "r2_inspect"` (and `triage`). Ready for bounded disassembly, section entropy, and xrefs. For dynamic runtime execution or deep decompilation, evaluate `radare2` or `ghidra`.
@@ -249,15 +264,15 @@ When an investigative step requires an external tool or when a preferred engine 
    - *Step 6 (Dispatch)*: Invoke `r2_inspect({ action: "decompile", path: "<sample>", symbol: "auth_check" })` or `r2 -qc "aaa; s sym.auth_check; pdf" <sample>`.
    - *Step 7 (Workflow Record)*: `reverse_workflow({ action: "record", workflow_id: "wf_rw_1", step_id: "native_step_2", status: "completed", outputs: "Decompiled auth_check: identified license validation logic", evidence_ids: ["ev_fact_auth_logic"] })`. If declined: `reverse_workflow({ action: "record", workflow_id: "wf_rw_1", step_id: "native_step_2", status: "completed", outputs: "Operator declined radare2 setup; engaged fallback objdump -d", fallback_tool: "objdump" })`.
 
-5. **`websocket_capture` (Real-Time WebSocket Forensics)**:
+7. **`websocket_capture` (Real-Time WebSocket Forensics)**:
    - *Scenario*: Capturing and auditing live WebSocket frames when no pre-recorded capture file exists.
    - *Protocol Trace*: Query `reverse_capability({ action: "resolve", capability: "websocket_capture" })` -> prefer native `websocket_observe` for offline captures -> recommend `reverse setup reverse mitmproxy` for live capture -> ask approval -> post-install run `mitmdump -s ws_dump.py` -> record in `reverse_workflow`.
 
-6. **`js_deobfuscation` (AST JavaScript Un-packing)**:
+8. **`js_deobfuscation` (AST JavaScript Un-packing)**:
    - *Scenario*: De-obfuscating mangled JavaScript variables, control-flow flattening, and string arrays in web bundles.
    - *Protocol Trace*: Query `reverse_capability({ action: "resolve", capability: "js_deobfuscation" })` -> prefer native `ast_grep` + `sourcemap_inspect` -> recommend external `ast-grep` CLI / `hbctool` if React Native Hermes bytecode is present -> ask approval -> dispatch -> record in `reverse_workflow`.
 
-7. **`traffic_interception` (Dynamic Network & API Forensics)**:
+9. **`traffic_interception` (Dynamic Network & API Forensics)**:
    - *Scenario*: Intercepting live HTTPS traffic, analyzing API signatures, and replaying modified requests.
    - *Protocol Trace*: Query `reverse_capability({ action: "resolve", capability: "traffic_interception" })` -> prefer native `pcap_inspect` (offline PCAP) + `curl` -> recommend `reverse setup reverse mitmproxy` for live interception -> ask approval -> dispatch -> record in `reverse_workflow`.
 ### Graceful Tool Degradation Ladders

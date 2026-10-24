@@ -16,6 +16,8 @@ This reference defines the degradation ladders, tool detection mechanisms, and i
 | Capability / Analysis Domain | Tier 1 (Native Baseline) | Tier 2 (Optional Catalog) | Tier 3 (Secondary Fallback) | Tier 4 (POSIX Baseline) |
 | :--- | :--- | :--- | :--- | :--- |
 | **`apk_unpacking`** (APK/DEX) | native `android_package_inspect` | `jadx` / `apktool` | `droidasc` / `dexdump` | `unzip -p <apk> AndroidManifest.xml` / `strings` |
+| **`dex_patching`** (DEX Patching) | native `dex_patch` | `python` (stdlib runner) / `jadx` | `droidasc` / `dexdump` | `apktool d` smali patch |
+| **`apk_artifact_generation`** (APK Repack/Sign) | native `apk_artifact` | `zipalign` + `apksigner` | `apktool b` + `zip` | `unzip` / Python zipfile |
 | **`android_native_emulation`** | native `android_native_workflow` | `unidbg` (host JNI emulation) | `frida_session` / `frida` on device | Static `ghidra_inspect` / `r2_inspect` / `readelf` |
 | **Android Dynamic** | `frida_session` / `frida -U` | `adb_observe` / `adb logcat` | Static smali patch + rebuild | Smali control flow trace |
 | **`native_debugger`** (ELF/PE/Mach-O) | native `triage` + `r2_inspect` | `ghidra_inspect` / `radare2` | `objdump -d` / `readelf` | `strings -a -n 8` + `xxd` / `hexdump` |
@@ -348,6 +350,41 @@ When an analytical step requires tools that may not be installed or configured, 
       evidence_ids: ["ev_fact_droidasc_cls"]
     })
     ```
+
+### 2b. `dex_patching` (DEX Structural Validation & Bytecode Patching)
+- **Analytical Need**: Modify Dalvik conditional branch logic in `classes.dex` without decompiling to smali or reassembling the APK.
+- **Step 1 (Resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "dex_patching" })
+  ```
+- **Step 2 (Native Evaluation)**: `recommendedNativeTool: "dex_patch"` validates DEX headers, checksums, and instruction boundaries in-process using Python 3.9+ runtime.
+- **Step 3 (Dispatch)**:
+  ```json
+  dex_patch({ action: "inspect", path: "sample.apk", entry: "classes.dex", class: "Lcom/example/Auth;", method: "checkLicense", desc: "()Z" })
+  dex_patch({ action: "patch", path: "classes.dex", out: "./artifacts/classes_patched.dex", dry_run: false, specs: [{ class: "Lcom/example/Auth;", method: "checkLicense", desc: "()Z", match: { kind: "const4", literal: 1 }, replace: { kind: "bytes", bytes: "1230" } }] })
+  ```
+- **Step 4 (Lineage Record)**:
+  ```json
+  reverse_workflow({ action: "register_derivative", workflow_id: "wf_rw_1", step_id: "dex_step_1", build_id: "bld_patch1", derivative_path: "./artifacts/classes_patched.dex", original_sha256: "<orig_sha>", output_sha256: "<output_sha>", signature_status: "unsigned" })
+  ```
+
+### 2c. `apk_artifact_generation` (APK Container Repack, Alignment & Signing)
+- **Analytical Need**: Assemble patched `classes.dex` into target APK, enforce 4-byte/16KiB page alignment, and apply cryptographic signatures.
+- **Step 1 (Resolve)**:
+  ```json
+  reverse_capability({ action: "resolve", capability: "apk_artifact_generation" })
+  ```
+- **Step 2 (Native Evaluation)**: `recommendedNativeTool: "apk_artifact"` performs entry diff and container repacking offline; signing pipeline requires `python`, `zipalign`, `apksigner`, and `java`.
+- **Step 3 (Repack & Diff)**:
+  ```json
+  apk_artifact({ action: "repack", path: "target.apk", output_path: "./artifacts/repacked_unsigned.apk", dex_files: { "classes.dex": "./artifacts/classes_patched.dex" }, strip_signatures: true, page_align_so: true })
+  apk_artifact({ action: "diff", original_path: "target.apk", modified_path: "./artifacts/repacked_unsigned.apk" })
+  ```
+- **Step 4 (Sign & Verify)**:
+  ```json
+  apk_artifact({ action: "sign", path: "./artifacts/repacked_unsigned.apk", output_path: "./artifacts/target_signed.apk", keystore_path: "~/.android/debug.keystore", key_alias: "androiddebugkey", ks_pass_env: "KEYSTORE_PASS", page_align_so: true })
+  apk_artifact({ action: "verify", path: "./artifacts/target_signed.apk" })
+  ```
 
 ### 3. `browser_debugger` (Browser CDP Dynamic Inspection)
 - **Analytical Need**: Intercept dynamic JavaScript crypto state (`window.__AUTH_STATE__`) and monitor network requests in a single-page web app.

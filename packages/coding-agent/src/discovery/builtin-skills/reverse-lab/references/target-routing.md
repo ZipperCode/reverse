@@ -135,6 +135,8 @@ Before executing resource-heavy tools or disassemblers, evaluate required capabi
    Identify the underlying analytical requirement:
    - Android JNI emulation ➔ `android_native_emulation`
    - Android package decompilation & Dalvik analysis ➔ `apk_unpacking`
+   - Android DEX bytecode inspection & semantic patching ➔ `dex_patching`
+   - Android APK container repacking, alignment & signing ➔ `apk_artifact_generation`
    - Dynamic Web & DOM inspection ➔ `browser_debugger`
    - Native binary disassembly & dynamic stepping ➔ `native_debugger`
    - WebSocket real-time frame inspection ➔ `websocket_capture`

@@ -110,7 +110,7 @@ const reverseWorkflowSchema = type({
 		"Maximum retry attempts allowed for step or workflow (default 3, max 10)",
 	),
 	"capability_id?": type("string").describe(
-		"Canonical capability ID (e.g. 'apk_unpacking', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception', 'native_debugger')",
+		"Canonical capability ID (e.g. 'apk_unpacking', 'dex_patching', 'apk_artifact_generation', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception', 'native_debugger')",
 	),
 	"installed_tool?": type("string").describe(
 		"Logical identifier of newly installed external tool (e.g. 'jadx', 'apktool', 'unidbg', 'radare2') for install-after resumption",
@@ -1578,9 +1578,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 
 				const targetFile = params.target ?? params.path ?? params.derivative_path;
 				if (!targetFile) {
-					throw new ToolError(
-						"Derivative target file path ('target', 'path', or 'derivative_path') is required.",
-					);
+					throw new ToolError("Derivative target file path ('target', 'path', or 'derivative_path') is required.");
 				}
 
 				let parsedPatches: RegisterDerivativeOptions["patches"];

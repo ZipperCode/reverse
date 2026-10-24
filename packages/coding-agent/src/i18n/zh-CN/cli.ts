@@ -132,6 +132,7 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.setup.reverse.tool.node.description":
 		"JavaScript 运行时及 npm/npx 工具链，为浏览器分析与 MCP 服务提供运行环境。",
 	"cli.setup.reverse.tool.java.description": "Java 运行环境，是 JADX、Apktool、Unidbg 等工具的前置依赖。",
+	"cli.setup.reverse.tool.python.description": "Python 3.9+ 运行环境，为 DEX 补丁与 APK 重新打包管线提供执行引擎。",
 	"cli.setup.reverse.tool.ida.description":
 		"通过 IDA 的 idalib 无头引擎进行反汇编与反编译；需相应授权及 Python 环境，无需打开桌面端。",
 	"cli.setup.reverse.tool.playwright-mcp.description": "通过 MCP 提供浏览器操作、页面状态读取和动态 Web 分析能力。",
@@ -146,6 +147,8 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.setup.reverse.tool.bundletool.purpose": "将 AAB 转为可部署、可检查的 APK，分析拆分包中的代码与资源。",
 	"cli.setup.reverse.tool.dex2jar.purpose": "把 Android 字节码交给 CFR、Fernflower 等 Java 反编译器处理。",
 	"cli.setup.reverse.tool.baksmali.purpose": "需要精确检查或修改 DEX 指令、寄存器和分支逻辑时。",
+	"cli.setup.reverse.tool.python.purpose":
+		"执行基于 Python stdlib 的离线 DEX 结构校验、字节码语义补丁与 APK 容器重组。",
 	"cli.setup.reverse.tool.scrcpy.purpose": "操作目标应用界面，观察真机上的运行行为并复现业务步骤。",
 	"cli.setup.reverse.tool.readelf.purpose":
 		"检查原始 ELF 元数据或 core dump 的备注段；常规崩溃分析可先用内置 crashdump_inspect。",

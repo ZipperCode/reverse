@@ -12,6 +12,8 @@
 - Added managed jshookmcp setup through CLI, interactive TUI, and write-approved agent installation, with pinned local packages, search-profile stdio configuration, verified deobfuscation, and immediate session tool activation.
 - Added live selected-tool descriptions and usage guidance to the reverse toolchain setup list, with a reserved detail area for keyboard navigation, filtering, and compact terminals.
 - Added `unidbg` CLI and agent tools for JDK 8-validated source builds, JNI/IPA harness generation, supervised SSE startup, and session-owned in-memory MCP registration.
+- Added first-class `dex_patch` and `apk_artifact` tools adapted from MIT apk-reverse: guarded cumulative equal-length DEX edits, structural CFG checks, APK entry diffing, resource-preserving aligned repacking, explicit-keystore signing, cryptographic verification, and explicit-device install/launch evidence. Embedded Python workers ship in source and compiled installations; original samples and existing outputs are preserved.
+- Added `dex_patching` and `apk_artifact_generation` capability readiness with separate offline/signing/device prerequisites, trusted Python runtime installation and Chinese setup guidance, and symptom-driven Android workflow references that distinguish static, signed-artifact, launch, and exact-feature verification.
 
 ### Changed
 

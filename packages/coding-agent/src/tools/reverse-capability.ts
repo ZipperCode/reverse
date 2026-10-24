@@ -29,7 +29,7 @@ const reverseCapabilitySchema = type({
 			"Capability action: list, resolve or get host capability status; status inspects observable MCP/skill lifecycle states (configured/connected/discovered/targetMatched/executed/succeeded); install provisions the trusted jshookmcp service and registers its MCP tools in this session (write approval required)",
 		),
 	"capability?": type("string").describe(
-		"Canonical capability ID (e.g. 'apk_unpacking', 'native_debugger', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception')",
+		"Canonical capability ID (e.g. 'apk_unpacking', 'dex_patching', 'apk_artifact_generation', 'native_debugger', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception')",
 	),
 	"id?": type("string").describe("Alias for capability"),
 	"refresh?": type("boolean").describe(
@@ -471,7 +471,9 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					lines.push(
 						`- **Discovered**: ${s.discovered ? `Yes (${s.discoveredTools.length} tools: ${s.discoveredTools.slice(0, 5).join(", ")}${s.discoveredTools.length > 5 ? "..." : ""})` : "No"}`,
 					);
-					lines.push(`- **Target Matched**: ${s.targetMatched ? `Yes (target: ${s.target ?? "unspecified"})` : "No"}`);
+					lines.push(
+						`- **Target Matched**: ${s.targetMatched ? `Yes (target: ${s.target ?? "unspecified"})` : "No"}`,
+					);
 					lines.push(`- **Executed Tools**: ${s.executed ? `Yes (${s.executionCount} calls)` : "No"}`);
 					if (s.lastExecution) {
 						lines.push(
@@ -502,7 +504,6 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					},
 				};
 			}
-
 
 			default:
 				throw new ToolError(`Unknown reverse_capability action: '${String(params.action)}'`);

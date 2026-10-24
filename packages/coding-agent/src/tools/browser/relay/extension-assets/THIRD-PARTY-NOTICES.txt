@@ -9,6 +9,39 @@ TRACKED VENDORED CODE AND ASSET NOTICES
 =======================================
 
 -------------------------------------------------------------------------------
+apk-reverse — adopted DEX patching and APK artifact utilities and workflow knowledge
+https://codeberg.org/dabao1955/apk-reverse
+Upstream snapshot: bd6dd0c59ce1f9af75f1293ef9518fb6f5d28c6c
+
+Adapted into reverse's first-class dex_patch and apk_artifact tools, embedded
+Python helpers, and Android reverse-engineering skill guidance. Local changes
+include structured tool results, isolated outputs, dependency reporting, and
+artifact validation. Upstream experimental hardware/kernel templates are not included.
+
+MIT License
+
+Copyright (c) 2026 apk-reverse contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+-------------------------------------------------------------------------------
 crates/vendor/brush-core/LICENSE
 
 This directory contains a vendored, locally-patched copy of brush-core from the

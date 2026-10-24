@@ -82,6 +82,8 @@ import { GhidraInspectTool } from "./ghidra-inspect";
 import { DroidascTool } from "./droidasc";
 import { AndroidPackageInspectTool } from "./android-package-inspect";
 import { AndroidNativeWorkflowTool } from "./android-native-workflow";
+import { DexPatchTool } from "./dex-patch";
+import { ApkArtifactTool } from "./apk-artifact";
 import { AdbObserveTool } from "./adb-observe";
 import { FridaTool } from "./frida";
 import { FridaSessionTool } from "./frida-session";
@@ -191,6 +193,8 @@ export * from "./dotnet-inspect";
 export * from "./ghidra-inspect";
 export * from "./droidasc";
 export * from "./android-package-inspect";
+export * from "./dex-patch";
+export * from "./apk-artifact";
 export * from "./adb-observe";
 export * from "./frida";
 export * from "./frida-session";
@@ -620,6 +624,8 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	droidasc: s => new DroidascTool(s),
 	android_package_inspect: s => new AndroidPackageInspectTool(s),
 	android_native_workflow: s => new AndroidNativeWorkflowTool(s),
+	dex_patch: s => new DexPatchTool(s),
+	apk_artifact: s => new ApkArtifactTool(s),
 	adb_observe: s => new AdbObserveTool(s),
 	frida: s => new FridaTool(s),
 	frida_session: s => new FridaSessionTool(s),

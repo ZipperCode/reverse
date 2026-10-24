@@ -26,6 +26,11 @@ reverse_capability(action: "resolve")
 
 // 3. Resolve host readiness for APK unpacking
 reverse_capability(action: "resolve", capability: "apk_unpacking")
+// 3b. Resolve host readiness for DEX patching
+reverse_capability(action: "resolve", capability: "dex_patching")
+
+// 3c. Resolve host readiness for APK artifact generation and signing
+reverse_capability(action: "resolve", capability: "apk_artifact_generation")
 
 // 4. Inspect detailed native debugger capability and post-install invocation
 reverse_capability(action: "get", capability: "native_debugger")

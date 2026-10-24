@@ -63,7 +63,7 @@ export interface FailureAttribution {
  * a step following external tool installation via trusted setup.
  */
 export interface StepResumeMetadata {
-	/** Canonical capability ID (e.g. 'apk_unpacking', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception', 'native_debugger') */
+	/** Canonical capability ID (e.g. 'apk_unpacking', 'dex_patching', 'apk_artifact_generation', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception', 'native_debugger') */
 	capability_id?: string;
 	/** Logical name of the installed external tool (e.g. 'jadx', 'apktool', 'unidbg', 'radare2') */
 	installed_tool: string;
@@ -265,7 +265,6 @@ export interface WorkflowBaselineSummary {
 		runtime_evidence_ids?: string[];
 	};
 }
-
 
 export interface ReverseWorkflowRecord {
 	id: string;

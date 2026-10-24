@@ -103,50 +103,129 @@ readelf -sW ./artifacts/extracted_so/lib/arm64-v8a/libnative-crypto.so | grep -E
   ```
 ---
 
-## 4. Phase 3: Smali Bytecode Modification & Rebuild (Apktool)
+## 4. Phase 3: Bytecode Modification, APK Repackaging & Signing (`dex_patch` & `apk_artifact`)
 
 Execute bytecode modifications, package rebuilds, and signing exclusively on explicitly authorized test applications in isolated laboratory environments. Preserve the original APK read-only, directing disassembled source and rebuilt packages to dedicated artifact paths (`./artifacts/`).
 
-When verifying a hypothesis via static patch:
-### 1. Decode to Smali
-```bash
-# Decode only smali and resources (-r prevents resource decoding if only smali is needed)
-apktool d target.apk -o apk_disassembled
+### 1. Pre-Patch Layer Triage & Diagnostic Failure Checks
+Before attempting bytecode modifications, verify target ownership to prevent wasted investigation cycles:
+- **Layer Ownership**: Determine whether the target algorithm lives in Java/Dalvik DEX, Native C/C++ `.so` (JNI), Flutter/Dart (`libapp.so`), or a Server-Side API check. Modifying DEX has zero effect on native cryptography, Flutter compiled AOT code, or server-enforced validation.
+- **JNI Dynamic Registration**: When native methods are declared (`native boolean check()`), check whether the native implementation is exported statically as `Java_<pkg>_<cls>_<method>` or dynamically registered inside `JNI_OnLoad` via `RegisterNatives`.
+- **Zero-Change Control**: Never trust unverified patches without a baseline. Pass the unmodified original package through the identical repackaging and signing pipeline as an experimental control; verify that this repackaged baseline installs and functions identically before testing semantic patches. Combine this control run with entry-level diffing (`apk_artifact(action: "diff")`) to confirm only intended entries differ.
+- **Signature & Alignment Failures**: Re-signed packages will fail to install (`INSTALL_FAILED_INVALID_APK`) or fail runtime dynamic loading if resources are not 4-byte aligned, native `.so` libraries are not aligned to 16KiB (16384-byte) page boundaries in the ZIP container (`page_align_so: true`), or v1-v3 signature schemes are improperly applied. Note that 16KiB container alignment satisfies packaging requirements but cannot fix a native library whose internal ELF `PT_LOAD` segments were linked with incompatible 4KiB page size alignments (both container 16KiB alignment and proper ELF segment linking are required).
+- **Stale Cache & Remote Overrides**: If patched bytecode executes but application behavior remains unchanged, investigate cached remote configurations, SharedPreferences flags, or dynamic CDN config TTLs via non-destructive observation (`adb_observe`) rather than issuing destructive data resets. Never invoke `pm clear` by default as it destroys session state and application data; perform an isolated test profile or targeted data reset only after explicit operator approval and preserving necessary credentials.
+- **Zero-Event Trace Control**: When dynamic tracing observes no events, do not assume the check passed; verify that the hook was actually installed and that execution reached the target class/method.
+
+### 2. Direct DEX Bytecode Patching (`dex_patch`)
+Direct bytecode editing avoids full smali disassembly/reassembly failures on obfuscated or anti-decompilation APKs:
+```typescript
+// 1. Inspect target method Dalvik instructions and offsets
+dex_patch({
+  action: "inspect",
+  path: "target.apk",
+  entry: "classes.dex",
+  class: "Lcom/example/Auth;",
+  method: "checkLicense",
+  desc: "()Z"
+});
+
+// 2. Structurally validate DEX headers, Adler32 checksums, and instruction boundaries
+dex_patch({ action: "validate", path: "classes.dex" });
+
+// 3. Apply semantic bytecode patch with dry-run safety
+dex_patch({
+  action: "patch",
+  path: "classes.dex",
+  out: "./artifacts/classes_patched.dex",
+  dry_run: false,
+  specs: [
+    {
+      class: "Lcom/example/Auth;",
+      method: "checkLicense",
+      desc: "()Z",
+      match: { kind: "const4", literal: 1 },
+      replace: { kind: "bytes", bytes: "1230" }
+    }
+  ]
+});
 ```
 
-### 2. Patch Smali Logic
-Common smali mutation patterns:
+### 3. Container Repackaging, Alignment & Signing (`apk_artifact`)
+Assemble modified DEX files into a valid APK, enforce alignment, and sign:
+```typescript
+// 1. Repack modified DEX into APK container (preserves resources.arsc alignment, META-INF services, and enforces 16KiB .so alignment)
+apk_artifact({
+  action: "repack",
+  path: "target.apk",
+  output_path: "./artifacts/repacked_unsigned.apk",
+  dex_files: { "classes.dex": "./artifacts/classes_patched.dex" },
+  strip_signatures: true,
+  page_align_so: true
+});
 
-- **Invert Boolean Condition**:
-  Change `if-eqz v0, :cond_fail` to `if-nez v0, :cond_fail`.
-- **Force Return True**:
-  ```smali
-  # Replace method body with constant true
-  .method public static isValid()Z
-      .registers 1
-      const/4 v0, 0x1
-      return v0
-  .end method
-  ```
-- **Bypass Void Check**:
-  ```smali
-  # Replace method body with immediate return
-  .method public static checkSecurity()V
-      .registers 0
-      return-void
-  .end method
-  ```
+// 2. Verify zero-change control via entry-level diff
+apk_artifact({
+  action: "diff",
+  original_path: "target.apk",
+  modified_path: "./artifacts/repacked_unsigned.apk"
+});
 
-### 3. Rebuild, Align & Sign
+// 3. Register derivative lineage in reverse_workflow
+reverse_workflow({
+  action: "register_derivative",
+  workflow_id: "wf_rw_1",
+  step_id: "apk_patch_step",
+  build_id: "bld_patch1",
+  derivative_path: "./artifacts/repacked_unsigned.apk",
+  original_sha256: "<orig_sha256>",
+  output_sha256: "<output_sha256>",
+  signature_status: "unsigned"
+});
+
+// 4. Sign container with zipalign (4-byte alignment, 16KiB page alignment for .so) and apksigner (v1-v3 schemes)
+apk_artifact({
+  action: "sign",
+  path: "./artifacts/repacked_unsigned.apk",
+  output_path: "./artifacts/target_signed.apk",
+  keystore_path: "~/.android/debug.keystore",
+  key_alias: "androiddebugkey",
+  ks_pass_env: "KEYSTORE_PASS",
+  page_align_so: true
+});
+
+// 5. Cryptographically verify signature block and alignment
+apk_artifact({ action: "verify", path: "./artifacts/target_signed.apk" });
+
+// 6. Install & launch verification on test device/emulator (requires explicit output_dir for artifacts)
+apk_artifact({
+  action: "install_verify",
+  path: "./artifacts/target_signed.apk",
+  package_name: "com.example.app",
+  activity: ".MainActivity",
+  serial: "<device_serial>",
+  output_dir: "./artifacts/install_verify_run"
+});
+```
+
+### 4. Four-Level Verification Distinction
+1. **Static Validation**: Verifies DEX header checksums (Adler32, SHA-1), instruction boundary integrity, and ZIP container structure.
+2. **Signed Artifact Verification**: Cryptographically validates APK Signing Block v1-v3 signature schemes and archive alignments.
+3. **Install & Launch Verification**: Confirms that the APK installs without rejection and the launchable Activity starts without immediate crash.
+4. **Exact-Feature Verification**: Discrete operator testing of the specific target feature. Launch stability MUST NEVER be claimed as feature verification.
+
+### 5. Fallback Tier: Smali Bytecode Modification & Rebuild (Apktool)
+When direct DEX patching is unsuitable (e.g., complex multi-instruction method restructuring):
 ```bash
-# 1. Rebuild APK
-apktool b apk_disassembled -o patched_unaligned.apk
+# 1. Decode smali and resources
+apktool d target.apk -o ./artifacts/apk_disassembled
 
-# 2. Zipalign (4-byte alignment)
-zipalign -v -p 4 patched_unaligned.apk patched_aligned.apk
+# 2. Edit smali logic (invert conditional branch, force return value)
+# 3. Rebuild APK
+apktool b ./artifacts/apk_disassembled -o ./artifacts/patched_unaligned.apk
 
-# 3. Sign with debug keystore
-apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android patched_aligned.apk
+# 4. 4-byte zipalign and apksigner
+zipalign -v -p 4 ./artifacts/patched_unaligned.apk ./artifacts/patched_aligned.apk
+apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --out ./artifacts/target_signed.apk ./artifacts/patched_aligned.apk
 ```
 
 ---

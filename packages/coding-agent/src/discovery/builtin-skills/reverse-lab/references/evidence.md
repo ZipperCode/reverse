@@ -55,6 +55,12 @@ A Conclusion is a confirmed finding proven through dynamic observation, breakpoi
 - **Calling Conventions**: Derive calling conventions from call-site disassembly, register usage, and stack teardown (`ret 0x0c` vs `ret`).
 - **Cryptographic Primitives**: Confirm algorithm identification through verified S-box constants, round keys, or platform crypto API imports (`CryptEncrypt`, `BCryptEncrypt`, `Cipher.getInstance`).
 - **Bypass Verification**: Confirm bypass claims through observable execution deltas (e.g. process behavior changes, logcat trace, successful network handshake).
+- **Zero-Change Control**: Never evaluate patches without a baseline control. Pass the unmodified original binary through the identical repackaging/signing pipeline; confirm that this baseline reproduces original behavior and installs cleanly before testing semantic modifications. Combine this control run with entry diffing (`apk_artifact(action: "diff")` or `binary_diff`) and register derivative lineage with exact original and output SHA-256 hashes.
+- **Four-Level Verification Hierarchy**:
+  1. *Static Validation*: Structural validity of headers, Adler32/SHA-1 checksums, instruction boundaries, and ZIP entry alignments (including 16KiB page alignment for native `.so`).
+  2. *Signed Artifact Verification*: Cryptographic validity of signature schemes (v1-v3) via `apksigner verify`.
+  3. *Install & Launch Verification*: Successful non-root deployment and process startup via `apk_artifact(action: "install_verify")` or `adb install`.
+  4. *Exact-Feature Verification*: Discrete experimental confirmation that the target functionality (e.g. license validation, authentication flow) operates as hypothesized. Launch stability does NOT constitute feature verification.
 ---
 
 ## 3. Evidence Artifact Markdown Schema

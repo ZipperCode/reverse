@@ -165,6 +165,18 @@ APK/AAB
 
 Unidbg 是 Runtime Controller，不是 Skill。Skill 只决定何时使用、需要哪些参数和验证标准。无法满足模拟环境时返回缺失依赖或环境缺口，不伪造调用结果。
 
+### 样本修改与产物验证
+
+`dex_patch` 与 `apk_artifact` 将 apk-reverse 的 MIT 工具机制适配为正式内置工具，Python 源码作为文本资产嵌入安装包和独立二进制，运行时经现有 Python 发现机制启动。原始样本保持只读，写入使用明确的新路径、私有暂存与独占发布。
+
+- `dex_patch`：按类、方法、描述符和语义条件定位指令；默认预演等长补丁，校验指令边界、分支/payload、move-result 邻接，按 SHA-1 → Adler-32 顺序更新头部。它执行有限结构校验，ART 类型校验和实际行为验证仍在设备环节完成。
+- `apk_artifact`：按条目哈希与布局差分，替换 DEX，保留嵌套 `META-INF` 运行时资源，处理资源 4 字节和 native 库 16KiB 包内对齐；调用 zipalign 后签名，再执行 apksigner 验证。现有密钥库和环境变量/受保护文件凭证由调用方提供。
+- 能力解析区分离线 Python、完整签名依赖和设备主机依赖；静态目录检查保持设备连接状态未验证。依赖统一经过现有 CLI/TUI 工具安装目录。
+- 设备校验明确指定 serial，比较已安装 APK 与本地产物 SHA-256，采集启动状态、进程日志和截图；目标功能验证单独记录。产物哈希和补丁坐标接入现有 `reverse_workflow` 构建谱系与证据体系。
+
+使用契约见 [dex_patch](tools/dex_patch.md) 与 [apk_artifact](tools/apk_artifact.md)。上游快照为 `bd6dd0c59ce1f9af75f1293ef9518fb6f5d28c6c`，版权及 MIT 许可保留在 `THIRD-PARTY-NOTICES.txt`；实验性内核与硬件模板未纳入稳定工具。
+
+
 ## Browser 目标链
 
 ```text
@@ -198,6 +210,8 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
 |---|---|---|---|---|---|---|
 | `android_native_emulation` | ARM32/ARM64 Android .so 原生库无设备模拟执行与 JNI 调用 | `android_package_inspect` | `unidbg` | `frida`, `readelf`, `radare2` | `reverse setup reverse unidbg` | 执行 `reverse unidbg build / scaffold / launch` 自动化生成脚手架并动态挂载 SSE MCP 调试工具 |
 | `apk_unpacking` | APK/AAB 资源解码、Manifest 解析与 Dalvik 字节码反编译 | `android_package_inspect` | `apktool`, `jadx`, `baksmali`, `dexdump` | `file`, `strings` | `reverse setup reverse apktool` | 执行 `apktool d -f -o <dir> <apk>` 或 `jadx -d <dir> <apk>` |
+| `dex_patching` | DEX 指令检查、有限结构验证、等长语义补丁 | `dex_patch` | `python`, `jadx`, `baksmali`, `dexdump` | 只读检查与完整 smali 重建分流 | `reverse setup reverse python` | 默认预演，确认后写入独立 DEX |
+| `apk_artifact_generation` | APK 差分、重打包、对齐、签名及设备校验 | `apk_artifact` | `python`, `zipalign`, `apksigner`, `java`, `adb` | 离线未签名产物与设备运行验证分开 | `reverse setup reverse apksigner` | 解析缺失依赖后执行所需动作，签名后验证 |
 | `browser_debugger` | 网页应用 DOM 调试、JS 动态断点、执行流分析与 CDP 自动化 | `browser_reverse_session` | `playwright-mcp` | `mitmproxy`, `curl`, `file` | `reverse setup reverse playwright-mcp` | 配置 .reverse/mcp.json playwright 服务或建立 CDP 调试会话 |
 | `websocket_capture` | WebSocket 全双工数据帧实时截获、协议解包与序列分析 | `websocket_observe` | `mitmproxy`, `tshark` | `pcap_inspect`, `strings`, `curl` | `reverse setup reverse mitmproxy` | 启动 `mitmweb --web-port 8081` 或 `tshark -Y websocket` |
 | `native_debugger` | Native (ELF/PE/Mach-O) 二进制动态调试、内存与寄存器单步追踪 | `r2_inspect` | `radare2`, `r2mcp`, `frida`, `ghidra` | `binary_metadata_inspect`, `readelf`, `strings`, `file` | `reverse setup reverse radare2` | 启动 `r2 -d <binary>` 或附加 Frida 会话 |

@@ -25,6 +25,8 @@ export const BUILTIN_TOOL_NAMES = [
 	"droidasc",
 	"android_package_inspect",
 	"android_native_workflow",
+	"dex_patch",
+	"apk_artifact",
 	"adb_observe",
 	"frida",
 	"frida_session",
