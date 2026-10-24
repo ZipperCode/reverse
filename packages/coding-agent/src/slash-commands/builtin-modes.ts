@@ -577,11 +577,12 @@ export async function runInteractiveReverseSetup(
 		return;
 	}
 
-	let report = checkReverseTools();
+	let report: ReverseCheckReport | undefined;
 	const selectedIds = new Set<string>();
 	let currentFilter: "all" | "missing" | "services" = "all";
 
 	if (targetTool) {
+		report = checkReverseTools();
 		const norm = targetTool.toLowerCase();
 		// 1. Exact ID match first (prevents "ida" matching "frida")
 		let targetItem: ReverseToolStatus | ReverseServiceStatus | undefined =
@@ -614,6 +615,7 @@ export async function runInteractiveReverseSetup(
 				},
 				installCallback,
 				isZh,
+				report,
 			);
 			return;
 		}
@@ -622,8 +624,12 @@ export async function runInteractiveReverseSetup(
 		);
 	}
 
+	let isFirstRound = true;
 	while (true) {
-		report = checkReverseTools();
+		if (!isFirstRound || !report) {
+			report = checkReverseTools();
+		}
+		isFirstRound = false;
 		const allItems: Array<ReverseToolStatus | ReverseServiceStatus> = [...report.tools, ...report.services];
 		const missingTools = report.tools.filter(t => t.status === "missing");
 		const missingServices = report.services.filter(s => !s.ready || !s.configured);
@@ -631,7 +637,7 @@ export async function runInteractiveReverseSetup(
 
 		const missingSupportedItems = allItems.filter(item => {
 			const isMissing = item.kind === "cli" ? item.status === "missing" : !item.ready || !item.configured;
-			return isMissing && canInstallReverseItem(item);
+			return isMissing && canInstallReverseItem(item, { report });
 		});
 
 		const filterLabelAll =
@@ -714,7 +720,7 @@ export async function runInteractiveReverseSetup(
 		for (const tool of visibleTools) {
 			const isOk = tool.status === "installed";
 			const badge = isOk ? "✅" : "❌";
-			const installable = canInstallReverseItem(tool);
+			const installable = canInstallReverseItem(tool, { report });
 			const isSelected = selectedIds.has(tool.id);
 			const checkmark = isSelected ? "[✓]" : installable ? "[ ]" : "[-]";
 			items.push({
@@ -744,7 +750,7 @@ export async function runInteractiveReverseSetup(
 		if (currentFilter !== "all" || visibleServices.length > 0) {
 			for (const service of visibleServices) {
 				const badge = service.ready ? "✅" : "⚠️";
-				const installable = canInstallReverseItem(service);
+				const installable = canInstallReverseItem(service, { report });
 				const isSelected = selectedIds.has(service.id);
 				const checkmark = isSelected ? "[✓]" : installable ? "[ ]" : "[-]";
 				const configState = service.configured
@@ -821,7 +827,7 @@ export async function runInteractiveReverseSetup(
 		}
 
 		if (selected.includes("Install selected") || selected.includes("安装已选项目")) {
-			const targets = allItems.filter(item => selectedIds.has(item.id) && canInstallReverseItem(item));
+			const targets = allItems.filter(item => selectedIds.has(item.id) && canInstallReverseItem(item, { report }));
 			if (targets.length === 0) {
 				ctx.showWarning?.(isZh ? "未选择任何可安装的工具或服务。" : "No installable items selected.");
 				continue;
@@ -836,6 +842,7 @@ export async function runInteractiveReverseSetup(
 				},
 				installCallback,
 				isZh,
+				report,
 			);
 			continue;
 		}
@@ -859,6 +866,7 @@ export async function runInteractiveReverseSetup(
 				},
 				installCallback,
 				isZh,
+				report,
 			);
 			continue;
 		}
@@ -873,6 +881,7 @@ export async function runInteractiveReverseSetup(
 				},
 				installCallback,
 				isZh,
+				report,
 			);
 			continue;
 		}
@@ -886,7 +895,7 @@ export async function runInteractiveReverseSetup(
 		const item = chosenTool ?? chosenService;
 		if (!item) continue;
 
-		if (!canInstallReverseItem(item)) {
+		if (!canInstallReverseItem(item, { report })) {
 			ctx.showStatus?.(isZh ? `${item.name} 仅支持手动安装。` : `${item.name} requires manual installation.`);
 			await showItemDetails(
 				ctx,
@@ -897,6 +906,7 @@ export async function runInteractiveReverseSetup(
 				},
 				installCallback,
 				isZh,
+				report,
 			);
 			continue;
 		}
@@ -986,6 +996,7 @@ async function runBatchInstall(
 	refreshReport: () => ReverseCheckReport,
 	installCallback: ReverseInstallCallback | undefined,
 	isZh: boolean,
+	report?: ReverseCheckReport,
 ): Promise<void> {
 	if (targets.length === 0) {
 		ctx.showWarning?.(isZh ? "未选择任何可安装的工具或服务。" : "No installable items selected.");
@@ -1009,7 +1020,7 @@ async function runBatchInstall(
 	for (const target of targets) {
 		let plan: ReverseInstallPlan;
 		try {
-			plan = getReverseInstallPlan(target);
+			plan = getReverseInstallPlan(target, { report });
 		} catch (err) {
 			ctx.showError?.(
 				isZh
@@ -1136,6 +1147,7 @@ async function showGuidePicker(
 	refreshReport: () => ReverseCheckReport,
 	installCallback: ReverseInstallCallback | undefined,
 	isZh: boolean,
+	report?: ReverseCheckReport,
 ): Promise<void> {
 	const guideItems: Array<{ label: string; description?: string }> = allItems.map(item => {
 		const isOk = item.kind === "cli" ? item.status === "installed" : item.ready;
@@ -1180,7 +1192,7 @@ async function showGuidePicker(
 	const id = match ? match[1] : undefined;
 	const item = id ? allItems.find(i => i.id === id) : undefined;
 	if (item) {
-		await showItemDetails(ctx, item, refreshReport, installCallback, isZh);
+		await showItemDetails(ctx, item, refreshReport, installCallback, isZh, report);
 	}
 }
 
@@ -1190,12 +1202,14 @@ async function showItemDetails(
 	refreshReport: () => ReverseCheckReport,
 	installCallback: ReverseInstallCallback | undefined,
 	isZh: boolean,
+	initialReport?: ReverseCheckReport,
 ): Promise<void> {
 	let currentItem = initialItem;
+	let currentReport = initialReport;
 
 	while (true) {
 		const isInstalled = currentItem.kind === "cli" ? currentItem.status === "installed" : currentItem.ready;
-		const canInstall = canInstallReverseItem(currentItem);
+		const canInstall = canInstallReverseItem(currentItem, { report: currentReport });
 		const options: Array<{ label: string; description?: string }> = [];
 
 		if (canInstall) {
@@ -1361,7 +1375,7 @@ async function showItemDetails(
 		) {
 			let plan: ReverseInstallPlan;
 			try {
-				plan = getReverseInstallPlan(currentItem);
+				plan = getReverseInstallPlan(currentItem, { report: currentReport });
 			} catch (err) {
 				ctx.showError?.(
 					isZh
@@ -1429,6 +1443,7 @@ async function showItemDetails(
 					);
 				}
 				const refreshedReport = refreshReport();
+				currentReport = refreshedReport;
 				const refreshedItem =
 					currentItem.kind === "cli"
 						? refreshedReport.tools.find(t => t.id === currentItem.id)

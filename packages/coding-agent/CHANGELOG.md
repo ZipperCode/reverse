@@ -32,6 +32,7 @@
 
 ### Fixed
 
+- Fixed reverse setup stalls by sharing one toolchain inspection across each CLI batch plan and TUI menu round; subsequent rounds and post-install checks refresh dependency status.
 - Completed `native_mcp_session` and `unidbg` tool reference pages, restored package formatting compliance, and removed unused interactive/fixture bindings so documentation coverage and the package check gate pass.
 - Fixed default Ghidra decompilation and export to execute an embedded headless script and validate bounded UTF-8 results instead of treating analysis logs as pseudocode; missing dependencies route through setup.
 - Fixed Android JNI attribution to require visible defined dynamic function exports, preserve unresolved registration candidates, reject ambiguous library ownership, and support zero-argument and Unicode long JNI names without inventing malformed prototypes.

@@ -1382,6 +1382,7 @@ export async function handleReverseSetup(
 		env: deps.env,
 		agentDir: deps.agentDir,
 		cwd: deps.cwd,
+		report,
 	};
 
 	const plannedItems = allSelectedItems.map(item => ({

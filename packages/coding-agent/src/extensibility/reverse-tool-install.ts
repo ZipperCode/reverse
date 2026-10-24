@@ -40,6 +40,7 @@ import {
 	isTrustedCatalogArgv,
 	readMcpConfigFileSync,
 	t,
+	type ReverseCheckReport,
 	type ReverseServiceStatus,
 	type ReverseToolStatus,
 } from "../cli/setup-reverse";
@@ -80,6 +81,7 @@ export interface ReverseInstallOptions {
 	session?: Pick<AgentSession, "refreshMCPTools">;
 	signal?: AbortSignal;
 	plan?: ReverseInstallPlan;
+	report?: ReverseCheckReport;
 }
 
 export interface ReverseInstallStep {
@@ -300,17 +302,21 @@ export function getReverseInstallPlan(
 		env?: Record<string, string | undefined>;
 		agentDir?: string;
 		cwd?: string;
+		report?: ReverseCheckReport;
 	} = {},
 ): ReverseInstallPlan {
-	const reqPlatform = options.platform ?? process.platform;
+	const reqPlatform = options.platform ?? options.report?.platform ?? process.platform;
 	const platform: SkillToolPlatform = reqPlatform === "darwin" || reqPlatform === "win32" ? reqPlatform : "linux";
 	const which: SkillRequirementWhich = options.which ?? $which;
-	const report = checkReverseTools({
-		platform: reqPlatform,
-		which,
-		env: options.env,
-		agentDir: options.agentDir,
-	});
+	const report =
+		options.report ??
+		checkReverseTools({
+			platform: reqPlatform,
+			which,
+			env: options.env,
+			agentDir: options.agentDir,
+			cwd: options.cwd,
+		});
 
 	const statusById: Record<string, ReverseToolStatus | ReverseServiceStatus> = {};
 	for (const t of report.tools) statusById[t.id] = t;
@@ -723,6 +729,8 @@ export function canInstallReverseItem(
 		which?: SkillRequirementWhich;
 		env?: Record<string, string | undefined>;
 		agentDir?: string;
+		cwd?: string;
+		report?: ReverseCheckReport;
 	} = {},
 ): boolean {
 	if (item.status === "installed" || item.status === "ready") return true;

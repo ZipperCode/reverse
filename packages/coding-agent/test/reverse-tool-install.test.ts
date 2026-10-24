@@ -10,7 +10,12 @@ import {
 	persistToolEnvironment,
 	resolveJavaHomeFromBinary,
 } from "../src/extensibility/reverse-tool-install";
-import { checkReverseTools, type ReverseServiceStatus, type ReverseToolStatus } from "../src/cli/setup-reverse";
+import {
+	checkReverseTools,
+	type ReverseCheckReport,
+	type ReverseServiceStatus,
+	type ReverseToolStatus,
+} from "../src/cli/setup-reverse";
 
 describe("reverse-tool-install shared API", () => {
 	let tempDir: string;
@@ -167,6 +172,62 @@ describe("reverse-tool-install shared API", () => {
 			expect(plan.steps[0].isDependency).toBe(true);
 			expect(plan.steps[plan.steps.length - 1].id).toBe("jadx");
 			expect(plan.steps[plan.steps.length - 1].isDependency).toBe(false);
+		});
+
+		it("respects snapshot dependency status when provided and falls back to fresh probe when omitted", () => {
+			const jadxStatus: ReverseToolStatus = {
+				kind: "cli",
+				id: "jadx",
+				name: "JADX",
+				category: "decompiler",
+				description: "Dex to Java decompiler",
+				optional: true,
+				systemTool: false,
+				status: "missing",
+				foundPath: null,
+				secondaryMissing: ["java"],
+				packageManager: "brew",
+				installCommand: "brew install jadx",
+				installArgv: ["brew", "install", "jadx"],
+				riskNote: null,
+				manualUrl: "https://github.com/skylot/jadx",
+				manualInstructions: "Install via brew install jadx",
+			};
+
+			const mockWhich = (cmd: string) => {
+				if (cmd === "brew") return "/opt/homebrew/bin/brew";
+				return null;
+			};
+
+			// 1. Live inspection without report: detects Java is missing, orders java before jadx
+			const freshPlan = getReverseInstallPlan(jadxStatus, {
+				which: mockWhich,
+				platform: "darwin",
+				agentDir: tempDir,
+			});
+			expect(freshPlan.canInstall).toBe(true);
+			expect(freshPlan.steps.map(s => s.id)).toEqual(["java", "jadx"]);
+
+			// 2. Caller-supplied report snapshot where Java is recorded as installed
+			const baseReport = checkReverseTools({ which: mockWhich, platform: "darwin", agentDir: tempDir });
+			const snapshotWithJavaInstalled: ReverseCheckReport = {
+				...baseReport,
+				tools: baseReport.tools.map(t =>
+					t.id === "java"
+						? { ...t, status: "installed" as const, foundPath: "/opt/homebrew/opt/openjdk/bin/java" }
+						: t,
+				),
+			};
+
+			const snapshotPlan = getReverseInstallPlan(jadxStatus, {
+				report: snapshotWithJavaInstalled,
+				which: mockWhich,
+				platform: "darwin",
+				agentDir: tempDir,
+			});
+			expect(snapshotPlan.canInstall).toBe(true);
+			// Prerequisite Java is satisfied according to snapshot, so only jadx is planned
+			expect(snapshotPlan.steps.map(s => s.id)).toEqual(["jadx"]);
 		});
 
 		it("repairs a present Node runtime with missing npx before configuring MCP", () => {
