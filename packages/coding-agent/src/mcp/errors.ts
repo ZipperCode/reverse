@@ -114,7 +114,10 @@ function sanitizeDiagnosticText(value: string, maxChars: number): string {
 			// Redact entire Cookie and Set-Cookie header lines (handling both literal newlines and escaped \n / \r)
 			.replace(/((?:\b(?:cookie|set[-_]?cookie)\b\s*[:=]\s*))(?:\\.[^"'\r\n\\]*|[^"'\r\n\\])+/gi, "$1[redacted]")
 			// Redact entire Authorization and Proxy-Authorization header lines (leaving WWW-Authenticate intact)
-			.replace(/((?:\b(?:authorization|proxy-authorization)\b\s*[:=]\s*))(?:\\.[^"'\r\n\\]*|[^"'\r\n\\])+/gi, "$1[redacted]")
+			.replace(
+				/((?:\b(?:authorization|proxy-authorization)\b\s*[:=]\s*))(?:\\.[^"'\r\n\\]*|[^"'\r\n\\])+/gi,
+				"$1[redacted]",
+			)
 			// A credential is token68 and never contains `"`; `Bearer name="…"` is a
 			// WWW-Authenticate challenge whose params (resource_metadata, scope, error)
 			// drive OAuth discovery, so leave it intact. Exclude quotes so adjacent JSON is not swallowed.
@@ -134,11 +137,7 @@ function sanitizeDiagnosticText(value: string, maxChars: number): string {
 }
 
 /** Sanitize diagnostic text while preserving the trailing tail of the buffer (critical for stderr logs). */
-export function sanitizeDiagnosticTail(
-	value: string,
-	maxChars: number,
-	extraSecrets: readonly string[] = [],
-): string {
+export function sanitizeDiagnosticTail(value: string, maxChars: number, extraSecrets: readonly string[] = []): string {
 	let sanitized = sanitizeDiagnosticText(value, Number.MAX_SAFE_INTEGER);
 	for (const secret of extraSecrets) {
 		if (secret && secret.length >= 3) {
@@ -200,7 +199,7 @@ export function sanitizeCommandArgv(command: string, args: readonly string[] = [
 		const token = tokens[i];
 		if (!token) continue;
 		// When an argument follows an inline script flag (-e, -c, --eval), omit the inline code body
-		if (i > 0 && (/^-(?:e|c|-eval)$/i.test(tokens[i - 1]))) {
+		if (i > 0 && /^-(?:e|c|-eval)$/i.test(tokens[i - 1])) {
 			sanitized.push("[script]");
 			continue;
 		}

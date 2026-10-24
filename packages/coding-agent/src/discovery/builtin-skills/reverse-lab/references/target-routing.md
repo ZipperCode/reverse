@@ -62,7 +62,7 @@ Check for binary protection, obfuscation, and runtime layers:
 
 1. **Packers & Envelopes**:
    - **UPX**: Look for `UPX0`, `UPX1`, `UPX!` section names in PE/ELF. Unpack with `upx -d <file>`.
-   - **Commercial Protectors (Themida, VMProtect, VMP)**: High entropy sections (> 7.2 bits/byte), non-standard section names (`.vmp0`, `.themida`), mutated entrypoint code.
+   - **Commercial Protectors (Themida, VMProtect, VMP)**: High entropy sections (> 7.2 bits/byte), non-standard section names (`.vmp0`, `.themida`), mutated entrypoint code. Route to **Route V (`vmp-reverse`)**.
    - **Android Reinforcement / Hardening**: Look for known packer stubs in APK `lib/` (e.g. `libjiagu.so` [Qihoo 360], `libsecmain.so` [Bangcle], `libtup.so` [Tencent Legu]).
 2. **Hybrid & Multi-Runtime Containers**:
    - **Electron**: Contains `resources/app.asar`. Inspect directly with native `javascript_application(path: "app.asar" | "resources/app")` for package metadata, entrypoints, IPC channels, roles, and native addons without extraction. Extract with `npx @electron/asar extract app.asar ./unpacked` only if manual modification or patching is required.
@@ -90,6 +90,11 @@ Once the format and packing status are determined, dispatch to the corresponding
 - **Artifacts**: PE32 / PE32+ `.exe`, `.dll`, `.sys`, `.node` addons.
 - **Core Strategy**: For foundational format and section triage, `triage` or `native-binary-reverse` provides baseline inspection. When Windows subsystem specifics, Win32 IAT auditing, ETW/API Monitor traces (`windows_observe`), or Windows anti-debug techniques are required, dispatch to `windows-reverse`.
 - **Reference**: `skill://reverse-lab/references/windows.md`.
+
+### Route V: VMProtect & Virtualized Native Code
+- **Artifacts**: PE binaries protected with VMProtect (VMP 2.x, 3.x) or custom virtual machines, unpacked process memory dumps, offline instruction execution traces.
+- **Core Strategy**: Triage VM entry dispatcher stubs with `triage` and `r2_inspect`. Reconstruct process memory and IAT past OEP using `vmp_dump`. Lift individual x64 PE functions to LLVM IR with `native_devirtualize(backend: "mergen")` or legacy VMP 3.0–3.5 routines to VTIL with `native_devirtualize(backend: "novmp")`. Simplify MBA expressions and branch predicates from traces using `triton_analyze`. Enforce dual-execution differential verification before accepting deobfuscated models.
+- **Reference**: `skill://vmp-reverse`.
 
 ### Route C: Web Frontends & Protocol Payloads
 - **Artifacts**: Bundled JavaScript (`.js`, `.mjs`), WebAssembly (`.wasm`), network HTTP/WebSocket traffic (HAR, JSON).
@@ -142,6 +147,10 @@ Before executing resource-heavy tools or disassemblers, evaluate required capabi
    - WebSocket real-time frame inspection ➔ `websocket_capture`
    - JavaScript AST deobfuscation ➔ `js_deobfuscation`
    - Network traffic & HTTPS interception ➔ `traffic_interception`
+   - Windows VMProtect process memory dump & IAT repair ➔ `vmp_dump_repair`
+   - Native x64 PE function lifting to LLVM IR ➔ `native_function_lifting`
+   - Legacy VMProtect 3.0–3.5 VTIL devirtualization ➔ `vmp_legacy_devirtualization`
+   - Symbolic trace execution & MBA simplification ➔ `symbolic_trace_analysis`
 
 2. **Query Capability Readiness via `reverse_capability`**:
    Always check readiness through the capability resolver before tool invocation:

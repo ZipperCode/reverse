@@ -49,6 +49,7 @@ Skill 不直接维护持久化状态，不实现解析器，不拼接任意 shel
 | `web-protocol-reverse` | 浏览器/CDP、JS、网络、Crypto、WebSocket、GraphQL |
 | `reverse-tool-guide` | 工具能力、依赖、安装、降级和调用示例 |
 | `reverse-knowledge` | 检索、验证、沉淀和过期治理 |
+| `vmp-reverse` | VMProtect 脱壳转储、IAT 修复、函数提升、符号化 Trace 与差分验证 |
 
 ### 2. 工具适配层
 
@@ -374,3 +375,38 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
 4. 将失败归因、恢复和重试策略移回 Skill/Workflow 服务，工具保持单动作。
 5. 建立少量跨层契约冒烟，删除重复的工具级业务编排。
 6. 扩充可再分发知识库，并为每条经验标记来源、置信度和验证状态。
+
+## 虚拟化保护与脱壳反混淆支持边界 (Virtualized Code & Devirtualization Architecture)
+
+### 1. 架构定位与设计原则
+
+针对 VMProtect (VMP 2.x, 3.x) 等代码虚拟化与混淆保护，`reverse` 维持既有单 Agent 与方法能力体系，**不引入新的平台角色，也不重构编排引擎**。虚拟化逆向作为方法能力（Method Capabilities）挂载于工具适配层与 Skill 编排层：
+
+1. **四项方法能力独立解耦**：
+   - **`vmp_dump_repair`**（工具：`vmp_dump`，目录项：`vmpdump`）：针对已到达 OEP 的运行中 Windows x64 进程进行内存转储与导入表（IAT）重建。
+   - **`native_function_lifting`**（工具：`native_devirtualize`，后端：`mergen`，目录项：`mergen`）：针对指定函数虚拟地址（VA），将单个无自修改代码的 x64 PE 函数提升为 LLVM IR (`.ll`)。
+   - **`vmp_legacy_devirtualization`**（工具：`native_devirtualize`，后端：`novmp`，目录项：`novmp`）：针对已脱壳的 VMP 3.0–3.5 x64 目标，根据 VM 入口 RVA 生成 VTIL 中间语言。
+   - **`symbolic_trace_analysis`**（工具：`triton_analyze`，目录项：`triton`）：针对离线采集的 Salwan 格式指令追踪（`mr:`/`r:`/`i:`），利用 Python `triton-library` 执行符号执行、MBA 混淆化简及 AST 表达式/LLVM IR 提升。
+2. **安装与探测契约**：
+   - 依赖通过 `reverse setup reverse <id>` 经由统一安装面板由操作员显式授权安装；
+   - `vmpdump`、`mergen`、`novmp` 官方预编译二进制为 Windows x64 架构；非 Windows 宿主机上如实上报不可用，不伪造跨平台执行。
+   - `triton` 采用托管 Python 虚拟环境安装 `triton-library`，支持多平台离线 Trace 符号分析，macOS darwin arm64 提供源码构建助手支持。
+   - 只有在执行对应分析步骤且依赖缺失时才提示对应工具的安装，已安装时保持静默；未选中的后端不触发误报。
+
+### 2. 真实工具契约与实际参数边界
+
+| 工具名称 | 对应动作 | 核心参数要求 | 产物规范与上下文约束 |
+|---|---|---|---|
+| `vmp_dump` | `status`, `dump` | `pid` (数字或十六进制), `module_path` (宿主路径), `observed_oep: true` (显式门禁确认), 可选 `process_image_path` (宿主主进程路径), `module` (模块名), `entry_point`, `disable_reloc` | 产物写入 `./artifacts/`；输出脱壳 PE 路径、SHA-256 及修复状态；转储仅恢复 PE 结构，不代表虚拟化语义已恢复 |
+| `native_devirtualize` | `status`, `lift` | `backend: "mergen" \| "novmp"`, `path` (输入 x64 PE), Mergen 需 `start_address` (函数 VA), NoVmp 需 `vms` (VM 入口 RVA 数组) | 产物保存为 `.ll` 或 VTIL 文件至 `./artifacts/`；大体积 IR 保留在产物目录，仅向模型返回摘要与状态 |
+| `triton_analyze` | `status`, `replay` | `trace`, `arch`, `initial_registers` (需覆盖所有读取寄存器), `symbolic_registers`, `output` (寄存器或内存目标对象), 可选 `bounds`, `synthesize`, `lift_llvm` | 仅回放 Trace 实际走过的分支路径；大体积 AST 与 LLVM IR 转存至 session artifact，输出截断预览并附带路径约束数量 |
+
+### 3. 支持边界与反模式防御
+
+1. **不可信样本隔离**：受保护二进制常伴随反调试、反虚拟机或驱动级挂钩，必须在显式授权的隔离沙箱或虚拟机内运行；禁止在分析员日常开发宿主机直接执行。
+2. **熵值与区段名不作为版本铁证**：Shannon 熵 > 7.2 或 `.vmp0`/`.vmp1` 区段仅作为加壳指示依据；具体 VMP 版本与分发模式需结合入口桩与 Dispatcher 汇编特征确认。
+3. **脱壳转储不等于语义还原**：`vmp_dump` 成功修复 IAT 仅表示外部 API 调用解混淆，VM 循环内部的虚拟字节码仍然处于混淆状态，需进一步运用提升或符号执行工具。
+4. **Mergen 边界**：仅支持标准调用约定的 x64 PE 函数，不支持 32 位、ARM 或浮点指令；**完全不支持自修改代码 (SMC)**（VMP 3.7+ 关键机制）；VMP 3.6 因涉及 `INT 2` 异常分发属于尽力而为（Best-effort）。遇 SMC 或中断分发中断时应平滑降级至 `triton_analyze`。
+5. **NoVmp 边界**：仅适用于已脱壳的 VMP 3.0–3.5 目标；其实验性重编译（`-experimental:recompile`）不提供可执行性保证。
+6. **Trace 局部性**：Triton 离线回放仅证明所采集单条轨迹上的代数关系，未覆盖分支不可假定具有相同行为。
+7. **锁步差分验证必须性**：任何脱壳反混淆成果在未经与原样本在沙箱内进行多组测试向量（边界值、随机值、有效载荷）输入输出与副作用对比验证前，一律标记为 `[HYPOTHESIS]`，验证通过后方可录入 Evidence 账本。

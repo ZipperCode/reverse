@@ -31,7 +31,7 @@ const reverseCapabilitySchema = type({
 			"Capability action: list, resolve or get host capability status; status inspects observable MCP/skill lifecycle states (configured/connected/discovered/targetMatched/executed/succeeded); install provisions the trusted jshookmcp service and registers its MCP tools in this session (write approval required)",
 		),
 	"capability?": type("string").describe(
-		"Canonical capability ID (e.g. 'apk_unpacking', 'dex_patching', 'apk_artifact_generation', 'native_debugger', 'android_native_emulation', 'browser_debugger', 'websocket_capture', 'js_deobfuscation', 'traffic_interception')",
+		"Canonical capability ID (e.g. 'apk_unpacking', 'native_debugger', 'android_native_emulation', 'symbolic_trace_analysis', 'vmp_dump_repair', 'native_function_lifting', 'vmp_legacy_devirtualization'); list returns all IDs",
 	),
 	"id?": type("string").describe("Alias for capability"),
 	"refresh?": type("boolean").describe(

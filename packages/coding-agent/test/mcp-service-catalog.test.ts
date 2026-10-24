@@ -302,7 +302,6 @@ describe("reverse setup MCP/CLI separation", () => {
 		expect(confirm).not.toHaveBeenCalled();
 	});
 
-
 	it("keeps the reverse CLI catalog free of MCP service ids", () => {
 		const ids = getReverseTools().map(tool => tool.id);
 		for (const service of getMcpServices()) {

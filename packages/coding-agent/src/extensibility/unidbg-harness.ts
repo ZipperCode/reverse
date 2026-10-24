@@ -841,7 +841,7 @@ public class ${clsName} extends TestCase implements EmulatorConfigurator {
             if (inIos.canRead()) ipa = inIos;
         }
 
-        IpaLoader ipaLoader = ${is64 ? "new IpaLoader64(ipa, new File(\"target/rootfs/ipa\"))" : "new IpaLoader32(ipa, new File(\"target/rootfs/ipa\"))"};
+        IpaLoader ipaLoader = ${is64 ? 'new IpaLoader64(ipa, new File("target/rootfs/ipa"))' : 'new IpaLoader32(ipa, new File("target/rootfs/ipa"))'};
         ${backendFactory}
 
         LoadedIpa loader = ipaLoader.load(this);

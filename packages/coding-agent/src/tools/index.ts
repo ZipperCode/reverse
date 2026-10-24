@@ -110,6 +110,9 @@ import { ReverseDynamicEvidenceTool } from "./reverse-dynamic-evidence";
 import { ReverseCapabilityTool } from "./reverse-capability";
 import { NativeMcpSessionTool } from "./native-mcp-session";
 import { UnidbgTool } from "./unidbg";
+import { TritonAnalyzeTool } from "./triton-analyze";
+import { VmpDumpTool } from "./vmp-dump";
+import { NativeDevirtualizeTool } from "./native-devirtualize";
 import { isMountableUnderXdev, resolveXdevTool, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
 
@@ -223,6 +226,9 @@ export * from "./reverse-knowledge";
 export * from "./reverse-dynamic-evidence";
 export * from "./reverse-workspace";
 export * from "./reverse-capability";
+export * from "./triton-analyze";
+export * from "./vmp-dump";
+export * from "./native-devirtualize";
 export * from "./process-safety";
 export type { VibeToolDetails } from "@reverse/tui/tools/vibe";
 export * from "./write";
@@ -654,6 +660,9 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	reverse_capability: s => new ReverseCapabilityTool(s),
 	native_mcp_session: s => new NativeMcpSessionTool(s),
 	unidbg: s => new UnidbgTool(s),
+	triton_analyze: s => new TritonAnalyzeTool(s),
+	vmp_dump: s => new VmpDumpTool(s),
+	native_devirtualize: s => new NativeDevirtualizeTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),
@@ -1047,6 +1056,9 @@ export type { AskToolDetails, QuestionResult } from "@reverse/tui/tools/ask";
 export { askToolRenderer } from "@reverse/tui/tools/ask";
 export { AndroidNativeWorkflowTool } from "./android-native-workflow";
 export { NativeMcpSessionTool } from "./native-mcp-session";
+export { TritonAnalyzeTool } from "./triton-analyze";
+export { VmpDumpTool } from "./vmp-dump";
+export { NativeDevirtualizeTool } from "./native-devirtualize";
 export type {
 	TodoStatus,
 	TodoOperation,

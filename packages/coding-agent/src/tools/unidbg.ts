@@ -15,11 +15,7 @@ import { throwIfAborted } from "./tool-errors";
 import { generateUnidbgHarness, type UnidbgHarnessOptions } from "../extensibility/unidbg-harness";
 import { buildUnidbg, validateJdk8 } from "../extensibility/unidbg-builder";
 import { inspectUnidbg } from "../extensibility/unidbg-detect";
-import {
-	getActiveUnidbgHarnesses,
-	launchUnidbgHarness,
-	stopUnidbgHarness,
-} from "../extensibility/unidbg-runner";
+import { getActiveUnidbgHarnesses, launchUnidbgHarness, stopUnidbgHarness } from "../extensibility/unidbg-runner";
 
 const unidbgSchema = type({
 	action: type
@@ -34,9 +30,7 @@ const unidbgSchema = type({
 	"entry?": type("string").describe("Target entry point function or JNI method name"),
 	"class?": type("string").describe("JNI Java class name (e.g. 'org/telegram/messenger/Utilities')"),
 	"signature?": type("string").describe("JNI method signature (e.g. '([BI)[B')"),
-	"arch?": type
-		.enumerated("32", "64")
-		.describe("CPU architecture: '32' or '64' bit (default: '64')"),
+	"arch?": type.enumerated("32", "64").describe("CPU architecture: '32' or '64' bit (default: '64')"),
 	"backend?": type
 		.enumerated("unicorn2", "dynarmic")
 		.describe("Emulation backend engine: 'unicorn2' or 'dynarmic' (default: 'unicorn2')"),
@@ -46,9 +40,7 @@ const unidbgSchema = type({
 	"params?": type("string").describe("Comma-separated parameter types (e.g. 'bytes,int' or 'input:string')"),
 	"unidbgHome?": type("string").describe("Path to Unidbg source checkout or installation directory"),
 	"javaHome?": type("string").describe("Path to JDK 8 home directory"),
-	"mirror?": type
-		.enumerated("aliyun", "default")
-		.describe("Maven repository mirror ('aliyun' or 'default')"),
+	"mirror?": type.enumerated("aliyun", "default").describe("Maven repository mirror ('aliyun' or 'default')"),
 	"skipTests?": type("boolean").describe("Skip unit tests during Unidbg build (default: true)"),
 	"harness?": type("string").describe("Path to harness Java source (.java) or class name to launch"),
 	"timeoutMs?": type("number").describe("Timeout in milliseconds for SSE health check (default: 30000)"),
@@ -121,9 +113,7 @@ export class UnidbgTool implements AgentTool<typeof unidbgSchema, UnidbgToolDeta
 		if (this.session.isDisposed?.() || this.sessionAbort.signal.aborted) {
 			throw new ToolError("Session is already disposed.");
 		}
-		const effectiveSignal = signal
-			? AbortSignal.any([signal, this.sessionAbort.signal])
-			: this.sessionAbort.signal;
+		const effectiveSignal = signal ? AbortSignal.any([signal, this.sessionAbort.signal]) : this.sessionAbort.signal;
 		throwIfAborted(effectiveSignal);
 		const cwd = this.session.cwd ?? process.cwd();
 		const resolvePath = (p?: string): string | undefined => {
@@ -215,10 +205,9 @@ export class UnidbgTool implements AgentTool<typeof unidbgSchema, UnidbgToolDeta
 			case "launch": {
 				const port = params.port ?? 9239;
 				const resolvedHarness = resolvePath(params.harness);
-				const isJavaFile =
-					resolvedHarness && (resolvedHarness.endsWith(".java") || fs.existsSync(resolvedHarness));
+				const isJavaFile = resolvedHarness && (resolvedHarness.endsWith(".java") || fs.existsSync(resolvedHarness));
 				const harnessPath = isJavaFile ? resolvedHarness : undefined;
-				const harnessClass = !isJavaFile ? (params.harness || undefined) : undefined;
+				const harnessClass = !isJavaFile ? params.harness || undefined : undefined;
 
 				const harnessInfo = await launchUnidbgHarness({
 					type: params.type,
@@ -312,7 +301,9 @@ export class UnidbgTool implements AgentTool<typeof unidbgSchema, UnidbgToolDeta
 				];
 
 				for (const h of active) {
-					lines.push(`  * Port ${h.port} (PID ${h.pid}): ARM${h.arch} ${h.backend} -> ${h.sseUrl} [Ready: ${h.ready}]`);
+					lines.push(
+						`  * Port ${h.port} (PID ${h.pid}): ARM${h.arch} ${h.backend} -> ${h.sseUrl} [Ready: ${h.ready}]`,
+					);
 					if (h.targetPath) lines.push(`    Target: ${h.targetPath}`);
 					if (h.lastOutput) lines.push(`    Last Output: ${h.lastOutput}`);
 				}

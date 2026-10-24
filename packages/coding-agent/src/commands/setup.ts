@@ -69,7 +69,8 @@ async function promptSetupMenuIndex(title: string, labels: readonly string[]): P
 	process.once("SIGINT", onSigint);
 	rl.once("close", onClose);
 
-	const prompt = getEffectiveLocale() === "zh-CN" ? `请输入编号 (1-${labels.length}): ` : `Enter number (1-${labels.length}): `;
+	const prompt =
+		getEffectiveLocale() === "zh-CN" ? `请输入编号 (1-${labels.length}): ` : `Enter number (1-${labels.length}): `;
 	rl.question(prompt, answer => {
 		const trimmed = answer.trim();
 		if (trimmed.toLowerCase() === "q" || trimmed.toLowerCase() === "quit") {

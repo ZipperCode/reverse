@@ -216,13 +216,15 @@ export function inspectUnidbg(options: LocateUnidbgOptions = {}): UnidbgInspecti
 	// 0. Explicit direct path or sourceRoot input (highest priority, strict)
 	const explicitTarget = options.sourceRoot ?? options.dir;
 	if (explicitTarget) {
-		return assessDir(explicitTarget) ?? {
-			foundPath: null,
-			hasPom: false,
-			hasWrapper: false,
-			built: false,
-			jars: [],
-		};
+		return (
+			assessDir(explicitTarget) ?? {
+				foundPath: null,
+				hasPom: false,
+				hasWrapper: false,
+				built: false,
+				jars: [],
+			}
+		);
 	}
 
 	// 1. Explicit env variables
@@ -252,10 +254,7 @@ export function inspectUnidbg(options: LocateUnidbgOptions = {}): UnidbgInspecti
 	}
 
 	// 2. Local workspace and sibling paths
-	const localDirs = [
-		path.join(cwd, "unidbg"),
-		path.resolve(cwd, "..", "unidbg"),
-	];
+	const localDirs = [path.join(cwd, "unidbg"), path.resolve(cwd, "..", "unidbg")];
 	for (const d of localDirs) {
 		const res = assessDir(d);
 		if (res) return res;

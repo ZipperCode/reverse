@@ -1,9 +1,9 @@
 /**
  * Bundled Reverse-Engineering Skills Provider
  *
- * The six reverse skills (`reverse-lab`, `reverse-tool-guide`,
+ * The seven reverse skills (`reverse-lab`, `reverse-tool-guide`,
  * `android-reverse`, `windows-reverse`, `web-protocol-reverse`,
- * `native-binary-reverse`) also live in
+ * `native-binary-reverse`, `vmp-reverse`) also live in
  * the package source tree as `./builtin-skills/<name>/`. The repository-root
  * `.agents/skills/` copies remain for project discovery (and other agent
  * tools), so a fresh clone keeps the existing local behavior.
@@ -31,6 +31,7 @@ import reverseLabPathRaw from "./builtin-skills/reverse-lab/SKILL.md" with { typ
 import reverseToolGuidePathRaw from "./builtin-skills/reverse-tool-guide/SKILL.md" with { type: "file" };
 import webProtocolReversePathRaw from "./builtin-skills/web-protocol-reverse/SKILL.md" with { type: "file" };
 import windowsReversePathRaw from "./builtin-skills/windows-reverse/SKILL.md" with { type: "file" };
+import vmpReversePathRaw from "./builtin-skills/vmp-reverse/SKILL.md" with { type: "file" };
 
 import androidRefRaw from "./builtin-skills/reverse-lab/references/android.md" with { type: "file" };
 import evidenceRefRaw from "./builtin-skills/reverse-lab/references/evidence.md" with { type: "file" };
@@ -40,6 +41,9 @@ import webProtocolRefRaw from "./builtin-skills/reverse-lab/references/web-proto
 import windowsRefRaw from "./builtin-skills/reverse-lab/references/windows.md" with { type: "file" };
 import cliToolsRefRaw from "./builtin-skills/reverse-tool-guide/references/cli-tools.md" with { type: "file" };
 import mcpServicesRefRaw from "./builtin-skills/reverse-tool-guide/references/mcp-services.md" with { type: "file" };
+import vmpDevirtBackendsRefRaw from "./builtin-skills/vmp-reverse/references/devirt-backends.md" with { type: "file" };
+import vmpTraceFormatRefRaw from "./builtin-skills/vmp-reverse/references/vmp-trace-format.md" with { type: "file" };
+import vmpDiffVerificationRefRaw from "./builtin-skills/vmp-reverse/references/differential-verification.md" with { type: "file" };
 
 function normalizeAssetPath(assetPath: string, moduleDir: string = import.meta.dir): string {
 	if (path.isAbsolute(assetPath) || path.win32.isAbsolute(assetPath)) return assetPath;
@@ -52,6 +56,7 @@ const reverseLabPath = normalizeAssetPath(reverseLabPathRaw);
 const reverseToolGuidePath = normalizeAssetPath(reverseToolGuidePathRaw);
 const webProtocolReversePath = normalizeAssetPath(webProtocolReversePathRaw);
 const windowsReversePath = normalizeAssetPath(windowsReversePathRaw);
+const vmpReversePath = normalizeAssetPath(vmpReversePathRaw);
 
 const androidRef = normalizeAssetPath(androidRefRaw);
 const evidenceRef = normalizeAssetPath(evidenceRefRaw);
@@ -61,6 +66,9 @@ const webProtocolRef = normalizeAssetPath(webProtocolRefRaw);
 const windowsRef = normalizeAssetPath(windowsRefRaw);
 const cliToolsRef = normalizeAssetPath(cliToolsRefRaw);
 const mcpServicesRef = normalizeAssetPath(mcpServicesRefRaw);
+const vmpDevirtBackendsRef = normalizeAssetPath(vmpDevirtBackendsRefRaw);
+const vmpTraceFormatRef = normalizeAssetPath(vmpTraceFormatRefRaw);
+const vmpDiffVerificationRef = normalizeAssetPath(vmpDiffVerificationRefRaw);
 const PROVIDER_ID = "builtin-skills";
 const DISPLAY_NAME = "Bundled Reverse Skills";
 const DESCRIPTION = "Reverse-engineering skills shipped with the agent";
@@ -73,6 +81,7 @@ export const BUILTIN_SKILL_SOURCES: readonly { name: string; path: string }[] = 
 	{ name: "native-binary-reverse", path: nativeBinaryReversePath },
 	{ name: "reverse-lab", path: reverseLabPath },
 	{ name: "reverse-tool-guide", path: reverseToolGuidePath },
+	{ name: "vmp-reverse", path: vmpReversePath },
 	{ name: "web-protocol-reverse", path: webProtocolReversePath },
 	{ name: "windows-reverse", path: windowsReversePath },
 ];
@@ -87,6 +96,9 @@ export const BUILTIN_SKILL_REFERENCES: readonly string[] = [
 	windowsRef,
 	cliToolsRef,
 	mcpServicesRef,
+	vmpDevirtBackendsRef,
+	vmpTraceFormatRef,
+	vmpDiffVerificationRef,
 ];
 
 /** Logical reference map mapping each skill and subpath to its concrete embedded/file path. */
@@ -116,6 +128,12 @@ export const BUILTIN_SKILL_LOGICAL_FILES: Record<string, Record<string, string>>
 	},
 	"windows-reverse": {
 		"SKILL.md": windowsReversePath,
+	},
+	"vmp-reverse": {
+		"SKILL.md": vmpReversePath,
+		"references/devirt-backends.md": vmpDevirtBackendsRef,
+		"references/vmp-trace-format.md": vmpTraceFormatRef,
+		"references/differential-verification.md": vmpDiffVerificationRef,
 	},
 };
 

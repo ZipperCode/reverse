@@ -16,10 +16,7 @@ import { unidbgHelp as commandHelp } from "../cli/command-help";
 import { buildUnidbg, validateJdk8 } from "../extensibility/unidbg-builder";
 import { inspectUnidbg } from "../extensibility/unidbg-detect";
 import { generateUnidbgHarness, type UnidbgHarnessOptions } from "../extensibility/unidbg-harness";
-import {
-	launchUnidbgHarness,
-	stopUnidbgHarness,
-} from "../extensibility/unidbg-runner";
+import { launchUnidbgHarness, stopUnidbgHarness } from "../extensibility/unidbg-runner";
 
 export interface HarnessPresenceMeta {
 	pid: number;
@@ -175,7 +172,11 @@ export default class Unidbg extends Command {
 		class: Flags.string({ description: "JNI Java class name (e.g. 'org/telegram/messenger/Utilities')" }),
 		signature: Flags.string({ description: "JNI method signature (e.g. '([BI)[B')" }),
 		arch: Flags.string({ description: "CPU architecture ('32' or '64')", options: ["32", "64"], default: "64" }),
-		backend: Flags.string({ description: "Emulation backend ('unicorn2' or 'dynarmic')", options: ["unicorn2", "dynarmic"], default: "unicorn2" }),
+		backend: Flags.string({
+			description: "Emulation backend ('unicorn2' or 'dynarmic')",
+			options: ["unicorn2", "dynarmic"],
+			default: "unicorn2",
+		}),
 		port: Flags.integer({ description: "Port number for the McpServer SSE endpoint", default: 9239 }),
 		out: Flags.string({ description: "Output file path for generated harness Java source code" }),
 		params: Flags.string({ description: "Comma-separated parameter types (e.g. 'bytes,int')" }),
@@ -237,9 +238,10 @@ export default class Unidbg extends Command {
 
 				process.stdout.write(
 					`\nUnidbg build completed successfully!\n` +
-					`- Directory: ${res.unidbgDir}\n` +
-					`- Built JARs (${res.jarPaths.length}):\n` +
-					res.jarPaths.map(j => `  * ${j}`).join("\n") + "\n",
+						`- Directory: ${res.unidbgDir}\n` +
+						`- Built JARs (${res.jarPaths.length}):\n` +
+						res.jarPaths.map(j => `  * ${j}`).join("\n") +
+						"\n",
 				);
 				await postmortem.quit(0);
 				return;
@@ -277,7 +279,9 @@ export default class Unidbg extends Command {
 					fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
 					fs.writeFileSync(resolvedOut, code, "utf8");
 					if (flags.json) {
-						process.stdout.write(JSON.stringify({ success: true, outputPath: resolvedOut, code }, null, 2) + "\n");
+						process.stdout.write(
+							JSON.stringify({ success: true, outputPath: resolvedOut, code }, null, 2) + "\n",
+						);
 					} else {
 						process.stdout.write(`Generated harness saved to ${resolvedOut}\n`);
 					}
@@ -383,8 +387,11 @@ export default class Unidbg extends Command {
 						res.end();
 					});
 
-					const { promise: listenPromise, resolve: resolveListen, reject: rejectListen } =
-						Promise.withResolvers<number>();
+					const {
+						promise: listenPromise,
+						resolve: resolveListen,
+						reject: rejectListen,
+					} = Promise.withResolvers<number>();
 					controlServer.once("error", rejectListen);
 					controlServer.listen(0, "127.0.0.1", () => {
 						const addr = controlServer?.address() as { port: number } | null;
@@ -544,7 +551,9 @@ export default class Unidbg extends Command {
 					);
 					process.stdout.write(`- Active Harnesses: ${publicActive.length}\n`);
 					for (const h of publicActive) {
-						process.stdout.write(`  * PID ${h.pid} on port ${h.port}: ARM${h.arch} ${h.backend} -> ${h.sseUrl} [Ready: ${h.ready}]\n`);
+						process.stdout.write(
+							`  * PID ${h.pid} on port ${h.port}: ARM${h.arch} ${h.backend} -> ${h.sseUrl} [Ready: ${h.ready}]\n`,
+						);
 						if (h.lastOutput) {
 							process.stdout.write(`    Last output: ${h.lastOutput}\n`);
 						}

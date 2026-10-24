@@ -104,10 +104,7 @@ describe("MCPManager connection status events", () => {
 		const failingServer: MCPServerConfig = {
 			type: "stdio",
 			command: BUN_EXEC,
-			args: [
-				"-e",
-				"process.stderr.write('r2mcp: cannot open shared object r_core.dll\\n'); process.exit(42)",
-			],
+			args: ["-e", "process.stderr.write('r2mcp: cannot open shared object r_core.dll\\n'); process.exit(42)"],
 		};
 
 		try {
@@ -152,20 +149,12 @@ describe("MCPManager connection status events", () => {
 		const hangingServer: MCPServerConfig = {
 			type: "stdio",
 			command: BUN_EXEC,
-			args: [
-				"-e",
-				"process.stderr.write('r2mcp: loading symbols slowly...\\n'); await Bun.sleep(60_000)",
-			],
+			args: ["-e", "process.stderr.write('r2mcp: loading symbols slowly...\\n'); await Bun.sleep(60_000)"],
 			timeout: 150,
 		};
 
 		try {
-			const result = await manager.connectServers(
-				{ slow: hangingServer },
-				{},
-				event => events.push(event),
-				0,
-			);
+			const result = await manager.connectServers({ slow: hangingServer }, {}, event => events.push(event), 0);
 
 			expect(result.connectedServers).not.toContain("slow");
 			expect(manager.getConnectionStatus("slow")).toBe("connecting");

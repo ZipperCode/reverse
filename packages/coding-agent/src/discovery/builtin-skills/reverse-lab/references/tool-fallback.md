@@ -34,6 +34,10 @@ This reference defines the degradation ladders, tool detection mechanisms, and i
 | **Workflow Orchestration** | native `reverse_workflow` (create/plan/status/record/retry) | subagent delegation | manual tool chaining | one-off execution |
 | **Runtime Session Registry** | native `reverse_runtime_session` (register/list/status/restore) | tool-native session status | process inspection (`ps`) | manual re-connection |
 | **Dynamic Evidence & Closure**| native `reverse_dynamic_evidence` (ingest/events/verify/status) | tool-native evidence export | manual `evidence` facts | raw notes |
+| **`vmp_dump_repair`** | native `vmp_dump` | `vmpdump` (Windows x64) | `native_mcp_session` (x64dbg) dump | `triage` / `strings` |
+| **`native_function_lifting`** | native `native_devirtualize(backend: "mergen")` | `mergen` (Windows x64 / Docker) | `triton_analyze` / `r2_inspect` | `objdump -d` / `strings` |
+| **`vmp_legacy_devirtualization`** | native `native_devirtualize(backend: "novmp")` | `novmp` (Windows x64) | `mergen` / `triton_analyze` | `r2_inspect` / `strings` |
+| **`symbolic_trace_analysis`** | native `triton_analyze` | `triton` (`triton-library` venv) | `r2_inspect` / IDA Pro | `strings` / assembly audit |
 ---
 
 ## 3. Platform Tool Catalog & Installation Matrix
@@ -139,6 +143,24 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
 
 ### 9. Dynamic Evidence & Closure Toolchain
 - **`reverse_dynamic_evidence`** (Built-in tool): Zero-dependency native normalizer and closure engine for dynamic reverse events across Frida, browser CDP, DAP, and Unidbg. Transforms telemetry into Evidence ledger facts with deterministic session locators (`session:<id>:seq:<seq>`), verifies hypotheses, promotes verified outcomes into `reverse_knowledge`, and updates workflow progression gates. Always available.
+
+### 10. VMProtect & Devirtualization Toolchain
+- **`vmp_dump` / `vmpdump`** (VMProtect process memory dump & IAT repair):
+  - Requirements: Windows x64 host, process running past OEP.
+  - Setup: `reverse setup reverse vmpdump --execute`
+  - Fallback: `native_mcp_session(service: "x64dbg")` memory dump or Scylla.
+- **`native_devirtualize` / `mergen`** (x64 PE function lifting to LLVM IR):
+  - Requirements: Windows x64 host (pinned release) or Docker container.
+  - Setup: `reverse setup reverse mergen --execute`
+  - Fallback: `triton_analyze` on captured execution traces or `r2_inspect` static analysis.
+- **`native_devirtualize` / `novmp`** (Legacy VMProtect 3.0–3.5 VTIL devirtualizer):
+  - Requirements: Windows x64 host (pinned release).
+  - Setup: `reverse setup reverse novmp --execute`
+  - Fallback: `mergen` or `triton_analyze`.
+- **`triton_analyze` / `triton`** (Dynamic symbolic execution & MBA expression synthesis):
+  - Requirements: Python 3.8+ managed virtual environment with `triton-library`.
+  - Setup: `reverse setup reverse triton --execute`
+  - Fallback: Static assembly disassembly via `r2_inspect` or IDA Pro.
 ---
 
 ## 4. Capability Discovery, Setup & Immediate Dispatch Protocol

@@ -20,7 +20,11 @@ import * as sdkModule from "@reverse/coding-agent/sdk";
 import type { AgentMessage } from "@reverse/agent";
 import type { AgentSession, AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
 import { attachIrcWakeTurnMonitor, runSubagentFollowUpTurn, runSubprocess } from "@reverse/coding-agent/task/executor";
-import { TASK_SUBAGENT_EVENT_CHANNEL, type AgentDefinition, type SubagentEventPayload } from "@reverse/coding-agent/task";
+import {
+	TASK_SUBAGENT_EVENT_CHANNEL,
+	type AgentDefinition,
+	type SubagentEventPayload,
+} from "@reverse/coding-agent/task";
 import { formatTaskResultSummary } from "@reverse/coding-agent/task/result-summary";
 import type { ToolSession } from "@reverse/coding-agent/tools";
 import { WaitTool } from "@reverse/coding-agent/tools/wait";
@@ -685,7 +689,8 @@ describe("runSubprocess result acceptance", () => {
 				type: "auto_retry_end",
 				success: false,
 				attempt: 1,
-				finalError: "Retry budget exhausted after 1 retry: Google API stream ended without a finish reason (missing terminal envelope)",
+				finalError:
+					"Retry budget exhausted after 1 retry: Google API stream ended without a finish reason (missing terminal envelope)",
 				errorDiagnostic: {
 					normalizedKind: "incomplete-stream",
 					retryable: true,

@@ -5,10 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { checkReverseTools } from "../src/cli/setup-reverse";
 import { locateIdaInstall, probeIdaTool } from "../src/ida/install";
 import { locateUnidbg, inspectUnidbg } from "../src/extensibility/unidbg-detect";
-import {
-	getPortableToolRecipe,
-	installPortableTool,
-} from "../src/extensibility/portable-tool-install";
+import { getPortableToolRecipe, installPortableTool } from "../src/extensibility/portable-tool-install";
 import { getReverseInstallPlan } from "../src/extensibility/reverse-tool-install";
 import { SKILL_TOOL_CATALOG } from "../src/extensibility/skill-tool-catalog";
 import type { SkillRequirementWhich } from "../src/extensibility/skill-requirements";
@@ -94,7 +91,7 @@ describe("Issue #1 Regression Tests", () => {
 			fs.mkdirSync(path.join(fakeRepo, "unidbg-api"), { recursive: true });
 			fs.writeFileSync(
 				path.join(fakeRepo, "pom.xml"),
-				'<project><groupId>com.github.zhkl0228</groupId><artifactId>unidbg</artifactId></project>',
+				"<project><groupId>com.github.zhkl0228</groupId><artifactId>unidbg</artifactId></project>",
 			);
 
 			const inspection = inspectUnidbg({

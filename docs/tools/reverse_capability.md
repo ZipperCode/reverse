@@ -17,6 +17,19 @@
 1. 优先使用推荐的原生零配置内置工具（如 `android_package_inspect`、`triage`、`websocket_observe`）。
 2. 当外部工具缺失时，执行受信 setupCommand（如 `reverse setup reverse radare2`）并在安装后按 `postInstallInvocation` 调用。
 
+## VMP 与符号分析能力
+
+| 能力 ID | 工具 | 后端 |
+|---|---|---|
+| `symbolic_trace_analysis` | `triton_analyze` | Triton |
+| `vmp_dump_repair` | `vmp_dump` | VMPDump |
+| `native_function_lifting` | `native_devirtualize` | Mergen |
+| `vmp_legacy_devirtualization` | `native_devirtualize` | NoVmp |
+
+四个阶段分别计算就绪状态。安装 Triton 只启用轨迹分析；转储、LLVM 函数提升和旧版 VTIL 恢复各自检测对应后端。`ready` 表示后端可用，具体目标与语义结论仍通过工具执行和独立验证建立。
+
+使用 `reverse setup reverse <后端 ID> --execute` 或 TUI `/setup` 中的逆向工具面板安装。完整方法与平台边界见 `skill://vmp-reverse`。
+
 ## `native_debugger` 能力就绪与调度合约
 
 ### 1. 真实调试器后端判定

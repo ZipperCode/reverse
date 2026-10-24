@@ -45,6 +45,7 @@ import {
 import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
 import { getJshookMcpServer, inspectJshookMcp } from "../extensibility/jshookmcp-install";
 import { getNativeMcpServer, inspectNativeMcp, type NativeMcpService } from "../extensibility/native-mcp-install";
+import { getPortableToolRecipe } from "../extensibility/portable-tool-install";
 import { expandTilde } from "../tools/path-utils";
 import { cfgDebugEnabled } from "../tools/settings";
 export interface ReverseToolStatus {
@@ -314,7 +315,35 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			else missingRequired.push(desc.id);
 		}
 
-		const chosenCmd = isInstalled ? undefined : selectInstallCommand(desc, platform, detectedPackageManagers);
+		let chosenCmd = isInstalled ? undefined : selectInstallCommand(desc, platform, detectedPackageManagers);
+		if (!isInstalled && !chosenCmd) {
+			if (desc.id === "triton") {
+				const isDarwinArm = platform === "darwin" && process.arch === "arm64";
+				chosenCmd = {
+					manager: isDarwinArm ? "build" : "pip",
+					command: isDarwinArm
+						? `${APP_NAME} setup reverse triton (managed venv, source build)`
+						: `${APP_NAME} setup reverse triton (managed venv)`,
+					argv: [APP_NAME, "setup", "reverse", "triton", "--execute"],
+					riskNote: t(
+						"cli.setup.reverse.triton.risk",
+						isDarwinArm
+							? "Provisions an isolated virtual environment and compiles triton-library natively from pinned source (commit bc84cf7) using bundled capstone and z3-solver wheels."
+							: "Provisions an isolated virtual environment in the agent directory and installs pinned triton-library (Apache-2.0, dynamic binary analysis and symbolic execution).",
+					),
+				};
+			} else if ((desc.id === "vmpdump" || desc.id === "mergen" || desc.id === "novmp") && platform === "win32") {
+				chosenCmd = {
+					manager: "portable",
+					command: `${APP_NAME} setup reverse ${desc.id} (portable upstream download)`,
+					argv: [APP_NAME, "setup", "reverse", desc.id, "--execute"],
+					riskNote: t(
+						`cli.setup.reverse.${desc.id}.risk`,
+						`Downloads portable ${desc.name ?? desc.id} directly from upstream into agent tools directory.`,
+					),
+				};
+			}
+		}
 		const manualGuide =
 			desc.manualInstructions?.[platform] ??
 			(desc.manualUrl ? `See official instructions at ${desc.manualUrl}` : "Manual setup required.");
@@ -322,9 +351,9 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		tools.push({
 			kind: "cli",
 			id: desc.id,
-			name: desc.name ?? desc.id,
+			name: t(`cli.setup.reverse.${desc.id}.name`, desc.name ?? desc.id),
 			category: desc.category ?? "general",
-			description: desc.description ?? "",
+			description: t(`cli.setup.reverse.tool.${desc.id}.description`, desc.description ?? ""),
 			optional: isOptional,
 			systemTool: desc.systemTool ?? false,
 			status: isInstalled ? "installed" : "missing",
@@ -333,9 +362,9 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			packageManager: chosenCmd?.manager ?? null,
 			installCommand: chosenCmd?.command ?? null,
 			installArgv: chosenCmd?.argv && chosenCmd.argv.length > 0 ? chosenCmd.argv : null,
-			riskNote: chosenCmd?.riskNote ?? null,
+			riskNote: chosenCmd?.riskNote ? t(`cli.setup.reverse.${desc.id}.risk`, chosenCmd.riskNote) : null,
 			manualUrl: desc.manualUrl ?? "",
-			manualInstructions: manualGuide,
+			manualInstructions: t(`cli.setup.reverse.${desc.id}.manual`, manualGuide),
 			hint: desc.installHints?.[platform]?.join(" or "),
 			usage: desc.usage,
 		});
@@ -480,7 +509,7 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 	});
 
 	const dapAdapters = probeNativeDapAdapters({ cwd: deps.cwd, which });
-	const capabilities = resolveReverseCapabilities({
+	const rawCapabilities = resolveReverseCapabilities({
 		platform,
 		toolStatuses: tools,
 		serviceStatuses: services,
@@ -488,6 +517,13 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		dapAdapters,
 		debugToolEnabled: effectiveSettings ? cfgDebugEnabled.get(effectiveSettings) : true,
 	});
+	const capabilities = rawCapabilities.map(cap => ({
+		...cap,
+		name: t(`cli.setup.reverse.capability.${cap.id}.name`, cap.name),
+		scenario: t(`cli.setup.reverse.capability.${cap.id}.scenario`, cap.scenario),
+		description: t(`cli.setup.reverse.capability.${cap.id}.description`, cap.description),
+		why: t(`cli.setup.reverse.capability.${cap.id}.why`, cap.why),
+	}));
 
 	return {
 		ok: missingRequired.length === 0,
@@ -509,8 +545,31 @@ export function isTrustedCatalogArgv(item: ReverseToolStatus | ReverseServiceSta
 
 	if (item.kind === "cli") {
 		const desc = SKILL_TOOL_CATALOG[item.id];
-		if (!desc || !desc.installCommands) return false;
-		if (item.packageManager === "portable") return true;
+		if (!desc) return false;
+		if (item.packageManager === "portable") {
+			const portableRecipe = getPortableToolRecipe(item.id);
+			if (!portableRecipe) return false;
+			return (
+				item.installArgv.length === 5 &&
+				item.installArgv[0] === APP_NAME &&
+				item.installArgv[1] === "setup" &&
+				item.installArgv[2] === "reverse" &&
+				item.installArgv[3] === item.id &&
+				item.installArgv[4] === "--execute"
+			);
+		}
+		if (
+			item.id === "triton" &&
+			item.installArgv.length === 5 &&
+			item.installArgv[0] === APP_NAME &&
+			item.installArgv[1] === "setup" &&
+			item.installArgv[2] === "reverse" &&
+			item.installArgv[3] === "triton" &&
+			item.installArgv[4] === "--execute"
+		) {
+			return true;
+		}
+		if (!desc.installCommands) return false;
 		for (const cmds of Object.values(desc.installCommands)) {
 			if (!cmds) continue;
 			for (const cmd of cmds) {

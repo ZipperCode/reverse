@@ -446,7 +446,9 @@ export async function launchUnidbgHarness(options: UnidbgLaunchOptions): Promise
 	const env: NodeJS.ProcessEnv = {
 		...process.env,
 		JAVA_HOME: jdk.javaHome,
-		PATH: jdk.javaHome ? `${path.join(jdk.javaHome, "bin")}${path.delimiter}${process.env.PATH || ""}` : process.env.PATH,
+		PATH: jdk.javaHome
+			? `${path.join(jdk.javaHome, "bin")}${path.delimiter}${process.env.PATH || ""}`
+			: process.env.PATH,
 	};
 
 	const javaArgs: string[] = [
@@ -481,8 +483,11 @@ export async function launchUnidbgHarness(options: UnidbgLaunchOptions): Promise
 
 	let stdoutStartupBuffer = "";
 	let portResolved = false;
-	const { promise: actualPortPromise, resolve: resolveActualPort, reject: rejectActualPort } =
-		Promise.withResolvers<number>();
+	const {
+		promise: actualPortPromise,
+		resolve: resolveActualPort,
+		reject: rejectActualPort,
+	} = Promise.withResolvers<number>();
 
 	let child: ChildProcess;
 	try {
@@ -519,7 +524,10 @@ export async function launchUnidbgHarness(options: UnidbgLaunchOptions): Promise
 		options.onLog?.(text);
 		appendLog(text);
 
-		const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+		const lines = text
+			.split("\n")
+			.map(l => l.trim())
+			.filter(Boolean);
 		if (lines.length > 0) {
 			currentLastOutput = lines[lines.length - 1].slice(0, 4096);
 		}

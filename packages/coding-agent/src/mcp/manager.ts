@@ -85,11 +85,7 @@ type TrackedPromise<T> = {
 	reason?: unknown;
 };
 
-function createMcpStartupFailure(
-	serverName: string,
-	error: unknown,
-	source?: SourceMeta,
-): McpConnectionStatusEvent {
+function createMcpStartupFailure(serverName: string, error: unknown, source?: SourceMeta): McpConnectionStatusEvent {
 	const message = error instanceof Error ? error.message : String(error);
 	const failure: McpConnectionFailure = {
 		serverName,

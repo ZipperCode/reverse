@@ -49,6 +49,7 @@ Classify the artifact before invoking heavy tools:
 | **Native Binary** | ELF (`\x7fELF`), Mach-O (`\xcf\xfa\xed\xfe`, `\xce\xfa\xed\xfe`), Fat Mach-O (`\xca\xfe\xba\xbe`), `.so`, `.dylib`, `.o`, raw/firmware | `triage` / `read-binary` (IDA) / `r2_inspect` | `skill://native-binary-reverse` |
 | **Android** | `.apk`, `.aab`, `.dex`, JNI `.so` in APK context, `AndroidManifest.xml` | `android_package_inspect` (native container/DEX/manifest/signing/resources) / `droidasc getmanifest` / `jadx` / `apktool` | `skill://reverse-lab/references/android.md` |
 | **Windows PE / .NET** | `MZ` header, `.exe`, `.dll`, `.sys`, `.node` (PE32/PE32+) | `dotnet_inspect` (.NET) / `triage` / `read-binary` (IDA) / `ghidra_inspect` / `r2_inspect` | `skill://reverse-lab/references/windows.md` |
+| **Virtualized / Packed (VMP)** | High entropy sections (> 7.2), `.vmp0`/`.vmp1`, VM entry dispatcher calls | `triage` / `vmp_dump` (at OEP) / `native_devirtualize` / `triton_analyze` | `skill://vmp-reverse` |
 | **Web & JS** | `.js`, `.mjs`, `.wasm`, `.html`, SourceMaps, HAR/JSON | `browser_reverse_session` / `sourcemap_inspect` / `js_hook_preset` / `ast_grep` / `wasm_inspect` / `javascript_application` / `browser-relay` | `skill://reverse-lab/references/web-protocol.md` |
 | **Protocol & Network** | Raw TCP/TLS, `.pcap`, `.pcapng`, WebSocket frames, HTTP API payloads | `pcap_inspect` (native PCAP/PCAPNG) / `websocket_observe` / Network interception | `skill://reverse-lab/references/web-protocol.md` |
 | **Database / Storage** | `.db`, `.sqlite`, `.sqlite3`, SQLite format 3, WAL files | `sqlite_inspect` (native schema/tables/rows/WAL) | `skill://reverse-lab/references/web-protocol.md` |
@@ -315,4 +316,5 @@ Load specific reference manuals and domain skills on-demand via `skill://`:
 - `skill://reverse-lab/references/windows.md`: Windows PE workflow (PE headers, IDA Pro `:overview/:xrefs`, `radare2`).
 - `skill://reverse-lab/references/web-protocol.md`: Web and protocol forensics (Browser relay, JS search-first, WASM).
 - `skill://reverse-lab/references/tool-fallback.md`: Tool availability detection, degradation chains, and package manager hints.
+- `skill://vmp-reverse`: VMProtect memory dump, IAT repair, function lifting (Mergen/NoVmp), and Triton symbolic trace analysis.
 - `skill://reverse-tool-guide/SKILL.md`: Capability discovery contract, base vs. optional tool policies, and trusted catalog reference.

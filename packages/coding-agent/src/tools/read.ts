@@ -2002,8 +2002,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					if (suffixMatch) {
 						try {
 							const retryStat =
-								(await Bun.file(suffixMatch.absolutePath).stat()) ??
-								(await fs.stat(suffixMatch.absolutePath));
+								(await Bun.file(suffixMatch.absolutePath).stat()) ?? (await fs.stat(suffixMatch.absolutePath));
 							if (retryStat) {
 								absolutePath = suffixMatch.absolutePath;
 								fileSize = retryStat.size;
@@ -2024,8 +2023,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					if (approvedPlanPath) {
 						try {
 							const approvedPlanStat =
-								(await Bun.file(approvedPlanPath).stat()) ??
-								(await fs.stat(approvedPlanPath));
+								(await Bun.file(approvedPlanPath).stat()) ?? (await fs.stat(approvedPlanPath));
 							if (approvedPlanStat) {
 								absolutePath = approvedPlanPath;
 								fileSize = approvedPlanStat.size;

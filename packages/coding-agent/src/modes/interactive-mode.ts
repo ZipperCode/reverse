@@ -239,7 +239,6 @@ import { setSvgFigureRendering } from "@reverse/tui/chat/svg-figure";
 import { setTableCharts } from "@reverse/tui/chat/table-chart";
 import { setTranscriptActionHandler } from "@reverse/tui/chat/transcript-actions";
 import { StatusNotice } from "@reverse/tui/chrome/status-notice";
-import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
 import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
 import { AttachmentChipsBand } from "@reverse/tui/prompt/attachment-chips";
 import type { BashExecutionComponent } from "@reverse/tui/chat/bash-execution";

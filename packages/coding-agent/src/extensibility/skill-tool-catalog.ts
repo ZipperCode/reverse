@@ -19,6 +19,7 @@ import { $which } from "@reverse/utils";
 import { enumeratePythonRuntimes } from "../eval/py/runtime";
 import { probeIdaTool } from "../ida/install";
 import { locateUnidbg } from "./unidbg-detect";
+import { resolveVmpTool } from "./vmp-toolchain";
 import type { SkillRequirementWhich } from "./skill-requirements";
 import { getAdapterConfigs, resolveAdapter } from "../dap/config";
 import type { Settings } from "../config/settings";
@@ -2579,6 +2580,152 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		},
 	},
 
+	triton: {
+		id: "triton",
+		name: "Triton Binary Analysis",
+		category: "binary",
+		description:
+			"Dynamic symbolic execution, taint analysis, expression synthesis and optional LLVM lifting using triton-library.",
+		optional: true,
+		binaries: [],
+		probe: deps => resolveVmpTool("triton", deps),
+		installHints: {
+			darwin: ["reverse setup reverse triton --execute"],
+			linux: ["reverse setup reverse triton --execute"],
+			win32: ["reverse setup reverse triton --execute"],
+		},
+		manualUrl: "https://github.com/JonathanSalwan/Triton",
+		manualInstructions: {
+			darwin:
+				"Use the managed installer to provision triton-library in an isolated Python environment. LLVM support is probed separately.",
+			linux: "Use the managed installer to provision triton-library in an isolated Python environment. LLVM support is probed separately.",
+			win32: "Use the managed installer to provision triton-library in an isolated Python environment. LLVM support is probed separately.",
+		},
+		usage: {
+			canonical: 'triton_analyze(action: "status") -> triton_analyze(action: "replay", ...)',
+			whenToUse:
+				"Recover input/output expressions from captured instruction traces, simplify MBA expressions, and inspect path predicates without executing the target on the host.",
+			outputLimits:
+				"Declare input and output registers or memory explicitly; bound replay instructions and keep full expressions and LLVM IR in artifacts. Recovery covers supplied paths only.",
+			fallback:
+				"Inspect the original trace with native debuggers or disassemblers; preserve unresolved expressions and state gaps as evidence.",
+			examples: [
+				{
+					description: "Inspect binary-analysis Triton and optional features",
+					command: 'triton_analyze(action: "status")',
+				},
+			],
+		},
+	},
+	vmpdump: {
+		id: "vmpdump",
+		name: "VMPDump",
+		category: "binary",
+		description:
+			"Windows x64 VMProtect process dumping and import-table repair after unpacking has reached the original entry point.",
+		optional: true,
+		binaries: [],
+		probe: deps => resolveVmpTool("vmpdump", deps),
+		installHints: {
+			darwin: ["Run reverse setup reverse vmpdump --execute on a Windows x64 host"],
+			linux: ["Run reverse setup reverse vmpdump --execute on a Windows x64 host"],
+			win32: ["reverse setup reverse vmpdump --execute"],
+		},
+		manualUrl: "https://github.com/0xnobody/vmpdump/releases/tag/v1.2",
+		manualInstructions: {
+			darwin:
+				"VMPDump requires a Windows process. Transfer the sample and use the confirmed installation panel on that Windows host.",
+			linux: "VMPDump requires a Windows process. Transfer the sample and use the confirmed installation panel on that Windows host.",
+			win32: "Install the pinned upstream VMPDump release through the reverse tools panel; operate on an explicitly approved process after observing OEP.",
+		},
+		usage: {
+			canonical: 'vmp_dump(action: "status") -> vmp_dump(action: "dump", ...)',
+			whenToUse:
+				"Preserve an unpacked VMProtect 3.x x64 module and rebuild its import calls/table from an already running Windows process.",
+			outputLimits:
+				"Record PID, module identity, image base and observed OEP; retain the generated dump as an artifact. Dumping does not recover virtualized function semantics.",
+			fallback:
+				"Collect an approved debugger memory dump and preserve unresolved import evidence for manual repair.",
+			examples: [
+				{ description: "Check host support and VMPDump availability", command: 'vmp_dump(action: "status")' },
+			],
+		},
+	},
+	mergen: {
+		id: "mergen",
+		name: "Mergen",
+		category: "binary",
+		description:
+			"Function-level x64 PE lifting to LLVM IR for deobfuscation and devirtualization; self-modifying code is unsupported.",
+		optional: true,
+		binaries: [],
+		probe: deps => resolveVmpTool("mergen", deps),
+		installHints: {
+			darwin: ["Build the upstream native lifter or install the pinned release on Windows x64"],
+			linux: ["Build the upstream native lifter or install the pinned release on Windows x64"],
+			win32: ["reverse setup reverse mergen --execute"],
+		},
+		manualUrl: "https://github.com/NaC-L/Mergen",
+		manualInstructions: {
+			darwin:
+				"The managed prebuilt release is Windows x64. Build an upstream native lifter and configure its path, or analyze on a Windows host.",
+			linux: "The managed prebuilt release is Windows x64. Build an upstream native lifter and configure its path, or analyze on a Windows host.",
+			win32: "Install the pinned upstream Mergen lifter through the reverse tools panel. Supply an x64 PE and a function virtual address.",
+		},
+		usage: {
+			canonical:
+				'native_devirtualize(action: "status", backend: "mergen") -> native_devirtualize(action: "lift", backend: "mergen", ...)',
+			whenToUse:
+				"Lift a selected x64 PE function to LLVM IR for semantic analysis. VMP 3.8.x has targeted upstream coverage; VMP 3.6 is best-effort.",
+			outputLimits:
+				"Select one function and bounded execution. Preserve the original PE, produced IR and diagnostics; verify behavior independently before replacing code.",
+			fallback:
+				"Use Triton on captured paths for self-modifying code or unsupported static lifting, or inspect the function in Ghidra/IDA.",
+			examples: [
+				{
+					description: "Inspect Mergen backend availability",
+					command: 'native_devirtualize(action: "status", backend: "mergen")',
+				},
+			],
+		},
+	},
+	novmp: {
+		id: "novmp",
+		name: "NoVmp",
+		category: "binary",
+		description: "Experimental static devirtualization of unpacked VMProtect 3.0–3.5 x64 routines into VTIL.",
+		optional: true,
+		binaries: [],
+		probe: deps => resolveVmpTool("novmp", deps),
+		installHints: {
+			darwin: ["Build the upstream x86-64 tool or install the pinned release on Windows x64"],
+			linux: ["Build the upstream x86-64 tool or install the pinned release on Windows x64"],
+			win32: ["reverse setup reverse novmp --execute"],
+		},
+		manualUrl: "https://github.com/can1357/NoVmp",
+		manualInstructions: {
+			darwin:
+				"The managed prebuilt release is Windows x64. Upstream source uses x86-64 intrinsics; use a compatible build environment or Windows host.",
+			linux: "The managed prebuilt release is Windows x64. Build upstream with its pinned VTIL submodule in an x86-64 environment, or use Windows.",
+			win32: "Install the pinned upstream NoVmp release through the reverse tools panel; provide an unpacked PE, VM-entry RVAs and original image base when needed.",
+		},
+		usage: {
+			canonical:
+				'native_devirtualize(action: "status", backend: "novmp") -> native_devirtualize(action: "lift", backend: "novmp", ...)',
+			whenToUse:
+				"Analyze unpacked older VMProtect 3.0–3.5 x64 functions with known VM-entry RVAs, producing VTIL for inspection.",
+			outputLimits:
+				"Limit selected VM entries and keep full VTIL in artifacts. Original input stays unchanged; experimental recompilation requires separate explicit intent.",
+			fallback: "Use Mergen for compatible function lifting or Triton for captured-path semantic recovery.",
+			examples: [
+				{
+					description: "Inspect legacy backend availability",
+					command: 'native_devirtualize(action: "status", backend: "novmp")',
+				},
+			],
+		},
+	},
+
 	ida: {
 		id: "ida",
 		name: "IDA Pro",
@@ -2858,6 +3005,66 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		fallbacks: ["curl", "strings"],
 		setupCommand: "reverse setup reverse mitmproxy",
 		postInstallInvocation: "mitmproxy -p 8080 or mitmdump -s filter.py",
+	},
+	symbolic_trace_analysis: {
+		id: "symbolic_trace_analysis",
+		name: "Symbolic Trace Analysis",
+		category: "binary",
+		scenario: "Recover symbolic input/output relations from captured x86 or x64 execution traces.",
+		description:
+			"Replays bounded instruction and state evidence with Triton, simplifies expressions and emits LLVM IR when the installed engine supports it.",
+		why: "Separates target semantics from obfuscation along observed paths without running target machine code on the host.",
+		recommendedNativeTool: "triton_analyze",
+		optionalExternalTools: ["triton"],
+		fallbacks: ["triage", "binary_metadata_inspect"],
+		setupCommand: "reverse setup reverse triton --execute",
+		postInstallInvocation:
+			'triton_analyze(action: "status"), then bounded replay with explicit symbolic inputs and requested output',
+	},
+	vmp_dump_repair: {
+		id: "vmp_dump_repair",
+		name: "VMProtect Dump and Import Repair",
+		category: "binary",
+		scenario: "Dump an already unpacked VMProtect x64 module and rebuild protected imports on Windows.",
+		description:
+			"Runs VMPDump against an explicitly selected process after observed OEP and preserves the repaired PE as an artifact.",
+		why: "Produces the unpacked input needed for static analysis while retaining original module and image-base evidence.",
+		recommendedNativeTool: "vmp_dump",
+		optionalExternalTools: ["vmpdump"],
+		fallbacks: ["binary_metadata_inspect", "triage"],
+		setupCommand: "reverse setup reverse vmpdump --execute",
+		postInstallInvocation:
+			'vmp_dump(action: "status"), then explicitly approved dump with PID, module path and observed OEP evidence',
+	},
+	native_function_lifting: {
+		id: "native_function_lifting",
+		name: "Native Function LLVM Lifting",
+		category: "binary",
+		scenario: "Recover LLVM IR for an individual obfuscated x64 PE function.",
+		description:
+			"Runs Mergen against a staged copy and retains actual LLVM IR and diagnostics. Self-modifying code and whole-binary recovery are unsupported.",
+		why: "Uses compiler optimization to make protected function semantics and control flow easier to analyze.",
+		recommendedNativeTool: "native_devirtualize",
+		optionalExternalTools: ["mergen"],
+		fallbacks: ["binary_metadata_inspect", "triage"],
+		setupCommand: "reverse setup reverse mergen --execute",
+		postInstallInvocation:
+			'native_devirtualize(action: "status", backend: "mergen"), then lift one x64 PE function at its virtual address',
+	},
+	vmp_legacy_devirtualization: {
+		id: "vmp_legacy_devirtualization",
+		name: "Legacy VMProtect VTIL Devirtualization",
+		category: "binary",
+		scenario: "Analyze unpacked VMProtect 3.0–3.5 x64 virtualized routines.",
+		description:
+			"Runs NoVmp with selected VM-entry RVAs and optional original image base; retains genuine VTIL artifacts in a separate output directory.",
+		why: "Adds a static legacy backend without treating experimental recompilation as verified executable recovery.",
+		recommendedNativeTool: "native_devirtualize",
+		optionalExternalTools: ["novmp"],
+		fallbacks: ["binary_metadata_inspect", "triage"],
+		setupCommand: "reverse setup reverse novmp --execute",
+		postInstallInvocation:
+			'native_devirtualize(action: "status", backend: "novmp"), then lift selected VM-entry RVAs from an unpacked x64 PE',
 	},
 };
 

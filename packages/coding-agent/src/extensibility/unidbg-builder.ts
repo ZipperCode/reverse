@@ -95,7 +95,8 @@ export function validateJdk8(javaHome?: string): JdkValidationResult {
 
 	const res = spawnSync(javaBin, ["-version"], { encoding: "utf8" });
 	const rawOutput = (res.stderr || "") + "\n" + (res.stdout || "");
-	const match = rawOutput.match(/(?:java|openjdk)\s+version\s+"([^"]+)"/i) || rawOutput.match(/(?:java|openjdk)\s+([0-9._]+)/i);
+	const match =
+		rawOutput.match(/(?:java|openjdk)\s+version\s+"([^"]+)"/i) || rawOutput.match(/(?:java|openjdk)\s+([0-9._]+)/i);
 
 	if (!match) {
 		return {
@@ -120,9 +121,10 @@ export function validateJdk8(javaHome?: string): JdkValidationResult {
 		};
 	}
 
-	const validatedHome = targetHome && fs.existsSync(path.join(targetHome, "bin", javacName))
-		? targetHome
-		: path.dirname(path.dirname(javaBin));
+	const validatedHome =
+		targetHome && fs.existsSync(path.join(targetHome, "bin", javacName))
+			? targetHome
+			: path.dirname(path.dirname(javaBin));
 
 	return {
 		valid: true,
@@ -241,7 +243,8 @@ export async function buildUnidbg(options: UnidbgBuildOptions = {}): Promise<Uni
 			: process.env.PATH,
 	};
 
-	const proxyUrl = process.env.https_proxy || process.env.HTTPS_PROXY || process.env.http_proxy || process.env.HTTP_PROXY;
+	const proxyUrl =
+		process.env.https_proxy || process.env.HTTPS_PROXY || process.env.http_proxy || process.env.HTTP_PROXY;
 	if (proxyUrl) {
 		try {
 			const parsed = new URL(proxyUrl);
@@ -285,7 +288,12 @@ export async function buildUnidbg(options: UnidbgBuildOptions = {}): Promise<Uni
 	}
 	// Use install so reactor SNAPSHOT modules are available in local Maven repository,
 	// and generate dependency classpath for deterministic test harness compilation.
-	args.push("install", "dependency:build-classpath", "-DincludeScope=test", "-Dmdep.outputFile=target/unidbg-classpath.txt");
+	args.push(
+		"install",
+		"dependency:build-classpath",
+		"-DincludeScope=test",
+		"-Dmdep.outputFile=target/unidbg-classpath.txt",
+	);
 	options.onLog?.(`Building Unidbg via ${mavenBin} ${args.join(" ")} (JDK: ${jdkCheck.version})...\n`);
 
 	const resolvedCmd = await resolveStdioSpawnCommand(

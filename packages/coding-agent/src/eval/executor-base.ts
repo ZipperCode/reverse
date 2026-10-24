@@ -461,8 +461,6 @@ export async function executeWithKernelBase<
 		sink.push(`${options.initialNotice}\n\n`);
 	}
 
-
-
 	const display = new DisplayOutputCollector<KernelDisplayOutput>();
 	const displayOutputs = display.outputs;
 	const deadlineMs = getExecutionDeadlineMs(options);
@@ -559,13 +557,15 @@ export async function executeWithKernelBase<
 			const annotation = timedOut
 				? formatKernelTimeoutAnnotation(executionTimeoutMs ?? options?.idleTimeoutMs, kernelKilled)
 				: kernelKilled && !abortShield.abortRequested
-					? `Kernel died during execution; completion is uncertain. The cell was not replayed; check for partial side effects before retrying.\n${formatKernelLossNotice({
-							language: errorLogLabel.toLowerCase() === "javascript" ? "js" : "python",
-							generation: options?.generation ?? 1,
-							nextGeneration: (options?.generation ?? 1) + 1,
-							kernelKilled: true,
-							reason: "kernel_died",
-					  })}`
+					? `Kernel died during execution; completion is uncertain. The cell was not replayed; check for partial side effects before retrying.\n${formatKernelLossNotice(
+							{
+								language: errorLogLabel.toLowerCase() === "javascript" ? "js" : "python",
+								generation: options?.generation ?? 1,
+								nextGeneration: (options?.generation ?? 1) + 1,
+								kernelKilled: true,
+								reason: "kernel_died",
+							},
+						)}`
 					: undefined;
 			if (annotation) {
 				sink.push(`${annotation}\n`);

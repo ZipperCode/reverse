@@ -25,6 +25,10 @@ When a tool is absent, apply the **Discover-Before-Stop / Install-Then-Dispatch*
 | Packed PE | `upx -d -o ./artifacts/unpacked.exe <pe>` | `r2` section/entropy inspection |
 | WebAssembly structure | `wasm_inspect(action: "info")` | `wasm2wat <module> -o module.wat` |
 | **`js_deobfuscation`** (AST search & transforms) | `ast_grep(pattern: "...")` | `ast-grep` CLI / `grep` |
+| **`vmp_dump_repair`** (VMProtect process dump & IAT) | `vmp_dump(action: "dump", ...)` | `native_mcp_session` (x64dbg) dump |
+| **`native_function_lifting`** (x64 PE function to LLVM IR) | `native_devirtualize(backend: "mergen")` | `triton_analyze` / `r2_inspect` |
+| **`vmp_legacy_devirtualization`** (VMP 3.0–3.5 VTIL devirt) | `native_devirtualize(backend: "novmp")` | `triton_analyze` |
+| **`symbolic_trace_analysis`** (Symbolic replay & MBA simplification) | `triton_analyze(action: "replay", ...)` | `r2_inspect` / IDA Pro |
 ## 1. Triage: `file`, `strings`, `xxd`
 
 ```bash
@@ -180,3 +184,28 @@ ast_grep(pattern: "crypto.createCipheriv($$$)", path: "bundle.js")
 
 - Use structural patterns for minified/renamed JavaScript; use `grep` only for literal tokens.
 - The external `ast-grep` CLI is a fallback, not a replacement for the native tool.
+
+## 9. Virtualized Code & Devirtualization Tools: `vmp_dump`, `native_devirtualize`, `triton_analyze`
+
+```text
+# Status check
+vmp_dump(action: "status")
+native_devirtualize(action: "status", backend: "mergen")
+triton_analyze(action: "status")
+
+# Process dump past OEP (Windows x64)
+vmp_dump(action: "dump", pid: 4128, module_path: "target.exe", observed_oep: true, output_path: "./artifacts/dumped.exe")
+
+# Function lifting to LLVM IR (Mergen backend, x64 PE function VA)
+native_devirtualize(action: "lift", backend: "mergen", path: "./artifacts/dumped.exe", start_address: "0x1400021A0")
+
+# Legacy VTIL devirtualization (NoVmp backend, VMP 3.0-3.5 VM-entry RVAs)
+native_devirtualize(action: "lift", backend: "novmp", path: "./artifacts/dumped.exe", vms: ["0x12050"])
+
+# Symbolic trace execution & MBA simplification (Triton)
+triton_analyze(action: "replay", trace: "./artifacts/trace.txt", initial_registers: { rip: "0x140001000", rax: "0x0", rdi: "0x1234", rsi: "0x5678", rsp: "0x7ffffff0" }, symbolic_registers: [{ name: "rdi", alias: "input_key1" }, { name: "rsi", alias: "input_key2" }], output: { kind: "register", target: "eax" })
+```
+
+- Always preserve original binaries read-only; output dumps, lifted IR, and VTIL to `./artifacts/`.
+- Mergen supports single clean x64 functions without SMC; VMP 3.6 is best effort.
+- Triton operates on offline traces in Salwan format (`mr:`, `r:`, `i:`); bounds instruction count and saves large IR to artifacts.

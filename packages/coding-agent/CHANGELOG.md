@@ -17,6 +17,8 @@
 - Added `native_mcp_session` tool and catalog entries (`x64dbg-mcp`, `ghidra-mcp`, `r2mcp`) across CLI and interactive TUI setup panels to manage native reverse engineering sessions for x64dbg, Ghidra, and radare2, supporting dynamic upstream tool discovery, safe detachment, persistent Ghidra headless projects (`--save`) with Java directory locks, persistent radare2 analysis, and local/remote x64dbg debugging with Windows host path preservation and ZeroMQ tunnel guidance.
 - Added 64-bit BigInt address mapping (`locate`) attributing coordinates as supplied arithmetic rather than verified execution facts, distinguishing five observable state tiers (`installed`, `configured`, `transport connected`, `target matched`, `executed verified`), and bounding test verification claims.
 - Added built-in Frida trace templates `jni_register` (tracing Android JNI `RegisterNatives` with `retval === 0` confirmation semantics) and `native_functions` (with bounded typed argument decoding, return values, backtraces, and event limits).
+- Added `triton_analyze`, `vmp_dump`, and `native_devirtualize` tools with bounded symbolic trace replay, Windows process dump/import repair, and function-level Mergen/NoVmp lifting. Added independent backend readiness, isolated Triton installation with native source builds, pinned SHA-256-verified Windows releases, and matching CLI/TUI setup actions with Chinese guidance.
+- Added bundled `vmp-reverse` workflow and reference assets covering backend selection, concrete trace state, VA/RVA precision, preserved artifacts, and independent semantic verification; existing reverse skills route protected-function work through the new tools.
 
 ### Changed
 
@@ -30,6 +32,7 @@
 
 ### Fixed
 
+- Completed `native_mcp_session` and `unidbg` tool reference pages, restored package formatting compliance, and removed unused interactive/fixture bindings so documentation coverage and the package check gate pass.
 - Fixed default Ghidra decompilation and export to execute an embedded headless script and validate bounded UTF-8 results instead of treating analysis logs as pseudocode; missing dependencies route through setup.
 - Fixed Android JNI attribution to require visible defined dynamic function exports, preserve unresolved registration candidates, reject ambiguous library ownership, and support zero-argument and Unicode long JNI names without inventing malformed prototypes.
 - Fixed native debugger readiness and routing across setup and agent capability queries: discover configured native DAP backends, respect disabled debug tools, and keep Frida-only or Ghidra-only environments partially available.

@@ -756,10 +756,7 @@ describe("StdioTransport request failure diagnostics", () => {
 		transport = new StdioTransport({
 			type: "stdio",
 			command: process.execPath,
-			args: [
-				"-e",
-				"process.stderr.write('r2mcp: missing library r_core.dll\\n'); process.exit(42)",
-			],
+			args: ["-e", "process.stderr.write('r2mcp: missing library r_core.dll\\n'); process.exit(42)"],
 			timeout: 3_000,
 		});
 		await transport.connect();
@@ -847,10 +844,7 @@ describe("StdioTransport request failure diagnostics", () => {
 		transport = new StdioTransport({
 			type: "stdio",
 			command: process.execPath,
-			args: [
-				"-e",
-				"process.stderr.write('server starting up slowly...\\n'); await Bun.sleep(60_000)",
-			],
+			args: ["-e", "process.stderr.write('server starting up slowly...\\n'); await Bun.sleep(60_000)"],
 			timeout: 100,
 		});
 		await transport.connect();
@@ -873,10 +867,7 @@ describe("StdioTransport request failure diagnostics", () => {
 		transport = new StdioTransport({
 			type: "stdio",
 			command: process.execPath,
-			args: [
-				"-e",
-				`process.stderr.write(${JSON.stringify(longText)}); process.exit(1)`,
-			],
+			args: ["-e", `process.stderr.write(${JSON.stringify(longText)}); process.exit(1)`],
 			timeout: 3_000,
 		});
 		await transport.connect();
@@ -955,7 +946,7 @@ describe("StdioTransport request failure diagnostics", () => {
 			command: process.execPath,
 			args: [
 				"-e",
-				"process.stderr.write('fatal: {\"authorization\":\"Bearer ABC_SECRET\",\"api_key\":\"DEF_SECRET\",\"access_token\":\"BEARER_IN_JSON\",\"access_key\":\"SECRET_KEY\"}\\ntoken=\"QUOTED_SECRET WITH SPACES\"\\nSet-Cookie: session=QUOTED_COOKIE\\n'); process.exit(1)",
+				'process.stderr.write(\'fatal: {"authorization":"Bearer ABC_SECRET","api_key":"DEF_SECRET","access_token":"BEARER_IN_JSON","access_key":"SECRET_KEY"}\\ntoken="QUOTED_SECRET WITH SPACES"\\nSet-Cookie: session=QUOTED_COOKIE\\n\'); process.exit(1)',
 			],
 			timeout: 2_000,
 		});
@@ -990,7 +981,8 @@ describe("StdioTransport request failure diagnostics", () => {
 			command: "r2mcp.exe",
 			code: 1,
 			stderr: "error while loading shared libraries: r_core.dll: not found",
-			message: "MCP subprocess exited with code 1 during \"initialize\" before responding: error while loading shared libraries: r_core.dll: not found",
+			message:
+				'MCP subprocess exited with code 1 during "initialize" before responding: error while loading shared libraries: r_core.dll: not found',
 			retryable: true,
 		});
 		const formatted = formatMCPToolFailure(err, "radare2", "disassemble");

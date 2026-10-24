@@ -74,7 +74,10 @@ function handleRequest(req: JsonRpcRequest): Record<string, unknown> | null {
 					{
 						name: "connect_remote",
 						description: "Connect to remote x64dbg instance",
-						inputSchema: { type: "object", properties: { host: { type: "string" }, req_rep_port: { type: "number" } } },
+						inputSchema: {
+							type: "object",
+							properties: { host: { type: "string" }, req_rep_port: { type: "number" } },
+						},
 					},
 					{
 						name: "get_debugger_status",
@@ -97,7 +100,6 @@ function handleRequest(req: JsonRpcRequest): Record<string, unknown> | null {
 
 		case "tools/call": {
 			const toolName = String(req.params?.name ?? "");
-			const args = (req.params?.arguments as Record<string, unknown>) ?? {};
 
 			if (toolName === "get_debugger_status") {
 				if (process.env.MOCK_DEBUGGEE_DEAD === "1") {
@@ -150,7 +152,8 @@ function handleRequest(req: JsonRpcRequest): Record<string, unknown> | null {
 			}
 
 			if (toolName === "get_program_info") {
-				const sha256 = process.env.MOCK_GHIDRA_SHA256 ?? "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+				const sha256 =
+					process.env.MOCK_GHIDRA_SHA256 ?? "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 				return {
 					content: [
 						{

@@ -16,7 +16,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseEnv } from "node:util";
-import { $which, APP_NAME, clearWhichCache, getAgentDir, getProjectDir, isEnoent } from "@reverse/utils";
+import {
+	$which,
+	APP_NAME,
+	clearWhichCache,
+	getAgentDir,
+	getProjectDir,
+	isEnoent,
+	WhichCachePolicy,
+} from "@reverse/utils";
 import { refreshShellConfigCache } from "@reverse/utils/procmgr";
 import { invalidateShellSnapshotCache } from "../utils/shell-snapshot";
 import {
@@ -50,6 +58,7 @@ import {
 	type NativeMcpService,
 } from "./native-mcp-install";
 import { getPortableToolRecipe, installPortableTool } from "./portable-tool-install";
+import { getVmpToolUnsupportedReason, installTritonVenv, type VmpToolId } from "./vmp-toolchain";
 import { readMCPConfigFile, setMcpServerEnabled, updateMCPServer } from "../mcp/config-writer";
 import type { MCPServerConnection } from "../mcp/types";
 import type { MCPManager } from "../mcp/manager";
@@ -85,7 +94,7 @@ export interface ReverseInstallStep {
 	secondaryMissing?: string[];
 	manualInstructions?: string;
 	serverConfigSnapshot?: string;
-	installer?: "jshookmcp" | "portable" | "unidbg" | "native-mcp";
+	installer?: "jshookmcp" | "portable" | "unidbg" | "native-mcp" | "triton";
 }
 
 export interface ReverseInstallPlan {
@@ -358,6 +367,31 @@ export function getReverseInstallPlan(
 			visited.add(id);
 			return true;
 		}
+		if (id === "triton") {
+			const isDarwinArm = platform === "darwin" && process.arch === "arm64";
+			steps.push({
+				id: "triton",
+				name: desc.name ?? "Triton Binary Analysis",
+				kind: "cli",
+				packageManager: isDarwinArm ? "build" : "pip",
+				installer: "triton",
+				command: isDarwinArm
+					? `${APP_NAME} setup reverse triton (managed venv, source build)`
+					: `${APP_NAME} setup reverse triton (managed venv)`,
+				argv: [APP_NAME, "setup", "reverse", "triton", "--execute"],
+				riskNote: t(
+					"cli.setup.reverse.triton.risk",
+					isDarwinArm
+						? "Provisions an isolated virtual environment and compiles triton-library natively from pinned source (commit bc84cf7) using bundled capstone and z3-solver wheels."
+						: "Provisions an isolated virtual environment in the agent directory and installs pinned triton-library (Apache-2.0, dynamic binary analysis and symbolic execution).",
+				),
+				isDependency: id !== item.id,
+				manualInstructions: desc.manualInstructions?.[platform],
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
 
 		// 2. Find a viable recipe strictly on this platform
 		const recipes = desc.installCommands?.[platform] ?? [];
@@ -449,7 +483,11 @@ export function getReverseInstallPlan(
 
 	if (item.kind === "cli") {
 		const desc = SKILL_TOOL_CATALOG[item.id];
-		const hasRecipe = Boolean(desc?.installCommands?.[platform]?.length);
+		const hasRecipe = Boolean(
+			desc?.installCommands?.[platform]?.length ||
+			(platform === "win32" && getPortableToolRecipe(item.id)) ||
+			item.id === "triton",
+		);
 		if (item.status === "installed" && !hasRecipe) {
 			return {
 				item,
@@ -464,7 +502,14 @@ export function getReverseInstallPlan(
 
 		canInstall = planTool(item.id);
 		if (!canInstall) {
-			reason = item.manualInstructions || `Automated installation is not supported for ${item.name} on ${platform}.`;
+			const vmpUnsupported =
+				item.id === "vmpdump" || item.id === "mergen" || item.id === "novmp" || item.id === "triton"
+					? getVmpToolUnsupportedReason(item.id as VmpToolId, platform)
+					: null;
+			reason =
+				vmpUnsupported ||
+				item.manualInstructions ||
+				`Automated installation is not supported for ${item.name} on ${platform}.`;
 		}
 	} else if (item.kind === "mcp") {
 		const service = getMcpService(item.id);
@@ -850,9 +895,11 @@ export async function installReverseItem(
 			step.packageManager === "portable" ||
 			step.installer === "unidbg" ||
 			step.id === "unidbg" ||
-			step.installer === "native-mcp"
+			step.installer === "native-mcp" ||
+			step.installer === "triton" ||
+			step.id === "triton"
 		) {
-			// Trusted internal portable/build installer
+			// Trusted internal portable/build/venv installer
 		} else if (step.argv && step.argv.length > 0 && !isTrustedCatalogArgv(canonical)) {
 			return {
 				success: false,
@@ -951,6 +998,35 @@ export async function installReverseItem(
 				return {
 					success: true,
 					message: `Unidbg built successfully in ${buildRes.unidbgDir} (${buildRes.jarPaths.length} JARs compiled).`,
+				};
+			}
+
+			if (step.installer === "triton" || step.id === "triton") {
+				options.onChunk?.(`[reverse] Installing managed Triton symbolic execution environment...\n`);
+				const tritonRes = await installTritonVenv({
+					agentDir: options.agentDir,
+					onChunk: options.onChunk,
+					signal: options.signal,
+					platform,
+					env: options.env,
+					which: bin => which(bin, { cache: WhichCachePolicy.Bypass }),
+				});
+				if (!tritonRes.success || !tritonRes.pythonPath) {
+					return {
+						success: false,
+						message: tritonRes.message ?? "Triton installation failed.",
+					};
+				}
+				const venvBinDir = path.dirname(tritonRes.pythonPath);
+				await persistToolEnvironment(
+					{
+						extraPaths: [venvBinDir],
+					},
+					options.agentDir,
+				);
+				return {
+					success: true,
+					message: tritonRes.message,
 				};
 			}
 

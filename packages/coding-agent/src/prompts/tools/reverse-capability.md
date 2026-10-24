@@ -15,6 +15,7 @@ Workflow Guidance:
 3. If an external capability is needed, use the `setupCommand` (e.g. `reverse setup reverse apktool`) to guide the operator through interactive installation, then follow `postInstallInvocation`.
 4. For frontend debugging or deobfuscation requiring jshookmcp, call `reverse_capability(action: "install", service: "jshookmcp")` after the user authorizes installation. Then use the mounted jshook `search_tools` → `describe_tool` → `activate_tools` → `call_tool` flow. When tool activation hits budget limits, free unused tools with `deactivate_tools` before retrying rather than increasing limits. Let one controller own each browser target; retain native tools for independent static analysis.
 5. Use `reverse_capability(action: "status")` to verify current-session evidence: distinguish whether an MCP service is merely configured vs connected vs has discovered tools vs is matched to your target vs has executed.
+6. Resolve VMP stages independently: `symbolic_trace_analysis` (Triton), `vmp_dump_repair` (VMPDump), `native_function_lifting` (Mergen), and `vmp_legacy_devirtualization` (NoVmp). Installed trace analysis does not make dumping or native recovery ready. Load `skill://vmp-reverse` for inputs, platform boundaries and independent semantic verification.
 
 <examples>
 ```

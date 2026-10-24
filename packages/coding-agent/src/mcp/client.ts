@@ -219,13 +219,14 @@ export async function connectToServer(
 			"stderr" in transport &&
 			"phase" in transport
 		) {
-			const phase = typeof transport.phase === "string" && transport.phase.length > 0 ? transport.phase : "initialize";
-			const rawStderr = typeof transport.stderr === "string" && transport.stderr.length > 0
-				? transport.stderr
-				: undefined;
-			const rawCommand = "command" in transport && typeof transport.command === "string" && transport.command.length > 0
-				? transport.command
-				: undefined;
+			const phase =
+				typeof transport.phase === "string" && transport.phase.length > 0 ? transport.phase : "initialize";
+			const rawStderr =
+				typeof transport.stderr === "string" && transport.stderr.length > 0 ? transport.stderr : undefined;
+			const rawCommand =
+				"command" in transport && typeof transport.command === "string" && transport.command.length > 0
+					? transport.command
+					: undefined;
 			const stderr = rawStderr ? sanitizeDiagnosticTail(rawStderr, 2000) : undefined;
 			const command = rawCommand ? sanitizeCommandString(rawCommand) : undefined;
 			const stderrSummary = stderr ? (stderr.length <= 500 ? stderr : `...${stderr.slice(-500)}`) : undefined;

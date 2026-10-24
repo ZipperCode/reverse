@@ -158,6 +158,15 @@ upx -d -o unpacked_target.exe target.exe
 
 To counter in static patches: NOP out anti-debug branches (`74 xx` [JZ] ➔ `90 90` [NOP NOP]) or force return 0 from wrapper functions.
 
+### 3. VMProtect Unpacking & Devirtualization
+When PE binaries contain virtualization sections (`.vmp0`, `.vmp1`) or entrypoint mutation:
+1. Run the sample under an isolated debugger to reach the Original Entry Point (OEP).
+2. Dump the running process and rebuild the Import Address Table using `vmp_dump`:
+   ```text
+   vmp_dump(action: "dump", pid: <pid>, module_path: "target.exe", observed_oep: true, output_path: "./artifacts/dumped.exe")
+   ```
+3. For function-level lifting to LLVM IR (`native_devirtualize(action: "lift", backend: "mergen")`) or symbolic trace analysis (`triton_analyze`), route to `skill://vmp-reverse`.
+
 ---
 
 ## 5. Stateful Debugging Governance

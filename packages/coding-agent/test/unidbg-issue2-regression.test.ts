@@ -91,8 +91,14 @@ describe("Issue #2 Regression Tests: Unidbg Automation & Lifecycle", () => {
 			const dirB = path.join(tempDir, "checkout-b");
 			fs.mkdirSync(path.join(dirA, "unidbg-api"), { recursive: true });
 			fs.mkdirSync(path.join(dirB, "unidbg-api"), { recursive: true });
-			fs.writeFileSync(path.join(dirA, "pom.xml"), "<project><groupId>com.github.zhkl0228</groupId><artifactId>unidbg</artifactId></project>");
-			fs.writeFileSync(path.join(dirB, "pom.xml"), "<project><groupId>com.github.zhkl0228</groupId><artifactId>unidbg</artifactId></project>");
+			fs.writeFileSync(
+				path.join(dirA, "pom.xml"),
+				"<project><groupId>com.github.zhkl0228</groupId><artifactId>unidbg</artifactId></project>",
+			);
+			fs.writeFileSync(
+				path.join(dirB, "pom.xml"),
+				"<project><groupId>com.github.zhkl0228</groupId><artifactId>unidbg</artifactId></project>",
+			);
 
 			const res = inspectUnidbg({
 				dir: dirB,
@@ -133,9 +139,7 @@ describe("Issue #2 Regression Tests: Unidbg Automation & Lifecycle", () => {
 			disposeHook!();
 
 			// Further calls must throw session disposed error
-			await expect(tool.execute("call-2", { action: "status" })).rejects.toThrow(
-				"Session is already disposed",
-			);
+			await expect(tool.execute("call-2", { action: "status" })).rejects.toThrow("Session is already disposed");
 		});
 
 		it("rejects scaffold without target binary path", async () => {
@@ -148,9 +152,7 @@ describe("Issue #2 Regression Tests: Unidbg Automation & Lifecycle", () => {
 			} as unknown as ToolSession;
 
 			const tool = new UnidbgTool(mockSession);
-			await expect(tool.execute("call-3", { action: "scaffold" })).rejects.toThrow(
-				"target path is required",
-			);
+			await expect(tool.execute("call-3", { action: "scaffold" })).rejects.toThrow("target path is required");
 		});
 	});
 

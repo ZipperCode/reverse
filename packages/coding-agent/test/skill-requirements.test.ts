@@ -191,12 +191,7 @@ describe("checkToolRequirements", () => {
 			radiff2: "/usr/bin/radiff2",
 		});
 		const statuses = checkToolRequirements(
-			[
-				{ id: "cargo_auditable" },
-				{ id: "tshark" },
-				{ id: "readelf" },
-				{ id: "vbindiff" },
-			],
+			[{ id: "cargo_auditable" }, { id: "tshark" }, { id: "readelf" }, { id: "vbindiff" }],
 			{ which, platform: "linux" },
 		);
 		expect(statuses.map(s => s.foundPath)).toEqual([null, null, null, null]);

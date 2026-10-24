@@ -4276,16 +4276,21 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		const withBuildLineageContext = async (messages: AgentMessage[]): Promise<AgentMessage[]> => {
 			// 从持久化清单重建当前基线，压缩或恢复后也不依赖历史文件名与旧截图。
 			const content = await formatBuildLineageContext(sessionManager.getCwd());
-			const retained = messages.filter(message => message.role !== "custom" || message.customType !== "build-lineage-context");
+			const retained = messages.filter(
+				message => message.role !== "custom" || message.customType !== "build-lineage-context",
+			);
 			if (!content) return retained.length === messages.length ? messages : retained;
-			return [...retained, {
-				role: "custom",
-				customType: "build-lineage-context",
-				content,
-				display: false,
-				attribution: "agent",
-				timestamp: Date.now(),
-			}];
+			return [
+				...retained,
+				{
+					role: "custom",
+					customType: "build-lineage-context",
+					content,
+					display: false,
+					attribution: "agent",
+					timestamp: Date.now(),
+				},
+			];
 		};
 
 		const transformContext = async (messages: AgentMessage[], signal?: AbortSignal) => {

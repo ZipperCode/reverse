@@ -20,7 +20,14 @@ import type {
 	MCPTransport,
 } from "../../mcp/types";
 import { toJsonRpcError } from "../../mcp/types";
-import { createMCPJsonRpcError, extractSecretArgValues, MCPTransportError, normalizeMCPTransportError, sanitizeCommandArgv, sanitizeDiagnosticTail } from "../errors";
+import {
+	createMCPJsonRpcError,
+	extractSecretArgValues,
+	MCPTransportError,
+	normalizeMCPTransportError,
+	sanitizeCommandArgv,
+	sanitizeDiagnosticTail,
+} from "../errors";
 import { RequestIdAllocator } from "../request-id";
 import { isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "../timeout";
 import { isThenable } from "../../utils/ipc";
@@ -1047,13 +1054,15 @@ export class StdioTransport implements MCPTransport {
 		const failFromSend = (error: unknown) => {
 			if (settled) return;
 			cleanup();
-			reject(normalizeMCPTransportError(error, {
-				transport: "stdio",
-				stage: "send",
-				phase: method,
-				command: this.#commandStr,
-				stderr: this.stderr || undefined,
-			}));
+			reject(
+				normalizeMCPTransportError(error, {
+					transport: "stdio",
+					stage: "send",
+					phase: method,
+					command: this.#commandStr,
+					stderr: this.stderr || undefined,
+				}),
+			);
 		};
 		try {
 			// Never `await` write/flush. Bun's FileSink returns a pending Promise

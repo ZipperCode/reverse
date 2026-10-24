@@ -11,6 +11,7 @@
  * All operations are staged in sibling temporary directories and validated
  * using @reverse/utils/ar before atomic publication with rollback protection.
  */
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { getAgentDir } from "@reverse/utils";
@@ -20,6 +21,8 @@ export interface PortableToolFile {
 	url: string;
 	/** Target filename on disk (e.g. bundletool-all.jar). */
 	targetFilename?: string;
+	/** Optional pinned SHA-256 digest for asset verification. */
+	sha256?: string;
 }
 
 export interface PortableToolRecipe {
@@ -27,11 +30,14 @@ export interface PortableToolRecipe {
 	name: string;
 	version: string;
 	files: PortableToolFile[];
-	format: "tar.gz" | "zip" | "jar";
+	format: "tar.gz" | "zip" | "jar" | "exe";
 	targetSubdir: string;
 	/** Required distinct command groups: every group must have at least one regular binary file resolved. */
 	requiredCommandGroups: string[][];
 	shims?: Array<{ name: string; targetJar: string }>;
+	supportedPlatforms?: readonly NodeJS.Platform[];
+	license?: string;
+	upstreamUrl?: string;
 }
 
 export interface PortableInstallOptions {
@@ -39,7 +45,10 @@ export interface PortableInstallOptions {
 	targetDir?: string;
 	onChunk?: (chunk: string) => void;
 	signal?: AbortSignal;
-	fetch?: (input: Parameters<typeof globalThis.fetch>[0], init?: Parameters<typeof globalThis.fetch>[1]) => Promise<Response>;
+	fetch?: (
+		input: Parameters<typeof globalThis.fetch>[0],
+		init?: Parameters<typeof globalThis.fetch>[1],
+	) => Promise<Response>;
 	platform?: NodeJS.Platform;
 }
 
@@ -57,9 +66,7 @@ export const PORTABLE_TOOL_RECIPES: Readonly<Record<string, PortableToolRecipe>>
 		id: "wabt",
 		name: "WABT",
 		version: "1.0.42",
-		files: [
-			{ url: "https://github.com/WebAssembly/wabt/releases/download/1.0.42/wabt-1.0.42-windows-x64.tar.gz" },
-		],
+		files: [{ url: "https://github.com/WebAssembly/wabt/releases/download/1.0.42/wabt-1.0.42-windows-x64.tar.gz" }],
 		format: "tar.gz",
 		targetSubdir: "wabt",
 		requiredCommandGroups: [
@@ -79,10 +86,7 @@ export const PORTABLE_TOOL_RECIPES: Readonly<Record<string, PortableToolRecipe>>
 		],
 		format: "jar",
 		targetSubdir: "bundletool",
-		requiredCommandGroups: [
-			["bundletool.bat", "bundletool"],
-			["bundletool-all.jar"],
-		],
+		requiredCommandGroups: [["bundletool.bat", "bundletool"], ["bundletool-all.jar"]],
 		shims: [{ name: "bundletool", targetJar: "bundletool-all.jar" }],
 	},
 	baksmali: {
@@ -101,12 +105,7 @@ export const PORTABLE_TOOL_RECIPES: Readonly<Record<string, PortableToolRecipe>>
 		],
 		format: "jar",
 		targetSubdir: "smali",
-		requiredCommandGroups: [
-			["baksmali.bat", "baksmali"],
-			["smali.bat", "smali"],
-			["baksmali.jar"],
-			["smali.jar"],
-		],
+		requiredCommandGroups: [["baksmali.bat", "baksmali"], ["smali.bat", "smali"], ["baksmali.jar"], ["smali.jar"]],
 		shims: [
 			{ name: "baksmali", targetJar: "baksmali.jar" },
 			{ name: "smali", targetJar: "smali.jar" },
@@ -119,9 +118,7 @@ export const PORTABLE_TOOL_RECIPES: Readonly<Record<string, PortableToolRecipe>>
 		files: [{ url: "https://www.cjmweb.net/vbindiff/VBinDiff-3.0_beta5.zip" }],
 		format: "zip",
 		targetSubdir: "vbindiff",
-		requiredCommandGroups: [
-			["VBinDiff.exe", "vbindiff.exe", "vbindiff"],
-		],
+		requiredCommandGroups: [["VBinDiff.exe", "vbindiff.exe", "vbindiff"]],
 	},
 	il2cppdumper: {
 		id: "il2cppdumper",
@@ -132,9 +129,60 @@ export const PORTABLE_TOOL_RECIPES: Readonly<Record<string, PortableToolRecipe>>
 		],
 		format: "zip",
 		targetSubdir: "Il2CppDumper",
-		requiredCommandGroups: [
-			["Il2CppDumper.exe", "il2cppdumper.exe", "il2cppdumper"],
+		requiredCommandGroups: [["Il2CppDumper.exe", "il2cppdumper.exe", "il2cppdumper"]],
+	},
+	vmpdump: {
+		id: "vmpdump",
+		name: "VMPDump",
+		version: "1.2",
+		files: [
+			{
+				url: "https://github.com/0xnobody/vmpdump/releases/download/v1.2/VMPDump.zip",
+				sha256: "3232aa702f2af8b0cc6a967defc525537317fab9dc2512418911326e50551097",
+			},
 		],
+		format: "zip",
+		targetSubdir: "vmpdump",
+		requiredCommandGroups: [["VMPDump.exe", "vmpdump.exe", "vmpdump"]],
+		supportedPlatforms: ["win32"],
+		license: "GPL-3.0",
+		upstreamUrl: "https://github.com/0xnobody/vmpdump",
+	},
+	mergen: {
+		id: "mergen",
+		name: "Mergen",
+		version: "0.7",
+		files: [
+			{
+				url: "https://github.com/NaC-L/Mergen/releases/download/v0.7/lifter-windows-iced.exe",
+				targetFilename: "lifter-windows-iced.exe",
+				sha256: "6dc014b100d0ce2f8d5c6156c2a3786783a8014f8bf4cc20faafad5ce9d366b6",
+			},
+		],
+		format: "exe",
+		targetSubdir: "mergen",
+		requiredCommandGroups: [["lifter-windows-iced.exe", "mergen.exe", "mergen"]],
+		supportedPlatforms: ["win32"],
+		license: "GPL-3.0",
+		upstreamUrl: "https://github.com/NaC-L/Mergen",
+	},
+	novmp: {
+		id: "novmp",
+		name: "NoVmp",
+		version: "1.0.6",
+		files: [
+			{
+				url: "https://github.com/can1357/NoVmp/releases/download/v1.0.6/NoVmp.exe",
+				targetFilename: "NoVmp.exe",
+				sha256: "545788e150e9fab8f16fc157669ee42fe7c636b2a7cb0b8b8e0622af3455401c",
+			},
+		],
+		format: "exe",
+		targetSubdir: "novmp",
+		requiredCommandGroups: [["NoVmp.exe", "novmp.exe", "novmp"]],
+		supportedPlatforms: ["win32"],
+		license: "GPL-3.0",
+		upstreamUrl: "https://github.com/can1357/NoVmp",
 	},
 };
 
@@ -244,6 +292,17 @@ export async function installPortableTool(
 			message: `No portable install recipe found for tool "${id}".`,
 		};
 	}
+	const targetPlatform = options.platform ?? process.platform;
+	if (recipe.supportedPlatforms && !recipe.supportedPlatforms.includes(targetPlatform)) {
+		return {
+			success: false,
+			id: recipe.id,
+			installDir: "",
+			binDirs: [],
+			binaries: [],
+			message: `${recipe.name} is only supported on [${recipe.supportedPlatforms.join(", ")}]; current platform is ${targetPlatform}.`,
+		};
+	}
 
 	const baseToolsDir = options.targetDir ?? path.join(options.agentDir ?? getAgentDir(), "tools");
 	const installDir = path.join(baseToolsDir, recipe.targetSubdir);
@@ -276,6 +335,20 @@ export async function installPortableTool(
 			const arrayBuf = await res.arrayBuffer();
 			const buf = Buffer.from(arrayBuf);
 
+			if (file.sha256) {
+				const digest = crypto.createHash("sha256").update(buf).digest("hex");
+				if (digest.toLowerCase() !== file.sha256.toLowerCase()) {
+					return {
+						success: false,
+						id: recipe.id,
+						installDir,
+						binDirs: [],
+						binaries: [],
+						message: `Checksum verification failed for ${filename}: expected ${file.sha256}, got ${digest}`,
+					};
+				}
+			}
+
 			if (recipe.format === "jar") {
 				const valid = await isValidJar(buf);
 				if (!valid) {
@@ -290,6 +363,9 @@ export async function installPortableTool(
 				}
 				const jarDest = path.join(stageDir, filename);
 				fs.writeFileSync(jarDest, buf);
+			} else if (recipe.format === "exe") {
+				const exeDest = path.join(stageDir, filename);
+				fs.writeFileSync(exeDest, buf, { mode: 0o755 });
 			} else {
 				// Use repo native extractArchive with full path traversal and symlink guards
 				await extractArchive({ bytes: buf, format: recipe.format }, stageDir);
@@ -300,6 +376,23 @@ export async function installPortableTool(
 		if (recipe.shims && recipe.shims.length > 0) {
 			writeShims(stageDir, recipe.shims);
 		}
+		if (recipe.license || recipe.upstreamUrl) {
+			const receiptPayload = {
+				id: recipe.id,
+				name: recipe.name,
+				version: recipe.version,
+				license: recipe.license ?? "Unknown",
+				upstreamUrl: recipe.upstreamUrl,
+				installedAt: new Date().toISOString(),
+			};
+			fs.writeFileSync(path.join(stageDir, "receipt.json"), JSON.stringify(receiptPayload, null, 2));
+			if (recipe.license) {
+				fs.writeFileSync(
+					path.join(stageDir, "LICENSE-NOTICE.txt"),
+					`Tool: ${recipe.name} v${recipe.version}\nLicense: ${recipe.license}\nUpstream: ${recipe.upstreamUrl ?? ""}\n`,
+				);
+			}
+		}
 
 		// 3. Relocate nested archive directory up if tool extracted to subfolder (e.g. wabt-1.0.42)
 		const topDirs = fs.readdirSync(stageDir, { withFileTypes: true }).filter(e => e.isDirectory());
@@ -309,7 +402,9 @@ export async function installPortableTool(
 				for (const item of fs.readdirSync(nestedDir)) {
 					fs.renameSync(path.join(nestedDir, item), path.join(stageDir, item));
 				}
-				try { fs.rmdirSync(nestedDir); } catch {}
+				try {
+					fs.rmdirSync(nestedDir);
+				} catch {}
 			}
 		}
 
@@ -355,15 +450,20 @@ export async function installPortableTool(
 		}
 
 		try {
+			fs.mkdirSync(path.dirname(installDir), { recursive: true });
 			fs.renameSync(stageDir, installDir);
 			// Success! Safely remove backup now
 			if (backupDir && fs.existsSync(backupDir)) {
-				try { fs.rmSync(backupDir, { recursive: true, force: true }); } catch {}
+				try {
+					fs.rmSync(backupDir, { recursive: true, force: true });
+				} catch {}
 			}
 		} catch (swapErr) {
 			// Rollback: restore backup to preserve existing install
 			if (backupDir && fs.existsSync(backupDir)) {
-				try { fs.renameSync(backupDir, installDir); } catch {}
+				try {
+					fs.renameSync(backupDir, installDir);
+				} catch {}
 			}
 			throw swapErr;
 		}

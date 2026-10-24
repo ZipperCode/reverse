@@ -139,10 +139,8 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.setup.reverse.tool.r2mcp.description": "通过 MCP 保持 radare2 分析会话，提供反汇编、交叉引用和脚本查询。",
 	"cli.setup.reverse.tool.jshookmcp.description":
 		"通过 MCP 提供 JavaScript 调试、Hook、AST 反混淆、签名实验与网络协议分析。",
-	"cli.setup.reverse.tool.x64dbg-mcp.description":
-		"x64dbg 自动化与调试 MCP 服务，支持本地 Windows 或跨平台远程分析。",
-	"cli.setup.reverse.tool.ghidra-mcp.description":
-		"Ghidra 软件逆向工程 MCP 服务，支持无头项目分析与反编译。",
+	"cli.setup.reverse.tool.x64dbg-mcp.description": "x64dbg 自动化与调试 MCP 服务，支持本地 Windows 或跨平台远程分析。",
+	"cli.setup.reverse.tool.ghidra-mcp.description": "Ghidra 软件逆向工程 MCP 服务，支持无头项目分析与反编译。",
 	"cli.setup.reverse.tool.frida.purpose": "观察应用真实执行路径，追踪函数调用、运行时数据和动态加载的模块。",
 	"cli.setup.reverse.tool.radare2.purpose":
 		"需要无头二进制分析，或 IDA 不可用时，检查导入、符号、字符串及单函数汇编。",
@@ -176,8 +174,61 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 		"运行本地 Python MCP 桥接进程并通过 ZeroMQ 与 x64dbg 通信。远程调试使用未加密 ZMQ，建议通过私有环回口或 SSH 隧道运行。",
 	"cli.setup.reverse.ghidra-mcp.risk":
 		"在 agent 目录中安装受管 GhidraMCP wheel 与扩展 JAR。无头分析需本地已安装 Ghidra (建议 12.1.4+) 与 JDK 21+。",
-	"cli.setup.reverse.r2mcp.risk":
-		"通过 r2pm 包管理器安装 radare2 MCP 插件。可执行文件由客户端以 stdio 方式调用。",
+	"cli.setup.reverse.r2mcp.risk": "通过 r2pm 包管理器安装 radare2 MCP 插件。可执行文件由客户端以 stdio 方式调用。",
+	"cli.setup.reverse.triton.name": "Triton 二进制符号分析",
+	"cli.setup.reverse.vmpdump.name": "VMPDump 转储与导入修复",
+	"cli.setup.reverse.mergen.name": "Mergen 函数级 LLVM 提升",
+	"cli.setup.reverse.novmp.name": "NoVmp 旧版 VTIL 去虚拟化",
+	"cli.setup.reverse.tool.triton.description":
+		"在隔离 Python 环境中使用 triton-library 回放指令轨迹、执行符号分析与表达式化简，并检测可选 LLVM 功能。",
+	"cli.setup.reverse.tool.vmpdump.description":
+		"对已运行至原始入口点的 Windows x64 VMP 进程执行模块转储和导入表修复。",
+	"cli.setup.reverse.tool.mergen.description":
+		"将指定 x64 PE 函数提升为 LLVM IR，辅助去混淆与语义恢复；不支持自修改代码。",
+	"cli.setup.reverse.tool.novmp.description": "对已解包的 VMP 3.0–3.5 x64 函数执行实验性静态去虚拟化，输出 VTIL。",
+	"cli.setup.reverse.tool.triton.purpose":
+		"从已捕获轨迹恢复输入输出关系、化简混合布尔算术表达式和检查路径约束，目标机器码仅在分析引擎中模拟。",
+	"cli.setup.reverse.tool.vmpdump.purpose": "保存已解包模块并修复受保护导入，为后续静态函数分析准备输入。",
+	"cli.setup.reverse.tool.mergen.purpose": "分析单个受保护函数的控制流与语义，保留 LLVM IR 并独立验证行为。",
+	"cli.setup.reverse.tool.novmp.purpose":
+		"分析具有已知 VM 入口 RVA 的旧版 VMP 样本，保留原始样本并输出 VTIL 中间表示。",
+	"cli.setup.reverse.triton.manual":
+		"通过受管安装器在隔离 Python 环境中安装 triton-library；Apple Silicon 使用固定源码和依赖原生构建，LLVM 支持单独探测。",
+	"cli.setup.reverse.vmpdump.manual":
+		"在 Windows x64 主机的逆向工具面板中安装固定版本 VMPDump；先观察并记录目标到达 OEP，再批准转储。",
+	"cli.setup.reverse.mergen.manual":
+		"受管预编译包适用于 Windows x64；其他平台需构建兼容的原生 lifter 并配置路径，或在 Windows 主机上分析。",
+	"cli.setup.reverse.novmp.manual":
+		"受管预编译包适用于 Windows x64；源码使用 x86-64 指令内建函数，需兼容构建环境。输入必须已解包。",
+	"cli.setup.reverse.triton.risk":
+		"在 agent 工具目录中创建隔离环境并安装固定版本 triton-library；Apple Silicon 下载固定源码及 Capstone/Z3 依赖进行原生编译。不修改全局 Python 和 shell 配置。",
+	"cli.setup.reverse.vmpdump.risk":
+		"下载并校验上游 GPL-3.0 可执行文件。转储操作会访问选定 Windows 进程并写入模块文件，须单独批准。",
+	"cli.setup.reverse.mergen.risk": "下载并校验上游 GPL-3.0 函数提升器。分析副本并生成 LLVM IR，不自动运行目标样本。",
+	"cli.setup.reverse.novmp.risk":
+		"下载并校验上游 GPL-3.0 去虚拟化工具。原生重编译功能具有实验性，VTIL 结果需独立复核。",
+	"cli.setup.reverse.capability.symbolic_trace_analysis.name": "符号轨迹分析",
+	"cli.setup.reverse.capability.symbolic_trace_analysis.scenario": "从 x86/x64 已捕获执行轨迹恢复符号输入输出关系。",
+	"cli.setup.reverse.capability.symbolic_trace_analysis.description":
+		"使用 Triton 有界回放指令和状态证据，化简表达式；引擎支持时生成 LLVM IR。",
+	"cli.setup.reverse.capability.symbolic_trace_analysis.why":
+		"沿已观察路径分离目标语义和混淆逻辑，目标机器码仅在分析引擎中模拟。",
+	"cli.setup.reverse.capability.vmp_dump_repair.name": "VMP 转储与导入修复",
+	"cli.setup.reverse.capability.vmp_dump_repair.scenario": "在 Windows 上转储已解包的 VMP x64 模块并重建导入。",
+	"cli.setup.reverse.capability.vmp_dump_repair.description":
+		"观察 OEP 后，对明确选择的进程运行 VMPDump，并保存修复后的 PE 产物。",
+	"cli.setup.reverse.capability.vmp_dump_repair.why": "为静态分析准备已解包输入，并保留原始模块与映像基址证据。",
+	"cli.setup.reverse.capability.native_function_lifting.name": "原生函数 LLVM 提升",
+	"cli.setup.reverse.capability.native_function_lifting.scenario": "恢复单个混淆 x64 PE 函数的 LLVM IR。",
+	"cli.setup.reverse.capability.native_function_lifting.description":
+		"使用 Mergen 分析副本并保留实际 IR 和诊断；不支持自修改代码与全程序恢复。",
+	"cli.setup.reverse.capability.native_function_lifting.why": "利用编译器优化辅助理解受保护函数的语义和控制流。",
+	"cli.setup.reverse.capability.vmp_legacy_devirtualization.name": "旧版 VMP VTIL 去虚拟化",
+	"cli.setup.reverse.capability.vmp_legacy_devirtualization.scenario": "分析已解包的 VMP 3.0–3.5 x64 虚拟化函数。",
+	"cli.setup.reverse.capability.vmp_legacy_devirtualization.description":
+		"向 NoVmp 提供选定 VM 入口 RVA 和必要的原始映像基址，将真实 VTIL 产物保存到独立目录。",
+	"cli.setup.reverse.capability.vmp_legacy_devirtualization.why":
+		"补充旧版静态分析后端，实验性重编译结果仍需独立行为验证。",
 	"cli.setup.menu.title": "系统与工具链配置 (Setup)",
 	"cli.setup.panel.providers.label": "模型服务商 (providers)",
 	"cli.setup.panel.providers.desc": "配置 OAuth 登录、API Key 及 Web 搜索服务",

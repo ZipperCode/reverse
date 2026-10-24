@@ -72,7 +72,8 @@ export const TOOL_INSTALL_HINTS: Record<string, ToolInstallHint> = {
 	unidbg: {
 		macos: "brew install openjdk maven && git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests",
 		linux: "sudo apt install -y default-jdk maven && git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests",
-		windows: "winget install EclipseAdoptium.Temurin.8.JDK && git clone https://github.com/zhkl0228/unidbg.git (JDK 8 required)",
+		windows:
+			"winget install EclipseAdoptium.Temurin.8.JDK && git clone https://github.com/zhkl0228/unidbg.git (JDK 8 required)",
 		fallback: "unidbg -> android_native_workflow",
 	},
 	wabt: {

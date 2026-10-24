@@ -509,7 +509,6 @@ const pendingPythonRecreationNotices = new Map<
 	{ previousGeneration: number; currentGeneration: number; reason: KernelResetReason }
 >();
 
-
 const sessionRegistry = createKernelSessionRegistry<PythonKernel, PythonExecutorOptions, PythonResult, PythonSession>({
 	languageLabel: "Python",
 	cancelledErrorClass: PythonExecutionCancelledError,

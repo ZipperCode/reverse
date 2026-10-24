@@ -170,10 +170,7 @@ export function recordMcpToolExecution(
 	return serverState;
 }
 
-export function getMcpServerRuntimeState(
-	serverName: string,
-	sessionKey: object,
-): McpServerRuntimeState | undefined {
+export function getMcpServerRuntimeState(serverName: string, sessionKey: object): McpServerRuntimeState | undefined {
 	const state = getSessionCapabilityState(sessionKey);
 	return state.mcpServers.get(serverName.trim().toLowerCase());
 }

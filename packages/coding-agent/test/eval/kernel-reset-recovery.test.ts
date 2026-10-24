@@ -132,7 +132,9 @@ describe("Issue #7: kernel reset and recovery lifecycle behavioral invariants", 
 		expect(cell4.output).toContain("recovered:99");
 
 		// Recreation event is NOT repeated on subsequent calls on same generation
-		const subsequentResetStatus = cell4.displayOutputs.find(d => d.type === "status" && d.event.op === "kernel_reset");
+		const subsequentResetStatus = cell4.displayOutputs.find(
+			d => d.type === "status" && d.event.op === "kernel_reset",
+		);
 		expect(subsequentResetStatus).toBeUndefined();
 	});
 

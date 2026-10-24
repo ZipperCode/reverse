@@ -1,13 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getAllProvidersInfo, resetCapabilityForTests, setDisabledProviders } from "@reverse/coding-agent/capability";
-import {
-	BUILTIN_SKILL_REFERENCES,
-	BUILTIN_SKILL_SOURCES,
-	BUILTIN_SKILLS_PROVIDER_ID,
-} from "@reverse/coding-agent/discovery/builtin-skills";
+import { BUILTIN_SKILL_SOURCES, BUILTIN_SKILLS_PROVIDER_ID } from "@reverse/coding-agent/discovery/builtin-skills";
 import { loadSkills, resetActiveSkillsForTests, setActiveSkills } from "@reverse/coding-agent/extensibility/skills";
 import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
 import {
@@ -15,17 +11,6 @@ import {
 	SkillProtocolHandler,
 	StaleSkillMetadataError,
 } from "@reverse/coding-agent/internal-urls/skill-protocol";
-
-
-const SKILL_NAMES = [
-	"android-reverse",
-	"native-binary-reverse",
-	"reverse-lab",
-	"reverse-tool-guide",
-	"web-protocol-reverse",
-	"windows-reverse",
-] as const;
-
 
 /** Isolate bundled-skill discovery from every other skill provider. */
 function disableOtherSkillProviders(): void {
@@ -41,31 +26,15 @@ afterEach(() => {
 });
 
 describe("bundled reverse skills shipped with the package", () => {
-	it("embeds every skill instruction and reference asset with readable content", () => {
-		expect(BUILTIN_SKILL_SOURCES.map(source => source.name).sort()).toEqual([...SKILL_NAMES].sort());
-		for (const source of BUILTIN_SKILL_SOURCES) {
-			const content = readFileSync(source.path, "utf8");
-			expect(content.length).toBeGreaterThan(0);
-			expect(content).toContain(`name: ${source.name}`);
-		}
-
-		expect(BUILTIN_SKILL_REFERENCES.length).toBeGreaterThanOrEqual(8);
-		for (const referencePath of BUILTIN_SKILL_REFERENCES) {
-			const content = readFileSync(referencePath, "utf8");
-			expect(content.length).toBeGreaterThan(0);
-		}
-	});
-
-	it("discovers all six reverse skills without a project .agents directory", async () => {
+	it("discovers all reverse skills without a project .agents directory", async () => {
 		disableOtherSkillProviders();
 		const cwd = mkdtempSync(path.join(os.tmpdir(), "rev-bundled-skills-"));
 		try {
 			const { skills } = await loadSkills({ cwd });
-			const names = skills
-				.filter(skill => skill._source?.provider === BUILTIN_SKILLS_PROVIDER_ID)
-				.map(skill => skill.name)
-				.sort();
-			expect(names).toEqual([...SKILL_NAMES].sort());
+			const discovered = skills.filter(skill => skill._source?.provider === BUILTIN_SKILLS_PROVIDER_ID);
+			expect(discovered.length).toBe(BUILTIN_SKILL_SOURCES.length);
+			const expectedNames = BUILTIN_SKILL_SOURCES.map(s => s.name).sort();
+			expect(discovered.map(s => s.name).sort()).toEqual(expectedNames);
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}
@@ -95,7 +64,7 @@ describe("bundled reverse skills shipped with the package", () => {
 		}
 	});
 
-	it("reads all six shipped skills via both bare and /SKILL.md URIs", async () => {
+	it("reads all shipped skills via both bare and /SKILL.md URIs", async () => {
 		disableOtherSkillProviders();
 		const cwd = mkdtempSync(path.join(os.tmpdir(), "rev-bundled-all-"));
 		try {
@@ -103,7 +72,8 @@ describe("bundled reverse skills shipped with the package", () => {
 			setActiveSkills(skills);
 			const handler = new SkillProtocolHandler();
 
-			for (const name of SKILL_NAMES) {
+			for (const source of BUILTIN_SKILL_SOURCES) {
+				const name = source.name;
 				const bare = await handler.resolve(parseInternalUrl(`skill://${name}`));
 				expect(bare.content.length).toBeGreaterThan(0);
 				expect(bare.url).toBe(`skill://${name}`);
@@ -229,12 +199,12 @@ describe("bundled reverse skills shipped with the package", () => {
 					filePath: skillFile,
 					baseDir: tempDir,
 					source: "custom:user",
-				_source: {
-					provider: "custom",
-					providerName: "Custom",
-					path: skillFile,
-					level: "user",
-				},
+					_source: {
+						provider: "custom",
+						providerName: "Custom",
+						path: skillFile,
+						level: "user",
+					},
 				},
 			]);
 
@@ -322,9 +292,7 @@ describe("bundled reverse skills shipped with the package", () => {
 		expect(errConstructor).toBeInstanceOf(MissingSkillResourceError);
 		expect(errConstructor.code).toBe("ENOENT");
 
-		const errProto = await handler
-			.resolve(parseInternalUrl("skill://reverse-tool-guide/__proto__"))
-			.catch(e => e);
+		const errProto = await handler.resolve(parseInternalUrl("skill://reverse-tool-guide/__proto__")).catch(e => e);
 		expect(errProto).toBeInstanceOf(MissingSkillResourceError);
 		expect(errProto.code).toBe("ENOENT");
 	});

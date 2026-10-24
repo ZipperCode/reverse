@@ -90,7 +90,6 @@ describe("Reverse toolchain catalog", () => {
 		expect(getReverseTool("nonexistent")).toBeUndefined();
 		expect(getReverseTools().length).toBeGreaterThanOrEqual(20);
 	});
-
 });
 
 describe("Package manager detection", () => {

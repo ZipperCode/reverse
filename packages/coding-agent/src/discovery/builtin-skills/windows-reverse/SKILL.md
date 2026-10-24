@@ -59,6 +59,7 @@ When IDA Pro or x64dbg is unconfigured or absent, operators SHOULD continue dire
 4. **Anti-Analysis & Unpacking (Isolated Target Only)**:
    - Detect UPX compression and decompress to a dedicated artifact path with `upx -d -o ./artifacts/unpacked_target.exe <pe>`.
    - Audit PEB queries (`BeingDebugged`, `NtGlobalFlag`) and hardware breakpoint checks (`GetThreadContext`).
+   - **Virtualized Packers (VMProtect)**: When PE sections indicate virtualization packing (`.vmp0`, `.vmp1`) or entrypoint mutations, route to `skill://vmp-reverse` for process memory dumping past OEP (`vmp_dump`), function lifting (`native_devirtualize`), and symbolic trace execution (`triton_analyze`).
 
 5. **Offline API Trace & Behavior Auditing**:
    - For captured execution traces (ETW / API Monitor / JSON/NDJSON), run `windows_observe(action: "inspect", path: "<trace>")` to profile active modules and APIs.
@@ -72,4 +73,5 @@ When IDA Pro or x64dbg is unconfigured or absent, operators SHOULD continue dire
    - Distinguish the 5 observable state tiers: `installed`, `configured`, `transport connected`, `target matched`, and `executed verified`.
    - Verification claim limit: Current development host (macOS darwin arm64) has no Windows host / x64dbg smoke testing executed.
 
+For VMProtect devirtualization, process dumps, and symbolic traces, consult `skill://vmp-reverse`.
 Read `skill://reverse-lab/references/windows.md` for complete technical walkthroughs and radare2 command sequences.
