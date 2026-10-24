@@ -156,7 +156,7 @@ APK/AAB
   -> DEX/Manifest/ABI/native .so inventory
   -> static route: JADX / Apktool / DEX / ELF
   -> dynamic route: ADB + Frida
-  -> native route: JNI/RegisterNatives mapping
+  -> native route: verified JNI exports; runtime RegisterNatives mapping when observed
   -> emulation route: Unidbg ARM32/ARM64 + JNI call
   -> dump/decrypt/repair
   -> Evidence verification
@@ -164,6 +164,8 @@ APK/AAB
 ```
 
 Unidbg 是 Runtime Controller，不是 Skill。Skill 只决定何时使用、需要哪些参数和验证标准。无法满足模拟环境时返回缺失依赖或环境缺口，不伪造调用结果。
+
+静态 JNI 检查仅将已定义、可见的 ELF 函数导出与 DEX native 声明匹配；`JNI_OnLoad`、`RegisterNatives` 和原始字符串仅提供调查线索。动态注册尚未观测时，方法保持 `unresolved`，不归属到候选 SO。
 
 ### 样本修改与产物验证
 
@@ -199,8 +201,8 @@ Browser Controller 负责 Tab、CDP 和事件生命周期；Browser Skill 负责
 
 reverse 坚持**Skill 为先、工具按需接入**的架构，反对盲目泛化堆砌外部工具：
 
-- **基础工具 (Native Base Tools)**：内置于 reverse 运行时的零依赖只读检验器与操作系统通用工具（如 `android_package_inspect`, `websocket_observe`, `windows_observe`, `pcap_inspect`, `sqlite_inspect`, `firmware_inspect`, `crashdump_inspect`, `binary_metadata_inspect`, `evm_inspect`, `binary_diff`, `r2_inspect`, `sourcemap_inspect`, `strings`, `file` 等）。这些工具**开箱即用、免安装、零配置**，保证任何环境下基本静态分类、结构解析与证据提取正常推进。
-- **可选外部工具 (Optional Tools)**：特定深层逆向分析所需的高级 CLI 工具与 MCP 辅助服务（如 `apktool`, `jadx`, `unidbg`, `radare2`, `frida`, `mitmproxy`, `tshark`, `hbctool`, `playwright-mcp`, `r2mcp` 等）。它们在受信目录（`SKILL_TOOL_CATALOG` / `MCP_SERVICE_CATALOG`）中注册，**绝不要求在全新安装时一次性全部安装，也绝不允许静默自动安装**。
+- **基础工具 (Native Base Tools)**：内置于 reverse 运行时的零依赖只读检验器与操作系统通用工具（如 `android_package_inspect`, `websocket_observe`, `windows_observe`, `pcap_inspect`, `sqlite_inspect`, `firmware_inspect`, `crashdump_inspect`, `binary_metadata_inspect`, `evm_inspect`, `binary_diff`, `sourcemap_inspect`, `strings`, `file` 等）。这些工具提供基础静态分类、结构解析与证据提取。内置适配器 `r2_inspect` 和 `ghidra_inspect` 分别需要通过 setup 按需安装 radare2 和 Ghidra；依赖未就绪时返回结构化缺失状态。原生 MCP 会话工具 `native_mcp_session` 管理 x64dbg、Ghidra 与 radare2 的上游工具动态挂载、安全断开与动态到静态（VA-to-static）地址映射。
+- **可选外部工具 (Optional Tools)**：特定深层逆向分析所需的高级 CLI 工具与 MCP 辅助服务（如 `apktool`, `jadx`, `unidbg`, `radare2`, `frida`, `mitmproxy`, `tshark`, `hbctool`, `playwright-mcp`, `r2mcp`, `x64dbg-mcp`, `ghidra-mcp` 等）。它们在受信目录（`SKILL_TOOL_CATALOG` / `MCP_SERVICE_CATALOG`）中注册，**绝不要求在全新安装时一次性全部安装，也绝不允许静默自动安装**。
 
 ### 2. 场景能力模型 (Capability-Oriented Discovery)
 
@@ -214,9 +216,11 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
 | `apk_artifact_generation` | APK 差分、重打包、对齐、签名及设备校验 | `apk_artifact` | `python`, `zipalign`, `apksigner`, `java`, `adb` | 离线未签名产物与设备运行验证分开 | `reverse setup reverse apksigner` | 解析缺失依赖后执行所需动作，签名后验证 |
 | `browser_debugger` | 网页应用 DOM 调试、JS 动态断点、执行流分析与 CDP 自动化 | `browser_reverse_session` | `playwright-mcp` | `mitmproxy`, `curl`, `file` | `reverse setup reverse playwright-mcp` | 配置 .reverse/mcp.json playwright 服务或建立 CDP 调试会话 |
 | `websocket_capture` | WebSocket 全双工数据帧实时截获、协议解包与序列分析 | `websocket_observe` | `mitmproxy`, `tshark` | `pcap_inspect`, `strings`, `curl` | `reverse setup reverse mitmproxy` | 启动 `mitmweb --web-port 8081` 或 `tshark -Y websocket` |
-| `native_debugger` | Native (ELF/PE/Mach-O) 二进制动态调试、内存与寄存器单步追踪 | `r2_inspect` | `radare2`, `r2mcp`, `frida`, `ghidra` | `binary_metadata_inspect`, `readelf`, `strings`, `file` | `reverse setup reverse radare2` | 启动 `r2 -d <binary>` 或附加 Frida 会话 |
+| `native_debugger` | Native (ELF/PE/Mach-O) 二进制动态调试、内存与寄存器单步追踪 | 已发现且启用的 native DAP 后端使用 `debug`；否则 `triage` 保留静态入口 | native DAP 适配器、`radare2`；`frida` 插桩与 `ghidra` 静态分析作降级 | `binary_metadata_inspect`, `readelf`, `strings`, `file` | `reverse setup reverse radare2` | 按实际后端启动 DAP 或 `r2 -d <binary>`；仅有 Frida 时保持部分可用 |
 | `js_deobfuscation` | Minified/Packed JS 语法树解构、SourceMap 还原与 Hermes 字节码反汇编 | `sourcemap_inspect` | `hbctool` | `strings`, `file` | `reverse setup reverse hbctool` | 执行 `hbctool disasm <bundle> <out>` 或脚本解混淆 |
 | `traffic_interception` | HTTP/HTTPS 与网络协议透明代理、解密与重放 | `pcap_inspect` | `mitmproxy`, `tshark` | `curl`, `strings` | `reverse setup reverse mitmproxy` | 启动 `mitmproxy -p 8080` 代理捕获 |
+
+`native_debugger.ready` 表示主机已发现 native DAP 适配器且会话启用 `debug`，或已安装 radare2。Frida、Ghidra 以及仅配置但未连接的 MCP 服务不单独满足原生单步调试要求。工具发现保持只读；目标架构、设备连接、权限和实际断点结果在执行阶段验证。
 
 ### 2.1 Unidbg 模拟执行与参数编码契约 (Unidbg Emulation Contract)
 
@@ -226,6 +230,44 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
 - **字符串 (`string`)**：支持普通字符串，对于包含空格的文本支持 `b64:` 前缀 Base64 字符串（规避调试器控制台的分词截断）。
 - **原生符号调用与 Hex 语义**：上游 `call_symbol` 原生参数默认按 16 进制解析地址与数值（如 `0x20` 即十进制 32）；自定义生成的 `McpTool` 则对命名参数提供类型化解析与真实返回值回显。
 - **安全隔离与本地回环绑定**：生成的 Harness 在 JVM 启动时安装 `SecurityManager.checkAccept` 校验，在 Socket Accept 层拦截所有非回环网卡（LAN/公网）TCP 连接，保证调试服务仅受控响应 `127.0.0.1`。
+
+### 2.2 原生 MCP 会话契约与动态验证体系 (Native MCP Session & Verification Architecture)
+
+为支持对原生二进制（PE/ELF/Mach-O）的高级交互式分析，reverse 通过 `native_mcp_session` 统一纳管 x64dbg、Ghidra 与 radare2 的原生 MCP 会话生命周期与地址映射，并与 Frida 动态插桩形成互补链条：
+
+1. **安装与面板标识 (Setup Catalog & Panel IDs)**：
+   - 依赖项通过受信目录受控安装，对应 CLI/TUI 设置面板标识为 `x64dbg-mcp`、`ghidra-mcp` 与 `r2mcp`（例如 `reverse setup reverse x64dbg-mcp`）。
+   - TUI `/setup` 逆向工具面板与 CLI 子命令具备相同 ID 与交互式安装能力，未安装前不静默自动下载。
+
+2. **会话生命周期与动态工具发现 (Session Lifecycle & Dynamic Discovery)**：
+   - 工具提供 `connect`、`status`、`list`、`disconnect` 与 `locate` 动作，严格基于活动会话的 MCPManager 实现进程隔离与所有权管理。
+   - 上游 MCP 服务端（如 x64dbg_automate、GhidraMCP、r2mcp）暴露的原生工具在连接成功后**动态发现并挂载**到当前会话命名空间中，系统与 Prompt 不硬编码易变的长工具列表。
+   - `disconnect` 遵循友好的分离机制（如调用 x64dbg `disconnect`），解除 MCP 挂载与工程锁，绝不误杀宿主调试器或目标被调试进程。
+
+3. **后端连接模式与环境约束**：
+   - **Ghidra**：支持无头持久化模式（传入 `target`，维护 `/tmp` 之外的持久工程目录 `project_dir` 并启用 `--save` 跨轮次复用分析结果，每个工程目录仅允许单 Java 进程持有互斥锁）与 GUI 模式（省略 `target`，连接 `backend_url`，默认 `http://127.0.0.1:8080/`）。
+   - **radare2**：通过 r2mcp (`r2pm -r r2mcp`) 建立持久分析会话，调用 `open_file` 打开目标二进制并通过 `show_info` 校验，在多轮对话中保持分析状态，避免单次命令行频繁重开与重搜。
+   - **x64dbg**：支持本地启动（`target`）、附加已有实例（`session_pid`）与跨平台远程连接（`host` + `req_rep_port` + `pub_sub_port`）。注意：绝对 Windows 目标路径在参数与配置中必须保持 Windows 宿主路径格式（如 `C:\targets\app.exe`）；ZeroMQ RPC 协议**无内置认证机制**，远程调试必须经由私有受信网络或 SSH 隧道（如端口转发 `31337`/`31338`），严禁暴露于不受信公网。
+
+4. **状态可观测性分层 (Five-Tier Observable States)**：
+   系统严格区分五层客观状态，避免混淆环境与证据有效性：
+   - `installed`：底层宿主环境/包/虚拟环境已就绪。
+   - `configured`：用户或项目配置文件中已声明服务条目。
+   - `transport connected`：MCP 通信管道与传输层握手成功。
+   - `target matched`：目标样本、PID 或哈希在底层逆向引擎中确认装载匹配。
+   - `executed verified`：实际逆向命令或查询成功执行并生成经过验证的输出与客观事实。
+
+5. **动态到静态地址映射 (`locate`) 纪律**：
+   - `locate` 基于 64 位无符号 BigInt 纯整型算术计算相对虚拟偏移（`RVA = runtime_address - module_base`）及静态反编译虚址（`static_address = static_base + RVA`），生成标准定位符 `<module>+0x<RVA> -> static:0x<VA>`。
+   - 坐标来源明确标注为 `supplied`（纯算术换算），**绝不假冒为经验证的执行结果或物理文件偏移**（文件偏移受节区对齐和文件头影响，与内存 RVA 存在差异）。
+
+6. **Frida 动态插桩模板契约**：
+   - `template: "jni_register"`：追踪 Android JNI `RegisterNatives` 动态注册。自动从 `libart.so` 导出符号与 JNIEnv 虚表（index 215）定位挂钩点，抓取目标类名（反射解析）、方法签名、函数指针、所在模块基址与相对十六进制偏移。契约约束：JNI 规范下**仅当 `retval === 0` 时确认注册成功**（`confirmed`），非 0 返回值一律视为失败（`rejected`）。
+   - `template: "native_functions"`：对原生函数调用实施有界参数解码。支持 `symbol`/`symbols`、`offset`/`offsets`，通过 `args_decode` 对参数进行类型化解码（`string`、`int`、`pointer` 等），严格受限于 `args_count`、`maxBufferBytes`（防巨型内存泄漏）与 `max_events`；捕获 `retval` 与 `backtrace`，且清理时只注销自身 hook 句柄，禁止全局 detach。
+
+7. **验证边界与声明约束 (Verification Limits)**：
+   - 当前开发与构建宿主（macOS arm64）上未运行 Windows/x64dbg 宿主环境，亦未执行 live Ghidra 后端冒烟验证；
+   - Frida 原生插桩验证使用本地 C ABI 原生动态库与 mock 符号固件，未在真实 Android 设备 `libart.so` 上实机运行，文档与测试严格保持声明边界客观真实。
 ### 3. 用户面向的 Discover-before-stop / Install-then-dispatch 闭环流程
 
 当逆向分析深入并需要特定外部高级能力时，Agent 严格执行以下五步连贯工作流，杜绝直接报错或卡死：

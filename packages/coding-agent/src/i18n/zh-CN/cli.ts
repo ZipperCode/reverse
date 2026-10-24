@@ -139,6 +139,10 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.setup.reverse.tool.r2mcp.description": "通过 MCP 保持 radare2 分析会话，提供反汇编、交叉引用和脚本查询。",
 	"cli.setup.reverse.tool.jshookmcp.description":
 		"通过 MCP 提供 JavaScript 调试、Hook、AST 反混淆、签名实验与网络协议分析。",
+	"cli.setup.reverse.tool.x64dbg-mcp.description":
+		"x64dbg 自动化与调试 MCP 服务，支持本地 Windows 或跨平台远程分析。",
+	"cli.setup.reverse.tool.ghidra-mcp.description":
+		"Ghidra 软件逆向工程 MCP 服务，支持无头项目分析与反编译。",
 	"cli.setup.reverse.tool.frida.purpose": "观察应用真实执行路径，追踪函数调用、运行时数据和动态加载的模块。",
 	"cli.setup.reverse.tool.radare2.purpose":
 		"需要无头二进制分析，或 IDA 不可用时，检查导入、符号、字符串及单函数汇编。",
@@ -164,6 +168,16 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.setup.reverse.tool.playwright-mcp.purpose": "需要持续浏览器会话来检查页面、控制台、网络和 SourceMap 时。",
 	"cli.setup.reverse.tool.r2mcp.purpose": "在同一二进制会话中反复查看地址、交叉引用和脚本分析结果。",
 	"cli.setup.reverse.tool.jshookmcp.purpose": "定位复杂前端签名、调试混淆脚本，或进行去混淆和协议实验。",
+	"cli.setup.reverse.tool.x64dbg-mcp.purpose":
+		"对 Windows PE 样本进行动态调试、断点追踪与内存分析，支持远程会话连接。",
+	"cli.setup.reverse.tool.ghidra-mcp.purpose":
+		"对目标二进制进行深度反编译、符号分析与交叉引用提取，支持通过项目持久化复用分析结果。",
+	"cli.setup.reverse.x64dbg-mcp.risk":
+		"运行本地 Python MCP 桥接进程并通过 ZeroMQ 与 x64dbg 通信。远程调试使用未加密 ZMQ，建议通过私有环回口或 SSH 隧道运行。",
+	"cli.setup.reverse.ghidra-mcp.risk":
+		"在 agent 目录中安装受管 GhidraMCP wheel 与扩展 JAR。无头分析需本地已安装 Ghidra (建议 12.1.4+) 与 JDK 21+。",
+	"cli.setup.reverse.r2mcp.risk":
+		"通过 r2pm 包管理器安装 radare2 MCP 插件。可执行文件由客户端以 stdio 方式调用。",
 	"cli.setup.menu.title": "系统与工具链配置 (Setup)",
 	"cli.setup.panel.providers.label": "模型服务商 (providers)",
 	"cli.setup.panel.providers.desc": "配置 OAuth 登录、API Key 及 Web 搜索服务",

@@ -51,6 +51,7 @@ export const BUILTIN_TOOL_NAMES = [
 	"reverse_workspace",
 	"reverse_dynamic_evidence",
 	"reverse_capability",
+	"native_mcp_session",
 	"unidbg",
 	"task",
 	"wait",

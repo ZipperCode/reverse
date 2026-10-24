@@ -14,6 +14,9 @@
 - Added `unidbg` CLI and agent tools for JDK 8-validated source builds, JNI/IPA harness generation, supervised SSE startup, and session-owned in-memory MCP registration.
 - Added first-class `dex_patch` and `apk_artifact` tools adapted from MIT apk-reverse: guarded cumulative equal-length DEX edits, structural CFG checks, APK entry diffing, resource-preserving aligned repacking, explicit-keystore signing, cryptographic verification, and explicit-device install/launch evidence. Embedded Python workers ship in source and compiled installations; original samples and existing outputs are preserved.
 - Added `dex_patching` and `apk_artifact_generation` capability readiness with separate offline/signing/device prerequisites, trusted Python runtime installation and Chinese setup guidance, and symptom-driven Android workflow references that distinguish static, signed-artifact, launch, and exact-feature verification.
+- Added `native_mcp_session` tool and catalog entries (`x64dbg-mcp`, `ghidra-mcp`, `r2mcp`) across CLI and interactive TUI setup panels to manage native reverse engineering sessions for x64dbg, Ghidra, and radare2, supporting dynamic upstream tool discovery, safe detachment, persistent Ghidra headless projects (`--save`) with Java directory locks, persistent radare2 analysis, and local/remote x64dbg debugging with Windows host path preservation and ZeroMQ tunnel guidance.
+- Added 64-bit BigInt address mapping (`locate`) attributing coordinates as supplied arithmetic rather than verified execution facts, distinguishing five observable state tiers (`installed`, `configured`, `transport connected`, `target matched`, `executed verified`), and bounding test verification claims.
+- Added built-in Frida trace templates `jni_register` (tracing Android JNI `RegisterNatives` with `retval === 0` confirmation semantics) and `native_functions` (with bounded typed argument decoding, return values, backtraces, and event limits).
 
 ### Changed
 
@@ -27,6 +30,9 @@
 
 ### Fixed
 
+- Fixed default Ghidra decompilation and export to execute an embedded headless script and validate bounded UTF-8 results instead of treating analysis logs as pseudocode; missing dependencies route through setup.
+- Fixed Android JNI attribution to require visible defined dynamic function exports, preserve unresolved registration candidates, reject ambiguous library ownership, and support zero-argument and Unicode long JNI names without inventing malformed prototypes.
+- Fixed native debugger readiness and routing across setup and agent capability queries: discover configured native DAP backends, respect disabled debug tools, and keep Frida-only or Ghidra-only environments partially available.
 - Restored native terminal scrolling and text selection by defaulting `tui.mouse` to `false`; explicit click capture and fullscreen-panel mouse scrolling remain available.
 - Preserved thinking duration across visibility toggles and reapplied global expansion over native section overrides; `skill://` reads now use compact, expandable activity receipts without changing model-visible content.
 - Fixed reverse toolchain detection to require the actual Cargo Auditable, readelf, tshark, and vbindiff executables instead of treating unrelated fallback programs as installed.

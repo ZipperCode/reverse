@@ -16,6 +16,8 @@ When a tool is absent, apply the **Discover-Before-Stop / Install-Then-Dispatch*
 | **`apk_unpacking`** (APK manifest / resources) | `android_package_inspect` / `droidasc(op: "manifest")` | `aapt2 dump badging <apk>` / `unzip` |
 | **`apk_unpacking`** (DEX decompilation) | `droidasc(op: "getclass")` / `jadx --single-class` | `apktool` smali / `dexdump -d` |
 | **`apk_unpacking`** (Smali patch and rebuild) | `apktool d` / `apktool b` | `dexdump -d` for inspection only |
+| **`dex_patching`** (DEX validation & patch) | `dex_patch(action: "inspect" / "patch")` | `python3` stdlib / `droidasc` / smali |
+| **`apk_artifact_generation`** (APK repack/sign) | `apk_artifact(action: "repack" / "sign")` | `zipalign` + `apksigner` CLI |
 | **`android_native_emulation`** (JNI emulation) | custom target Java harness (`unidbg`) / `android_native_workflow` | static `ghidra_inspect` / `r2_inspect` |
 | Runtime instrumentation | `frida -U -l hook.js -f <target>` | `adb logcat` + static analysis |
 | **`traffic_interception`** (HTTP/S traffic) | `mitmdump -p 8080 -w flows.mitm` | `curl` + browser DevTools HAR |
@@ -78,7 +80,26 @@ bundletool build-apks --bundle=app.aab --output=app.apks --mode=universal
 d2j-dex2jar classes.dex -o classes.jar
 baksmali d classes.dex -o ./smali_out
 scrcpy -S
+```
 
+```text
+dex_patch(action: "inspect", path: "sample.apk", entry: "classes.dex", class: "Lcom/example/Auth;", method: "checkLicense", desc: "()Z")
+dex_patch(action: "validate", path: "classes.dex")
+dex_patch(action: "patch", path: "classes.dex", out: "./artifacts/classes_patched.dex", dry_run: false, specs: [{ class: "Lcom/example/Auth;", method: "checkLicense", desc: "()Z", match: { kind: "const4", literal: 1 }, replace: { kind: "bytes", bytes: "1230" } }])
+
+apk_artifact(action: "diff", original_path: "orig.apk", modified_path: "mod.apk")
+apk_artifact(action: "repack", path: "orig.apk", output_path: "./artifacts/repacked.apk", dex_files: { "classes.dex": "./artifacts/classes_patched.dex" }, strip_signatures: true, page_align_so: true)
+apk_artifact(action: "sign", path: "./artifacts/repacked.apk", output_path: "./artifacts/signed.apk", keystore_path: "~/.android/debug.keystore", key_alias: "androiddebugkey", ks_pass_env: "KEYSTORE_PASS", page_align_so: true)
+apk_artifact(action: "verify", path: "./artifacts/signed.apk")
+apk_artifact(action: "install_verify", path: "./artifacts/signed.apk", package_name: "com.example.app", activity: ".MainActivity", serial: "<device_serial>", output_dir: "./artifacts/install_verify_run")
+```
+
+```bash
+# External Android SDK CLI tools for APK packaging
+zipalign -v -p 4 ./artifacts/unaligned.apk ./artifacts/aligned.apk
+apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --out ./artifacts/signed.apk ./artifacts/aligned.apk
+apksigner verify --verbose ./artifacts/signed.apk
+```
 - Prefer `android_native_workflow` for native `.so` library inventory, ELF parsing, JNI symbol resolution, and workflow planning without external dependencies.
 - Prefer `droidasc` for instant single-class, class list, or xref queries against APK files; it degrades with structured notices. For raw `.dex` or `.aab`, use `dexdump`, `bundletool`, or `jadx`.
 - Use `unidbg` for host JVM ARM32/ARM64 CPU emulation. A custom target Java harness must exist in the project; obtain its actual invocation from the project (manual integration required; no standalone CLI binary exists).

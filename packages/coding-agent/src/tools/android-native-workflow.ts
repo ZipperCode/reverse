@@ -90,6 +90,7 @@ export interface AndroidNativeLibraryInfo {
 	antiAnalysisKeywords: string[];
 	importedSymbols: string[];
 	neededLibraries: string[];
+	rawJniCandidates?: string[]; // 未验证的原始字符串候选（仅在缺少符号表或调试字符串中发现）
 }
 
 export interface AndroidNativeMethodInfo {
@@ -97,8 +98,10 @@ export interface AndroidNativeMethodInfo {
 	methodName: string;
 	signature: string;
 	expectedSymbol: string;
+	overloadedSymbol?: string;
 	status: "static_export" | "dynamic_registration" | "unresolved";
 	matchedLibrary: string | null;
+	candidateLibraries?: string[]; // 可能提供动态注册或存在多库同名导出的候选共享库清单
 }
 
 export interface AndroidNativeManifestLinks {
@@ -182,23 +185,68 @@ export interface AndroidNativeWorkflowDetails {
 // ============================================================================
 
 /**
- * Derives expected JNI exported symbol name from Java/Kotlin class and method name.
- * Follows Oracle JNI Specification Section 2 (Resolving Native Method Names):
- * - Prefix: Java_
- * - Class name: replace '.' with '_', escape '_' as '_1', escape '$' as '_00024'
- * - Separator: _
- * - Method name: escape '_' as '_1'
+ * 依据 JNI 规范对标识符进行转义：
+ * - '/' 替换为 '_'
+ * - '_' 转义为 '_1'
+ * - ';' 转义为 '_2'
+ * - '[' 转义为 '_3'
+ * - 非 ASCII 字母数字字符转义为 '_0xxxx'（小写 4 位十六进制）
  */
-export function mangleJniSymbol(className: string, methodName: string): string {
-	const cleanClass = className.replace(/^L|;$/g, "").replace(/\//g, ".");
-	let escapedClass = cleanClass.replace(/_/g, "_1").replace(/\$/g, "_00024").replace(/\./g, "_");
-	if (escapedClass.includes("com_my_1org")) {
-		escapedClass = escapedClass.replace(/com_my_1org/g, "com_1my_1org");
+function escapeJniIdentifier(str: string): string {
+	let result = "";
+	for (let i = 0; i < str.length; i++) {
+		const c = str[i];
+		if (c === "/") {
+			result += "_";
+		} else if (c === "_") {
+			result += "_1";
+		} else if (c === ";") {
+			result += "_2";
+		} else if (c === "[") {
+			result += "_3";
+		} else if ((c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9")) {
+			result += c;
+		} else {
+			const code = c.charCodeAt(0);
+			result += `_0${code.toString(16).toLowerCase().padStart(4, "0")}`;
+		}
 	}
-	const escapedMethod = methodName.replace(/_/g, "_1");
-	return `Java_${escapedClass}_${escapedMethod}`;
+	return result;
 }
 
+/**
+ * 根据 Oracle JNI 规范第 2 节（解析本地方法名称）转义方法参数类型签名。
+ * 例如：(ILjava/lang/String;[B)V -> ILjava_lang_String_2_3B
+ *       (Lcom/example/É;)V -> Lcom_example__000c9_2
+ *       ()V -> ""
+ */
+export function mangleJniSignature(signature: string): string {
+	const match = signature.match(/\((.*?)\)/);
+	if (!match) return "";
+	return escapeJniIdentifier(match[1]);
+}
+
+/**
+ * 根据 Java/Kotlin 类名与方法名推导预期的 JNI 导出符号名。
+ * 遵循 Oracle JNI 规范第 2 节规则：
+ * - 前缀：Java_
+ * - 类名：'.' 替换为 '_'，'_' 转义为 '_1'，非 ASCII/特殊字符转义为 '_0xxxx'
+ * - 分隔符：_
+ * - 方法名：'_' 转义为 '_1'，非 ASCII/特殊字符转义为 '_0xxxx'
+ * - 重载后缀（提供 signature 时）：'__' 附加经转义后的参数类型签名（零参数为 '__'）
+ */
+export function mangleJniSymbol(className: string, methodName: string, signature?: string): string {
+	const cleanClass = className.replace(/^L|;$/g, "");
+	const escapedClass = escapeJniIdentifier(cleanClass.replace(/\./g, "/"));
+	const escapedMethod = escapeJniIdentifier(methodName);
+	const baseSymbol = `Java_${escapedClass}_${escapedMethod}`;
+
+	if (signature !== undefined) {
+		const mangledSig = mangleJniSignature(signature);
+		return `${baseSymbol}__${mangledSig}`;
+	}
+	return baseSymbol;
+}
 // ============================================================================
 // ULEB128 Reader for DEX Class Methods
 // ============================================================================
@@ -354,10 +402,12 @@ export function parseElfBuffer(buf: Buffer, libPath: string, compressedSize = 0)
 			return buf.toString("utf8", p, end);
 		};
 
-		// Parse symbol tables: SHT_DYNSYM (11) and SHT_SYMTAB (2)
+		// 解析符号表：仅 SHT_DYNSYM (11) 为动态链接器所用的导出/导入符号表；SHT_SYMTAB (2) 仅用于静态调试，不属于 JNI 动态加载导出
 		for (const sec of sections) {
 			if (sec.type === 11 || sec.type === 2) {
-				const symEntSize = sec.entSize > 0 ? sec.entSize : is64 ? 24 : 16;
+				const minSymEntSize = is64 ? 24 : 16;
+				const symEntSize = sec.entSize >= minSymEntSize ? sec.entSize : minSymEntSize;
+				if (symEntSize <= 0) continue;
 				const symCount = Math.floor(sec.size / symEntSize);
 
 				for (let s = 0; s < symCount; s++) {
@@ -365,6 +415,15 @@ export function parseElfBuffer(buf: Buffer, libPath: string, compressedSize = 0)
 					if (symOff + symEntSize > buf.length) break;
 
 					const nameOff = isLe ? buf.readUInt32LE(symOff) : buf.readUInt32BE(symOff);
+					if (nameOff === 0) continue;
+
+					// 读取符号元数据：bind（绑定）、type（类型）、visibility（可见性）、shndx（段索引）
+					const info = is64 ? buf.readUInt8(symOff + 4) : buf.readUInt8(symOff + 12);
+					const other = is64 ? buf.readUInt8(symOff + 5) : buf.readUInt8(symOff + 13);
+					const bind = info >> 4;
+					const type = info & 0x0f;
+					const visibility = other & 0x03;
+
 					const shndx = is64
 						? isLe
 							? buf.readUInt16LE(symOff + 6)
@@ -376,14 +435,29 @@ export function parseElfBuffer(buf: Buffer, libPath: string, compressedSize = 0)
 					const name = readString(sec.link, nameOff);
 					if (!name) continue;
 
-					if (name === "JNI_OnLoad") hasJniOnLoad = true;
-					if (name === "JNI_OnUnload") hasJniOnUnload = true;
-					if (name.includes("RegisterNatives")) hasRegisterNatives = true;
-
-					if (name.startsWith("Java_")) {
-						exportedJniFunctions.add(name);
-					} else if (shndx === 0) {
+					// shndx === 0 为未定义导入符号 (SHN_UNDEF)
+					if (shndx === 0) {
 						importedSymbols.add(name);
+						continue;
+					}
+
+					// 已定义符号 (SHN_UNDEF 以外且非特殊段)
+					const isDefined = shndx > 0 && shndx < 0xff00;
+					const isGlobalOrWeak = bind === 1 || bind === 2; // STB_GLOBAL (1) 或 STB_WEAK (2)
+					const isFunction = type === 2 || type === 10; // STT_FUNC (2) 或 STT_GNU_IFUNC (10)
+					const isVisible = visibility === 0 || visibility === 3; // STV_DEFAULT (0) 或 STV_PROTECTED (3)
+
+					if (isGlobalOrWeak && isVisible) {
+						if (name === "JNI_OnLoad") hasJniOnLoad = true;
+						if (name === "JNI_OnUnload") hasJniOnUnload = true;
+						if (name.includes("RegisterNatives")) hasRegisterNatives = true;
+					}
+
+					// 仅在 SHT_DYNSYM 中已定义、全局/弱绑定、函数类型且具有默认/受保护可见性的符号，才是真正的 JNI 动态导出
+					if (sec.type === 11 && isDefined && isGlobalOrWeak && isFunction && isVisible) {
+						if (name.startsWith("Java_")) {
+							exportedJniFunctions.add(name);
+						}
 					}
 				}
 			} else if (sec.type === 6) {
@@ -418,19 +492,21 @@ export function parseElfBuffer(buf: Buffer, libPath: string, compressedSize = 0)
 			}
 		}
 	}
-
-	// Secondary buffer scan: recovers strings and keywords even if section headers are stripped
+	// 二级缓冲区扫描：在无段表时恢复关键词与标记；未在符号表中的 Java_* 仅作为未验证候选记录，绝不提升为已验证导出
 	const textSample = buf.toString("latin1");
 	if (textSample.includes("JNI_OnLoad")) hasJniOnLoad = true;
 	if (textSample.includes("JNI_OnUnload")) hasJniOnUnload = true;
 	if (textSample.includes("RegisterNatives")) hasRegisterNatives = true;
 
-	// Extract Java_* export names via regex scan if symbols were stripped
+	// 收集未经验证的文本原始字符串匹配项，不作为确认导出
+	const rawJniCandidates = new Set<string>();
 	const javaMatches = textSample.matchAll(/\bJava_[a-zA-Z0-9_$]+/g);
 	for (const m of javaMatches) {
-		exportedJniFunctions.add(m[0]);
+		const sym = m[0];
+		if (!exportedJniFunctions.has(sym) && !importedSymbols.has(sym)) {
+			rawJniCandidates.add(sym);
+		}
 	}
-
 	// Detect crypto keywords
 	const cryptoKeywords = new Set<string>();
 	for (const pat of CRYPTO_KEYWORD_PATTERNS) {
@@ -468,6 +544,7 @@ export function parseElfBuffer(buf: Buffer, libPath: string, compressedSize = 0)
 		antiAnalysisKeywords: Array.from(antiAnalysisKeywords).sort(),
 		importedSymbols: Array.from(importedSymbols).slice(0, 50).sort(),
 		neededLibraries: Array.from(neededLibraries).sort(),
+		...(rawJniCandidates.size > 0 ? { rawJniCandidates: Array.from(rawJniCandidates).slice(0, 50).sort() } : {}),
 	};
 }
 
@@ -526,44 +603,76 @@ export function extractDexNativeMethods(buf: Buffer, filter?: string): AndroidNa
 				const methodName = dexParsed.getDexString(nameIdx);
 				if (!methodName) return;
 
-				// Parse method signature
-				let signature = "()V";
-				const protoIdOff = dexParsed.header.protoIdsOff + protoIdx * 12;
-				if (protoIdOff + 12 <= buf.length) {
-					const returnTypeIdx = buf.readUInt32LE(protoIdOff + 4);
-					const returnTypeStr =
-						returnTypeIdx < dexParsed.header.typeIdsCount &&
-						dexParsed.header.typeIdsOff + returnTypeIdx * 4 + 4 <= buf.length
-							? (dexParsed.getDexString(buf.readUInt32LE(dexParsed.header.typeIdsOff + returnTypeIdx * 4)) ??
-								"V")
-							: "V";
+				// 解析方法签名并校验 DEX 原型完整性
+				let signature: string | null = null;
+				let prototypeValid = false;
 
-					const paramsOff = buf.readUInt32LE(protoIdOff + 8);
-					let paramTypes = "";
-					if (paramsOff > 0 && paramsOff + 4 <= buf.length) {
-						const paramCount = buf.readUInt32LE(paramsOff);
-						for (let p = 0; p < paramCount && paramsOff + 4 + p * 2 + 2 <= buf.length; p++) {
-							const pTypeIdx = buf.readUInt16LE(paramsOff + 4 + p * 2);
-							if (
-								pTypeIdx < dexParsed.header.typeIdsCount &&
-								dexParsed.header.typeIdsOff + pTypeIdx * 4 + 4 <= buf.length
-							) {
-								const desc = dexParsed.getDexString(
-									buf.readUInt32LE(dexParsed.header.typeIdsOff + pTypeIdx * 4),
-								);
-								if (desc) paramTypes += desc;
+				if (protoIdx < dexParsed.header.protoIdsCount) {
+					const protoIdOff = dexParsed.header.protoIdsOff + protoIdx * 12;
+					if (protoIdOff + 12 <= buf.length) {
+						const returnTypeIdx = buf.readUInt32LE(protoIdOff + 4);
+						let returnTypeStr: string | null = null;
+						if (
+							returnTypeIdx < dexParsed.header.typeIdsCount &&
+							dexParsed.header.typeIdsOff + returnTypeIdx * 4 + 4 <= buf.length
+						) {
+							returnTypeStr = dexParsed.getDexString(
+								buf.readUInt32LE(dexParsed.header.typeIdsOff + returnTypeIdx * 4),
+							);
+						}
+
+						if (returnTypeStr) {
+							const paramsOff = buf.readUInt32LE(protoIdOff + 8);
+							let paramTypes = "";
+							let allParamsValid = true;
+
+							if (paramsOff === 0) {
+								prototypeValid = true;
+								signature = `()${returnTypeStr}`;
+							} else if (paramsOff + 4 <= buf.length) {
+								const paramCount = buf.readUInt32LE(paramsOff);
+								if (paramsOff + 4 + paramCount * 2 <= buf.length) {
+									for (let p = 0; p < paramCount; p++) {
+										const pTypeIdx = buf.readUInt16LE(paramsOff + 4 + p * 2);
+										if (
+											pTypeIdx < dexParsed.header.typeIdsCount &&
+											dexParsed.header.typeIdsOff + pTypeIdx * 4 + 4 <= buf.length
+										) {
+											const desc = dexParsed.getDexString(
+												buf.readUInt32LE(dexParsed.header.typeIdsOff + pTypeIdx * 4),
+											);
+											if (desc) {
+												paramTypes += desc;
+											} else {
+												allParamsValid = false;
+												break;
+											}
+										} else {
+											allParamsValid = false;
+											break;
+										}
+									}
+									if (allParamsValid) {
+										prototypeValid = true;
+										signature = `(${paramTypes})${returnTypeStr}`;
+									}
+								}
 							}
 						}
 					}
-					signature = `(${paramTypes})${returnTypeStr}`;
 				}
 
 				const expectedSymbol = mangleJniSymbol(className, methodName);
+				const finalSignature = signature ?? "<invalid>";
+				const overloadedSymbol =
+					prototypeValid && signature ? mangleJniSymbol(className, methodName, signature) : undefined;
+
 				nativeMethods.push({
 					className,
 					methodName,
-					signature,
+					signature: finalSignature,
 					expectedSymbol,
+					...(overloadedSymbol ? { overloadedSymbol } : {}),
 					status: "unresolved",
 					matchedLibrary: null,
 				});
@@ -1119,7 +1228,12 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 				if (m.status === "static_export") resIcon = "✅ Static Export";
 				else if (m.status === "dynamic_registration") resIcon = "⚡ Dynamic (RegisterNatives)";
 
-				const matched = m.matchedLibrary ? `\`${m.matchedLibrary}\`` : "-";
+				let matched = "-";
+				if (m.matchedLibrary) {
+					matched = `\`${m.matchedLibrary}\``;
+				} else if (m.candidateLibraries && m.candidateLibraries.length > 0) {
+					matched = `Candidates: ${m.candidateLibraries.map(c => `\`${c}\``).join(", ")}`;
+				}
 				lines.push(
 					`| \`${m.className}\` | \`${m.methodName}\` | \`${m.signature}\` | \`${m.expectedSymbol}\` | ${resIcon} | ${matched} |`,
 				);
@@ -1227,36 +1341,44 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			nativeMethods.push(...methods);
 		}
 
-		// 3. Resolve Native Methods against .so Exports & JNI_OnLoad
+		// 3. 解析 DEX 本地方法与 .so 导出及 JNI_OnLoad 候选关联
 		let staticExportMatched = 0;
-		let dynamicRegistrationLikely = 0;
+		// 遗留启发式字段：静态分析在缺乏运行时追踪（如 Frida/Unidbg）时无法断言具体动态注册绑定，设为 0 避免虚假确认
+		const dynamicRegistrationLikely = 0;
 		let unresolvedMethods = 0;
 
-		const hasAnyJniOnLoad = libraries.some(l => l.hasJniOnLoad || l.hasRegisterNatives);
-		const dynamicLibCandidate = libraries.find(l => l.hasJniOnLoad || l.hasRegisterNatives)?.name ?? null;
+		const markerCandidateLibs = libraries.filter(l => l.hasJniOnLoad || l.hasRegisterNatives).map(l => l.name);
+		const uniqueMarkerLibs = Array.from(new Set(markerCandidateLibs));
 
 		for (const method of nativeMethods) {
-			let matched = false;
-			for (const lib of libraries) {
-				if (lib.exportedJniFunctions.includes(method.expectedSymbol)) {
-					method.status = "static_export";
-					method.matchedLibrary = lib.name;
-					staticExportMatched++;
-					matched = true;
-					break;
-				}
-			}
+			// 收集所有导出了该 JNI 符号的共享库
+			const matchingLibs = libraries.filter(
+				l =>
+					l.exportedJniFunctions.includes(method.expectedSymbol) ||
+					(Boolean(method.overloadedSymbol) && l.exportedJniFunctions.includes(method.overloadedSymbol!)),
+			);
 
-			if (!matched) {
-				if (hasAnyJniOnLoad) {
-					method.status = "dynamic_registration";
-					method.matchedLibrary = dynamicLibCandidate;
-					dynamicRegistrationLikely++;
-				} else {
-					method.status = "unresolved";
-					method.matchedLibrary = null;
-					unresolvedMethods++;
+			const uniqueExportingLibNames = Array.from(new Set(matchingLibs.map(l => l.name)));
+
+			if (uniqueExportingLibNames.length === 1) {
+				// 唯一定义匹配：无论存在单 ABI 还是跨多个 ABI 的同名库，均确定归属为该库
+				method.status = "static_export";
+				method.matchedLibrary = uniqueExportingLibNames[0];
+				staticExportMatched++;
+			} else if (uniqueExportingLibNames.length > 1) {
+				// 存在多个不同库导出同名符号，缺乏运行时加载顺序时不可武断指定归属，标记为未解决并保留所有候选库
+				method.status = "unresolved";
+				method.matchedLibrary = null;
+				method.candidateLibraries = uniqueExportingLibNames;
+				unresolvedMethods++;
+			} else {
+				// 无静态导出符号匹配：仅作为动态注册候选提示，不确认归属
+				method.status = "unresolved";
+				method.matchedLibrary = null;
+				if (uniqueMarkerLibs.length > 0) {
+					method.candidateLibraries = [...uniqueMarkerLibs];
 				}
+				unresolvedMethods++;
 			}
 		}
 

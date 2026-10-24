@@ -2,7 +2,7 @@
 name: native-binary-reverse
 description: Universal native binary reverse engineering specialist for ELF, Mach-O, Fat universal binaries, PE foundations, shared libraries, and raw firmware objects. Guides format triage, section and segment analysis, symbol and relocation inspection, PIE/ASLR/stripped mitigation auditing, disassembly, dynamic verification, and structured evidence chains.
 metadata:
-  requiresOptional: radare2, ida, frida, ghidra
+  requiresOptional: radare2, ida, frida, ghidra, x64dbg-mcp, ghidra-mcp, r2mcp
   capabilities: native_debugger
 ---
 
@@ -37,7 +37,7 @@ Follow the positive triage-to-evidence progression:
          │
          ▼
 [2. Deep Static Analysis] ──> reverse_capability(action: "resolve", capability: "native_debugger")
-         │                    ├─ Ready: reverse read-binary (IDA) or r2_inspect / radare2 CLI
+         │                    ├─ Ready: native debug (DAP) or r2 -d CLI / triage partial fallback
          │                    └─ Missing: reverse setup reverse radare2 ➔ refresh ➔ dispatch
          ▼
 [3. Dynamic Verification] ──> frida (memory hook / trace) or native debugger (GDB / LLDB / DAP)
@@ -51,6 +51,7 @@ Follow the positive triage-to-evidence progression:
    - **`read-binary` (IDA Pro integration)**: High-performance virtual URLs via `read` (`:overview`, `:imports`, `:exports`, `:functions`, `:strings`, `:xrefs:<sym>`, `:decompile:<func>`, and Mach-O slice selector `:@<arch>`).
    - **`r2_inspect` (Built-in tool)**: Read-only radare2 queries with fixed bounded actions (`info`, `sections`, `imports`, `exports`, `strings`, `functions`, `xrefs`, `disasm`, `decompile`).
    - **`radare2` (`r2` CLI)**: Headless CLI fallback (`r2 -qc "iI; iS; ii; is"`).
+   - **`native_mcp_session`**: Persistent native reverse engineering MCP session manager (`service: "ghidra" | "radare2" | "x64dbg"`). Dynamically discovers and mounts upstream analyzer tools into the agent session without hardcoded tool lists. Supports headless persistent Ghidra (`target`, `project_dir` with `--save` and single Java project lock) or GUI mode (`backend_url`), persistent radare2 (`open_file`, `show_info`), and x64dbg dynamic sessions.
    - **POSIX / LLVM Binutils**: `readelf -h -S -s -r`, `objdump -d`, `llvm-objdump`, `nm -D`, `strings -a -n 8`.
 3. **Dynamic Verification (`frida`, debuggers)**:
    - Built-in `frida` tool for one-shot process attachment, function tracing, and memory inspection; built-in `frida_session` tool for persistent multi-turn dynamic analysis sessions with active child/target persistence.
@@ -62,7 +63,7 @@ Follow the positive triage-to-evidence progression:
 
 | Canonical Capability ID | Analytical Scenario | Recommended Native Tool | Optional External Tools | Trusted Setup Command | Fallback Tier |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`native_debugger`** | Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native ELF, PE, and Mach-O binaries | `r2_inspect` / `triage` (built-in) | `radare2`, `ida`, `frida`, `ghidra` | `reverse setup reverse radare2` | `binary_metadata_inspect`, `readelf`, `objdump`, `strings`, `file` |
+| **`native_debugger`** | Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native ELF, PE, and Mach-O binaries | `debug` (when DAP adapter discovered) / `triage` (built-in fallback) / `native_mcp_session` | `radare2`, `ida`, `frida`, `ghidra`, `x64dbg-mcp`, `ghidra-mcp`, `r2mcp` | `reverse setup reverse radare2` / `reverse setup reverse x64dbg-mcp` / `reverse setup reverse ghidra-mcp` / `reverse setup reverse r2mcp` | `binary_metadata_inspect`, `readelf`, `objdump`, `strings`, `file` |
 
 ### Capability Resolution Protocol
 
@@ -74,11 +75,10 @@ When disassembling complex functions, decompiling control flow, or attaching deb
    reverse_capability({ action: "resolve", capability: "native_debugger" })
    ```
 2. **Evaluate Native Baseline First**:
-   Inspect `recommendedNativeTool` (`r2_inspect`) and native built-in `triage`. For initial format detection, architecture, bitness, endianness, entropy, and symbol headers, use `triage` and `r2_inspect` immediately without installation delays.
+   Inspect `recommendedNativeTool` (`debug` when a DAP adapter is discovered, otherwise zero-prep native `triage`). For dynamic stepping with radare2, invoke `r2 -d` CLI per `postInstallInvocation`. For initial format detection, architecture, bitness, endianness, entropy, and symbol headers, use `triage` immediately without installation delays.
 3. **Present Setup Notice & Request Approval**:
    When deep decompilation or headless CLI disassembly requires `radare2` or `ghidra` and the binary is not present on PATH:
    - Formulate the structured capability notice:
-     ```text
      [Capability Notice] Required capability: native_debugger ('Native Binary Debugger & Dynamic Tracing')
        -> Recommended tool: 'radare2' (Status: missing)
        -> Why: Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native binaries
@@ -150,8 +150,8 @@ Examine binary structure to pinpoint program logic:
 ### Step 4: Disassembly, Cross-References & Decompilation (`native_debugger`)
 Focus on high-value logic gates:
 1. **Capability Check**: Query `reverse_capability({ action: "resolve", capability: "native_debugger" })`.
-   - If `read-binary` (IDA Pro) or `r2_inspect` is ready, proceed immediately.
-   - If deep decompilation requires `radare2` or `ghidra` and neither is on PATH, present the setup notice (`reverse setup reverse radare2`). Upon operator installation, re-resolve with `refresh: true`, dispatch `r2_inspect(action: "decompile", ...)` or `r2`, and record install-after resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`) in `reverse_workflow`.
+   - If `ghidra_inspect` / Ghidra is present, static decompilation is available immediately even while `native_debugger` reports partial dynamic readiness.
+   - If `read-binary` (IDA Pro) or `r2_inspect` (with radare2 installed) is ready, proceed immediately.
    - If setup is declined, engage the fallback tier (`objdump -d`, `readelf`, `strings`).
 2. **String Cross-References**: Locate references to cryptographic markers, URL endpoints, license flags, or diagnostic messages:
    `r2_inspect(action: "xrefs", path: "sample.bin", address: "0x402010")`
@@ -165,16 +165,28 @@ Focus on high-value logic gates:
 
 ### Step 5: Dynamic Verification & Instrumentation (`native_debugger`)
 When static analysis yields a candidate hypothesis:
-1. **Capability Check**: Query `reverse_capability({ action: "resolve", capability: "native_debugger" })`.
-2. **Frida Dynamic Instrumentation**:
-   - Trace function arguments and return values:
-     `frida(action: "execute", target: "sample_process", script: "Interceptor.attach(Module.getGlobalExportByName('target_fn'), { onEnter(args) { console.log('arg0:', args[0]); }, onLeave(retval) { console.log('ret:', retval); } });")`
-   - Use `frida_session` for persistent multi-turn dynamic analysis sessions with active target persistence.
-3. **Debugger Confirmation**:
+1. **Capability Check & Session Dispatch**: Query `reverse_capability({ action: "resolve", capability: "native_debugger" })`.
+   - If native debugger is available via DAP (`debug`), dispatch single-step breakpoint and register analysis.
+   - If using native MCP sessions (`native_mcp_session`), connect to `radare2` or `x64dbg`:
+     `native_mcp_session(action: "connect", service: "radare2", target: "sample.bin")`
+     Tools exposed upstream are dynamically mounted into the session. Cleanly detach via `native_mcp_session(action: "disconnect", session_id: "...")` without terminating target processes.
+2. **Dynamic to Static Address Mapping (`locate`)**:
+   Map dynamic runtime addresses to static decompilation coordinates:
+   `native_mcp_session(action: "locate", runtime_address: "0x7ff6a0001050", module_base: "0x7ff6a0000000", static_base: "0x140000000", module_name: "target.bin")`
+   - Computes `RVA = runtime_address - module_base` and `static_address = static_base + RVA` using 64-bit BigInt unsigned integer arithmetic.
+   - Evidence locator: `<module_name>+0x<RVA> -> static:0x<static_address>`.
+   - Coordinate discipline: `source: "supplied"`, `computation: "arithmetic"`, `evidence_verified: false`. Supplied arithmetic coordinates are **projections, NOT empirically verified execution ground truth or physical file offsets**.
+3. **Frida Dynamic Instrumentation**:
+   - Trace function arguments and return values with custom scripts or persistent `frida_session`.
+   - **`template: "jni_register"`**: Traces Android JNI `RegisterNatives` calls via `libart.so` symbols and JNIEnv vtable index 215. Captures class name (reflection decoded), method signature, native function pointer, module base, and relative hex offset. Confirmation contract: **ONLY `retval === 0` confirms registration** (`status: "confirmed"`).
+   - **`template: "native_functions"`**: Traces native calls with bounded typed argument decoding (`args_decode`), return values (`retval`), call stacks (`backtrace`), and bounded buffer limits (`maxBufferBytes`, `max_events`), safely detaching only own listener handles.
+4. **Observable State Tiers & Claim Limits**:
+   - Distinguish the 5 observable state tiers: `installed` (binary/venv ready), `configured` (mcp.json declared), `transport connected` (transport active), `target matched` (target binary/PID verified loaded in engine), and `executed verified` (real commands executed with facts recorded in EvidenceStore).
+   - **Host Verification Claim Limits**: Current development host (macOS darwin arm64) has no Windows host / x64dbg smoke and no live Ghidra backend smoke; Frida native tracing was verified using local C ABI fixtures (`mock_RegisterNatives`), not Android `libart.so` on real devices.
+5. **Debugger Confirmation**:
    - Use LLDB or GDB with a single stateful session controller to set breakpoints on target RVAs, inspect registers, and verify branch conditions.
-4. **Patch Verification**:
+6. **Patch Verification**:
    - For offline hypothesis testing, generate a patched binary in `./artifacts/` (e.g. flipping a conditional jump opcode or NOPing a check) and compare behavior against original sample.
-
 ### Step 6: Evidence & Proof Recording
 Record every confirmed finding into the empirical evidence chain:
 - File ground truth: `evidence(action: "add", kind: "fact", sourceTool: "r2_inspect", locator: "0x4012A0", content: "Key check compares hash at offset 0x4012A0 with SHA-256 digest")`

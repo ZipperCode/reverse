@@ -278,16 +278,26 @@ function buildResult(
 	providerName?: string,
 ): CustomToolResult<MCPToolDetails> {
 	const content = formatMCPContent(result.content);
+	// x64dbg 上游将失败写进普通文本；在宿主边界转成错误，避免把失败操作当作有效证据。
+	const nativeDebuggerFailure =
+		provider === "reverse" && (providerName === "x64dbg" || serverName === "x64dbg")
+			? content.find(
+					block =>
+						block.type === "text" &&
+						/^(?:Error:|Failed\b|No active connection\b|No debuggee:)/i.test(block.text.trim()),
+				)
+			: undefined;
+	const failed = result.isError || nativeDebuggerFailure !== undefined;
 	const details: MCPToolDetails = {
 		serverName,
 		mcpToolName,
-		isError: result.isError,
+		isError: failed,
 		rawContent: result.content,
 		mcpMeta: result._meta,
 		provider,
 		providerName,
 	};
-	if (result.isError) {
+	if (failed) {
 		if (content[0]?.type === "text") {
 			content[0] = { type: "text", text: `Error: ${content[0].text}` };
 		} else {
@@ -303,7 +313,7 @@ function buildResult(
 		}
 	}
 	const toolResult: CustomToolResult<MCPToolDetails> = { content, details };
-	if (result.isError) {
+	if (failed) {
 		toolResult.isError = true;
 	}
 	return toolResult;
@@ -453,7 +463,8 @@ function recordExecutionOutcome(
 					? concreteArgs.targetPath
 					: "library" in concreteArgs
 						? concreteArgs.library
-						: (concreteToolName === "browser_navigate" || concreteToolName === "page_navigate") && "url" in concreteArgs
+						: (concreteToolName === "browser_navigate" || concreteToolName === "page_navigate") &&
+							  "url" in concreteArgs
 							? concreteArgs.url
 							: undefined;
 		if (typeof targetVal === "string") target = targetVal;
@@ -462,7 +473,10 @@ function recordExecutionOutcome(
 	const parsedState = {
 		innerSuccess: (isError ? false : null) as boolean | null,
 		errorMessage: isError
-			? toolResult.content.map(c => (c.type === "text" ? c.text : "")).join(" ").trim()
+			? toolResult.content
+					.map(c => (c.type === "text" ? c.text : ""))
+					.join(" ")
+					.trim()
 			: undefined,
 		target,
 		isClosing: concreteToolName === "browser_close",
@@ -931,7 +945,14 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		const providerName = this.connection._source?.providerName;
 		try {
 			const outcome = await this.#executeInner(args, provider, providerName, signal);
-			recordExecutionOutcome(this.connection.name, this.tool.name, args, outcome.result, sessionKey, outcome.connection);
+			recordExecutionOutcome(
+				this.connection.name,
+				this.tool.name,
+				args,
+				outcome.result,
+				sessionKey,
+				outcome.connection,
+			);
 			return outcome.result;
 		} catch (error) {
 			recordExecutionOutcome(
@@ -953,7 +974,13 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		signal?: AbortSignal,
 	): Promise<{ result: CustomToolResult<MCPToolDetails>; connection: MCPServerConnection }> {
 		try {
-			const attempt = await callToolWithAuthRetry(this.connection, this.tool.name, args ?? {}, this.reconnect, signal);
+			const attempt = await callToolWithAuthRetry(
+				this.connection,
+				this.tool.name,
+				args ?? {},
+				this.reconnect,
+				signal,
+			);
 			if (attempt.error !== undefined) {
 				return {
 					result: buildErrorResult(attempt.error, this.connection.name, this.tool.name, provider, providerName),

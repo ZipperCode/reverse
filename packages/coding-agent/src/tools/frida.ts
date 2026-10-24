@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@reverse/agent";
 import { logger, prompt, $which } from "@reverse/utils";
+import { redactMemorySecrets } from "../memory-backend/redact";
 import fridaDescription from "../prompts/tools/frida.md" with { type: "text" };
 import {
 	checkToolRequirements,
@@ -51,8 +52,29 @@ export const fridaSchema = type({
 	"module?": type("string").describe(
 		"Target module name (e.g. 'libnative-lib.so', 'libc.so') for trace template 'exports' or module filtering",
 	),
-	"template?": type("string").describe(
-		"Optional trace template ('module_load' or 'exports') or custom template name. Custom scripts can also be passed via script or script_path",
+	"template?": type
+		.enumerated("module_load", "exports", "jni_register", "native_functions")
+		.describe(
+			"Optional trace template: 'module_load' (trace module loads), 'exports' (trace exported functions), 'jni_register' (trace JNI RegisterNatives mappings), or 'native_functions' (trace native function invocations)",
+		),
+	"symbol?": type("string").describe(
+		"Target function symbol name for template 'native_functions' or custom JNI entry",
+	),
+	"symbols?": type("unknown").describe("Array of target function symbol names for template 'native_functions'"),
+	"offset?": type("unknown").describe(
+		"Target function offset from module base (hex string e.g. '0x1234' or number) for template 'native_functions'",
+	),
+	"offsets?": type("unknown").describe("Array of target function offsets for template 'native_functions'"),
+	"args_count?": type("number").describe("Number of arguments to capture in native_functions template (default 4)"),
+	"args_decode?": type("unknown").describe(
+		"Map or array specifying argument decoding types (e.g. {'0': 'int', '1': 'string'}) for native_functions template",
+	),
+	"retval?": type("boolean").describe("Whether to capture return value in native_functions template (default true)"),
+	"backtrace?": type("unknown").describe(
+		"Whether to capture backtrace in native_functions template (true, 'accurate', 'fuzzy', or false; default false)",
+	),
+	"max_buffer_bytes?": type("number").describe(
+		"Maximum buffer/string bytes to read per argument in native_functions template (default 256)",
 	),
 	"max_events?": type("number").describe(
 		"Maximum trace events to capture or display in trace summary (default 100, no artificial limit)",
@@ -71,7 +93,7 @@ export const fridaSchema = type({
 
 export type FridaParams = typeof fridaSchema.infer;
 export type FridaAction = "exec" | "devices" | "ps" | "modules" | "inspect" | "trace";
-export type FridaTraceTemplate = "module_load" | "exports" | string;
+export type FridaTraceTemplate = "module_load" | "exports" | "jni_register" | "native_functions" | string;
 
 export type FridaStatus =
 	| "ok"
@@ -105,15 +127,39 @@ export interface FridaModuleInfo {
 }
 
 export interface FridaTraceEvent {
-	event: "module_load" | "export" | string;
+	event: "module_load" | "export" | "jni_register_natives" | "native_call" | string;
 	timestamp?: number;
 	module?: string;
+	modulePath?: string;
 	name?: string;
 	type?: string;
 	address?: string;
 	base?: string;
 	size?: number;
 	path?: string;
+	status?: "confirmed" | "rejected" | string;
+	retval?: unknown;
+	class?: string;
+	target?: string;
+	offset?: string;
+	threadId?: number;
+	nMethods?: number;
+	methods?: Array<{
+		name?: string | null;
+		signature?: string | null;
+		fnPtr?: string;
+		module?: string | null;
+		modulePath?: string | null;
+		base?: string | null;
+		offset?: string | null;
+		error?: string;
+		index?: number;
+	}>;
+	truncated?: boolean;
+	source?: string;
+	javaBridgeAvailable?: boolean;
+	args?: unknown[];
+	backtrace?: string[];
 	details?: Record<string, unknown>;
 	redacted?: boolean;
 }
@@ -261,6 +307,772 @@ export function buildTraceExportsScript(moduleName: string, maxEvents?: number):
 	const safeMod = JSON.stringify(moduleName);
 	const limitCheck = maxEvents && maxEvents > 0 ? `&& j < ${Math.round(maxEvents)}` : "";
 	return `(function(){try{var m=Process.findModuleByName(${safeMod});if(!m){var all=Process.enumerateModules();for(var i=0;i<all.length;i++){if(all[i].name.toLowerCase()===${safeMod}.toLowerCase()){m=all[i];break;}}}if(!m){console.log('__FRIDA_TRACE_START__'+JSON.stringify({error:'module_not_found',module:${safeMod}})+'__FRIDA_TRACE_END__');return;}var exps=m.enumerateExports();var res=[];for(var j=0;j<exps.length${limitCheck};j++){res.push({event:'export',module:m.name,name:exps[j].name,type:exps[j].type,address:exps[j].address.toString()});}console.log('__FRIDA_TRACE_START__'+JSON.stringify({module:m.name,base:m.base.toString(),totalExports:exps.length,events:res})+'__FRIDA_TRACE_END__');}catch(e){console.log('__FRIDA_TRACE_START__'+JSON.stringify({error:e.message||String(e)})+'__FRIDA_TRACE_END__');}})();`;
+}
+export interface JniRegisterNativesOptions {
+	maxEvents?: number;
+	maxMethods?: number;
+	module?: string;
+	symbol?: string;
+}
+
+/**
+ * 构造用于拦截 Android JNI RegisterNatives 注册过程的 Frida 脚本。
+ *
+ * 核心设计准则：
+ * 1. 采用 JNIEnv 函数表（table index 215）与 libart 符号双重寻址与去重；
+ * 2. 优先验证 Frida 17 Java bridge 可用性；若 Java 全局不可用，直接通过 JNIEnv 虚表（NativeFunction）
+ *    调用 GetObjectClass(31)、GetMethodID(33)、CallObjectMethodA(36)、GetStringUTFChars(169) 获取真实类名；
+ * 3. 严格保护 JNI 异常状态：仅在 ExceptionCheck(228) 为 0 时执行反射，且仅清除自身类名探测产生的异常，不泄露 LocalRef；
+ * 4. 仅在 RegisterNatives 返回值确认成功（retval === 0）时标记为 confirmed；非 0 返回值标记为 rejected；
+ * 5. 避免使用全局 Interceptor.detachAll()，达到 max_events 后仅安全注销自身监听器。
+ */
+export function buildJniRegisterNativesScript(options: JniRegisterNativesOptions = {}): string {
+	const maxEvents = clampMaxEvents(options.maxEvents);
+	const maxMethods =
+		options.maxMethods !== undefined && Number.isFinite(options.maxMethods) && options.maxMethods > 0
+			? Math.round(options.maxMethods)
+			: 500;
+	const safeModule = options.module ? JSON.stringify(options.module.trim()) : "null";
+	const safeSymbol = options.symbol ? JSON.stringify(options.symbol.trim()) : "null";
+
+	return `(function() {
+  var listeners = [];
+  var hookedAddresses = {};
+  var eventCount = 0;
+  var maxEvents = ${maxEvents};
+  var maxMethods = ${maxMethods};
+  var explicitModule = ${safeModule};
+  var explicitSymbol = ${safeSymbol};
+
+  function cleanup() {
+    for (var i = 0; i < listeners.length; i++) {
+      try { listeners[i].detach(); } catch (e) {}
+    }
+    listeners = [];
+  }
+
+  function hookRegisterNatives(targetAddr, source) {
+    if (!targetAddr || targetAddr.isNull()) return;
+    var key = targetAddr.toString();
+    if (hookedAddresses[key]) return;
+    hookedAddresses[key] = true;
+
+    try {
+      var listener = Interceptor.attach(targetAddr, {
+        onEnter: function(args) {
+          if (maxEvents > 0 && eventCount >= maxEvents) return;
+
+          var env = args[0];
+          var clazz = args[1];
+          var methodsPtr = args[2];
+          var nMethods = args[3].toInt32();
+
+          this.env = env;
+          this.clazz = clazz;
+          this.methodsPtr = methodsPtr;
+          this.nMethods = nMethods;
+          this.source = source;
+
+          var className = "unknown";
+          var ptrSize = Process.pointerSize;
+          var javaBridgeAvailable = false;
+
+          // 1. 优先尝试 Java bridge（如果当前运行时已加载）
+          try {
+            if (typeof Java !== "undefined" && Java.available) {
+              javaBridgeAvailable = true;
+              if (Java.vm && typeof Java.vm.getEnv === "function") {
+                var jenv = Java.vm.getEnv();
+                if (jenv && typeof jenv.getClassName === "function") {
+                  className = jenv.getClassName(clazz);
+                }
+              }
+            }
+          } catch (e) {}
+
+          // 2. 若无 Java bridge，直接利用 JNIEnv 函数表反射（支持纯 C / 未绑定环境）
+          if (className === "unknown" && env && !env.isNull()) {
+            try {
+              var vtable = env.readPointer();
+              var exceptionCheckPtr = vtable.add(228 * ptrSize).readPointer();
+              var exceptionClearPtr = vtable.add(17 * ptrSize).readPointer();
+              var getObjectClassPtr = vtable.add(31 * ptrSize).readPointer();
+              var getMethodIdPtr = vtable.add(33 * ptrSize).readPointer();
+              var callObjectMethodAPtr = vtable.add(36 * ptrSize).readPointer();
+              var getStringUtfCharsPtr = vtable.add(169 * ptrSize).readPointer();
+              var releaseStringUtfCharsPtr = vtable.add(170 * ptrSize).readPointer();
+              var deleteLocalRefPtr = vtable.add(23 * ptrSize).readPointer();
+
+              var ExceptionCheck = new NativeFunction(exceptionCheckPtr, 'uint8', ['pointer']);
+              var ExceptionClear = new NativeFunction(exceptionClearPtr, 'void', ['pointer']);
+
+              // 保留原目标挂起异常：仅当无异常时才安全调用反射 JNI
+              if (ExceptionCheck(env) === 0) {
+                var GetObjectClass = new NativeFunction(getObjectClassPtr, 'pointer', ['pointer', 'pointer']);
+                var GetMethodID = new NativeFunction(getMethodIdPtr, 'pointer', ['pointer', 'pointer', 'pointer', 'pointer']);
+                var CallObjectMethodA = new NativeFunction(callObjectMethodAPtr, 'pointer', ['pointer', 'pointer', 'pointer', 'pointer']);
+                var GetStringUTFChars = new NativeFunction(getStringUtfCharsPtr, 'pointer', ['pointer', 'pointer', 'pointer']);
+                var ReleaseStringUTFChars = new NativeFunction(releaseStringUtfCharsPtr, 'void', ['pointer', 'pointer', 'pointer']);
+                var DeleteLocalRef = new NativeFunction(deleteLocalRefPtr, 'void', ['pointer', 'pointer']);
+
+                var classOfClass = GetObjectClass(env, clazz);
+                if (classOfClass && !classOfClass.isNull()) {
+                  var mName = Memory.allocUtf8String("getName");
+                  var mSig = Memory.allocUtf8String("()Ljava/lang/String;");
+                  var getNameMid = GetMethodID(env, classOfClass, mName, mSig);
+                  if (getNameMid && !getNameMid.isNull()) {
+                    var nameStr = CallObjectMethodA(env, clazz, getNameMid, ptr(0));
+                    if (nameStr && !nameStr.isNull()) {
+                      var isCopy = Memory.alloc(ptrSize);
+                      var utfChars = GetStringUTFChars(env, nameStr, isCopy);
+                      if (utfChars && !utfChars.isNull()) {
+                        className = utfChars.readCString();
+                        ReleaseStringUTFChars(env, nameStr, utfChars);
+                      }
+                      DeleteLocalRef(env, nameStr);
+                    }
+                  }
+                  DeleteLocalRef(env, classOfClass);
+                }
+
+                // 仅清除自身反射产生的异常，避免污染目标 JNI 环境
+                if (ExceptionCheck(env) !== 0) {
+                  ExceptionClear(env);
+                }
+              } else {
+                className = "pending_exception";
+              }
+            } catch (err) {
+              // 失败降级保持 unknown
+            }
+          }
+
+          // 3. 解析 JNINativeMethod 数组：包含方法名、签名、函数指针与模块偏移
+          var methods = [];
+          var readCount = Math.min(Math.max(0, nMethods), maxMethods);
+          var truncated = nMethods > maxMethods;
+
+          if (methodsPtr && !methodsPtr.isNull()) {
+            for (var i = 0; i < readCount; i++) {
+              var entryOffset = i * 3 * ptrSize;
+              try {
+                var namePtr = methodsPtr.add(entryOffset).readPointer();
+                var sigPtr = methodsPtr.add(entryOffset + ptrSize).readPointer();
+                var fnPtr = methodsPtr.add(entryOffset + 2 * ptrSize).readPointer();
+
+                var methodName = null;
+                var signature = null;
+                try { if (namePtr && !namePtr.isNull()) methodName = namePtr.readCString(); } catch (e) {}
+                try { if (sigPtr && !sigPtr.isNull()) signature = sigPtr.readCString(); } catch (e) {}
+
+                var mod = null;
+                try { mod = Process.findModuleByAddress(fnPtr); } catch (e) {}
+
+                var offsetHex = null;
+                if (mod && mod.base) {
+                  offsetHex = "0x" + fnPtr.sub(mod.base).toString(16);
+                }
+
+                methods.push({
+                  name: methodName,
+                  signature: signature,
+                  fnPtr: fnPtr.toString(),
+                  module: mod ? mod.name : null,
+                  modulePath: mod ? mod.path : null,
+                  base: mod ? mod.base.toString() : null,
+                  offset: offsetHex
+                });
+              } catch (e) {
+                methods.push({ error: String(e), index: i });
+              }
+            }
+          }
+
+          this.parsedData = {
+            className: className,
+            methods: methods,
+            nMethods: nMethods,
+            truncated: truncated,
+            javaBridgeAvailable: javaBridgeAvailable
+          };
+        },
+        onLeave: function(retval) {
+          if (!this.parsedData) return;
+          if (maxEvents > 0 && eventCount >= maxEvents) return;
+
+          eventCount++;
+          var ret = retval.toInt32();
+          var isSuccess = (ret === 0);
+
+          var record = {
+            event: "jni_register_natives",
+            status: isSuccess ? "confirmed" : "rejected",
+            retval: ret,
+            class: this.parsedData.className,
+            nMethods: this.parsedData.nMethods,
+            methods: this.parsedData.methods,
+            truncated: this.parsedData.truncated,
+            source: this.source,
+            javaBridgeAvailable: this.parsedData.javaBridgeAvailable,
+            timestamp: Date.now()
+          };
+
+          send(record);
+          console.log("__FRIDA_TRACE_START__" + JSON.stringify(record) + "__FRIDA_TRACE_END__");
+
+          if (maxEvents > 0 && eventCount >= maxEvents) {
+            cleanup();
+          }
+        }
+      });
+      listeners.push(listener);
+    } catch (e) {
+      console.log("__FRIDA_TRACE_START__" + JSON.stringify({ error: "attach_failed", address: targetAddr.toString(), detail: String(e) }) + "__FRIDA_TRACE_END__");
+    }
+  }
+
+  function findExportAddress(modName, symName) {
+    var addr = null;
+    if (modName) {
+      var m = Process.findModuleByName(modName);
+      if (m) {
+        if (typeof m.findExportByName === "function") {
+          try { addr = m.findExportByName(symName); } catch (e) {}
+        }
+        if (!addr && typeof m.enumerateExports === "function") {
+          try {
+            var exps = m.enumerateExports();
+            for (var i = 0; i < exps.length; i++) {
+              if (exps[i].name === symName) { addr = exps[i].address; break; }
+            }
+          } catch (e) {}
+        }
+      }
+      if (addr) return addr;
+    }
+    if (typeof Process.findExportByName === "function") {
+      try { addr = Process.findExportByName(symName); } catch (e) {}
+    }
+    if (!addr && typeof Module !== "undefined") {
+      if (modName && typeof Module.findExportByName === "function") {
+        try { addr = Module.findExportByName(modName, symName); } catch (e) {}
+      }
+      if (!addr && typeof Module.findGlobalExportByName === "function") {
+        try { addr = Module.findGlobalExportByName(symName); } catch (e) {}
+      }
+    }
+    return addr;
+  }
+
+  function scanAndHook() {
+    var candidates = [];
+
+    // 1. 显式配置目标符号
+    if (explicitSymbol) {
+      var explicitAddr = findExportAddress(explicitModule, explicitSymbol);
+      if (explicitAddr) {
+        candidates.push({ addr: explicitAddr, source: (explicitModule || "global") + ":" + explicitSymbol });
+      }
+    }
+
+    // 2. 扫描 libart.so 导出与符号（过滤 CheckJNI 重复拦截）
+    var libart = Process.findModuleByName("libart.so");
+    if (libart) {
+      try {
+        var exports = libart.enumerateExports();
+        for (var i = 0; i < exports.length; i++) {
+          var exp = exports[i];
+          if (exp.name === "RegisterNatives" || exp.name === "art_jni_RegisterNatives") {
+            candidates.push({ addr: exp.address, source: "libart:export:" + exp.name });
+          }
+        }
+      } catch (e) {}
+
+      try {
+        var symbols = libart.enumerateSymbols();
+        for (var j = 0; j < symbols.length; j++) {
+          var sym = symbols[j];
+          var symName = sym.name;
+          if (symName.indexOf("RegisterNatives") !== -1 &&
+              symName.indexOf("CheckJNI") === -1 &&
+              symName.indexOf("checkJNI") === -1 &&
+              symName.indexOf("check_jni") === -1) {
+            candidates.push({ addr: sym.address, source: "libart:symbol:" + symName });
+          }
+        }
+      } catch (e) {}
+
+      // 通过 JNI_GetCreatedJavaVMs 定位 JNIEnv 虚表 index 215
+      try {
+        var getCreatedVMs = findExportAddress("libart.so", "JNI_GetCreatedJavaVMs");
+        if (getCreatedVMs) {
+          var vmBuf = Memory.alloc(Process.pointerSize * 2);
+          var nVMs = Memory.alloc(Process.pointerSize);
+          var fn = new NativeFunction(getCreatedVMs, 'int', ['pointer', 'int', 'pointer']);
+          var res = fn(vmBuf, 1, nVMs);
+          if (res === 0) {
+            var vm = vmBuf.readPointer();
+            if (vm && !vm.isNull()) {
+              var vmVtable = vm.readPointer();
+              var getEnvFnPtr = vmVtable.add(6 * Process.pointerSize).readPointer();
+              var getEnvFn = new NativeFunction(getEnvFnPtr, 'int', ['pointer', 'pointer', 'int']);
+              var envBuf = Memory.alloc(Process.pointerSize);
+              var envRes = getEnvFn(vm, envBuf, 0x00010006);
+              if (envRes === 0 && !envBuf.readPointer().isNull()) {
+                var env = envBuf.readPointer();
+                var jniVtable = env.readPointer();
+                var regNativesFromTable = jniVtable.add(215 * Process.pointerSize).readPointer();
+                if (regNativesFromTable && !regNativesFromTable.isNull()) {
+                  candidates.push({ addr: regNativesFromTable, source: "jni_env_vtable:215" });
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 3. 显式模块导出回退
+    if (explicitModule && !explicitSymbol) {
+      var modReg = findExportAddress(explicitModule, "RegisterNatives");
+      if (modReg) {
+        candidates.push({ addr: modReg, source: explicitModule + ":RegisterNatives" });
+      }
+    }
+
+    // 4. 全局导出回退
+    if (!explicitSymbol) {
+      var globalReg = findExportAddress(null, "RegisterNatives");
+      if (globalReg) {
+        candidates.push({ addr: globalReg, source: "global:RegisterNatives" });
+      }
+    }
+
+    // 去重挂载拦截器
+    for (var k = 0; k < candidates.length; k++) {
+      hookRegisterNatives(candidates[k].addr, candidates[k].source);
+    }
+  }
+
+  scanAndHook();
+
+  // 监控动态链接器以支持延迟加载模块
+  var dlopenNames = ["android_dlopen_ext", "dlopen"];
+  for (var d = 0; d < dlopenNames.length; d++) {
+    var dlAddr = findExportAddress(null, dlopenNames[d]);
+    if (dlAddr) {
+      try {
+        var dlListener = Interceptor.attach(dlAddr, {
+          onLeave: function() {
+            scanAndHook();
+          }
+        });
+        listeners.push(dlListener);
+      } catch (e) {}
+    }
+  }
+
+  rpc.exports = {
+    getStatus: function() {
+      return {
+        eventCount: eventCount,
+        maxEvents: maxEvents,
+        attachedCount: listeners.length
+      };
+    },
+    detachAll: function() {
+      cleanup();
+      return true;
+    }
+  };
+})();`;
+}
+
+export interface NativeHookOptions {
+	module?: string;
+	symbol?: string;
+	symbols?: string[];
+	offset?: string | number;
+	offsets?: Array<string | number>;
+	argsCount?: number;
+	argsDecode?: Record<string, string> | Array<{ index: number; type: string; maxBytes?: number }>;
+	retval?: boolean;
+	backtrace?: boolean | "accurate" | "fuzzy";
+	maxEvents?: number;
+	maxBufferBytes?: number;
+}
+
+/**
+ * 构造用于原生函数拦截与有界参数解码的 Frida 脚本。
+ *
+ * 核心设计准则：
+ * 1. 参数解码在各参数内独立 try/catch，防止非法指针读取中断监听器；
+ * 2. 未声明类型参数使用指针十六进制表示，绝不臆造未验证类型；
+ * 3. 严格计算相对于模块基址的十六进制偏移以防 64 位整型精度丢失；
+ * 4. 严禁使用全局 Interceptor.detachAll()，仅注销自身注册的 listener 句柄。
+ */
+export function buildNativeHookScript(options: NativeHookOptions): string {
+	const maxEvents = clampMaxEvents(options.maxEvents);
+	const maxBufferBytes =
+		options.maxBufferBytes !== undefined && Number.isFinite(options.maxBufferBytes) && options.maxBufferBytes > 0
+			? Math.round(options.maxBufferBytes)
+			: 256;
+	const argsCount =
+		options.argsCount !== undefined && Number.isFinite(options.argsCount) && options.argsCount >= 0
+			? Math.round(options.argsCount)
+			: 4;
+	const captureRetval = options.retval !== false;
+	const captureBacktrace =
+		options.backtrace === true || options.backtrace === "accurate"
+			? "'accurate'"
+			: options.backtrace === "fuzzy"
+				? "'fuzzy'"
+				: "false";
+
+	const symbols: string[] = [];
+	if (options.symbol && options.symbol.trim().length > 0) symbols.push(options.symbol.trim());
+	if (Array.isArray(options.symbols)) {
+		for (const s of options.symbols) {
+			if (typeof s === "string" && s.trim().length > 0 && !symbols.includes(s.trim())) {
+				symbols.push(s.trim());
+			}
+		}
+	}
+
+	const offsets: string[] = [];
+	if (options.offset !== undefined) {
+		const s = String(options.offset).trim();
+		if (s.length > 0 && !offsets.includes(s)) offsets.push(s);
+	}
+	if (Array.isArray(options.offsets)) {
+		for (const o of options.offsets) {
+			const s = String(o).trim();
+			if (s.length > 0 && !offsets.includes(s)) offsets.push(s);
+		}
+	}
+
+	const argsDecodeMap: Record<string, string> = {};
+	if (options.argsDecode && typeof options.argsDecode === "object") {
+		if (Array.isArray(options.argsDecode)) {
+			for (const item of options.argsDecode) {
+				if (item && typeof item === "object" && typeof item.index === "number" && typeof item.type === "string") {
+					argsDecodeMap[String(item.index)] = item.type;
+				}
+			}
+		} else {
+			for (const [k, v] of Object.entries(options.argsDecode)) {
+				if (typeof v === "string") {
+					argsDecodeMap[k] = v;
+				}
+			}
+		}
+	}
+
+	const safeModule = options.module ? JSON.stringify(options.module.trim()) : "null";
+	const safeSymbols = JSON.stringify(symbols);
+	const safeOffsets = JSON.stringify(offsets);
+	const safeDecode = JSON.stringify(argsDecodeMap);
+
+	return `(function() {
+  var listeners = [];
+  var hookedAddresses = {};
+  var eventCount = 0;
+  var maxEvents = ${maxEvents};
+  var maxBufferBytes = ${maxBufferBytes};
+  var argsCount = ${argsCount};
+  var captureRetval = ${captureRetval};
+  var backtraceMode = ${captureBacktrace};
+  var targetModule = ${safeModule};
+  var targetSymbols = ${safeSymbols};
+  var targetOffsets = ${safeOffsets};
+  var argsDecode = ${safeDecode};
+
+  function cleanup() {
+    for (var i = 0; i < listeners.length; i++) {
+      try { listeners[i].detach(); } catch (e) {}
+    }
+    listeners = [];
+  }
+
+  function hookTarget(targetAddr, targetName) {
+    if (!targetAddr || targetAddr.isNull()) return;
+    var key = targetAddr.toString();
+    if (hookedAddresses[key]) return;
+    hookedAddresses[key] = true;
+
+    try {
+      var listener = Interceptor.attach(targetAddr, {
+        onEnter: function(args) {
+          if (maxEvents > 0 && eventCount >= maxEvents) return;
+
+          var capturedArgs = [];
+          for (var i = 0; i < argsCount; i++) {
+            var val = args[i];
+            var type = argsDecode[String(i)] || "pointer";
+            var decoded = null;
+
+            try {
+              if (!val) {
+                decoded = "0x0";
+              } else if (type === "int") {
+                decoded = val.toInt32();
+              } else if (type === "uint") {
+                decoded = val.toUInt32();
+              } else if (type === "int64" || type === "uint64") {
+                decoded = val.toString();
+              } else if (type === "string" || type === "utf8") {
+                if (val.isNull()) {
+                  decoded = null;
+                } else {
+                  decoded = val.readUtf8String(maxBufferBytes);
+                }
+              } else if (type === "utf16") {
+                if (val.isNull()) {
+                  decoded = null;
+                } else {
+                  decoded = val.readUtf16String(maxBufferBytes);
+                }
+              } else if (type === "buffer" || type === "hexdump") {
+                if (val.isNull()) {
+                  decoded = null;
+                } else {
+                  var bufLen = Math.min(maxBufferBytes, 64);
+                  decoded = {
+                    pointer: val.toString(),
+                    hexdump: hexdump(val, { length: bufLen, header: false })
+                  };
+                }
+              } else {
+                decoded = val.toString();
+              }
+            } catch (err) {
+              decoded = {
+                error: String(err),
+                raw: val ? val.toString() : "0x0"
+              };
+            }
+            capturedArgs.push(decoded);
+          }
+
+          var bt = [];
+          if (backtraceMode && backtraceMode !== 'false') {
+            try {
+              var mode = (backtraceMode === "fuzzy") ? Backtracer.FUZZY : Backtracer.ACCURATE;
+              bt = Thread.backtrace(this.context, mode).map(DebugSymbol.fromAddress).map(function(s) {
+                return s.toString();
+              });
+            } catch (e) {}
+          }
+
+          var mod = null;
+          try { mod = Process.findModuleByAddress(targetAddr); } catch (e) {}
+          var offsetHex = null;
+          if (mod && mod.base) {
+            offsetHex = "0x" + targetAddr.sub(mod.base).toString(16);
+          }
+
+          this.callData = {
+            target: targetName,
+            address: targetAddr.toString(),
+            module: mod ? mod.name : null,
+            modulePath: mod ? mod.path : null,
+            base: mod ? mod.base.toString() : null,
+            offset: offsetHex,
+            threadId: Process.getCurrentThreadId(),
+            timestamp: Date.now(),
+            args: capturedArgs,
+            backtrace: bt
+          };
+        },
+        onLeave: function(retval) {
+          if (!this.callData) return;
+          if (maxEvents > 0 && eventCount >= maxEvents) return;
+
+          eventCount++;
+          var retStr = null;
+          if (captureRetval && retval) {
+            try {
+              retStr = retval.toString();
+            } catch (e) {
+              retStr = "unknown";
+            }
+          }
+
+          var record = {
+            event: "native_call",
+            target: this.callData.target,
+            address: this.callData.address,
+            module: this.callData.module,
+            modulePath: this.callData.modulePath,
+            base: this.callData.base,
+            offset: this.callData.offset,
+            threadId: this.callData.threadId,
+            timestamp: this.callData.timestamp,
+            args: this.callData.args,
+            retval: retStr,
+            backtrace: this.callData.backtrace
+          };
+
+          send(record);
+          console.log("__FRIDA_TRACE_START__" + JSON.stringify(record) + "__FRIDA_TRACE_END__");
+
+          if (maxEvents > 0 && eventCount >= maxEvents) {
+            cleanup();
+          }
+        }
+      });
+      listeners.push(listener);
+    } catch (e) {
+      console.log("__FRIDA_TRACE_START__" + JSON.stringify({ error: "attach_failed", target: targetName, address: targetAddr.toString(), detail: String(e) }) + "__FRIDA_TRACE_END__");
+    }
+  }
+
+  function findExportAddress(modName, symName) {
+    var addr = null;
+    if (modName) {
+      var m = Process.findModuleByName(modName);
+      if (m) {
+        if (typeof m.findExportByName === "function") {
+          try { addr = m.findExportByName(symName); } catch (e) {}
+        }
+        if (!addr && typeof m.enumerateExports === "function") {
+          try {
+            var exps = m.enumerateExports();
+            for (var i = 0; i < exps.length; i++) {
+              if (exps[i].name === symName) { addr = exps[i].address; break; }
+            }
+          } catch (e) {}
+        }
+      }
+      if (addr) return addr;
+    }
+    if (typeof Process.findExportByName === "function") {
+      try { addr = Process.findExportByName(symName); } catch (e) {}
+    }
+    if (!addr && typeof Module !== "undefined") {
+      if (modName && typeof Module.findExportByName === "function") {
+        try { addr = Module.findExportByName(modName, symName); } catch (e) {}
+      }
+      if (!addr && typeof Module.findGlobalExportByName === "function") {
+        try { addr = Module.findGlobalExportByName(symName); } catch (e) {}
+      }
+    }
+    return addr;
+  }
+
+  function scanAndHook() {
+    var mod = targetModule ? Process.findModuleByName(targetModule) : null;
+
+    // 1. 拦截符号
+    for (var s = 0; s < targetSymbols.length; s++) {
+      var symName = targetSymbols[s];
+      var symAddr = findExportAddress(targetModule, symName);
+      if (symAddr) {
+        hookTarget(symAddr, symName);
+      }
+    }
+
+    // 2. 拦截偏移（要求模块已解析）
+    if (mod && mod.base) {
+      for (var o = 0; o < targetOffsets.length; o++) {
+        var offVal = targetOffsets[o];
+        try {
+          var offNum = offVal.startsWith("0x") ? parseInt(offVal, 16) : parseInt(offVal, 10);
+          if (!isNaN(offNum)) {
+            var targetAddr = mod.base.add(offNum);
+            hookTarget(targetAddr, mod.name + "+" + offVal);
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  scanAndHook();
+
+  // 监控动态链接器以支持延迟加载模块
+  var dlopenNames = ["android_dlopen_ext", "dlopen"];
+  for (var d = 0; d < dlopenNames.length; d++) {
+    var dlAddr = findExportAddress(null, dlopenNames[d]);
+    if (dlAddr) {
+      try {
+        var dlListener = Interceptor.attach(dlAddr, {
+          onLeave: function() {
+            scanAndHook();
+          }
+        });
+        listeners.push(dlListener);
+      } catch (e) {}
+    }
+  }
+
+  rpc.exports = {
+    getStatus: function() {
+      return {
+        eventCount: eventCount,
+        maxEvents: maxEvents,
+        attachedCount: listeners.length
+      };
+    },
+    detachAll: function() {
+      cleanup();
+      return true;
+    }
+  };
+})();`;
+}
+
+/**
+ * 根据统一的模板参数解析生成的 Frida 脚本源码。
+ */
+export function resolveTemplateScript(params: {
+	template?: string;
+	module?: string;
+	symbol?: string;
+	symbols?: unknown;
+	offset?: unknown;
+	offsets?: unknown;
+	args_count?: number;
+	args_decode?: unknown;
+	retval?: boolean;
+	backtrace?: unknown;
+	max_events?: number;
+	max_buffer_bytes?: number;
+}): string {
+	const template = params.template;
+	if (template === "jni_register") {
+		return buildJniRegisterNativesScript({
+			maxEvents: params.max_events,
+			module: params.module,
+			symbol: params.symbol,
+		});
+	}
+	if (template === "native_functions") {
+		return buildNativeHookScript({
+			module: params.module,
+			symbol: params.symbol,
+			symbols: Array.isArray(params.symbols) ? (params.symbols as string[]) : undefined,
+			offset: params.offset as string | number | undefined,
+			offsets: Array.isArray(params.offsets) ? (params.offsets as Array<string | number>) : undefined,
+			argsCount: params.args_count,
+			argsDecode: params.args_decode as Record<string, string> | undefined,
+			retval: params.retval,
+			backtrace: params.backtrace as boolean | "accurate" | "fuzzy" | undefined,
+			maxEvents: params.max_events,
+			maxBufferBytes: params.max_buffer_bytes,
+		});
+	}
+	if (template === "exports") {
+		if (params.module) {
+			return buildTraceExportsScript(params.module.trim(), params.max_events);
+		}
+		return FIXED_ENUMERATE_MODULES_SCRIPT;
+	}
+	if (template === "module_load") {
+		return FIXED_TRACE_MODULE_LOAD_SCRIPT;
+	}
+	throw new ToolError(
+		`Unknown template '${template}'. Choose from: 'module_load', 'exports', 'jni_register', 'native_functions'`,
+	);
 }
 
 export function splitCliArgs(str: string): string[] {
@@ -663,12 +1475,82 @@ export function parsePythonLiteral(
 	}
 	return { value, end: i };
 }
+function redactTraceValue(val: unknown): { value: unknown; redactions: number } {
+	if (typeof val === "string") {
+		const redacted = redactMemorySecrets(val);
+		return { value: redacted, redactions: redacted !== val ? 1 : 0 };
+	}
+	if (Array.isArray(val)) {
+		let total = 0;
+		const out = val.map(item => {
+			const res = redactTraceValue(item);
+			total += res.redactions;
+			return res.value;
+		});
+		return { value: out, redactions: total };
+	}
+	if (val && typeof val === "object") {
+		let total = 0;
+		const out: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(val)) {
+			const res = redactTraceValue(v);
+			total += res.redactions;
+			out[k] = res.value;
+		}
+		return { value: out, redactions: total };
+	}
+	return { value: val, redactions: 0 };
+}
+
 export function redactTraceEvent(event: FridaTraceEvent): { event: FridaTraceEvent; redactions: number } {
-	return { event, redactions: 0 };
+	let totalRedactions = 0;
+	const cloned: FridaTraceEvent = { ...event };
+
+	const stringKeys = ["name", "path", "address", "base", "class", "target", "offset", "type"] as const;
+	for (const key of stringKeys) {
+		const val = cloned[key];
+		if (typeof val === "string") {
+			const redacted = redactMemorySecrets(val);
+			if (redacted !== val) {
+				totalRedactions++;
+				cloned[key] = redacted;
+			}
+		}
+	}
+
+	if (cloned.details) {
+		const res = redactTraceValue(cloned.details);
+		cloned.details = res.value as unknown as Record<string, unknown>;
+		totalRedactions += res.redactions;
+	}
+
+	if (cloned.methods) {
+		const res = redactTraceValue(cloned.methods);
+		cloned.methods = res.value as unknown as FridaTraceEvent["methods"];
+		totalRedactions += res.redactions;
+	}
+
+	if (cloned.args) {
+		const res = redactTraceValue(cloned.args);
+		cloned.args = res.value as unknown as unknown[];
+		totalRedactions += res.redactions;
+	}
+
+	if (totalRedactions > 0) {
+		cloned.redacted = true;
+	}
+
+	return { event: cloned, redactions: totalRedactions };
 }
 
 export function redactTraceEvents(events: FridaTraceEvent[]): { events: FridaTraceEvent[]; redactions: number } {
-	return { events, redactions: 0 };
+	let totalRedactions = 0;
+	const redactedList = events.map(ev => {
+		const res = redactTraceEvent(ev);
+		totalRedactions += res.redactions;
+		return res.event;
+	});
+	return { events: redactedList, redactions: totalRedactions };
 }
 export function resolveScriptPath(rawPath: string, cwd: string): string {
 	let expanded = rawPath.trim();
@@ -690,10 +1572,7 @@ export function resolveScriptPath(rawPath: string, cwd: string): string {
  * 4. POSIX 下子进程以 detached: true 派生，拥有独立进程组（PGID == pid）。无论根进程是否已先退出，
  *    无条件向 -pid 发送 SIGKILL 终结由继承管道孤儿维持活跃的完整会话组，辅以原生句柄兜底。
  */
-export async function cleanupChildProcessTree(
-	pid: number,
-	rootProcess?: Process,
-): Promise<FridaCleanupInfo> {
+export async function cleanupChildProcessTree(pid: number, rootProcess?: Process): Promise<FridaCleanupInfo> {
 	let completed = false;
 	let treeKilled = false;
 	let cleanupError: string | undefined;
@@ -712,9 +1591,7 @@ export async function cleanupChildProcessTree(
 					// 可以安全枚举孤儿后代，针对每个存活的直接子节点递归调用 terminate
 					const children = rootProcess.children();
 					if (children.length > 0) {
-						await Promise.allSettled(
-							children.map(child => child.terminate({ gracefulMs: -1, timeoutMs: 1000 })),
-						);
+						await Promise.allSettled(children.map(child => child.terminate({ gracefulMs: -1, timeoutMs: 1000 })));
 						treeKilled = true;
 					}
 				} catch {}
@@ -827,10 +1704,7 @@ export async function defaultFridaRunner(
 		isCutoff = true;
 		try {
 			await Promise.race([
-				Promise.allSettled([
-					stdoutReader.cancel().catch(() => {}),
-					stderrReader.cancel().catch(() => {}),
-				]),
+				Promise.allSettled([stdoutReader.cancel().catch(() => {}), stderrReader.cancel().catch(() => {})]),
 				Bun.sleep(150),
 			]);
 		} catch {}
@@ -889,9 +1763,11 @@ export async function defaultFridaRunner(
 					truncated = true;
 				}
 			}
-		} catch {}
-		finally {
-			try { stdoutReader.releaseLock(); } catch {}
+		} catch {
+		} finally {
+			try {
+				stdoutReader.releaseLock();
+			} catch {}
 		}
 	})();
 
@@ -906,23 +1782,27 @@ export async function defaultFridaRunner(
 					stderrChunks.push(value);
 				}
 			}
-		} catch {}
-		finally {
-			try { stderrReader.releaseLock(); } catch {}
+		} catch {
+		} finally {
+			try {
+				stderrReader.releaseLock();
+			} catch {}
 		}
 	})();
 
 	// 监控子进程正常退出与管道释放；若子进程已退出但子代孤儿进程残留管道，给 500ms 宽限后清理整树
-	const exitPromise = child.exited.catch(() => null).then(async (code) => {
-		const pipesSettled = await Promise.race([
-			Promise.all([readStdout, readStderr]).then(() => true),
-			Bun.sleep(500).then(() => false),
-		]);
-		if (!pipesSettled) {
-			await performCleanup();
-		}
-		return code;
-	});
+	const exitPromise = child.exited
+		.catch(() => null)
+		.then(async code => {
+			const pipesSettled = await Promise.race([
+				Promise.all([readStdout, readStderr]).then(() => true),
+				Bun.sleep(500).then(() => false),
+			]);
+			if (!pipesSettled) {
+				await performCleanup();
+			}
+			return code;
+		});
 
 	// 竞态调度：正常完成 vs 看门狗超时 vs 用户取消
 	const outcome = await Promise.race([
@@ -940,10 +1820,7 @@ export async function defaultFridaRunner(
 	} else {
 		// 超时或被取消，执行有界清理
 		await performCleanup();
-		const raced = await Promise.race([
-			child.exited.catch(() => null),
-			Bun.sleep(500).then(() => null),
-		]);
+		const raced = await Promise.race([child.exited.catch(() => null), Bun.sleep(500).then(() => null)]);
 		exitCode = typeof raced === "number" ? raced : null;
 	}
 
@@ -1251,7 +2128,13 @@ export function parseFridaTrace(raw: string): {
 			if (typeof obj.error === "string") {
 				return { events: [], error: obj.error };
 			}
-			const rawEvents = Array.isArray(obj.events) ? obj.events : Array.isArray(parsed) ? parsed : [];
+			const rawEvents = Array.isArray(obj.events)
+				? obj.events
+				: typeof obj.event === "string"
+					? [obj]
+					: Array.isArray(parsed)
+						? parsed
+						: [];
 			const events: FridaTraceEvent[] = rawEvents
 				.filter(item => item && typeof item === "object")
 				.map(item => {
@@ -1261,11 +2144,27 @@ export function parseFridaTrace(raw: string): {
 						...(r.timestamp !== undefined ? { timestamp: Number(r.timestamp) } : {}),
 						...(r.name ? { name: String(r.name) } : {}),
 						...(r.module ? { module: String(r.module) } : {}),
+						...(r.modulePath ? { modulePath: String(r.modulePath) } : {}),
 						...(r.type ? { type: String(r.type) } : {}),
 						...(r.address ? { address: String(r.address) } : {}),
 						...(r.base ? { base: String(r.base) } : {}),
 						...(r.size !== undefined ? { size: Number(r.size) } : {}),
 						...(r.path ? { path: String(r.path) } : {}),
+						...(r.status ? { status: String(r.status) } : {}),
+						...(r.retval !== undefined ? { retval: r.retval } : {}),
+						...(r.class ? { class: String(r.class) } : {}),
+						...(r.target ? { target: String(r.target) } : {}),
+						...(r.offset ? { offset: String(r.offset) } : {}),
+						...(r.threadId !== undefined ? { threadId: Number(r.threadId) } : {}),
+						...(r.nMethods !== undefined ? { nMethods: Number(r.nMethods) } : {}),
+						...(Array.isArray(r.methods) ? { methods: r.methods as unknown as FridaTraceEvent["methods"] } : {}),
+						...(r.truncated !== undefined ? { truncated: Boolean(r.truncated) } : {}),
+						...(r.source ? { source: String(r.source) } : {}),
+						...(r.javaBridgeAvailable !== undefined
+							? { javaBridgeAvailable: Boolean(r.javaBridgeAvailable) }
+							: {}),
+						...(Array.isArray(r.args) ? { args: r.args } : {}),
+						...(Array.isArray(r.backtrace) ? { backtrace: r.backtrace as string[] } : {}),
 						...(r.details && typeof r.details === "object"
 							? { details: r.details as Record<string, unknown> }
 							: {}),
@@ -1596,6 +2495,32 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 				} else {
 					args.push("-e", FIXED_ENUMERATE_MODULES_SCRIPT);
 				}
+			} else if (params.template === "jni_register") {
+				args.push(
+					"-e",
+					buildJniRegisterNativesScript({
+						maxEvents: params.max_events,
+						module: params.module,
+						symbol: params.symbol,
+					}),
+				);
+			} else if (params.template === "native_functions") {
+				args.push(
+					"-e",
+					buildNativeHookScript({
+						module: params.module,
+						symbol: params.symbol,
+						symbols: Array.isArray(params.symbols) ? (params.symbols as string[]) : undefined,
+						offset: params.offset as string | number | undefined,
+						offsets: Array.isArray(params.offsets) ? (params.offsets as Array<string | number>) : undefined,
+						argsCount: params.args_count,
+						argsDecode: params.args_decode as Record<string, string> | undefined,
+						retval: params.retval,
+						backtrace: params.backtrace as boolean | "accurate" | "fuzzy" | undefined,
+						maxEvents: params.max_events,
+						maxBufferBytes: params.max_buffer_bytes,
+					}),
+				);
 			} else {
 				args.push("-e", FIXED_TRACE_MODULE_LOAD_SCRIPT);
 			}
@@ -1779,7 +2704,9 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 					lines.push(`  - [${dev.type}] ${dev.id} (${dev.name})`);
 				}
 			} else {
-				lines.push(`frida devices failed${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
+				lines.push(
+					`frida devices failed${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`,
+				);
 				if (displayOutput.trim().length > 0) lines.push(displayOutput.trimEnd());
 				if (run.stderr.trim().length > 0) lines.push(`[stderr]\n${run.stderr.trimEnd()}`);
 			}
@@ -1828,7 +2755,9 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 					lines.push(`  - PID ${p.pid}: ${p.name}${p.identifier ? ` (${p.identifier})` : ""}`);
 				}
 			} else {
-				lines.push(`frida ps failed${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
+				lines.push(
+					`frida ps failed${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`,
+				);
 				if (displayOutput.trim().length > 0) lines.push(displayOutput.trimEnd());
 				if (run.stderr.trim().length > 0) lines.push(`[stderr]\n${run.stderr.trimEnd()}`);
 			}
@@ -1882,7 +2811,9 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 					if (status === "ok") {
 						lines.push(`frida modules completed on ${targetLabel}:`);
 					} else {
-						lines.push(`frida modules failed on ${targetLabel}${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
+						lines.push(
+							`frida modules failed on ${targetLabel}${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`,
+						);
 					}
 					if (rawOutput.length > 0) lines.push(rawOutput.trimEnd());
 					if (run.stderr.length > 0) lines.push(`[stderr]\n${run.stderr.trimEnd()}`);
@@ -1946,7 +2877,9 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 				if (status === "ok") {
 					lines.push(`frida trace completed on ${targetLabel}:`);
 				} else {
-					lines.push(`frida trace failed on ${targetLabel}${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
+					lines.push(
+						`frida trace failed on ${targetLabel}${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`,
+					);
 				}
 				if (rawOutput.length > 0) lines.push(rawOutput.trimEnd());
 				if (run.stderr.length > 0) lines.push(`[stderr]\n${run.stderr.trimEnd()}`);
@@ -2022,14 +2955,14 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 		if (status === "ok") {
 			lines.push(`frida completed successfully on ${targetLabel} (exit code 0):`);
 		} else if (status === "timeout") {
-			lines.push(
-				`frida timed out on ${targetLabel} after ${timeoutSeconds}s:`,
-			);
+			lines.push(`frida timed out on ${targetLabel} after ${timeoutSeconds}s:`);
 			lines.push(`- command: ${[binary, ...args].join(" ")}`);
 			if (run.pid) lines.push(`- PID: ${run.pid}`);
 			lines.push(`- reason: Execution watchdog timed out after ${timeoutSeconds}s; process tree cleaned up`);
 		} else {
-			lines.push(`frida failed on ${targetLabel}${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`);
+			lines.push(
+				`frida failed on ${targetLabel}${run.exitCode !== null && run.exitCode !== undefined ? ` (exit code ${run.exitCode})` : ""}:`,
+			);
 		}
 
 		if (displayOutput.length > 0) {
@@ -2077,7 +3010,11 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 				...(artifactId ? { artifactId } : {}),
 				...(artifactPath ? { artifactPath } : {}),
 				...(status === "error" && run.exitCode !== 0
-					? { error: run.stderr.trim() || (run.exitCode !== null ? `Exit code ${run.exitCode}` : "Process terminated") }
+					? {
+							error:
+								run.stderr.trim() ||
+								(run.exitCode !== null ? `Exit code ${run.exitCode}` : "Process terminated"),
+						}
 					: {}),
 			},
 		};

@@ -20,7 +20,7 @@ This reference defines the degradation ladders, tool detection mechanisms, and i
 | **`apk_artifact_generation`** (APK Repack/Sign) | native `apk_artifact` | `zipalign` + `apksigner` | `apktool b` + `zip` | `unzip` / Python zipfile |
 | **`android_native_emulation`** | native `android_native_workflow` | `unidbg` (host JNI emulation) | `frida_session` / `frida` on device | Static `ghidra_inspect` / `r2_inspect` / `readelf` |
 | **Android Dynamic** | `frida_session` / `frida -U` | `adb_observe` / `adb logcat` | Static smali patch + rebuild | Smali control flow trace |
-| **`native_debugger`** (ELF/PE/Mach-O) | native `triage` + `r2_inspect` | `ghidra_inspect` / `radare2` | `objdump -d` / `readelf` | `strings -a -n 8` + `xxd` / `hexdump` |
+| **`native_debugger`** (ELF/PE/Mach-O) | native `debug` (DAP) / `triage` | `r2_inspect` (with radare2) / `ghidra_inspect` / `radare2` | `objdump -d` / `readelf` | `strings -a -n 8` + `xxd` / `hexdump` |
 | **`js_deobfuscation`** (Web JS) | native `ast_grep` + `sourcemap_inspect` | `ast-grep` CLI / `webcoder` | `grep` / ripgrep | Python/JS custom parser / `strings` |
 | **`browser_debugger`** (Web Dynamic) | `browser_reverse_session` / `js_hook_preset` | `playwright-mcp` (MCP) | Headless HTTP / curl | Static network HAR trace |
 | **`websocket_capture`** (WebSockets) | native `websocket_observe` (offline) | `mitmproxy` / `tshark` | Browser DevTools HAR export | strings / xxd on raw stream |
@@ -431,7 +431,7 @@ When an analytical step requires tools that may not be installed or configured, 
   ```json
   reverse_capability({ action: "resolve", capability: "native_debugger" })
   ```
-- **Step 2 (Native Evaluation)**: `recommendedNativeTool: "r2_inspect"` (and `triage`). Ready for bounded disassembly, section entropy, and xrefs. For deep decompilation or dynamic stepping, evaluate `radare2` / `ghidra`.
+- **Step 2 (Native Evaluation)**: `recommendedNativeTool: "triage"` (or `"debug"` with DAP adapter, `"r2_inspect"` with radare2 installed). Ready for baseline binary header and section triage. For deep decompilation or dynamic stepping, evaluate `radare2` / `ghidra`.
 - **Step 3 (Notice & Approval)**:
   ```text
   [Capability Notice] Required capability: native_debugger ('Native Binary Debugger & Dynamic Tracing')

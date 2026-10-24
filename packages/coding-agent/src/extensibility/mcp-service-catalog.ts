@@ -13,6 +13,7 @@
 import type { MCPServerConfig } from "../mcp/types";
 import type { PackageInstallCommand, SkillToolPlatform, ToolCategory, ToolUsageGuide } from "./skill-tool-catalog";
 import { getJshookMcpServer } from "./jshookmcp-install";
+import { getNativeMcpServer } from "./native-mcp-install";
 
 export type McpServiceTransport = "stdio" | "http" | "sse";
 
@@ -57,7 +58,7 @@ export interface McpServiceDescriptor {
 	/** Canonical model-facing usage guidance. */
 	usage: ToolUsageGuide;
 	/** Dedicated installer helper identifier for services with custom lifecycle. */
-	installer?: "jshookmcp";
+	installer?: "jshookmcp" | "native-mcp";
 }
 
 /** Config path hint shown by setup panels and the guide skill. */
@@ -129,6 +130,7 @@ export const MCP_SERVICE_CATALOG: Readonly<Record<string, McpServiceDescriptor>>
 		category: "binary",
 		description: "Official radare2 MCP server exposing disassembly, analysis, and scripting tools",
 		optional: true,
+		installer: "native-mcp",
 		requires: ["radare2"],
 		manualUrl: "https://github.com/radareorg/radare2-mcp",
 		docsUrl: "https://github.com/radareorg/radare2-mcp",
@@ -198,6 +200,114 @@ export const MCP_SERVICE_CATALOG: Readonly<Record<string, McpServiceDescriptor>>
 				{
 					description: "Launch the stdio server through r2pm",
 					command: "r2pm -r r2mcp",
+				},
+			],
+		},
+	},
+
+	"x64dbg-mcp": {
+		id: "x64dbg-mcp",
+		name: "x64dbg MCP",
+		category: "binary",
+		description: "x64dbg automation and debugging MCP server (local Windows or cross-platform remote)",
+		optional: true,
+		installer: "native-mcp",
+		requires: ["python"],
+		manualUrl: "https://github.com/dariushoule/x64dbg-automate",
+		docsUrl: "https://github.com/dariushoule/x64dbg-automate",
+		license: "GPL-3.0-or-later",
+		get startCommand() {
+			const server = getNativeMcpServer("x64dbg");
+			return `${server.command} ${(server.args ?? []).join(" ")}`.trim();
+		},
+		serverName: "x64dbg",
+		get server() {
+			return getNativeMcpServer("x64dbg");
+		},
+		configPath: MCP_CONFIG_PATH_HINT,
+		installHints: {
+			darwin: ["reverse setup reverse x64dbg-mcp --execute"],
+			linux: ["reverse setup reverse x64dbg-mcp --execute"],
+			win32: ["reverse setup reverse x64dbg-mcp --execute"],
+		},
+		manualInstructions: {
+			darwin:
+				"Install managed Python client bridge via 'reverse setup reverse x64dbg-mcp --execute' (Python >= 3.10 required). Connects remotely to x64dbg over trusted loopback or secure SSH tunnels.",
+			linux: "Install managed Python client bridge via 'reverse setup reverse x64dbg-mcp --execute' (Python >= 3.10 required). Connects remotely to x64dbg over trusted loopback or secure SSH tunnels.",
+			win32: "Install managed Python bridge via 'reverse setup reverse x64dbg-mcp --execute' and optional portable x64dbg debugger with ghost_fungus plugin.",
+		},
+		riskNote:
+			"Runs a local Python MCP bridge communicating with x64dbg via ZeroMQ RPC. Remote debugging uses unauthenticated ZMQ; operate only over private loopback or secure SSH tunnels.",
+		usage: {
+			canonical: "start_session / connect_remote -> get_debugger_status -> break / step / read memory",
+			whenToUse:
+				"Dynamic analysis, process memory inspection, and breakpoint tracing of Windows PE binaries locally on Windows or remotely from macOS/Linux.",
+			prerequisites: ["python"],
+			outputLimits:
+				"Request targeted memory ranges, register snapshots, or single-step disassembly; avoid dumping full process memory into context.",
+			fallback: "Static analysis via ghidra / r2 or Frida native dynamic tracing when debugger is unavailable.",
+			examples: [
+				{
+					description: "Check status of connected x64dbg instance",
+					command: "get_debugger_status()",
+				},
+				{
+					description: "Connect to remote x64dbg session via ZeroMQ ports",
+					command: 'connect_remote(host: "127.0.0.1", req_rep_port: 5555, pub_sub_port: 5556)',
+				},
+			],
+		},
+	},
+
+	"ghidra-mcp": {
+		id: "ghidra-mcp",
+		name: "Ghidra MCP",
+		category: "decompiler",
+		description: "Ghidra software reverse engineering MCP server (headless project analysis and GUI backend)",
+		optional: true,
+		installer: "native-mcp",
+		requires: ["python", "ghidra"],
+		manualUrl: "https://github.com/LaurieWired/GhidraMCP",
+		docsUrl: "https://github.com/LaurieWired/GhidraMCP",
+		license: "Apache-2.0",
+		get startCommand() {
+			const server = getNativeMcpServer("ghidra");
+			return `${server.command} ${(server.args ?? []).join(" ")}`.trim();
+		},
+		serverName: "ghidra",
+		get server() {
+			return getNativeMcpServer("ghidra");
+		},
+		configPath: MCP_CONFIG_PATH_HINT,
+		installHints: {
+			darwin: ["reverse setup reverse ghidra-mcp --execute"],
+			linux: ["reverse setup reverse ghidra-mcp --execute"],
+			win32: ["reverse setup reverse ghidra-mcp --execute"],
+		},
+		manualInstructions: {
+			darwin:
+				"Install Ghidra first ('brew install --cask ghidra', JDK 21+ required). Then run 'reverse setup reverse ghidra-mcp --execute' to install managed GhidraMCP wheel and extension JAR.",
+			linux: "Install Ghidra first (JDK 21+ required). Then run 'reverse setup reverse ghidra-mcp --execute' to install managed GhidraMCP wheel and extension JAR.",
+			win32: "Install Ghidra first (JDK 21+ required). Then run 'reverse setup reverse ghidra-mcp --execute' to install managed GhidraMCP wheel and extension JAR.",
+		},
+		riskNote:
+			"Installs managed GhidraMCP wheel and extension JAR into agent profile tools. Headless analysis requires local Ghidra installation (12.1.4+ recommended) and Java 21+.",
+		usage: {
+			canonical: "get_program_info -> list_functions -> decompile_function_by_address",
+			whenToUse:
+				"Deep decompilation, symbol discovery, cross-reference mapping, and batch analysis on native binary targets via persistent Ghidra projects.",
+			prerequisites: ["python", "ghidra"],
+			outputLimits:
+				"Decompile individual functions by address or name; do not request bulk whole-binary decompilation at once.",
+			fallback: "r2mcp or native binary triage when Ghidra is unavailable.",
+			examples: [
+				{
+					description: "Inspect target program info and architecture",
+					command: "get_program_info()",
+				},
+				{
+					description: "Decompile function at address",
+					command: 'decompile_function_by_address(address: "0x140001000")',
 				},
 			],
 		},

@@ -1213,7 +1213,7 @@ async function showItemDetails(
 						: (currentItem.riskNote ?? undefined),
 				});
 			} else {
-				const isManaged = currentItem.installer === "jshookmcp";
+				const isManaged = currentItem.installer === "jshookmcp" || currentItem.installer === "native-mcp";
 				const isInstalled = currentItem.installed === true;
 				options.push({
 					label: isManaged

@@ -7,6 +7,7 @@ import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { prompt } from "@reverse/utils";
 import ghidraInspectDescription from "../prompts/tools/ghidra-inspect.md" with { type: "text" };
+import reverseGhidraScriptSource from "./reverse-ghidra-inspect.java" with { type: "text" };
 import {
 	checkToolRequirements,
 	type SkillRequirementWhich,
@@ -68,6 +69,9 @@ export interface GhidraInspectDetails {
 	fallback?: GhidraFallbackInfo;
 	engine?: string;
 	command?: string[];
+	target?: string;
+	address?: string;
+	signature?: string;
 	outputBytes?: number;
 	truncated?: boolean;
 	timedOut?: boolean;
@@ -123,6 +127,21 @@ interface CappedRead {
 	text: string;
 	bytes: number;
 	truncated: boolean;
+}
+
+const START_TOKEN = "<<<REVERSE_GHIDRA_OUTPUT_START>>>";
+const END_TOKEN = "<<<REVERSE_GHIDRA_OUTPUT_END>>>";
+const BUNDLED_SCRIPT_FILENAME = "ReverseGhidraInspect.java";
+
+interface ReverseGhidraOutputPayload {
+	status: "ok" | "error";
+	action?: string;
+	target?: string;
+	address?: string;
+	signature?: string;
+	output?: string;
+	code?: string;
+	error?: string;
 }
 
 async function readCapped(
@@ -409,7 +428,8 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 		if (!depStatus.available || !depStatus.path) {
 			const notice = [
 				"[Notice] Primary tool 'ghidra' (analyzeHeadless) not found on PATH or via GHIDRA_INSTALL_DIR.",
-				`  -> Install hint: ${depStatus.installHint ?? "brew install --cask ghidra (macOS) or download from https://ghidra-sre.org/"}`,
+				"  -> Recommended setup: run 'reverse setup reverse ghidra' or launch interactive setup ('reverse setup').",
+				`  -> Catalog install hint: ${depStatus.installHint ?? "brew install --cask ghidra (macOS) or download from https://ghidra-sre.org/"}`,
 				`  -> Suggested fallback: ${fallback.suggestedFallback}`,
 				"  -> Alternative options:",
 				...fallback.alternatives.map(a => `     • ${a}`),
@@ -453,19 +473,32 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 
 		// Construct headless command arguments
 		const isTempProject = !params.project_dir;
-		const tempDir = isTempProject
-			? await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-headless-"))
-			: path.resolve(this.session.cwd, params.project_dir!);
-
-		const projectName = "rea_headless_proj";
+		const projectName = "reverse_headless_proj";
 		const ghidraBinary = depStatus.path;
-		const args: string[] = [tempDir, projectName, "-import", resolvedPath, "-readOnly"];
 
-		if (isTempProject) {
-			args.push("-deleteProject");
-		}
+		const timeoutSeconds = Math.min(Math.max(1, params.timeout ?? DEFAULT_TIMEOUT_SECONDS), MAX_TIMEOUT_SECONDS);
+		const maxBytes = Math.min(Math.max(1024, params.max_bytes ?? DEFAULT_MAX_BYTES), MAX_OUTPUT_BYTES);
 
-		if (params.action === "decompile" || params.action === "export") {
+		let tempDir: string | undefined;
+		let scriptsDir: string | undefined;
+		let runResult: GhidraRunResult;
+		const args: string[] = [];
+		const useBundledScript = !params.script && (params.action === "decompile" || params.action === "export");
+
+		try {
+			tempDir = isTempProject
+				? await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-headless-"))
+				: path.resolve(this.session.cwd, params.project_dir!);
+
+			if (!isTempProject) {
+				await fs.mkdir(tempDir, { recursive: true });
+			}
+
+			args.push(tempDir, projectName, "-import", resolvedPath, "-readOnly");
+			if (isTempProject) {
+				args.push("-deleteProject");
+			}
+
 			if (params.script) {
 				args.push("-postScript", params.script);
 				if (params.script_args && params.script_args.length > 0) {
@@ -473,16 +506,23 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 				} else if (targetIdentifier) {
 					args.push(targetIdentifier);
 				}
+			} else if (useBundledScript) {
+				scriptsDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-ghidra-scripts-"));
+				const scriptPath = path.join(scriptsDir, BUNDLED_SCRIPT_FILENAME);
+				await fs.writeFile(scriptPath, reverseGhidraScriptSource, "utf8");
+				args.push(
+					"-scriptPath",
+					scriptsDir,
+					"-postScript",
+					BUNDLED_SCRIPT_FILENAME,
+					params.action,
+					targetIdentifier ?? "",
+					String(timeoutSeconds),
+					String(maxBytes),
+				);
 			}
-		}
 
-		const timeoutSeconds = Math.min(Math.max(1, params.timeout ?? DEFAULT_TIMEOUT_SECONDS), MAX_TIMEOUT_SECONDS);
-		const maxBytes = Math.min(Math.max(1024, params.max_bytes ?? DEFAULT_MAX_BYTES), MAX_OUTPUT_BYTES);
-
-		const runner = this.runnerSeam ?? defaultGhidraRunner;
-
-		let runResult: GhidraRunResult;
-		try {
+			const runner = this.runnerSeam ?? defaultGhidraRunner;
 			runResult = await runner(ghidraBinary, args, {
 				cwd: this.session.cwd,
 				timeoutMs: timeoutSeconds * 1000,
@@ -490,13 +530,102 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 				signal,
 			});
 		} finally {
-			if (isTempProject) {
+			if (scriptsDir) {
+				await fs.rm(scriptsDir, { recursive: true, force: true }).catch(() => {});
+			}
+			if (isTempProject && tempDir) {
 				await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
 			}
 		}
 
-		// Parse output
-		const rawText = runResult.stdout.length > 0 ? runResult.stdout : runResult.stderr;
+		let rawText = "";
+		let outcomeStatus: "ok" | "error" = "ok";
+		let outcomeError: string | undefined;
+		let resolvedTarget: string | undefined = targetIdentifier;
+		let resolvedAddress: string | undefined = rawAddress;
+		let resolvedSignature: string | undefined;
+
+		if (useBundledScript) {
+			if (runResult.timedOut) {
+				outcomeStatus = "error";
+				outcomeError = `Execution timed out after ${timeoutSeconds} seconds`;
+				rawText = outcomeError;
+			} else if (runResult.exitCode !== 0) {
+				outcomeStatus = "error";
+				const errDetail = runResult.stderr.trim() || runResult.stdout.trim().slice(-500);
+				outcomeError = `Process exited with code ${runResult.exitCode}${errDetail ? `: ${errDetail}` : ""}`;
+				rawText = outcomeError;
+			} else if (runResult.truncated) {
+				outcomeStatus = "error";
+				outcomeError = "Output was truncated due to byte limit; incomplete decompiler result";
+				rawText = outcomeError;
+			} else {
+				// Parse compact single-line frame from stdout, with stderr fallback
+				let jsonText: string | undefined;
+				for (const streamText of [runResult.stdout, runResult.stderr]) {
+					for (const line of streamText.split(/\r?\n/)) {
+						const startIdx = line.indexOf(START_TOKEN);
+						if (startIdx !== -1) {
+							const endIdx = line.lastIndexOf(END_TOKEN);
+							if (endIdx > startIdx) {
+								jsonText = line.slice(startIdx + START_TOKEN.length, endIdx).trim();
+								break;
+							}
+						}
+					}
+					if (jsonText) break;
+				}
+
+				let payload: ReverseGhidraOutputPayload | undefined;
+				if (jsonText) {
+					try {
+						const parsed = JSON.parse(jsonText);
+						if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+							payload = parsed as ReverseGhidraOutputPayload;
+						}
+					} catch {
+						// JSON parse failed
+					}
+				}
+
+				if (payload) {
+					if (payload.status === "ok") {
+						if (payload.action !== params.action) {
+							outcomeStatus = "error";
+							outcomeError = `Script action mismatch: expected '${params.action}', received '${String(payload.action)}'`;
+							rawText = outcomeError;
+						} else if (typeof payload.output !== "string" || payload.output.trim().length === 0) {
+							outcomeStatus = "error";
+							outcomeError = "Ghidra decompiler produced empty output for target";
+							rawText = outcomeError;
+						} else {
+							rawText = payload.output;
+							outcomeStatus = "ok";
+							if (typeof payload.target === "string") resolvedTarget = payload.target;
+							if (typeof payload.address === "string") resolvedAddress = payload.address;
+							if (typeof payload.signature === "string") resolvedSignature = payload.signature;
+						}
+					} else {
+						outcomeStatus = "error";
+						const errStr =
+							typeof payload.error === "string" && payload.error.trim().length > 0
+								? payload.error.trim()
+								: "Ghidra decompiler script reported an error";
+						outcomeError = errStr;
+						rawText = errStr;
+					}
+				} else {
+					outcomeStatus = "error";
+					outcomeError = "Ghidra headless completed without producing decompiler script output";
+					rawText = outcomeError;
+				}
+			}
+		} else {
+			rawText = runResult.stdout.length > 0 ? runResult.stdout : runResult.stderr;
+			outcomeStatus = runResult.exitCode === 0 ? "ok" : "error";
+			outcomeError = runResult.exitCode !== 0 ? `Process exited with code ${runResult.exitCode}` : undefined;
+		}
+
 		const mode = params.mode ?? "full";
 		let processedText = rawText;
 		if (mode === "fold") {
@@ -527,11 +656,14 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 			details: {
 				action: params.action,
 				path: params.path,
-				status: runResult.exitCode === 0 ? "ok" : "error",
+				status: outcomeStatus,
 				mode,
 				dependency: depStatus,
 				engine: depStatus.path,
 				command: [ghidraBinary, ...args],
+				target: resolvedTarget,
+				address: resolvedAddress,
+				signature: resolvedSignature,
 				outputBytes: runResult.outputBytes,
 				truncated: runResult.truncated,
 				timedOut: runResult.timedOut,
@@ -539,7 +671,7 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 				returnedLines: pagedLines.length,
 				offset,
 				hasMore: offset + pagedLines.length < totalLines,
-				error: runResult.exitCode !== 0 ? `Process exited with code ${runResult.exitCode}` : undefined,
+				error: outcomeError,
 			},
 		};
 	}

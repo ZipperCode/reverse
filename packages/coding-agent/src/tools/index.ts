@@ -108,6 +108,7 @@ import { ReverseKnowledgeTool } from "./reverse-knowledge";
 import { ReverseWorkspaceTool } from "./reverse-workspace";
 import { ReverseDynamicEvidenceTool } from "./reverse-dynamic-evidence";
 import { ReverseCapabilityTool } from "./reverse-capability";
+import { NativeMcpSessionTool } from "./native-mcp-session";
 import { UnidbgTool } from "./unidbg";
 import { isMountableUnderXdev, resolveXdevTool, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
@@ -650,6 +651,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	reverse_workspace: s => new ReverseWorkspaceTool(s),
 	reverse_dynamic_evidence: s => new ReverseDynamicEvidenceTool(s),
 	reverse_capability: s => new ReverseCapabilityTool(s),
+	native_mcp_session: s => new NativeMcpSessionTool(s),
 	unidbg: s => new UnidbgTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
@@ -1043,6 +1045,7 @@ export type { AskToolDetails, QuestionResult } from "@reverse/tui/tools/ask";
 // package). Re-export it so the pi-tui renderer migration doesn't drop it.
 export { askToolRenderer } from "@reverse/tui/tools/ask";
 export { AndroidNativeWorkflowTool } from "./android-native-workflow";
+export { NativeMcpSessionTool } from "./native-mcp-session";
 export type {
 	TodoStatus,
 	TodoOperation,

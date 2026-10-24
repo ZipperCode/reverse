@@ -8,6 +8,7 @@ import reverseCapabilityDescription from "../prompts/tools/reverse-capability.md
 import { checkReverseTools } from "../cli/setup-reverse";
 import {
 	getReverseCapabilities,
+	probeNativeDapAdapters,
 	resolveReverseCapabilities,
 	type CapabilityDescriptor,
 	type ReverseCapabilityStatus,
@@ -21,6 +22,7 @@ import {
 	type McpToolExecutionRecord,
 	type SkillLoadRecord,
 } from "../extensibility/capability-state";
+import { cfgDebugEnabled } from "./settings";
 
 const reverseCapabilitySchema = type({
 	action: type
@@ -99,10 +101,14 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 			connection:
 				this.session.mcpManager?.getConnectionStatus(service.serverName) === "connected" ? "connected" : "unknown",
 		}));
+		const dapAdapters = probeNativeDapAdapters({ cwd: projectDir });
 		const capabilities = resolveReverseCapabilities({
 			platform: report.platform,
 			toolStatuses: report.tools,
 			serviceStatuses: services,
+			cwd: projectDir,
+			dapAdapters,
+			debugToolEnabled: this.session.settings ? cfgDebugEnabled.get(this.session.settings) : true,
 		});
 
 		const activeHarnesses = getActiveUnidbgHarnesses(this.session);

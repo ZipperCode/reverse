@@ -20,6 +20,7 @@ import { enumeratePythonRuntimes } from "../eval/py/runtime";
 import { probeIdaTool } from "../ida/install";
 import { locateUnidbg } from "./unidbg-detect";
 import type { SkillRequirementWhich } from "./skill-requirements";
+import { getAdapterConfigs, resolveAdapter } from "../dap/config";
 import type { Settings } from "../config/settings";
 export type SkillToolPlatform = "darwin" | "linux" | "win32";
 
@@ -200,6 +201,10 @@ export interface ReverseCapabilityStatus {
 /** Options for resolving capability availability on the host system. */
 export interface ResolveCapabilitiesOptions {
 	platform?: SkillToolPlatform;
+	cwd?: string;
+	which?: SkillRequirementWhich;
+	/** Whether the DAP-based 'debug' agent tool is enabled in current session settings (defaults to true). */
+	debugToolEnabled?: boolean;
 	toolStatuses?: readonly {
 		id: string;
 		name?: string;
@@ -219,6 +224,11 @@ export interface ResolveCapabilitiesOptions {
 		packageManager?: string | null;
 		installCommand?: string | null;
 	}[];
+	/**
+	 * Explicit DAP adapter availability overrides (e.g. ['lldb-dap', 'gdb', 'codelldb']).
+	 * When provided, bypasses filesystem/PATH DAP config inspection for deterministic capability resolution.
+	 */
+	dapAdapters?: readonly string[];
 }
 
 const UNIX_SEARCH_PATHS = ["/usr/local/bin", "/opt/homebrew/bin", "~/.local/bin", "/snap/bin"] as const;
@@ -2808,12 +2818,13 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		description:
 			"Attaches to or spawns native binary processes under debugger control to inspect register state, single-step assembly instructions, analyze memory heaps/stacks, and monitor dynamic system library calls.",
 		why: "Analyzes packing routines, anti-debugging mechanisms, runtime decryption keys, and dynamically generated control flow that cannot be understood statically.",
-		recommendedNativeTool: "r2_inspect",
+		recommendedNativeTool: "triage",
 		optionalExternalTools: ["radare2", "r2mcp", "frida", "ghidra"],
 		prerequisites: [],
 		fallbacks: ["binary_metadata_inspect", "readelf", "strings", "file"],
 		setupCommand: "reverse setup reverse radare2",
-		postInstallInvocation: "r2 -d <binary_path> or frida -f <binary_path> (or query via r2_inspect)",
+		postInstallInvocation:
+			'debug(action: "launch", program: "<binary_path>") or r2 -d <binary_path> or frida -f <binary_path>',
 	},
 	js_deobfuscation: {
 		id: "js_deobfuscation",
@@ -2876,6 +2887,60 @@ const COMMON_FALLBACK_TOOLS: Record<string, true> = {
 	binary_metadata_inspect: true,
 	readelf: true,
 };
+
+const NATIVE_DAP_ADAPTER_IDS: Record<string, true> = {
+	"lldb-dap": true,
+	gdb: true,
+	codelldb: true,
+};
+const NATIVE_DAP_LANGUAGES: Record<string, true> = {
+	c: true,
+	cpp: true,
+	rust: true,
+	zig: true,
+	objc: true,
+	swift: true,
+};
+
+/**
+ * Read-only probe for native binary debugger DAP adapters on the host system.
+ * Probes configured DAP adapter executables via which/resolveCommand without executing subprocesses or debug targets.
+ */
+export function probeNativeDapAdapters(options?: {
+	cwd?: string;
+	which?: SkillRequirementWhich;
+	dapAdapters?: readonly string[];
+}): string[] {
+	if (options?.dapAdapters !== undefined) {
+		return [...options.dapAdapters];
+	}
+	try {
+		const cwd = options?.cwd ?? process.cwd();
+		const configs = getAdapterConfigs(cwd);
+		const found: string[] = [];
+		for (const [name, config] of Object.entries(configs)) {
+			const lower = name.toLowerCase();
+			const isNativeName = Boolean(NATIVE_DAP_ADAPTER_IDS[lower]);
+			const isNativeLang =
+				config.languages?.some(lang => Boolean(NATIVE_DAP_LANGUAGES[lang.toLowerCase()])) ?? false;
+			if (!isNativeName && !isNativeLang) continue;
+			if (options?.which !== undefined) {
+				const cmd = config.command || name;
+				if (options.which(cmd) || options.which(name)) {
+					found.push(name);
+				}
+			} else {
+				const adapter = resolveAdapter(name, cwd);
+				if (adapter) {
+					found.push(adapter.name);
+				}
+			}
+		}
+		return found;
+	} catch {
+		return [];
+	}
+}
 
 export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions = {}): ReverseCapabilityStatus[] {
 	const platform =
@@ -3002,6 +3067,8 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 		let blockedRequirements: string[] | undefined;
 		let pipelineStages: ReverseCapabilityStatus["pipelineStages"];
 
+		let resolvedRecommendedNativeTool = cap.recommendedNativeTool;
+		let resolvedPostInstallInvocation = cap.postInstallInvocation;
 		if (cap.id === "apk_artifact_generation") {
 			const pythonReady = toolMap["python"]?.status === "installed";
 			const zipalignReady = toolMap["zipalign"]?.status === "installed";
@@ -3099,6 +3166,57 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			} else {
 				status = "missing";
 			}
+		} else if (cap.id === "native_debugger") {
+			// Probes configured native binary DAP debuggers (lldb-dap, gdb, codelldb) via read-only which/config check without subprocess execution
+			let dapAdapters: string[];
+			if (options.dapAdapters !== undefined) {
+				dapAdapters = [...options.dapAdapters];
+			} else if (options.which !== undefined) {
+				dapAdapters = probeNativeDapAdapters({ which: options.which });
+			} else if (options.toolStatuses !== undefined) {
+				// Synthetic test or caller passing toolStatuses: isolate from ambient host DAP
+				dapAdapters = Object.keys(NATIVE_DAP_ADAPTER_IDS).filter(id => toolMap[id]?.status === "installed");
+			} else {
+				dapAdapters = probeNativeDapAdapters({ cwd: options.cwd });
+			}
+
+			const hasDapDebugger = dapAdapters.length > 0;
+			const radareInstalled = toolMap["radare2"]?.status === "installed";
+			const fridaInstalled = toolMap["frida"]?.status === "installed";
+			const ghidraInstalled = toolMap["ghidra"]?.status === "installed";
+
+			const debugToolEnabled = options.debugToolEnabled !== false;
+			const dapRouteReady = hasDapDebugger && debugToolEnabled;
+			const hasRealDebuggerRoute = dapRouteReady || radareInstalled;
+
+			isReady = hasRealDebuggerRoute;
+			if (isReady) {
+				status = "ready";
+			} else if (fridaInstalled || ghidraInstalled || availableFallbacks.length > 0 || hasInstalledTool) {
+				status = "available_with_fallbacks";
+			} else {
+				status = "missing";
+			}
+
+			// Recommendation points to a usable tool for this capability:
+			// - When DAP debugger backend is discovered and enabled in session: native DAP 'debug' tool
+			// - Otherwise: zero-dependency built-in partial fallback 'triage' (avoiding advertising debug or r2_inspect when backends are missing)
+			if (dapRouteReady) {
+				resolvedRecommendedNativeTool = "debug";
+				resolvedPostInstallInvocation = `debug(action: "launch", program: "<binary_path>", adapter: "${dapAdapters[0]}")`;
+			} else if (radareInstalled) {
+				resolvedRecommendedNativeTool = "triage";
+				resolvedPostInstallInvocation =
+					'r2 -d <binary_path> (radare2 CLI debugging) or r2_inspect(action: "disasm", path: "<binary_path>")';
+			} else if (fridaInstalled) {
+				resolvedRecommendedNativeTool = "triage";
+				resolvedPostInstallInvocation =
+					'frida_session(action: "create", mode: "live", spawn: "<binary_path>") or frida(action: "exec", spawn: "<binary_path>", script: "<inline_hook>")';
+			} else {
+				resolvedRecommendedNativeTool = "triage";
+				resolvedPostInstallInvocation =
+					"r2 -d <binary_path> (after 'reverse setup reverse radare2') or configure a native DAP adapter (lldb-dap/gdb)";
+			}
 		} else {
 			isReady = hasInstalledTool && !isDynamicEmulation;
 			if (isReady) {
@@ -3119,13 +3237,13 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			why: cap.why,
 			status,
 			ready: isReady,
-			recommendedNativeTool: cap.recommendedNativeTool,
+			recommendedNativeTool: resolvedRecommendedNativeTool,
 			optionalExternalTools: toolRefs,
 			prerequisites: cap.prerequisites,
 			fallbacks: cap.fallbacks,
 			availableFallbacks,
 			setupCommand,
-			postInstallInvocation: cap.postInstallInvocation,
+			postInstallInvocation: resolvedPostInstallInvocation,
 			...(blockedRequirements ? { blockedRequirements } : {}),
 			...(pipelineStages ? { pipelineStages } : {}),
 		});

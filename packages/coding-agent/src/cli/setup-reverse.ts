@@ -27,6 +27,7 @@ import { getCachedReadOnlySettings, getEffectiveLocale, loadEffectiveSettings } 
 import { isSettingsInitialized, settings, type Settings } from "../config/settings";
 import {
 	SKILL_TOOL_CATALOG,
+	probeNativeDapAdapters,
 	resolveReverseCapabilities,
 	type PackageInstallCommand,
 	type ReverseCapabilityStatus,
@@ -43,7 +44,9 @@ import {
 } from "../extensibility/skill-requirements";
 import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
 import { getJshookMcpServer, inspectJshookMcp } from "../extensibility/jshookmcp-install";
+import { getNativeMcpServer, inspectNativeMcp, type NativeMcpService } from "../extensibility/native-mcp-install";
 import { expandTilde } from "../tools/path-utils";
+import { cfgDebugEnabled } from "../tools/settings";
 export interface ReverseToolStatus {
 	kind: "cli";
 	id: string;
@@ -117,7 +120,7 @@ export interface ReverseServiceStatus {
 	packageManager: string | null;
 	installCommand: string | null;
 	installArgv: readonly string[] | null;
-	installer?: "jshookmcp";
+	installer?: "jshookmcp" | "native-mcp";
 	installed?: boolean;
 	riskNote: string;
 	manualUrl: string;
@@ -286,8 +289,7 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 	const detectedPackageManagers = detectPackageManagers(platform, which, deps.env);
 	const descriptors = Object.values(SKILL_TOOL_CATALOG);
 	const toolRequirements = descriptors.map(desc => ({ id: desc.id, optional: desc.optional ?? true }));
-	const effectiveSettings =
-		deps.settings ?? (isSettingsInitialized() ? settings : getCachedReadOnlySettings());
+	const effectiveSettings = deps.settings ?? (isSettingsInitialized() ? settings : getCachedReadOnlySettings());
 	const statuses = checkToolRequirements(toolRequirements, {
 		platform: requestedPlatform,
 		which,
@@ -383,6 +385,11 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		if (desc.installer === "jshookmcp") {
 			const inspection = inspectJshookMcp({ agentDir: deps.agentDir });
 			installed = inspection.installed;
+		} else if (desc.installer === "native-mcp") {
+			const serviceKey: NativeMcpService =
+				desc.id === "x64dbg-mcp" ? "x64dbg" : desc.id === "ghidra-mcp" ? "ghidra" : "radare2";
+			const inspection = inspectNativeMcp(serviceKey, { agentDir: deps.agentDir, env: deps.env });
+			installed = inspection.installed;
 		}
 
 		// Config presence is checked per scope. `enabled` stays null when the
@@ -404,7 +411,9 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		// Readiness for managed services requires prerequisites (e.g. Node), managed package installed,
 		// and not explicitly disabled. For other services, readiness remains prerequisite-only.
 		const ready =
-			desc.installer === "jshookmcp" ? prereqsReady && installed === true && enabled !== false : prereqsReady;
+			desc.installer === "jshookmcp" || desc.id === "x64dbg-mcp" || desc.id === "ghidra-mcp"
+				? prereqsReady && installed === true && enabled !== false
+				: prereqsReady;
 
 		// Readiness means the prerequisite CLI tools exist, not that the server
 		// package is installed. Offer the catalog install command in both states;
@@ -426,13 +435,23 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			startCommand:
 				desc.installer === "jshookmcp"
 					? `${getJshookMcpServer({ agentDir: deps.agentDir }).command} ${(getJshookMcpServer({ agentDir: deps.agentDir }).args ?? []).join(" ")}`
-					: desc.startCommand,
+					: desc.installer === "native-mcp"
+						? `${getNativeMcpServer(desc.id === "x64dbg-mcp" ? "x64dbg" : desc.id === "ghidra-mcp" ? "ghidra" : "radare2", { agentDir: deps.agentDir }).command} ${(getNativeMcpServer(desc.id === "x64dbg-mcp" ? "x64dbg" : desc.id === "ghidra-mcp" ? "ghidra" : "radare2", { agentDir: deps.agentDir }).args ?? []).join(" ")}`.trim()
+						: desc.startCommand,
 			configPath: desc.configPath,
 			configPaths,
 			configSnippet:
 				desc.installer === "jshookmcp"
 					? { mcpServers: { [desc.serverName]: getJshookMcpServer({ agentDir: deps.agentDir }) } }
-					: { ...mcpServerSnippet(desc) },
+					: desc.id === "x64dbg-mcp" || desc.id === "ghidra-mcp"
+						? {
+								mcpServers: {
+									[desc.serverName]: getNativeMcpServer(desc.id === "x64dbg-mcp" ? "x64dbg" : "ghidra", {
+										agentDir: deps.agentDir,
+									}),
+								},
+							}
+						: { ...mcpServerSnippet(desc) },
 			prerequisites,
 			missingPrerequisites,
 			prerequisitesReady: prereqsReady,
@@ -450,7 +469,9 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			riskNote:
 				desc.installer === "jshookmcp"
 					? t("cli.setup.reverse.jshookmcp.risk", desc.riskNote)
-					: (chosenCmd?.riskNote ?? desc.riskNote),
+					: desc.installer === "native-mcp"
+						? t(`cli.setup.reverse.${desc.id}.risk`, desc.riskNote)
+						: (chosenCmd?.riskNote ?? desc.riskNote),
 			manualUrl: desc.manualUrl,
 			manualInstructions: manualGuide,
 			hint: desc.installHints?.[platform]?.join(" or "),
@@ -458,10 +479,14 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		};
 	});
 
+	const dapAdapters = probeNativeDapAdapters({ cwd: deps.cwd, which });
 	const capabilities = resolveReverseCapabilities({
 		platform,
 		toolStatuses: tools,
 		serviceStatuses: services,
+		cwd: deps.cwd,
+		dapAdapters,
+		debugToolEnabled: effectiveSettings ? cfgDebugEnabled.get(effectiveSettings) : true,
 	});
 
 	return {
@@ -809,9 +834,12 @@ function renderServiceTable(report: ReverseCheckReport, write: (text: string) =>
 			? `configured (${service.configuredScopes.join(", ")})${service.enabled === false ? ", disabled" : ""}`
 			: "not configured";
 		let detailStr: string;
-		if (service.ready) {
+		if (
+			service.ready &&
+			((service.installer !== "native-mcp" && service.installer !== "jshookmcp") || service.installed === true)
+		) {
 			detailStr = `${chalk.dim(`prerequisites ok: ${service.prerequisites.map(p => p.id).join(", ") || "none"}; ${configStr}`)}`;
-		} else if (service.installer === "jshookmcp") {
+		} else if (service.installer === "jshookmcp" || service.installer === "native-mcp") {
 			const managedStatus = service.installed
 				? t("cli.setup.reverse.managedStatusInstalled", "package installed")
 				: t("cli.setup.reverse.managedStatusMissing", "package not installed");
@@ -916,18 +944,20 @@ export async function handleReverseSetup(
 				? `configured in ${service.configuredScopes.join(", ")}${service.enabled === false ? " (disabled)" : ""}`
 				: "not configured";
 			const managedNote =
-				service.installer === "jshookmcp"
+				service.installer === "jshookmcp" || service.installer === "native-mcp"
 					? service.installed
 						? `; ${t("cli.setup.reverse.managedStatusInstalled", "managed package installed")}`
 						: `; ${t("cli.setup.reverse.managedStatusMissing", "managed package not installed")}`
 					: "";
-			const details = service.ready
-				? `prerequisites ok (${service.prerequisites.map(p => p.id).join(", ") || "none"})${managedNote}; ${config}; connection unverified; start: ${service.startCommand}${service.installCommand ? `; install: ${service.installCommand}` : ""}`
-				: service.installer === "jshookmcp"
-					? `prerequisites ${service.prerequisitesReady ? "ok" : "missing (" + service.missingPrerequisites.join(", ") + ")"}${managedNote}; ${config} - run: ${APP_NAME} setup reverse ${service.id} --execute`
-					: service.installCommand
-						? `prerequisites missing (${service.missingPrerequisites.join(", ")}); ${config} - install: ${service.installCommand}`
-						: `prerequisites missing (${service.missingPrerequisites.join(", ")}); ${config} - manual: ${service.manualUrl}`;
+			const details =
+				service.ready &&
+				((service.installer !== "native-mcp" && service.installer !== "jshookmcp") || service.installed === true)
+					? `prerequisites ok (${service.prerequisites.map(p => p.id).join(", ") || "none"})${managedNote}; ${config}; connection unverified; start: ${service.startCommand}${service.installCommand ? `; install: ${service.installCommand}` : ""}`
+					: service.installer === "jshookmcp" || service.installer === "native-mcp"
+						? `prerequisites ${service.prerequisitesReady ? "ok" : "missing (" + service.missingPrerequisites.join(", ") + ")"}${managedNote}; ${config} - run: ${APP_NAME} setup reverse ${service.id} --execute`
+						: service.installCommand
+							? `prerequisites missing (${service.missingPrerequisites.join(", ")}); ${config} - install: ${service.installCommand}`
+							: `prerequisites missing (${service.missingPrerequisites.join(", ")}); ${config} - manual: ${service.manualUrl}`;
 			write(`  ${mark} ${chalk.bold(service.id)} (mcp): ${details} ${chalk.dim("(optional)")}\n`);
 		}
 		if (report.capabilities && report.capabilities.length > 0) {

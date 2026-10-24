@@ -11,9 +11,13 @@ import {
 	FridaTool,
 	type FridaDetails,
 	type FridaRunner,
+	type FridaTraceEvent,
 	FIXED_ENUMERATE_MODULES_SCRIPT,
 	parseFridaModules,
 	parseFridaTrace,
+	resolveTemplateScript,
+	redactTraceEvent,
+	redactTraceEvents,
 } from "@reverse/coding-agent/tools";
 import { Settings } from "@reverse/coding-agent/config/settings";
 
@@ -766,19 +770,17 @@ describe("frida CLI spawn pause semantics and literal parsing", () => {
 });
 
 describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regression)", () => {
-	it(
-		"real controlled child: terminates hanging descendant on default 30s watchdog when timeout is omitted (Issue #8 acceptance)",
-		async () => {
-			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-real-def30-"));
-			let workerPid: number | undefined;
-			try {
-				const workerScript = path.join(tempDir, "def30-worker.js");
-				syncFs.writeFileSync(workerScript, "setInterval(() => {}, 1000);\n");
+	it("real controlled child: terminates hanging descendant on default 30s watchdog when timeout is omitted (Issue #8 acceptance)", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-real-def30-"));
+		let workerPid: number | undefined;
+		try {
+			const workerScript = path.join(tempDir, "def30-worker.js");
+			syncFs.writeFileSync(workerScript, "setInterval(() => {}, 1000);\n");
 
-				const launcherScript = path.join(tempDir, "def30-launcher.js");
-				syncFs.writeFileSync(
-					launcherScript,
-					`const child = Bun.spawn([process.execPath, ${JSON.stringify(workerScript)}], {
+			const launcherScript = path.join(tempDir, "def30-launcher.js");
+			syncFs.writeFileSync(
+				launcherScript,
+				`const child = Bun.spawn([process.execPath, ${JSON.stringify(workerScript)}], {
 						stdin: "ignore",
 						stdout: "inherit",
 						stderr: "inherit",
@@ -788,52 +790,58 @@ describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regre
 					console.log("WORKER_PID:" + child.pid);
 					await child.exited;
 					`,
+			);
+
+			const launcherExecutable = path.join(
+				tempDir,
+				process.platform === "win32" ? "fake-def30-ls.cmd" : "fake-def30-ls",
+			);
+			if (process.platform === "win32") {
+				syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${launcherScript}" %*\r\n`);
+			} else {
+				syncFs.writeFileSync(
+					launcherExecutable,
+					`#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`,
 				);
-
-				const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "fake-def30-ls.cmd" : "fake-def30-ls");
-				if (process.platform === "win32") {
-					syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${launcherScript}" %*\r\n`);
-				} else {
-					syncFs.writeFileSync(launcherExecutable, `#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`);
-					syncFs.chmodSync(launcherExecutable, 0o755);
-				}
-
-				const which = (cmd: string) => (cmd === "frida-ls-devices" ? launcherExecutable : null);
-				const tool = new FridaTool(createTestSession(tempDir), { which });
-
-				const start = performance.now();
-				// 未显式传入 timeout，必须在 30 秒默认看门狗期限触发
-				const result = await tool.execute("call-hang-def30", { action: "devices" });
-				const elapsed = performance.now() - start;
-
-				expect(elapsed).toBeGreaterThanOrEqual(29000);
-				expect(elapsed).toBeLessThan(36000);
-				const details = result.details as FridaDetails;
-				expect(details.status).toBe("timeout");
-				expect(details.timedOut).toBe(true);
-				expect(details.timeout).toBe(30);
-				expect(details.stdout).toContain("WORKER_PID:");
-				expect(details.reason).toContain("timed out after 30s");
-
-				const match = /WORKER_PID:(\d+)/.exec(details.stdout ?? "");
-				if (match) {
-					workerPid = Number.parseInt(match[1], 10);
-					let isAlive = false;
-					try {
-						process.kill(workerPid, 0);
-						isAlive = true;
-					} catch {}
-					expect(isAlive).toBe(false);
-				}
-			} finally {
-				if (workerPid) {
-					try { process.kill(workerPid, "SIGKILL"); } catch {}
-				}
-				await removeTestDir(tempDir);
+				syncFs.chmodSync(launcherExecutable, 0o755);
 			}
-		},
-		40000,
-	);
+
+			const which = (cmd: string) => (cmd === "frida-ls-devices" ? launcherExecutable : null);
+			const tool = new FridaTool(createTestSession(tempDir), { which });
+
+			const start = performance.now();
+			// 未显式传入 timeout，必须在 30 秒默认看门狗期限触发
+			const result = await tool.execute("call-hang-def30", { action: "devices" });
+			const elapsed = performance.now() - start;
+
+			expect(elapsed).toBeGreaterThanOrEqual(29000);
+			expect(elapsed).toBeLessThan(36000);
+			const details = result.details as FridaDetails;
+			expect(details.status).toBe("timeout");
+			expect(details.timedOut).toBe(true);
+			expect(details.timeout).toBe(30);
+			expect(details.stdout).toContain("WORKER_PID:");
+			expect(details.reason).toContain("timed out after 30s");
+
+			const match = /WORKER_PID:(\d+)/.exec(details.stdout ?? "");
+			if (match) {
+				workerPid = Number.parseInt(match[1], 10);
+				let isAlive = false;
+				try {
+					process.kill(workerPid, 0);
+					isAlive = true;
+				} catch {}
+				expect(isAlive).toBe(false);
+			}
+		} finally {
+			if (workerPid) {
+				try {
+					process.kill(workerPid, "SIGKILL");
+				} catch {}
+			}
+			await removeTestDir(tempDir);
+		}
+	}, 40000);
 
 	it("real controlled child: terminates hanging descendant with inherited pipes on watchdog timeout", async () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-real-hang-"));
@@ -857,11 +865,17 @@ describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regre
 				`,
 			);
 
-			const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "fake-frida-ls.cmd" : "fake-frida-ls");
+			const launcherExecutable = path.join(
+				tempDir,
+				process.platform === "win32" ? "fake-frida-ls.cmd" : "fake-frida-ls",
+			);
 			if (process.platform === "win32") {
 				syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${launcherScript}" %*\r\n`);
 			} else {
-				syncFs.writeFileSync(launcherExecutable, `#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`);
+				syncFs.writeFileSync(
+					launcherExecutable,
+					`#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`,
+				);
 				syncFs.chmodSync(launcherExecutable, 0o755);
 			}
 
@@ -905,7 +919,9 @@ describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regre
 			}
 		} finally {
 			if (workerPid) {
-				try { process.kill(workerPid, "SIGKILL"); } catch {}
+				try {
+					process.kill(workerPid, "SIGKILL");
+				} catch {}
 			}
 			await removeTestDir(tempDir);
 		}
@@ -933,11 +949,17 @@ describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regre
 				`,
 			);
 
-			const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "fake-dead-ls.cmd" : "fake-dead-ls");
+			const launcherExecutable = path.join(
+				tempDir,
+				process.platform === "win32" ? "fake-dead-ls.cmd" : "fake-dead-ls",
+			);
 			if (process.platform === "win32") {
 				syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${launcherScript}" %*\r\n`);
 			} else {
-				syncFs.writeFileSync(launcherExecutable, `#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`);
+				syncFs.writeFileSync(
+					launcherExecutable,
+					`#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`,
+				);
 				syncFs.chmodSync(launcherExecutable, 0o755);
 			}
 
@@ -969,7 +991,9 @@ describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regre
 			}
 		} finally {
 			if (workerPid) {
-				try { process.kill(workerPid, "SIGKILL"); } catch {}
+				try {
+					process.kill(workerPid, "SIGKILL");
+				} catch {}
 			}
 			await removeTestDir(tempDir);
 		}
@@ -999,11 +1023,17 @@ describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regre
 				`,
 			);
 
-			const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "fake-abort-ls.cmd" : "fake-abort-ls");
+			const launcherExecutable = path.join(
+				tempDir,
+				process.platform === "win32" ? "fake-abort-ls.cmd" : "fake-abort-ls",
+			);
 			if (process.platform === "win32") {
 				syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${launcherScript}" %*\r\n`);
 			} else {
-				syncFs.writeFileSync(launcherExecutable, `#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`);
+				syncFs.writeFileSync(
+					launcherExecutable,
+					`#!/bin/sh\nexec "${process.execPath}" "${launcherScript}" "$@"\n`,
+				);
 				syncFs.chmodSync(launcherExecutable, 0o755);
 			}
 
@@ -1037,7 +1067,9 @@ describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regre
 			}
 		} finally {
 			if (workerPid) {
-				try { process.kill(workerPid, "SIGKILL"); } catch {}
+				try {
+					process.kill(workerPid, "SIGKILL");
+				} catch {}
 			}
 			await removeTestDir(tempDir);
 		}
@@ -1067,7 +1099,10 @@ describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regre
 				}`,
 			);
 
-			const launcherExecutable = path.join(tempDir, process.platform === "win32" ? "frida-switch.cmd" : "frida-switch");
+			const launcherExecutable = path.join(
+				tempDir,
+				process.platform === "win32" ? "frida-switch.cmd" : "frida-switch",
+			);
 			if (process.platform === "win32") {
 				syncFs.writeFileSync(launcherExecutable, `@echo off\r\n"${process.execPath}" "${fastScript}" %*\r\n`);
 			} else {
@@ -1102,9 +1137,42 @@ describe("frida watchdog, process tree cleanup, and cancellation (Issue #8 regre
 			expect(fastDetails.devices?.[0].id).toBe("local");
 		} finally {
 			if (unrelatedProc) {
-				try { process.kill(unrelatedProc.pid, "SIGKILL"); } catch {}
+				try {
+					process.kill(unrelatedProc.pid, "SIGKILL");
+				} catch {}
 			}
 			await removeTestDir(tempDir);
 		}
+	});
+});
+describe("frida built-in trace templates & redaction", () => {
+	it("rejects unknown template names in resolveTemplateScript", () => {
+		expect(() => resolveTemplateScript({ template: "invalid_template_name" })).toThrow(
+			"Unknown template 'invalid_template_name'",
+		);
+	});
+
+	it("redacts sensitive credential-shaped secrets from trace events", () => {
+		const rawEvent: FridaTraceEvent = {
+			event: "native_call",
+			target: "login_handler",
+			path: "/data/token-ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+			args: ["ghp_1234567890abcdefghijklmnopqrstuvwxyz", 100],
+			details: {
+				secretKey: "secret_aB3dEfGh1JkLmN12345",
+				safeField: "safe_value",
+			},
+		};
+
+		const { event: redacted, redactions } = redactTraceEvent(rawEvent);
+		expect(redactions).toBeGreaterThan(0);
+		expect(redacted.redacted).toBe(true);
+		expect(redacted.path).toContain("[REDACTED]");
+		expect(redacted.args?.[0]).toBe("[REDACTED]");
+		expect((redacted.details as Record<string, unknown>).safeField).toBe("safe_value");
+
+		const batchResult = redactTraceEvents([rawEvent, { event: "clean", name: "clean_func" }]);
+		expect(batchResult.redactions).toBe(redactions);
+		expect(batchResult.events).toHaveLength(2);
 	});
 });

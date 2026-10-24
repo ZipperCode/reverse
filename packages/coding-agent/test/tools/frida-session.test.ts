@@ -18,6 +18,7 @@ import {
 	sanitizeRecordSecrets,
 	isProcessAlive,
 	encodeProjectKey,
+	buildEvidenceReference,
 } from "@reverse/coding-agent/tools";
 import { Settings } from "@reverse/coding-agent/config/settings";
 
@@ -1221,5 +1222,116 @@ describe("frida_session real Frida CLI normalization, pause semantics, and watch
 		expect(val.emoji).toBe("😀");
 		expect(val.surrogate).toBe("\ud800");
 		expect(val.quotes).toBe('it\'s "fine"\\');
+	});
+});
+describe("frida_session built-in templates and structured evidence mapping", () => {
+	const sampleSession: FridaSessionRecord = {
+		id: "test-sess-1",
+		mode: "live",
+		status: "active",
+		target: { type: "pid", value: 1234, pid: 1234 },
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		runsCount: 1,
+		history: [],
+		events: [],
+		eventsCount: 0,
+	};
+
+	it("formats confirmed JNI RegisterNatives event as confirmed fact evidence", () => {
+		const event: DynamicSessionEvent = {
+			id: "ev_1",
+			seq: 1,
+			timestamp: new Date().toISOString(),
+			sessionId: "test-sess-1",
+			kind: "message",
+			channel: "send",
+			payload: {
+				event: "jni_register_natives",
+				status: "confirmed",
+				retval: 0,
+				class: "com.example.app.LicenseChecker",
+				nMethods: 1,
+				methods: [
+					{
+						name: "verifyLicense",
+						signature: "(Ljava/lang/String;)Z",
+						fnPtr: "0x7f001000",
+						module: "liblicense.so",
+						base: "0x7f000000",
+						offset: "0x1000",
+					},
+				],
+			},
+		};
+
+		const ref = buildEvidenceReference(sampleSession, event);
+		expect(ref.locator).toBe("session:test-sess-1:seq:1");
+		expect(ref.kind).toBe("fact");
+		expect(ref.title).toContain("JNI RegisterNatives: com.example.app.LicenseChecker");
+		expect(ref.metadata?.confirmed).toBe(true);
+		expect(ref.metadata?.rejected).toBe(false);
+	});
+
+	it("formats rejected JNI RegisterNatives event with explicit rejected mapping metadata", () => {
+		const event: DynamicSessionEvent = {
+			id: "ev_2",
+			seq: 2,
+			timestamp: new Date().toISOString(),
+			sessionId: "test-sess-1",
+			kind: "message",
+			channel: "send",
+			payload: {
+				event: "jni_register_natives",
+				status: "rejected",
+				retval: -1,
+				class: "com.example.app.SecurityBridge",
+				nMethods: 2,
+			},
+		};
+
+		const ref = buildEvidenceReference(sampleSession, event);
+		expect(ref.locator).toBe("session:test-sess-1:seq:2");
+		expect(ref.title).toContain("[Rejected]");
+		expect(ref.metadata?.confirmed).toBe(false);
+		expect(ref.metadata?.rejected).toBe(true);
+		expect(ref.metadata?.retval).toBe(-1);
+	});
+
+	it("formats native function call event as structured evidence reference", () => {
+		const event: DynamicSessionEvent = {
+			id: "ev_3",
+			seq: 3,
+			timestamp: new Date().toISOString(),
+			sessionId: "test-sess-1",
+			kind: "message",
+			channel: "send",
+			payload: {
+				event: "native_call",
+				target: "check_integrity",
+				address: "0x7f12345000",
+				module: "libsec.so",
+				offset: "0x5000",
+				args: [1, "0x2000"],
+				retval: "0x1",
+			},
+		};
+
+		const ref = buildEvidenceReference(sampleSession, event);
+		expect(ref.locator).toBe("session:test-sess-1:seq:3");
+		expect(ref.title).toContain("Native Call: check_integrity [libsec.so+0x5000]");
+		expect(ref.metadata?.target).toBe("check_integrity");
+		expect(ref.metadata?.offset).toBe("0x5000");
+	});
+
+	it("parses stdout trace markers into categorized structured session events", () => {
+		const rawStdout = `
+__FRIDA_TRACE_START__{"event":"jni_register_natives","status":"confirmed","retval":0,"class":"com.example.Native","nMethods":1}__FRIDA_TRACE_END__
+__FRIDA_TRACE_START__{"event":"native_call","target":"calc","address":"0x1000","offset":"0x100"}__FRIDA_TRACE_END__
+`;
+		const parsed = parseFridaOutputIntoEvents("sess-cat-test", rawStdout, "", 0);
+		expect(parsed.events).toHaveLength(2);
+		expect(parsed.events[0].metadata?.category).toBe("jni");
+		expect(parsed.events[1].metadata?.category).toBe("native_trace");
 	});
 });

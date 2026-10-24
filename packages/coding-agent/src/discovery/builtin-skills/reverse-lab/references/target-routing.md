@@ -150,7 +150,7 @@ Before executing resource-heavy tools or disassemblers, evaluate required capabi
    ```
 
 3. **Native Tool Baseline First**:
-   Inspect `recommendedNativeTool` and `status`. When a zero-dependency built-in tool fulfills the analytical question (e.g. `android_package_inspect` for APK/DEX/manifest, `triage` / `r2_inspect` for binary headers/disassembly, `browser_reverse_session` for CDP eval, `pcap_inspect` for packet flows, `sourcemap_inspect` for JS maps), dispatch the native tool first without unnecessary installation pauses.
+   Inspect `recommendedNativeTool` and `status`. When a zero-dependency built-in tool fulfills the analytical question (e.g. `android_package_inspect` for APK/DEX/manifest, `triage` for binary headers, `browser_reverse_session` for CDP eval, `pcap_inspect` for packet flows, `sourcemap_inspect` for JS maps), dispatch the native tool first without unnecessary installation pauses.
 
 4. **Structured Notice & Operator Setup Approval**:
    If deeper external analysis is required or the primary tool is absent from PATH:

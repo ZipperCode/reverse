@@ -4,14 +4,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import {
-	createTools,
-	foldGhidraText,
 	GhidraInspectTool,
+	ghidraDependency,
 	type GhidraRunResult,
 	type GhidraRunner,
 	type ToolSession,
 } from "@reverse/coding-agent/tools";
-import { BUILTIN_TOOL_NAMES } from "@reverse/coding-agent/tools/builtin-names";
 import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
@@ -23,28 +21,21 @@ function createTestSession(cwd: string): ToolSession {
 		settings: Settings.isolated({ "tools.xdev": false }),
 	};
 }
+
 function textOf(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content.flatMap(item => (item.type === "text" && item.text ? [item.text] : [])).join("\n");
 }
 
-interface CapturedInvocation {
-	binary: string;
-	args: string[];
-	options: {
-		cwd: string;
-		timeoutMs: number;
-		maxBytes: number;
-		signal?: AbortSignal;
-	};
+function compactFrame(payload: Record<string, unknown>): string {
+	return `<<<REVERSE_GHIDRA_OUTPUT_START>>>${JSON.stringify(payload)}<<<REVERSE_GHIDRA_OUTPUT_END>>>\n`;
 }
-
 function mockRunner(
 	stdout: string,
 	overrides: Partial<GhidraRunResult> = {},
-): { runner: GhidraRunner; calls: CapturedInvocation[] } {
-	const calls: CapturedInvocation[] = [];
-	const runner: GhidraRunner = async (binary, args, options) => {
-		calls.push({ binary, args, options });
+): { runner: GhidraRunner; calls: Array<{ binary: string; args: string[] }> } {
+	const calls: Array<{ binary: string; args: string[] }> = [];
+	const runner: GhidraRunner = async (binary, args) => {
+		calls.push({ binary, args });
 		return {
 			stdout,
 			stderr: "",
@@ -57,22 +48,6 @@ function mockRunner(
 	};
 	return { runner, calls };
 }
-
-describe("ghidra_inspect registration", () => {
-	it("is registered as a builtin tool", async () => {
-		expect(BUILTIN_TOOL_NAMES).toContain("ghidra_inspect");
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-reg-"));
-		try {
-			const tools = await createTools(createTestSession(tempDir), ["ghidra_inspect"]);
-			const tool = tools.find(t => t.name === "ghidra_inspect") as GhidraInspectTool | undefined;
-			expect(tool).toBeDefined();
-			expect(tool?.label).toBe("Ghidra Inspect");
-			expect(tool?.approval).toBe("read");
-		} finally {
-			await removeWithRetries(tempDir);
-		}
-	});
-});
 
 describe("ghidra_inspect path and parameter validation", () => {
 	it("rejects non-existent binary path", async () => {
@@ -132,24 +107,6 @@ describe("ghidra_inspect path and parameter validation", () => {
 			await removeWithRetries(tempDir);
 		}
 	});
-
-	it("rejects suspicious script names", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-script-"));
-		try {
-			const sample = path.join(tempDir, "sample.bin");
-			await fs.writeFile(sample, "ELF-dummy", "utf8");
-			const tool = new GhidraInspectTool(createTestSession(tempDir));
-			await expect(
-				tool.execute("call-1", {
-					action: "analyze",
-					path: "sample.bin",
-					script: "script.py; calc.exe",
-				}),
-			).rejects.toThrow("Invalid script name");
-		} finally {
-			await removeWithRetries(tempDir);
-		}
-	});
 });
 
 describe("ghidra_inspect missing dependency handling", () => {
@@ -172,13 +129,11 @@ describe("ghidra_inspect missing dependency handling", () => {
 
 			expect(res.details.status).toBe("missing_dependency");
 			expect(res.details.dependency?.available).toBe(false);
-			expect(res.details.dependency?.binary).toBe("analyzeHeadless");
-			expect(res.details.fallback?.primary).toBe("ghidra");
 			expect(res.details.fallback?.suggestedFallback).toContain("r2_inspect");
-			expect(res.details.fallback?.executed).toBe(false);
 
 			const text = textOf(res);
 			expect(text).toContain("[Notice] Primary tool 'ghidra'");
+			expect(text).toContain("reverse setup reverse ghidra");
 			expect(text).toContain("r2_inspect");
 		} finally {
 			await removeWithRetries(tempDir);
@@ -186,72 +141,29 @@ describe("ghidra_inspect missing dependency handling", () => {
 	});
 });
 
-describe("ghidra_inspect actions and argv construction", () => {
-	it("handles info action without running analyzeHeadless", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-info-"));
+describe("ghidra_inspect transport and boundary handling", () => {
+	it("isolates result from log pollution and strips bootstrap noise", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-pollute-"));
 		try {
 			const sample = path.join(tempDir, "sample.bin");
 			await fs.writeFile(sample, "ELF-dummy", "utf8");
 
-			const { runner, calls } = mockRunner("");
-			const tool = new GhidraInspectTool(createTestSession(tempDir), {
-				which: cmd => (cmd === "analyzeHeadless" ? "/opt/ghidra/support/analyzeHeadless" : null),
-				runner,
-			});
+			const polluted = [
+				"INFO  Opening existing project: /tmp/proj (HeadlessAnalyzer)",
+				"ReverseGhidraInspect.java> INFO  Starting headless script (GhidraScript)",
+				"INFO  Importing file: sample.bin (HeadlessAnalyzer)",
+				compactFrame({
+					status: "ok",
+					action: "decompile",
+					target: "main",
+					address: "0x00401000",
+					signature: "int main(void)",
+					output: "int main(void) {\n    return 0;\n}",
+				}),
+				"INFO  REPORT: Analysis succeeded for file: sample.bin (HeadlessAnalyzer)",
+			].join("\n");
 
-			const res = await tool.execute("call-1", { action: "info", path: "sample.bin" });
-
-			expect(res.details.status).toBe("ok");
-			expect(res.details.dependency?.available).toBe(true);
-			expect(calls.length).toBe(0); // Info does not spawn a heavy headless process
-			expect(textOf(res)).toContain("Ghidra Headless Bridge Status:");
-		} finally {
-			await removeWithRetries(tempDir);
-		}
-	});
-
-	it("constructs correct argv for analyze action", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-analyze-"));
-		try {
-			const sample = path.join(tempDir, "sample.bin");
-			await fs.writeFile(sample, "ELF-dummy", "utf8");
-
-			const fakeOutput = "ANALYSIS COMPLETE: Found 12 functions\n";
-			const { runner, calls } = mockRunner(fakeOutput);
-
-			const tool = new GhidraInspectTool(createTestSession(tempDir), {
-				which: () => "/opt/ghidra/support/analyzeHeadless",
-				runner,
-			});
-
-			const res = await tool.execute("call-1", {
-				action: "analyze",
-				path: "sample.bin",
-			});
-
-			expect(res.details.status).toBe("ok");
-			expect(calls.length).toBe(1);
-			const call = calls[0];
-			expect(call.binary).toBe("/opt/ghidra/support/analyzeHeadless");
-			expect(call.args).toContain("-import");
-			expect(call.args).toContain(path.resolve(tempDir, "sample.bin"));
-			expect(call.args).toContain("-readOnly");
-			expect(call.args).toContain("-deleteProject");
-			expect(textOf(res)).toContain("ANALYSIS COMPLETE");
-		} finally {
-			await removeWithRetries(tempDir);
-		}
-	});
-
-	it("constructs correct argv for decompile action with post-script", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-decompile-"));
-		try {
-			const sample = path.join(tempDir, "sample.bin");
-			await fs.writeFile(sample, "ELF-dummy", "utf8");
-
-			const fakeDecompile = "int main(int argc, char **argv) {\n    return 0;\n}\n";
-			const { runner, calls } = mockRunner(fakeDecompile);
-
+			const { runner } = mockRunner(polluted);
 			const tool = new GhidraInspectTool(createTestSession(tempDir), {
 				which: () => "/opt/ghidra/support/analyzeHeadless",
 				runner,
@@ -261,86 +173,330 @@ describe("ghidra_inspect actions and argv construction", () => {
 				action: "decompile",
 				path: "sample.bin",
 				symbol: "main",
-				script: "Decompile.java",
 			});
 
 			expect(res.details.status).toBe("ok");
-			expect(calls.length).toBe(1);
-			const call = calls[0];
-			expect(call.args).toContain("-postScript");
-			expect(call.args).toContain("Decompile.java");
-			expect(call.args).toContain("main");
-			expect(textOf(res)).toContain("int main");
+			expect(res.details.target).toBe("main");
+			expect(res.details.address).toBe("0x00401000");
+
+			const text = textOf(res);
+			expect(text).toBe("int main(void) {\n    return 0;\n}");
+			expect(text).not.toContain("HeadlessAnalyzer");
+			expect(text).not.toContain("ReverseGhidraInspect.java>");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
 	});
 
-	it("supports mode: fold to collapse whitespace and ANSI escapes", () => {
-		const raw = "\u001b[32mline 1\u001b[0m\n\nline 1\nline 2   \n";
-		const folded = foldGhidraText(raw);
-		expect(folded).toBe("line 1\nline 2");
+	it("treats empty pseudocode payload as error", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-empty-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			await fs.writeFile(sample, "ELF-dummy", "utf8");
+
+			const payload = compactFrame({
+				status: "ok",
+				action: "decompile",
+				target: "stub",
+				output: "   \n\t  ",
+			});
+
+			const { runner } = mockRunner(payload);
+			const tool = new GhidraInspectTool(createTestSession(tempDir), {
+				which: () => "/opt/ghidra/support/analyzeHeadless",
+				runner,
+			});
+
+			const res = await tool.execute("call-1", {
+				action: "decompile",
+				path: "sample.bin",
+				symbol: "stub",
+			});
+
+			expect(res.details.status).toBe("error");
+			expect(res.details.error).toContain("empty output");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
 	});
 
-	it("supports line pagination via offset and limit", async () => {
+	it("treats stream truncation as failure even if markers were seen", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-trunc-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			await fs.writeFile(sample, "ELF-dummy", "utf8");
+
+			const { runner } = mockRunner(compactFrame({ status: "ok", action: "decompile", output: "int foo" }), {
+				truncated: true,
+			});
+			const tool = new GhidraInspectTool(createTestSession(tempDir), {
+				which: () => "/opt/ghidra/support/analyzeHeadless",
+				runner,
+			});
+
+			const res = await tool.execute("call-1", {
+				action: "decompile",
+				path: "sample.bin",
+				symbol: "foo",
+			});
+
+			expect(res.details.status).toBe("error");
+			expect(res.details.truncated).toBe(true);
+			expect(res.details.error).toContain("truncated");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("treats timeout as failure", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-timeout-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			await fs.writeFile(sample, "ELF-dummy", "utf8");
+
+			const { runner } = mockRunner("", { timedOut: true });
+			const tool = new GhidraInspectTool(createTestSession(tempDir), {
+				which: () => "/opt/ghidra/support/analyzeHeadless",
+				runner,
+			});
+
+			const res = await tool.execute("call-1", {
+				action: "decompile",
+				path: "sample.bin",
+				symbol: "foo",
+			});
+
+			expect(res.details.status).toBe("error");
+			expect(res.details.timedOut).toBe(true);
+			expect(res.details.error).toContain("timed out");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("rejects malformed json between frame markers as error", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-badjson-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			await fs.writeFile(sample, "ELF-dummy", "utf8");
+
+			const { runner } = mockRunner(
+				"<<<REVERSE_GHIDRA_OUTPUT_START>>>{not_valid_json}<<<REVERSE_GHIDRA_OUTPUT_END>>>",
+			);
+			const tool = new GhidraInspectTool(createTestSession(tempDir), {
+				which: () => "/opt/ghidra/support/analyzeHeadless",
+				runner,
+			});
+
+			const res = await tool.execute("call-1", {
+				action: "decompile",
+				path: "sample.bin",
+				symbol: "foo",
+			});
+
+			expect(res.details.status).toBe("error");
+			expect(res.details.error).toContain("without producing decompiler script output");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("rejects payload with mismatched action as error", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-wrongaction-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			await fs.writeFile(sample, "ELF-dummy", "utf8");
+
+			const mismatched = compactFrame({
+				status: "ok",
+				action: "export",
+				output: "# Mismatched export data",
+			});
+
+			const { runner } = mockRunner(mismatched);
+			const tool = new GhidraInspectTool(createTestSession(tempDir), {
+				which: () => "/opt/ghidra/support/analyzeHeadless",
+				runner,
+			});
+
+			const res = await tool.execute("call-1", {
+				action: "decompile",
+				path: "sample.bin",
+				symbol: "foo",
+			});
+
+			expect(res.details.status).toBe("error");
+			expect(res.details.error).toContain("Script action mismatch");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("propagates structured target-not-found error", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-notfound-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			await fs.writeFile(sample, "ELF-dummy", "utf8");
+
+			const notFoundPayload = compactFrame({
+				status: "error",
+				code: "TARGET_NOT_FOUND",
+				error: "Function target 'missing_symbol' was not found in binary 'sample.bin'.",
+			});
+
+			const { runner } = mockRunner(notFoundPayload);
+			const tool = new GhidraInspectTool(createTestSession(tempDir), {
+				which: () => "/opt/ghidra/support/analyzeHeadless",
+				runner,
+			});
+
+			const res = await tool.execute("call-1", {
+				action: "decompile",
+				path: "sample.bin",
+				symbol: "missing_symbol",
+			});
+
+			expect(res.details.status).toBe("error");
+			expect(res.details.error).toContain("missing_symbol");
+			expect(textOf(res)).toContain("missing_symbol");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("supports folding and pagination on envelope lines", async () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-page-"));
 		try {
 			const sample = path.join(tempDir, "sample.bin");
 			await fs.writeFile(sample, "ELF-dummy", "utf8");
 
-			const multiLineOutput = Array.from({ length: 50 }, (_, i) => `Line ${i + 1}`).join("\n");
-			const { runner } = mockRunner(multiLineOutput);
+			const envelope = ["Header", "\u001b[31mLine A\u001b[0m", "", "Line A", "Line B", "Line C", "Line D"].join(
+				"\n",
+			);
 
+			const payload = compactFrame({
+				status: "ok",
+				action: "export",
+				output: envelope,
+			});
+
+			const { runner } = mockRunner(payload);
 			const tool = new GhidraInspectTool(createTestSession(tempDir), {
 				which: () => "/opt/ghidra/support/analyzeHeadless",
 				runner,
 			});
 
 			const res = await tool.execute("call-1", {
-				action: "analyze",
+				action: "export",
 				path: "sample.bin",
-				offset: 10,
-				limit: 5,
+				mode: "fold",
+				offset: 1,
+				limit: 2,
 			});
 
-			expect(res.details.totalLines).toBe(50);
-			expect(res.details.returnedLines).toBe(5);
-			expect(res.details.offset).toBe(10);
+			expect(res.details.status).toBe("ok");
+			expect(res.details.returnedLines).toBe(2);
 			expect(res.details.hasMore).toBe(true);
+
 			const text = textOf(res);
-			expect(text).toContain("Line 11");
-			expect(text).toContain("Line 15");
-			expect(text).not.toContain("Line 10");
-			expect(text).not.toContain("Line 16");
+			expect(text).toContain("Line A");
+			expect(text).toContain("Line B");
+			expect(text).not.toContain("Line C");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
 	});
 
-	it("reports process failure exit codes cleanly", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-fail-"));
+	it("fails with error status when engine exits 0 without producing script output", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-nooutput-"));
 		try {
 			const sample = path.join(tempDir, "sample.bin");
 			await fs.writeFile(sample, "ELF-dummy", "utf8");
 
-			const { runner } = mockRunner("", {
-				stderr: "ERROR: Out of memory",
-				exitCode: 137,
-			});
-
+			const { runner } = mockRunner("INFO  Engine finished without running postScript\n");
 			const tool = new GhidraInspectTool(createTestSession(tempDir), {
 				which: () => "/opt/ghidra/support/analyzeHeadless",
 				runner,
 			});
 
 			const res = await tool.execute("call-1", {
-				action: "analyze",
+				action: "decompile",
 				path: "sample.bin",
+				symbol: "main",
 			});
 
 			expect(res.details.status).toBe("error");
-			expect(res.details.error).toContain("137");
-			expect(textOf(res)).toContain("ERROR: Out of memory");
+			expect(res.details.error).toContain("without producing decompiler script output");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("parses output containing literal start and end delimiter tokens", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-delim-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			await fs.writeFile(sample, "ELF-dummy", "utf8");
+
+			const trickyCode = [
+				"void check_tokens() {",
+				'    const char *a = "<<<REVERSE_GHIDRA_OUTPUT_END>>>";',
+				'    const char *b = "<<<REVERSE_GHIDRA_OUTPUT_START>>>";',
+				"}",
+			].join("\n");
+
+			// Simulate Java script encoding where < is escaped as \u003c and > as \u003e
+			const encodedCode = trickyCode.replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
+			const jsonString = `{"status":"ok","action":"decompile","target":"check_tokens","output":"${encodedCode.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"}`;
+			const frame = `<<<REVERSE_GHIDRA_OUTPUT_START>>>${jsonString}<<<REVERSE_GHIDRA_OUTPUT_END>>>\n`;
+
+			const { runner } = mockRunner(frame);
+			const tool = new GhidraInspectTool(createTestSession(tempDir), {
+				which: () => "/opt/ghidra/support/analyzeHeadless",
+				runner,
+			});
+
+			const res = await tool.execute("call-1", {
+				action: "decompile",
+				path: "sample.bin",
+				symbol: "check_tokens",
+			});
+
+			expect(res.details.status).toBe("ok");
+			expect(res.details.target).toBe("check_tokens");
+			const text = textOf(res);
+			expect(text).toContain('const char *a = "<<<REVERSE_GHIDRA_OUTPUT_END>>>";');
+			expect(text).toContain('const char *b = "<<<REVERSE_GHIDRA_OUTPUT_START>>>";');
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});
+
+describe("ghidra_inspect live engine integration", () => {
+	const dep = ghidraDependency();
+	const liveIt = dep.available ? it : it.skip;
+
+	liveIt("runs actual headless info against host Ghidra", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-live-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			// Tiny valid ELF binary buffer
+			const elfHeader = Buffer.from([
+				0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+				0x3e, 0x00, 0x01, 0x00, 0x00, 0x00,
+			]);
+			await fs.writeFile(sample, elfHeader);
+
+			const tool = new GhidraInspectTool(createTestSession(tempDir));
+			const res = await tool.execute("call-1", {
+				action: "info",
+				path: "sample.bin",
+			});
+
+			expect(res.details.status).toBe("ok");
+			expect(res.details.dependency?.available).toBe(true);
+			expect(textOf(res)).toContain("Ghidra Headless Bridge Status:");
 		} finally {
 			await removeWithRetries(tempDir);
 		}

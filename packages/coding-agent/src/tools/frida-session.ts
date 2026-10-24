@@ -15,7 +15,12 @@ import type { SkillRequirementWhich } from "../extensibility/skill-requirements"
 import { replaceFileAtomically } from "../utils/atomic-file";
 import { ReverseRuntimeSessionStore } from "../reverse-runtime-session/store";
 import type { RuntimeSessionRecord } from "../reverse-runtime-session/contracts";
-import { normalizeFridaEvent, type UniversalDynamicEvent } from "../reverse-runtime-session/dynamic-events";
+import {
+	normalizeFridaEvent,
+	formatDynamicLocator,
+	type UniversalDynamicEvent,
+} from "../reverse-runtime-session/dynamic-events";
+import { EvidenceStore } from "../evidence/store";
 import type { ToolSession } from "./index";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
@@ -28,6 +33,7 @@ import {
 	type FridaRunner,
 	resolveFridaFallback,
 	resolveScriptPath,
+	resolveTemplateScript,
 	splitCliArgs,
 	parsePythonLiteral,
 } from "./frida";
@@ -92,6 +98,34 @@ export const fridaSessionSchema = type({
 	),
 	"export_evidence?": type("boolean").describe(
 		"For action: 'events' or 'run': format structured evidence references compatible with the evidence ledger",
+	),
+	"template?": type
+		.enumerated("module_load", "exports", "jni_register", "native_functions")
+		.describe(
+			"Optional built-in Frida script template to execute or load: 'jni_register' (trace JNI RegisterNatives bindings), 'native_functions' (trace native function executions), 'module_load' (trace module loads), 'exports' (trace module exports)",
+		),
+	"module?": type("string").describe(
+		"Target module name (e.g. 'libnative-lib.so') for template 'exports', 'native_functions', or 'jni_register'",
+	),
+	"symbol?": type("string").describe(
+		"Target function symbol name for template 'native_functions' or custom JNI entry",
+	),
+	"symbols?": type("unknown").describe("Array of target function symbol names for template 'native_functions'"),
+	"offset?": type("unknown").describe(
+		"Target function offset from module base (hex string e.g. '0x1234' or number) for template 'native_functions'",
+	),
+	"offsets?": type("unknown").describe("Array of target function offsets for template 'native_functions'"),
+	"args_count?": type("number").describe("Number of arguments to capture in native_functions template (default 4)"),
+	"args_decode?": type("unknown").describe(
+		"Map or array specifying argument decoding types (e.g. {'0': 'int', '1': 'string'}) for native_functions template",
+	),
+	"retval?": type("boolean").describe("Whether to capture return value in native_functions template (default true)"),
+	"backtrace?": type("unknown").describe(
+		"Whether to capture backtrace in native_functions template (true, 'accurate', 'fuzzy', or false; default false)",
+	),
+	"max_events?": type("number").describe("Maximum events to capture before detaching hooks (default 100)"),
+	"max_buffer_bytes?": type("number").describe(
+		"Maximum buffer/string bytes to read per argument in native_functions template (default 256)",
 	),
 });
 
@@ -572,6 +606,16 @@ export function parseFridaOutputIntoEvents(
 							(payloadObj as Record<string, unknown>).type === "log" ||
 							(payloadObj as Record<string, unknown>).event === "console"),
 					);
+					const isJni = Boolean(
+						payloadObj &&
+						((payloadObj as Record<string, unknown>).event === "jni_register_natives" ||
+							(payloadObj as Record<string, unknown>).event === "jni_register"),
+					);
+					const isNativeTrace = Boolean(
+						payloadObj &&
+						((payloadObj as Record<string, unknown>).event === "native_call" ||
+							(payloadObj as Record<string, unknown>).event === "native_functions"),
+					);
 					events.push({
 						id: `ev_${sessionId}_${currentSeq}`,
 						seq: currentSeq,
@@ -585,6 +629,8 @@ export function parseFridaOutputIntoEvents(
 							...(isCrypto ? { category: "crypto", subChannel: "crypto" } : {}),
 							...(isWs ? { category: "ws", subChannel: "ws" } : {}),
 							...(isConsole ? { category: "console", subChannel: "console" } : {}),
+							...(isJni ? { category: "jni", subChannel: "jni" } : {}),
+							...(isNativeTrace ? { category: "native_trace", subChannel: "native_trace" } : {}),
 							...(structured.data !== null && structured.data !== undefined ? { data: structured.data } : {}),
 						},
 					});
@@ -710,11 +756,50 @@ export function parseFridaOutputIntoEvents(
 			}
 
 			// Check for trace marker
-			if (
-				trimmed.includes("__FRIDA_TRACE_START__") ||
-				trimmed.startsWith("/*") ||
-				/0x[0-9a-fA-F]+\s+call\s+/.test(trimmed)
-			) {
+			if (trimmed.includes("__FRIDA_TRACE_START__")) {
+				currentSeq++;
+				let tracePayload: unknown = trimmed;
+				const startIdx = trimmed.indexOf("__FRIDA_TRACE_START__");
+				const endIdx = trimmed.indexOf("__FRIDA_TRACE_END__");
+				if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+					const jsonStr = trimmed.slice(startIdx + "__FRIDA_TRACE_START__".length, endIdx).trim();
+					try {
+						tracePayload = JSON.parse(jsonStr);
+					} catch {
+						try {
+							tracePayload = parsePythonLiteral(jsonStr, 0, { requireEnd: true }).value;
+						} catch {}
+					}
+				}
+				const isJni = Boolean(
+					tracePayload &&
+					typeof tracePayload === "object" &&
+					((tracePayload as Record<string, unknown>).event === "jni_register_natives" ||
+						(tracePayload as Record<string, unknown>).event === "jni_register"),
+				);
+				const isNativeTrace = Boolean(
+					tracePayload &&
+					typeof tracePayload === "object" &&
+					((tracePayload as Record<string, unknown>).event === "native_call" ||
+						(tracePayload as Record<string, unknown>).event === "native_functions"),
+				);
+				events.push({
+					id: `ev_${sessionId}_${currentSeq}`,
+					seq: currentSeq,
+					timestamp,
+					sessionId,
+					kind: "trace",
+					channel: "trace",
+					payload: tracePayload,
+					raw: trimmed,
+					metadata: {
+						...(isJni ? { category: "jni", subChannel: "jni" } : {}),
+						...(isNativeTrace ? { category: "native_trace", subChannel: "native_trace" } : {}),
+					},
+				});
+				continue;
+			}
+			if (trimmed.startsWith("/*") || /0x[0-9a-fA-F]+\s+call\s+/.test(trimmed)) {
 				currentSeq++;
 				events.push({
 					id: `ev_${sessionId}_${currentSeq}`,
@@ -792,26 +877,66 @@ export function buildEvidenceReference(
 ): DynamicEvidenceReference {
 	const excerpt = event.raw || (typeof event.payload === "string" ? event.payload : JSON.stringify(event.payload));
 	const targetDesc = String(session.target.value);
-	const title = `Dynamic ${event.kind} [${event.channel || "event"}] on ${targetDesc}`;
-	const content = `Captured dynamic ${event.kind} event in Frida session '${session.id}' on target ${session.target.type}:${targetDesc}: ${
+	let title = `Dynamic ${event.kind} [${event.channel || "event"}] on ${targetDesc}`;
+	const locator = formatDynamicLocator(session.id, event.seq);
+	let content = `Captured dynamic ${event.kind} event in Frida session '${session.id}' on target ${session.target.type}:${targetDesc}: ${
 		typeof event.payload === "object" ? JSON.stringify(event.payload) : String(event.payload)
 	}`;
+	const metadata: Record<string, unknown> = {
+		sessionId: session.id,
+		seq: event.seq,
+		kind: event.kind,
+		channel: event.channel,
+		timestamp: event.timestamp,
+	};
+
+	if (event.payload && typeof event.payload === "object") {
+		const p = event.payload as Record<string, unknown>;
+		if (p.event === "jni_register_natives" || p.event === "jni_register") {
+			const className = String(p.class || "UnknownClass");
+			const isConfirmed = p.status === "confirmed" || (p.status !== "rejected" && p.retval === 0);
+			if (isConfirmed) {
+				title = `JNI RegisterNatives: ${className}`;
+				const methodCount = Array.isArray(p.methods) ? p.methods.length : Number(p.nMethods ?? 0);
+				content = `Confirmed JNI RegisterNatives mapping for ${className} (${methodCount} methods, retval: ${p.retval ?? 0}, javaBridge: ${p.javaBridgeAvailable ?? false})`;
+				metadata.confirmed = true;
+				metadata.rejected = false;
+				metadata.class = className;
+				metadata.nMethods = p.nMethods;
+				metadata.methods = p.methods;
+				metadata.truncated = p.truncated;
+			} else {
+				title = `[Rejected] JNI RegisterNatives: ${className}`;
+				content = `Rejected JNI RegisterNatives mapping for ${className} (retval: ${p.retval}, status: ${p.status || "rejected"})`;
+				metadata.confirmed = false;
+				metadata.rejected = true;
+				metadata.retval = p.retval;
+				metadata.class = className;
+			}
+		} else if (p.event === "native_call" || p.event === "native_functions") {
+			const targetName = String(p.target || p.address || "unknown");
+			const mod = p.module ? String(p.module) : "unknown";
+			const off = p.offset ? String(p.offset) : "";
+			title = `Native Call: ${targetName} [${mod}${off ? "+" + off : ""}]`;
+			content = `Captured native function call to ${targetName} at address ${p.address ?? "unknown"} (${mod}${off ? "+" + off : ""})`;
+			metadata.target = targetName;
+			metadata.address = p.address;
+			metadata.module = p.module;
+			metadata.offset = p.offset;
+			metadata.args = p.args;
+			metadata.retval = p.retval;
+		}
+	}
 
 	return {
 		sourceTool: "frida_session",
 		target: targetDesc,
-		locator: `session:${session.id}:seq:${event.seq}`,
+		locator,
 		kind: "fact",
 		title,
 		content,
 		excerpt: excerpt ? excerpt.slice(0, 1000) : undefined,
-		metadata: {
-			sessionId: session.id,
-			seq: event.seq,
-			kind: event.kind,
-			channel: event.channel,
-			timestamp: event.timestamp,
-		},
+		metadata,
 	};
 }
 
@@ -1076,7 +1201,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		}
 
 		const sessionId = params.session_id?.trim() || `frida_sess_${Bun.randomUUIDv7().slice(0, 12)}`;
-		const hasInitialScript = Boolean(params.script || params.script_path);
+		const hasInitialScript = Boolean(params.script || params.script_path || params.template);
 		const existing = await store.get(sessionId);
 		if (existing && existing.status === "active" && !hasInitialScript) {
 			return {
@@ -1122,10 +1247,14 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		let activeChildPid: number | undefined;
 
 		if (hasInitialScript) {
+			let scriptToRun = params.script;
+			if (!scriptToRun && !params.script_path && params.template) {
+				scriptToRun = resolveTemplateScript(params);
+			}
 			const runResult = await this.executeFridaRun(
 				target,
 				{
-					script: params.script,
+					script: scriptToRun,
 					script_path: params.script_path,
 					script_args: params.script_args,
 					cli_args: params.cli_args,
@@ -1277,6 +1406,8 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			}
 		} else if (params.script) {
 			initialScriptSource = params.script;
+		} else if (params.template) {
+			initialScriptSource = resolveTemplateScript(params);
 		}
 
 		const liveDep = await probeFridaLiveDependency(this.which);
@@ -1563,9 +1694,11 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			} catch (err) {
 				throw new ToolError(`Failed to read script_path file at '${resolved}': ${err}`);
 			}
+		} else if (!scriptSource && params.template) {
+			scriptSource = resolveTemplateScript(params);
 		}
 		if (!scriptSource) {
-			throw new ToolError("Must provide 'script' or 'script_path' for action: 'load'");
+			throw new ToolError("Must provide 'script', 'script_path', or 'template' for action: 'load'");
 		}
 
 		const timeoutMs = (params.timeout ?? DEFAULT_TIMEOUT_SECONDS) * 1000;
@@ -1890,13 +2023,15 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 			} catch (err) {
 				throw new ToolError(`Failed to read script_path file at '${resolved}': ${err}`);
 			}
+		} else if (!scriptSource && params.template) {
+			scriptSource = resolveTemplateScript(params);
 		}
 		if (command === "modules" && !scriptSource) {
 			scriptSource = FIXED_ENUMERATE_MODULES_SCRIPT;
 		}
 
 		if (!scriptSource) {
-			throw new ToolError("Must provide 'script', 'script_path', or 'command' for run action");
+			throw new ToolError("Must provide 'script', 'script_path', 'template', or 'command' for run action");
 		}
 
 		return this.handleLoad({ ...params, session_id: session.id, script: scriptSource }, store, signal);
@@ -2147,8 +2282,10 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		} else if (command === "ps") {
 			// run frida-ps against session target device
 			return this.handleRunPs(session, params, store, signal);
+		} else if (!scriptToRun && !scriptPathToRun && params.template) {
+			scriptToRun = resolveTemplateScript(params);
 		} else if (!scriptToRun && !scriptPathToRun) {
-			throw new ToolError("Must provide 'script', 'script_path', or 'command' for run action");
+			throw new ToolError("Must provide 'script', 'script_path', 'template', or 'command' for run action");
 		}
 
 		const maxBytes = params.max_bytes ?? DEFAULT_MAX_BYTES;
@@ -2215,6 +2352,25 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		let evidenceRefs: DynamicEvidenceReference[] | undefined;
 		if (params.export_evidence) {
 			evidenceRefs = newEvents.map(ev => buildEvidenceReference(session, ev));
+			try {
+				const evidenceStore = new EvidenceStore({ repositoryRoot: this.session.cwd, stateRoot: this.stateRoot });
+				for (const ref of evidenceRefs) {
+					if (ref.metadata?.confirmed !== false) {
+						await evidenceStore.addFact({
+							kind: "fact",
+							sourceTool: "frida_session",
+							target: ref.target,
+							locator: ref.locator,
+							title: ref.title,
+							content: ref.content,
+							excerpt: ref.excerpt,
+							tags: ref.metadata?.class ? [String(ref.metadata.class)] : undefined,
+						});
+					}
+				}
+			} catch (err) {
+				logger.warn(`Failed to export evidence to ledger: ${err}`);
+			}
 		}
 
 		let artifactId: string | undefined;
@@ -2461,6 +2617,25 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 		let evidenceRefs: DynamicEvidenceReference[] | undefined;
 		if (params.export_evidence) {
 			evidenceRefs = paged.map(ev => buildEvidenceReference(session, ev));
+			try {
+				const evidenceStore = new EvidenceStore({ repositoryRoot: this.session.cwd, stateRoot: this.stateRoot });
+				for (const ref of evidenceRefs) {
+					if (ref.metadata?.confirmed !== false) {
+						await evidenceStore.addFact({
+							kind: "fact",
+							sourceTool: "frida_session",
+							target: ref.target,
+							locator: ref.locator,
+							title: ref.title,
+							content: ref.content,
+							excerpt: ref.excerpt,
+							tags: ref.metadata?.class ? [String(ref.metadata.class)] : undefined,
+						});
+					}
+				}
+			} catch (err) {
+				logger.warn(`Failed to export evidence to ledger: ${err}`);
+			}
 		}
 
 		let artifactId: string | undefined;

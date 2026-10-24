@@ -12,6 +12,7 @@ import { MCPTool } from "../../src/mcp/tool-bridge";
 import type { MCPServerConnection, MCPToolCallParams, MCPToolCallResult, MCPToolDefinition } from "../../src/mcp/types";
 import { SessionManager } from "../../src/session/session-manager";
 import { wrapToolWithMetaNotice } from "../../src/tools/output-meta";
+import { getMcpServerRuntimeState } from "../../src/extensibility/capability-state";
 
 function toolFor(result: MCPToolCallResult | ((params: MCPToolCallParams) => MCPToolCallResult)): MCPTool {
 	const connection = {
@@ -36,6 +37,47 @@ async function modelText(result: MCPToolCallResult): Promise<string> {
 	const built = await build(result);
 	return built.content.map(block => (block.type === "text" ? block.text : `[${block.type}]`)).join("\n");
 }
+
+describe("native debugger MCP failure classification", () => {
+	it.each(["Error: Not connected", "Failed to resume.", "No active connection.", "No debuggee: nothing is attached"])(
+		"keeps failed debugger operations out of successful execution evidence: %s",
+		async text => {
+			const context = {} as CustomToolContext;
+			const connection = {
+				name: "native_x64dbg_failure",
+				_source: { provider: "reverse", providerName: "x64dbg" },
+				transport: {
+					request: async () => ({ content: [{ type: "text", text }] }),
+				},
+			} as unknown as MCPServerConnection;
+			const tool = new MCPTool(connection, { name: "go", inputSchema: { type: "object" } });
+			const result = await tool.execute("failed-step", {}, undefined, context);
+			expect(result.isError).toBe(true);
+			expect(result.details?.isError).toBe(true);
+			const state = getMcpServerRuntimeState(connection.name, context);
+			expect(state?.targetMatched).toBe(false);
+			expect(state?.lastExecution?.innerSuccess).toBe(false);
+			expect(state?.lastExecution?.error).toContain(text);
+		},
+	);
+
+	it("classifies failures from the setup-configured debugger connection", async () => {
+		const connection = {
+			name: "x64dbg",
+			_source: { provider: "reverse", providerName: "reverse" },
+			transport: { request: async () => ({ content: [{ type: "text", text: "Error: target exited" }] }) },
+		} as unknown as MCPServerConnection;
+		const tool = new MCPTool(connection, { name: "step", inputSchema: { type: "object" } });
+		const result = await tool.execute("exited-target", {}, undefined, {} as CustomToolContext);
+		expect(result.isError).toBe(true);
+	});
+
+	it("preserves ordinary text from unrelated MCP services", async () => {
+		const result = await build({ content: [{ type: "text", text: "Error: is the diagnostic prefix to search" }] });
+		expect(result.isError).not.toBe(true);
+		expect(result.details?.isError).not.toBe(true);
+	});
+});
 
 describe("MCP bridge structuredContent", () => {
 	it("surfaces structuredContent when content is a minimal ack", async () => {

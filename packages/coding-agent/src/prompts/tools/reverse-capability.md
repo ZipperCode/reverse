@@ -11,7 +11,7 @@ Actions:
 
 Workflow Guidance:
 1. Call `reverse_capability(action: "resolve")` at the beginning of an investigation to understand host tool availability.
-2. If an external tool is missing, prefer the `recommendedNativeTool` (which is zero-dependency and built-in, e.g. `android_package_inspect`, `r2_inspect`, `websocket_observe`) or available fallbacks.
+2. If an external tool is missing, prefer the `recommendedNativeTool` (which is zero-dependency and built-in, e.g. `android_package_inspect`, `triage`, `websocket_observe`) or available fallbacks.
 3. If an external capability is needed, use the `setupCommand` (e.g. `reverse setup reverse apktool`) to guide the operator through interactive installation, then follow `postInstallInvocation`.
 4. For frontend debugging or deobfuscation requiring jshookmcp, call `reverse_capability(action: "install", service: "jshookmcp")` after the user authorizes installation. Then use the mounted jshook `search_tools` → `describe_tool` → `activate_tools` → `call_tool` flow. When tool activation hits budget limits, free unused tools with `deactivate_tools` before retrying rather than increasing limits. Let one controller own each browser target; retain native tools for independent static analysis.
 5. Use `reverse_capability(action: "status")` to verify current-session evidence: distinguish whether an MCP service is merely configured vs connected vs has discovered tools vs is matched to your target vs has executed.

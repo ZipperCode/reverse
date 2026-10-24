@@ -29,13 +29,14 @@
 | `max_bytes` | `number >= 1` | No | Maximum stdout bytes captured (default 256 KiB, max 4 MiB). |
 
 ## Actions
-- `info`: Probes the Ghidra installation, resolved `analyzeHeadless` executable, JDK version, and target binary status.
+- `info`: Probes the Ghidra installation, resolved `analyzeHeadless` executable, and target binary status.
 - `analyze`: Runs headless auto-analysis on the target binary, returning execution logs and analysis summary.
-- `decompile`: Decompiles a function or routine to C pseudocode using Ghidra's decompiler engine.
-- `export`: Emits decompilation listings or symbol summaries with line bounds and pagination.
+- `decompile`: Decompiles a function or routine to C pseudocode using Ghidra's decompiler engine. Default invocation uses the bundled headless script (`ReverseGhidraInspect.java`) to resolve targets by symbol name or address (falling back to standard entrypoints like `main` or `_start` when omitted), returning pure targeted C pseudocode without bootstrap logs. Missing or ambiguous targets report structured errors (`status: "error"`).
+- `export`: Emits bounded decompilation listings or symbol summaries with line bounds and pagination. Default invocation exports program metadata, function inventory, and symbol table, or targeted function decompilation when a target is specified.
 
 ## Dependency Gating
 When Ghidra (`analyzeHeadless`) is not found on PATH or configured via `GHIDRA_INSTALL_DIR`, the tool returns `status: "missing_dependency"` with structured metadata:
-- Package manager commands (`brew install --cask ghidra`, `apt install ghidra`, `choco install ghidra`).
+- Recommended setup route: Run interactive setup via TUI (`reverse setup`) or CLI (`reverse setup reverse ghidra`) to install and configure Ghidra.
+- Package manager catalog metadata (`brew install --cask ghidra`, `apt install ghidra`, `choco install ghidra`).
 - Active fallbacks: `r2_inspect`, `ida`, or `triage`.
 - Never fakes decompilation or simulates results when Ghidra is absent.

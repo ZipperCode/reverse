@@ -31,12 +31,22 @@ function textOf(result: { content: Array<{ type: string; text?: string }> }): st
  */
 function createMockElf64Buffer(options: {
 	exportedSymbols?: string[];
+	importedSymbols?: string[];
 	hasJniOnLoad?: boolean;
 	hasRegisterNatives?: boolean;
 	neededLibs?: string[];
 	antiAnalysis?: boolean;
+	rawStringsOnly?: boolean;
+	useSymtabSection?: boolean;
+	customSymbols?: Array<{
+		name: string;
+		bind?: number; // 0 = LOCAL, 1 = GLOBAL, 2 = WEAK
+		type?: number; // 1 = OBJECT, 2 = FUNC, 10 = GNU_IFUNC
+		visibility?: number; // 0 = DEFAULT, 2 = HIDDEN, 3 = PROTECTED
+		shndx?: number; // 0 = UNDEF, 3 = .text
+	}>;
 }): Buffer {
-	const buf = Buffer.alloc(1024);
+	const buf = Buffer.alloc(2048);
 
 	// ELF Magic: \x7fELF
 	buf[0] = 0x7f;
@@ -54,22 +64,139 @@ function createMockElf64Buffer(options: {
 	// e_version = 1
 	buf.writeUInt32LE(1, 20);
 
-	// Embed raw strings for fallback scanner and simulated symbol table
-	const stringPool: string[] = [];
-	if (options.hasJniOnLoad) stringPool.push("JNI_OnLoad");
-	if (options.hasRegisterNatives) stringPool.push("RegisterNatives");
-	if (options.exportedSymbols) stringPool.push(...options.exportedSymbols);
-	if (options.neededLibs) stringPool.push(...options.neededLibs);
-	if (options.antiAnalysis) stringPool.push("ptrace", "TracerPid");
-	stringPool.push("AES_encrypt", "SHA256_Update");
+	const exported = options.exportedSymbols ?? [];
+	const imported = options.importedSymbols ?? [];
+	const custom = options.customSymbols ?? [];
 
-	let writeOffset = 128;
-	for (const s of stringPool) {
-		buf.write(s + "\0", writeOffset, "utf8");
-		writeOffset += s.length + 1;
+	if (options.rawStringsOnly || (exported.length === 0 && imported.length === 0 && custom.length === 0)) {
+		const stringPool: string[] = [];
+		if (options.hasJniOnLoad) stringPool.push("JNI_OnLoad");
+		if (options.hasRegisterNatives) stringPool.push("RegisterNatives");
+		if (options.exportedSymbols) stringPool.push(...options.exportedSymbols);
+		if (options.importedSymbols) stringPool.push(...options.importedSymbols);
+		if (options.neededLibs) stringPool.push(...options.neededLibs);
+		if (options.antiAnalysis) stringPool.push("ptrace", "TracerPid");
+		stringPool.push("AES_encrypt", "SHA256_Update");
+
+		let writeOffset = 128;
+		for (const s of stringPool) {
+			buf.write(s + "\0", writeOffset, "utf8");
+			writeOffset += s.length + 1;
+		}
+		return buf.subarray(0, 1024);
 	}
 
-	return buf;
+	// Build string table at offset 64
+	let strOff = 64;
+	buf[strOff++] = 0; // First byte is null string
+
+	const symOffsets: Array<{
+		name: string;
+		off: number;
+		bind: number;
+		type: number;
+		visibility: number;
+		shndx: number;
+	}> = [];
+	for (const name of exported) {
+		symOffsets.push({ name, off: strOff - 64, bind: 1, type: 2, visibility: 0, shndx: 3 });
+		buf.write(name + "\0", strOff, "utf8");
+		strOff += name.length + 1;
+	}
+	for (const name of imported) {
+		symOffsets.push({ name, off: strOff - 64, bind: 1, type: 2, visibility: 0, shndx: 0 });
+		buf.write(name + "\0", strOff, "utf8");
+		strOff += name.length + 1;
+	}
+	for (const sym of custom) {
+		symOffsets.push({
+			name: sym.name,
+			off: strOff - 64,
+			bind: sym.bind ?? 1,
+			type: sym.type ?? 2,
+			visibility: sym.visibility ?? 0,
+			shndx: sym.shndx ?? 3,
+		});
+		buf.write(sym.name + "\0", strOff, "utf8");
+		strOff += sym.name.length + 1;
+	}
+	if (options.hasJniOnLoad) {
+		buf.write("JNI_OnLoad\0", strOff, "utf8");
+		strOff += 11;
+	}
+	if (options.hasRegisterNatives) {
+		buf.write("RegisterNatives\0", strOff, "utf8");
+		strOff += 16;
+	}
+	if (options.antiAnalysis) {
+		buf.write("ptrace\0TracerPid\0", strOff, "utf8");
+		strOff += 17;
+	}
+	buf.write("AES_encrypt\0SHA256_Update\0", strOff, "utf8");
+	strOff += 26;
+
+	const strTabSize = strOff - 64;
+
+	// Align to 8 bytes for symbol table
+	const symTabOff = (strOff + 7) & ~7;
+	let currSymOff = symTabOff;
+
+	// Entry 0: STN_UNDEF (24 bytes of 0)
+	buf.fill(0, currSymOff, currSymOff + 24);
+	currSymOff += 24;
+
+	// Symbol entries (Elf64_Sym is 24 bytes)
+	for (const sym of symOffsets) {
+		buf.writeUInt32LE(sym.off, currSymOff); // st_name
+		buf.writeUInt8(((sym.bind & 0x0f) << 4) | (sym.type & 0x0f), currSymOff + 4); // st_info
+		buf.writeUInt8(sym.visibility & 0x03, currSymOff + 5); // st_other (visibility)
+		buf.writeUInt16LE(sym.shndx, currSymOff + 6); // st_shndx
+		buf.writeBigUInt64LE(sym.shndx !== 0 ? 0x1000n : 0n, currSymOff + 8); // st_value
+		buf.writeBigUInt64LE(sym.shndx !== 0 ? 0x20n : 0n, currSymOff + 16); // st_size
+		currSymOff += 24;
+	}
+	const symTabSize = currSymOff - symTabOff;
+
+	// Section 3: .text
+	const textOff = currSymOff;
+	const textSize = 64;
+	currSymOff += textSize;
+
+	// Section header table at currSymOff
+	const shOff = (currSymOff + 7) & ~7;
+	const shEntSize = 64;
+	const shNum = 4;
+
+	// Write e_shoff (offset 40), e_shentsize (58), e_shnum (60), e_shstrndx (62)
+	buf.writeBigUInt64LE(BigInt(shOff), 40);
+	buf.writeUInt16LE(shEntSize, 58);
+	buf.writeUInt16LE(shNum, 60);
+	buf.writeUInt16LE(1, 62); // .dynstr is section 1
+
+	// Sec 0: SHT_NULL
+	buf.fill(0, shOff, shOff + shEntSize);
+
+	// Sec 1: .dynstr (SHT_STRTAB = 3)
+	const sec1 = shOff + shEntSize;
+	buf.writeUInt32LE(3, sec1 + 4); // sh_type = SHT_STRTAB
+	buf.writeBigUInt64LE(BigInt(64), sec1 + 24); // sh_offset
+	buf.writeBigUInt64LE(BigInt(strTabSize), sec1 + 32); // sh_size
+
+	// Sec 2: .dynsym (SHT_DYNSYM = 11)
+	const sec2 = shOff + 2 * shEntSize;
+	buf.writeUInt32LE(options.useSymtabSection ? 2 : 11, sec2 + 4); // sh_type = SHT_DYNSYM (11) or SHT_SYMTAB (2)
+	buf.writeBigUInt64LE(BigInt(symTabOff), sec2 + 24); // sh_offset
+	buf.writeBigUInt64LE(BigInt(symTabSize), sec2 + 32); // sh_size
+	buf.writeUInt32LE(1, sec2 + 40); // sh_link = 1 (.dynstr)
+	buf.writeBigUInt64LE(24n, sec2 + 56); // sh_entsize = 24
+
+	// Sec 3: .text (SHT_PROGBITS = 1)
+	const sec3 = shOff + 3 * shEntSize;
+	buf.writeUInt32LE(1, sec3 + 4); // sh_type = SHT_PROGBITS
+	buf.writeBigUInt64LE(BigInt(textOff), sec3 + 24); // sh_offset
+	buf.writeBigUInt64LE(BigInt(textSize), sec3 + 32); // sh_size
+
+	return buf.subarray(0, shOff + 4 * shEntSize);
 }
 
 /**
@@ -170,7 +297,7 @@ describe("mangleJniSymbol", () => {
 
 	it("escapes underscores and dollar signs properly", () => {
 		expect(mangleJniSymbol("com.my_org.crypto.Key_Store", "sign_token")).toBe(
-			"Java_com_1my_1org_crypto_Key_1Store_sign_1token",
+			"Java_com_my_1org_crypto_Key_1Store_sign_1token",
 		);
 
 		expect(mangleJniSymbol("com.example.App$InnerHelper", "doWork")).toBe(
@@ -180,6 +307,24 @@ describe("mangleJniSymbol", () => {
 
 	it("handles raw Dalvik descriptors with L and ; wrapper", () => {
 		expect(mangleJniSymbol("Lcom/example/NativeCrypto;", "encrypt")).toBe("Java_com_example_NativeCrypto_encrypt");
+	});
+	it("mangles overloaded method signatures with parameter types", () => {
+		expect(mangleJniSymbol("com.example.app.Native", "calculate", "(I)Z")).toBe(
+			"Java_com_example_app_Native_calculate__I",
+		);
+		expect(mangleJniSymbol("com.example.app.Native", "process", "(Ljava/lang/String;[B)V")).toBe(
+			"Java_com_example_app_Native_process__Ljava_lang_String_2_3B",
+		);
+	});
+
+	it("mangles zero-argument signatures with trailing double-underscore suffix", () => {
+		expect(mangleJniSymbol("com.example.Native", "sign", "()V")).toBe("Java_com_example_Native_sign__");
+	});
+
+	it("escapes non-ASCII Unicode characters in parameters as _0xxxx per JNI spec", () => {
+		expect(mangleJniSymbol("com.example.Native", "sign", "(Lcom/example/É;)V")).toBe(
+			"Java_com_example_Native_sign__Lcom_example__000c9_2",
+		);
 	});
 });
 
@@ -216,6 +361,68 @@ describe("parseElfBuffer", () => {
 		expect(res.exportedJniFunctions).toHaveLength(0);
 		expect(res.hasJniOnLoad).toBe(false);
 	});
+	it("distinguishes verified exported symbols from imported symbols", () => {
+		const elf = createMockElf64Buffer({
+			exportedSymbols: ["Java_com_example_Native_exported"],
+			importedSymbols: ["Java_com_example_Native_imported"],
+			hasJniOnLoad: true,
+		});
+
+		const res = parseElfBuffer(elf, "lib/arm64-v8a/libtest.so");
+		expect(res.exportedJniFunctions).toContain("Java_com_example_Native_exported");
+		expect(res.exportedJniFunctions).not.toContain("Java_com_example_Native_imported");
+		expect(res.importedSymbols).toContain("Java_com_example_Native_imported");
+	});
+
+	it("does not treat unverified raw string matches as verified exports when symbol table is absent", () => {
+		const rawOnlyElf = createMockElf64Buffer({
+			exportedSymbols: ["Java_com_example_Native_sign"],
+			hasJniOnLoad: true,
+			rawStringsOnly: true,
+		});
+
+		const res = parseElfBuffer(rawOnlyElf, "lib/arm64-v8a/libmarker.so");
+		expect(res.exportedJniFunctions).toHaveLength(0);
+		expect(res.hasJniOnLoad).toBe(true);
+		expect(res.rawJniCandidates).toContain("Java_com_example_Native_sign");
+	});
+	it("rejects symbols that fail dynamic export criteria (hidden, local, non-function, or symtab-only)", () => {
+		const elf = createMockElf64Buffer({
+			customSymbols: [
+				// Valid export: STB_GLOBAL, STT_FUNC, STV_DEFAULT, shndx=3
+				{ name: "Java_com_example_Valid_export", bind: 1, type: 2, visibility: 0, shndx: 3 },
+				// Weak export: STB_WEAK, STT_FUNC, STV_DEFAULT, shndx=3
+				{ name: "Java_com_example_Weak_export", bind: 2, type: 2, visibility: 0, shndx: 3 },
+				// Hidden visibility: STV_HIDDEN (2) -> not an export
+				{ name: "Java_com_example_Hidden_func", bind: 1, type: 2, visibility: 2, shndx: 3 },
+				// Local binding: STB_LOCAL (0) -> not an export
+				{ name: "Java_com_example_Local_func", bind: 0, type: 2, visibility: 0, shndx: 3 },
+				// Non-function: STT_OBJECT (1) -> not an export
+				{ name: "Java_com_example_Object_var", bind: 1, type: 1, visibility: 0, shndx: 3 },
+				// Imported: shndx = 0 (SHN_UNDEF) -> imported, not export
+				{ name: "Java_com_example_Imported_func", bind: 1, type: 2, visibility: 0, shndx: 0 },
+			],
+		});
+
+		const res = parseElfBuffer(elf, "lib/arm64-v8a/libboundary.so");
+		expect(res.exportedJniFunctions).toContain("Java_com_example_Valid_export");
+		expect(res.exportedJniFunctions).toContain("Java_com_example_Weak_export");
+		expect(res.exportedJniFunctions).not.toContain("Java_com_example_Hidden_func");
+		expect(res.exportedJniFunctions).not.toContain("Java_com_example_Local_func");
+		expect(res.exportedJniFunctions).not.toContain("Java_com_example_Object_var");
+		expect(res.exportedJniFunctions).not.toContain("Java_com_example_Imported_func");
+		expect(res.importedSymbols).toContain("Java_com_example_Imported_func");
+	});
+
+	it("does not treat regular SHT_SYMTAB symbols as dynamic JNI loader exports", () => {
+		const symtabElf = createMockElf64Buffer({
+			exportedSymbols: ["Java_com_example_Internal_symtabOnly"],
+			useSymtabSection: true, // SHT_SYMTAB (2)
+		});
+
+		const res = parseElfBuffer(symtabElf, "lib/arm64-v8a/libdebug.so");
+		expect(res.exportedJniFunctions).toHaveLength(0);
+	});
 });
 
 describe("extractDexNativeMethods", () => {
@@ -223,6 +430,39 @@ describe("extractDexNativeMethods", () => {
 		const dex = createMockDexBuffer();
 		const methods = extractDexNativeMethods(dex);
 		expect(methods).toEqual([]);
+	});
+	it("extracts zero-argument overloaded symbol with trailing __ suffix for valid DEX", () => {
+		const nativeDex = Buffer.from(
+			"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+			"hex",
+		);
+		const methods = extractDexNativeMethods(nativeDex);
+		expect(methods).toHaveLength(1);
+		expect(methods[0].expectedSymbol).toBe("Java_com_example_Native_sign");
+		expect(methods[0].overloadedSymbol).toBe("Java_com_example_Native_sign__");
+	});
+
+	it("does not create invented overloadedSymbol when DEX prototype has invalid parameter type indices", () => {
+		const baseDex = Buffer.from(
+			"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+			"hex",
+		);
+		const corruptDex = Buffer.alloc(256);
+		baseDex.copy(corruptDex);
+		// Point protoId 0 parameters_off to offset 224
+		corruptDex.writeUInt32LE(224, 0x8c);
+		// Write 2 parameters: 1st valid type index 1, 2nd invalid type index 9999 (>= typeIdsCount)
+		corruptDex.writeUInt32LE(2, 224);
+		corruptDex.writeUInt16LE(1, 228);
+		corruptDex.writeUInt16LE(9999, 230);
+		corruptDex.writeUInt32LE(232, 0x20); // file_size
+
+		const methods = extractDexNativeMethods(corruptDex);
+		expect(methods).toHaveLength(1);
+		expect(methods[0].expectedSymbol).toBe("Java_com_example_Native_sign");
+		// Prototype is incomplete/invalid: signature is marked <invalid> and must not create invented overloadedSymbol
+		expect(methods[0].signature).toBe("<invalid>");
+		expect(methods[0].overloadedSymbol).toBeUndefined();
 	});
 });
 
@@ -436,6 +676,232 @@ describe("AndroidNativeWorkflowTool", () => {
 			expect(res.details?.manifest?.useEmbeddedDex).toBe(true);
 			expect(res.details?.manifest?.hasCode).toBe(true);
 			expect(res.details?.manifest?.debuggable).toBe(true);
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+	it("does not attribute unmatched DEX native methods to the first library based on markers alone", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-marker-attribution-"));
+		try {
+			// Two libraries: both have JNI_OnLoad/RegisterNatives markers, but neither exports the DEX native method
+			const libFirst = createMockElf64Buffer({ hasJniOnLoad: true, rawStringsOnly: true });
+			const libSecond = createMockElf64Buffer({ hasRegisterNatives: true, rawStringsOnly: true });
+			const nativeDex = Buffer.from(
+				"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+				"hex",
+			);
+			const apkBuf = createMockZipBuffer([
+				{ name: "lib/arm64-v8a/libfirst.so", content: libFirst },
+				{ name: "lib/arm64-v8a/libsecond.so", content: libSecond },
+				{ name: "classes.dex", content: nativeDex },
+			]);
+
+			const apkPath = path.join(tempDir, "markers.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_inspect", { action: "inspect", path: apkPath });
+
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.summary?.totalNativeMethods).toBe(1);
+			expect(res.details?.summary?.staticExportMatched).toBe(0);
+			expect(res.details?.summary?.dynamicRegistrationLikely).toBe(0);
+			expect(res.details?.summary?.unresolvedMethods).toBe(1);
+
+			const method = res.details?.nativeMethods?.[0];
+			expect(method?.status).toBe("unresolved");
+			expect(method?.matchedLibrary).toBeNull();
+			expect(method?.candidateLibraries).toContain("libfirst.so");
+			expect(method?.candidateLibraries).toContain("libsecond.so");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("correctly matches verified static export in multi-library APK to the specific exporting library", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-verified-binding-"));
+		try {
+			// libfirst has only markers, libsecond has verified static export for com.example.Native.sign
+			const libFirst = createMockElf64Buffer({ hasJniOnLoad: true, rawStringsOnly: true });
+			const libSecond = createMockElf64Buffer({
+				exportedSymbols: ["Java_com_example_Native_sign"],
+				hasRegisterNatives: true,
+			});
+			const nativeDex = Buffer.from(
+				"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+				"hex",
+			);
+			const apkBuf = createMockZipBuffer([
+				{ name: "lib/arm64-v8a/libfirst.so", content: libFirst },
+				{ name: "lib/arm64-v8a/libsecond.so", content: libSecond },
+				{ name: "classes.dex", content: nativeDex },
+			]);
+
+			const apkPath = path.join(tempDir, "verified.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_inspect", { action: "inspect", path: apkPath });
+
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.summary?.staticExportMatched).toBe(1);
+			expect(res.details?.summary?.unresolvedMethods).toBe(0);
+
+			const method = res.details?.nativeMethods?.[0];
+			expect(method?.status).toBe("static_export");
+			expect(method?.matchedLibrary).toBe("libsecond.so");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("uniquely attributes static export across multiple ABIs when library name matches", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-multi-abi-"));
+		try {
+			// Same library (libcrypto.so) across arm64-v8a and armeabi-v7a exporting the native method
+			const lib64 = createMockElf64Buffer({ exportedSymbols: ["Java_com_example_Native_sign"] });
+			const lib32 = createMockElf64Buffer({ exportedSymbols: ["Java_com_example_Native_sign"] });
+			const nativeDex = Buffer.from(
+				"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+				"hex",
+			);
+			const apkBuf = createMockZipBuffer([
+				{ name: "lib/arm64-v8a/libcrypto.so", content: lib64 },
+				{ name: "lib/armeabi-v7a/libcrypto.so", content: lib32 },
+				{ name: "classes.dex", content: nativeDex },
+			]);
+
+			const apkPath = path.join(tempDir, "multi-abi.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_inspect", { action: "inspect", path: apkPath });
+
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.summary?.staticExportMatched).toBe(1);
+			expect(res.details?.summary?.unresolvedMethods).toBe(0);
+
+			const method = res.details?.nativeMethods?.[0];
+			expect(method?.status).toBe("static_export");
+			expect(method?.matchedLibrary).toBe("libcrypto.so");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("does not assert ownership when multiple distinct libraries export the same JNI symbol", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-duplicate-export-"));
+		try {
+			// Two distinct libraries (libalpha.so and libbeta.so) both exporting Java_com_example_Native_sign
+			const libAlpha = createMockElf64Buffer({ exportedSymbols: ["Java_com_example_Native_sign"] });
+			const libBeta = createMockElf64Buffer({ exportedSymbols: ["Java_com_example_Native_sign"] });
+			const nativeDex = Buffer.from(
+				"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+				"hex",
+			);
+			const apkBuf = createMockZipBuffer([
+				{ name: "lib/arm64-v8a/libalpha.so", content: libAlpha },
+				{ name: "lib/arm64-v8a/libbeta.so", content: libBeta },
+				{ name: "classes.dex", content: nativeDex },
+			]);
+
+			const apkPath = path.join(tempDir, "dup-export.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_inspect", { action: "inspect", path: apkPath });
+
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.summary?.staticExportMatched).toBe(0);
+			expect(res.details?.summary?.unresolvedMethods).toBe(1);
+
+			const method = res.details?.nativeMethods?.[0];
+			expect(method?.status).toBe("unresolved");
+			expect(method?.matchedLibrary).toBeNull();
+			expect(method?.candidateLibraries).toContain("libalpha.so");
+			expect(method?.candidateLibraries).toContain("libbeta.so");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+	it("matches zero-argument overloaded long symbol (Java_..._sign__) when exported by .so", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-zero-arg-overload-"));
+		try {
+			// Library exports zero-argument long symbol with __ suffix
+			const lib = createMockElf64Buffer({
+				exportedSymbols: ["Java_com_example_Native_sign__"],
+			});
+			const nativeDex = Buffer.from(
+				"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+				"hex",
+			);
+			const apkBuf = createMockZipBuffer([
+				{ name: "lib/arm64-v8a/libnative.so", content: lib },
+				{ name: "classes.dex", content: nativeDex },
+			]);
+
+			const apkPath = path.join(tempDir, "zero-arg.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_inspect", { action: "inspect", path: apkPath });
+
+			expect(res.details?.status).toBe("ok");
+			expect(res.details?.summary?.staticExportMatched).toBe(1);
+
+			const method = res.details?.nativeMethods?.[0];
+			expect(method?.status).toBe("static_export");
+			expect(method?.matchedLibrary).toBe("libnative.so");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("does not match long symbol when DEX prototype is invalid or corrupted", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-corrupt-proto-"));
+		try {
+			// Library exports long symbol sign__I
+			const lib = createMockElf64Buffer({
+				exportedSymbols: ["Java_com_example_Native_sign__I"],
+			});
+			// DEX has corrupt prototype with parameter 1 invalid
+			const baseDex = Buffer.from(
+				"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+				"hex",
+			);
+			const corruptDex = Buffer.alloc(256);
+			baseDex.copy(corruptDex);
+			corruptDex.writeUInt32LE(224, 0x8c);
+			corruptDex.writeUInt32LE(2, 224);
+			corruptDex.writeUInt16LE(1, 228);
+			corruptDex.writeUInt16LE(9999, 230);
+			corruptDex.writeUInt32LE(232, 0x20);
+
+			const apkBuf = createMockZipBuffer([
+				{ name: "lib/arm64-v8a/libnative.so", content: lib },
+				{ name: "classes.dex", content: corruptDex },
+			]);
+
+			const apkPath = path.join(tempDir, "corrupt.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_inspect", { action: "inspect", path: apkPath });
+
+			expect(res.details?.status).toBe("ok");
+			// Must not falsely match sign__I
+			expect(res.details?.summary?.staticExportMatched).toBe(0);
+			expect(res.details?.summary?.unresolvedMethods).toBe(1);
+
+			const method = res.details?.nativeMethods?.[0];
+			expect(method?.status).toBe("unresolved");
+			expect(method?.matchedLibrary).toBeNull();
 		} finally {
 			await fs.rm(tempDir, { recursive: true, force: true });
 		}

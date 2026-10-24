@@ -33,6 +33,9 @@ Capabilities:
    - Script file: `script_path: "hooks/trace.js"`
    - RPC execution: `action: "rpc", rpc_method: "transform", rpc_args: ["input_text"]`
    - Built-in commands: `command: "modules"`, `command: "ps"`, `command: "inspect"`
+   - Built-in templates (`template` parameter for `create`, `load`, or `run` without manual scripting):
+     - `template: "jni_register"`: trace Android JNI `RegisterNatives` registrations. Automatically locates `RegisterNatives` via `libart.so` symbols and real JNIEnv vtable index 215, decodes Java class names via JNIEnv reflection without requiring Java bridge, and captures native function pointers and module base offsets.
+     - `template: "native_functions"`: trace native function calls with bounded argument decoding. Supports `symbol` / `symbols`, `offset` / `offsets`, `module`, `args_count`, `args_decode` (e.g. `{"0": "string", "1": "int"}`), `retval`, `backtrace`, `max_events`, `max_buffer_bytes`.
 
 6. Execution Control, Events & Evidence:
    - `timeout`: execution/RPC timeout in seconds (default 30).
@@ -65,5 +68,11 @@ frida_session(action: "unload", session_id: "live-audit")
 
 // 7. Stop and clean up session
 frida_session(action: "stop", session_id: "live-audit")
+
+// 8. Create a live session tracing JNI RegisterNatives on Android app spawn
+frida_session(action: "create", mode: "live", spawn: "com.example.app", usb: true, template: "jni_register")
+
+// 9. Load native function trace template on an active session with typed arg decoding
+frida_session(action: "load", session_id: "live-audit", template: "native_functions", symbol: "verify_license", args_decode: { "0": "string", "1": "int" }, retval: true, export_evidence: true)
 ```
 </examples>

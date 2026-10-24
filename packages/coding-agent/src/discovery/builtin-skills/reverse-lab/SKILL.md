@@ -257,7 +257,7 @@ When an investigative step requires an external tool or when a preferred engine 
 6. **`native_debugger` (Binary Runtime Tracing & Stepping)**:
    - *Scenario*: Dynamic instruction tracing, hardware breakpoints, register state analysis, and memory inspection on native ELF, PE, and Mach-O binaries.
    - *Step 1 (Resolve)*: `reverse_capability({ action: "resolve", capability: "native_debugger" })`.
-   - *Step 2 (Native Check)*: `recommendedNativeTool: "r2_inspect"` (and `triage`). Ready for bounded disassembly, section entropy, and xrefs. For dynamic runtime execution or deep decompilation, evaluate `radare2` or `ghidra`.
+   - *Step 2 (Native Check)*: `recommendedNativeTool: "triage"` (or `"debug"` when DAP adapter is present, `"r2_inspect"` when radare2 is installed). Ready for baseline header and section entropy triage. For dynamic stepping or deep decompilation, evaluate `debug` (DAP adapter) or `radare2` / `ghidra`.
    - *Step 3 (Notice & Approval)*: Present notice: Tool `'radare2'`, Why *"Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native binaries"*, Prerequisites none, Setup `reverse setup reverse radare2`, Post-install `r2 -d <binary_path>` or query via `r2_inspect(action: "decompile", symbol: "<func>")`, Fallback `triage` + `readelf` / `objdump -d` / POSIX `strings`. Request operator approval.
    - *Step 4 (Setup)*: User runs `reverse setup reverse radare2`.
    - *Step 5 (Re-resolve)*: `reverse_capability({ action: "resolve", capability: "native_debugger", refresh: true })`.

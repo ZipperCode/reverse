@@ -43,6 +43,12 @@ import {
 	WEBCRACK_PACKAGE_NAME,
 	WEBCRACK_PACKAGE_VERSION,
 } from "./jshookmcp-install";
+import {
+	getNativeMcpServer,
+	installNativeMcpService,
+	isServerConfigIdentical,
+	type NativeMcpService,
+} from "./native-mcp-install";
 import { getPortableToolRecipe, installPortableTool } from "./portable-tool-install";
 import { readMCPConfigFile, setMcpServerEnabled, updateMCPServer } from "../mcp/config-writer";
 import type { MCPServerConnection } from "../mcp/types";
@@ -79,7 +85,7 @@ export interface ReverseInstallStep {
 	secondaryMissing?: string[];
 	manualInstructions?: string;
 	serverConfigSnapshot?: string;
-	installer?: "jshookmcp" | "portable" | "unidbg";
+	installer?: "jshookmcp" | "portable" | "unidbg" | "native-mcp";
 }
 
 export interface ReverseInstallPlan {
@@ -516,6 +522,76 @@ export function getReverseInstallPlan(
 				isDependency: false,
 				manualInstructions: service.manualInstructions[platform],
 			});
+		} else if (service.installer === "native-mcp") {
+			// Preflight check: 提前校验配置文件中的禁用列表与冲突配置，避免在已被禁用或配置冲突时盲目规划与安装
+			const projectConfig = readMcpConfigFileSync(path.join(options.cwd ?? getProjectDir(), ".reverse", "mcp.json"));
+			const userConfig = readMcpConfigFileSync(path.join(options.agentDir ?? getAgentDir(), "mcp.json"));
+
+			if (
+				userConfig?.disabledServers?.includes(service.serverName) ||
+				projectConfig?.disabledServers?.includes(service.serverName)
+			) {
+				canInstall = false;
+				reason = `MCP server "${service.serverName}" is currently disabled in MCP config. Re-enable it before installing.`;
+			} else {
+				const targetServerConfig = getNativeMcpServer(
+					service.id === "x64dbg-mcp" ? "x64dbg" : service.id === "ghidra-mcp" ? "ghidra" : "radare2",
+					{ agentDir: options.agentDir },
+				);
+				const existingServer =
+					projectConfig?.mcpServers?.[service.serverName] ?? userConfig?.mcpServers?.[service.serverName];
+				if (existingServer && !isServerConfigIdentical(existingServer, targetServerConfig)) {
+					canInstall = false;
+					reason = `Server "${service.serverName}" already exists in MCP config with a conflicting configuration. Remove or rename it first.`;
+				} else {
+					canInstall = true;
+				}
+			}
+			if (canInstall) {
+				if (service.id === "x64dbg-mcp") {
+					const cmdStr = "pip install x64dbg_automate[mcp]==0.9.2";
+					steps.push({
+						id: service.id,
+						name: service.name,
+						kind: "mcp",
+						packageManager: "pip",
+						command: cmdStr,
+						argv: ["pip", "install", "x64dbg_automate[mcp]==0.9.2"],
+						riskNote: service.riskNote,
+						isDependency: false,
+						installer: "native-mcp",
+						manualInstructions: service.manualInstructions[platform],
+					});
+				} else if (service.id === "ghidra-mcp") {
+					const cmdStr = "pip install ghidra_mcp-2.0.0-py3-none-any.whl[headless]";
+					steps.push({
+						id: service.id,
+						name: service.name,
+						kind: "mcp",
+						packageManager: "pip",
+						command: cmdStr,
+						argv: ["pip", "install", "ghidra_mcp[headless]"],
+						riskNote: service.riskNote,
+						isDependency: false,
+						installer: "native-mcp",
+						manualInstructions: service.manualInstructions[platform],
+					});
+				} else if (service.id === "r2mcp") {
+					const cmdStr = "r2pm -Uci r2mcp";
+					steps.push({
+						id: service.id,
+						name: service.name,
+						kind: "mcp",
+						packageManager: "r2pm",
+						command: cmdStr,
+						argv: ["r2pm", "-Uci", "r2mcp"],
+						riskNote: service.riskNote,
+						isDependency: false,
+						installer: "native-mcp",
+						manualInstructions: service.manualInstructions[platform],
+					});
+				}
+			}
 		} else if (service.id === "playwright-mcp") {
 			canInstall = true;
 			steps.push({
@@ -569,7 +645,7 @@ export function getReverseInstallPlan(
 
 	// 确认界面必须展示实际的覆盖配置；执行前再比对，避免审核后切换到另一条启动命令。
 	for (const step of steps) {
-		if (step.kind !== "mcp" || step.id === "jshookmcp") continue;
+		if (step.kind !== "mcp" || step.id === "jshookmcp" || step.installer === "native-mcp") continue;
 		const service = getMcpService(step.id)!;
 		const projectConfig = readMcpConfigFileSync(path.join(options.cwd ?? getProjectDir(), ".reverse", "mcp.json"));
 		const userConfig = readMcpConfigFileSync(path.join(options.agentDir ?? getAgentDir(), "mcp.json"));
@@ -579,6 +655,10 @@ export function getReverseInstallPlan(
 			service.server;
 		step.serverConfigSnapshot = JSON.stringify(server);
 		step.command = [step.command, `MCP ${step.serverConfigSnapshot}`].filter(Boolean).join("; ");
+	}
+
+	if (!canInstall) {
+		steps.length = 0;
 	}
 
 	return {
@@ -765,7 +845,13 @@ export async function installReverseItem(
 					message: `Untrusted installation command for ${step.name}: argv does not match managed installer definition.`,
 				};
 			}
-		} else if (step.installer === "portable" || step.packageManager === "portable" || step.installer === "unidbg" || step.id === "unidbg") {
+		} else if (
+			step.installer === "portable" ||
+			step.packageManager === "portable" ||
+			step.installer === "unidbg" ||
+			step.id === "unidbg" ||
+			step.installer === "native-mcp"
+		) {
 			// Trusted internal portable/build installer
 		} else if (step.argv && step.argv.length > 0 && !isTrustedCatalogArgv(canonical)) {
 			return {
@@ -981,6 +1067,73 @@ export async function installReverseItem(
 			if (step.id === "jshookmcp") {
 				try {
 					const installed = await installJshookMcp({
+						cwd: options.cwd ?? getProjectDir(),
+						agentDir: options.agentDir,
+						scope: "user",
+						onChunk: options.onChunk,
+						signal: options.signal,
+					});
+
+					let activated = false;
+					if (options.mcpManager) {
+						const loaded = await options.mcpManager.connectServers(
+							{ [installed.serverName]: installed.server },
+							{
+								[installed.serverName]: {
+									provider: "reverse",
+									providerName: "reverse",
+									path: installed.configPath,
+									level: "user",
+								},
+							},
+							undefined,
+							installed.server.timeout ?? 120_000,
+						);
+						const connectError = loaded.errors.get(installed.serverName);
+						if (connectError || options.mcpManager.getConnectionStatus(installed.serverName) !== "connected") {
+							return {
+								success: false,
+								message: t(
+									"cli.setup.reverse.serviceInstallFailed",
+									`MCP service ${step.name} installed, but session connection failed: ${connectError ?? "connection incomplete"}`,
+									{ name: step.name, error: connectError ?? "connection incomplete" },
+								),
+							};
+						}
+						await options.session?.refreshMCPTools(options.mcpManager.getTools());
+						activated = true;
+					}
+
+					return {
+						success: true,
+						activated,
+						message: t(
+							"cli.setup.reverse.serviceInstallSuccess",
+							`MCP service ${step.name} installed and configured successfully (config: ${installed.configPath}, tools: ${installed.tools.join(", ")}).`,
+							{ name: step.name, path: installed.configPath, tools: installed.tools.join(", ") },
+						),
+					};
+				} catch (err: unknown) {
+					const msg = err instanceof Error ? err.message : String(err);
+					return {
+						success: false,
+						message: t(
+							"cli.setup.reverse.serviceInstallFailed",
+							`MCP service ${step.name} installation failed: ${msg}`,
+							{ name: step.name, error: msg },
+						),
+					};
+				}
+			} else if (
+				step.installer === "native-mcp" ||
+				step.id === "x64dbg-mcp" ||
+				step.id === "ghidra-mcp" ||
+				(step.kind === "mcp" && step.id === "r2mcp")
+			) {
+				try {
+					const nativeService: NativeMcpService =
+						step.id === "x64dbg-mcp" ? "x64dbg" : step.id === "ghidra-mcp" ? "ghidra" : "radare2";
+					const installed = await installNativeMcpService(nativeService, {
 						cwd: options.cwd ?? getProjectDir(),
 						agentDir: options.agentDir,
 						scope: "user",
