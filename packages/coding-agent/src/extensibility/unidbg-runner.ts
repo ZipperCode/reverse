@@ -6,6 +6,7 @@
  */
 
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
@@ -14,6 +15,8 @@ import type { MCPServerConfig } from "../mcp/types";
 import { resolveStdioSpawnCommand } from "../mcp/transports/stdio";
 import { validateJdk8 } from "./unidbg-builder";
 import { inspectUnidbg } from "./unidbg-detect";
+import { generateAndroidProbeHarness, type UnidbgEnvProfile } from "./unidbg-harness";
+import { sha256File } from "../utils/file-hash";
 
 export interface UnidbgProcessInfo {
 	pid: number;
@@ -729,4 +732,394 @@ export async function launchUnidbgHarness(options: UnidbgLaunchOptions): Promise
 	processInfo.ready = true;
 	options.onLog?.(`Unidbg harness is fully ready at ${sseUrl}\n`);
 	return processInfo;
+}
+
+export interface UnidbgProbeLaunchOptions {
+	targetPath: string;
+	apkPath?: string;
+	apiLevel?: number;
+	arch?: 32 | 64 | "32" | "64";
+	backend?: "unicorn2" | "dynarmic";
+	callOnLoad?: boolean;
+	envProfile?: UnidbgEnvProfile | string;
+	outPath?: string;
+	unidbgHome?: string;
+	javaHome?: string;
+	timeoutMs?: number;
+	onLog?: (text: string) => void;
+	signal?: AbortSignal;
+}
+
+export interface UnidbgProbeRecord {
+	className: string;
+	methodName: string;
+	signature: string;
+	moduleName: string;
+	moduleBase?: string;
+	functionAddress: string;
+	moduleOffset?: string;
+	status: "confirmed";
+	source: "unidbg";
+	sampleSha256?: string;
+}
+
+export interface UnidbgProbeResult {
+	success: boolean;
+	targetPath: string;
+	sampleSha256?: string;
+	events: Array<Record<string, unknown>>;
+	records: UnidbgProbeRecord[];
+	totalEvents: number;
+	artifactPath?: string;
+	output: string;
+	error?: string;
+}
+
+export async function probeUnidbgRegisterNatives(options: UnidbgProbeLaunchOptions): Promise<UnidbgProbeResult> {
+	const targetPath = options.targetPath;
+	if (!fs.existsSync(targetPath)) {
+		return {
+			success: false,
+			targetPath,
+			events: [],
+			records: [],
+			totalEvents: 0,
+			output: "",
+			error: `Target binary not found: ${targetPath}`,
+		};
+	}
+
+	let stat: fs.Stats;
+	try {
+		stat = fs.statSync(targetPath);
+	} catch (e) {
+		return {
+			success: false,
+			targetPath,
+			events: [],
+			records: [],
+			totalEvents: 0,
+			output: "",
+			error: `Failed to stat target file: ${e instanceof Error ? e.message : String(e)}`,
+		};
+	}
+
+	if (!stat.isFile()) {
+		return {
+			success: false,
+			targetPath,
+			events: [],
+			records: [],
+			totalEvents: 0,
+			output: "",
+			error: `Target is not a regular file: ${targetPath}`,
+		};
+	}
+
+	if (stat.size <= 0 || stat.size > 256 * 1024 * 1024) {
+		return {
+			success: false,
+			targetPath,
+			events: [],
+			records: [],
+			totalEvents: 0,
+			output: "",
+			error: `Invalid target binary size (${stat.size} bytes): ${targetPath}`,
+		};
+	}
+
+	let sampleSha256: string;
+	try {
+		sampleSha256 = await sha256File(targetPath);
+	} catch (err) {
+		return {
+			success: false,
+			targetPath,
+			events: [],
+			records: [],
+			totalEvents: 0,
+			output: "",
+			error: `Failed to stream SHA-256 for target: ${err instanceof Error ? err.message : String(err)}`,
+		};
+	}
+
+	// Detect ELF architecture (ELFCLASS32 / EM_ARM vs ELFCLASS64 / EM_AARCH64)
+	let detectedArch: 32 | 64 | undefined;
+	try {
+		const elfHeader = Buffer.alloc(18);
+		const fd = fs.openSync(targetPath, "r");
+		fs.readSync(fd, elfHeader, 0, 18, 0);
+		fs.closeSync(fd);
+		if (
+			elfHeader[0] === 0x7f &&
+			elfHeader[1] === 0x45 &&
+			elfHeader[2] === 0x4c &&
+			elfHeader[3] === 0x46 // 0x7F 'E' 'L' 'F'
+		) {
+			const elfClass = elfHeader[4];
+			const eMachine = elfHeader.readUInt16LE(16);
+			if (elfClass === 1 || eMachine === 40) {
+				detectedArch = 32;
+			} else if (elfClass === 2 || eMachine === 183) {
+				detectedArch = 64;
+			}
+		}
+	} catch {}
+
+	let effectiveArch: 32 | 64;
+	if (options.arch) {
+		const req = String(options.arch) === "32" ? 32 : 64;
+		if (detectedArch !== undefined && req !== detectedArch) {
+			return {
+				success: false,
+				targetPath,
+				sampleSha256,
+				events: [],
+				records: [],
+				totalEvents: 0,
+				output: "",
+				error: `Target ELF architecture mismatch: binary is ${detectedArch}-bit, but ${req}-bit was requested.`,
+			};
+		}
+		effectiveArch = req;
+	} else {
+		effectiveArch = detectedArch ?? 64;
+	}
+
+	const jdk = validateJdk8(options.javaHome);
+	if (!jdk.valid) {
+		return {
+			success: false,
+			targetPath,
+			sampleSha256,
+			events: [],
+			records: [],
+			totalEvents: 0,
+			output: "",
+			error: jdk.error ?? "Invalid JDK 8 installation for Unidbg probe.",
+		};
+	}
+
+	const inspected = inspectUnidbg({ dir: options.unidbgHome });
+	if (!inspected.unidbgDir) {
+		return {
+			success: false,
+			targetPath,
+			sampleSha256,
+			events: [],
+			records: [],
+			totalEvents: 0,
+			output: "",
+			error: "Unidbg repository or installation not found. Run 'reverse unidbg build' first.",
+		};
+	}
+	const unidbgDir = inspected.unidbgDir;
+
+	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "unidbg-probe-"));
+	const probeSourcePath = path.join(tempDir, "UnidbgProbe.java");
+
+	let child: ChildProcess | undefined;
+	let abortListener: (() => void) | undefined;
+
+	try {
+		const code = generateAndroidProbeHarness({
+			targetPath,
+			apkPath: options.apkPath,
+			apiLevel: options.apiLevel,
+			arch: effectiveArch,
+			backend: options.backend,
+			callOnLoad: options.callOnLoad,
+			envProfile: options.envProfile,
+			harnessClassName: "UnidbgProbe",
+		});
+		fs.writeFileSync(probeSourcePath, code, "utf8");
+
+		const { outDir, className } = await compileHarnessSource(probeSourcePath, unidbgDir, false, options.javaHome);
+		const classpath = await assembleUnidbgClasspath(unidbgDir, false, outDir, options.javaHome);
+
+		const javaExe = process.platform === "win32" ? "java.exe" : "java";
+		const javaBin = options.javaHome ? path.join(options.javaHome, "bin", javaExe) : javaExe;
+
+		const javaArgs = [
+			"-Dfile.encoding=UTF-8",
+			"-cp",
+			classpath,
+			className,
+			targetPath,
+			options.callOnLoad !== false ? "true" : "false",
+		];
+
+		const timeoutMs = options.timeoutMs ?? 60_000;
+		child = spawn(javaBin, javaArgs, {
+			cwd: unidbgDir,
+			env: {
+				...process.env,
+				JAVA_HOME: options.javaHome,
+			},
+		});
+
+		const MAX_OUTPUT_BYTES = 4 * 1024 * 1024; // 4 MB cap
+		let stdout = "";
+		let stderr = "";
+		let stdoutTruncated = false;
+		let stderrTruncated = false;
+
+		child.stdout?.on("data", chunk => {
+			if (stdout.length < MAX_OUTPUT_BYTES) {
+				const text = chunk.toString("utf8");
+				stdout += text;
+				options.onLog?.(text);
+			} else if (!stdoutTruncated) {
+				stdoutTruncated = true;
+				stdout += "\n[stdout buffer limit reached, truncated]\n";
+			}
+		});
+
+		child.stderr?.on("data", chunk => {
+			if (stderr.length < MAX_OUTPUT_BYTES) {
+				const text = chunk.toString("utf8");
+				stderr += text;
+				options.onLog?.(text);
+			} else if (!stderrTruncated) {
+				stderrTruncated = true;
+				stderr += "\n[stderr buffer limit reached, truncated]\n";
+			}
+		});
+
+		const killProcessTree = () => {
+			if (!child || child.killed) return;
+			try {
+				child.kill("SIGTERM");
+				setTimeout(() => {
+					try {
+						if (child && child.exitCode === null && child.signalCode === null) {
+							child.kill("SIGKILL");
+						}
+					} catch {}
+				}, 1500);
+			} catch {}
+		};
+
+		if (options.signal) {
+			abortListener = () => {
+				killProcessTree();
+			};
+			options.signal.addEventListener("abort", abortListener, { once: true });
+		}
+
+		const { promise: exitPromise, resolve: resolveExit } = Promise.withResolvers<number>();
+		child.on("exit", code => resolveExit(code ?? 0));
+		child.on("error", () => resolveExit(1));
+
+		const timer = setTimeout(() => {
+			killProcessTree();
+			resolveExit(-1);
+		}, timeoutMs);
+
+		const exitCode = await exitPromise;
+		clearTimeout(timer);
+
+		const events: Array<Record<string, unknown>> = [];
+		const records: UnidbgProbeRecord[] = [];
+		const eventRegex = /__UNIDBG_PROBE_EVENT_START__([\s\S]*?)__UNIDBG_PROBE_EVENT_END__/g;
+		let match: RegExpExecArray | null;
+		const MAX_PROBE_EVENTS = 500;
+
+		while ((match = eventRegex.exec(stdout)) !== null && events.length < MAX_PROBE_EVENTS) {
+			try {
+				const ev = JSON.parse(match[1]) as Record<string, unknown>;
+				events.push(ev);
+				// Crucial: only confirm when retval is strictly numeric 0 and status is confirmed
+				const isConfirmed = ev.status === "confirmed" && typeof ev.retval === "number" && ev.retval === 0;
+				if (isConfirmed && Array.isArray(ev.methods)) {
+					const clsName = String(ev.class || "UnknownClass");
+					for (const m of ev.methods) {
+						if (m && typeof m === "object" && !("error" in m)) {
+							const methodObj = m as Record<string, unknown>;
+							records.push({
+								className: clsName,
+								methodName: String(methodObj.name || ""),
+								signature: String(methodObj.signature || ""),
+								moduleName: String(methodObj.module || path.basename(targetPath)),
+								moduleBase: typeof methodObj.base === "string" ? methodObj.base : undefined,
+								functionAddress: String(methodObj.fnPtr || "0x0"),
+								moduleOffset: typeof methodObj.offset === "string" ? methodObj.offset : undefined,
+								status: "confirmed",
+								source: "unidbg",
+								sampleSha256,
+							});
+						}
+					}
+				}
+			} catch {}
+		}
+
+		let artifactPath = options.outPath;
+		if (!artifactPath && records.length > 0) {
+			const baseName = path.basename(targetPath, path.extname(targetPath));
+			artifactPath = path.join(process.cwd(), "artifacts", `unidbg-probe-${baseName}-${Date.now()}.json`);
+		}
+		if (artifactPath) {
+			const resolvedArtifact = path.isAbsolute(artifactPath)
+				? artifactPath
+				: path.resolve(process.cwd(), artifactPath);
+			if (fs.existsSync(resolvedArtifact)) {
+				const lstat = fs.lstatSync(resolvedArtifact);
+				if (lstat.isSymbolicLink()) {
+					throw new Error(`Refusing to write artifact over symbolic link at '${resolvedArtifact}'`);
+				}
+			}
+			fs.mkdirSync(path.dirname(resolvedArtifact), { recursive: true });
+			const stagePath = `${resolvedArtifact}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+			const payload = JSON.stringify(
+				{
+					targetPath,
+					sampleSha256,
+					arch: effectiveArch,
+					backend: options.backend ?? "unicorn2",
+					apiLevel: options.apiLevel ?? 23,
+					events,
+					records,
+					totalEvents: events.length,
+					confirmedMethods: records.length,
+					timestamp: new Date().toISOString(),
+				},
+				null,
+				2,
+			);
+			fs.writeFileSync(stagePath, payload, { encoding: "utf8", mode: 0o644 });
+			fs.renameSync(stagePath, resolvedArtifact);
+			artifactPath = resolvedArtifact;
+		}
+
+		return {
+			success: exitCode === 0,
+			targetPath,
+			sampleSha256,
+			events,
+			records,
+			totalEvents: events.length,
+			artifactPath,
+			output: stdout,
+			error: exitCode !== 0 ? stderr.trim() || `Probe exited with code ${exitCode}` : undefined,
+		};
+	} catch (err: unknown) {
+		return {
+			success: false,
+			targetPath,
+			sampleSha256,
+			events: [],
+			records: [],
+			totalEvents: 0,
+			output: "",
+			error: err instanceof Error ? err.message : String(err),
+		};
+	} finally {
+		if (options.signal && abortListener) {
+			options.signal.removeEventListener("abort", abortListener);
+		}
+		try {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		} catch {}
+	}
 }

@@ -860,3 +860,134 @@ describe("handleReverseSetup interactive selection and manual inspection", () =>
 		expect(jshook?.installArgv).toBeNull();
 	});
 });
+
+describe("lief, sofixer, ghidra-findcrypt in catalog and capabilities", () => {
+	it("catalog contains lief, sofixer, ghidra-findcrypt descriptors with complete usage guidance", () => {
+		for (const id of ["lief", "sofixer", "ghidra-findcrypt"]) {
+			const tool = getReverseTool(id);
+			expect(tool).toBeDefined();
+			expect(tool?.id).toBe(id);
+			expect(tool?.optional).toBe(true);
+			expect(tool?.category).toBeDefined();
+			expect(tool?.usage).toBeDefined();
+			expect(tool?.usage?.canonical).toBeDefined();
+			expect(tool?.usage?.whenToUse).toBeDefined();
+			expect(tool?.usage?.examples.length).toBeGreaterThan(0);
+		}
+	});
+
+	it("checkReverseTools includes lief, sofixer, ghidra-findcrypt in report", () => {
+		const which = mockWhich({
+			strings: "/usr/bin/strings",
+			file: "/usr/bin/file",
+		});
+		const report = checkReverseTools({ platform: "darwin", which });
+		const lief = report.tools.find(t => t.id === "lief");
+		const sofixer = report.tools.find(t => t.id === "sofixer");
+		const findcrypt = report.tools.find(t => t.id === "ghidra-findcrypt");
+
+		expect(lief).toBeDefined();
+		expect(sofixer).toBeDefined();
+		expect(findcrypt).toBeDefined();
+
+		expect(lief?.status).toBe("missing");
+		expect(sofixer?.status).toBe("missing");
+		expect(findcrypt?.status).toBe("missing");
+	});
+
+	it("resolveReverseCapabilities includes native_elf_analysis, native_elf_repair, and native_crypto_constant_analysis", () => {
+		const caps = resolveReverseCapabilities();
+		const elfAnalysis = caps.find(c => c.id === "native_elf_analysis");
+		const elfRepair = caps.find(c => c.id === "native_elf_repair");
+		const cryptoAnalysis = caps.find(c => c.id === "native_crypto_constant_analysis");
+
+		expect(elfAnalysis).toBeDefined();
+		expect(elfAnalysis?.recommendedNativeTool).toBe("elf_inspect");
+		expect(elfAnalysis?.optionalExternalTools.some(t => t.id === "lief")).toBe(true);
+		expect(elfAnalysis?.postInstallInvocation).toContain('action: "query"');
+
+		expect(elfRepair).toBeDefined();
+		expect(elfRepair?.recommendedNativeTool).toBe("elf_inspect");
+		expect(elfRepair?.optionalExternalTools.some(t => t.id === "sofixer")).toBe(true);
+		expect(elfRepair?.postInstallInvocation).toContain('action: "repair"');
+		expect(elfRepair?.postInstallInvocation).toContain("dump_path:");
+		expect(elfRepair?.postInstallInvocation).toContain("base_address:");
+
+		expect(cryptoAnalysis).toBeDefined();
+		expect(cryptoAnalysis?.recommendedNativeTool).toBe("ghidra_inspect");
+		expect(cryptoAnalysis?.optionalExternalTools.some(t => t.id === "ghidra-findcrypt")).toBe(true);
+		expect(cryptoAnalysis?.postInstallInvocation).toContain('action: "findcrypt"');
+		expect(cryptoAnalysis?.postInstallInvocation).toContain("path:");
+	});
+
+	it("enforces strict prerequisite conjunctions and fallback statuses for new engine capabilities", () => {
+		// 1. native_elf_analysis: readelf alone must NOT mark capability ready; only lief marks it ready
+		const capsReadelfOnly = resolveReverseCapabilities({
+			toolStatuses: [
+				{ id: "readelf", status: "installed" },
+				{ id: "lief", status: "missing" },
+			],
+		});
+		const elfReadelfOnly = capsReadelfOnly.find(c => c.id === "native_elf_analysis");
+		expect(elfReadelfOnly?.ready).toBe(false);
+		expect(elfReadelfOnly?.status).toBe("available_with_fallbacks");
+		expect(elfReadelfOnly?.blockedRequirements).toContain("lief");
+
+		const capsLiefReady = resolveReverseCapabilities({
+			toolStatuses: [{ id: "lief", status: "installed" }],
+		});
+		const elfLiefReady = capsLiefReady.find(c => c.id === "native_elf_analysis");
+		expect(elfLiefReady?.ready).toBe(true);
+		expect(elfLiefReady?.status).toBe("ready");
+
+		// 2. native_crypto_constant_analysis: ghidra alone must NOT mark capability ready; both ghidra and ghidra-findcrypt required
+		const capsGhidraOnly = resolveReverseCapabilities({
+			toolStatuses: [
+				{ id: "ghidra", status: "installed" },
+				{ id: "ghidra-findcrypt", status: "missing" },
+			],
+		});
+		const cryptoGhidraOnly = capsGhidraOnly.find(c => c.id === "native_crypto_constant_analysis");
+		expect(cryptoGhidraOnly?.ready).toBe(false);
+		expect(cryptoGhidraOnly?.status).toBe("available_with_fallbacks");
+		expect(cryptoGhidraOnly?.blockedRequirements).toContain("ghidra-findcrypt");
+
+		const capsCryptoFull = resolveReverseCapabilities({
+			toolStatuses: [
+				{ id: "ghidra", status: "installed" },
+				{ id: "ghidra-findcrypt", status: "installed" },
+			],
+		});
+		const cryptoFull = capsCryptoFull.find(c => c.id === "native_crypto_constant_analysis");
+		expect(cryptoFull?.ready).toBe(true);
+		expect(cryptoFull?.status).toBe("ready");
+
+		// 3. native_elf_repair: offline repair requires BOTH sofixer AND lief; dump requires frida
+		const capsSofixerOnly = resolveReverseCapabilities({
+			toolStatuses: [
+				{ id: "sofixer", status: "installed" },
+				{ id: "lief", status: "missing" },
+				{ id: "frida", status: "missing" },
+			],
+		});
+		const repairSofixerOnly = capsSofixerOnly.find(c => c.id === "native_elf_repair");
+		expect(repairSofixerOnly?.ready).toBe(false);
+		expect(repairSofixerOnly?.status).toBe("available_with_fallbacks");
+		expect(repairSofixerOnly?.elfRepairStages?.offline.ready).toBe(false);
+		expect(repairSofixerOnly?.elfRepairStages?.offline.missingTools).toContain("lief");
+		expect(repairSofixerOnly?.elfRepairStages?.dump.ready).toBe(false);
+
+		const capsRepairFull = resolveReverseCapabilities({
+			toolStatuses: [
+				{ id: "sofixer", status: "installed" },
+				{ id: "lief", status: "installed" },
+				{ id: "frida", status: "installed" },
+			],
+		});
+		const repairFull = capsRepairFull.find(c => c.id === "native_elf_repair");
+		expect(repairFull?.ready).toBe(true);
+		expect(repairFull?.status).toBe("ready");
+		expect(repairFull?.elfRepairStages?.offline.ready).toBe(true);
+		expect(repairFull?.elfRepairStages?.dump.ready).toBe(true);
+	});
+});

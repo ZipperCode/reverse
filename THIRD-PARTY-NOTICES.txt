@@ -9,6 +9,40 @@ TRACKED VENDORED CODE AND ASSET NOTICES
 =======================================
 
 -------------------------------------------------------------------------------
+jnitrace-engine — bundled JNI API tracing engine
+https://github.com/chame1eon/jnitrace-engine
+Upstream package: jnitrace-engine@1.1.1
+Upstream commit: 463aab6ffdaf868a73490745979229174f9ee2bf
+
+Adapted for reverse's existing Frida sessions and shipped as an embedded asset.
+The pinned JNI function metadata also supplies Ghidra's JNI type definitions.
+Local changes include Frida export-resolution compatibility, bounded trace
+collection, structured events, and owned-hook teardown.
+
+MIT License
+
+Copyright (c) 2019 chame1eon
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+-------------------------------------------------------------------------------
 apk-reverse — adopted DEX patching and APK artifact utilities and workflow knowledge
 https://codeberg.org/dabao1955/apk-reverse
 Upstream snapshot: bd6dd0c59ce1f9af75f1293ef9518fb6f5d28c6c

@@ -97,10 +97,9 @@ readelf -sW ./artifacts/extracted_so/lib/arm64-v8a/libnative-crypto.so | grep -E
 #### JNI Binding Resolution Paths:
 - **Path A (Static JNI Export)**: Exported symbol matches `Java_<package>_<class>_<method>`. Inspect input parameters (`JNIEnv*`, `jobject/jclass`, plus native args) via `r2_inspect` or `ghidra_inspect`.
 - **Path B (Dynamic Registration)**: No `Java_*` export found, but `JNI_OnLoad` exists. Disassemble `JNI_OnLoad`, trace calls to `(*env)->RegisterNatives(...)`, and read the `JNINativeMethod` struct array mapping method names, signatures, and function pointers.
-- **Path C (Host CPU Emulation via Unidbg)**: When no physical phone or emulator is connected, `unidbg` can emulate target ARM functions headlessly on the host JVM. A custom target Java harness (`AndroidEmulator` / `McpToolkit`) must exist in the project; obtain its actual invocation from the project (manual integration required; no generic standalone CLI executable or pretend harness class exists).
-  ```bash
-  # Execute custom target Java harness (must exist in project; obtain actual invocation from project build/test configuration)
-  ```
+- **Path C (Host CPU Emulation via Unidbg)**: Use reverse's existing `unidbg` tool to generate/build/launch a target harness or probe initialization without a known entry method. Bind the original APK when package metadata matters; use explicit object/array values and JNI callback overrides for observed environment dependencies. Read the current `unidbg` tool schema for invocation fields and retain missing callback signatures rather than substituting silent defaults.
+- **Enrichment loop**: Carry confirmed registration events, target hash, ABI and DEX static/instance declarations into `ghidra_inspect(action: "jni_enrich")` or the owned Ghidra native session. Preview first, apply to the matched persistent project, then re-decompile. Use bounded `frida_session(template: "jni_trace")` when JNI argument/return/callback behavior remains unknown.
+- **Structural and unpacking branches**: Use LIEF-backed `elf_inspect` for constructors, relocations and address mapping. Select external FindCrypt for algorithm constant candidates. When a library is decrypted in memory, preserve a bounded dump and module mapping manifest, repair a separate candidate with SoFixer, and reanalyze. Finish with independent input/output experiments.
 ---
 
 ## 4. Phase 3: Smali Bytecode Modification & Rebuild (Apktool)

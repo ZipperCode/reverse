@@ -65,6 +65,10 @@ Specialized third-party disassemblers, decompilers, emulators, and debuggers tha
   - **`r2_inspect`**: Rapid, headless binary triage and bounded disassembly windows. Requires `radare2`. Accepts strictly canonical target selectors (`symbol`, `target`, `address`); parameter aliases like `function` are rejected. Defaults to `entry0` only when omitted (`details.referenceDefaulted: true`), and fails truthfully if a requested symbol is missing.
   - **`ida`**: Decompilation and type recovery across 4 distinct backends: IDA GUI desktop application, headless `idalib` SDK (required for virtual reads and the `ida` tool), local database files (`.idb`/`.i64`), and optional MCP bridge (`ida-mcp`). An unconfigured or disconnected MCP bridge does NOT mark the entire IDA install absent when GUI or `idalib` exists.
   - **`frida`**: Dynamic runtime instrumentation, memory inspection, and function trace.
+  - **JNI recovery**: Compose DEX native declarations, successful Frida/Unidbg registration events and `jni_enrich` in the existing Ghidra tool/session. Preview symbol and type changes first; keep event provenance, target hash and receiver kind with the binding.
+  - **`elf_inspect`**: Use optional LIEF for deep ELF structure queries. Use explicit runtime dump and external SoFixer repair only for memory-unpacked targets; keep original, dump metadata and repaired candidate separate. Dependency setup IDs are `lief` and `sofixer`.
+  - **FindCrypt**: Install optional `ghidra-findcrypt` for the selected Ghidra version, invoke `ghidra_inspect(action: "findcrypt")`, and verify constant-match candidates through runtime inputs/outputs.
+  - **JNI API trace**: Prefer `jni_register` for method discovery; select bounded `jni_trace` in the existing Frida session when API arguments, return values or missing environment callbacks matter. The reused engine ships with reverse, while Frida remains optional.
   - **No Mandatory Tool Counts**: Reverse workflows never demand arbitrary mandatory counts of external engines or connected MCP servers; built-in zero-dependency tools (`triage`, binutils) serve as sufficient baseline fallbacks on constrained or sandbox hosts.
 ---
 

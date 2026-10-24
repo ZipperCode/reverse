@@ -10,6 +10,7 @@ import {
 	persistToolEnvironment,
 	resolveJavaHomeFromBinary,
 } from "../src/extensibility/reverse-tool-install";
+import { resolveSoFixer, resolveGhidraFindCrypt } from "../src/extensibility/skill-tool-catalog";
 import {
 	checkReverseTools,
 	type ReverseCheckReport,
@@ -590,6 +591,188 @@ describe("reverse-tool-install shared API", () => {
 			expect(fs.existsSync(mcpJsonPath)).toBe(true);
 			const mcpJson = JSON.parse(await fs.promises.readFile(mcpJsonPath, "utf-8"));
 			expect(mcpJson.mcpServers?.playwright).toBeDefined();
+		});
+	});
+
+	describe("lief, sofixer, ghidra-findcrypt engine installers contract", () => {
+		it("plans lief installation into an isolated managed venv", () => {
+			const liefStatus: ReverseToolStatus = {
+				kind: "cli",
+				id: "lief",
+				name: "LIEF",
+				category: "binary",
+				description: "Deep ELF inspection library",
+				optional: true,
+				systemTool: false,
+				status: "missing",
+				foundPath: null,
+				packageManager: "pip",
+				installCommand: "reverse setup reverse lief (managed venv)",
+				installArgv: ["reverse", "setup", "reverse", "lief", "--execute"],
+				riskNote: null,
+				manualUrl: "https://lief.re/",
+				manualInstructions: "",
+			};
+
+			const plan = getReverseInstallPlan(liefStatus, { agentDir: tempDir });
+			expect(plan.canInstall).toBe(true);
+			expect(plan.steps.length).toBeGreaterThan(0);
+			const liefStep = plan.steps.find(s => s.id === "lief");
+			expect(liefStep).toBeDefined();
+			expect(liefStep?.installer).toBe("lief");
+			expect(liefStep?.packageManager).toBe("pip");
+		});
+
+		it("plans sofixer compilation with cmake and enforces user-declared architecture resolution", async () => {
+			const sofixerStatus: ReverseToolStatus = {
+				kind: "cli",
+				id: "sofixer",
+				name: "SoFixer",
+				category: "binary",
+				description: "ELF memory dump repair tool",
+				optional: true,
+				systemTool: false,
+				status: "missing",
+				foundPath: null,
+				packageManager: "build",
+				installCommand: "reverse setup reverse sofixer --execute",
+				installArgv: ["reverse", "setup", "reverse", "sofixer", "--execute"],
+				riskNote: null,
+				manualUrl: "https://github.com/F8LEFT/SoFixer",
+				manualInstructions: "",
+			};
+
+			// 1. Check planning with mock which providing cmake and clang++
+			const mockWhich = (cmd: string) => {
+				if (cmd === "cmake") return "/usr/local/bin/cmake";
+				if (cmd === "clang++") return "/usr/bin/clang++";
+				return null;
+			};
+			const plan = getReverseInstallPlan(sofixerStatus, { agentDir: tempDir, which: mockWhich });
+			expect(plan.canInstall).toBe(true);
+			const sofixerStep = plan.steps.find(s => s.id === "sofixer");
+			expect(sofixerStep).toBeDefined();
+			expect(sofixerStep?.installer).toBe("sofixer");
+
+			const liefStepIndex = plan.steps.findIndex(s => s.id === "lief");
+			const sofixerStepIndex = plan.steps.findIndex(s => s.id === "sofixer");
+			if (liefStepIndex !== -1) {
+				expect(liefStepIndex).toBeLessThan(sofixerStepIndex);
+			}
+
+			// 2. Strict architecture resolution test
+			const fakeToolsDir = path.join(tempDir, "tools", "sofixer", "bin");
+			await fs.promises.mkdir(fakeToolsDir, { recursive: true });
+			const fake64 = path.join(fakeToolsDir, "sofixer64");
+			const fake32 = path.join(fakeToolsDir, "sofixer32");
+			await fs.promises.writeFile(fake64, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+			await fs.promises.writeFile(fake32, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+
+			const resolved64 = resolveSoFixer({ agentDir: tempDir, arch: "64" });
+			expect(resolved64).not.toBeNull();
+			expect(resolved64?.arch).toBe("64");
+			expect(resolved64?.path).toBe(fake64);
+
+			const resolved32 = resolveSoFixer({ agentDir: tempDir, arch: "arm" });
+			expect(resolved32).not.toBeNull();
+			expect(resolved32?.arch).toBe("32");
+			expect(resolved32?.path).toBe(fake32);
+
+			// Strictness: removing 32-bit binary must return null when 32-bit is requested (never falsely return 64-bit)
+			await fs.promises.unlink(fake32);
+			const strict32 = resolveSoFixer({ agentDir: tempDir, arch: "32" });
+			expect(strict32).toBeNull();
+
+			// Generic SOFIXER_PATH boundary test: generic binary must NOT satisfy 32-bit resolution
+			const genericPath = path.join(tempDir, "generic_sofixer");
+			await fs.promises.writeFile(genericPath, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+			const genericVia32 = resolveSoFixer({ env: { SOFIXER_PATH: genericPath }, arch: "32" });
+			expect(genericVia32).toBeNull();
+
+			const genericVia64 = resolveSoFixer({ env: { SOFIXER_PATH: genericPath }, arch: "64" });
+			expect(genericVia64).not.toBeNull();
+			expect(genericVia64?.path).toBe(genericPath);
+			expect(genericVia64?.arch).toBe("64");
+
+			// Explicit SOFIXER32_PATH satisfies 32-bit resolution
+			const explicit32Path = path.join(tempDir, "custom_sofixer32");
+			await fs.promises.writeFile(explicit32Path, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+			const explicitVia32 = resolveSoFixer({ env: { SOFIXER32_PATH: explicit32Path }, arch: "32" });
+			expect(explicitVia32).not.toBeNull();
+			expect(explicitVia32?.path).toBe(explicit32Path);
+			expect(explicitVia32?.arch).toBe("32");
+		});
+
+		it("probes and plans ghidra-findcrypt extension matching target Ghidra installation", async () => {
+			// Mock a fake Ghidra installation directory
+			const fakeGhidraDir = path.join(tempDir, "ghidra_12.2");
+			const fakeSupportDir = path.join(fakeGhidraDir, "support");
+			const fakeGhidraSubDir = path.join(fakeGhidraDir, "Ghidra");
+			await fs.promises.mkdir(fakeSupportDir, { recursive: true });
+			await fs.promises.mkdir(fakeGhidraSubDir, { recursive: true });
+			await fs.promises.writeFile(
+				path.join(fakeGhidraSubDir, "application.properties"),
+				"application.name=Ghidra\napplication.version=12.2\napplication.release.name=PUBLIC\n",
+			);
+			const fakeAnalyzeHeadless = path.join(fakeSupportDir, "analyzeHeadless");
+			await fs.promises.writeFile(fakeAnalyzeHeadless, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+
+			// Extension absent initially
+			const initialProbe = resolveGhidraFindCrypt({ ghidraPath: fakeGhidraDir });
+			expect(initialProbe.available).toBe(false);
+			expect(initialProbe.ghidraFound).toBe(true);
+			expect(initialProbe.ghidraVersion).toBe("12.2");
+
+			// Install fake extension
+			const fakeExtDir = path.join(fakeGhidraDir, "Ghidra", "Extensions", "FindCrypt");
+			const fakeExtLib = path.join(fakeExtDir, "lib");
+			await fs.promises.mkdir(fakeExtLib, { recursive: true });
+			await fs.promises.writeFile(
+				path.join(fakeExtDir, "extension.properties"),
+				"name=FindCrypt\nversion=2.1.4\nghidraVersion=12.2\n",
+			);
+			await fs.promises.writeFile(path.join(fakeExtLib, "FindCrypt.jar"), "PK...");
+
+			const installedProbe = resolveGhidraFindCrypt({ ghidraPath: fakeGhidraDir });
+			expect(installedProbe.available).toBe(true);
+			expect(installedProbe.version).toBe("2.1.4");
+			expect(installedProbe.analyzerClass).toBe("FindCryptAnalyzer");
+
+			// Test install plan when Ghidra is present
+			const findcryptStatus: ReverseToolStatus = {
+				kind: "cli",
+				id: "ghidra-findcrypt",
+				name: "Ghidra FindCrypt Analyzer",
+				category: "decompiler",
+				description: "Ghidra FindCrypt",
+				optional: true,
+				systemTool: false,
+				status: "missing",
+				foundPath: null,
+				packageManager: "build",
+				installCommand: "reverse setup reverse ghidra-findcrypt --execute",
+				installArgv: ["reverse", "setup", "reverse", "ghidra-findcrypt", "--execute"],
+				riskNote: null,
+				manualUrl: "",
+				manualInstructions: "",
+			};
+
+			const mockWhich = (cmd: string) => {
+				if (cmd === "analyzeHeadless") return fakeAnalyzeHeadless;
+				if (cmd === "java") return "/usr/bin/java";
+				if (cmd === "gradle") return "/usr/local/bin/gradle";
+				return null;
+			};
+
+			const plan = getReverseInstallPlan(findcryptStatus, {
+				agentDir: tempDir,
+				which: mockWhich,
+				env: { GHIDRA_INSTALL_DIR: fakeGhidraDir },
+			});
+			expect(plan.canInstall).toBe(true);
+			const findcryptStep = plan.steps.find(s => s.id === "ghidra-findcrypt");
+			expect(findcryptStep).toBeDefined();
+			expect(findcryptStep?.installer).toBe("ghidra-findcrypt");
 		});
 	});
 });

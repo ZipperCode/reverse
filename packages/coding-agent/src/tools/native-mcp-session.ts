@@ -21,12 +21,19 @@ import {
 } from "../reverse-runtime-session";
 import { type UniversalDynamicEvent, formatDynamicLocator } from "../reverse-runtime-session/dynamic-events";
 import { EvidenceStore, type AddFactInput } from "../evidence";
-
+import {
+	type CanonicalJniMethodRecord,
+	type JniEnrichSummary,
+	canonicalizeRegisterNativesEvent,
+	previewJniEnrichment,
+	parseElfMetadataForJni,
+	type ElfJniMetadata,
+} from "./jni-enrichment";
 export const nativeMcpSessionSchema = type({
 	action: type
-		.enumerated("connect", "status", "list", "disconnect", "locate")
+		.enumerated("connect", "status", "list", "disconnect", "locate", "jni_enrich")
 		.describe(
-			"Action to perform: 'connect' (launch or connect service, bootstrap target, mount upstream tools), 'status' (inspect session/target state), 'list' (list active native sessions), 'disconnect' (detach and cleanly unmount owned session), 'locate' (dynamic-to-static address mapping with BigInt arithmetic)",
+			"Action to perform: 'connect' (launch or connect service, bootstrap target, mount upstream tools), 'status' (inspect session/target state), 'list' (list active native sessions), 'disconnect' (detach and cleanly unmount owned session), 'locate' (dynamic-to-static address mapping with BigInt arithmetic), 'jni_enrich' (apply confirmed dynamic RegisterNatives JNI symbols and prototypes to active session)",
 		),
 	"service?": type
 		.enumerated("x64dbg", "ghidra", "radare2")
@@ -69,6 +76,21 @@ export const nativeMcpSessionSchema = type({
 		"Static image base address from Ghidra/PE/ELF header (hex string, e.g. '0x140000000') for 'locate' action",
 	),
 	"module_name?": type("string").describe("Optional module name (e.g. 'main.exe') for locator attribution"),
+	"records?": type("unknown[]").describe("Array of CanonicalJniMethodRecord objects to enrich"),
+	"events?": type("unknown").describe("Raw RegisterNatives event or array of events from dynamic tracing"),
+	"events_path?": type("string").describe(
+		"Path to an on-disk JSON artifact containing RegisterNatives events (e.g. from Frida or Unidbg)",
+	),
+	"preview?": type("boolean").describe(
+		"When true (default), previews JNI enrichment without modifying session. Set false to apply changes",
+	),
+	"decompile?": type("boolean").describe(
+		"When true (default), re-decompiles functions after applying symbols and prototypes",
+	),
+	"batch_size?": type("number.integer >= 1").describe(
+		"Maximum number of functions to enrich in this batch (default 20, max 100)",
+	),
+	"is_static_map?": type("unknown").describe("Mapping of method keys to boolean for DEX ACC_STATIC confirmation"),
 });
 
 export type NativeMcpSessionParams = typeof nativeMcpSessionSchema.infer;
@@ -122,10 +144,12 @@ export interface AddressMappingResult {
 }
 
 export interface NativeMcpSessionResult {
-	action: "connect" | "status" | "list" | "disconnect" | "locate";
+	action: "connect" | "status" | "list" | "disconnect" | "locate" | "jni_enrich";
 	session?: OwnedNativeSession;
 	sessions?: OwnedNativeSession[];
 	mapping?: AddressMappingResult;
+	enrichment?: JniEnrichSummary;
+	decompilations?: Array<{ name: string; address: string; code: string }>;
 	reused?: boolean;
 	message?: string;
 	services?: Array<{
@@ -152,15 +176,24 @@ function getSessionScopedState(sessionKey: object): SessionScopedState {
 	return scope;
 }
 
-interface GhidraProjectLock {
+export interface GhidraProjectLock {
 	projectDir: string;
 	ownerKey: object;
 	sessionId: string;
 }
 
 /** Process-level tracker of locked Ghidra persistent project realpaths (prevents OS file lock crashes) */
-const ACTIVE_GHIDRA_PROJECTS = new Map<string, GhidraProjectLock>();
+export const ACTIVE_GHIDRA_PROJECTS = new Map<string, GhidraProjectLock>();
 
+export function getActiveGhidraProjectLock(projectDir: string, cwd?: string): GhidraProjectLock | undefined {
+	const resolved = cwd ? path.resolve(cwd, projectDir) : path.resolve(projectDir);
+	try {
+		const canonical = fs.realpathSync(resolved);
+		return ACTIVE_GHIDRA_PROJECTS.get(canonical) ?? ACTIVE_GHIDRA_PROJECTS.get(resolved);
+	} catch {
+		return ACTIVE_GHIDRA_PROJECTS.get(resolved);
+	}
+}
 /** Extract combined text content from an MCP tool call result */
 function getToolCallText(result: MCPToolCallResult): string {
 	const texts: string[] = [];
@@ -246,7 +279,13 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 	readonly approval = (args: unknown): ToolTier => {
 		if (args && typeof args === "object" && "action" in args) {
 			const action = args.action;
-			if (action === "status" || action === "list" || action === "locate") {
+			const preview = "preview" in args ? args.preview : undefined;
+			if (
+				action === "status" ||
+				action === "list" ||
+				action === "locate" ||
+				(action === "jni_enrich" && preview !== false)
+			) {
 				return "read";
 			}
 			return "exec";
@@ -299,6 +338,8 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 				return this.handleDisconnect(params);
 			case "locate":
 				return this.handleLocate(params);
+			case "jni_enrich":
+				return this.handleJniEnrich(params, signal);
 			default: {
 				const unknownAction =
 					typeof params === "object" && params !== null && "action" in params ? String(params.action) : "unknown";
@@ -1030,6 +1071,357 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 			details: {
 				action: "locate",
 				mapping,
+			},
+		};
+	}
+	private async handleJniEnrich(
+		params: NativeMcpSessionParams,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<NativeMcpSessionResult>> {
+		if (!params.session_id) {
+			throw new ToolError("Parameter 'session_id' is required for 'jni_enrich' action");
+		}
+		const session = this.ownedSessions.get(params.session_id);
+		if (!session) {
+			throw new ToolError(`Session not found: '${params.session_id}'`);
+		}
+		if (session.status !== "connected") {
+			throw new ToolError(`Session '${params.session_id}' is not connected (status: ${session.status})`);
+		}
+		if (session.service !== "ghidra") {
+			throw new ToolError(
+				`Service '${session.service}' does not support JNI enrichment; only 'ghidra' sessions are supported.`,
+			);
+		}
+
+		// 1. Resolve records
+		let rawEvents: unknown = params.events;
+		if (!rawEvents && params.events_path) {
+			const resolvedPath = path.resolve(this.session.cwd, params.events_path);
+			try {
+				rawEvents = JSON.parse(fs.readFileSync(resolvedPath, "utf8"));
+			} catch (err) {
+				throw new ToolError(
+					`Failed to read events_path '${resolvedPath}': ${err instanceof Error ? err.message : String(err)}`,
+				);
+			}
+		}
+
+		let records: CanonicalJniMethodRecord[] = [];
+		if (Array.isArray(params.records) && params.records.length > 0) {
+			records = params.records as CanonicalJniMethodRecord[];
+		} else if (rawEvents) {
+			let eventsList: unknown[] = [];
+			if (Array.isArray(rawEvents)) {
+				eventsList = rawEvents;
+			} else if (typeof rawEvents === "object" && rawEvents !== null) {
+				if ("events" in rawEvents && Array.isArray((rawEvents as { events: unknown[] }).events)) {
+					eventsList = (rawEvents as { events: unknown[] }).events;
+				} else {
+					eventsList = [rawEvents];
+				}
+			}
+			for (const ev of eventsList) {
+				const canon = canonicalizeRegisterNativesEvent(ev, {
+					expectedSha256: session.verifiedTarget?.sha256,
+				});
+				records.push(...canon);
+			}
+		} else {
+			throw new ToolError("Either 'events', 'events_path', or 'records' parameter is required for 'jni_enrich'");
+		}
+		// Merge is_static_map across both events and records
+		if (params.is_static_map && typeof params.is_static_map === "object") {
+			const map = params.is_static_map as Record<string, boolean>;
+			for (const rec of records) {
+				if (typeof rec.isStatic !== "boolean") {
+					const key1 = `${rec.className}->${rec.methodName}${rec.signature}`;
+					const key2 = `${rec.methodName}${rec.signature}`;
+					const key3 = rec.methodName;
+					if (typeof map[key1] === "boolean") rec.isStatic = map[key1];
+					else if (typeof map[key2] === "boolean") rec.isStatic = map[key2];
+					else if (typeof map[key3] === "boolean") rec.isStatic = map[key3];
+				}
+			}
+		}
+
+		// Enforce confirmation contract: only confirmed records
+		for (const rec of records) {
+			if (rec.status !== "confirmed") {
+				throw new ToolError(
+					`Cannot apply unconfirmed JNI method record for '${rec.className}->${rec.methodName}': status is '${rec.status}'`,
+				);
+			}
+		}
+
+		// Compute preview with actual binary ELF metadata if accessible
+		const targetFile = session.verifiedTarget?.path ?? session.target;
+		let elfMeta: ElfJniMetadata | undefined;
+		if (targetFile && fs.existsSync(targetFile)) {
+			try {
+				const buf = fs.readFileSync(targetFile);
+				elfMeta = parseElfMetadataForJni(buf);
+			} catch {}
+		}
+
+		const staticBase = session.verifiedTarget?.baseAddress ?? params.static_base;
+		const previewSummary = previewJniEnrichment(records, {
+			staticImageBase: staticBase ?? elfMeta?.minLoadVaddr,
+			arch: elfMeta?.arch,
+			bitness: elfMeta?.bitness,
+			executableRanges: elfMeta?.executableRanges,
+			minLoadVaddr: elfMeta?.minLoadVaddr,
+		});
+		const previewOnly = params.preview !== false;
+		if (previewOnly) {
+			const lines = [
+				`### JNI Registration Enrichment Preview (Session: ${session.sessionId})`,
+				`- **Total Methods**: ${previewSummary.total}`,
+				`- **Eligible for Application**: ${previewSummary.eligible}`,
+				`- **Rejected / Out of Bounds**: ${previewSummary.rejected}`,
+				"",
+				"| Class | Method | JVM Signature | Receiver | Static Address | Planned Symbol | Status |",
+				"|---|---|---|---|---|---|---|",
+				...previewSummary.items.map(
+					it =>
+						`| \`${it.className}\` | \`${it.methodName}\` | \`${it.signature}\` | ${it.isStatic === true ? "static" : it.isStatic === false ? "virtual" : "unverified"} | \`${it.staticAddress}\` | \`${it.targetFunctionName}\` | ${it.status} |`,
+				),
+				"",
+				"> Note: Preview only (dry-run). Set `preview: false` to apply function rename and prototypes to active session.",
+			];
+			return {
+				content: [{ type: "text", text: lines.join("\n") }],
+				details: {
+					action: "jni_enrich",
+					session,
+					enrichment: previewSummary,
+				},
+			};
+		}
+
+		// 2. Applying changes (preview: false)
+		// Enforce target verification and provenance:
+		if (session.target && session.targetMatched === false) {
+			throw new ToolError(
+				`Cannot apply JNI enrichment: session target verification failed (targetMatched is false for '${session.target}'). ` +
+					"Refusing writeback to prevent corrupting mismatched sample.",
+			);
+		}
+
+		// Verify sample SHA-256 (if bound) and receiver typing for each record
+		for (const rec of records) {
+			if (session.verifiedTarget?.sha256 && rec.sampleSha256) {
+				if (session.verifiedTarget.sha256.toLowerCase() !== rec.sampleSha256.toLowerCase()) {
+					throw new ToolError(
+						`Sample SHA256 mismatch for method '${rec.methodName}': record has '${rec.sampleSha256}', but session binary has '${session.verifiedTarget.sha256}'.`,
+					);
+				}
+			}
+			// Receiver kind must be boolean for writeback (no unknown or undefined)
+			if (typeof rec.isStatic !== "boolean") {
+				throw new ToolError(
+					`Receiver kind for method '${rec.className}->${rec.methodName}' is unverified (must be boolean true for static or false for virtual). ` +
+						"Provide explicit DEX ACC_STATIC declaration in is_static_map before applying writeback.",
+				);
+			}
+		}
+
+		// Discover upstream MCP tools
+		const connection = this.mcpManager.getConnection(session.serverName);
+		if (!connection) {
+			throw new ToolError(`Active connection lost for server '${session.serverName}'`);
+		}
+
+		// Check for rename tool
+		const getToolProps = (name: string): Record<string, unknown> | undefined => {
+			const t = connection.tools?.find(tool => tool.name === name);
+			if (t?.inputSchema && typeof t.inputSchema === "object" && "properties" in t.inputSchema) {
+				return t.inputSchema.properties as Record<string, unknown>;
+			}
+			return undefined;
+		};
+		const renameAddrTool = connection.tools?.find(t => t.name === "rename_function_by_address");
+		const renameFuncTool = connection.tools?.find(t => t.name === "rename_function");
+		const setProtoTool = connection.tools?.find(t => t.name === "set_function_prototype");
+		const decompileAddrTool = connection.tools?.find(t => t.name === "decompile_function_by_address");
+		const decompileFuncTool = connection.tools?.find(t => t.name === "decompile_function");
+
+		// Preflight check: both rename tool and prototype tool MUST be present
+		if (!renameAddrTool && !renameFuncTool) {
+			throw new ToolError(
+				`Active service '${session.service}' does not expose a function rename tool ('rename_function_by_address' or 'rename_function'). Cannot apply JNI symbols.`,
+			);
+		}
+		if (!setProtoTool) {
+			throw new ToolError(
+				`Active service '${session.service}' does not expose prototype setting tool ('set_function_prototype'). Cannot apply JNI prototypes.`,
+			);
+		}
+
+		const decompilations: Array<{ name: string; address: string; code: string }> = [];
+		const failedErrors: string[] = [];
+		let appliedCount = 0;
+
+		const batchLimit = Math.min(params.batch_size ?? 20, 100);
+		const toApply = previewSummary.items.filter(it => it.status === "eligible").slice(0, batchLimit);
+
+		const hasTextError = (text: string) => /^(?:Error:|Failed\b|Invalid\b|Exception\b)/i.test(text.trim());
+
+		for (const item of toApply) {
+			throwIfAborted(signal);
+
+			// 1. Rename via advertised schema ({ function_address, new_name } or fallback)
+			let renameOk = false;
+			if (renameAddrTool) {
+				const props = getToolProps("rename_function_by_address") ?? {};
+				const addrKey = "function_address" in props ? "function_address" : "address";
+				const nameKey = "new_name" in props ? "new_name" : "name";
+				const res = await callTool(connection, "rename_function_by_address", {
+					[addrKey]: item.staticAddress,
+					[nameKey]: item.targetFunctionName,
+				});
+				const resText = getToolCallText(res);
+				if (res.isError || hasTextError(resText)) {
+					failedErrors.push(`Failed to rename at ${item.staticAddress}: ${resText}`);
+					continue;
+				}
+				renameOk = true;
+			} else if (renameFuncTool) {
+				const props = getToolProps("rename_function") ?? {};
+				const oldKey = "old_name" in props ? "old_name" : "name";
+				const newKey = "new_name" in props ? "new_name" : "new_function_name";
+				const res = await callTool(connection, "rename_function", {
+					[oldKey]: item.methodName,
+					[newKey]: item.targetFunctionName,
+				});
+				const resText = getToolCallText(res);
+				if (res.isError || hasTextError(resText)) {
+					failedErrors.push(`Failed to rename ${item.methodName}: ${resText}`);
+					continue;
+				}
+				renameOk = true;
+			}
+
+			if (!renameOk) {
+				failedErrors.push(`Rename step failed for ${item.targetFunctionName} at ${item.staticAddress}`);
+				continue;
+			}
+
+			// 2. Set prototype via advertised schema ({ function_address, prototype } or fallback)
+			const protoProps = getToolProps("set_function_prototype") ?? {};
+			const protoAddrKey = "function_address" in protoProps ? "function_address" : "address";
+			const protoKey = "prototype" in protoProps ? "prototype" : "new_prototype";
+			const protoRes = await callTool(connection, "set_function_prototype", {
+				[protoAddrKey]: item.staticAddress,
+				[protoKey]: item.cPrototype,
+			});
+			const protoText = getToolCallText(protoRes);
+			if (protoRes.isError || hasTextError(protoText)) {
+				failedErrors.push(`Failed to set prototype at ${item.staticAddress}: ${protoText}`);
+				continue;
+			}
+
+			// 3. Decompile and verify readback reflects the updated symbol name
+			let readbackVerified = false;
+			let code = "";
+			if (decompileAddrTool) {
+				const props = getToolProps("decompile_function_by_address") ?? {};
+				const addrKey = "function_address" in props ? "function_address" : "address";
+				const res = await callTool(connection, "decompile_function_by_address", {
+					[addrKey]: item.staticAddress,
+				}).catch(() => null);
+				if (res && !res.isError) {
+					code = getToolCallText(res);
+					if (code && !hasTextError(code) && code.includes(item.targetFunctionName)) {
+						readbackVerified = true;
+					}
+				}
+			} else if (decompileFuncTool) {
+				const res = await callTool(connection, "decompile_function", {
+					name: item.targetFunctionName,
+				}).catch(() => null);
+				if (res && !res.isError) {
+					code = getToolCallText(res);
+					if (code && !hasTextError(code) && code.includes(item.targetFunctionName)) {
+						readbackVerified = true;
+					}
+				}
+			} else {
+				// If no decompiler tool is published on this service, consider prototype setting verified by tool success
+				readbackVerified = true;
+			}
+
+			if (!readbackVerified) {
+				failedErrors.push(
+					`Readback verification failed for ${item.targetFunctionName} at ${item.staticAddress}: decompiler did not reflect updated symbol`,
+				);
+				continue;
+			}
+
+			if (code) {
+				decompilations.push({
+					name: item.targetFunctionName,
+					address: item.staticAddress,
+					code,
+				});
+			}
+
+			appliedCount++;
+		}
+
+		const lines = [
+			`### JNI Registration Enrichment Applied (Session: ${session.sessionId})`,
+			`- **Applied Functions**: ${appliedCount} / ${toApply.length}`,
+			`- **Failed Functions**: ${failedErrors.length}`,
+			`- **Decompiled**: ${decompilations.length}`,
+			"",
+			"| Target Function | Address | Prototype | Verified |",
+			"|---|---|---|---|",
+			...toApply.map(it => {
+				const hasCode = decompilations.some(d => d.address === it.staticAddress);
+				return `| \`${it.targetFunctionName}\` | \`${it.staticAddress}\` | \`${it.cPrototype}\` | ${hasCode ? "✅ Verified" : "❌ Failed"} |`;
+			}),
+		];
+
+		if (failedErrors.length > 0) {
+			lines.push("", "#### Failed Operations:", ...failedErrors.map(e => `- ❌ ${e}`));
+		}
+
+		if (decompilations.length > 0) {
+			lines.push("", "#### Decompiled Functions Preview:");
+			for (const d of decompilations.slice(0, 5)) {
+				lines.push(`\n**${d.name}** (\`${d.address}\`):`, "```c", d.code.slice(0, 1000), "```");
+			}
+		}
+
+		if (appliedCount > 0 && (session.workflowId || session.stepId || params.workflow_id || params.step_id)) {
+			try {
+				const evidenceStore = EvidenceStore.forSession(this.session.cwd);
+				const factInput: AddFactInput = {
+					kind: "fact",
+					sourceTool: "native_mcp_session",
+					locator: formatDynamicLocator(session.sessionId, session.eventSeq++),
+					title: `JNI RegisterNatives Enrichment Applied: ${appliedCount} methods`,
+					target: session.target ? path.resolve(this.session.cwd, session.target) : undefined,
+					content: `Applied ${appliedCount} confirmed JNI RegisterNatives bindings to Ghidra session '${session.sessionId}'. Verified via backend readback.`,
+					tags: ["jni", "enrichment", "native", session.service],
+					executionBinding: {
+						artifactSha256: session.verifiedTarget?.sha256,
+					},
+				};
+				await evidenceStore.addFact(factInput);
+			} catch (err) {
+				logger.warn(`Failed to record JNI enrichment fact in evidence store: ${err}`);
+			}
+		}
+
+		return {
+			content: [{ type: "text", text: lines.join("\n") }],
+			details: {
+				action: "jni_enrich",
+				session,
+				enrichment: previewSummary,
+				decompilations,
 			},
 		};
 	}

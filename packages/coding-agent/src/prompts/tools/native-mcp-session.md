@@ -32,6 +32,14 @@ Bridges dynamic runtime observation and static decompilation:
   - `static_address` = `static_base + module_offset`
 - Generates evidence locator: `<module_name>+0x<rva> -> static:0x<static_address>`.
 
+JNI Dynamic Registration Enrichment (`jni_enrich`):
+Applies confirmed dynamic JNI `RegisterNatives` registrations to an active Ghidra or radare2 session:
+- Inputs: `session_id` (required), `records` or `events` (from Frida/Unidbg `jni_register_natives`), optional `preview` (boolean, default true), `decompile` (boolean, default true), `batch_size` (number, default 20), `is_static_map` (DEX `ACC_STATIC` mapping).
+- Discovers actual upstream MCP schemas (`rename_function_by_address`, `set_function_prototype`, `decompile_function_by_address`) dynamically without assuming fixed tool names.
+- Converts addresses using BigInt load bias, preserving ARM32 Thumb bit semantics.
+- When `preview: true` (Read tier), returns planned symbols and prototypes without mutating session.
+- When `preview: false` (Exec tier), updates function names and prototypes on the active MCP session and re-decompiles pseudocode.
+
 <examples>
 ```
 // 1. Connect to Ghidra in headless persistent project mode
@@ -54,5 +62,9 @@ native_mcp_session(action: "locate", runtime_address: "0x7ff6a0001050", module_b
 
 // 7. Disconnect session cleanly (detaches without terminating target or debugger)
 native_mcp_session(action: "disconnect", session_id: "native_x64dbg_018f...")
+
+// 8. Preview and apply JNI dynamic registrations to active Ghidra session
+native_mcp_session(action: "jni_enrich", session_id: "native_ghidra_018f...", events: [...], preview: true)
+native_mcp_session(action: "jni_enrich", session_id: "native_ghidra_018f...", events: [...], preview: false)
 ```
 </examples>

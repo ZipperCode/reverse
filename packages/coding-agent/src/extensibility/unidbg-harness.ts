@@ -9,10 +9,57 @@
 
 import * as path from "node:path";
 
+export type UnidbgParamType =
+	| "string"
+	| "bytes"
+	| "int"
+	| "long"
+	| "boolean"
+	| "int[]"
+	| "short[]"
+	| "float[]"
+	| "double[]"
+	| "string[]"
+	| "object[]"
+	| "context"
+	| "object";
+
 export interface UnidbgHarnessParam {
 	name: string;
-	type: "string" | "bytes" | "int" | "long" | "boolean";
+	type: UnidbgParamType;
+	className?: string;
 	defaultValue?: string;
+}
+
+export interface UnidbgJniOverride {
+	signature: string;
+	isStatic?: boolean;
+	returnType?:
+		| "string"
+		| "int"
+		| "boolean"
+		| "long"
+		| "bytes"
+		| "int[]"
+		| "short[]"
+		| "float[]"
+		| "double[]"
+		| "string[]"
+		| "object"
+		| "void";
+	value?: unknown;
+}
+
+export interface UnidbgEnvProfile {
+	packageName?: string;
+	appName?: string;
+	versionName?: string;
+	versionCode?: number;
+	filesDir?: string;
+	cacheDir?: string;
+	apiLevel?: number;
+	properties?: Record<string, string>;
+	overrides?: UnidbgJniOverride[];
 }
 
 export interface UnidbgHarnessOptions {
@@ -30,6 +77,23 @@ export interface UnidbgHarnessOptions {
 	harnessClassName?: string;
 	params?: string | UnidbgHarnessParam[];
 	processName?: string;
+	outPath?: string;
+	apkPath?: string;
+	apiLevel?: number;
+	envProfile?: UnidbgEnvProfile | string;
+}
+
+export interface UnidbgProbeOptions {
+	targetPath: string;
+	arch?: 32 | 64 | "32" | "64";
+	backend?: "unicorn2" | "dynarmic";
+	callOnLoad?: boolean;
+	apkPath?: string;
+	apiLevel?: number;
+	processName?: string;
+	packageName?: string;
+	harnessClassName?: string;
+	envProfile?: UnidbgEnvProfile | string;
 	outPath?: string;
 }
 
@@ -116,34 +180,126 @@ export function parseHarnessParams(params?: string | UnidbgHarnessParam[]): Unid
 		}));
 	}
 
+	if (typeof params === "string" && params.trim().startsWith("[")) {
+		try {
+			const parsed = JSON.parse(params);
+			if (Array.isArray(parsed)) return parseHarnessParams(parsed);
+		} catch {}
+	}
+
 	const tokens = params
 		.split(",")
 		.map(t => t.trim())
 		.filter(Boolean);
 	return tokens.map((token, idx) => {
-		let type: "string" | "bytes" | "int" | "long" | "boolean" = "string";
+		let type: UnidbgParamType = "string";
 		let rawName = `param${idx}`;
+		let className: string | undefined;
 
 		if (token.includes(":")) {
 			const [n, t] = token.split(":");
 			rawName = n.trim();
 			const lowerType = t.trim().toLowerCase();
-			if (lowerType === "bytes" || lowerType === "byte[]" || lowerType === "bytearray" || lowerType === "hex") {
+			if (
+				lowerType === "bytes" ||
+				lowerType === "byte[]" ||
+				lowerType === "bytearray" ||
+				lowerType === "hex" ||
+				lowerType === "[b"
+			) {
 				type = "bytes";
+			} else if (lowerType === "int[]" || lowerType === "intarray" || lowerType === "[i") {
+				type = "int[]";
+			} else if (lowerType === "short[]" || lowerType === "shortarray" || lowerType === "[s") {
+				type = "short[]";
+			} else if (lowerType === "float[]" || lowerType === "floatarray" || lowerType === "[f") {
+				type = "float[]";
+			} else if (lowerType === "double[]" || lowerType === "doublearray" || lowerType === "[d") {
+				type = "double[]";
+			} else if (
+				lowerType === "string[]" ||
+				lowerType === "str[]" ||
+				lowerType === "stringarray" ||
+				lowerType === "[ljava/lang/string;"
+			) {
+				type = "string[]";
+			} else if (
+				lowerType === "context" ||
+				lowerType === "android/content/context" ||
+				lowerType === "landroid/content/context;"
+			) {
+				type = "context";
+				className = "android/content/Context";
+			} else if (lowerType === "object[]" || lowerType.startsWith("[l")) {
+				type = "object[]";
+				className = t
+					.trim()
+					.replace(/^object\[\]:?/i, "")
+					.replace(/^\[L?/i, "")
+					.replace(/;?$/, "");
 			} else if (lowerType === "int" || lowerType === "integer" || lowerType === "i") {
 				type = "int";
 			} else if (lowerType === "long" || lowerType === "j") {
 				type = "long";
 			} else if (lowerType === "bool" || lowerType === "boolean" || lowerType === "z") {
 				type = "boolean";
+			} else if (lowerType.startsWith("object") || lowerType.startsWith("l")) {
+				type = "object";
+				className = t
+					.trim()
+					.replace(/^object:?/i, "")
+					.replace(/^L/i, "")
+					.replace(/;$/, "");
 			} else {
 				type = "string";
 			}
 		} else {
 			const lowerToken = token.toLowerCase();
-			if (lowerToken === "bytes" || lowerToken === "byte[]" || lowerToken === "bytearray" || lowerToken === "hex") {
+			if (
+				lowerToken === "bytes" ||
+				lowerToken === "byte[]" ||
+				lowerToken === "bytearray" ||
+				lowerToken === "hex" ||
+				lowerToken === "[b"
+			) {
 				type = "bytes";
 				rawName = `bytesParam${idx}`;
+			} else if (lowerToken === "int[]" || lowerToken === "intarray" || lowerToken === "[i") {
+				type = "int[]";
+				rawName = `intArrayParam${idx}`;
+			} else if (lowerToken === "short[]" || lowerToken === "shortarray" || lowerToken === "[s") {
+				type = "short[]";
+				rawName = `shortArrayParam${idx}`;
+			} else if (lowerToken === "float[]" || lowerToken === "floatarray" || lowerToken === "[f") {
+				type = "float[]";
+				rawName = `floatArrayParam${idx}`;
+			} else if (lowerToken === "double[]" || lowerToken === "doublearray" || lowerToken === "[d") {
+				type = "double[]";
+				rawName = `doubleArrayParam${idx}`;
+			} else if (
+				lowerToken === "string[]" ||
+				lowerToken === "str[]" ||
+				lowerToken === "stringarray" ||
+				lowerToken === "[ljava/lang/string;"
+			) {
+				type = "string[]";
+				rawName = `stringArrayParam${idx}`;
+			} else if (
+				lowerToken === "context" ||
+				lowerToken === "android/content/context" ||
+				lowerToken === "landroid/content/context;"
+			) {
+				type = "context";
+				className = "android/content/Context";
+				rawName = `contextParam${idx}`;
+			} else if (lowerToken === "object[]" || lowerToken.startsWith("[l")) {
+				type = "object[]";
+				rawName = `objArrayParam${idx}`;
+				className = token
+					.trim()
+					.replace(/^object\[\]:?/i, "")
+					.replace(/^\[L?/i, "")
+					.replace(/;?$/, "");
 			} else if (lowerToken === "int" || lowerToken === "integer") {
 				type = "int";
 				rawName = `intParam${idx}`;
@@ -158,7 +314,7 @@ export function parseHarnessParams(params?: string | UnidbgHarnessParam[]): Unid
 				rawName = `strParam${idx}`;
 			}
 		}
-		return { name: sanitizeJavaIdentifier(rawName, `param${idx}`), type };
+		return { name: sanitizeJavaIdentifier(rawName, `param${idx}`), type, className };
 	});
 }
 
@@ -175,9 +331,35 @@ export function parseJniSignatureParams(signature: string): UnidbgHarnessParam[]
 			if (raw[i + 1] === "B") {
 				params.push({ name: `bytesParam${idx++}`, type: "bytes" });
 				i += 2;
+			} else if (raw[i + 1] === "I") {
+				params.push({ name: `intArrayParam${idx++}`, type: "int[]" });
+				i += 2;
+			} else if (raw[i + 1] === "S") {
+				params.push({ name: `shortArrayParam${idx++}`, type: "short[]" });
+				i += 2;
+			} else if (raw[i + 1] === "F") {
+				params.push({ name: `floatArrayParam${idx++}`, type: "float[]" });
+				i += 2;
+			} else if (raw[i + 1] === "D") {
+				params.push({ name: `doubleArrayParam${idx++}`, type: "double[]" });
+				i += 2;
+			} else if (raw[i + 1] === "L") {
+				const end = raw.indexOf(";", i + 1);
+				if (end === -1) throw new Error(`Malformed JNI class descriptor in signature '${signature}'`);
+				const className = raw.substring(i + 2, end);
+				if (className === "java/lang/String") {
+					params.push({ name: `stringArrayParam${idx++}`, type: "string[]" });
+				} else {
+					params.push({ name: `objArrayParam${idx++}`, type: "object[]", className });
+				}
+				i = end + 1;
+			} else if (raw[i + 1] === "Z" || raw[i + 1] === "J" || raw[i + 1] === "C") {
+				throw new Error(
+					`Unsupported JNI primitive array parameter descriptor '[${raw[i + 1]}' in '${signature}'. Upstream Unidbg provides ByteArray ([B), IntArray ([I), ShortArray ([S), FloatArray ([F), DoubleArray ([D), and ArrayObject; LongArray ([J), BooleanArray ([Z), and CharArray ([C) are not provided by upstream Unidbg.`,
+				);
 			} else {
 				throw new Error(
-					`Unsupported JNI array parameter descriptor in '${signature}'. Only '[B' (byte[]) is supported.`,
+					`Unsupported JNI array parameter descriptor in '${signature}'. Supported array types include '[B' (byte[]), '[I' (int[]), '[S' (short[]), '[F' (float[]), '[D' (double[]), and '[L...;' (Object[]).`,
 				);
 			}
 		} else if (c === "L") {
@@ -186,10 +368,10 @@ export function parseJniSignatureParams(signature: string): UnidbgHarnessParam[]
 			const className = raw.substring(i + 1, end);
 			if (className === "java/lang/String") {
 				params.push({ name: `strParam${idx++}`, type: "string" });
+			} else if (className === "android/content/Context") {
+				params.push({ name: `contextParam${idx++}`, type: "context", className: "android/content/Context" });
 			} else {
-				throw new Error(
-					`Unsupported JNI object parameter 'L${className};' in '${signature}'. Only 'Ljava/lang/String;' is directly supported for automated harness generation.`,
-				);
+				params.push({ name: `objParam${idx++}`, type: "object", className });
 			}
 			i = end + 1;
 		} else if (c === "I" || c === "S" || c === "C" || c === "B") {
@@ -214,6 +396,30 @@ function deriveJniSignature(params: UnidbgHarnessParam[], returnType = "V"): str
 			switch (p.type) {
 				case "bytes":
 					return "[B";
+				case "int[]":
+					return "[I";
+				case "short[]":
+					return "[S";
+				case "float[]":
+					return "[F";
+				case "double[]":
+					return "[D";
+				case "string[]":
+					return "[Ljava/lang/String;";
+				case "object[]":
+					return p.className
+						? p.className.startsWith("[")
+							? p.className
+							: `[L${p.className.replace(/^L|;$/g, "")};`
+						: "[Ljava/lang/Object;";
+				case "context":
+					return "Landroid/content/Context;";
+				case "object":
+					return p.className
+						? p.className.startsWith("[") || p.className.startsWith("L")
+							? p.className
+							: `L${p.className};`
+						: "Ljava/lang/Object;";
 				case "string":
 					return "Ljava/lang/String;";
 				case "int":
@@ -228,6 +434,313 @@ function deriveJniSignature(params: UnidbgHarnessParam[], returnType = "V"): str
 		})
 		.join("");
 	return `(${argSig})${returnType}`;
+}
+
+interface SharedVmSetupOptions {
+	apkPath?: string;
+	apiLevel?: number;
+	envProfile?: UnidbgEnvProfile | string;
+	isProbe?: boolean;
+}
+
+function buildSharedVmSetup(options: SharedVmSetupOptions): { imports: string[]; setupCode: string } {
+	const apiLevel = options.apiLevel ?? 23;
+	const label = options.isProbe ? "[Unidbg Probe]" : "[Unidbg Env]";
+
+	let envProfileObj: UnidbgEnvProfile | undefined;
+	if (typeof options.envProfile === "string") {
+		try {
+			envProfileObj = JSON.parse(options.envProfile);
+		} catch {
+			envProfileObj = { packageName: options.envProfile };
+		}
+	} else if (options.envProfile) {
+		envProfileObj = options.envProfile;
+	}
+
+	const apkBindingCode = options.apkPath
+		? `        String configuredApk = "${escapeJavaString(options.apkPath.replace(/\\/g, "/"))}";
+        File apkFile = resolveTargetFile(configuredApk);
+        if (!apkFile.canRead()) {
+            throw new IllegalArgumentException("${label} Requested APK not found or not readable: " + configuredApk);
+        }
+        System.out.println("${label} Binding APK package: " + apkFile.getAbsolutePath());
+        this.vm = emulator.createDalvikVM(apkFile);
+        try {
+            System.out.println("${label} APK Package: " + vm.getPackageName());
+            System.out.println("${label} APK Version: " + vm.getVersionName() + " (Code: " + vm.getVersionCode() + ")");
+        } catch (Throwable t) {
+            System.out.println("${label} APK metadata note: " + t.getMessage());
+        }`
+		: `        this.vm = emulator.createDalvikVM();`;
+
+	let systemPropsCode = "";
+	if (envProfileObj?.properties) {
+		const propStatements = Object.entries(envProfileObj.properties).map(
+			([k, v]) => `        System.setProperty("${escapeJavaString(k)}", "${escapeJavaString(v)}");`,
+		);
+		if (propStatements.length > 0) {
+			systemPropsCode = `\n        // Explicit Environment System Properties\n${propStatements.join("\n")}\n`;
+		}
+	}
+
+	let jniEnvCode = "";
+	if (envProfileObj) {
+		const fDir = envProfileObj.filesDir
+			? escapeJavaString(envProfileObj.filesDir)
+			: envProfileObj.packageName
+				? `/data/data/${escapeJavaString(envProfileObj.packageName)}/files`
+				: undefined;
+		const cDir = envProfileObj.cacheDir
+			? escapeJavaString(envProfileObj.cacheDir)
+			: envProfileObj.packageName
+				? `/data/data/${escapeJavaString(envProfileObj.packageName)}/cache`
+				: undefined;
+
+		const objectMethodCases: string[] = [];
+		const staticObjectMethodCases: string[] = [];
+		const booleanMethodCases: string[] = [];
+		const staticBooleanMethodCases: string[] = [];
+		const intMethodCases: string[] = [];
+		const staticIntMethodCases: string[] = [];
+		const longMethodCases: string[] = [];
+		const staticLongMethodCases: string[] = [];
+
+		if (envProfileObj.packageName) {
+			objectMethodCases.push(
+				`                    case "android/content/Context->getPackageName()Ljava/lang/String;":\n                        return new StringObject(vm, "${escapeJavaString(envProfileObj.packageName)}");`,
+			);
+		}
+		objectMethodCases.push(
+			`                    case "android/content/Context->getApplicationContext()Landroid/content/Context;":\n                        return dvmObject;`,
+		);
+		if (fDir) {
+			objectMethodCases.push(
+				`                    case "android/content/Context->getFilesDir()Ljava/io/File;":\n                        return vm.resolveClass("java/io/File").newObject(new File("${fDir}"));`,
+			);
+		}
+		if (cDir) {
+			objectMethodCases.push(
+				`                    case "android/content/Context->getCacheDir()Ljava/io/File;":\n                        return vm.resolveClass("java/io/File").newObject(new File("${cDir}"));`,
+			);
+		}
+		if (envProfileObj.appName) {
+			objectMethodCases.push(
+				`                    case "android/content/pm/ApplicationInfo->loadLabel(Landroid/content/pm/PackageManager;)Ljava/lang/CharSequence;":\n                        return new StringObject(vm, "${escapeJavaString(envProfileObj.appName)}");`,
+			);
+		}
+		staticObjectMethodCases.push(
+			`                    case "android/app/ActivityThread->currentActivityThread()Landroid/app/ActivityThread;":\n                        return vm.resolveClass("android/app/ActivityThread").newObject(null);`,
+		);
+		objectMethodCases.push(
+			`                    case "android/app/ActivityThread->getApplication()Landroid/app/Application;":\n                        return vm.resolveClass("android/app/Application").newObject(null);`,
+		);
+
+		if (envProfileObj.overrides && Array.isArray(envProfileObj.overrides)) {
+			for (const ov of envProfileObj.overrides) {
+				const sig = escapeJavaString(ov.signature);
+				const isStatic = Boolean(ov.isStatic);
+				const targetList = isStatic ? staticObjectMethodCases : objectMethodCases;
+				const targetBoolList = isStatic ? staticBooleanMethodCases : booleanMethodCases;
+				const targetIntList = isStatic ? staticIntMethodCases : intMethodCases;
+				const targetLongList = isStatic ? staticLongMethodCases : longMethodCases;
+
+				switch (ov.returnType) {
+					case "int":
+						targetIntList.push(
+							`                    case "${sig}":\n                        return ${Number.parseInt(String(ov.value ?? 0), 10)};`,
+						);
+						break;
+					case "long":
+						targetLongList.push(
+							`                    case "${sig}":\n                        return ${BigInt(String(ov.value ?? 0)).toString()}L;`,
+						);
+						break;
+					case "boolean":
+						targetBoolList.push(
+							`                    case "${sig}":\n                        return ${Boolean(ov.value)};`,
+						);
+						break;
+					case "bytes":
+						targetList.push(
+							`                    case "${sig}":\n                        return new ByteArray(vm, parseBytes("${escapeJavaString(String(ov.value ?? ""))}"));`,
+						);
+						break;
+					case "int[]": {
+						const valStr = Array.isArray(ov.value) ? ov.value.join(",") : String(ov.value ?? "");
+						targetList.push(
+							`                    case "${sig}":\n                        return new IntArray(vm, parseIntArray("${escapeJavaString(valStr)}"));`,
+						);
+						break;
+					}
+					case "short[]": {
+						const valStr = Array.isArray(ov.value) ? ov.value.join(",") : String(ov.value ?? "");
+						targetList.push(
+							`                    case "${sig}":\n                        return new ShortArray(vm, parseShortArray("${escapeJavaString(valStr)}"));`,
+						);
+						break;
+					}
+					case "float[]": {
+						const valStr = Array.isArray(ov.value) ? ov.value.join(",") : String(ov.value ?? "");
+						targetList.push(
+							`                    case "${sig}":\n                        return new FloatArray(vm, parseFloatArray("${escapeJavaString(valStr)}"));`,
+						);
+						break;
+					}
+					case "double[]": {
+						const valStr = Array.isArray(ov.value) ? ov.value.join(",") : String(ov.value ?? "");
+						targetList.push(
+							`                    case "${sig}":\n                        return new DoubleArray(vm, parseDoubleArray("${escapeJavaString(valStr)}"));`,
+						);
+						break;
+					}
+					case "string[]": {
+						const strs = (Array.isArray(ov.value) ? ov.value : [])
+							.map(s => `"${escapeJavaString(String(s))}"`)
+							.join(", ");
+						targetList.push(
+							`                    case "${sig}":\n                        return ArrayObject.newStringArray(vm, ${strs});`,
+						);
+						break;
+					}
+					case "void":
+						break;
+					case "string":
+					default:
+						targetList.push(
+							`                    case "${sig}":\n                        return new StringObject(vm, "${escapeJavaString(String(ov.value ?? ""))}");`,
+						);
+						break;
+				}
+			}
+		}
+
+		jniEnvCode = `
+        // Explicit JNI Environment Profile
+        this.vm.setJni(new AbstractJni() {
+            @Override
+            public DvmObject<?> callObjectMethodV(BaseVM vm, DvmObject<?> dvmObject, String signature, VaList vaList) {
+                switch (signature) {
+${objectMethodCases.join("\n")}
+                    default:
+                        System.err.println("[Truthful JNI Warning] Unsupported JNI method: " + signature + " on object: " + dvmObject);
+                        return super.callObjectMethodV(vm, dvmObject, signature, vaList);
+                }
+            }
+
+            @Override
+            public DvmObject<?> callStaticObjectMethodV(BaseVM vm, DvmClass dvmClass, String signature, VaList vaList) {
+                switch (signature) {
+${staticObjectMethodCases.join("\n")}
+                    default:
+                        System.err.println("[Truthful JNI Warning] Unsupported JNI static method: " + signature + " on class: " + dvmClass);
+                        return super.callStaticObjectMethodV(vm, dvmClass, signature, vaList);
+                }
+            }
+
+            @Override
+            public boolean callBooleanMethodV(BaseVM vm, DvmObject<?> dvmObject, String signature, VaList vaList) {
+                switch (signature) {
+${booleanMethodCases.join("\n")}
+                    default:
+                        System.err.println("[Truthful JNI Warning] Unsupported JNI boolean method: " + signature + " on object: " + dvmObject);
+                        return super.callBooleanMethodV(vm, dvmObject, signature, vaList);
+                }
+            }
+
+            @Override
+            public boolean callStaticBooleanMethodV(BaseVM vm, DvmClass dvmClass, String signature, VaList vaList) {
+                switch (signature) {
+${staticBooleanMethodCases.join("\n")}
+                    default:
+                        System.err.println("[Truthful JNI Warning] Unsupported JNI static boolean method: " + signature + " on class: " + dvmClass);
+                        return super.callStaticBooleanMethodV(vm, dvmClass, signature, vaList);
+                }
+            }
+
+            @Override
+            public int callIntMethodV(BaseVM vm, DvmObject<?> dvmObject, String signature, VaList vaList) {
+                switch (signature) {
+${intMethodCases.join("\n")}
+                    default:
+                        System.err.println("[Truthful JNI Warning] Unsupported JNI int method: " + signature + " on object: " + dvmObject);
+                        return super.callIntMethodV(vm, dvmObject, signature, vaList);
+                }
+            }
+
+            @Override
+            public int callStaticIntMethodV(BaseVM vm, DvmClass dvmClass, String signature, VaList vaList) {
+                switch (signature) {
+${staticIntMethodCases.join("\n")}
+                    default:
+                        System.err.println("[Truthful JNI Warning] Unsupported JNI static int method: " + signature + " on class: " + dvmClass);
+                        return super.callStaticIntMethodV(vm, dvmClass, signature, vaList);
+                }
+            }
+
+            @Override
+            public long callLongMethodV(BaseVM vm, DvmObject<?> dvmObject, String signature, VaList vaList) {
+                switch (signature) {
+${longMethodCases.join("\n")}
+                    default:
+                        System.err.println("[Truthful JNI Warning] Unsupported JNI long method: " + signature + " on object: " + dvmObject);
+                        return super.callLongMethodV(vm, dvmObject, signature, vaList);
+                }
+            }
+
+            @Override
+            public long callStaticLongMethodV(BaseVM vm, DvmClass dvmClass, String signature, VaList vaList) {
+                switch (signature) {
+${staticLongMethodCases.join("\n")}
+                    default:
+                        System.err.println("[Truthful JNI Warning] Unsupported JNI static long method: " + signature + " on class: " + dvmClass);
+                        return super.callStaticLongMethodV(vm, dvmClass, signature, vaList);
+                }
+            }
+        });`;
+	}
+
+	const setupCode = `        Memory memory = emulator.getMemory();
+        int apiLevel = ${apiLevel};
+        if (apiLevel != 19 && apiLevel != 23) {
+            System.out.println("${label} [Warning] API level " + apiLevel + " requested; upstream Unidbg bundles sdk19 and sdk23 sysroots. If symbols are missing, supply custom sysroot or APK dependencies.");
+        }
+        memory.setLibraryResolver(new AndroidResolver(apiLevel));
+${systemPropsCode}
+${apkBindingCode}
+
+        this.vm.setDvmClassFactory(new ProxyClassFactory());
+        this.vm.setVerbose(true);
+
+        new JniGraphics(emulator, vm).register(memory);
+        new AndroidModule(emulator, vm).register(memory);
+${jniEnvCode}`;
+
+	const imports = [
+		"import com.github.unidbg.linux.android.AndroidResolver;",
+		"import com.github.unidbg.linux.android.dvm.AbstractJni;",
+		"import com.github.unidbg.linux.android.dvm.BaseVM;",
+		"import com.github.unidbg.linux.android.dvm.DalvikModule;",
+		"import com.github.unidbg.linux.android.dvm.DvmClass;",
+		"import com.github.unidbg.linux.android.dvm.DvmObject;",
+		"import com.github.unidbg.linux.android.dvm.StringObject;",
+		"import com.github.unidbg.linux.android.dvm.VM;",
+		"import com.github.unidbg.linux.android.dvm.VaList;",
+		"import com.github.unidbg.linux.android.dvm.VarArg;",
+		"import com.github.unidbg.linux.android.dvm.array.ArrayObject;",
+		"import com.github.unidbg.linux.android.dvm.array.ByteArray;",
+		"import com.github.unidbg.linux.android.dvm.array.DoubleArray;",
+		"import com.github.unidbg.linux.android.dvm.array.FloatArray;",
+		"import com.github.unidbg.linux.android.dvm.array.IntArray;",
+		"import com.github.unidbg.linux.android.dvm.array.ShortArray;",
+		"import com.github.unidbg.linux.android.dvm.jni.ProxyClassFactory;",
+		"import com.github.unidbg.memory.Memory;",
+		"import com.github.unidbg.utils.Inspector;",
+		"import com.github.unidbg.virtualmodule.android.AndroidModule;",
+		"import com.github.unidbg.virtualmodule.android.JniGraphics;",
+	];
+
+	return { imports, setupCode };
 }
 
 /**
@@ -291,6 +804,64 @@ export function generateAndroidJniHarness(options: UnidbgHarnessOptions): string
 				);
 				paramConversions.push(`            ByteArray ${varName} = new ByteArray(vm, ${varName}Raw);`);
 				invocationArgs.push(varName);
+			} else if (p.type === "int[]") {
+				paramConversions.push(
+					`            int[] ${varName}Raw = params.length > ${idx} ? parseIntArray(params[${idx}]) : new int[0];`,
+				);
+				paramConversions.push(`            IntArray ${varName} = new IntArray(vm, ${varName}Raw);`);
+				invocationArgs.push(varName);
+			} else if (p.type === "short[]") {
+				paramConversions.push(
+					`            short[] ${varName}Raw = params.length > ${idx} ? parseShortArray(params[${idx}]) : new short[0];`,
+				);
+				paramConversions.push(`            ShortArray ${varName} = new ShortArray(vm, ${varName}Raw);`);
+				invocationArgs.push(varName);
+			} else if (p.type === "float[]") {
+				paramConversions.push(
+					`            float[] ${varName}Raw = params.length > ${idx} ? parseFloatArray(params[${idx}]) : new float[0];`,
+				);
+				paramConversions.push(`            FloatArray ${varName} = new FloatArray(vm, ${varName}Raw);`);
+				invocationArgs.push(varName);
+			} else if (p.type === "double[]") {
+				paramConversions.push(
+					`            double[] ${varName}Raw = params.length > ${idx} ? parseDoubleArray(params[${idx}]) : new double[0];`,
+				);
+				paramConversions.push(`            DoubleArray ${varName} = new DoubleArray(vm, ${varName}Raw);`);
+				invocationArgs.push(varName);
+			} else if (p.type === "string[]") {
+				paramConversions.push(
+					`            String[] ${varName}Raw = params.length > ${idx} ? parseStringArray(params[${idx}]) : new String[0];`,
+				);
+				paramConversions.push(
+					`            ArrayObject ${varName} = ArrayObject.newStringArray(vm, ${varName}Raw);`,
+				);
+				invocationArgs.push(varName);
+			} else if (p.type === "object[]") {
+				const elemCls = p.className ? p.className.replace(/^\[L?/, "").replace(/;?$/, "") : "java/lang/Object";
+				paramConversions.push(
+					`            DvmClass ${varName}ElemCls = vm.resolveClass("${escapeJavaString(elemCls)}");`,
+				);
+				paramConversions.push(
+					`            DvmObject<?>[] ${varName}Items = parseDvmObjectArray(vm, ${varName}ElemCls, params.length > ${idx} ? params[${idx}] : null);`,
+				);
+				paramConversions.push(
+					`            ArrayObject ${varName} = ArrayObject.newObjectArray(${varName}ElemCls, ${varName}Items);`,
+				);
+				invocationArgs.push(varName);
+			} else if (p.type === "context") {
+				paramConversions.push(
+					`            DvmObject<?> ${varName} = vm.resolveClass("android/content/Context").newObject(params.length > ${idx} ? parseString(params[${idx}]) : null);`,
+				);
+				invocationArgs.push(varName);
+			} else if (p.type === "object") {
+				const targetObjClass = p.className || "java/lang/Object";
+				paramConversions.push(
+					`            String ${varName}Raw = params.length > ${idx} ? parseString(params[${idx}]) : null;`,
+				);
+				paramConversions.push(
+					`            DvmObject<?> ${varName} = vm.resolveClass("${escapeJavaString(targetObjClass)}").newObject(${varName}Raw);`,
+				);
+				invocationArgs.push(varName);
 			} else if (p.type === "string") {
 				paramConversions.push(
 					`            String ${varName}Raw = params.length > ${idx} ? parseString(params[${idx}]) : "";`,
@@ -315,9 +886,24 @@ export function generateAndroidJniHarness(options: UnidbgHarnessOptions): string
 			}
 		} else {
 			// Direct native function call conversion (String, byte[], Number)
-			if (p.type === "bytes") {
+			if (p.type === "context" || p.type === "object" || p.type === "object[]" || p.type === "string[]") {
+				throw new Error(
+					`Direct native export mode does not support complex parameter '${p.name}: ${p.type}'. Direct native exports only support scalar primitives (int, long, boolean), 'bytes' (byte buffer), and 'string' (C string). Use target class name and JNI signature to invoke JNI methods.`,
+				);
+			} else if (p.type === "bytes") {
 				paramConversions.push(
 					`            byte[] ${varName} = params.length > ${idx} ? parseBytes(params[${idx}]) : new byte[0];`,
+				);
+				invocationArgs.push(varName);
+			} else if (p.type === "int[]") {
+				paramConversions.push(
+					`            int[] ${varName}Arr = params.length > ${idx} ? parseIntArray(params[${idx}]) : new int[0];`,
+				);
+				paramConversions.push(
+					`            com.sun.jna.Pointer ${varName} = emulator.getMemory().allocate(Math.max(4, ${varName}Arr.length * 4), "intArray_${idx}");`,
+				);
+				paramConversions.push(
+					`            for (int i = 0; i < ${varName}Arr.length; i++) { ${varName}.setInt(i * 4L, ${varName}Arr[i]); }`,
 				);
 				invocationArgs.push(varName);
 			} else if (p.type === "string") {
@@ -381,13 +967,38 @@ export function generateAndroidJniHarness(options: UnidbgHarnessOptions): string
 				: `            DvmObject<?> instance = dvmClass.newObject(null);\n            boolean ret = instance.callJniMethodBoolean(emulator, "${escapeJavaString(entry)}${escapeJavaString(signature)}"${argsCall});\n            System.out.println("Return (boolean): " + ret);`;
 		} else {
 			methodCallCode = isStatic
-				? `            DvmObject<?> ret = dvmClass.callStaticJniMethodObject(emulator, "${escapeJavaString(entry)}${escapeJavaString(signature)}"${argsCall});\n            System.out.println("Return (object): " + (ret != null ? ret.getValue() : "null"));\n            if (ret != null && ret.getValue() instanceof byte[]) {\n                Inspector.inspect((byte[]) ret.getValue(), "${escapeJavaString(entry)} output");\n            }`
-				: `            DvmObject<?> instance = dvmClass.newObject(null);\n            DvmObject<?> ret = instance.callJniMethodObject(emulator, "${escapeJavaString(entry)}${escapeJavaString(signature)}"${argsCall});\n            System.out.println("Return (object): " + (ret != null ? ret.getValue() : "null"));\n            if (ret != null && ret.getValue() instanceof byte[]) {\n                Inspector.inspect((byte[]) ret.getValue(), "${escapeJavaString(entry)} output");\n            }`;
+				? `            DvmObject<?> ret = dvmClass.callStaticJniMethodObject(emulator, "${escapeJavaString(entry)}${escapeJavaString(signature)}"${argsCall});\n            printReturnValue(ret, "${escapeJavaString(entry)}");`
+				: `            DvmObject<?> instance = dvmClass.newObject(null);\n            DvmObject<?> ret = instance.callJniMethodObject(emulator, "${escapeJavaString(entry)}${escapeJavaString(signature)}"${argsCall});\n            printReturnValue(ret, "${escapeJavaString(entry)}");`;
 		}
 	} else {
 		classResolutionCode = `        this.dvmClass = null;\n        System.out.println("No target JNI class specified. Direct native module export mode on backend: " + emulator.getBackend());`;
 		methodCallCode = `            Module module = dalvikModule.getModule();\n            Number ret = module.callFunction(emulator, "${escapeJavaString(entry)}"${argsCall});\n            System.out.println("Return: 0x" + Long.toHexString(ret.longValue()) + " (" + ret + ")");`;
 	}
+
+	const arrayArgInspections: string[] = [];
+	if (targetClass) {
+		parsedParams.forEach((p, idx) => {
+			if (
+				p.type === "bytes" ||
+				p.type === "int[]" ||
+				p.type === "short[]" ||
+				p.type === "float[]" ||
+				p.type === "double[]" ||
+				p.type === "string[]"
+			) {
+				arrayArgInspections.push(
+					`            printReturnValue(arg_${idx}, "Argument '${escapeJavaString(p.name)}'");`,
+				);
+			}
+		});
+	}
+	const arrayArgInspectionCode = arrayArgInspections.length > 0 ? "\n" + arrayArgInspections.join("\n") : "";
+	const { imports: vmImports, setupCode: vmSetupCode } = buildSharedVmSetup({
+		apkPath: options.apkPath,
+		apiLevel: options.apiLevel,
+		envProfile: options.envProfile,
+		isProbe: false,
+	});
 
 	return `package ${pkg};
 
@@ -402,18 +1013,7 @@ import com.github.unidbg.debugger.DebugRunnable;
 import com.github.unidbg.debugger.McpTool;
 import com.github.unidbg.debugger.McpToolkit;
 import com.github.unidbg.linux.android.AndroidEmulatorBuilder;
-import com.github.unidbg.linux.android.AndroidResolver;
-import com.github.unidbg.linux.android.dvm.DalvikModule;
-import com.github.unidbg.linux.android.dvm.DvmClass;
-import com.github.unidbg.linux.android.dvm.DvmObject;
-import com.github.unidbg.linux.android.dvm.StringObject;
-import com.github.unidbg.linux.android.dvm.VM;
-import com.github.unidbg.linux.android.dvm.array.ByteArray;
-import com.github.unidbg.linux.android.dvm.jni.ProxyClassFactory;
-import com.github.unidbg.memory.Memory;
-import com.github.unidbg.utils.Inspector;
-import com.github.unidbg.virtualmodule.android.AndroidModule;
-import com.github.unidbg.virtualmodule.android.JniGraphics;
+${vmImports.join("\n")}
 import junit.framework.TestCase;
 
 import java.io.ByteArrayInputStream;
@@ -445,16 +1045,7 @@ public class ${clsName} extends TestCase {
         ${backendFactory}
         this.emulator = builder.build();
 
-        Memory memory = emulator.getMemory();
-        memory.setLibraryResolver(new AndroidResolver(23));
-
-        this.vm = emulator.createDalvikVM();
-        this.vm.setDvmClassFactory(new ProxyClassFactory());
-        this.vm.setVerbose(true);
-
-        new JniGraphics(emulator, vm).register(memory);
-        new AndroidModule(emulator, vm).register(memory);
-
+${vmSetupCode}
         String customTarget = System.getProperty("unidbg.target");
         File targetFile = resolveTargetFile(customTarget != null && !customTarget.trim().isEmpty() ? customTarget.trim() : "${escapedTargetPath}");
         System.out.println("Loading native library from: " + targetFile.getAbsolutePath());
@@ -531,6 +1122,142 @@ ${classResolutionCode}
         return Long.parseLong(trimmed);
     }
 
+    private static int[] parseIntArray(String input) {
+        if (input == null || input.isEmpty()) return new int[0];
+        String trimmed = input.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        if (trimmed.isEmpty()) return new int[0];
+        String[] tokens = trimmed.split(",");
+        int[] result = new int[tokens.length];
+        for (int i = 0; i < tokens.length; i++) {
+            result[i] = parseInt(tokens[i].trim());
+        }
+        return result;
+    }
+
+    private static short[] parseShortArray(String input) {
+        if (input == null || input.isEmpty()) return new short[0];
+        String trimmed = input.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        if (trimmed.isEmpty()) return new short[0];
+        String[] tokens = trimmed.split(",");
+        short[] result = new short[tokens.length];
+        for (int i = 0; i < tokens.length; i++) {
+            result[i] = (short) parseInt(tokens[i].trim());
+        }
+        return result;
+    }
+
+    private static float[] parseFloatArray(String input) {
+        if (input == null || input.isEmpty()) return new float[0];
+        String trimmed = input.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        if (trimmed.isEmpty()) return new float[0];
+        String[] tokens = trimmed.split(",");
+        float[] result = new float[tokens.length];
+        for (int i = 0; i < tokens.length; i++) {
+            result[i] = Float.parseFloat(tokens[i].trim());
+        }
+        return result;
+    }
+
+    private static double[] parseDoubleArray(String input) {
+        if (input == null || input.isEmpty()) return new double[0];
+        String trimmed = input.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        if (trimmed.isEmpty()) return new double[0];
+        String[] tokens = trimmed.split(",");
+        double[] result = new double[tokens.length];
+        for (int i = 0; i < tokens.length; i++) {
+            result[i] = Double.parseDouble(tokens[i].trim());
+        }
+        return result;
+    }
+
+    private static String[] parseStringArray(String input) {
+        if (input == null || input.isEmpty()) return new String[0];
+        String trimmed = input.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        if (trimmed.isEmpty()) return new String[0];
+        String[] tokens = trimmed.split(",");
+        String[] result = new String[tokens.length];
+        for (int i = 0; i < tokens.length; i++) {
+            result[i] = parseString(tokens[i].trim());
+        }
+        return result;
+    }
+    private static DvmObject<?>[] parseDvmObjectArray(VM vm, DvmClass elementClass, String input) {
+        if (input == null || input.isEmpty()) return new DvmObject<?>[0];
+        String trimmed = input.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        if (trimmed.isEmpty()) return new DvmObject<?>[0];
+        String[] tokens = trimmed.split(",");
+        DvmObject<?>[] result = new DvmObject<?>[tokens.length];
+        for (int i = 0; i < tokens.length; i++) {
+            String val = parseString(tokens[i].trim());
+            result[i] = elementClass != null ? elementClass.newObject(val) : new StringObject(vm, val);
+        }
+        return result;
+    }
+
+    private static void printReturnValue(Object ret, String entry) {
+        if (ret == null) {
+            System.out.println("Return (object): null");
+            return;
+        }
+        if (ret instanceof DvmObject) {
+            DvmObject<?> dvmObj = (DvmObject<?>) ret;
+            Object val = dvmObj.getValue();
+            if (val instanceof byte[]) {
+                byte[] b = (byte[]) val;
+                System.out.println("Return (ByteArray, len=" + b.length + "): " + bytesToHex(b));
+                Inspector.inspect(b, entry + " output");
+            } else if (val instanceof int[]) {
+                System.out.println("Return (IntArray): " + Arrays.toString((int[]) val));
+            } else if (val instanceof short[]) {
+                System.out.println("Return (ShortArray): " + Arrays.toString((short[]) val));
+            } else if (val instanceof float[]) {
+                System.out.println("Return (FloatArray): " + Arrays.toString((float[]) val));
+            } else if (val instanceof double[]) {
+                System.out.println("Return (DoubleArray): " + Arrays.toString((double[]) val));
+            } else if (val instanceof DvmObject[]) {
+                DvmObject<?>[] arr = (DvmObject<?>[]) val;
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < arr.length; i++) {
+                    if (i > 0) sb.append(", ");
+                    sb.append(arr[i] != null ? String.valueOf(arr[i].getValue()) : "null");
+                }
+                sb.append("]");
+                System.out.println("Return (ArrayObject, len=" + arr.length + "): " + sb.toString());
+            } else if (val instanceof String) {
+                System.out.println("Return (StringObject): \\"" + val + "\\"");
+            } else {
+                System.out.println("Return (DvmObject: " + dvmObj.getObjectType() + "): " + val);
+            }
+        } else {
+            System.out.println("Return: " + ret);
+        }
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
     public void runMcpToolkit() throws Exception {
         // Enforce loopback security: restrict incoming socket connections to loopback interfaces only
         System.setSecurityManager(new SecurityManager() {
@@ -584,7 +1311,7 @@ ${classResolutionCode}
                 long start = System.currentTimeMillis();
                 try {
 ${paramConversions.join("\n")}
-${methodCallCode}
+${methodCallCode}${arrayArgInspectionCode}
                     long duration = System.currentTimeMillis() - start;
                     System.out.println("Execution finished in " + duration + "ms");
                 } catch (Exception e) {
@@ -936,4 +1663,302 @@ export function generateUnidbgHarness(options: UnidbgHarnessOptions): string {
 		return generateIpaHarness(options);
 	}
 	return generateAndroidJniHarness(options);
+}
+
+/**
+ * Generate Android RegisterNatives dynamic probe Java source code.
+ *
+ * Hooks JNIEnv vtable index 215 (RegisterNatives) via Unidbg Svc wrapper,
+ * runs target library load + JNI_OnLoad, captures all registered methods,
+ * verifies retval === 0 confirmation status, and emits structured events.
+ */
+export function generateAndroidProbeHarness(options: UnidbgProbeOptions): string {
+	let clsName = options.harnessClassName;
+	if (!clsName && options.outPath) {
+		const base = path.basename(options.outPath);
+		clsName = sanitizeJavaIdentifier(base.replace(/\.java$/i, ""));
+	}
+	if (!clsName) {
+		clsName = "UnidbgProbe";
+	}
+
+	const pkg = options.packageName ?? "com.reverse.unidbg.probe";
+	const is64 = String(options.arch ?? "64") === "64";
+	const backend = options.backend ?? "unicorn2";
+	const callOnLoad = options.callOnLoad ?? true;
+	const processName = options.processName ?? "com.reverse.unidbg.probe";
+	const apiLevel = options.apiLevel ?? 23;
+	const escapedTargetPath = escapeJavaString(options.targetPath.replace(/\\/g, "/"));
+	const safeCommentTarget = escapedTargetPath.replace(/\*\//g, "* /");
+
+	const backendFactory =
+		backend === "dynarmic"
+			? "builder.addBackendFactory(new DynarmicFactory(true));"
+			: "builder.addBackendFactory(new Unicorn2Factory(true));";
+
+	const { imports: vmImports, setupCode: vmSetupCode } = buildSharedVmSetup({
+		apkPath: options.apkPath,
+		apiLevel: options.apiLevel,
+		envProfile: options.envProfile,
+		isProbe: true,
+	});
+
+	return `package ${pkg};
+
+import com.github.unidbg.AndroidEmulator;
+import com.github.unidbg.Emulator;
+import com.github.unidbg.Module;
+import com.github.unidbg.Svc;
+import com.github.unidbg.arm.Arm64Svc;
+import com.github.unidbg.arm.ArmSvc;
+import com.github.unidbg.arm.backend.DynarmicFactory;
+import com.github.unidbg.arm.backend.Unicorn2Factory;
+import com.github.unidbg.arm.context.RegisterContext;
+import com.github.unidbg.linux.android.AndroidEmulatorBuilder;
+${vmImports.join("\n")}
+import com.github.unidbg.memory.Memory;
+import com.github.unidbg.pointer.UnidbgPointer;
+import com.sun.jna.Pointer;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Auto-generated Unidbg Android RegisterNatives Dynamic Probe Harness
+ * Target: ${safeCommentTarget}
+ * Arch: ${is64 ? "ARM64" : "ARM32"} | Backend: ${backend} | API Level: ${apiLevel}
+ */
+public class ${clsName} {
+
+    private final AndroidEmulator emulator;
+    private final VM vm;
+    private final List<Map<String, Object>> capturedEvents = Collections.synchronizedList(new ArrayList<>());
+
+    public ${clsName}() {
+        AndroidEmulatorBuilder builder = ${is64 ? "AndroidEmulatorBuilder.for64Bit()" : "AndroidEmulatorBuilder.for32Bit()"};
+        builder.setProcessName("${escapeJavaString(processName)}");
+        ${backendFactory}
+        this.emulator = builder.build();
+
+${vmSetupCode}
+
+        installRegisterNativesHook();
+    }
+
+    private void installRegisterNativesHook() {
+        Pointer jniEnv = vm.getJNIEnv();
+        Pointer vtable = jniEnv.getPointer(0);
+        int ptrSize = emulator.getPointerSize();
+        int regNativesOffset = 215 * ptrSize;
+        Pointer origRegNatives = vtable.getPointer(regNativesOffset);
+
+        int origInsn = origRegNatives.getInt(0);
+        int origSvcNumber = emulator.is64Bit()
+            ? ((origInsn ^ 0xd4000001) >>> 5)
+            : (origInsn & 0x00ffffff);
+        final Svc origSvc = emulator.getSvcMemory().getSvc(origSvcNumber);
+        if (origSvc == null) {
+            throw new IllegalStateException("Failed to resolve upstream RegisterNatives SVC from vtable[215] at " + origRegNatives + " (svc number: 0x" + Integer.toHexString(origSvcNumber) + ")");
+        }
+        Svc probeSvc = emulator.is64Bit() ? new Arm64Svc("ProbeRegisterNatives") {
+            @Override
+            public long handle(Emulator<?> emu) {
+                return onRegisterNatives(emu, origSvc);
+            }
+        } : new ArmSvc("ProbeRegisterNatives") {
+            @Override
+            public long handle(Emulator<?> emu) {
+                return onRegisterNatives(emu, origSvc);
+            }
+        };
+
+        Pointer probePtr = emulator.getSvcMemory().registerSvc(probeSvc);
+        vtable.setPointer(regNativesOffset, probePtr);
+    }
+
+    private long onRegisterNatives(Emulator<?> emu, Svc origSvc) {
+        RegisterContext context = emu.getContext();
+        UnidbgPointer clazz = context.getPointerArg(1);
+        Pointer methods = context.getPointerArg(2);
+        int nMethods = context.getIntArg(3);
+
+        // Execute original upstream RegisterNatives first so nativesMap is updated and status code is genuine
+        long ret = origSvc.handle(emu);
+        boolean isConfirmed = (ret == 0L);
+
+        DvmClass dvmClass = null;
+        try {
+            dvmClass = (DvmClass) vm.getObject(clazz.toIntPeer());
+        } catch (Throwable ignored) {}
+        String className = dvmClass != null ? dvmClass.getClassName() : "UnknownClass";
+
+        List<Map<String, Object>> methodList = new ArrayList<>();
+        int entrySize = 3 * emu.getPointerSize();
+        int cappedMethods = Math.min(Math.max(0, nMethods), 256);
+        boolean truncated = (nMethods > 256);
+
+        for (int i = 0; i < cappedMethods; i++) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            try {
+                Pointer method = methods.share(i * (long) entrySize);
+                Pointer namePtr = method.getPointer(0);
+                Pointer sigPtr = method.getPointer(emu.getPointerSize());
+                Pointer fnPtr = method.getPointer(2L * emu.getPointerSize());
+
+                String methodName = namePtr != null ? namePtr.getString(0) : null;
+                if (methodName != null && methodName.length() > 512) {
+                    methodName = methodName.substring(0, 512);
+                }
+                String sigName = sigPtr != null ? sigPtr.getString(0) : null;
+                if (sigName != null && sigName.length() > 1024) {
+                    sigName = sigName.substring(0, 1024);
+                }
+                long fnAddr = fnPtr != null ? UnidbgPointer.nativeValue(fnPtr) : 0L;
+                Module mod = emu.getMemory().findModuleByAddress(fnAddr);
+                String modName = mod != null ? mod.name : null;
+                String modPath = mod != null ? mod.getPath() : null;
+                String baseHex = mod != null ? ("0x" + Long.toHexString(mod.base)) : null;
+                String offsetHex = mod != null ? ("0x" + Long.toHexString(fnAddr - mod.base)) : null;
+                String fnPtrHex = "0x" + Long.toHexString(fnAddr);
+
+                m.put("name", methodName);
+                m.put("signature", sigName);
+                m.put("fnPtr", fnPtrHex);
+                m.put("module", modName);
+                m.put("modulePath", modPath);
+                m.put("base", baseHex);
+                m.put("offset", offsetHex);
+            } catch (Exception e) {
+                m.put("error", e.getMessage());
+                m.put("index", i);
+            }
+            methodList.add(m);
+        }
+
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("event", "jni_register_natives");
+        event.put("status", isConfirmed ? "confirmed" : "rejected");
+        event.put("retval", ret);
+        event.put("class", className);
+        event.put("nMethods", nMethods);
+        event.put("methods", methodList);
+        if (truncated) {
+            event.put("truncated", true);
+        }
+        event.put("source", "unidbg");
+        event.put("timestamp", System.currentTimeMillis());
+        capturedEvents.add(event);
+
+        String json = toJson(event);
+        System.out.println("__UNIDBG_PROBE_EVENT_START__" + json + "__UNIDBG_PROBE_EVENT_END__");
+
+        return ret;
+    }
+
+    public void runProbe(String targetPath, boolean callOnLoad) throws Exception {
+        File targetFile = resolveTargetFile(targetPath);
+        if (!targetFile.canRead()) {
+            throw new IllegalArgumentException("Target binary not found or not readable: " + targetPath);
+        }
+        System.out.println("[Unidbg Probe] Loading target library: " + targetFile.getAbsolutePath());
+        DalvikModule dalvikModule = vm.loadLibrary(targetFile, true);
+
+        if (callOnLoad) {
+            System.out.println("[Unidbg Probe] Calling JNI_OnLoad...");
+            try {
+                dalvikModule.callJNI_OnLoad(emulator);
+                System.out.println("[Unidbg Probe] JNI_OnLoad completed successfully.");
+            } catch (Throwable t) {
+                System.err.println("[Unidbg Probe Error] JNI_OnLoad failed: " + t.getMessage());
+                t.printStackTrace(System.err);
+            }
+        }
+
+        System.out.println("__UNIDBG_PROBE_COMPLETE__TotalEvents=" + capturedEvents.size());
+    }
+
+    private static File resolveTargetFile(String path) {
+        File file = new File(path);
+        if (file.canRead()) return file;
+        File inAndroid = new File("unidbg-android", path);
+        if (inAndroid.canRead()) return inAndroid;
+        File inCurrent = new File(System.getProperty("user.dir"), path);
+        if (inCurrent.canRead()) return inCurrent;
+        return file;
+    }
+
+    private static String toJson(Object obj) {
+        if (obj == null) return "null";
+        if (obj instanceof String) {
+            return "\\"" + escapeJson((String) obj) + "\\"";
+        }
+        if (obj instanceof Number || obj instanceof Boolean) {
+            return String.valueOf(obj);
+        }
+        if (obj instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) obj;
+            StringBuilder sb = new StringBuilder("{");
+            boolean first = true;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (!first) sb.append(",");
+                first = false;
+                sb.append("\\"").append(escapeJson(String.valueOf(entry.getKey()))).append("\\":");
+                sb.append(toJson(entry.getValue()));
+            }
+            sb.append("}");
+            return sb.toString();
+        }
+        if (obj instanceof List) {
+            List<?> list = (List<?>) obj;
+            StringBuilder sb = new StringBuilder("[");
+            boolean first = true;
+            for (Object item : list) {
+                if (!first) sb.append(",");
+                first = false;
+                sb.append(toJson(item));
+            }
+            sb.append("]");
+            return sb.toString();
+        }
+        return "\\"" + escapeJson(String.valueOf(obj)) + "\\"";
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '"') sb.append("\\\\\\"");
+            else if (c == '\\\\') sb.append("\\\\\\\\");
+            else if (c == '\\b') sb.append("\\\\b");
+            else if (c == '\\f') sb.append("\\\\f");
+            else if (c == '\\n') sb.append("\\\\n");
+            else if (c == '\\r') sb.append("\\\\r");
+            else if (c == '\\t') sb.append("\\\\t");
+            else if (c < 32) sb.append(String.format("\\\\u%04x", (int) c));
+            else sb.append(c);
+        }
+        return sb.toString();
+    }
+
+    public static void main(String[] args) {
+        try {
+            ${clsName} probe = new ${clsName}();
+            String target = args.length > 0 ? args[0] : "${escapedTargetPath}";
+            boolean callOnLoad = args.length > 1 ? Boolean.parseBoolean(args[1]) : ${callOnLoad ? "true" : "false"};
+            probe.runProbe(target, callOnLoad);
+            System.exit(0);
+        } catch (Throwable t) {
+            System.err.println("[Unidbg Probe Fatal] " + t.getMessage());
+            t.printStackTrace(System.err);
+            System.exit(1);
+        }
+    }
+}
+`;
 }

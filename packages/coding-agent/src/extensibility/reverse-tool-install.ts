@@ -63,6 +63,9 @@ import {
 } from "./native-mcp-install";
 import { getPortableToolRecipe, installPortableTool } from "./portable-tool-install";
 import { getVmpToolUnsupportedReason, installTritonVenv, type VmpToolId } from "./vmp-toolchain";
+import { installLiefVenv } from "./lief-install";
+import { buildAndInstallSoFixer, canBuildSoFixer } from "./sofixer-toolchain";
+import { buildAndInstallGhidraFindCrypt, canBuildGhidraFindCrypt, resolveGhidraInstallDir } from "./findcrypt-install";
 import { readMCPConfigFile, setMcpServerEnabled, updateMCPServer } from "../mcp/config-writer";
 import type { MCPServerConnection } from "../mcp/types";
 import type { MCPManager } from "../mcp/manager";
@@ -101,7 +104,16 @@ export interface ReverseInstallStep {
 	manualInstructions?: string;
 	foundPath?: string | null;
 	serverConfigSnapshot?: string;
-	installer?: "jshookmcp" | "portable" | "unidbg" | "native-mcp" | "triton" | "pip";
+	installer?:
+		| "jshookmcp"
+		| "portable"
+		| "unidbg"
+		| "native-mcp"
+		| "triton"
+		| "pip"
+		| "lief"
+		| "sofixer"
+		| "ghidra-findcrypt";
 }
 
 export interface ReverseInstallPlan {
@@ -429,6 +441,91 @@ export function getReverseInstallPlan(
 			visited.add(id);
 			return true;
 		}
+		if (id === "lief") {
+			steps.push({
+				id: "lief",
+				name: desc.name ?? "LIEF",
+				kind: "cli",
+				packageManager: "pip",
+				installer: "lief",
+				command: `${APP_NAME} setup reverse lief (managed venv)`,
+				argv: [APP_NAME, "setup", "reverse", "lief", "--execute"],
+				riskNote: t(
+					"cli.setup.reverse.lief.risk",
+					"Provisions an isolated virtual environment in the agent directory and installs pinned lief (1.0.0, Apache-2.0).",
+				),
+				isDependency: id !== item.id,
+				manualInstructions: desc.manualInstructions?.[platform],
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
+		if (id === "sofixer") {
+			const canBuild = canBuildSoFixer({ which, env: options.env, platform });
+			if (!canBuild.supported) {
+				reason = `SoFixer requires build tools: ${canBuild.missingPrereqs.join(", ")}. Please install them first.`;
+				inProgress.delete(id);
+				return false;
+			}
+			steps.push({
+				id: "sofixer",
+				name: desc.name ?? "SoFixer",
+				kind: "cli",
+				packageManager: "build",
+				installer: "sofixer",
+				command: `${APP_NAME} setup reverse sofixer --execute`,
+				argv: [APP_NAME, "setup", "reverse", "sofixer", "--execute"],
+				riskNote: t(
+					"cli.setup.reverse.sofixer.risk",
+					"Builds native 32-bit and 64-bit SoFixer binaries from pinned upstream source (F8LEFT/SoFixer commit 75b8b63, BSD-3-Clause) using CMake and local compiler.",
+				),
+				isDependency: id !== item.id,
+				manualInstructions: desc.manualInstructions?.[platform],
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
+		if (id === "ghidra-findcrypt") {
+			const ghidraDir = resolveGhidraInstallDir({ env: options.env, which });
+			if (!ghidraDir) {
+				if (!planTool("ghidra")) {
+					reason = "FindCrypt requires Ghidra. Please install Ghidra first ('reverse setup reverse ghidra').";
+					inProgress.delete(id);
+					return false;
+				}
+			}
+			const canBuild = canBuildGhidraFindCrypt({
+				ghidraPath: ghidraDir ?? undefined,
+				which,
+				env: options.env,
+				platform,
+			});
+			if (!canBuild.supported) {
+				reason = `FindCrypt build requires: ${canBuild.missingPrereqs.join(", ")}.`;
+				inProgress.delete(id);
+				return false;
+			}
+			steps.push({
+				id: "ghidra-findcrypt",
+				name: desc.name ?? "Ghidra FindCrypt Analyzer",
+				kind: "cli",
+				packageManager: "build",
+				installer: "ghidra-findcrypt",
+				command: `${APP_NAME} setup reverse ghidra-findcrypt --execute`,
+				argv: [APP_NAME, "setup", "reverse", "ghidra-findcrypt", "--execute"],
+				riskNote: t(
+					"cli.setup.reverse.ghidra-findcrypt.risk",
+					"Compiles Ghidra FindCrypt extension from upstream source (TorgoTorgo/ghidra-findcrypt commit 5c2fd5b, GPL-3.0) against target Ghidra and installs it into Ghidra Extensions.",
+				),
+				isDependency: id !== item.id,
+				manualInstructions: desc.manualInstructions?.[platform],
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
 		// 2. Find a viable recipe strictly on this platform
 		const recipes = desc.installCommands?.[platform] ?? [];
 		let chosenRecipe: PackageInstallCommand | undefined;
@@ -522,7 +619,10 @@ export function getReverseInstallPlan(
 		const hasRecipe = Boolean(
 			desc?.installCommands?.[platform]?.length ||
 			(platform === "win32" && getPortableToolRecipe(item.id)) ||
-			item.id === "triton",
+			item.id === "triton" ||
+			item.id === "lief" ||
+			item.id === "sofixer" ||
+			item.id === "ghidra-findcrypt",
 		);
 		if (item.status === "installed" && !hasRecipe) {
 			return {
@@ -941,7 +1041,13 @@ export async function installReverseItem(
 			step.id === "unidbg" ||
 			step.installer === "native-mcp" ||
 			step.installer === "triton" ||
-			step.id === "triton"
+			step.id === "triton" ||
+			step.installer === "lief" ||
+			step.id === "lief" ||
+			step.installer === "sofixer" ||
+			step.id === "sofixer" ||
+			step.installer === "ghidra-findcrypt" ||
+			step.id === "ghidra-findcrypt"
 		) {
 			// Trusted internal portable/build/venv installer
 		} else if (
@@ -1078,6 +1184,93 @@ export async function installReverseItem(
 				return {
 					success: true,
 					message: tritonRes.message,
+				};
+			}
+			if (step.installer === "lief" || step.id === "lief") {
+				options.onChunk?.(`[reverse] Installing managed LIEF environment...\n`);
+				const liefRes = await installLiefVenv({
+					agentDir: options.agentDir,
+					onChunk: options.onChunk,
+					signal: options.signal,
+					platform,
+					env: options.env,
+					which: bin => which(bin, { cache: WhichCachePolicy.Bypass }),
+				});
+				if (!liefRes.success || !liefRes.pythonPath) {
+					return {
+						success: false,
+						message: liefRes.message ?? "LIEF installation failed.",
+					};
+				}
+				const venvBinDir = path.dirname(liefRes.pythonPath);
+				await persistToolEnvironment(
+					{
+						extraPaths: [venvBinDir],
+					},
+					options.agentDir,
+				);
+				if (step.isDependency) {
+					continue;
+				}
+				return {
+					success: true,
+					message: liefRes.message,
+				};
+			}
+
+			if (step.installer === "sofixer" || step.id === "sofixer") {
+				options.onChunk?.(`[reverse] Building SoFixer 32/64 executables from source...\n`);
+				const sofixerRes = await buildAndInstallSoFixer({
+					agentDir: options.agentDir,
+					onLog: options.onChunk,
+					signal: options.signal,
+					platform,
+					env: options.env,
+					which: bin => which(bin, { cache: WhichCachePolicy.Bypass }),
+				});
+				if (!sofixerRes.success) {
+					return {
+						success: false,
+						message: sofixerRes.error ?? "SoFixer build failed.",
+					};
+				}
+				const binDir = path.join(sofixerRes.installDir, "bin");
+				await persistToolEnvironment(
+					{
+						extraPaths: [binDir],
+					},
+					options.agentDir,
+				);
+				if (step.isDependency) {
+					continue;
+				}
+				return {
+					success: true,
+					message: `SoFixer built and installed successfully into ${binDir} (${sofixerRes.binaries.join(", ")}).`,
+				};
+			}
+
+			if (step.installer === "ghidra-findcrypt" || step.id === "ghidra-findcrypt") {
+				options.onChunk?.(`[reverse] Building Ghidra FindCrypt extension matching Ghidra installation...\n`);
+				const fcRes = await buildAndInstallGhidraFindCrypt({
+					onLog: options.onChunk,
+					signal: options.signal,
+					platform,
+					env: options.env,
+					which: bin => which(bin, { cache: WhichCachePolicy.Bypass }),
+				});
+				if (!fcRes.success) {
+					return {
+						success: false,
+						message: fcRes.error ?? "FindCrypt extension build failed.",
+					};
+				}
+				if (step.isDependency) {
+					continue;
+				}
+				return {
+					success: true,
+					message: `FindCrypt extension successfully built and installed to ${fcRes.extensionDir}.`,
 				};
 			}
 

@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import {
 	GhidraInspectTool,
 	ghidraDependency,
@@ -10,6 +11,7 @@ import {
 	type GhidraRunner,
 	type ToolSession,
 } from "@reverse/coding-agent/tools";
+import { ACTIVE_GHIDRA_PROJECTS } from "../../src/tools/native-mcp-session";
 import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
@@ -467,6 +469,227 @@ describe("ghidra_inspect transport and boundary handling", () => {
 			const text = textOf(res);
 			expect(text).toContain('const char *a = "<<<REVERSE_GHIDRA_OUTPUT_END>>>";');
 			expect(text).toContain('const char *b = "<<<REVERSE_GHIDRA_OUTPUT_START>>>";');
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});
+describe("ghidra_inspect jni_enrich and findcrypt actions", () => {
+	it("previews JNI enrichment from confirmed RegisterNatives event without spawning Ghidra", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-jni-preview-"));
+		try {
+			const sample = path.join(tempDir, "libnative.so");
+			await fs.writeFile(sample, "ELF-mock-content", "utf8");
+
+			const { runner, calls } = mockRunner("");
+			const tool = new GhidraInspectTool(createTestSession(tempDir), { runner });
+
+			const res = await tool.execute("call-1", {
+				action: "jni_enrich",
+				path: "libnative.so",
+				events: [
+					{
+						event: "jni_register_natives",
+						status: "confirmed",
+						retval: 0,
+						class: "com.example.app.NativeAuth",
+						methods: [
+							{
+								name: "verifyToken",
+								signature: "(Ljava/lang/String;)Z",
+								fnPtr: "0x7f001000",
+								base: "0x7f000000",
+							},
+						],
+					},
+				],
+				preview: true,
+			});
+
+			expect(res.details.status).toBe("ok");
+			expect(res.details.enrichment?.total).toBe(1);
+			expect(res.details.enrichment?.eligible).toBe(1);
+			expect(res.details.enrichment?.items[0].targetFunctionName).toBe(
+				"Java_com_example_app_NativeAuth_verifyToken",
+			);
+			expect(textOf(res)).toContain("JNI Registration Enrichment Preview");
+			// Preview mode must NOT spawn Ghidra runner
+			expect(calls.length).toBe(0);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("rejects JNI writeback (preview: false) without designated project_dir", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-jni-noproj-"));
+		try {
+			const sample = path.join(tempDir, "libnative.so");
+			await fs.writeFile(sample, "ELF-mock-content", "utf8");
+			const tool = new GhidraInspectTool(createTestSession(tempDir));
+
+			await expect(
+				tool.execute("call-1", {
+					action: "jni_enrich",
+					path: "libnative.so",
+					records: [
+						{
+							className: "com/example/Native",
+							methodName: "test",
+							signature: "()V",
+							moduleName: "libnative.so",
+							functionAddress: "0x1000",
+							status: "confirmed",
+							source: "frida",
+							isStatic: true,
+						},
+					],
+					preview: false,
+				}),
+			).rejects.toBeInstanceOf(ToolError);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("rejects JNI writeback when project directory is locked by active native session", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-jni-locked-"));
+		try {
+			const sample = path.join(tempDir, "libnative.so");
+			await fs.writeFile(sample, "ELF-mock-content", "utf8");
+			const projDir = path.join(tempDir, "my-ghidra-proj");
+			await fs.mkdir(projDir, { recursive: true });
+
+			// Simulate locked project by active session
+			ACTIVE_GHIDRA_PROJECTS.set(path.resolve(projDir), {
+				projectDir: path.resolve(projDir),
+				ownerKey: {},
+				sessionId: "native_ghidra_test_lock",
+			});
+
+			const tool = new GhidraInspectTool(createTestSession(tempDir));
+
+			await expect(
+				tool.execute("call-1", {
+					action: "jni_enrich",
+					path: "libnative.so",
+					project_dir: "my-ghidra-proj",
+					records: [
+						{
+							className: "com/example/Native",
+							methodName: "test",
+							signature: "()V",
+							moduleName: "libnative.so",
+							functionAddress: "0x1000",
+							status: "confirmed",
+							source: "frida",
+							isStatic: true,
+						},
+					],
+					preview: false,
+				}),
+			).rejects.toBeInstanceOf(ToolError);
+		} finally {
+			ACTIVE_GHIDRA_PROJECTS.clear();
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("rejects JNI writeback when receiver kind is unverified", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-jni-unverified-"));
+		try {
+			const sample = path.join(tempDir, "libnative.so");
+			await fs.writeFile(sample, "ELF-mock-content", "utf8");
+			const projDir = path.join(tempDir, "my-ghidra-proj");
+			await fs.mkdir(projDir, { recursive: true });
+
+			const tool = new GhidraInspectTool(createTestSession(tempDir));
+
+			await expect(
+				tool.execute("call-1", {
+					action: "jni_enrich",
+					path: "libnative.so",
+					project_dir: "my-ghidra-proj",
+					records: [
+						{
+							className: "com/example/Native",
+							methodName: "test",
+							signature: "()V",
+							moduleName: "libnative.so",
+							functionAddress: "0x1000",
+							status: "confirmed",
+							source: "frida",
+							// isStatic undefined: unverified receiver kind!
+						},
+					],
+					preview: false,
+				}),
+			).rejects.toBeInstanceOf(ToolError);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("returns missing dependency notice when FindCrypt extension is not installed", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-findcrypt-missing-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			await fs.writeFile(sample, "ELF-sample", "utf8");
+
+			const tool = new GhidraInspectTool(createTestSession(tempDir), {
+				findCryptStatus: {
+					available: false,
+					ghidraFound: true,
+					installHint: "Run 'reverse setup reverse ghidra-findcrypt'",
+				},
+			});
+
+			const res = await tool.execute("call-1", {
+				action: "findcrypt",
+				path: "sample.bin",
+			});
+
+			expect(res.details.dependency?.available).toBe(false);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("invokes installed FindCrypt and returns candidate constants with heuristic disclaimer", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-findcrypt-ok-"));
+		try {
+			const sample = path.join(tempDir, "sample.bin");
+			await fs.writeFile(sample, "ELF-sample", "utf8");
+
+			const mockPayload = {
+				status: "ok",
+				action: "findcrypt",
+				output: JSON.stringify([
+					{ address: "0x00014104", algorithm: "AES_Encryption_SBox", matchType: "bookmark" },
+					{ address: "0x00014004", algorithm: "AES_Decryption_SBox_Inverse", matchType: "bookmark" },
+				]),
+			};
+
+			const { runner } = mockRunner(compactFrame(mockPayload));
+			const tool = new GhidraInspectTool(createTestSession(tempDir), {
+				runner,
+				which: () => "/usr/bin/analyzeHeadless",
+				findCryptStatus: {
+					available: true,
+					ghidraFound: true,
+					extensionDir: "/opt/ghidra/Ghidra/Extensions/FindCrypt",
+					jarPath: "/opt/ghidra/Ghidra/Extensions/FindCrypt/FindCrypt.jar",
+				},
+			});
+
+			const res = await tool.execute("call-1", {
+				action: "findcrypt",
+				path: "sample.bin",
+			});
+
+			expect(res.details.status).toBe("ok");
+			expect(res.details.cryptoCandidates?.length).toBe(2);
+			expect(res.details.cryptoCandidates?.[0].algorithm).toBe("AES_Encryption_SBox");
+			expect(res.details.cryptoCandidates?.[0].address).toBe("0x00014104");
 		} finally {
 			await removeWithRetries(tempDir);
 		}

@@ -18,7 +18,7 @@
 
 | 参数 | 类型 | 适用动作 | 说明 |
 | --- | --- | --- | --- |
-| `action` | `connect \| status \| list \| disconnect \| locate` | 必填 | 执行的会话操作。 |
+| `action` | `connect \| status \| list \| disconnect \| locate \| jni_enrich` | 必填 | 执行的会话操作。 |
 | `service` | `x64dbg \| ghidra \| radare2` | `connect` 必填 | 目标原生逆向服务类型。 |
 | `session_id` | `string` | `disconnect` 必填；`status`/`locate` 可选 | 会话唯一标识符（如 `native_x64dbg_...`）。 |
 | `target` | `string` | `connect` 可选 | 目标二进制文件或样本可执行文件路径。 |
@@ -38,6 +38,12 @@
 | `module_base` | `string` | `locate` 必填 | 运行时模块加载基地址十六进制字符串（如 `"0x7ff6a0000000"`）。 |
 | `static_base` | `string` | `locate` 可选 | 静态反编译镜像基地址十六进制字符串（如 `"0x140000000"`）。 |
 | `module_name` | `string` | `locate` 可选 | 模块文件名（如 `"main.exe"`），用于证据定位符归属。 |
+| `records` | `unknown[]` | `jni_enrich` 可选 | 规范化 JNI 方法记录数组。 |
+| `events` | `unknown` | `jni_enrich` 可选 | Frida / Unidbg 动态 JNI 注册原始事件。 |
+| `preview` | `boolean` | `jni_enrich` 可选 | 默认 `true`（演练预览）；设为 `false` 执行真实上游工具重命名与原型写入。 |
+| `decompile` | `boolean` | `jni_enrich` 可选 | 默认 `true`，在应用新符号与原型后重新反编译输出伪代码。 |
+| `batch_size` | `number` (1–100) | `jni_enrich` 可选 | 单批应用的最大函数数量（默认 20）。 |
+| `is_static_map` | `unknown` | `jni_enrich` 可选 | DEX `ACC_STATIC` 声明映射，明确指定方法静态或虚函数属性。 |
 
 ## 调用示例
 
@@ -109,6 +115,38 @@ native_mcp_session({
 native_mcp_session({
   action: "disconnect",
   session_id: "native_x64dbg_018f..."
+})
+```
+
+### 5. JNI 动态注册符号与原型丰富化 (`jni_enrich`)
+
+在已连接的 Ghidra 或 radare2 会话中预览并应用 `RegisterNatives` 动态注册的方法名称与 C 原型：
+```js
+// 1. 演练预览（只读级别）
+native_mcp_session({
+  action: "jni_enrich",
+  session_id: "native_ghidra_018f...",
+  events: [
+    {
+      event: "jni_register_natives",
+      status: "confirmed",
+      retval: 0,
+      class: "com.example.app.SecurityBridge",
+      methods: [
+        { name: "verifyToken", signature: "(Ljava/lang/String;[B)Z", fnPtr: "0x140001000", base: "0x140000000" }
+      ]
+    }
+  ],
+  preview: true
+})
+
+// 2. 真实应用（执行级别，动态发现上游 rename_function_by_address 与 set_function_prototype 工具）
+native_mcp_session({
+  action: "jni_enrich",
+  session_id: "native_ghidra_018f...",
+  events: [...],
+  preview: false,
+  is_static_map: { "verifyToken(Ljava/lang/String;[B)Z": true }
 })
 ```
 

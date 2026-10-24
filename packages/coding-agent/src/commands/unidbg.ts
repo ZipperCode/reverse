@@ -15,8 +15,40 @@ import { Args, Command, Flags, CliUsageError } from "@reverse/utils/cli";
 import { unidbgHelp as commandHelp } from "../cli/command-help";
 import { buildUnidbg, validateJdk8 } from "../extensibility/unidbg-builder";
 import { inspectUnidbg } from "../extensibility/unidbg-detect";
-import { generateUnidbgHarness, type UnidbgHarnessOptions } from "../extensibility/unidbg-harness";
-import { launchUnidbgHarness, stopUnidbgHarness } from "../extensibility/unidbg-runner";
+import {
+	generateUnidbgHarness,
+	type UnidbgHarnessOptions,
+	type UnidbgEnvProfile,
+	type UnidbgHarnessParam,
+} from "../extensibility/unidbg-harness";
+import { launchUnidbgHarness, stopUnidbgHarness, probeUnidbgRegisterNatives } from "../extensibility/unidbg-runner";
+function resolveEnvProfileInput(rawProfile: unknown, cwd: string): UnidbgEnvProfile | string | undefined {
+	if (!rawProfile) return undefined;
+	if (typeof rawProfile === "object") {
+		return rawProfile as UnidbgEnvProfile;
+	}
+	if (typeof rawProfile === "string") {
+		const trimmed = rawProfile.trim();
+		if (trimmed.startsWith("{")) {
+			try {
+				return JSON.parse(trimmed) as UnidbgEnvProfile;
+			} catch {
+				return trimmed;
+			}
+		}
+		const resolved = path.isAbsolute(trimmed) ? trimmed : path.resolve(cwd, trimmed);
+		if (fs.existsSync(resolved)) {
+			try {
+				const content = fs.readFileSync(resolved, "utf8");
+				return JSON.parse(content) as UnidbgEnvProfile;
+			} catch {
+				return resolved;
+			}
+		}
+		return trimmed;
+	}
+	return undefined;
+}
 
 export interface HarnessPresenceMeta {
 	pid: number;
@@ -152,9 +184,9 @@ export default class Unidbg extends Command {
 
 	static args = {
 		subcommand: Args.string({
-			description: "Unidbg action: build, scaffold, launch, stop, status",
+			description: "Unidbg action: build, scaffold, launch, stop, status, probe",
 			required: false,
-			options: ["build", "scaffold", "launch", "stop", "status"],
+			options: ["build", "scaffold", "launch", "stop", "status", "probe"],
 		}),
 		target: Args.string({
 			description: "Target binary path, harness class/file, source directory, or port for stop",
@@ -180,10 +212,20 @@ export default class Unidbg extends Command {
 		port: Flags.integer({ description: "Port number for the McpServer SSE endpoint", default: 9239 }),
 		out: Flags.string({ description: "Output file path for generated harness Java source code" }),
 		params: Flags.string({ description: "Comma-separated parameter types (e.g. 'bytes,int')" }),
+		"is-static": Flags.boolean({
+			description: "Invoke JNI method as static (default: true)",
+			default: true,
+			allowNegative: true,
+		}),
 		instance: Flags.boolean({ description: "Invoke JNI method as instance instead of static", default: false }),
 		"skip-on-load": Flags.boolean({ description: "Skip calling JNI_OnLoad upon library load", default: false }),
 		overwrite: Flags.boolean({ description: "Overwrite existing scaffold output file", default: false }),
 		json: Flags.boolean({ description: "Output JSON result", default: false }),
+		apk: Flags.string({ description: "Path to APK file for package/context binding and manifest metadata" }),
+		"api-level": Flags.integer({ description: "Android API level for AndroidResolver (default: 23)" }),
+		"env-profile": Flags.string({
+			description: "JSON string or file path for explicit environment profile / custom JNI overrides",
+		}),
 	};
 
 	static examples = [
@@ -193,8 +235,8 @@ export default class Unidbg extends Command {
 		`${APP_NAME} unidbg launch Harness.java --port 9239 --java-home /path/to/jdk8`,
 		`${APP_NAME} unidbg status`,
 		`${APP_NAME} unidbg stop 9239`,
+		`${APP_NAME} unidbg probe libnative.so --apk app.apk --api-level 23`,
 	];
-
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Unidbg);
 		const subcommand = args.subcommand ?? "status";
@@ -267,10 +309,22 @@ export default class Unidbg extends Command {
 					arch: flags.arch as "32" | "64",
 					backend: flags.backend as "unicorn2" | "dynarmic",
 					port: flags.port,
-					params: flags.params,
-					isStatic: !flags.instance,
+					params:
+						typeof flags.params === "string" && flags.params.trim().startsWith("[")
+							? (() => {
+									try {
+										return JSON.parse(flags.params) as UnidbgHarnessParam[];
+									} catch {
+										return flags.params;
+									}
+								})()
+							: flags.params,
+					isStatic: flags.instance ? false : flags["is-static"],
 					callOnLoad: !flags["skip-on-load"],
 					outPath: resolvedOut,
+					apkPath: resolvePath(flags.apk),
+					apiLevel: flags["api-level"],
+					envProfile: resolveEnvProfileInput(flags["env-profile"], cwd),
 				};
 
 				const code = generateUnidbgHarness(harnessOpts);
@@ -557,6 +611,69 @@ export default class Unidbg extends Command {
 						if (h.lastOutput) {
 							process.stdout.write(`    Last output: ${h.lastOutput}\n`);
 						}
+					}
+				}
+				await postmortem.quit(0);
+				return;
+			}
+
+			case "probe": {
+				if (!args.target) {
+					throw new CliUsageError("probe requires a target binary path (.so)");
+				}
+				const targetPath = resolvePath(args.target)!;
+				const resolvedApk = resolvePath(flags.apk);
+				const resolvedOut = resolvePath(flags.out);
+				const resolvedEnvProfile = resolveEnvProfileInput(flags["env-profile"], cwd);
+
+				if (!flags.json) {
+					process.stdout.write(`Probing JNI RegisterNatives dynamic registrations for ${targetPath}...\n`);
+				}
+
+				const res = await probeUnidbgRegisterNatives({
+					targetPath,
+					apkPath: resolvedApk,
+					apiLevel: flags["api-level"],
+					arch: flags.arch as "32" | "64",
+					backend: flags.backend as "unicorn2" | "dynarmic",
+					callOnLoad: !flags["skip-on-load"],
+					envProfile: resolvedEnvProfile,
+					outPath: resolvedOut,
+					unidbgHome: resolvePath(flags["unidbg-home"]),
+					javaHome: resolvePath(flags["java-home"]),
+					onLog: chunk => {
+						if (!flags.json) process.stdout.write(chunk);
+					},
+				});
+
+				if (flags.json) {
+					process.stdout.write(`${JSON.stringify(res, null, 2)}\n`);
+					await postmortem.quit(res.success ? 0 : 1);
+					return;
+				}
+
+				if (!res.success) {
+					process.stderr.write(`\nError: RegisterNatives probe failed: ${res.error}\n`);
+					await postmortem.quit(1);
+					return;
+				}
+
+				process.stdout.write(
+					`\nRegisterNatives probe completed!\n` +
+						`- Target: ${res.targetPath}\n` +
+						`- SHA-256: ${res.sampleSha256 || "unknown"}\n` +
+						`- Captured Events: ${res.totalEvents}\n` +
+						`- Confirmed Dynamic Methods: ${res.records.length}\n` +
+						(res.artifactPath ? `- Artifact: ${res.artifactPath}\n` : "") +
+						"\n",
+				);
+				if (res.records.length > 0) {
+					process.stdout.write("Discovered Dynamic Registrations:\n");
+					for (const r of res.records) {
+						const offset = r.moduleOffset ? ` (offset ${r.moduleOffset})` : "";
+						process.stdout.write(
+							`  * ${r.className}->${r.methodName}${r.signature} => ${r.functionAddress}${offset}\n`,
+						);
 					}
 				}
 				await postmortem.quit(0);

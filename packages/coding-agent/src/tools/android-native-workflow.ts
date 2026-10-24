@@ -99,6 +99,7 @@ export interface AndroidNativeMethodInfo {
 	signature: string;
 	expectedSymbol: string;
 	overloadedSymbol?: string;
+	isStatic?: boolean;
 	status: "static_export" | "dynamic_registration" | "unresolved";
 	matchedLibrary: string | null;
 	candidateLibraries?: string[]; // 可能提供动态注册或存在多库同名导出的候选共享库清单
@@ -132,11 +133,14 @@ export interface AndroidWorkflowReadiness {
 	decompile: boolean;
 	dynamicInject: boolean;
 	emulation: boolean;
+	ghidra?: boolean;
+	lief?: boolean;
+	elfInspect?: boolean;
 }
 
 export interface AndroidWorkflowPlanStep {
 	step_id: string;
-	stage: "unpack" | "decompile" | "disassemble" | "dynamic_inject" | "emulate" | "record_evidence";
+	stage: "unpack" | "decompile" | "disassemble" | "dynamic_inject" | "emulate" | "record_evidence" | "repair";
 	title: string;
 	tool: string;
 	status: "ready" | "blocked" | "skipped";
@@ -145,6 +149,10 @@ export interface AndroidWorkflowPlanStep {
 	missing_dependencies?: string[];
 	install_hints?: string[];
 	remedy?: string;
+	actionable_params?: Record<string, unknown>;
+	expected_artifacts?: string[];
+	target_locator?: string;
+	target_methods?: string[];
 }
 
 export interface AndroidNativeWorkflowDetails {
@@ -160,11 +168,13 @@ export interface AndroidNativeWorkflowDetails {
 		dynamicRegistrationLikely: number;
 		unresolvedMethods: number;
 		antiAnalysisDetected: boolean;
+		packedPayloadDetected?: boolean;
 	};
 	libraries?: AndroidNativeLibraryInfo[];
 	nativeMethods?: AndroidNativeMethodInfo[];
 	manifest?: AndroidNativeManifestLinks;
 	antiAnalysis?: string[];
+	packedIndicators?: string[];
 	readiness?: AndroidWorkflowReadiness;
 	tools?: AndroidCompanionToolStatus[];
 	plan?: {
@@ -594,6 +604,7 @@ export function extractDexNativeMethods(buf: Buffer, filter?: string): AndroidNa
 			// Helper to process method entry
 			const inspectMethod = (methodIdx: number, accessFlags: number) => {
 				if ((accessFlags & 0x0100) === 0) return; // Must have ACC_NATIVE
+				const isStatic = (accessFlags & 0x0008) !== 0; // ACC_STATIC (0x0008)
 
 				const methodIdOff = dexParsed.header.methodIdsOff + methodIdx * 8;
 				if (methodIdOff + 8 > buf.length) return;
@@ -673,6 +684,7 @@ export function extractDexNativeMethods(buf: Buffer, filter?: string): AndroidNa
 					signature: finalSignature,
 					expectedSymbol,
 					...(overloadedSymbol ? { overloadedSymbol } : {}),
+					isStatic,
 					status: "unresolved",
 					matchedLibrary: null,
 				});
@@ -807,6 +819,8 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			"scrcpy",
 			"java",
 			"radare2",
+			"ghidra",
+			"lief",
 		];
 
 		const reqs = androidToolIds.map(id => ({ id, optional: true }));
@@ -827,6 +841,8 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			scrcpy: "Low-Latency Android Screen Mirroring & Device Control",
 			java: "Java Runtime Environment (JDK/JRE) for Android Toolchain",
 			radare2: "Binary Disassembly & Native ELF Section/Symbol Inspection",
+			ghidra: "Headless Decompilation, JNI Signature Enrichment & FindCrypt Analysis",
+			lief: "Deep Structural ELF Analysis, .init_array Constructors & Dynamic Relocations",
 		};
 
 		const companionStatuses: AndroidCompanionToolStatus[] = [];
@@ -862,6 +878,9 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			decompile: Boolean(installedTools.jadx || installedTools.droidasc),
 			dynamicInject: Boolean(installedTools.frida && installedTools.adb),
 			emulation: Boolean(installedTools.unidbg && installedTools.java),
+			ghidra: Boolean(installedTools.ghidra),
+			lief: Boolean(installedTools.lief),
+			elfInspect: true,
 		};
 
 		const lines = [
@@ -885,10 +904,16 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			`- **Java/Kotlin Source Decompilation**: ${readiness.decompile ? "✅ Ready (`jadx` / `droidasc`)" : "⚠️ Limited (install `jadx` for full decompilation; zero-prep DEX header inspection available)"}`,
 		);
 		lines.push(
+			`- **Ghidra JNI Prototype Enrichment**: ${readiness.ghidra ? "✅ Ready (`ghidra`)" : "⚠️ Limited (install `ghidra` for headless decompilation & JNI enrichment)"}`,
+		);
+		lines.push(
 			`- **Dynamic Instrumentation on Device**: ${readiness.dynamicInject ? "✅ Ready (`frida` + `adb`)" : "⚠️ Offline (requires `frida` and `adb` with connected device/emulator)"}`,
 		);
 		lines.push(
 			`- **Offline ARM CPU / JNI Host Emulation**: ${readiness.emulation ? "✅ Ready (`unidbg` + `java`)" : "⚠️ Missing (`unidbg` not installed; run `reverse setup reverse` to view install recipes)"}`,
+		);
+		lines.push(
+			`- **LIEF Structural ELF Inspection**: ${readiness.lief ? "✅ Ready (`lief` Python package)" : "⚠️ Limited (install `lief` via 'reverse setup reverse lief --execute')"}`,
 		);
 
 		return {
@@ -919,6 +944,33 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			buffer = await fs.readFile(resolvedPath);
 		} catch (err) {
 			throw new ToolError(`Failed to read package file '${displayPath}': ${(err as Error).message}`);
+		}
+
+		const isElfDirect =
+			buffer.length >= 4 && buffer[0] === 0x7f && buffer[1] === 0x45 && buffer[2] === 0x4c && buffer[3] === 0x46;
+
+		if (isElfDirect) {
+			const outputDir = params.output_dir ?? path.join(this.session.cwd, "artifacts", "extracted_so");
+			const resolvedOutDir = path.isAbsolute(outputDir) ? outputDir : path.join(this.session.cwd, outputDir);
+			await fs.mkdir(resolvedOutDir, { recursive: true });
+			const fileName = path.basename(resolvedPath);
+			const destPath = path.join(resolvedOutDir, fileName);
+			await fs.writeFile(destPath, buffer);
+			const extractedFiles = [{ name: fileName, size: buffer.length, destination: destPath }];
+			return {
+				content: [
+					{
+						type: "text",
+						text: `# Extracted Native Shared Library: \`${displayPath}\`\nDestination: \`${resolvedOutDir}\`\n\n| Entry | Size (bytes) | Destination |\n|---|---|---|\n| \`${fileName}\` | ${buffer.length.toLocaleString()} | \`${destPath}\` |`,
+					},
+				],
+				details: {
+					action: "extract",
+					path: displayPath,
+					status: "ok",
+					extractedFiles,
+				},
+			};
 		}
 
 		let zip: ZipParser;
@@ -1015,13 +1067,36 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			dynamicInject: false,
 			emulation: false,
 		};
-		const radareInstalled = Boolean(statusDetails?.tools?.find(t => t.id === "radare2")?.installed);
+		const installedTools: Record<string, boolean> = {};
+		for (const t of statusDetails?.tools ?? []) {
+			installedTools[t.id] = t.installed;
+		}
 
-		const sampleLib = inspection.libraries[0]?.name ?? "libnative.so";
+		const targetLib =
+			(params.library || params.so_name
+				? inspection.libraries.find(l => l.name.toLowerCase() === (params.library ?? params.so_name)!.toLowerCase())
+				: undefined) ?? inspection.libraries[0];
+		const sampleLib = targetLib?.name ?? "libnative.so";
+		const sampleAbi = targetLib?.abi ?? (inspection.summary?.abis[0] || "arm64-v8a");
+		const libArtifactPath = `./artifacts/extracted_so/lib/${sampleAbi}/${sampleLib}`;
 		const sampleMethod = inspection.nativeMethods[0];
 		const sampleSymbol = sampleMethod?.expectedSymbol ?? "Java_com_example_app_Native_sign";
 		const sampleClass = sampleMethod?.className ?? "com.example.app.Native";
 		const pkg = inspection.manifest.package ?? "com.example.app";
+
+		const sampleLibClean = sampleLib.replace(/\.so$/, "");
+		const jniArtifactPath = `./artifacts/${sampleLibClean}_jni_registrations.json`;
+		const unresolvedList = inspection.nativeMethods.filter(m => m.status === "unresolved");
+		const hasUnresolved = unresolvedList.length > 0 || (inspection.summary?.unresolvedMethods ?? 0) > 0;
+		const hasCrypto = inspection.libraries.some(l => l.cryptoKeywords && l.cryptoKeywords.length > 0);
+		const isPacked = Boolean(
+			inspection.summary?.packedPayloadDetected ||
+			(inspection.packedIndicators && inspection.packedIndicators.length > 0),
+		);
+		const isDirectSo =
+			displayPath.endsWith(".so") ||
+			(inspection.summary.totalLibraries === 1 && !displayPath.endsWith(".apk") && !displayPath.endsWith(".aab"));
+		const targetArch = targetLib?.bitness === 32 ? "32" : "64";
 
 		const stages: AndroidWorkflowPlanStep[] = [
 			{
@@ -1029,53 +1104,83 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 				stage: "unpack",
 				title: "G0/G1: Decompress Native Libraries & Manifest to Artifacts",
 				tool: "android_native_workflow",
-				status: "ready",
+				status: isDirectSo ? "skipped" : "ready",
 				command_or_action: `android_native_workflow(action: "extract", path: "${displayPath}")`,
-				description:
-					"Extract target .so binaries (arm64-v8a / armeabi-v7a) and AndroidManifest.xml safely into ./artifacts/extracted_so/ for static analysis and emulation.",
+				description: isDirectSo
+					? "Target is already an unpacked native .so binary; archive extraction skipped."
+					: `Extract target .so binaries (${sampleAbi}) and AndroidManifest.xml safely into ./artifacts/extracted_so/ for static analysis and emulation.`,
+				actionable_params: {
+					action: "extract",
+					path: displayPath,
+					abi: sampleAbi,
+					output_dir: "./artifacts/extracted_so",
+				},
+				expected_artifacts: [libArtifactPath, "./artifacts/extracted_so/AndroidManifest.xml"],
 			},
 			{
 				step_id: "step_2_decompile",
 				stage: "decompile",
 				title: "G1/G2: Decompile Java/Kotlin Call Sites & Native Declarations",
 				tool: readiness.decompile ? "jadx" : "android_package_inspect",
-				status: readiness.decompile ? "ready" : "blocked",
+				status: isDirectSo ? "skipped" : readiness.decompile ? "ready" : "blocked",
 				command_or_action: readiness.decompile
 					? `jadx -d ./artifacts/jadx_out --single-class "${sampleClass}" ${displayPath}`
 					: `android_package_inspect(action: "dex", path: "${displayPath}")`,
-				description:
-					"Analyze Java method arguments, System.loadLibrary() calls, and data preparation before native boundary transitions.",
-				missing_dependencies: readiness.decompile ? undefined : ["jadx"],
+				description: isDirectSo
+					? "Target is a standalone .so binary without accompanying DEX bytecode; Java call site decompilation skipped."
+					: "Analyze Java method arguments, System.loadLibrary() calls, and data preparation before native boundary transitions.",
+				missing_dependencies: isDirectSo || readiness.decompile ? undefined : ["jadx"],
 				install_hints: readiness.decompile ? undefined : ["brew install jadx (macOS) or apt install jadx (Linux)"],
 				remedy: readiness.decompile
 					? undefined
 					: "Use zero-prep android_package_inspect(action: 'dex') as fallback or install JADX via setup reverse.",
+				actionable_params: readiness.decompile
+					? { tool: "jadx", class: sampleClass, output: "./artifacts/jadx_out" }
+					: { action: "dex", path: displayPath },
 			},
 			{
 				step_id: "step_3_disassemble",
 				stage: "disassemble",
-				title: "G2/G3: Disassemble Native .so & Map JNI Functions",
-				tool: "r2_inspect",
-				status: radareInstalled ? "ready" : "blocked",
-				command_or_action: `r2_inspect(action: "functions", path: "./artifacts/extracted_so/lib/arm64-v8a/${sampleLib}")`,
-				description:
-					"Analyze exported JNI functions, JNI_OnLoad registration pointers, and cryptographic or anti-debug routines.",
-				missing_dependencies: radareInstalled ? undefined : ["radare2"],
-				install_hints: ["brew install radare2 or apt install radare2"],
+				title: "G2/G3: Disassemble Native .so, LIEF Constructors & Map JNI Functions",
+				tool: "elf_inspect",
+				status: readiness.lief ? "ready" : "blocked",
+				command_or_action: `elf_inspect(action: "query", path: "${libArtifactPath}", query_type: "constructors")`,
+				description: `Analyze exported JNI functions, LIEF constructors (.init_array/DT_INIT), dynamic relocations, and cryptographic routines in ${sampleLib}.${hasCrypto ? " Cryptographic keywords detected; run Ghidra FindCrypt candidate inspection if relevant." : ""}`,
+				missing_dependencies: readiness.lief ? undefined : ["lief"],
+				install_hints: readiness.lief
+					? undefined
+					: ["reverse setup reverse lief --execute or pip install lief==1.0.0"],
+				actionable_params: {
+					action: "query",
+					path: libArtifactPath,
+					query_type: "constructors",
+					limit: 50,
+				},
+				expected_artifacts: [`${libArtifactPath}:constructors`],
 			},
 			{
 				step_id: "step_4_dynamic_inject",
 				stage: "dynamic_inject",
 				title: "G3: Dynamic Instrumentation via Frida on Live Device",
 				tool: "frida_session",
-				status: readiness.dynamicInject ? "ready" : "blocked",
-				command_or_action: `frida_session(action: "create", spawn: "${pkg}")`,
-				description:
-					"Hook JNI methods or intercept RegisterNatives in memory on an attached Android device to record live parameters and decrypted keys.",
+				status: "blocked",
+				command_or_action: readiness.dynamicInject
+					? `frida(action: "trace", template: "jni_register", module: "${sampleLib}")`
+					: `frida_session(action: "create", spawn: "${pkg}")`,
+				description: `Hook JNI methods or intercept RegisterNatives in memory on an attached Android device to record live parameters and decrypted keys. Route unresolved dynamic registrations (${unresolvedList.length} unresolved) to confirmed event captures.`,
 				missing_dependencies: readiness.dynamicInject ? undefined : ["frida", "adb"],
 				install_hints: ["pipx install frida-tools && brew install --cask android-platform-tools"],
 				remedy:
 					"If no physical device or emulator is connected, bypass this step and execute Step 5 (Unidbg Host Emulation).",
+				actionable_params: {
+					tool: "frida",
+					action: "trace",
+					template: "jni_register",
+					module: sampleLib,
+					export_evidence: true,
+				},
+				expected_artifacts: [jniArtifactPath],
+				target_methods: unresolvedList.slice(0, 5).map(m => `${m.className}.${m.methodName}${m.signature}`),
 			},
 			{
 				step_id: "step_5_emulate",
@@ -1083,37 +1188,148 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 				title: "G3: Headless ARM CPU & JNI Emulation via Unidbg (Device-Free)",
 				tool: "unidbg",
 				status: readiness.emulation ? "ready" : "blocked",
-				command_or_action: `mvn test -Dtest=UnidbgTest (custom Java harness required for ./artifacts/extracted_so/lib/arm64-v8a/${sampleLib})`,
-				description:
-					"Emulate ARM instructions on host JVM to execute target JNI function headlessly via custom Maven Java harness (manual integration required).",
+				command_or_action: isDirectSo
+					? `unidbg(action: "probe", target: "${libArtifactPath}", arch: "${targetArch}", callOnLoad: true, out: "${jniArtifactPath}")`
+					: `unidbg(action: "probe", target: "${libArtifactPath}", apk: "${displayPath}", arch: "${targetArch}", callOnLoad: true, out: "${jniArtifactPath}")`,
+				description: `Emulate ARM instructions on host JVM headlessly without a device to capture JNI dynamic registrations (RegisterNatives) via JNI_OnLoad, feed verified records to Ghidra JNI enrichment (ghidra_inspect jni_enrich), and execute bounded replay verification.`,
 				missing_dependencies: readiness.emulation ? undefined : ["unidbg"],
 				install_hints: ["git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests"],
 				remedy: "Compile Unidbg runner or set UNIDBG_HOME in environment. Safe for CI and offline workstations.",
+				actionable_params: {
+					action: "probe",
+					target: libArtifactPath,
+					arch: targetArch,
+					callOnLoad: true,
+					out: jniArtifactPath,
+					...(isDirectSo ? {} : { apk: displayPath }),
+				},
+				expected_artifacts: [jniArtifactPath],
 			},
 			{
-				step_id: "step_6_record_evidence",
+				step_id: "step_6_jni_enrich",
+				stage: "disassemble",
+				title: "G3: Verified JNI Prototype & Signature Enrichment via Ghidra",
+				tool: "ghidra_inspect",
+				status: "blocked",
+				command_or_action: `ghidra_inspect(action: "jni_enrich", path: "${libArtifactPath}", events_path: "${jniArtifactPath}", preview: true)`,
+				description: `Apply confirmed RegisterNatives records from dynamic probe (${jniArtifactPath}) to Ghidra project to enrich function prototypes (with correct jclass for isStatic vs jobject) and decompiled pseudocode.`,
+				missing_dependencies: installedTools.ghidra ? undefined : ["ghidra"],
+				install_hints: installedTools.ghidra ? undefined : ["brew install --cask ghidra or apt install ghidra"],
+				remedy: `Execute after Step 4 (Frida) or Step 5 (Unidbg) produces confirmed registrations in ${jniArtifactPath}.`,
+				actionable_params: {
+					tool: "ghidra_inspect",
+					action: "jni_enrich",
+					path: libArtifactPath,
+					events_path: jniArtifactPath,
+					preview: true,
+				},
+				expected_artifacts: [`${libArtifactPath}:enriched`],
+			},
+			{
+				step_id: "step_7_replay_trace",
+				stage: "dynamic_inject",
+				title: "G3: Bounded JNI API Trace & Replay Verification",
+				tool: "frida",
+				status: "blocked",
+				command_or_action: `frida(action: "trace", template: "jni_trace", module: "${sampleLib}", max_events: 100)`,
+				description: `Execute bounded JNI API trace on attached device or session for unresolved callbacks, crypto operations, and environment lookups, followed by replay verification.`,
+				missing_dependencies: readiness.dynamicInject ? undefined : ["frida", "adb"],
+				install_hints: ["pipx install frida-tools && brew install --cask android-platform-tools"],
+				remedy:
+					"Execute on running application process when unresolved JNI callbacks or runtime environment lookups remain.",
+				actionable_params: {
+					tool: "frida",
+					action: "trace",
+					template: "jni_trace",
+					module: sampleLib,
+					max_events: 100,
+				},
+			},
+			{
+				step_id: "step_8_record_evidence",
 				stage: "record_evidence",
 				title: "G4: Record Verified Findings to Evidence Ledger",
 				tool: "evidence",
-				status: "ready",
-				command_or_action: `evidence(action: "add", kind: "fact", target: "${displayPath}", sourceTool: "android_native_workflow", locator: "${sampleSymbol}")`,
+				status: "blocked",
+				command_or_action: `evidence(action: "add", kind: "fact", target: "${displayPath}", sourceTool: "ghidra_inspect", locator: "${sampleSymbol}", content: "<findings_from_step_5_or_6>")`,
 				description:
-					"Record verified cryptographic keys, decrypted payloads, or JNI method mappings into the empirical evidence ledger.",
+					"Record verified JNI method mappings, decrypted payloads, or confirmed RegisterNatives bindings into the empirical evidence ledger from executed experiment outputs (no premature claims from static inventory).",
+				remedy: "Execute after dynamic registration discovery and JNI prototype enrichment confirm findings.",
+				actionable_params: {
+					action: "add",
+					kind: "fact",
+					target: displayPath,
+					sourceTool: "ghidra_inspect",
+					locator: sampleSymbol,
+				},
+				target_locator: sampleSymbol,
 			},
 		];
 
-		const recommendations = [
+		if (isPacked) {
+			stages.push({
+				step_id: "step_9_packed_repair",
+				stage: "repair",
+				title: "G3: Runtime Memory Dump & SoFixer ELF Reconstruction (Packer Detected)",
+				tool: "elf_inspect",
+				status: "blocked",
+				command_or_action: `elf_inspect(action: "dump_and_repair", pid: <target_pid>, module: "${sampleLib}", output_path: "./artifacts/repaired_${sampleLib}")`,
+				description: `Concrete commercial Android packer payload detected (${(inspection.packedIndicators ?? []).join(", ") || "known packer"}). Memory dump and SoFixer reconstruction requires active process PID on target device before static disassembly.`,
+				actionable_params: {
+					action: "dump_and_repair",
+					module: sampleLib,
+					output_path: `./artifacts/repaired_${sampleLib}`,
+				},
+				expected_artifacts: [`./artifacts/repaired_${sampleLib}`],
+				missing_dependencies: ["sofixer"],
+				remedy: "Identify target process PID on device and execute elf_inspect dump_and_repair.",
+			});
+		}
+
+		const recommendations: string[] = [
 			"For immediate static triage: execute Step 1 (extract) to unpack native .so files into ./artifacts/.",
-			readiness.emulation
-				? "Unidbg is installed: you can emulate ARM native code directly on this machine without a phone."
-				: "Unidbg is missing: run 'reverse setup reverse' or compile zhkl0228/unidbg to enable device-free JNI emulation.",
-			readiness.dynamicInject
-				? "Frida and ADB are available: attach an Android device to execute live on-device hooks."
-				: "No dynamic device toolchain detected: proceed with static disassembly (Step 3) or Unidbg emulation (Step 5).",
 		];
 
+		if (hasUnresolved) {
+			recommendations.push(
+				`Unresolved dynamic registrations detected (${unresolvedList.length} methods): route through Unidbg probe (device-free) or Frida jni_register on device. Never assume arithmetic address mappings without verified runtime registration.`,
+			);
+			recommendations.push(
+				`After dynamic registration capture, apply verified JNI enrichment: ghidra_inspect(action: "jni_enrich", path: "${libArtifactPath}", events_path: "${jniArtifactPath}", preview: true) and execute bounded JNI trace (frida jni_trace, max_events: 100) for unresolved callbacks.`,
+			);
+		}
+
+		if (isPacked) {
+			recommendations.push(
+				`Packer payload detected (${(inspection.packedIndicators ?? []).join(", ") || "known packer"}): execute memory dump and SoFixer repair (elf_inspect dump_and_repair) before static decompilation.`,
+			);
+		}
+
+		if (hasCrypto) {
+			recommendations.push(
+				`Cryptographic routines detected in ${sampleLib}: inspect LIEF constructors (.init_array) and run optional Ghidra FindCrypt analyzer.`,
+			);
+		}
+
+		if (readiness.emulation) {
+			recommendations.push(
+				"Unidbg is installed: you can emulate ARM native code directly on this machine without a phone via unidbg(action: 'probe').",
+			);
+		} else {
+			recommendations.push(
+				"Unidbg is missing: run 'reverse setup reverse' or compile zhkl0228/unidbg to enable device-free JNI emulation.",
+			);
+		}
+
+		if (readiness.dynamicInject) {
+			recommendations.push("Frida and ADB are available: attach an Android device to execute live on-device hooks.");
+		} else {
+			recommendations.push(
+				"No dynamic device toolchain detected: proceed with static disassembly (Step 3) or Unidbg emulation (Step 5).",
+			);
+		}
 		const lines = [
-			`# Android Native Reverse Engineering Plan: \`${displayPath}\``,
+			`# Android Native Reverse Engineering Plan: \`${displayPath}\` (${stages.length} Stages)`,
 			`Target Package: \`${pkg}\` | Libraries: ${inspection.libraries.length} | Native Methods: ${inspection.nativeMethods.length}`,
 			"",
 			"| Step | Stage | Tool | Status | Action / Command |",
@@ -1267,6 +1483,7 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 				nativeMethods: inventory.nativeMethods,
 				manifest: inventory.manifest,
 				antiAnalysis: inventory.antiAnalysis,
+				packedIndicators: inventory.packedIndicators,
 				readiness: statusRes.details?.readiness,
 			},
 		};
@@ -1287,6 +1504,7 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 		nativeMethods: AndroidNativeMethodInfo[];
 		manifest: AndroidNativeManifestLinks;
 		antiAnalysis: string[];
+		packedIndicators: string[];
 	}> {
 		throwIfAborted(signal);
 
@@ -1295,6 +1513,47 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			buffer = await fs.readFile(resolvedPath);
 		} catch (err) {
 			throw new ToolError(`Failed to read target file '${displayPath}': ${(err as Error).message}`);
+		}
+
+		const isElfDirect =
+			buffer.length >= 4 && buffer[0] === 0x7f && buffer[1] === 0x45 && buffer[2] === 0x4c && buffer[3] === 0x46;
+
+		const knownPackers: Record<string, string> = {
+			"libjiagu.so": "Qihoo 360 Jiagu Packer",
+			"libsecmain.so": "Bangcle / Secneo Packer",
+			"libtup.so": "Tencent Legu Packer",
+			"libDexHelper.so": "Secshell Packer",
+			"libprotectClass.so": "Alibaba / Ali2Cloud Packer",
+			"libkwscmm.so": "Kuaishou Packer",
+		};
+
+		if (isElfDirect) {
+			const parsedLib = parseElfBuffer(buffer, path.basename(resolvedPath), buffer.length);
+			const libraries = [parsedLib];
+			const nativeMethods: AndroidNativeMethodInfo[] = [];
+			const antiAnalysis = parsedLib.antiAnalysisKeywords.length > 0 ? parsedLib.antiAnalysisKeywords : [];
+			const isPackedDirect = Boolean(knownPackers[parsedLib.name]);
+			const packedIndicators = isPackedDirect
+				? [`Known commercial Android packer detected: '${parsedLib.name}' (${knownPackers[parsedLib.name]}).`]
+				: [];
+			const summary = {
+				totalLibraries: 1,
+				abis: [parsedLib.abi],
+				totalNativeMethods: 0,
+				staticExportMatched: 0,
+				dynamicRegistrationLikely: 0,
+				unresolvedMethods: 0,
+				antiAnalysisDetected: antiAnalysis.length > 0,
+				packedPayloadDetected: isPackedDirect,
+			};
+			return {
+				summary,
+				libraries,
+				nativeMethods,
+				manifest: {},
+				antiAnalysis,
+				packedIndicators,
+			};
 		}
 
 		let zip: ZipParser;
@@ -1403,18 +1662,13 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 
 		// 5. Anti-Analysis & Packer Audits
 		const antiAnalysis: string[] = [];
-		const knownPackers: Record<string, string> = {
-			"libjiagu.so": "Qihoo 360 Jiagu Packer",
-			"libsecmain.so": "Bangcle / Secneo Packer",
-			"libtup.so": "Tencent Legu Packer",
-			"libDexHelper.so": "Secshell Packer",
-			"libprotectClass.so": "Alibaba / Ali2Cloud Packer",
-			"libkwscmm.so": "Kuaishou Packer",
-		};
+		const packedIndicators: string[] = [];
 
 		for (const lib of libraries) {
 			if (knownPackers[lib.name]) {
-				antiAnalysis.push(`Known commercial Android packer detected: '${lib.name}' (${knownPackers[lib.name]}).`);
+				const desc = `Known commercial Android packer detected: '${lib.name}' (${knownPackers[lib.name]}).`;
+				antiAnalysis.push(desc);
+				packedIndicators.push(desc);
 			}
 			if (lib.antiAnalysisKeywords.includes("ptrace")) {
 				antiAnalysis.push(`Library '${lib.name}' references 'ptrace' anti-debugging routine or API symbol.`);
@@ -1435,11 +1689,13 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 				dynamicRegistrationLikely,
 				unresolvedMethods,
 				antiAnalysisDetected: antiAnalysis.length > 0,
+				packedPayloadDetected: packedIndicators.length > 0,
 			},
 			libraries,
 			nativeMethods,
 			manifest: manifestLinks,
 			antiAnalysis,
+			packedIndicators,
 		};
 	}
 }

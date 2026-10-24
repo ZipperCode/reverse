@@ -12,16 +12,26 @@ import { type } from "@reverse/reversetype";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ToolSession } from "./index";
 import { throwIfAborted } from "./tool-errors";
-import { generateUnidbgHarness, type UnidbgHarnessOptions } from "../extensibility/unidbg-harness";
+import {
+	generateUnidbgHarness,
+	type UnidbgHarnessOptions,
+	type UnidbgHarnessParam,
+	type UnidbgEnvProfile,
+} from "../extensibility/unidbg-harness";
 import { buildUnidbg, validateJdk8 } from "../extensibility/unidbg-builder";
 import { inspectUnidbg } from "../extensibility/unidbg-detect";
-import { getActiveUnidbgHarnesses, launchUnidbgHarness, stopUnidbgHarness } from "../extensibility/unidbg-runner";
+import {
+	getActiveUnidbgHarnesses,
+	launchUnidbgHarness,
+	stopUnidbgHarness,
+	probeUnidbgRegisterNatives,
+} from "../extensibility/unidbg-runner";
 
 const unidbgSchema = type({
 	action: type
-		.enumerated("scaffold", "build", "launch", "stop", "status")
+		.enumerated("scaffold", "build", "launch", "stop", "status", "probe")
 		.describe(
-			"Action to execute: 'scaffold' to generate harness Java code, 'build' to compile Unidbg source, 'launch' to run harness and attach MCP in-memory, 'stop' to terminate harness and detach MCP, 'status' to inspect active harnesses",
+			"Action to execute: 'scaffold' to generate harness Java code, 'build' to compile Unidbg source, 'launch' to run harness and attach MCP in-memory, 'stop' to terminate harness and detach MCP, 'status' to inspect active harnesses, 'probe' to discover JNI RegisterNatives dynamic methods without device",
 		),
 	"type?": type
 		.enumerated("jni", "ipa")
@@ -37,19 +47,37 @@ const unidbgSchema = type({
 	"port?": type("number").describe("Port number for the McpServer SSE endpoint (default: 9239)"),
 	"out?": type("string").describe("Output file path for generated harness Java source code"),
 	"overwrite?": type("boolean").describe("Overwrite existing output file during scaffold (default: false)"),
-	"params?": type("string").describe("Comma-separated parameter types (e.g. 'bytes,int' or 'input:string')"),
+	"params?": type("string")
+		.or(
+			type({
+				name: type("string"),
+				type: type("string"),
+				"className?": type("string"),
+				"defaultValue?": type("string"),
+			}).array(),
+		)
+		.describe(
+			"Parameter specifications: comma-separated string (e.g. 'bytes,int' or 'ctx:android/content/Context,arr:int[]') or structured array of parameter objects",
+		),
+	"isStatic?": type("boolean").describe("Whether the target JNI method is static (default: true)"),
 	"unidbgHome?": type("string").describe("Path to Unidbg source checkout or installation directory"),
 	"javaHome?": type("string").describe("Path to JDK 8 home directory"),
 	"mirror?": type.enumerated("aliyun", "default").describe("Maven repository mirror ('aliyun' or 'default')"),
 	"skipTests?": type("boolean").describe("Skip unit tests during Unidbg build (default: true)"),
 	"harness?": type("string").describe("Path to harness Java source (.java) or class name to launch"),
 	"timeoutMs?": type("number").describe("Timeout in milliseconds for SSE health check (default: 30000)"),
+	"apk?": type("string").describe("Optional path to APK file for package/context binding and manifest metadata"),
+	"apiLevel?": type("number").describe("Android API level for AndroidResolver (default: 23)"),
+	"envProfile?": type("string").describe(
+		"JSON string or file path for explicit environment profile / custom JNI overrides",
+	),
+	"callOnLoad?": type("boolean").describe("Whether to execute JNI_OnLoad during probe/harness (default: true)"),
 });
 
 export type UnidbgToolParams = typeof unidbgSchema.infer;
 
 export interface UnidbgToolDetails {
-	action: "scaffold" | "build" | "launch" | "stop" | "status";
+	action: "scaffold" | "build" | "launch" | "stop" | "status" | "probe";
 	success: boolean;
 	code?: string;
 	outputPath?: string;
@@ -73,6 +101,53 @@ export interface UnidbgToolDetails {
 		ready: boolean;
 		harnessClass?: string;
 	};
+	probe?: {
+		targetPath: string;
+		sampleSha256?: string;
+		events: Array<Record<string, unknown>>;
+		records: Array<{
+			className: string;
+			methodName: string;
+			signature: string;
+			moduleName: string;
+			moduleBase?: string;
+			functionAddress: string;
+			moduleOffset?: string;
+			status: "confirmed";
+			source: "unidbg";
+			sampleSha256?: string;
+		}>;
+		artifactPath?: string;
+		totalEvents: number;
+	};
+	error?: string;
+}
+function resolveEnvProfileInput(rawProfile: unknown, cwd: string): UnidbgEnvProfile | string | undefined {
+	if (!rawProfile) return undefined;
+	if (typeof rawProfile === "object") {
+		return rawProfile as UnidbgEnvProfile;
+	}
+	if (typeof rawProfile === "string") {
+		const trimmed = rawProfile.trim();
+		if (trimmed.startsWith("{")) {
+			try {
+				return JSON.parse(trimmed) as UnidbgEnvProfile;
+			} catch {
+				return trimmed;
+			}
+		}
+		const resolved = path.isAbsolute(trimmed) ? trimmed : path.resolve(cwd, trimmed);
+		if (fs.existsSync(resolved)) {
+			try {
+				const content = fs.readFileSync(resolved, "utf8");
+				return JSON.parse(content) as UnidbgEnvProfile;
+			} catch {
+				return resolved;
+			}
+		}
+		return trimmed;
+	}
+	return undefined;
 }
 
 export class UnidbgTool implements AgentTool<typeof unidbgSchema, UnidbgToolDetails> {
@@ -88,7 +163,13 @@ export class UnidbgTool implements AgentTool<typeof unidbgSchema, UnidbgToolDeta
 	readonly approval = (args: unknown): ToolTier => {
 		if (args && typeof args === "object" && "action" in args) {
 			const action = args.action;
-			if (action === "build" || action === "launch" || action === "stop" || action === "scaffold") {
+			if (
+				action === "build" ||
+				action === "launch" ||
+				action === "stop" ||
+				action === "scaffold" ||
+				action === "probe"
+			) {
 				return "write";
 			}
 		}
@@ -142,8 +223,13 @@ export class UnidbgTool implements AgentTool<typeof unidbgSchema, UnidbgToolDeta
 					arch: params.arch ?? "64",
 					backend: params.backend ?? "unicorn2",
 					port: params.port ?? 9239,
-					params: params.params,
+					params: params.params as string | UnidbgHarnessParam[] | undefined,
+					isStatic: params.isStatic ?? true,
 					outPath: resolvedOut,
+					apkPath: resolvePath(params.apk),
+					apiLevel: params.apiLevel,
+					envProfile: resolveEnvProfileInput(params.envProfile, cwd),
+					callOnLoad: params.callOnLoad !== false,
 				};
 
 				const code = generateUnidbgHarness(harnessOpts);
@@ -316,6 +402,83 @@ export class UnidbgTool implements AgentTool<typeof unidbgSchema, UnidbgToolDeta
 						activeHarnesses: active,
 						unidbgDir: inspected.unidbgDir,
 						jars: inspected.jars,
+					},
+				};
+			}
+
+			case "probe": {
+				if (!params.target) {
+					throw new ToolError("target binary (.so) path is required for RegisterNatives probe");
+				}
+				const target = resolvePath(params.target)!;
+				const resolvedApk = resolvePath(params.apk);
+				const resolvedOut = resolvePath(params.out);
+				const resolvedEnvProfile = resolveEnvProfileInput(params.envProfile, cwd);
+
+				const probeRes = await probeUnidbgRegisterNatives({
+					targetPath: target,
+					apkPath: resolvedApk,
+					apiLevel: params.apiLevel,
+					arch: params.arch ?? "64",
+					backend: params.backend ?? "unicorn2",
+					callOnLoad: params.callOnLoad !== false,
+					envProfile: resolvedEnvProfile,
+					outPath: resolvedOut,
+					unidbgHome: resolvePath(params.unidbgHome),
+					javaHome: resolvePath(params.javaHome),
+					timeoutMs: params.timeoutMs ?? 60_000,
+					signal: effectiveSignal,
+				});
+
+				if (!probeRes.success) {
+					throw new ToolError(
+						`Unidbg RegisterNatives probe failed: ${probeRes.error}\nOutput:\n${probeRes.output.slice(-2000)}`,
+					);
+				}
+
+				const confirmedCount = probeRes.records.length;
+				const lines = [
+					"### Unidbg RegisterNatives Probe Results",
+					`- **Target**: ${target}`,
+					`- **SHA-256**: ${probeRes.sampleSha256 || "unknown"}`,
+					`- **Total Events Captured**: ${probeRes.totalEvents}`,
+					`- **Confirmed Dynamic Methods**: ${confirmedCount}`,
+				];
+				if (probeRes.artifactPath) {
+					lines.push(`- **Artifact Saved**: ${probeRes.artifactPath}`);
+				}
+				if (confirmedCount > 0) {
+					lines.push("\n**Discovered Dynamic Registrations:**");
+					const DISPLAY_CAP = 25;
+					const displayed = probeRes.records.slice(0, DISPLAY_CAP);
+					for (const r of displayed) {
+						const offsetInfo = r.moduleOffset ? ` (offset: ${r.moduleOffset})` : "";
+						lines.push(
+							`  * \`${r.className}->${r.methodName}${r.signature}\` => \`${r.functionAddress}\`${offsetInfo} in \`${r.moduleName}\``,
+						);
+					}
+					if (confirmedCount > DISPLAY_CAP) {
+						lines.push(
+							`  * ... and ${confirmedCount - DISPLAY_CAP} more methods (see full artifact at ${probeRes.artifactPath})`,
+						);
+					}
+				} else {
+					lines.push("\nNo dynamic native method registrations were recorded during execution.");
+				}
+
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action: "probe",
+						success: true,
+						probe: {
+							targetPath: probeRes.targetPath,
+							sampleSha256: probeRes.sampleSha256,
+							events: probeRes.events,
+							records: probeRes.records,
+							artifactPath: probeRes.artifactPath,
+							totalEvents: probeRes.totalEvents,
+						},
 					},
 				};
 			}

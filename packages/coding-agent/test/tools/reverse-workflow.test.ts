@@ -1763,3 +1763,143 @@ describe("reverse_workflow install-after resume and canonical host verification"
 		}
 	});
 });
+
+describe("reverse_workflow native SO and JNI planning and progression", () => {
+	it("plans native SO target with elf_inspect, unidbg probe and ghidra_enrich", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rw-so-plan-"));
+		try {
+			const soPath = path.join(tempDir, "libnative.so");
+			await fs.writeFile(soPath, Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+
+			const session = createTestSession(tempDir);
+			const tool = new ReverseWorkflowTool(session);
+
+			const createRes = await tool.execute("call_create_so", {
+				action: "create",
+				target: soPath,
+				goal: "Reverse JNI native registration and verify encryption keys",
+			});
+
+			expect(createRes.details.workflow?.format).toBe("ELF");
+			const steps = createRes.details.workflow?.steps ?? [];
+			expect(steps).toHaveLength(6);
+
+			expect(steps[0].tool).toBe("triage");
+			expect(steps[1].tool).toBe("elf_inspect");
+			expect(steps[2].tool).toBe("unidbg");
+			expect(steps[3].tool).toBe("ghidra_inspect");
+			expect(steps[4].tool).toBe("frida");
+			expect(steps[5].tool).toBe("evidence");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("halts progression on unidbg emulation step and holds pending decision", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rw-so-auto-"));
+		try {
+			const soPath = path.join(tempDir, "libtarget.so");
+			await fs.writeFile(soPath, Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+
+			const session = createTestSession(tempDir);
+			const tool = new ReverseWorkflowTool(session);
+
+			const createRes = await tool.execute("call_create", {
+				action: "create",
+				target: soPath,
+				goal: "Reverse Android JNI RegisterNatives",
+			});
+			const workflowId = createRes.details.workflow!.id;
+
+			// Advance step 1 (elf_inspect query)
+			await tool.execute("call_step1", {
+				action: "advance",
+				workflow_id: workflowId,
+				step_id: "elf_step_1",
+				status: "completed",
+				outputs: "ELF AArch64 dynamic shared object",
+			});
+
+			// Advance step 2 (elf_inspect constructors query)
+			await tool.execute("call_step2", {
+				action: "advance",
+				workflow_id: workflowId,
+				step_id: "elf_step_2",
+				status: "completed",
+				outputs: "Constructors and relocations triaged",
+			});
+
+			// Next step is elf_step_3 (tool: unidbg, action: probe)
+			// Auto advance must NOT execute dynamic Unidbg silently
+			const advRes = await tool.execute("call_auto_adv", {
+				action: "auto_advance",
+				workflow_id: workflowId,
+			});
+
+			expect(advRes.details.step?.id).toBe("elf_step_3");
+			expect(advRes.details.step?.status).toBe("pending");
+			expect(advRes.details.step?.progression_status).toBe("held_pending_decision");
+			expect(advRes.details.decision_reason).toContain("unidbg");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("plans generic Linux .so target without Android JNI evidence as generic ELF triage", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rw-linux-so-"));
+		try {
+			const soPath = path.join(tempDir, "libcrypto.so");
+			await fs.writeFile(soPath, Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+
+			const session = createTestSession(tempDir);
+			const tool = new ReverseWorkflowTool(session);
+
+			// Generic Linux goal (no JNI/Android evidence)
+			const createRes = await tool.execute("call_create_linux", {
+				action: "create",
+				target: soPath,
+				goal: "Audit OpenSSL crypto library exports on Linux x86_64",
+			});
+
+			expect(createRes.details.workflow?.format).toBe("ELF");
+			const steps = createRes.details.workflow?.steps ?? [];
+			// Generic ELF: 4 steps (triage, binary_metadata_inspect, r2_inspect, evidence), NOT routed to Unidbg
+			expect(steps).toHaveLength(4);
+			expect(steps[0].tool).toBe("triage");
+			expect(steps[1].tool).toBe("binary_metadata_inspect");
+			expect(steps[2].tool).toBe("r2_inspect");
+			expect(steps[3].tool).toBe("evidence");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("plans Android ABI path fixture (.so inside lib/arm64-v8a/) as native JNI workflow", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rw-arm64-so-"));
+		try {
+			const abiDir = path.join(tempDir, "lib", "arm64-v8a");
+			await fs.mkdir(abiDir, { recursive: true });
+			const soPath = path.join(abiDir, "libnative.so");
+			await fs.writeFile(soPath, Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+
+			const session = createTestSession(tempDir);
+			const tool = new ReverseWorkflowTool(session);
+
+			// Android ABI path provides meaningful Android evidence
+			const createRes = await tool.execute("call_create_arm64", {
+				action: "create",
+				target: soPath,
+			});
+
+			expect(createRes.details.workflow?.format).toBe("ELF");
+			const steps = createRes.details.workflow?.steps ?? [];
+			expect(steps).toHaveLength(6);
+			expect(steps[0].tool).toBe("triage");
+			expect(steps[1].tool).toBe("elf_inspect");
+			expect(steps[2].tool).toBe("unidbg");
+			expect(steps[3].tool).toBe("ghidra_inspect");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});

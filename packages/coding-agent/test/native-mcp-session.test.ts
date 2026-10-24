@@ -489,4 +489,164 @@ describe("NativeMcpSessionTool", () => {
 			expect(requireDetails(listRes).sessions?.length).toBe(0);
 		});
 	});
+
+	describe("JNI Enrichment on active session ('jni_enrich')", () => {
+		it("previews JNI dynamic registrations against an active Ghidra session", async () => {
+			setupMockServiceInstalled("ghidra");
+			const session = createMockSession();
+			const tool = new NativeMcpSessionTool(session);
+
+			const samplePath = path.join(tempDir, "ghidra_jni_target.bin");
+			const sampleContent = "ELF_MOCK_JNI_SAMPLE";
+			fs.writeFileSync(samplePath, sampleContent);
+			const expectedHash = crypto.createHash("sha256").update(sampleContent).digest("hex");
+
+			process.env.MOCK_NATIVE_MODE = "ghidra";
+			process.env.MOCK_TARGET_PATH = samplePath;
+			process.env.MOCK_GHIDRA_SHA256 = expectedHash;
+
+			const connectRes = await tool.execute("call-ghidra-jni-1", {
+				action: "connect",
+				service: "ghidra",
+				target: samplePath,
+			});
+
+			const owned = requireDetails(connectRes).session!;
+			expect(owned.status).toBe("connected");
+
+			const previewRes = await tool.execute("call-ghidra-jni-2", {
+				action: "jni_enrich",
+				session_id: owned.sessionId,
+				events: [
+					{
+						event: "jni_register_natives",
+						status: "confirmed",
+						retval: 0,
+						class: "com.example.app.NativeSigner",
+						methods: [
+							{
+								name: "signData",
+								signature: "([B)Ljava/lang/String;",
+								fnPtr: "0x140001000",
+								base: "0x140000000",
+							},
+						],
+					},
+				],
+				preview: true,
+			});
+
+			const previewDetails = requireDetails(previewRes);
+			expect(previewDetails.action).toBe("jni_enrich");
+			expect(previewDetails.enrichment?.total).toBe(1);
+			expect(previewDetails.enrichment?.eligible).toBe(1);
+			expect(previewDetails.enrichment?.items[0].targetFunctionName).toBe(
+				"Java_com_example_app_NativeSigner_signData",
+			);
+
+			await tool.execute("call-ghidra-jni-3", {
+				action: "disconnect",
+				session_id: owned.sessionId,
+			});
+		});
+
+		it("rejects JNI writeback when receiver is unverified", async () => {
+			setupMockServiceInstalled("ghidra");
+			const session = createMockSession();
+			const tool = new NativeMcpSessionTool(session);
+
+			const samplePath = path.join(tempDir, "ghidra_jni_unver.bin");
+			fs.writeFileSync(samplePath, "ELF_UNVER");
+			const expectedHash = crypto.createHash("sha256").update("ELF_UNVER").digest("hex");
+
+			process.env.MOCK_NATIVE_MODE = "ghidra";
+			process.env.MOCK_TARGET_PATH = samplePath;
+			process.env.MOCK_GHIDRA_SHA256 = expectedHash;
+
+			const connectRes = await tool.execute("call-ghidra-jni-4", {
+				action: "connect",
+				service: "ghidra",
+				target: samplePath,
+			});
+
+			const owned = requireDetails(connectRes).session!;
+
+			await expect(
+				tool.execute("call-ghidra-jni-5", {
+					action: "jni_enrich",
+					session_id: owned.sessionId,
+					records: [
+						{
+							className: "com/example/Test",
+							methodName: "compute",
+							signature: "()V",
+							moduleName: "test.so",
+							functionAddress: "0x140001000",
+							status: "confirmed",
+							source: "frida",
+							// isStatic undefined: unverified receiver!
+						},
+					],
+					preview: false,
+				}),
+			).rejects.toThrow(/is unverified/i);
+
+			await tool.execute("call-ghidra-jni-6", {
+				action: "disconnect",
+				session_id: owned.sessionId,
+			});
+		});
+
+		it("applies JNI symbols and prototypes on active Ghidra session with verified readback", async () => {
+			setupMockServiceInstalled("ghidra");
+			const session = createMockSession();
+			const tool = new NativeMcpSessionTool(session);
+
+			const samplePath = path.join(tempDir, "ghidra_jni_apply.bin");
+			fs.writeFileSync(samplePath, "ELF_APPLY");
+			const expectedHash = crypto.createHash("sha256").update("ELF_APPLY").digest("hex");
+
+			process.env.MOCK_NATIVE_MODE = "ghidra";
+			process.env.MOCK_TARGET_PATH = samplePath;
+			process.env.MOCK_GHIDRA_SHA256 = expectedHash;
+			process.env.MOCK_GHIDRA_FUNC_NAME = "Java_com_example_NativeSigner_signData";
+
+			const connectRes = await tool.execute("call-ghidra-jni-7", {
+				action: "connect",
+				service: "ghidra",
+				target: samplePath,
+			});
+
+			const owned = requireDetails(connectRes).session!;
+
+			const applyRes = await tool.execute("call-ghidra-jni-8", {
+				action: "jni_enrich",
+				session_id: owned.sessionId,
+				records: [
+					{
+						className: "com/example/NativeSigner",
+						methodName: "signData",
+						signature: "([B)Ljava/lang/String;",
+						moduleName: "test.so",
+						functionAddress: "0x140001000",
+						status: "confirmed",
+						source: "frida",
+						isStatic: false,
+						sampleSha256: expectedHash,
+					},
+				],
+				preview: false,
+			});
+
+			const details = requireDetails(applyRes);
+			expect(details.action).toBe("jni_enrich");
+			expect(details.decompilations?.length).toBe(1);
+			expect(details.decompilations?.[0].name).toBe("Java_com_example_NativeSigner_signData");
+
+			await tool.execute("call-ghidra-jni-9", {
+				action: "disconnect",
+				session_id: owned.sessionId,
+			});
+		});
+	});
 });

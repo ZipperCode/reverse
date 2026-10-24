@@ -14,7 +14,7 @@
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `action` | `info \| analyze \| decompile \| export` | Yes | Query action to perform. |
+| `action` | `info \| analyze \| decompile \| export \| jni_enrich \| findcrypt` | Yes | Query action to perform. |
 | `path` | `string` | Yes | Path to target binary file, resolved against session cwd. |
 | `target` | `string` | No | Function name or address to decompile (alias for `symbol`). |
 | `symbol` | `string` | No | Function name or symbol to decompile. |
@@ -27,13 +27,20 @@
 | `mode` | `full \| fold \| summary` | No | Output rendering mode. |
 | `timeout` | `number >= 1` | No | Execution timeout seconds (default 60, max 300). |
 | `max_bytes` | `number >= 1` | No | Maximum stdout bytes captured (default 256 KiB, max 4 MiB). |
+| `records` | `unknown[]` | No | Array of CanonicalJniMethodRecord objects to enrich (`jni_enrich`). |
+| `events` | `unknown` | No | Raw RegisterNatives event or array of events from dynamic tracing (`jni_enrich`). |
+| `events_path` | `string` | No | Path to an on-disk JSON artifact containing RegisterNatives events (`jni_enrich`). |
+| `preview` | `boolean` | No | When true (default), previews JNI enrichment without modifying project. Set false to persist to project (`jni_enrich`). |
+| `load_bias` | `string` | No | Runtime module load bias hex string for address re-basing (`jni_enrich`). |
+| `is_static_map` | `unknown` | No | Optional mapping from Java method signature to boolean confirming static DEX declaration (`ACC_STATIC`). |
 
 ## Actions
 - `info`: Probes the Ghidra installation, resolved `analyzeHeadless` executable, and target binary status.
 - `analyze`: Runs headless auto-analysis on the target binary, returning execution logs and analysis summary.
 - `decompile`: Decompiles a function or routine to C pseudocode using Ghidra's decompiler engine. Default invocation uses the bundled headless script (`ReverseGhidraInspect.java`) to resolve targets by symbol name or address (falling back to standard entrypoints like `main` or `_start` when omitted), returning pure targeted C pseudocode without bootstrap logs. Missing or ambiguous targets report structured errors (`status: "error"`).
 - `export`: Emits bounded decompilation listings or symbol summaries with line bounds and pagination. Default invocation exports program metadata, function inventory, and symbol table, or targeted function decompilation when a target is specified.
-
+- `jni_enrich`: Enriches Android native shared library (`.so`) functions by applying confirmed dynamic JNI `RegisterNatives` symbols and standard C prototypes. Supports dry-run preview (`preview: true`, default, Read tier) and project persistence (`preview: false`, requires explicit `project_dir`, Exec tier). Reopens existing projects via `-process <program>` to preserve prior annotations.
+- `findcrypt`: Runs external FindCrypt analyzer plugin (`ghidra-findcrypt` / `FindCryptAnalyzer`) on the target binary, returning structured candidate cryptographic constant addresses and algorithm labels with heuristic candidate disclaimers. [Read tier]
 ## Dependency Gating
 When Ghidra (`analyzeHeadless`) is not found on PATH or configured via `GHIDRA_INSTALL_DIR`, the tool returns `status: "missing_dependency"` with structured metadata:
 - Recommended setup route: Run interactive setup via TUI (`reverse setup`) or CLI (`reverse setup reverse ghidra`) to install and configure Ghidra.

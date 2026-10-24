@@ -43,6 +43,7 @@ export const BUILTIN_TOOL_NAMES = [
 	"firmware_inspect",
 	"crashdump_inspect",
 	"binary_metadata_inspect",
+	"elf_inspect",
 	"evm_inspect",
 	"binary_diff",
 	"reverse_workflow",

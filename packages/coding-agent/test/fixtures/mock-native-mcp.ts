@@ -39,6 +39,38 @@ function handleRequest(req: JsonRpcRequest): Record<string, unknown> | null {
 							description: "List functions",
 							inputSchema: { type: "object", properties: {} },
 						},
+						{
+							name: "rename_function_by_address",
+							description: "Rename function by address",
+							inputSchema: {
+								type: "object",
+								properties: {
+									function_address: { type: "string" },
+									new_name: { type: "string" },
+								},
+							},
+						},
+						{
+							name: "set_function_prototype",
+							description: "Set function prototype",
+							inputSchema: {
+								type: "object",
+								properties: {
+									function_address: { type: "string" },
+									prototype: { type: "string" },
+								},
+							},
+						},
+						{
+							name: "decompile_function_by_address",
+							description: "Decompile function by address",
+							inputSchema: {
+								type: "object",
+								properties: {
+									function_address: { type: "string" },
+								},
+							},
+						},
 					],
 				};
 			}
@@ -164,6 +196,29 @@ function handleRequest(req: JsonRpcRequest): Record<string, unknown> | null {
 								sha256,
 								image_base: "0x140000000",
 							}),
+						},
+					],
+				};
+			}
+			if (toolName === "rename_function_by_address") {
+				return {
+					content: [{ type: "text", text: "Function renamed successfully." }],
+				};
+			}
+
+			if (toolName === "set_function_prototype") {
+				return {
+					content: [{ type: "text", text: "Prototype set successfully." }],
+				};
+			}
+
+			if (toolName === "decompile_function_by_address") {
+				const funcName = process.env.MOCK_GHIDRA_FUNC_NAME ?? "Java_com_example_app_NativeSigner_signData";
+				return {
+					content: [
+						{
+							type: "text",
+							text: `void ${funcName}(JNIEnv* env, jobject thiz) { return; }`,
 						},
 					],
 				};

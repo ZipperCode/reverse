@@ -19,6 +19,11 @@
 - Added built-in Frida trace templates `jni_register` (tracing Android JNI `RegisterNatives` with `retval === 0` confirmation semantics) and `native_functions` (with bounded typed argument decoding, return values, backtraces, and event limits).
 - Added `triton_analyze`, `vmp_dump`, and `native_devirtualize` tools with bounded symbolic trace replay, Windows process dump/import repair, and function-level Mergen/NoVmp lifting. Added independent backend readiness, isolated Triton installation with native source builds, pinned SHA-256-verified Windows releases, and matching CLI/TUI setup actions with Chinese guidance.
 - Added bundled `vmp-reverse` workflow and reference assets covering backend selection, concrete trace state, VA/RVA precision, preserved artifacts, and independent semantic verification; existing reverse skills route protected-function work through the new tools.
+- Added JNI enrichment through existing Ghidra analysis and native MCP sessions, with previewed method bindings, ABI-aware address mapping, typed JNI metadata reused from MIT jnitrace-engine, and persistent-project writeback.
+- Added bounded `jni_trace` using bundled MIT jnitrace-engine, preserving owned-hook teardown and explicit host ABI limits; existing lightweight registration tracing remains available.
+- Extended Unidbg harnesses with APK binding, explicit JNI environment overrides, upstream array/object wrappers, mutated argument inspection, and no-device ARM32/ARM64 registration probes with separate evidence artifacts.
+- Added `elf_inspect` backed by LIEF for deep ELF queries, bounded Frida module dumps with provenance manifests, and external SoFixer reconstruction with architecture and structural validation. Dump and companion-manifest publication both refuse existing files and symlinks; generic SoFixer executables only satisfy 64-bit requests. Added optional external Ghidra FindCrypt candidate analysis.
+- Added trusted `lief`, `sofixer`, and `ghidra-findcrypt` installation actions to CLI and interactive TUI setup, with Chinese guidance and prerequisite-specific capability readiness; native workflows compose discovery, enrichment, tracing, and experimental verification without treating ordinary shared libraries as Android targets.
 
 ### Changed
 

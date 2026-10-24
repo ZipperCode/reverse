@@ -2,8 +2,8 @@
 name: native-binary-reverse
 description: Universal native binary reverse engineering specialist for ELF, Mach-O, Fat universal binaries, PE foundations, shared libraries, and raw firmware objects. Guides format triage, section and segment analysis, symbol and relocation inspection, PIE/ASLR/stripped mitigation auditing, disassembly, dynamic verification, and structured evidence chains.
 metadata:
-  requiresOptional: radare2, ida, frida, ghidra, x64dbg-mcp, ghidra-mcp, r2mcp
-  capabilities: native_debugger
+  requiresOptional: radare2, ida, frida, ghidra, x64dbg-mcp, ghidra-mcp, r2mcp, lief, ghidra-findcrypt, sofixer
+  capabilities: native_debugger, native_elf_analysis, native_elf_repair, native_crypto_constant_analysis
 ---
 
 # Native Binary Reverse Engineering Specialist
@@ -52,6 +52,8 @@ Follow the positive triage-to-evidence progression:
    - **`r2_inspect` (Built-in tool)**: Read-only radare2 queries with fixed bounded actions (`info`, `sections`, `imports`, `exports`, `strings`, `functions`, `xrefs`, `disasm`, `decompile`). Accepts canonical selectors (`symbol`, `target`, `address`) only; rejects aliases such as `function`. Explicitly echoes the resolved selector in `details.reference` and flags `referenceDefaulted: true` when defaulting to `entry0`. Fails truthfully with `status: "error"` when a requested selector cannot be resolved rather than substituting `entry0`.
    - **`radare2` (`r2` CLI)**: Headless CLI fallback (`r2 -qc "iI; iS; ii; is"`).
    - **`native_mcp_session`**: Persistent native reverse engineering MCP session manager (`service: "ghidra" | "radare2" | "x64dbg"`). Dynamically discovers and mounts upstream analyzer tools into the agent session without hardcoded tool lists. Supports headless persistent Ghidra (`target`, `project_dir` with `--save` and single Java project lock) or GUI mode (`backend_url`), persistent radare2 (`open_file`, `show_info`), and x64dbg dynamic sessions.
+   - **`elf_inspect` (LIEF)**: Query ELF constructors, dynamic entries, relocations and virtual/file address mapping through the optional open-source LIEF backend. Reuse existing Ghidra/r2 sessions for disassembly; select the extra backend for structural questions it answers directly.
+   - **JNI enrichment and crypto candidates**: Use `jni_enrich` in `ghidra_inspect` or the owned native session to preview/apply method signatures and JNI types from matched declarations/observed registrations. Use external `ghidra-findcrypt` for constant signatures, preserving candidates until runtime behavior is verified.
    - **POSIX / LLVM Binutils**: `readelf -h -S -s -r`, `objdump -d`, `llvm-objdump`, `nm -D`, `strings -a -n 8`.
    - **Constrained Host / Protocol Fixture Baseline**: When external tools (`radare2`, IDA Pro) are absent in isolated test sandboxes or protocol fixture scenarios, rely on built-in `triage` and local ARM64 ELF fixtures with explicit protocol fixture limitations documented. Never invent mandatory external counts or halt when built-in fallbacks suffice.
 3. **Dynamic Verification (`frida`, debuggers)**:
@@ -181,6 +183,8 @@ When static analysis yields a candidate hypothesis:
    - Trace function arguments and return values with custom scripts or persistent `frida_session`.
    - **`template: "jni_register"`**: Traces Android JNI `RegisterNatives` calls via `libart.so` symbols and JNIEnv vtable index 215. Captures class name (reflection decoded), method signature, native function pointer, module base, and relative hex offset. Confirmation contract: **ONLY `retval === 0` confirms registration** (`status: "confirmed"`).
    - **`template: "native_functions"`**: Traces native calls with bounded typed argument decoding (`args_decode`), return values (`retval`), call stacks (`backtrace`), and bounded buffer limits (`maxBufferBytes`, `max_events`), safely detaching only own listener handles.
+   - **`template: "jni_trace"`**: Uses the bundled MIT `jnitrace-engine` for selected JNI API arguments, return values and callback signatures. Bound the target module, API filters, duration, event count and buffer size; retain event provenance for static enrichment.
+   - **ELF dump and repair**: Use `elf_inspect` only when runtime-unpacked content is required; preserve base/mapping/hash metadata and repair into a separate artifact with external SoFixer. Structural validity and runtime equivalence are separate verification outcomes.
 4. **Observable State Tiers & Claim Limits**:
    - Distinguish the 5 observable state tiers: `installed` (binary/venv ready), `configured` (mcp.json declared), `transport connected` (transport active), `target matched` (target binary/PID verified loaded in engine), and `executed verified` (real commands executed with facts recorded in EvidenceStore).
    - **Host Verification Claim Limits**: Current development host (macOS darwin arm64) has no Windows host / x64dbg smoke and no live Ghidra backend smoke; Frida native tracing was verified using local C ABI fixtures (`mock_RegisterNatives`), not Android `libart.so` on real devices.

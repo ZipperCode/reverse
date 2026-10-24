@@ -522,9 +522,8 @@ describe("AndroidNativeWorkflowTool", () => {
 
 			const res = await tool.execute("call_plan", { action: "plan", path: apkPath });
 			expect(res.details?.status).toBe("ok");
-			expect(res.details?.plan?.stages).toHaveLength(6);
-
 			const stages = res.details?.plan?.stages ?? [];
+			expect(stages).toHaveLength(8);
 			expect(stages[0].stage).toBe("unpack");
 			expect(stages[0].tool).toBe("android_native_workflow");
 			expect(stages[0].status).toBe("ready");
@@ -532,8 +531,11 @@ describe("AndroidNativeWorkflowTool", () => {
 			expect(stages[4].stage).toBe("emulate");
 			expect(stages[4].tool).toBe("unidbg");
 
-			expect(stages[5].stage).toBe("record_evidence");
-			expect(stages[5].tool).toBe("evidence");
+			expect(stages[5].tool).toBe("ghidra_inspect");
+			expect(stages[6].tool).toBe("frida");
+
+			expect(stages[7].stage).toBe("record_evidence");
+			expect(stages[7].tool).toBe("evidence");
 
 			const text = textOf(res);
 			expect(text).toContain("Android Native Reverse Engineering Plan");
@@ -902,6 +904,135 @@ describe("AndroidNativeWorkflowTool", () => {
 			const method = res.details?.nativeMethods?.[0];
 			expect(method?.status).toBe("unresolved");
 			expect(method?.matchedLibrary).toBeNull();
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+	it("extracts isStatic flag from DEX native method access flags", () => {
+		const nativeDexStatic = Buffer.from(
+			"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+			"hex",
+		);
+		const methodsStatic = extractDexNativeMethods(nativeDexStatic);
+		expect(methodsStatic).toHaveLength(1);
+		expect(methodsStatic[0].isStatic).toBe(true);
+
+		// Change access flags from 0x109 (ACC_NATIVE | ACC_STATIC | ACC_PUBLIC) to 0x101 (clear ACC_STATIC)
+		const nativeDexInstance = Buffer.from(nativeDexStatic);
+		// byte 0xdf - 2 has 0x89 0x02. 0x101 in ULEB128 is 0x81 0x02
+		const flagsOff = nativeDexInstance.length - 3;
+		nativeDexInstance[flagsOff] = 0x81;
+		nativeDexInstance[flagsOff + 1] = 0x02;
+
+		const methodsInstance = extractDexNativeMethods(nativeDexInstance);
+		expect(methodsInstance).toHaveLength(1);
+		expect(methodsInstance[0].isStatic).toBe(false);
+	});
+
+	it("exposes actionable parameters and routes unresolved registrations to Unidbg probe", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-plan-actionable-"));
+		try {
+			const elfBuf = createMockElf64Buffer({
+				exportedSymbols: [],
+				hasJniOnLoad: true,
+			});
+			const nativeDex = Buffer.from(
+				"6465780a30333500000000000000000000000000000000000000000000000000df00000070000000785634120000000000000000000000000300000070000000020000007c000000010000008400000000000000000000000100000090000000010000009800000027000000b8000000b8000000ce000000d4000000000000000200000002000000010000000000000000000000010000000000000001000000ffffffff00000000ffffffff00000000d700000000000000144c636f6d2f6578616d706c652f4e61746976653b00047369676e000156000000010000890200",
+				"hex",
+			);
+			const apkBuf = createMockZipBuffer([
+				{ name: "lib/arm64-v8a/libtarget.so", content: elfBuf },
+				{ name: "classes.dex", content: nativeDex },
+				{ name: "AndroidManifest.xml", content: Buffer.from('<manifest package="com.example.app"></manifest>') },
+			]);
+
+			const apkPath = path.join(tempDir, "unresolved.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_plan", { action: "plan", path: apkPath });
+
+			expect(res.details?.status).toBe("ok");
+			const stages = res.details?.plan?.stages ?? [];
+			expect(stages).toHaveLength(8);
+
+			// Disassemble stage references LIEF constructors query
+			const disasmStep = stages.find(s => s.stage === "disassemble");
+			expect(disasmStep?.command_or_action).toContain("elf_inspect");
+			expect(disasmStep?.actionable_params?.query_type).toBe("constructors");
+
+			// Emulate stage routes to Unidbg probe with artifact output consumed by JNI enrichment
+			const emulateStep = stages.find(s => s.stage === "emulate");
+			const enrichStep = stages.find(s => s.step_id === "step_6_jni_enrich");
+			expect(emulateStep?.command_or_action).toContain('unidbg(action: "probe"');
+			expect(emulateStep?.actionable_params?.callOnLoad).toBe(true);
+			expect(emulateStep?.expected_artifacts?.[0]).toBeDefined();
+			expect(emulateStep?.actionable_params?.out).toEqual(emulateStep?.expected_artifacts?.[0]);
+			expect(enrichStep?.actionable_params?.events_path).toEqual(emulateStep?.actionable_params?.out);
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("includes memory dump & SoFixer repair step only when concrete commercial packer payload is detected", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-packed-"));
+		try {
+			const packedElf = createMockElf64Buffer({
+				antiAnalysis: true, // triggers ptrace / TracerPid anti-analysis detection
+			});
+			const apkBuf = createMockZipBuffer([
+				{ name: "lib/arm64-v8a/libjiagu.so", content: packedElf },
+				{ name: "classes.dex", content: createMockDexBuffer() },
+				{ name: "AndroidManifest.xml", content: Buffer.from('<manifest package="com.example.packed"></manifest>') },
+			]);
+
+			const apkPath = path.join(tempDir, "packed.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_plan", { action: "plan", path: apkPath });
+
+			expect(res.details?.status).toBe("ok");
+			const stages = res.details?.plan?.stages ?? [];
+			expect(stages).toHaveLength(9);
+
+			const repairStep = stages.find(s => s.stage === "repair");
+			expect(repairStep).toBeDefined();
+			expect(repairStep?.tool).toBe("elf_inspect");
+			expect(repairStep?.status).toBe("blocked");
+			expect(repairStep?.command_or_action).toContain("dump_and_repair");
+			expect(repairStep?.missing_dependencies).toContain("sofixer");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("does not include memory dump & SoFixer repair step for plain anti-analysis ptrace text", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "anw-ptrace-"));
+		try {
+			const ptraceElf = createMockElf64Buffer({
+				antiAnalysis: true, // triggers ptrace / TracerPid anti-analysis detection
+			});
+			const apkBuf = createMockZipBuffer([
+				{ name: "lib/arm64-v8a/libplain.so", content: ptraceElf },
+				{ name: "classes.dex", content: createMockDexBuffer() },
+				{ name: "AndroidManifest.xml", content: Buffer.from('<manifest package="com.example.plain"></manifest>') },
+			]);
+
+			const apkPath = path.join(tempDir, "plain.apk");
+			await fs.writeFile(apkPath, apkBuf);
+
+			const session = createTestSession(tempDir);
+			const tool = new AndroidNativeWorkflowTool(session);
+			const res = await tool.execute("call_plan", { action: "plan", path: apkPath });
+
+			expect(res.details?.status).toBe("ok");
+			const stages = res.details?.plan?.stages ?? [];
+			// Plain anti-debug != unpacking, so repair step must NOT be scheduled
+			expect(stages).toHaveLength(8);
+			expect(stages.find(s => s.stage === "repair")).toBeUndefined();
 		} finally {
 			await fs.rm(tempDir, { recursive: true, force: true });
 		}

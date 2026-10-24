@@ -238,6 +238,41 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 		"向 NoVmp 提供选定 VM 入口 RVA 和必要的原始映像基址，将真实 VTIL 产物保存到独立目录。",
 	"cli.setup.reverse.capability.vmp_legacy_devirtualization.why":
 		"补充旧版静态分析后端，实验性重编译结果仍需独立行为验证。",
+	"cli.setup.reverse.lief.name": "LIEF 二进制格式分析库",
+	"cli.setup.reverse.sofixer.name": "SoFixer 内存转储修复工具",
+	"cli.setup.reverse.ghidra-findcrypt.name": "Ghidra FindCrypt 加密特征分析器",
+	"cli.setup.reverse.tool.lief.description": "深度解析 ELF 文件头、段、节、动态条目、重定位表及构造函数数组。",
+	"cli.setup.reverse.tool.sofixer.description": "重建并修复从 Android 内存转储的 .so 共享库的节区头与动态段。",
+	"cli.setup.reverse.tool.ghidra-findcrypt.description":
+		"Ghidra 自动化分析插件，扫描定位加密算法常量与常见密码学特征。",
+	"cli.setup.reverse.tool.lief.purpose":
+		"在不执行样本的前提下深入分析 Linux/Android 原生二进制的结构与 .init_array 初始化流程。",
+	"cli.setup.reverse.tool.sofixer.purpose":
+		"修复从内存 dump 下来的损坏 .so 文件，重建 section header 以供 IDA 或 Ghidra 正确反编译。",
+	"cli.setup.reverse.tool.ghidra-findcrypt.purpose": "快速标注二进制中的对称密码、哈希算法和 CRC 查找表常量位置。",
+	"cli.setup.reverse.lief.risk": "在 agent 目录创建隔离虚拟环境并安装固定版本 lief (1.0.0, Apache-2.0)。",
+	"cli.setup.reverse.sofixer.risk": "使用 CMake 和本地编译器从固定上游源码编译 32 位与 64 位 SoFixer 原生可执行文件。",
+	"cli.setup.reverse.ghidra-findcrypt.risk":
+		"使用 Gradle 针对当前已安装的 Ghidra 版本编译 FindCrypt 扩展并安装至 Ghidra 插件目录。",
+	"cli.setup.reverse.capability.native_elf_analysis.name": "原生 ELF 深度分析",
+	"cli.setup.reverse.capability.native_elf_analysis.scenario":
+		"检查 ELF 头、段、动态条目、重定位表、init/fini 数组与地址映射。",
+	"cli.setup.reverse.capability.native_elf_analysis.description":
+		"使用 LIEF Python 绑定深入分析 Linux 和 Android 原生 ELF 结构，提取符号与构造函数。",
+	"cli.setup.reverse.capability.native_elf_analysis.why": "无需执行二进制即可发现早期初始化反调试逻辑与动态绑定信息。",
+	"cli.setup.reverse.capability.native_elf_repair.name": "原生 ELF 内存转储修复",
+	"cli.setup.reverse.capability.native_elf_repair.scenario": "从内存 dump 重建并修复损坏的 ELF 节区头与段对齐。",
+	"cli.setup.reverse.capability.native_elf_repair.description":
+		"使用 SoFixer (32 位或 64 位) 重建从内存导出的原始 ELF 的节表与字符串表，输出分析候选文件。",
+	"cli.setup.reverse.capability.native_elf_repair.why":
+		"内存转储常常丢失节区头，导致反编译器解析失败；重构能恢复可加载布局。",
+	"cli.setup.reverse.capability.native_crypto_constant_analysis.name": "原生密码学常量与算法识别",
+	"cli.setup.reverse.capability.native_crypto_constant_analysis.scenario":
+		"在 Ghidra 中利用 FindCrypt 扫描定位原生二进制中的加密常量与已知算法特征。",
+	"cli.setup.reverse.capability.native_crypto_constant_analysis.description":
+		"在无头 Ghidra 分析期间运行 FindCrypt 自动分析器，扫描并标记密码学常量候选位置（AES S 盒、散列初始向量及查找表）。",
+	"cli.setup.reverse.capability.native_crypto_constant_analysis.why":
+		"快速获取密码学常量候选位置与交叉引用入口，辅助结合后续反编译流程验证算法实现，而非直接断言加密函数。",
 	"cli.setup.menu.title": "系统与工具链配置 (Setup)",
 	"cli.setup.panel.providers.label": "模型服务商 (providers)",
 	"cli.setup.panel.providers.desc": "配置 OAuth 登录、API Key 及 Web 搜索服务",

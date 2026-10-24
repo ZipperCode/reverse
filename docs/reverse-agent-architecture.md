@@ -168,6 +168,18 @@ Unidbg 是 Runtime Controller，不是 Skill。Skill 只决定何时使用、需
 
 静态 JNI 检查仅将已定义、可见的 ELF 函数导出与 DEX native 声明匹配；`JNI_OnLoad`、`RegisterNatives` 和原始字符串仅提供调查线索。动态注册尚未观测时，方法保持 `unresolved`，不归属到候选 SO。
 
+### JNI 语义与原生库实验闭环
+
+原生库增强复用既有会话与开源引擎：Unidbg 负责模拟执行，Frida 与 MIT `jnitrace-engine` 负责有界 JNI 观测，Ghidra 负责类型应用和反编译，LIEF 负责深层 ELF 查询，外部 FindCrypt 与 SoFixer 分别提供密码常数候选和转储修复候选。独立模拟器、平行 MCP 桥接和第二套 ELF 修复算法不在本实现中。
+
+- **注册与类型**：DEX 声明保留 static/instance 语义；运行时注册记录保存类、方法描述符、函数地址、模块基址、ABI 和目标摘要。仅成功的注册可进入观测结果，纯算术投影与手工注释继续保留各自来源。`jni_enrich` 先预演，再写入匹配的 Ghidra 工程并重新反编译。
+- **模拟环境**：Harness 复用 Unidbg 的对象、数组和 APK 元数据能力；业务相关回调由显式环境配置提供。缺失回调保留具体签名和失败原因，环境修正后重跑原实验；算法结论依赖多组输入输出验证。
+- **JNI 调用追踪**：`jni_register` 保持轻量动态注册入口；`jni_trace` 用于定位 JNI API 参数、返回值和回调依赖，限定模块、API、时长、事件和缓冲区大小，并清理自身 hook。
+- **深层静态分析**：`elf_inspect` 通过 LIEF 查询构造函数、动态条目、重定位和地址映射；FindCrypt 作为按需安装的外部 Ghidra 分析器运行，常数命中保持候选性质。
+- **转储与修复**：仅在目标可执行内容运行时解密等场景进入 ELF dump 路径。原始样本、内存镜像、映射清单和修复产物分别保留；SoFixer 输出经结构检查后供重新分析，实际语义仍由独立实验验收。
+
+开源接入遵循各项目许可与版本约束。`jnitrace-engine` 的嵌入资产保留 MIT 许可与来源版本；FindCrypt 作为 GPL 外部插件使用，其代码与特征库不嵌入 reverse。许可证未明确的第三方 JNI 插件仅作能力选型参考。
+
 ### 样本修改与产物验证
 
 `dex_patch` 与 `apk_artifact` 将 apk-reverse 的 MIT 工具机制适配为正式内置工具，Python 源码作为文本资产嵌入安装包和独立二进制，运行时经现有 Python 发现机制启动。原始样本保持只读，写入使用明确的新路径、私有暂存与独占发布。

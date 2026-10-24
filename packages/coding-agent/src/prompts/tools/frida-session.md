@@ -36,6 +36,7 @@ Capabilities:
    - Built-in templates (`template` parameter for `create`, `load`, or `run` without manual scripting):
      - `template: "jni_register"`: trace Android JNI `RegisterNatives` registrations. Automatically locates `RegisterNatives` via `libart.so` symbols and real JNIEnv vtable index 215, decodes Java class names via JNIEnv reflection without requiring Java bridge, and captures native function pointers and module base offsets.
      - `template: "native_functions"`: trace native function calls with bounded argument decoding. Supports `symbol` / `symbols`, `offset` / `offsets`, `module`, `args_count`, `args_decode` (e.g. `{"0": "string", "1": "int"}`), `retval`, `backtrace`, `max_events`, `max_buffer_bytes`.
+     - `template: "jni_trace"`: trace comprehensive Android JNI API invocations (`FindClass`, `GetMethodID`, `Call*Method`, `GetFieldID`, `GetStringUTFChars`, `NewStringUTF`, `RegisterNatives`, etc.) via embedded jnitrace-engine. Intercepts shadow JNIEnv function tables with typed signature decoding, clean lifecycle teardown, and live RPC control (`dispose`). Parameters: `module` / `libraries` (library filters), `jni_apis` (optional array of JNI method names to trace), `include_exports`, `exclude_exports`, `max_events` (default 100), `max_buffer_bytes` (default 256), `backtrace` (`true`, `"accurate"`, `"fuzzy"`), `timeout`.
 
 6. Execution Control, Events & Evidence:
    - `timeout`: execution/RPC timeout in seconds (default 30).
@@ -74,5 +75,7 @@ frida_session(action: "create", mode: "live", spawn: "com.example.app", usb: tru
 
 // 9. Load native function trace template on an active session with typed arg decoding
 frida_session(action: "load", session_id: "live-audit", template: "native_functions", symbol: "verify_license", args_decode: { "0": "string", "1": "int" }, retval: true, export_evidence: true)
+// 10. Load comprehensive JNI trace template on an active session with API filtering
+frida_session(action: "load", session_id: "live-audit", template: "jni_trace", module: "libnative-lib.so", jni_apis: ["FindClass", "GetMethodID", "CallVoidMethod"], export_evidence: true)
 ```
 </examples>

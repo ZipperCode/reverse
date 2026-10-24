@@ -20,6 +20,17 @@ import { enumeratePythonRuntimes } from "../eval/py/runtime";
 import { probeIdaRequirement } from "../ida/install";
 import { locateUnidbg } from "./unidbg-detect";
 import { resolveVmpTool } from "./vmp-toolchain";
+import { probeLiefRequirement, resolveLiefPython, LIEF_VERSION, LIEF_PYPI_PACKAGE } from "./lief-install";
+import { resolveSoFixer, normalizeSoFixerArch, canBuildSoFixer, SOFIXER_VERSION } from "./sofixer-toolchain";
+import {
+	resolveGhidraFindCrypt,
+	canBuildGhidraFindCrypt,
+	FINDCRYPT_VERSION,
+	FINDCRYPT_ANALYZER_NAME,
+} from "./findcrypt-install";
+export { resolveLiefPython, probeLiefRequirement, LIEF_VERSION, LIEF_PYPI_PACKAGE };
+export { resolveSoFixer, normalizeSoFixerArch, canBuildSoFixer, SOFIXER_VERSION };
+export { resolveGhidraFindCrypt, canBuildGhidraFindCrypt, FINDCRYPT_VERSION, FINDCRYPT_ANALYZER_NAME };
 import type { SkillRequirementWhich } from "./skill-requirements";
 import { getAdapterConfigs, resolveAdapter } from "../dap/config";
 import type { Settings } from "../config/settings";
@@ -197,6 +208,11 @@ export interface ReverseCapabilityStatus {
 			missingTools: readonly string[];
 			deviceConnected?: boolean;
 		};
+	};
+	/** ELF repair pipeline breakdown distinguishing offline repair from runtime process memory dumping. */
+	elfRepairStages?: {
+		offline: { ready: boolean; requiredTools: readonly string[]; missingTools: readonly string[] };
+		dump: { ready: boolean; requiredTools: readonly string[]; missingTools: readonly string[] };
 	};
 }
 
@@ -2762,6 +2778,229 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		},
 		installCommands: {},
 	},
+	lief: {
+		id: "lief",
+		name: "LIEF (Library to Instrument Executable Formats)",
+		category: "binary",
+		description: "Deep ELF header, segment, section, dynamic entry, relocation and constructor analysis library.",
+		optional: true,
+		binaries: [],
+		secondary: ["python"],
+		probe: deps => probeLiefRequirement(deps),
+		installHints: {
+			darwin: ["reverse setup reverse lief --execute", "pip install lief==1.0.0"],
+			linux: ["reverse setup reverse lief --execute", "pip install lief==1.0.0"],
+			win32: ["reverse setup reverse lief --execute", "py -m pip install lief==1.0.0"],
+		},
+		manualUrl: "https://lief.re/",
+		manualInstructions: {
+			darwin:
+				"Install pinned lief (1.0.0) into an isolated virtual environment via 'reverse setup reverse lief --execute' or 'python3 -m pip install lief==1.0.0'.",
+			linux: "Install pinned lief (1.0.0) into an isolated virtual environment via 'reverse setup reverse lief --execute' or 'python3 -m pip install lief==1.0.0'.",
+			win32: "Install pinned lief (1.0.0) into an isolated virtual environment via 'reverse setup reverse lief --execute' or 'py -m pip install lief==1.0.0'.",
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "pip",
+					command: "reverse setup reverse lief (managed venv)",
+					argv: ["reverse", "setup", "reverse", "lief", "--execute"],
+					riskNote:
+						"Provisions an isolated virtual environment in the agent directory and installs pinned lief (1.0.0, Apache-2.0).",
+				},
+			],
+			linux: [
+				{
+					manager: "pip",
+					command: "reverse setup reverse lief (managed venv)",
+					argv: ["reverse", "setup", "reverse", "lief", "--execute"],
+					riskNote:
+						"Provisions an isolated virtual environment in the agent directory and installs pinned lief (1.0.0, Apache-2.0).",
+				},
+			],
+			win32: [
+				{
+					manager: "pip",
+					command: "reverse setup reverse lief (managed venv)",
+					argv: ["reverse", "setup", "reverse", "lief", "--execute"],
+					riskNote:
+						"Provisions an isolated virtual environment in the agent directory and installs pinned lief (1.0.0, Apache-2.0).",
+				},
+			],
+		},
+		usage: {
+			canonical:
+				'elf_inspect(action: "query", path: "<lib.so>", query_type: "all") -> elf_inspect(action: "query", path: "<lib.so>", query_type: "constructors")',
+			whenToUse:
+				"Deep structural analysis of ELF binaries, dynamic tags, relocations, address-to-file offsets, and .init_array / .fini_array constructors without running the target.",
+			prerequisites: ["python", "lief"],
+			outputLimits:
+				"Filter large section listings and symbol tables; extract only queried relocations, segments or constructors into context.",
+			fallback: "binary_metadata_inspect or r2_inspect or readelf for lightweight triage.",
+			examples: [
+				{
+					description: "Inspect ELF file structure, segments and dynamic tags",
+					command: 'elf_inspect(action: "query", path: "libnative.so", query_type: "all")',
+				},
+				{
+					description: "Query constructor routines from .init_array",
+					command: 'elf_inspect(action: "query", path: "libnative.so", query_type: "constructors")',
+				},
+			],
+		},
+	},
+	sofixer: {
+		id: "sofixer",
+		name: "SoFixer",
+		category: "binary",
+		description:
+			"Reconstruct and repair corrupted ELF sections and PT_LOAD segment headers from memory-dumped Android shared libraries (.so).",
+		optional: true,
+		binaries: ["sofixer", "SoFixer", "sofixer64", "SoFixer64", "sofixer32", "SoFixer32"],
+		probe: deps => {
+			const res = resolveSoFixer(deps);
+			return res ? { path: res.path } : null;
+		},
+		installHints: {
+			darwin: ["reverse setup reverse sofixer --execute"],
+			linux: ["reverse setup reverse sofixer --execute"],
+			win32: ["reverse setup reverse sofixer --execute"],
+		},
+		manualUrl: "https://github.com/F8LEFT/SoFixer",
+		manualInstructions: {
+			darwin:
+				"Build 32-bit and 64-bit SoFixer executables from upstream F8LEFT/SoFixer (tag v2.1.7) using CMake and clang++, or run 'reverse setup reverse sofixer --execute'.",
+			linux: "Build 32-bit and 64-bit SoFixer executables from upstream F8LEFT/SoFixer (tag v2.1.7) using CMake and g++, or run 'reverse setup reverse sofixer --execute'.",
+			win32: "Build 32-bit and 64-bit SoFixer executables from upstream F8LEFT/SoFixer (tag v2.1.7) using CMake and MSVC, or run 'reverse setup reverse sofixer --execute'.",
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "build",
+					command: "reverse setup reverse sofixer --execute",
+					argv: ["reverse", "setup", "reverse", "sofixer", "--execute"],
+					riskNote:
+						"Builds native 32-bit and 64-bit SoFixer binaries from pinned upstream source (F8LEFT/SoFixer v2.1.7, BSD-3-Clause) using CMake and local compiler.",
+				},
+			],
+			linux: [
+				{
+					manager: "build",
+					command: "reverse setup reverse sofixer --execute",
+					argv: ["reverse", "setup", "reverse", "sofixer", "--execute"],
+					riskNote:
+						"Builds native 32-bit and 64-bit SoFixer binaries from pinned upstream source (F8LEFT/SoFixer v2.1.7, BSD-3-Clause) using CMake and local compiler.",
+				},
+			],
+			win32: [
+				{
+					manager: "build",
+					command: "reverse setup reverse sofixer --execute",
+					argv: ["reverse", "setup", "reverse", "sofixer", "--execute"],
+					riskNote:
+						"Builds native 32-bit and 64-bit SoFixer binaries from pinned upstream source (F8LEFT/SoFixer v2.1.7, BSD-3-Clause) using CMake and MSVC.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'elf_inspect(action: "repair", dump_path: "<dump.so>", base_address: "<base_addr>", arch: "64")',
+			whenToUse:
+				"Rebuilding sections, string tables and loadable headers of raw ELF shared objects dumped from Android process memory so they can be analyzed in IDA or Ghidra.",
+			prerequisites: ["sofixer", "lief"],
+			outputLimits:
+				"Outputs candidate repaired ELF file with separate provenance; does not certify 100% restored relocations.",
+			fallback:
+				"readelf or binary_metadata_inspect for triage of raw dumped headers without section reconstruction.",
+			examples: [
+				{
+					description: "Repair a 64-bit memory dumped .so with base address",
+					command:
+						'elf_inspect(action: "repair", dump_path: "artifacts/dump_libfoo.so", base_address: "0x7800000000", arch: "64")',
+				},
+				{
+					description: "Repair a 32-bit ARM memory dumped .so",
+					command:
+						'elf_inspect(action: "repair", dump_path: "artifacts/dump_libfoo.so", base_address: "0xec000000", arch: "32")',
+				},
+			],
+		},
+	},
+	"ghidra-findcrypt": {
+		id: "ghidra-findcrypt",
+		name: "Ghidra FindCrypt Analyzer",
+		category: "decompiler",
+		description:
+			"Ghidra auto-analysis extension for locating cryptographic constants and algorithm signatures (AES, SHA, MD5, RSA, CRC).",
+		optional: true,
+		binaries: [],
+		secondary: ["ghidra", "java"],
+		probe: deps => {
+			const res = resolveGhidraFindCrypt(deps);
+			if (!res.available) {
+				if (!res.ghidraFound) {
+					return { path: "", secondaryMissing: ["ghidra"], adapterError: "Ghidra installation required" };
+				}
+				return null;
+			}
+			return { path: res.extensionDir ?? res.jarPath! };
+		},
+		installHints: {
+			darwin: ["reverse setup reverse ghidra-findcrypt --execute"],
+			linux: ["reverse setup reverse ghidra-findcrypt --execute"],
+			win32: ["reverse setup reverse ghidra-findcrypt --execute"],
+		},
+		manualUrl: "https://github.com/TorgoTorgo/ghidra-findcrypt",
+		manualInstructions: {
+			darwin:
+				"Build FindCrypt extension against your installed Ghidra version using 'gradle -PGHIDRA_INSTALL_DIR=<ghidra_dir> buildExtension', or run 'reverse setup reverse ghidra-findcrypt --execute'.",
+			linux: "Build FindCrypt extension against your installed Ghidra version using 'gradle -PGHIDRA_INSTALL_DIR=<ghidra_dir> buildExtension', or run 'reverse setup reverse ghidra-findcrypt --execute'.",
+			win32: "Build FindCrypt extension against your installed Ghidra version using 'gradle -PGHIDRA_INSTALL_DIR=<ghidra_dir> buildExtension', or run 'reverse setup reverse ghidra-findcrypt --execute'.",
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "build",
+					command: "reverse setup reverse ghidra-findcrypt --execute",
+					argv: ["reverse", "setup", "reverse", "ghidra-findcrypt", "--execute"],
+					riskNote:
+						"Compiles Ghidra FindCrypt extension from upstream source (TorgoTorgo/ghidra-findcrypt v2.1.4, GPL-3.0) against target Ghidra and installs it into Ghidra Extensions.",
+				},
+			],
+			linux: [
+				{
+					manager: "build",
+					command: "reverse setup reverse ghidra-findcrypt --execute",
+					argv: ["reverse", "setup", "reverse", "ghidra-findcrypt", "--execute"],
+					riskNote:
+						"Compiles Ghidra FindCrypt extension from upstream source (TorgoTorgo/ghidra-findcrypt v2.1.4, GPL-3.0) against target Ghidra and installs it into Ghidra Extensions.",
+				},
+			],
+			win32: [
+				{
+					manager: "build",
+					command: "reverse setup reverse ghidra-findcrypt --execute",
+					argv: ["reverse", "setup", "reverse", "ghidra-findcrypt", "--execute"],
+					riskNote:
+						"Compiles Ghidra FindCrypt extension from upstream source (TorgoTorgo/ghidra-findcrypt v2.1.4, GPL-3.0) against target Ghidra and installs it into Ghidra Extensions.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'ghidra_inspect(action: "findcrypt", path: "<target.so>")',
+			whenToUse:
+				"Scanning a native binary or shared library during Ghidra headless analysis to identify cryptographic constants, S-boxes, lookup tables, and candidate crypto algorithms.",
+			prerequisites: ["ghidra", "ghidra-findcrypt", "java"],
+			outputLimits:
+				"Returns detected candidate constant matches, addresses and algorithm labels; does not certify cryptographic completeness.",
+			fallback: "strings, readelf, or r2_inspect search for known constant byte patterns.",
+			examples: [
+				{
+					description: "Run FindCrypt analysis on target binary via headless Ghidra",
+					command: 'ghidra_inspect(action: "findcrypt", path: "libcrypto.so")',
+				},
+			],
+		},
+	},
 };
 
 /** All tools catalogued for the reverse engineering toolchain. */
@@ -3067,6 +3306,53 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		postInstallInvocation:
 			'native_devirtualize(action: "status", backend: "novmp"), then lift selected VM-entry RVAs from an unpacked x64 PE',
 	},
+	native_elf_analysis: {
+		id: "native_elf_analysis",
+		name: "Native ELF Deep Inspection & Constructor Analysis",
+		category: "binary",
+		scenario: "Inspect ELF headers, segments, dynamic entries, relocations, init/fini arrays, and address mappings.",
+		description:
+			"Performs deep structural analysis of Linux and Android native ELF binaries using LIEF, extracting dynamic symbols, relocation tables, and constructor/destructor functions.",
+		why: "Reveals early initialization logic, anti-debugging code in .init_array, and dynamic symbol bindings without running the binary.",
+		recommendedNativeTool: "elf_inspect",
+		optionalExternalTools: ["lief", "readelf"],
+		prerequisites: ["python"],
+		fallbacks: ["binary_metadata_inspect", "readelf", "r2_inspect"],
+		setupCommand: "reverse setup reverse lief",
+		postInstallInvocation:
+			'elf_inspect(action: "query", path: "<sample.so>", query_type: "all") or elf_inspect(action: "query", path: "<sample.so>", query_type: "constructors")',
+	},
+	native_elf_repair: {
+		id: "native_elf_repair",
+		name: "Native ELF Memory Dump Reconstruction & Repair",
+		category: "binary",
+		scenario: "Reconstruct and repair corrupted ELF section headers from memory dumps using SoFixer.",
+		description:
+			"Rebuilds corrupted section headers, string tables, and dynamic segments of raw memory-dumped ELF binaries using SoFixer (32-bit or 64-bit), producing analyzable candidate binaries for Ghidra or IDA.",
+		why: "Memory dumps often lack section headers and segment alignments, causing disassemblers and decompilers to fail; reconstruction restores loadable layout.",
+		recommendedNativeTool: "elf_inspect",
+		optionalExternalTools: ["sofixer"],
+		prerequisites: ["sofixer", "lief"],
+		fallbacks: ["readelf", "binary_metadata_inspect"],
+		setupCommand: "reverse setup reverse sofixer",
+		postInstallInvocation: 'elf_inspect(action: "repair", dump_path: "<dump.so>", base_address: "0x...", arch: "64")',
+	},
+	native_crypto_constant_analysis: {
+		id: "native_crypto_constant_analysis",
+		name: "Native Cryptographic Constant & Algorithm Detection",
+		category: "decompiler",
+		scenario:
+			"Identify cryptographic constants and known algorithm signatures inside native binaries using Ghidra FindCrypt.",
+		description:
+			"Runs Ghidra's FindCrypt auto-analyzer during headless inspection to locate cryptographic constants (AES S-box, SHA-256 round constants, MD5 initial states, CRC tables) and annotate functions.",
+		why: "Quickly pinpoints encryption, hashing, and signature routines in stripped native binaries without manual constant cross-referencing.",
+		recommendedNativeTool: "ghidra_inspect",
+		optionalExternalTools: ["ghidra-findcrypt", "ghidra"],
+		prerequisites: ["ghidra"],
+		fallbacks: ["ghidra_inspect", "strings", "r2_inspect"],
+		setupCommand: "reverse setup reverse ghidra-findcrypt",
+		postInstallInvocation: 'ghidra_inspect(action: "findcrypt", path: "<target.so>")',
+	},
 };
 
 /** All capabilities defined for the reverse engineering catalog. */
@@ -3094,6 +3380,7 @@ const COMMON_FALLBACK_TOOLS: Record<string, true> = {
 	pcap_inspect: true,
 	binary_metadata_inspect: true,
 	readelf: true,
+	elf_inspect: true,
 };
 
 const NATIVE_DAP_ADAPTER_IDS: Record<string, true> = {
@@ -3274,7 +3561,7 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 		let setupCommand = cap.setupCommand;
 		let blockedRequirements: string[] | undefined;
 		let pipelineStages: ReverseCapabilityStatus["pipelineStages"];
-
+		let elfRepairStages: ReverseCapabilityStatus["elfRepairStages"];
 		let resolvedRecommendedNativeTool = cap.recommendedNativeTool;
 		let resolvedPostInstallInvocation = cap.postInstallInvocation;
 		if (cap.id === "apk_artifact_generation") {
@@ -3435,6 +3722,75 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 				resolvedPostInstallInvocation =
 					"r2 -d <binary_path> (after 'reverse setup reverse radare2') or configure a native DAP adapter (lldb-dap/gdb)";
 			}
+		} else if (cap.id === "native_elf_analysis") {
+			const liefReady = toolMap["lief"]?.status === "installed";
+			isReady = liefReady;
+			if (!liefReady) {
+				blockedRequirements = ["lief"];
+				setupCommand = "reverse setup reverse lief";
+			}
+			if (isReady) {
+				status = "ready";
+			} else if (availableFallbacks.length > 0 || toolMap["readelf"]?.status === "installed") {
+				status = "available_with_fallbacks";
+			} else {
+				status = "missing";
+			}
+		} else if (cap.id === "native_crypto_constant_analysis") {
+			const ghidraReady = toolMap["ghidra"]?.status === "installed";
+			const findcryptReady = toolMap["ghidra-findcrypt"]?.status === "installed";
+			isReady = ghidraReady && findcryptReady;
+			if (!ghidraReady || !findcryptReady) {
+				const missing: string[] = [];
+				if (!ghidraReady) missing.push("ghidra");
+				if (!findcryptReady) missing.push("ghidra-findcrypt");
+				blockedRequirements = missing;
+				setupCommand = !ghidraReady ? "reverse setup reverse ghidra" : "reverse setup reverse ghidra-findcrypt";
+			}
+			if (isReady) {
+				status = "ready";
+			} else if (ghidraReady || availableFallbacks.length > 0) {
+				status = "available_with_fallbacks";
+			} else {
+				status = "missing";
+			}
+		} else if (cap.id === "native_elf_repair") {
+			const sofixerReady = toolMap["sofixer"]?.status === "installed";
+			const liefReady = toolMap["lief"]?.status === "installed";
+			const fridaReady = toolMap["frida"]?.status === "installed";
+			const offlineReady = sofixerReady && liefReady;
+			isReady = offlineReady;
+
+			const missingOffline: string[] = [];
+			if (!sofixerReady) missingOffline.push("sofixer");
+			if (!liefReady) missingOffline.push("lief");
+			const missingDump: string[] = fridaReady ? [] : ["frida"];
+
+			elfRepairStages = {
+				offline: {
+					ready: offlineReady,
+					requiredTools: ["sofixer", "lief"],
+					missingTools: missingOffline,
+				},
+				dump: {
+					ready: fridaReady,
+					requiredTools: ["frida"],
+					missingTools: missingDump,
+				},
+			};
+
+			if (!offlineReady) {
+				blockedRequirements = missingOffline;
+				setupCommand = !sofixerReady ? "reverse setup reverse sofixer" : "reverse setup reverse lief";
+			}
+
+			if (isReady) {
+				status = "ready";
+			} else if (sofixerReady || liefReady || fridaReady || availableFallbacks.length > 0) {
+				status = "available_with_fallbacks";
+			} else {
+				status = "missing";
+			}
 		} else {
 			isReady = hasInstalledTool && !isDynamicEmulation;
 			if (isReady) {
@@ -3464,6 +3820,7 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			postInstallInvocation: resolvedPostInstallInvocation,
 			...(blockedRequirements ? { blockedRequirements } : {}),
 			...(pipelineStages ? { pipelineStages } : {}),
+			...(elfRepairStages ? { elfRepairStages } : {}),
 		});
 	}
 

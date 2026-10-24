@@ -28,6 +28,8 @@ export interface ReversePythonOptions {
 	signal?: AbortSignal;
 	timeoutMs?: number;
 	env?: Record<string, string>;
+	pythonPath?: string;
+	requiredPackage?: string;
 }
 
 export interface ReversePythonResult<T> {
@@ -122,6 +124,7 @@ async function probeCandidate(
 	candidatePath: string,
 	signal?: AbortSignal,
 	timeoutMs: number = DEFAULT_PROBE_TIMEOUT_MS,
+	requiredPackage?: string,
 ): Promise<boolean> {
 	if (signal?.aborted) return false;
 	try {
@@ -129,20 +132,17 @@ async function probeCandidate(
 			return false;
 		}
 
-		const proc = Bun.spawn(
-			[
-				candidatePath,
-				"-c",
-				"import sys; sys.exit(0 if (sys.version_info[0] == 3 and sys.version_info[1] >= 9) or sys.version_info[0] > 3 else 1)",
-			],
-			{
-				stdout: "ignore",
-				stderr: "ignore",
-				stdin: "ignore",
-				env: filterEnv(process.env as Record<string, string | undefined>),
-				detached: process.platform !== "win32",
-			},
-		);
+		const checkScript = requiredPackage
+			? `import sys\nif not ((sys.version_info[0] == 3 and sys.version_info[1] >= 9) or sys.version_info[0] > 3):\n    sys.exit(1)\ntry:\n    __import__(${JSON.stringify(requiredPackage)})\nexcept Exception:\n    sys.exit(2)\nsys.exit(0)`
+			: "import sys; sys.exit(0 if (sys.version_info[0] == 3 and sys.version_info[1] >= 9) or sys.version_info[0] > 3 else 1)";
+
+		const proc = Bun.spawn([candidatePath, "-c", checkScript], {
+			stdout: "ignore",
+			stderr: "ignore",
+			stdin: "ignore",
+			env: filterEnv(process.env as Record<string, string | undefined>),
+			detached: process.platform !== "win32",
+		});
 
 		let timedOut = false;
 		const timer = setTimeout(() => {
@@ -168,7 +168,11 @@ async function probeCandidate(
 /**
  * Discover Python 3.9+ runtime using existing enumeratePythonRuntimes discovery.
  */
-export async function discoverPython39(cwd: string, signal?: AbortSignal): Promise<PythonProbeResult> {
+export async function discoverPython39(
+	cwd: string,
+	signal?: AbortSignal,
+	requiredPackage?: string,
+): Promise<PythonProbeResult> {
 	if (signal?.aborted) {
 		return { available: false, error: "Discovery cancelled by abort signal" };
 	}
@@ -177,14 +181,16 @@ export async function discoverPython39(cwd: string, signal?: AbortSignal): Promi
 	const runtimes = enumeratePythonRuntimes(cwd, baseEnv);
 
 	for (const runtime of runtimes) {
-		if (await probeCandidate(runtime.pythonPath, signal)) {
+		if (await probeCandidate(runtime.pythonPath, signal, DEFAULT_PROBE_TIMEOUT_MS, requiredPackage)) {
 			return { available: true, pythonPath: runtime.pythonPath };
 		}
 	}
 
 	return {
 		available: false,
-		error: `No working Python 3.9+ interpreter found across ${runtimes.length} candidates.`,
+		error: requiredPackage
+			? `No Python 3.9+ interpreter with package '${requiredPackage}' found across ${runtimes.length} candidates.`
+			: `No working Python 3.9+ interpreter found across ${runtimes.length} candidates.`,
 		installHint: getPlatformInstallHint(),
 	};
 }
@@ -200,12 +206,30 @@ export async function runReversePython<T>(options: ReversePythonOptions): Promis
 		};
 	}
 
-	const probe = await discoverPython39(options.cwd, options.signal);
-	if (!probe.available || !probe.pythonPath) {
-		return {
-			status: "missing_dependency",
-			error: `${probe.error ?? "Python 3.9+ not found"}. Install hint: ${probe.installHint ?? getPlatformInstallHint()}`,
-		};
+	let pythonPath: string;
+	if (options.pythonPath) {
+		const valid = await probeCandidate(
+			options.pythonPath,
+			options.signal,
+			DEFAULT_PROBE_TIMEOUT_MS,
+			options.requiredPackage,
+		);
+		if (!valid) {
+			return {
+				status: "missing_dependency",
+				error: `Specified Python interpreter '${options.pythonPath}' is invalid or missing required package '${options.requiredPackage ?? ""}'.`,
+			};
+		}
+		pythonPath = options.pythonPath;
+	} else {
+		const probe = await discoverPython39(options.cwd, options.signal, options.requiredPackage);
+		if (!probe.available || !probe.pythonPath) {
+			return {
+				status: "missing_dependency",
+				error: `${probe.error ?? "Python 3.9+ not found"}. Install hint: ${probe.installHint ?? getPlatformInstallHint()}`,
+			};
+		}
+		pythonPath = probe.pythonPath;
 	}
 
 	// Create fresh private temporary staging directory
@@ -243,7 +267,7 @@ export async function runReversePython<T>(options: ReversePythonOptions): Promis
 			...options.env,
 		};
 
-		const child = Bun.spawn([probe.pythonPath, "-u", entryPath], {
+		const child = Bun.spawn([pythonPath, "-u", entryPath], {
 			cwd: options.cwd,
 			stdin: "pipe",
 			stdout: "pipe",

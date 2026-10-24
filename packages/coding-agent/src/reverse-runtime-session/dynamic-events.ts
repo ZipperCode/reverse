@@ -1,5 +1,5 @@
 import { redactEvidenceText } from "../evidence/contracts";
-import type { AddFactInput } from "../evidence/contracts";
+import type { AddFactInput, ExecutionBinding } from "../evidence/contracts";
 
 export const DYNAMIC_EVENT_SOURCES = ["frida", "browser", "dap", "unidbg", "custom"] as const;
 export type DynamicEventSource = (typeof DYNAMIC_EVENT_SOURCES)[number];
@@ -307,6 +307,73 @@ export function normalizeDapEvent(
 		metadata: options.metadata,
 	};
 }
+export function normalizeUnidbgEvent(
+	raw: unknown,
+	sessionId: string,
+	options: NormalizeDynamicEventOptions = {},
+): UniversalDynamicEvent {
+	const timestamp = options.timestamp || new Date().toISOString();
+	const seq = options.seq ?? 1;
+	const target = options.target;
+
+	if (raw && typeof raw === "object") {
+		const obj = raw as Record<string, unknown>;
+		const rawSeq = typeof obj.seq === "number" ? obj.seq : seq;
+		const rawId = typeof obj.id === "string" ? obj.id : `ev_${sessionId}_${rawSeq}`;
+		const rawTimestamp = typeof obj.timestamp === "string" ? obj.timestamp : timestamp;
+		const rawChannel = typeof obj.channel === "string" ? obj.channel : undefined;
+		const rawTarget = typeof obj.target === "string" ? obj.target : target;
+
+		let kind: DynamicEventKind = "trace";
+		if (obj.kind && typeof obj.kind === "string") {
+			const candidate = obj.kind.toLowerCase();
+			if (DYNAMIC_EVENT_KINDS.includes(candidate as DynamicEventKind)) {
+				kind = candidate as DynamicEventKind;
+			}
+		} else if (obj.event === "jni_register_natives" || obj.event === "jni_register") {
+			kind = "trace";
+		} else if (obj.type === "error" || rawChannel === "error") {
+			kind = "error";
+		} else if (rawChannel === "lifecycle") {
+			kind = "lifecycle";
+		}
+
+		const payload = obj.payload ?? obj;
+		let rawText = typeof obj.raw === "string" ? obj.raw : undefined;
+		if (!rawText && typeof payload === "string") {
+			rawText = payload;
+		}
+
+		return {
+			id: rawId,
+			source: "unidbg",
+			sessionId,
+			seq: rawSeq,
+			timestamp: rawTimestamp,
+			kind,
+			channel: rawChannel ?? "trace",
+			target: rawTarget,
+			payload,
+			raw: rawText,
+			metadata: options.metadata ?? (obj.metadata as Record<string, unknown> | undefined),
+		};
+	}
+
+	const stringVal = String(raw ?? "");
+	return {
+		id: `ev_${sessionId}_${seq}`,
+		source: "unidbg",
+		sessionId,
+		seq,
+		timestamp,
+		kind: "trace",
+		channel: "trace",
+		target,
+		payload: stringVal,
+		raw: stringVal,
+		metadata: options.metadata,
+	};
+}
 
 export function normalizeDynamicEvent(
 	raw: unknown,
@@ -324,6 +391,9 @@ export function normalizeDynamicEvent(
 		}
 		if (obj.source === "dap") {
 			return normalizeDapEvent(raw, sessionId, options);
+		}
+		if (obj.source === "unidbg") {
+			return normalizeUnidbgEvent(raw, sessionId, options);
 		}
 
 		if (obj.event === "output" || obj.event === "stopped" || "threadId" in obj || "stopLocation" in obj) {
@@ -350,6 +420,8 @@ export function normalizeDynamicEvent(
 			return normalizeBrowserEvent(raw, sessionId, options);
 		case "dap":
 			return normalizeDapEvent(raw, sessionId, options);
+		case "unidbg":
+			return normalizeUnidbgEvent(raw, sessionId, options);
 		default: {
 			const timestamp = options.timestamp || new Date().toISOString();
 			const seq = options.seq ?? 1;
@@ -480,8 +552,9 @@ export function dynamicEventToFactInput(
 				? "browser_reverse_session"
 				: event.source === "dap"
 					? "debug"
-					: "reverse_dynamic_evidence";
-
+					: event.source === "unidbg"
+						? "unidbg"
+						: "reverse_dynamic_evidence";
 	const channelDesc = event.channel ? ` [${event.channel}]` : "";
 	const titlePrefix = options.titlePrefix || `Dynamic ${event.source.toUpperCase()}`;
 	const title = `${titlePrefix}: ${event.kind}${channelDesc} on ${target}`;
@@ -527,6 +600,27 @@ export function dynamicEventToFactInput(
 		}
 	}
 
+	let executionBinding: ExecutionBinding | undefined;
+	if (event.metadata && typeof event.metadata === "object") {
+		const m = event.metadata;
+		const artifactSha256 =
+			typeof m.artifactSha256 === "string"
+				? m.artifactSha256
+				: typeof m.sampleSha256 === "string"
+					? m.sampleSha256
+					: undefined;
+		const deviceAbi =
+			typeof m.deviceAbi === "string" ? m.deviceAbi : typeof m.arch === "string" ? `arm${m.arch}` : undefined;
+		const pid = typeof m.pid === "number" ? m.pid : undefined;
+		if (artifactSha256 || deviceAbi || pid !== undefined) {
+			executionBinding = {
+				...(artifactSha256 ? { artifactSha256 } : {}),
+				...(deviceAbi ? { deviceAbi } : {}),
+				...(pid !== undefined ? { pid } : {}),
+			};
+		}
+	}
+
 	return {
 		kind: "fact",
 		title,
@@ -537,5 +631,6 @@ export function dynamicEventToFactInput(
 		excerpt,
 		classification,
 		tags: derivedTags,
+		...(executionBinding ? { executionBinding } : {}),
 	};
 }

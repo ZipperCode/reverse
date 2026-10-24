@@ -5,9 +5,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { Settings } from "../src/config/settings";
 import {
 	generateAndroidJniHarness,
+	parseHarnessParams,
 	parseJniSignatureParams,
 	resolveCustomToolName,
 } from "../src/extensibility/unidbg-harness";
+import {
+	normalizeDynamicEvent,
+	dynamicEventToFactInput,
+	filterDynamicEvents,
+} from "../src/reverse-runtime-session/dynamic-events";
 import { validateJdk8 } from "../src/extensibility/unidbg-builder";
 import { UnidbgTool } from "../src/tools/unidbg";
 import type { ToolSession } from "../src/tools";
@@ -60,14 +66,84 @@ describe("Issue #2 Regression Tests: Unidbg Automation & Lifecycle", () => {
 			]);
 		});
 
-		it("rejects unsupported arbitrary JNI class descriptors in signature parser", () => {
+		it("parses primitive array int[] and Context object parameters", () => {
+			const params = parseJniSignatureParams("(Landroid/content/Context;[I[S[Ljava/lang/String;)V");
+			expect(params).toEqual([
+				{ name: "contextParam0", type: "context", className: "android/content/Context" },
+				{ name: "intArrayParam1", type: "int[]" },
+				{ name: "shortArrayParam2", type: "short[]" },
+				{ name: "stringArrayParam3", type: "string[]" },
+			]);
+		});
+
+		it("rejects primitive arrays unsupported by upstream Unidbg ([Z, [J, [C)", () => {
 			expect(() => {
-				parseJniSignatureParams("(Landroid/content/Context;)V");
-			}).toThrow(/Unsupported JNI object parameter/);
+				parseJniSignatureParams("([Z)V");
+			}).toThrow(/Unsupported JNI primitive array parameter descriptor '\[Z'/);
 
 			expect(() => {
-				parseJniSignatureParams("([I)V");
-			}).toThrow(/Unsupported JNI array parameter/);
+				parseJniSignatureParams("([J)V");
+			}).toThrow(/Unsupported JNI primitive array parameter descriptor '\[J'/);
+		});
+
+		it("normalizes Unidbg dynamic event preserving source, seq, and executionBinding", () => {
+			const rawEvent = {
+				source: "unidbg",
+				seq: 42,
+				event: "jni_register_natives",
+				status: "confirmed",
+				retval: 0,
+				class: "com.example.Native",
+				methods: [
+					{
+						name: "calculateHash",
+						signature: "([I)Ljava/lang/String;",
+						fnPtr: "0x7f001000",
+						module: "libnative.so",
+						offset: "0x1000",
+					},
+				],
+				metadata: {
+					artifactSha256: "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+					arch: "64",
+				},
+			};
+			const norm = normalizeDynamicEvent(rawEvent, "unidbg", "test-session");
+			expect(norm.source).toBe("unidbg");
+			expect(norm.seq).toBe(42);
+			expect(norm.kind).toBe("trace");
+
+			const fact = dynamicEventToFactInput(norm);
+			expect(fact.sourceTool).toBe("unidbg");
+			expect(fact.executionBinding?.artifactSha256).toBe(
+				"abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+			);
+			expect(fact.executionBinding?.deviceAbi).toBe("arm64");
+		});
+		it("parses structured param array and JSON string param declarations", () => {
+			const structured = parseHarnessParams([
+				{ name: "ctx", type: "context", className: "android/content/Context" },
+				{ name: "buf", type: "bytes" },
+				{ name: "counts", type: "int[]" },
+			]);
+			expect(structured).toEqual([
+				{ name: "ctx", type: "context", className: "android/content/Context" },
+				{ name: "buf", type: "bytes" },
+				{ name: "counts", type: "int[]" },
+			]);
+
+			const fromJson = parseHarnessParams('[{"name":"target","type":"object","className":"com/example/Target"}]');
+			expect(fromJson).toEqual([{ name: "target", type: "object", className: "com/example/Target" }]);
+		});
+
+		it("filters dynamic events by source unidbg correctly", () => {
+			const events = [
+				normalizeDynamicEvent({ source: "frida", seq: 1 }, "frida", "s1"),
+				normalizeDynamicEvent({ source: "unidbg", seq: 2, event: "jni_register_natives" }, "unidbg", "s1"),
+			];
+			const filtered = filterDynamicEvents(events, { query: "jni_register_natives" });
+			expect(filtered.length).toBe(1);
+			expect(filtered[0].source).toBe("unidbg");
 		});
 
 		it("guards custom tool names against upstream built-in collisions", () => {

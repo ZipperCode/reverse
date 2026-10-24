@@ -59,6 +59,7 @@ export const HIGH_RISK_OR_DYNAMIC_TOOLS: readonly string[] = [
 	"droidasc",
 	"r2_inspect",
 	"ghidra_inspect",
+	"unidbg",
 ];
 
 export interface StepRiskAssessment {
@@ -72,11 +73,38 @@ export interface StepRiskAssessment {
 export function assessStepRisk(step: WorkflowStepRecord): StepRiskAssessment {
 	const tool = (step.tool ?? "").trim().toLowerCase();
 
+	if (tool === "elf_inspect") {
+		const summary =
+			typeof step.params_summary === "object" && step.params_summary !== null ? step.params_summary : undefined;
+		const action = String(summary?.action ?? "")
+			.toLowerCase()
+			.trim();
+		if (action === "query" || action === "status") {
+			return {
+				is_low_risk: true,
+				tool: step.tool,
+				gate: step.gate,
+				risk_level: "low",
+				reason: `Tool 'elf_inspect' (action: '${action}') is an allowlisted read-only static ELF triage/inspection tool (${step.gate}).`,
+			};
+		}
+		return {
+			is_low_risk: false,
+			tool: step.tool,
+			gate: step.gate,
+			risk_level: "dynamic",
+			reason: `Tool 'elf_inspect' with action '${action || "unknown"}' requires explicit execution authorization. Auto progression halted; step remains pending manual decision.`,
+		};
+	}
+
 	// Check explicitly prohibited / high-risk / dynamic tools
 	for (const dynamicTool of HIGH_RISK_OR_DYNAMIC_TOOLS) {
 		if (tool === dynamicTool || tool.startsWith(`${dynamicTool}_`) || tool.includes(dynamicTool)) {
 			const isDynamic =
-				dynamicTool === "frida" || dynamicTool === "reverse_runtime_session" || dynamicTool === "replay";
+				dynamicTool === "frida" ||
+				dynamicTool === "reverse_runtime_session" ||
+				dynamicTool === "replay" ||
+				dynamicTool === "unidbg";
 			return {
 				is_low_risk: false,
 				tool: step.tool,

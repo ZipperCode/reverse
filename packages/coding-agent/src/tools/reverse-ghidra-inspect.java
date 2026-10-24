@@ -9,11 +9,28 @@ import ghidra.program.model.listing.FunctionIterator;
 import ghidra.program.model.symbol.Symbol;
 import ghidra.program.model.symbol.SymbolIterator;
 import ghidra.program.model.symbol.SymbolType;
+import ghidra.program.model.symbol.SourceType;
+import ghidra.program.model.listing.Bookmark;
+import ghidra.program.model.listing.BookmarkManager;
+import ghidra.program.model.listing.CodeUnit;
+import ghidra.program.model.data.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import ghidra.program.model.data.FunctionDefinitionDataType;
+import ghidra.program.model.data.ParameterDefinition;
+import ghidra.program.model.data.ParameterDefinitionImpl;
+import ghidra.program.model.listing.Parameter;
+import ghidra.program.model.listing.ParameterImpl;
+import ghidra.program.model.listing.Function.FunctionUpdateType;
 import ghidra.util.exception.CancelledException;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 public class ReverseGhidraInspect extends GhidraScript {
 
     private static final String START_TOKEN = "<<<REVERSE_GHIDRA_OUTPUT_START>>>";
@@ -41,7 +58,11 @@ public class ReverseGhidraInspect extends GhidraScript {
                 }
             }
 
-            if ("export".equalsIgnoreCase(action)) {
+            if ("jni_enrich".equalsIgnoreCase(action)) {
+                handleJniEnrich(args, target, timeoutSec);
+            } else if ("findcrypt".equalsIgnoreCase(action)) {
+                handleFindCrypt(target, timeoutSec);
+            } else if ("export".equalsIgnoreCase(action)) {
                 if (target != null && !target.trim().isEmpty()) {
                     decompileFunctionTarget(target, timeoutSec, true);
                 } else {
@@ -307,6 +328,644 @@ public class ReverseGhidraInspect extends GhidraScript {
 
         emitSuccess("export", "summary", currentProgram.getImageBase().toString(), "inventory", out.toString());
     }
+    private static class EnrichItem {
+        String address;
+        String name;
+        String signature;
+        String prototype;
+        Boolean isStatic;
+        boolean isThumb;
+    }
+
+    private List<EnrichItem> parseEnrichItems(String jsonOrPath, String defaultTarget) {
+        List<EnrichItem> items = new ArrayList<EnrichItem>();
+        if (jsonOrPath != null && !jsonOrPath.trim().isEmpty()) {
+            String content = jsonOrPath.trim();
+            File f = new File(content);
+            if (f.exists() && f.isFile()) {
+                try {
+                    content = new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8);
+                } catch (Exception ignored) {}
+            }
+
+            Pattern objPattern = Pattern.compile("\\{[^{}]*\\}");
+            Matcher m = objPattern.matcher(content);
+            while (m.find()) {
+                String objStr = m.group();
+                EnrichItem item = new EnrichItem();
+                Matcher mAddr = Pattern.compile("\"(?:address|staticAddress)\"\\s*:\\s*\"([^\"]+)\"").matcher(objStr);
+                if (mAddr.find()) item.address = mAddr.group(1);
+                Matcher mName = Pattern.compile("\"(?:name|targetFunctionName)\"\\s*:\\s*\"([^\"]+)\"").matcher(objStr);
+                if (mName.find()) item.name = mName.group(1);
+                Matcher mSig = Pattern.compile("\"signature\"\\s*:\\s*\"([^\"]+)\"").matcher(objStr);
+                if (mSig.find()) item.signature = mSig.group(1);
+                Matcher mProto = Pattern.compile("\"(?:prototype|cPrototype)\"\\s*:\\s*\"([^\"]+)\"").matcher(objStr);
+                if (mProto.find()) item.prototype = mProto.group(1);
+                Matcher mStatic = Pattern.compile("\"isStatic\"\\s*:\\s*(true|false)").matcher(objStr);
+                if (mStatic.find()) item.isStatic = Boolean.parseBoolean(mStatic.group(1));
+                Matcher mThumb = Pattern.compile("\"isThumb\"\\s*:\\s*(true|false)").matcher(objStr);
+                if (mThumb.find()) item.isThumb = Boolean.parseBoolean(mThumb.group(1));
+
+                if (item.address != null && !item.address.isEmpty() && item.name != null && !item.name.isEmpty()) {
+                    items.add(item);
+                }
+            }
+        }
+
+        if (items.isEmpty() && defaultTarget != null && !defaultTarget.trim().isEmpty() && !defaultTarget.startsWith("[")) {
+            EnrichItem single = new EnrichItem();
+            single.address = defaultTarget.trim();
+            single.name = "JNI_Function_" + defaultTarget.trim().replace("0x", "");
+            items.add(single);
+        }
+        return items;
+    }
+
+    private DataType resolveOrGet(DataType dt, DataTypeManager dtm) {
+        DataType existing = dtm.getDataType(dt.getCategoryPath(), dt.getName());
+        if (existing != null) return existing;
+        return dtm.resolve(dt, DataTypeConflictHandler.DEFAULT_HANDLER);
+    }
+
+    private void initJniDataTypes(DataTypeManager dtm) throws Exception {
+        CategoryPath jniCat = new CategoryPath("/jni");
+        int ptrSize = currentProgram.getDefaultPointerSize();
+
+        // Primitive JNI typedefs
+        resolveOrGet(new TypedefDataType(jniCat, "jboolean", ByteDataType.dataType), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jbyte", SignedByteDataType.dataType), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jchar", WordDataType.dataType), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jshort", ShortDataType.dataType), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jint", IntegerDataType.dataType), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jlong", LongLongDataType.dataType), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jfloat", FloatDataType.dataType), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jdouble", DoubleDataType.dataType), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jsize", IntegerDataType.dataType), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jobjectRefType", IntegerDataType.dataType), dtm);
+
+        // Object and class types
+        StructureDataType jobjectStruct = new StructureDataType(jniCat, "_jobject", 0, dtm);
+        DataType resolvedJobjectStruct = resolveOrGet(jobjectStruct, dtm);
+        PointerDataType jobjectPtr = new PointerDataType(resolvedJobjectStruct, ptrSize, dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jobject", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jclass", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jstring", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jthrowable", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jarray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jbyteArray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jintArray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jbooleanArray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jcharArray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jshortArray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jlongArray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jfloatArray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jdoubleArray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jobjectArray", jobjectPtr), dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jweak", jobjectPtr), dtm);
+
+        // Opaque handle types and JNI auxiliary structs
+        StructureDataType jfieldIDStruct = new StructureDataType(jniCat, "_jfieldID", 0, dtm);
+        DataType resolvedJfieldIDStruct = resolveOrGet(jfieldIDStruct, dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jfieldID", new PointerDataType(resolvedJfieldIDStruct, ptrSize, dtm)), dtm);
+
+        StructureDataType jmethodIDStruct = new StructureDataType(jniCat, "_jmethodID", 0, dtm);
+        DataType resolvedJmethodIDStruct = resolveOrGet(jmethodIDStruct, dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "jmethodID", new PointerDataType(resolvedJmethodIDStruct, ptrSize, dtm)), dtm);
+
+        UnionDataType jvalueUnion = new UnionDataType(jniCat, "jvalue");
+        jvalueUnion.add(dtm.getDataType(jniCat, "jboolean"), "z", "");
+        jvalueUnion.add(dtm.getDataType(jniCat, "jbyte"), "b", "");
+        jvalueUnion.add(dtm.getDataType(jniCat, "jchar"), "c", "");
+        jvalueUnion.add(dtm.getDataType(jniCat, "jshort"), "s", "");
+        jvalueUnion.add(dtm.getDataType(jniCat, "jint"), "i", "");
+        jvalueUnion.add(dtm.getDataType(jniCat, "jlong"), "j", "");
+        jvalueUnion.add(dtm.getDataType(jniCat, "jfloat"), "f", "");
+        jvalueUnion.add(dtm.getDataType(jniCat, "jdouble"), "d", "");
+        jvalueUnion.add(dtm.getDataType(jniCat, "jobject"), "l", "");
+        resolveOrGet(jvalueUnion, dtm);
+
+        StructureDataType javaVMTable = new StructureDataType(jniCat, "JNIInvokeInterface_", 0, dtm);
+        DataType resolvedJavaVMTable = resolveOrGet(javaVMTable, dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "JavaVM", new PointerDataType(resolvedJavaVMTable, ptrSize, dtm)), dtm);
+
+        StructureDataType jniNativeMethod = new StructureDataType(jniCat, "JNINativeMethod", 0, dtm);
+        jniNativeMethod.add(new PointerDataType(CharDataType.dataType, ptrSize, dtm), "name", "char*");
+        jniNativeMethod.add(new PointerDataType(CharDataType.dataType, ptrSize, dtm), "signature", "char*");
+        jniNativeMethod.add(new PointerDataType(DataType.DEFAULT, ptrSize, dtm), "fnPtr", "void*");
+        resolveOrGet(jniNativeMethod, dtm);
+
+        StructureDataType jniNativeInterface = new StructureDataType(jniCat, "JNINativeInterface_", 0, dtm);
+        PointerDataType pJniTable = new PointerDataType(jniNativeInterface, ptrSize, dtm);
+        resolveOrGet(new TypedefDataType(jniCat, "JNIEnv", pJniTable), dtm);
+
+        File jsonFile = null;
+        if (getSourceFile() != null) {
+            try {
+                java.io.File sf = getSourceFile().getFile(false);
+                if (sf != null && sf.getParentFile() != null) {
+                    jsonFile = new File(sf.getParentFile(), "jni_env.json");
+                }
+            } catch (Exception ignored) {}
+        }
+        if (jsonFile == null || !jsonFile.exists()) {
+            jsonFile = new File("jni_env.json");
+        }
+        if (!jsonFile.exists()) {
+            throw new Exception("Required JNI metadata asset 'jni_env.json' not found in script directory: " + (jsonFile != null ? jsonFile.getAbsolutePath() : "null"));
+        }
+
+        String jsonStr = new String(Files.readAllBytes(jsonFile.toPath()), StandardCharsets.UTF_8);
+        JsonArray arr = new Gson().fromJson(jsonStr, JsonArray.class);
+        // 固定元数据包含 reserved0..3 与截至 GetObjectRefType 的全部 233 个槽位。
+        if (arr == null || arr.size() != 233) {
+            throw new Exception("Corrupt or incomplete JNI metadata in jni_env.json: expected 233 entries, got " + (arr != null ? arr.size() : 0));
+        }
+
+        for (int i = 0; i < arr.size(); i++) {
+            JsonObject obj = arr.get(i).getAsJsonObject();
+            String name = obj.get("name").getAsString();
+            if (name.startsWith("reserved")) {
+                jniNativeInterface.add(new PointerDataType(DataType.DEFAULT, ptrSize, dtm), name, "reserved");
+                continue;
+            }
+
+            String retType = obj.has("ret") ? obj.get("ret").getAsString() : "void";
+            JsonArray argsArr = obj.has("args") ? obj.getAsJsonArray("args") : new JsonArray();
+
+            FunctionDefinitionDataType funcDef = new FunctionDefinitionDataType(jniCat, name + "_type");
+            funcDef.setReturnType(resolveJniDataType(retType, dtm));
+
+            boolean hasVarArgs = false;
+            List<ParameterDefinition> pDefs = new ArrayList<ParameterDefinition>();
+            for (int a = 0; a < argsArr.size(); a++) {
+                String argT = argsArr.get(a).getAsString();
+                if ("...".equals(argT)) {
+                    hasVarArgs = true;
+                    continue;
+                }
+                pDefs.add(new ParameterDefinitionImpl("p" + a, resolveJniDataType(argT, dtm), null));
+            }
+            funcDef.setArguments(pDefs.toArray(new ParameterDefinition[0]));
+            if (hasVarArgs) {
+                funcDef.setVarArgs(true);
+            }
+            DataType resolvedDef = dtm.resolve(funcDef, DataTypeConflictHandler.DEFAULT_HANDLER);
+            jniNativeInterface.add(new PointerDataType(resolvedDef, ptrSize, dtm), name, name);
+        }
+
+        // Re-resolve populated structure with REPLACE_HANDLER so forward typedef points to complete table
+        DataType resolvedTable = dtm.resolve(jniNativeInterface, DataTypeConflictHandler.REPLACE_HANDLER);
+        dtm.resolve(new TypedefDataType(jniCat, "JNIEnv", new PointerDataType(resolvedTable, ptrSize, dtm)), DataTypeConflictHandler.REPLACE_HANDLER);
+
+        int numComps = ((Structure) resolvedTable).getNumComponents();
+        if (numComps != arr.size()) {
+            throw new Exception("JNINativeInterface_ structure components count mismatch: " + numComps + ", expected " + arr.size());
+        }
+        int totalSize = resolvedTable.getLength();
+        if (totalSize != arr.size() * ptrSize) {
+            throw new Exception("JNINativeInterface_ byte size mismatch: " + totalSize + ", expected " + (arr.size() * ptrSize));
+        }
+    }
+
+    private DataType resolveJniDataType(String rawType, DataTypeManager dtm) {
+        if (rawType == null || rawType.isEmpty() || "V".equals(rawType) || "void".equalsIgnoreCase(rawType)) {
+            return VoidDataType.dataType;
+        }
+
+        CategoryPath jniCat = new CategoryPath("/jni");
+        String trimmed = rawType.trim();
+
+        if (trimmed.endsWith("*")) {
+            int ptrSize = currentProgram.getDefaultPointerSize();
+            String base = trimmed.substring(0, trimmed.length() - 1).trim();
+            if (base.startsWith("const ")) {
+                base = base.substring(6).trim();
+            }
+            if ("void".equals(base)) return new PointerDataType(DataType.DEFAULT, ptrSize, dtm);
+            if ("char".equals(base)) return new PointerDataType(CharDataType.dataType, ptrSize, dtm);
+            if ("JNIEnv".equals(base)) {
+                DataType dt = dtm.getDataType(jniCat, "JNIEnv");
+                return dt != null ? new PointerDataType(dt, ptrSize, dtm) : new PointerDataType(DataType.DEFAULT, ptrSize, dtm);
+            }
+            if ("JavaVM".equals(base)) {
+                DataType dt = dtm.getDataType(jniCat, "JavaVM");
+                return dt != null ? new PointerDataType(dt, ptrSize, dtm) : new PointerDataType(DataType.DEFAULT, ptrSize, dtm);
+            }
+            if ("jvalue".equals(base)) {
+                DataType dt = dtm.getDataType(jniCat, "jvalue");
+                return dt != null ? new PointerDataType(dt, ptrSize, dtm) : new PointerDataType(DataType.DEFAULT, ptrSize, dtm);
+            }
+            if ("JNINativeMethod".equals(base)) {
+                DataType dt = dtm.getDataType(jniCat, "JNINativeMethod");
+                return dt != null ? new PointerDataType(dt, ptrSize, dtm) : new PointerDataType(DataType.DEFAULT, ptrSize, dtm);
+            }
+            DataType baseDt = resolveJniDataType(base, dtm);
+            return new PointerDataType(baseDt, ptrSize, dtm);
+        }
+
+        if (trimmed.startsWith("const ")) {
+            return resolveJniDataType(trimmed.substring(6).trim(), dtm);
+        }
+
+        if ("Z".equals(trimmed) || "jboolean".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jboolean");
+            return dt != null ? dt : ByteDataType.dataType;
+        }
+        if ("B".equals(trimmed) || "jbyte".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jbyte");
+            return dt != null ? dt : SignedByteDataType.dataType;
+        }
+        if ("C".equals(trimmed) || "jchar".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jchar");
+            return dt != null ? dt : WordDataType.dataType;
+        }
+        if ("S".equals(trimmed) || "jshort".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jshort");
+            return dt != null ? dt : ShortDataType.dataType;
+        }
+        if ("I".equals(trimmed) || "jint".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jint");
+            return dt != null ? dt : IntegerDataType.dataType;
+        }
+        if ("J".equals(trimmed) || "jlong".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jlong");
+            return dt != null ? dt : LongLongDataType.dataType;
+        }
+        if ("F".equals(trimmed) || "jfloat".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jfloat");
+            return dt != null ? dt : FloatDataType.dataType;
+        }
+        if ("D".equals(trimmed) || "jdouble".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jdouble");
+            return dt != null ? dt : DoubleDataType.dataType;
+        }
+        if ("jsize".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jsize");
+            return dt != null ? dt : IntegerDataType.dataType;
+        }
+        if ("char".equals(trimmed)) {
+            return CharDataType.dataType;
+        }
+        if ("int".equals(trimmed)) {
+            return IntegerDataType.dataType;
+        }
+        if ("va_list".equals(trimmed)) {
+            return PointerDataType.dataType;
+        }
+        if ("jobjectRefType".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jobjectRefType");
+            return dt != null ? dt : IntegerDataType.dataType;
+        }
+
+        if ("jmethodID".equals(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jmethodID");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if ("jfieldID".equals(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jfieldID");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if ("Ljava/lang/String;".equals(trimmed) || "jstring".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jstring");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if ("Ljava/lang/Class;".equals(trimmed) || "jclass".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jclass");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if ("Ljava/lang/Throwable;".equals(trimmed) || "jthrowable".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jthrowable");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[B") || "jbyteArray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jbyteArray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[I") || "jintArray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jintArray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[Z") || "jbooleanArray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jbooleanArray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[C") || "jcharArray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jcharArray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[S") || "jshortArray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jshortArray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[J") || "jlongArray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jlongArray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[F") || "jfloatArray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jfloatArray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[D") || "jdoubleArray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jdoubleArray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[L") || trimmed.startsWith("[[") || "jobjectArray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jobjectArray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("[") || "jarray".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jarray");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if ("jweak".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jweak");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if (trimmed.startsWith("L") && trimmed.endsWith(";")) {
+            DataType dt = dtm.getDataType(jniCat, "jobject");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+        if ("jobject".equalsIgnoreCase(trimmed)) {
+            DataType dt = dtm.getDataType(jniCat, "jobject");
+            return dt != null ? dt : PointerDataType.dataType;
+        }
+
+        throw new IllegalArgumentException("Unknown or unmapped JNI type descriptor: " + trimmed);
+    }
+
+    private List<Parameter> buildParameters(EnrichItem item, DataTypeManager dtm) throws Exception {
+        List<Parameter> params = new ArrayList<Parameter>();
+        int ptrSize = currentProgram.getDefaultPointerSize();
+        DataType jniEnvTypeDef = dtm.getDataType(new CategoryPath("/jni"), "JNIEnv");
+        params.add(new ParameterImpl("env", new PointerDataType(jniEnvTypeDef, ptrSize, dtm), currentProgram));
+
+        if (item.isStatic != null && item.isStatic.booleanValue()) {
+            DataType jclassType = resolveJniDataType("jclass", dtm);
+            params.add(new ParameterImpl("clazz", jclassType, currentProgram));
+        } else {
+            DataType jobjectType = resolveJniDataType("jobject", dtm);
+            params.add(new ParameterImpl("thiz", jobjectType, currentProgram));
+        }
+
+        if (item.signature != null && item.signature.startsWith("(") && item.signature.contains(")")) {
+            String paramSec = item.signature.substring(1, item.signature.indexOf(")"));
+            int i = 0;
+            int argIdx = 0;
+            while (i < paramSec.length()) {
+                int start = i;
+                while (i < paramSec.length() && paramSec.charAt(i) == '[') i++;
+                if (i >= paramSec.length()) break;
+                if (paramSec.charAt(i) == 'L') {
+                    int semi = paramSec.indexOf(';', i);
+                    if (semi != -1) {
+                        String desc = paramSec.substring(start, semi + 1);
+                        DataType dt = resolveJniDataType(desc, dtm);
+                        params.add(new ParameterImpl("arg" + argIdx, dt, currentProgram));
+                        argIdx++;
+                        i = semi + 1;
+                        continue;
+                    }
+                }
+                String desc = paramSec.substring(start, i + 1);
+                DataType dt = resolveJniDataType(desc, dtm);
+                params.add(new ParameterImpl("arg" + argIdx, dt, currentProgram));
+                argIdx++;
+                i++;
+            }
+        }
+        return params;
+    }
+
+    private DataType getReturnTypeFromSignature(String signature, DataTypeManager dtm) {
+        if (signature != null && signature.contains(")")) {
+            String retSec = signature.substring(signature.indexOf(")") + 1);
+            return resolveJniDataType(retSec, dtm);
+        }
+        return VoidDataType.dataType;
+    }
+
+    private void handleJniEnrich(String[] args, String target, int timeoutSec) throws Exception {
+        String enrichData = args != null && args.length > 4 ? args[4] : target;
+        List<EnrichItem> items = parseEnrichItems(enrichData, target);
+        if (items.isEmpty()) {
+            emitError("NO_ENRICH_ITEMS", "No valid JNI enrichment items provided to apply.");
+            return;
+        }
+
+        DataTypeManager dtm = currentProgram.getDataTypeManager();
+        int jniInitTx = currentProgram.startTransaction("Initialize JNI Data Types");
+        try {
+            initJniDataTypes(dtm);
+            currentProgram.endTransaction(jniInitTx, true);
+        } catch (Exception e) {
+            currentProgram.endTransaction(jniInitTx, false);
+            emitError("JNI_TYPE_INIT_FAILED", "Failed to initialize JNI types: " + e.getMessage());
+            return;
+        }
+
+        StringBuilder outArray = new StringBuilder();
+        outArray.append("[");
+        int applied = 0;
+        List<String> failedErrors = new ArrayList<String>();
+
+        DecompInterface decomp = new DecompInterface();
+        try {
+            decomp.openProgram(currentProgram);
+            for (int i = 0; i < items.size(); i++) {
+                monitor.checkCancelled();
+                EnrichItem item = items.get(i);
+                Address addr = parseAddressString(item.address);
+                if (addr == null) {
+                    failedErrors.add("Invalid address for " + item.name + ": " + item.address);
+                    continue;
+                }
+
+                // If address has lowest bit set (ARM32 Thumb), clear it for entry point
+                if ((addr.getOffset() & 1L) == 1L) {
+                    try {
+                        addr = addr.subtract(1L);
+                    } catch (Exception ignored) {}
+                }
+
+                // If relative offset is outside loaded memory, rebase against imageBase
+                if (!currentProgram.getMemory().contains(addr)) {
+                    try {
+                        Address rebased = currentProgram.getImageBase().add(addr.getOffset());
+                        if (currentProgram.getMemory().contains(rebased)) {
+                            addr = rebased;
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                int itemTx = currentProgram.startTransaction("Apply JNI Symbol & Prototype: " + item.name);
+                boolean itemCommitted = false;
+                try {
+                    Function func = getFunctionAt(addr);
+                    if (func == null) func = getFunctionContaining(addr);
+                    if (func == null) {
+                        func = createFunction(addr, item.name);
+                    }
+                    if (func == null) {
+                        throw new Exception("Could not find or create function at address: " + addr);
+                    }
+
+                    // 1. Rename function with USER_DEFINED source
+                    func.setName(item.name, SourceType.USER_DEFINED);
+
+                    // 2. Build parameters and return type
+                    List<Parameter> parameters = buildParameters(item, dtm);
+                    DataType returnType = getReturnTypeFromSignature(item.signature, dtm);
+
+                    // 3. Set return type
+                    func.setReturnType(returnType, SourceType.USER_DEFINED);
+
+                    // 4. Update function parameters with dynamic ABI storage
+                    func.updateFunction(
+                        null,
+                        null,
+                        FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS,
+                        true,
+                        SourceType.USER_DEFINED,
+                        parameters.toArray(new Parameter[0])
+                    );
+
+                    // 5. Inspect post-apply signature: ensure changes took effect
+                    String postApplySig = func.getSignature().getPrototypeString();
+                    if (postApplySig == null || !postApplySig.contains(item.name)) {
+                        throw new Exception("Post-apply verification failed: function prototype did not update.");
+                    }
+
+                    // Set plate comment
+                    try {
+                        currentProgram.getListing().setComment(addr, CodeUnit.PLATE_COMMENT, "JNI Dynamic Registration: " + postApplySig);
+                    } catch (Exception ignored) {}
+
+                    // 6. Decompile with DecompInterface
+                    DecompileResults dRes = decomp.decompileFunction(func, timeoutSec, monitor);
+                    if (dRes == null || !dRes.decompileCompleted() || dRes.getDecompiledFunction() == null) {
+                        throw new Exception("Post-enrich decompilation failed for " + item.name + ": " + (dRes != null ? dRes.getErrorMessage() : "null"));
+                    }
+                    String code = dRes.getDecompiledFunction().getC();
+
+                    // Success for this item!
+                    itemCommitted = true;
+
+                    if (applied > 0) outArray.append(",");
+                    outArray.append("{")
+                        .append("\"address\":").append(escapeJson(addr.toString())).append(",")
+                        .append("\"name\":").append(escapeJson(item.name)).append(",")
+                        .append("\"prototype\":").append(escapeJson(postApplySig)).append(",")
+                        .append("\"code\":").append(escapeJson(code))
+                        .append("}");
+                    applied++;
+                } catch (Exception itemErr) {
+                    failedErrors.add("Error enriching " + item.name + " at " + item.address + ": " + itemErr.getMessage());
+                } finally {
+                    currentProgram.endTransaction(itemTx, itemCommitted);
+                }
+            }
+        } finally {
+            decomp.dispose();
+        }
+        outArray.append("]");
+
+        if (applied == 0 && !failedErrors.isEmpty()) {
+            emitError("JNI_ENRICH_FAILED", "Failed to apply any JNI prototypes:\n" + String.join("\n", failedErrors));
+            return;
+        }
+
+        emitSuccess("jni_enrich", target, currentProgram.getImageBase().toString(), "jni_enrichment", outArray.toString());
+    }
+
+    private boolean isCryptoKeyword(String text) {
+        if (text == null || text.trim().isEmpty()) return false;
+        String lower = text.toLowerCase();
+        return lower.contains("aes") || lower.contains("des") || lower.contains("sha") ||
+               lower.contains("md5") || lower.contains("rc4") || lower.contains("blowfish") ||
+               lower.contains("chacha") || lower.contains("curve25519") || lower.contains("crc32") ||
+               lower.contains("rsa") || lower.contains("keccak") || lower.contains("sbox") ||
+               lower.contains("findcrypt");
+    }
+
+    private void handleFindCrypt(String target, int timeoutSec) throws Exception {
+        // 1. Attempt to invoke findcrypt.FindCryptAnalyzer via reflection if present in Ghidra classloader
+        try {
+            Class<?> analyzerCls = Class.forName("findcrypt.FindCryptAnalyzer");
+            Object analyzerInst = analyzerCls.getDeclaredConstructor().newInstance();
+            Class<?> msgLogCls = Class.forName("ghidra.app.util.importer.MessageLog");
+            Object msgLogInst = msgLogCls.getDeclaredConstructor().newInstance();
+            java.lang.reflect.Method addedMethod = analyzerCls.getMethod(
+                "added",
+                ghidra.program.model.listing.Program.class,
+                ghidra.program.model.address.AddressSetView.class,
+                ghidra.util.task.TaskMonitor.class,
+                msgLogCls
+            );
+            addedMethod.invoke(analyzerInst, currentProgram, currentProgram.getMemory(), monitor, msgLogInst);
+            try {
+                java.lang.reflect.Method endMethod = analyzerCls.getMethod("analysisEnded", ghidra.program.model.listing.Program.class);
+                endMethod.invoke(analyzerInst, currentProgram);
+            } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // Analyzer not loaded in JVM or database.json missing; will inspect any existing bookmarks/symbols
+        }
+
+        List<String> candidates = new ArrayList<String>();
+        BookmarkManager bm = currentProgram.getBookmarkManager();
+        if (bm != null) {
+            java.util.Iterator<Bookmark> bIter = bm.getBookmarksIterator();
+            while (bIter.hasNext()) {
+                monitor.checkCancelled();
+                Bookmark b = bIter.next();
+                String cat = b.getCategory() != null ? b.getCategory() : "";
+                String comment = b.getComment() != null ? b.getComment() : "";
+                String typeName = b.getTypeString() != null ? b.getTypeString() : "";
+
+                boolean isCrypto = cat.toLowerCase().contains("crypto") ||
+                                   cat.toLowerCase().contains("findcrypt") ||
+                                   typeName.toLowerCase().contains("crypto") ||
+                                   isCryptoKeyword(comment);
+
+                if (isCrypto) {
+                    String entry = "{\"address\":" + escapeJson(b.getAddress().toString()) +
+                        ",\"algorithm\":" + escapeJson(!comment.isEmpty() ? comment : cat) +
+                        ",\"matchType\":\"bookmark\"" +
+                        ",\"category\":" + escapeJson(cat) + "}";
+                    if (!candidates.contains(entry) && candidates.size() < 300) {
+                        candidates.add(entry);
+                    }
+                }
+            }
+        }
+
+        SymbolIterator sIter = currentProgram.getSymbolTable().getAllSymbols(true);
+        while (sIter.hasNext()) {
+            monitor.checkCancelled();
+            Symbol s = sIter.next();
+            String sName = s.getName();
+            if (sName.startsWith("CRYPT_") || sName.toLowerCase().startsWith("crypto_") || sName.toLowerCase().contains("findcrypt") || isCryptoKeyword(sName)) {
+                String alg = sName.startsWith("CRYPT_") ? sName.substring(6) : sName;
+                String entry = "{\"address\":" + escapeJson(s.getAddress().toString()) +
+                    ",\"algorithm\":" + escapeJson(alg) +
+                    ",\"matchType\":\"symbol\"" +
+                    ",\"category\":\"CRYPT_LABEL\"}";
+                if (!candidates.contains(entry) && candidates.size() < 300) {
+                    candidates.add(entry);
+                }
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for (int i = 0; i < candidates.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(candidates.get(i));
+        }
+        sb.append("]");
+
+        emitSuccess("findcrypt", target != null ? target : "all", currentProgram.getImageBase().toString(), "FindCryptAnalyzer", sb.toString());
+    }
+
 
     // 一次性编码为标准 UTF-8 字节流并经由 System.out.write 输出，避免 Windows 平台 JVM 默认字符集转码不一致并保证精准换行
     private void emitResult(String json) {

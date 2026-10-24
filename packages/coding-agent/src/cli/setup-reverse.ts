@@ -349,6 +349,36 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 						`Downloads portable ${desc.name ?? desc.id} directly from upstream into agent tools directory.`,
 					),
 				};
+			} else if (desc.id === "lief") {
+				chosenCmd = {
+					manager: "pip",
+					command: `${APP_NAME} setup reverse lief (managed venv)`,
+					argv: [APP_NAME, "setup", "reverse", "lief", "--execute"],
+					riskNote: t(
+						"cli.setup.reverse.lief.risk",
+						"Provisions an isolated virtual environment in the agent directory and installs pinned lief (1.0.0, Apache-2.0).",
+					),
+				};
+			} else if (desc.id === "sofixer") {
+				chosenCmd = {
+					manager: "build",
+					command: `${APP_NAME} setup reverse sofixer --execute`,
+					argv: [APP_NAME, "setup", "reverse", "sofixer", "--execute"],
+					riskNote: t(
+						"cli.setup.reverse.sofixer.risk",
+						"Builds native 32-bit and 64-bit SoFixer binaries from pinned upstream source (F8LEFT/SoFixer commit 75b8b63, BSD-3-Clause) using CMake and local compiler.",
+					),
+				};
+			} else if (desc.id === "ghidra-findcrypt") {
+				chosenCmd = {
+					manager: "build",
+					command: `${APP_NAME} setup reverse ghidra-findcrypt --execute`,
+					argv: [APP_NAME, "setup", "reverse", "ghidra-findcrypt", "--execute"],
+					riskNote: t(
+						"cli.setup.reverse.ghidra-findcrypt.risk",
+						"Compiles Ghidra FindCrypt extension from upstream source (TorgoTorgo/ghidra-findcrypt commit 5c2fd5b, GPL-3.0) against target Ghidra and installs it into Ghidra Extensions.",
+					),
+				};
 			} else if (desc.id === "ida" && foundPath && hasIdalib(foundPath, platform)) {
 				const pyProbe = probeIdaPythonEnvironment({
 					cwd: deps.cwd,
@@ -613,6 +643,17 @@ export function isTrustedCatalogArgv(
 			item.installArgv[1] === "setup" &&
 			item.installArgv[2] === "reverse" &&
 			item.installArgv[3] === "triton" &&
+			item.installArgv[4] === "--execute"
+		) {
+			return true;
+		}
+		if (
+			(item.id === "lief" || item.id === "sofixer" || item.id === "ghidra-findcrypt") &&
+			item.installArgv.length === 5 &&
+			item.installArgv[0] === APP_NAME &&
+			item.installArgv[1] === "setup" &&
+			item.installArgv[2] === "reverse" &&
+			item.installArgv[3] === item.id &&
 			item.installArgv[4] === "--execute"
 		) {
 			return true;

@@ -2,8 +2,8 @@
 name: android-reverse
 description: Android application and native library reverse engineering specialist. Focuses on APK/DEX static decompilation, smali patching, JNI native library triage, and ADB/Frida dynamic instrumentation.
 metadata:
-  requiresOptional: jadx, apktool, adb, frida, droidasc, unidbg, bundletool, dex2jar, baksmali, scrcpy
-  capabilities: apk_unpacking, android_native_emulation
+  requiresOptional: jadx, apktool, adb, frida, droidasc, unidbg, bundletool, dex2jar, baksmali, scrcpy, ghidra, lief, ghidra-findcrypt, sofixer
+  capabilities: apk_unpacking, android_native_emulation, native_elf_analysis, native_elf_repair, native_crypto_constant_analysis
 ---
 
 # Android Reverse Engineering Specialist
@@ -132,6 +132,12 @@ When primary tools are absent, operators SHOULD consult `skill://reverse-lab/ref
    - Extract target `.so` binaries safely into artifacts using `android_native_workflow(action: "extract", path: "<target.apk>", abi: "arm64-v8a")`.
    - Formulate structured analysis steps and verify toolchain availability using `android_native_workflow(action: "plan", path: "<target.apk>")`.
    - When analyzing native cryptography or token algorithms without a physical Android device or emulator, resolve capability `reverse_capability({ action: "resolve", capability: "android_native_emulation" })`. If `unidbg` is missing, present setup notice for `reverse setup reverse unidbg`, re-resolve with `refresh: true`, and dispatch headless JNI emulation; fallback to static disassembly via `r2_inspect` or `ghidra_inspect` if declined.
+   - **JNI semantic recovery**: Keep dynamic methods unresolved until an observed successful `RegisterNatives` supplies the class, method descriptor and function address. Carry the target library hash, ABI, module base and event artifact into enrichment; recover `ACC_STATIC` from DEX to distinguish `jclass` from `jobject` receivers.
+   - **Static writeback**: Preview `jni_enrich` through `ghidra_inspect` or the owned `native_mcp_session`, then apply confirmed bindings and JNI types to the matched persistent project. Re-decompile the enriched functions; keep supplied annotations and static candidates distinct from observed registrations.
+   - **Environment-driven emulation**: Reuse Unidbg's APK-backed VM, array/object wrappers and explicit JNI overrides. Record the exact missing callback or system dependency, supply a justified environment value, and rerun the same experiment. Compare outputs across multiple inputs and retain the environment profile with the evidence.
+   - **Bounded JNI tracing**: Start with the existing `jni_register` template; use `frida_session`'s `jni_trace` template when JNI API arguments, return values or callbacks are needed. Limit the target library, selected APIs, duration, events and buffer bytes.
+   - **ELF and algorithm candidates**: Use `elf_inspect` for LIEF-backed constructors, relocations and address mapping; request external FindCrypt through `ghidra_inspect` when constant signatures are relevant. Treat constant matches as algorithm candidates, then verify behavior.
+   - **Runtime-unpacked libraries**: When executable bytes become available only at runtime, preserve a bounded module dump and its mapping/base manifest, then repair a separate artifact using `elf_inspect` and external SoFixer. Reanalyze the candidate ELF and verify target behavior independently before promoting conclusions.
 4. **Smali Modification & Static Patching (Authorized Targets Only) (`apk_unpacking`)**:
    - Resolve capability `apk_unpacking` for resource decoding and smali rebuilding.
    - Decode bytecode with `apktool d <target.apk> -o ./artifacts/apk_src`.

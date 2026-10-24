@@ -1,4 +1,6 @@
+import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
+import * as fsSync from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Stats } from "node:fs";
@@ -8,20 +10,32 @@ import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { prompt } from "@reverse/utils";
 import ghidraInspectDescription from "../prompts/tools/ghidra-inspect.md" with { type: "text" };
 import reverseGhidraScriptSource from "./reverse-ghidra-inspect.java" with { type: "text" };
+import jniApiMetadataSource from "./jni-api-metadata.json" with { type: "text" };
 import {
 	checkToolRequirements,
 	type SkillRequirementWhich,
 	type ToolRequirement,
 } from "../extensibility/skill-requirements";
+import { resolveGhidraFindCrypt, type GhidraFindCryptStatus } from "../extensibility/findcrypt-install";
 import type { ToolSession } from "./index";
 import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
+import { getActiveGhidraProjectLock } from "./native-mcp-session";
+import {
+	type CanonicalJniMethodRecord,
+	type JniEnrichSummary,
+	type JniEnrichPreviewItem,
+	canonicalizeRegisterNativesEvent,
+	previewJniEnrichment,
+	parseElfMetadataForJni,
+} from "./jni-enrichment";
+export * from "./jni-enrichment";
 
 const ghidraInspectSchema = type({
 	action: type
-		.enumerated("info", "analyze", "decompile", "export")
+		.enumerated("info", "analyze", "decompile", "export", "jni_enrich", "findcrypt")
 		.describe(
-			"Read-only Ghidra headless action: info (dependency and environment status), analyze (headless auto-analysis), decompile (decompile function to C pseudocode), or export (export analysis/decompilation)",
+			"Ghidra headless action: info (dependency and environment status), analyze (headless auto-analysis), decompile (decompile function to C pseudocode), export (export analysis/decompilation), jni_enrich (apply dynamic RegisterNatives JNI symbols and prototypes), or findcrypt (run external FindCrypt cryptographic constants analyzer)",
 		),
 	path: type("string").describe("Path to target binary"),
 	"target?": type("string").describe("Function name or address to decompile (alias for symbol)"),
@@ -37,6 +51,18 @@ const ghidraInspectSchema = type({
 	"mode?": type
 		.enumerated("full", "fold", "summary")
 		.describe("Rendering mode: full (default), fold (deduplicate blank/repeated lines), or summary"),
+	"records?": type("unknown[]").describe("Array of CanonicalJniMethodRecord objects to enrich"),
+	"events?": type("unknown").describe("Raw RegisterNatives event or array of events from dynamic tracing"),
+	"events_path?": type("string").describe(
+		"Path to an on-disk JSON artifact containing RegisterNatives events (e.g. from Frida or Unidbg)",
+	),
+	"preview?": type("boolean").describe(
+		"When true (default), previews JNI enrichment without modifying project. Set false to apply changes to project",
+	),
+	"load_bias?": type("string").describe("Runtime module load bias in hex (e.g. '0x7f000000') for address re-basing"),
+	"is_static_map?": type("unknown").describe(
+		"Optional mapping from method key to boolean indicating static DEX declaration",
+	),
 });
 
 export type GhidraInspectParams = typeof ghidraInspectSchema.infer;
@@ -65,7 +91,7 @@ export interface GhidraInspectDetails {
 	path: string;
 	status: "ok" | "missing_dependency" | "error";
 	mode: GhidraInspectMode;
-	dependency?: GhidraDependencyStatus;
+	dependency?: GhidraDependencyStatus | GhidraFindCryptStatus;
 	fallback?: GhidraFallbackInfo;
 	engine?: string;
 	command?: string[];
@@ -80,6 +106,9 @@ export interface GhidraInspectDetails {
 	offset?: number;
 	hasMore?: boolean;
 	error?: string;
+	enrichment?: JniEnrichSummary;
+	cryptoCandidates?: Array<{ address: string; algorithm: string; matchType: string; category?: string }>;
+	cryptoNotice?: string;
 }
 
 export interface GhidraRunResult {
@@ -106,6 +135,7 @@ export interface GhidraInspectToolOptions {
 	which?: SkillRequirementWhich;
 	runner?: GhidraRunner;
 	ghidraInstallDir?: string;
+	findCryptStatus?: GhidraFindCryptStatus;
 }
 
 const DEFAULT_LINE_LIMIT = 100;
@@ -272,6 +302,21 @@ export function ghidraDependency(options: GhidraInspectToolOptions = {}): Ghidra
 			"brew install --cask ghidra (macOS), apt install ghidra (Linux), choco install ghidra (Windows), or extract release from https://ghidra-sre.org/ and set GHIDRA_INSTALL_DIR.",
 	};
 }
+export function ghidraFindCryptDependency(
+	options: {
+		ghidraInstallDir?: string;
+		findCryptStatus?: GhidraFindCryptStatus;
+		which?: SkillRequirementWhich;
+	} = {},
+): GhidraFindCryptStatus {
+	if (options.findCryptStatus) {
+		return options.findCryptStatus;
+	}
+	return resolveGhidraFindCrypt({
+		ghidraPath: options.ghidraInstallDir,
+		which: options.which,
+	});
+}
 
 export function resolveGhidraFallback(
 	action: GhidraInspectAction,
@@ -329,6 +374,27 @@ export function resolveGhidraFallback(
 				alternatives: [`objdump -d ${quoted}`, `triage(path: ${quoted})`],
 				executed: false,
 			};
+		case "jni_enrich":
+			return {
+				primary: "ghidra",
+				operation: action,
+				suggestedFallback: `android_native_workflow(action: "inspect", path: ${quoted})`,
+				activeFallback: "android_native_workflow",
+				alternatives: [
+					`r2_inspect(action: "functions", path: ${quoted})`,
+					`frida_session(template: "jni_register")`,
+				],
+				executed: false,
+			};
+		case "findcrypt":
+			return {
+				primary: "ghidra",
+				operation: action,
+				suggestedFallback: `r2_inspect(action: "info", path: ${quoted})`,
+				activeFallback: "r2_inspect",
+				alternatives: [`strings ${quoted} | grep -iE "aes|sha|md5|rsa|des"`, `triage(path: ${quoted})`],
+				executed: false,
+			};
 	}
 }
 
@@ -345,13 +411,101 @@ export function foldGhidraText(text: string): string {
 	}
 	return lines.join("\n");
 }
+async function computeFileSha256(filePath: string): Promise<string> {
+	const hash = crypto.createHash("sha256");
+	const stream = fsSync.createReadStream(filePath);
+	for await (const chunk of stream) {
+		hash.update(chunk);
+	}
+	return hash.digest("hex");
+}
+
+function formatJniEnrichPreviewText(summary: JniEnrichSummary, targetPath: string, sha256: string): string {
+	const lines = [
+		`### JNI Registration Enrichment Preview for ${path.basename(targetPath)}`,
+		`- **Binary SHA-256**: \`${sha256}\``,
+		`- **Total JNI Methods**: ${summary.total}`,
+		`- **Eligible**: ${summary.eligible}`,
+		`- **Rejected / Out of Bounds**: ${summary.rejected}`,
+		"",
+		"| Class | Method | JVM Signature | Receiver | Static Address | Target Symbol | Status |",
+		"|---|---|---|---|---|---|---|",
+		...summary.items.map(
+			it =>
+				`| \`${it.className}\` | \`${it.methodName}\` | \`${it.signature}\` | ${it.isStatic === true ? "static" : it.isStatic === false ? "virtual" : "unverified"} | \`${it.staticAddress}\` | \`${it.targetFunctionName}\` | ${it.status} |`,
+		),
+		"",
+		"> Note: Preview only (dry-run). Set `preview: false` and specify `project_dir` to apply changes to Ghidra project.",
+	];
+	return lines.join("\n");
+}
+
+function formatJniEnrichAppliedText(
+	summary: JniEnrichSummary,
+	appliedItems: Array<{ address: string; name: string; prototype: string; code: string }>,
+	targetPath: string,
+	projectDir: string,
+): string {
+	const lines = [
+		`### JNI Registration Enrichment Applied to Ghidra Project (${path.basename(projectDir)})`,
+		`- **Target Binary**: \`${targetPath}\``,
+		`- **Applied Methods**: ${appliedItems.length}`,
+		"",
+		"| Target Symbol | Address | Prototype | Decompiled |",
+		"|---|---|---|---|",
+		...appliedItems.map(
+			it => `| \`${it.name}\` | \`${it.address}\` | \`${it.prototype}\` | ${it.code ? "Yes" : "No"} |`,
+		),
+	];
+	if (appliedItems.length > 0) {
+		lines.push("", "#### Decompiled Pseudocode Previews:");
+		for (const it of appliedItems.slice(0, 5)) {
+			lines.push(`\n**${it.name}** (\`${it.address}\`):`, "```c", it.code.slice(0, 1000), "```");
+		}
+	}
+	return lines.join("\n");
+}
+
+function formatFindCryptCandidatesText(
+	candidates: Array<{ address: string; algorithm: string; matchType: string; category?: string }>,
+	targetPath: string,
+): string {
+	const lines = [
+		`### Ghidra FindCrypt Candidates for ${path.basename(targetPath)}`,
+		`- **Candidate Constant Matches**: ${candidates.length}`,
+		"",
+	];
+	if (candidates.length === 0) {
+		lines.push("No known cryptographic constants identified by byte signature matching.");
+	} else {
+		lines.push(
+			"| Address | Algorithm / Constant | Match Type | Category |",
+			"|---|---|---|---|",
+			...candidates.map(c => `| \`${c.address}\` | \`${c.algorithm}\` | ${c.matchType} | ${c.category ?? "-"} |`),
+		);
+	}
+	lines.push(
+		"",
+		"> Note: Findings represent candidate heuristic byte pattern matches from FindCrypt; they do not prove active cryptographic execution or algorithmic security.",
+	);
+	return lines.join("\n");
+}
 
 export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, GhidraInspectDetails> {
 	readonly name = "ghidra_inspect";
-	readonly approval: ToolTier = "read";
+	readonly approval = (args: unknown): ToolTier => {
+		if (args && typeof args === "object" && "action" in args) {
+			const action = args.action;
+			const preview = "preview" in args ? args.preview : undefined;
+			if (action === "jni_enrich" && preview === false) {
+				return "exec";
+			}
+		}
+		return "read";
+	};
 	readonly label = "Ghidra Inspect";
 	readonly summary =
-		"Read-only headless binary analysis and function decompilation via Ghidra (analyzeHeadless) without arbitrary shell execution";
+		"Headless binary analysis, decompilation, JNI dynamic registration enrichment, and FindCrypt constants analysis via Ghidra (analyzeHeadless)";
 	readonly description: string;
 	readonly parameters = ghidraInspectSchema;
 	readonly strict = true;
@@ -360,6 +514,7 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 	private readonly whichSeam?: SkillRequirementWhich;
 	private readonly runnerSeam?: GhidraRunner;
 	private readonly ghidraInstallDirSeam?: string;
+	private readonly findCryptStatusSeam?: GhidraFindCryptStatus;
 
 	constructor(
 		private readonly session: ToolSession,
@@ -369,6 +524,7 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 		this.whichSeam = options.which;
 		this.runnerSeam = options.runner;
 		this.ghidraInstallDirSeam = options.ghidraInstallDir;
+		this.findCryptStatusSeam = options.findCryptStatus;
 	}
 
 	async execute(
@@ -425,6 +581,168 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 			address: rawAddress,
 		});
 
+		// Construct headless command arguments
+		let previewSummary: JniEnrichSummary | undefined;
+		let eligibleItems: JniEnrichPreviewItem[] | undefined;
+
+		if (params.action === "jni_enrich") {
+			const targetSha256 = await computeFileSha256(resolvedPath);
+			const targetBuf = await fs.readFile(resolvedPath);
+			const elfMeta = parseElfMetadataForJni(targetBuf);
+
+			let rawEvents: unknown = params.events;
+			if (!rawEvents && params.events_path) {
+				const resolvedEventsPath = resolveReadPath(params.events_path, this.session.cwd);
+				try {
+					const eventsJson = await fs.readFile(resolvedEventsPath, "utf8");
+					rawEvents = JSON.parse(eventsJson);
+				} catch (err) {
+					throw new ToolError(
+						`Failed to read events_path '${resolvedEventsPath}': ${err instanceof Error ? err.message : String(err)}`,
+					);
+				}
+			}
+
+			let records: CanonicalJniMethodRecord[] = [];
+			if (Array.isArray(params.records) && params.records.length > 0) {
+				records = params.records as CanonicalJniMethodRecord[];
+			} else if (rawEvents) {
+				let eventsList: unknown[] = [];
+				if (Array.isArray(rawEvents)) {
+					eventsList = rawEvents;
+				} else if (typeof rawEvents === "object" && rawEvents !== null) {
+					if ("events" in rawEvents && Array.isArray((rawEvents as { events: unknown[] }).events)) {
+						eventsList = (rawEvents as { events: unknown[] }).events;
+					} else {
+						eventsList = [rawEvents];
+					}
+				}
+				for (const ev of eventsList) {
+					const canon = canonicalizeRegisterNativesEvent(ev, {
+						expectedSha256: targetSha256,
+					});
+					records.push(...canon);
+				}
+			} else {
+				throw new ToolError(
+					"Either 'events', 'events_path', or 'records' parameter is required for action 'jni_enrich'",
+				);
+			}
+
+			// Merge is_static_map across both events and records
+			if (params.is_static_map && typeof params.is_static_map === "object") {
+				const map = params.is_static_map as Record<string, boolean>;
+				for (const rec of records) {
+					if (typeof rec.isStatic !== "boolean") {
+						const key1 = `${rec.className}->${rec.methodName}${rec.signature}`;
+						const key2 = `${rec.methodName}${rec.signature}`;
+						const key3 = rec.methodName;
+						if (typeof map[key1] === "boolean") rec.isStatic = map[key1];
+						else if (typeof map[key2] === "boolean") rec.isStatic = map[key2];
+						else if (typeof map[key3] === "boolean") rec.isStatic = map[key3];
+					}
+				}
+			}
+
+			for (const rec of records) {
+				if (rec.status !== "confirmed") {
+					throw new ToolError(
+						`Cannot enrich unconfirmed JNI method record for '${rec.className}->${rec.methodName}': status is '${rec.status}'`,
+					);
+				}
+			}
+
+			previewSummary = previewJniEnrichment(records, {
+				staticImageBase: params.address ?? elfMeta.minLoadVaddr,
+				loadBias: params.load_bias,
+				arch: elfMeta.arch,
+				bitness: elfMeta.bitness,
+				executableRanges: elfMeta.executableRanges,
+				minLoadVaddr: elfMeta.minLoadVaddr,
+			});
+
+			if (params.preview !== false) {
+				const previewText = formatJniEnrichPreviewText(previewSummary, resolvedPath, targetSha256);
+				return {
+					content: [{ type: "text", text: previewText }],
+					details: {
+						action: "jni_enrich",
+						path: params.path,
+						status: "ok",
+						mode: params.mode ?? "full",
+						dependency: depStatus,
+						engine: depStatus.path,
+						enrichment: previewSummary,
+					},
+				};
+			}
+
+			// preview === false (mutating designated project)
+			if (!params.project_dir) {
+				throw new ToolError(
+					"Applying JNI enrichment (preview: false) requires an explicit 'project_dir' parameter to persist modifications. Omit preview: false for dry-run preview, or specify 'project_dir'.",
+				);
+			}
+
+			const resolvedProjDir = path.resolve(this.session.cwd, params.project_dir);
+			const projectLock = getActiveGhidraProjectLock(resolvedProjDir, this.session.cwd);
+			if (projectLock) {
+				throw new ToolError(
+					`Ghidra project directory '${params.project_dir}' is currently locked by active native MCP session '${projectLock.sessionId}'. ` +
+						`Cannot mutate project simultaneously from headless analyzeHeadless. ` +
+						`Use native_mcp_session(action: 'jni_enrich', session_id: '${projectLock.sessionId}') instead or disconnect the session first.`,
+				);
+			}
+
+			for (const rec of records) {
+				if (rec.sampleSha256 && rec.sampleSha256.toLowerCase() !== targetSha256.toLowerCase()) {
+					throw new ToolError(
+						`Sample SHA256 mismatch for method '${rec.methodName}': record has '${rec.sampleSha256}', but target binary has '${targetSha256}'. Refusing writeback.`,
+					);
+				}
+				if (typeof rec.isStatic !== "boolean") {
+					throw new ToolError(
+						`Receiver kind for method '${rec.className}->${rec.methodName}' is unverified (must be boolean true for static or false for virtual). ` +
+							"Provide explicit DEX ACC_STATIC declaration in is_static_map before writeback.",
+					);
+				}
+			}
+
+			eligibleItems = previewSummary.items.filter(it => it.status === "eligible");
+			if (eligibleItems.length === 0) {
+				throw new ToolError("No eligible confirmed JNI records to apply (all records rejected or out of bounds).");
+			}
+		}
+
+		if (params.action === "findcrypt") {
+			const findCryptStatus = ghidraFindCryptDependency({
+				ghidraInstallDir: this.ghidraInstallDirSeam,
+				findCryptStatus: this.findCryptStatusSeam,
+			});
+			if (!findCryptStatus.available) {
+				const notice = [
+					"[Notice] External Ghidra FindCrypt analyzer extension ('ghidra-findcrypt') not found on host.",
+					"  -> Recommended setup: run 'reverse setup reverse ghidra-findcrypt' to install the TorgoTorgo/ghidra-findcrypt analyzer extension into Ghidra.",
+					`  -> Catalog install hint: ${findCryptStatus.installHint ?? "Install ghidra-findcrypt extension"}`,
+					`  -> Suggested fallback: ${fallback.suggestedFallback}`,
+					"  -> Alternative options:",
+					...fallback.alternatives.map(a => `     • ${a}`),
+					"  (Note: Cryptographic constant analysis was not faked.)",
+				].join("\n");
+
+				return {
+					content: [{ type: "text", text: notice }],
+					details: {
+						action: "findcrypt",
+						path: params.path,
+						status: "missing_dependency",
+						mode: params.mode ?? "full",
+						dependency: findCryptStatus,
+						fallback,
+					},
+				};
+			}
+		}
 		if (!depStatus.available || !depStatus.path) {
 			const notice = [
 				"[Notice] Primary tool 'ghidra' (analyzeHeadless) not found on PATH or via GHIDRA_INSTALL_DIR.",
@@ -471,7 +789,6 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 			};
 		}
 
-		// Construct headless command arguments
 		const isTempProject = !params.project_dir;
 		const projectName = "reverse_headless_proj";
 		const ghidraBinary = depStatus.path;
@@ -483,7 +800,12 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 		let scriptsDir: string | undefined;
 		let runResult: GhidraRunResult;
 		const args: string[] = [];
-		const useBundledScript = !params.script && (params.action === "decompile" || params.action === "export");
+		const useBundledScript =
+			!params.script &&
+			(params.action === "decompile" ||
+				params.action === "export" ||
+				params.action === "jni_enrich" ||
+				params.action === "findcrypt");
 
 		try {
 			tempDir = isTempProject
@@ -494,7 +816,23 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 				await fs.mkdir(tempDir, { recursive: true });
 			}
 
-			args.push(tempDir, projectName, "-import", resolvedPath, "-readOnly");
+			const projectRepDir = path.join(tempDir, `${projectName}.rep`);
+			const projectExists = fsSync.existsSync(projectRepDir);
+			const programName = path.basename(resolvedPath);
+
+			if (params.action === "jni_enrich") {
+				if (projectExists) {
+					args.push(tempDir, projectName, "-process", programName);
+				} else {
+					args.push(tempDir, projectName, "-import", resolvedPath);
+				}
+			} else {
+				if (projectExists && !isTempProject) {
+					args.push(tempDir, projectName, "-process", programName, "-readOnly");
+				} else {
+					args.push(tempDir, projectName, "-import", resolvedPath, "-readOnly");
+				}
+			}
 			if (isTempProject) {
 				args.push("-deleteProject");
 			}
@@ -510,16 +848,40 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 				scriptsDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-ghidra-scripts-"));
 				const scriptPath = path.join(scriptsDir, BUNDLED_SCRIPT_FILENAME);
 				await fs.writeFile(scriptPath, reverseGhidraScriptSource, "utf8");
-				args.push(
-					"-scriptPath",
-					scriptsDir,
-					"-postScript",
-					BUNDLED_SCRIPT_FILENAME,
-					params.action,
-					targetIdentifier ?? "",
-					String(timeoutSeconds),
-					String(maxBytes),
+				await fs.writeFile(
+					path.join(scriptsDir, "jni_env.json"),
+					typeof jniApiMetadataSource === "string"
+						? jniApiMetadataSource
+						: JSON.stringify(jniApiMetadataSource, null, 2),
+					"utf8",
 				);
+
+				if (params.action === "jni_enrich" && eligibleItems) {
+					const enrichJsonPath = path.join(scriptsDir, "enrich_items.json");
+					await fs.writeFile(enrichJsonPath, JSON.stringify(eligibleItems), "utf8");
+					args.push(
+						"-scriptPath",
+						scriptsDir,
+						"-postScript",
+						BUNDLED_SCRIPT_FILENAME,
+						params.action,
+						targetIdentifier ?? "",
+						String(timeoutSeconds),
+						String(maxBytes),
+						enrichJsonPath,
+					);
+				} else {
+					args.push(
+						"-scriptPath",
+						scriptsDir,
+						"-postScript",
+						BUNDLED_SCRIPT_FILENAME,
+						params.action,
+						targetIdentifier ?? "",
+						String(timeoutSeconds),
+						String(maxBytes),
+					);
+				}
 			}
 
 			const runner = this.runnerSeam ?? defaultGhidraRunner;
@@ -537,13 +899,15 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 				await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
 			}
 		}
-
 		let rawText = "";
 		let outcomeStatus: "ok" | "error" = "ok";
 		let outcomeError: string | undefined;
 		let resolvedTarget: string | undefined = targetIdentifier;
 		let resolvedAddress: string | undefined = rawAddress;
 		let resolvedSignature: string | undefined;
+		let cryptoCandidates:
+			| Array<{ address: string; algorithm: string; matchType: string; category?: string }>
+			| undefined;
 
 		if (useBundledScript) {
 			if (runResult.timedOut) {
@@ -594,13 +958,39 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 							outcomeStatus = "error";
 							outcomeError = `Script action mismatch: expected '${params.action}', received '${String(payload.action)}'`;
 							rawText = outcomeError;
-						} else if (typeof payload.output !== "string" || payload.output.trim().length === 0) {
-							outcomeStatus = "error";
-							outcomeError = "Ghidra decompiler produced empty output for target";
-							rawText = outcomeError;
 						} else {
-							rawText = payload.output;
 							outcomeStatus = "ok";
+							if (params.action === "jni_enrich") {
+								let appliedItems: Array<{ address: string; name: string; prototype: string; code: string }> =
+									[];
+								try {
+									appliedItems = JSON.parse(payload.output || "[]");
+								} catch {}
+								rawText = formatJniEnrichAppliedText(
+									previewSummary!,
+									appliedItems,
+									resolvedPath,
+									params.project_dir!,
+								);
+							} else if (params.action === "findcrypt") {
+								let candidates: Array<{
+									address: string;
+									algorithm: string;
+									matchType: string;
+									category?: string;
+								}> = [];
+								try {
+									candidates = JSON.parse(payload.output || "[]");
+								} catch {}
+								cryptoCandidates = candidates;
+								rawText = formatFindCryptCandidatesText(candidates, resolvedPath);
+							} else if (typeof payload.output !== "string" || payload.output.trim().length === 0) {
+								outcomeStatus = "error";
+								outcomeError = "Ghidra decompiler produced empty output for target";
+								rawText = outcomeError;
+							} else {
+								rawText = payload.output;
+							}
 							if (typeof payload.target === "string") resolvedTarget = payload.target;
 							if (typeof payload.address === "string") resolvedAddress = payload.address;
 							if (typeof payload.signature === "string") resolvedSignature = payload.signature;
@@ -672,6 +1062,12 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 				offset,
 				hasMore: offset + pagedLines.length < totalLines,
 				error: outcomeError,
+				enrichment: previewSummary,
+				cryptoCandidates,
+				cryptoNotice:
+					params.action === "findcrypt"
+						? "Heuristic candidate locations only; byte signature match does not prove active cryptographic operations."
+						: undefined,
 			},
 		};
 	}

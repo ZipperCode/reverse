@@ -100,9 +100,9 @@ export const fridaSessionSchema = type({
 		"For action: 'events' or 'run': format structured evidence references compatible with the evidence ledger",
 	),
 	"template?": type
-		.enumerated("module_load", "exports", "jni_register", "native_functions")
+		.enumerated("module_load", "exports", "jni_register", "native_functions", "jni_trace")
 		.describe(
-			"Optional built-in Frida script template to execute or load: 'jni_register' (trace JNI RegisterNatives bindings), 'native_functions' (trace native function executions), 'module_load' (trace module loads), 'exports' (trace module exports)",
+			"Optional built-in Frida script template to execute or load: 'jni_register' (trace JNI RegisterNatives bindings), 'native_functions' (trace native function executions), 'jni_trace' (trace full JNI API calls via jnitrace-engine), 'module_load' (trace module loads), 'exports' (trace module exports)",
 		),
 	"module?": type("string").describe(
 		"Target module name (e.g. 'libnative-lib.so') for template 'exports', 'native_functions', or 'jni_register'",
@@ -126,6 +126,18 @@ export const fridaSessionSchema = type({
 	"max_events?": type("number").describe("Maximum events to capture before detaching hooks (default 100)"),
 	"max_buffer_bytes?": type("number").describe(
 		"Maximum buffer/string bytes to read per argument in native_functions template (default 256)",
+	),
+	"jni_apis?": type("unknown").describe(
+		"For template 'jni_trace': optional array or string of JNI API method names to trace (e.g. ['FindClass', 'GetMethodID', 'CallVoidMethod']), default traces all JNI APIs",
+	),
+	"libraries?": type("unknown").describe(
+		"For template 'jni_trace': optional array of native library names to filter/track (default: target module or all libraries ['*'])",
+	),
+	"include_exports?": type("unknown").describe(
+		"For template 'jni_trace': optional array of exported function names to include in tracing",
+	),
+	"exclude_exports?": type("unknown").describe(
+		"For template 'jni_trace': optional array of exported function names to exclude from tracing",
 	),
 });
 
@@ -609,7 +621,8 @@ export function parseFridaOutputIntoEvents(
 					const isJni = Boolean(
 						payloadObj &&
 						((payloadObj as Record<string, unknown>).event === "jni_register_natives" ||
-							(payloadObj as Record<string, unknown>).event === "jni_register"),
+							(payloadObj as Record<string, unknown>).event === "jni_register" ||
+							(payloadObj as Record<string, unknown>).event === "jni_trace"),
 					);
 					const isNativeTrace = Boolean(
 						payloadObj &&
@@ -775,7 +788,8 @@ export function parseFridaOutputIntoEvents(
 					tracePayload &&
 					typeof tracePayload === "object" &&
 					((tracePayload as Record<string, unknown>).event === "jni_register_natives" ||
-						(tracePayload as Record<string, unknown>).event === "jni_register"),
+						(tracePayload as Record<string, unknown>).event === "jni_register" ||
+						(tracePayload as Record<string, unknown>).event === "jni_trace"),
 				);
 				const isNativeTrace = Boolean(
 					tracePayload &&
@@ -894,7 +908,8 @@ export function buildEvidenceReference(
 		const p = event.payload as Record<string, unknown>;
 		if (p.event === "jni_register_natives" || p.event === "jni_register") {
 			const className = String(p.class || "UnknownClass");
-			const isConfirmed = p.status === "confirmed" || (p.status !== "rejected" && p.retval === 0);
+			const isConfirmed =
+				(p.status === "confirmed" || p.status !== "rejected") && typeof p.retval === "number" && p.retval === 0;
 			if (isConfirmed) {
 				title = `JNI RegisterNatives: ${className}`;
 				const methodCount = Array.isArray(p.methods) ? p.methods.length : Number(p.nMethods ?? 0);
@@ -913,6 +928,21 @@ export function buildEvidenceReference(
 				metadata.retval = p.retval;
 				metadata.class = className;
 			}
+		} else if (p.event === "jni_trace") {
+			const api = String(p.api || "unknown");
+			const category = String(p.category || "jni_api");
+			const targetItem =
+				p.class && p.method ? `${p.class}.${p.method}` : String(p.class || p.field || p.name || api);
+			title = `JNI ${api}: ${targetItem}`;
+			content = `Traced JNI API ${api} [${category}] (${targetItem}, retval: ${p.retval ?? "none"})`;
+			metadata.api = api;
+			metadata.category = category;
+			metadata.class = p.class;
+			metadata.method = p.method;
+			metadata.signature = p.signature;
+			metadata.field = p.field;
+			metadata.retval = p.retval;
+			metadata.threadId = p.threadId;
 		} else if (p.event === "native_call" || p.event === "native_functions") {
 			const targetName = String(p.target || p.address || "unknown");
 			const mod = p.module ? String(p.module) : "unknown";

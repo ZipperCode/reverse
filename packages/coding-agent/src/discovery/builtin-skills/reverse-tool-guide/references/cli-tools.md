@@ -18,8 +18,12 @@ When a tool is absent, apply the **Discover-Before-Stop / Install-Then-Dispatch*
 | **`apk_unpacking`** (Smali patch and rebuild) | `apktool d` / `apktool b` | `dexdump -d` for inspection only |
 | **`dex_patching`** (DEX validation & patch) | `dex_patch(action: "inspect" / "patch")` | `python3` stdlib / `droidasc` / smali |
 | **`apk_artifact_generation`** (APK repack/sign) | `apk_artifact(action: "repack" / "sign")` | `zipalign` + `apksigner` CLI |
-| **`android_native_emulation`** (JNI emulation) | custom target Java harness (`unidbg`) / `android_native_workflow` | static `ghidra_inspect` / `r2_inspect` |
+| **`android_native_emulation`** (JNI emulation) | `unidbg(action: "probe" / "scaffold" / "launch")` / `android_native_workflow` | static `ghidra_inspect` / `r2_inspect` |
 | Runtime instrumentation | `frida -U -l hook.js -f <target>` | `adb logcat` + static analysis |
+| JNI signatures and registration writeback | `ghidra_inspect(action: "jni_enrich")` / owned `native_mcp_session` | unresolved declarations and bounded static inspection |
+| ELF constructors / relocations / address mapping | `elf_inspect(action: "query")` using LIEF | existing Ghidra/r2 queries / `readelf` |
+| Cryptographic constant candidates | `ghidra_inspect(action: "findcrypt")` with external FindCrypt | bounded constants and cross-reference inspection |
+| Runtime-unpacked ELF | `elf_inspect` dump / SoFixer repair into separate artifacts | preserved raw dump and mapping manifest |
 | **`traffic_interception`** (HTTP/S traffic) | `mitmdump -p 8080 -w flows.mitm` | `curl` + browser DevTools HAR |
 | **`websocket_capture`** (PCAP / packet detail) | `pcap_inspect` (offline) / `tshark -r <file>` | `tcpdump -r capture.pcap` |
 | Packed PE | `upx -d -o ./artifacts/unpacked.exe <pe>` | `r2` section/entropy inspection |
@@ -79,7 +83,7 @@ apktool d target.apk -o ./artifacts/apk_src
 apktool b ./artifacts/apk_src -o ./artifacts/patched.apk
 aapt2 dump badging target.apk
 dexdump -d classes.dex
-# unidbg: custom target Java harness must exist in project; obtain actual invocation from project
+# JNI probe/harness generation uses reverse's unidbg tool; preserve explicit APK and environment inputs.
 bundletool build-apks --bundle=app.aab --output=app.apks --mode=universal
 d2j-dex2jar classes.dex -o classes.jar
 baksmali d classes.dex -o ./smali_out

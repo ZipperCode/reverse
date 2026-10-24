@@ -27,6 +27,7 @@ Capabilities:
      - `template: "exports"`: enumerate exported symbols of a target `module`.
      - `template: "jni_register"`: trace Android JNI `RegisterNatives` calls, capturing real Java class names, method names, signatures, and native function pointers with resolved module base and relative hex offsets. Automatically discovers `RegisterNatives` from `libart.so` symbols and real JNIEnv vtable index 215. Supports `module` or `symbol` override.
      - `template: "native_functions"`: trace native function calls with bounded argument decoding. Parameters: `symbol` / `symbols`, `offset` / `offsets`, `module`, `args_count` (default 4), `args_decode` (e.g. `{"0": "int", "1": "string"}`), `retval` (boolean), `backtrace` (`true`, `"accurate"`, `"fuzzy"`), `max_events`, `max_buffer_bytes`.
+     - `template: "jni_trace"`: trace comprehensive Android JNI API invocations (`FindClass`, `GetMethodID`, `Call*Method`, `GetFieldID`, `GetStringUTFChars`, `NewStringUTF`, `RegisterNatives`, etc.) via embedded jnitrace-engine. Intercepts shadow JNIEnv function tables with typed signature decoding and clean teardown. Parameters: `module` / `libraries` (library filters), `jni_apis` (optional specific JNI methods to trace, e.g. `["FindClass", "GetMethodID", "CallVoidMethod"]`), `include_exports`, `exclude_exports`, `max_events` (default 100), `max_buffer_bytes` (default 256), `backtrace` (`true`, `"accurate"`, `"fuzzy"`), `timeout`.
    - When `script`, `script_path`, or `spawn` is provided, `action` defaults to `"exec"`.
 
 5. Native CLI pass-through:
@@ -65,6 +66,8 @@ frida(action: "trace", template: "jni_register", spawn: "com.example.app", usb: 
 
 // Trace native function calls with typed argument decoding and return value
 frida(action: "trace", template: "native_functions", process: "target_process", symbol: "calculate_token", args_decode: { "0": "string", "1": "int" }, retval: true, max_events: 50)
+// Trace JNI API calls on Android target via jnitrace-engine
+frida(action: "trace", template: "jni_trace", spawn: "com.example.app", usb: true, module: "libnative-lib.so", jni_apis: ["FindClass", "GetMethodID", "CallObjectMethod"], max_events: 50)
 ```
 </examples>
 ```

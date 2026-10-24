@@ -205,44 +205,127 @@ export function generateDeterministicPlan(
 			];
 			break;
 
-		case "ELF":
-			stepDefinitions = [
-				{
-					id: "elf_step_1",
-					title: "G0/G1: ELF Architecture & Section Triage",
-					tool: "triage",
-					gate: "G0",
-					params_summary: { path: targetPath, strings: true, limit: 30 },
-				},
-				{
-					id: "elf_step_2",
-					title: "G1: Go/Rust Build & Auditable Metadata Extraction",
-					tool: "binary_metadata_inspect",
-					gate: "G1",
-					params_summary: { path: targetPath, action: "info" },
-				},
-				{
-					id: "elf_step_3",
-					title: "G2/G3: Dynamic Symbols & Relocations Analysis",
-					tool: "r2_inspect",
-					gate: "G2",
-					params_summary: { path: targetPath, action: "functions" },
-				},
-				{
-					id: "elf_step_4",
-					title: "G4: Evidence Ledger Findings Recording",
-					tool: "evidence",
-					gate: "G4",
-					params_summary: {
-						action: "add",
-						kind: "fact",
-						target: targetPath,
-						sourceTool: "r2_inspect",
-						locator: "main",
+		case "ELF": {
+			const lowerPath = targetPath.toLowerCase();
+			const goalLower = options?.goal?.toLowerCase() ?? "";
+			const hasJniGoal =
+				goalLower.includes("jni") ||
+				goalLower.includes("android") ||
+				goalLower.includes("register_natives") ||
+				goalLower.includes("registernatives");
+			const hasAndroidPath =
+				lowerPath.includes("/lib/arm64-v8a/") ||
+				lowerPath.includes("/lib/armeabi-v7a/") ||
+				lowerPath.includes("/lib/x86/") ||
+				lowerPath.includes("/lib/x86_64/");
+			const isAndroidJniTarget = hasJniGoal || hasAndroidPath;
+
+			if (isAndroidJniTarget) {
+				stepDefinitions = [
+					{
+						id: "elf_step_1",
+						title: "G0/G1: ELF Architecture, Dynamic Symbols & Header Triage",
+						tool: "triage",
+						gate: "G0",
+						params_summary: { path: targetPath, strings: true, limit: 30 },
 					},
-				},
-			];
+					{
+						id: "elf_step_2",
+						title: "G1: LIEF Constructors, Relocations & Dynamic Exports",
+						tool: "elf_inspect",
+						gate: "G1",
+						params_summary: { path: targetPath, action: "query", query_type: "constructors" },
+					},
+					{
+						id: "elf_step_3",
+						title: "G2/G3: Dynamic Registration Discovery via Frida or Unidbg Probe",
+						tool: "unidbg",
+						gate: "G2",
+						params_summary: {
+							action: "probe",
+							target: targetPath,
+							callOnLoad: true,
+							out: `./artifacts/${path.basename(targetPath).replace(/\.so$/, "")}_jni_registrations.json`,
+						},
+					},
+					{
+						id: "elf_step_4",
+						title: "G3: Verified JNI Prototype Enrichment via Ghidra",
+						tool: "ghidra_inspect",
+						gate: "G3",
+						params_summary: {
+							action: "jni_enrich",
+							path: targetPath,
+							events_path: `./artifacts/${path.basename(targetPath).replace(/\.so$/, "")}_jni_registrations.json`,
+							preview: true,
+						},
+					},
+					{
+						id: "elf_step_5",
+						title: "G3: Bounded JNI API Trace & Replay Verification",
+						tool: "frida",
+						gate: "G3",
+						params_summary: {
+							action: "trace",
+							template: "jni_trace",
+							module: path.basename(targetPath),
+							max_events: 100,
+						},
+					},
+					{
+						id: "elf_step_6",
+						title: "G4: Evidence Ledger & Hypothesis Recording",
+						tool: "evidence",
+						gate: "G4",
+						params_summary: {
+							action: "add",
+							kind: "fact",
+							target: targetPath,
+							sourceTool: "ghidra_inspect",
+							locator: "JNI_OnLoad",
+						},
+					},
+				];
+			} else {
+				stepDefinitions = [
+					{
+						id: "elf_step_1",
+						title: "G0/G1: ELF Architecture & Section Triage",
+						tool: "triage",
+						gate: "G0",
+						params_summary: { path: targetPath, strings: true, limit: 30 },
+					},
+					{
+						id: "elf_step_2",
+						title: "G1: Go/Rust Build & Auditable Metadata Extraction",
+						tool: "binary_metadata_inspect",
+						gate: "G1",
+						params_summary: { path: targetPath, action: "info" },
+					},
+					{
+						id: "elf_step_3",
+						title: "G2/G3: Dynamic Symbols & Relocations Analysis",
+						tool: "r2_inspect",
+						gate: "G2",
+						params_summary: { path: targetPath, action: "functions" },
+					},
+					{
+						id: "elf_step_4",
+						title: "G4: Evidence Ledger Findings Recording",
+						tool: "evidence",
+						gate: "G4",
+						params_summary: {
+							action: "add",
+							kind: "fact",
+							target: targetPath,
+							sourceTool: "r2_inspect",
+							locator: "main",
+						},
+					},
+				];
+			}
 			break;
+		}
 
 		case "Mach-O":
 			stepDefinitions = [

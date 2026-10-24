@@ -16,6 +16,8 @@ import { SKILL_TOOL_CATALOG, type SkillToolPlatform } from "../extensibility/ski
 import type { ToolSession } from "./index";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { throwIfAborted } from "./tool-errors";
+import { buildJniTraceScript, ALL_JNI_APIS, type JniTraceOptions } from "./jnitrace-helper";
+export { buildJniTraceScript, ALL_JNI_APIS, type JniTraceOptions };
 export const fridaSchema = type({
 	"action?": type
 		.enumerated("exec", "devices", "ps", "modules", "inspect", "trace")
@@ -53,9 +55,9 @@ export const fridaSchema = type({
 		"Target module name (e.g. 'libnative-lib.so', 'libc.so') for trace template 'exports' or module filtering",
 	),
 	"template?": type
-		.enumerated("module_load", "exports", "jni_register", "native_functions")
+		.enumerated("module_load", "exports", "jni_register", "native_functions", "jni_trace")
 		.describe(
-			"Optional trace template: 'module_load' (trace module loads), 'exports' (trace exported functions), 'jni_register' (trace JNI RegisterNatives mappings), or 'native_functions' (trace native function invocations)",
+			"Optional trace template: 'module_load' (trace module loads), 'exports' (trace exported functions), 'jni_register' (trace JNI RegisterNatives mappings), 'native_functions' (trace native function invocations), or 'jni_trace' (trace full JNI API calls via jnitrace-engine)",
 		),
 	"symbol?": type("string").describe(
 		"Target function symbol name for template 'native_functions' or custom JNI entry",
@@ -76,6 +78,18 @@ export const fridaSchema = type({
 	"max_buffer_bytes?": type("number").describe(
 		"Maximum buffer/string bytes to read per argument in native_functions template (default 256)",
 	),
+	"jni_apis?": type("unknown").describe(
+		"For template 'jni_trace': optional array or string of JNI API method names to trace (e.g. ['FindClass', 'GetMethodID', 'CallVoidMethod']), default traces all JNI APIs",
+	),
+	"libraries?": type("unknown").describe(
+		"For template 'jni_trace': optional array of native library names to filter/track (default: target module or all libraries ['*'])",
+	),
+	"include_exports?": type("unknown").describe(
+		"For template 'jni_trace': optional array of exported function names to include in tracing",
+	),
+	"exclude_exports?": type("unknown").describe(
+		"For template 'jni_trace': optional array of exported function names to exclude from tracing",
+	),
 	"max_events?": type("number").describe(
 		"Maximum trace events to capture or display in trace summary (default 100, no artificial limit)",
 	),
@@ -93,7 +107,7 @@ export const fridaSchema = type({
 
 export type FridaParams = typeof fridaSchema.infer;
 export type FridaAction = "exec" | "devices" | "ps" | "modules" | "inspect" | "trace";
-export type FridaTraceTemplate = "module_load" | "exports" | "jni_register" | "native_functions" | string;
+export type FridaTraceTemplate = "module_load" | "exports" | "jni_register" | "native_functions" | "jni_trace" | string;
 
 export type FridaStatus =
 	| "ok"
@@ -127,7 +141,7 @@ export interface FridaModuleInfo {
 }
 
 export interface FridaTraceEvent {
-	event: "module_load" | "export" | "jni_register_natives" | "native_call" | string;
+	event: "module_load" | "export" | "jni_register_natives" | "native_call" | "jni_trace" | string;
 	timestamp?: number;
 	module?: string;
 	modulePath?: string;
@@ -160,6 +174,11 @@ export interface FridaTraceEvent {
 	javaBridgeAvailable?: boolean;
 	args?: unknown[];
 	backtrace?: string[];
+	api?: string;
+	category?: string;
+	method?: string;
+	signature?: string;
+	field?: string;
 	details?: Record<string, unknown>;
 	redacted?: boolean;
 }
@@ -1037,6 +1056,11 @@ export function resolveTemplateScript(params: {
 	backtrace?: unknown;
 	max_events?: number;
 	max_buffer_bytes?: number;
+	jni_apis?: unknown;
+	libraries?: unknown;
+	include_exports?: unknown;
+	exclude_exports?: unknown;
+	timeout?: number;
 }): string {
 	const template = params.template;
 	if (template === "jni_register") {
@@ -1061,6 +1085,27 @@ export function resolveTemplateScript(params: {
 			maxBufferBytes: params.max_buffer_bytes,
 		});
 	}
+	if (template === "jni_trace") {
+		return buildJniTraceScript({
+			module: params.module,
+			libraries: Array.isArray(params.libraries)
+				? (params.libraries as string[])
+				: typeof params.libraries === "string"
+					? [params.libraries]
+					: undefined,
+			jniApis: Array.isArray(params.jni_apis)
+				? (params.jni_apis as string[])
+				: typeof params.jni_apis === "string"
+					? [params.jni_apis]
+					: undefined,
+			includeExports: Array.isArray(params.include_exports) ? (params.include_exports as string[]) : undefined,
+			excludeExports: Array.isArray(params.exclude_exports) ? (params.exclude_exports as string[]) : undefined,
+			maxEvents: params.max_events,
+			maxBufferBytes: params.max_buffer_bytes,
+			backtrace: params.backtrace as boolean | "accurate" | "fuzzy" | undefined,
+			timeout: params.timeout,
+		});
+	}
 	if (template === "exports") {
 		if (params.module) {
 			return buildTraceExportsScript(params.module.trim(), params.max_events);
@@ -1071,7 +1116,7 @@ export function resolveTemplateScript(params: {
 		return FIXED_TRACE_MODULE_LOAD_SCRIPT;
 	}
 	throw new ToolError(
-		`Unknown template '${template}'. Choose from: 'module_load', 'exports', 'jni_register', 'native_functions'`,
+		`Unknown template '${template}'. Choose from: 'module_load', 'exports', 'jni_register', 'native_functions', 'jni_trace'`,
 	);
 }
 
@@ -2108,38 +2153,58 @@ export function parseFridaTrace(raw: string): {
 	base?: string;
 	error?: string;
 } {
-	const startIdx = raw.indexOf("__FRIDA_TRACE_START__");
-	const endIdx = raw.indexOf("__FRIDA_TRACE_END__");
-	let jsonText = raw.trim();
+	const allEvents: FridaTraceEvent[] = [];
+	let primaryModule: string | undefined;
+	let primaryBase: string | undefined;
+	let lastError: string | undefined;
 
-	if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-		jsonText = raw.slice(startIdx + "__FRIDA_TRACE_START__".length, endIdx).trim();
+	const markerStart = "__FRIDA_TRACE_START__";
+	const markerEnd = "__FRIDA_TRACE_END__";
+
+	const blocks: string[] = [];
+	let searchPos = 0;
+	while (searchPos < raw.length) {
+		const s = raw.indexOf(markerStart, searchPos);
+		if (s === -1) break;
+		const e = raw.indexOf(markerEnd, s + markerStart.length);
+		if (e === -1) break;
+		blocks.push(raw.slice(s + markerStart.length, e).trim());
+		searchPos = e + markerEnd.length;
 	}
 
-	try {
-		let parsed: unknown;
+	if (blocks.length === 0 && raw.trim().length > 0) {
+		blocks.push(raw.trim());
+	}
+
+	for (const jsonText of blocks) {
+		if (!jsonText) continue;
 		try {
-			parsed = JSON.parse(jsonText);
-		} catch {
-			parsed = parsePythonLiteral(jsonText, 0, { requireEnd: true }).value;
-		}
-		if (parsed && typeof parsed === "object") {
-			const obj = parsed as Record<string, unknown>;
-			if (typeof obj.error === "string") {
-				return { events: [], error: obj.error };
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(jsonText);
+			} catch {
+				parsed = parsePythonLiteral(jsonText, 0, { requireEnd: true }).value;
 			}
-			const rawEvents = Array.isArray(obj.events)
-				? obj.events
-				: typeof obj.event === "string"
-					? [obj]
-					: Array.isArray(parsed)
-						? parsed
-						: [];
-			const events: FridaTraceEvent[] = rawEvents
-				.filter(item => item && typeof item === "object")
-				.map(item => {
+			if (parsed && typeof parsed === "object") {
+				const obj = parsed as Record<string, unknown>;
+				if (typeof obj.error === "string") {
+					lastError = obj.error;
+					continue;
+				}
+				if (typeof obj.module === "string" && !primaryModule) primaryModule = obj.module;
+				if (typeof obj.base === "string" && !primaryBase) primaryBase = obj.base;
+
+				const rawEvents = Array.isArray(obj.events)
+					? obj.events
+					: typeof obj.event === "string"
+						? [obj]
+						: Array.isArray(parsed)
+							? parsed
+							: [];
+				for (const item of rawEvents) {
+					if (!item || typeof item !== "object") continue;
 					const r = item as Record<string, unknown>;
-					return {
+					allEvents.push({
 						event: String(r.event ?? "trace"),
 						...(r.timestamp !== undefined ? { timestamp: Number(r.timestamp) } : {}),
 						...(r.name ? { name: String(r.name) } : {}),
@@ -2168,26 +2233,24 @@ export function parseFridaTrace(raw: string): {
 						...(r.details && typeof r.details === "object"
 							? { details: r.details as Record<string, unknown> }
 							: {}),
-					};
-				});
-			return {
-				events,
-				totalEvents:
-					typeof obj.totalEvents === "number"
-						? obj.totalEvents
-						: typeof obj.totalModules === "number"
-							? obj.totalModules
-							: typeof obj.totalExports === "number"
-								? obj.totalExports
-								: events.length,
-				...(typeof obj.module === "string" ? { module: obj.module } : {}),
-				...(typeof obj.base === "string" ? { base: obj.base } : {}),
-			};
-		}
-	} catch {
-		// Not json
+						...(r.api ? { api: String(r.api) } : {}),
+						...(r.category ? { category: String(r.category) } : {}),
+						...(r.method ? { method: String(r.method) } : {}),
+						...(r.signature ? { signature: String(r.signature) } : {}),
+						...(r.field ? { field: String(r.field) } : {}),
+					});
+				}
+			}
+		} catch {}
 	}
-	return { events: [] };
+
+	return {
+		events: allEvents,
+		totalEvents: allEvents.length,
+		...(primaryModule ? { module: primaryModule } : {}),
+		...(primaryBase ? { base: primaryBase } : {}),
+		...(allEvents.length === 0 && lastError ? { error: lastError } : {}),
+	};
 }
 
 export function detectFridaDeviceIssue(
@@ -2519,6 +2582,33 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 						backtrace: params.backtrace as boolean | "accurate" | "fuzzy" | undefined,
 						maxEvents: params.max_events,
 						maxBufferBytes: params.max_buffer_bytes,
+					}),
+				);
+			} else if (params.template === "jni_trace") {
+				args.push(
+					"-e",
+					buildJniTraceScript({
+						module: params.module,
+						libraries: Array.isArray(params.libraries)
+							? (params.libraries as string[])
+							: typeof params.libraries === "string"
+								? [params.libraries]
+								: undefined,
+						jniApis: Array.isArray(params.jni_apis)
+							? (params.jni_apis as string[])
+							: typeof params.jni_apis === "string"
+								? [params.jni_apis]
+								: undefined,
+						includeExports: Array.isArray(params.include_exports)
+							? (params.include_exports as string[])
+							: undefined,
+						excludeExports: Array.isArray(params.exclude_exports)
+							? (params.exclude_exports as string[])
+							: undefined,
+						maxEvents: params.max_events,
+						maxBufferBytes: params.max_buffer_bytes,
+						backtrace: params.backtrace as boolean | "accurate" | "fuzzy" | undefined,
+						timeout: params.timeout,
 					}),
 				);
 			} else {
@@ -2923,6 +3013,16 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 			for (const e of eventsToReturn) {
 				if (e.event === "export") {
 					lines.push(`  - export: ${e.name} (${e.type ?? "func"} @ ${e.address})`);
+				} else if (e.event === "jni_register_natives") {
+					lines.push(
+						`  - JNI RegisterNatives: ${e.class} (${e.methods?.length ?? e.nMethods ?? 0} methods, status: ${e.status ?? "confirmed"})`,
+					);
+				} else if (e.event === "jni_trace") {
+					const desc =
+						e.class && e.method
+							? `${e.class}.${e.method}${e.signature ?? ""}`
+							: (e.class ?? e.field ?? e.name ?? "");
+					lines.push(`  - JNI ${e.api ?? "call"}: ${desc}${e.retval ? ` -> ${e.retval}` : ""}`);
 				} else {
 					lines.push(`  - ${e.event}: ${e.name ?? e.module ?? "unknown"}`);
 				}

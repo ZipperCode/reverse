@@ -100,6 +100,7 @@ import { SqliteInspectTool } from "./sqlite-inspect";
 import { FirmwareInspectTool } from "./firmware-inspect";
 import { CrashdumpInspectTool } from "./crashdump-inspect";
 import { BinaryMetadataInspectTool } from "./binary-metadata-inspect";
+import { ElfInspectTool } from "./elf-inspect";
 import { EvmInspectTool } from "./evm-inspect";
 import { BinaryDiffTool } from "./binary-diff";
 import { ReverseWorkflowTool } from "./reverse-workflow";
@@ -218,6 +219,7 @@ export * from "./sqlite-inspect";
 export * from "./firmware-inspect";
 export * from "./crashdump-inspect";
 export * from "./binary-metadata-inspect";
+export * from "./elf-inspect";
 export * from "./evm-inspect";
 export * from "./binary-diff";
 export * from "./reverse-workflow";
@@ -650,6 +652,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	firmware_inspect: s => new FirmwareInspectTool(s),
 	crashdump_inspect: s => new CrashdumpInspectTool(s),
 	binary_metadata_inspect: s => new BinaryMetadataInspectTool(s),
+	elf_inspect: s => new ElfInspectTool(s),
 	evm_inspect: s => new EvmInspectTool(s),
 	binary_diff: s => new BinaryDiffTool(s),
 	reverse_workflow: s => new ReverseWorkflowTool(s),
