@@ -248,6 +248,7 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
    - **Ghidra**：支持无头持久化模式（传入 `target`，维护 `/tmp` 之外的持久工程目录 `project_dir` 并启用 `--save` 跨轮次复用分析结果，每个工程目录仅允许单 Java 进程持有互斥锁）与 GUI 模式（省略 `target`，连接 `backend_url`，默认 `http://127.0.0.1:8080/`）。
    - **radare2 与 r2_inspect 契约**：内置 `r2_inspect` 工具严格限定参数为规范选择器（`symbol`、`address`、`target`），任何未知参数别名（如 `function`）均被直接拒绝并返回结构化错误；在结果中忠实回显实际解析的目标（`details.reference` 与 `details.target`），未指定选择器而回退到入口点时显式标记 `referenceDefaulted: true`。会话模式通过 r2mcp (`r2pm -r r2mcp`) 建立持久分析会话，调用 `open_file` 打开目标二进制并通过 `show_info` 校验，在多轮对话中保持分析状态，避免单次命令行频繁重开与重搜。
    - **IDA 四层后端独立区分**：严格独立判定 IDA 的四类不同后端形态，绝不混淆：1) IDA GUI 桌面应用程序；2) `idalib` 无头 SDK 运行时（`read` 虚拟文件读取与 `ida` 工具后台工作必需）；3) 本地数据库文件（`.idb` / `.i64` 原生解析）；4) 可选 MCP 桥接（`ida-mcp`）。未配置或断开的 MCP 桥接并不代表 IDA 整体安装缺失（bridge absent != whole IDA absent），存在本地 GUI 或 `idalib` 时仍提供对应层级的降级与分析能力。
+   - **IDA 原生 Python 适配器**：原生库存在与适配器就绪独立报告；原生工具、能力状态及设置面板按相同解释器优先级和工作环境，限时依次导入 `idapro`、`ida_domain`。缺包时 CLI `reverse setup reverse ida --execute` 与 TUI `/setup reverse ida` 提供实际解释器的固定版本修复命令，确认安装后重新验证；Python 版本、解释器启动及导入／授权失败保留各自诊断。数据库打开、反编译结果继续在执行阶段验收。
    - **x64dbg**：支持本地启动（`target`）、附加已有实例（`session_pid`）与跨平台远程连接（`host` + `req_rep_port` + `pub_sub_port`）。注意：绝对 Windows 目标路径在参数与配置中必须保持 Windows 宿主路径格式（如 `C:\targets\app.exe`）；ZeroMQ RPC 协议**无内置认证机制**，远程调试必须经由私有受信网络或 SSH 隧道（如端口转发 `31337`/`31338`），严禁暴露于不受信公网。
 
 4. **状态可观测性分层 (Five-Tier Observable States)**：

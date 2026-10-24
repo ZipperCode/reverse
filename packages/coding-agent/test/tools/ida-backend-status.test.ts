@@ -1,19 +1,87 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
+import * as fsSync from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 import { getIdaBackendStatus } from "@reverse/coding-agent/ida/install";
+import { clearIdaRuntimeCache, IdaUnavailableError, resolveIdaRuntime } from "@reverse/coding-agent/ida/runtime";
+import { checkReverseTools } from "@reverse/coding-agent/cli/setup-reverse";
+import { getReverseInstallPlan, installReverseItem } from "@reverse/coding-agent/extensibility/reverse-tool-install";
+import {
+	checkToolRequirements,
+	missingRequirementNotice,
+} from "@reverse/coding-agent/extensibility/skill-requirements";
 import { R2InspectTool, ReverseCapabilityTool, type ToolSession } from "@reverse/coding-agent/tools";
 import { Settings } from "@reverse/coding-agent/config/settings";
-import { removeWithRetries } from "@reverse/utils";
+import { $which, removeWithRetries } from "@reverse/utils";
 
-function createTestSession(cwd: string): ToolSession {
+function findCompatiblePython(): string | null {
+	const envPy = process.env.PYTHON ?? Bun.env.PYTHON;
+	if (envPy && fsSync.existsSync(envPy)) return envPy;
+	for (const candidate of [
+		"/opt/homebrew/bin/python3.12",
+		"/usr/local/bin/python3.12",
+		"/opt/homebrew/bin/python3.11",
+		"/opt/homebrew/bin/python3.10",
+	]) {
+		if (fsSync.existsSync(candidate)) return candidate;
+	}
+	const whichPy3 = $which("python3");
+	if (whichPy3) return whichPy3;
+	return null;
+}
+
+function createStubs(dir: string, failOnImport = false): void {
+	const stubPy = "class _Any: pass\n";
+	fsSync.writeFileSync(path.join(dir, "_reverse_ida_stub.py"), stubPy);
+	fsSync.writeFileSync(path.join(dir, "idapro.py"), "from _reverse_ida_stub import _Any\n");
+	const domainDir = path.join(dir, "ida_domain");
+	fsSync.mkdirSync(domainDir, { recursive: true });
+	if (failOnImport) {
+		fsSync.writeFileSync(
+			path.join(domainDir, "__init__.py"),
+			"raise RuntimeError('License verification failed for idalib')\n",
+		);
+	} else {
+		fsSync.writeFileSync(path.join(domainDir, "__init__.py"), "import idapro\nclass Database: pass\n");
+	}
+}
+function createSyntheticWheels(wheelsDir: string): void {
+	fsSync.mkdirSync(wheelsDir, { recursive: true });
+	execFileSync("python3", [
+		"-c",
+		`
+import zipfile, os
+w1 = os.path.join('${wheelsDir}', 'ida_domain-0.5.1-py3-none-any.whl')
+with zipfile.ZipFile(w1, 'w') as z:
+    z.writestr('ida_domain/__init__.py', 'import idapro\\nclass Database: pass\\n')
+    z.writestr('ida_domain-0.5.1.dist-info/METADATA', 'Metadata-Version: 2.1\\nName: ida-domain\\nVersion: 0.5.1\\nRequires-Dist: idapro>=0.0.10\\n')
+    z.writestr('ida_domain-0.5.1.dist-info/WHEEL', 'Wheel-Version: 1.0\\nRoot-Is-Purelib: true\\nTag: py3-none-any\\n')
+    z.writestr('ida_domain-0.5.1.dist-info/RECORD', 'ida_domain/__init__.py,,\\nida_domain-0.5.1.dist-info/METADATA,,\\nida_domain-0.5.1.dist-info/WHEEL,,\\nida_domain-0.5.1.dist-info/RECORD,,\\n')
+
+w2 = os.path.join('${wheelsDir}', 'idapro-0.0.12-py3-none-any.whl')
+with zipfile.ZipFile(w2, 'w') as z:
+    z.writestr('idapro.py', 'class _Any: pass\\n')
+    z.writestr('idapro-0.0.12.dist-info/METADATA', 'Metadata-Version: 2.1\\nName: idapro\\nVersion: 0.0.12\\n')
+    z.writestr('idapro-0.0.12.dist-info/WHEEL', 'Wheel-Version: 1.0\\nRoot-Is-Purelib: true\\nTag: py3-none-any\\n')
+    z.writestr('idapro-0.0.12.dist-info/RECORD', 'idapro.py,,\\nidapro-0.0.12.dist-info/METADATA,,\\nidapro-0.0.12.dist-info/WHEEL,,\\nidapro-0.0.12.dist-info/RECORD,,\\n')
+`,
+	]);
+}
+
+function getSitePackagesDir(pythonPath: string): string {
+	return execFileSync(pythonPath, ["-c", "import site; print(site.getsitepackages()[0])"], {
+		encoding: "utf-8",
+	}).trim();
+}
+function createTestSession(cwd: string, customSettings: Record<string, unknown> = {}): ToolSession {
 	return {
 		cwd,
 		hasUI: true,
 		getSessionFile: () => null,
 		getSessionSpawns: () => "*",
-		settings: Settings.isolated({ "tools.xdev": false }),
+		settings: Settings.isolated({ "tools.xdev": false, ...customSettings }),
 	};
 }
 
@@ -81,8 +149,10 @@ describe("IDA multi-backend readiness and capability integration", () => {
 			expect(statusWithIdalib.guiAvailable).toBe(true);
 			expect(statusWithIdalib.idalibAvailable).toBe(true);
 			expect(statusWithIdalib.localDatabaseRecognized).toBe(true);
-			expect(statusWithIdalib.localDatabaseBackendAvailable).toBe(true);
-			expect(statusWithIdalib.localDatabaseSupported).toBe(true);
+			// Library presence alone does NOT make backend available when Python packages are missing:
+			expect(statusWithIdalib.pythonAdapterReady).toBe(false);
+			expect(statusWithIdalib.localDatabaseBackendAvailable).toBe(false);
+			expect(statusWithIdalib.localDatabaseSupported).toBe(false);
 
 			// Subtest 3: idalib only (no GUI binary in directory)
 			const idalibOnlyDir = path.join(tempDir, "idalib-only");
@@ -95,7 +165,8 @@ describe("IDA multi-backend readiness and capability integration", () => {
 			});
 			expect(statusIdalibOnly.guiAvailable).toBe(false);
 			expect(statusIdalibOnly.idalibAvailable).toBe(true);
-			expect(statusIdalibOnly.localDatabaseBackendAvailable).toBe(true);
+			expect(statusIdalibOnly.pythonAdapterReady).toBe(false);
+			expect(statusIdalibOnly.localDatabaseBackendAvailable).toBe(false);
 
 			// Subtest 4: Neither
 			const statusNeither = getIdaBackendStatus({
@@ -105,6 +176,26 @@ describe("IDA multi-backend readiness and capability integration", () => {
 			});
 			expect(statusNeither.guiAvailable).toBe(false);
 			expect(statusNeither.idalibAvailable).toBe(false);
+
+			// Subtest 5: GUI + idalib + Python adapter packages present
+			const stubsDir = path.join(tempDir, "test-stubs");
+			await fs.mkdir(stubsDir, { recursive: true });
+			createStubs(stubsDir, false);
+			const compPy = findCompatiblePython();
+			if (compPy) {
+				const statusReady = getIdaBackendStatus({
+					platform: process.platform,
+					installDir: guiDir,
+					which: () => null,
+					python: compPy,
+					env: { PYTHONPATH: stubsDir },
+				});
+				expect(statusReady.guiAvailable).toBe(true);
+				expect(statusReady.idalibAvailable).toBe(true);
+				expect(statusReady.pythonAdapterReady).toBe(true);
+				expect(statusReady.localDatabaseBackendAvailable).toBe(true);
+				expect(statusReady.localDatabaseSupported).toBe(true);
+			}
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -207,6 +298,320 @@ describe("IDA multi-backend readiness and capability integration", () => {
 			expect(disasmRes.details?.disasm?.[0]?.opcode).toBe("stp");
 			expect(textOf(disasmRes)).toContain("@ JNI_OnLoad");
 			expect(textOf(disasmRes)).toContain("stp x29, x30");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+	it("enforces explicit interpreter precedence over ambient discovery", async () => {
+		const basePython = findCompatiblePython();
+		if (!basePython) return;
+
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ida-precedence-test-"));
+		try {
+			const idaDir = path.join(tempDir, "ida");
+			await fs.mkdir(idaDir, { recursive: true });
+			const idalibFile =
+				process.platform === "darwin"
+					? "libidalib.dylib"
+					: process.platform === "win32"
+						? "idalib.dll"
+						: "libidalib.so";
+			await fs.writeFile(path.join(idaDir, idalibFile), "");
+
+			const venvADir = path.join(tempDir, "venvA");
+			const venvBDir = path.join(tempDir, "venvB");
+			execFileSync(basePython, ["-m", "venv", venvADir, "--without-pip"]);
+			execFileSync(basePython, ["-m", "venv", venvBDir, "--without-pip"]);
+
+			const venvAPython = path.join(venvADir, "bin", process.platform === "win32" ? "python.exe" : "python");
+			const venvBPython = path.join(venvBDir, "bin", process.platform === "win32" ? "python.exe" : "python");
+
+			// Venv B has stubs, Venv A is empty
+			const sitePackagesB = getSitePackagesDir(venvBPython);
+			createStubs(sitePackagesB, false);
+
+			// Probe targeting Venv B -> ready
+			const statusB = getIdaBackendStatus({
+				platform: process.platform,
+				installDir: idaDir,
+				python: venvBPython,
+			});
+			expect(statusB.pythonPath).toBe(venvBPython);
+			expect(statusB.pythonAdapterReady).toBe(true);
+			expect(statusB.localDatabaseBackendAvailable).toBe(true);
+
+			// Probe targeting Venv A -> missing adapter
+			const statusA = getIdaBackendStatus({
+				platform: process.platform,
+				installDir: idaDir,
+				python: venvAPython,
+			});
+			expect(statusA.pythonPath).toBe(venvAPython);
+			expect(statusA.pythonAdapterReady).toBe(false);
+			expect(statusA.localDatabaseBackendAvailable).toBe(false);
+
+			// Setup reverse check targets configured ida.python explicitly
+			const settings = Settings.isolated({ "ida.installDir": idaDir, "ida.python": venvAPython });
+			const report = checkReverseTools({ settings, cwd: tempDir });
+			const idaTool = report.tools.find(t => t.id === "ida");
+			expect(idaTool?.status).toBe("missing");
+			expect(idaTool?.packageManager).toBe("pip");
+			expect(idaTool?.installArgv).toEqual([venvAPython, "-m", "pip", "install", "ida-domain==0.5.1"]);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("distinguishes module import failure from missing packages without claiming pip fixes it", async () => {
+		const basePython = findCompatiblePython();
+		if (!basePython) return;
+
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ida-import-error-test-"));
+		try {
+			const idaDir = path.join(tempDir, "ida");
+			await fs.mkdir(idaDir, { recursive: true });
+			const idalibFile =
+				process.platform === "darwin"
+					? "libidalib.dylib"
+					: process.platform === "win32"
+						? "idalib.dll"
+						: "libidalib.so";
+			await fs.writeFile(path.join(idaDir, idalibFile), "");
+
+			const venvDir = path.join(tempDir, "venv");
+			execFileSync(basePython, ["-m", "venv", venvDir, "--without-pip"]);
+			const venvPython = path.join(venvDir, "bin", process.platform === "win32" ? "python.exe" : "python");
+
+			// Stubs throw runtime error during import
+			const sitePackages = getSitePackagesDir(venvPython);
+			createStubs(sitePackages, true);
+			// Stubs throw runtime error during import
+			const status = getIdaBackendStatus({
+				platform: process.platform,
+				installDir: idaDir,
+				python: venvPython,
+			});
+			expect(status.idalibAvailable).toBe(true);
+			expect(status.pythonAdapterReady).toBe(false);
+			expect(status.localDatabaseBackendAvailable).toBe(false);
+			expect(status.adapterErrorType).toBe("import_error");
+			expect(status.adapterError).toContain("License verification failed for idalib");
+			expect(status.missingPackages).toBeUndefined();
+
+			// Setup report must NOT offer a pip repair command for import failures
+			const settings = Settings.isolated({ "ida.installDir": idaDir, "ida.python": venvPython });
+			const report = checkReverseTools({ settings, cwd: tempDir });
+			const idaTool = report.tools.find(t => t.id === "ida");
+			expect(idaTool?.status).toBe("missing");
+			expect(idaTool?.packageManager).toBeNull();
+			expect(idaTool?.installCommand).toBeNull();
+			expect(idaTool?.manualInstructions).toContain("License verification failed for idalib");
+
+			// Plan must report canInstall: false
+			const plan = getReverseInstallPlan(idaTool!, { report });
+			expect(plan.canInstall).toBe(false);
+			expect(plan.reason).toContain("License verification failed for idalib");
+
+			// Native resolveIdaRuntime throws IdaUnavailableError with license diagnostic
+			clearIdaRuntimeCache();
+			const session = createTestSession(tempDir, { "ida.installDir": idaDir, "ida.python": venvPython });
+			await expect(resolveIdaRuntime(session)).rejects.toThrow(IdaUnavailableError);
+			try {
+				await resolveIdaRuntime(session);
+			} catch (err) {
+				expect((err as Error).message).toContain("License verification failed for idalib");
+				expect((err as Error).message).toContain("Verify IDA license");
+			}
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("generates actionable repair plan and successfully reprobes after repair", async () => {
+		const basePython = findCompatiblePython();
+		if (!basePython) return;
+
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ida-repair-flow-test-"));
+		try {
+			const idaDir = path.join(tempDir, "ida");
+			await fs.mkdir(idaDir, { recursive: true });
+			const idalibFile =
+				process.platform === "darwin"
+					? "libidalib.dylib"
+					: process.platform === "win32"
+						? "idalib.dll"
+						: "libidalib.so";
+			await fs.writeFile(path.join(idaDir, idalibFile), "");
+
+			const venvDir = path.join(tempDir, "venv");
+			execFileSync(basePython, ["-m", "venv", venvDir]);
+			const venvPython = path.join(venvDir, "bin", process.platform === "win32" ? "python.exe" : "python");
+			const wheelsDir = path.join(tempDir, "wheels");
+			createSyntheticWheels(wheelsDir);
+
+			// 1. Initial state: missing packages
+			clearIdaRuntimeCache();
+			const settings = Settings.isolated({ "ida.installDir": idaDir, "ida.python": venvPython });
+			const initialReport = checkReverseTools({ settings, cwd: tempDir });
+			const toolItem = initialReport.tools.find(t => t.id === "ida")!;
+			expect(toolItem.status).toBe("missing");
+			expect(toolItem.packageManager).toBe("pip");
+			expect(toolItem.installArgv).toEqual([venvPython, "-m", "pip", "install", "ida-domain==0.5.1"]);
+
+			// 2. Generate install plan
+			const plan = getReverseInstallPlan(toolItem, { report: initialReport });
+			expect(plan.canInstall).toBe(true);
+			expect(plan.steps).toHaveLength(1);
+			expect(plan.steps[0].id).toBe("ida");
+			expect(plan.steps[0].packageManager).toBe("pip");
+			expect(plan.steps[0].argv).toEqual([venvPython, "-m", "pip", "install", "ida-domain==0.5.1"]);
+
+			// 3. Native resolve before repair: surfaces repair route
+			const session = createTestSession(tempDir, { "ida.installDir": idaDir, "ida.python": venvPython });
+			try {
+				await resolveIdaRuntime(session);
+				expect.unreachable("resolveIdaRuntime should have thrown");
+			} catch (err) {
+				expect(err).toBeInstanceOf(IdaUnavailableError);
+				expect((err as Error).message).toContain(`${venvPython} -m pip install ida-domain==0.5.1`);
+			}
+
+			// 4. Execute repair action into target venv via real pip subprocess
+			const installResult = await installReverseItem(toolItem, {
+				plan,
+				settings,
+				cwd: tempDir,
+				env: {
+					...process.env,
+					PIP_NO_INDEX: "1",
+					PIP_FIND_LINKS: wheelsDir,
+				},
+			});
+			expect(installResult.success).toBe(true);
+			// 5. Reprobe after repair confirms tool is installed and backend is available
+			const repairedReport = checkReverseTools({ settings, cwd: tempDir });
+			const repairedTool = repairedReport.tools.find(t => t.id === "ida")!;
+			expect(repairedTool.status).toBe("installed");
+			expect(repairedTool.secondaryMissing).toBeUndefined();
+
+			const repairedBackend = getIdaBackendStatus({
+				platform: process.platform,
+				installDir: idaDir,
+				python: venvPython,
+			});
+			expect(repairedBackend.idalibAvailable).toBe(true);
+			expect(repairedBackend.pythonAdapterReady).toBe(true);
+			expect(repairedBackend.localDatabaseBackendAvailable).toBe(true);
+			expect(repairedBackend.localDatabaseSupported).toBe(true);
+
+			// 6. Native runtime resolves successfully
+			clearIdaRuntimeCache();
+			const runtime = await resolveIdaRuntime(session);
+			expect(runtime.pythonPath).toBe(venvPython);
+			expect(runtime.env.IDADIR).toBe(idaDir);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("does not offer automated pip repair when IDA install is GUI-only without idalib", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ida-gui-only-test-"));
+		try {
+			const guiDir = path.join(tempDir, "ida-gui");
+			await fs.mkdir(guiDir, { recursive: true });
+			const idaBin = process.platform === "win32" ? "ida64.exe" : "ida64";
+			await fs.writeFile(path.join(guiDir, idaBin), "");
+
+			const settings = Settings.isolated({ "ida.installDir": guiDir });
+			const report = checkReverseTools({ settings, cwd: tempDir });
+			const idaTool = report.tools.find(t => t.id === "ida");
+
+			expect(idaTool?.status).toBe("missing");
+			expect(idaTool?.packageManager).toBeNull();
+			expect(idaTool?.installCommand).toBeNull();
+			expect(idaTool?.installArgv).toBeNull();
+			expect(idaTool?.manualInstructions).toContain("Commercial software");
+
+			const plan = getReverseInstallPlan(idaTool!, { report, settings });
+			expect(plan.canInstall).toBe(false);
+			expect(plan.steps).toHaveLength(0);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("preserves original import failure detail on RequirementStatus and missingRequirementNotice", async () => {
+		const basePython = findCompatiblePython();
+		if (!basePython) return;
+
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ida-notice-test-"));
+		try {
+			const idaDir = path.join(tempDir, "ida");
+			await fs.mkdir(idaDir, { recursive: true });
+			const idalibFile =
+				process.platform === "darwin"
+					? "libidalib.dylib"
+					: process.platform === "win32"
+						? "idalib.dll"
+						: "libidalib.so";
+			await fs.writeFile(path.join(idaDir, idalibFile), "");
+
+			const venvDir = path.join(tempDir, "venv");
+			execFileSync(basePython, ["-m", "venv", venvDir, "--without-pip"]);
+			const venvPython = path.join(venvDir, "bin", process.platform === "win32" ? "python.exe" : "python");
+			const sitePackages = getSitePackagesDir(venvPython);
+
+			createStubs(sitePackages, true);
+
+			const settings = Settings.isolated({ "ida.installDir": idaDir, "ida.python": venvPython });
+			const [status] = checkToolRequirements([{ id: "ida", optional: false }], {
+				settings,
+				cwd: tempDir,
+			});
+
+			expect(status.foundPath).toBe(idaDir);
+			expect(status.secondaryMissing).toContain("ida-python-adapter");
+			expect(status.adapterError).toContain("License verification failed for idalib");
+
+			const notice = missingRequirementNotice([status]);
+			expect(notice).toBeDefined();
+			expect(notice).toContain(
+				"ida unavailable: Failed to import ida_domain: License verification failed for idalib",
+			);
+			expect(notice).not.toContain("install: ida-domain");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("shares session settings shell environment for candidate resolution by default", async () => {
+		const basePython = findCompatiblePython();
+		if (!basePython) return;
+
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ida-session-shell-env-"));
+		try {
+			const idaDir = path.join(tempDir, "ida");
+			await fs.mkdir(idaDir, { recursive: true });
+			const idalibFile =
+				process.platform === "darwin"
+					? "libidalib.dylib"
+					: process.platform === "win32"
+						? "idalib.dll"
+						: "libidalib.so";
+			await fs.writeFile(path.join(idaDir, idalibFile), "");
+
+			const venvDir = path.join(tempDir, "venv");
+			execFileSync(basePython, ["-m", "venv", venvDir, "--without-pip"]);
+			const venvPython = path.join(venvDir, "bin", process.platform === "win32" ? "python.exe" : "python");
+
+			const settings = Settings.isolated({ "ida.installDir": idaDir, "ida.python": venvPython });
+			const report = checkReverseTools({ settings, cwd: tempDir });
+			const idaTool = report.tools.find(t => t.id === "ida");
+
+			expect(idaTool?.status).toBe("missing");
+			expect(idaTool?.foundPath).toBe(idaDir);
+			expect(idaTool?.packageManager).toBe("pip");
+			expect(idaTool?.installArgv).toEqual([venvPython, "-m", "pip", "install", "ida-domain==0.5.1"]);
 		} finally {
 			await removeWithRetries(tempDir);
 		}

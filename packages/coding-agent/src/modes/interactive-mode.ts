@@ -8274,6 +8274,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			mcpManager: this.mcpManager,
 			session: this.session,
 			plan: options?.plan,
+			settings: this.settings,
 		});
 		return {
 			success: res.success,

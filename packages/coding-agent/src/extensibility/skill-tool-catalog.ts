@@ -17,7 +17,7 @@ import * as child_process from "node:child_process";
 import * as fs from "node:fs";
 import { $which } from "@reverse/utils";
 import { enumeratePythonRuntimes } from "../eval/py/runtime";
-import { probeIdaTool } from "../ida/install";
+import { probeIdaRequirement } from "../ida/install";
 import { locateUnidbg } from "./unidbg-detect";
 import { resolveVmpTool } from "./vmp-toolchain";
 import type { SkillRequirementWhich } from "./skill-requirements";
@@ -99,7 +99,8 @@ export interface SkillToolDescriptor {
 		platform?: SkillToolPlatform;
 		which?: SkillRequirementWhich;
 		settings?: Settings;
-	}) => string | null;
+		cwd?: string;
+	}) => string | { path: string; secondaryMissing?: string[]; adapterError?: string } | null;
 	/** Official download page or release repository URL for manual installation. */
 	manualUrl?: string;
 	/** Manual installation instructions per platform when automated install is unavailable. */
@@ -2733,7 +2734,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		description: "Interactive Disassembler and decompiler with idalib integration",
 		optional: true,
 		binaries: ["ida", "ida64", "idat", "idat64"],
-		probe: deps => probeIdaTool(deps),
+		probe: deps => probeIdaRequirement(deps),
 		envPaths: [{ env: "IDADIR" }],
 		searchPaths: {
 			darwin: ["/Applications/IDA*/Contents/MacOS", "~/Applications/IDA*/Contents/MacOS", ...UNIX_SEARCH_PATHS],

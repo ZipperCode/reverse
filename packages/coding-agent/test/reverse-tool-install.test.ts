@@ -267,6 +267,35 @@ describe("reverse-tool-install shared API", () => {
 			expect(plan.steps).toHaveLength(0);
 			expect(plan.reason).toContain("Commercial license required");
 		});
+
+		it("plans pip repair when IDA host is present but adapter dependencies are missing", () => {
+			const targetPython = "/opt/custom/venv/bin/python";
+			const idaRepairStatus: ReverseToolStatus = {
+				kind: "cli",
+				id: "ida",
+				name: "IDA Pro",
+				category: "decompiler",
+				description: "Interactive Disassembler",
+				optional: true,
+				systemTool: false,
+				status: "missing",
+				foundPath: "/opt/ida-pro-9.1",
+				secondaryMissing: ["ida-domain"],
+				packageManager: "pip",
+				installCommand: `${targetPython} -m pip install ida-domain==0.5.1`,
+				installArgv: [targetPython, "-m", "pip", "install", "ida-domain==0.5.1"],
+				riskNote: "Installs ida-domain into target Python.",
+				manualUrl: "https://hex-rays.com/ida-pro/",
+				manualInstructions: "Commercial license required.",
+			};
+
+			const plan = getReverseInstallPlan(idaRepairStatus, { agentDir: tempDir });
+			expect(plan.canInstall).toBe(true);
+			expect(plan.steps).toHaveLength(1);
+			expect(plan.steps[0].id).toBe("ida");
+			expect(plan.steps[0].packageManager).toBe("pip");
+			expect(plan.steps[0].argv).toEqual([targetPython, "-m", "pip", "install", "ida-domain==0.5.1"]);
+		});
 	});
 
 	describe("persistToolEnvironment and applyPersistedReverseEnvironment", () => {

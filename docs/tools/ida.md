@@ -21,6 +21,8 @@
 ## Availability
 - Exposed only when `ida.enabled` (default on) is set **and** a local IDA install shipping idalib is found; otherwise the tool, the `read` executable/IDB views, and the `read` prompt bullet are all absent. Gate: `cfgIdaAvailable` in `IdaTool.createIf` and `isToolAllowed` (`packages/coding-agent/src/tools/index.ts`), reconciled live via `cfgBuiltinToolGates`.
 - Install lookup: `ida.installDir` when set (authoritative; no fallback), else `$IDADIR`, `Paths.ida-install-dir` in `ida-config.json` (each path-delimited `$IDAUSR` entry, then `~/.idapro` or `%APPDATA%\Hex-Rays\IDA Pro`), else platform-specific standard locations. macOS checks `/Applications/IDA*/Contents/MacOS` and `~/Applications/IDA*/Contents/MacOS`; Linux checks `~/ida*` and `/opt/ida*`; Windows checks `%ProgramFiles%\IDA*`. The found directory is exported to workers as `IDADIR`.
+- Python selection: explicit `ida.python` is authoritative; otherwise try the active/project virtual environment, the managed Python environment, then PATH interpreters. Setup and worker resolution share a bounded probe that imports `idapro` before `ida_domain` with the worker's environment and `IDADIR`. Native-library presence and Python adapter readiness are separate; successful imports establish adapter readiness, while opening a database and decompilation remain execution-stage checks.
+- Repair missing adapter packages through `reverse setup reverse ida --execute` or TUI `/setup reverse ida`; both show the exact target interpreter and require confirmation before running `<python> -m pip install ida-domain==0.5.1`, then recheck imports. The package requires Python >= 3.10 and IDA >= 9.1 ([package metadata](https://pypi.org/project/ida-domain/0.5.1/)). GUI-only installations retain manual idalib setup guidance. Unsupported Python, unavailable interpreters, and import/license/linker failures remain distinct diagnostics rather than automatic package repairs.
 - `loadMode: "discoverable"` — mounted as `xd://ida` when xdev is on.
 - Approval tiers: `list` → read, `exec` → exec, every other action → write.
 
@@ -89,7 +91,7 @@ Persistent per DB and shared by all agents. Preloaded: `db` (ida_domain `Databas
 - `no <arch> slice; available: …` / `<path> is not a universal binary; drop :@<arch>`
 - `<field> is required for <action>`
 - An in-place IDB with an unpacked `.id0` sibling is refused as apparently open in IDA; close it there first.
-- IDA unavailable (no interpreter imports `ida_domain` + `idapro`): install ida-domain or set `ida.python`.
+- IDA unavailable: missing adapter packages include the exact interpreter repair command; use `reverse setup reverse ida --execute` for confirmed installation. Unsupported Python requires a compatible `ida.python`; import failures retain their original diagnostic and require checking the IDA runtime, license, and installation path.
 - `IDA database limit reached (<n> open, all busy: …)` — close one or raise `ida.maxOpen`.
 - `IDA <id> busy: …` — the queue ahead did not drain within the request timeout.
 - `IDA host <name> exited; see \`reverse ps logs <name>\`` — the host died mid-request.

@@ -58,8 +58,9 @@
 
 - **四类独立运行后端**：
   1. **IDA GUI 桌面程序**：用于交互式图形界面逆向与人工研判，通过 `hasIdaBinary` / `probeIdaTool` 探测。
-  2. **idalib 无头 SDK**：用于免图形界面的 Python/C++ 脚本执行，为 `read-binary` 虚拟只读解析与 `ida` 工具的必要先决条件。
-  3. **本地数据库 (.idb / .i64)**：工作区既有的 IDA 数据库文件，无需实时 IDA 进程即可识别与离线研判。
+  2. **idalib 无头 SDK**：`idalibAvailable` 表示原生库已安装；`pythonAdapterReady` 表示实际解释器按工作进程环境成功导入 `idapro` 和 `ida_domain`。原生库与 Python 适配器共同决定原生解析后端是否就绪。
+  3. **本地数据库 (.idb / .i64)**：格式识别使用 `localDatabaseRecognized`；解析后端就绪使用 `localDatabaseBackendAvailable` / `localDatabaseSupported`，要求原生库与 Python 导入检查通过。实际打开数据库和反编译另行验证。
   4. **MCP 桥接服务 (`ida-mcp`)**：连接外部活跃 IDA 调试/分析会话的桥接插件。
 - **桥接缺失不代表 IDA 缺失**：`ida-mcp` 桥接未配置或未连接时，仅说明 MCP 桥接通道未就绪，**绝不判定整个 IDA 安装缺失**；若 GUI 或 `idalib` 存在，仍可分别独立用于桌面分析或无头反编译。
 - **非强制性约束**：Native 逆向分析根据目标场景平滑降级，绝不设定硬性外部 IDA 安装数或 MCP 服务连接数要求；零配置内置工具（`triage`）及 `r2_inspect` 在无商业授权或沙盒环境中足以完成基线逆向。
+- **依赖修复入口**：`reverse setup reverse ida --execute` 与 TUI `/setup reverse ida` 使用同一安装流程，确认后在实际选定的 Python 中安装 `ida-domain==0.5.1` 并重新探测。显式 `ida.python` 优先；自动探测依次检查当前／项目虚拟环境、受管环境与 PATH。状态包含 `pythonPath`、`pythonVersion`、`missingPackages` 和 `adapterErrorType`，区分缺包、Python 版本过低、解释器缺失及导入失败；GUI 与 MCP 桥接保持独立。

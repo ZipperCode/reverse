@@ -309,8 +309,16 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					`- **idalib Headless SDK**: ${idaBackends.idalibAvailable ? `Available (${idaBackends.idalibPath})` : "Not found"}`,
 				);
 				lines.push(
-					`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : "No (requires idalib)"}`,
+					`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : idaBackends.idalibAvailable ? (idaBackends.adapterError ? `No (${idaBackends.adapterError})` : "No (Python adapter not ready)") : "No (requires idalib)"}`,
 				);
+				if (idaBackends.idalibAvailable) {
+					const pyDesc = idaBackends.pythonAdapterReady
+						? `Ready (${idaBackends.pythonPath})`
+						: idaBackends.adapterError
+							? `Not ready (${idaBackends.adapterError})`
+							: "Not ready";
+					lines.push(`- **idalib Python Adapter**: ${pyDesc}`);
+				}
 				lines.push(
 					`- **MCP Bridge**: ${idaBackends.mcpBridgeConnected ? "Connected" : idaBackends.mcpBridgeConfigured ? "Configured (disconnected)" : "Not configured (bridge absent does not imply IDA absent)"}`,
 				);
@@ -407,8 +415,16 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 						`- **idalib Headless SDK**: ${idaBackends.idalibAvailable ? `Available (${idaBackends.idalibPath})` : "Not found"}`,
 					);
 					lines.push(
-						`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : "No (requires idalib)"}`,
+						`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : idaBackends.idalibAvailable ? (idaBackends.adapterError ? `No (${idaBackends.adapterError})` : "No (Python adapter not ready)") : "No (requires idalib)"}`,
 					);
+					if (idaBackends.idalibAvailable) {
+						const pyDesc = idaBackends.pythonAdapterReady
+							? `Ready (${idaBackends.pythonPath})`
+							: idaBackends.adapterError
+								? `Not ready (${idaBackends.adapterError})`
+								: "Not ready";
+						lines.push(`- **idalib Python Adapter**: ${pyDesc}`);
+					}
 					lines.push(
 						`- **MCP Bridge**: ${idaBackends.mcpBridgeConnected ? "Connected" : idaBackends.mcpBridgeConfigured ? "Configured (disconnected)" : "Not configured (bridge absent does not imply IDA absent)"}`,
 					);
@@ -564,8 +580,16 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					`- **idalib Headless SDK**: ${idaBackends.idalibAvailable ? `Available (${idaBackends.idalibPath})` : "Not found"}`,
 				);
 				lines.push(
-					`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : "No (requires idalib)"}`,
+					`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : idaBackends.idalibAvailable ? (idaBackends.adapterError ? `No (${idaBackends.adapterError})` : "No (Python adapter not ready)") : "No (requires idalib)"}`,
 				);
+				if (idaBackends.idalibAvailable) {
+					const pyDesc = idaBackends.pythonAdapterReady
+						? `Ready (${idaBackends.pythonPath})`
+						: idaBackends.adapterError
+							? `Not ready (${idaBackends.adapterError})`
+							: "Not ready";
+					lines.push(`- **idalib Python Adapter**: ${pyDesc}`);
+				}
 				lines.push(
 					`- **MCP Bridge**: ${idaBackends.mcpBridgeConnected ? "Connected" : idaBackends.mcpBridgeConfigured ? "Configured (disconnected)" : "Not configured (bridge absent does not imply IDA absent)"}`,
 				);

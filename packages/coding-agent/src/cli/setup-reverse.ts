@@ -48,6 +48,7 @@ import { getNativeMcpServer, inspectNativeMcp, type NativeMcpService } from "../
 import { getPortableToolRecipe } from "../extensibility/portable-tool-install";
 import { expandTilde } from "../tools/path-utils";
 import { cfgDebugEnabled } from "../tools/settings";
+import { hasIdalib, locateIdaInstall, probeIdaPythonEnvironment } from "../ida/install";
 export interface ReverseToolStatus {
 	kind: "cli";
 	id: string;
@@ -59,6 +60,7 @@ export interface ReverseToolStatus {
 	status: "installed" | "missing";
 	foundPath: string | null;
 	secondaryMissing?: string[];
+	adapterError?: string;
 	packageManager: string | null;
 	installCommand: string | null;
 	installArgv: readonly string[] | null;
@@ -296,6 +298,7 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		which,
 		env: deps.env,
 		settings: effectiveSettings,
+		cwd: deps.cwd,
 	});
 	const statusById: Record<string, RequirementStatus> = Object.fromEntries(statuses.map(s => [s.id, s]));
 
@@ -314,6 +317,10 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			if (isOptional) missingOptional.push(desc.id);
 			else missingRequired.push(desc.id);
 		}
+
+		let manualGuide =
+			desc.manualInstructions?.[platform] ??
+			(desc.manualUrl ? `See official instructions at ${desc.manualUrl}` : "Manual setup required.");
 
 		let chosenCmd = isInstalled ? undefined : selectInstallCommand(desc, platform, detectedPackageManagers);
 		if (!isInstalled && !chosenCmd) {
@@ -342,12 +349,46 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 						`Downloads portable ${desc.name ?? desc.id} directly from upstream into agent tools directory.`,
 					),
 				};
+			} else if (desc.id === "ida" && foundPath && hasIdalib(foundPath, platform)) {
+				const pyProbe = probeIdaPythonEnvironment({
+					cwd: deps.cwd,
+					env: deps.env,
+					settings: effectiveSettings,
+					installDir: foundPath,
+				});
+				if (pyProbe.repairCommand) {
+					chosenCmd = {
+						manager: "pip",
+						command: pyProbe.repairCommand.command,
+						argv: pyProbe.repairCommand.argv,
+						riskNote: t(
+							"cli.setup.reverse.ida.repair.risk",
+							"Installs ida-domain==0.5.1 and required idapro into the Python runtime used by IDA idalib.",
+						),
+					};
+				} else if (pyProbe.selectedCandidate?.errorType === "unsupported_python") {
+					manualGuide = t(
+						"cli.setup.reverse.ida.unsupportedPython",
+						`IDA host found with idalib, but target Python (${pyProbe.selectedCandidate.pythonPath} ${pyProbe.selectedCandidate.version ?? ""}) is unsupported. ida-domain requires Python >= 3.10 and IDA >= 9.1. Configure ida.python in settings to point to a compatible Python >= 3.10 virtual environment.`,
+						{
+							python: pyProbe.selectedCandidate.pythonPath,
+							version: pyProbe.selectedCandidate.version ?? "",
+						},
+					);
+				} else if (pyProbe.selectedCandidate?.errorType === "import_error") {
+					manualGuide = t(
+						"cli.setup.reverse.ida.importError",
+						`IDA host found with idalib, but Python adapter failed to import: ${pyProbe.selectedCandidate.error}. Verify IDA license, IDADIR, system libraries, and idapyswitch configuration.`,
+						{ error: pyProbe.selectedCandidate.error ?? "" },
+					);
+				} else if (pyProbe.selectedCandidate?.errorType === "interpreter_unavailable") {
+					manualGuide = t(
+						"cli.setup.reverse.ida.noInterpreter",
+						"IDA host found with idalib, but no functional Python interpreter was found. Install Python >= 3.10 or configure ida.python in settings.",
+					);
+				}
 			}
 		}
-		const manualGuide =
-			desc.manualInstructions?.[platform] ??
-			(desc.manualUrl ? `See official instructions at ${desc.manualUrl}` : "Manual setup required.");
-
 		tools.push({
 			kind: "cli",
 			id: desc.id,
@@ -359,6 +400,7 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			status: isInstalled ? "installed" : "missing",
 			foundPath,
 			...(secondaryMissing && secondaryMissing.length > 0 && { secondaryMissing }),
+			...(reqStatus?.adapterError && { adapterError: reqStatus.adapterError }),
 			packageManager: chosenCmd?.manager ?? null,
 			installCommand: chosenCmd?.command ?? null,
 			installArgv: chosenCmd?.argv && chosenCmd.argv.length > 0 ? chosenCmd.argv : null,
@@ -538,11 +580,17 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 }
 
 /** Verify that an item's installArgv strictly originates from the trusted catalog. */
-export function isTrustedCatalogArgv(item: ReverseToolStatus | ReverseServiceStatus): boolean {
+export function isTrustedCatalogArgv(
+	item: ReverseToolStatus | ReverseServiceStatus,
+	options?: {
+		settings?: Settings;
+		cwd?: string;
+		env?: Record<string, string | undefined>;
+	},
+): boolean {
 	if (!item.installArgv || item.installArgv.length === 0) {
 		return false;
 	}
-
 	if (item.kind === "cli") {
 		const desc = SKILL_TOOL_CATALOG[item.id];
 		if (!desc) return false;
@@ -568,6 +616,48 @@ export function isTrustedCatalogArgv(item: ReverseToolStatus | ReverseServiceSta
 			item.installArgv[4] === "--execute"
 		) {
 			return true;
+		}
+		if (item.id === "ida") {
+			if (
+				item.packageManager !== "pip" ||
+				!item.installArgv ||
+				item.installArgv.length !== 5 ||
+				item.installArgv[1] !== "-m" ||
+				item.installArgv[2] !== "pip" ||
+				item.installArgv[3] !== "install" ||
+				item.installArgv[4] !== "ida-domain==0.5.1"
+			) {
+				return false;
+			}
+			const effectiveSettings =
+				options?.settings ?? (isSettingsInitialized() ? settings : getCachedReadOnlySettings());
+			const idaDir =
+				locateIdaInstall(options?.settings ? undefined : (item.foundPath ?? undefined), {
+					env: options?.env,
+					settings: effectiveSettings,
+					cwd: options?.cwd,
+					requireIdalib: true,
+				}) ??
+				locateIdaInstall(undefined, {
+					env: options?.env,
+					settings: effectiveSettings,
+					cwd: options?.cwd,
+					requireIdalib: true,
+				});
+			if (!idaDir) return false;
+
+			const pyProbe = probeIdaPythonEnvironment({
+				installDir: idaDir,
+				cwd: options?.cwd,
+				env: options?.env,
+				settings: effectiveSettings,
+			});
+			if (!pyProbe.repairCommand?.argv) return false;
+			const expectedArgv = pyProbe.repairCommand.argv;
+			return (
+				expectedArgv.length === item.installArgv.length &&
+				expectedArgv.every((val, idx) => val === item.installArgv![idx])
+			);
 		}
 		if (!desc.installCommands) return false;
 		for (const cmds of Object.values(desc.installCommands)) {
@@ -621,9 +711,11 @@ export async function executeSafeCatalogCommand(
 		allowNonTTY?: boolean;
 		isTTY?: boolean;
 		env?: Record<string, string | undefined>;
+		settings?: Settings;
+		cwd?: string;
 	},
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	if (!isTrustedCatalogArgv(item)) {
+	if (!isTrustedCatalogArgv(item, { settings: options?.settings, cwd: options?.cwd, env: options?.env })) {
 		return {
 			exitCode: 1,
 			stdout: "",
@@ -647,7 +739,8 @@ export async function executeSafeCatalogCommand(
 	const platform: SkillToolPlatform =
 		process.platform === "darwin" || process.platform === "win32" ? process.platform : "linux";
 	const separator = platform === "win32" ? ";" : path.delimiter;
-	const effectiveEnv = options?.env ?? process.env;
+	const effectiveEnv =
+		options?.env ?? (item.id === "ida" ? options?.settings?.getShellConfig().env : undefined) ?? process.env;
 	const basePath = effectiveEnv.PATH ?? "";
 	const androidHome = effectiveEnv.ANDROID_HOME ?? effectiveEnv.ANDROID_SDK_ROOT;
 	const androidDirs = androidHome
@@ -959,8 +1052,9 @@ export async function handleReverseSetup(
 	targetTool?: string,
 	deps: ReverseSetupDeps = {},
 ): Promise<number> {
+	const effectiveCwd = deps.cwd ?? getProjectDir();
 	const loadedSettings = deps.settings ?? (await loadEffectiveSettings());
-	const effectiveDeps: ReverseSetupDeps = { ...deps, settings: loadedSettings };
+	const effectiveDeps: ReverseSetupDeps = { ...deps, cwd: effectiveCwd, settings: loadedSettings };
 	const write = deps.writeStdout ?? (text => process.stdout.write(text));
 	const writeErr = deps.writeStderr ?? (text => process.stderr.write(text));
 	const promptLine = deps.promptLine ?? runDefaultPrompt;
@@ -1319,9 +1413,7 @@ export async function handleReverseSetup(
 			write(`\n${chalk.bold("Canonical invocation:")}\n  ${chalk.cyan(tool.usage.canonical)}\n`);
 		}
 		if (tool.secondaryMissing && tool.secondaryMissing.length > 0) {
-			write(
-				`${chalk.yellow(`Prerequisite missing: ${tool.secondaryMissing.join(", ")} (requires Java runtime)`)}\n`,
-			);
+			write(`${chalk.yellow(`Prerequisite missing: ${tool.secondaryMissing.join(", ")}`)}\n`);
 		}
 		if (tool.installCommand) {
 			write(`\n${chalk.bold("Recommended installation command:")}\n`);
@@ -1381,7 +1473,8 @@ export async function handleReverseSetup(
 		platform: deps.platform,
 		env: deps.env,
 		agentDir: deps.agentDir,
-		cwd: deps.cwd,
+		cwd: effectiveCwd,
+		settings: loadedSettings,
 		report,
 	};
 
@@ -1498,11 +1591,12 @@ export async function handleReverseSetup(
 		try {
 			const result = await installReverseItem(item, {
 				plan,
-				cwd: deps.cwd ?? getProjectDir(),
+				cwd: effectiveCwd,
 				agentDir: deps.agentDir,
 				which: deps.which,
 				platform: deps.platform,
 				env: deps.env,
+				settings: loadedSettings,
 				executor: deps.executor,
 				onChunk: chunk => write(chalk.dim(chunk)),
 			});

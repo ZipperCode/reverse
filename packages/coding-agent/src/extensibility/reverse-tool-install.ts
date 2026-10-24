@@ -27,6 +27,7 @@ import {
 } from "@reverse/utils";
 import { refreshShellConfigCache } from "@reverse/utils/procmgr";
 import { invalidateShellSnapshotCache } from "../utils/shell-snapshot";
+import type { Settings } from "../config/settings";
 import {
 	SKILL_TOOL_CATALOG,
 	type PackageInstallCommand,
@@ -52,6 +53,8 @@ import {
 	WEBCRACK_PACKAGE_NAME,
 	WEBCRACK_PACKAGE_VERSION,
 } from "./jshookmcp-install";
+import { probeIdaPythonEnvironment } from "../ida/install";
+import { clearIdaRuntimeCache } from "../ida/runtime";
 import {
 	getNativeMcpServer,
 	installNativeMcpService,
@@ -77,6 +80,7 @@ export interface ReverseInstallOptions {
 	which?: SkillRequirementWhich;
 	platform?: NodeJS.Platform;
 	env?: Record<string, string | undefined>;
+	settings?: Settings;
 	mcpManager?: Pick<MCPManager, "connectServers" | "getConnectionStatus" | "getTools">;
 	session?: Pick<AgentSession, "refreshMCPTools">;
 	signal?: AbortSignal;
@@ -95,8 +99,9 @@ export interface ReverseInstallStep {
 	isDependency?: boolean;
 	secondaryMissing?: string[];
 	manualInstructions?: string;
+	foundPath?: string | null;
 	serverConfigSnapshot?: string;
-	installer?: "jshookmcp" | "portable" | "unidbg" | "native-mcp" | "triton";
+	installer?: "jshookmcp" | "portable" | "unidbg" | "native-mcp" | "triton" | "pip";
 }
 
 export interface ReverseInstallPlan {
@@ -303,6 +308,7 @@ export function getReverseInstallPlan(
 		agentDir?: string;
 		cwd?: string;
 		report?: ReverseCheckReport;
+		settings?: Settings;
 	} = {},
 ): ReverseInstallPlan {
 	const reqPlatform = options.platform ?? options.report?.platform ?? process.platform;
@@ -316,6 +322,7 @@ export function getReverseInstallPlan(
 			env: options.env,
 			agentDir: options.agentDir,
 			cwd: options.cwd,
+			settings: options.settings,
 		});
 
 	const statusById: Record<string, ReverseToolStatus | ReverseServiceStatus> = {};
@@ -339,7 +346,7 @@ export function getReverseInstallPlan(
 			return false;
 		}
 
-		const currentStatus = statusById[id];
+		const currentStatus = (id === item.id ? item : statusById[id]) ?? item;
 		if (currentStatus?.status === "installed") {
 			inProgress.delete(id);
 			visited.add(id);
@@ -398,7 +405,30 @@ export function getReverseInstallPlan(
 			visited.add(id);
 			return true;
 		}
-
+		if (
+			id === "ida" &&
+			currentStatus?.kind === "cli" &&
+			currentStatus.installArgv &&
+			currentStatus.packageManager === "pip"
+		) {
+			steps.push({
+				id: "ida",
+				name: desc.name ?? "IDA Pro",
+				kind: "cli",
+				packageManager: "pip",
+				installer: "pip",
+				command: currentStatus.installCommand ?? currentStatus.installArgv.join(" "),
+				argv: currentStatus.installArgv,
+				riskNote: currentStatus.riskNote ?? undefined,
+				isDependency: id !== item.id,
+				secondaryMissing: currentStatus.secondaryMissing ? [...currentStatus.secondaryMissing] : undefined,
+				manualInstructions: currentStatus.manualInstructions ?? desc.manualInstructions?.[platform],
+				foundPath: currentStatus.foundPath,
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
 		// 2. Find a viable recipe strictly on this platform
 		const recipes = desc.installCommands?.[platform] ?? [];
 		let chosenRecipe: PackageInstallCommand | undefined;
@@ -751,7 +781,7 @@ function makeCanonicalCatalogStatus(step: ReverseInstallStep): ReverseToolStatus
 			optional: desc.optional ?? true,
 			systemTool: desc.systemTool ?? false,
 			status: "missing",
-			foundPath: null,
+			foundPath: step.foundPath ?? null,
 			packageManager: step.packageManager ?? null,
 			installCommand: step.command ?? null,
 			installArgv: step.argv ?? null,
@@ -808,6 +838,7 @@ function probeCliBinary(
 	whichFn: SkillRequirementWhich,
 	env: Record<string, string | undefined>,
 	platform: SkillToolPlatform,
+	options?: { settings?: Settings; cwd?: string },
 ): string | null {
 	const npmPrefix =
 		env?.NPM_CONFIG_PREFIX ??
@@ -824,7 +855,7 @@ function probeCliBinary(
 	const combinedPath = [...extraPaths, ...currentPath.split(path.delimiter)].filter(Boolean).join(path.delimiter);
 
 	const probeEnv: Record<string, string | undefined> = {
-		...process.env,
+		...(descriptor.id === "ida" ? {} : process.env),
 		...env,
 		PATH: combinedPath,
 	};
@@ -833,6 +864,8 @@ function probeCliBinary(
 		which: whichFn,
 		platform,
 		env: probeEnv,
+		settings: options?.settings,
+		cwd: options?.cwd,
 	});
 	const st = statuses[0];
 	if (!st || !st.foundPath || (st.secondaryMissing && st.secondaryMissing.length > 0)) {
@@ -848,6 +881,9 @@ export async function installReverseItem(
 	item: ReverseToolStatus | ReverseServiceStatus,
 	options: ReverseInstallOptions = {},
 ): Promise<{ success: boolean; message?: string; activated?: boolean }> {
+	if (item.id === "ida" && !options.env && options.settings) {
+		options = { ...options, env: options.settings.getShellConfig().env };
+	}
 	const reqPlatform = options.platform ?? process.platform;
 	const platform: SkillToolPlatform = reqPlatform === "darwin" || reqPlatform === "win32" ? reqPlatform : "linux";
 	const which: SkillRequirementWhich = options.which ?? $which;
@@ -908,7 +944,11 @@ export async function installReverseItem(
 			step.id === "triton"
 		) {
 			// Trusted internal portable/build/venv installer
-		} else if (step.argv && step.argv.length > 0 && !isTrustedCatalogArgv(canonical)) {
+		} else if (
+			step.argv &&
+			step.argv.length > 0 &&
+			!isTrustedCatalogArgv(canonical, { settings: options.settings, cwd: options.cwd, env: options.env })
+		) {
 			return {
 				success: false,
 				message: `Untrusted installation command for ${step.name}: argv does not match catalog definition.`,
@@ -939,7 +979,10 @@ export async function installReverseItem(
 	for (const id of checkIds) {
 		const desc = SKILL_TOOL_CATALOG[id];
 		if (desc) {
-			const found = probeCliBinary(desc, which, options.env ?? process.env, platform);
+			const found = probeCliBinary(desc, which, options.env ?? process.env, platform, {
+				settings: options.settings,
+				cwd: options.cwd,
+			});
 			if (found && path.isAbsolute(found)) {
 				prePaths.push(path.dirname(found));
 				if (id === "java" && !preJavaHome) {
@@ -1063,7 +1106,10 @@ export async function installReverseItem(
 					},
 					options.agentDir,
 				);
-				const foundPath = probeCliBinary(descriptor, which, options.env ?? process.env, platform);
+				const foundPath = probeCliBinary(descriptor, which, options.env ?? process.env, platform, {
+					settings: options.settings,
+					cwd: options.cwd,
+				});
 				if (!foundPath) {
 					return {
 						success: false,
@@ -1074,7 +1120,7 @@ export async function installReverseItem(
 			}
 
 			// Validate strictly against catalog definitions before execution
-			if (!isTrustedCatalogArgv(canonical)) {
+			if (!isTrustedCatalogArgv(canonical, { settings: options.settings, cwd: options.cwd, env: options.env })) {
 				return {
 					success: false,
 					message: `Untrusted installation command for ${step.name}: argv does not match catalog definition.`,
@@ -1082,7 +1128,10 @@ export async function installReverseItem(
 			}
 			// Skip re-executing dependency if it was already fulfilled earlier in this batch
 			if (step.isDependency) {
-				const already = probeCliBinary(descriptor, which, options.env ?? process.env, platform);
+				const already = probeCliBinary(descriptor, which, options.env ?? process.env, platform, {
+					settings: options.settings,
+					cwd: options.cwd,
+				});
 				if (already) {
 					continue;
 				}
@@ -1101,6 +1150,9 @@ export async function installReverseItem(
 					isTTY: true,
 					timeoutMs: 180_000,
 					onChunk: options.onChunk,
+					env: options.env,
+					settings: options.settings,
+					cwd: options.cwd,
 				});
 			}
 			if (execRes.exitCode !== 0) {
@@ -1120,8 +1172,18 @@ export async function installReverseItem(
 				};
 			}
 
+			if (step.id === "ida") {
+				clearIdaRuntimeCache();
+			}
+			const reprobeEnv =
+				step.id === "ida" && (step.foundPath ?? (item as ReverseToolStatus).foundPath)
+					? { ...(options.env ?? process.env), IDADIR: (step.foundPath ?? (item as ReverseToolStatus).foundPath)! }
+					: (options.env ?? process.env);
 			// Reprobe binary to ensure real usability (exit 0 alone does not prove success)
-			const foundPath = probeCliBinary(descriptor, which, options.env ?? process.env, platform);
+			const foundPath = probeCliBinary(descriptor, which, reprobeEnv, platform, {
+				settings: options.settings,
+				cwd: options.cwd,
+			});
 			if (!foundPath) {
 				const licenseHint =
 					step.packageManager === "sdkmanager"
@@ -1131,6 +1193,22 @@ export async function installReverseItem(
 					success: false,
 					message: `Command completed with exit code 0, but ${step.name} executable was not found on PATH or catalog search paths.${licenseHint}`,
 				};
+			}
+
+			if (step.id === "ida") {
+				const idaDir = step.foundPath ?? (item as ReverseToolStatus).foundPath ?? foundPath;
+				const pyProbe = probeIdaPythonEnvironment({
+					installDir: idaDir,
+					cwd: options.cwd,
+					env: reprobeEnv,
+					settings: options.settings,
+				});
+				if (!pyProbe.success) {
+					return {
+						success: false,
+						message: `Installation command completed, but IDA Python adapter is not ready: ${pyProbe.errorReason}`,
+					};
+				}
 			}
 
 			// Persist narrow environment
@@ -1428,12 +1506,33 @@ export async function installReverseItem(
 		if (!desc) {
 			return { success: false, message: `Tool "${item.id}" not found in catalog.` };
 		}
-		const finalPath = probeCliBinary(desc, which, options.env ?? process.env, platform);
+		const finalReprobeEnv =
+			item.id === "ida" && item.foundPath
+				? { ...(options.env ?? process.env), IDADIR: item.foundPath }
+				: (options.env ?? process.env);
+		const finalPath = probeCliBinary(desc, which, finalReprobeEnv, platform, {
+			settings: options.settings,
+			cwd: options.cwd,
+		});
 		if (!finalPath) {
 			return {
 				success: false,
 				message: `Installation steps finished, but ${item.name} executable was not found on PATH or catalog search paths.`,
 			};
+		}
+		if (item.id === "ida") {
+			const pyProbe = probeIdaPythonEnvironment({
+				installDir: item.foundPath ?? finalPath,
+				cwd: options.cwd,
+				env: finalReprobeEnv,
+				settings: options.settings,
+			});
+			if (!pyProbe.success) {
+				return {
+					success: false,
+					message: `Installation steps finished, but IDA Python adapter is not ready: ${pyProbe.errorReason}`,
+				};
+			}
 		}
 		const extraPaths = [path.dirname(finalPath)];
 		let javaHome: string | undefined;
@@ -1443,7 +1542,10 @@ export async function installReverseItem(
 		for (const sec of desc.secondary ?? []) {
 			const sDesc = SKILL_TOOL_CATALOG[sec];
 			if (sDesc) {
-				const secPath = probeCliBinary(sDesc, which, options.env ?? process.env, platform);
+				const secPath = probeCliBinary(sDesc, which, options.env ?? process.env, platform, {
+					settings: options.settings,
+					cwd: options.cwd,
+				});
 				if (secPath) {
 					extraPaths.push(path.dirname(secPath));
 					if (sec === "java" && !javaHome) {

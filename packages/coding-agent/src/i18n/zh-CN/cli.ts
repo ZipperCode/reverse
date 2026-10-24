@@ -135,6 +135,15 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.setup.reverse.tool.python.description": "Python 3.9+ 运行环境，为 DEX 补丁与 APK 重新打包管线提供执行引擎。",
 	"cli.setup.reverse.tool.ida.description":
 		"通过 IDA 的 idalib 无头引擎进行反汇编与反编译；需相应授权及 Python 环境，无需打开桌面端。",
+	"cli.setup.reverse.ida.name": "IDA Pro",
+	"cli.setup.reverse.ida.repair.risk":
+		"向 IDA idalib 使用的 Python 环境中安装 ida-domain==0.5.1 并按需更新 idapro 依赖。",
+	"cli.setup.reverse.ida.unsupportedPython":
+		"已检测到 IDA 安装及 idalib，但目标 Python 环境（{python} 版本 {version}）不受支持。ida-domain 要求 Python >= 3.10 且 IDA >= 9.1。请在设置中配置 ida.python 指向兼容的 Python >= 3.10 虚拟环境。",
+	"cli.setup.reverse.ida.importError":
+		"已检测到 IDA 安装及 idalib，但在 Python 环境中导入适配层时出错：{error}。请检查 IDA 授权许可、IDADIR 路径、系统依赖库以及 idapyswitch 配置。",
+	"cli.setup.reverse.ida.noInterpreter":
+		"已检测到 IDA 安装及 idalib，但未找到可用的 Python 解释器。请安装 Python >= 3.10 或在设置中配置 ida.python。",
 	"cli.setup.reverse.tool.playwright-mcp.description": "通过 MCP 提供浏览器操作、页面状态读取和动态 Web 分析能力。",
 	"cli.setup.reverse.tool.r2mcp.description": "通过 MCP 保持 radare2 分析会话，提供反汇编、交叉引用和脚本查询。",
 	"cli.setup.reverse.tool.jshookmcp.description":

@@ -5,14 +5,20 @@
  * Detection is synchronous because tool gating and prompt rendering are synchronous; it runs
  * once per settings input change (memoized by the registry), never per call.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { $env, $which, getMCPConfigPath, getProjectDir, logger, type WhichOptions } from "@reverse/utils";
 import { combine } from "../config/registry";
 import type { Settings } from "../config/settings";
-import { cfgIdaEnabled, cfgIdaInstallDir } from "./settings";
+import {
+	enumeratePythonRuntimes,
+	filterEnv,
+	type PythonRuntime,
+	resolveExplicitPythonRuntime,
+} from "../eval/py/runtime";
+import { cfgIdaEnabled, cfgIdaInstallDir, cfgIdaPython } from "./settings";
 
 export interface LocateIdaOptions {
 	env?: Record<string, string | undefined>;
@@ -21,6 +27,8 @@ export interface LocateIdaOptions {
 	requireIdalib?: boolean;
 	settings?: Settings;
 	installDir?: string;
+	python?: string;
+	cwd?: string;
 }
 const IDA_BINARIES: Record<string, readonly string[]> = {
 	win32: ["ida.exe", "idat.exe", "ida64.exe", "idat64.exe", "idaq.exe", "idaq64.exe", "idalib.dll"],
@@ -299,6 +307,299 @@ export function probeIdaTool(options: LocateIdaOptions = {}): string | null {
 	return candidates.find(dir => hasIdaBinary(dir, targetPlatform)) ?? null;
 }
 
+export type IdaAdapterErrorType = "missing_package" | "import_error" | "unsupported_python" | "interpreter_unavailable";
+
+export interface IdaPythonCandidateDiagnostic {
+	pythonPath: string;
+	version?: string;
+	supportedVersion?: boolean;
+	idaproImported?: boolean;
+	domainImported?: boolean;
+	missingPackages?: string[];
+	errorType?: IdaAdapterErrorType;
+	error?: string;
+}
+
+export interface IdaPythonProbeResult {
+	success: boolean;
+	runtime?: {
+		pythonPath: string;
+		env: Record<string, string>;
+	};
+	targetPython?: string;
+	selectedCandidate?: IdaPythonCandidateDiagnostic;
+	candidates: IdaPythonCandidateDiagnostic[];
+	repairCommand?: {
+		pythonPath: string;
+		command: string;
+		argv: string[];
+	};
+	errorReason?: string;
+}
+
+// 探测脚本说明（关键设计与调用语义）：
+// 1. 标准输出重定向隔离：idalib/idapro 在初始化底层 C++ 库时可能会向 fd 1 输出各类版权与诊断 banner，
+//    若直接使用 print 输出 JSON，会导致 banner 混入 stdout 进而使 JSON 解析崩溃。
+//    因此预先将真正的 stdout (fd 1) 复制到私有句柄 _proto，并将 fd 1 重定向至 fd 2 (stderr)。
+// 2. 严格按 worker.py 语义依序导入：worker.py 在启动时必须先 import idapro（加载 libidalib），
+//    配置好信号拦截后才能 import ida_domain。颠倒顺序或仅检查 spec 会产生误报或导入失败。
+// 3. 真实记录导入标志：必须在 Python 内部实际 try...import 成功后才置为 True，严禁在客户端根据 spec 状态捏造导入结果。
+const PROBE_CODE = `
+import os, sys, json, importlib.util
+
+_proto = os.fdopen(os.dup(1), "w", encoding="utf-8")
+os.dup2(2, 1)
+v = sys.version_info
+supported = (v.major > 3) or (v.major == 3 and v.minor >= 10)
+ver_str = f"{v.major}.{v.minor}.{v.micro}"
+
+spec_idapro = bool(importlib.util.find_spec("idapro"))
+spec_domain = bool(importlib.util.find_spec("ida_domain"))
+
+missing = []
+if not spec_idapro:
+    missing.append("idapro")
+if not spec_domain:
+    missing.append("ida-domain")
+
+err = None
+err_type = None
+idapro_imported = False
+domain_imported = False
+
+if not supported:
+    err_type = "unsupported_python"
+    err = f"Python {ver_str} is unsupported; ida-domain requires Python >= 3.10 and IDA >= 9.1"
+elif missing:
+    err_type = "missing_package"
+    missing_str = ", ".join(missing)
+    err = f"Missing required Python adapter package(s): {missing_str}"
+else:
+    try:
+        import idapro
+        idapro_imported = True
+        try:
+            import ida_domain
+            domain_imported = True
+        except Exception as e:
+            err_type = "import_error"
+            err = f"Failed to import ida_domain: {e}"
+    except Exception as e:
+        err_type = "import_error"
+        err = f"Failed to import idapro: {e}"
+
+res = {
+    "version": ver_str,
+    "supported_version": supported,
+    "has_idapro_spec": spec_idapro,
+    "has_domain_spec": spec_domain,
+    "idapro_imported": idapro_imported,
+    "domain_imported": domain_imported,
+    "missing_packages": missing,
+    "error_type": err_type,
+    "error": err,
+    "ready": err_type is None and idapro_imported and domain_imported
+}
+_proto.write(json.dumps(res) + "\\n")
+_proto.flush()
+`;
+
+function probeSingleCandidate(candidate: PythonRuntime, installDir: string, cwd: string): IdaPythonCandidateDiagnostic {
+	const probeEnv: Record<string, string> = {};
+	for (const key in candidate.env) {
+		const val = candidate.env[key];
+		if (typeof val === "string") probeEnv[key] = val;
+	}
+	probeEnv.PYTHONUNBUFFERED = "1";
+	probeEnv.PYTHONIOENCODING = "utf-8";
+	probeEnv.IDADIR = installDir;
+	if ($env.IDAUSR) probeEnv.IDAUSR = $env.IDAUSR;
+
+	try {
+		const res = spawnSync(candidate.pythonPath, ["-c", PROBE_CODE], {
+			cwd,
+			env: probeEnv,
+			timeout: 3000,
+			encoding: "utf-8",
+			windowsHide: true,
+		});
+		if (res.error || res.status !== 0 || res.signal) {
+			const errOutput =
+				res.error?.message ||
+				(res.signal
+					? `Process terminated with signal ${res.signal}`
+					: res.stderr?.trim() || `Process exited with code ${res.status}`);
+			return {
+				pythonPath: candidate.pythonPath,
+				errorType: "interpreter_unavailable",
+				error: errOutput,
+				missingPackages: [],
+			};
+		}
+		const stdout = res.stdout?.trim();
+		if (stdout) {
+			try {
+				const parsed = JSON.parse(stdout);
+				return {
+					pythonPath: candidate.pythonPath,
+					version: parsed.version,
+					supportedVersion: Boolean(parsed.supported_version),
+					idaproImported: Boolean(parsed.idapro_imported),
+					domainImported: Boolean(parsed.domain_imported),
+					missingPackages: Array.isArray(parsed.missing_packages) ? parsed.missing_packages : [],
+					errorType: parsed.error_type ?? undefined,
+					error: parsed.error ?? undefined,
+				};
+			} catch {}
+		}
+		const errOutput = res.stderr?.trim() || `Process exited with code ${res.status}`;
+		return {
+			pythonPath: candidate.pythonPath,
+			errorType: "interpreter_unavailable",
+			error: errOutput,
+			missingPackages: [],
+		};
+	} catch (e) {
+		return {
+			pythonPath: candidate.pythonPath,
+			errorType: "interpreter_unavailable",
+			error: e instanceof Error ? e.message : String(e),
+			missingPackages: [],
+		};
+	}
+}
+
+export function probeIdaPythonEnvironment(options: {
+	python?: string;
+	installDir: string;
+	cwd?: string;
+	env?: Record<string, string | undefined>;
+	settings?: Settings;
+}): IdaPythonProbeResult {
+	const cwd = options.cwd ?? getProjectDir();
+	// 使用原生工作进程的环境，避免项目 dotenv 中的 Python 路径造成就绪误报。
+	const baseEnv = filterEnv(options.env ?? options.settings?.getShellConfig().env ?? process.env);
+	const python =
+		options.python?.trim() ||
+		(options.settings ? cfgIdaPython.get(options.settings)?.trim() : undefined) ||
+		undefined;
+
+	const candidates: PythonRuntime[] = python
+		? [resolveExplicitPythonRuntime(python, cwd, baseEnv)]
+		: enumeratePythonRuntimes(cwd, baseEnv);
+	if (candidates.length === 0) {
+		return {
+			success: false,
+			candidates: [],
+			errorReason: "No Python interpreter found on PATH or virtual environments.",
+		};
+	}
+
+	const diagnostics: IdaPythonCandidateDiagnostic[] = [];
+	let readyCandidate: PythonRuntime | undefined;
+	let readyDiagnostic: IdaPythonCandidateDiagnostic | undefined;
+
+	for (const candidate of candidates) {
+		const diag = probeSingleCandidate(candidate, options.installDir, cwd);
+		diagnostics.push(diag);
+		if (!diag.errorType) {
+			readyCandidate = candidate;
+			readyDiagnostic = diag;
+			break;
+		}
+	}
+
+	if (readyCandidate && readyDiagnostic) {
+		const runtimeEnv: Record<string, string> = {};
+		for (const key in readyCandidate.env) {
+			const val = readyCandidate.env[key];
+			if (typeof val === "string") runtimeEnv[key] = val;
+		}
+		runtimeEnv.PYTHONUNBUFFERED = "1";
+		runtimeEnv.PYTHONIOENCODING = "utf-8";
+		runtimeEnv.IDADIR = options.installDir;
+		if ($env.IDAUSR) runtimeEnv.IDAUSR = $env.IDAUSR;
+
+		return {
+			success: true,
+			runtime: {
+				pythonPath: readyCandidate.pythonPath,
+				env: runtimeEnv,
+			},
+			targetPython: readyCandidate.pythonPath,
+			selectedCandidate: readyDiagnostic,
+			candidates: diagnostics,
+		};
+	}
+
+	const primary = diagnostics[0];
+	const targetPython = primary.pythonPath;
+	let repairCommand: { pythonPath: string; command: string; argv: string[] } | undefined;
+	if (primary.supportedVersion && primary.errorType === "missing_package") {
+		repairCommand = {
+			pythonPath: targetPython,
+			command: `${targetPython} -m pip install ida-domain==0.5.1`,
+			argv: [targetPython, "-m", "pip", "install", "ida-domain==0.5.1"],
+		};
+	}
+
+	return {
+		success: false,
+		targetPython,
+		selectedCandidate: primary,
+		candidates: diagnostics,
+		repairCommand,
+		errorReason: primary.error ?? "No Python candidate could import idapro and ida_domain.",
+	};
+}
+
+export function probeIdaRequirement(
+	options: LocateIdaOptions = {},
+): string | { path: string; secondaryMissing?: string[]; adapterError?: string } | null {
+	const idalibInstall = locateIdaInstall(options.installDir, { ...options, requireIdalib: true });
+	if (idalibInstall) {
+		const pyProbe = probeIdaPythonEnvironment({
+			python: options.python,
+			installDir: idalibInstall,
+			cwd: options.cwd,
+			env: options.env,
+			settings: options.settings,
+		});
+		if (pyProbe.success) {
+			return idalibInstall;
+		}
+		let secondaryMissing: string[];
+		const errType = pyProbe.selectedCandidate?.errorType;
+		if (errType === "missing_package") {
+			const missing = pyProbe.selectedCandidate?.missingPackages;
+			secondaryMissing = missing && missing.length > 0 ? [...missing] : ["ida-domain"];
+		} else if (errType === "unsupported_python") {
+			secondaryMissing = ["python>=3.10"];
+		} else if (errType === "import_error") {
+			secondaryMissing = ["ida-python-adapter"];
+		} else if (errType === "interpreter_unavailable") {
+			secondaryMissing = ["python"];
+		} else {
+			secondaryMissing = ["ida-python-adapter"];
+		}
+		return {
+			path: idalibInstall,
+			secondaryMissing,
+			adapterError: pyProbe.selectedCandidate?.error ?? pyProbe.errorReason,
+		};
+	}
+
+	const guiCandidate = probeIdaTool(options);
+	if (guiCandidate) {
+		return {
+			path: guiCandidate,
+			secondaryMissing: ["idalib"],
+		};
+	}
+
+	return null;
+}
+
 /** IDA install directory when `ida.enabled` is on and an install is found; undefined otherwise. */
 export const cfgIdaInstall = combine(
 	{ enabled: cfgIdaEnabled, installDir: cfgIdaInstallDir },
@@ -317,6 +618,13 @@ export interface IdaBackendStatus {
 	localDatabaseRecognized: boolean;
 	localDatabaseBackendAvailable: boolean;
 	localDatabaseSupported: boolean;
+	pythonPath?: string;
+	pythonVersion?: string;
+	pythonSupported?: boolean;
+	pythonAdapterReady?: boolean;
+	missingPackages?: string[];
+	adapterErrorType?: IdaAdapterErrorType;
+	adapterError?: string;
 	mcpBridgeConfigured: boolean;
 	mcpBridgeConnected: boolean;
 	bridgeAbsentReason?: string;
@@ -344,9 +652,39 @@ export function getIdaBackendStatus(
 	const guiAvailable = Boolean(guiPath);
 
 	const localDatabaseRecognized = true;
-	const localDatabaseBackendAvailable = idalibAvailable;
-	const localDatabaseSupported = idalibAvailable;
+	let pythonAdapterReady = false;
+	let pythonPath: string | undefined;
+	let pythonVersion: string | undefined;
+	let pythonSupported: boolean | undefined;
+	let missingPackages: string[] | undefined;
+	let adapterErrorType: IdaAdapterErrorType | undefined;
+	let adapterError: string | undefined;
 
+	if (idalibAvailable && idalibPath) {
+		const pyProbe = probeIdaPythonEnvironment({
+			python: options.python,
+			installDir: idalibPath,
+			cwd: options.cwd,
+			env: options.env,
+			settings: options.settings,
+		});
+		pythonAdapterReady = pyProbe.success;
+		const selected = pyProbe.selectedCandidate;
+		pythonPath = pyProbe.targetPython ?? selected?.pythonPath;
+		pythonVersion = selected?.version;
+		pythonSupported = selected?.supportedVersion;
+		if (selected?.missingPackages && selected.missingPackages.length > 0) {
+			missingPackages = selected.missingPackages;
+		}
+		adapterErrorType =
+			selected?.errorType ?? (pyProbe.candidates.length === 0 ? "interpreter_unavailable" : undefined);
+		adapterError = selected?.error ?? pyProbe.errorReason;
+	} else if (options.installDir) {
+		adapterError = "No idalib library found in specified IDA install directory.";
+	}
+
+	const localDatabaseBackendAvailable = idalibAvailable && pythonAdapterReady;
+	const localDatabaseSupported = idalibAvailable && pythonAdapterReady;
 	let mcpBridgeConfigured = false;
 	let mcpBridgeConnected = false;
 
@@ -401,6 +739,13 @@ export function getIdaBackendStatus(
 		localDatabaseRecognized,
 		localDatabaseBackendAvailable,
 		localDatabaseSupported,
+		pythonPath,
+		pythonVersion,
+		pythonSupported,
+		pythonAdapterReady,
+		...(missingPackages && missingPackages.length > 0 ? { missingPackages } : {}),
+		...(adapterErrorType ? { adapterErrorType } : {}),
+		...(adapterError ? { adapterError } : {}),
 		mcpBridgeConfigured,
 		mcpBridgeConnected,
 		...(bridgeAbsentReason ? { bridgeAbsentReason } : {}),

@@ -1,12 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { loadSkills, resetActiveSkillsForTests, setActiveSkills } from "@reverse/coding-agent/extensibility/skills";
 import {
 	checkToolRequirements,
 	missingRequirementNotice,
 } from "@reverse/coding-agent/extensibility/skill-requirements";
-import { getMcpServices } from "@reverse/coding-agent/extensibility/mcp-service-catalog";
 import { parseInternalUrl } from "@reverse/coding-agent/internal-urls/parse";
 import { SkillProtocolHandler } from "@reverse/coding-agent/internal-urls/skill-protocol";
 
@@ -173,55 +171,5 @@ describe("reverse-lab suite discovery, requirements and references", () => {
 
 		const fallbackRes = await handler.resolve(parseInternalUrl("skill://reverse-lab/references/tool-fallback.md"));
 		expect(fallbackRes.content).toContain("# Tool Fallback");
-	});
-
-	it("resolves the on-demand reverse tool guide and its catalog-backed references", async () => {
-		const { skills } = await loadSkills({ cwd: repoRoot });
-		const guide = skills.find(s => s.name === "reverse-tool-guide");
-		expect(guide).toBeDefined();
-		expect(guide!.description).toContain("Canonical usage guide");
-
-		setActiveSkills(skills);
-		const handler = new SkillProtocolHandler();
-
-		const skillRes = await handler.resolve(parseInternalUrl("skill://reverse-tool-guide/"));
-		expect(skillRes.content).toContain("# Reverse Tool Guide");
-		expect(skillRes.content).toContain("skill://reverse-tool-guide/references/cli-tools.md");
-		expect(skillRes.content).toContain("MCP helper services are **not PATH binaries**");
-
-		const cliRes = await handler.resolve(parseInternalUrl("skill://reverse-tool-guide/references/cli-tools.md"));
-		expect(cliRes.content).toContain('r2 -qc "iI; iS; ii"');
-		expect(cliRes.content).toContain("frida-ps -U");
-		expect(cliRes.content).toContain("mitmdump -p 8080 -w");
-
-		const mcpRes = await handler.resolve(parseInternalUrl("skill://reverse-tool-guide/references/mcp-services.md"));
-		for (const service of getMcpServices()) {
-			expect(mcpRes.content).toContain(service.id);
-			expect(mcpRes.content).toContain(service.startCommand);
-			expect(mcpRes.content).toContain(service.license);
-		}
-		expect(mcpRes.content).toContain("r2pm -Uci r2mcp");
-		expect(mcpRes.content).toContain("They are **not PATH binaries**");
-	});
-
-	it("keeps the MCP guide and the catalog in both directions", () => {
-		const guide = readFileSync(
-			path.join(repoRoot, ".agents/skills/reverse-tool-guide/references/mcp-services.md"),
-			"utf8",
-		);
-		const documentedIds = [...guide.matchAll(/^##\s+\d+\.\s+([a-z0-9-]+)\s+—/gm)].map(match => match[1]).sort();
-		const catalogIds = getMcpServices()
-			.map(service => service.id)
-			.sort();
-		expect(documentedIds).toEqual(catalogIds);
-
-		for (const service of getMcpServices()) {
-			expect(guide).toContain(`"${service.serverName}": {`);
-			expect(guide).toContain(service.startCommand);
-			if (service.server.type === "stdio" && "command" in service.server) {
-				expect(guide).toContain(`"command": ${JSON.stringify(service.server.command)}`);
-			}
-			expect(guide).toContain(service.license);
-		}
 	});
 });

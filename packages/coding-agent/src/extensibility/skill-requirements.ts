@@ -36,6 +36,7 @@ export interface RequirementCheckDeps {
 	/** Defaults to the ambient environment (PATH and catalog `${VAR}` expansion). */
 	env?: Record<string, string | undefined>;
 	settings?: Settings;
+	cwd?: string;
 }
 
 export interface RequirementStatus {
@@ -51,6 +52,8 @@ export interface RequirementStatus {
 	invalid?: boolean;
 	/** Companion binaries that were required by the catalog but not found. */
 	secondaryMissing?: string[];
+	/** 原生适配器的实际失败原因，与缺包列表分别保留。 */
+	adapterError?: string;
 }
 
 function requirementIds(value: unknown): string[] {
@@ -232,7 +235,24 @@ export function checkToolRequirements(
 		const searchPath = searchPathFor(descriptor, platform, env);
 		if (searchPath !== undefined) options.PATH = searchPath;
 
-		let foundPath = descriptor.probe?.({ env, platform, which, settings: deps.settings }) ?? null;
+		let foundPath: string | null = null;
+		let probeSecondaryMissing: string[] | undefined;
+		let adapterError: string | undefined;
+		const probeEnv = descriptor.id === "ida" ? (deps.env ?? deps.settings?.getShellConfig().env ?? env) : env;
+		const probeResult = descriptor.probe?.({
+			env: probeEnv,
+			platform,
+			which,
+			settings: deps.settings,
+			cwd: deps.cwd,
+		});
+		if (typeof probeResult === "string") {
+			foundPath = probeResult;
+		} else if (probeResult && typeof probeResult === "object") {
+			foundPath = probeResult.path;
+			probeSecondaryMissing = probeResult.secondaryMissing;
+			adapterError = probeResult.adapterError;
+		}
 		if (foundPath === null) {
 			for (const binary of descriptor.binaries) {
 				const candidate = which(binary, options);
@@ -255,27 +275,33 @@ export function checkToolRequirements(
 		) {
 			foundPath = findRealDarwinJdk(env);
 		}
-		const secondaryMissing = (descriptor.secondary ?? []).filter(binary => {
-			const secDesc = SKILL_TOOL_CATALOG[binary];
-			const secOptions: WhichOptions = {
-				...options,
-				PATH: secDesc ? (searchPathFor(secDesc, platform, env) ?? options.PATH) : options.PATH,
-			};
-			let res = secDesc?.probe?.() ?? null;
-			if (res === null) {
-				res = which(binary, secOptions);
-			}
-			if (res === null) return true;
-			if (
-				binary === "java" &&
-				res === "/usr/bin/java" &&
-				(platform === "darwin" || process.platform === "darwin") &&
-				(deps.which === undefined || deps.which === $which)
-			) {
-				return findRealDarwinJdk(env) === null;
-			}
-			return false;
-		});
+		const secondaryMissing = [
+			...(probeSecondaryMissing ?? []),
+			...(descriptor.secondary ?? []).filter(binary => {
+				const secDesc = SKILL_TOOL_CATALOG[binary];
+				const secOptions: WhichOptions = {
+					...options,
+					PATH: secDesc ? (searchPathFor(secDesc, platform, env) ?? options.PATH) : options.PATH,
+				};
+				let res = secDesc?.probe?.({ env, platform, which, settings: deps.settings, cwd: deps.cwd }) ?? null;
+				if (res && typeof res === "object") {
+					res = res.path;
+				}
+				if (res === null) {
+					res = which(binary, secOptions);
+				}
+				if (res === null) return true;
+				if (
+					binary === "java" &&
+					res === "/usr/bin/java" &&
+					(platform === "darwin" || process.platform === "darwin") &&
+					(deps.which === undefined || deps.which === $which)
+				) {
+					return findRealDarwinJdk(env) === null;
+				}
+				return false;
+			}),
+		];
 		const missing = foundPath === null || secondaryMissing.length > 0;
 		return {
 			id: requirement.id,
@@ -283,6 +309,7 @@ export function checkToolRequirements(
 			foundPath,
 			...(missing && { hint: descriptor.installHints?.[platform]?.join(" or ") }),
 			...(secondaryMissing.length > 0 && { secondaryMissing }),
+			...(adapterError && { adapterError }),
 		};
 	});
 }
@@ -299,11 +326,12 @@ export function missingRequirementNotice(statuses: readonly RequirementStatus[])
 	const required = missing.filter(status => !status.optional);
 	if (required.length === 0) return undefined;
 	const details = required.map(status => {
-		const problem =
-			status.foundPath === null
+		const problem = status.adapterError
+			? `${status.id} unavailable: ${status.adapterError}`
+			: status.foundPath === null
 				? `${status.id} not found on PATH`
 				: `${status.id} found, but ${status.secondaryMissing?.join(", ")} missing`;
-		return status.hint ? `${problem} (install: ${status.hint})` : problem;
+		return status.adapterError ? problem : status.hint ? `${problem} (install: ${status.hint})` : problem;
 	});
-	return `[Missing tool dependencies: ${details.join("; ")}. Install them before running this skill's commands.]`;
+	return `[Missing tool dependencies: ${details.join("; ")}. Resolve these requirements before running this skill's commands.]`;
 }
