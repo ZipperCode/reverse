@@ -15,7 +15,15 @@ import {
 import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
 import { removeWithRetries } from "@reverse/utils";
 import { ReverseWorkflowStore } from "@reverse/coding-agent/reverse-workflow/store";
-import { classifyFailure } from "@reverse/coding-agent/reverse-workflow/recovery";
+import {
+	classifyFailure,
+	generateRecoveryPlan,
+	resolveCapabilityRecovery,
+	isBareNativeTarget,
+	isApkTarget,
+	isExplicitAndroidJniTarget,
+} from "@reverse/coding-agent/reverse-workflow/recovery";
+import type { ReverseWorkflowRecord, WorkflowStepRecord } from "@reverse/coding-agent/reverse-workflow/contracts";
 function createTestSession(cwd: string, options: { allocateArtifact?: boolean } = {}): ToolSession {
 	const artifactsDir = path.join(cwd, "artifacts");
 	return {
@@ -1159,6 +1167,380 @@ describe("reverse_workflow failure attribution, parameter correction, and fallba
 		} finally {
 			await removeWithRetries(tempDir);
 		}
+	});
+
+	it("routes missing decompiler for manifest extraction to native AXML manifest", () => {
+		const mockWorkflow: ReverseWorkflowRecord = {
+			id: "wf_test_apk",
+			target: "app.apk",
+			target_abs_path: "/tmp/app.apk",
+			format: "APK",
+			goal: "Audit permissions and exported components",
+			status: "active",
+			steps: [],
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			metadata: {},
+		};
+		const manifestStep: WorkflowStepRecord = {
+			id: "apk_step_manifest",
+			title: "G0: Extract Android manifest and verify components",
+			tool: "apktool",
+			gate: "G0",
+			params_summary: { path: "/tmp/app.apk" },
+			status: "failed",
+			attempts: 1,
+			max_attempts: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+
+		const plan = generateRecoveryPlan(manifestStep, mockWorkflow, {
+			error: "apktool: command not found",
+		});
+
+		expect(plan.suggested_action).toBe("fallback");
+		expect(plan.next_tool).toBe("android_package_inspect");
+		const nextParams = plan.next_params as Record<string, unknown>;
+		expect(nextParams.action).toBe("manifest");
+		expect(nextParams.path).toBe("/tmp/app.apk");
+		expect(plan.capability_depth).toBe("static");
+		expect(plan.verification_boundary).toBeDefined();
+		expect(plan.remaining_acceptance).toBeDefined();
+		expect(plan.prerequisites).toContain("target_apk_present");
+		expect(plan.discovery_guidance?.tool_doc).toBe("read xd://android_package_inspect");
+	});
+
+	it("ensures no-device JNI fallback remains observation-only and does not complete JNI experiment", () => {
+		const mockWorkflow: ReverseWorkflowRecord = {
+			id: "wf_test_jni",
+			target: "libnative-crypto.so",
+			target_abs_path: "/tmp/libnative-crypto.so",
+			format: "ELF",
+			goal: "Analyze JNI encryption routine",
+			status: "active",
+			steps: [],
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			metadata: {},
+		};
+		const jniStep: WorkflowStepRecord = {
+			id: "jni_step_exec",
+			title: "G3: Emulate JNI Encrypt Method in unidbg",
+			tool: "unidbg",
+			gate: "G3",
+			params_summary: { path: "/tmp/libnative-crypto.so", method: "encryptPayload" },
+			status: "failed",
+			attempts: 1,
+			max_attempts: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+
+		const plan = generateRecoveryPlan(jniStep, mockWorkflow, {
+			error: "unidbg: command not found on PATH (requires JDK 8)",
+		});
+
+		expect(plan.suggested_action).toBe("fallback");
+		expect(plan.next_tool).toBe("android_native_workflow");
+		const nextParams = plan.next_params as Record<string, unknown>;
+		expect(nextParams.action).toBe("inspect");
+		expect(plan.verification_boundary).toBeDefined();
+		expect(plan.remaining_acceptance).toBeDefined();
+		expect(plan.remaining_acceptance).toContain("Dynamic JNI execution");
+		expect(plan.alternatives).not.toContain("android_package_inspect");
+	});
+
+	it("distinguishes bare native targets and requires explicit JNI context for Android routing", () => {
+		expect(isBareNativeTarget("libsample.so")).toBe(true);
+		expect(isBareNativeTarget("sample.dll")).toBe(true);
+		expect(isBareNativeTarget("sample.apk")).toBe(false);
+		expect(isApkTarget("libsample.so")).toBe(false);
+		expect(isApkTarget("sample.apk")).toBe(true);
+
+		// .so extension alone is generic ELF and NOT proof of Android without explicit JNI context
+		expect(isExplicitAndroidJniTarget({ targetPath: "libsample.so" })).toBe(false);
+		expect(isExplicitAndroidJniTarget({ targetPath: "libsample.so", intent: "jni" })).toBe(true);
+		expect(isExplicitAndroidJniTarget({ tool: "unidbg", targetPath: "libsample.so" })).toBe(true);
+		expect(
+			isExplicitAndroidJniTarget({ params: { method: "Java_com_sample_run" }, targetPath: "libsample.so" }),
+		).toBe(true);
+
+		// 1. Android native .so with explicit JNI method context routes to android_native_workflow
+		const jniWorkflow: ReverseWorkflowRecord = {
+			id: "wf_test_jni_so",
+			target: "libnative.so",
+			target_abs_path: "/tmp/libnative.so",
+			format: "ELF",
+			goal: "Analyze Android JNI crypto methods",
+			status: "active",
+			steps: [],
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			metadata: {},
+		};
+		const jniStep: WorkflowStepRecord = {
+			id: "so_step_1",
+			title: "G1: Decompile Android JNI native functions",
+			tool: "jadx",
+			gate: "G1",
+			params_summary: { path: "/tmp/libnative.so", method: "nativeInit" },
+			status: "failed",
+			attempts: 1,
+			max_attempts: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		const jniPlan = generateRecoveryPlan(jniStep, jniWorkflow, {
+			error: "jadx: command not found",
+		});
+		expect(jniPlan.next_tool).toBe("android_native_workflow");
+		expect(jniPlan.alternatives).not.toContain("android_package_inspect");
+		expect(jniPlan.verification_boundary).toBeDefined();
+
+		// 2. Generic standalone Linux .so WITHOUT JNI context routes to triage, NOT android_native_workflow
+		const genericSoWorkflow: ReverseWorkflowRecord = {
+			id: "wf_test_gen_so",
+			target: "libcrypto.so",
+			target_abs_path: "/tmp/libcrypto.so",
+			format: "ELF",
+			goal: "Analyze generic Linux shared library",
+			status: "active",
+			steps: [],
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			metadata: {},
+		};
+		const genericSoStep: WorkflowStepRecord = {
+			id: "so_step_gen",
+			title: "G1: Analyze ELF sections",
+			tool: "jadx",
+			gate: "G1",
+			params_summary: { path: "/tmp/libcrypto.so" },
+			status: "failed",
+			attempts: 1,
+			max_attempts: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		const genericSoPlan = generateRecoveryPlan(genericSoStep, genericSoWorkflow, {
+			error: "jadx: command not found",
+		});
+		expect(genericSoPlan.next_tool).toBe("triage");
+		expect(genericSoPlan.capability_depth).toBe("triage");
+		expect(genericSoPlan.verification_boundary).toBeDefined();
+
+		// 3. Generic native binary (DLL) must route to triage, NOT android_native_workflow
+		const dllWorkflow: ReverseWorkflowRecord = {
+			id: "wf_test_dll",
+			target: "plugin.dll",
+			target_abs_path: "/tmp/plugin.dll",
+			format: "PE",
+			goal: "Analyze Windows native plugin",
+			status: "active",
+			steps: [],
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			metadata: {},
+		};
+		const dllStep: WorkflowStepRecord = {
+			id: "dll_step_1",
+			title: "G1: Decompile DLL",
+			tool: "jadx",
+			gate: "G1",
+			params_summary: { path: "/tmp/plugin.dll" },
+			status: "failed",
+			attempts: 1,
+			max_attempts: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		const dllPlan = generateRecoveryPlan(dllStep, dllWorkflow, {
+			error: "jadx: command not found",
+		});
+		expect(dllPlan.next_tool).toBe("triage");
+		expect(dllPlan.capability_depth).toBe("triage");
+		expect(dllPlan.verification_boundary).toBeDefined();
+	});
+
+	it("prohibits silent unsupported-target fallbacks and demarcates exploratory limits", () => {
+		const mockWorkflow: ReverseWorkflowRecord = {
+			id: "wf_test_unsupp",
+			target: "firmware.blob",
+			target_abs_path: "/tmp/firmware.blob",
+			format: "unknown",
+			goal: "Analyze proprietary firmware",
+			status: "active",
+			steps: [],
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			metadata: {},
+		};
+		const unsuppStep: WorkflowStepRecord = {
+			id: "step_unsupp_1",
+			title: "G0: Triage unknown format",
+			tool: "r2_inspect",
+			gate: "G0",
+			params_summary: { path: "/tmp/firmware.blob" },
+			status: "failed",
+			attempts: 1,
+			max_attempts: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+
+		const plan = generateRecoveryPlan(unsuppStep, mockWorkflow, {
+			error: "unsupported architecture: proprietary 16-bit ASIC",
+		});
+
+		expect(plan.suggested_action).toBe("abort");
+		expect(plan.can_retry).toBe(false);
+		expect(plan.verification_boundary).toBeDefined();
+		expect(plan.remaining_acceptance).toBeDefined();
+	});
+
+	it("corrects tool-schema aliases for binary_diff, pcap_inspect, and android_package_inspect", () => {
+		const mockWorkflow: ReverseWorkflowRecord = {
+			id: "wf_test_schemas",
+			target: "app.apk",
+			target_abs_path: "/tmp/app.apk",
+			format: "APK",
+			goal: "Schema validation test",
+			status: "active",
+			steps: [],
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+			metadata: {},
+		};
+
+		// 1. vbindiff -> binary_diff schema (path_a, path_b, action)
+		const diffStep: WorkflowStepRecord = {
+			id: "step_diff",
+			title: "G2: Binary diff files",
+			tool: "vbindiff",
+			gate: "G2",
+			params_summary: { fileA: "/tmp/orig.bin", fileB: "/tmp/mod.bin", mode: "summary" },
+			status: "failed",
+			attempts: 1,
+			max_attempts: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		const diffPlan = generateRecoveryPlan(diffStep, mockWorkflow, {
+			error: "vbindiff: command not found",
+		});
+		expect(diffPlan.next_tool).toBe("binary_diff");
+		const diffParams = diffPlan.next_params as Record<string, unknown>;
+		expect(diffParams.path_a).toBe("/tmp/orig.bin");
+		expect(diffParams.path_b).toBe("/tmp/mod.bin");
+		expect(diffParams.action).toBe("summary");
+		expect(diffParams.fileA).toBeUndefined();
+		expect(diffParams.fileB).toBeUndefined();
+		expect(diffParams.mode).toBeUndefined();
+
+		// 2. device_required on APK -> android_package_inspect with info or manifest (never 'inspect')
+		const devStep: WorkflowStepRecord = {
+			id: "step_dev",
+			title: "G2: Dynamic device check",
+			tool: "adb",
+			gate: "G2",
+			params_summary: { path: "/tmp/app.apk" },
+			status: "failed",
+			attempts: 1,
+			max_attempts: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		const devPlan = generateRecoveryPlan(devStep, mockWorkflow, {
+			error: "device not found",
+		});
+		expect(devPlan.next_tool).toBe("android_package_inspect");
+		const devParams = devPlan.next_params as Record<string, unknown>;
+		expect(["info", "manifest"]).toContain(devParams.action as string);
+		expect(devParams.action).not.toBe("inspect");
+
+		// 3. tshark -> pcap_inspect schema
+		const pcapStep: WorkflowStepRecord = {
+			id: "step_pcap",
+			title: "G2: Network capture analysis",
+			tool: "tshark",
+			gate: "G2",
+			params_summary: { artifact_path: "/tmp/capture.pcap", action: "endpoints" },
+			status: "failed",
+			attempts: 1,
+			max_attempts: 3,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		// Workflow target is app.apk, but step specifies artifact_path /tmp/capture.pcap
+		const pcapPlan = generateRecoveryPlan(pcapStep, mockWorkflow, {
+			error: "tshark: command not found",
+		});
+		expect(pcapPlan.next_tool).toBe("pcap_inspect");
+		const pcapParams = pcapPlan.next_params as Record<string, unknown>;
+		expect(pcapParams.path).toBe("/tmp/capture.pcap");
+		expect(pcapParams.action).toBe("endpoints");
+	});
+
+	it("resolves canonical capability recovery suggestions via resolveCapabilityRecovery", () => {
+		const manifestRec = resolveCapabilityRecovery("apk_unpacking", {
+			targetPath: "/tmp/app.apk",
+			action: "manifest",
+		});
+		expect(manifestRec?.nextTool).toBe("android_package_inspect");
+		expect(manifestRec?.nextParams.action).toBe("manifest");
+		expect(manifestRec?.capabilityDepth).toBe("static");
+
+		// Generic native binary without JNI intent routes to triage, NOT android_native_workflow
+		const soRec = resolveCapabilityRecovery("apk_unpacking", {
+			targetPath: "/tmp/libfoo.so",
+		});
+		expect(soRec?.nextTool).toBe("triage");
+		expect(soRec?.capabilityDepth).toBe("triage");
+
+		// Native binary WITH explicit JNI intent routes to android_native_workflow
+		const jniSoRec = resolveCapabilityRecovery("apk_unpacking", {
+			targetPath: "/tmp/libfoo.so",
+			intent: "jni",
+		});
+		expect(jniSoRec?.nextTool).toBe("android_native_workflow");
+		expect(jniSoRec?.nextParams.action).toBe("inspect");
+		// Generic native binary routes to triage, NOT android_native_workflow
+		const dllRec = resolveCapabilityRecovery("apk_unpacking", {
+			targetPath: "/tmp/plugin.dll",
+			targetFormat: "PE",
+		});
+		expect(dllRec?.nextTool).toBe("triage");
+		expect(dllRec?.capabilityDepth).toBe("triage");
+
+		const jniRec = resolveCapabilityRecovery("android_native_emulation", {
+			targetPath: "/tmp/libfoo.so",
+		});
+		expect(jniRec?.nextTool).toBe("android_native_workflow");
+		expect(jniRec?.capabilityDepth).toBe("static");
+		expect(jniRec?.verificationBoundary).toBeDefined();
+
+		// native_debugger routes to zero-prep triage (or r2_inspect when radare2 installed)
+		const dbgRec = resolveCapabilityRecovery("native_debugger", {
+			targetPath: "/tmp/server.elf",
+		});
+		expect(dbgRec?.nextTool).toBe("triage");
+		expect(dbgRec?.capabilityDepth).toBe("triage");
+		expect(dbgRec?.alternatives).toContain("r2_inspect");
+
+		// signing verification boundary notes v1/v2/v3/v3.1 presence and external v4
+		const signRec = resolveCapabilityRecovery("apk_unpacking", {
+			targetPath: "/tmp/app.apk",
+			action: "signing",
+		});
+		expect(signRec?.nextTool).toBe("android_package_inspect");
+		expect(signRec?.verificationBoundary).toBeDefined();
+
+		const diffRec = resolveCapabilityRecovery("binary_diff", {
+			params: { path_a: "old.bin", path_b: "new.bin" },
+		});
+		expect(diffRec?.nextTool).toBe("binary_diff");
+		expect(diffRec?.nextParams.action).toBe("summary");
 	});
 
 	it("normalizes reverse_recovery and retry_plan tool name aliases", () => {

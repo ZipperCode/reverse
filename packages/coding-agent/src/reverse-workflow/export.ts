@@ -268,6 +268,9 @@ export async function exportWorkflowToMarkdown(
 			if (rec.failure_reason && !rec.attribution) lines.push(`  - Failure Reason: ${rec.failure_reason}`);
 			if (rec.fallback_tool) lines.push(`  - Fallback Tool: \`${rec.fallback_tool}\``);
 			if (rec.suggested_fix) lines.push(`  - Suggested Fix: ${rec.suggested_fix}`);
+			if (rec.capability_depth) lines.push(`  - Capability Depth: \`${rec.capability_depth}\``);
+			if (rec.verification_boundary) lines.push(`  - Verification Boundary: ${rec.verification_boundary}`);
+			if (rec.remaining_acceptance) lines.push(`  - Remaining Acceptance: ${rec.remaining_acceptance}`);
 			if (rec.recovery_audit && rec.recovery_audit.length > 0) {
 				lines.push("  - Recovery Audit Trail:");
 				for (const audit of rec.recovery_audit) {
@@ -293,6 +296,11 @@ export async function exportWorkflowToMarkdown(
 					if (audit.evidence_ids && audit.evidence_ids.length > 0) {
 						lines.push(`      - Associated Evidence: ${audit.evidence_ids.map(id => `\`${id}\``).join(", ")}`);
 					}
+					if (audit.capability_depth) lines.push(`      - Capability Depth: \`${audit.capability_depth}\``);
+					if (audit.verification_boundary)
+						lines.push(`      - Verification Boundary: ${audit.verification_boundary}`);
+					if (audit.remaining_acceptance)
+						lines.push(`      - Remaining Acceptance: ${audit.remaining_acceptance}`);
 				}
 			}
 			if (rec.retry_history && rec.retry_history.length > 0) {

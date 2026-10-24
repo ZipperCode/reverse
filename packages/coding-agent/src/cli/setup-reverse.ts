@@ -26,6 +26,7 @@ import { theme } from "@reverse/tui/theme";
 import { getCachedReadOnlySettings, getEffectiveLocale, loadEffectiveSettings } from "../config/persisted-locale";
 import { isSettingsInitialized, settings, type Settings } from "../config/settings";
 import {
+	CAPABILITY_CATALOG,
 	SKILL_TOOL_CATALOG,
 	probeNativeDapAdapters,
 	resolveReverseCapabilities,
@@ -49,6 +50,7 @@ import { getPortableToolRecipe } from "../extensibility/portable-tool-install";
 import { expandTilde } from "../tools/path-utils";
 import { cfgDebugEnabled } from "../tools/settings";
 import { hasIdalib, locateIdaInstall, probeIdaPythonEnvironment } from "../ida/install";
+import type { ToolSession } from "../tools/index";
 export interface ReverseToolStatus {
 	kind: "cli";
 	id: string;
@@ -117,8 +119,8 @@ export interface ReverseServiceStatus {
 	configuredScopes: Array<"user" | "project">;
 	/** Effective enabled flag of the configured entry; `null` when unconfigured. */
 	enabled: boolean | null;
-	/** Connection is never probed by inspection. */
-	connection: "unknown";
+	/** Observable connection state when session is provided; read-only inspection never starts the server. */
+	connection: "unknown" | "connected";
 	status: "ready" | "missing";
 	packageManager: string | null;
 	installCommand: string | null;
@@ -148,12 +150,20 @@ export interface ReverseSetupFlags {
 	json?: boolean;
 	check?: boolean;
 	execute?: boolean;
+	capability?: string;
+	category?: ToolCategory | string;
+	tool?: string;
 }
 
 export interface ReverseSetupDeps {
 	which?: SkillRequirementWhich;
 	platform?: NodeJS.Platform;
 	env?: Record<string, string | undefined>;
+	filter?: {
+		capability?: string;
+		category?: ToolCategory | string;
+		tool?: string;
+	};
 	/** Project directory used to resolve `.reverse/mcp.json`; defaults to the active project. */
 	cwd?: string;
 	/** Read-only MCP config probe; defaults to reading the resolved file synchronously. */
@@ -170,6 +180,10 @@ export interface ReverseSetupDeps {
 	/** Agent profile directory; defaults to getAgentDir() for managed tools. */
 	agentDir?: string;
 	settings?: Settings;
+	mcpManager?: { getConnectionStatus?: (name: string) => string };
+	session?: ToolSession | object;
+	refresh?: boolean;
+	target?: string;
 }
 
 /** Read an MCP config file without writing or starting anything. */
@@ -290,8 +304,77 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		requestedPlatform === "darwin" || requestedPlatform === "win32" ? requestedPlatform : "linux";
 	const which: SkillRequirementWhich = deps.which ?? $which;
 	const detectedPackageManagers = detectPackageManagers(platform, which, deps.env);
-	const descriptors = Object.values(SKILL_TOOL_CATALOG);
-	const toolRequirements = descriptors.map(desc => ({ id: desc.id, optional: desc.optional ?? true }));
+	const allDescriptors = Object.values(SKILL_TOOL_CATALOG);
+	let descriptors = allDescriptors;
+	const closureIds = new Set<string>();
+
+	if (deps.filter?.capability) {
+		const filterCap = deps.filter.capability.toLowerCase();
+		const cap = CAPABILITY_CATALOG[filterCap];
+		if (!cap) {
+			const valid = Object.keys(CAPABILITY_CATALOG).join(", ");
+			throw new Error(`Unknown capability: '${deps.filter.capability}'. Valid capabilities: ${valid}`);
+		}
+		const displayTools = new Set<string>([
+			...cap.optionalExternalTools.map(t => t.toLowerCase()),
+			...(cap.prerequisites ?? []).map(p => p.toLowerCase()),
+			...(cap.recommendedNativeTool ? [cap.recommendedNativeTool.toLowerCase()] : []),
+		]);
+		descriptors = allDescriptors.filter(d => displayTools.has(d.id.toLowerCase()));
+		for (const id of displayTools) closureIds.add(id);
+		for (const fb of cap.fallbacks ?? []) closureIds.add(fb.toLowerCase());
+	} else if (deps.filter?.category) {
+		const filterCat = deps.filter.category.toLowerCase();
+		descriptors = allDescriptors.filter(d => d.category?.toLowerCase() === filterCat);
+		for (const d of descriptors) closureIds.add(d.id.toLowerCase());
+		const matchingCaps = Object.values(CAPABILITY_CATALOG).filter(c => c.category.toLowerCase() === filterCat);
+		for (const c of matchingCaps) {
+			for (const o of c.optionalExternalTools) closureIds.add(o.toLowerCase());
+			for (const p of c.prerequisites ?? []) closureIds.add(p.toLowerCase());
+			for (const f of c.fallbacks ?? []) closureIds.add(f.toLowerCase());
+			if (c.recommendedNativeTool) closureIds.add(c.recommendedNativeTool.toLowerCase());
+		}
+	} else if (deps.filter?.tool) {
+		const filterTool = deps.filter.tool.toLowerCase();
+		descriptors = allDescriptors.filter(d => d.id.toLowerCase() === filterTool);
+		closureIds.add(filterTool);
+		const matchingCaps = Object.values(CAPABILITY_CATALOG).filter(
+			c =>
+				c.optionalExternalTools.some(t => t.toLowerCase() === filterTool) ||
+				c.recommendedNativeTool?.toLowerCase() === filterTool,
+		);
+		for (const c of matchingCaps) {
+			for (const o of c.optionalExternalTools) closureIds.add(o.toLowerCase());
+			for (const p of c.prerequisites ?? []) closureIds.add(p.toLowerCase());
+			for (const f of c.fallbacks ?? []) closureIds.add(f.toLowerCase());
+			if (c.recommendedNativeTool) closureIds.add(c.recommendedNativeTool.toLowerCase());
+		}
+	}
+
+	// Transitive closure: recursively resolve secondaries for all tools in closureIds
+	let expanded = true;
+	while (expanded) {
+		expanded = false;
+		for (const id of Array.from(closureIds)) {
+			const desc = SKILL_TOOL_CATALOG[id];
+			for (const sec of desc?.secondary ?? []) {
+				const lowerSec = sec.toLowerCase();
+				if (!closureIds.has(lowerSec)) {
+					closureIds.add(lowerSec);
+					expanded = true;
+				}
+			}
+		}
+	}
+
+	const scopedClosureDescriptors = deps.filter
+		? allDescriptors.filter(d => closureIds.has(d.id.toLowerCase()))
+		: allDescriptors;
+
+	const toolRequirements = scopedClosureDescriptors.map(desc => ({
+		id: desc.id,
+		optional: desc.optional ?? true,
+	}));
 	const effectiveSettings = deps.settings ?? (isSettingsInitialized() ? settings : getCachedReadOnlySettings());
 	const statuses = checkToolRequirements(toolRequirements, {
 		platform: requestedPlatform,
@@ -379,6 +462,16 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 						"Compiles Ghidra FindCrypt extension from upstream source (TorgoTorgo/ghidra-findcrypt commit 5c2fd5b, GPL-3.0) against target Ghidra and installs it into Ghidra Extensions.",
 					),
 				};
+			} else if (["blutter", "hbctool", "hermes-dec", "il2cppdumper"].includes(desc.id)) {
+				chosenCmd = {
+					manager: "managed",
+					command: `${APP_NAME} setup reverse ${desc.id} --execute`,
+					argv: [APP_NAME, "setup", "reverse", desc.id, "--execute"],
+					riskNote: t(
+						`cli.setup.reverse.${desc.id}.risk`,
+						`Provisions managed ${desc.name ?? desc.id} into the agent tools directory.`,
+					),
+				};
 			} else if (desc.id === "ida" && foundPath && hasIdalib(foundPath, platform)) {
 				const pyProbe = probeIdaPythonEnvironment({
 					cwd: deps.cwd,
@@ -445,7 +538,19 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 	// Service prerequisites are catalogued CLI tools, but keep the fallback for
 	// future entries whose ids are not yet in the CLI catalog: an unknown id is
 	// probed on PATH and never claims to be an installed service.
-	const serviceDescriptors = getMcpServices().filter(desc => !desc.platforms || desc.platforms.includes(platform));
+	let serviceDescriptors = getMcpServices().filter(desc => !desc.platforms || desc.platforms.includes(platform));
+	if (deps.filter?.capability) {
+		const filterCap = deps.filter.capability.toLowerCase();
+		const cap = CAPABILITY_CATALOG[filterCap];
+		const relevantTools = new Set((cap?.optionalExternalTools ?? []).map(t => t.toLowerCase()));
+		serviceDescriptors = serviceDescriptors.filter(s => relevantTools.has(s.id.toLowerCase()));
+	} else if (deps.filter?.category) {
+		const filterCat = deps.filter.category.toLowerCase();
+		serviceDescriptors = serviceDescriptors.filter(s => s.category?.toLowerCase() === filterCat);
+	} else if (deps.filter?.tool) {
+		const filterTool = deps.filter.tool.toLowerCase();
+		serviceDescriptors = serviceDescriptors.filter(s => s.id.toLowerCase() === filterTool);
+	}
 	const uncoveredRequirementIds = [
 		...new Set(serviceDescriptors.flatMap(desc => desc.requires).filter(id => !statusById[id])),
 	];
@@ -473,6 +578,10 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		user: readConfig(configPaths.user),
 	};
 
+	const mcpManager =
+		deps.session && typeof deps.session === "object" && "mcpManager" in deps.session
+			? (deps.session.mcpManager as { getConnectionStatus?: (name: string) => string } | undefined)
+			: deps.mcpManager;
 	const services: ReverseServiceStatus[] = serviceDescriptors.map(desc => {
 		const prerequisites = desc.requires
 			.map(id => statusById[id])
@@ -560,7 +669,9 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 			configured,
 			configuredScopes,
 			enabled,
-			connection: "unknown",
+			connection: (mcpManager?.getConnectionStatus?.(desc.serverName) === "connected" ? "connected" : "unknown") as
+				| "unknown"
+				| "connected",
 			status: ready ? "ready" : "missing",
 			packageManager: chosenCmd?.manager ?? null,
 			installCommand: chosenCmd?.command ?? null,
@@ -580,14 +691,52 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		};
 	});
 
-	const dapAdapters = probeNativeDapAdapters({ cwd: deps.cwd, which });
+	const isDapRelevant = !deps.filter?.capability || deps.filter.capability.toLowerCase() === "native_debugger";
+	const dapAdapters = isDapRelevant ? probeNativeDapAdapters({ cwd: deps.cwd, which }) : [];
+	const resolverTools: ReverseToolStatus[] = [...tools];
+	if (deps.filter) {
+		for (const desc of scopedClosureDescriptors) {
+			if (!resolverTools.some(t => t.id === desc.id)) {
+				const req = statusById[desc.id];
+				const isInstalled = Boolean(
+					req && req.foundPath !== null && (!req.secondaryMissing || req.secondaryMissing.length === 0),
+				);
+				resolverTools.push({
+					kind: "cli",
+					id: desc.id,
+					name: desc.name ?? desc.id,
+					category: desc.category ?? "general",
+					description: desc.description ?? "",
+					optional: true,
+					systemTool: desc.systemTool ?? false,
+					status: isInstalled ? "installed" : "missing",
+					foundPath: req?.foundPath ?? null,
+					secondaryMissing: req?.secondaryMissing,
+					adapterError: req?.adapterError,
+					packageManager: null,
+					installCommand: null,
+					installArgv: null,
+					riskNote: null,
+					manualUrl: desc.manualUrl ?? "",
+					manualInstructions: "",
+				});
+			}
+		}
+	}
 	const rawCapabilities = resolveReverseCapabilities({
 		platform,
-		toolStatuses: tools,
+		toolStatuses: resolverTools,
 		serviceStatuses: services,
 		cwd: deps.cwd,
 		dapAdapters,
 		debugToolEnabled: effectiveSettings ? cfgDebugEnabled.get(effectiveSettings) : true,
+		filterCapability: deps.filter?.capability,
+		filterCategory: deps.filter?.category,
+		filterTool: deps.filter?.tool,
+		session: deps.session,
+		target: deps.target,
+		refresh: deps.refresh,
+		env: deps.env,
 	});
 	const capabilities = rawCapabilities.map(cap => ({
 		...cap,
@@ -648,7 +797,13 @@ export function isTrustedCatalogArgv(
 			return true;
 		}
 		if (
-			(item.id === "lief" || item.id === "sofixer" || item.id === "ghidra-findcrypt") &&
+			(item.id === "lief" ||
+				item.id === "sofixer" ||
+				item.id === "ghidra-findcrypt" ||
+				item.id === "blutter" ||
+				item.id === "hbctool" ||
+				item.id === "hermes-dec" ||
+				item.id === "il2cppdumper") &&
 			item.installArgv.length === 5 &&
 			item.installArgv[0] === APP_NAME &&
 			item.installArgv[1] === "setup" &&
@@ -1095,11 +1250,52 @@ export async function handleReverseSetup(
 ): Promise<number> {
 	const effectiveCwd = deps.cwd ?? getProjectDir();
 	const loadedSettings = deps.settings ?? (await loadEffectiveSettings());
-	const effectiveDeps: ReverseSetupDeps = { ...deps, cwd: effectiveCwd, settings: loadedSettings };
 	const write = deps.writeStdout ?? (text => process.stdout.write(text));
 	const writeErr = deps.writeStderr ?? (text => process.stderr.write(text));
 	const promptLine = deps.promptLine ?? runDefaultPrompt;
 	const confirm = deps.confirm ?? runDefaultConfirm;
+
+	if (flags.capability) {
+		const filterCap = flags.capability.toLowerCase();
+		const targetCap = Object.values(CAPABILITY_CATALOG).find(c => c.id.toLowerCase() === filterCap);
+		if (!targetCap) {
+			const valid = Object.keys(CAPABILITY_CATALOG).join(", ");
+			writeErr(chalk.red(`Unknown capability '${flags.capability}'. Valid capabilities: ${valid}\n`));
+			return 1;
+		}
+	}
+	if (flags.category) {
+		const validCategories = ["android", "binary", "decompiler", "web", "network", "system", "general"];
+		if (!validCategories.includes(flags.category.toLowerCase())) {
+			writeErr(chalk.red(`Unknown category '${flags.category}'. Valid categories: ${validCategories.join(", ")}\n`));
+			return 1;
+		}
+	}
+	if (flags.tool) {
+		const toolDesc = SKILL_TOOL_CATALOG[flags.tool.toLowerCase()];
+		const serviceDesc = getMcpServices().find(s => s.id.toLowerCase() === flags.tool?.toLowerCase());
+		if (!toolDesc && !serviceDesc) {
+			writeErr(
+				chalk.red(
+					`Unknown tool '${flags.tool}'. Run '${APP_NAME} setup reverse --check' to view available tools.\n`,
+				),
+			);
+			return 1;
+		}
+	}
+
+	const filter = {
+		capability: flags.capability,
+		category: flags.category,
+		tool: flags.tool,
+	};
+	const hasFilter = Boolean(flags.capability || flags.category || flags.tool);
+	const effectiveDeps: ReverseSetupDeps = {
+		...deps,
+		cwd: effectiveCwd,
+		settings: loadedSettings,
+		filter: hasFilter ? filter : deps.filter,
+	};
 	let report = checkReverseTools(effectiveDeps);
 
 	if (flags.json) {
@@ -1120,11 +1316,12 @@ export async function handleReverseSetup(
 				tool.secondaryMissing && tool.secondaryMissing.length > 0
 					? ` (missing prerequisite: ${tool.secondaryMissing.join(", ")})`
 					: "";
+			const errorNote = tool.adapterError ? ` (${tool.adapterError})` : "";
 			const details = isOk
 				? `${tool.foundPath}${secondaryNote}`
 				: tool.installCommand
-					? `not found - command: ${tool.installCommand}`
-					: `not found - manual: ${tool.manualUrl || tool.manualInstructions}`;
+					? `not found${errorNote} - command: ${tool.installCommand}`
+					: `not found${errorNote} - manual: ${tool.manualUrl || tool.manualInstructions}`;
 			write(`  ${mark} ${chalk.bold(tool.id)}: ${details} ${typeBadge}\n`);
 		}
 		for (const service of report.services) {
@@ -1169,8 +1366,9 @@ export async function handleReverseSetup(
 				const fallbackInfo =
 					cap.availableFallbacks.length > 0 ? `; fallbacks: ${cap.availableFallbacks.join(", ")}` : "";
 				const actionInfo = cap.status !== "ready" && cap.setupCommand ? `; setup: ${cap.setupCommand}` : "";
+				const startNote = cap.canStart !== undefined ? ` [canStart: ${cap.canStart ? "true" : "false"}]` : "";
 				write(
-					`  ${mark} ${chalk.bold(cap.id)}: ${cap.name} - tools: [${toolSummary}]${fallbackInfo}${actionInfo}\n`,
+					`  ${mark} ${chalk.bold(cap.id)}: ${cap.name}${startNote} - tools: [${toolSummary}]${fallbackInfo}${actionInfo}\n`,
 				);
 			}
 		}

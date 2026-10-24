@@ -82,6 +82,8 @@ import { GhidraInspectTool } from "./ghidra-inspect";
 import { DroidascTool } from "./droidasc";
 import { AndroidPackageInspectTool } from "./android-package-inspect";
 import { AndroidNativeWorkflowTool } from "./android-native-workflow";
+import { AppExperimentTool } from "./app-experiment";
+import { RuntimeAnalyzeTool } from "./runtime-analyze";
 import { DexPatchTool } from "./dex-patch";
 import { ApkArtifactTool } from "./apk-artifact";
 import { AdbObserveTool } from "./adb-observe";
@@ -198,6 +200,8 @@ export * from "./dotnet-inspect";
 export * from "./ghidra-inspect";
 export * from "./droidasc";
 export * from "./android-package-inspect";
+export * from "./app-experiment";
+export * from "./runtime-analyze";
 export * from "./dex-patch";
 export * from "./apk-artifact";
 export * from "./adb-observe";
@@ -634,6 +638,8 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	droidasc: s => new DroidascTool(s),
 	android_package_inspect: s => new AndroidPackageInspectTool(s),
 	android_native_workflow: s => new AndroidNativeWorkflowTool(s),
+	app_experiment: s => new AppExperimentTool(s),
+	runtime_analyze: s => new RuntimeAnalyzeTool(s),
 	dex_patch: s => new DexPatchTool(s),
 	apk_artifact: s => new ApkArtifactTool(s),
 	adb_observe: s => new AdbObserveTool(s),

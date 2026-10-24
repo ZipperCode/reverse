@@ -118,6 +118,10 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.setup.reverse.tool.hermes-dec.description": "反汇编和反编译 Hermes JavaScript 字节码，适用于相关应用脚本分析。",
 	"cli.setup.reverse.tool.hbctool.description": "Hermes 字节码汇编与反汇编工具，用于检查或修改 HBC 文件。",
 	"cli.setup.reverse.tool.il2cppdumper.description": "从 Unity IL2CPP 二进制中恢复类型、方法元信息及辅助头文件。",
+	"cli.setup.reverse.tool.blutter.description":
+		"Flutter Android libapp.so AOT 逆向分析与符号恢复工具，还原 Dart 类与方法。",
+	"cli.setup.reverse.tool.jdk8.description":
+		"严格的 Java 8 开发环境，供 Unidbg 原生模拟框架编译和执行（不兼容 Java 9+）。",
 	"cli.setup.reverse.tool.wasm-tools.description": "验证、检查和转换 WebAssembly 二进制，辅助分析模块结构。",
 	"cli.setup.reverse.tool.readelf.description": "检查 ELF 文件头、段、节、符号与备注信息，辅助判断二进制布局。",
 	"cli.setup.reverse.tool.binwalk.description": "识别固件内嵌文件与文件系统，并辅助执行多层提取。",
@@ -155,6 +159,11 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 		"需要无头二进制分析，或 IDA 不可用时，检查导入、符号、字符串及单函数汇编。",
 	"cli.setup.reverse.tool.ghidra.purpose": "需要批量静态分析和伪代码，或使用免费的反编译方案时。",
 	"cli.setup.reverse.tool.unidbg.purpose": "无需真机，在模拟环境中调用 JNI 算法，验证签名、加密或令牌计算。",
+	"cli.setup.reverse.tool.blutter.purpose":
+		"从 Flutter 编译生成的 libapp.so 中提取 Dart 类定义、对象字段与函数符号信息。",
+	"cli.setup.reverse.tool.jdk8.purpose":
+		"满足 Unidbg 编译和运行对 JDK 8 (1.8) 的强依赖要求，规避 Java 9+ 的模块系统命名冲突。",
+	"cli.setup.reverse.unidbg.jdk8Risk": "安装 Unidbg 原生模拟所需的 JDK 8（Java 9+ 不兼容）。",
 	"cli.setup.reverse.tool.bundletool.purpose": "将 AAB 转为可部署、可检查的 APK，分析拆分包中的代码与资源。",
 	"cli.setup.reverse.tool.dex2jar.purpose": "把 Android 字节码交给 CFR、Fernflower 等 Java 反编译器处理。",
 	"cli.setup.reverse.tool.baksmali.purpose": "需要精确检查或修改 DEX 指令、寄存器和分支逻辑时。",
@@ -254,6 +263,12 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.setup.reverse.sofixer.risk": "使用 CMake 和本地编译器从固定上游源码编译 32 位与 64 位 SoFixer 原生可执行文件。",
 	"cli.setup.reverse.ghidra-findcrypt.risk":
 		"使用 Gradle 针对当前已安装的 Ghidra 版本编译 FindCrypt 扩展并安装至 Ghidra 插件目录。",
+	"cli.setup.reverse.hbctool.risk": "在 agent 目录创建隔离虚拟环境并安装固定版本 hbctool，不修改系统 Python。",
+	"cli.setup.reverse.hermes-dec.risk": "在 agent 目录创建隔离虚拟环境并安装固定版本 hermes-dec，不修改系统 Python。",
+	"cli.setup.reverse.il2cppdumper.risk":
+		"下载固定版本 Il2CppDumper 至 agent 工具目录；非 Windows 环境需要兼容的 .NET 运行时。",
+	"cli.setup.reverse.blutter.risk":
+		"检出固定版本 Blutter 并创建隔离 Python 环境；具体样本仍需显式准备匹配的 Dart VM 后端。",
 	"cli.setup.reverse.capability.native_elf_analysis.name": "原生 ELF 深度分析",
 	"cli.setup.reverse.capability.native_elf_analysis.scenario":
 		"检查 ELF 头、段、动态条目、重定位表、init/fini 数组与地址映射。",

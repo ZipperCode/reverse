@@ -166,7 +166,9 @@ unidbg({
 ```
 ## 权限与会话安全隔离
 
-- `status` 为只读操作 (`read`)。
-- `scaffold`、`build`、`launch` 与 `stop` 为写入与执行操作 (`write`)，受安全审批模式保护。
+- `status` 为只读探查操作 (`read`)。
+- `scaffold` 为 Java Harness 源码生成操作 (`write`)。
+- `build`、`launch`、`probe` 与 `stop` 为外部编译构建与进程执行/动态模拟操作 (`exec`)，受安全审批模式保护（`write` 审批模式下将触发提示确认）。
+- 未知或缺省动作默认 fail-closed 归入 `exec` 审批层级。
 - **会话级资源隔离**：通过 `launch` 启动的 Harness 进程与其 SSE MCP 挂载从属于发起调用的会话对象。会话结束或释放时，系统自动触发 `stopUnidbgHarness` 发送 `SIGTERM`（超时后升级为 `SIGKILL`），并断开 MCP 注册，杜绝后台残留孤儿进程或端口占用。
 - **输入合法性保护**：脚手架参数对类名、方法名与入参做字符串转义与类型校验，防止源码注入。

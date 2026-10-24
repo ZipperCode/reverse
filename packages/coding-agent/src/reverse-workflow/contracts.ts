@@ -129,6 +129,16 @@ export interface StepResumeMetadata {
 	notes?: string;
 }
 
+export type CapabilityDepth = "static" | "dynamic" | "emulation" | "instrumentation" | "triage";
+
+export interface DiscoveryGuidance {
+	tool_doc?: string;
+	dispatch_method?: string;
+	current_step_only?: boolean;
+	recommended_reading?: string;
+	notice?: string;
+	next_action_preview?: string;
+}
 export interface RecoveryAuditEntry {
 	attempt: number;
 	timestamp: string;
@@ -147,6 +157,9 @@ export interface RecoveryAuditEntry {
 	setup_command?: string;
 	verified?: boolean;
 	strategy?: string;
+	capability_depth?: CapabilityDepth;
+	verification_boundary?: string;
+	remaining_acceptance?: string;
 }
 
 export interface RecoveryPlan {
@@ -166,6 +179,16 @@ export interface RecoveryPlan {
 	setup_command?: string;
 	/** Canonical install-after resume metadata if proposed or configured */
 	resume?: StepResumeMetadata;
+	/** Prerequisites required before executing the next tool (e.g. target binary on disk, device attached) */
+	prerequisites?: string[];
+	/** Execution depth: static inspection, dynamic execution, JNI emulation, instrumentation, or exploratory triage */
+	capability_depth?: CapabilityDepth;
+	/** Boundary explanation: what this fallback verifies and what it cannot verify */
+	verification_boundary?: string;
+	/** Acceptance criteria or scope that remains unsatisfied by this observation/fallback */
+	remaining_acceptance?: string;
+	/** Structured guidance for model-driven tool discovery (e.g. read schema before calling) */
+	discovery_guidance?: DiscoveryGuidance;
 }
 
 export interface StepRetryEntry {
@@ -185,6 +208,9 @@ export interface StepRecoveryMetadata {
 	recovery_audit?: RecoveryAuditEntry[];
 	/** Canonical install-after resume metadata when recovering following external tool installation */
 	resume?: StepResumeMetadata;
+	capability_depth?: CapabilityDepth;
+	verification_boundary?: string;
+	remaining_acceptance?: string;
 }
 
 export interface WorkflowStepRecord {
@@ -217,6 +243,8 @@ export type PatchStatus = "active" | "retired";
 
 export interface CumulativePatchRecord {
 	patch_id: string;
+	/** Member package name in split package set (e.g. 'base', 'split_config.arm64_v8a') or undefined for single-artifact workflows */
+	package_member?: string;
 	/** Member path inside container (e.g. 'lib/arm64-v8a/libEaglet.so', 'classes.dex') or undefined for plain binary */
 	member_path?: string;
 	/** Byte offset from beginning of file or container member */
@@ -282,6 +310,21 @@ export interface BuildArtifactRecord {
 	dependencies?: WorkflowDependencyRecord[];
 	evidence_ids?: string[];
 	runtime_evidence_ids?: string[];
+	package_set?: {
+		format: "apk_package_set";
+		package: string;
+		versionCode: string | number;
+		set_sha256: string;
+		members: Array<{
+			name: string;
+			filename: string;
+			size: number;
+			sha256: string;
+			alignment_ok?: boolean;
+			signed?: boolean;
+		}>;
+		signed?: boolean;
+	};
 	metadata?: Record<string, unknown>;
 	created_at: string;
 	updated_at: string;
@@ -306,6 +349,7 @@ export interface WorkflowBaselineSummary {
 		active_patches_count: number;
 		active_patches: Array<{
 			patch_id: string;
+			package_member?: string;
 			member_path?: string;
 			offset: number;
 			expected_bytes: string;

@@ -6,6 +6,7 @@ import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
 import { type } from "@reverse/reversetype";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { prompt } from "@reverse/utils";
+import { XMLParser } from "@reverse/utils/xml";
 import androidPackageInspectDescription from "../prompts/tools/android-package-inspect.md" with { type: "text" };
 import { checkToolRequirements, type SkillRequirementWhich } from "../extensibility/skill-requirements";
 import type { ToolSession } from "./index";
@@ -91,10 +92,108 @@ export interface AndroidPackageDexEntry {
 	classCount?: number;
 }
 
+export interface AndroidIntentFilterData {
+	scheme?: string;
+	host?: string;
+	port?: string;
+	path?: string;
+	pathPrefix?: string;
+	pathPattern?: string;
+	mimeType?: string;
+}
+
+export interface AndroidIntentFilter {
+	actions: string[];
+	categories: string[];
+	data: AndroidIntentFilterData[];
+	autoVerify?: boolean | "unknown";
+}
+
+export interface AndroidPathPermission {
+	path?: string;
+	pathPrefix?: string;
+	pathPattern?: string;
+	permission?: string;
+	readPermission?: string;
+	writePermission?: string;
+}
+
 export interface AndroidManifestComponent {
 	name: string;
+	type?: "activity" | "activity-alias" | "service" | "receiver" | "provider";
 	exported?: boolean;
+	rawExported?: string;
+	effectiveExported?: boolean | "unknown";
+	exportReason?: string;
+	permission?: string;
+	readPermission?: string;
+	writePermission?: string;
+	inheritedPermission?: string;
+	effectivePermission?: string;
+	effectiveReadPermission?: string;
+	effectiveWritePermission?: string;
 	authorities?: string;
+	grantUriPermissions?: boolean;
+	hasGrantUriPermissionTags?: boolean;
+	pathPermissions?: AndroidPathPermission[];
+	enabled?: boolean | "unknown";
+	rawEnabled?: string;
+	process?: string;
+	targetActivity?: string;
+	intentFilters?: AndroidIntentFilter[];
+}
+
+export interface AndroidDeepLink {
+	component: string;
+	componentType: "activity" | "activity-alias";
+	schemes: string[];
+	hosts: string[];
+	pathPatterns: Array<{
+		type: "literal" | "prefix" | "pattern";
+		value: string;
+	}>;
+	mimeType?: string;
+	autoVerify?: boolean | "unknown";
+	actions: string[];
+	categories: string[];
+	exported: boolean | "unknown";
+	permission?: string;
+	sampleUris: string[];
+}
+
+export interface AndroidNetworkSecurityConfigPin {
+	digest: string;
+	value: string;
+}
+
+export interface AndroidNetworkSecurityConfigTrustAnchor {
+	src: string;
+	overridePins?: boolean;
+}
+
+export interface AndroidNetworkSecurityConfigDomain {
+	domain: string;
+	includeSubdomains: boolean;
+	cleartextTrafficPermitted?: boolean | "unknown";
+	pinSet?: {
+		expiration?: string;
+		pins: AndroidNetworkSecurityConfigPin[];
+	};
+	trustAnchors?: AndroidNetworkSecurityConfigTrustAnchor[];
+}
+
+export interface AndroidNetworkSecurityConfigData {
+	rawRef?: string;
+	resolvedFile?: string;
+	format?: "plain_xml" | "binary_xml";
+	unresolvedResourceId?: string;
+	cleartextTrafficPermitted?: boolean | "unknown";
+	baseTrustAnchors?: AndroidNetworkSecurityConfigTrustAnchor[];
+	domainConfigs?: AndroidNetworkSecurityConfigDomain[];
+	debugOverrides?: {
+		cleartextTrafficPermitted?: boolean | "unknown";
+		trustAnchors?: AndroidNetworkSecurityConfigTrustAnchor[];
+	};
 }
 
 export interface AndroidManifestMetadata {
@@ -106,21 +205,39 @@ export interface AndroidManifestMetadata {
 	targetSdkVersion?: number | string;
 	permissions: string[];
 	permissionsDeclared: string[];
+	declaredPermissions?: Array<{
+		name: string;
+		protectionLevel?: string;
+	}>;
 	application: {
 		name?: string;
 		label?: string;
 		icon?: string;
 		debuggable?: boolean;
+		rawDebuggable?: string;
 		allowBackup?: boolean;
+		rawAllowBackup?: string;
 		extractNativeLibs?: boolean;
+		rawExtractNativeLibs?: string;
 		useEmbeddedDex?: boolean;
+		rawUseEmbeddedDex?: string;
 		hasCode?: boolean;
+		rawHasCode?: string;
+		usesCleartextTraffic?: boolean;
+		rawUsesCleartextTraffic?: string;
+		networkSecurityConfig?: string;
+		permission?: string;
+		enabled?: boolean;
+		rawEnabled?: string;
+		effectiveEnabled?: boolean | "unknown";
 	};
 	activities: AndroidManifestComponent[];
 	services: AndroidManifestComponent[];
 	receivers: AndroidManifestComponent[];
 	providers: AndroidManifestComponent[];
 	totalComponents: number;
+	deepLinks?: AndroidDeepLink[];
+	networkSecurityConfig?: AndroidNetworkSecurityConfigData;
 }
 
 export interface AndroidApkSigningBlockInfo {
@@ -341,7 +458,7 @@ export class ZipParser {
 		return this.entries.find(e => e.name === name);
 	}
 
-	readFile(entry: ZipEntry): Buffer | null {
+	readFile(entry: ZipEntry, maxOutputLength?: number): Buffer | null {
 		if (entry.localHeaderOffset + 30 > this.buffer.length) return null;
 		const sig = this.buffer.readUInt32LE(entry.localHeaderOffset);
 		if (sig !== 0x04034b50) return null;
@@ -354,12 +471,17 @@ export class ZipParser {
 		if (dataEnd > this.buffer.length) return null;
 		const rawData = this.buffer.subarray(dataStart, dataEnd);
 
+		if (maxOutputLength && entry.uncompressedSize > maxOutputLength) {
+			return null;
+		}
+
 		if (entry.compressionMethod === 0) {
+			if (maxOutputLength && rawData.length > maxOutputLength) return null;
 			return Buffer.from(rawData);
 		}
 		if (entry.compressionMethod === 8) {
 			try {
-				return zlib.inflateRawSync(rawData);
+				return zlib.inflateRawSync(rawData, maxOutputLength ? { maxOutputLength } : undefined);
 			} catch {
 				return null;
 			}
@@ -619,29 +741,570 @@ function readUleb128Len(buf: Buffer, off: number, limit: number): { len: number;
 	return { len: b0, bytesRead: 1 };
 }
 
-export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
-	if (buf.length < 8) return null;
-	const chunkType = buf.readUInt16LE(0);
-	if (chunkType !== 0x0003) return null; // RES_XML_TYPE
-	const rawTotalSize = buf.readUInt32LE(4);
-	const totalSize = rawTotalSize > 0 ? Math.min(buf.length, rawTotalSize) : buf.length;
-
-	let poolOff = buf.readUInt16LE(2);
-	if (poolOff < 8 || poolOff + 28 > buf.length || buf.readUInt16LE(poolOff) !== 0x0001) {
-		poolOff = 8;
+export function parseBooleanAttr(val: unknown): { value?: boolean; isReference?: boolean; raw?: string } {
+	if (val === undefined || val === null) return {};
+	if (typeof val === "boolean") return { value: val };
+	if (typeof val === "number") return { value: val !== 0 };
+	if (typeof val === "string") {
+		const trimmed = val.trim();
+		if (trimmed === "true" || trimmed === "1") return { value: true };
+		if (trimmed === "false" || trimmed === "0") return { value: false };
+		if (trimmed.startsWith("@")) return { isReference: true, raw: trimmed };
 	}
-	if (poolOff + 28 > buf.length || buf.readUInt16LE(poolOff) !== 0x0001) {
-		let found = -1;
-		for (let i = 8; i + 28 <= buf.length && i <= 256; i += 4) {
-			if (buf.readUInt16LE(i) === 0x0001) {
-				found = i;
-				break;
+	return {};
+}
+
+export function calculateEffectiveEnabled(
+	compEnabledParsed: { value?: boolean; isReference?: boolean; raw?: string },
+	appEnabledParsed: { value?: boolean; isReference?: boolean; raw?: string },
+): boolean | "unknown" {
+	// Android 官方语义 (https://developer.android.com/guide/topics/manifest/application-element#enabled)：
+	// 1. 若 application 的 android:enabled 明确为 false，则覆盖所有组件设置，组件均不可被实例化
+	if (appEnabledParsed.value === false) {
+		return false;
+	}
+	// 2. 若组件自身的 android:enabled 明确为 false，则组件被禁用
+	if (compEnabledParsed.value === false) {
+		return false;
+	}
+	// 3. 若 application 的 enabled 是未解析的资源引用（如 @bool/...），且未明确被组件 false 覆盖，无法静态判定
+	if (appEnabledParsed.isReference) {
+		return "unknown";
+	}
+	// 4. 若组件自身的 enabled 是未解析的资源引用，且 application 未为 false，无法静态判定
+	if (compEnabledParsed.isReference) {
+		return "unknown";
+	}
+	// 5. 其余情况：application 与 component 均为 true 或未声明（默认 true），组件生效启用
+	return true;
+}
+
+export function calculateEffectiveExported(
+	componentType: "activity" | "activity-alias" | "service" | "receiver" | "provider",
+	declaredExported: boolean | undefined,
+	hasIntentFilters: boolean,
+	targetSdkVersion: number | string | undefined,
+	isResourceReference = false,
+	rawRef?: string,
+	minSdkVersion?: number | string | undefined,
+): { effective: boolean | "unknown"; reason: string } {
+	// 1. 未解析的资源引用（例如 @bool/is_exported 或 @0x7f050001）
+	if (isResourceReference) {
+		return {
+			effective: "unknown",
+			reason: `Unresolved resource reference (${rawRef ?? "@..."}) for exported attribute; cannot determine static boolean value without resource table`,
+		};
+	}
+
+	// 2. 显式声明的 exported 取值优先（AOSP PackageParser 即使在 API <= 16 也尊重 ContentProvider 显式 exported=false）
+	if (declaredExported !== undefined) {
+		return {
+			effective: declaredExported,
+			reason: `Explicitly declared exported="${declaredExported}"`,
+		};
+	}
+
+	// 3. 解析 targetSdkVersion 与 minSdkVersion，区分“未声明（默认值）”与“未解析（未知）”
+	let targetIsUnknown = false;
+	let parsedTarget: number | undefined;
+
+	if (targetSdkVersion !== undefined) {
+		if (typeof targetSdkVersion === "number") {
+			parsedTarget = targetSdkVersion;
+		} else if (typeof targetSdkVersion === "string" && /^\d+$/.test(targetSdkVersion.trim())) {
+			parsedTarget = parseInt(targetSdkVersion.trim(), 10);
+		} else {
+			targetIsUnknown = true;
+		}
+	}
+
+	let minIsUnknown = false;
+	let parsedMin: number | undefined;
+
+	if (minSdkVersion !== undefined) {
+		if (typeof minSdkVersion === "number") {
+			parsedMin = minSdkVersion;
+		} else if (typeof minSdkVersion === "string" && /^\d+$/.test(minSdkVersion.trim())) {
+			parsedMin = parseInt(minSdkVersion.trim(), 10);
+		} else {
+			minIsUnknown = true;
+		}
+	}
+
+	// 官方文档规则（https://developer.android.com/guide/topics/manifest/uses-sdk-element#target）：
+	// 若 targetSdkVersion 未设置，其默认值与 minSdkVersion 相同；若 minSdkVersion 亦未设置，则默认值为 1
+	let effectiveTargetSdk: number | undefined;
+	if (targetIsUnknown) {
+		effectiveTargetSdk = undefined;
+	} else if (parsedTarget !== undefined) {
+		effectiveTargetSdk = parsedTarget;
+	} else if (minIsUnknown) {
+		effectiveTargetSdk = undefined;
+	} else if (parsedMin !== undefined) {
+		effectiveTargetSdk = parsedMin;
+	} else {
+		effectiveTargetSdk = 1;
+	}
+
+	// 4. ContentProvider 默认导出规则与 API 17 临界特性
+	if (componentType === "provider") {
+		if (effectiveTargetSdk === undefined) {
+			return {
+				effective: "unknown",
+				reason: "targetSdkVersion is unknown/unresolved; cannot determine provider default exported state",
+			};
+		}
+
+		if (effectiveTargetSdk < 17) {
+			return {
+				effective: true,
+				reason: `Undeclared on targetSdkVersion < 17 (${effectiveTargetSdk}); defaults to exported=true across all Android versions`,
+			};
+		}
+
+		// targetSdkVersion >= 17：在 API >= 17 设备上默认 exported=false；若 minSdkVersion 未解析或 < 17（未指定时默认 minSdk 为 1），在 API <= 16 设备上平台默认 exported=true
+		if (minIsUnknown) {
+			return {
+				effective: "unknown",
+				reason: `targetSdkVersion >= 17 (${effectiveTargetSdk}) with unresolved minSdkVersion (${minSdkVersion}); cannot establish whether minSdkVersion >= 17`,
+			};
+		}
+		const effectiveMin = parsedMin ?? 1;
+		if (effectiveMin < 17) {
+			return {
+				effective: "unknown",
+				reason: `Undeclared on targetSdkVersion >= 17 (${effectiveTargetSdk}) with minSdkVersion < 17 (${effectiveMin}); runtime default is environment-dependent (exported=true on devices running API <= 16, exported=false on API >= 17)`,
+			};
+		}
+
+		return {
+			effective: false,
+			reason: `Undeclared on targetSdkVersion >= 17 (${effectiveTargetSdk}); defaults to exported=false`,
+		};
+	}
+	// 5. 带有 intent-filter 的 Activity/Service/Receiver/Alias 默认导出规则
+	if (hasIntentFilters) {
+		if (effectiveTargetSdk === undefined) {
+			return {
+				effective: "unknown",
+				reason:
+					"targetSdkVersion is unknown/unresolved; cannot determine default exported state for component with intent-filters",
+			};
+		}
+
+		if (effectiveTargetSdk >= 31) {
+			return {
+				effective: "unknown",
+				reason: `targetSdkVersion >= 31 (${effectiveTargetSdk}) requires explicit android:exported declaration when intent-filters exist; omitted exported causes installation failure (status unknown/invalid)`,
+			};
+		}
+
+		return {
+			effective: true,
+			reason: `Default for component with intent-filters when targetSdkVersion (${effectiveTargetSdk}) < 31 is exported=true`,
+		};
+	}
+
+	// 6. 无 intent-filter 的组件默认导出规则为 false
+	return {
+		effective: false,
+		reason: "Default for component without intent-filters is exported=false",
+	};
+}
+
+export function extractDeepLinks(activities: AndroidManifestComponent[]): AndroidDeepLink[] {
+	const deepLinks: AndroidDeepLink[] = [];
+
+	for (const comp of activities) {
+		if (!comp.intentFilters || comp.intentFilters.length === 0) continue;
+
+		for (const filter of comp.intentFilters) {
+			const hasViewAction = filter.actions.includes("android.intent.action.VIEW");
+			const hasData = filter.data.length > 0;
+			if (!hasViewAction || !hasData) continue;
+
+			const schemes = Array.from(new Set(filter.data.map(d => d.scheme).filter((s): s is string => Boolean(s))));
+			const authorities: Array<{ host: string; port?: string }> = [];
+			for (const d of filter.data) {
+				if (d.host) {
+					const existing = authorities.find(a => a.host === d.host && a.port === d.port);
+					if (!existing) {
+						authorities.push({ host: d.host, port: d.port });
+					}
+				}
+			}
+			const hosts = Array.from(new Set(authorities.map(a => a.host)));
+			const pathPatterns: Array<{ type: "literal" | "prefix" | "pattern"; value: string }> = [];
+
+			for (const d of filter.data) {
+				if (d.path) pathPatterns.push({ type: "literal", value: d.path });
+				if (d.pathPrefix) pathPatterns.push({ type: "prefix", value: d.pathPrefix });
+				if (d.pathPattern) pathPatterns.push({ type: "pattern", value: d.pathPattern });
+			}
+
+			const mimeTypes = Array.from(new Set(filter.data.map(d => d.mimeType).filter((m): m is string => Boolean(m))));
+
+			const sampleUris: string[] = [];
+			const MAX_SAMPLE_URIS = 10;
+
+			// 仅 literal 与 prefix 生成确定的静态样本 URI；pattern（正则/通配）独立保留在 pathPatterns 中，不臆造虚假样本
+			const concretePaths = pathPatterns
+				.filter(p => p.type === "literal" || p.type === "prefix")
+				.map(p => (p.value.startsWith("/") ? p.value : `/${p.value}`));
+
+			// 在构造笛卡尔积前进行预截断，防止维度爆炸
+			const boundedSchemes = schemes.slice(0, 3);
+			const boundedAuths = authorities.slice(0, 3);
+			const boundedPaths = concretePaths.slice(0, 5);
+
+			if (boundedSchemes.length > 0) {
+				for (const scheme of boundedSchemes) {
+					if (sampleUris.length >= MAX_SAMPLE_URIS) break;
+					if (boundedAuths.length > 0) {
+						for (const auth of boundedAuths) {
+							if (sampleUris.length >= MAX_SAMPLE_URIS) break;
+							const concreteHost = auth.host.startsWith("*.") ? `app.${auth.host.slice(2)}` : auth.host;
+							const authorityStr = auth.port ? `${concreteHost}:${auth.port}` : concreteHost;
+
+							if (boundedPaths.length > 0) {
+								for (const sPath of boundedPaths) {
+									if (sampleUris.length >= MAX_SAMPLE_URIS) break;
+									sampleUris.push(`${scheme}://${authorityStr}${sPath}`);
+								}
+							} else if (pathPatterns.length === 0) {
+								sampleUris.push(`${scheme}://${authorityStr}`);
+							}
+						}
+					} else {
+						if (boundedPaths.length > 0) {
+							for (const sPath of boundedPaths) {
+								if (sampleUris.length >= MAX_SAMPLE_URIS) break;
+								sampleUris.push(`${scheme}://${sPath.slice(1)}`);
+							}
+						} else if (pathPatterns.length === 0) {
+							sampleUris.push(`${scheme}://`);
+						}
+					}
+				}
+			}
+			deepLinks.push({
+				component: comp.name,
+				componentType: comp.type === "activity-alias" ? "activity-alias" : "activity",
+				schemes,
+				hosts,
+				pathPatterns,
+				mimeType: mimeTypes.length > 0 ? mimeTypes.join(", ") : undefined,
+				autoVerify: filter.autoVerify !== undefined ? filter.autoVerify : false,
+				actions: filter.actions,
+				categories: filter.categories,
+				exported: comp.effectiveExported ?? "unknown",
+				permission: comp.effectivePermission,
+				sampleUris: Array.from(new Set(sampleUris)),
+			});
+		}
+	}
+
+	return deepLinks;
+}
+
+export interface GenericXmlNode {
+	tag: string;
+	attrs: Record<string, string | number | boolean>;
+	text?: string;
+	children: GenericXmlNode[];
+	isTruncated?: boolean;
+}
+
+export function getNodeAttr(
+	node: GenericXmlNode | Record<string, unknown> | undefined,
+	attrName: string,
+): string | undefined {
+	if (!node || typeof node !== "object") return undefined;
+	if ("attrs" in node && typeof (node as GenericXmlNode).attrs === "object") {
+		const gNode = node as GenericXmlNode;
+		const lower = attrName.toLowerCase();
+		if (gNode.attrs[lower] !== undefined) return String(gNode.attrs[lower]);
+		if (gNode.attrs[attrName] !== undefined) return String(gNode.attrs[attrName]);
+		for (const [k, v] of Object.entries(gNode.attrs)) {
+			const bare = k.includes(":") ? k.split(":").pop()!.toLowerCase() : k.toLowerCase();
+			if (bare === lower) return String(v);
+		}
+		return undefined;
+	}
+	const lower = attrName.toLowerCase();
+	for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+		if (!key.startsWith("@_")) continue;
+		const rawKey = key.slice(2);
+		const bare = rawKey.includes(":") ? rawKey.split(":").pop()! : rawKey;
+		if (bare.toLowerCase() === lower || rawKey.toLowerCase() === lower) {
+			return String(value);
+		}
+	}
+	return undefined;
+}
+
+export function getChildNodes(
+	parent: GenericXmlNode | Record<string, unknown> | undefined,
+	tagName: string,
+): Array<GenericXmlNode | Record<string, unknown>> {
+	if (!parent || typeof parent !== "object") return [];
+	if ("children" in parent && Array.isArray((parent as GenericXmlNode).children)) {
+		const lower = tagName.toLowerCase();
+		return (parent as GenericXmlNode).children.filter(c => c.tag === lower);
+	}
+	const lower = tagName.toLowerCase();
+	const matches: Array<Record<string, unknown>> = [];
+	for (const [key, value] of Object.entries(parent as Record<string, unknown>)) {
+		if (key.startsWith("@_") || key.startsWith("#")) continue;
+		const bare = key.includes(":") ? key.split(":").pop()! : key;
+		if (bare.toLowerCase() === lower) {
+			if (Array.isArray(value)) {
+				for (const item of value) {
+					if (item && typeof item === "object") matches.push(item as Record<string, unknown>);
+				}
+			} else if (value && typeof value === "object") {
+				matches.push(value as Record<string, unknown>);
 			}
 		}
-		if (found === -1) return null;
-		poolOff = found;
+	}
+	return matches;
+}
+function decodeXmlEntities(str: string): string {
+	return str.replace(/&(?:(amp|lt|gt|quot|apos)|#(\d+)|#x([0-9a-fA-F]+));/g, (_, named, dec, hex) => {
+		if (named) {
+			if (named === "amp") return "&";
+			if (named === "lt") return "<";
+			if (named === "gt") return ">";
+			if (named === "quot") return '"';
+			if (named === "apos") return "'";
+		}
+		try {
+			const code = dec ? parseInt(dec, 10) : parseInt(hex, 16);
+			if (code >= 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)) {
+				return String.fromCodePoint(code);
+			}
+		} catch {
+			// 忽略异常 code point
+		}
+		return "";
+	});
+}
+
+export function convertFastXmlToNode(name: string, val: unknown): GenericXmlNode {
+	const bareTag = name.includes(":") ? name.split(":").pop()!.toLowerCase() : name.toLowerCase();
+	const attrs: Record<string, string | number | boolean> = {};
+	const children: GenericXmlNode[] = [];
+	let text: string | undefined;
+
+	if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
+		text = typeof val === "string" ? decodeXmlEntities(val.trim()) : String(val).trim();
+	} else if (val && typeof val === "object") {
+		for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+			if (k.startsWith("@_")) {
+				const attrRaw = k.slice(2);
+				const attrBare = attrRaw.includes(":") ? attrRaw.split(":").pop()!.toLowerCase() : attrRaw.toLowerCase();
+				const strVal =
+					typeof v === "boolean" || typeof v === "number"
+						? v
+						: typeof v === "string"
+							? decodeXmlEntities(v)
+							: String(v);
+				attrs[attrBare] = strVal;
+				attrs[attrRaw] = strVal;
+			} else if (k === "#text") {
+				text = typeof v === "string" ? decodeXmlEntities(v.trim()) : String(v).trim();
+			} else {
+				const items = Array.isArray(v) ? v : [v];
+				for (const item of items) {
+					if (item !== undefined && item !== null) {
+						children.push(convertFastXmlToNode(k, item));
+					}
+				}
+			}
+		}
 	}
 
+	return {
+		tag: bareTag,
+		attrs,
+		text,
+		children,
+	};
+}
+
+export function extractNetworkSecurityConfigFromNode(rootNode: GenericXmlNode): {
+	cleartextTrafficPermitted?: boolean | "unknown";
+	baseTrustAnchors?: AndroidNetworkSecurityConfigTrustAnchor[];
+	domainConfigs?: AndroidNetworkSecurityConfigDomain[];
+	debugOverrides?: AndroidNetworkSecurityConfigData["debugOverrides"];
+} {
+	let cleartextTrafficPermitted: boolean | "unknown" | undefined;
+	const baseTrustAnchors: AndroidNetworkSecurityConfigTrustAnchor[] = [];
+	const domainConfigs: AndroidNetworkSecurityConfigDomain[] = [];
+	let debugOverrides: AndroidNetworkSecurityConfigData["debugOverrides"];
+
+	// 1. Base Config
+	const baseNode = rootNode.children.find(c => c.tag === "base-config");
+	if (baseNode) {
+		const clrParsed = parseBooleanAttr(getNodeAttr(baseNode, "cleartextTrafficPermitted"));
+		if (clrParsed.isReference) {
+			cleartextTrafficPermitted = "unknown";
+		} else if (clrParsed.value !== undefined) {
+			cleartextTrafficPermitted = clrParsed.value;
+		}
+
+		for (const taNode of baseNode.children.filter(c => c.tag === "trust-anchors")) {
+			for (const certNode of taNode.children.filter(c => c.tag === "certificates")) {
+				const src = getNodeAttr(certNode, "src");
+				if (src) {
+					const overridePins = getNodeAttr(certNode, "overridePins") === "true";
+					baseTrustAnchors.push({ src, overridePins });
+				}
+			}
+		}
+	}
+
+	// 2. Domain Configs (recursive with inheritance)
+	// Android 官方语义：
+	// - 子配置未显式声明的值继承自父级 domain-config 或 base-config
+	// - 显式声明的 trust-anchors 会完全替换（override）继承的 trust-anchors，而非追加合并
+	// - 显式声明的 cleartextTrafficPermitted 覆盖父级设置
+	// - 显式声明的 pin-set 覆盖父级设置
+	interface DomainInheritedState {
+		cleartextTrafficPermitted?: boolean | "unknown";
+		trustAnchors?: AndroidNetworkSecurityConfigTrustAnchor[];
+		pinSet?: {
+			expiration?: string;
+			pins: AndroidNetworkSecurityConfigPin[];
+		};
+	}
+
+	const initialState: DomainInheritedState = {
+		cleartextTrafficPermitted,
+		trustAnchors: baseTrustAnchors.length > 0 ? baseTrustAnchors : undefined,
+		pinSet: undefined,
+	};
+
+	const processDomainConfig = (node: GenericXmlNode, parentState: DomainInheritedState, depth = 0) => {
+		if (depth > 20) {
+			throw new Error("Network security config nested domain-config exceeded maximum recursion depth");
+		}
+
+		// cleartextTrafficPermitted 判定（未解析资源引用保留 unknown）
+		const clrParsed = parseBooleanAttr(getNodeAttr(node, "cleartextTrafficPermitted"));
+		let currentCleartext: boolean | "unknown" | undefined;
+		if (clrParsed.isReference) {
+			currentCleartext = "unknown";
+		} else if (clrParsed.value !== undefined) {
+			currentCleartext = clrParsed.value;
+		} else {
+			currentCleartext = parentState.cleartextTrafficPermitted;
+		}
+		// trust-anchors 判定：若本节点显式声明 trust-anchors，则替换父级；否则继承父级
+		let currentTrustAnchors: AndroidNetworkSecurityConfigTrustAnchor[] | undefined = parentState.trustAnchors;
+		const taNodes = node.children.filter(c => c.tag === "trust-anchors");
+		if (taNodes.length > 0) {
+			const explicitAnchors: AndroidNetworkSecurityConfigTrustAnchor[] = [];
+			for (const taNode of taNodes) {
+				for (const certNode of taNode.children.filter(c => c.tag === "certificates")) {
+					const src = getNodeAttr(certNode, "src");
+					if (src) {
+						const overridePins = getNodeAttr(certNode, "overridePins") === "true";
+						explicitAnchors.push({ src, overridePins });
+					}
+				}
+			}
+			currentTrustAnchors = explicitAnchors.length > 0 ? explicitAnchors : undefined;
+		}
+
+		// pin-set 判定：若本节点显式声明 pin-set，则替换父级；否则继承父级
+		let currentPinSet: AndroidNetworkSecurityConfigDomain["pinSet"] = parentState.pinSet;
+		const pinSetNode = node.children.find(c => c.tag === "pin-set");
+		if (pinSetNode) {
+			const exp = getNodeAttr(pinSetNode, "expiration");
+			const pins: AndroidNetworkSecurityConfigPin[] = [];
+			for (const pinNode of pinSetNode.children.filter(c => c.tag === "pin")) {
+				const pinVal = (pinNode.text || getNodeAttr(pinNode, "value") || getNodeAttr(pinNode, "pin") || "").trim();
+				const digest = (getNodeAttr(pinNode, "digest") || "SHA-256").trim();
+				if (pinVal) {
+					pins.push({ digest, value: pinVal });
+				}
+			}
+			currentPinSet = { expiration: exp, pins };
+		}
+
+		// 解析本层所有 <domain> 声明
+		for (const domainNode of node.children.filter(c => c.tag === "domain")) {
+			const domainName = (
+				domainNode.text ||
+				getNodeAttr(domainNode, "name") ||
+				getNodeAttr(domainNode, "domain") ||
+				""
+			).trim();
+			const incSubAttr = getNodeAttr(domainNode, "includeSubdomains");
+			const includeSubdomains = incSubAttr === "true" || incSubAttr === "1";
+
+			if (domainName) {
+				domainConfigs.push({
+					domain: domainName,
+					includeSubdomains,
+					cleartextTrafficPermitted: currentCleartext,
+					pinSet: currentPinSet,
+					trustAnchors: currentTrustAnchors,
+				});
+			}
+		}
+
+		// 递归处理嵌套的 <domain-config>
+		const currentState: DomainInheritedState = {
+			cleartextTrafficPermitted: currentCleartext,
+			trustAnchors: currentTrustAnchors,
+			pinSet: currentPinSet,
+		};
+		for (const childConfig of node.children.filter(c => c.tag === "domain-config")) {
+			processDomainConfig(childConfig, currentState, depth + 1);
+		}
+	};
+
+	for (const topDomainConfig of rootNode.children.filter(c => c.tag === "domain-config")) {
+		processDomainConfig(topDomainConfig, initialState, 0);
+	}
+
+	// 3. Debug Overrides
+	const debugNode = rootNode.children.find(c => c.tag === "debug-overrides");
+	if (debugNode) {
+		const clr = getNodeAttr(debugNode, "cleartextTrafficPermitted");
+		const debugAnchors: AndroidNetworkSecurityConfigTrustAnchor[] = [];
+
+		for (const taNode of debugNode.children.filter(c => c.tag === "trust-anchors")) {
+			for (const certNode of taNode.children.filter(c => c.tag === "certificates")) {
+				const src = getNodeAttr(certNode, "src");
+				if (src) {
+					const overrideAttr = getNodeAttr(certNode, "overridePins");
+					// Per Android documentation:
+					// Inside <debug-overrides>, overridePins defaults to true unless explicitly set to "false"
+					const overridePins = overrideAttr !== undefined ? overrideAttr === "true" : true;
+					debugAnchors.push({ src, overridePins });
+				}
+			}
+		}
+
+		debugOverrides = {
+			cleartextTrafficPermitted: clr !== undefined ? clr === "true" || clr === "1" : undefined,
+			trustAnchors: debugAnchors.length > 0 ? debugAnchors : undefined,
+		};
+	}
+
+	return {
+		cleartextTrafficPermitted,
+		baseTrustAnchors: baseTrustAnchors.length > 0 ? baseTrustAnchors : undefined,
+		domainConfigs: domainConfigs.length > 0 ? domainConfigs : undefined,
+		debugOverrides,
+	};
+}
+
+export function parseAxmlStringPoolAt(buf: Buffer, poolOff: number): string[] | null {
+	if (poolOff + 28 > buf.length || buf.readUInt16LE(poolOff) !== 0x0001) return null;
 	const poolHeaderSize = buf.readUInt16LE(poolOff + 2);
 	const poolSize = buf.readUInt32LE(poolOff + 4);
 	const stringCount = buf.readUInt32LE(poolOff + 8);
@@ -742,7 +1405,36 @@ export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
 			strings.push("");
 		}
 	}
+	return strings;
+}
 
+export function parseAxmlTree(buf: Buffer, maxNodes = 5000): GenericXmlNode | null {
+	if (buf.length < 8) return null;
+	const chunkType = buf.readUInt16LE(0);
+	if (chunkType !== 0x0003) return null; // RES_XML_TYPE
+	const rawTotalSize = buf.readUInt32LE(4);
+	const totalSize = rawTotalSize > 0 ? Math.min(buf.length, rawTotalSize) : buf.length;
+
+	let poolOff = buf.readUInt16LE(2);
+	if (poolOff < 8 || poolOff + 28 > buf.length || buf.readUInt16LE(poolOff) !== 0x0001) {
+		poolOff = 8;
+	}
+	if (poolOff + 28 > buf.length || buf.readUInt16LE(poolOff) !== 0x0001) {
+		let found = -1;
+		for (let i = 8; i + 28 <= buf.length && i <= 256; i += 4) {
+			if (buf.readUInt16LE(i) === 0x0001) {
+				found = i;
+				break;
+			}
+		}
+		if (found === -1) return null;
+		poolOff = found;
+	}
+
+	const strings = parseAxmlStringPoolAt(buf, poolOff);
+	if (!strings) return null;
+
+	const poolSize = buf.readUInt32LE(poolOff + 4);
 	let ptr = poolOff + poolSize;
 	if (ptr + 2 <= buf.length && ptr % 4 !== 0) {
 		const currType = buf.readUInt16LE(ptr);
@@ -758,168 +1450,140 @@ export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
 		}
 	}
 
-	let packageName = "";
-	let versionCode: number | string | undefined;
-	let versionName: string | undefined;
-	let compileSdkVersion: number | string | undefined;
-	let minSdkVersion: number | string | undefined;
-	let targetSdkVersion: number | string | undefined;
-	const permissions: string[] = [];
-	const permissionsDeclared: string[] = [];
-	const activities: AndroidManifestComponent[] = [];
-	const services: AndroidManifestComponent[] = [];
-	const receivers: AndroidManifestComponent[] = [];
-	const providers: AndroidManifestComponent[] = [];
-	let appName: string | undefined;
-	let appLabel: string | undefined;
-	let appIcon: string | undefined;
-	let appDebuggable: boolean | undefined;
-	let appAllowBackup: boolean | undefined;
-	let appExtractNativeLibs: boolean | undefined;
-	let appUseEmbeddedDex: boolean | undefined;
-	let appHasCode: boolean | undefined;
+	let rootNode: GenericXmlNode | null = null;
+	const nodeStack: GenericXmlNode[] = [];
+	let nodeCount = 0;
+	let totalDecodedChars = 0;
+	const MAX_DECODED_CHARS = 2 * 1024 * 1024; // 200万字符上限，防止 CDATA / 属性放大攻击
+	const MAX_NODE_TEXT_LEN = 65536; // 单个节点 64 KiB 文本上限
 
 	while (ptr + 8 <= buf.length && ptr < totalSize) {
 		const type = buf.readUInt16LE(ptr);
 		const size = buf.readUInt32LE(ptr + 4);
-		if (size <= 0 || ptr + size > buf.length) break;
+		if (size <= 0 || ptr + size > buf.length || ptr + size > totalSize) {
+			if (rootNode) rootNode.isTruncated = true;
+			break;
+		}
 
 		if (type === 0x0102) {
 			// RES_XML_START_ELEMENT_TYPE
-			const nameIdx = buf.readUInt32LE(ptr + 20);
-			const elemName = strings[nameIdx] ?? "";
+			if (size < 36 || nodeCount >= maxNodes || totalDecodedChars >= MAX_DECODED_CHARS) {
+				if (rootNode) rootNode.isTruncated = true;
+				break;
+			}
+			nodeCount++;
+
+			const nameIdx = ptr + 20 + 4 <= buf.length ? buf.readUInt32LE(ptr + 20) : 0xffffffff;
+			const elemName = nameIdx !== 0xffffffff && nameIdx < strings.length ? strings[nameIdx] : "";
+			const normTag = elemName.includes(":") ? elemName.split(":").pop()!.toLowerCase() : elemName.toLowerCase();
+
 			const nodeHeaderSize = buf.readUInt16LE(ptr + 2) || 16;
-			const attrStart = buf.readUInt16LE(ptr + 24);
-			const attrSize = buf.readUInt16LE(ptr + 26);
-			const attrCount = buf.readUInt16LE(ptr + 28);
+			const attrStart = ptr + 24 + 2 <= buf.length ? buf.readUInt16LE(ptr + 24) : 0;
+			const attrSize = ptr + 26 + 2 <= buf.length ? buf.readUInt16LE(ptr + 26) : 20;
+			const attrCount = ptr + 28 + 2 <= buf.length ? buf.readUInt16LE(ptr + 28) : 0;
 
 			const attrs: Record<string, string | number | boolean> = {};
 			let attrsBase = ptr + (attrStart >= 32 ? attrStart : nodeHeaderSize + attrStart);
-			if (attrsBase + attrCount * 20 > buf.length) {
+			if (attrsBase + attrCount * 20 > ptr + size || attrsBase + attrCount * 20 > buf.length) {
 				attrsBase = ptr + 36;
 			}
 			const effectiveAttrSize = attrSize >= 20 ? attrSize : 20;
-
+			if (attrsBase + attrCount * effectiveAttrSize > ptr + size) {
+				if (rootNode) rootNode.isTruncated = true;
+				break;
+			}
 			for (let a = 0; a < attrCount; a++) {
 				const aOff = attrsBase + a * effectiveAttrSize;
 				if (aOff + 20 > buf.length) break;
+
 				const aNameIdx = buf.readUInt32LE(aOff + 4);
 				const aRawValIdx = buf.readUInt32LE(aOff + 8);
 				const typedValType = buf.readUInt8(aOff + 15);
 				const typedValData = buf.readUInt32LE(aOff + 16);
 
-				const aName = strings[aNameIdx] ?? "";
+				const aName = aNameIdx < strings.length ? strings[aNameIdx] : "";
 				let val: string | number | boolean;
 
 				if (typedValType === 0x03) {
+					// TYPE_STRING
 					val =
-						strings[typedValData] ??
+						(typedValData < strings.length ? strings[typedValData] : undefined) ??
 						(aRawValIdx !== 0xffffffff && aRawValIdx < strings.length ? strings[aRawValIdx] : "") ??
 						"";
 				} else if (aRawValIdx !== 0xffffffff && aRawValIdx < strings.length) {
 					val = strings[aRawValIdx];
 				} else if (typedValType === 0x12) {
+					// TYPE_INT_BOOLEAN
 					val = typedValData !== 0;
 				} else if (typedValType === 0x10) {
+					// TYPE_INT_DEC
 					val = typedValData;
 				} else if (typedValType === 0x11) {
+					// TYPE_INT_HEX
 					val = `0x${typedValData.toString(16)}`;
 				} else if (typedValType === 0x01) {
+					// TYPE_REFERENCE
 					val = `@0x${typedValData.toString(16)}`;
 				} else {
 					val = typedValData;
 				}
 
-				attrs[aName] = val;
+				if (aName) {
+					const bare = aName.includes(":") ? aName.split(":").pop()!.toLowerCase() : aName.toLowerCase();
+					attrs[bare] = val;
+					attrs[aName] = val;
+				}
 			}
 
-			const normElemName = elemName.split(":").pop()?.toLowerCase() ?? "";
-			const getAttr = (k: string): string | number | boolean | undefined => {
-				if (attrs[k] !== undefined) return attrs[k];
-				const lowerK = k.toLowerCase();
-				for (const [key, val] of Object.entries(attrs)) {
-					const bare = key.split(":").pop()?.toLowerCase();
-					if (bare === lowerK) return val;
-				}
-				return undefined;
+			const newNode: GenericXmlNode = {
+				tag: normTag,
+				attrs,
+				children: [],
 			};
 
-			if (normElemName === "manifest") {
-				const pkg = getAttr("package");
-				if (pkg) packageName = String(pkg);
-				const vc = getAttr("versionCode");
-				if (vc !== undefined) versionCode = typeof vc === "number" ? vc : Number(vc) || String(vc);
-				const vn = getAttr("versionName");
-				if (vn !== undefined) versionName = String(vn);
-				const csv = getAttr("compileSdkVersion");
-				if (csv !== undefined) compileSdkVersion = typeof csv === "number" ? csv : Number(csv) || String(csv);
-			} else if (normElemName === "uses-sdk") {
-				const min = getAttr("minSdkVersion");
-				if (min !== undefined) minSdkVersion = typeof min === "number" ? min : Number(min) || String(min);
-				const target = getAttr("targetSdkVersion");
-				if (target !== undefined)
-					targetSdkVersion = typeof target === "number" ? target : Number(target) || String(target);
-			} else if (normElemName === "uses-permission") {
-				const name = getAttr("name");
-				if (name) permissions.push(String(name));
-			} else if (normElemName === "permission") {
-				const name = getAttr("name");
-				if (name) permissionsDeclared.push(String(name));
-			} else if (normElemName === "application") {
-				const name = getAttr("name");
-				if (name) appName = String(name);
-				const label = getAttr("label");
-				if (label) appLabel = String(label);
-				const icon = getAttr("icon");
-				if (icon) appIcon = String(icon);
-				const debuggable = getAttr("debuggable");
-				if (debuggable !== undefined) appDebuggable = Boolean(debuggable);
-				const allowBackup = getAttr("allowBackup");
-				if (allowBackup !== undefined) appAllowBackup = Boolean(allowBackup);
-				const extractNativeLibs = getAttr("extractNativeLibs");
-				if (extractNativeLibs !== undefined) appExtractNativeLibs = Boolean(extractNativeLibs);
-				const useEmbeddedDex = getAttr("useEmbeddedDex");
-				if (useEmbeddedDex !== undefined) appUseEmbeddedDex = Boolean(useEmbeddedDex);
-				const hasCode = getAttr("hasCode");
-				if (hasCode !== undefined) appHasCode = Boolean(hasCode);
-			} else if (normElemName === "activity" || normElemName === "activity-alias") {
-				const name = getAttr("name");
-				if (name) {
-					const exp = getAttr("exported");
-					activities.push({
-						name: String(name),
-						exported: exp !== undefined ? Boolean(exp) : undefined,
-					});
+			if (nodeStack.length > 0) {
+				nodeStack[nodeStack.length - 1].children.push(newNode);
+			} else if (!rootNode) {
+				rootNode = newNode;
+			}
+			nodeStack.push(newNode);
+		} else if (type === 0x0104) {
+			// RES_XML_CDATA_TYPE
+			if (ptr + 20 <= buf.length) {
+				const cdataIdx = buf.readUInt32LE(ptr + 16);
+				if (cdataIdx < strings.length) {
+					const text = strings[cdataIdx];
+					if (text && nodeStack.length > 0) {
+						const top = nodeStack[nodeStack.length - 1];
+						const currentLen = top.text?.length ?? 0;
+						if (
+							currentLen + text.length > MAX_NODE_TEXT_LEN ||
+							totalDecodedChars + text.length > MAX_DECODED_CHARS
+						) {
+							if (rootNode) rootNode.isTruncated = true;
+							break;
+						}
+						totalDecodedChars += text.length;
+						top.text = (top.text ?? "") + text;
+					}
 				}
-			} else if (normElemName === "service") {
-				const name = getAttr("name");
-				if (name) {
-					const exp = getAttr("exported");
-					services.push({
-						name: String(name),
-						exported: exp !== undefined ? Boolean(exp) : undefined,
-					});
-				}
-			} else if (normElemName === "receiver") {
-				const name = getAttr("name");
-				if (name) {
-					const exp = getAttr("exported");
-					receivers.push({
-						name: String(name),
-						exported: exp !== undefined ? Boolean(exp) : undefined,
-					});
-				}
-			} else if (normElemName === "provider") {
-				const name = getAttr("name");
-				if (name) {
-					const auth = getAttr("authorities");
-					const exp = getAttr("exported");
-					providers.push({
-						name: String(name),
-						authorities: auth ? String(auth) : undefined,
-						exported: exp !== undefined ? Boolean(exp) : undefined,
-					});
-				}
+			}
+		} else if (type === 0x0103) {
+			// RES_XML_END_ELEMENT_TYPE
+			// 严格防范截断块：END_ELEMENT 块需完整 24 字节且落在声明块内，避免越界读取 RangeError
+			if (size < 24 || ptr + 24 > buf.length || ptr + size > totalSize) {
+				if (rootNode) rootNode.isTruncated = true;
+				break;
+			}
+			const nameIdx = buf.readUInt32LE(ptr + 20);
+			const elemName = nameIdx < strings.length ? strings[nameIdx] : "";
+			const normTag = elemName.includes(":") ? elemName.split(":").pop()!.toLowerCase() : elemName.toLowerCase();
+
+			const matchIdx = nodeStack.map(n => n.tag).lastIndexOf(normTag);
+			if (matchIdx !== -1) {
+				nodeStack.splice(matchIdx, nodeStack.length - matchIdx);
+			} else if (nodeStack.length > 0) {
+				nodeStack.pop();
 			}
 		}
 
@@ -939,6 +1603,445 @@ export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
 		}
 	}
 
+	// 循环结束时若仍有未闭合的节点（包括根节点未闭合），判定为截断或不完整的 XML 树
+	if (nodeStack.length > 0) {
+		if (rootNode) rootNode.isTruncated = true;
+	}
+
+	return rootNode;
+}
+
+export function resolveNetworkSecurityConfig(
+	rawRef: string | undefined,
+	zip?: ZipParser | null,
+): AndroidNetworkSecurityConfigData | undefined {
+	if (!rawRef) return undefined;
+	const trimmed = rawRef.trim();
+
+	// 显式保留未解析的数值资源 ID（如 @0x7f100001 或 0x7f100001）
+	if (/^@?0x[0-9a-fA-F]+$/.test(trimmed)) {
+		return {
+			rawRef: trimmed,
+			unresolvedResourceId: trimmed,
+		};
+	}
+
+	if (trimmed.startsWith("@xml/")) {
+		const xmlName = trimmed.slice(5).trim();
+		const candidatePath = `res/xml/${xmlName}.xml`;
+
+		if (zip) {
+			const entry =
+				zip.getEntry(candidatePath) ?? zip.entries.find(e => e.name.toLowerCase() === candidatePath.toLowerCase());
+			if (entry) {
+				const MAX_XML_BYTES = 10 * 1024 * 1024; // 10 MiB 最大解压上限，防止 zip 炸弹
+				const buf = zip.readFile(entry, MAX_XML_BYTES);
+				if (buf) {
+					let format: "plain_xml" | "binary_xml" = "plain_xml";
+					let extracted: AndroidNetworkSecurityConfigData | undefined;
+
+					try {
+						const isAxml = buf.length >= 2 && buf.readUInt16LE(0) === 0x0003;
+						if (isAxml) {
+							format = "binary_xml";
+							const rootNode = parseAxmlTree(buf);
+							if (rootNode && !rootNode.isTruncated) {
+								const nscNode =
+									rootNode.tag === "network-security-config"
+										? rootNode
+										: rootNode.children.find(c => c.tag === "network-security-config");
+								if (nscNode) {
+									extracted = extractNetworkSecurityConfigFromNode(nscNode);
+								}
+							}
+						} else {
+							format = "plain_xml";
+							const text = buf.toString("utf8");
+							if (/<!DOCTYPE|<!ENTITY/i.test(text)) {
+								extracted = undefined;
+							} else {
+								const parser = new XMLParser({
+									ignoreAttributes: false,
+									attributeNamePrefix: "@_",
+									trimValues: true,
+									parseTagValue: false,
+									parseAttributeValue: false,
+									processEntities: false,
+								});
+								const parsed = parser.parse(text) as Record<string, unknown>;
+								const rootKey = Object.keys(parsed).find(
+									k => k.split(":").pop()?.toLowerCase() === "network-security-config",
+								);
+								if (rootKey && parsed[rootKey]) {
+									const rootNode = convertFastXmlToNode(rootKey, parsed[rootKey]);
+									extracted = extractNetworkSecurityConfigFromNode(rootNode);
+								}
+							}
+						}
+					} catch {
+						// 容错处理：畸形格式不抛出未捕获异常
+					}
+
+					if (!extracted) {
+						return {
+							rawRef: trimmed,
+							resolvedFile: candidatePath,
+							format,
+							unresolvedResourceId: `${trimmed} (failed to parse or truncated network security config)`,
+						};
+					}
+
+					return {
+						rawRef: trimmed,
+						resolvedFile: candidatePath,
+						format,
+						cleartextTrafficPermitted: extracted.cleartextTrafficPermitted,
+						baseTrustAnchors: extracted.baseTrustAnchors,
+						domainConfigs: extracted.domainConfigs,
+						debugOverrides: extracted.debugOverrides,
+					};
+				}
+			}
+		}
+
+		return {
+			rawRef: trimmed,
+			unresolvedResourceId: trimmed,
+		};
+	}
+
+	return {
+		rawRef: trimmed,
+		unresolvedResourceId: trimmed,
+	};
+}
+
+export function parseNetworkSecurityConfigAxml(buf: Buffer): AndroidNetworkSecurityConfigData | null {
+	if (buf.length < 8 || buf.readUInt16LE(0) !== 0x0003) return null;
+	const rootNode = parseAxmlTree(buf);
+	if (!rootNode || rootNode.isTruncated) return null;
+	const nscNode =
+		rootNode.tag === "network-security-config"
+			? rootNode
+			: rootNode.children.find(c => c.tag === "network-security-config");
+	if (!nscNode) return null;
+	const extracted = extractNetworkSecurityConfigFromNode(nscNode);
+	return {
+		format: "binary_xml",
+		...extracted,
+	};
+}
+
+export function extractManifestFromNode(
+	manifestNode: GenericXmlNode,
+	zip?: ZipParser | null,
+): AndroidManifestMetadata | null {
+	if (manifestNode.tag !== "manifest") return null;
+	if (manifestNode.isTruncated) return null;
+
+	const packageName = getNodeAttr(manifestNode, "package") ?? "";
+	const versionCodeRaw = getNodeAttr(manifestNode, "versionCode");
+	const versionCode =
+		versionCodeRaw !== undefined
+			? typeof versionCodeRaw === "number"
+				? versionCodeRaw
+				: /^\d+$/.test(versionCodeRaw.trim())
+					? parseInt(versionCodeRaw.trim(), 10)
+					: versionCodeRaw
+			: undefined;
+	const versionName = getNodeAttr(manifestNode, "versionName");
+	const compileSdkVersionRaw = getNodeAttr(manifestNode, "compileSdkVersion");
+	const compileSdkVersion =
+		compileSdkVersionRaw !== undefined
+			? typeof compileSdkVersionRaw === "number"
+				? compileSdkVersionRaw
+				: /^\d+$/.test(compileSdkVersionRaw.trim())
+					? parseInt(compileSdkVersionRaw.trim(), 10)
+					: compileSdkVersionRaw
+			: undefined;
+
+	const usesSdkNodes = manifestNode.children.filter(c => c.tag === "uses-sdk");
+	let minSdkVersion: number | string | undefined;
+	let targetSdkVersion: number | string | undefined;
+	if (usesSdkNodes.length > 0) {
+		const minRaw = getNodeAttr(usesSdkNodes[0], "minSdkVersion");
+		if (minRaw !== undefined) {
+			minSdkVersion =
+				typeof minRaw === "number" ? minRaw : /^\d+$/.test(minRaw.trim()) ? parseInt(minRaw.trim(), 10) : minRaw;
+		}
+		const targetRaw = getNodeAttr(usesSdkNodes[0], "targetSdkVersion");
+		if (targetRaw !== undefined) {
+			targetSdkVersion =
+				typeof targetRaw === "number"
+					? targetRaw
+					: /^\d+$/.test(targetRaw.trim())
+						? parseInt(targetRaw.trim(), 10)
+						: targetRaw;
+		}
+	}
+
+	const permissions: string[] = [];
+	for (const child of manifestNode.children) {
+		if (
+			child.tag === "uses-permission" ||
+			child.tag === "uses-permission-sdk-23" ||
+			child.tag === "uses-permission-sdk-m"
+		) {
+			const name = getNodeAttr(child, "name");
+			if (name && !permissions.includes(name)) permissions.push(name);
+		}
+	}
+
+	const permissionsDeclared: string[] = [];
+	const declaredPermissions: Array<{ name: string; protectionLevel?: string }> = [];
+	for (const child of manifestNode.children.filter(c => c.tag === "permission")) {
+		const name = getNodeAttr(child, "name");
+		if (name) {
+			permissionsDeclared.push(name);
+			const protRaw = getNodeAttr(child, "protectionLevel");
+			let protectionLevel: string | undefined;
+			if (protRaw !== undefined) {
+				// Android 官方标准 protectionLevel 映射（数值 0 为 normal，truthiness 不能将其丢弃）
+				if (protRaw === "0" || protRaw === "0x0" || protRaw === "0x00000000") {
+					protectionLevel = "normal";
+				} else if (protRaw === "1" || protRaw === "0x1") {
+					protectionLevel = "dangerous";
+				} else if (protRaw === "2" || protRaw === "0x2") {
+					protectionLevel = "signature";
+				} else if (protRaw === "3" || protRaw === "0x3") {
+					protectionLevel = "signatureOrSystem";
+				} else {
+					protectionLevel = String(protRaw);
+				}
+			}
+			declaredPermissions.push({ name, protectionLevel });
+		}
+	}
+
+	const appNode = manifestNode.children.find(c => c.tag === "application");
+
+	let appName: string | undefined;
+	let appLabel: string | undefined;
+	let appIcon: string | undefined;
+	let appDebuggable: boolean | undefined;
+	let rawDebuggable: string | undefined;
+	let appAllowBackup: boolean | undefined;
+	let rawAllowBackup: string | undefined;
+	let appExtractNativeLibs: boolean | undefined;
+	let rawExtractNativeLibs: string | undefined;
+	let appUseEmbeddedDex: boolean | undefined;
+	let rawUseEmbeddedDex: string | undefined;
+	let appHasCode: boolean | undefined;
+	let rawHasCode: string | undefined;
+	let appUsesCleartextTraffic: boolean | undefined;
+	let rawUsesCleartextTraffic: string | undefined;
+	let appNetworkSecurityConfig: string | undefined;
+	let appPermission: string | undefined;
+	let appEnabled: boolean | undefined;
+	let rawEnabled: string | undefined;
+	let appEnabledParsed: { value?: boolean; isReference?: boolean; raw?: string } = {};
+
+	if (appNode) {
+		appName = getNodeAttr(appNode, "name");
+		appLabel = getNodeAttr(appNode, "label");
+		appIcon = getNodeAttr(appNode, "icon");
+
+		const dbg = parseBooleanAttr(getNodeAttr(appNode, "debuggable"));
+		appDebuggable = dbg.value;
+		rawDebuggable = dbg.raw;
+
+		const bk = parseBooleanAttr(getNodeAttr(appNode, "allowBackup"));
+		appAllowBackup = bk.value;
+		rawAllowBackup = bk.raw;
+
+		const nl = parseBooleanAttr(getNodeAttr(appNode, "extractNativeLibs"));
+		appExtractNativeLibs = nl.value;
+		rawExtractNativeLibs = nl.raw;
+
+		const ed = parseBooleanAttr(getNodeAttr(appNode, "useEmbeddedDex"));
+		appUseEmbeddedDex = ed.value;
+		rawUseEmbeddedDex = ed.raw;
+
+		const hc = parseBooleanAttr(getNodeAttr(appNode, "hasCode"));
+		appHasCode = hc.value;
+		rawHasCode = hc.raw;
+
+		const clr = parseBooleanAttr(getNodeAttr(appNode, "usesCleartextTraffic"));
+		appUsesCleartextTraffic = clr.value;
+		rawUsesCleartextTraffic = clr.raw;
+
+		appNetworkSecurityConfig = getNodeAttr(appNode, "networkSecurityConfig");
+		appPermission = getNodeAttr(appNode, "permission");
+
+		appEnabledParsed = parseBooleanAttr(getNodeAttr(appNode, "enabled"));
+		appEnabled = appEnabledParsed.value;
+		rawEnabled = appEnabledParsed.raw;
+	}
+
+	const activities: AndroidManifestComponent[] = [];
+	const services: AndroidManifestComponent[] = [];
+	const receivers: AndroidManifestComponent[] = [];
+	const providers: AndroidManifestComponent[] = [];
+
+	if (appNode) {
+		for (const compNode of appNode.children) {
+			const tag = compNode.tag;
+			if (
+				tag !== "activity" &&
+				tag !== "activity-alias" &&
+				tag !== "service" &&
+				tag !== "receiver" &&
+				tag !== "provider"
+			) {
+				continue;
+			}
+
+			const name = getNodeAttr(compNode, "name");
+			// Android Parity: 严格忽略缺少 name 属性的幽灵组件（如 <queries><provider .../></queries>）
+			if (!name || name.trim() === "") continue;
+
+			const expAttr = getNodeAttr(compNode, "exported");
+			const expParsed = parseBooleanAttr(expAttr);
+			const compPerm = getNodeAttr(compNode, "permission");
+			const readPerm = getNodeAttr(compNode, "readPermission");
+			const writePerm = getNodeAttr(compNode, "writePermission");
+			const authorities = getNodeAttr(compNode, "authorities");
+			const grantUriPerm = parseBooleanAttr(getNodeAttr(compNode, "grantUriPermissions")).value;
+			const targetActivity = getNodeAttr(compNode, "targetActivity");
+			const compEnabledParsed = parseBooleanAttr(getNodeAttr(compNode, "enabled"));
+			const compProcess = getNodeAttr(compNode, "process");
+			const hasGrantUriTags = compNode.children.some(c => c.tag === "grant-uri-permission");
+
+			const intentFilters: AndroidIntentFilter[] = [];
+			for (const ifNode of compNode.children.filter(c => c.tag === "intent-filter")) {
+				const autoVerifyParsed = parseBooleanAttr(getNodeAttr(ifNode, "autoVerify"));
+				const actions: string[] = [];
+				for (const an of ifNode.children.filter(c => c.tag === "action")) {
+					const aName = getNodeAttr(an, "name");
+					if (aName) actions.push(aName);
+				}
+				const categories: string[] = [];
+				for (const cn of ifNode.children.filter(c => c.tag === "category")) {
+					const cName = getNodeAttr(cn, "name");
+					if (cName) categories.push(cName);
+				}
+				const data: AndroidIntentFilterData[] = [];
+				for (const dn of ifNode.children.filter(c => c.tag === "data")) {
+					data.push({
+						scheme: getNodeAttr(dn, "scheme"),
+						host: getNodeAttr(dn, "host"),
+						port: getNodeAttr(dn, "port"),
+						path: getNodeAttr(dn, "path"),
+						pathPrefix: getNodeAttr(dn, "pathPrefix"),
+						pathPattern: getNodeAttr(dn, "pathPattern"),
+						mimeType: getNodeAttr(dn, "mimeType"),
+					});
+				}
+				intentFilters.push({
+					actions,
+					categories,
+					data,
+					autoVerify:
+						autoVerifyParsed.value !== undefined
+							? autoVerifyParsed.value
+							: autoVerifyParsed.isReference
+								? "unknown"
+								: false,
+				});
+			}
+
+			const pathPermissions: AndroidPathPermission[] = [];
+			for (const ppNode of compNode.children.filter(c => c.tag === "path-permission")) {
+				pathPermissions.push({
+					path: getNodeAttr(ppNode, "path"),
+					pathPrefix: getNodeAttr(ppNode, "pathPrefix"),
+					pathPattern: getNodeAttr(ppNode, "pathPattern"),
+					permission: getNodeAttr(ppNode, "permission"),
+					readPermission: getNodeAttr(ppNode, "readPermission"),
+					writePermission: getNodeAttr(ppNode, "writePermission"),
+				});
+			}
+
+			// AOSP 规则：Activity/Alias/Receiver 的 intent-filter 必须至少包含一个 action 才是有效过滤器；Service 则不论有无 action 均视为有效
+			const hasEffectiveIntentFilters =
+				tag === "service" ? intentFilters.length > 0 : intentFilters.some(f => f.actions.length > 0);
+
+			const { effective: effExported, reason: expReason } = calculateEffectiveExported(
+				(tag as AndroidManifestComponent["type"]) ?? "activity",
+				expParsed.value,
+				hasEffectiveIntentFilters,
+				targetSdkVersion,
+				expParsed.isReference,
+				expParsed.raw,
+				minSdkVersion,
+			);
+
+			// 权限继承语义：
+			// 1. activity-alias 没有声明 android:permission 时，根据 Android 官方文档与 AOSP PackageParser 实现，
+			//    alias 本身无需任何权限，它 supplant 目标 activity 的权限，且不继承 application 的默认权限。
+			// 2. 其它组件（activity, service, receiver, provider）：
+			//    若显式声明了 permission（包括空字符串 "" 显式重置），则保留自身权限；若未声明，则继承 application 级权限。
+			let effectivePerm: string | undefined;
+			let inheritedPerm: string | undefined;
+			if (tag === "activity-alias") {
+				effectivePerm = compPerm;
+				inheritedPerm = undefined;
+			} else {
+				if (compPerm !== undefined) {
+					effectivePerm = compPerm;
+					inheritedPerm = undefined;
+				} else {
+					effectivePerm = appPermission;
+					inheritedPerm = appPermission;
+				}
+			}
+
+			const effReadPerm = readPerm !== undefined ? readPerm : effectivePerm;
+			const effWritePerm = writePerm !== undefined ? writePerm : effectivePerm;
+
+			// 三态 enabled 状态判定
+			const effectiveEnabled = calculateEffectiveEnabled(compEnabledParsed, appEnabledParsed);
+
+			const comp: AndroidManifestComponent = {
+				name,
+				type: tag as AndroidManifestComponent["type"],
+				exported: expParsed.value,
+				rawExported: expParsed.raw,
+				effectiveExported: effExported,
+				exportReason: expReason,
+				permission: compPerm,
+				readPermission: readPerm,
+				writePermission: writePerm,
+				inheritedPermission: inheritedPerm,
+				effectivePermission: effectivePerm,
+				effectiveReadPermission: effReadPerm,
+				effectiveWritePermission: effWritePerm,
+				authorities,
+				grantUriPermissions: grantUriPerm,
+				hasGrantUriPermissionTags: hasGrantUriTags ? true : undefined,
+				pathPermissions: pathPermissions.length > 0 ? pathPermissions : undefined,
+				targetActivity,
+				enabled: effectiveEnabled,
+				rawEnabled: compEnabledParsed.raw,
+				process: compProcess,
+				intentFilters,
+			};
+
+			if (tag === "activity" || tag === "activity-alias") {
+				activities.push(comp);
+			} else if (tag === "service") {
+				services.push(comp);
+			} else if (tag === "receiver") {
+				receivers.push(comp);
+			} else if (tag === "provider") {
+				providers.push(comp);
+			}
+		}
+	}
+
+	const deepLinks = extractDeepLinks(activities);
+	const networkSecurityConfig = resolveNetworkSecurityConfig(appNetworkSecurityConfig, zip);
+
 	return {
 		package: packageName,
 		versionCode,
@@ -948,121 +2051,80 @@ export function parseAxml(buf: Buffer): AndroidManifestMetadata | null {
 		targetSdkVersion,
 		permissions,
 		permissionsDeclared,
+		declaredPermissions: declaredPermissions.length > 0 ? declaredPermissions : undefined,
 		application: {
 			name: appName,
 			label: appLabel,
 			icon: appIcon,
 			debuggable: appDebuggable,
+			rawDebuggable,
 			allowBackup: appAllowBackup,
+			rawAllowBackup,
 			extractNativeLibs: appExtractNativeLibs,
+			rawExtractNativeLibs,
 			useEmbeddedDex: appUseEmbeddedDex,
+			rawUseEmbeddedDex,
 			hasCode: appHasCode,
+			rawHasCode,
+			usesCleartextTraffic: appUsesCleartextTraffic,
+			rawUsesCleartextTraffic,
+			networkSecurityConfig: appNetworkSecurityConfig,
+			permission: appPermission,
+			enabled: appEnabled,
+			rawEnabled,
+			effectiveEnabled: appEnabledParsed.isReference ? "unknown" : appEnabled,
 		},
 		activities,
 		services,
 		receivers,
 		providers,
 		totalComponents: activities.length + services.length + receivers.length + providers.length,
+		deepLinks,
+		networkSecurityConfig,
 	};
 }
 
-export function parseXmlText(text: string): AndroidManifestMetadata | null {
+export function parseAxml(buf: Buffer, zip?: ZipParser | null): AndroidManifestMetadata | null {
+	if (buf.length < 8) return null;
+	const rootNode = parseAxmlTree(buf);
+	if (!rootNode) return null;
+	const manifestNode = rootNode.tag === "manifest" ? rootNode : rootNode.children.find(c => c.tag === "manifest");
+	if (!manifestNode) return null;
+	return extractManifestFromNode(manifestNode, zip);
+}
+
+export function parseXmlText(text: string, zip?: ZipParser | null): AndroidManifestMetadata | null {
 	if (!text.includes("<manifest")) return null;
-	const pkgMatch = text.match(/package\s*=\s*["']([^"']+)["']/i);
-	const vCodeMatch = text.match(/(?:android:)?versionCode\s*=\s*["']([^"']+)["']/i);
-	const vNameMatch = text.match(/(?:android:)?versionName\s*=\s*["']([^"']+)["']/i);
-	const minSdkMatch = text.match(/(?:android:)?minSdkVersion\s*=\s*["']([^"']+)["']/i);
-	const targetSdkMatch = text.match(/(?:android:)?targetSdkVersion\s*=\s*["']([^"']+)["']/i);
+	// Android 规范：清单文件不支持 DTD / 自定义实体，直接防御实体膨胀攻击
+	if (/<!DOCTYPE|<!ENTITY/i.test(text)) return null;
 
-	const permissions: string[] = [];
-	const permRegex = /<uses-permission[^>]+(?:android:)?name\s*=\s*["']([^"']+)["']/gi;
-	let pMatch: RegExpExecArray | null;
-	while ((pMatch = permRegex.exec(text)) !== null) {
-		permissions.push(pMatch[1]);
+	let doc: Record<string, unknown> | null = null;
+	try {
+		const parser = new XMLParser({
+			ignoreAttributes: false,
+			attributeNamePrefix: "@_",
+			trimValues: true,
+			parseTagValue: false,
+			parseAttributeValue: false,
+			processEntities: false,
+		});
+		doc = parser.parse(text) as Record<string, unknown>;
+	} catch {
+		doc = null;
 	}
+	if (!doc || typeof doc !== "object") return null;
 
-	const activities: AndroidManifestComponent[] = [];
-	const actRegex = /<activity(?:-alias)?[^>]+(?:android:)?name\s*=\s*["']([^"']+)["']/gi;
-	let aMatch: RegExpExecArray | null;
-	while ((aMatch = actRegex.exec(text)) !== null) {
-		activities.push({ name: aMatch[1] });
+	let manifestKey: string | undefined;
+	for (const k of Object.keys(doc)) {
+		if (k.split(":").pop()?.toLowerCase() === "manifest" && doc[k] && typeof doc[k] === "object") {
+			manifestKey = k;
+			break;
+		}
 	}
+	if (!manifestKey) return null;
 
-	const services: AndroidManifestComponent[] = [];
-	const srvRegex = /<service[^>]+(?:android:)?name\s*=\s*["']([^"']+)["']/gi;
-	let sMatch: RegExpExecArray | null;
-	while ((sMatch = srvRegex.exec(text)) !== null) {
-		services.push({ name: sMatch[1] });
-	}
-
-	const receivers: AndroidManifestComponent[] = [];
-	const recRegex = /<receiver[^>]+(?:android:)?name\s*=\s*["']([^"']+)["']/gi;
-	let rMatch: RegExpExecArray | null;
-	while ((rMatch = recRegex.exec(text)) !== null) {
-		receivers.push({ name: rMatch[1] });
-	}
-
-	const providers: AndroidManifestComponent[] = [];
-	const provRegex = /<provider[^>]+(?:android:)?name\s*=\s*["']([^"']+)["']/gi;
-	let prMatch: RegExpExecArray | null;
-	while ((prMatch = provRegex.exec(text)) !== null) {
-		providers.push({ name: prMatch[1] });
-	}
-
-	const appMatch = text.match(/<application\b([^>]*)>/i);
-	let appName: string | undefined;
-	let appLabel: string | undefined;
-	let appIcon: string | undefined;
-	let appDebuggable: boolean | undefined;
-	let appAllowBackup: boolean | undefined;
-	let appExtractNativeLibs: boolean | undefined;
-	let appUseEmbeddedDex: boolean | undefined;
-	let appHasCode: boolean | undefined;
-
-	if (appMatch) {
-		const appAttrs = appMatch[1];
-		const nameM = appAttrs.match(/(?:android:)?name\s*=\s*["']([^"']+)["']/i);
-		if (nameM) appName = nameM[1];
-		const labelM = appAttrs.match(/(?:android:)?label\s*=\s*["']([^"']+)["']/i);
-		if (labelM) appLabel = labelM[1];
-		const iconM = appAttrs.match(/(?:android:)?icon\s*=\s*["']([^"']+)["']/i);
-		if (iconM) appIcon = iconM[1];
-		const debM = appAttrs.match(/(?:android:)?debuggable\s*=\s*["']([^"']+)["']/i);
-		if (debM) appDebuggable = debM[1] === "true";
-		const abM = appAttrs.match(/(?:android:)?allowBackup\s*=\s*["']([^"']+)["']/i);
-		if (abM) appAllowBackup = abM[1] === "true";
-		const enlM = appAttrs.match(/(?:android:)?extractNativeLibs\s*=\s*["']([^"']+)["']/i);
-		if (enlM) appExtractNativeLibs = enlM[1] === "true";
-		const uedM = appAttrs.match(/(?:android:)?useEmbeddedDex\s*=\s*["']([^"']+)["']/i);
-		if (uedM) appUseEmbeddedDex = uedM[1] === "true";
-		const hcM = appAttrs.match(/(?:android:)?hasCode\s*=\s*["']([^"']+)["']/i);
-		if (hcM) appHasCode = hcM[1] === "true";
-	}
-
-	return {
-		package: pkgMatch ? pkgMatch[1] : "",
-		versionCode: vCodeMatch ? Number(vCodeMatch[1]) || vCodeMatch[1] : undefined,
-		versionName: vNameMatch ? vNameMatch[1] : undefined,
-		minSdkVersion: minSdkMatch ? Number(minSdkMatch[1]) || minSdkMatch[1] : undefined,
-		targetSdkVersion: targetSdkMatch ? Number(targetSdkMatch[1]) || targetSdkMatch[1] : undefined,
-		permissions,
-		permissionsDeclared: [],
-		application: {
-			name: appName,
-			label: appLabel,
-			icon: appIcon,
-			debuggable: appDebuggable,
-			allowBackup: appAllowBackup,
-			extractNativeLibs: appExtractNativeLibs,
-			useEmbeddedDex: appUseEmbeddedDex,
-			hasCode: appHasCode,
-		},
-		activities,
-		services,
-		receivers,
-		providers,
-		totalComponents: activities.length + services.length + receivers.length + providers.length,
-	};
+	const rootNode = convertFastXmlToNode(manifestKey, doc[manifestKey]);
+	return extractManifestFromNode(rootNode, zip);
 }
 
 // ============================================================================
@@ -1671,11 +2733,11 @@ export class AndroidPackageInspectTool implements AgentTool<
 
 		let metadata: AndroidManifestMetadata | null = null;
 		if (mBuf.length >= 2 && mBuf.readUInt16LE(0) === 0x0003) {
-			metadata = parseAxml(mBuf);
+			metadata = parseAxml(mBuf, zip);
 		} else {
 			const str = mBuf.toString("utf8");
 			if (str.includes("<manifest")) {
-				metadata = parseXmlText(str);
+				metadata = parseXmlText(str, zip);
 			}
 		}
 
@@ -1716,16 +2778,71 @@ export class AndroidPackageInspectTool implements AgentTool<
 			};
 		}
 
+		const formatBool = (val: boolean | undefined, raw: string | undefined, defaultVal: boolean | string): string => {
+			if (val !== undefined) return String(val);
+			if (raw) return `${raw} (unresolved resource)`;
+			return `${defaultVal} (default)`;
+		};
+
 		const lines = [
 			`// Android Package Manifest Inspection`,
 			`Target: ${targetPath} (${manifestEntry.name})`,
 			`Package: ${metadata.package}`,
 			`Version: ${metadata.versionName ?? "none"} (versionCode: ${metadata.versionCode ?? "none"})`,
 			`SDK Versions: min: ${metadata.minSdkVersion ?? "unspecified"}, target: ${metadata.targetSdkVersion ?? "unspecified"}, compile: ${metadata.compileSdkVersion ?? "unspecified"}`,
-			`Application: name: ${metadata.application.name ?? "default"}, label: ${metadata.application.label ?? "none"}, debuggable: ${metadata.application.debuggable ?? false}, allowBackup: ${metadata.application.allowBackup ?? true}`,
-			`Permissions Requested (${metadata.permissions.length}):`,
+			`Application: name: ${metadata.application.name ?? "default"}, label: ${metadata.application.label ?? "none"}, debuggable: ${formatBool(metadata.application.debuggable, metadata.application.rawDebuggable, false)}, allowBackup: ${formatBool(metadata.application.allowBackup, metadata.application.rawAllowBackup, true)}, cleartext: ${formatBool(metadata.application.usesCleartextTraffic, metadata.application.rawUsesCleartextTraffic, "default")}, enabled: ${formatBool(metadata.application.enabled, metadata.application.rawEnabled, true)}`,
 		];
 
+		if (metadata.application.networkSecurityConfig) {
+			lines.push(`Network Security Config: ${metadata.application.networkSecurityConfig}`);
+			const nsc = metadata.networkSecurityConfig;
+			if (nsc?.unresolvedResourceId) {
+				lines.push(
+					`  • Unresolved resource reference: ${nsc.unresolvedResourceId} (resource table / aapt2 bridge required)`,
+				);
+			} else if (nsc?.resolvedFile) {
+				lines.push(`  • Resolved file: ${nsc.resolvedFile} (${nsc.format ?? "unknown"})`);
+				if (nsc.cleartextTrafficPermitted !== undefined) {
+					lines.push(`  • Base cleartext permitted: ${nsc.cleartextTrafficPermitted}`);
+				}
+				if (nsc.baseTrustAnchors && nsc.baseTrustAnchors.length > 0) {
+					lines.push(
+						`  • Base Trust Anchors: ${nsc.baseTrustAnchors.map(a => `${a.src}${a.overridePins ? " (overridePins)" : ""}`).join(", ")}`,
+					);
+				}
+				if (nsc.domainConfigs && nsc.domainConfigs.length > 0) {
+					lines.push(`  • Domain Configs (${nsc.domainConfigs.length}):`);
+					for (const dc of nsc.domainConfigs.slice(0, 15)) {
+						const subStr = dc.includeSubdomains ? " (includeSubdomains)" : "";
+						const clrStr =
+							dc.cleartextTrafficPermitted !== undefined ? `, cleartext: ${dc.cleartextTrafficPermitted}` : "";
+						const pinStr =
+							dc.pinSet && dc.pinSet.pins.length > 0
+								? `, pins: [${dc.pinSet.pins.map(p => `${p.digest}=${p.value}`).join(", ")}]${dc.pinSet.expiration ? `, expires: ${dc.pinSet.expiration}` : ""}`
+								: "";
+						const taStr =
+							dc.trustAnchors && dc.trustAnchors.length > 0
+								? `, trustAnchors: [${dc.trustAnchors.map(t => `${t.src}${t.overridePins ? " (overridePins)" : ""}`).join(", ")}]`
+								: "";
+						lines.push(`    - ${dc.domain}${subStr}${clrStr}${pinStr}${taStr}`);
+					}
+					if (nsc.domainConfigs.length > 15) {
+						lines.push(`    ... (${nsc.domainConfigs.length - 15} more domain configs omitted)`);
+					}
+				}
+				if (nsc.debugOverrides) {
+					const dbg = nsc.debugOverrides;
+					const dbgTaStr = dbg.trustAnchors
+						? `trustAnchors: [${dbg.trustAnchors.map(a => `${a.src}${a.overridePins ? " (overridePins)" : ""}`).join(", ")}]`
+						: "none";
+					lines.push(
+						`  • Debug Overrides: ${dbgTaStr}${dbg.cleartextTrafficPermitted !== undefined ? `, cleartext: ${dbg.cleartextTrafficPermitted}` : ""}`,
+					);
+				}
+			}
+		}
+
+		lines.push(`Permissions Requested (${metadata.permissions.length}):`);
 		if (metadata.permissions.length === 0) {
 			lines.push(`  • None`);
 		} else {
@@ -1736,16 +2853,60 @@ export class AndroidPackageInspectTool implements AgentTool<
 
 		if (metadata.permissionsDeclared.length > 0) {
 			lines.push(`Permissions Declared (${metadata.permissionsDeclared.length}):`);
-			for (const p of metadata.permissionsDeclared) {
-				lines.push(`  • ${p}`);
+			if (metadata.declaredPermissions && metadata.declaredPermissions.length > 0) {
+				for (const dp of metadata.declaredPermissions) {
+					const protStr = dp.protectionLevel ? ` [protectionLevel: ${dp.protectionLevel}]` : "";
+					lines.push(`  • ${dp.name}${protStr}`);
+				}
+			} else {
+				for (const p of metadata.permissionsDeclared) {
+					lines.push(`  • ${p}`);
+				}
 			}
 		}
+		const formatIntentFilter = (f: AndroidIntentFilter): string => {
+			const acts = f.actions.length > 0 ? `actions: [${f.actions.slice(0, 3).join(", ")}]` : "actions: []";
+			const cats = f.categories.length > 0 ? `, categories: [${f.categories.slice(0, 3).join(", ")}]` : "";
+			const dataEntries: string[] = [];
+			for (const d of f.data.slice(0, 3)) {
+				const parts: string[] = [];
+				if (d.scheme) parts.push(`scheme=${d.scheme}`);
+				if (d.host) parts.push(`host=${d.host}`);
+				if (d.port) parts.push(`port=${d.port}`);
+				if (d.path) parts.push(`path=${d.path}`);
+				if (d.pathPrefix) parts.push(`prefix=${d.pathPrefix}`);
+				if (d.pathPattern) parts.push(`pattern=${d.pathPattern}`);
+				if (d.mimeType) parts.push(`mime=${d.mimeType}`);
+				if (parts.length > 0) dataEntries.push(parts.join(" "));
+			}
+			const dataStr = dataEntries.length > 0 ? `, data: [${dataEntries.join(", ")}]` : "";
+			const avStr =
+				f.autoVerify === true ? ", autoVerify: true" : f.autoVerify === "unknown" ? ", autoVerify: unknown" : "";
+			return `      • intent-filter: ${acts}${cats}${dataStr}${avStr}`;
+		};
 
 		lines.push(`Components (${metadata.totalComponents} total):`);
 		lines.push(`  • Activities (${metadata.activities.length}):`);
 		for (const act of metadata.activities.slice(0, 30)) {
-			const expStr = act.exported !== undefined ? ` [exported: ${act.exported}]` : "";
-			lines.push(`    - ${act.name}${expStr}`);
+			const expStr =
+				act.exported !== undefined
+					? ` [exported: ${act.exported}]`
+					: ` [exported: undeclared, effective: ${act.effectiveExported ?? "unknown"}]`;
+			const permStr =
+				act.effectivePermission !== undefined
+					? act.effectivePermission === ""
+						? " [perm: none (public)]"
+						: ` [perm: ${act.effectivePermission}]`
+					: "";
+			const enabledStr = act.enabled !== undefined && act.enabled !== true ? ` [enabled: ${act.enabled}]` : "";
+			const procStr = act.process ? ` [process: ${act.process}]` : "";
+			const targetStr = act.targetActivity ? ` -> ${act.targetActivity}` : "";
+			lines.push(`    - ${act.name}${targetStr}${expStr}${permStr}${enabledStr}${procStr}`);
+			if (act.intentFilters && act.intentFilters.length > 0) {
+				for (const f of act.intentFilters.slice(0, 3)) {
+					lines.push(formatIntentFilter(f));
+				}
+			}
 		}
 		if (metadata.activities.length > 30) {
 			lines.push(`    ... (${metadata.activities.length - 30} more activities omitted)`);
@@ -1753,23 +2914,118 @@ export class AndroidPackageInspectTool implements AgentTool<
 
 		lines.push(`  • Services (${metadata.services.length}):`);
 		for (const s of metadata.services.slice(0, 20)) {
-			const expStr = s.exported !== undefined ? ` [exported: ${s.exported}]` : "";
-			lines.push(`    - ${s.name}${expStr}`);
+			const expStr =
+				s.exported !== undefined
+					? ` [exported: ${s.exported}]`
+					: ` [exported: undeclared, effective: ${s.effectiveExported ?? "unknown"}]`;
+			const permStr =
+				s.effectivePermission !== undefined
+					? s.effectivePermission === ""
+						? " [perm: none (public)]"
+						: ` [perm: ${s.effectivePermission}]`
+					: "";
+			const enabledStr = s.enabled !== undefined && s.enabled !== true ? ` [enabled: ${s.enabled}]` : "";
+			const procStr = s.process ? ` [process: ${s.process}]` : "";
+			lines.push(`    - ${s.name}${expStr}${permStr}${enabledStr}${procStr}`);
+			if (s.intentFilters && s.intentFilters.length > 0) {
+				for (const f of s.intentFilters.slice(0, 3)) {
+					lines.push(formatIntentFilter(f));
+				}
+			}
 		}
 
 		lines.push(`  • Broadcast Receivers (${metadata.receivers.length}):`);
 		for (const r of metadata.receivers.slice(0, 20)) {
-			const expStr = r.exported !== undefined ? ` [exported: ${r.exported}]` : "";
-			lines.push(`    - ${r.name}${expStr}`);
+			const expStr =
+				r.exported !== undefined
+					? ` [exported: ${r.exported}]`
+					: ` [exported: undeclared, effective: ${r.effectiveExported ?? "unknown"}]`;
+			const permStr =
+				r.effectivePermission !== undefined
+					? r.effectivePermission === ""
+						? " [perm: none (public)]"
+						: ` [perm: ${r.effectivePermission}]`
+					: "";
+			const enabledStr = r.enabled !== undefined && r.enabled !== true ? ` [enabled: ${r.enabled}]` : "";
+			const procStr = r.process ? ` [process: ${r.process}]` : "";
+			lines.push(`    - ${r.name}${expStr}${permStr}${enabledStr}${procStr}`);
+			if (r.intentFilters && r.intentFilters.length > 0) {
+				for (const f of r.intentFilters.slice(0, 3)) {
+					lines.push(formatIntentFilter(f));
+				}
+			}
 		}
 
 		lines.push(`  • Content Providers (${metadata.providers.length}):`);
 		for (const prov of metadata.providers.slice(0, 20)) {
 			const authStr = prov.authorities ? ` (auth: ${prov.authorities})` : "";
-			const expStr = prov.exported !== undefined ? ` [exported: ${prov.exported}]` : "";
-			lines.push(`    - ${prov.name}${authStr}${expStr}`);
+			const expStr =
+				prov.exported !== undefined
+					? ` [exported: ${prov.exported}]`
+					: ` [exported: undeclared, effective: ${prov.effectiveExported ?? "unknown"}]`;
+			const permStr =
+				prov.effectivePermission !== undefined
+					? prov.effectivePermission === ""
+						? " [perm: none (public)]"
+						: ` [perm: ${prov.effectivePermission}]`
+					: "";
+			const readPermStr =
+				prov.effectiveReadPermission !== undefined && prov.effectiveReadPermission !== prov.effectivePermission
+					? ` [readPerm: ${prov.effectiveReadPermission === "" ? "none (public)" : prov.effectiveReadPermission}]`
+					: "";
+			const writePermStr =
+				prov.effectiveWritePermission !== undefined && prov.effectiveWritePermission !== prov.effectivePermission
+					? ` [writePerm: ${prov.effectiveWritePermission === "" ? "none (public)" : prov.effectiveWritePermission}]`
+					: "";
+			const grantStr = prov.grantUriPermissions ? ` [grantUri: true]` : "";
+			const enabledStr = prov.enabled !== undefined && prov.enabled !== true ? ` [enabled: ${prov.enabled}]` : "";
+			const procStr = prov.process ? ` [process: ${prov.process}]` : "";
+			lines.push(
+				`    - ${prov.name}${authStr}${expStr}${permStr}${readPermStr}${writePermStr}${grantStr}${enabledStr}${procStr}`,
+			);
+			if (prov.pathPermissions && prov.pathPermissions.length > 0) {
+				for (const pp of prov.pathPermissions) {
+					const pathStr = pp.pathPrefix
+						? `prefix:${pp.pathPrefix}`
+						: pp.path
+							? `path:${pp.path}`
+							: pp.pathPattern
+								? `pattern:${pp.pathPattern}`
+								: "*";
+					lines.push(
+						`      • path-permission: ${pathStr} (read: ${pp.readPermission ?? pp.permission ?? "default"}, write: ${pp.writePermission ?? pp.permission ?? "default"})`,
+					);
+				}
+			}
 		}
 
+		if (metadata.deepLinks && metadata.deepLinks.length > 0) {
+			lines.push(`Deep Links Inventory (${metadata.deepLinks.length}):`);
+			for (const dl of metadata.deepLinks.slice(0, 15)) {
+				const uris =
+					dl.sampleUris.length > 0 ? dl.sampleUris.slice(0, 2).join(", ") : "(pattern without static URI)";
+				const patStr =
+					dl.pathPatterns.length > 0
+						? ` [patterns: ${dl.pathPatterns.map(p => `${p.type}:${p.value}`).join(", ")}]`
+						: "";
+				const avStr =
+					dl.autoVerify === true
+						? " [autoVerify: true]"
+						: dl.autoVerify === "unknown"
+							? " [autoVerify: unknown]"
+							: "";
+				lines.push(
+					`  • [${dl.componentType}] ${dl.component}${avStr} (effectiveExported: ${dl.exported}): ${uris}${patStr}`,
+				);
+			}
+			if (metadata.deepLinks.length > 15) {
+				lines.push(`    ... (${metadata.deepLinks.length - 15} more deep links omitted)`);
+			}
+		}
+
+		lines.push(
+			`// Security note: Exported components represent attack surface; reachability, intent validation, and concrete impact require dynamic verification before concluding vulnerability.`,
+		);
 		return {
 			content: [{ type: "text", text: lines.join("\n") }],
 			details: {

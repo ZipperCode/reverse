@@ -8,21 +8,17 @@ import reverseCapabilityDescription from "../prompts/tools/reverse-capability.md
 import { checkReverseTools } from "../cli/setup-reverse";
 import {
 	getReverseCapabilities,
-	probeNativeDapAdapters,
-	resolveReverseCapabilities,
 	type CapabilityDescriptor,
 	type ReverseCapabilityStatus,
 } from "../extensibility/skill-tool-catalog";
 import { getJshookMcpServer, installJshookMcp, JSHOOK_MCP_SERVER_NAME } from "../extensibility/jshookmcp-install";
 import { cfgMcpEnableProjectConfig } from "../mcp/settings";
-import { getActiveUnidbgHarnesses } from "../extensibility/unidbg-runner";
 import {
 	getMcpServerRuntimeState,
 	getRecordedSkillLoads,
 	type McpToolExecutionRecord,
 	type SkillLoadRecord,
 } from "../extensibility/capability-state";
-import { cfgDebugEnabled } from "./settings";
 import { getIdaBackendStatus, type IdaBackendStatus } from "../ida/install";
 const reverseCapabilitySchema = type({
 	action: type
@@ -95,44 +91,16 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 		this.description = prompt.render(reverseCapabilityDescription);
 	}
 
-	private getReport(projectDir: string) {
-		const report = checkReverseTools({ cwd: projectDir });
-		const services = report.services.map(service => ({
-			...service,
-			connection:
-				this.session.mcpManager?.getConnectionStatus(service.serverName) === "connected" ? "connected" : "unknown",
-		}));
-		const dapAdapters = probeNativeDapAdapters({ cwd: projectDir });
-		const capabilities = resolveReverseCapabilities({
-			platform: report.platform,
-			toolStatuses: report.tools,
-			serviceStatuses: services,
+	private getReport(projectDir: string, filterCap?: string, refresh?: boolean, target?: string) {
+		// 直接保留同一次依赖闭包解析；展示用 tools 列表不包含所有回退依赖。
+		return checkReverseTools({
 			cwd: projectDir,
-			dapAdapters,
-			debugToolEnabled: this.session.settings ? cfgDebugEnabled.get(this.session.settings) : true,
+			filter: filterCap ? { capability: filterCap } : undefined,
+			session: this.session,
+			settings: this.session.settings,
+			refresh,
+			target,
 		});
-
-		const activeHarnesses = getActiveUnidbgHarnesses(this.session);
-		const androidHarness = activeHarnesses.find(
-			h => h.ready && h.type === "jni" && this.session.mcpManager?.getConnectionStatus(h.serverName) === "connected",
-		);
-		const androidCap = capabilities.find(c => c.id === "android_native_emulation");
-		if (androidCap) {
-			if (androidHarness) {
-				androidCap.status = "ready";
-				androidCap.ready = true;
-				androidCap.postInstallInvocation = `Active Unidbg SSE MCP server running on port ${androidHarness.port} (PID ${androidHarness.pid}) with target ${androidHarness.targetPath || "loaded binary"}. Server: ${androidHarness.serverName}`;
-			} else {
-				androidCap.status = "available_with_fallbacks";
-				androidCap.ready = false;
-				androidCap.postInstallInvocation = `Run 'reverse unidbg scaffold' and 'reverse unidbg launch' to start an active emulation session.`;
-			}
-		}
-
-		return {
-			...report,
-			capabilities,
-		};
 	}
 
 	async execute(
@@ -254,12 +222,14 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 			}
 
 			case "resolve": {
-				const report = this.getReport(projectDir);
+				const report = this.getReport(projectDir, capId, params.refresh, params.target);
 				let targetCaps = report.capabilities;
 				if (capId) {
 					const matched = report.capabilities.filter(c => c.id.toLowerCase() === capId);
 					if (matched.length === 0) {
-						const available = report.capabilities.map(c => c.id).join(", ");
+						const available = getReverseCapabilities()
+							.map(c => c.id)
+							.join(", ");
 						throw new ToolError(`Capability '${capId}' not found. Available capabilities: ${available}`);
 					}
 					targetCaps = matched;
@@ -280,6 +250,39 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 
 					lines.push(`#### [${statusBadge}] \`${cap.id}\`: ${cap.name}`);
 					lines.push(`- **Status**: ${cap.status} (Ready: ${cap.ready ? "true" : "false"})`);
+					if (cap.canStart !== undefined) {
+						lines.push(`- **Can Start**: ${cap.canStart ? "true" : "false"}`);
+					}
+					if (cap.runtimeReady !== undefined) {
+						lines.push(`- **Runtime Connected**: ${cap.runtimeReady ? "true" : "false"}`);
+					}
+					if (cap.compatible !== undefined) {
+						lines.push(`- **Toolchain Compatible**: ${cap.compatible ? "true" : "false"}`);
+					}
+					if (cap.unpackingStages) {
+						lines.push(`- **Unpacking Stages**:`);
+						lines.push(
+							`  - Baseline (manifest/dex/container): ${cap.unpackingStages.baseline.ready ? "Ready" : "Missing"}`,
+						);
+						lines.push(`  - Java Decompile: ${cap.unpackingStages.javaDecompile.ready ? "Ready" : "Missing"}`);
+						lines.push(`  - Smali / Resources: ${cap.unpackingStages.smali.ready ? "Ready" : "Missing"}`);
+					}
+					if (cap.emulationStages) {
+						lines.push(`- **Emulation Stages**:`);
+						lines.push(
+							`  - Launch Prerequisites: ${cap.emulationStages.launchPrerequisites.ready ? "Ready" : "Missing"} (Installed: ${cap.emulationStages.launchPrerequisites.installed ? "Yes" : "No"}, JDK 8 Compatible: ${cap.emulationStages.launchPrerequisites.compatible ? "Yes" : "No"})`,
+						);
+						lines.push(
+							`  - Runtime Session: ${cap.emulationStages.runtimeSession.connected ? "Connected" : "Disconnected"}`,
+						);
+						lines.push(
+							`  - Target matched: ${cap.targetMatched ?? "unknown"}; execution verified: ${cap.executedVerified ?? "unknown"}`,
+						);
+						if (cap.emulationStages.launchPrerequisites.error)
+							lines.push(`  - Blocker: ${cap.emulationStages.launchPrerequisites.error}`);
+						if (cap.emulationStages.launchPrerequisites.remedy)
+							lines.push(`  - Remedy: ${cap.emulationStages.launchPrerequisites.remedy}`);
+					}
 					lines.push(`- **Category**: ${cap.category}`);
 					lines.push(`- **Scenario**: ${cap.scenario}`);
 					if (cap.recommendedNativeTool) {
@@ -296,37 +299,39 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					lines.push(`- **Post-Install Invocation**: \`${cap.postInstallInvocation}\``);
 					lines.push("");
 				}
-				const idaBackends = getIdaBackendStatus({
-					cwd: projectDir,
-					mcpManager: this.session.mcpManager,
-					settings: this.session.settings,
-				});
-				lines.push("### IDA Pro Multi-Backend Status");
-				lines.push(
-					`- **GUI Application**: ${idaBackends.guiAvailable ? `Available (${idaBackends.guiPath})` : "Not found"}`,
-				);
-				lines.push(
-					`- **idalib Headless SDK**: ${idaBackends.idalibAvailable ? `Available (${idaBackends.idalibPath})` : "Not found"}`,
-				);
-				lines.push(
-					`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : idaBackends.idalibAvailable ? (idaBackends.adapterError ? `No (${idaBackends.adapterError})` : "No (Python adapter not ready)") : "No (requires idalib)"}`,
-				);
-				if (idaBackends.idalibAvailable) {
-					const pyDesc = idaBackends.pythonAdapterReady
-						? `Ready (${idaBackends.pythonPath})`
-						: idaBackends.adapterError
-							? `Not ready (${idaBackends.adapterError})`
-							: "Not ready";
-					lines.push(`- **idalib Python Adapter**: ${pyDesc}`);
+				let idaBackends: IdaBackendStatus | undefined;
+				if (!capId || capId === "native_debugger" || capId === "ida") {
+					idaBackends = getIdaBackendStatus({
+						cwd: projectDir,
+						mcpManager: this.session.mcpManager,
+						settings: this.session.settings,
+					});
+					lines.push("### IDA Pro Multi-Backend Status");
+					lines.push(
+						`- **GUI Application**: ${idaBackends.guiAvailable ? `Available (${idaBackends.guiPath})` : "Not found"}`,
+					);
+					lines.push(
+						`- **idalib Headless SDK**: ${idaBackends.idalibAvailable ? `Available (${idaBackends.idalibPath})` : "Not found"}`,
+					);
+					lines.push(
+						`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : idaBackends.idalibAvailable ? (idaBackends.adapterError ? `No (${idaBackends.adapterError})` : "No (Python adapter not ready)") : "No (requires idalib)"}`,
+					);
+					if (idaBackends.idalibAvailable) {
+						const pyDesc = idaBackends.pythonAdapterReady
+							? `Ready (${idaBackends.pythonPath})`
+							: idaBackends.adapterError
+								? `Not ready (${idaBackends.adapterError})`
+								: "Not ready";
+						lines.push(`- **idalib Python Adapter**: ${pyDesc}`);
+					}
+					lines.push(
+						`- **MCP Bridge**: ${idaBackends.mcpBridgeConnected ? "Connected" : idaBackends.mcpBridgeConfigured ? "Configured (disconnected)" : "Not configured (bridge absent does not imply IDA absent)"}`,
+					);
+					if (idaBackends.bridgeAbsentReason) {
+						lines.push(`  - Note: ${idaBackends.bridgeAbsentReason}`);
+					}
+					lines.push("");
 				}
-				lines.push(
-					`- **MCP Bridge**: ${idaBackends.mcpBridgeConnected ? "Connected" : idaBackends.mcpBridgeConfigured ? "Configured (disconnected)" : "Not configured (bridge absent does not imply IDA absent)"}`,
-				);
-				if (idaBackends.bridgeAbsentReason) {
-					lines.push(`  - Note: ${idaBackends.bridgeAbsentReason}`);
-				}
-				lines.push("");
-
 				return {
 					content: [{ type: "text", text: lines.join("\n") }],
 					details: {
@@ -334,7 +339,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 						total: targetCaps.length,
 						capabilities: targetCaps,
 						platform: report.platform,
-						idaBackends,
+						...(idaBackends ? { idaBackends } : {}),
 					},
 				};
 			}
@@ -347,7 +352,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					throw new ToolError(`capability parameter is required for 'get' action. Valid capabilities: ${valid}`);
 				}
 
-				const report = this.getReport(projectDir);
+				const report = this.getReport(projectDir, capId, params.refresh, params.target);
 				const capStatus = report.capabilities.find(c => c.id.toLowerCase() === capId);
 				if (!capStatus) {
 					const valid = report.capabilities.map(c => c.id).join(", ");
@@ -373,6 +378,39 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					"",
 					`- **Readiness Status**: ${capStatus.status} (Fully Ready: ${capStatus.ready ? "Yes" : "No"})`,
 				];
+				if (capStatus.canStart !== undefined) {
+					lines.push(`- **Can Start**: ${capStatus.canStart ? "Yes" : "No"}`);
+				}
+				if (capStatus.runtimeReady !== undefined) {
+					lines.push(`- **Runtime Connected**: ${capStatus.runtimeReady ? "Yes" : "No"}`);
+				}
+				if (capStatus.compatible !== undefined) {
+					lines.push(`- **Toolchain Compatible**: ${capStatus.compatible ? "Yes" : "No"}`);
+				}
+				if (capStatus.unpackingStages) {
+					lines.push(`- **Unpacking Stages**:`);
+					lines.push(
+						`  - Baseline (manifest/dex/container): ${capStatus.unpackingStages.baseline.ready ? "Ready" : "Missing"}`,
+					);
+					lines.push(`  - Java Decompile: ${capStatus.unpackingStages.javaDecompile.ready ? "Ready" : "Missing"}`);
+					lines.push(`  - Smali / Resources: ${capStatus.unpackingStages.smali.ready ? "Ready" : "Missing"}`);
+				}
+				if (capStatus.emulationStages) {
+					lines.push(`- **Emulation Stages**:`);
+					lines.push(
+						`  - Launch Prerequisites: ${capStatus.emulationStages.launchPrerequisites.ready ? "Ready" : "Missing"} (Installed: ${capStatus.emulationStages.launchPrerequisites.installed ? "Yes" : "No"}, JDK 8 Compatible: ${capStatus.emulationStages.launchPrerequisites.compatible ? "Yes" : "No"})`,
+					);
+					lines.push(
+						`  - Runtime Session: ${capStatus.emulationStages.runtimeSession.connected ? "Connected" : "Disconnected"}`,
+					);
+					lines.push(
+						`  - Target matched: ${capStatus.targetMatched ?? "unknown"}; execution verified: ${capStatus.executedVerified ?? "unknown"}`,
+					);
+					if (capStatus.emulationStages.launchPrerequisites.error)
+						lines.push(`  - Blocker: ${capStatus.emulationStages.launchPrerequisites.error}`);
+					if (capStatus.emulationStages.launchPrerequisites.remedy)
+						lines.push(`  - Remedy: ${capStatus.emulationStages.launchPrerequisites.remedy}`);
+				}
 
 				if (capStatus.recommendedNativeTool) {
 					lines.push(`- **Recommended Native Tool**: \`${capStatus.recommendedNativeTool}\``);

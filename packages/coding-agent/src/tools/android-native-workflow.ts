@@ -28,7 +28,14 @@ import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
 import type { ToolSession } from "./index";
 import { ZipParser, parseDexBuffer, parseAxml, parseXmlText } from "./android-package-inspect";
-import { SKILL_TOOL_CATALOG, type SkillToolPlatform, type ToolCategory } from "../extensibility/skill-tool-catalog";
+import {
+	SKILL_TOOL_CATALOG,
+	evaluateUnidbgReadiness,
+	evaluateApkUnpackingReadiness,
+	type UnidbgReadiness,
+	type SkillToolPlatform,
+	type ToolCategory,
+} from "../extensibility/skill-tool-catalog";
 import {
 	checkToolRequirements,
 	type RequirementStatus,
@@ -177,6 +184,7 @@ export interface AndroidNativeWorkflowDetails {
 	packedIndicators?: string[];
 	readiness?: AndroidWorkflowReadiness;
 	tools?: AndroidCompanionToolStatus[];
+	unidbgReadiness?: UnidbgReadiness;
 	plan?: {
 		target: string;
 		stages: AndroidWorkflowPlanStep[];
@@ -726,7 +734,18 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 	AndroidNativeWorkflowDetails
 > {
 	readonly name = "android_native_workflow";
-	readonly approval: ToolTier = "read";
+	readonly approval = (args: unknown): ToolTier => {
+		if (args && typeof args === "object" && "action" in args && typeof args.action === "string") {
+			const action = args.action;
+			if (action === "inspect" || action === "plan" || action === "status") {
+				return "read";
+			}
+			if (action === "extract") {
+				return "write";
+			}
+		}
+		return "exec";
+	};
 	readonly label = "Android Native Workflow";
 	readonly summary =
 		"Native zero-dependency reverse engineering inspection, planning, and extraction for Android native libraries (.so), JNI exports, and Dalvik/DEX native method links";
@@ -872,12 +891,13 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			installedTools[t.id] = t.installed;
 		}
 
+		const unidbgReadiness = evaluateUnidbgReadiness({ cwd: this.session?.cwd, session: this.session });
 		const readiness: AndroidWorkflowReadiness = {
 			staticInspect: true, // Native pure TypeScript tool always available
 			unpack: true, // In-process zip extractor always available
-			decompile: Boolean(installedTools.jadx || installedTools.droidasc),
+			decompile: evaluateApkUnpackingReadiness({ installedTools }).stages.javaDecompile.ready,
 			dynamicInject: Boolean(installedTools.frida && installedTools.adb),
-			emulation: Boolean(installedTools.unidbg && installedTools.java),
+			emulation: unidbgReadiness.canStart,
 			ghidra: Boolean(installedTools.ghidra),
 			lief: Boolean(installedTools.lief),
 			elfInspect: true,
@@ -909,9 +929,23 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 		lines.push(
 			`- **Dynamic Instrumentation on Device**: ${readiness.dynamicInject ? "✅ Ready (`frida` + `adb`)" : "⚠️ Offline (requires `frida` and `adb` with connected device/emulator)"}`,
 		);
-		lines.push(
-			`- **Offline ARM CPU / JNI Host Emulation**: ${readiness.emulation ? "✅ Ready (`unidbg` + `java`)" : "⚠️ Missing (`unidbg` not installed; run `reverse setup reverse` to view install recipes)"}`,
-		);
+		if (unidbgReadiness.canStart) {
+			lines.push(
+				`- **Offline ARM CPU / JNI Host Emulation**: ✅ Ready (\`unidbg\` + validated JDK 8${unidbgReadiness.runtimeReady ? ", active harness connected" : ""})`,
+			);
+		} else if (unidbgReadiness.installed && !unidbgReadiness.compatible) {
+			lines.push(
+				`- **Offline ARM CPU / JNI Host Emulation**: ⚠️ Blocked (Incompatible JDK: ${unidbgReadiness.error}. Remedy: ${unidbgReadiness.remedy})`,
+			);
+		} else if (unidbgReadiness.installed && !unidbgReadiness.canStart) {
+			lines.push(
+				`- **Offline ARM CPU / JNI Host Emulation**: ⚠️ Blocked (Build Incomplete: ${unidbgReadiness.error}. Remedy: ${unidbgReadiness.remedy})`,
+			);
+		} else {
+			lines.push(
+				`- **Offline ARM CPU / JNI Host Emulation**: ⚠️ Missing (\`unidbg\` not installed; run \`reverse setup reverse unidbg\` to view install recipes)`,
+			);
+		}
 		lines.push(
 			`- **LIEF Structural ELF Inspection**: ${readiness.lief ? "✅ Ready (`lief` Python package)" : "⚠️ Limited (install `lief` via 'reverse setup reverse lief --execute')"}`,
 		);
@@ -923,6 +957,7 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 				status: "ok",
 				tools: companionStatuses,
 				readiness,
+				unidbgReadiness,
 			},
 		};
 	}
@@ -1060,13 +1095,8 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 		const inspection = await this.performInventory(resolvedPath, displayPath, params, signal);
 		const statusRes = await this.executeStatus(which, platform);
 		const statusDetails = statusRes.details;
-		const readiness = statusDetails?.readiness ?? {
-			staticInspect: true,
-			unpack: true,
-			decompile: false,
-			dynamicInject: false,
-			emulation: false,
-		};
+		const unidbgReadiness = statusDetails.unidbgReadiness!;
+		const readiness = statusDetails.readiness!;
 		const installedTools: Record<string, boolean> = {};
 		for (const t of statusDetails?.tools ?? []) {
 			installedTools[t.id] = t.installed;
@@ -1192,9 +1222,24 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 					? `unidbg(action: "probe", target: "${libArtifactPath}", arch: "${targetArch}", callOnLoad: true, out: "${jniArtifactPath}")`
 					: `unidbg(action: "probe", target: "${libArtifactPath}", apk: "${displayPath}", arch: "${targetArch}", callOnLoad: true, out: "${jniArtifactPath}")`,
 				description: `Emulate ARM instructions on host JVM headlessly without a device to capture JNI dynamic registrations (RegisterNatives) via JNI_OnLoad, feed verified records to Ghidra JNI enrichment (ghidra_inspect jni_enrich), and execute bounded replay verification.`,
-				missing_dependencies: readiness.emulation ? undefined : ["unidbg"],
-				install_hints: ["git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests"],
-				remedy: "Compile Unidbg runner or set UNIDBG_HOME in environment. Safe for CI and offline workstations.",
+				missing_dependencies: readiness.emulation
+					? undefined
+					: !unidbgReadiness.installed
+						? ["unidbg"]
+						: !unidbgReadiness.compatible
+							? ["jdk8"]
+							: ["unidbg_build"],
+				install_hints: readiness.emulation
+					? undefined
+					: !unidbgReadiness.installed
+						? ["git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && mvn package -DskipTests"]
+						: !unidbgReadiness.compatible
+							? [unidbgReadiness.remedy ?? "Install JDK 8 and set JAVA_HOME"]
+							: [unidbgReadiness.remedy ?? "Compile Unidbg with JDK 8: ./mvnw -DskipTests package"],
+				remedy: readiness.emulation
+					? "Emulate ARM instructions on host JVM"
+					: (unidbgReadiness.remedy ??
+						"Compile Unidbg runner or set UNIDBG_HOME in environment. Safe for CI and offline workstations."),
 				actionable_params: {
 					action: "probe",
 					target: libArtifactPath,
@@ -1311,13 +1356,21 @@ export class AndroidNativeWorkflowTool implements AgentTool<
 			);
 		}
 
-		if (readiness.emulation) {
+		if (unidbgReadiness.canStart) {
 			recommendations.push(
-				"Unidbg is installed: you can emulate ARM native code directly on this machine without a phone via unidbg(action: 'probe').",
+				"Unidbg is installed with validated JDK 8: you can emulate ARM native code directly on this machine without a phone via unidbg(action: 'probe').",
+			);
+		} else if (unidbgReadiness.installed && !unidbgReadiness.compatible) {
+			recommendations.push(
+				`Unidbg is present but blocked by incompatible Java (${unidbgReadiness.jdkVersion ?? "non-8"}): ${unidbgReadiness.remedy}`,
+			);
+		} else if (unidbgReadiness.installed && !unidbgReadiness.canStart) {
+			recommendations.push(
+				`Unidbg is present but not ready to launch: ${unidbgReadiness.error} Remedy: ${unidbgReadiness.remedy}`,
 			);
 		} else {
 			recommendations.push(
-				"Unidbg is missing: run 'reverse setup reverse' or compile zhkl0228/unidbg to enable device-free JNI emulation.",
+				"Unidbg is missing: run 'reverse setup reverse unidbg' or compile zhkl0228/unidbg with JDK 8 to enable device-free JNI emulation.",
 			);
 		}
 

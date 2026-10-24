@@ -6,7 +6,16 @@ import { describe, expect, it } from "bun:test";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import type { ToolSession } from "@reverse/coding-agent/tools";
 import { ZipParser } from "@reverse/coding-agent/tools/android-package-inspect";
-import { ApkArtifactTool } from "@reverse/coding-agent/tools/apk-artifact";
+import {
+	ApkArtifactTool,
+	parsePackageSet,
+	parsePerMemberReplacements,
+	type ApkDiffResult,
+	type ApkRepackResult,
+	type ApkVerifyResult,
+	type PackageSetDiffResult,
+	type PackageSetRepackResult,
+} from "@reverse/coding-agent/tools/apk-artifact";
 import { removeWithRetries } from "@reverse/utils";
 import { EvidenceStore } from "@reverse/coding-agent/evidence/store";
 import { ReverseWorkflowStore, hashFileSha256 } from "@reverse/coding-agent/reverse-workflow";
@@ -23,6 +32,31 @@ function createTestSession(cwd: string): ToolSession {
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated({ "tools.xdev": false }),
 	};
+}
+function requireSingleDiff(diff: ApkDiffResult | PackageSetDiffResult | undefined): ApkDiffResult {
+	if (!diff || diff.is_package_set) throw new Error("Expected single APK diff result");
+	return diff;
+}
+
+function requireSingleRepack(repack: ApkRepackResult | PackageSetRepackResult | undefined): ApkRepackResult {
+	if (!repack || repack.is_package_set) throw new Error("Expected single APK repack result");
+	return repack;
+}
+
+function requireSingleVerify(verify: ApkVerifyResult | unknown | undefined): ApkVerifyResult {
+	const v = verify as ApkVerifyResult | { is_package_set?: boolean } | undefined;
+	if (!v || v.is_package_set) throw new Error("Expected single APK verify result");
+	return v as ApkVerifyResult;
+}
+
+function requirePackageSetDiff(diff: ApkDiffResult | PackageSetDiffResult | undefined): PackageSetDiffResult {
+	if (!diff || !diff.is_package_set) throw new Error("Expected package set diff result");
+	return diff;
+}
+
+function requirePackageSetRepack(repack: ApkRepackResult | PackageSetRepackResult | undefined): PackageSetRepackResult {
+	if (!repack || !repack.is_package_set) throw new Error("Expected package set repack result");
+	return repack;
 }
 
 /** Construct a valid uncompressed ZIP/APK archive in memory without external tools. */
@@ -112,7 +146,10 @@ describe("apk_artifact tool contracts & safety", () => {
 		expect(tool.approval({ action: "verify" })).toBe("read");
 		expect(tool.approval({ action: "repack" })).toBe("write");
 		expect(tool.approval({ action: "sign" })).toBe("write");
-		expect(tool.approval({ action: "install_verify" })).toBe("write");
+		expect(tool.approval({ action: "install_verify" })).toBe("exec");
+		expect(tool.approval({ action: "unknown_action" })).toBe("exec");
+		expect(tool.approval({})).toBe("exec");
+		expect(tool.approval(null)).toBe("exec");
 	});
 
 	it("diff: detects same-size replacements where size matches but bytes/hash differ", async () => {
@@ -148,7 +185,7 @@ describe("apk_artifact tool contracts & safety", () => {
 			expect(result.details.status).toBe("ok");
 			expect(result.details.diff).toBeDefined();
 
-			const diff = result.details.diff!;
+			const diff = requireSingleDiff(result.details.diff);
 			expect(diff.summary.changed_count).toBe(1);
 			expect(diff.summary.same_size_changed_count).toBe(1);
 			expect(diff.summary.identical_count).toBe(1);
@@ -199,7 +236,7 @@ describe("apk_artifact tool contracts & safety", () => {
 			});
 
 			expect(res.details.status).toBe("ok");
-			const repack = res.details.repack!;
+			const repack = requireSingleRepack(res.details.repack);
 			expect(repack.replaced_entries).toContain("classes.dex");
 			expect(repack.signed).toBe(false);
 
@@ -258,7 +295,7 @@ describe("apk_artifact tool contracts & safety", () => {
 			});
 
 			expect(res.details.status).toBe("ok");
-			const alignInfo = res.details.repack?.alignment;
+			const alignInfo = requireSingleRepack(res.details.repack).alignment;
 			expect(alignInfo?.ok).toBe(true);
 
 			const arscEntry = alignInfo?.checked_entries.find(e => e.name === "resources.arsc");
@@ -372,10 +409,11 @@ describe("apk_artifact tool contracts & safety", () => {
 				apksigner_path: "/nonexistent/tools/apksigner",
 			});
 
-			expect(res.details.verify?.verified).toBe(false);
-			expect(res.details.verify?.status).not.toBe("ok");
-			expect(res.details.verify?.signature?.tool_available).toBe(false);
-			expect(res.details.verify?.signature?.verified).toBe(false);
+			const verify = requireSingleVerify(res.details.verify);
+			expect(verify.verified).toBe(false);
+			expect(verify.status).not.toBe("ok");
+			expect(verify.signature?.tool_available).toBe(false);
+			expect(verify.signature?.verified).toBe(false);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -495,9 +533,10 @@ describe("apk_artifact tool contracts & safety", () => {
 			});
 
 			expect(repackBOnARes.details.status).toBe("ok");
-			expect(repackBOnARes.details.repack?.baseline_promoted).toBe(true);
-			expect(repackBOnARes.details.repack?.lineage_verification?.status).toBe("verified");
-			expect(repackBOnARes.details.repack?.lineage_verification?.checked_patches_count).toBe(2);
+			const repackB = requireSingleRepack(repackBOnARes.details.repack);
+			expect(repackB.baseline_promoted).toBe(true);
+			expect(repackB.lineage_verification?.status).toBe("verified");
+			expect(repackB.lineage_verification?.checked_patches_count).toBe(2);
 
 			// Verify mod2.apk on disk retains Patch A in native library and adds Patch B in classes.dex
 			const mod2Buf = await fs.readFile(mod2ApkPath);
@@ -546,15 +585,16 @@ describe("apk_artifact tool contracts & safety", () => {
 			});
 
 			expect(replayRes.details.status).toBe("ok");
-			expect(replayRes.details.repack?.baseline_promoted).toBe(true);
-			expect(replayRes.details.repack?.lineage_verification?.status).toBe("verified");
+			const repackReplay = requireSingleRepack(replayRes.details.repack);
+			expect(repackReplay.baseline_promoted).toBe(true);
+			expect(repackReplay.lineage_verification?.status).toBe("verified");
 
 			// 6. Reopen store retains baseline
 			const reopenedStore = new ReverseWorkflowStore({ repositoryRoot: tempDir });
 			const baselineReopened = await reopenedStore.getBaseline(wf.id);
 			expect(baselineReopened).not.toBeNull();
 			expect(baselineReopened?.build_id).toBe("mod_replay");
-			expect(baselineReopened?.output_sha256).toBe(replayRes.details.repack?.sha256);
+			expect(baselineReopened?.output_sha256).toBe(repackReplay.sha256);
 
 			// 7. Old hash runtime evidence refused
 			const oldEvidence = await evidenceStore.addHypothesis({
@@ -767,7 +807,584 @@ describe("apk_artifact tool contracts & safety", () => {
 				workflow_id: wf.id,
 			});
 			// Lineage verification does not fail on retired patch_A
-			expect(verifyRes.details.verify?.lineage_verification?.active_patches_count).toBe(0);
+			const verify = requireSingleVerify(verifyRes.details.verify);
+			expect(verify.lineage_verification?.active_patches_count).toBe(0);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});
+describe("apk_artifact split APK lifecycle & package set contracts", () => {
+	it("schema: parsePackageSet parses valid canonical shape and enforces strict member validation", () => {
+		const tempCwd = "/workspace";
+		const valid = parsePackageSet(
+			{
+				base: "base.apk",
+				splits: {
+					"config.arm64_v8a": "splits/arm64.apk",
+					"config.xxhdpi": "splits/xxhdpi.apk",
+				},
+			},
+			tempCwd,
+		);
+		expect(valid.base.name).toBe("base");
+		expect(valid.base.path).toBe(path.resolve(tempCwd, "base.apk"));
+		expect(valid.splits["config.arm64_v8a"]).toBe(path.resolve(tempCwd, "splits/arm64.apk"));
+		expect(valid.splits["config.xxhdpi"]).toBe(path.resolve(tempCwd, "splits/xxhdpi.apk"));
+		expect(valid.allMembers).toHaveLength(3);
+
+		// Rejects missing or non-string base
+		expect(() => parsePackageSet({}, tempCwd)).toThrow(/declare a non-empty 'base' APK/);
+		expect(() => parsePackageSet({ base: "" }, tempCwd)).toThrow(/declare a non-empty 'base' APK/);
+
+		// Rejects unknown top-level properties
+		expect(() => parsePackageSet({ base: "base.apk", extra_key: "forbidden" }, tempCwd)).toThrow(
+			/Unknown property 'extra_key'/,
+		);
+
+		// Rejects invalid split names
+		expect(() => parsePackageSet({ base: "base.apk", splits: { "../traversal": "split.apk" } }, tempCwd)).toThrow(
+			/Invalid split name/,
+		);
+		expect(() => parsePackageSet({ base: "base.apk", splits: { "split/slash": "split.apk" } }, tempCwd)).toThrow(
+			/Invalid split name/,
+		);
+		expect(() => parsePackageSet({ base: "base.apk", splits: { base: "split.apk" } }, tempCwd)).toThrow(
+			/Invalid split name/,
+		);
+
+		// Rejects duplicate file paths across members
+		expect(() => parsePackageSet({ base: "same.apk", splits: { "config.arm64": "same.apk" } }, tempCwd)).toThrow(
+			/Duplicate file path/,
+		);
+	});
+
+	it("schema: parsePerMemberReplacements validates strict replacement rules without silent omission", () => {
+		const tempCwd = "/workspace";
+		const valid = parsePerMemberReplacements(
+			{
+				base: {
+					dex_files: { "classes2.dex": "out/classes2.dex" },
+					dex_path: "out/classes.dex",
+					replace_files: { "assets/config.json": "files/config.json" },
+				},
+				"config.arm64_v8a": {
+					replace_files: { "lib/arm64-v8a/libnative.so": "libs/libnative.so" },
+				},
+			},
+			tempCwd,
+		);
+		expect(valid.base.dex_files["classes2.dex"]).toBe(path.resolve(tempCwd, "out/classes2.dex"));
+		expect(valid.base.dex_path).toBe(path.resolve(tempCwd, "out/classes.dex"));
+		expect(valid["config.arm64_v8a"].replace_files["lib/arm64-v8a/libnative.so"]).toBe(
+			path.resolve(tempCwd, "libs/libnative.so"),
+		);
+
+		// Rejects invalid member name
+		expect(() => parsePerMemberReplacements({ "invalid/member": { dex_path: "classes.dex" } }, tempCwd)).toThrow(
+			/Invalid member name/,
+		);
+
+		// Rejects unknown property in member declaration
+		expect(() => parsePerMemberReplacements({ base: { unknown_prop: "bad" } }, tempCwd)).toThrow(
+			/Unknown property 'unknown_prop'/,
+		);
+
+		// Rejects non-object dex_files
+		expect(() => parsePerMemberReplacements({ base: { dex_files: "not_an_object" } }, tempCwd)).toThrow(
+			/must be an object mapping/,
+		);
+
+		// Rejects conflicting dex_path and classes.dex in dex_files
+		expect(() =>
+			parsePerMemberReplacements(
+				{
+					base: {
+						dex_path: "classes.dex",
+						dex_files: { "classes.dex": "classes.dex" },
+					},
+				},
+				tempCwd,
+			),
+		).toThrow(/Conflicting DEX replacement/);
+
+		// Rejects overlapping entries between dex_files and replace_files
+		expect(() =>
+			parsePerMemberReplacements(
+				{
+					base: {
+						dex_files: { "classes.dex": "dex.dex" },
+						replace_files: { "classes.dex": "other.dex" },
+					},
+				},
+				tempCwd,
+			),
+		).toThrow(/Overlapping replacement entry/);
+	});
+
+	it("diff: compares split package sets, identifying added/removed splits and entry diffs", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-set-diff-"));
+		try {
+			const origBase = path.join(tempDir, "orig_base.apk");
+			const modBase = path.join(tempDir, "mod_base.apk");
+			const origSplit = path.join(tempDir, "orig_split.apk");
+			const modSplit = path.join(tempDir, "mod_split.apk");
+			const addedSplit = path.join(tempDir, "added_split.apk");
+
+			await fs.writeFile(
+				origBase,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+					{ name: "classes.dex", data: createDummyDex(1, 40) },
+				]),
+			);
+			await fs.writeFile(
+				modBase,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+					{ name: "classes.dex", data: createDummyDex(2, 40) },
+				]),
+			);
+			await fs.writeFile(
+				origSplit,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from(
+							'<manifest package="com.example.app" android:versionCode="100" split="arm64"></manifest>',
+						),
+					},
+					{ name: "lib/arm64-v8a/lib.so", data: Buffer.from("v1-so-data") },
+				]),
+			);
+			await fs.writeFile(
+				modSplit,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from(
+							'<manifest package="com.example.app" android:versionCode="100" split="arm64"></manifest>',
+						),
+					},
+					{ name: "lib/arm64-v8a/lib.so", data: Buffer.from("v2-so-data-modified") },
+				]),
+			);
+			await fs.writeFile(
+				addedSplit,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from(
+							'<manifest package="com.example.app" android:versionCode="100" split="xxhdpi"></manifest>',
+						),
+					},
+					{ name: "res/drawable/icon.png", data: Buffer.from("png-data") },
+				]),
+			);
+
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+
+			const diffRes = await tool.execute("call-diff-set", {
+				action: "diff",
+				original_package_set: {
+					base: origBase,
+					splits: { split_arm64: origSplit },
+				},
+				modified_package_set: {
+					base: modBase,
+					splits: {
+						split_arm64: modSplit,
+						split_xxhdpi: addedSplit,
+					},
+				},
+			});
+
+			expect(diffRes.details.status).toBe("ok");
+			expect(diffRes.details.diff).toBeDefined();
+			const d = requirePackageSetDiff(diffRes.details.diff);
+			expect(d.is_package_set).toBe(true);
+			expect(d.summary.has_differences).toBe(true);
+			expect(d.added_splits).toContain("split_xxhdpi");
+			expect(d.summary.total_entry_changes).toBeGreaterThanOrEqual(2);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("repack: repacks package set, publishes package-set.json manifest with aggregate set_sha256", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-set-repack-"));
+		try {
+			const baseApk = path.join(tempDir, "base.apk");
+			const splitApk = path.join(tempDir, "split_arm64.apk");
+			const replacementDex = path.join(tempDir, "patched.dex");
+
+			await fs.writeFile(
+				baseApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+					{ name: "classes.dex", data: createDummyDex(1, 40) },
+				]),
+			);
+			await fs.writeFile(
+				splitApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from(
+							'<manifest package="com.example.app" android:versionCode="100" split="arm64"></manifest>',
+						),
+					},
+					{ name: "lib/arm64-v8a/libtest.so", data: Buffer.from("\x7fELF" + "test") },
+				]),
+			);
+			await fs.writeFile(replacementDex, createDummyDex(99, 40));
+
+			const outDir = path.join(tempDir, "dist_set");
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+
+			const repackRes = await tool.execute("call-repack-set", {
+				action: "repack",
+				package_set: {
+					base: baseApk,
+					splits: { split_arm64: splitApk },
+				},
+				output_package_dir: outDir,
+				per_member_replacements: {
+					base: { dex_path: replacementDex },
+				},
+			});
+
+			expect(repackRes.details.status).toBe("ok");
+			const r = requirePackageSetRepack(repackRes.details.repack);
+			expect(r.is_package_set).toBe(true);
+			expect(r.package).toBe("com.example.app");
+			expect(r.versionCode).toBe("100");
+			expect(r.set_sha256).toBeDefined();
+
+			// Output directory files must exist
+			expect(await fs.stat(path.join(outDir, "base.apk"))).toBeDefined();
+			expect(await fs.stat(path.join(outDir, "split_arm64.apk"))).toBeDefined();
+			expect(await fs.stat(path.join(outDir, "package-set.json"))).toBeDefined();
+
+			const manifestContent = JSON.parse(await fs.readFile(path.join(outDir, "package-set.json"), "utf-8"));
+			expect(manifestContent.format).toBe("apk_package_set");
+			expect(manifestContent.set_sha256).toBe(r.set_sha256);
+			expect(manifestContent.members).toHaveLength(2);
+
+			// Strict no-overwrite: second repack to existing outDir must fail
+			await expect(
+				tool.execute("call-repack-clobber", {
+					action: "repack",
+					package_set: { base: baseApk, splits: { split_arm64: splitApk } },
+					output_package_dir: outDir,
+				}),
+			).rejects.toThrow(/already exists/);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("repack: rejects mismatched package names and mismatched versionCodes across package set", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-set-sem-"));
+		try {
+			const baseApk = path.join(tempDir, "base.apk");
+			const badPkgSplit = path.join(tempDir, "bad_pkg.apk");
+			const badVcSplit = path.join(tempDir, "bad_vc.apk");
+
+			await fs.writeFile(
+				baseApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+				]),
+			);
+			await fs.writeFile(
+				badPkgSplit,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from(
+							'<manifest package="com.other.app" android:versionCode="100" split="arm64"></manifest>',
+						),
+					},
+				]),
+			);
+			await fs.writeFile(
+				badVcSplit,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from(
+							'<manifest package="com.example.app" android:versionCode="101" split="arm64"></manifest>',
+						),
+					},
+				]),
+			);
+
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+
+			// Mismatched package name
+			await expect(
+				tool.execute("call-repack-pkg-mismatch", {
+					action: "repack",
+					package_set: { base: baseApk, splits: { split_arm64: badPkgSplit } },
+					output_package_dir: path.join(tempDir, "out_pkg"),
+				}),
+			).rejects.toThrow(/Package name mismatch/);
+
+			// Mismatched versionCode
+			await expect(
+				tool.execute("call-repack-vc-mismatch", {
+					action: "repack",
+					package_set: { base: baseApk, splits: { split_arm64: badVcSplit } },
+					output_package_dir: path.join(tempDir, "out_vc"),
+				}),
+			).rejects.toThrow(/versionCode mismatch/);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("evidence: rejects stale runtime evidence IDs when package set is changed", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-set-evidence-"));
+		try {
+			const baseApk = path.join(tempDir, "base.apk");
+			const splitApk = path.join(tempDir, "split.apk");
+
+			await fs.writeFile(
+				baseApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+					{ name: "classes.dex", data: createDummyDex(1, 40) },
+				]),
+			);
+			await fs.writeFile(
+				splitApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from(
+							'<manifest package="com.example.app" android:versionCode="100" split="arm64"></manifest>',
+						),
+					},
+				]),
+			);
+
+			const evStore = new EvidenceStore({ repositoryRoot: tempDir });
+			const hyp = await evStore.addHypothesis({
+				kind: "hypothesis",
+				claim: "Historical runtime proof from prior single APK build",
+				verificationPlan: "Verify via execution",
+				target: "prior.apk",
+			});
+			const conc = await evStore.verifyHypothesis({
+				hypothesisId: hyp.id,
+				method: "runtime_test",
+				command: "verify_runtime",
+				result: "success",
+				conclusion: "Historical runtime proof verified",
+				status: "verified",
+				targetSha256: "0000000000000000000000000000000000000000000000000000000000000000",
+			});
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+			const outDir = path.join(tempDir, "stale_out");
+
+			await expect(
+				tool.execute("call-stale-evidence", {
+					action: "repack",
+					package_set: { base: baseApk, splits: { split_arm64: splitApk } },
+					output_package_dir: outDir,
+					runtime_evidence_ids: [conc.id],
+				}),
+			).rejects.toThrow(/Runtime evidence prevalidation failed/);
+
+			// Output directory must not exist (rollback on validation failure)
+			const dirExists = await fs.stat(outDir).catch(() => null);
+			expect(dirExists).toBeNull();
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("install_verify: enforces mandatory serial and rejects mismatched device identity", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-set-iv-"));
+		try {
+			const baseApk = path.join(tempDir, "base.apk");
+			await fs.writeFile(
+				baseApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+				]),
+			);
+
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+
+			// Rejects missing serial
+			await expect(
+				tool.execute("call-iv-no-serial", {
+					action: "install_verify",
+					package_set: { base: baseApk },
+					package: "com.example.app",
+					activity: ".MainActivity",
+				}),
+			).rejects.toThrow(/requires explicit parameter 'serial'/);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("repack: rejects split member lacking split attribute and duplicate split declarations", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-set-split-decl-"));
+		try {
+			const baseApk = path.join(tempDir, "base.apk");
+			const noSplitApk = path.join(tempDir, "no_split.apk");
+
+			await fs.writeFile(
+				baseApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+				]),
+			);
+			await fs.writeFile(
+				noSplitApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+				]),
+			);
+
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+
+			await expect(
+				tool.execute("call-no-split-attr", {
+					action: "repack",
+					package_set: { base: baseApk, splits: { split_bad: noSplitApk } },
+					output_package_dir: path.join(tempDir, "out_bad"),
+				}),
+			).rejects.toThrow(/lacks a 'split' attribute/);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("schema: rejects invalid dex_path and unknown member keys in per_member_replacements", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-set-per-member-"));
+		try {
+			const baseApk = path.join(tempDir, "base.apk");
+			const splitApk = path.join(tempDir, "split_arm64.apk");
+
+			await fs.writeFile(
+				baseApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+				]),
+			);
+			await fs.writeFile(
+				splitApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from(
+							'<manifest package="com.example.app" android:versionCode="100" split="arm64"></manifest>',
+						),
+					},
+				]),
+			);
+
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+
+			// Rejects empty dex_path in per_member_replacements
+			expect(() => parsePerMemberReplacements({ base: { dex_path: "" } }, tempDir)).toThrow(
+				/must be a non-empty string/,
+			);
+
+			// Rejects unknown member key in per_member_replacements
+			await expect(
+				tool.execute("call-unknown-member-repack", {
+					action: "repack",
+					package_set: { base: baseApk, splits: { split_arm64: splitApk } },
+					output_package_dir: path.join(tempDir, "out_unknown"),
+					per_member_replacements: {
+						unknown_split_typo: { dex_path: "classes.dex" },
+					},
+				}),
+			).rejects.toThrow(/Unknown member 'unknown_split_typo'/);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("install_verify: pre-install check rejects mismatched package parameter before calling adb", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-set-iv-pkg-"));
+		try {
+			const baseApk = path.join(tempDir, "base.apk");
+			const splitApk = path.join(tempDir, "split_arm64.apk");
+
+			await fs.writeFile(
+				baseApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from('<manifest package="com.example.app" android:versionCode="100"></manifest>'),
+					},
+				]),
+			);
+			await fs.writeFile(
+				splitApk,
+				buildZipBuffer([
+					{
+						name: "AndroidManifest.xml",
+						data: Buffer.from(
+							'<manifest package="com.example.app" android:versionCode="100" split="arm64"></manifest>',
+						),
+					},
+				]),
+			);
+
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+
+			await expect(
+				tool.execute("call-iv-pkg-mismatch", {
+					action: "install_verify",
+					package_set: { base: baseApk, splits: { split_arm64: splitApk } },
+					package: "com.typo.target",
+					activity: ".MainActivity",
+					serial: "emulator-5554",
+				}),
+			).rejects.toThrow(/does not match package declared in package set/);
 		} finally {
 			await removeWithRetries(tempDir);
 		}

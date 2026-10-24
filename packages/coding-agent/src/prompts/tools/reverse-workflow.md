@@ -24,13 +24,17 @@ Actions:
   - Does NOT execute arbitrary commands, auto-install packages, or run target binaries: prepares structured instructions for the agent to invoke the next tool call once verified.
 - `recover`: Diagnose failure, attribute category, propose deterministic fallback/corrected params, record audit trail, and transition step to pending.
   - Classifies failure into structured category: `missing_dependency`, `invalid_format`, `timeout`, `truncated`, `device_required`, `unsupported`, or `unknown`.
-  - Computes platform installation hints for missing tools and determines deterministic native fallbacks (`r2_inspect` -> `triage`, `droidasc` -> `android_package_inspect`, `tshark` -> `pcap_inspect`, etc.).
+  - Computes platform installation hints for missing tools and determines deterministic native fallbacks (`r2_inspect` -> `triage`, `droidasc`/`jadx` -> `android_package_inspect`, `tshark` -> `pcap_inspect`, `vbindiff` -> `binary_diff`, etc.).
+  - Preserves target and action fidelity: missing decompiler for manifest extraction routes to native AXML manifest (`android_package_inspect(action: "manifest")`), bare `.so` files route to native inspection rather than being assumed APK containers, and binary diff recovery uses canonical `path_a`/`path_b`/`action` schemas.
+  - Enforces observation-only boundaries: missing-dependency or no-device fallbacks (e.g. `android_native_workflow` static JNI inspection in place of `unidbg`) collect static facts only and cannot falsely satisfy dynamic execution, register state, or JNI experiment acceptance criteria.
+  - Prohibits silent unsupported-target fallback: incompatible architectures or unrecognized target formats are explicitly demarcated as exploratory triage or aborted rather than silently treated as normal fallbacks.
+  - Returns structured model guidance: `capability_depth` (`static`, `dynamic`, `emulation`, `instrumentation`, `triage`), `verification_boundary`, `remaining_acceptance`, `prerequisites`, and `discovery_guidance` (prompting model to inspect schema at `xd://<tool>` and emit current step-only notices).
   - Corrects parameters (scope reduction on timeout, pagination on truncation, format check on invalid header).
   - Supports install-after resumption: when an external tool was installed following a missing dependency failure, caller can pass `installed_tool`, `capability_id`, `setup_command`, and `strategy` (`resume_original` or `fallback`) to resume the original planned tool. Fresh canonical verification is strictly enforced; unavailable tools return a structured missing state without mutating step status.
   - Records a complete recovery audit entry and associates evidence IDs (`evidence_ids`).
   - Strictly enforces bounded retry attempts (`attempts < max_attempts`).
 - `retry_plan`: Preview failure attribution and recovery plan without mutating step status.
-  - Returns structured diagnosis, attribution, cause, alternatives, and proposed tool & parameters.
+  - Returns structured diagnosis, attribution, cause, alternatives, proposed tool & parameters, capability depth, verification boundary, remaining acceptance, and discovery guidance.
 - `export`: Produce bounded Markdown/JSON workflow reports or export a standardized `.reverse/` workspace.
   - Hydrates linked evidence ledger items (title, kind, locator, content).
   - Captures full failure recovery, retry history, and install-after resume metadata (`capability_id`, `installed_tool`, `setup_command`, `verified`, `strategy`, `resumed_at`).

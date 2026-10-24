@@ -343,6 +343,94 @@ async function assembleUnidbgClasspath(
 }
 
 /**
+ * Static non-executing check for Unidbg classpath and reactor launch prerequisites.
+ * Verifies that the required reactor modules, classes/jars, and classpath file / maven command exist.
+ */
+export function checkUnidbgLaunchPrerequisites(
+	unidbgDir: string,
+	isIos = false,
+	env: NodeJS.ProcessEnv = process.env,
+): { ok: boolean; reason?: string } {
+	if (!fs.existsSync(unidbgDir)) {
+		return { ok: false, reason: `Unidbg directory does not exist at ${unidbgDir}` };
+	}
+
+	const apiModule = path.join(unidbgDir, "unidbg-api");
+	const targetModule = path.join(unidbgDir, isIos ? "unidbg-ios" : "unidbg-android");
+	const hasApi = fs.existsSync(apiModule);
+	const hasTarget = fs.existsSync(targetModule);
+	const hasTargetPom = fs.existsSync(path.join(targetModule, "pom.xml"));
+
+	if (!hasTarget || !hasTargetPom) {
+		return {
+			ok: false,
+			reason: `Unidbg directory found at ${unidbgDir}, but ${isIos ? "unidbg-ios" : "unidbg-android"} module or pom.xml is missing.`,
+		};
+	}
+
+	const checkModuleCompiled = (dir: string): boolean => {
+		const target = path.join(dir, "target");
+		if (!fs.existsSync(target)) return false;
+		if (fs.existsSync(path.join(target, "classes")) || fs.existsSync(path.join(target, "test-classes"))) return true;
+		try {
+			return fs
+				.readdirSync(target)
+				.some(f => f.endsWith(".jar") && !f.endsWith("-sources.jar") && !f.endsWith("-javadoc.jar"));
+		} catch {
+			return false;
+		}
+	};
+
+	if (!hasApi || !checkModuleCompiled(apiModule) || !checkModuleCompiled(targetModule)) {
+		return {
+			ok: false,
+			reason: `Unidbg reactor at ${unidbgDir} is missing compiled classes or jars for unidbg-api / ${isIos ? "unidbg-ios" : "unidbg-android"}.`,
+		};
+	}
+
+	const unicornModule = path.join(unidbgDir, "backend", "unicorn2");
+	const dynarmicModule = path.join(unidbgDir, "backend", "dynarmic");
+	const classpathFile = path.join(targetModule, "target", "unidbg-classpath.txt");
+	let classpathEntries: string[] = [];
+	try {
+		classpathEntries = fs.readFileSync(classpathFile, "utf8").trim().split(path.delimiter).filter(Boolean);
+	} catch {}
+	const hasValidClasspathFile = classpathEntries.length > 0 && classpathEntries.every(entry => fs.existsSync(entry));
+	const hasClasspathBackend =
+		hasValidClasspathFile && classpathEntries.some(entry => /(?:unicorn2|dynarmic)/i.test(entry));
+
+	const hasBackend =
+		hasClasspathBackend ||
+		(fs.existsSync(unicornModule) && checkModuleCompiled(unicornModule)) ||
+		(fs.existsSync(dynarmicModule) && checkModuleCompiled(dynarmicModule));
+
+	if (!hasBackend) {
+		return {
+			ok: false,
+			reason: `Unidbg reactor at ${unidbgDir} is missing compiled backend CPU emulation module (backend/unicorn2 or backend/dynarmic).`,
+		};
+	}
+
+	const isWin = process.platform === "win32";
+	const wrapperPath = path.join(unidbgDir, isWin ? "mvnw.cmd" : "mvnw");
+	const hasMaven =
+		fs.existsSync(wrapperPath) ||
+		fs.existsSync(path.join(unidbgDir, "mvnw")) ||
+		Boolean(
+			env.PATH && env.PATH.split(path.delimiter).some(p => fs.existsSync(path.join(p, isWin ? "mvn.cmd" : "mvn"))),
+		);
+
+	if (!hasValidClasspathFile && !hasMaven) {
+		return {
+			ok: false,
+			reason: `Cannot resolve Unidbg module classpath: target/unidbg-classpath.txt is empty or missing and Maven wrapper / mvn executable not found.`,
+		};
+	}
+
+	return { ok: true };
+}
+
+/**
  * Compile a .java harness source file against the unidbg classpath using validated JDK 8 javac.
  */
 async function compileHarnessSource(
@@ -407,6 +495,8 @@ export async function launchUnidbgHarness(options: UnidbgLaunchOptions): Promise
 		throw new Error("Unidbg repository or installation not found. Run 'reverse unidbg build' first.");
 	}
 	const unidbgDir = inspected.unidbgDir;
+	const prerequisites = checkUnidbgLaunchPrerequisites(unidbgDir, detectIsIos(options));
+	if (!prerequisites.ok) throw new Error(prerequisites.reason);
 	const requestedPort = options.port ?? 9239;
 	const arch = String(options.arch ?? "64") === "32" ? 32 : 64;
 	const backend = options.backend ?? "unicorn2";

@@ -140,3 +140,32 @@ To prevent knowledge pollution and ensure long-term maintainability:
 2. **No Unverified Promotion**: Working hypotheses (`[HYPOTHESIS]`) and unknowns (`[UNKNOWN]`) are strictly barred from promotion to knowledge until empirical verification is completed.
 3. **Autonomous Retrieval**: When initiating or planning reverse engineering workflows (`reverse_workflow action: 'create'` or `'plan'`), prior knowledge is queried and linked automatically.
 4. **Automated Synthesis**: Use `reverse_knowledge(action: 'learn')` to scan the project evidence ledger and workflow recovery history to persist reusable patterns.
+
+---
+
+## 6. Subagent Task Handoff & Evidence Contract
+
+When the orchestrator delegates tasks to specialized subagents (`task` or `scout`), structured task handoffs MUST specify concrete target coordinates, boundary scopes, and evidence lineage using existing contract fields:
+
+### 1. Target Coordinate Anchors
+Every reverse task MUST pin target identity using immutable coordinates to prevent drift across spawns:
+- **`sha256`**: Immutable cryptographic hash of the target sample (computed before analysis/mutation).
+- **`path`**: Concrete local file path to the sample binary or artifact.
+- **`package`**: Android / mobile package identifier (e.g. `com.example.app`), required for mobile workflows.
+- **`abi`**: Target CPU architecture (`arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86`).
+- **`serial`**: Target ADB device serial for dynamic/device actions; NEVER assume or guess serial.
+
+### 2. Delegation Envelope Fields
+Task definitions MUST provide explicit boundary specifications:
+- **`# Target`**: Concrete files, immutable `sha256`, `package`, `abi`, and device `serial` where applicable. Non-goals explicitly bounded.
+- **`subject`**: Discrete function, symbol, component, or protocol endpoint under test (e.g. `Lcom/example/Auth;->verifyToken()Z`, `libcrypto.so!encrypt_payload`, `POST /api/v2/auth`).
+- **`evidence_ids` / `artifact_paths`**: Upstream evidence IDs (`ev_fact_*`) and artifact file paths passed as ground truth.
+- **`allowed_actions`**: Explicit whitelist of authorized tool actions (e.g. `manifest`, `listclass`, `getclass`, `diff`; no unapproved mutations or global installs).
+- **`# Acceptance`**: Observable, reproducible criteria (e.g. exact byte offset identified, decompiler output verified, control baseline passed).
+
+### 3. Child Reporting Contract
+Children MUST report empirical ground truth rather than asserting high-level success:
+- **Emit Facts (`[FACT]`)**: Cite exact virtual address, RVA, function name, line number, or byte offset.
+- **Explicit Unknowns (`[UNKNOWN]`)**: Unambiguously report unresolved variables, unreached branches, or missing external tools.
+- **Explicit Blockers (`[BLOCKER]`)**: State exact missing dependencies, environment constraints, or permission boundaries.
+- **No Premature Promotion**: Observations from static fallbacks (e.g. manifest parsing or static disasm) MUST NOT be reported as dynamic execution or live feature verification.

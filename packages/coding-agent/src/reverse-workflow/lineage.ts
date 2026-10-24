@@ -13,6 +13,12 @@ import type {
 	ReverseWorkflowRecord,
 } from "./contracts";
 import { ReverseWorkflowStore } from "./store";
+import {
+	isPackageSetManifest,
+	parseAndValidatePackageSetManifest,
+	resolvePackageSetInput,
+	type ValidatedPackageSetManifest,
+} from "./package-set";
 
 /**
  * Compute streaming SHA-256 hash of a file on disk without reading whole file into memory.
@@ -34,16 +40,160 @@ export class TargetByteReader {
 	private archiveOpened = false;
 	private memberCache = new Map<string, Buffer>();
 
-	constructor(readonly targetPath: string) {}
+	private initialized = false;
+	private isPackageSet = false;
+	private packageSetValidation?: ValidatedPackageSetManifest;
+	private packageMemberReaders = new Map<string, ArchiveReader>();
+	private packageMemberCaches = new Map<string, Map<string, Buffer>>();
 
-	async readSlice(memberPath: string | undefined, offset: number, length: number): Promise<Buffer> {
+	constructor(
+		readonly targetPath: string,
+		private readonly rawPackageSet?: {
+			base: string;
+			splits?: Record<string, string>;
+		},
+	) {}
+
+	/**
+	 * Initialize reader and verify target integrity.
+	 * For package sets: strictly parses manifest, verifies directory containment & symlinks,
+	 * verifies on-disk sizes and streaming SHA-256 for all members, and checks aggregate set_sha256.
+	 * Runs even when zero active patches are present so mutated members cannot be concealed.
+	 */
+	async initAndVerify(): Promise<void> {
+		if (this.initialized) return;
+
+		const isPkg = await isPackageSetManifest(this.targetPath);
+		if (isPkg) {
+			this.isPackageSet = true;
+			this.packageSetValidation = await parseAndValidatePackageSetManifest(this.targetPath);
+			this.initialized = true;
+			return;
+		}
+
+		if (this.rawPackageSet) {
+			const resolvedRaw = await resolvePackageSetInput(
+				path.dirname(path.resolve(this.targetPath)),
+				this.rawPackageSet,
+			);
+			this.isPackageSet = true;
+			this.packageSetValidation = {
+				manifest: {
+					format: "apk_package_set",
+					package: resolvedRaw.package ?? "raw_package_set",
+					versionCode: resolvedRaw.versionCode ?? 1,
+					set_sha256: resolvedRaw.setSha256,
+					members: resolvedRaw.members,
+				},
+				manifestSha256: resolvedRaw.manifestSha256 ?? "",
+				manifestDir: path.dirname(path.resolve(this.targetPath)),
+				memberPaths: resolvedRaw.memberPaths,
+			};
+			this.initialized = true;
+			return;
+		}
+
+		try {
+			await fs.access(this.targetPath, fs.constants.R_OK);
+		} catch (err) {
+			throw new ToolError(
+				`Target file '${this.targetPath}' does not exist or is not readable: ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
+		this.initialized = true;
+	}
+
+	async readSlice(
+		memberPath: string | undefined,
+		offset: number,
+		length: number,
+		packageMember?: string,
+	): Promise<Buffer> {
 		if (offset < 0) {
 			throw new ToolError(`Invalid negative offset 0x${offset.toString(16)} for '${this.targetPath}'.`);
 		}
 		if (length <= 0) return Buffer.alloc(0);
 
-		const normalizedMember = memberPath?.trim().replace(/^\/+/, "");
+		if (!this.initialized) {
+			await this.initAndVerify();
+		}
 
+		if (this.isPackageSet) {
+			const memberInfo = this.packageSetValidation!;
+			const targetPkgMember = packageMember?.trim() || "base";
+			const effectiveEntry = memberPath?.trim().replace(/^\/+/, "");
+
+			const memberApkPath = memberInfo.memberPaths.get(targetPkgMember);
+			if (!memberApkPath) {
+				const available = Array.from(memberInfo.memberPaths.keys()).join(", ");
+				throw new ToolError(
+					`Package member '${targetPkgMember}' not found in package set manifest '${this.targetPath}'. Available members: ${available}`,
+				);
+			}
+
+			if (!effectiveEntry || effectiveEntry.length === 0) {
+				throw new ToolError(
+					`Package set member '${targetPkgMember}' requires a non-empty container member_path (e.g. 'classes.dex', 'lib/arm64-v8a/...').`,
+				);
+			}
+
+			let entryCache = this.packageMemberCaches.get(targetPkgMember);
+			if (!entryCache) {
+				entryCache = new Map<string, Buffer>();
+				this.packageMemberCaches.set(targetPkgMember, entryCache);
+			}
+
+			let memberBuf = entryCache.get(effectiveEntry);
+			if (!memberBuf) {
+				let reader = this.packageMemberReaders.get(targetPkgMember);
+				if (!reader) {
+					try {
+						reader = await openArchive(memberApkPath);
+					} catch (err) {
+						throw new ToolError(
+							`Failed to open package member archive '${memberApkPath}': ${err instanceof Error ? err.message : String(err)}`,
+						);
+					}
+					this.packageMemberReaders.set(targetPkgMember, reader);
+				}
+
+				try {
+					const memberFile = await reader.readFile(effectiveEntry);
+					if (!memberFile || !memberFile.bytes) {
+						throw new ToolError(
+							`Entry '${effectiveEntry}' in member '${targetPkgMember}' archive '${memberApkPath}' has no readable data.`,
+						);
+					}
+					memberBuf = Buffer.from(
+						memberFile.bytes.buffer,
+						memberFile.bytes.byteOffset,
+						memberFile.bytes.byteLength,
+					);
+					entryCache.set(effectiveEntry, memberBuf);
+				} catch (err) {
+					if (err instanceof ToolError) throw err;
+					throw new ToolError(
+						`Failed to read entry '${effectiveEntry}' from member '${targetPkgMember}' ('${memberApkPath}'): ${err instanceof Error ? err.message : String(err)}`,
+					);
+				}
+			}
+
+			if (offset + length > memberBuf.length) {
+				throw new ToolError(
+					`Requested slice [0x${offset.toString(16)}, 0x${(offset + length).toString(16)}) exceeds entry '${effectiveEntry}' in member '${targetPkgMember}' size (${memberBuf.length} bytes).`,
+				);
+			}
+
+			return memberBuf.subarray(offset, offset + length);
+		}
+
+		const reqMember = packageMember?.trim();
+		if (reqMember && reqMember !== "base") {
+			throw new ToolError(
+				`Cannot access package member '${reqMember}' on non-package-set target '${this.targetPath}'. Target must be a valid package set manifest declaring member '${reqMember}'.`,
+			);
+		}
+		const normalizedMember = memberPath?.trim().replace(/^\/+/, "");
 		if (normalizedMember && normalizedMember.length > 0) {
 			let memberBuf = this.memberCache.get(normalizedMember);
 			if (!memberBuf) {
@@ -173,8 +323,31 @@ export async function verifyActivePatches(
 	let checkedCount = 0;
 	const reader = new TargetByteReader(targetPath);
 
+	try {
+		await reader.initAndVerify();
+	} catch (err) {
+		return {
+			status: "failed",
+			static_status: "failed",
+			runtime_status: "pending",
+			checked_patches_count: 0,
+			failure_reason: `Target verification failed for '${targetPath}': ${err instanceof Error ? err.message : String(err)}`,
+		};
+	}
+
 	for (const patch of cumulativePatches) {
 		if (patch.status === "retired") continue;
+
+		if (!Number.isSafeInteger(patch.offset) || patch.offset < 0) {
+			return {
+				status: "failed",
+				static_status: "failed",
+				runtime_status: "pending",
+				checked_patches_count: checkedCount,
+				failed_patch_id: patch.patch_id,
+				failure_reason: `Invalid or missing offset for patch '${patch.patch_id}': '${patch.offset}'. Offsets must be non-negative safe integers.`,
+			};
+		}
 
 		const cleanExpectedHex = patch.expected_bytes.replace(/\s+/g, "").toLowerCase();
 		if (!cleanExpectedHex || cleanExpectedHex.length % 2 !== 0 || !/^[0-9a-f]+$/.test(cleanExpectedHex)) {
@@ -191,7 +364,7 @@ export async function verifyActivePatches(
 		const expectedLen = cleanExpectedHex.length / 2;
 		let actualBytes: Buffer;
 		try {
-			actualBytes = await reader.readSlice(patch.member_path, patch.offset, expectedLen);
+			actualBytes = await reader.readSlice(patch.member_path, patch.offset, expectedLen, patch.package_member);
 		} catch (err) {
 			return {
 				status: "failed",
@@ -205,14 +378,14 @@ export async function verifyActivePatches(
 
 		const actualHex = actualBytes.toString("hex").toLowerCase();
 		if (actualHex !== cleanExpectedHex) {
-			const memberLabel = patch.member_path ? `'${patch.member_path}'` : "binary";
+			const memberLabel = [patch.package_member, patch.member_path].filter(Boolean).join("!/") || "binary";
 			return {
 				status: "failed",
 				static_status: "failed",
 				runtime_status: "pending",
 				checked_patches_count: checkedCount,
 				failed_patch_id: patch.patch_id,
-				failure_reason: `Byte mismatch at ${memberLabel} offset 0x${patch.offset.toString(16)}: expected '${cleanExpectedHex}', found '${actualHex}'`,
+				failure_reason: `Byte mismatch at '${memberLabel}' offset 0x${patch.offset.toString(16)}: expected '${cleanExpectedHex}', found '${actualHex}'`,
 			};
 		}
 
@@ -235,16 +408,28 @@ export async function verifySourceOriginalBytes(
 	sourcePath: string,
 	newPatches: Array<{
 		patch_id: string;
+		package_member?: string;
 		member_path?: string;
 		offset: number;
 		original_bytes: string;
 		status?: PatchStatus;
 	}>,
+	rawPackageSet?: {
+		base: string;
+		splits?: Record<string, string>;
+	},
 ): Promise<void> {
-	const reader = new TargetByteReader(sourcePath);
+	const reader = new TargetByteReader(sourcePath, rawPackageSet);
+	await reader.initAndVerify();
 
 	for (const p of newPatches) {
 		if (p.status === "retired") continue;
+		if (!Number.isSafeInteger(p.offset) || p.offset < 0) {
+			throw new ToolError(
+				`Invalid or missing offset for patch '${p.patch_id}': '${p.offset}'. Offsets must be non-negative safe integers.`,
+			);
+		}
+
 		const cleanOrigHex = p.original_bytes.replace(/\s+/g, "").toLowerCase();
 		if (cleanOrigHex.length % 2 !== 0 || !/^[0-9a-f]+$/.test(cleanOrigHex)) {
 			throw new ToolError(`Invalid original_bytes hex string for patch '${p.patch_id}': '${p.original_bytes}'`);
@@ -253,7 +438,7 @@ export async function verifySourceOriginalBytes(
 		const origLen = cleanOrigHex.length / 2;
 		let actualBytes: Buffer;
 		try {
-			actualBytes = await reader.readSlice(p.member_path, p.offset, origLen);
+			actualBytes = await reader.readSlice(p.member_path, p.offset, origLen, p.package_member);
 		} catch (err) {
 			throw new ToolError(
 				`Failed to verify source original_bytes for patch '${p.patch_id}': ${err instanceof Error ? err.message : String(err)}`,
@@ -262,9 +447,9 @@ export async function verifySourceOriginalBytes(
 
 		const actualHex = actualBytes.toString("hex").toLowerCase();
 		if (actualHex !== cleanOrigHex) {
-			const memberLabel = p.member_path ? `'${p.member_path}'` : "binary";
+			const memberLabel = [p.package_member, p.member_path].filter(Boolean).join("!/") || "binary";
 			throw new ToolError(
-				`Patch '${p.patch_id}' original_bytes mismatch against source at ${memberLabel} offset 0x${p.offset.toString(16)}: expected '${cleanOrigHex}', found '${actualHex}'. Unverified original bytes rejected.`,
+				`Patch '${p.patch_id}' original_bytes mismatch against source at '${memberLabel}' offset 0x${p.offset.toString(16)}: expected '${cleanOrigHex}', found '${actualHex}'. Unverified original bytes rejected.`,
 			);
 		}
 	}
@@ -280,6 +465,7 @@ export function accumulatePatches(
 	newPatches:
 		| Array<{
 				patch_id: string;
+				package_member?: string;
 				member_path?: string;
 				offset: number;
 				original_bytes: string;
@@ -300,6 +486,7 @@ export function accumulatePatches(
 		for (const p of parentPatches) {
 			patchMap.set(p.patch_id, {
 				patch_id: p.patch_id,
+				package_member: p.package_member,
 				member_path: p.member_path,
 				offset: p.offset,
 				original_bytes: p.original_bytes,
@@ -313,7 +500,6 @@ export function accumulatePatches(
 			});
 		}
 	}
-
 	// 2. Apply explicit retirements for this build revision
 	if (retirements) {
 		for (const r of retirements) {
@@ -338,6 +524,11 @@ export function accumulatePatches(
 			const cleanExpected = np.expected_bytes.replace(/\s+/g, "").toLowerCase();
 			const isRetired = np.status === "retired";
 
+			if (!isRetired && (!Number.isSafeInteger(np.offset) || np.offset < 0)) {
+				throw new ToolError(
+					`Invalid or missing offset for patch '${np.patch_id}': '${np.offset}'. Offsets must be non-negative safe integers.`,
+				);
+			}
 			if (isRetired) {
 				if (!np.retirement_reason || np.retirement_reason.trim().length === 0) {
 					throw new ToolError(`Retiring patch '${np.patch_id}' requires a non-empty retirement_reason.`);
@@ -357,9 +548,14 @@ export function accumulatePatches(
 
 			const existing = patchMap.get(np.patch_id);
 			if (existing && existing.status === "active") {
+				const normExistingPkg = existing.package_member?.trim() || "base";
+				const normNewPkg = np.package_member?.trim() || "base";
+				const hasPkg = Boolean(existing.package_member || np.package_member);
+				const pkgMismatch = hasPkg ? normExistingPkg !== normNewPkg : false;
 				const existingMember = existing.member_path ?? "";
 				const newMember = np.member_path ?? "";
 				if (
+					pkgMismatch ||
 					existingMember !== newMember ||
 					existing.offset !== np.offset ||
 					existing.original_bytes !== cleanOriginal ||
@@ -370,6 +566,9 @@ export function accumulatePatches(
 					);
 				}
 				// Same definition: idempotent re-declaration!
+				if (np.package_member && !existing.package_member) {
+					existing.package_member = np.package_member;
+				}
 				if (np.evidence_id) {
 					existing.evidence_id = np.evidence_id;
 				}
@@ -378,6 +577,7 @@ export function accumulatePatches(
 
 			patchMap.set(np.patch_id, {
 				patch_id: np.patch_id,
+				package_member: np.package_member,
 				member_path: np.member_path,
 				offset: np.offset,
 				original_bytes: cleanOriginal,
@@ -388,14 +588,20 @@ export function accumulatePatches(
 			});
 		}
 	}
-
 	const accumulated = Array.from(patchMap.values());
 
 	// 4. Validate non-overlapping spans among active patches targeting the same container member (case-sensitive)
+	const hasAnyPackageMember = accumulated.some(p => Boolean(p.package_member));
 	const activeByMember = new Map<string, Array<{ id: string; offset: number; len: number }>>();
 	for (const p of accumulated) {
 		if (p.status !== "active") continue;
-		const memberKey = p.member_path ?? "";
+		let memberKey: string;
+		if (hasAnyPackageMember) {
+			const pkg = p.package_member?.trim() || "base";
+			memberKey = `${pkg}!/${p.member_path ?? ""}`;
+		} else {
+			memberKey = p.member_path ?? "";
+		}
 		const len = p.expected_bytes.replace(/\s+/g, "").length / 2;
 		const list = activeByMember.get(memberKey) ?? [];
 		list.push({ id: p.patch_id, offset: p.offset, len });
@@ -494,6 +700,7 @@ export async function formatBuildLineageContext(
 						active_patches_count: activePatches.length,
 						active_patches: activePatches.slice(0, 50).map(p => ({
 							patch_id: p.patch_id,
+							package_member: p.package_member,
 							member_path: p.member_path,
 							offset: p.offset,
 							expected_bytes: p.expected_bytes,
@@ -610,6 +817,11 @@ export interface ActiveBaselineResolution {
 	baseline: BuildArtifactRecord | null;
 	activePatches: CumulativePatchRecord[];
 	baseTargetSha256?: string;
+	packageSet?: {
+		manifestPath: string;
+		manifestSha256: string;
+		setSha256: string;
+	};
 }
 
 /**
@@ -623,10 +835,53 @@ export async function resolveActiveWorkflowBaseline(
 		workflowId?: string;
 		targetPath?: string;
 		targetSha256?: string;
+		packageSet?: { base: string; splits?: Record<string, string> } | string;
+		setSha256?: string;
+		manifestSha256?: string;
 		stateRoot?: string;
 	} = {},
 ): Promise<ActiveBaselineResolution> {
 	const store = new ReverseWorkflowStore({ repositoryRoot: repoRoot, stateRoot: options.stateRoot });
+
+	let resolvedManifestPath: string | undefined;
+	let resolvedManifestSha256: string | undefined = options.manifestSha256?.toLowerCase();
+	let resolvedSetSha256: string | undefined = options.setSha256?.toLowerCase();
+
+	if (options.packageSet) {
+		const pkgInfo = await resolvePackageSetInput(repoRoot, options.packageSet);
+		resolvedManifestPath = pkgInfo.manifestPath;
+		resolvedManifestSha256 = pkgInfo.manifestSha256?.toLowerCase() ?? resolvedManifestSha256;
+		resolvedSetSha256 = pkgInfo.setSha256.toLowerCase();
+	} else if (options.targetPath) {
+		const norm = path.resolve(repoRoot, options.targetPath);
+		try {
+			if (await isPackageSetManifest(norm)) {
+				const val = await parseAndValidatePackageSetManifest(norm);
+				resolvedManifestPath = norm;
+				resolvedManifestSha256 = val.manifestSha256.toLowerCase();
+				resolvedSetSha256 = val.manifest.set_sha256.toLowerCase();
+			} else {
+				const adjacent = path.join(path.dirname(norm), "package-set.json");
+				if (await isPackageSetManifest(adjacent)) {
+					const val = await parseAndValidatePackageSetManifest(adjacent);
+					resolvedManifestPath = adjacent;
+					resolvedManifestSha256 = val.manifestSha256.toLowerCase();
+					resolvedSetSha256 = val.manifest.set_sha256.toLowerCase();
+				}
+			}
+		} catch {
+			// ignore
+		}
+	}
+
+	const packageSetInfo =
+		resolvedManifestPath && resolvedManifestSha256 && resolvedSetSha256
+			? {
+					manifestPath: resolvedManifestPath,
+					manifestSha256: resolvedManifestSha256,
+					setSha256: resolvedSetSha256,
+				}
+			: undefined;
 
 	if (options.workflowId) {
 		const wf = await store.get(options.workflowId);
@@ -637,25 +892,49 @@ export async function resolveActiveWorkflowBaseline(
 		const targetHash = options.targetSha256?.toLowerCase();
 		const baseHash = (wf.base_target_sha256 ?? wf.target_sha256)?.toLowerCase();
 		const lineageHashes = (wf.build_lineage ?? []).map(b => b.output_sha256.toLowerCase());
+		const lineageSetHashes = (wf.build_lineage ?? [])
+			.map(b => (b.metadata?.package_set as Record<string, unknown> | undefined)?.set_sha256)
+			.filter((s): s is string => typeof s === "string")
+			.map(s => s.toLowerCase());
 
+		let hashMatches = false;
 		if (targetHash) {
-			const hashMatches = baseHash === targetHash || lineageHashes.includes(targetHash);
-			if (!hashMatches) {
-				let pathMatches = false;
-				if (options.targetPath) {
-					const normInput = path.resolve(repoRoot, options.targetPath);
-					const normBase = path.resolve(repoRoot, wf.target);
-					if (normInput === normBase) {
-						pathMatches = true;
-					} else {
-						pathMatches = (wf.build_lineage ?? []).some(b => path.resolve(repoRoot, b.target_path) === normInput);
-					}
+			hashMatches = baseHash === targetHash || lineageHashes.includes(targetHash);
+		}
+		if (!hashMatches && resolvedManifestSha256) {
+			hashMatches = baseHash === resolvedManifestSha256 || lineageHashes.includes(resolvedManifestSha256);
+		}
+		if (!hashMatches && resolvedSetSha256) {
+			const wfSetSha = (wf.metadata?.package_set as Record<string, unknown> | undefined)?.set_sha256;
+			hashMatches =
+				(typeof wfSetSha === "string" && wfSetSha.toLowerCase() === resolvedSetSha256) ||
+				lineageSetHashes.includes(resolvedSetSha256);
+		}
+
+		if (!hashMatches && (targetHash || resolvedManifestSha256 || resolvedSetSha256)) {
+			let pathMatches = false;
+			if (options.targetPath) {
+				const normInput = path.resolve(repoRoot, options.targetPath);
+				const normBase = path.resolve(repoRoot, wf.target);
+				if (normInput === normBase) {
+					pathMatches = true;
+				} else {
+					pathMatches = (wf.build_lineage ?? []).some(b => path.resolve(repoRoot, b.target_path) === normInput);
 				}
-				if (!pathMatches) {
-					throw new ToolError(
-						`Input sample does not belong to workflow '${wf.id}': SHA-256 '${options.targetSha256}' matches neither original base nor registered derivative builds.`,
-					);
+			}
+			if (!pathMatches && resolvedManifestPath) {
+				const normManifest = path.resolve(repoRoot, resolvedManifestPath);
+				const normBase = path.resolve(repoRoot, wf.target);
+				if (normManifest === normBase) {
+					pathMatches = true;
+				} else {
+					pathMatches = (wf.build_lineage ?? []).some(b => path.resolve(repoRoot, b.target_path) === normManifest);
 				}
+			}
+			if (!pathMatches) {
+				throw new ToolError(
+					`Input sample does not belong to workflow '${wf.id}': SHA-256 '${options.targetSha256 ?? resolvedManifestSha256}' matches neither original base nor registered derivative builds.`,
+				);
 			}
 		}
 
@@ -670,6 +949,7 @@ export async function resolveActiveWorkflowBaseline(
 			baseline,
 			activePatches,
 			baseTargetSha256: wf.base_target_sha256 ?? wf.target_sha256,
+			packageSet: packageSetInfo,
 		};
 	}
 
@@ -684,14 +964,58 @@ export async function resolveActiveWorkflowBaseline(
 	const matched: ReverseWorkflowRecord[] = [];
 	for (const wf of workflows) {
 		let match = false;
+		const baseHash = (wf.base_target_sha256 ?? wf.target_sha256)?.toLowerCase();
+		const wfSetSha = (wf.metadata?.package_set as Record<string, unknown> | undefined)?.set_sha256;
+		const lineageOutputs = (wf.build_lineage ?? []).map(b => b.output_sha256.toLowerCase());
+		const lineageSetHashes = (wf.build_lineage ?? [])
+			.map(b => (b.metadata?.package_set as Record<string, unknown> | undefined)?.set_sha256)
+			.filter((s): s is string => typeof s === "string")
+			.map(s => s.toLowerCase());
 
 		// Exact SHA-256 identity check against base target or any build in lineage
 		if (targetHash) {
-			const baseHash = (wf.base_target_sha256 ?? wf.target_sha256)?.toLowerCase();
-			if (baseHash === targetHash) {
+			if (baseHash === targetHash || lineageOutputs.includes(targetHash)) {
 				match = true;
-			} else if (wf.build_lineage?.some(b => b.output_sha256.toLowerCase() === targetHash)) {
+			}
+		}
+
+		if (!match && resolvedManifestSha256) {
+			if (baseHash === resolvedManifestSha256 || lineageOutputs.includes(resolvedManifestSha256)) {
 				match = true;
+			}
+		}
+
+		if (!match && resolvedSetSha256) {
+			if (
+				(typeof wfSetSha === "string" && wfSetSha.toLowerCase() === resolvedSetSha256) ||
+				lineageSetHashes.includes(resolvedSetSha256)
+			) {
+				match = true;
+			}
+		}
+
+		// Candidate index: member hash matches in package_set metadata
+		if (!match && targetHash) {
+			for (const b of wf.build_lineage ?? []) {
+				const members = (b.metadata?.package_set as Record<string, unknown> | undefined)?.members;
+				if (Array.isArray(members)) {
+					const hasMember = members.some(
+						(m: unknown) =>
+							typeof m === "object" &&
+							m !== null &&
+							String((m as Record<string, unknown>).sha256 ?? "").toLowerCase() === targetHash,
+					);
+					if (hasMember) {
+						const bSetSha = (b.metadata?.package_set as Record<string, unknown> | undefined)?.set_sha256;
+						if (
+							!resolvedSetSha256 ||
+							(typeof bSetSha === "string" && bSetSha.toLowerCase() === resolvedSetSha256)
+						) {
+							match = true;
+							break;
+						}
+					}
+				}
 			}
 		}
 
@@ -701,6 +1025,16 @@ export async function resolveActiveWorkflowBaseline(
 			if (normBase === normInputPath) {
 				match = true;
 			} else if (wf.build_lineage?.some(b => path.resolve(repoRoot, b.target_path) === normInputPath)) {
+				match = true;
+			}
+		}
+
+		if (!match && resolvedManifestPath) {
+			const normManifest = path.resolve(repoRoot, resolvedManifestPath);
+			const normBase = path.resolve(repoRoot, wf.target);
+			if (normBase === normManifest) {
+				match = true;
+			} else if (wf.build_lineage?.some(b => path.resolve(repoRoot, b.target_path) === normManifest)) {
 				match = true;
 			}
 		}
@@ -730,6 +1064,7 @@ export async function resolveActiveWorkflowBaseline(
 			baseline,
 			activePatches,
 			baseTargetSha256: wf.base_target_sha256 ?? wf.target_sha256,
+			packageSet: packageSetInfo,
 		};
 	}
 

@@ -5,6 +5,8 @@ import type {
 	ReverseWorkflowRecord,
 	WorkflowStepRecord,
 	StepResumeMetadata,
+	CapabilityDepth,
+	DiscoveryGuidance,
 } from "./contracts";
 import { DEFAULT_MAX_ATTEMPTS, HARD_MAX_ATTEMPTS } from "./contracts";
 import { CAPABILITY_CATALOG, SKILL_TOOL_CATALOG, type SkillToolPlatform } from "../extensibility/skill-tool-catalog";
@@ -490,6 +492,348 @@ export function verifyInstalledTool(toolId: string, options: VerifyToolOptions =
 }
 
 /**
+ * Determine whether a target path or format represents a standalone native binary / shared library
+ * rather than an application package container (e.g. .so, .dylib, .dll, ELF).
+ */
+export function isBareNativeTarget(targetPath?: string, format?: string): boolean {
+	if (!targetPath) return format === "ELF" || format === "PE" || format === "Mach-O";
+	const lower = targetPath.toLowerCase();
+	if (
+		lower.endsWith(".so") ||
+		lower.endsWith(".dylib") ||
+		lower.endsWith(".dll") ||
+		lower.endsWith(".elf") ||
+		lower.endsWith(".bin")
+	) {
+		return true;
+	}
+	return format === "ELF" || format === "PE" || format === "Mach-O";
+}
+
+/**
+ * Determine whether a target is an Android package container (.apk, .aab, .apks) or Dalvik executable (.dex).
+ * If the target path explicitly ends with a native extension like .so, it is treated as native, not APK.
+ */
+export function isApkTarget(targetPath?: string, format?: string): boolean {
+	if (targetPath) {
+		const lower = targetPath.toLowerCase();
+		if (lower.endsWith(".so") || lower.endsWith(".dylib") || lower.endsWith(".dll") || lower.endsWith(".elf")) {
+			return false;
+		}
+		if (lower.endsWith(".apk") || lower.endsWith(".aab") || lower.endsWith(".apks") || lower.endsWith(".dex")) {
+			return true;
+		}
+	}
+	return format === "APK";
+}
+
+/**
+ * Determine whether a step's action, title, or parameters indicate an intent to decode/inspect AndroidManifest.xml.
+ */
+export function isManifestIntent(
+	parsedParams: Record<string, unknown>,
+	step?: WorkflowStepRecord,
+	originalTool?: string,
+): boolean {
+	const actionStr = String(parsedParams.action ?? "").toLowerCase();
+	if (actionStr === "manifest" || actionStr === "decode_manifest") return true;
+	const targetArtifact = String(parsedParams.target_artifact ?? "").toLowerCase();
+	if (targetArtifact.includes("manifest")) return true;
+	if (step) {
+		const titleLower = (step.title || "").toLowerCase();
+		if (titleLower.includes("manifest")) return true;
+		const idLower = (step.id || "").toLowerCase();
+		if (idLower.includes("manifest")) return true;
+		if ("description" in step && typeof step.description === "string") {
+			if (step.description.toLowerCase().includes("manifest")) return true;
+		}
+	}
+	if (originalTool === "apktool" && (!parsedParams.action || actionStr === "decode")) {
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Resolve effective target path from step parameters (handling artifact_path, target, path, etc.)
+ * or default to the workflow's target path.
+ */
+export function resolveStepTargetPath(parsedParams: Record<string, unknown>, defaultTargetPath: string): string {
+	const candidate =
+		parsedParams.path ??
+		parsedParams.artifact_path ??
+		parsedParams.target ??
+		parsedParams.target_path ??
+		parsedParams.capture_path ??
+		parsedParams.file ??
+		parsedParams.filepath;
+	if (typeof candidate === "string" && candidate.trim()) {
+		return candidate.trim();
+	}
+	return defaultTargetPath;
+}
+
+export interface AndroidJniEvidenceContext {
+	targetPath?: string;
+	targetFormat?: string;
+	tool?: string;
+	intent?: string;
+	params?: Record<string, unknown>;
+	stepTitle?: string;
+	workflowGoal?: string;
+}
+
+/**
+ * Determine whether there is explicit JNI or Android native evidence for a target.
+ * APK containers are packages (not bare .so), and a bare .so extension alone is generic ELF
+ * and NOT proof of Android without explicit JNI context.
+ */
+export function isExplicitAndroidJniTarget(context: AndroidJniEvidenceContext): boolean {
+	if (isApkTarget(context.targetPath, context.targetFormat)) {
+		return false;
+	}
+	const tool = (context.tool || "").toLowerCase();
+	if (tool === "unidbg" || tool === "android_native_workflow" || tool === "android_lab" || tool === "app_experiment") {
+		return true;
+	}
+	const intent = (context.intent || "").toLowerCase();
+	if (intent.includes("jni")) {
+		return true;
+	}
+	const stepTitle = (context.stepTitle || "").toLowerCase();
+	if (stepTitle.includes("jni")) {
+		return true;
+	}
+	const workflowGoal = (context.workflowGoal || "").toLowerCase();
+	if (workflowGoal.includes("jni")) {
+		return true;
+	}
+	const params = context.params;
+	if (params) {
+		if (typeof params.class === "string" && params.class) return true;
+		if (typeof params.method === "string" && params.method) return true;
+		if (typeof params.abi === "string" && params.abi) return true;
+		if (typeof params.library === "string" && params.library) return true;
+		if (typeof params.so_name === "string" && params.so_name) return true;
+		if (typeof params.action === "string" && params.action.toLowerCase().includes("jni")) return true;
+	}
+	return false;
+}
+
+export interface CapabilityRecoveryContext {
+	targetPath?: string;
+	targetFormat?: string;
+	action?: string;
+	intent?: string;
+	params?: Record<string, unknown>;
+}
+
+export interface CapabilityRecoverySuggestion {
+	nextTool: string;
+	nextParams: Record<string, unknown>;
+	prerequisites?: string[];
+	capabilityDepth?: CapabilityDepth;
+	verificationBoundary?: string;
+	remainingAcceptance?: string;
+	reasoning?: string;
+	alternatives?: string[];
+}
+
+/**
+ * Resolve canonical fallback recovery suggestion for a capability or external tool.
+ * Provides model-actionable next tool, valid parameters, capability depth, and verification boundaries.
+ */
+export function resolveCapabilityRecovery(
+	capIdOrTool: string,
+	context: CapabilityRecoveryContext = {},
+): CapabilityRecoverySuggestion | undefined {
+	const normalized = (capIdOrTool || "").trim().toLowerCase();
+	const targetPath = context.targetPath || "";
+	const isNative = isBareNativeTarget(targetPath, context.targetFormat);
+	const isAndroidJni = isExplicitAndroidJniTarget({
+		targetPath,
+		targetFormat: context.targetFormat,
+		tool: normalized,
+		intent: context.intent,
+		params: context.params,
+	});
+
+	switch (normalized) {
+		case "apk_unpacking":
+		case "droidasc":
+		case "jadx":
+		case "apktool": {
+			const isManifest =
+				context.action === "manifest" ||
+				context.intent === "manifest" ||
+				(normalized === "apktool" && !context.action);
+			if (isManifest) {
+				return {
+					nextTool: "android_package_inspect",
+					nextParams: { path: targetPath, action: "manifest" },
+					capabilityDepth: "static",
+					prerequisites: ["target_apk_present"],
+					verificationBoundary:
+						"Zero-dependency static AXML manifest decoding directly from APK container without external decompiler.",
+					remainingAcceptance: "Java/Kotlin high-level source decompilation remains unverified.",
+					reasoning:
+						"Primary decompiler is missing. Routed to built-in 'android_package_inspect' with action 'manifest'.",
+					alternatives: ["android_package_inspect", "jadx", "apktool"],
+				};
+			}
+			if (isAndroidJni) {
+				return {
+					nextTool: "android_native_workflow",
+					nextParams: { path: targetPath, action: "inspect" },
+					capabilityDepth: "static",
+					prerequisites: ["target_binary_present"],
+					verificationBoundary:
+						"Target is a standalone Android native library (.so/ELF), not an APK container. Routed to native inspection.",
+					remainingAcceptance:
+						"APK container, manifest, and Dalvik inspection are not applicable to bare .so binaries.",
+					reasoning:
+						"Target has explicit JNI context. Routed to android_native_workflow for native library inspection instead of APK unpacking.",
+					alternatives: ["android_native_workflow", "r2_inspect", "triage"],
+				};
+			}
+			if (isNative) {
+				return {
+					nextTool: "triage",
+					nextParams: { path: targetPath, strings: true, limit: 30 },
+					capabilityDepth: "triage",
+					prerequisites: ["target_binary_present"],
+					verificationBoundary:
+						"Target is a generic native binary, not an APK container or Dalvik bytecode. Routed to multi-format triage for raw header and string reconnaissance.",
+					remainingAcceptance:
+						"APK/Dalvik decompilation criteria are not applicable to generic native binaries without dedicated decompiler.",
+					reasoning:
+						"Target is a generic native binary, not an Android package or JNI library. Routed to 'triage' for multi-format inspection.",
+					alternatives: ["triage", "binary_metadata_inspect"],
+				};
+			}
+			if (context.action === "resources" || context.intent === "resources") {
+				return {
+					nextTool: "android_package_inspect",
+					nextParams: { path: targetPath, action: "resources" },
+					capabilityDepth: "static",
+					prerequisites: ["target_apk_present"],
+					verificationBoundary: "Static ARSC resource table inspection.",
+					remainingAcceptance: "High-level resource compilation requires aapt2/apktool.",
+					reasoning: "Routed to built-in 'android_package_inspect' for resources.",
+					alternatives: ["android_package_inspect", "apktool"],
+				};
+			}
+			if (context.action === "signing" || context.intent === "signing") {
+				return {
+					nextTool: "android_package_inspect",
+					nextParams: { path: targetPath, action: "signing" },
+					capabilityDepth: "static",
+					prerequisites: ["target_apk_present"],
+					verificationBoundary:
+						"Zero-dependency signature presence and scheme (v1/v2/v3/v3.1) inspection; v4 scheme requires external .idsig file.",
+					remainingAcceptance: "Full certificate chain verification requires apksigner bridge.",
+					reasoning: "Routed to built-in 'android_package_inspect' for signing inspection.",
+					alternatives: ["android_package_inspect", "apksigner"],
+				};
+			}
+			return {
+				nextTool: "android_package_inspect",
+				nextParams: { path: targetPath, action: "dex" },
+				capabilityDepth: "static",
+				prerequisites: ["target_apk_present"],
+				verificationBoundary: "Zero-dependency static DEX header and class listing.",
+				remainingAcceptance: "High-level Java source reconstruction requires jadx/apktool.",
+				reasoning:
+					"Primary decompiler is missing. Degraded to built-in 'android_package_inspect' for DEX bytecode inspection.",
+				alternatives: ["android_package_inspect", "jadx", "apktool"],
+			};
+		}
+
+		case "android_native_emulation":
+		case "unidbg": {
+			return {
+				nextTool: "android_native_workflow",
+				nextParams: { path: targetPath, action: "inspect" },
+				capabilityDepth: "static",
+				prerequisites: ["target_binary_present"],
+				verificationBoundary:
+					"Observation-only static JNI export analysis. Extracts exported symbol names, mangled JNI signatures, and DEX native declarations, but cannot execute native code, evaluate runtime crypto/unpacking logic, or satisfy dynamic JNI experiment acceptance criteria.",
+				remainingAcceptance:
+					"Dynamic JNI execution, runtime register state, and functional emulation acceptance criteria remain unsatisfied (proxy observation only). A live device or verified emulation harness (e.g. unidbg with JDK 8) is required for dynamic acceptance.",
+				reasoning:
+					"Unidbg emulator is not available. Degraded to observation-only static JNI export inspection via android_native_workflow; dynamic JNI experiment remains incomplete.",
+				alternatives: ["android_native_workflow", "r2_inspect", "triage"],
+			};
+		}
+
+		case "native_debugger":
+		case "gdb":
+		case "lldb": {
+			return {
+				nextTool: "triage",
+				nextParams: { path: targetPath, strings: true, limit: 30 },
+				capabilityDepth: "triage",
+				prerequisites: ["target_binary_present"],
+				verificationBoundary:
+					"Static zero-prep binary header and string reconnaissance only. Dynamic breakpoint, live register, and memory tracing criteria remain unsatisfied (requires active debugger).",
+				remainingAcceptance: "Dynamic breakpoint, live register, and memory tracing criteria remain unsatisfied.",
+				reasoning:
+					"Native debugger is unavailable. Degraded to zero-dependency static binary triage (or r2_inspect when radare2 is installed).",
+				alternatives: ["triage", "r2_inspect", "binary_metadata_inspect"],
+			};
+		}
+
+		case "websocket_capture":
+		case "traffic_interception":
+		case "tshark":
+		case "mitmproxy": {
+			return {
+				nextTool: "pcap_inspect",
+				nextParams: { path: targetPath, action: "endpoints", limit: 30 },
+				capabilityDepth: "static",
+				prerequisites: ["target_pcap_present"],
+				verificationBoundary:
+					"Offline static PCAP packet parsing. Does not perform live network interface capture or active socket interception.",
+				remainingAcceptance: "Live network traffic interception and streaming protocol capture remain unverified.",
+				reasoning:
+					"Live traffic capture unavailable. Degraded to offline static capture analysis via pcap_inspect.",
+				alternatives: ["pcap_inspect", "grep"],
+			};
+		}
+
+		case "binary_diff":
+		case "binary_diffing":
+		case "vbindiff": {
+			const pathA = (context.params?.path_a ?? context.params?.fileA ?? targetPath) as string;
+			const pathB = (context.params?.path_b ?? context.params?.fileB ?? targetPath) as string;
+			return {
+				nextTool: "binary_diff",
+				nextParams: { path_a: pathA, path_b: pathB, action: "summary" },
+				capabilityDepth: "static",
+				prerequisites: ["both_files_present"],
+				verificationBoundary: "Static offline binary byte and block diffing.",
+				reasoning: "Visual diff utility unavailable. Degraded to built-in 'binary_diff'.",
+				alternatives: ["binary_diff"],
+			};
+		}
+
+		default: {
+			const cap = CAPABILITY_CATALOG[normalized];
+			if (cap?.recommendedNativeTool) {
+				return {
+					nextTool: cap.recommendedNativeTool,
+					nextParams: { path: targetPath },
+					capabilityDepth: "static",
+					reasoning: `Recommended native fallback for capability '${cap.name}': ${cap.recommendedNativeTool}.`,
+					alternatives: [...cap.fallbacks],
+				};
+			}
+			return undefined;
+		}
+	}
+}
+
+/**
  * Generate a deterministic recovery plan for a failed step.
  * Proposes bounded next attempts, parameter correction, and native tool fallback.
  */
@@ -644,60 +988,247 @@ export function generateRecoveryPlan(
 	let alternatives: string[] = [];
 	let reasoning = "";
 	let suggestedAction: "retry" | "fallback" | "adjust_params" | "abort" = "retry";
+	let canRetry = true;
+	let prerequisites: string[] = [];
+	let capabilityDepth: CapabilityDepth = "static";
+	let verificationBoundary: string | undefined;
+	let remainingAcceptance: string | undefined;
+
+	const effectiveTargetPath = resolveStepTargetPath(parsedOriginalParams, targetPath);
+	const isNative = isBareNativeTarget(effectiveTargetPath, workflow.format);
+	const isAndroidNativeSo = isExplicitAndroidJniTarget({
+		targetPath: effectiveTargetPath,
+		targetFormat: workflow.format,
+		tool: originalTool,
+		params: parsedOriginalParams,
+		stepTitle: step.title,
+		workflowGoal: workflow.goal,
+	});
+	const isApk = isApkTarget(effectiveTargetPath, workflow.format);
 
 	switch (attribution.category) {
 		case "missing_dependency": {
 			suggestedAction = "fallback";
 			if (originalTool === "unidbg") {
-				nextTool = "android_native_workflow";
-				nextParams = { path: targetPath, action: "inspect" };
-				alternatives = ["android_native_workflow", "android_package_inspect"];
-				reasoning = `Unidbg emulator is not available. Falling back to android_native_workflow for static JNI export and DEX native mapping.`;
+				if (isAndroidNativeSo) {
+					nextTool = "android_native_workflow";
+					nextParams = { path: effectiveTargetPath, action: "inspect" };
+					alternatives = ["android_native_workflow", "r2_inspect", "triage"];
+					capabilityDepth = "static";
+					prerequisites = ["target_binary_present"];
+					verificationBoundary =
+						"Observation-only static JNI export analysis. Extracts exported symbol names, mangled JNI signatures, and DEX native declarations, but cannot execute native code, evaluate runtime crypto or decryption, or complete dynamic JNI experiments.";
+					remainingAcceptance =
+						"Dynamic JNI execution, runtime register state, and functional emulation acceptance criteria remain unsatisfied (proxy observation only). A live device or verified emulation harness (e.g. unidbg with JDK 8) is required for dynamic acceptance.";
+					reasoning =
+						"Unidbg emulator is not available. Degraded to observation-only static JNI export inspection via android_native_workflow; dynamic JNI experiment remains incomplete.";
+				} else if (isNative) {
+					nextTool = "triage";
+					nextParams = { path: effectiveTargetPath, strings: true, limit: 30 };
+					alternatives = ["triage", "binary_metadata_inspect"];
+					capabilityDepth = "triage";
+					prerequisites = ["target_binary_present"];
+					verificationBoundary =
+						"Target is a generic native binary, not an Android package or JNI library. Routed to multi-format triage.";
+					remainingAcceptance = "JNI emulation criteria are not applicable to generic native binaries.";
+					reasoning =
+						"Unidbg emulator is not applicable to non-Android native binary. Degraded to generic binary triage.";
+				} else {
+					nextTool = "android_native_workflow";
+					nextParams = { path: effectiveTargetPath, action: "inspect" };
+					alternatives = ["android_native_workflow", "android_package_inspect"];
+					capabilityDepth = "static";
+					prerequisites = ["target_apk_present"];
+					verificationBoundary =
+						"Observation-only static JNI and native library mapping from APK. Does not execute JNI code or run dynamic emulation.";
+					remainingAcceptance = "Dynamic JNI execution criteria remain unsatisfied.";
+					reasoning =
+						"Unidbg emulator is not available. Falling back to android_native_workflow for static JNI export and DEX native mapping.";
+				}
 			} else if (originalTool === "droidasc" || originalTool === "jadx" || originalTool === "apktool") {
-				nextTool = "android_package_inspect";
-				nextParams = { path: targetPath, action: "dex" };
-				alternatives = ["android_package_inspect", "jadx", "apktool"];
-				reasoning = `Primary Android decompilation tool '${originalTool}' is missing. Degraded smoothly to zero-prep built-in tool 'android_package_inspect' for DEX bytecode and package inspection.`;
+				if (isManifestIntent(parsedOriginalParams, step, originalTool)) {
+					nextTool = "android_package_inspect";
+					nextParams = { path: effectiveTargetPath, action: "manifest" };
+					alternatives = ["android_package_inspect", "jadx", "apktool"];
+					capabilityDepth = "static";
+					prerequisites = ["target_apk_present"];
+					verificationBoundary =
+						"Zero-dependency static AXML manifest decoding directly from APK container. Inspects package declaration, components (activities, services, receivers, providers), permissions, and intent filters without decompiling Java/Kotlin source code.";
+					remainingAcceptance =
+						"Java/Kotlin high-level source decompilation and runtime component activation remain unsatisfied.";
+					reasoning = `Primary Android decompilation tool '${originalTool}' is missing. Routed to built-in 'android_package_inspect' with action 'manifest' to decode AndroidManifest.xml directly from APK container without external dependencies.`;
+				} else if (isAndroidNativeSo) {
+					nextTool = "android_native_workflow";
+					nextParams = { path: effectiveTargetPath, action: "inspect" };
+					alternatives = ["android_native_workflow", "r2_inspect", "triage"];
+					capabilityDepth = "static";
+					prerequisites = ["target_binary_present"];
+					verificationBoundary =
+						"Target is a standalone Android native library (.so), not an APK container. APK decompilers cannot decompile native ELF shared objects. Routed to native inspection.";
+					remainingAcceptance = "APK container and manifest criteria are not applicable to bare .so binaries.";
+					reasoning = `Target '${effectiveTargetPath}' is a bare native library (.so), not an APK container. Decompilation tool '${originalTool}' is incompatible with native shared objects. Degraded to 'android_native_workflow' for native inspection.`;
+				} else if (isNative) {
+					nextTool = "triage";
+					nextParams = { path: effectiveTargetPath, strings: true, limit: 50 };
+					alternatives = ["triage", "binary_metadata_inspect"];
+					capabilityDepth = "triage";
+					prerequisites = ["target_binary_present"];
+					verificationBoundary =
+						"Target is a generic standalone native binary, not an APK container or Dalvik executable. Decompilation tools for Dalvik/APK are inapplicable. Routed to multi-format triage.";
+					remainingAcceptance = "APK/Dalvik decompilation criteria are not applicable to generic native binaries.";
+					reasoning = `Target '${effectiveTargetPath}' is a native binary (${workflow.format || "native"}), not an APK container. Routed to 'triage' for multi-format header and string reconnaissance.`;
+				} else if (
+					parsedOriginalParams.action === "resources" ||
+					(step.title || "").toLowerCase().includes("resource")
+				) {
+					nextTool = "android_package_inspect";
+					nextParams = { path: effectiveTargetPath, action: "resources" };
+					alternatives = ["android_package_inspect", "apktool"];
+					capabilityDepth = "static";
+					prerequisites = ["target_apk_present"];
+					verificationBoundary = "Zero-dependency static ARSC resource table inspection.";
+					remainingAcceptance = "High-level resource compilation/decompilation requires aapt2/apktool.";
+					reasoning = `Primary tool '${originalTool}' is missing. Routed to built-in 'android_package_inspect' with action 'resources' for ARSC table inspection.`;
+				} else if (parsedOriginalParams.action === "signing" || (step.title || "").toLowerCase().includes("sign")) {
+					nextTool = "android_package_inspect";
+					nextParams = { path: effectiveTargetPath, action: "signing" };
+					alternatives = ["android_package_inspect", "apksigner"];
+					capabilityDepth = "static";
+					prerequisites = ["target_apk_present"];
+					verificationBoundary =
+						"Zero-dependency signature presence and scheme (v1/v2/v3/v3.1) inspection; v4 scheme requires external .idsig file.";
+					remainingAcceptance = "Full cryptographic certificate chain verification requires apksigner bridge.";
+					reasoning = `Primary tool '${originalTool}' is missing. Routed to built-in 'android_package_inspect' with action 'signing' for signature inspection.`;
+				} else {
+					nextTool = "android_package_inspect";
+					const dexParams: Record<string, unknown> = { path: effectiveTargetPath, action: "dex" };
+					if (parsedOriginalParams.filter) dexParams.filter = parsedOriginalParams.filter;
+					if (parsedOriginalParams.dex) dexParams.dex = parsedOriginalParams.dex;
+					if (typeof parsedOriginalParams.limit === "number") {
+						dexParams.limit = Math.min(parsedOriginalParams.limit, 200);
+					}
+					nextParams = dexParams;
+					alternatives = ["android_package_inspect", "jadx", "apktool"];
+					capabilityDepth = "static";
+					prerequisites = ["target_apk_present"];
+					verificationBoundary =
+						"Zero-dependency static Dalvik DEX header and class listing. Inspects method signatures and class definitions; does not decompile to high-level Java/Kotlin source.";
+					remainingAcceptance = "High-level Java source reconstruction requires jadx/apktool.";
+					reasoning = `Primary Android decompilation tool '${originalTool}' is missing. Degraded smoothly to zero-prep built-in tool 'android_package_inspect' for DEX bytecode and package inspection.`;
+				}
 			} else if (originalTool === "r2_inspect") {
-				// If radare2 is missing on PE/ELF/Mach-O
 				nextTool = "triage";
-				nextParams = { path: targetPath, strings: true, limit: 50 };
+				nextParams = { path: effectiveTargetPath, strings: true, limit: 50 };
 				alternatives = ["ghidra_inspect", "triage", "binary_metadata_inspect", "read"];
+				capabilityDepth = "triage";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary = "Header and string triage only; no interactive disassembly or CFG reconstruction.";
+				remainingAcceptance = "Function disassembly, cross-references, and decompilation remain unverified.";
 				reasoning = `Primary disassembly tool 'r2_inspect' is missing. Degraded to built-in 'triage' for section headers and strings inspection.`;
 			} else if (originalTool === "ghidra_inspect") {
 				nextTool = "r2_inspect";
-				nextParams = { path: targetPath, action: "functions" };
-				alternatives = ["r2_inspect", "triage", "read-binary"];
-				reasoning = `Primary decompiler 'ghidra_inspect' is missing. Degraded to 'r2_inspect' for function and section analysis.`;
+				nextParams = { path: effectiveTargetPath, action: "functions" };
+				alternatives = ["r2_inspect", "triage", "binary_metadata_inspect"];
+				capabilityDepth = "static";
+				prerequisites = ["radare2_installed", "target_binary_present"];
+				verificationBoundary =
+					"Static function and disassembly analysis via radare2 (requires radare2 on host). No high-level C/C++ decompilation or AST lifting.";
+				remainingAcceptance = "High-level decompiled C/C++ source code criteria remain unverified.";
+				reasoning = `Primary decompiler 'ghidra_inspect' is missing. Degraded to 'r2_inspect' (requires radare2 dependency) for function and section analysis.`;
+			} else if (originalTool === "gdb" || originalTool === "lldb") {
+				nextTool = "triage";
+				nextParams = { path: effectiveTargetPath, strings: true, limit: 30 };
+				alternatives = ["triage", "r2_inspect", "binary_metadata_inspect"];
+				capabilityDepth = "triage";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary =
+					"Static zero-prep binary header and string reconnaissance only. Dynamic breakpoint, live register, and memory tracing criteria remain unsatisfied (requires active debugger).";
+				remainingAcceptance = "Dynamic breakpoint, live register, and memory tracing criteria remain unsatisfied.";
+				reasoning = `Native debugger '${originalTool}' is unavailable. Degraded to zero-dependency static binary triage (or r2_inspect if radare2 is installed).`;
 			} else if (originalTool === "tshark") {
 				nextTool = "pcap_inspect";
-				nextParams = { path: targetPath, action: "endpoints", limit: 30 };
+				let pcapAction = "endpoints";
+				if (
+					parsedOriginalParams.action &&
+					["info", "list", "endpoints", "conversations", "dns"].includes(String(parsedOriginalParams.action))
+				) {
+					pcapAction = String(parsedOriginalParams.action);
+				}
+				const pcapPath = resolveStepTargetPath(parsedOriginalParams, targetPath);
+				const pcapParams: Record<string, unknown> = {
+					path: pcapPath,
+					action: pcapAction,
+					limit: typeof parsedOriginalParams.limit === "number" ? Math.min(parsedOriginalParams.limit, 200) : 30,
+				};
+				if (parsedOriginalParams.protocol) pcapParams.protocol = parsedOriginalParams.protocol;
+				if (parsedOriginalParams.ip) pcapParams.ip = parsedOriginalParams.ip;
+				if (parsedOriginalParams.port) pcapParams.port = parsedOriginalParams.port;
+				nextParams = pcapParams;
 				alternatives = ["pcap_inspect", "grep"];
+				capabilityDepth = "static";
+				prerequisites = ["target_pcap_present"];
+				verificationBoundary =
+					"Offline static PCAP packet parsing. Does not perform live network interface capture or active socket interception.";
+				remainingAcceptance = "Live network traffic interception and streaming protocol capture remain unverified.";
 				reasoning = `Packet analyzer 'tshark' is missing. Degraded to native zero-dependency 'pcap_inspect'.`;
 			} else if (originalTool === "wabt" || originalTool === "wasm2wat") {
 				nextTool = "wasm_inspect";
-				nextParams = { path: targetPath, action: "wat", limit: 50 };
+				nextParams = { path: effectiveTargetPath, action: "wat", limit: 50 };
 				alternatives = ["wasm_inspect", "read"];
+				capabilityDepth = "static";
+				prerequisites = ["target_wasm_present"];
+				verificationBoundary = "Static WebAssembly bytecode and WAT disassembly.";
 				reasoning = `WASM disassembler 'wabt' is missing. Degraded to built-in 'wasm_inspect'.`;
 			} else if (originalTool === "vbindiff") {
 				nextTool = "binary_diff";
+				const pathA =
+					parsedOriginalParams.path_a ??
+					parsedOriginalParams.path1 ??
+					parsedOriginalParams.fileA ??
+					parsedOriginalParams.file_a ??
+					parsedOriginalParams.original_path ??
+					parsedOriginalParams.artifact_path ??
+					effectiveTargetPath;
+				const pathB =
+					parsedOriginalParams.path_b ??
+					parsedOriginalParams.path2 ??
+					parsedOriginalParams.fileB ??
+					parsedOriginalParams.file_b ??
+					parsedOriginalParams.modified_path ??
+					effectiveTargetPath;
+				let diffAction = "summary";
+				if (
+					parsedOriginalParams.action &&
+					["summary", "blocks", "bytes", "headers"].includes(String(parsedOriginalParams.action))
+				) {
+					diffAction = String(parsedOriginalParams.action);
+				} else if (parsedOriginalParams.mode === "bytes") {
+					diffAction = "bytes";
+				}
 				nextParams = {
-					fileA: parsedOriginalParams.fileA ?? targetPath,
-					fileB: parsedOriginalParams.fileB ?? targetPath,
-					mode: "summary",
+					path_a: String(pathA),
+					path_b: String(pathB),
+					action: diffAction,
 				};
 				alternatives = ["binary_diff"];
-				reasoning = `Visual diff utility 'vbindiff' is missing. Degraded to built-in 'binary_diff'.`;
+				capabilityDepth = "static";
+				prerequisites = ["both_files_present"];
+				verificationBoundary = "Static offline binary byte and block diffing.";
+				reasoning = `Visual diff utility 'vbindiff' is missing. Degraded to built-in 'binary_diff' with valid parameters (path_a, path_b, action).`;
 			} else if (originalTool === "ast-grep") {
 				nextTool = "grep";
-				nextParams = { path: targetPath, pattern: String(parsedOriginalParams.pattern ?? "function") };
+				nextParams = { path: effectiveTargetPath, pattern: String(parsedOriginalParams.pattern ?? "function") };
 				alternatives = ["ast_grep", "grep"];
+				capabilityDepth = "static";
+				verificationBoundary = "Regex pattern matching only; no structural AST awareness.";
 				reasoning = `External CLI 'ast-grep' is missing. Degraded to regex search via 'grep'.`;
 			} else {
-				// Fallback to built-in triage or format inspector
 				nextTool = "triage";
-				nextParams = { path: targetPath, strings: true, limit: 30 };
+				nextParams = { path: effectiveTargetPath, strings: true, limit: 30 };
 				alternatives = ["triage", "binary_metadata_inspect"];
+				capabilityDepth = "triage";
+				verificationBoundary = "Exploratory header and string triage only.";
+				remainingAcceptance = `Detailed analysis criteria unverified due to missing tool '${originalTool}'.`;
 				reasoning = `Tool '${originalTool}' is missing dependency. Degraded to zero-dependency binary triage.`;
 			}
 			break;
@@ -705,10 +1236,40 @@ export function generateRecoveryPlan(
 
 		case "invalid_format": {
 			suggestedAction = "fallback";
-			nextTool = "triage";
-			nextParams = { path: targetPath, strings: true, limit: 50 };
-			alternatives = ["triage", "binary_metadata_inspect", "read"];
-			reasoning = `Target format mismatch or corrupted/packed structure detected. Falling back to multi-format triage and entropy analysis to inspect raw headers and determine true format.`;
+			if (
+				isAndroidNativeSo &&
+				(originalTool === "android_package_inspect" || originalTool === "droidasc" || originalTool === "apktool")
+			) {
+				nextTool = "android_native_workflow";
+				nextParams = { path: effectiveTargetPath, action: "inspect" };
+				alternatives = ["android_native_workflow", "r2_inspect", "triage"];
+				capabilityDepth = "static";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary =
+					"Target is a native ELF shared library (.so), not an APK/ZIP archive. Switched to native library inspection.";
+				reasoning = `Target is a native ELF shared library (.so), not an APK/ZIP archive. Switched to 'android_native_workflow' for native symbol inspection.`;
+			} else if (
+				isNative &&
+				(originalTool === "android_package_inspect" || originalTool === "droidasc" || originalTool === "apktool")
+			) {
+				nextTool = "triage";
+				nextParams = { path: effectiveTargetPath, strings: true, limit: 50 };
+				alternatives = ["triage", "binary_metadata_inspect", "read"];
+				capabilityDepth = "triage";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary =
+					"Target is a generic native binary, not an APK container. APK tool is incompatible. Switched to multi-format triage.";
+				reasoning = `Target is a native binary (${workflow.format || "native"}), not an APK container. Switched to 'triage' for header and string reconnaissance.`;
+			} else {
+				nextTool = "triage";
+				nextParams = { path: effectiveTargetPath, strings: true, limit: 50 };
+				alternatives = ["triage", "binary_metadata_inspect", "read"];
+				capabilityDepth = "triage";
+				verificationBoundary = "Raw header and entropy analysis to diagnose corrupt/packed/encrypted container.";
+				remainingAcceptance =
+					"Format validation and decompilation criteria remain unsatisfied until format is clarified.";
+				reasoning = `Target format mismatch or corrupted/packed structure detected. Falling back to multi-format triage and entropy analysis to inspect raw headers and determine true format.`;
+			}
 			break;
 		}
 
@@ -730,6 +1291,8 @@ export function generateRecoveryPlan(
 			}
 			nextParams = adjusted;
 			alternatives = ["adjust_params", "triage", "binary_metadata_inspect"];
+			capabilityDepth = "static";
+			verificationBoundary = "Scope-bounded execution to avoid timeout.";
 			reasoning = `Tool execution timed out. Adjusted parameters to bound analysis scope (reduced limit to 20, lighter action) to avoid subsequent timeout.`;
 			break;
 		}
@@ -742,32 +1305,99 @@ export function generateRecoveryPlan(
 			adjusted.offset = 0;
 			nextParams = adjusted;
 			alternatives = ["adjust_params", "to_artifact"];
+			capabilityDepth = "static";
+			verificationBoundary = "Bounded paging parameters (limit: 25, offset: 0) to avoid output buffer overflow.";
 			reasoning = `Tool output exceeded inline capacity. Adjusted parameters to use bounded paging (limit: 25, offset: 0).`;
 			break;
 		}
 
 		case "device_required": {
 			suggestedAction = "fallback";
-			if (workflow.format === "APK") {
+			if (isAndroidNativeSo) {
+				nextTool = "android_native_workflow";
+				nextParams = { path: effectiveTargetPath, action: "inspect" };
+				alternatives = ["android_native_workflow", "r2_inspect", "triage"];
+				capabilityDepth = "static";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary =
+					"Observation-only static extraction. Collects static JNI exports, symbol bindings, and DEX native declarations, but cannot execute native code, evaluate dynamic crypto/unpacking logic, or satisfy dynamic JNI experiment acceptance criteria.";
+				remainingAcceptance =
+					"Dynamic JNI execution, runtime register state, and functional emulation acceptance criteria remain unsatisfied (proxy observation only). A live device or verified emulation harness is required for dynamic acceptance.";
+				reasoning =
+					"Dynamic analysis requires an attached device or emulator, but none was detected. Target is an Android native library (.so). Degraded to observation-only static inspection via android_native_workflow; JNI dynamic experiment remains incomplete.";
+			} else if (isApk) {
+				const isManifest = isManifestIntent(parsedOriginalParams, step, originalTool);
 				nextTool = "android_package_inspect";
-				nextParams = { path: targetPath, action: "inspect" };
+				nextParams = { path: effectiveTargetPath, action: isManifest ? "manifest" : "info" };
 				alternatives = ["android_package_inspect", "android_native_workflow", "droidasc"];
+				capabilityDepth = "static";
+				prerequisites = ["target_apk_present"];
+				verificationBoundary =
+					"Observation-only static container and manifest analysis. Dynamic device hooks, live memory state, and runtime component activation cannot be verified without an active device.";
+				remainingAcceptance =
+					"Dynamic runtime execution and live device-dependent acceptance criteria remain unsatisfied (proxy observation only). Requires active device or emulator.";
 				reasoning = `Dynamic analysis requires an attached device or emulator, but none was detected. Pivoted to android_package_inspect for offline static container and manifest analysis.`;
 			} else {
 				nextTool = "triage";
-				nextParams = { path: targetPath, strings: true, limit: 30 };
+				nextParams = { path: effectiveTargetPath, strings: true, limit: 30 };
 				alternatives = ["triage", "r2_inspect"];
+				capabilityDepth = "triage";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary =
+					"Observation-only static binary triage. Dynamic runtime debugging and live memory analysis cannot be performed without a live environment.";
+				remainingAcceptance = "Dynamic execution and runtime behavior criteria remain unsatisfied.";
 				reasoning = `Dynamic analysis requires a live device environment. Degraded to offline static binary triage.`;
 			}
 			break;
 		}
 
 		case "unsupported": {
-			suggestedAction = "fallback";
-			nextTool = "triage";
-			nextParams = { path: targetPath, strings: true, limit: 50 };
-			alternatives = ["triage", "binary_metadata_inspect", "grep"];
-			reasoning = `Unsupported architecture or feature encountered in '${originalTool}'. Falling back to multi-format binary triage for raw symbol and string reconnaissance.`;
+			if (
+				isAndroidNativeSo &&
+				(originalTool === "android_package_inspect" || originalTool === "droidasc" || originalTool === "apktool")
+			) {
+				suggestedAction = "fallback";
+				nextTool = "android_native_workflow";
+				nextParams = { path: effectiveTargetPath, action: "inspect" };
+				alternatives = ["android_native_workflow", "r2_inspect", "triage"];
+				capabilityDepth = "static";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary = `Target is a standalone native library (.so), not an APK container. APK tool '${originalTool}' is incompatible. Routed to native inspection.`;
+				remainingAcceptance = "APK container/manifest criteria are not applicable to bare .so binaries.";
+				reasoning = `Target '${targetPath}' is a bare native library (.so) which is not supported by APK tool '${originalTool}'. Routed to 'android_native_workflow' for native inspection.`;
+			} else if (
+				isNative &&
+				(originalTool === "android_package_inspect" || originalTool === "droidasc" || originalTool === "apktool")
+			) {
+				suggestedAction = "fallback";
+				nextTool = "triage";
+				nextParams = { path: effectiveTargetPath, strings: true, limit: 50 };
+				alternatives = ["triage", "binary_metadata_inspect", "grep"];
+				capabilityDepth = "triage";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary = `Target is a generic native binary, not an APK container. APK tool '${originalTool}' is incompatible. Routed to multi-format triage.`;
+				remainingAcceptance = "APK container/manifest criteria are not applicable to generic native binaries.";
+				reasoning = `Target '${targetPath}' is a native binary, not an APK container. Routed to 'triage' for multi-format reconnaissance.`;
+			} else if (!workflow.format || workflow.format === "unknown") {
+				suggestedAction = "abort";
+				canRetry = false;
+				nextTool = originalTool;
+				nextParams = originalParams;
+				capabilityDepth = "triage";
+				verificationBoundary = "Target format is unknown or unsupported; no automated fallback can proceed.";
+				remainingAcceptance = "All workflow acceptance criteria remain unsatisfied due to unsupported target.";
+				reasoning = `Target format '${workflow.format || "unknown"}' or architecture is unsupported by '${originalTool}'. No automated fallback can fulfill the requested capability without format conversion or architectural support.`;
+			} else {
+				suggestedAction = "fallback";
+				nextTool = "triage";
+				nextParams = { path: targetPath, strings: true, limit: 50 };
+				alternatives = ["triage", "binary_metadata_inspect", "grep"];
+				capabilityDepth = "triage";
+				verificationBoundary = `Exploratory binary triage and raw string reconnaissance only. Target architecture/format is unsupported for semantic analysis by '${originalTool}'; this fallback cannot satisfy functional, decompilation, or architectural acceptance criteria.`;
+				remainingAcceptance =
+					"All workflow acceptance criteria remain unsatisfied due to unsupported target format/architecture.";
+				reasoning = `Target contains an unsupported architecture or feature in '${originalTool}'. Proposing exploratory binary triage for raw symbol and string reconnaissance, but this cannot complete the original analysis.`;
+			}
 			break;
 		}
 
@@ -776,10 +1406,19 @@ export function generateRecoveryPlan(
 			nextTool = originalTool;
 			nextParams = parsedOriginalParams;
 			alternatives = [originalTool, "triage"];
+			capabilityDepth = "static";
 			reasoning = `Unclassified failure. Proposing retry with current parameters (Attempt ${currentAttempts + 1}/${maxAttempts}).`;
 			break;
 		}
 	}
+
+	const discoveryGuidance: DiscoveryGuidance = {
+		tool_doc: `read xd://${nextTool}`,
+		dispatch_method: "write JSON arguments",
+		current_step_only: true,
+		notice: `Read xd://${nextTool} before dispatching; emit current step-only progress notices.`,
+		next_action_preview: `${nextTool}(${typeof nextParams === "object" ? JSON.stringify(nextParams) : nextParams})`,
+	};
 
 	return {
 		attribution,
@@ -790,12 +1429,17 @@ export function generateRecoveryPlan(
 		next_params: nextParams,
 		alternatives,
 		reasoning,
-		can_retry: true,
+		can_retry: canRetry,
 		current_attempts: currentAttempts,
 		max_attempts: maxAttempts,
-		exhausted: false,
+		exhausted: exhausted || !canRetry,
 		install_hint: attribution.install_hint,
 		setup_command: attribution.setup_command,
 		resume: step.recovery_metadata?.resume,
+		prerequisites,
+		capability_depth: capabilityDepth,
+		verification_boundary: verificationBoundary,
+		remaining_acceptance: remainingAcceptance,
+		discovery_guidance: discoveryGuidance,
 	};
 }

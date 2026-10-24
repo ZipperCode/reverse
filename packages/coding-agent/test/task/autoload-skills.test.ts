@@ -513,33 +513,37 @@ describe("autoloadSkills through task spawn", () => {
 		expect(isReverseTask("实现二进制转十六进制转换工具")).toBe(false);
 		expect(isReverseTask("二分查找算法优化")).toBe(false);
 		expect(isReverseTask("处理 WebSocket 二进制流 ArrayBuffer")).toBe(false);
+		// Reverse tasks including HAR/authz, APK, and AndroidManifest.xml
+		expect(isReverseTask("analyze captured HAR trace for API authz tokens and authentication headers")).toBe(true);
+		expect(isReverseTask("reverse sample target.apk and decompile manifest")).toBe(true);
+		expect(isReverseTask("triage AndroidManifest.xml for exported components")).toBe(true);
 	});
 
-	it("resolves autoloadSkills correctly for reverse vs non-reverse requests", () => {
-		const mockReverseLab: Skill = {
-			name: "reverse-lab",
-			description: "Reverse lab orchestrator",
-			filePath: "/skills/reverse-lab/SKILL.md",
-			baseDir: "/skills/reverse-lab",
+	it("resolves autoloadSkills correctly with method- and target-aware selection", () => {
+		const makeMockSkill = (name: string): Skill => ({
+			name,
+			description: `${name} mock skill`,
+			filePath: `/skills/${name}/SKILL.md`,
+			baseDir: `/skills/${name}`,
 			source: "bundled",
-		};
-		const mockNativeBinary: Skill = {
-			name: "native-binary-reverse",
-			description: "Native binary reverse skill",
-			filePath: "/skills/native-binary-reverse/SKILL.md",
-			baseDir: "/skills/native-binary-reverse",
-			source: "bundled",
-		};
-		const mockOtherSkill: Skill = {
-			name: "other-skill",
-			description: "Other skill",
-			filePath: "/skills/other-skill/SKILL.md",
-			baseDir: "/skills/other-skill",
-			source: "bundled",
-		};
+		});
+
+		const mockReverseLab = makeMockSkill("reverse-lab");
+		const mockAndroidReverse = makeMockSkill("android-reverse");
+		const mockNativeBinary = makeMockSkill("native-binary-reverse");
+		const mockWebProtocol = makeMockSkill("web-protocol-reverse");
+		const mockVmpReverse = makeMockSkill("vmp-reverse");
+		const mockOtherSkill = makeMockSkill("other-skill");
 
 		const session = {
-			skills: [mockReverseLab, mockNativeBinary, mockOtherSkill],
+			skills: [
+				mockReverseLab,
+				mockAndroidReverse,
+				mockNativeBinary,
+				mockWebProtocol,
+				mockVmpReverse,
+				mockOtherSkill,
+			],
 		} as unknown as ToolSession;
 
 		const taskAgent: AgentDefinition = {
@@ -549,17 +553,83 @@ describe("autoloadSkills through task spawn", () => {
 			source: "bundled",
 		};
 
-		expect(REVERSE_TASK_AUTOLOAD_SKILLS).toEqual(["reverse-lab", "native-binary-reverse"]);
+		expect(REVERSE_TASK_AUTOLOAD_SKILLS).toEqual(["reverse-lab"]);
 
-		// Reverse task on task agent
-		const reverseResult = resolveAutoloadSkills(session, taskAgent, {
+		// 1. APK task loads Android, NOT unnecessary native
+		const apkResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "decompilation of sample.apk and inspect manifest",
+		});
+		const apkNames = apkResult.autoloadSkills.map(s => s.name);
+		expect(apkNames).toContain("reverse-lab");
+		expect(apkNames).toContain("android-reverse");
+		expect(apkNames).not.toContain("native-binary-reverse");
+
+		// 1b. AndroidManifest.xml task loads Android without native
+		const manifestResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "triage AndroidManifest.xml for exported components and permissions",
+		});
+		const manifestNames = manifestResult.autoloadSkills.map(s => s.name);
+		expect(manifestNames).toContain("reverse-lab");
+		expect(manifestNames).toContain("android-reverse");
+		expect(manifestNames).not.toContain("native-binary-reverse");
+		// 2. APK task with JNI evidence adds native
+		const jniResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "reverse target.apk, investigate JNI native methods in libcore.so",
+		});
+		const jniNames = jniResult.autoloadSkills.map(s => s.name);
+		expect(jniNames).toContain("reverse-lab");
+		expect(jniNames).toContain("android-reverse");
+		expect(jniNames).toContain("native-binary-reverse");
+
+		// 3. HAR / API authz task loads web
+		const harResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "analyze captured HAR trace for API authz tokens and authentication headers",
+		});
+		const harNames = harResult.autoloadSkills.map(s => s.name);
+		expect(harNames).toContain("reverse-lab");
+		expect(harNames).toContain("web-protocol-reverse");
+		expect(harNames).not.toContain("android-reverse");
+		expect(harNames).not.toContain("native-binary-reverse");
+
+		// 3b. Generic network replay task without device markers loads web, NOT Android
+		const replayResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "network_replay comparison against allowed_origins baseline",
+		});
+		const replayNames = replayResult.autoloadSkills.map(s => s.name);
+		expect(replayNames).toContain("reverse-lab");
+		expect(replayNames).toContain("web-protocol-reverse");
+		expect(replayNames).not.toContain("android-reverse");
+		// 4. VMP devirtualization task loads VMP
+		const vmpResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "analyze VMProtect virtualization trace and devirtualize bytecode handlers",
+		});
+		const vmpNames = vmpResult.autoloadSkills.map(s => s.name);
+		expect(vmpNames).toContain("reverse-lab");
+		expect(vmpNames).toContain("vmp-reverse");
+
+		// 5. Pure native binary task loads native
+		const nativeResult = resolveAutoloadSkills(session, taskAgent, {
 			session,
 			invocationKind: "task",
 			assignment: "reverse engineering of binary",
 		});
-		expect(reverseResult.autoloadSkills.map(s => s.name)).toEqual(["reverse-lab", "native-binary-reverse"]);
+		const nativeNames = nativeResult.autoloadSkills.map(s => s.name);
+		expect(nativeNames).toContain("reverse-lab");
+		expect(nativeNames).toContain("native-binary-reverse");
 
-		// Normal task on task agent
+		// 6. Normal non-reverse task on task agent
 		const normalResult = resolveAutoloadSkills(session, taskAgent, {
 			session,
 			invocationKind: "task",
@@ -567,7 +637,7 @@ describe("autoloadSkills through task spawn", () => {
 		});
 		expect(normalResult.autoloadSkills).toEqual([]);
 
-		// Explicit autoloadSkills in request
+		// 7. Explicit autoloadSkills in request honored
 		const explicitResult = resolveAutoloadSkills(session, taskAgent, {
 			session,
 			invocationKind: "task",

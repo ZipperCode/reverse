@@ -47,9 +47,9 @@ export interface UnidbgBuildResult {
  * Rejects JDK 9+ with explicit explanation of the java.lang.Module collision.
  * If explicit javaHome is provided, it must be validated directly and never silently fallback to PATH.
  */
-export function validateJdk8(javaHome?: string): JdkValidationResult {
+export function validateJdk8(javaHome?: string, env: NodeJS.ProcessEnv = process.env): JdkValidationResult {
 	let javaBin: string | null = null;
-	let targetHome = javaHome;
+	const targetHome = javaHome ?? env.JAVA_HOME;
 
 	if (targetHome !== undefined) {
 		const exeName = process.platform === "win32" ? "java.exe" : "java";
@@ -62,17 +62,10 @@ export function validateJdk8(javaHome?: string): JdkValidationResult {
 			};
 		}
 		javaBin = candidate;
-	} else if (process.env.JAVA_HOME) {
-		targetHome = process.env.JAVA_HOME;
-		const exeName = process.platform === "win32" ? "java.exe" : "java";
-		const candidate = path.join(targetHome, "bin", exeName);
-		if (fs.existsSync(candidate)) {
-			javaBin = candidate;
-		}
 	}
 
 	if (!javaBin && !targetHome) {
-		javaBin = $which("java");
+		javaBin = $which("java", { PATH: env.PATH ?? "" });
 	}
 
 	if (!javaBin || !fs.existsSync(javaBin)) {
@@ -93,7 +86,10 @@ export function validateJdk8(javaHome?: string): JdkValidationResult {
 		};
 	}
 
-	const res = spawnSync(javaBin, ["-version"], { encoding: "utf8" });
+	const res = spawnSync(javaBin, ["-version"], { encoding: "utf8", env, timeout: 5_000, maxBuffer: 64 * 1024 });
+	if (res.status !== 0) {
+		return { valid: false, javaBin, javaHome: targetHome, error: "Java version probe failed or timed out." };
+	}
 	const rawOutput = (res.stderr || "") + "\n" + (res.stdout || "");
 	const match =
 		rawOutput.match(/(?:java|openjdk)\s+version\s+"([^"]+)"/i) || rawOutput.match(/(?:java|openjdk)\s+([0-9._]+)/i);

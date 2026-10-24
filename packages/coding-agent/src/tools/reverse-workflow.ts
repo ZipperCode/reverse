@@ -1420,6 +1420,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					setup_command: resumeMeta?.setup_command,
 					verified: resumeMeta?.verified,
 					strategy: resumeMeta?.strategy,
+					capability_depth: plan.capability_depth,
+					verification_boundary: plan.verification_boundary,
+					remaining_acceptance: plan.remaining_acceptance,
 				};
 
 				const retryEntry: StepRetryEntry = {
@@ -1439,6 +1442,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					recovery_audit: [...(step.recovery_metadata?.recovery_audit ?? []), auditEntry],
 					retry_history: [...(step.recovery_metadata?.retry_history ?? []), retryEntry],
 					resume: resumeMeta ?? step.recovery_metadata?.resume,
+					capability_depth: plan.capability_depth,
+					verification_boundary: plan.verification_boundary,
+					remaining_acceptance: plan.remaining_acceptance,
 				};
 
 				step.tool = plan.next_tool;
@@ -1462,6 +1468,13 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					plan.attribution.install_hint ? `- Install Hint: \`${plan.attribution.install_hint}\`` : undefined,
 					plan.attribution.setup_command ? `- Setup Command: \`${plan.attribution.setup_command}\`` : undefined,
 					`- Recovery Strategy: **${plan.suggested_action}**`,
+					plan.capability_depth ? `- Capability Depth: **${plan.capability_depth.toUpperCase()}**` : undefined,
+					plan.verification_boundary ? `- Verification Boundary: ${plan.verification_boundary}` : undefined,
+					plan.remaining_acceptance ? `- Remaining Acceptance: ${plan.remaining_acceptance}` : undefined,
+					plan.prerequisites && plan.prerequisites.length > 0
+						? `- Prerequisites: ${plan.prerequisites.map(p => `\`${p}\``).join(", ")}`
+						: undefined,
+					plan.discovery_guidance?.notice ? `- Discovery Guidance: ${plan.discovery_guidance.notice}` : undefined,
 					resumeMeta
 						? `- Install-After Resume: Tool \`${resumeMeta.installed_tool}\` installed and verified (Capability: \`${resumeMeta.capability_id || "none"}\`, Strategy: \`${resumeMeta.strategy}\`)`
 						: undefined,
@@ -1535,6 +1548,13 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					plan.attribution.install_hint ? `- Install Hint: \`${plan.attribution.install_hint}\`` : undefined,
 					plan.attribution.setup_command ? `- Setup Command: \`${plan.attribution.setup_command}\`` : undefined,
 					`- Proposed Action: **${plan.suggested_action}**`,
+					plan.capability_depth ? `- Capability Depth: **${plan.capability_depth.toUpperCase()}**` : undefined,
+					plan.verification_boundary ? `- Verification Boundary: ${plan.verification_boundary}` : undefined,
+					plan.remaining_acceptance ? `- Remaining Acceptance: ${plan.remaining_acceptance}` : undefined,
+					plan.prerequisites && plan.prerequisites.length > 0
+						? `- Prerequisites: ${plan.prerequisites.map(p => `\`${p}\``).join(", ")}`
+						: undefined,
+					plan.discovery_guidance?.notice ? `- Discovery Guidance: ${plan.discovery_guidance.notice}` : undefined,
 					`- Proposed Tool: \`${plan.next_tool}\``,
 					`- Corrected Parameters: \`${nextParamsStr}\``,
 					`- Alternatives: ${plan.alternatives.map(a => `\`${a}\``).join(", ")}`,

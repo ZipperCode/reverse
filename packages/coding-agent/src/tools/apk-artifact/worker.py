@@ -382,10 +382,1021 @@ def check_apk_signing_block(apk_path: str) -> bool:
 
 
 # ============================================================================
+# Tool Path Resolution & Package Set Utilities
+# ============================================================================
+
+def resolve_tool_path(name: str, explicit: str | None = None) -> str | None:
+    if explicit:
+        p = os.path.abspath(explicit)
+        if os.path.exists(p):
+            return p
+    found = shutil.which(name)
+    if found:
+        return found
+    sdk_roots = [os.environ.get("ANDROID_HOME"), os.environ.get("ANDROID_SDK_ROOT")]
+    for root in sdk_roots:
+        if root and os.path.isdir(root):
+            bt = os.path.join(root, "build-tools")
+            if os.path.isdir(bt):
+                for ver in sorted(os.listdir(bt), reverse=True):
+                    cand = os.path.join(bt, ver, name)
+                    if os.path.exists(cand):
+                        return cand
+                    if name == "apksigner":
+                        cand_jar = os.path.join(bt, ver, "lib", "apksigner.jar")
+                        if os.path.exists(cand_jar):
+                            return cand_jar
+                    if name == "bundletool":
+                        cand_jar = os.path.join(bt, ver, "lib", "bundletool.jar")
+                        if os.path.exists(cand_jar):
+                            return cand_jar
+    return None
+
+
+def compute_file_sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def compute_package_set_sha256(members: list[dict]) -> str:
+    """Compute a deterministic SHA256 aggregate identity for a package set."""
+    sorted_items = sorted(members, key=lambda m: m["name"])
+    raw = "\n".join(f"{m['name']}:{m['sha256']}" for m in sorted_items).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+# ============================================================================
+# AndroidManifest Parsing (AXML & Plain XML)
+# ============================================================================
+
+def parse_axml(data: bytes) -> dict:
+    """Parse Android binary XML (AXML) to extract manifest attributes."""
+    if len(data) < 8:
+        return {"error": "AXML data too short"}
+    magic, total_size = struct.unpack("<II", data[:8])
+    if magic != 0x00080003:
+        return {"error": f"Invalid AXML magic 0x{magic:08x}"}
+
+    pos = 8
+    strings = []
+    data_len = len(data)
+
+    while pos + 8 <= data_len:
+        chunk_type, chunk_size = struct.unpack("<II", data[pos:pos+8])
+        if chunk_size < 8 or pos + chunk_size > data_len:
+            break
+
+        if chunk_type == 0x001C0001:  # RES_STRING_POOL_TYPE
+            if chunk_size < 28 or pos + 28 > data_len:
+                break
+            string_count, style_count, flags, strings_start, styles_start = struct.unpack("<IIIII", data[pos+8:pos+28])
+            max_strings = (chunk_size - 28) // 4
+            if string_count > max_strings or string_count > 100000:
+                return {"error": "String count exceeds chunk bounds"}
+            if strings_start >= chunk_size:
+                return {"error": "Strings data offset exceeds chunk bounds"}
+            is_utf8 = bool(flags & (1 << 8))
+            offset_table_start = pos + 28
+            offsets = []
+            for i in range(string_count):
+                off_pos = offset_table_start + i * 4
+                if off_pos + 4 <= data_len:
+                    offsets.append(struct.unpack("<I", data[off_pos:off_pos+4])[0])
+            strings_data_start = pos + strings_start
+            for off in offsets:
+                str_pos = strings_data_start + off
+                if str_pos >= data_len:
+                    strings.append("")
+                    continue
+                if is_utf8:
+                    u8_off = 0
+                    if str_pos < data_len and data[str_pos] & 0x80:
+                        u8_off += 2
+                    else:
+                        u8_off += 1
+                    if str_pos + u8_off < data_len:
+                        if data[str_pos + u8_off] & 0x80:
+                            u8_len = ((data[str_pos + u8_off] & 0x7F) << 8) | data[str_pos + u8_off + 1]
+                            u8_off += 2
+                        else:
+                            u8_len = data[str_pos + u8_off]
+                            u8_off += 1
+                        raw_s = data[str_pos + u8_off:min(data_len, str_pos + u8_off + u8_len)]
+                        strings.append(raw_s.decode("utf-8", errors="replace"))
+                    else:
+                        strings.append("")
+                else:
+                    if str_pos + 2 <= data_len:
+                        u16_len = struct.unpack("<H", data[str_pos:str_pos+2])[0]
+                        u16_off = 2
+                        if u16_len & 0x8000 and str_pos + 4 <= data_len:
+                            u16_len = ((u16_len & 0x7FFF) << 16) | struct.unpack("<H", data[str_pos+2:str_pos+4])[0]
+                            u16_off = 4
+                        raw_s = data[str_pos + u16_off:min(data_len, str_pos + u16_off + u16_len * 2)]
+                        strings.append(raw_s.decode("utf-16le", errors="replace"))
+                    else:
+                        strings.append("")
+
+        elif chunk_type == 0x00100102:  # RES_XML_START_ELEMENT_TYPE
+            if chunk_size < 36 or pos + 36 > data_len:
+                break
+            name_idx = struct.unpack("<I", data[pos+20:pos+24])[0]
+            elem_name = strings[name_idx] if name_idx < len(strings) else ""
+            norm_elem = elem_name.split(":")[-1].lower()
+            if norm_elem == "manifest":
+                attr_start = struct.unpack("<H", data[pos+24:pos+26])[0]
+                attr_size = struct.unpack("<H", data[pos+26:pos+28])[0]
+                attr_count = struct.unpack("<H", data[pos+28:pos+30])[0]
+
+                if attr_count > 1000:
+                    return {"error": "Attribute count exceeds safe limit"}
+
+                res = {"package": None, "versionCode": None, "versionName": None, "split": None, "configForSplit": None}
+                attrs_base = pos + 16 + attr_start if attr_start < 64 else pos + attr_start
+                eff_attr_size = max(attr_size, 20)
+
+                if attrs_base + attr_count * eff_attr_size > pos + chunk_size or attrs_base + attr_count * eff_attr_size > data_len:
+                    attrs_base = pos + (attr_start if attr_start >= 32 else 36)
+                    if attrs_base + attr_count * eff_attr_size > data_len:
+                        return {"error": "Attribute bounds exceed chunk size"}
+
+                for a in range(attr_count):
+                    a_off = attrs_base + a * eff_attr_size
+                    if a_off + 20 > data_len:
+                        break
+                    ns_idx, a_name_idx, raw_val_idx, val_size, val_res0, val_type, val_data = struct.unpack("<IIIHBBI", data[a_off:a_off+20])
+                    a_name = strings[a_name_idx] if a_name_idx < len(strings) else ""
+                    val = None
+                    if val_type == 0x03:
+                        val = strings[val_data] if val_data < len(strings) else ""
+                    elif raw_val_idx != 0xFFFFFFFF and raw_val_idx < len(strings):
+                        val = strings[raw_val_idx]
+                    elif val_type in (0x10, 0x11, 0x12):
+                        val = val_data
+
+                    norm_a = a_name.split(":")[-1].lower()
+                    if norm_a == "package":
+                        res["package"] = str(val) if val is not None else None
+                    elif norm_a == "versioncode":
+                        res["versionCode"] = val
+                    elif norm_a == "versionname":
+                        res["versionName"] = str(val) if val is not None else None
+                    elif norm_a == "split":
+                        res["split"] = str(val) if val is not None else None
+                    elif norm_a == "configforsplit":
+                        res["configForSplit"] = str(val) if val is not None else None
+                return res
+
+        pos += chunk_size
+    return {"error": "manifest start element not found in AXML"}
+
+
+def extract_manifest_info(apk_path: str, aapt2_path: str | None = None) -> dict:
+    """Extract package name, versionCode, versionName, and split declaration from an APK."""
+    aapt2 = resolve_tool_path("aapt2", aapt2_path)
+    aapt = resolve_tool_path("aapt")
+    tool = aapt2 or aapt
+    if tool:
+        try:
+            res = subprocess.run([tool, "dump", "badging", apk_path], capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout:
+                out = res.stdout
+                pkg_match = re.search(r"package:\s*name='([^']+)'", out)
+                vc_match = re.search(r"versionCode='([^']+)'", out)
+                vn_match = re.search(r"versionName='([^']+)'", out)
+                split_match = re.search(r"\bsplit='([^']+)'", out)
+                config_match = re.search(r"\bconfigForSplit='([^']+)'", out)
+                return {
+                    "package": pkg_match.group(1) if pkg_match else None,
+                    "versionCode": vc_match.group(1) if vc_match else None,
+                    "versionName": vn_match.group(1) if vn_match else None,
+                    "split": split_match.group(1) if split_match else None,
+                    "configForSplit": config_match.group(1) if config_match else None,
+                    "source": "aapt",
+                }
+        except Exception:
+            pass
+
+    try:
+        with zipfile.ZipFile(apk_path, "r") as z:
+            if "AndroidManifest.xml" not in z.namelist():
+                return {"error": "AndroidManifest.xml not found in APK archive"}
+            info = z.getinfo("AndroidManifest.xml")
+            if info.file_size > 10 * 1024 * 1024:
+                return {"error": f"AndroidManifest.xml uncompressed size ({info.file_size}B) exceeds safe limit (10MB)"}
+            data = z.read("AndroidManifest.xml")
+
+            if data.startswith(b"<") or b"<manifest" in data[:200]:
+                text = data.decode("utf-8", errors="replace")
+                pkg_m = re.search(r'package\s*=\s*["\']([^"\']+)["\']', text)
+                vc_m = re.search(r'(?:android:)?versionCode\s*=\s*["\']([^"\']+)["\']', text)
+                vn_m = re.search(r'(?:android:)?versionName\s*=\s*["\']([^"\']+)["\']', text)
+                split_m = re.search(r'\bsplit\s*=\s*["\']([^"\']+)["\']', text)
+                config_m = re.search(r'\bconfigForSplit\s*=\s*["\']([^"\']+)["\']', text)
+                return {
+                    "package": pkg_m.group(1) if pkg_m else None,
+                    "versionCode": vc_m.group(1) if vc_m else None,
+                    "versionName": vn_m.group(1) if vn_m else None,
+                    "split": split_m.group(1) if split_m else None,
+                    "configForSplit": config_m.group(1) if config_m else None,
+                    "source": "plain_xml",
+                }
+
+            axml_res = parse_axml(data)
+            if "error" not in axml_res:
+                axml_res["source"] = "axml"
+                return axml_res
+            return {
+                "error": f"AXML decode failed: {axml_res.get('error')}",
+                "missing_tool": True,
+            }
+    except Exception as e:
+        return {"error": f"Failed to read AndroidManifest.xml: {e}"}
+
+
+def validate_package_set_semantics(package_set: dict) -> dict:
+    """Validate package name, versionCode, and split consistency across the package set."""
+    base_path = package_set.get("base")
+    splits = package_set.get("splits") or {}
+
+    if not base_path or not os.path.isfile(base_path):
+        return {"ok": False, "error": f"Base APK not found: {base_path}"}
+
+    base_info = extract_manifest_info(base_path)
+    if "error" in base_info:
+        return {
+            "ok": False,
+            "error": f"Base APK manifest inspection failed: {base_info['error']}",
+            "missing_tool": base_info.get("missing_tool", False),
+        }
+
+    base_pkg = base_info.get("package")
+    base_vc = str(base_info.get("versionCode")) if base_info.get("versionCode") is not None else None
+
+    if not base_pkg:
+        return {"ok": False, "error": "Base APK does not declare a package name"}
+    if not base_vc:
+        return {"ok": False, "error": "Base APK does not declare a versionCode"}
+
+    if base_info.get("split") or base_info.get("configForSplit"):
+        return {"ok": False, "error": f"Base APK declares split or configForSplit attribute; base APK cannot be a split APK"}
+
+    split_details = {}
+    seen_declared_splits = set()
+    for s_name, s_path in splits.items():
+        if not os.path.isfile(s_path):
+            return {"ok": False, "error": f"Split APK '{s_name}' not found: {s_path}"}
+
+        s_info = extract_manifest_info(s_path)
+        if "error" in s_info:
+            return {
+                "ok": False,
+                "error": f"Split APK '{s_name}' manifest inspection failed: {s_info['error']}",
+                "missing_tool": s_info.get("missing_tool", False),
+            }
+
+        s_pkg = s_info.get("package")
+        s_vc = str(s_info.get("versionCode")) if s_info.get("versionCode") is not None else None
+
+        if not s_pkg:
+            return {"ok": False, "error": f"Split APK '{s_name}' does not declare a package name"}
+        if s_pkg != base_pkg:
+            return {
+                "ok": False,
+                "error": f"Package name mismatch in split '{s_name}': expected '{base_pkg}' (from base), found '{s_pkg}'",
+            }
+        if not s_vc:
+            return {"ok": False, "error": f"Split APK '{s_name}' does not declare a versionCode"}
+        if s_vc != base_vc:
+            return {
+                "ok": False,
+                "error": f"versionCode mismatch in split '{s_name}': expected '{base_vc}' (from base), found '{s_vc}'",
+            }
+
+        decl_split = s_info.get("split")
+        if not decl_split:
+            return {
+                "ok": False,
+                "error": f"Member '{s_name}' is declared as a split APK but lacks a 'split' attribute in its manifest (cannot be a standalone or secondary base APK)",
+            }
+        if decl_split in seen_declared_splits:
+            return {"ok": False, "error": f"Duplicate split declaration '{decl_split}' in member '{s_name}'"}
+        seen_declared_splits.add(decl_split)
+
+        config_split = s_info.get("configForSplit")
+
+        split_details[s_name] = {
+            "path": s_path,
+            "package": s_pkg,
+            "versionCode": s_vc,
+            "declared_split": decl_split,
+            "config_for_split": config_split,
+        }
+    return {
+        "ok": True,
+        "package": base_pkg,
+        "versionCode": base_vc,
+        "base": base_info,
+        "splits": split_details,
+    }
+
+
+def normalize_package_set(package_set_raw: dict) -> dict:
+    """Normalize raw package set parameter into canonical { base, splits } dictionary."""
+    if not isinstance(package_set_raw, dict):
+        raise ValueError("package_set must be an object with 'base' (string) and optional 'splits' (map)")
+
+    base_val = package_set_raw.get("base")
+    if not base_val or not isinstance(base_val, str) or not base_val.strip():
+        raise ValueError("package_set must declare a non-empty 'base' APK path string")
+
+    splits = {}
+    splits_raw = package_set_raw.get("splits")
+    if splits_raw is not None:
+        if not isinstance(splits_raw, dict):
+            raise ValueError("package_set 'splits' must be an object mapping split names to file paths")
+        for k, v in splits_raw.items():
+            if not isinstance(k, str) or not k.strip():
+                raise ValueError("Split member name cannot be empty")
+            if not isinstance(v, str) or not v.strip():
+                raise ValueError(f"Path for split member '{k}' must be a non-empty string")
+            s_name = k.strip()
+            if "/" in s_name or "\\" in s_name or s_name in (".", ".."):
+                raise ValueError(f"Invalid split name '{s_name}': path traversal characters not permitted")
+            if s_name in splits or s_name == "base":
+                raise ValueError(f"Duplicate member name '{s_name}' declared in package_set")
+            splits[s_name] = os.path.abspath(v.strip())
+
+    return {
+        "base": os.path.abspath(base_val.strip()),
+        "splits": splits,
+    }
+
+
+def handle_package_set_diff(params: dict) -> dict:
+    orig_set_raw = params.get("original_package_set") or params.get("package_set")
+    mod_set_raw = params.get("modified_package_set")
+    if not orig_set_raw or not mod_set_raw:
+        raise ValueError("Package set diff requires both original and modified package sets")
+
+    orig_set = normalize_package_set(orig_set_raw)
+    mod_set = normalize_package_set(mod_set_raw)
+
+    base_diff_params = dict(params)
+    base_diff_params.pop("package_set", None)
+    base_diff_params.pop("original_package_set", None)
+    base_diff_params.pop("modified_package_set", None)
+    base_diff_params["original_path"] = orig_set["base"]
+    base_diff_params["modified_path"] = mod_set["base"]
+    base_diff = handle_diff(base_diff_params)
+
+    common_splits = sorted(set(orig_set["splits"].keys()) & set(mod_set["splits"].keys()))
+    added_splits = sorted(set(mod_set["splits"].keys()) - set(orig_set["splits"].keys()))
+    removed_splits = sorted(set(orig_set["splits"].keys()) - set(mod_set["splits"].keys()))
+
+    split_diffs = {}
+    for s_name in common_splits:
+        s_diff_params = dict(params)
+        s_diff_params.pop("package_set", None)
+        s_diff_params.pop("original_package_set", None)
+        s_diff_params.pop("modified_package_set", None)
+        s_diff_params["original_path"] = orig_set["splits"][s_name]
+        s_diff_params["modified_path"] = mod_set["splits"][s_name]
+        split_diffs[s_name] = handle_diff(s_diff_params)
+
+    total_entry_changes = base_diff["summary"]["changed_count"] + sum(d["summary"]["changed_count"] for d in split_diffs.values())
+    total_entry_additions = base_diff["summary"]["added_count"] + sum(d["summary"]["added_count"] for d in split_diffs.values())
+    total_entry_removals = base_diff["summary"]["removed_count"] + sum(d["summary"]["removed_count"] for d in split_diffs.values())
+
+    has_diffs = bool(
+        base_diff["summary"]["has_differences"]
+        or any(d["summary"]["has_differences"] for d in split_diffs.values())
+        or added_splits
+        or removed_splits
+    )
+
+    return {
+        "action": "diff",
+        "status": "ok",
+        "is_package_set": True,
+        "base_diff": base_diff,
+        "split_diffs": split_diffs,
+        "added_splits": added_splits,
+        "removed_splits": removed_splits,
+        "summary": {
+            "has_differences": has_diffs,
+            "total_members": 1 + len(common_splits) + len(added_splits),
+            "common_splits_count": len(common_splits),
+            "added_splits_count": len(added_splits),
+            "removed_splits_count": len(removed_splits),
+            "total_entry_changes": total_entry_changes,
+            "total_entry_additions": total_entry_additions,
+            "total_entry_removals": total_entry_removals,
+        },
+    }
+
+
+def handle_package_set_repack(params: dict) -> dict:
+    package_set = normalize_package_set(params.get("package_set"))
+    out_dir = params.get("output_package_dir")
+    if not out_dir:
+        raise ValueError("repack with package_set requires 'output_package_dir'")
+    out_dir = os.path.abspath(out_dir)
+    if os.path.exists(out_dir):
+        raise FileExistsError(f"output_package_dir already exists: {out_dir} (overwriting existing outputs is not permitted)")
+
+    base_in = package_set["base"]
+    splits_in = package_set["splits"]
+
+    all_inputs = [base_in] + list(splits_in.values())
+    for inp in all_inputs:
+        if inp.startswith(out_dir + os.sep) or inp == out_dir:
+            raise ValueError(f"Input APK '{inp}' is located inside output_package_dir (anti-aliasing safety violation)")
+
+    sem_res = validate_package_set_semantics(package_set)
+    if not sem_res["ok"]:
+        raise ValueError(f"Package set semantic validation failed: {sem_res['error']}")
+
+    per_member = params.get("per_member_replacements") or {}
+    should_sign = bool(params.get("sign", False))
+
+    dest_parent = os.path.dirname(out_dir)
+    if dest_parent:
+        os.makedirs(dest_parent, exist_ok=True)
+    stage_dir = tempfile.mkdtemp(dir=dest_parent, prefix=".apk_set_stage_")
+
+    try:
+        base_replacements = per_member.get("base") or {}
+        base_dex_files = base_replacements.get("dex_files") or params.get("dex_files") or {}
+        base_dex_path = base_replacements.get("dex_path") or params.get("dex_path")
+        base_replace_files = base_replacements.get("replace_files") or params.get("replace_files") or {}
+
+        staged_base = os.path.join(stage_dir, "base.apk")
+        base_params = dict(params)
+        base_params.pop("package_set", None)
+        base_params["path"] = base_in
+        base_params["output_path"] = staged_base
+        base_params["dex_files"] = base_dex_files
+        if base_dex_path:
+            base_params["dex_path"] = base_dex_path
+        base_params["replace_files"] = base_replace_files
+        base_params["sign"] = should_sign
+        base_result = handle_repack(base_params)
+
+        split_results = {}
+        for s_name, s_path in splits_in.items():
+            s_replacements = per_member.get(s_name) or {}
+            staged_split = os.path.join(stage_dir, f"{s_name}.apk")
+            s_params = dict(params)
+            s_params.pop("package_set", None)
+            s_params.pop("dex_path", None)
+            s_params.pop("dex_files", None)
+            s_params.pop("replace_files", None)
+            s_params["path"] = s_path
+            s_params["output_path"] = staged_split
+            s_params["dex_files"] = s_replacements.get("dex_files") or {}
+            if s_replacements.get("dex_path"):
+                s_params["dex_path"] = s_replacements["dex_path"]
+            s_params["replace_files"] = s_replacements.get("replace_files") or {}
+            s_params["sign"] = should_sign
+            split_results[s_name] = handle_repack(s_params)
+
+        if should_sign:
+            base_fps = base_result.get("signature_details", {}).get("cert_fingerprints") or []
+            for s_name, s_res in split_results.items():
+                s_fps = s_res.get("signature_details", {}).get("cert_fingerprints") or []
+                if sorted(base_fps) != sorted(s_fps):
+                    raise ValueError(f"Signer certificate mismatch between base and split '{s_name}': {base_fps} vs {s_fps}")
+
+        members = []
+        base_sha = compute_file_sha256(staged_base)
+        members.append({
+            "name": "base",
+            "filename": "base.apk",
+            "size": os.path.getsize(staged_base),
+            "sha256": base_sha,
+            "signed": should_sign,
+            "alignment_ok": base_result["alignment"]["ok"],
+        })
+        for s_name in sorted(split_results.keys()):
+            staged_s = os.path.join(stage_dir, f"{s_name}.apk")
+            s_sha = compute_file_sha256(staged_s)
+            members.append({
+                "name": s_name,
+                "filename": f"{s_name}.apk",
+                "size": os.path.getsize(staged_s),
+                "sha256": s_sha,
+                "signed": should_sign,
+                "alignment_ok": split_results[s_name]["alignment"]["ok"],
+            })
+
+        set_sha256 = compute_package_set_sha256(members)
+        staged_set = {
+            "base": staged_base,
+            "splits": {s_name: os.path.join(stage_dir, f"{s_name}.apk") for s_name in split_results.keys()},
+        }
+        staged_sem = validate_package_set_semantics(staged_set)
+        if not staged_sem["ok"]:
+            raise ValueError(f"Staged package set semantic validation failed after replacement: {staged_sem['error']}")
+
+        manifest_data = {
+            "format": "apk_package_set",
+            "package": staged_sem["package"],
+            "versionCode": staged_sem["versionCode"],
+            "set_sha256": set_sha256,
+            "members": members,
+            "signed": should_sign,
+        }
+
+        manifest_stage_path = os.path.join(stage_dir, "package-set.json")
+        with open(manifest_stage_path, "w", encoding="utf-8") as mf:
+            json.dump(manifest_data, mf, indent=2)
+
+        os.makedirs(out_dir, exist_ok=False)
+        try:
+            publish_file_exclusive(staged_base, os.path.join(out_dir, "base.apk"))
+            for s_name in split_results.keys():
+                publish_file_exclusive(os.path.join(stage_dir, f"{s_name}.apk"), os.path.join(out_dir, f"{s_name}.apk"))
+            publish_file_exclusive(manifest_stage_path, os.path.join(out_dir, "package-set.json"))
+        except Exception:
+            shutil.rmtree(out_dir, ignore_errors=True)
+            raise
+        base_result["output_path"] = os.path.join(out_dir, "base.apk")
+        if "signature_details" in base_result and isinstance(base_result["signature_details"], dict):
+            base_result["signature_details"]["output_path"] = os.path.join(out_dir, "base.apk")
+        for s_name in split_results:
+            split_results[s_name]["output_path"] = os.path.join(out_dir, f"{s_name}.apk")
+            if "signature_details" in split_results[s_name] and isinstance(split_results[s_name]["signature_details"], dict):
+                split_results[s_name]["signature_details"]["output_path"] = os.path.join(out_dir, f"{s_name}.apk")
+
+        return {
+            "action": "repack",
+            "status": "ok",
+            "is_package_set": True,
+            "output_package_dir": out_dir,
+            "manifest_path": os.path.join(out_dir, "package-set.json"),
+            "set_sha256": set_sha256,
+            "package": staged_sem["package"],
+            "versionCode": staged_sem["versionCode"],
+            "base": base_result,
+            "splits": split_results,
+            "members": members,
+            "signed": should_sign,
+            "alignment_ok": all(m["alignment_ok"] for m in members),
+        }
+    finally:
+        shutil.rmtree(stage_dir, ignore_errors=True)
+
+
+def handle_package_set_sign(params: dict) -> dict:
+    package_set = normalize_package_set(params.get("package_set"))
+    out_dir = params.get("output_package_dir")
+    if not out_dir:
+        raise ValueError("sign with package_set requires 'output_package_dir'")
+    out_dir = os.path.abspath(out_dir)
+    if os.path.exists(out_dir):
+        raise FileExistsError(f"output_package_dir already exists: {out_dir} (overwriting existing outputs is not permitted)")
+
+    base_in = package_set["base"]
+    splits_in = package_set["splits"]
+
+    sem_res = validate_package_set_semantics(package_set)
+    if not sem_res["ok"]:
+        raise ValueError(f"Package set semantic validation failed: {sem_res['error']}")
+
+    dest_parent = os.path.dirname(out_dir)
+    if dest_parent:
+        os.makedirs(dest_parent, exist_ok=True)
+    stage_dir = tempfile.mkdtemp(dir=dest_parent, prefix=".apk_set_sign_stage_")
+
+    try:
+        staged_base = os.path.join(stage_dir, "base.apk")
+        base_params = dict(params)
+        base_params.pop("package_set", None)
+        base_params["path"] = base_in
+        base_params["output_path"] = staged_base
+        base_sign = handle_sign(base_params)
+        split_signs = {}
+        for s_name, s_path in splits_in.items():
+            staged_s = os.path.join(stage_dir, f"{s_name}.apk")
+            s_params = dict(params)
+            s_params.pop("package_set", None)
+            s_params["path"] = s_path
+            s_params["output_path"] = staged_s
+            split_signs[s_name] = handle_sign(s_params)
+
+        base_fps = base_sign.get("cert_fingerprints") or []
+        if not base_fps:
+            raise ValueError("Base APK sign result missing certificate fingerprints")
+        for s_name, s_res in split_signs.items():
+            s_fps = s_res.get("cert_fingerprints") or []
+            if sorted(base_fps) != sorted(s_fps):
+                raise ValueError(f"Signer certificate mismatch between base and split '{s_name}': {base_fps} vs {s_fps}")
+
+        members = []
+        base_sha = compute_file_sha256(staged_base)
+        members.append({
+            "name": "base",
+            "filename": "base.apk",
+            "size": os.path.getsize(staged_base),
+            "sha256": base_sha,
+            "signed": True,
+            "cert_fingerprints": base_fps,
+        })
+        for s_name in sorted(split_signs.keys()):
+            staged_s = os.path.join(stage_dir, f"{s_name}.apk")
+            s_sha = compute_file_sha256(staged_s)
+            members.append({
+                "name": s_name,
+                "filename": f"{s_name}.apk",
+                "size": os.path.getsize(staged_s),
+                "sha256": s_sha,
+                "signed": True,
+                "cert_fingerprints": split_signs[s_name].get("cert_fingerprints") or [],
+            })
+
+        set_sha256 = compute_package_set_sha256(members)
+        manifest_data = {
+            "format": "apk_package_set",
+            "package": sem_res["package"],
+            "versionCode": sem_res["versionCode"],
+            "set_sha256": set_sha256,
+            "members": members,
+            "signed": True,
+        }
+
+        manifest_stage_path = os.path.join(stage_dir, "package-set.json")
+        with open(manifest_stage_path, "w", encoding="utf-8") as mf:
+            json.dump(manifest_data, mf, indent=2)
+
+        os.makedirs(out_dir, exist_ok=False)
+        try:
+            publish_file_exclusive(staged_base, os.path.join(out_dir, "base.apk"))
+            for s_name in split_signs.keys():
+                publish_file_exclusive(os.path.join(stage_dir, f"{s_name}.apk"), os.path.join(out_dir, f"{s_name}.apk"))
+            publish_file_exclusive(manifest_stage_path, os.path.join(out_dir, "package-set.json"))
+        except Exception:
+            shutil.rmtree(out_dir, ignore_errors=True)
+            raise
+        base_sign["output_path"] = os.path.join(out_dir, "base.apk")
+        for s_name in split_signs:
+            split_signs[s_name]["output_path"] = os.path.join(out_dir, f"{s_name}.apk")
+
+        return {
+            "action": "sign",
+            "status": "ok",
+            "is_package_set": True,
+            "output_package_dir": out_dir,
+            "manifest_path": os.path.join(out_dir, "package-set.json"),
+            "set_sha256": set_sha256,
+            "package": sem_res["package"],
+            "versionCode": sem_res["versionCode"],
+            "base": base_sign,
+            "splits": split_signs,
+            "members": members,
+            "signed": True,
+            "cert_fingerprints": base_fps,
+        }
+    finally:
+        shutil.rmtree(stage_dir, ignore_errors=True)
+
+
+def handle_package_set_verify(params: dict) -> dict:
+    package_set = normalize_package_set(params.get("package_set"))
+    base_in = package_set["base"]
+    splits_in = package_set["splits"]
+
+    sem_res = validate_package_set_semantics(package_set)
+
+    base_params = dict(params)
+    base_params.pop("package_set", None)
+    base_params["path"] = base_in
+    base_ver = handle_verify(base_params)
+
+    split_vers = {}
+    for s_name, s_path in splits_in.items():
+        s_params = dict(params)
+        s_params.pop("package_set", None)
+        s_params["path"] = s_path
+        split_vers[s_name] = handle_verify(s_params)
+
+    all_members = [("base", base_ver)] + [(s, v) for s, v in split_vers.items()]
+
+    alignment_ok = all(v.get("alignment", {}).get("ok", False) for _, v in all_members)
+    container_ok = all(v.get("status") != "corrupt_archive" for _, v in all_members)
+
+    sig_tools_avail = all(v.get("signature", {}).get("tool_available", False) for _, v in all_members)
+    sig_verified = all(v.get("signature", {}).get("verified", False) for _, v in all_members)
+
+    base_fps = base_ver.get("signature", {}).get("cert_fingerprints") or []
+    signer_match = False
+    signer_mismatch_reason = None
+    if not sig_tools_avail:
+        signer_mismatch_reason = "Signature verification tools unavailable (apksigner missing); signer certificates could not be verified"
+    elif not sig_verified:
+        signer_mismatch_reason = "Signature verification failed on one or more package members"
+    elif not base_fps:
+        signer_mismatch_reason = "Base APK has no verified certificate fingerprints"
+    else:
+        signer_match = True
+        for s_name, s_ver in split_vers.items():
+            s_fps = s_ver.get("signature", {}).get("cert_fingerprints") or []
+            if not s_fps or sorted(base_fps) != sorted(s_fps):
+                signer_match = False
+                signer_mismatch_reason = f"Signer certificate mismatch between base and split '{s_name}': {base_fps} vs {s_fps}"
+                break
+
+    members = []
+    base_sha = compute_file_sha256(base_in)
+    members.append({
+        "name": "base",
+        "path": base_in,
+        "size": os.path.getsize(base_in),
+        "sha256": base_sha,
+        "verified": base_ver.get("verified", False),
+        "alignment_ok": base_ver.get("alignment", {}).get("ok", False),
+        "signature_verified": base_ver.get("signature", {}).get("verified", False),
+    })
+    for s_name in sorted(split_vers.keys()):
+        sp = splits_in[s_name]
+        s_sha = compute_file_sha256(sp)
+        members.append({
+            "name": s_name,
+            "path": sp,
+            "size": os.path.getsize(sp),
+            "sha256": s_sha,
+            "verified": split_vers[s_name].get("verified", False),
+            "alignment_ok": split_vers[s_name].get("alignment", {}).get("ok", False),
+            "signature_verified": split_vers[s_name].get("signature", {}).get("verified", False),
+        })
+
+    set_sha256 = compute_package_set_sha256(members)
+
+    overall_ok = (
+        sem_res.get("ok", False)
+        and alignment_ok
+        and container_ok
+        and sig_tools_avail
+        and sig_verified
+        and signer_match
+    )
+
+    status = "ok" if overall_ok else "unverified_or_failed"
+    if not container_ok:
+        status = "corrupt_archive"
+
+    return {
+        "action": "verify",
+        "status": status,
+        "is_package_set": True,
+        "set_sha256": set_sha256,
+        "package": sem_res.get("package"),
+        "versionCode": sem_res.get("versionCode"),
+        "semantic_validation": sem_res,
+        "alignment_ok": alignment_ok,
+        "signatures_verified": sig_verified and signer_match,
+        "signer_match": signer_match,
+        "signer_mismatch_reason": signer_mismatch_reason,
+        "base": base_ver,
+        "splits": split_vers,
+        "members": members,
+        "verified": overall_ok,
+    }
+
+
+def handle_package_set_install_verify(params: dict) -> dict:
+    package_set = normalize_package_set(params.get("package_set"))
+    package = params.get("package") or params.get("package_name")
+    activity = params.get("activity")
+    serial = params.get("serial")
+
+    if not package:
+        raise ValueError("install_verify requires 'package'")
+    if not activity:
+        raise ValueError("install_verify requires 'activity'")
+    if not serial:
+        raise ValueError("install_verify requires explicit 'serial' (selecting an implicit device is not permitted)")
+
+    if not PACKAGE_REGEX.match(package):
+        raise ValueError(f"Invalid Android package name format: '{package}'")
+    if not ACTIVITY_REGEX.match(activity):
+        raise ValueError(f"Invalid Android activity component format: '{activity}'")
+
+    base_in = package_set["base"]
+    splits_in = package_set["splits"]
+
+    all_local_members = {"base": (base_in, compute_file_sha256(base_in))}
+    for s_name, sp in splits_in.items():
+        all_local_members[s_name] = (sp, compute_file_sha256(sp))
+    # Prevalidate semantics (package name, version code consistency) before touching device
+    sem_res = validate_package_set_semantics(package_set)
+    if not sem_res["ok"]:
+        raise RuntimeError(f"Pre-install semantic validation failed for package set: {sem_res['error']}")
+    if sem_res.get("package") != package:
+        raise RuntimeError(
+            f"Target package parameter '{package}' does not match package declared in package set manifest '{sem_res.get('package')}'"
+        )
+
+
+    output_dir = params.get("output_dir")
+    if output_dir:
+        output_dir = os.path.abspath(output_dir)
+        if os.path.exists(output_dir):
+            raise FileExistsError(f"output_dir already exists: {output_dir} (fresh directory required)")
+        os.makedirs(output_dir, exist_ok=False)
+
+    shot_path = params.get("screenshot_path")
+    if not shot_path and output_dir:
+        shot_path = os.path.join(output_dir, f"{package}_screenshot.png")
+    if shot_path:
+        shot_path = os.path.abspath(shot_path)
+        if os.path.exists(shot_path):
+            raise FileExistsError(f"Screenshot path already exists: {shot_path} (overwriting is not permitted)")
+        os.makedirs(os.path.dirname(shot_path), exist_ok=True)
+
+    adb = resolve_tool_path("adb", params.get("adb_path"))
+    if not adb:
+        raise RuntimeError("adb tool not found on PATH. Install Android platform-tools to enable on-device verification.")
+    adb_base = [adb, "-s", serial]
+
+    dev_res = subprocess.run([adb, "devices"], capture_output=True, text=True)
+    if dev_res.returncode != 0:
+        raise RuntimeError(f"adb devices failed: {dev_res.stderr or dev_res.stdout}")
+    device_found = False
+    for line in dev_res.stdout.splitlines():
+        parts = line.strip().split()
+        if len(parts) >= 2 and parts[0] == serial:
+            if parts[1] == "device":
+                device_found = True
+                break
+            else:
+                raise RuntimeError(f"Target device {serial} is connected but in '{parts[1]}' state (not 'device').")
+    if not device_found:
+        raise RuntimeError(f"Target device serial '{serial}' not found in active adb devices.")
+
+    install_apks = [base_in] + [splits_in[k] for k in sorted(splits_in.keys())]
+    eprint(f"[install_verify] Installing split APK package set ({len(install_apks)} APKs) on device {serial}...")
+    install_cmd = adb_base + ["install-multiple", "-r", "-t"] + install_apks
+    i_res = subprocess.run(install_cmd, capture_output=True, text=True)
+    i_out = (i_res.stdout or "") + (i_res.stderr or "")
+    if i_res.returncode != 0 or "Success" not in i_out:
+        raise RuntimeError(f"adb install-multiple failed (rc={i_res.returncode}):\n{i_out.strip()}")
+
+    eprint(f"[install_verify] Verifying installed package set build identity for {package}...")
+    pm_path_res = subprocess.run(adb_base + ["shell", "pm", "path", package], capture_output=True, text=True)
+    if pm_path_res.returncode != 0:
+        raise RuntimeError(f"adb shell pm path {package} failed: {pm_path_res.stderr or pm_path_res.stdout}")
+    pm_lines = [ln.strip() for ln in pm_path_res.stdout.splitlines() if ln.startswith("package:")]
+    if not pm_lines:
+        raise RuntimeError(f"Package {package} not found on device after installation.")
+
+    temp_pull_dir = tempfile.mkdtemp(prefix="apk_verify_pull_set_")
+    try:
+        device_members = []
+        for idx, pl in enumerate(pm_lines):
+            remote_p = pl.split("package:", 1)[1].strip()
+            pulled_apk = os.path.join(temp_pull_dir, f"device_{idx}.apk")
+            pull_res = subprocess.run(adb_base + ["pull", remote_p, pulled_apk], capture_output=True, text=True)
+            if pull_res.returncode != 0 or not os.path.exists(pulled_apk):
+                raise RuntimeError(f"Failed to pull installed APK from device ({remote_p}): {pull_res.stderr}")
+            d_sha = compute_file_sha256(pulled_apk)
+            device_members.append({"remote_path": remote_p, "sha256": d_sha})
+
+        from collections import Counter
+        local_counts = Counter(sha for _, sha in all_local_members.values())
+        device_counts = Counter(d["sha256"] for d in device_members)
+
+        if local_counts != device_counts:
+            missing_diff = local_counts - device_counts
+            extra_diff = device_counts - local_counts
+            reasons = []
+            if missing_diff:
+                reasons.append(f"missing member hashes: {dict(missing_diff)}")
+            if extra_diff:
+                reasons.append(f"unexpected extra device hashes: {dict(extra_diff)}")
+            raise RuntimeError(
+                f"Installed package set hash multiset mismatch on device: {'; '.join(reasons)}. "
+                f"Local member count: {len(all_local_members)}, device installed APK count: {len(device_members)}."
+            )
+
+        matched_members = []
+        for name, (l_path, l_sha) in all_local_members.items():
+            matching_device = next(d for d in device_members if d["sha256"] == l_sha)
+            matched_members.append({
+                "name": name,
+                "local_path": l_path,
+                "local_sha256": l_sha,
+                "device_sha256": l_sha,
+                "remote_path": matching_device["remote_path"],
+                "verified": True,
+            })
+    finally:
+        shutil.rmtree(temp_pull_dir, ignore_errors=True)
+
+    for perm in params.get("grant_permissions", []):
+        if not PERMISSION_REGEX.match(perm):
+            raise ValueError(f"Invalid permission name format: '{perm}'")
+        p_name = perm if perm.startswith("android.permission.") else f"android.permission.{perm}"
+        subprocess.run(adb_base + ["shell", "pm", "grant", package, p_name], capture_output=True)
+
+    subprocess.run(adb_base + ["shell", "am", "force-stop", package], capture_output=True)
+    time.sleep(1)
+
+    comp = f"{package}/{activity}" if (activity.startswith(".") or "." in activity) else f"{package}/.{activity}"
+    eprint(f"[install_verify] Launching {comp} with am start -W...")
+    launch_res = subprocess.run(adb_base + ["shell", "am", "start", "-W", "-n", comp], capture_output=True, text=True)
+    launch_out = (launch_res.stdout or "") + (launch_res.stderr or "")
+    if launch_res.returncode != 0 or "Error:" in launch_out or "Exception:" in launch_out:
+        raise RuntimeError(f"am start -W failed to launch {comp}:\n{launch_out.strip()}")
+
+    time.sleep(3)
+    wait_time = int(params.get("wait_seconds") or 10)
+    pid1_res = subprocess.run(adb_base + ["shell", "pidof", package], capture_output=True, text=True)
+    p1 = pid1_res.stdout.strip().split()
+    time.sleep(wait_time)
+    pid2_res = subprocess.run(adb_base + ["shell", "pidof", package], capture_output=True, text=True)
+    p2 = pid2_res.stdout.strip().split()
+
+    pid1 = p1[0] if p1 else None
+    pid2 = p2[0] if p2 else None
+    if not pid1 or not pid2:
+        launch_status = "crash_on_launch"
+    elif pid1 != pid2:
+        launch_status = "crash_loop"
+    else:
+        launch_status = "stable"
+
+    focus_res = subprocess.run(adb_base + ["shell", "dumpsys", "window"], capture_output=True, text=True)
+    focus_lines = [ln.strip() for ln in focus_res.stdout.splitlines() if "mCurrentFocus" in ln or "mFocusedApp" in ln]
+    focus_info = " | ".join(focus_lines)
+
+    screenshot_saved = None
+    if shot_path:
+        shot_res = subprocess.run(adb_base + ["exec-out", "screencap", "-p"], capture_output=True)
+        if shot_res.returncode != 0 or len(shot_res.stdout) < 8 or not shot_res.stdout.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError(f"Failed to capture screenshot via adb exec-out screencap -p: returncode={shot_res.returncode}")
+        with open(shot_path, "xb") as sf:
+            sf.write(shot_res.stdout)
+        screenshot_saved = shot_path
+
+    fatal_hits = []
+    log_saved = None
+    logcat_ok = True
+    if pid1:
+        log_res = subprocess.run(adb_base + ["shell", "logcat", "-d", f"--pid={pid1}", "-v", "brief"], capture_output=True, text=True)
+        if log_res.returncode != 0:
+            logcat_ok = False
+        log_content = log_res.stdout or ""
+        fatal_regex = re.compile(r"FATAL EXCEPTION|SIGSEGV|SIGBUS|AndroidRuntime: FATAL|art.*art_sigsegv", re.I)
+        fatal_hits = [ln for ln in log_content.splitlines() if fatal_regex.search(ln)]
+        if output_dir:
+            log_file = os.path.join(output_dir, f"{package}_pid_{pid1}.log")
+            with open(log_file, "x", encoding="utf-8") as lf:
+                lf.write(log_content)
+            log_saved = log_file
+
+    is_healthy = (launch_status == "stable") and logcat_ok and (len(fatal_hits) == 0)
+    if launch_status == "stable":
+        notice_text = (
+            "Process launched and remained stable across 2 PID samples, but launch stability is NOT proof "
+            "that modified features work correctly. Manual or targeted functional testing is required to "
+            "verify actual patched feature behavior."
+        )
+    else:
+        notice_text = f"Process failed launch stability check ({launch_status}). On-device launch was unstable or crashed."
+
+    return {
+        "action": "install_verify",
+        "status": "ok" if is_healthy else "launch_failed_or_crashed",
+        "is_package_set": True,
+        "package": package,
+        "activity": activity,
+        "device_serial": serial,
+        "hash_verified": True,
+        "matched_members": matched_members,
+        "launch_status": launch_status,
+        "pid_sample_1": pid1,
+        "pid_sample_2": pid2,
+        "focus": focus_info,
+        "fatal_signatures": fatal_hits[:20],
+        "screenshot_path": screenshot_saved,
+        "log_path": log_saved,
+        "logcat_status": "ok" if logcat_ok else "failed",
+        "feature_verified": False,
+        "notice": notice_text,
+    }
+
+# ============================================================================
 # Action: diff
 # ============================================================================
 
 def handle_diff(params: dict) -> dict:
+    if "original_package_set" in params or ("package_set" in params and "modified_package_set" in params):
+        return handle_package_set_diff(params)
+
     original_path = params.get("original_path") or params.get("path_a") or params.get("path")
     modified_path = params.get("modified_path") or params.get("path_b")
 
@@ -525,6 +1536,9 @@ def handle_diff(params: dict) -> dict:
 # ============================================================================
 
 def handle_repack(params: dict) -> dict:
+    if "package_set" in params:
+        return handle_package_set_repack(params)
+
     apk_path = params.get("path") or params.get("input_path")
     out_path = params.get("output_path") or params.get("out_apk")
 
@@ -718,31 +1732,12 @@ def handle_repack(params: dict) -> dict:
 # Action: sign
 # ============================================================================
 
-def resolve_tool_path(name: str, explicit: str | None = None) -> str | None:
-    if explicit:
-        p = os.path.abspath(explicit)
-        if os.path.exists(p):
-            return p
-    found = shutil.which(name)
-    if found:
-        return found
-    sdk_roots = [os.environ.get("ANDROID_HOME"), os.environ.get("ANDROID_SDK_ROOT")]
-    for root in sdk_roots:
-        if root and os.path.isdir(root):
-            bt = os.path.join(root, "build-tools")
-            if os.path.isdir(bt):
-                for ver in sorted(os.listdir(bt), reverse=True):
-                    cand = os.path.join(bt, ver, name)
-                    if os.path.exists(cand):
-                        return cand
-                    if name == "apksigner":
-                        cand_jar = os.path.join(bt, ver, "lib", "apksigner.jar")
-                        if os.path.exists(cand_jar):
-                            return cand_jar
-    return None
 
 
 def handle_sign(params: dict) -> dict:
+    if "package_set" in params:
+        return handle_package_set_sign(params)
+
     apk_path = params.get("path") or params.get("input_path")
     out_path = params.get("output_path") or params.get("out_apk")
 
@@ -909,6 +1904,9 @@ def handle_sign(params: dict) -> dict:
 # ============================================================================
 
 def handle_verify(params: dict) -> dict:
+    if "package_set" in params:
+        return handle_package_set_verify(params)
+
     apk_path = params.get("path")
     if not apk_path:
         raise ValueError("verify requires 'path'")
@@ -1053,6 +2051,9 @@ def handle_verify(params: dict) -> dict:
 # ============================================================================
 
 def handle_install_verify(params: dict) -> dict:
+    if "package_set" in params:
+        return handle_package_set_install_verify(params)
+
     apk_path = params.get("path") or params.get("apk_path")
     package = params.get("package") or params.get("package_name")
     activity = params.get("activity")
@@ -1138,17 +2139,12 @@ def handle_install_verify(params: dict) -> dict:
     if not pm_lines:
         raise RuntimeError(f"Package {package} not found on device after installation.")
 
-    base_pkg_line = None
     if len(pm_lines) > 1:
-        for pl in pm_lines:
-            remote_p = pl.split("package:", 1)[1].strip()
-            if remote_p.endswith("base.apk"):
-                base_pkg_line = remote_p
-                break
-        if not base_pkg_line:
-            raise RuntimeError(f"Split package detected ({len(pm_lines)} APKs) and standalone base APK cannot be identified.")
-    else:
-        base_pkg_line = pm_lines[0].split("package:", 1)[1].strip()
+        raise RuntimeError(
+            f"Split package detected on device ({len(pm_lines)} APKs) but single standalone APK was expected. "
+            "Extra device APK members violate installation verification."
+        )
+    base_pkg_line = pm_lines[0].split("package:", 1)[1].strip()
 
     temp_pull_dir = tempfile.mkdtemp(prefix="apk_verify_pull_")
     try:

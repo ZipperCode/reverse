@@ -24,6 +24,9 @@
 - Extended Unidbg harnesses with APK binding, explicit JNI environment overrides, upstream array/object wrappers, mutated argument inspection, and no-device ARM32/ARM64 registration probes with separate evidence artifacts.
 - Added `elf_inspect` backed by LIEF for deep ELF queries, bounded Frida module dumps with provenance manifests, and external SoFixer reconstruction with architecture and structural validation. Dump and companion-manifest publication both refuse existing files and symlinks; generic SoFixer executables only satisfy 64-bit requests. Added optional external Ghidra FindCrypt candidate analysis.
 - Added trusted `lief`, `sofixer`, and `ghidra-findcrypt` installation actions to CLI and interactive TUI setup, with Chinese guidance and prerequisite-specific capability readiness; native workflows compose discovery, enrichment, tracing, and experimental verification without treating ordinary shared libraries as Android targets.
+- Added `app_experiment` for explicitly scoped component/provider/storage/WebView experiments, credential-reference HTTP replay, session-owned bounded proxy capture, and non-bypassing TLS check observations.
+- Added `runtime_analyze` and managed CLI/TUI setup for Hermes, Il2CppDumper, and Blutter, with bytecode/version gates, module/ABI pairing, isolated outputs, and exact prebuilt Dart VM selection.
+- Extended `apk_artifact` with explicit split APK sets, per-member replacements, common-signer verification, installed hash-multiset checks, and package-member-aware cumulative lineage with whole-set drift detection.
 
 ### Changed
 
@@ -34,10 +37,13 @@
 - Completed the canonical `reverse` identity across environment variables, native UI roles, browser relay and HTML export, worker dispatch, and `reverse://` documentation URLs; the schema package is now `@reverse/reversetype` with `ReverseError` types.
 - Recordings now use `.reversecast` and a `reversecast` header, native plugin manifests use `.reverse-plugin`, and optional SQL session storage defaults to `reverse_session_files`. Existing files and databases are left untouched; previous recording formats and default SQL tables are not automatically migrated.
 - Reverse workflows now distinguish MCP configuration, connection, discovery, target binding, and concrete execution; APK delivery reports build, installation, launch, UI, input, navigation, and target behavior separately.
+- Reverse skills now share one canonical source and autoload by target and analysis method; recovery returns executable parameters, prerequisites, capability depth, and remaining verification boundaries.
 
 ### Fixed
 
 - Fixed reverse setup stalls by sharing one toolchain inspection across each CLI batch plan and TUI menu round; subsequent rounds and post-install checks refresh dependency status.
+- Separated dependency presence, runtime compatibility, launch prerequisites, connected sessions, target bindings, and observed execution in reverse readiness; added scoped CLI discovery and preserved complete fallback dependency snapshots.
+- Unified XML/AXML application security metadata, permission resets, exported/enabled uncertainty, Deep Link constraints, and inherited network-security-config policies; aligned artifact writes and process/device actions with read/write/exec approval.
 - Fixed native IDA readiness to check bounded `idapro`/`ida_domain` imports in the selected worker Python environment, distinguish missing packages from interpreter/version/import failures, and offer confirmed interpreter-specific `ida-domain==0.5.1` repair with post-install checks through both CLI and TUI setup (#5).
 - Completed `native_mcp_session` and `unidbg` tool reference pages, restored package formatting compliance, and removed unused interactive/fixture bindings so documentation coverage and the package check gate pass.
 - Fixed default Ghidra decompilation and export to execute an embedded headless script and validate bounded UTF-8 results instead of treating analysis logs as pseudocode; missing dependencies route through setup.

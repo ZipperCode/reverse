@@ -41,8 +41,6 @@ export const ALLOWLISTED_LOW_RISK_TOOLS: readonly string[] = [
 	"grep",
 	"evidence",
 	"reverse_dynamic_evidence",
-	"android_native_workflow",
-	"reverse_capability",
 ];
 
 /**
@@ -69,16 +67,32 @@ export interface StepRiskAssessment {
 	risk_level: "low" | "high" | "dynamic";
 	reason: string;
 }
+function extractStepAction(step: WorkflowStepRecord): string {
+	if (typeof step.params_summary === "object" && step.params_summary !== null) {
+		return String((step.params_summary as Record<string, unknown>).action ?? "")
+			.toLowerCase()
+			.trim();
+	}
+	if (typeof step.params_summary === "string") {
+		try {
+			const parsed = JSON.parse(step.params_summary);
+			if (typeof parsed === "object" && parsed !== null && "action" in parsed) {
+				return String(parsed.action ?? "")
+					.toLowerCase()
+					.trim();
+			}
+		} catch {
+			// non-JSON string
+		}
+	}
+	return "";
+}
 
 export function assessStepRisk(step: WorkflowStepRecord): StepRiskAssessment {
 	const tool = (step.tool ?? "").trim().toLowerCase();
 
 	if (tool === "elf_inspect") {
-		const summary =
-			typeof step.params_summary === "object" && step.params_summary !== null ? step.params_summary : undefined;
-		const action = String(summary?.action ?? "")
-			.toLowerCase()
-			.trim();
+		const action = extractStepAction(step);
 		if (action === "query" || action === "status") {
 			return {
 				is_low_risk: true,
@@ -94,6 +108,48 @@ export function assessStepRisk(step: WorkflowStepRecord): StepRiskAssessment {
 			gate: step.gate,
 			risk_level: "dynamic",
 			reason: `Tool 'elf_inspect' with action '${action || "unknown"}' requires explicit execution authorization. Auto progression halted; step remains pending manual decision.`,
+		};
+	}
+	// 动作级别细粒度风险判定：防止仅凭工具名匹配白名单导致具有写操作或环境副作用的动作
+	// （如 android_native_workflow 的 extract 解压写文件、reverse_capability 的 install 安装/配置服务）
+	// 被误判为 low-risk 而在 auto-progression 中被静默自动执行。只有明确列入白名单的只读动作才允许通过。
+	if (tool === "android_native_workflow") {
+		const action = extractStepAction(step);
+		if (action === "inspect" || action === "plan" || action === "status") {
+			return {
+				is_low_risk: true,
+				tool: step.tool,
+				gate: step.gate,
+				risk_level: "low",
+				reason: `Tool 'android_native_workflow' (action: '${action}') is an allowlisted read-only static Android inspection tool (${step.gate}).`,
+			};
+		}
+		return {
+			is_low_risk: false,
+			tool: step.tool,
+			gate: step.gate,
+			risk_level: "high",
+			reason: `Tool 'android_native_workflow' with action '${action || "unknown"}' requires explicit execution authorization. Auto progression halted; step remains pending manual decision.`,
+		};
+	}
+
+	if (tool === "reverse_capability") {
+		const action = extractStepAction(step);
+		if (action === "list" || action === "resolve" || action === "status" || action === "get") {
+			return {
+				is_low_risk: true,
+				tool: step.tool,
+				gate: step.gate,
+				risk_level: "low",
+				reason: `Tool 'reverse_capability' (action: '${action}') is an allowlisted read-only capability query tool (${step.gate}).`,
+			};
+		}
+		return {
+			is_low_risk: false,
+			tool: step.tool,
+			gate: step.gate,
+			risk_level: "high",
+			reason: `Tool 'reverse_capability' with action '${action || "unknown"}' requires explicit execution authorization. Auto progression halted; step remains pending manual decision.`,
 		};
 	}
 

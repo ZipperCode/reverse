@@ -39,6 +39,8 @@ Skill 是模型可读的逆向方法论和决策约束，位于 `.agents/skills/
 
 Skill 不直接维护持久化状态，不实现解析器，不拼接任意 shell 命令，不把工具输出当作已验证结论。
 
+项目内逆向 Skill 通过 `.agents/skills/` 符号链接指向包内资源，源码与安装包共用一个维护来源。子任务按目标和方法选择技能：APK/DEX 选择 Android，明确 JNI/native 线索再加入 native，HAR/API/鉴权实验选择 Web 协议；显式 `autoloadSkills` 保留调用者选择。交接包含样本摘要、目标定位、观察、假设、实验与剩余验收条件。
+
 推荐 Skill 族：
 
 | Skill | 职责 |
@@ -168,6 +170,14 @@ Unidbg 是 Runtime Controller，不是 Skill。Skill 只决定何时使用、需
 
 静态 JNI 检查仅将已定义、可见的 ELF 函数导出与 DEX native 声明匹配；`JNI_OnLoad`、`RegisterNatives` 和原始字符串仅提供调查线索。动态注册尚未观测时，方法保持 `unresolved`，不归属到候选 SO。
 
+### 应用安全实验与运行时路由
+
+- `android_package_inspect` 统一解析明文 XML 与二进制 AXML，保留组件权限继承、显式空权限、导出和启用三态、Deep Link 数据约束及网络安全配置继承。资源引用或截断数据保留未知状态，静态攻击面进入实验候选。
+- `app_experiment` 执行显式设备/包范围内的组件调用、Provider 查询、`run-as` 提取、WebView 转发、TLS 校验观测与代理捕获。网络重放使用精确 origin 白名单、凭据文件/环境变量引用、预校验全部变体、手动重定向和有界响应；截断正文比较返回未知。观测保持 `pending_verification`，业务影响另行验收。
+- 代理会话复用现有销毁/切换回调，维护自身进程、端口及代理配置所有权；设备设置仅在当前值仍匹配时恢复。超时和流量文件监控终止自身进程，失败的设备清理保留重试信息。
+- `runtime_analyze` 按实际格式组合 Hermes、Il2CppDumper、Blutter：检查字节码版本、二进制/元数据配对、模块与 ABI、Dart VM 版本。匹配的 Blutter 预编译后端缺失时返回 `backend_build_required`。四类外部工具通过现有 CLI/TUI 受管安装入口配置。
+- 能力状态分别记录依赖存在、版本兼容、可启动、会话连接、目标绑定及实际执行；APK 基础解析与 Java/smali 阶段独立计算。`setup reverse --capability/--category/--tool` 只检查所选依赖闭包；静态回退返回具体参数、能力深度与剩余验收条件。
+
 ### JNI 语义与原生库实验闭环
 
 原生库增强复用既有会话与开源引擎：Unidbg 负责模拟执行，Frida 与 MIT `jnitrace-engine` 负责有界 JNI 观测，Ghidra 负责类型应用和反编译，LIEF 负责深层 ELF 查询，外部 FindCrypt 与 SoFixer 分别提供密码常数候选和转储修复候选。独立模拟器、平行 MCP 桥接和第二套 ELF 修复算法不在本实现中。
@@ -188,6 +198,7 @@ Unidbg 是 Runtime Controller，不是 Skill。Skill 只决定何时使用、需
 - `apk_artifact`：按条目哈希与布局差分，支持 `dex_files` 与任意条目替换 `replace_files`（二者重叠定义将被严格拒绝），保留嵌套 `META-INF` 运行时资源，处理资源 4 字节和 native 库 16KiB 包内对齐；调用 zipalign 后签名，再执行 apksigner 验证。从干净原始基准或早先衍生版本重打包时，必须保留所有已验证的累积基准补丁（确定性 A + B 重放），或附带强制原因显式退役补丁（`retire_patch`）。产物在目标文件系统执行私有暂存并原子独占发布（`link` 或 `COPYFILE_EXCL`）；若后续工作流衍生版本登记失败，将自动执行回滚删除以保护谱系所有权。现有密钥库和环境变量/受保护文件凭证由调用方提供。
 - 能力解析区分离线 Python、完整签名依赖和设备主机依赖；静态目录检查保持设备连接状态未验证。依赖统一经过现有 CLI/TUI 工具安装目录。
 - 设备校验明确指定 serial，比较已安装 APK 与本地产物 SHA-256，采集启动状态、进程日志和截图；目标功能验证单独记录。产物哈希和补丁坐标接入现有 `reverse_workflow` 构建谱系与证据体系。
+- Split APK 使用 `{ base, splits }` 显式集合，支持逐成员差分、替换、签名、安装与哈希核对。`package-set.json` 保存成员摘要，物理清单摘要与集合摘要分别记录；每次验证重查全体成员，包括无补丁构建。补丁使用 `package_member` 与包内 `member_path` 两级坐标。发布时先独占目录和所有权令牌，再链接成员，最后发布清单；受控读取拒绝未完成的发布目录。回滚仅删除身份仍匹配的本次产物。
 
 使用契约见 [dex_patch](tools/dex_patch.md) 与 [apk_artifact](tools/apk_artifact.md)。上游快照为 `bd6dd0c59ce1f9af75f1293ef9518fb6f5d28c6c`，版权及 MIT 许可保留在 `THIRD-PARTY-NOTICES.txt`；实验性内核与硬件模板未纳入稳定工具。
 

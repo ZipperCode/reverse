@@ -161,19 +161,19 @@ export class UnidbgTool implements AgentTool<typeof unidbgSchema, UnidbgToolDeta
 	readonly strict = true;
 	readonly loadMode = "discoverable";
 	readonly approval = (args: unknown): ToolTier => {
-		if (args && typeof args === "object" && "action" in args) {
+		if (args && typeof args === "object" && "action" in args && typeof args.action === "string") {
 			const action = args.action;
-			if (
-				action === "build" ||
-				action === "launch" ||
-				action === "stop" ||
-				action === "scaffold" ||
-				action === "probe"
-			) {
+			if (action === "status") {
+				return "read";
+			}
+			if (action === "scaffold") {
 				return "write";
 			}
+			if (action === "build" || action === "launch" || action === "probe" || action === "stop") {
+				return "exec";
+			}
 		}
-		return "read";
+		return "exec";
 	};
 
 	private readonly sessionAbort = new AbortController();

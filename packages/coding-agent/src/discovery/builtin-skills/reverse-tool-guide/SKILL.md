@@ -9,13 +9,16 @@ MCP helper services are **not PATH binaries**; configure them through the truste
 
 This skill is the canonical capability discovery and operating manual for reverse-engineering tools in `reverse`. It enforces a **skill-first, tool-selective** architecture: skills drive investigation goals, hypothesis generation, and evidence verification, while tools act as modular, single-action executors.
 
-Read this skill when you need to:
-- map an analytical requirement to a recognized reverse capability;
-- choose between built-in native tools and optional external tools;
-- explain why an external tool is recommended, its prerequisites, and its trusted installation path;
-- execute the discover-before-stop and install-then-dispatch workflow with explicit user confirmation;
-- gracefully degrade to native tools or POSIX fallbacks when external tools are unavailable or declined;
-- run a tool with canonical commands, bounded context discipline, and reproducible artifacts.
+### Tool Invocation & Schema Discovery
+Tools in `reverse` are invoked via `write` to `xd://<tool>` with JSON arguments. Prior to dispatch, inspect tool schema, parameter constraints, and required fields using `read xd://<tool>`.
+
+### Five-Tier Readiness Model
+Capabilities evaluate five readiness tiers:
+1. `installed`: Binary or package is present on PATH.
+2. `compatible`: Runtime and version compatibility verified (e.g. JDK8 for Unidbg).
+3. `canStart`: Operational prerequisites satisfied for the selected step; baseline container/manifest/DEX extraction starts immediately.
+4. `runtimeReady`: Active background runner, session, or MCP transport connection is active.
+5. `targetMatched`: Target loaded and verified. No circular gate requiring a live device before tool discovery.
 
 ---
 
@@ -41,6 +44,8 @@ The agent and skills MUST NEVER execute arbitrary shell scripts, inject untruste
 Always present in every `reverse` installation without external package managers, compilers, or PATH binaries. Always consult and prefer native tools first before reaching for external dependencies:
 
 - **`android_package_inspect`**: Complete offline inspection of Android packages (`.apk`, `.aab`, `.apks`) and bare `.dex` files. Parses container trees, DEX headers/classes, binary XML manifests, signing schemes (v1/v2/v3/v3.1), and resources.
+- **`app_experiment`**: Bounded mobile application laboratory experiments via ADB backend (device preflight, benign component invocation, read-only content provider query, run-as sandbox data extract, webview debug, loopback network replay, mitm capture, pinning diagnose).
+- **`runtime_analyze`**: Mobile framework and multi-runtime analyzer (framework inventory, Hermes bytecode disassembly, Unity IL2CPP dumping, Flutter Dart AOT symbol extraction).
 - **`triage`**: Instant binary format identification, header parsing (ELF, PE, Mach-O Thin & Universal), section layouts, stripped status, and Shannon entropy.
 - **`dotnet_inspect`**: Zero-dependency PE/COFF, CLR metadata, streams, types, methods, and CIL bytecode inspection.
 - **`evm_inspect`**: EVM bytecode disassembly, function selector extraction, ERC interface detection, and CBOR metadata parsing.

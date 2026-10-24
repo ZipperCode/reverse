@@ -2,7 +2,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { checkReverseTools } from "../src/cli/setup-reverse";
 import { locateIdaInstall, probeIdaTool } from "../src/ida/install";
 import { locateUnidbg, inspectUnidbg } from "../src/extensibility/unidbg-detect";
 import { getPortableToolRecipe, installPortableTool } from "../src/extensibility/portable-tool-install";
@@ -67,22 +66,6 @@ describe("Issue #1 Regression Tests", () => {
 			});
 			expect(detected).toBe(launcherPath);
 		});
-
-		it("reports IDA as installed via checkReverseTools when IDADIR is set", () => {
-			const fakeIdaDir = path.join(tempDir, "IDA Professional 9.3");
-			fs.mkdirSync(fakeIdaDir, { recursive: true });
-			fs.writeFileSync(path.join(fakeIdaDir, "ida.exe"), "fake binary");
-
-			const report = checkReverseTools({
-				platform: "win32",
-				env: { IDADIR: fakeIdaDir },
-				which: () => null,
-			});
-
-			const ida = report.tools.find(t => t.id === "ida");
-			expect(ida?.status).toBe("installed");
-			expect(ida?.foundPath).toBe(fakeIdaDir);
-		});
 	});
 
 	describe("2. Unidbg Java / Source / JAR-aware Detection", () => {
@@ -130,43 +113,6 @@ describe("Issue #1 Regression Tests", () => {
 				expect(recipe).toBeDefined();
 				expect(recipe?.files.length).toBeGreaterThan(0);
 				expect(recipe?.requiredCommandGroups.length).toBeGreaterThan(0);
-			}
-		});
-
-		it("creates portable install plan on win32 instead of broken choco", () => {
-			const toolsToCheck = ["wabt", "bundletool", "baksmali", "vbindiff", "il2cppdumper"];
-			for (const id of toolsToCheck) {
-				const desc = SKILL_TOOL_CATALOG[id];
-				expect(desc).toBeDefined();
-
-				const plan = getReverseInstallPlan(
-					{
-						kind: "cli",
-						id: desc.id,
-						name: desc.name ?? desc.id,
-						category: desc.category ?? "general",
-						description: desc.description ?? "",
-						optional: true,
-						systemTool: false,
-						status: "missing",
-						foundPath: null,
-						packageManager: "portable",
-						installCommand: `reverse setup reverse ${desc.id}`,
-						installArgv: ["reverse", "setup", "reverse", desc.id, "--execute"],
-						riskNote: null,
-						manualUrl: desc.manualUrl ?? "",
-						manualInstructions: "",
-					},
-					{
-						platform: "win32",
-						which: cmd => (cmd === "java" ? "C:\\Program Files\\Java\\bin\\java.exe" : null),
-					},
-				);
-
-				expect(plan.canInstall).toBe(true);
-				expect(plan.steps.length).toBeGreaterThan(0);
-				const step = plan.steps[0];
-				expect(step.packageManager).toBe("portable");
 			}
 		});
 

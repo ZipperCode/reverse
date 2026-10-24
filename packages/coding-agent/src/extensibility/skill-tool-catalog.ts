@@ -31,9 +31,20 @@ import {
 export { resolveLiefPython, probeLiefRequirement, LIEF_VERSION, LIEF_PYPI_PACKAGE };
 export { resolveSoFixer, normalizeSoFixerArch, canBuildSoFixer, SOFIXER_VERSION };
 export { resolveGhidraFindCrypt, canBuildGhidraFindCrypt, FINDCRYPT_VERSION, FINDCRYPT_ANALYZER_NAME };
+import { resolveBlutter, resolveHbctool, resolveHermesDec, resolveIl2CppDumper } from "./runtime-toolchain";
+export { resolveBlutter, resolveHbctool, resolveHermesDec, resolveIl2CppDumper };
+import {
+	evaluateUnidbgReadiness,
+	evaluateApkUnpackingReadiness,
+	type UnidbgReadiness,
+	type ApkUnpackingReadiness,
+} from "./readiness-evaluator";
+import { validateJdk8 } from "./unidbg-builder";
+export { evaluateUnidbgReadiness, evaluateApkUnpackingReadiness, type UnidbgReadiness, type ApkUnpackingReadiness };
 import type { SkillRequirementWhich } from "./skill-requirements";
 import { getAdapterConfigs, resolveAdapter } from "../dap/config";
 import type { Settings } from "../config/settings";
+import type { ToolSession } from "../tools/index";
 export type SkillToolPlatform = "darwin" | "linux" | "win32";
 
 export type ToolCategory = "android" | "binary" | "decompiler" | "web" | "network" | "system" | "general";
@@ -214,6 +225,35 @@ export interface ReverseCapabilityStatus {
 		offline: { ready: boolean; requiredTools: readonly string[]; missingTools: readonly string[] };
 		dump: { ready: boolean; requiredTools: readonly string[]; missingTools: readonly string[] };
 	};
+	/** Whether the capability execution can be initiated (prerequisites met, even if runtime session not connected). */
+	canStart?: boolean;
+	/** Whether an active runtime session/service/debugger is actively connected and running. */
+	runtimeReady?: boolean;
+	/** Whether tool dependencies meet version compatibility constraints (e.g. JDK 8 for Unidbg). */
+	compatible?: boolean;
+	/** Target binding and actual execution are independent of host and connection readiness. */
+	targetMatched?: boolean | "unknown";
+	executedVerified?: boolean | "unknown";
+	/** APK unpacking pipeline breakdown distinguishing zero-dependency baseline extraction from high-level decompilation. */
+	unpackingStages?: ApkUnpackingReadiness["stages"];
+	/** Unidbg emulation pipeline breakdown distinguishing launch prerequisites from active runtime session. */
+	emulationStages?: {
+		launchPrerequisites: {
+			ready: boolean;
+			canStart: boolean;
+			installed: boolean;
+			compatible: boolean;
+			missingRequirements: readonly string[];
+			error?: string;
+			remedy?: string;
+		};
+		runtimeSession: {
+			connected: boolean;
+			activeHarnessCount: number;
+			serverName?: string;
+			port?: number;
+		};
+	};
 }
 
 /** Options for resolving capability availability on the host system. */
@@ -223,6 +263,20 @@ export interface ResolveCapabilitiesOptions {
 	which?: SkillRequirementWhich;
 	/** Whether the DAP-based 'debug' agent tool is enabled in current session settings (defaults to true). */
 	debugToolEnabled?: boolean;
+	/** Optional filter to restrict resolution to a specific canonical capability ID. */
+	filterCapability?: string;
+	/** Optional filter to restrict resolution to capabilities matching a specific category. */
+	filterCategory?: ToolCategory | string;
+	/** Optional filter to restrict resolution to capabilities associated with a specific tool. */
+	filterTool?: string;
+	/** Current tool session for live runtime state resolution. */
+	session?: ToolSession | object;
+	/** Bypass cached version checks when evaluating environment. */
+	refresh?: boolean;
+	/** Target file or URL for binding inspection. */
+	target?: string;
+	/** Host environment variables. */
+	env?: Record<string, string | undefined>;
 	toolStatuses?: readonly {
 		id: string;
 		name?: string;
@@ -1376,14 +1430,14 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			"Emulate Android ARM32 and ARM64 native JNI libraries (.so) on the host JVM via Maven Java test harness (manual integration required)",
 		optional: true,
 		binaries: [],
-		probe: deps => locateUnidbg(deps),
+		probe: deps => locateUnidbg({ cwd: deps?.cwd, env: deps?.env }),
 		envPaths: [{ env: "UNIDBG_HOME" }, { env: "UNIDBG_ROOT" }, { env: "UNIDBG_JAR" }],
 		searchPaths: {
 			darwin: ["~/.unidbg", "/usr/local/share/unidbg", "~/unidbg", ...UNIX_SEARCH_PATHS],
 			linux: ["~/.unidbg", "/opt/unidbg", "~/unidbg", ...UNIX_SEARCH_PATHS],
 			win32: ["${USERPROFILE}/unidbg", "C:/unidbg", "D:/unidbg", "${ProgramFiles}/unidbg"],
 		},
-		secondary: ["java"],
+		secondary: ["java", "jdk8"],
 		installHints: {
 			darwin: [
 				"git clone https://github.com/zhkl0228/unidbg.git && cd unidbg && ./mvnw -DskipTests package (JDK 8 required)",
@@ -1407,7 +1461,7 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			canonical: "reverse unidbg scaffold <target> --entry <func> && reverse unidbg launch <harness>",
 			whenToUse:
 				"Emulating Android JNI native cryptographic algorithms, token generators, or anti-debug routines on host JVM without an Android device or emulator; or connecting via Unidbg MCP Server.",
-			prerequisites: ["java"],
+			prerequisites: ["jdk8"],
 			outputLimits:
 				"Capture bounded execution traces and returned buffers; avoid full memory block dumps in conversation context.",
 			fallback: "Native ELF triage via readelf/r2_inspect or dynamic device instrumentation via frida_session.",
@@ -1705,28 +1759,48 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 
 	"hermes-dec": {
 		id: "hermes-dec",
-		name: "hermes-dec / hbctool",
+		name: "hermes-dec",
 		category: "web",
 		description: "Disassembler and decompiler for Facebook Hermes JavaScript bytecode",
 		optional: true,
-		binaries: ["hermes-dec", "hbctool"],
+		binaries: ["hbc-disassembler", "hbc-decompiler", "hermes-dec"],
+		probe: deps => resolveHermesDec(deps)?.path ?? null,
 		searchPaths: {
-			darwin: UNIX_SEARCH_PATHS,
-			linux: UNIX_SEARCH_PATHS,
-			win32: ["${APPDATA}/Python/Scripts", "${LOCALAPPDATA}/Programs/Python/Python312/Scripts"],
+			darwin: ["~/.reverse/agent/tools/hermes-dec/bin", ...UNIX_SEARCH_PATHS],
+			linux: ["~/.reverse/agent/tools/hermes-dec/bin", ...UNIX_SEARCH_PATHS],
+			win32: [
+				"${USERPROFILE}/.reverse/agent/tools/hermes-dec/Scripts",
+				"${APPDATA}/Python/Scripts",
+				"${LOCALAPPDATA}/Programs/Python/Python312/Scripts",
+			],
 		},
 		installHints: {
-			darwin: ["git clone https://github.com/P1sec/hermes-dec or install hbctool"],
-			linux: ["git clone https://github.com/P1sec/hermes-dec or install hbctool"],
-			win32: ["git clone https://github.com/P1sec/hermes-dec or install hbctool"],
+			darwin: ["pipx install hermes-dec", "python3 -m pip install hermes-dec"],
+			linux: ["pipx install hermes-dec", "python3 -m pip install hermes-dec"],
+			win32: ["pipx install hermes-dec", "py -m pip install hermes-dec"],
 		},
 		manualUrl: "https://github.com/P1sec/hermes-dec",
 		manualInstructions: {
-			darwin: "Clone https://github.com/P1sec/hermes-dec and build with CMake, or install hbctool via pipx.",
-			linux: "Clone https://github.com/P1sec/hermes-dec and build with CMake, or install hbctool via pipx.",
-			win32: "Clone https://github.com/P1sec/hermes-dec and build with CMake, or install hbctool via pipx.",
+			darwin:
+				"Install hermes-dec via pipx ('pipx install hermes-dec') or pip ('python3 -m pip install hermes-dec').",
+			linux: "Install hermes-dec via pipx ('pipx install hermes-dec') or pip ('python3 -m pip install hermes-dec').",
+			win32: "Install hermes-dec via pipx ('pipx install hermes-dec') or pip ('py -m pip install hermes-dec').",
 		},
 		installCommands: {},
+		usage: {
+			canonical: "hbc-disassembler <target.hbc> <output_dir>",
+			whenToUse: "Disassembling and decompiling Hermes bytecode (HBC) bundles found in React Native apps.",
+			prerequisites: ["python3"],
+			outputLimits:
+				"Direct disassembled output can be large; inspect specific functions or bytecode sections in output_dir.",
+			fallback: "strings or file",
+			examples: [
+				{
+					description: "Disassemble React Native index.android.bundle into instruction stream",
+					command: "hbc-disassembler index.android.bundle ./artifacts/hermes_out",
+				},
+			],
+		},
 	},
 
 	hbctool: {
@@ -1735,11 +1809,20 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		category: "web",
 		description: "Hermes Bytecode disassembler and assembler tool",
 		optional: true,
-		binaries: ["hbctool", "hermes-dec"],
+		binaries: ["hbctool"],
+		probe: deps => resolveHbctool(deps)?.path ?? null,
 		searchPaths: {
-			darwin: UNIX_SEARCH_PATHS,
-			linux: UNIX_SEARCH_PATHS,
-			win32: ["${APPDATA}/Python/Scripts"],
+			darwin: [
+				"~/.reverse/agent/tools/hbctool/bin",
+				"~/.reverse/agent/tools/hbctool/.venv/bin",
+				...UNIX_SEARCH_PATHS,
+			],
+			linux: [
+				"~/.reverse/agent/tools/hbctool/bin",
+				"~/.reverse/agent/tools/hbctool/.venv/bin",
+				...UNIX_SEARCH_PATHS,
+			],
+			win32: ["${USERPROFILE}/.reverse/agent/tools/hbctool/Scripts", "${APPDATA}/Python/Scripts"],
 		},
 		installHints: {
 			darwin: ["pipx install hbctool"],
@@ -1786,15 +1869,26 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		category: "binary",
 		description: "Restore DLL and header files for Unity Il2Cpp binaries",
 		optional: true,
-		binaries: ["Il2CppDumper", "il2cppdumper"],
+		binaries: ["il2cppdumper", "Il2CppDumper", "Il2CppDumper.exe"],
+		probe: deps => resolveIl2CppDumper(deps)?.path ?? null,
 		searchPaths: {
-			darwin: UNIX_SEARCH_PATHS,
-			linux: UNIX_SEARCH_PATHS,
+			darwin: [
+				"~/.reverse/agent/tools/il2cppdumper",
+				"~/.reverse/agent/tools/il2cppdumper/bin",
+				...UNIX_SEARCH_PATHS,
+			],
+			linux: [
+				"~/.reverse/agent/tools/il2cppdumper",
+				"~/.reverse/agent/tools/il2cppdumper/bin",
+				...UNIX_SEARCH_PATHS,
+			],
 			win32: [
 				"${LOCALAPPDATA}/Programs/Il2CppDumper",
 				"~/Il2CppDumper",
 				"${USERPROFILE}/.reverse/agent/tools/Il2CppDumper",
 				"~/.reverse/agent/tools/Il2CppDumper",
+				"${USERPROFILE}/.reverse/agent/tools/il2cppdumper",
+				"${USERPROFILE}/.reverse/agent/tools/il2cppdumper/bin",
 			],
 		},
 		installHints: {
@@ -1818,6 +1912,70 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 					command: "reverse setup reverse il2cppdumper (portable upstream download)",
 					argv: ["reverse", "setup", "reverse", "il2cppdumper", "--execute"],
 					riskNote: "Downloads portable Il2CppDumper release from GitHub into agent tools directory.",
+				},
+			],
+		},
+	},
+
+	blutter: {
+		id: "blutter",
+		name: "Blutter (Flutter Android libapp.so AOT Symbol & Class Recovery)",
+		category: "decompiler",
+		description: "Flutter Android libapp.so AOT reverse engineering and symbol recovery tool",
+		optional: true,
+		binaries: ["blutter", "blutter.py"],
+		probe: deps => resolveBlutter(deps)?.path ?? null,
+		searchPaths: {
+			darwin: [
+				"${HOME}/.reverse/agent/tools/blutter",
+				"~/.reverse/agent/tools/blutter",
+				"~/.blutter",
+				"~/blutter",
+				"/usr/local/share/blutter",
+				...UNIX_SEARCH_PATHS,
+			],
+			linux: [
+				"${HOME}/.reverse/agent/tools/blutter",
+				"~/.reverse/agent/tools/blutter",
+				"~/.blutter",
+				"~/blutter",
+				"/opt/blutter",
+				...UNIX_SEARCH_PATHS,
+			],
+			win32: [
+				"${USERPROFILE}/.reverse/agent/tools/blutter",
+				"${USERPROFILE}/blutter",
+				"C:/blutter",
+				"D:/blutter",
+				"${ProgramFiles}/blutter",
+			],
+		},
+		secondary: ["python3"],
+		installHints: {
+			darwin: ["git clone https://github.com/worawit/blutter ~/.reverse/agent/tools/blutter"],
+			linux: ["git clone https://github.com/worawit/blutter ~/.reverse/agent/tools/blutter"],
+			win32: ["git clone https://github.com/worawit/blutter %USERPROFILE%\\.reverse\\agent\\tools\\blutter"],
+		},
+		manualUrl: "https://github.com/worawit/blutter",
+		manualInstructions: {
+			darwin:
+				"Clone https://github.com/worawit/blutter into ~/.reverse/agent/tools/blutter, install requirements in a virtual environment ('python3 -m venv venv && ./venv/bin/pip install -r requirements.txt'), and run 'python3 blutter.py <indir> <outdir>'. Requires C++20 compiler, cmake, ninja, pkg-config, libicu, libcapstone.",
+			linux: "Clone https://github.com/worawit/blutter into ~/.reverse/agent/tools/blutter, install requirements in a virtual environment ('python3 -m venv venv && ./venv/bin/pip install -r requirements.txt'), and run 'python3 blutter.py <indir> <outdir>'. Requires C++20 compiler, cmake, ninja, pkg-config, libicu, libcapstone.",
+			win32: "Clone https://github.com/worawit/blutter into %USERPROFILE%\\.reverse\\agent\\tools\\blutter, install requirements in a virtual environment ('py -m venv venv && .\\venv\\Scripts\\pip install -r requirements.txt'), and run 'python blutter.py <indir> <outdir>'. Requires MSVC C++20, cmake, ninja, git.",
+		},
+		installCommands: {},
+		usage: {
+			canonical: "python3 blutter.py <libapp_dir> <output_dir>",
+			whenToUse:
+				"Recovering Dart classes, method offsets, and symbol names from Flutter Android libapp.so AOT snapshots.",
+			prerequisites: ["python3"],
+			outputLimits:
+				"Disassembled code can be several hundred megabytes; inspect recovered headers or specific class files in output_dir.",
+			fallback: "r2_inspect or strings",
+			examples: [
+				{
+					description: "Recover symbols and classes from Flutter libapp.so directory",
+					command: "python3 blutter.py ./artifacts/extracted_so/lib/arm64-v8a ./artifacts/blutter_out",
 				},
 			],
 		},
@@ -2532,6 +2690,66 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		},
 	},
 
+	jdk8: {
+		id: "jdk8",
+		name: "Java Development Kit 8 (JDK 8 / 1.8)",
+		category: "system",
+		systemTool: true,
+		description: "Strict JDK 8 environment required by Unidbg native emulation (incompatible with JDK 9+)",
+		optional: true,
+		binaries: [],
+		probe: deps => {
+			const res = validateJdk8(deps?.env?.JAVA_HOME, deps?.env);
+			if (res.valid) {
+				return res.javaHome ?? res.javaBin ?? "jdk8";
+			}
+			return null;
+		},
+		installHints: {
+			darwin: ["brew install --cask temurin@8"],
+			linux: ["apt install -y openjdk-8-jdk"],
+			win32: ["winget install EclipseAdoptium.Temurin.8.JDK", "choco install openjdk8"],
+		},
+		manualUrl: "https://adoptium.net/temurin/releases/?version=8",
+		manualInstructions: {
+			darwin: "Install Eclipse Adoptium Temurin 8 ('brew install --cask temurin@8') and set JAVA_HOME.",
+			linux: "Install OpenJDK 8 ('apt install openjdk-8-jdk') and set JAVA_HOME to /usr/lib/jvm/java-8-openjdk.",
+			win32: "Install Eclipse Adoptium Temurin 8 ('winget install EclipseAdoptium.Temurin.8.JDK') and set JAVA_HOME.",
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "brew",
+					command: "brew install --cask temurin@8",
+					argv: ["brew", "install", "--cask", "temurin@8"],
+					riskNote: "Installs Eclipse Adoptium Temurin JDK 8 via Homebrew Cask.",
+				},
+			],
+			linux: [
+				{
+					manager: "apt",
+					command: "apt install -y openjdk-8-jdk",
+					argv: ["apt", "install", "-y", "openjdk-8-jdk"],
+					riskNote: "Installs OpenJDK 8 via apt. Requires root/sudo.",
+				},
+			],
+			win32: [
+				{
+					manager: "winget",
+					command: "winget install -e --id EclipseAdoptium.Temurin.8.JDK",
+					argv: ["winget", "install", "-e", "--id", "EclipseAdoptium.Temurin.8.JDK"],
+					riskNote: "Installs Eclipse Adoptium Temurin JDK 8 via winget.",
+				},
+				{
+					manager: "choco",
+					command: "choco install -y openjdk8",
+					argv: ["choco", "install", "-y", "openjdk8"],
+					riskNote: "Installs OpenJDK 8 via Chocolatey.",
+				},
+			],
+		},
+	},
+
 	python: {
 		id: "python",
 		name: "Python 3 Runtime",
@@ -3106,7 +3324,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		why: "Bypasses device environment detection, root checks, and emulator restrictions by executing JNI code directly inside a controlled CPU emulation harness.",
 		recommendedNativeTool: "unidbg",
 		optionalExternalTools: ["unidbg"],
-		prerequisites: ["java"],
+		prerequisites: ["jdk8"],
 		fallbacks: ["frida", "readelf", "radare2"],
 		setupCommand: "reverse setup reverse unidbg",
 		postInstallInvocation:
@@ -3122,7 +3340,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 			"Decompiles binary AndroidManifest.xml, decodes resources.arsc, unpacks asset tables, and converts Dalvik DEX bytecode into readable smali assembly or Java high-level source code.",
 		why: "Transforms opaque binary APK packages and optimized DEX files into structured project trees and intelligible source code for vulnerability and protocol analysis.",
 		recommendedNativeTool: "android_package_inspect",
-		optionalExternalTools: ["apktool", "jadx", "baksmali", "dexdump"],
+		optionalExternalTools: ["apktool", "jadx", "droidasc", "baksmali", "dexdump"],
 		prerequisites: ["java"],
 		fallbacks: ["file", "strings"],
 		setupCommand: "reverse setup reverse apktool",
@@ -3478,7 +3696,25 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 
 	const results: ReverseCapabilityStatus[] = [];
 
-	for (const cap of Object.values(CAPABILITY_CATALOG)) {
+	let candidateCaps = Object.values(CAPABILITY_CATALOG);
+	if (options.filterCapability) {
+		const filterId = options.filterCapability.toLowerCase();
+		candidateCaps = candidateCaps.filter(c => c.id.toLowerCase() === filterId);
+	}
+	if (options.filterCategory) {
+		const filterCat = options.filterCategory.toLowerCase();
+		candidateCaps = candidateCaps.filter(c => c.category.toLowerCase() === filterCat);
+	}
+	if (options.filterTool) {
+		const filterT = options.filterTool.toLowerCase();
+		candidateCaps = candidateCaps.filter(
+			c =>
+				c.optionalExternalTools.some(t => t.toLowerCase() === filterT) ||
+				c.recommendedNativeTool?.toLowerCase() === filterT,
+		);
+	}
+
+	for (const cap of candidateCaps) {
 		const toolRefs: CapabilityToolRef[] = [];
 		for (const toolId of cap.optionalExternalTools) {
 			const lowerId = toolId.toLowerCase();
@@ -3551,11 +3787,13 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 				}
 			}
 		}
-
-		// Emulation capabilities (such as android_native_emulation) require an active session
-		// runtime or running harness to be truly ready. In static catalog evaluation, an installed
-		// tool/JAR provides availability with fallbacks rather than instant runtime readiness.
-		const isDynamicEmulation = cap.id === "android_native_emulation";
+		let canStart: boolean | undefined;
+		let runtimeReady: boolean | undefined;
+		let compatible: boolean | undefined;
+		let targetMatched: ReverseCapabilityStatus["targetMatched"];
+		let executedVerified: ReverseCapabilityStatus["executedVerified"];
+		let unpackingStages: ReverseCapabilityStatus["unpackingStages"];
+		let emulationStages: ReverseCapabilityStatus["emulationStages"];
 		let status: "ready" | "available_with_fallbacks" | "missing";
 		let isReady: boolean;
 		let setupCommand = cap.setupCommand;
@@ -3564,7 +3802,94 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 		let elfRepairStages: ReverseCapabilityStatus["elfRepairStages"];
 		let resolvedRecommendedNativeTool = cap.recommendedNativeTool;
 		let resolvedPostInstallInvocation = cap.postInstallInvocation;
-		if (cap.id === "apk_artifact_generation") {
+
+		if (cap.id === "android_native_emulation") {
+			const unidbgReadiness = evaluateUnidbgReadiness({
+				cwd: options.cwd,
+				session: options.session,
+				env: options.env,
+				target: options.target,
+			});
+			canStart = unidbgReadiness.canStart;
+			compatible = unidbgReadiness.compatible;
+			runtimeReady = unidbgReadiness.runtimeReady;
+			targetMatched = unidbgReadiness.targetMatched;
+			executedVerified = unidbgReadiness.executedVerified;
+			const missingLaunchRequirements = !unidbgReadiness.installed
+				? ["unidbg"]
+				: !compatible
+					? ["jdk8"]
+					: !canStart
+						? ["unidbg-classpath"]
+						: [];
+			const jniH = unidbgReadiness.connectedHarness;
+
+			emulationStages = {
+				launchPrerequisites: {
+					ready: canStart,
+					canStart,
+					installed: unidbgReadiness.installed,
+					compatible,
+					missingRequirements: missingLaunchRequirements,
+					error: unidbgReadiness.error,
+					remedy: unidbgReadiness.remedy,
+				},
+				runtimeSession: {
+					connected: runtimeReady,
+					activeHarnessCount: unidbgReadiness.activeHarnessCount,
+					serverName: jniH?.serverName,
+					port: jniH?.port,
+				},
+			};
+
+			if (runtimeReady) {
+				isReady = true;
+				status = "ready";
+				resolvedPostInstallInvocation = `Active Unidbg SSE MCP server running on port ${jniH?.port ?? "unknown"} (PID ${jniH?.pid ?? "unknown"}) with target ${jniH?.targetPath || "loaded binary"}. Server: ${jniH?.serverName ?? "unidbg"}`;
+			} else if (canStart) {
+				isReady = false;
+				status = "available_with_fallbacks";
+				resolvedPostInstallInvocation =
+					"Run 'reverse unidbg scaffold' and 'reverse unidbg launch' to start an active emulation session.";
+			} else if (unidbgReadiness.installed && !compatible) {
+				isReady = false;
+				status = "available_with_fallbacks";
+				blockedRequirements = ["jdk8"];
+				setupCommand = "reverse setup reverse unidbg";
+				resolvedPostInstallInvocation = `${unidbgReadiness.error} ${unidbgReadiness.remedy}`;
+			} else {
+				isReady = false;
+				status = availableFallbacks.length > 0 ? "available_with_fallbacks" : "missing";
+				blockedRequirements = unidbgReadiness.installed ? ["unidbg-classpath"] : ["unidbg"];
+				setupCommand = "reverse setup reverse unidbg";
+				resolvedPostInstallInvocation = `${unidbgReadiness.error ?? ""} ${unidbgReadiness.remedy ?? ""}`.trim();
+			}
+		} else if (cap.id === "apk_unpacking") {
+			const unpackReadiness = evaluateApkUnpackingReadiness({ toolStatuses: options.toolStatuses });
+			unpackingStages = unpackReadiness.stages;
+			canStart = true;
+			const decompileReady = unpackReadiness.ready;
+
+			if (decompileReady) {
+				isReady = true;
+				status = "ready";
+			} else {
+				isReady = false;
+				status = "available_with_fallbacks";
+				const missingTools: string[] = [];
+				for (const m of unpackReadiness.stages.javaDecompile.missingTools) {
+					if (!missingTools.includes(m)) missingTools.push(m);
+				}
+				for (const m of unpackReadiness.stages.smali.missingTools) {
+					if (!missingTools.includes(m)) missingTools.push(m);
+				}
+				blockedRequirements = missingTools;
+				setupCommand =
+					toolMap["apktool"]?.status !== "installed"
+						? "reverse setup reverse apktool"
+						: "reverse setup reverse jadx";
+			}
+		} else if (cap.id === "apk_artifact_generation") {
 			const pythonReady = toolMap["python"]?.status === "installed";
 			const zipalignReady = toolMap["zipalign"]?.status === "installed";
 			const javaReady = toolMap["java"]?.status === "installed";
@@ -3792,7 +4117,7 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 				status = "missing";
 			}
 		} else {
-			isReady = hasInstalledTool && !isDynamicEmulation;
+			isReady = hasInstalledTool;
 			if (isReady) {
 				status = "ready";
 			} else if (availableFallbacks.length > 0 || cap.recommendedNativeTool || hasInstalledTool) {
@@ -3811,6 +4136,11 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			why: cap.why,
 			status,
 			ready: isReady,
+			...(canStart !== undefined ? { canStart } : {}),
+			...(runtimeReady !== undefined ? { runtimeReady } : {}),
+			...(compatible !== undefined ? { compatible } : {}),
+			...(targetMatched !== undefined ? { targetMatched } : {}),
+			...(executedVerified !== undefined ? { executedVerified } : {}),
 			recommendedNativeTool: resolvedRecommendedNativeTool,
 			optionalExternalTools: toolRefs,
 			prerequisites: cap.prerequisites,
@@ -3821,6 +4151,8 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			...(blockedRequirements ? { blockedRequirements } : {}),
 			...(pipelineStages ? { pipelineStages } : {}),
 			...(elfRepairStages ? { elfRepairStages } : {}),
+			...(unpackingStages ? { unpackingStages } : {}),
+			...(emulationStages ? { emulationStages } : {}),
 		});
 	}
 

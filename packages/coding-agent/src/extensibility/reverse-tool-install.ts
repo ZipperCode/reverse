@@ -66,6 +66,7 @@ import { getVmpToolUnsupportedReason, installTritonVenv, type VmpToolId } from "
 import { installLiefVenv } from "./lief-install";
 import { buildAndInstallSoFixer, canBuildSoFixer } from "./sofixer-toolchain";
 import { buildAndInstallGhidraFindCrypt, canBuildGhidraFindCrypt, resolveGhidraInstallDir } from "./findcrypt-install";
+import { installRuntimeTool } from "./runtime-toolchain";
 import { readMCPConfigFile, setMcpServerEnabled, updateMCPServer } from "../mcp/config-writer";
 import type { MCPServerConnection } from "../mcp/types";
 import type { MCPManager } from "../mcp/manager";
@@ -113,7 +114,8 @@ export interface ReverseInstallStep {
 		| "pip"
 		| "lief"
 		| "sofixer"
-		| "ghidra-findcrypt";
+		| "ghidra-findcrypt"
+		| "runtime-toolchain";
 }
 
 export interface ReverseInstallPlan {
@@ -518,6 +520,26 @@ export function getReverseInstallPlan(
 				riskNote: t(
 					"cli.setup.reverse.ghidra-findcrypt.risk",
 					"Compiles Ghidra FindCrypt extension from upstream source (TorgoTorgo/ghidra-findcrypt commit 5c2fd5b, GPL-3.0) against target Ghidra and installs it into Ghidra Extensions.",
+				),
+				isDependency: id !== item.id,
+				manualInstructions: desc.manualInstructions?.[platform],
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
+		if (id === "blutter" || id === "hbctool" || id === "hermes-dec" || id === "il2cppdumper") {
+			steps.push({
+				id,
+				name: desc.name ?? id,
+				kind: "cli",
+				packageManager: "managed",
+				installer: "runtime-toolchain",
+				command: `${APP_NAME} setup reverse ${id} --execute`,
+				argv: [APP_NAME, "setup", "reverse", id, "--execute"],
+				riskNote: t(
+					`cli.setup.reverse.${id}.risk`,
+					`Provisions managed ${desc.name ?? id} into agent tools directory.`,
 				),
 				isDependency: id !== item.id,
 				manualInstructions: desc.manualInstructions?.[platform],
@@ -1047,7 +1069,12 @@ export async function installReverseItem(
 			step.installer === "sofixer" ||
 			step.id === "sofixer" ||
 			step.installer === "ghidra-findcrypt" ||
-			step.id === "ghidra-findcrypt"
+			step.id === "ghidra-findcrypt" ||
+			step.installer === "runtime-toolchain" ||
+			step.id === "blutter" ||
+			step.id === "hbctool" ||
+			step.id === "hermes-dec" ||
+			step.id === "il2cppdumper"
 		) {
 			// Trusted internal portable/build/venv installer
 		} else if (
@@ -1271,6 +1298,44 @@ export async function installReverseItem(
 				return {
 					success: true,
 					message: `FindCrypt extension successfully built and installed to ${fcRes.extensionDir}.`,
+				};
+			}
+			if (
+				step.installer === "runtime-toolchain" ||
+				step.id === "blutter" ||
+				step.id === "hbctool" ||
+				step.id === "hermes-dec" ||
+				step.id === "il2cppdumper"
+			) {
+				options.onChunk?.(`[reverse] Installing managed runtime tool ${step.name}...\n`);
+
+				const res = await installRuntimeTool(step.id as "blutter" | "hbctool" | "hermes-dec" | "il2cppdumper", {
+					agentDir: options.agentDir,
+					onLog: options.onChunk,
+					signal: options.signal,
+					which: bin => which(bin, { cache: WhichCachePolicy.Bypass }),
+				});
+				if (!res.success) {
+					return {
+						success: false,
+						message: res.error ?? `Installation failed for ${step.name}.`,
+					};
+				}
+				const binDir = path.dirname(res.executablePath);
+				if (binDir && fs.existsSync(binDir)) {
+					await persistToolEnvironment(
+						{
+							extraPaths: [binDir],
+						},
+						options.agentDir,
+					);
+				}
+				if (step.isDependency) {
+					continue;
+				}
+				return {
+					success: true,
+					message: `Successfully installed ${step.name}.`,
 				};
 			}
 

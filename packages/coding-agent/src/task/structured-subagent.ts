@@ -523,14 +523,16 @@ async function leaseArtifacts(
 	return { sessionFile: null, artifactsDir, temporary: true, unregister: registerArtifactsDir(artifactsDir) };
 }
 
-export const REVERSE_TASK_AUTOLOAD_SKILLS = ["reverse-lab", "native-binary-reverse"];
+export const REVERSE_TASK_AUTOLOAD_SKILLS = ["reverse-lab"] as const;
 
 const REVERSE_TASK_PATTERNS = [
 	/\b(?:reverse(?:[-_\s]?engineer(?:ing|ed|s)?|[-_\s]?eng)\b|\breversing\b|decompil(?:e|ation|ed|er|ing|es)?|disassembl(?:e|y|ed|er|ing|es)?)\b/i,
-	/\b(?:apktool|jadx|droidasc|android_package_inspect|dex_patch|apk_artifact|radare2|r2mcp|ghidra|ghidra_inspect|analyzeHeadless|ida-?pro|idapro|idalib|r2_inspect|dotnet_inspect|r2pipe|frida|pcap_inspect|sqlite_inspect|firmware_inspect|crashdump_inspect|binary_metadata_inspect|evm_inspect|binary_diff|reverse_workflow|reverse_runtime_session|reverse_knowledge|reverse_dynamic_evidence|reverse_capability|native_mcp_session|x64dbg|binwalk|vbindiff|triton_analyze|vmp_dump|native_devirtualize|vmprotect|vmpdump|novmp|mergen)\b/i,
+	/\b(?:apktool|jadx|droidasc|android_package_inspect|dex_patch|apk_artifact|app_experiment|runtime_analyze|network_replay|mitm_capture|radare2|r2mcp|ghidra|ghidra_inspect|analyzeHeadless|ida-?pro|idapro|idalib|r2_inspect|dotnet_inspect|r2pipe|frida|pcap_inspect|sqlite_inspect|firmware_inspect|crashdump_inspect|binary_metadata_inspect|evm_inspect|binary_diff|reverse_workflow|reverse_runtime_session|reverse_knowledge|reverse_dynamic_evidence|reverse_capability|native_mcp_session|x64dbg|binwalk|vbindiff|triton_analyze|vmp_dump|native_devirtualize|vmprotect|vmpdump|novmp|mergen|blutter|il2cppdumper)\b/i,
 	/\b(?:mach-o|macho|fat\s+binary|pe32\+?|elf(?:32|64)?|minidump|coredump|uimage|squashfs|bytecode|evm)\b/i,
-	/\b\w+\.(?:apk|dex|dylib|so|dll|exe|ipa|aab|pcap|pcapng|sqlite|sqlite3|db|dmp|dump|bin|rom|img|evm)\b/i,
-	/(?:逆向|反编译|反汇编|脱壳|抓包|固件|崩溃转储|转储|字节码|二进制(?:逆向|分析|审计|破解|漏洞|安全|静态分析|动态分析|差异|比对))/,
+	/\b\w+\.(?:apk|dex|dylib|so|dll|exe|ipa|aab|pcap|pcapng|sqlite|sqlite3|db|dmp|dump|bin|rom|img|evm|har)\b/i,
+	/AndroidManifest(?:\.xml)?/i,
+	/\b(?:har\b.*?\b(?:authz|api|token|traffic|request|header|trace)|(?:api|token|session|header)\b.*?\bhar\b|api[-_\s]?authz|authz[-_\s]?token)\b/i,
+	/(?:逆向|反编译|反汇编|脱壳|抓包|抓包分析|协议逆向|协议分析|接口逆向|鉴权分析|固件|崩溃转储|转储|字节码|二进制(?:逆向|分析|审计|破解|漏洞|安全|静态分析|动态分析|差异|比对))/,
 ];
 
 export function isReverseTask(assignment?: string, context?: string): boolean {
@@ -539,13 +541,100 @@ export function isReverseTask(assignment?: string, context?: string): boolean {
 	return REVERSE_TASK_PATTERNS.some(re => re.test(text));
 }
 
+/**
+ * Resolves method- and target-aware reverse skills based on task context and assignment.
+ * - Base reverse tasks always receive `reverse-lab` as the common orchestrator.
+ * - APK / DEX / Android targets route `android-reverse`.
+ * - Native binary / SO / JNI / ELF / PE / Mach-O targets route `native-binary-reverse`.
+ *   (APK tasks do NOT load native unless explicit SO/JNI/native evidence is present)
+ * - Web / HAR / HTTP / API authz / PCAP protocol targets route `web-protocol-reverse`.
+ * - VMP / VMProtect / devirtualization targets route `vmp-reverse`.
+ * - Windows PE / minidump targets route `windows-reverse`.
+ */
+export function resolveTargetReverseSkills(assignment?: string, context?: string): string[] {
+	const text = `${context ?? ""}\n${assignment ?? ""}`;
+	if (!text.trim() || !isReverseTask(assignment, context)) {
+		return [];
+	}
+
+	const selected = new Set<string>();
+	// 基础逆向通用编排技能
+	selected.add("reverse-lab");
+
+	// Android / DEX / APK 路由
+	const isAndroid =
+		/\b(?:android|apk|dex|aab|smali|dalvik|jadx|apktool|droidasc|android_package_inspect|dex_patch|apk_artifact)\b/i.test(
+			text,
+		) ||
+		/\b\w+\.(?:apk|dex|aab)\b/i.test(text) ||
+		/AndroidManifest(?:\.xml)?/i.test(text) ||
+		/(?:安卓|安卓应用|安卓逆向)/.test(text) ||
+		(/\bapp_experiment\b/i.test(text) && /\b(?:device|adb|package|serial|component|android)\b/i.test(text));
+	if (isAndroid) {
+		selected.add("android-reverse");
+	}
+
+	// Native 路由：SO、JNI、ELF、Mach-O、PE、DLL、Ghidra、IDA 等
+	// 对于 Android 任务，仅当出现明确的 SO / JNI / 原生层证据时才加载 native-binary-reverse
+	const hasNativeEvidence =
+		/\b(?:jni|lib[a-zA-Z0-9_-]+\.so|\.so\b|\.dylib\b|\.dll\b|native[-_\s]?librar(?:y|ies)|native[-_\s]?method|elf(?:32|64)?|mach-o|macho|radare2|r2mcp|ghidra|ghidra_inspect|ida-?pro|idapro|idalib|r2_inspect|r2pipe|unidbg|readelf|objdump|vbindiff|native_mcp_session)\b/i.test(
+			text,
+		) || /(?:jni|动态链接库|\.so\b|原生库|反汇编)/i.test(text);
+
+	const isPureNativeTarget =
+		!isAndroid &&
+		(/\b(?:native|binary|elf(?:32|64)?|mach-o|macho|disassembl(?:y|e|er)|ghidra|radare2|ida|r2_inspect|ghidra_inspect)\b/i.test(
+			text,
+		) ||
+			/\b\w+\.(?:so|dylib|dll|exe|bin|elf)\b/i.test(text) ||
+			/(?:二进制|动态库|原生|机器码)/.test(text));
+
+	if (hasNativeEvidence || isPureNativeTarget) {
+		selected.add("native-binary-reverse");
+	}
+
+	// Web / HAR / 接口鉴权 / 协议抓包路由
+	const isWebProtocol =
+		/\b(?:har\b|pcap|pcapng|http\b|https\b|websocket\b|mitm|mitmproxy|authz|api[-_\s]?authz|token\b|bearer|jwt|cookie\b|rest[-_\s]?api|graphql|network[-_\s]?replay|sourcemap|wasm_inspect)\b/i.test(
+			text,
+		) ||
+		/\b\w+\.(?:har|pcap|pcapng)\b/i.test(text) ||
+		/(?:抓包|协议逆向|协议分析|接口逆向|鉴权|网络流)/.test(text);
+
+	if (isWebProtocol) {
+		selected.add("web-protocol-reverse");
+	}
+
+	// VMP 虚拟化逆向路由
+	const isVmp =
+		/\b(?:vmp\b|vmprotect|devirtualiz(?:e|ation)|vmp_dump|vmpdump|triton|triton_analyze|novmp|bytecode\s+virtual\s+machine)\b/i.test(
+			text,
+		) || /(?:虚拟化保护|虚拟机脱壳|指令还原)/.test(text);
+
+	if (isVmp) {
+		selected.add("vmp-reverse");
+	}
+
+	// Windows PE 逆向路由
+	const isWindows =
+		/\b(?:windows|pe32\+?|pe64|\.sys\b|x64dbg|win32|minidump)\b/i.test(text) || /\b\w+\.(?:exe|sys)\b/i.test(text);
+
+	if (isWindows) {
+		selected.add("windows-reverse");
+	}
+
+	return Array.from(selected);
+}
+
 export function getTargetAutoloadSkillNames(agent: AgentDefinition, request?: StructuredSubagentRequest): Set<string> {
 	const names = new Set<string>(agent.autoloadSkills ?? []);
 	if (request?.autoloadSkills) {
 		for (const name of request.autoloadSkills) names.add(name);
 	}
 	if (agent.name === "task" && request && isReverseTask(request.assignment, request.context)) {
-		for (const name of REVERSE_TASK_AUTOLOAD_SKILLS) names.add(name);
+		for (const name of resolveTargetReverseSkills(request.assignment, request.context)) {
+			names.add(name);
+		}
 	}
 	return names;
 }

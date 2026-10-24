@@ -5,7 +5,18 @@ import * as path from "node:path";
 import * as zlib from "node:zlib";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { createTools, AndroidPackageInspectTool, type ToolSession } from "@reverse/coding-agent/tools";
-import { parseDexBuffer, parseXmlText } from "../../src/tools/android-package-inspect";
+import {
+	parseDexBuffer,
+	parseXmlText,
+	parseAxml,
+	calculateEffectiveExported,
+	extractDeepLinks,
+	calculateEffectiveEnabled,
+	resolveNetworkSecurityConfig,
+	ZipParser,
+	parseBooleanAttr,
+	type AndroidManifestComponent,
+} from "../../src/tools/android-package-inspect";
 import { BUILTIN_TOOL_NAMES } from "@reverse/coding-agent/tools/builtin-names";
 import { removeWithRetries } from "@reverse/utils";
 
@@ -297,6 +308,29 @@ function buildTestArsc(packageName: string = "com.example.app"): Buffer {
 	return buf;
 }
 
+function buildEndElementChunk(nameIdx: number): Buffer {
+	const endElem = Buffer.alloc(24);
+	endElem.writeUInt16LE(0x0103, 0); // RES_XML_END_ELEMENT_TYPE
+	endElem.writeUInt16LE(16, 2);
+	endElem.writeUInt32LE(24, 4);
+	endElem.writeUInt32LE(0, 8); // Line
+	endElem.writeUInt32LE(0xffffffff, 12); // Comment
+	endElem.writeUInt32LE(0xffffffff, 16); // NS
+	endElem.writeUInt32LE(nameIdx, 20); // Name
+	return endElem;
+}
+function encodeUleb128(val: number): Buffer {
+	if (val < 0x80) return Buffer.from([val]);
+	return Buffer.from([((val >> 8) & 0x7f) | 0x80, val & 0xff]);
+}
+
+function encodeAxmlUtf8String(s: string): Buffer {
+	const sBuf = Buffer.from(s, "utf8");
+	const u16Len = s.length;
+	const u8Len = sBuf.length;
+	return Buffer.concat([encodeUleb128(u16Len), encodeUleb128(u8Len), sBuf, Buffer.from([0])]);
+}
+
 function buildTestAxml(manifest: {
 	packageName: string;
 	versionCode?: number;
@@ -305,6 +339,10 @@ function buildTestAxml(manifest: {
 	targetSdkVersion?: number;
 	permission?: string;
 	activityName?: string;
+	exported?: boolean;
+	appEnabled?: boolean;
+	compEnabled?: boolean;
+	targetActivity?: string;
 }): Buffer {
 	const strings = [
 		"manifest",
@@ -323,6 +361,9 @@ function buildTestAxml(manifest: {
 		"activity",
 		manifest.activityName ?? "com.example.app.MainActivity",
 		"exported",
+		"enabled",
+		"targetActivity",
+		manifest.targetActivity ?? "",
 	];
 
 	// Build string pool chunk
@@ -332,8 +373,7 @@ function buildTestAxml(manifest: {
 
 	for (const s of strings) {
 		strOffsets.push(currentRelOff);
-		const sBuf = Buffer.from(s, "utf8");
-		const chunk = Buffer.concat([Buffer.from([sBuf.length]), sBuf, Buffer.from([0])]);
+		const chunk = encodeAxmlUtf8String(s);
 		strDataChunks.push(chunk);
 		currentRelOff += chunk.length;
 	}
@@ -437,6 +477,7 @@ function buildTestAxml(manifest: {
 	sdkElem.writeUInt32LE(manifest.targetSdkVersion ?? 34, s2 + 16);
 
 	elemChunks.push(sdkElem);
+	elemChunks.push(buildEndElementChunk(strings.indexOf("uses-sdk")));
 
 	// <uses-permission name="android.permission.INTERNET">
 	const permElem = Buffer.alloc(36 + 1 * 20);
@@ -457,34 +498,82 @@ function buildTestAxml(manifest: {
 	permElem.writeUInt32LE(strings.indexOf(manifest.permission ?? "android.permission.INTERNET"), p1 + 16);
 
 	elemChunks.push(permElem);
+	elemChunks.push(buildEndElementChunk(strings.indexOf("uses-permission")));
+
+	// <application>
+	const appAttrCount = manifest.appEnabled !== undefined ? 1 : 0;
+	const appElem = Buffer.alloc(36 + appAttrCount * 20);
+	appElem.writeUInt16LE(0x0102, 0);
+	appElem.writeUInt16LE(16, 2);
+	appElem.writeUInt32LE(appElem.length, 4);
+	appElem.writeUInt32LE(strings.indexOf("application"), 20);
+	appElem.writeUInt16LE(20, 24);
+	appElem.writeUInt16LE(20, 26);
+	appElem.writeUInt16LE(appAttrCount, 28);
+	if (manifest.appEnabled !== undefined) {
+		appElem.writeUInt32LE(0xffffffff, 36);
+		appElem.writeUInt32LE(strings.indexOf("enabled"), 36 + 4);
+		appElem.writeUInt32LE(0xffffffff, 36 + 8);
+		appElem.writeUInt16LE(8, 36 + 12);
+		appElem.writeUInt8(0x12, 36 + 15);
+		appElem.writeUInt32LE(manifest.appEnabled ? 1 : 0, 36 + 16);
+	}
+	elemChunks.push(appElem);
 
 	// <activity name="com.example.app.MainActivity" exported="true">
-	const actElem = Buffer.alloc(36 + 2 * 20);
+	let actAttrCount = 2;
+	if (manifest.compEnabled !== undefined) actAttrCount++;
+	if (manifest.targetActivity) actAttrCount++;
+	const actElem = Buffer.alloc(36 + actAttrCount * 20);
 	actElem.writeUInt16LE(0x0102, 0);
 	actElem.writeUInt16LE(16, 2);
 	actElem.writeUInt32LE(actElem.length, 4);
 	actElem.writeUInt32LE(strings.indexOf("activity"), 20);
 	actElem.writeUInt16LE(20, 24);
 	actElem.writeUInt16LE(20, 26);
-	actElem.writeUInt16LE(2, 28);
+	actElem.writeUInt16LE(actAttrCount, 28);
 
-	const act1 = 36;
-	actElem.writeUInt32LE(0xffffffff, act1);
-	actElem.writeUInt32LE(strings.indexOf("name"), act1 + 4);
-	actElem.writeUInt32LE(strings.indexOf(manifest.activityName ?? "com.example.app.MainActivity"), act1 + 8);
-	actElem.writeUInt16LE(8, act1 + 12);
-	actElem.writeUInt8(0x03, act1 + 15); // TYPE_STRING
-	actElem.writeUInt32LE(strings.indexOf(manifest.activityName ?? "com.example.app.MainActivity"), act1 + 16);
+	let curActOff = 36;
+	actElem.writeUInt32LE(0xffffffff, curActOff);
+	actElem.writeUInt32LE(strings.indexOf("name"), curActOff + 4);
+	actElem.writeUInt32LE(strings.indexOf(manifest.activityName ?? "com.example.app.MainActivity"), curActOff + 8);
+	actElem.writeUInt16LE(8, curActOff + 12);
+	actElem.writeUInt8(0x03, curActOff + 15); // TYPE_STRING
+	actElem.writeUInt32LE(strings.indexOf(manifest.activityName ?? "com.example.app.MainActivity"), curActOff + 16);
+	curActOff += 20;
 
-	const act2 = act1 + 20;
-	actElem.writeUInt32LE(0xffffffff, act2);
-	actElem.writeUInt32LE(strings.indexOf("exported"), act2 + 4);
-	actElem.writeUInt32LE(0xffffffff, act2 + 8);
-	actElem.writeUInt16LE(8, act2 + 12);
-	actElem.writeUInt8(0x12, act2 + 15); // TYPE_INT_BOOLEAN
-	actElem.writeUInt32LE(1, act2 + 16); // true
+	actElem.writeUInt32LE(0xffffffff, curActOff);
+	actElem.writeUInt32LE(strings.indexOf("exported"), curActOff + 4);
+	actElem.writeUInt32LE(0xffffffff, curActOff + 8);
+	actElem.writeUInt16LE(8, curActOff + 12);
+	actElem.writeUInt8(0x12, curActOff + 15); // TYPE_INT_BOOLEAN
+	actElem.writeUInt32LE(manifest.exported !== false ? 1 : 0, curActOff + 16);
+	curActOff += 20;
+
+	if (manifest.compEnabled !== undefined) {
+		actElem.writeUInt32LE(0xffffffff, curActOff);
+		actElem.writeUInt32LE(strings.indexOf("enabled"), curActOff + 4);
+		actElem.writeUInt32LE(0xffffffff, curActOff + 8);
+		actElem.writeUInt16LE(8, curActOff + 12);
+		actElem.writeUInt8(0x12, curActOff + 15);
+		actElem.writeUInt32LE(manifest.compEnabled ? 1 : 0, curActOff + 16);
+		curActOff += 20;
+	}
+
+	if (manifest.targetActivity) {
+		actElem.writeUInt32LE(0xffffffff, curActOff);
+		actElem.writeUInt32LE(strings.indexOf("targetActivity"), curActOff + 4);
+		actElem.writeUInt32LE(strings.indexOf(manifest.targetActivity), curActOff + 8);
+		actElem.writeUInt16LE(8, curActOff + 12);
+		actElem.writeUInt8(0x03, curActOff + 15);
+		actElem.writeUInt32LE(strings.indexOf(manifest.targetActivity), curActOff + 16);
+		curActOff += 20;
+	}
 
 	elemChunks.push(actElem);
+	elemChunks.push(buildEndElementChunk(strings.indexOf("activity")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("application")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("manifest")));
 
 	const allElems = Buffer.concat(elemChunks);
 	const totalSize = 8 + poolBuf.length + allElems.length;
@@ -493,6 +582,235 @@ function buildTestAxml(manifest: {
 	axmlHeader.writeUInt16LE(0x0003, 0); // RES_XML_TYPE
 	axmlHeader.writeUInt16LE(8, 2); // Header size
 	axmlHeader.writeUInt32LE(totalSize, 4); // Total size
+
+	return Buffer.concat([axmlHeader, poolBuf, allElems]);
+}
+function buildTestNetworkSecurityConfigAxml(opts?: {
+	cleartextTrafficPermitted?: boolean;
+	baseCertSrc?: string;
+	baseOverridePins?: boolean;
+	domain?: string;
+	includeSubdomains?: boolean;
+	domainCleartext?: boolean;
+	domainCertSrc?: string;
+	nestedDomain?: string;
+	nestedCertSrc?: string;
+	siblingDomain?: string;
+	pinDigest?: string;
+	pinVal?: string;
+	debugCertSrc?: string;
+	debugOverridePins?: boolean;
+}): Buffer {
+	const strings = [
+		"network-security-config",
+		"base-config",
+		"cleartextTrafficPermitted",
+		"trust-anchors",
+		"certificates",
+		"src",
+		"overridePins",
+		opts?.baseCertSrc ?? "system",
+		"domain-config",
+		"domain",
+		"includeSubdomains",
+		opts?.domain ?? "example.com",
+		opts?.domainCertSrc ?? "user",
+		"pin-set",
+		"expiration",
+		"2027-01-01",
+		"pin",
+		"digest",
+		opts?.pinDigest ?? "SHA-256",
+		opts?.pinVal ?? "7HIpactkIAq2Y49orFOOQKurWxmmSFZhBCoQYcRhJ3Y=",
+		opts?.nestedDomain ?? "private.example.com",
+		opts?.nestedCertSrc ?? "@raw/private",
+		opts?.siblingDomain ?? "cdn.example.com",
+		"debug-overrides",
+		opts?.debugCertSrc ?? "user",
+	];
+
+	const strOffsets: number[] = [];
+	const strDataChunks: Buffer[] = [];
+	let currentRelOff = 0;
+
+	for (const s of strings) {
+		strOffsets.push(currentRelOff);
+		const chunk = encodeAxmlUtf8String(s);
+		strDataChunks.push(chunk);
+		currentRelOff += chunk.length;
+	}
+
+	const poolHeaderSize = 28;
+	const poolOffsetsSize = strings.length * 4;
+	const stringsStart = poolHeaderSize + poolOffsetsSize;
+	const unpaddedPoolSize = stringsStart + currentRelOff;
+	const pad = (4 - (unpaddedPoolSize % 4)) % 4;
+	const totalPoolSize = unpaddedPoolSize + pad;
+
+	const poolBuf = Buffer.alloc(totalPoolSize);
+	poolBuf.writeUInt16LE(0x0001, 0); // RES_STRING_POOL_TYPE
+	poolBuf.writeUInt16LE(poolHeaderSize, 2);
+	poolBuf.writeUInt32LE(totalPoolSize, 4);
+	poolBuf.writeUInt32LE(strings.length, 8);
+	poolBuf.writeUInt32LE(0, 12);
+	poolBuf.writeUInt32LE(0x0100, 16); // UTF-8
+	poolBuf.writeUInt32LE(stringsStart, 20);
+	poolBuf.writeUInt32LE(0, 24);
+
+	for (let i = 0; i < strings.length; i++) {
+		poolBuf.writeUInt32LE(strOffsets[i], poolHeaderSize + i * 4);
+	}
+
+	let p = stringsStart;
+	for (const c of strDataChunks) {
+		c.copy(poolBuf, p);
+		p += c.length;
+	}
+
+	const makeElem = (
+		tag: string,
+		attrs: Array<{ name: string; val: string | number | boolean; type: number }>,
+	): Buffer => {
+		const elem = Buffer.alloc(36 + attrs.length * 20);
+		elem.writeUInt16LE(0x0102, 0); // RES_XML_START_ELEMENT_TYPE
+		elem.writeUInt16LE(16, 2);
+		elem.writeUInt32LE(elem.length, 4);
+		elem.writeUInt32LE(strings.indexOf(tag), 20);
+		elem.writeUInt16LE(20, 24);
+		elem.writeUInt16LE(20, 26);
+		elem.writeUInt16LE(attrs.length, 28);
+
+		let off = 36;
+		for (const a of attrs) {
+			elem.writeUInt32LE(0xffffffff, off);
+			elem.writeUInt32LE(strings.indexOf(a.name), off + 4);
+			if (typeof a.val === "string") {
+				elem.writeUInt32LE(strings.indexOf(a.val), off + 8);
+			} else {
+				elem.writeUInt32LE(0xffffffff, off + 8);
+			}
+			elem.writeUInt16LE(8, off + 12);
+			elem.writeUInt8(a.type, off + 15);
+			if (typeof a.val === "boolean") {
+				elem.writeUInt32LE(a.val ? 1 : 0, off + 16);
+			} else if (typeof a.val === "number") {
+				elem.writeUInt32LE(a.val, off + 16);
+			} else {
+				elem.writeUInt32LE(strings.indexOf(a.val), off + 16);
+			}
+			off += 20;
+		}
+		return elem;
+	};
+
+	const makeCdata = (text: string): Buffer => {
+		const cdata = Buffer.alloc(28);
+		cdata.writeUInt16LE(0x0104, 0); // RES_XML_CDATA_TYPE
+		cdata.writeUInt16LE(16, 2);
+		cdata.writeUInt32LE(28, 4);
+		cdata.writeUInt32LE(strings.indexOf(text), 16);
+		return cdata;
+	};
+
+	const elemChunks: Buffer[] = [];
+
+	// <network-security-config>
+	elemChunks.push(makeElem("network-security-config", []));
+
+	// <base-config cleartextTrafficPermitted="...">
+	const baseAttrs: Array<{ name: string; val: string | number | boolean; type: number }> = [];
+	if (opts?.cleartextTrafficPermitted !== undefined) {
+		baseAttrs.push({
+			name: "cleartextTrafficPermitted",
+			val: opts.cleartextTrafficPermitted,
+			type: 0x12,
+		});
+	}
+	elemChunks.push(makeElem("base-config", baseAttrs));
+	// <trust-anchors><certificates src="..." overridePins="..."/></trust-anchors>
+	elemChunks.push(makeElem("trust-anchors", []));
+	const certAttrs: Array<{ name: string; val: string | number | boolean; type: number }> = [
+		{ name: "src", val: opts?.baseCertSrc ?? "system", type: 0x03 },
+	];
+	if (opts?.baseOverridePins !== undefined) {
+		certAttrs.push({ name: "overridePins", val: opts.baseOverridePins, type: 0x12 });
+	}
+	elemChunks.push(makeElem("certificates", certAttrs));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("certificates")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("trust-anchors")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("base-config")));
+
+	// Outer <domain-config cleartextTrafficPermitted="...">
+	const domConfigAttrs: Array<{ name: string; val: string | number | boolean; type: number }> = [];
+	if (opts?.domainCleartext !== undefined) {
+		domConfigAttrs.push({ name: "cleartextTrafficPermitted", val: opts.domainCleartext, type: 0x12 });
+	}
+	elemChunks.push(makeElem("domain-config", domConfigAttrs));
+	// <domain includeSubdomains="true">example.com</domain>
+	const domAttrs: Array<{ name: string; val: string | number | boolean; type: number }> = [];
+	if (opts?.includeSubdomains !== false) {
+		domAttrs.push({ name: "includeSubdomains", val: true, type: 0x12 });
+	}
+	elemChunks.push(makeElem("domain", domAttrs));
+	elemChunks.push(makeCdata(opts?.domain ?? "example.com"));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("domain")));
+
+	// <trust-anchors><certificates src="user"/></trust-anchors>
+	elemChunks.push(makeElem("trust-anchors", []));
+	elemChunks.push(makeElem("certificates", [{ name: "src", val: opts?.domainCertSrc ?? "user", type: 0x03 }]));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("certificates")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("trust-anchors")));
+
+	// <pin-set expiration="2027-01-01"><pin digest="SHA-256">...</pin></pin-set>
+	elemChunks.push(makeElem("pin-set", [{ name: "expiration", val: "2027-01-01", type: 0x03 }]));
+	elemChunks.push(makeElem("pin", [{ name: "digest", val: opts?.pinDigest ?? "SHA-256", type: 0x03 }]));
+	elemChunks.push(makeCdata(opts?.pinVal ?? "7HIpactkIAq2Y49orFOOQKurWxmmSFZhBCoQYcRhJ3Y="));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("pin")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("pin-set")));
+
+	// Nested <domain-config> (explicit anchors: @raw/private)
+	elemChunks.push(makeElem("domain-config", []));
+	elemChunks.push(makeElem("domain", []));
+	elemChunks.push(makeCdata(opts?.nestedDomain ?? "private.example.com"));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("domain")));
+	elemChunks.push(makeElem("trust-anchors", []));
+	elemChunks.push(makeElem("certificates", [{ name: "src", val: opts?.nestedCertSrc ?? "@raw/private", type: 0x03 }]));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("certificates")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("trust-anchors")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("domain-config")));
+
+	// Sibling nested <domain-config> (absent anchors -> inherits user from outer domain)
+	elemChunks.push(makeElem("domain-config", []));
+	elemChunks.push(makeElem("domain", []));
+	elemChunks.push(makeCdata(opts?.siblingDomain ?? "cdn.example.com"));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("domain")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("domain-config")));
+
+	elemChunks.push(buildEndElementChunk(strings.indexOf("domain-config"))); // close outer domain-config
+
+	// <debug-overrides><trust-anchors><certificates src="user"/></trust-anchors></debug-overrides>
+	elemChunks.push(makeElem("debug-overrides", []));
+	elemChunks.push(makeElem("trust-anchors", []));
+	const debugCertAttrs: Array<{ name: string; val: string | number | boolean; type: number }> = [
+		{ name: "src", val: opts?.debugCertSrc ?? "user", type: 0x03 },
+	];
+	if (opts?.debugOverridePins !== undefined) {
+		debugCertAttrs.push({ name: "overridePins", val: opts.debugOverridePins, type: 0x12 });
+	}
+	elemChunks.push(makeElem("certificates", debugCertAttrs));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("certificates")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("trust-anchors")));
+	elemChunks.push(buildEndElementChunk(strings.indexOf("debug-overrides")));
+
+	elemChunks.push(buildEndElementChunk(strings.indexOf("network-security-config")));
+
+	const allElems = Buffer.concat(elemChunks);
+	const totalSize = 8 + poolBuf.length + allElems.length;
+
+	const axmlHeader = Buffer.alloc(8);
+	axmlHeader.writeUInt16LE(0x0003, 0); // RES_XML_TYPE
+	axmlHeader.writeUInt16LE(8, 2);
+	axmlHeader.writeUInt32LE(totalSize, 4);
 
 	return Buffer.concat([axmlHeader, poolBuf, allElems]);
 }
@@ -985,5 +1303,974 @@ describe("parseDexBuffer and parseXmlText parser fields", () => {
 		expect(parsed!.application.extractNativeLibs).toBe(false);
 		expect(parsed!.application.useEmbeddedDex).toBe(true);
 		expect(parsed!.application.hasCode).toBe(true);
+	});
+});
+
+describe("calculateEffectiveExported platform rules and edge cases", () => {
+	it("honors explicit declared exported values", () => {
+		expect(calculateEffectiveExported("activity", true, false, 34).effective).toBe(true);
+		expect(calculateEffectiveExported("activity", false, true, 34).effective).toBe(false);
+		expect(calculateEffectiveExported("provider", true, false, 34).effective).toBe(true);
+		expect(calculateEffectiveExported("provider", false, false, 15).effective).toBe(false);
+	});
+
+	it("handles ContentProvider default exported rules across targetSdk < 17 vs >= 17", () => {
+		// targetSdk < 17: defaults to true
+		const older = calculateEffectiveExported("provider", undefined, false, 15);
+		expect(older.effective).toBe(true);
+		expect(older.reason).toContain("< 17");
+
+		// targetSdk >= 17 with minSdk >= 17: defaults to false
+		const newer = calculateEffectiveExported("provider", undefined, false, 24, false, undefined, 24);
+		expect(newer.effective).toBe(false);
+		expect(newer.reason).toContain(">= 17");
+
+		// targetSdk >= 17 with minSdk < 17: environment-dependent
+		const envDep = calculateEffectiveExported("provider", undefined, false, 24, false, undefined, 14);
+		expect(envDep.effective).toBe("unknown");
+		expect(envDep.reason).toContain("environment-dependent");
+
+		// Both targetSdk and minSdk omitted: both default to 1 (< 17) -> exported=true
+		const absentSdk = calculateEffectiveExported("provider", undefined, false, undefined);
+		expect(absentSdk.effective).toBe(true);
+		expect(absentSdk.reason).toContain("< 17");
+
+		// targetSdk unresolved reference -> unknown
+		const unresolvedTarget = calculateEffectiveExported("provider", undefined, false, "@0x7f050001");
+		expect(unresolvedTarget.effective).toBe("unknown");
+
+		// targetSdk >= 17 with unresolved minSdk reference -> unknown
+		const unresolvedMin = calculateEffectiveExported(
+			"provider",
+			undefined,
+			false,
+			28,
+			false,
+			undefined,
+			"@0x7f010001",
+		);
+		expect(unresolvedMin.effective).toBe("unknown");
+		expect(unresolvedMin.reason).toContain("unresolved minSdkVersion");
+	});
+
+	it("handles intent-filter exported rules across targetSdk < 31 vs >= 31", () => {
+		// Component without intent-filters: always defaults to false
+		expect(calculateEffectiveExported("activity", undefined, false, 34).effective).toBe(false);
+		expect(calculateEffectiveExported("service", undefined, false, 28).effective).toBe(false);
+
+		// Component with intent-filters on targetSdk < 31: defaults to true
+		const legacyIntent = calculateEffectiveExported("activity", undefined, true, 28);
+		expect(legacyIntent.effective).toBe(true);
+
+		// Component with intent-filters on targetSdk >= 31: undeclared causes installation invalid/unknown
+		const modernIntent = calculateEffectiveExported("activity", undefined, true, 34);
+		expect(modernIntent.effective).toBe("unknown");
+		expect(modernIntent.reason).toContain("targetSdkVersion >= 31");
+
+		// Both targetSdk and minSdk omitted: both default to 1 (< 31) -> exported=true
+		const absentTargetIntent = calculateEffectiveExported("activity", undefined, true, undefined);
+		expect(absentTargetIntent.effective).toBe(true);
+		expect(absentTargetIntent.reason).toContain("< 31");
+
+		// Unresolved targetSdk -> unknown
+		const unknownTargetIntent = calculateEffectiveExported("activity", undefined, true, "@0x7f050001");
+		expect(unknownTargetIntent.effective).toBe("unknown");
+	});
+
+	it("flags unresolved resource references as unknown exported", () => {
+		const resRef = calculateEffectiveExported("activity", undefined, true, 34, true, "@0x7f050001");
+		expect(resRef.effective).toBe("unknown");
+		expect(resRef.reason).toContain("Unresolved resource reference");
+	});
+});
+
+describe("parseXmlText rich manifest features and deep link inventory", () => {
+	it("extracts permissions inheritance, alias targets, provider configs, and deep links", () => {
+		const manifestXml = `
+			<manifest package="com.example.bank"
+				android:versionCode="200"
+				android:versionName="2.0.0">
+				<uses-sdk android:minSdkVersion="26" android:targetSdkVersion="33" />
+				<uses-permission android:name="android.permission.INTERNET" />
+				<permission android:name="com.example.bank.READ_DATA" android:protectionLevel="signature" />
+				<application
+					android:name="com.example.bank.App"
+					android:permission="com.example.bank.DEFAULT_PERM"
+					android:usesCleartextTraffic="false"
+					android:networkSecurityConfig="@xml/network_security_config">
+					<activity
+						android:name=".MainActivity"
+						android:exported="true">
+						<intent-filter android:autoVerify="true">
+							<action android:name="android.intent.action.VIEW" />
+							<category android:name="android.intent.category.DEFAULT" />
+							<category android:name="android.intent.category.BROWSABLE" />
+							<data android:scheme="https" android:host="bank.example.com" android:pathPrefix="/account" />
+							<data android:scheme="bankapp" android:host="open" />
+						</intent-filter>
+					</activity>
+					<activity-alias
+						android:name=".AliasActivity"
+						android:targetActivity=".MainActivity"
+						android:exported="true" />
+					<service
+						android:name=".SyncService"
+						android:exported="false"
+						android:permission="com.example.bank.CUSTOM_SYNC_PERM" />
+					<provider
+						android:name=".DataProvider"
+						android:authorities="com.example.bank.provider"
+						android:exported="false"
+						android:grantUriPermissions="true"
+						android:readPermission="com.example.bank.READ_PROVIDER">
+						<path-permission
+							android:pathPrefix="/public"
+							android:readPermission="android.permission.INTERNET" />
+					</provider>
+				</application>
+			</manifest>
+		`;
+
+		const parsed = parseXmlText(manifestXml);
+		expect(parsed).not.toBeNull();
+		expect(parsed!.package).toBe("com.example.bank");
+		expect(parsed!.application.usesCleartextTraffic).toBe(false);
+		expect(parsed!.application.networkSecurityConfig).toBe("@xml/network_security_config");
+
+		// Application-level permission inheritance
+		expect(parsed!.application.permission).toBe("com.example.bank.DEFAULT_PERM");
+
+		// Activity checks
+		const mainAct = parsed!.activities.find(a => a.name === ".MainActivity")!;
+		expect(mainAct).toBeDefined();
+		expect(mainAct.exported).toBe(true);
+		expect(mainAct.effectiveExported).toBe(true);
+		expect(mainAct.inheritedPermission).toBe("com.example.bank.DEFAULT_PERM");
+		expect(mainAct.effectivePermission).toBe("com.example.bank.DEFAULT_PERM");
+		expect(mainAct.intentFilters?.length).toBe(1);
+		expect(mainAct.intentFilters![0].autoVerify).toBe(true);
+
+		// Activity-alias targetActivity
+		const alias = parsed!.activities.find(a => a.name === ".AliasActivity")!;
+		expect(alias).toBeDefined();
+		expect(alias.targetActivity).toBe(".MainActivity");
+
+		// Service permission override
+		const syncSrv = parsed!.services.find(s => s.name === ".SyncService")!;
+		expect(syncSrv).toBeDefined();
+		expect(syncSrv.permission).toBe("com.example.bank.CUSTOM_SYNC_PERM");
+		expect(syncSrv.effectivePermission).toBe("com.example.bank.CUSTOM_SYNC_PERM");
+
+		// ContentProvider authorities, grantUriPermissions, and readPermission
+		const provider = parsed!.providers.find(p => p.name === ".DataProvider")!;
+		expect(provider).toBeDefined();
+		expect(provider.authorities).toBe("com.example.bank.provider");
+		expect(provider.grantUriPermissions).toBe(true);
+		expect(provider.readPermission).toBe("com.example.bank.READ_PROVIDER");
+		expect(provider.effectiveReadPermission).toBe("com.example.bank.READ_PROVIDER");
+		expect(provider.pathPermissions?.length).toBe(1);
+		expect(provider.pathPermissions![0].pathPrefix).toBe("/public");
+
+		// Deep Links inventory
+		expect(parsed!.deepLinks).toBeDefined();
+		expect(parsed!.deepLinks!.length).toBeGreaterThan(0);
+		const dl = parsed!.deepLinks![0];
+		expect(dl.component).toBe(".MainActivity");
+		expect(dl.schemes).toContain("https");
+		expect(dl.schemes).toContain("bankapp");
+		expect(dl.hosts).toContain("bank.example.com");
+		expect(dl.sampleUris).toContain("https://bank.example.com/account");
+		expect(dl.autoVerify).toBe(true);
+	});
+});
+describe("calculateEffectiveEnabled tri-state logic", () => {
+	it("enforces application false dominance over component true", () => {
+		const appFalse = parseBooleanAttr(false);
+		const compTrue = parseBooleanAttr(true);
+		expect(calculateEffectiveEnabled(compTrue, appFalse)).toBe(false);
+	});
+
+	it("enforces component false dominance over application true", () => {
+		const appTrue = parseBooleanAttr(true);
+		const compFalse = parseBooleanAttr(false);
+		expect(calculateEffectiveEnabled(compFalse, appTrue)).toBe(false);
+	});
+
+	it("defaults to true when both application and component omit enabled", () => {
+		const appOmitted = parseBooleanAttr(undefined);
+		const compOmitted = parseBooleanAttr(undefined);
+		expect(calculateEffectiveEnabled(compOmitted, appOmitted)).toBe(true);
+	});
+
+	it("propagates unknown for unresolved resource references unless overridden by false", () => {
+		const appRef = parseBooleanAttr("@bool/app_enabled");
+		const compRef = parseBooleanAttr("@0x7f050001");
+		const compTrue = parseBooleanAttr(true);
+		const compFalse = parseBooleanAttr(false);
+
+		expect(calculateEffectiveEnabled(compTrue, appRef)).toBe("unknown");
+		expect(calculateEffectiveEnabled(compRef, parseBooleanAttr(true))).toBe("unknown");
+		// Explicit component false still dominates unknown application ref
+		expect(calculateEffectiveEnabled(compFalse, appRef)).toBe(false);
+	});
+});
+
+describe("calculateEffectiveExported provider and targetSdk nuance", () => {
+	it("defaults omitted targetSdkVersion to minSdkVersion for ContentProviders", () => {
+		// targetSdkVersion omitted, minSdkVersion = 15 (< 17) -> defaults to exported=true
+		const older = calculateEffectiveExported("provider", undefined, false, undefined, false, undefined, 15);
+		expect(older.effective).toBe(true);
+		expect(older.reason).toContain("< 17");
+
+		// targetSdkVersion = 28, minSdkVersion = 14 -> environment-dependent
+		const envDep = calculateEffectiveExported("provider", undefined, false, 28, false, undefined, 14);
+		expect(envDep.effective).toBe("unknown");
+		expect(envDep.reason).toContain("environment-dependent");
+
+		// targetSdkVersion = 28, minSdkVersion = 24 (both >= 17) -> exported=false
+		const newer = calculateEffectiveExported("provider", undefined, false, 28, false, undefined, 24);
+		expect(newer.effective).toBe(false);
+	});
+
+	it("defaults omitted targetSdkVersion to minSdkVersion for activity intent filters", () => {
+		// targetSdkVersion omitted, minSdkVersion = 28 (< 31) -> exported=true
+		const legacy = calculateEffectiveExported("activity", undefined, true, undefined, false, undefined, 28);
+		expect(legacy.effective).toBe(true);
+
+		// Unresolved resource reference targetSdk -> unknown
+		const resTarget = calculateEffectiveExported("activity", undefined, true, "@0x7f050001", false, undefined, 24);
+		expect(resTarget.effective).toBe("unknown");
+	});
+
+	it("respects explicit declared exported=false on legacy ContentProviders", () => {
+		// AOSP respects explicit exported=false even on API <= 16
+		const explicitFalse = calculateEffectiveExported("provider", false, false, 15);
+		expect(explicitFalse.effective).toBe(false);
+		expect(explicitFalse.reason).toContain('Explicitly declared exported="false"');
+	});
+});
+
+describe("permissions, protectionLevel, and alias permission semantics in XML & AXML", () => {
+	it("includes uses-permission-sdk-23 and uses-permission-sdk-m in permission inventory", () => {
+		const xml = `
+			<manifest package="com.test.perm">
+				<uses-permission android:name="android.permission.INTERNET" />
+				<uses-permission-sdk-23 android:name="android.permission.ACCESS_FINE_LOCATION" />
+				<uses-permission-sdk-m android:name="android.permission.RECORD_AUDIO" />
+				<application android:name=".App" />
+			</manifest>
+		`;
+		const parsed = parseXmlText(xml);
+		expect(parsed).not.toBeNull();
+		expect(parsed!.permissions).toContain("android.permission.INTERNET");
+		expect(parsed!.permissions).toContain("android.permission.ACCESS_FINE_LOCATION");
+		expect(parsed!.permissions).toContain("android.permission.RECORD_AUDIO");
+	});
+
+	it("maps numeric protectionLevel 0 to normal without truthiness dropping", () => {
+		const xml = `
+			<manifest package="com.test.prot">
+				<permission android:name="com.test.NORMAL_PERM" android:protectionLevel="0" />
+				<permission android:name="com.test.DANGER_PERM" android:protectionLevel="1" />
+				<permission android:name="com.test.SIG_PERM" android:protectionLevel="signature" />
+				<application android:name=".App" />
+			</manifest>
+		`;
+		const parsed = parseXmlText(xml);
+		expect(parsed).not.toBeNull();
+		expect(parsed!.declaredPermissions).toBeDefined();
+		const norm = parsed!.declaredPermissions!.find(p => p.name === "com.test.NORMAL_PERM");
+		expect(norm?.protectionLevel).toBe("normal");
+		const danger = parsed!.declaredPermissions!.find(p => p.name === "com.test.DANGER_PERM");
+		expect(danger?.protectionLevel).toBe("dangerous");
+		const sig = parsed!.declaredPermissions!.find(p => p.name === "com.test.SIG_PERM");
+		expect(sig?.protectionLevel).toBe("signature");
+	});
+
+	it("preserves explicit empty permission and activity-alias no-permission default", () => {
+		const xml = `
+			<manifest package="com.test.alias">
+				<application android:name=".App" android:permission="com.test.APP_PERM">
+					<activity android:name=".ProtectedActivity" />
+					<activity android:name=".PublicActivity" android:permission="" />
+					<activity-alias
+						android:name=".AliasToProtected"
+						android:targetActivity=".ProtectedActivity" />
+					<activity-alias
+						android:name=".ExplicitAlias"
+						android:targetActivity=".ProtectedActivity"
+						android:permission="com.test.ALIAS_PERM" />
+				</application>
+			</manifest>
+		`;
+		const parsed = parseXmlText(xml);
+		expect(parsed).not.toBeNull();
+
+		// Default component inherits application permission
+		const protectedAct = parsed!.activities.find(a => a.name === ".ProtectedActivity")!;
+		expect(protectedAct.effectivePermission).toBe("com.test.APP_PERM");
+		expect(protectedAct.inheritedPermission).toBe("com.test.APP_PERM");
+
+		// Explicit empty permission is preserved and NOT overridden by app permission
+		const publicAct = parsed!.activities.find(a => a.name === ".PublicActivity")!;
+		expect(publicAct.permission).toBe("");
+		expect(publicAct.effectivePermission).toBe("");
+		expect(publicAct.inheritedPermission).toBeUndefined();
+
+		// activity-alias without permission requires NO permission (supplants target, does not inherit app permission)
+		const aliasDefault = parsed!.activities.find(a => a.name === ".AliasToProtected")!;
+		expect(aliasDefault.permission).toBeUndefined();
+		expect(aliasDefault.effectivePermission).toBeUndefined();
+		expect(aliasDefault.inheritedPermission).toBeUndefined();
+
+		// activity-alias with explicit permission uses explicit permission
+		const explicitAlias = parsed!.activities.find(a => a.name === ".ExplicitAlias")!;
+		expect(explicitAlias.effectivePermission).toBe("com.test.ALIAS_PERM");
+	});
+
+	it("decodes numeric XML character references in attributes and text", () => {
+		// &#102; = 'f', &#116; = 't'
+		const xml = `
+			<manifest package="com.test.entities">
+				<application android:name=".App" android:debuggable="&#102;alse">
+					<activity android:name=".MainActivity" android:exported="&#116;rue" />
+				</application>
+			</manifest>
+		`;
+		const parsed = parseXmlText(xml);
+		expect(parsed).not.toBeNull();
+		expect(parsed!.application.debuggable).toBe(false);
+		expect(parsed!.activities[0].exported).toBe(true);
+	});
+});
+
+describe("AXML package visibility and component scoping", () => {
+	it("does not treat queries provider as an application provider in AXML", () => {
+		// Build AXML with queries/provider
+		const strings = [
+			"manifest",
+			"package",
+			"com.test.queries",
+			"queries",
+			"provider",
+			"authorities",
+			"other.package.authority",
+			"application",
+			"activity",
+			"name",
+			"com.test.queries.MainActivity",
+			"exported",
+		];
+		const strOffsets: number[] = [];
+		const strDataChunks: Buffer[] = [];
+		let currentRelOff = 0;
+		for (const s of strings) {
+			strOffsets.push(currentRelOff);
+			const sBuf = Buffer.from(s, "utf8");
+			const chunk = Buffer.concat([Buffer.from([sBuf.length]), sBuf, Buffer.from([0])]);
+			strDataChunks.push(chunk);
+			currentRelOff += chunk.length;
+		}
+		const poolHeaderSize = 28;
+		const poolOffsetsSize = strings.length * 4;
+		const stringsStart = poolHeaderSize + poolOffsetsSize;
+		const unpaddedPoolSize = stringsStart + currentRelOff;
+		const pad = (4 - (unpaddedPoolSize % 4)) % 4;
+		const totalPoolSize = unpaddedPoolSize + pad;
+		const poolBuf = Buffer.alloc(totalPoolSize);
+		poolBuf.writeUInt16LE(0x0001, 0);
+		poolBuf.writeUInt16LE(poolHeaderSize, 2);
+		poolBuf.writeUInt32LE(totalPoolSize, 4);
+		poolBuf.writeUInt32LE(strings.length, 8);
+		poolBuf.writeUInt32LE(0x0100, 16);
+		poolBuf.writeUInt32LE(stringsStart, 20);
+		for (let i = 0; i < strings.length; i++) {
+			poolBuf.writeUInt32LE(strOffsets[i], poolHeaderSize + i * 4);
+		}
+		let p = stringsStart;
+		for (const c of strDataChunks) {
+			c.copy(poolBuf, p);
+			p += c.length;
+		}
+
+		const elemChunks: Buffer[] = [];
+		// <manifest package="com.test.queries">
+		const manElem = Buffer.alloc(36 + 20);
+		manElem.writeUInt16LE(0x0102, 0);
+		manElem.writeUInt16LE(16, 2);
+		manElem.writeUInt32LE(manElem.length, 4);
+		manElem.writeUInt32LE(strings.indexOf("manifest"), 20);
+		manElem.writeUInt16LE(20, 24);
+		manElem.writeUInt16LE(20, 26);
+		manElem.writeUInt16LE(1, 28);
+		manElem.writeUInt32LE(0xffffffff, 36);
+		manElem.writeUInt32LE(strings.indexOf("package"), 36 + 4);
+		manElem.writeUInt32LE(strings.indexOf("com.test.queries"), 36 + 8);
+		manElem.writeUInt16LE(8, 36 + 12);
+		manElem.writeUInt8(0x03, 36 + 15);
+		manElem.writeUInt32LE(strings.indexOf("com.test.queries"), 36 + 16);
+		elemChunks.push(manElem);
+
+		// <queries><provider authorities="other.package.authority"/></queries>
+		const qElem = Buffer.alloc(36);
+		qElem.writeUInt16LE(0x0102, 0);
+		qElem.writeUInt16LE(16, 2);
+		qElem.writeUInt32LE(36, 4);
+		qElem.writeUInt32LE(strings.indexOf("queries"), 20);
+		elemChunks.push(qElem);
+
+		const qProvElem = Buffer.alloc(36 + 20);
+		qProvElem.writeUInt16LE(0x0102, 0);
+		qProvElem.writeUInt16LE(16, 2);
+		qProvElem.writeUInt32LE(qProvElem.length, 4);
+		qProvElem.writeUInt32LE(strings.indexOf("provider"), 20);
+		qProvElem.writeUInt16LE(20, 24);
+		qProvElem.writeUInt16LE(20, 26);
+		qProvElem.writeUInt16LE(1, 28);
+		qProvElem.writeUInt32LE(0xffffffff, 36);
+		qProvElem.writeUInt32LE(strings.indexOf("authorities"), 36 + 4);
+		qProvElem.writeUInt32LE(strings.indexOf("other.package.authority"), 36 + 8);
+		qProvElem.writeUInt16LE(8, 36 + 12);
+		qProvElem.writeUInt8(0x03, 36 + 15);
+		qProvElem.writeUInt32LE(strings.indexOf("other.package.authority"), 36 + 16);
+		elemChunks.push(qProvElem);
+		elemChunks.push(buildEndElementChunk(strings.indexOf("provider")));
+		elemChunks.push(buildEndElementChunk(strings.indexOf("queries")));
+
+		// <application><activity name="com.test.queries.MainActivity" exported="true"/></application>
+		const appElem = Buffer.alloc(36);
+		appElem.writeUInt16LE(0x0102, 0);
+		appElem.writeUInt16LE(16, 2);
+		appElem.writeUInt32LE(36, 4);
+		appElem.writeUInt32LE(strings.indexOf("application"), 20);
+		elemChunks.push(appElem);
+
+		const actElem = Buffer.alloc(36 + 40);
+		actElem.writeUInt16LE(0x0102, 0);
+		actElem.writeUInt16LE(16, 2);
+		actElem.writeUInt32LE(actElem.length, 4);
+		actElem.writeUInt32LE(strings.indexOf("activity"), 20);
+		actElem.writeUInt16LE(20, 24);
+		actElem.writeUInt16LE(20, 26);
+		actElem.writeUInt16LE(2, 28);
+		actElem.writeUInt32LE(0xffffffff, 36);
+		actElem.writeUInt32LE(strings.indexOf("name"), 36 + 4);
+		actElem.writeUInt32LE(strings.indexOf("com.test.queries.MainActivity"), 36 + 8);
+		actElem.writeUInt16LE(8, 36 + 12);
+		actElem.writeUInt8(0x03, 36 + 15);
+		actElem.writeUInt32LE(strings.indexOf("com.test.queries.MainActivity"), 36 + 16);
+		actElem.writeUInt32LE(0xffffffff, 56);
+		actElem.writeUInt32LE(strings.indexOf("exported"), 56 + 4);
+		actElem.writeUInt32LE(0xffffffff, 56 + 8);
+		actElem.writeUInt16LE(8, 56 + 12);
+		actElem.writeUInt8(0x12, 56 + 15);
+		actElem.writeUInt32LE(1, 56 + 16);
+		elemChunks.push(actElem);
+		elemChunks.push(buildEndElementChunk(strings.indexOf("activity")));
+		elemChunks.push(buildEndElementChunk(strings.indexOf("application")));
+		elemChunks.push(buildEndElementChunk(strings.indexOf("manifest")));
+
+		const all = Buffer.concat(elemChunks);
+		const axmlHeader = Buffer.alloc(8);
+		axmlHeader.writeUInt16LE(0x0003, 0);
+		axmlHeader.writeUInt16LE(8, 2);
+		axmlHeader.writeUInt32LE(8 + poolBuf.length + all.length, 4);
+		const axmlBuf = Buffer.concat([axmlHeader, poolBuf, all]);
+
+		const parsed = parseAxml(axmlBuf);
+		expect(parsed).not.toBeNull();
+		expect(parsed!.activities.length).toBe(1);
+		expect(parsed!.activities[0].name).toBe("com.test.queries.MainActivity");
+		// queries/provider must NOT be classified as an application provider
+		expect(parsed!.providers.length).toBe(0);
+		expect(parsed!.totalComponents).toBe(1);
+	});
+
+	it("safely handles truncated END_ELEMENT chunk without RangeError", () => {
+		const baseAxml = buildTestAxml({ packageName: "com.test.trunc" });
+		// Craft truncated end element chunk of size 8
+		const badEnd = Buffer.alloc(8);
+		badEnd.writeUInt16LE(0x0103, 0); // RES_XML_END_ELEMENT_TYPE
+		badEnd.writeUInt16LE(8, 2);
+		badEnd.writeUInt32LE(8, 4); // declared size 8, but end element requires 24
+
+		const corrupted = Buffer.concat([baseAxml, badEnd]);
+		// Update header total size
+		corrupted.writeUInt32LE(corrupted.length, 4);
+
+		expect(() => parseAxml(corrupted)).not.toThrow();
+		expect(parseAxml(corrupted)).toBeNull();
+	});
+
+	it("rejects truncated binary AXML network security config as unresolved", () => {
+		const axmlNsc = buildTestNetworkSecurityConfigAxml({ cleartextTrafficPermitted: false });
+		const truncated = axmlNsc.subarray(0, axmlNsc.length - 40);
+		const zipData = buildTestZip([
+			{
+				name: "AndroidManifest.xml",
+				data: Buffer.from(
+					'<manifest package="com.test"><application android:networkSecurityConfig="@xml/nsc"/></manifest>',
+				),
+			},
+			{ name: "res/xml/nsc.xml", data: truncated },
+		]);
+		const zip = new ZipParser(zipData);
+		const res = resolveNetworkSecurityConfig("@xml/nsc", zip);
+		expect(res?.unresolvedResourceId).toBeDefined();
+		expect(res?.domainConfigs).toBeUndefined();
+	});
+});
+
+describe("Network Security Config inheritance, overridePins, and AXML parity", () => {
+	it("enforces inheritance and override rules in plain XML network security config", () => {
+		const nscXml = `
+			<network-security-config>
+				<base-config cleartextTrafficPermitted="false">
+					<trust-anchors>
+						<certificates src="system" />
+					</trust-anchors>
+				</base-config>
+				<domain-config cleartextTrafficPermitted="true">
+					<domain includeSubdomains="true">example.com</domain>
+					<trust-anchors>
+						<certificates src="user" />
+					</trust-anchors>
+					<pin-set expiration="2027-01-01">
+						<pin digest="SHA-256">7HIpactkIAq2Y49orFOOQKurWxmmSFZhBCoQYcRhJ3Y=</pin>
+					</pin-set>
+					<domain-config>
+						<domain>private.example.com</domain>
+						<trust-anchors>
+							<certificates src="@raw/private" />
+						</trust-anchors>
+					</domain-config>
+					<domain-config>
+						<domain>cdn.example.com</domain>
+					</domain-config>
+				</domain-config>
+				<debug-overrides>
+					<trust-anchors>
+						<certificates src="user" />
+					</trust-anchors>
+				</debug-overrides>
+			</network-security-config>
+		`;
+
+		const zipData = buildTestZip([
+			{
+				name: "AndroidManifest.xml",
+				data: Buffer.from(
+					'<manifest package="com.test.nsc"><application android:networkSecurityConfig="@xml/nsc"/></manifest>',
+				),
+			},
+			{ name: "res/xml/nsc.xml", data: Buffer.from(nscXml, "utf8") },
+		]);
+		const zip = new ZipParser(zipData);
+		const resolved = resolveNetworkSecurityConfig("@xml/nsc", zip);
+
+		expect(resolved).toBeDefined();
+		expect(resolved!.resolvedFile).toBe("res/xml/nsc.xml");
+		expect(resolved!.format).toBe("plain_xml");
+		expect(resolved!.cleartextTrafficPermitted).toBe(false);
+		expect(resolved!.baseTrustAnchors).toEqual([{ src: "system", overridePins: false }]);
+
+		expect(resolved!.domainConfigs).toBeDefined();
+		expect(resolved!.domainConfigs!.length).toBe(3);
+
+		// Outer domain: example.com
+		const outer = resolved!.domainConfigs!.find(d => d.domain === "example.com")!;
+		expect(outer).toBeDefined();
+		expect(outer.includeSubdomains).toBe(true);
+		expect(outer.cleartextTrafficPermitted).toBe(true);
+		expect(outer.trustAnchors).toEqual([{ src: "user", overridePins: false }]);
+		expect(outer.pinSet?.pins[0].digest).toBe("SHA-256");
+
+		// First nested: private.example.com has explicit trust-anchors -> REPLACES ancestor anchors
+		const nestedPrivate = resolved!.domainConfigs!.find(d => d.domain === "private.example.com")!;
+		expect(nestedPrivate).toBeDefined();
+		expect(nestedPrivate.trustAnchors).toEqual([{ src: "@raw/private", overridePins: false }]);
+		expect(nestedPrivate.cleartextTrafficPermitted).toBe(true); // inherited from outer
+		expect(nestedPrivate.pinSet).toBeDefined(); // inherited from outer
+
+		// Second nested: cdn.example.com absent trust-anchors -> INHERITS user anchors from outer
+		const nestedCdn = resolved!.domainConfigs!.find(d => d.domain === "cdn.example.com")!;
+		expect(nestedCdn).toBeDefined();
+		expect(nestedCdn.trustAnchors).toEqual([{ src: "user", overridePins: false }]);
+		expect(nestedCdn.cleartextTrafficPermitted).toBe(true); // inherited from outer
+
+		// Debug overrides: overridePins defaults to true inside debug-overrides
+		expect(resolved!.debugOverrides).toBeDefined();
+		expect(resolved!.debugOverrides!.trustAnchors).toEqual([{ src: "user", overridePins: true }]);
+	});
+
+	it("parses binary AXML Network Security Config with identical semantic structure", () => {
+		const axmlNsc = buildTestNetworkSecurityConfigAxml({
+			cleartextTrafficPermitted: false,
+			baseCertSrc: "system",
+			domain: "example.com",
+			domainCleartext: true,
+			domainCertSrc: "user",
+			nestedDomain: "private.example.com",
+			nestedCertSrc: "@raw/private",
+			siblingDomain: "cdn.example.com",
+		});
+
+		const zipData = buildTestZip([
+			{
+				name: "AndroidManifest.xml",
+				data: Buffer.from(
+					'<manifest package="com.test.axmlnsc"><application android:networkSecurityConfig="@xml/netsec"/></manifest>',
+				),
+			},
+			{ name: "res/xml/netsec.xml", data: axmlNsc },
+		]);
+		const zip = new ZipParser(zipData);
+		const resolved = resolveNetworkSecurityConfig("@xml/netsec", zip);
+
+		expect(resolved).toBeDefined();
+		expect(resolved!.format).toBe("binary_xml");
+		expect(resolved!.cleartextTrafficPermitted).toBe(false);
+		expect(resolved!.baseTrustAnchors).toEqual([{ src: "system", overridePins: false }]);
+
+		expect(resolved!.domainConfigs).toBeDefined();
+		expect(resolved!.domainConfigs!.length).toBe(3);
+
+		const outer = resolved!.domainConfigs!.find(d => d.domain === "example.com")!;
+		expect(outer.cleartextTrafficPermitted).toBe(true);
+		expect(outer.trustAnchors).toEqual([{ src: "user", overridePins: false }]);
+
+		const nestedPriv = resolved!.domainConfigs!.find(d => d.domain === "private.example.com")!;
+		expect(nestedPriv.trustAnchors).toEqual([{ src: "@raw/private", overridePins: false }]);
+
+		const nestedCdn = resolved!.domainConfigs!.find(d => d.domain === "cdn.example.com")!;
+		expect(nestedCdn.trustAnchors).toEqual([{ src: "user", overridePins: false }]);
+
+		expect(resolved!.debugOverrides?.trustAnchors).toEqual([{ src: "user", overridePins: true }]);
+	});
+
+	it("preserves unresolved numeric resource IDs and rejects entity expansion", () => {
+		// Numeric unresolved reference
+		const unresolved = resolveNetworkSecurityConfig("@0x7f100001", null);
+		expect(unresolved?.unresolvedResourceId).toBe("@0x7f100001");
+
+		// DTD / entity bomb rejection
+		const bombXml = `<!DOCTYPE nsc [ <!ENTITY bomb "AAAA"> ]><network-security-config>&bomb;</network-security-config>`;
+		const bombZip = new ZipParser(buildTestZip([{ name: "res/xml/nsc.xml", data: Buffer.from(bombXml) }]));
+		const bombResolved = resolveNetworkSecurityConfig("@xml/nsc", bombZip);
+		expect(bombResolved?.domainConfigs).toBeUndefined();
+
+		// Manifest with DTD is rejected by parseXmlText
+		const manifestBomb = `<!DOCTYPE manifest [ <!ENTITY lol "lol"> ]><manifest package="com.test"><application /></manifest>`;
+		expect(parseXmlText(manifestBomb)).toBeNull();
+	});
+});
+
+describe("DeepLink URI authority port and bounding", () => {
+	it("includes port in authority for concrete sample URIs", () => {
+		const act: AndroidManifestComponent = {
+			name: ".PortActivity",
+			effectiveExported: true,
+			intentFilters: [
+				{
+					actions: ["android.intent.action.VIEW"],
+					categories: ["android.intent.category.DEFAULT", "android.intent.category.BROWSABLE"],
+					data: [{ scheme: "https", host: "api.example.com", port: "8443", pathPrefix: "/auth" }],
+				},
+			],
+		};
+		const links = extractDeepLinks([act]);
+		expect(links.length).toBe(1);
+		expect(links[0].sampleUris).toContain("https://api.example.com:8443/auth");
+	});
+
+	it("synthesizes concrete hostname from wildcard host and bounds sample count", () => {
+		const act: AndroidManifestComponent = {
+			name: ".WildcardActivity",
+			effectiveExported: true,
+			intentFilters: [
+				{
+					actions: ["android.intent.action.VIEW"],
+					categories: ["android.intent.category.BROWSABLE"],
+					data: [
+						{ scheme: "https", host: "*.example.com", pathPrefix: "/item" },
+						{ scheme: "custom", host: "item", pathPattern: "/view/.*" },
+					],
+				},
+			],
+		};
+		const links = extractDeepLinks([act]);
+		expect(links.length).toBe(1);
+		// Wildcard *.example.com normalized to concrete app.example.com
+		expect(links[0].sampleUris).toContain("https://app.example.com/item");
+		expect(links[0].pathPatterns).toContainEqual({ type: "pattern", value: "/view/.*" });
+		expect(links[0].sampleUris.length).toBeLessThanOrEqual(10);
+	});
+
+	it("does not treat activity intent-filter without action as effective filter", () => {
+		const comp: AndroidManifestComponent = {
+			name: ".NoActionActivity",
+			type: "activity",
+			intentFilters: [
+				{
+					actions: [], // Empty actions: AOSP PackageParser discards this filter for activities
+					categories: ["android.intent.category.BROWSABLE"],
+					data: [{ scheme: "https", host: "example.com" }],
+				},
+			],
+		};
+		const links = extractDeepLinks([comp]);
+		// Without VIEW action and browsable category with VIEW, deep link is not generated
+		expect(links.length).toBe(0);
+	});
+});
+
+describe("handleManifest model-visible serialization", () => {
+	it("renders declared protectionLevels, directional/path permissions, enabled state, and NSC details into content text", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-render-"));
+		try {
+			const manifestXml = `
+				<manifest package="com.test.rendered" android:versionCode="1" android:versionName="1.0">
+					<uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
+					<uses-permission android:name="android.permission.INTERNET" />
+					<permission android:name="com.test.SECURE_ACTION" android:protectionLevel="signature" />
+					<application android:name=".App" android:enabled="true" android:networkSecurityConfig="@xml/nsc">
+						<activity android:name=".MainActivity" android:exported="true" android:enabled="true" />
+						<activity android:name=".DisabledActivity" android:exported="false" android:enabled="false" />
+						<activity android:name=".VerifyActivity" android:exported="true">
+							<intent-filter android:autoVerify="@bool/autoverify">
+								<action android:name="android.intent.action.VIEW" />
+								<category android:name="android.intent.category.DEFAULT" />
+								<category android:name="android.intent.category.BROWSABLE" />
+								<data android:scheme="https" android:host="verify.test.com" />
+							</intent-filter>
+						</activity>
+						<provider
+							android:name=".SecProvider"
+							android:authorities="com.test.provider"
+							android:exported="true"
+							android:grantUriPermissions="true"
+							android:readPermission="com.test.READ"
+							android:writePermission="com.test.WRITE">
+							<path-permission android:pathPrefix="/share" android:readPermission="android.permission.INTERNET" />
+						</provider>
+					</application>
+				</manifest>
+			`;
+			const nscXml = `
+				<network-security-config>
+					<domain-config cleartextTrafficPermitted="false">
+						<domain includeSubdomains="true">api.test.com</domain>
+						<trust-anchors><certificates src="user" overridePins="true" /></trust-anchors>
+					</domain-config>
+				</network-security-config>
+			`;
+
+			const apkBuffer = buildTestZip([
+				{ name: "AndroidManifest.xml", data: Buffer.from(manifestXml, "utf8") },
+				{ name: "res/xml/nsc.xml", data: Buffer.from(nscXml, "utf8") },
+			]);
+			await fs.writeFile(path.join(tempDir, "test.apk"), apkBuffer);
+
+			const tool = new AndroidPackageInspectTool(createTestSession(tempDir));
+			const res = await tool.execute("call-render", { action: "manifest", path: "test.apk" });
+
+			expect(res.details.status).toBe("ok");
+			const text = textOf(res);
+
+			// Declared permission with protectionLevel visible in model text
+			expect(text).toContain("com.test.SECURE_ACTION [protectionLevel: signature]");
+
+			// Provider directional and path permissions visible
+			expect(text).toContain("[readPerm: com.test.READ]");
+			expect(text).toContain("[writePerm: com.test.WRITE]");
+			expect(text).toContain("[grantUri: true]");
+			expect(text).toContain("path-permission: prefix:/share (read: android.permission.INTERNET");
+
+			// Component enabled states visible
+			expect(text).toContain(".DisabledActivity");
+			expect(text).toContain("[enabled: false]");
+
+			// Network Security Config details visible
+			expect(text).toContain("Domain Configs");
+			expect(text).toContain("api.test.com (includeSubdomains), cleartext: false");
+			expect(text).toContain("trustAnchors: [user (overridePins)]");
+
+			// Unresolved autoVerify rendered as unknown in filter and deep link text
+			expect(text).toContain("autoVerify: unknown");
+			expect(text).toContain("[autoVerify: unknown]");
+			expect(text).toContain("scheme=https host=verify.test.com");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});
+describe("binary AXML parity regression: typed 0 protection, empty permission, and resource boolean", () => {
+	it("parses numeric 0 protectionLevel, empty permission string, and resource reference boolean in binary AXML", () => {
+		const strings = [
+			"manifest",
+			"package",
+			"com.test.axmlparity",
+			"permission",
+			"name",
+			"com.test.NORMAL_AXML",
+			"protectionLevel",
+			"application",
+			"activity",
+			"com.test.axmlparity.MainActivity",
+			"exported",
+			"permission",
+			"",
+			"enabled",
+		];
+		const strOffsets: number[] = [];
+		const strDataChunks: Buffer[] = [];
+		let currentRelOff = 0;
+		for (const s of strings) {
+			strOffsets.push(currentRelOff);
+			const chunk = encodeAxmlUtf8String(s);
+			strDataChunks.push(chunk);
+			currentRelOff += chunk.length;
+		}
+		const poolHeaderSize = 28;
+		const poolOffsetsSize = strings.length * 4;
+		const stringsStart = poolHeaderSize + poolOffsetsSize;
+		const unpaddedPoolSize = stringsStart + currentRelOff;
+		const pad = (4 - (unpaddedPoolSize % 4)) % 4;
+		const totalPoolSize = unpaddedPoolSize + pad;
+		const poolBuf = Buffer.alloc(totalPoolSize);
+		poolBuf.writeUInt16LE(0x0001, 0);
+		poolBuf.writeUInt16LE(poolHeaderSize, 2);
+		poolBuf.writeUInt32LE(totalPoolSize, 4);
+		poolBuf.writeUInt32LE(strings.length, 8);
+		poolBuf.writeUInt32LE(0x0100, 16);
+		poolBuf.writeUInt32LE(stringsStart, 20);
+		for (let i = 0; i < strings.length; i++) {
+			poolBuf.writeUInt32LE(strOffsets[i], poolHeaderSize + i * 4);
+		}
+		let p = stringsStart;
+		for (const c of strDataChunks) {
+			c.copy(poolBuf, p);
+			p += c.length;
+		}
+
+		const elemChunks: Buffer[] = [];
+		// <manifest package="com.test.axmlparity">
+		const manElem = Buffer.alloc(36 + 20);
+		manElem.writeUInt16LE(0x0102, 0);
+		manElem.writeUInt16LE(16, 2);
+		manElem.writeUInt32LE(manElem.length, 4);
+		manElem.writeUInt32LE(strings.indexOf("manifest"), 20);
+		manElem.writeUInt16LE(20, 24);
+		manElem.writeUInt16LE(20, 26);
+		manElem.writeUInt16LE(1, 28);
+		manElem.writeUInt32LE(0xffffffff, 36);
+		manElem.writeUInt32LE(strings.indexOf("package"), 36 + 4);
+		manElem.writeUInt32LE(strings.indexOf("com.test.axmlparity"), 36 + 8);
+		manElem.writeUInt16LE(8, 36 + 12);
+		manElem.writeUInt8(0x03, 36 + 15);
+		manElem.writeUInt32LE(strings.indexOf("com.test.axmlparity"), 36 + 16);
+		elemChunks.push(manElem);
+
+		// <permission name="com.test.NORMAL_AXML" protectionLevel=0> (typed integer 0)
+		const permElem = Buffer.alloc(36 + 40);
+		permElem.writeUInt16LE(0x0102, 0);
+		permElem.writeUInt16LE(16, 2);
+		permElem.writeUInt32LE(permElem.length, 4);
+		permElem.writeUInt32LE(strings.indexOf("permission"), 20);
+		permElem.writeUInt16LE(20, 24);
+		permElem.writeUInt16LE(20, 26);
+		permElem.writeUInt16LE(2, 28);
+		permElem.writeUInt32LE(0xffffffff, 36);
+		permElem.writeUInt32LE(strings.indexOf("name"), 36 + 4);
+		permElem.writeUInt32LE(strings.indexOf("com.test.NORMAL_AXML"), 36 + 8);
+		permElem.writeUInt16LE(8, 36 + 12);
+		permElem.writeUInt8(0x03, 36 + 15);
+		permElem.writeUInt32LE(strings.indexOf("com.test.NORMAL_AXML"), 36 + 16);
+		permElem.writeUInt32LE(0xffffffff, 56);
+		permElem.writeUInt32LE(strings.indexOf("protectionLevel"), 56 + 4);
+		permElem.writeUInt32LE(0xffffffff, 56 + 8);
+		permElem.writeUInt16LE(8, 56 + 12);
+		permElem.writeUInt8(0x10, 56 + 15); // TYPE_INT_DEC
+		permElem.writeUInt32LE(0, 56 + 16); // numeric 0
+		elemChunks.push(permElem);
+		elemChunks.push(buildEndElementChunk(strings.indexOf("permission")));
+
+		// <application><activity name="com.test.axmlparity.MainActivity" exported="true" permission="" enabled="@0x7f050001"/></application>
+		const appElem = Buffer.alloc(36);
+		appElem.writeUInt16LE(0x0102, 0);
+		appElem.writeUInt16LE(16, 2);
+		appElem.writeUInt32LE(36, 4);
+		appElem.writeUInt32LE(strings.indexOf("application"), 20);
+		elemChunks.push(appElem);
+
+		const actElem = Buffer.alloc(36 + 80);
+		actElem.writeUInt16LE(0x0102, 0);
+		actElem.writeUInt16LE(16, 2);
+		actElem.writeUInt32LE(actElem.length, 4);
+		actElem.writeUInt32LE(strings.indexOf("activity"), 20);
+		actElem.writeUInt16LE(20, 24);
+		actElem.writeUInt16LE(20, 26);
+		actElem.writeUInt16LE(4, 28);
+		let curOff = 36;
+		actElem.writeUInt32LE(0xffffffff, curOff);
+		actElem.writeUInt32LE(strings.indexOf("name"), curOff + 4);
+		actElem.writeUInt32LE(strings.indexOf("com.test.axmlparity.MainActivity"), curOff + 8);
+		actElem.writeUInt16LE(8, curOff + 12);
+		actElem.writeUInt8(0x03, curOff + 15);
+		actElem.writeUInt32LE(strings.indexOf("com.test.axmlparity.MainActivity"), curOff + 16);
+		curOff += 20;
+
+		actElem.writeUInt32LE(0xffffffff, curOff);
+		actElem.writeUInt32LE(strings.indexOf("exported"), curOff + 4);
+		actElem.writeUInt32LE(0xffffffff, curOff + 8);
+		actElem.writeUInt16LE(8, curOff + 12);
+		actElem.writeUInt8(0x12, curOff + 15);
+		actElem.writeUInt32LE(1, curOff + 16);
+		curOff += 20;
+
+		// explicit empty string permission: ""
+		actElem.writeUInt32LE(0xffffffff, curOff);
+		actElem.writeUInt32LE(strings.indexOf("permission"), curOff + 4);
+		actElem.writeUInt32LE(strings.indexOf(""), curOff + 8);
+		actElem.writeUInt16LE(8, curOff + 12);
+		actElem.writeUInt8(0x03, curOff + 15);
+		actElem.writeUInt32LE(strings.indexOf(""), curOff + 16);
+		curOff += 20;
+
+		// TYPE_REFERENCE enabled: @0x7f050001
+		actElem.writeUInt32LE(0xffffffff, curOff);
+		actElem.writeUInt32LE(strings.indexOf("enabled"), curOff + 4);
+		actElem.writeUInt32LE(0xffffffff, curOff + 8);
+		actElem.writeUInt16LE(8, curOff + 12);
+		actElem.writeUInt8(0x01, curOff + 15); // TYPE_REFERENCE
+		actElem.writeUInt32LE(0x7f050001, curOff + 16);
+
+		elemChunks.push(actElem);
+		elemChunks.push(buildEndElementChunk(strings.indexOf("activity")));
+		elemChunks.push(buildEndElementChunk(strings.indexOf("application")));
+		elemChunks.push(buildEndElementChunk(strings.indexOf("manifest")));
+
+		const all = Buffer.concat(elemChunks);
+		const axmlHeader = Buffer.alloc(8);
+		axmlHeader.writeUInt16LE(0x0003, 0);
+		axmlHeader.writeUInt16LE(8, 2);
+		axmlHeader.writeUInt32LE(8 + poolBuf.length + all.length, 4);
+		const axmlBuf = Buffer.concat([axmlHeader, poolBuf, all]);
+
+		const parsed = parseAxml(axmlBuf);
+		expect(parsed).not.toBeNull();
+
+		// Numeric 0 protectionLevel mapped to "normal"
+		const perm = parsed!.declaredPermissions?.find(p => p.name === "com.test.NORMAL_AXML");
+		expect(perm?.protectionLevel).toBe("normal");
+
+		// Explicit empty permission preserved as ""
+		const act = parsed!.activities[0];
+		expect(act.permission).toBe("");
+		expect(act.effectivePermission).toBe("");
+
+		// TYPE_REFERENCE boolean preserves unknown
+		expect(act.enabled).toBe("unknown");
+		expect(act.rawEnabled).toBe("@0x7f050001");
 	});
 });

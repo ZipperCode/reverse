@@ -65,11 +65,11 @@ Check for binary protection, obfuscation, and runtime layers:
    - **Commercial Protectors (Themida, VMProtect, VMP)**: High entropy sections (> 7.2 bits/byte), non-standard section names (`.vmp0`, `.themida`), mutated entrypoint code. Route to **Route V (`vmp-reverse`)**.
    - **Android Reinforcement / Hardening**: Look for known packer stubs in APK `lib/` (e.g. `libjiagu.so` [Qihoo 360], `libsecmain.so` [Bangcle], `libtup.so` [Tencent Legu]).
 2. **Hybrid & Multi-Runtime Containers**:
+   - **Multi-Runtime Inventory**: Use `runtime_analyze(action: "inventory", path: "<apk|dir>")` to inspect Flutter, React Native / Hermes, and Unity IL2CPP presence and versions in one pass.
+   - **React Native**: Contains `assets/index.android.bundle`. Distinguish plain JS from Hermes bytecode (`.hbc`). Use `runtime_analyze(action: "hermes", path: "<bundle>")` for Hermes disassembly/analysis via compatible `hbctool` or `hermes-dec`.
+   - **Flutter**: Contains `libapp.so` and `libflutter.so` (Dart AOT snapshots). Use `runtime_analyze(action: "flutter", path: "<libapp.so>", engine_path: "<libflutter.so>")` for symbol and address extraction via Blutter.
+   - **Unity**: Contains `libil2cpp.so` and `assets/bin/Data/Managed/Metadata/global-metadata.dat`. Use `runtime_analyze(action: "il2cpp", path: "<libil2cpp.so>", metadata_path: "<global-metadata.dat>")` via Il2CppDumper to generate `dump.cs` and IDA/Ghidra scripts.
    - **Electron**: Contains `resources/app.asar`. Inspect directly with native `javascript_application(path: "app.asar" | "resources/app")` for package metadata, entrypoints, IPC channels, roles, and native addons without extraction. Extract with `npx @electron/asar extract app.asar ./unpacked` only if manual modification or patching is required.
-   - **React Native**: Contains `assets/index.android.bundle`. Check magic: text JS bundle vs binary Hermes bytecode (`.hbc`). Hermes analysis requires `hermes-dec` or `hbctool`.
-   - **Flutter**: Contains `libapp.so` and `libflutter.so`. Native Dart snapshot (AOT compiled). Route to native ELF triage.
-   - **Unity**: Contains `libil2cpp.so` and `assets/bin/Data/Managed/Metadata/global-metadata.dat`. Requires Il2CppDumper before decompilation.
-
 ---
 
 ## 3. Gate G2: Domain Route Selection
@@ -82,10 +82,9 @@ Once the format and packing status are determined, dispatch to the corresponding
 - **Reference**: `skill://native-binary-reverse`.
 
 ### Route A: Android Applications & JNI Libraries
-- **Artifacts**: Android application packages (`.apk`, `.aab`), Dalvik bytecode (`.dex`), and JNI native libraries embedded inside or coupled to an Android app (`lib/<abi>/*.so`).
-- **Routing Guard**: Standalone Linux/POSIX ELF binaries or general shared libraries MUST route to **Route N (`native-binary-reverse`)**, NOT Android. Only route to Route A when analyzing an Android package, Dalvik bytecode, or JNI bindings (`Java_*`, `JNI_OnLoad`). Prioritize zero-prep on-demand queries with `droidasc`. Fall back to targeted `jadx` or `apktool`. For dynamic confirmation, use `frida` for one-shot tests and `frida_session` for stateful multi-step hooking against running or spawned apps.
+- **Artifacts**: Android application packages (`.apk`, `.aab`, Split APK sets), Dalvik bytecode (`.dex`), and JNI native libraries embedded inside or coupled to an Android app (`lib/<abi>/*.so`).
+- **Routing Guard**: Standalone Linux/POSIX ELF binaries or general shared libraries MUST route to **Route N (`native-binary-reverse`)**, NOT Android. Only route to Route A when analyzing an Android package, Dalvik bytecode, or JNI bindings (`Java_*`, `JNI_OnLoad`). Prioritize zero-prep on-demand queries with `android_package_inspect` and `droidasc`. Fall back to targeted `jadx` or `apktool`. For Split APK packages, use `apk_artifact` for atomic multi-package repacking, diffing, signing, and install verification across members. For controlled device experiments, use `app_experiment` (actions: `preflight`, `invoke_component`, `query_provider`, `extract_sandbox_data`, `webview_debug`, `network_replay`, `mitm_capture`, `pinning_diagnose`). For dynamic confirmation, use `frida` for one-shot tests and `frida_session` for stateful multi-step hooking against running or spawned apps.
 - **Reference**: `skill://reverse-lab/references/android.md`.
-
 ### Route B: Windows Native Executables & Libraries
 - **Artifacts**: PE32 / PE32+ `.exe`, `.dll`, `.sys`, `.node` addons.
 - **Core Strategy**: For foundational format and section triage, `triage` or `native-binary-reverse` provides baseline inspection. When Windows subsystem specifics, Win32 IAT auditing, ETW/API Monitor traces (`windows_observe`), or Windows anti-debug techniques are required, dispatch to `windows-reverse`.

@@ -5,9 +5,9 @@
  * `android-reverse`, `windows-reverse`, `web-protocol-reverse`,
  * `native-binary-reverse`, `vmp-reverse`) also live in
  * the package source tree as `./builtin-skills/<name>/`. The repository-root
- * `.agents/skills/` copies remain for project discovery (and other agent
- * tools), so a fresh clone keeps the existing local behavior.
- *
+ * `.agents/skills/` entries are directory symlinks to these canonical directories,
+ * ensuring a single source of truth for both project discovery and bundled
+ * distribution while compiled binaries embed the canonical assets.
  * Every skill file is imported with `{ type: "file" }` so Bun embeds it in the
  * compiled binary as well as shipping it through the npm `src` file set. The
  * provider runs at the lowest priority: an authored project/user skill with

@@ -1,61 +1,93 @@
 # Android Reverse Engineering & Audit Guide
 
-This reference outlines the workflow for analyzing Android applications (`.apk`, `.aab`, `.dex`, `.so`). It prioritizes zero-prep on-demand queries on APKs (`droidasc`) over heavyweight whole-application decompilation, followed by targeted static deconstruction (`jadx`, `apktool`) and dynamic instrumentation (`adb`, `frida`). For raw `.dex` or `.aab` artifacts, use `jadx` or `dexdump`/`bundletool` directly as `droidasc` requires standard `.apk` packages.
+This reference outlines the workflow for analyzing Android applications (`.apk`, `.aab`, `.dex`, `.so`). It prioritizes zero-dependency native inspection (`android_package_inspect`) for container triage, manifest extraction, signature auditing, and resource analysis, followed by optional on-demand queries (`droidasc`), structured Java/smali decompilation (`jadx`, `apktool`), and dynamic instrumentation (`app_experiment`, `frida`, `adb`).
 
 ---
 
 ## 1. Tool Hierarchy & Priority Ladder
 
 ```
-[Level 0: Instant Query] ──> droidasc (Zero-prep sub-second manifest, class list, xrefs, single class on APKs)
+[Level 0: Native Baseline] ──> android_package_inspect (Zero-dependency in-process container triage, AXML manifest decoding, DEX discovery, signatures)
        │
-[Level 1: Focused Static] ──> jadx-cli (Targeted class/method decompile with --single-class)
+[Level 1: On-Demand Query] ──> droidasc (Optional fast class lists, xrefs, and single-class decompilations when installed)
        │
-[Level 2: Resource/Smali] ──> apktool (Resource decoding, smali bytecode mutation & re-assembly)
+[Level 2: Focused Static] ──> jadx-cli (Targeted class/method decompile with --single-class)
        │
-[Level 3: Dynamic Runtime] ──> adb & frida (Process observation, method tracing, runtime hooking)
+[Level 3: Resource/Smali] ──> apktool (Resource decoding, smali bytecode mutation & re-assembly)
+       │
+[Level 4: Dynamic Runtime] ──> app_experiment / adb & frida (Component invocation, method tracing, runtime hooking)
 ```
 
-1. **`droidasc` (First Priority - Zero Prep for APK)**: Treats the APK as a queryable read-only store, fetching manifests, class listings, cross-references (string, type, method, field, extends, impl), and single-class decompilations in 100ms–1.5s with minimal memory overhead.
-2. **`jadx` (Focused Java Decompilation)**: Best for analyzing complex control flow, lambdas, and multi-class relationships once target classes are identified.
-3. **`apktool` (Smali & Resources)**: Required for inspecting decoded XML resources (`res/values/strings.xml`) and editing smali bytecode for patch verification.
-4. **`adb` & `frida` (Dynamic Closed Loop)**: Provides live confirmation of parameter values, decrypted buffers, and execution flow.
+1. **`android_package_inspect` (First Priority - Built-in Native Baseline)**: Zero-dependency native inspection of APK/AAB packages and DEX binaries. Extracts container structures, decodes binary XML manifests (permissions, components, intent filters, deep links), parses DEX headers/classes, verifies APK signatures (v1-v3.1), and queries resource trees in-process without external tool installations.
+2. **`droidasc` (Optional Query Tool)**: On-demand query tool for APK packages when installed. Fetches class listings, cross-references (string, type, method, field, extends, impl), and single-class decompilations without whole-application JVM memory pressure.
+3. **`jadx` (Focused Java Decompilation)**: Best for analyzing complex control flow, lambdas, and multi-class relationships once target classes are identified.
+4. **`apktool` (Smali & Resources)**: Required for inspecting decoded XML resources (`res/values/strings.xml`) and editing smali bytecode for patch verification.
+5. **`app_experiment` / `adb` & `frida` (Dynamic Closed Loop)**: Provides live confirmation of parameter values, decrypted buffers, and execution flow.
 
----
+## 2. Phase 1: Rapid Reconnaissance (Native Baseline & Query Tools)
 
-## 2. Phase 1: Rapid Reconnaissance (droidasc & lightweight tools)
+*Tool Execution Guidance*: Built-in tools are dispatched via `write` to `xd://<tool>` with JSON arguments. Query the schema and options before calling using `read xd://<tool>`.
 
-Always start with lightweight discovery to preserve context budget:
+Always start with lightweight native discovery to preserve context budget:
 
 ### 1. Instant Manifest Extraction
-Extract package name, entrypoint activities, permissions, and exported components without full decompilation:
-```typescript
-// Primary: reverse built-in droidasc tool
-droidasc({ op: "manifest", target: "target.apk" })
+Extract package name, entrypoint activities, permissions, and exported components via built-in `android_package_inspect` (write to `xd://android_package_inspect`):
+```json
+{
+  "action": "manifest",
+  "path": "target.apk"
+}
 ```
+Or when optional `droidasc` is installed (write to `xd://droidasc`):
+```json
+{
+  "op": "manifest",
+  "target": "target.apk"
+}
+```
+Fallback CLI using `aapt2`:
 ```bash
-# Fallback CLI using aapt2 if droidasc is not installed
 aapt2 dump badging target.apk | grep -E "package:|launchable-activity"
 ```
 
 ### 2. Fast Reference Lookup & Class Listing (Search-First)
-List classes across DEX entries or query method references, class references, or string constants across all DEX files:
-```typescript
-// Primary: reverse built-in droidasc tool
-droidasc({ op: "listclass", target: "target.apk", prefix: "com.example" })
-droidasc({ op: "findrefs", target: "target.apk", kind: "string", query: "api/v2/auth" })
-droidasc({ op: "findrefs", target: "target.apk", kind: "method", query: "checkLicense", class: "com.example.LicenseValidator" })
-droidasc({ op: "findrefs", target: "target.apk", kind: "string", query: "SecretKeySpec" })
+When `droidasc` is installed, list classes across DEX entries or query method references, class references, or string constants (write to `xd://droidasc`):
+```json
+{
+  "op": "listclass",
+  "target": "target.apk",
+  "prefix": "com.example"
+}
+```
+```json
+{
+  "op": "findrefs",
+  "target": "target.apk",
+  "kind": "string",
+  "query": "api/v2/auth"
+}
+```
+```json
+{
+  "op": "findrefs",
+  "target": "target.apk",
+  "kind": "method",
+  "query": "checkLicense",
+  "class": "com.example.LicenseValidator"
+}
 ```
 
 ### 3. On-Demand Single Class Decompilation
-Decompile only the exact class identified by `findrefs`:
-```typescript
-// Primary: reverse built-in droidasc tool
-droidasc({ op: "getclass", target: "target.apk", class: "com/example/app/auth/AuthManager" })
+Decompile only the exact class identified by `findrefs` using `droidasc` (write to `xd://droidasc`):
+```json
+{
+  "op": "getclass",
+  "target": "target.apk",
+  "class": "com/example/app/auth/AuthManager"
+}
 ```
+Fallback CLI using targeted JADX:
 ```bash
-# Fallback CLI using jadx targeted decompilation
 jadx -d ./jadx_out --single-class "com.example.app.auth.AuthManager" target.apk
 ```
 ---
@@ -79,15 +111,27 @@ jadx -d ./jadx_out --show-bad-code --single-class "com.example.app.security.Cryp
 
 ### 2. Native JNI Library (`.so`) Triage & Emulation
 Android apps often delegate critical cryptography, anti-tamper, or token signing to native C/C++ libraries in `lib/<abi>/`:
-```typescript
-// Primary: Built-in zero-prep native inspection and JNI export mapping
-android_native_workflow({ action: "inspect", path: "target.apk" });
-
-// Extract target architecture (.so) into isolated artifacts folder
-android_native_workflow({ action: "extract", path: "target.apk", abi: "arm64-v8a" });
-
-// Generate 6-stage workflow plan with tool readiness
-android_native_workflow({ action: "plan", path: "target.apk" });
+Inspect libraries via `android_native_workflow` (write to `xd://android_native_workflow`):
+```json
+{
+  "action": "inspect",
+  "path": "target.apk"
+}
+```
+Extract target architecture (`.so`) into isolated artifacts folder:
+```json
+{
+  "action": "extract",
+  "path": "target.apk",
+  "abi": "arm64-v8a"
+}
+```
+Generate 6-stage workflow plan with tool readiness:
+```json
+{
+  "action": "plan",
+  "path": "target.apk"
+}
 ```
 ```bash
 # Fallback CLI: Inspect native libraries and exports manually
@@ -318,8 +362,8 @@ frida_session(action: "stop", session_id: "android-audit")
 
 ## 6. Subagent Delegation Model for Android
 
-When handling complex Android tasks:
-- **`scout` subagent**: Runs `droidasc getmanifest` and `droidasc findrefs` to map components, detect obfuscators, and locate relevant class names.
-- **Main Agent**: Evaluates the xrefs, checks context budget, reads target classes, and drafts the verification hypothesis.
-- **`task` subagent**: Writes the Frida hook script or performs the smali patch and test build.
-- **Main Agent**: Executes dynamic verification on the device/emulator to maintain a single stateful session owner.
+When handling complex Android tasks, follow structured handoffs (`sha256`, `path`, `package`, `abi`, `serial`, `subject`, `evidence_ids`, `allowed_actions`):
+- **`scout` subagent**: Runs `droidasc` manifest and xref queries to map components, detect obfuscators, and locate relevant class names.
+- **Main Agent**: Evaluates xrefs, checks context budget, reads target classes, and drafts the verification hypothesis.
+- **`task` subagent**: Writes Frida hook scripts, performs DEX bytecode patches (`dex_patch`), generates repacked APKs (`apk_artifact`), or runs framework analysis (`runtime_analyze`).
+- **Main Agent**: Executes dynamic verification on the device/emulator (or runs bounded tests via `app_experiment`) to maintain a single stateful session owner.

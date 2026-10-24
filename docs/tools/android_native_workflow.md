@@ -109,8 +109,13 @@ android_native_workflow({
 ```
 
 ---
+## Approval Tiers & Safety
 
-## Safety & Licensing Boundary
+- `inspect`, `plan`, `status`: Read-only queries (`read` tier) permitted under `always-ask` and `write` modes without execution or file modifications.
+- `extract`: File decompression and output artifact generation (`write` tier), writing extracted `.so` files to `./artifacts/extracted_so/`.
+- Unknown or missing actions fail closed to `exec` tier.
+
+## Licensing Boundary
 
 - **Pure Read-Only Inspection**: In-process analysis operates without executing target binaries, native instructions, or untrusted shell scripts.
 - **Artifact Isolation**: Extracted shared libraries are written exclusively to isolated artifact directories (`./artifacts/`), leaving original APK containers immutable.

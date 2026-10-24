@@ -109,13 +109,22 @@ export default class Setup extends Command {
 			char: "x",
 			description: "Execute verified installation commands after interactive confirmation (reverse only)",
 		}),
+		capability: Flags.string({
+			description: "Filter checks or JSON output to a specific reverse capability (reverse only)",
+		}),
+		category: Flags.string({
+			description: "Filter checks or JSON output to a specific tool category (reverse only)",
+		}),
+		tool: Flags.string({
+			description: "Filter checks or JSON output to a specific tool (reverse only)",
+		}),
 	};
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Setup);
 		await loadEffectiveSettings();
 		if (!args.component) {
-			if (flags.check || flags.json) {
+			if (flags.check || flags.json || flags.capability || flags.category || flags.tool) {
 				throw new CliUsageError("setup --check/--json requires a COMPONENT (providers|add|reverse|python|speech)");
 			}
 			const isTTY = Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -138,6 +147,9 @@ export default class Setup extends Command {
 						json: flags.json,
 						check: flags.check,
 						execute: flags.execute,
+						capability: flags.capability,
+						category: flags.category,
+						tool: flags.tool,
 					},
 				};
 				await initTheme();
@@ -147,6 +159,11 @@ export default class Setup extends Command {
 			await runOnboardingSetup();
 			return;
 		}
+		if (args.component !== "reverse" && (flags.capability || flags.category || flags.tool)) {
+			throw new CliUsageError(
+				"--capability, --category, and --tool flags are only supported for the 'reverse' component",
+			);
+		}
 		const cmd: SetupCommandArgs = {
 			component: args.component as SetupComponent,
 			tool: args.tool,
@@ -154,6 +171,9 @@ export default class Setup extends Command {
 				json: flags.json,
 				check: flags.check,
 				execute: flags.execute,
+				capability: flags.capability,
+				category: flags.category,
+				tool: flags.tool,
 			},
 		};
 		await initTheme();

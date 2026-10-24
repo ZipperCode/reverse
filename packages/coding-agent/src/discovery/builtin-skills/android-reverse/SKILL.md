@@ -30,14 +30,16 @@ Read `skill://reverse-lab/references/evidence.md` for artifact formats.
 
 ## 2. Toolchain & Canonical Capability Mapping
 
-### Canonical Capabilities
+### Analytical Capability & Method Tool Mapping
 
-| Canonical Capability ID | Analytical Scenario | Recommended Native Tool | Optional External Tools | Trusted Setup Command | Fallback Tier |
+| Capability / Method | Analytical Scenario | Recommended Native Tool | Optional External Tools | Trusted Setup Command | Fallback Tier |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`apk_unpacking`** | Container triage, DEX decompilation, manifest decoding, smali patching | `android_package_inspect` (built-in) / `droidasc` | `jadx`, `apktool`, `baksmali`, `dexdump` | `reverse setup reverse jadx` / `apktool` | `droidasc` ➔ `dexdump` ➔ `unzip -p <apk> AndroidManifest.xml` / `strings` |
-| **`android_native_emulation`** | Headless ARM32/ARM64 CPU emulation and JNI invocation of native `.so` crypto algorithms without a device | `android_native_workflow` (built-in triage) | `unidbg` (Maven Java harness) | `reverse setup reverse unidbg` | `frida` / `frida_session` (live device) ➔ static `r2_inspect` / `ghidra_inspect` / `readelf` |
-| **`dex_patching`** | Direct Dalvik bytecode inspection, DEX header validation, and semantic byte patching | `dex_patch` (built-in) | `python`, `jadx`, `baksmali` | `reverse setup reverse python` | `droidasc` ➔ `dexdump` ➔ smali patch |
-| **`apk_artifact_generation`** | Container entry diff, archive repackaging, 4-byte/16KiB page alignment, v1-v3 signing | `apk_artifact` (built-in) | `python`, `zipalign`, `apksigner`, `java`, `adb` | `reverse setup reverse apksigner` | `apktool b` + `unzip` |
+| **`apk_unpacking`** (Capability) | Container triage, DEX decompilation, manifest decoding, smali patching | `android_package_inspect` (built-in) / `droidasc` | `jadx`, `apktool`, `baksmali`, `dexdump` | `reverse setup reverse jadx` / `apktool` | `droidasc` ➔ `dexdump` ➔ `unzip -p <apk> AndroidManifest.xml` / `strings` |
+| **`android_native_emulation`** (Capability) | Headless ARM32/ARM64 CPU emulation and JNI invocation of native `.so` crypto algorithms without a device | `android_native_workflow` (built-in triage) | `unidbg` (Maven Java harness) | `reverse setup reverse unidbg` | `frida` / `frida_session` (live device) ➔ static `r2_inspect` / `ghidra_inspect` / `readelf` |
+| **`dex_patching`** (Capability) | Direct Dalvik bytecode inspection, DEX header validation, and semantic byte patching | `dex_patch` (built-in) | `python`, `jadx`, `baksmali` | `reverse setup reverse python` | `droidasc` ➔ `dexdump` ➔ smali patch |
+| **`apk_artifact_generation`** (Capability) | Container entry diff, archive repackaging, Split APK package sets, 4-byte/16KiB page alignment, v1-v3 signing | `apk_artifact` (built-in) | `python`, `zipalign`, `apksigner`, `java`, `adb` | `reverse setup reverse apksigner` | `apktool b` + `unzip` |
+| **`app_experiment`** (Method Tool) | Bounded mobile device lab experiments (component invocation, provider query, run-as sandbox extract, webview debug, network replay, pinning diagnose) | `app_experiment` (built-in) | `adb`, `frida`, `mitmproxy` | `reverse setup reverse adb` | Static manifest / DEX inspect via `android_package_inspect` |
+| **`runtime_analyze`** (Method Tool) | Multi-runtime mobile application inspection (Flutter Dart AOT, React Native Hermes HBC, Unity IL2CPP) | `runtime_analyze` (built-in) | `blutter`, `hbctool`, `hermes-dec`, `il2cppdumper` | `reverse setup reverse blutter` | Native ELF / binary triage via `triage` / `r2_inspect` |
 
 ### Core Toolchain & Prerequisites
 
@@ -47,13 +49,36 @@ Read `skill://reverse-lab/references/evidence.md` for artifact formats.
 - **Resource & Smali Engine (`apktool`)**: OPTIONAL external tool. Used for decoding XML resources (`res/values/strings.xml`) and smali bytecode re-assembly.
 - **Native SO, JNI & Emulation Orchestration (`android_native_workflow`, `unidbg`)**: OPTIONAL (Built-in tool `android_native_workflow`). Use `android_native_workflow` to inventory native `.so` libraries, parse ELF machine architectures, map JNI exported functions (`Java_*`), link DEX native declarations (`ACC_NATIVE`) to dynamic `RegisterNatives` / `JNI_OnLoad`, and extract libraries directly to `./artifacts/extracted_so/`. When analyzing native cryptography or token algorithms without a connected phone or emulator, invoke `unidbg` to emulate ARM instructions headlessly on the host JVM.
 - **Direct Dalvik Bytecode Patcher (`dex_patch`)**: BUILT-IN. Provides targeted Dalvik bytecode inspection, structural validation (headers, Adler32 checksums, SHA-1 signatures, instruction boundaries), and semantic bytecode patching (e.g. conditional branch inversion, return value overrides, nop padding) with dry-run safety and automatic checksum recalculation. Eliminates whole-application smali reassembly failures on obfuscated or anti-tamper APKs. Requires Python 3.9+ runtime (`reverse_capability({ action: "resolve", capability: "dex_patching" })`).
-- **APK Artifact Generator & Signer (`apk_artifact`)**: BUILT-IN. Manages container entry diffing, deterministic repacking with uncompressed/aligned resources, archive alignment (4-byte for data, 16KiB page alignment for native `.so`), v1-v3 APK signing via `apksigner`, and non-root install/launch verification. Distinguishes offline repack/diff from signed generation pipeline (`reverse_capability({ action: "resolve", capability: "apk_artifact_generation" })`).
-- **Dynamic Instrumentation (`frida`, `frida_session`, `adb_observe`, `adb`)**: OPTIONAL. Use the built-in `frida` tool for open dynamic execution and inspection: execute custom Frida JavaScript scripts (`script` or `script_path`) against processes via attach (`pid`/`process`) or spawn (`spawn`), supporting hook implementation replacement and memory inspection, as well as device discovery, process enumeration, module listing, and trace observation; record dynamic evidence to `./artifacts` and cite in evidence findings. Use the built-in `frida_session` tool for persistent multi-turn dynamic analysis sessions with active child/target persistence (create/run/status/stop/destroy) without re-attaching each turn. Use the built-in `adb_observe` tool for read-only device evidence with fixed commands: device discovery, installed packages, running processes, bounded logcat, system properties, and screenshots saved as artifacts.
+- **APK Artifact Generator & Signer (`apk_artifact`)**: BUILT-IN. Manages container entry diffing, deterministic repacking with uncompressed/aligned resources, archive alignment (4-byte for data, 16KiB page alignment for native `.so`), v1-v3 APK signing via `apksigner`, and non-root install/launch verification. Supports single packages and Split APK sets with atomic rollback across members. Approval tiers: `diff`/`verify` are read, `repack`/`sign` are write, `install_verify` is exec.
+- **Mobile App Experimentation (`app_experiment`)**: BUILT-IN. Bounded laboratory experiment runner across Android components. Actions: `preflight` (serial/pkg check), `invoke_component` (benign start/broadcast/startservice), `query_provider` (read-only `content query`), `extract_sandbox_data` (run-as non-root sandbox data extraction), `webview_debug` (socket discovery and port forward management), `network_replay` (loopback origin comparison with credential redaction), `mitm_capture` (mitmdump session management), `pinning_diagnose` (bounded TLS pinning inspection).
+- **Multi-Runtime Analyzer (`runtime_analyze`)**: BUILT-IN. Detects and analyzes embedded app frameworks. Actions: `inventory` (detects Flutter, React Native/Hermes, Unity IL2CPP), `hermes` (disassembles Hermes bytecode via compatible `hbctool` or `hermes-dec`), `il2cpp` (extracts symbols and generates `dump.cs` / scripts via Il2CppDumper), `flutter` (extracts AOT symbols from `libapp.so` + `libflutter.so` via Blutter).
+- **Dynamic Instrumentation (`frida`, `frida_session`, `adb_observe`, `adb`)**: OPTIONAL. Use the built-in `frida` tool for open dynamic execution and inspection: execute custom Frida JavaScript scripts (`script` or `script_path`) against processes via attach (`pid`/`process`) or spawn (`spawn`), supporting hook implementation replacement and memory inspection, as well as device discovery, process enumeration, module listing, and trace observation; record dynamic evidence to `./artifacts` and cite in evidence chains.
+
+### Tool Execution Guidance & Readiness Protocol
+
+Before invoking any tool via `write` to `xd://<tool>`, inspect its schema and usage rules with `read xd://<tool>`. Emit notices for the current step only without noise.
+
+Evaluate tools across five distinct readiness tiers:
+1. **`installed`**: Tool binary or package exists on PATH.
+2. **`compatible`**: Required runtime version is met (e.g. Unidbg requires JDK 8; if running on JDK 9+ like Java 25, compatibility fails with clear JDK 8 installation guidance).
+3. **`canStart`**: Step prerequisites are satisfied:
+   - For `apk_unpacking`: baseline unpacking (`unpackingStages.baseline`: container triage, binary AndroidManifest.xml decoding, DEX discovery) has `canStart: true` immediately via built-in `android_package_inspect` without requiring `jadx` or `apktool`. High-level Java source recovery requires `unpackingStages.javaDecompile.canStart: true` (`jadx` + Java). Smali disassembly/mutation requires `unpackingStages.smali.canStart: true` (`apktool` + Java).
+   - For `android_native_emulation`: test harness code generation (`scaffold`) proceeds immediately as local file generation without runtime dependencies; execution (`launch` / `probe`) requires `emulationStages.launchPrerequisites.canStart: true` (Unidbg built JAR + validated JDK 8) without requiring a pre-existing active harness connection (`emulationStages.runtimeSession.connected`), eliminating circular readiness gates.
+   - For device actions (`app_experiment`): requires ADB + authorized connected device (`serial` + `package`).
+4. **`runtimeReady`**: Active background runner, daemon, or live MCP session connection (e.g. active Unidbg SSE MCP or JSHook session). Offline execution and local harness scaffolding require only action-specific `canStart: true`, not an active pre-existing connection.
+5. **`targetMatched`**: Target coordinates (`sha256`, `package`, `abi`, `serial`) verified. Static tool resolution and capability discovery evaluate catalog availability without requiring a connected device or target. In contrast, device actions (e.g. `app_experiment` device invocations) strictly require an authorized, connected device with verified `serial` and `package`.
+
+Optional dependencies are checked only for the currently selected step and remain completely silent when already installed. Fallback steps provide static facts only and must NOT falsely claim dynamic or JNI experiment verification.
+
+### Security Scenario Methodology & Public Reference Anchors
+When auditing Android application security scenarios, ground findings in verifiable public methodology anchors (e.g. OWASP MASTG-TECH-0172 for deep link enumeration, MASTG deep link handling and WebView JavaScript bridge analysis):
+- **Deep Link & Component Exposure**: The presence of an exported component (`android:exported="true"`) or `intent-filter` is a candidate entrypoint, NOT an automatic vulnerability. Route to `app_experiment(action: "invoke_component", ...)` with explicit allowlisted target parameters to observe intent processing, validation branches, and concrete impact.
+- **WebView JavaScript Bridges**: The presence of `@JavascriptInterface` or `addJavascriptInterface` is a candidate bridge. Route to static code triage (`droidasc`/`jadx`), `app_experiment(action: "webview_debug", ...)`, or Frida hook observation to confirm whether untrusted origin URLs can reach the interface and invoke sensitive operations.
+- **Reporting Invariant**: Contrast observable baseline behavior against manipulated input; never assert vulnerability based solely on static manifest attributes.
 
 ### Capability Resolution & Dispatch Protocol (Discover-Before-Stop / Install-Then-Dispatch)
 
-When an analytical task requires decompilation or emulation, operators MUST NOT guess command paths or halt with missing-tool errors. Instead, follow the canonical 5-step lifecycle:
-
+When an analytical task requires decompilation or emulation, follow the canonical 5-step lifecycle:
 1. **Resolve Capability (`reverse_capability`)**:
    Query capability status before tool invocation:
    ```json
@@ -81,9 +106,12 @@ When an analytical task requires decompilation or emulation, operators MUST NOT 
    ```json
    reverse_capability({ action: "resolve", capability: "<capability_id>", refresh: true })
    ```
-   Confirm `status: "ready"` before dispatching.
+   Confirm that the selected action's specific prerequisites are met before dispatching:
+   - For `android_native_emulation` execution (`launch` / `probe`), verify `emulationStages.launchPrerequisites.canStart: true` (which validates Unidbg + JDK 8). When JDK is non-8 (e.g. Java 25), `canStart` is false with a JDK 8 remedy; local test code generation (`scaffold`) remains available without JDK 8, while execution falls back to static disassembly (`r2_inspect` / `ghidra_inspect`) for static facts only.
+   - For Java source recovery, verify `unpackingStages.javaDecompile.canStart: true`. Dispatch `jadx` when JADX + Java are present; when DroidASC is installed, route on-demand class decompilation to `droidasc(op: "getclass", ...)` without requiring JVM setup. For smali disassembly/mutation (`apktool`), verify `unpackingStages.smali.canStart: true`. Baseline container/manifest extraction (`unpackingStages.baseline.canStart: true`) proceeds immediately with built-in `android_package_inspect`.
+   - For device actions (`app_experiment`), verify ADB connectivity and device authorization for the designated `serial` and `package`.
 5. **Dispatch Tool or Engage Fallback**:
-   - **If installed & verified**: Dispatch the external tool using its canonical post-install syntax (e.g. `jadx -d ./artifacts/jadx_out --single-class "<class>" <target.apk>`). Record the successful install-after resume in `reverse_workflow`:
+   - **If action prerequisites satisfied**: Dispatch the external tool using its canonical post-install syntax (e.g. `jadx -d ./artifacts/jadx_out --single-class "<class>" <target.apk>`). Record the successful install-after resume in `reverse_workflow`:
      ```json
      reverse_workflow({
        action: "record",

@@ -40,6 +40,12 @@ import {
 	verifySourceOriginalBytes,
 	accumulatePatches,
 } from "./lineage";
+import {
+	isPackageSetManifest,
+	parseAndValidatePackageSetManifest,
+	resolvePackageSetInput,
+	type ValidatedPackageSetManifest,
+} from "./package-set";
 import { generateDeterministicPlan } from "./planner";
 
 const PRIVATE_DIR_MODE = 0o700;
@@ -102,6 +108,7 @@ export interface RegisterDerivativeOptions {
 	architecture?: string;
 	patches?: Array<{
 		patch_id: string;
+		package_member?: string;
 		member_path?: string;
 		offset: number;
 		original_bytes: string;
@@ -179,10 +186,20 @@ export class ReverseWorkflowStore {
 		if (dependencies) {
 			metadata.dependencies = dependencies;
 		}
+		const targetAbs = path.isAbsolute(input.target) ? input.target : path.resolve(this.repositoryRoot, input.target);
+		let targetSha256: string | undefined;
+		try {
+			targetSha256 = await hashFileSha256(targetAbs);
+		} catch {
+			// speculative or not yet on disk
+		}
 
 		const record: ReverseWorkflowRecord = {
 			id: workflowId,
 			target: input.target,
+			target_abs_path: targetAbs,
+			target_sha256: targetSha256,
+			base_target_sha256: targetSha256,
 			format,
 			goal: input.goal,
 			status: "active",
@@ -370,6 +387,11 @@ export class ReverseWorkflowStore {
 			);
 		}
 
+		const isPkgSet = await isPackageSetManifest(resolvedPath);
+		let pkgManifestInfo: ValidatedPackageSetManifest | undefined;
+		if (isPkgSet) {
+			pkgManifestInfo = await parseAndValidatePackageSetManifest(resolvedPath);
+		}
 		return await withWorkflowStoreWrite(this.projectDirectory, this.lockPath, async () => {
 			const workflow = await this.get(workflowId);
 			if (!workflow) {
@@ -426,7 +448,75 @@ export class ReverseWorkflowStore {
 					`original_sha256 '${input.original_sha256}' does not match workflow base target SHA-256 '${originalSha256}'`,
 				);
 			}
+			let capturedOriginalSetSha: string | undefined;
+			let capturedOriginalMembers: unknown[] | undefined;
+			let validatedRawSourceSet: { base: string; splits?: Record<string, string> } | undefined;
 
+			// Validate original base package set integrity at root level independently of parent derivation
+			const wfPkgSet = workflow.metadata?.package_set as
+				| { base?: string; splits?: Record<string, string>; set_sha256?: string; members?: unknown[] }
+				| undefined;
+			const inputSourceSet = input.metadata?.source_package_set as
+				| { base?: string; splits?: Record<string, string> }
+				| undefined;
+			const candidateRawSet =
+				inputSourceSet && typeof inputSourceSet.base === "string"
+					? inputSourceSet
+					: wfPkgSet && typeof wfPkgSet.base === "string"
+						? wfPkgSet
+						: undefined;
+
+			if (await isPackageSetManifest(baseTargetPath)) {
+				try {
+					const val = await parseAndValidatePackageSetManifest(baseTargetPath);
+					if (
+						wfPkgSet?.set_sha256 &&
+						wfPkgSet.set_sha256.toLowerCase() !== val.manifest.set_sha256.toLowerCase()
+					) {
+						throw new ToolError(
+							`Stale original base package set: aggregate SHA-256 drifted from registered '${wfPkgSet.set_sha256}' to '${val.manifest.set_sha256}'.`,
+						);
+					}
+					capturedOriginalSetSha = val.manifest.set_sha256;
+					capturedOriginalMembers = val.manifest.members;
+				} catch (err) {
+					if (err instanceof ToolError) throw err;
+					throw new ToolError(
+						`Stale original base package set: manifest '${workflow.target}' member verification failed: ${err instanceof Error ? err.message : String(err)}`,
+					);
+				}
+			} else if (candidateRawSet && typeof candidateRawSet.base === "string") {
+				const normRawBase = path.isAbsolute(candidateRawSet.base)
+					? candidateRawSet.base
+					: path.resolve(this.repositoryRoot, candidateRawSet.base);
+				const realRawBase = await fs.realpath(normRawBase).catch(() => null);
+				const realCandidateBase = await fs.realpath(baseTargetPath).catch(() => null);
+				if (realRawBase && realCandidateBase && realRawBase === realCandidateBase) {
+					const rawBaseHash = await hashFileSha256(realRawBase);
+					if (rawBaseHash.toLowerCase() === originalSha256.toLowerCase()) {
+						const rawInput = {
+							base: normRawBase,
+							splits: candidateRawSet.splits
+								? Object.fromEntries(
+										Object.entries(candidateRawSet.splits).map(([k, v]) => [
+											k,
+											path.isAbsolute(v) ? v : path.resolve(this.repositoryRoot, v),
+										]),
+									)
+								: undefined,
+						};
+						const valRaw = await resolvePackageSetInput(this.repositoryRoot, rawInput);
+						if (wfPkgSet?.set_sha256 && wfPkgSet.set_sha256.toLowerCase() !== valRaw.setSha256.toLowerCase()) {
+							throw new ToolError(
+								`Stale original base package set: aggregate SHA-256 drifted from registered '${wfPkgSet.set_sha256}' to '${valRaw.setSha256}'. Member APKs have been modified.`,
+							);
+						}
+						capturedOriginalSetSha = valRaw.setSha256;
+						capturedOriginalMembers = valRaw.members;
+						validatedRawSourceSet = rawInput;
+					}
+				}
+			}
 			let parentBuild: BuildArtifactRecord | undefined;
 			let parentSha256: string;
 
@@ -448,16 +538,25 @@ export class ReverseWorkflowStore {
 				parentSha256 = parentBuild.output_sha256;
 			} else if (input.parent_sha256) {
 				const cleanParent = input.parent_sha256.trim().toLowerCase();
-				const matched = workflow.build_lineage?.find(b => b.output_sha256.toLowerCase() === cleanParent);
+				const matched = workflow.build_lineage?.find(b => {
+					if (b.output_sha256.toLowerCase() === cleanParent) return true;
+					const bSetSha = (b.metadata?.package_set as Record<string, unknown> | undefined)?.set_sha256;
+					return typeof bSetSha === "string" && bSetSha.toLowerCase() === cleanParent;
+				});
 				if (matched) {
 					parentBuild = matched;
 					parentSha256 = matched.output_sha256;
 				} else if (cleanParent === originalSha256.toLowerCase()) {
 					parentSha256 = originalSha256;
 				} else {
-					throw new ToolError(
-						`parent_sha256 '${input.parent_sha256}' is neither the base SHA-256 nor a recognized prior derivative output SHA-256.`,
-					);
+					const wfSetSha = (workflow.metadata?.package_set as Record<string, unknown> | undefined)?.set_sha256;
+					if (typeof wfSetSha === "string" && wfSetSha.toLowerCase() === cleanParent) {
+						parentSha256 = originalSha256;
+					} else {
+						throw new ToolError(
+							`parent_sha256 '${input.parent_sha256}' is neither the base SHA-256 nor a recognized prior derivative output SHA-256.`,
+						);
+					}
 				}
 			} else if (workflow.current_baseline_build_id) {
 				parentBuild = workflow.build_lineage?.find(b => b.build_id === workflow.current_baseline_build_id);
@@ -482,6 +581,33 @@ export class ReverseWorkflowStore {
 						if (err instanceof ToolError) throw err;
 						throw new ToolError(
 							`Failed to verify parent source '${parentBuild.target_path}': ${err instanceof Error ? err.message : String(err)}`,
+						);
+					}
+				}
+				if (await isPackageSetManifest(parentPath)) {
+					try {
+						const parentPkgVal = await parseAndValidatePackageSetManifest(parentPath);
+						const inputSourceSet = input.metadata?.source_package_set as
+							| { base?: string; splits?: Record<string, string> }
+							| undefined;
+						if (inputSourceSet && typeof inputSourceSet.base === "string") {
+							const normInputBase = path.isAbsolute(inputSourceSet.base)
+								? inputSourceSet.base
+								: path.resolve(this.repositoryRoot, inputSourceSet.base);
+							const [realInputBase, realParentBase] = await Promise.all([
+								fs.realpath(normInputBase).catch(() => null),
+								fs.realpath(parentPkgVal.memberPaths.get("base")!).catch(() => null),
+							]);
+							if (!realInputBase || !realParentBase || realInputBase !== realParentBase) {
+								throw new ToolError(
+									`Declared source_package_set base '${inputSourceSet.base}' does not match parent build base '${parentPkgVal.manifest.members.find(m => m.name === "base")?.filename}'.`,
+								);
+							}
+						}
+					} catch (err) {
+						if (err instanceof ToolError) throw err;
+						throw new ToolError(
+							`Stale parent package set: manifest '${parentBuild.target_path}' member verification failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					}
 				}
@@ -531,11 +657,45 @@ export class ReverseWorkflowStore {
 			const cumulativePatches = accumulatePatches(baseCumulativePatches, input.patches, allRetirements, buildId);
 
 			if (input.patches && input.patches.length > 0) {
-				const candidateSourcePath = parentBuild
+				let candidateSourcePath = parentBuild
 					? path.isAbsolute(parentBuild.target_path)
 						? parentBuild.target_path
 						: path.resolve(this.repositoryRoot, parentBuild.target_path)
 					: baseTargetPath;
+
+				const hasSplitPatch = input.patches.some(p => p.package_member && p.package_member !== "base");
+				const isSplitSetMode = isPkgSet || hasSplitPatch;
+
+				// Only switch to adjacent package-set.json if in split set mode,
+				// AND the adjacent manifest's "base" member strictly maps to candidateSourcePath
+				if (isSplitSetMode && !(await isPackageSetManifest(candidateSourcePath))) {
+					const adjacentManifest = path.join(path.dirname(candidateSourcePath), "package-set.json");
+					if (await isPackageSetManifest(adjacentManifest)) {
+						try {
+							const adjValidation = await parseAndValidatePackageSetManifest(adjacentManifest);
+							const adjBaseFile = adjValidation.memberPaths.get("base");
+							if (adjBaseFile) {
+								const [realAdjBase, realTarget] = await Promise.all([
+									fs.realpath(adjBaseFile),
+									fs.realpath(candidateSourcePath),
+								]);
+								if (realAdjBase === realTarget) {
+									candidateSourcePath = adjacentManifest;
+								}
+							}
+						} catch {
+							// adjacent manifest invalid or doesn't map to this base
+						}
+					}
+				}
+
+				if (hasSplitPatch && !(await isPackageSetManifest(candidateSourcePath))) {
+					if (!validatedRawSourceSet) {
+						throw new ToolError(
+							`Cannot verify patches for split package members without a valid package set manifest source or declared source_package_set. Base target '${workflow.target}' is not a package set manifest.`,
+						);
+					}
+				}
 				try {
 					await fs.stat(candidateSourcePath);
 				} catch (err) {
@@ -548,7 +708,7 @@ export class ReverseWorkflowStore {
 						`Failed to access physical source file '${candidateSourcePath}': ${err instanceof Error ? err.message : String(err)}`,
 					);
 				}
-				await verifySourceOriginalBytes(candidateSourcePath, input.patches);
+				await verifySourceOriginalBytes(candidateSourcePath, input.patches, validatedRawSourceSet);
 			}
 
 			const verificationResult = await verifyActivePatches(resolvedPath, cumulativePatches);
@@ -663,7 +823,25 @@ export class ReverseWorkflowStore {
 				scope: targetScope,
 				...(input.delivery_mode ? { delivery_mode: input.delivery_mode } : {}),
 				...(dependencies ? { dependencies } : {}),
-				...(input.metadata ? { metadata: input.metadata } : {}),
+				...(isPkgSet && pkgManifestInfo
+					? {
+							package_set: pkgManifestInfo.manifest,
+						}
+					: {}),
+				metadata: {
+					...input.metadata,
+					...(isPkgSet && pkgManifestInfo
+						? {
+								package_set: {
+									package: pkgManifestInfo.manifest.package,
+									versionCode: pkgManifestInfo.manifest.versionCode,
+									set_sha256: pkgManifestInfo.manifest.set_sha256,
+									manifest_sha256: pkgManifestInfo.manifestSha256,
+									members: pkgManifestInfo.manifest.members,
+								},
+							}
+						: {}),
+				},
 				created_at: now,
 				updated_at: now,
 			};
@@ -671,6 +849,19 @@ export class ReverseWorkflowStore {
 			workflow.build_lineage = [...(workflow.build_lineage ?? []), derivativeRecord];
 			workflow.current_baseline_build_id = derivativeRecord.build_id;
 			workflow.base_target_sha256 = originalSha256;
+			if (capturedOriginalSetSha) {
+				workflow.metadata = {
+					...workflow.metadata,
+					package_set: {
+						...(workflow.metadata?.package_set as Record<string, unknown> | undefined),
+						set_sha256: capturedOriginalSetSha,
+						...(capturedOriginalMembers ? { members: capturedOriginalMembers } : {}),
+						...(validatedRawSourceSet
+							? { base: validatedRawSourceSet.base, splits: validatedRawSourceSet.splits }
+							: {}),
+					},
+				};
+			}
 			workflow.updated_at = now;
 
 			await this.writeWorkflowFileUnlocked(workflow);
@@ -782,6 +973,24 @@ export class ReverseWorkflowStore {
 				checked_patches_count: 0,
 				failure_reason: `Derivative output SHA-256 mismatch (tampered/drifted): expected '${derivative.output_sha256}', actual '${diskSha256}'`,
 			};
+		}
+
+		if (
+			derivative.package_set ||
+			(derivative.metadata?.package_set as Record<string, unknown> | undefined)?.format === "apk_package_set" ||
+			path.basename(resolvedPath).toLowerCase() === "package-set.json"
+		) {
+			try {
+				await parseAndValidatePackageSetManifest(resolvedPath);
+			} catch (err) {
+				return {
+					status: "failed",
+					static_status: "failed",
+					runtime_status: derivative.verification_result.runtime_status,
+					checked_patches_count: 0,
+					failure_reason: `Package set derivative verification failed: ${err instanceof Error ? err.message : String(err)}`,
+				};
+			}
 		}
 
 		const patchRes = await verifyActivePatches(resolvedPath, derivative.cumulative_patches);

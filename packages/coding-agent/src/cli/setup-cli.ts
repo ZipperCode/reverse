@@ -37,6 +37,9 @@ export interface SetupCommandArgs {
 		json?: boolean;
 		check?: boolean;
 		execute?: boolean;
+		capability?: string;
+		category?: string;
+		tool?: string;
 	};
 }
 
@@ -76,6 +79,20 @@ export function parseSetupArgs(args: string[]): SetupCommandArgs | undefined {
 			flags.check = true;
 		} else if (arg === "--execute" || arg === "-x") {
 			flags.execute = true;
+		} else if (arg === "--capability" && i + 1 < args.length) {
+			flags.capability = args[++i];
+		} else if (arg.startsWith("--capability=")) {
+			flags.capability = arg.slice("--capability=".length);
+		} else if (arg === "--category" && i + 1 < args.length) {
+			flags.category = args[++i];
+		} else if (arg.startsWith("--category=")) {
+			flags.category = arg.slice("--category=".length);
+		} else if (arg === "--tool" && i + 1 < args.length) {
+			tool = args[++i];
+			flags.tool = tool;
+		} else if (arg.startsWith("--tool=")) {
+			tool = arg.slice("--tool=".length);
+			flags.tool = tool;
 		} else if (!arg.startsWith("-") && tool === undefined) {
 			tool = arg;
 		}

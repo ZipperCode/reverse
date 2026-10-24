@@ -11,11 +11,15 @@
 - `list`：列出能力目录中的所有标准能力、对应场景与推荐工具。
 - `resolve`：解析当前主机环境的可用性状态（`ready` / `available_with_fallbacks` / `missing`），检查外部工具与降级工具就绪情况。
 - `get`：按能力 ID 查询指定能力的详细描述、Why 分析、环境状态与安装/调用指引。
+- `status`：查询当前会话可观测的配置、连接、工具发现、目标绑定及执行记录。
+- `install`：经写入审批安装并激活受信 `jshookmcp`；其他外部工具沿用 CLI/TUI 安装面板。
 
 ## 调度规范
 
-1. 优先使用推荐的原生零配置内置工具（如 `android_package_inspect`、`triage`、`websocket_observe`）。
-2. 当外部工具缺失时，执行受信 setupCommand（如 `reverse setup reverse radare2`）并在安装后按 `postInstallInvocation` 调用。
+1. 先按能力查询，如 `reverse_capability(action: "resolve", capability: "apk_unpacking")`；全目录用于能力盘点。需要发现工具时先读取对应 `xd://<tool>` 用法，再写入参数执行。
+2. 根据阶段选择工具：`apk_unpacking` 的 `baseline` 可离线启动，`javaDecompile` 和 `smali` 单独检查后端及 Java。Unidbg 分别报告 `installed`、`compatible`、`canStart`、`runtimeReady`、`targetMatched`、`executedVerified`，并给出具体阻塞和修复入口。
+3. 缺失依赖通过受信 setup 命令或 TUI 安装面板确认安装。CLI 支持 `setup reverse --capability <id>`、`--category <category>`、`--tool <id>` 配合 `--json` / `--check` 限定检查范围；这些筛选不替代交互式安装动作。
+4. `reverse_workflow` 回退携带 `next_params`、`prerequisites`、`capability_depth`、`verification_boundary` 和 `remaining_acceptance`。静态观察只完成对应静态条件，动态功能和独立复现保留各自验收状态。
 
 ## VMP 与符号分析能力
 

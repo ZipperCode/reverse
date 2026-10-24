@@ -47,7 +47,7 @@ Classify the artifact before invoking heavy tools:
 | Target Category | Signature / Extension | Initial Inspection | Reference Guide |
 | :--- | :--- | :--- | :--- |
 | **Native Binary** | ELF (`\x7fELF`), Mach-O (`\xcf\xfa\xed\xfe`, `\xce\xfa\xed\xfe`), Fat Mach-O (`\xca\xfe\xba\xbe`), `.so`, `.dylib`, `.o`, raw/firmware | `triage` / `read-binary` (IDA) / `r2_inspect` | `skill://native-binary-reverse` |
-| **Android** | `.apk`, `.aab`, `.dex`, JNI `.so` in APK context, `AndroidManifest.xml` | `android_package_inspect` (native container/DEX/manifest/signing/resources) / `droidasc getmanifest` / `jadx` / `apktool` | `skill://reverse-lab/references/android.md` |
+| **Android** | `.apk`, `.aab`, `.dex`, JNI `.so` in APK context, `AndroidManifest.xml` | `android_package_inspect` (native container/DEX/manifest/signing/resources) / `app_experiment` (device lab) / `droidasc getmanifest` / `jadx` / `apktool` | `skill://reverse-lab/references/android.md` |
 | **Windows PE / .NET** | `MZ` header, `.exe`, `.dll`, `.sys`, `.node` (PE32/PE32+) | `dotnet_inspect` (.NET) / `triage` / `read-binary` (IDA) / `ghidra_inspect` / `r2_inspect` | `skill://reverse-lab/references/windows.md` |
 | **Virtualized / Packed (VMP)** | High entropy sections (> 7.2), `.vmp0`/`.vmp1`, VM entry dispatcher calls | `triage` / `vmp_dump` (at OEP) / `native_devirtualize` / `triton_analyze` | `skill://vmp-reverse` |
 | **Web & JS** | `.js`, `.mjs`, `.wasm`, `.html`, SourceMaps, HAR/JSON | `browser_reverse_session` / `sourcemap_inspect` / `js_hook_preset` / `ast_grep` / `wasm_inspect` / `javascript_application` / `browser-relay` | `skill://reverse-lab/references/web-protocol.md` |
@@ -59,7 +59,7 @@ Classify the artifact before invoking heavy tools:
 | **Smart Contracts / EVM** | EVM bytecode (`.bin`, `.hex`, `0x60806040...`), Solidity/Vyper deployment & runtime code | `evm_inspect` (native disasm/selectors/CBOR/proxies) | `skill://reverse-lab/references/target-routing.md` |
 | **Binary Diffing** | Firmware revisions, patched binaries, compiler variants, two file paths | `binary_diff` (deterministic hashes/blocks/bytes/headers) | `skill://reverse-lab/references/target-routing.md` |
 | **Workflow Orchestration** | PE, ELF, Mach-O, APK, JS, WASM, PCAP, SQLite targets | `reverse_workflow` (deterministic tool plans, state persistence, bounded retry, evidence linking) | `skill://reverse-lab/references/target-routing.md` |
-| **Multi-runtime** | React Native (`.hbc`), Electron (`app.asar`), Flutter, Unity | `javascript_application` (Electron/ASAR) / De-pack container -> route components | `skill://reverse-lab/references/target-routing.md` |
+| **Multi-runtime** | React Native (`.hbc`), Electron (`app.asar`), Flutter (`libapp.so`), Unity (`libil2cpp.so`) | `runtime_analyze` (inventory / hermes / il2cpp / flutter) / `javascript_application` (Electron/ASAR) | `skill://reverse-lab/references/target-routing.md` |
 For detailed gate decision trees and magic byte classification, read `skill://reverse-lab/references/target-routing.md`.
 
 ---
@@ -103,7 +103,16 @@ When an investigative step requires an external tool or when a preferred engine 
   (`reverse_workflow(action: "record", status: "completed", evidence_ids: [...])`)
 ```
 
-### Concrete Capability Protocol
+### Tool Dispatch & Schema Discovery Convention
+Before invoking any tool via `write` to `xd://<tool>`, query its schema and contract documentation using `read xd://<tool>`. Emit notices for the current step only. Tools remain single controlled actions; the model owns investigation.
+
+### Concrete Capability Protocol & Readiness Tiers
+Reverse engineering tools evaluate five distinct readiness tiers:
+1. `installed`: Binary or package is present on disk or PATH.
+2. `compatible`: Version and runtime requirements are satisfied (e.g. JDK8 for Unidbg, Python 3.9+ for LIEF/Blutter).
+3. `canStart`: Operational prerequisites are met so execution can be attempted (e.g. Unidbg JAR + validated JDK8 present; target APK present). Baseline tasks (`apk_unpacking` manifest/DEX extraction) can start immediately even without heavyweight decompilers (`jadx`/`apktool`).
+4. `runtimeReady`: Background service, runner, or MCP transport connection is active. Offline execution requires only action-specific `canStart: true`, without requiring pre-existing background sessions.
+5. `targetMatched`: Target loaded and verified. Tool discovery evaluates catalog readiness without requiring a live device; device actions require an authorized, connected device.
 
 1. **Discover & Query Capability (`reverse_capability`)**:
    Query capability availability before attempting tool dispatch or halting:
@@ -139,7 +148,7 @@ When an investigative step requires an external tool or when a preferred engine 
    ```json
    reverse_capability({ action: "resolve", capability: "<capability_id>", refresh: true })
    ```
-   Confirm that `status` transitioned to `"ready"` and the tool is available on PATH.
+   Confirm that the selected action's specific prerequisites are met (e.g. `launchPrerequisites.canStart: true` for native emulation, or `unpackingStages.javaDecompile.canStart: true` for Java source recovery) and the tool is available on PATH. Static fallbacks report static facts only, not dynamic verification.
 
 6. **Immediate Dispatch**:
    Invoke the external tool using its canonical `postInstallInvocation` syntax with bounded limits (e.g. targeted class decompilation, symbol disassembly, or headless transport) or invoke the native CLI wrapper (e.g. `r2_inspect` or `ghidra_inspect` which dynamically resolves the newly installed binary on PATH).
@@ -298,13 +307,17 @@ Read `skill://reverse-lab/references/tool-fallback.md` for exact CLI invocation 
 
 ## 6. Subagent Delegation & Session Governance
 
-Complex audits benefit from coordinating specialized subagents under the main orchestrator:
+Complex audits coordinate specialized subagents under the main orchestrator:
 - **Main Agent (Orchestrator)**: Maintains overall session state, records the evidence chain, routes targets, and validates findings against the initial goal.
 - **`scout` Subagent (Read-Only Reconnaissance)**: Specializes in rapid read-only symbol searches, string catalog extraction, archive structure scanning, and identifying crypto constants across large codebases.
 - **`task` Subagent (Execution & Generation)**: Focuses on developing standalone PoCs, AST deobfuscation scripts, or candidate patch generation.
 - **Single Stateful Controller Rule**: Assign dynamic instrumentation and interactive debuggers (GDB, DAP, Frida spawn via `frida_session`, CDP live relay) to a single stateful session runner to ensure deterministic port and state management.
 
----
+### Subagent Delegation Contract & Handoff Fields
+Task delegation MUST follow the structured handoff contract (see `skill://reverse-lab/references/evidence.md` §6):
+- **Target Coordinate Anchors**: Pin immutable `sha256`, target `path`, mobile `package`, target CPU `abi`, and explicit ADB `serial`.
+- **Delegation Scope**: Specify `subject` (concrete function/endpoint), pass upstream `evidence_ids` / `artifact_paths`, and define strict `allowed_actions`.
+- **Reporting Invariant**: Subagents MUST report observed ground truth (`[FACT]`) with exact code/byte coordinates and explicitly state `[UNKNOWN]` or `[BLOCKER]` items rather than asserting premature overall success.
 
 ## 7. Modular References
 
