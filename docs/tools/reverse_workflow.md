@@ -1,6 +1,6 @@
 # reverse_workflow
 
-> Bounded reverse-engineering workflow orchestrator: target-first routing, deterministic tool plans, cross-tool evidence association, and failure recovery metadata without arbitrary command execution.
+> Bounded reverse-engineering workflow orchestrator: target-first routing, deterministic tool plans, cross-tool evidence association, acceptance criteria binding, cumulative build lineage, and failure recovery metadata without arbitrary command execution.
 
 ## Source
 - Entry: `packages/coding-agent/src/tools/reverse-workflow.ts`
@@ -11,8 +11,8 @@
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `action` | `string` | Yes | Action: `"create"`, `"plan"`, `"status"`, `"record"`, `"retry"`, `"recover"`, `"retry_plan"`, `"export"`, `"destroy"`, `"advance"`, `"auto_advance"`, `"register_derivative"`, `"verify_lineage"`, `"retire_patch"`. |
-| `workflow_id` | `string` | No* | Unique workflow identifier (alias `id`). Required for `record`, `retry`, `recover`, `retry_plan`, `export`, `destroy`; optional for `status`. |
+| `action` | `string` | Yes | Action: `"create"`, `"plan"`, `"status"`, `"record"`, `"retry"`, `"recover"`, `"retry_plan"`, `"export"`, `"destroy"`, `"advance"`, `"auto_advance"`, `"register_derivative"`, `"verify_lineage"`, `"retire_patch"`, `"waive_acceptance"`, `"approve_dependency"`. |
+| `workflow_id` | `string` | No* | Unique workflow identifier (alias `id`). Required for `record`, `retry`, `recover`, `retry_plan`, `export`, `destroy`, `waive_acceptance`, `approve_dependency`; optional for `status`. |
 | `id` | `string` | No | Alias for `workflow_id`. |
 | `target` | `string` | No* | Target binary, package, capture, or script path relative to project (alias `path`). Required for `create`. |
 | `path` | `string` | No | Alias for `target`. |
@@ -46,25 +46,66 @@
 | `patches` | `unknown` | No | Array of cumulative or new patch records: `[{ patch_id, member_path?, offset, original_bytes, expected_bytes, status?, retirement_reason?, evidence_id? }]`. |
 | `retired_patches` | `unknown` | No | Array of patches explicitly retired in this revision: `[{ patch_id, reason }]`. |
 | `patch_id` | `string` | No | Patch identifier for `retire_patch` action. |
-| `reason` | `string` | No | Mandatory reason when retiring a patch. |
+| `reason` | `string` | No | Mandatory reason when retiring a patch (`retire_patch`), waiving an acceptance criterion (`waive_acceptance`), or approving a delivery dependency (`approve_dependency`). |
+| `criterion_id` | `string` | No* | Target acceptance criterion identifier (required for `waive_acceptance`). |
+| `dependency_id` | `string` | No* | Target workflow dependency identifier (required for `approve_dependency`). |
+| `scope` | `string` | No | Deployment scope or mode: `"experiment"` or `"delivery"`. |
+| `delivery_mode` | `string` | No | Delivery packaging mode (e.g. `"standalone_package"`, `"modified_apk"`). |
+| `target_device_constraints`| `unknown` | No | Target environment constraints: `{ target_environment?, requires_standalone?, disallowed_dependencies?, allowed_delivery_modes? }`. |
+| `acceptance_criteria` | `unknown` | No | Array of acceptance criteria: `[{ id, title?, subject, step_id, required_evidence_types?, min_assurance? }]`. |
+| `dependencies` | `unknown` | No | Array of dependencies: `[{ id, name?, kind?, scope, target_host?, approved_for_experiment?, approved_for_delivery?, approval_notes? }]`. |
 | `signature_status` | `string` | No | Signature status: `"signed"`, `"unsigned"`, `"unknown"`. |
 | `signature_fingerprint` | `string` | No | Certificate or signature fingerprint (SHA-256). |
 | `runtime_evidence_ids` | `string[]` | No | Array of evidence IDs bound to this exact derivative output SHA-256. |
 
 ## Actions
 
-- **create**: Sniffs the target file format (or applies an explicit format override), automatically queries bounded prior reverse knowledge for matching target format/hash, generates a deterministic 4-step execution plan aligned with the G0–G4 decision gates using existing native tools, and initializes the persisted workflow record with `status: "active"` and steps in `pending` state.
-- **plan**: Previews or generates an ordered, deterministic tool pipeline for a target or format without requiring prior persistence, surfacing relevant prior reverse knowledge entries. When `workflow_id` is given, returns the existing plan.
-- **status**: When `workflow_id` is provided, reports overall workflow metrics (completed, failed, pending, skipped, evidence links) and details the next recommended pending step. When `step_id` is also provided, shows detailed step state, parameters, outputs, retry history, and linked evidence IDs. When `workflow_id` is omitted, lists all project workflows.
-- **record**: Updates a step's execution status (`completed`, `failed`, `running`, `skipped`), increments attempt counts, records outputs and generated artifact references, and associates verified evidence ledger IDs (`ev_fact_...`, `ev_hyp_...`, `ev_conc_...`, `ev_unk_...`). Validates that all linked evidence IDs exist in the project evidence ledger.
-- **retry**: Transitions a failed step back to `pending` with incremented attempt tracking. Strictly requires the step to be in `failed` state and enforces bounded attempt caps (`attempts < max_attempts`). Captures caller-provided `next_params`, diagnostic `result`, and optional `fallback_tool`. Records structured attribution and recovery audit entry. **Never executes arbitrary commands or tools itself**: returns structured parameters for caller execution.
-- **recover**: Diagnoses step failure, attributes failure category (`missing_dependency`, `invalid_format`, `timeout`, `truncated`, `device_required`, `unsupported`, `unknown`), computes deterministic native tool fallback and parameter corrections, records a persistent recovery audit entry, links associated evidence ledger records, and transitions the step to `pending` for execution. Bounded by `max_attempts` to strictly prevent infinite recovery loops.
-- **retry_plan**: Previews the failure attribution, cause, alternatives, and deterministic parameter/tool corrections without mutating step status or persistent workflow state.
-- **export**: Generates a bounded Markdown or JSON report of the entire workflow, step statuses, outputs, failure recovery history, and hydrated evidence ledger records. Spills to a session artifact (`artifact://<id>`) when requested or when output exceeds inline bounds.
-- **destroy**: Permanently deletes the workflow JSON file from the project's state store.
-- **register_derivative**: Registers a modified binary, archive, or package derivative into durable build lineage. Strictly validates container member bytes (via `@reverse/utils/ar` or seek-read binary) against all expected active patches before registering. Retains cumulative patchset from active baseline, so clean original replays cannot drop verified patches without explicit retirement. Rejects tampered source or output hashes. Enforces runtime evidence binding directly to the exact output hash; prior revision successes are never promoted.
-- **verify_lineage**: Re-verifies an artifact on disk against its registered cumulative patches, source/parent hashes, and container member bytes.
-- **retire_patch**: Explicitly retires a patch in derivative lineage with a mandatory reason, preventing accidental regression without mutating historical records.
+- **`create`**: Sniffs the target format, queries bounded prior knowledge, generates a deterministic 4-step execution plan aligned with G0–G4 decision gates, initializes `acceptance_criteria` and `dependencies` under reserved metadata, and starts the workflow in `active` state with steps `pending`.
+- **`plan`**: Previews an ordered, deterministic tool pipeline without requiring persistence. When `workflow_id` is given, returns the existing plan.
+- **`status`**: Reports workflow metrics, gate progression, next recommended pending step, acceptance criteria status, and linked evidence records.
+- **`record`**: Updates a step's execution status (`completed`, `failed`, `running`, `skipped`), increments attempt counts, records outputs and generated artifact references, and associates verified evidence ledger IDs. Validates evidence existence in the project evidence ledger.
+- **`retry`**: Transitions a failed step back to `pending` with incremented attempt tracking. Enforces bounded attempt caps (`attempts < max_attempts`). Captures `next_params`, diagnostic `result`, and optional `fallback_tool`. Never executes commands itself: returns structured parameters for caller execution.
+- **`recover`**: Diagnoses failure category (`missing_dependency`, `invalid_format`, `timeout`, `truncated`, `device_required`, `unsupported`, `unknown`), computes deterministic native tool fallback and parameter corrections, records persistent recovery audit, and transitions the step to `pending`. Bounded by `max_attempts`.
+- **`retry_plan`**: Previews failure attribution and deterministic parameter/tool corrections without mutating step status or persistent workflow state.
+- **`export`**: Generates a bounded Markdown or JSON report of the entire workflow, hydrated evidence records, and failure recovery history. Spills to a session artifact when requested or when output exceeds inline bounds.
+- **`destroy`**: Permanently deletes the workflow JSON file from the project's state store.
+- **`advance` / `auto_advance`**: Progresses through decision gates when gate prerequisites and low-risk conditions are satisfied.
+- **`register_derivative`**: Registers a modified binary or package derivative into durable build lineage. Strictly validates container member bytes against all expected active patches before registering. Retains cumulative patchset from active baseline (A + B replay). Requires runtime evidence IDs to bind directly to the exact derivative output hash.
+- **`verify_lineage`**: Re-verifies an artifact on disk against its registered cumulative patches, source/parent hashes, and container member bytes.
+- **`retire_patch`**: Explicitly retires a patch in derivative lineage with a mandatory `reason`, preventing accidental regression without mutating historical records.
+- **`waive_acceptance`**: Waives an acceptance criterion with an explicit mandatory `reason`, recording a permanent waiver audit decision. Required to close criteria classified as `proxy_verified` due to subject mismatches. Initial waiver cannot be claimed by callers during workflow creation.
+- **`approve_dependency`**: Authorizes a dependency for delivery (`approved_for_delivery: true`) with an explicit mandatory `reason`. Delivery authorization requires explicit user confirmation and cannot be asserted on creation.
+
+## Acceptance Criteria Governance & Subject Binding
+
+1. **Storage under Reserved Metadata**:
+   - Acceptance criteria are stored under `workflow.metadata.acceptance` as a dictionary keyed by stable `step_id`.
+   - Every criterion must strictly reference an existing step ID within `workflow.steps`; references to unknown steps are rejected with actionable errors.
+
+2. **Immutable Subject & Proxy Observations**:
+   - Each criterion specifies a canonical, immutable `subject` (e.g. `"license_check"`).
+   - Evidence records evaluate against this subject via `evaluateAcceptanceSatisfaction`.
+   - Evidence recorded under a different subject (e.g. `"login_flow"` or general `"ui"`) is classified as `proxy_verified` (`isProxy: true`). **Proxy observations cannot satisfy or close the criterion without an explicit human waiver** (`waive_acceptance`).
+
+3. **Rejection of Initial Caller Satisfaction Claims**:
+   - On initial creation (`create`), every acceptance criterion status must be `"pending"`.
+   - Callers cannot assert initial satisfaction (`"satisfied"`) or waiver (`"waived"`). Such claims are strictly rejected.
+
+4. **Canonical Evidence Graph Invalidation**:
+   - When evidence refutations occur, `cascadeEvidenceRefutation` scans active supporting proof IDs.
+   - Refuted or stale supporting evidence reopens completed steps back to `pending` (`held_pending_decision`, `decision: "invalidated_by_evidence"`), clears active proof, sets criteria to pending, fails build lineage runtime verification, and **resets completed workflows back to `active`**. Historical execution records and logs are preserved immutably.
+
+## Dependency Scopes & Target Device Constraints
+
+Workflows distinguish experimental dependencies from delivery dependencies:
+
+- **`scope: "experiment"` vs `scope: "delivery"`**:
+  - `experiment`: Temporary runtime helpers, tracing scripts, or lab harnesses (e.g. Frida agent, local proxy, Unidbg runner).
+  - `delivery`: Dependencies required by the shipped, standalone binary or package.
+- **Target Device Constraints**:
+  - When `requires_standalone: true` or `disallowed_dependencies` are configured for the target environment, delivery builds strictly reject experimental helpers (such as external phone oracles, LSPosed runtime, or workstation debug bridges).
+  - An experimental authorization in a lab setting does not authorize delivery.
+  - Callers cannot pass `approved_for_delivery: true` upon initial creation; delivery approval requires explicit interactive authorization via `approve_dependency`.
 
 ## Target-First Deterministic Tool Routing
 
@@ -85,4 +126,4 @@
 - **Isolated Project State**: Workflows are stored under `~/.reverse/agent/reverse-workflows/<project-key>/<workflow-id>.json`. State never pollutes the workspace repository.
 - **Concurrency & Atomicity**: Backed by cross-process advisory file locks (`store.lock`) and atomic temporary-file replacement.
 - **Bounded Output**: Markdown and JSON exports enforce a 32 KiB cap with automatic session artifact spilling for large reports.
-- **Approval Tiers**: Read actions (`plan`, `status`, `export`) use tier `"read"`; state-mutating actions (`create`, `record`, `retry`, `destroy`) use tier `"write"`.
+- **Approval Tiers**: Read actions (`plan`, `status`, `export`, `retry_plan`) use tier `"read"`; state-mutating actions (`create`, `record`, `retry`, `recover`, `destroy`, `advance`, `auto_advance`, `register_derivative`, `verify_lineage`, `retire_patch`, `waive_acceptance`, `approve_dependency`) use tier `"write"`.

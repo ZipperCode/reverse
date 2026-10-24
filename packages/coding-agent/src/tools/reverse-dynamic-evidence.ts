@@ -6,7 +6,7 @@ import { throwIfAborted } from "./tool-errors";
 import type { ToolSession } from "./index";
 import reverseDynamicEvidenceDescription from "../prompts/tools/reverse-dynamic-evidence.md" with { type: "text" };
 import { EvidenceStore, type FactEvidence, type ConclusionEvidence } from "../evidence";
-import { ReverseWorkflowStore } from "../reverse-workflow";
+import { ReverseWorkflowStore, advanceWorkflow } from "../reverse-workflow";
 import {
 	ReverseKnowledgeStore,
 	learnFromEvidenceAndWorkflows,
@@ -239,7 +239,15 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 							if (step) {
 								step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...createdFactIds]));
 								if (params.advance_workflow) {
-									step.status = "completed";
+									await advanceWorkflow(
+										wf,
+										{
+											step_id: params.step_id,
+											status: "completed",
+											evidence_ids: createdFactIds,
+										},
+										{ repositoryRoot: cwd, evidenceStore, knowledgeStore },
+									);
 								}
 								step.updated_at = new Date().toISOString();
 								stepUpdated = true;
@@ -417,7 +425,15 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 						if (step) {
 							step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), conclusionRecord.id]));
 							if (params.advance_workflow) {
-								step.status = "completed";
+								await advanceWorkflow(
+									wf,
+									{
+										step_id: params.step_id,
+										status: "completed",
+										evidence_ids: [conclusionRecord.id],
+									},
+									{ repositoryRoot: cwd, evidenceStore, knowledgeStore },
+								);
 							}
 							step.updated_at = new Date().toISOString();
 							stepUpdated = true;

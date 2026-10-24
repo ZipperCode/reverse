@@ -25,6 +25,34 @@ export function renderRecordText(
 	if (record.targetSha256) lines.push(`Target SHA-256: ${record.targetSha256}`);
 	if (record.classification) lines.push(`Classification: ${record.classification}`);
 	if (record.tags && record.tags.length > 0) lines.push(`Tags: ${record.tags.join(", ")}`);
+	const subject = record.subject ?? record.context?.subject;
+	if (subject) lines.push(`Subject: ${subject}`);
+	if (record.context?.assurance) lines.push(`Assurance Tier: ${record.context.assurance}`);
+	if (record.context?.executionBinding) {
+		const eb = record.context.executionBinding;
+		const parts: string[] = [];
+		if (eb.artifactSha256) parts.push(`SHA: ${eb.artifactSha256}`);
+		if (eb.deviceAbi) parts.push(`ABI: ${eb.deviceAbi}`);
+		if (eb.os) parts.push(`OS: ${eb.os}`);
+		if (eb.pid !== undefined) parts.push(`PID: ${eb.pid}`);
+		if (parts.length > 0) lines.push(`Execution Binding: ${parts.join(" | ")}`);
+	}
+	if (record.context?.compoundStages && record.context.compoundStages.length > 0) {
+		lines.push("Compound Stages:");
+		for (const s of record.context.compoundStages) {
+			lines.push(`  - [${s.status ?? (s.exitCode === 0 ? "success" : "failed")}] ${s.stage} (rc: ${s.exitCode})`);
+		}
+	}
+	if (record.context?.negativeScope) {
+		const neg = record.context.negativeScope;
+		lines.push(`Negative Scope: Target=${neg.searchTarget}, Query=${neg.query}, Exhaustive=${neg.isExhaustive}`);
+	}
+	if (record.context?.completionRatio) {
+		const cr = record.context.completionRatio;
+		lines.push(
+			`Completion Ratio: ${cr.verifiedUnits}/${cr.totalRequiredUnits}${cr.unitDescription ? ` (${cr.unitDescription})` : ""}`,
+		);
+	}
 
 	if (record.kind === "fact") {
 		lines.push(`Source Tool: ${record.sourceTool}`);
@@ -73,6 +101,9 @@ export function renderRecordText(
 		lines.push(`Command:\n  ${record.command.split("\n").join("\n  ")}`);
 		lines.push(`Observed Result:\n  ${record.result.split("\n").join("\n  ")}`);
 		lines.push(`Conclusion:\n  ${record.conclusion.split("\n").join("\n  ")}`);
+		if (record.invalidatesConclusions && record.invalidatesConclusions.length > 0) {
+			lines.push(`Invalidates Prior Conclusions: ${record.invalidatesConclusions.join(", ")}`);
+		}
 		if (related?.hypothesis) {
 			lines.push(`Original Claim:\n  ${related.hypothesis.claim.split("\n").join("\n  ")}`);
 		}

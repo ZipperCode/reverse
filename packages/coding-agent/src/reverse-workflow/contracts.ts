@@ -1,3 +1,51 @@
+import type { EvidenceAssuranceLevel } from "../evidence/contracts";
+
+export type AcceptanceCriterionStatus = "pending" | "satisfied" | "waived" | "proxy_verified";
+
+export interface AcceptanceCriterion {
+	id: string; // Stable ID, e.g. "ac_login_traffic", "c5"
+	step_id: string; // Stable workflow step.id
+	title: string;
+	subject: string; // Canonical immutable acceptance subject string
+	required_evidence_types?: string[];
+	min_assurance?: EvidenceAssuranceLevel;
+	status: AcceptanceCriterionStatus;
+	satisfied_by_evidence_ids?: string[];
+	is_proxy?: boolean;
+	proxy_for_criterion_id?: string;
+	proxy_evidence_ids?: string[];
+	waiver_reason?: string;
+	waiver_timestamp?: string;
+	waived_by_decision?: string;
+	created_at?: string;
+	updated_at?: string;
+}
+
+export type AcceptanceCriterionInput = Omit<AcceptanceCriterion, "status"> & {
+	status?: "pending";
+};
+
+export interface TargetDeviceConstraints {
+	target_environment?: string; // e.g. "vehicle_ivi", "android_phone", "windows_vm"
+	disallowed_dependencies?: string[]; // e.g. ["xposed", "lsposed", "frida", "external_oracle", "phone_oracle", "root"]
+	allowed_delivery_modes?: string[]; // e.g. ["standalone_package", "modified_apk"]
+	requires_standalone?: boolean; // true: no external oracle helpers or tethered devices permitted for delivery
+	notes?: string;
+}
+
+export interface WorkflowDependencyRecord {
+	id: string; // e.g. "dep_lsposed", "dep_phone_oracle"
+	name: string;
+	kind: "framework" | "external_service" | "hook_agent" | "debugger" | "runtime_library" | string;
+	scope: "experiment" | "delivery"; // experiment vs delivery
+	target_host?: "target_device" | "workstation" | "external_phone" | string;
+	approved_for_experiment?: boolean;
+	approved_for_delivery?: boolean; // Lab approval NEVER sets approved_for_delivery!
+	approval_notes?: string;
+	approved_at?: string;
+	decision_id?: string;
+}
+
 export const SUPPORTED_TARGET_FORMATS = ["PE", "ELF", "Mach-O", "APK", "JS", "WASM", "PCAP", "SQLite"] as const;
 
 export type TargetFormat = (typeof SUPPORTED_TARGET_FORMATS)[number] | "unknown";
@@ -160,6 +208,8 @@ export interface WorkflowStepRecord {
 	decision?: string;
 	decision_reason?: string;
 	progression_status?: ProgressionStatus;
+	is_delivery_step?: boolean;
+	delivery_scope?: "experiment" | "delivery";
 	created_at: string;
 	updated_at: string;
 }
@@ -226,6 +276,10 @@ export interface BuildArtifactRecord {
 	signature: BuildSignatureInfo;
 	verification_conditions?: Record<string, unknown> | string[];
 	verification_result: BuildVerificationResult;
+	target_device_constraints?: TargetDeviceConstraints;
+	scope?: "experiment" | "delivery";
+	delivery_mode?: string;
+	dependencies?: WorkflowDependencyRecord[];
 	evidence_ids?: string[];
 	runtime_evidence_ids?: string[];
 	metadata?: Record<string, unknown>;
@@ -286,6 +340,8 @@ export interface ReverseWorkflowRecord {
 	current_baseline_build_id?: string;
 	base_target_sha256?: string;
 	retired_patches_audit?: PatchRetirementAuditEntry[];
+	linked_revision_workflow_id?: string;
+	revision_reason?: string;
 }
 
 export interface WorkflowMetrics {
@@ -298,9 +354,18 @@ export interface WorkflowMetrics {
 	total_knowledge_links?: number;
 	resumed_steps?: number;
 	next_step?: WorkflowStepRecord;
+	total_acceptance_criteria?: number;
+	satisfied_acceptance_criteria?: number;
+	waived_acceptance_criteria?: number;
+	proxy_verified_acceptance_criteria?: number;
+	pending_acceptance_criteria?: number;
+	acceptance_completion_ratio?: number;
 }
 
-export function computeWorkflowMetrics(steps: WorkflowStepRecord[]): WorkflowMetrics {
+export function computeWorkflowMetrics(
+	steps: WorkflowStepRecord[],
+	metadata?: Record<string, unknown>,
+): WorkflowMetrics {
 	let completed = 0;
 	let failed = 0;
 	let pending = 0;
@@ -331,6 +396,53 @@ export function computeWorkflowMetrics(steps: WorkflowStepRecord[]): WorkflowMet
 		}
 	}
 
+	// Compute stable acceptance criteria metrics from single reserved metadata typed key
+	const allCriteriaMap = new Map<string, AcceptanceCriterion>();
+	if (metadata && metadata.acceptance) {
+		if (Array.isArray(metadata.acceptance)) {
+			for (const ac of metadata.acceptance as AcceptanceCriterion[]) {
+				if (ac && typeof ac.id === "string") {
+					allCriteriaMap.set(ac.id, ac);
+				}
+			}
+		} else if (typeof metadata.acceptance === "object") {
+			for (const list of Object.values(metadata.acceptance as Record<string, AcceptanceCriterion[]>)) {
+				if (Array.isArray(list)) {
+					for (const ac of list) {
+						if (ac && typeof ac.id === "string") {
+							allCriteriaMap.set(ac.id, ac);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	let totalCriteria: number | undefined;
+	let satisfiedCriteria: number | undefined;
+	let waivedCriteria: number | undefined;
+	let proxyVerifiedCriteria: number | undefined;
+	let pendingCriteria: number | undefined;
+	let acceptanceRatio: number | undefined;
+
+	if (allCriteriaMap.size > 0) {
+		totalCriteria = allCriteriaMap.size;
+		satisfiedCriteria = 0;
+		waivedCriteria = 0;
+		proxyVerifiedCriteria = 0;
+		pendingCriteria = 0;
+
+		for (const ac of allCriteriaMap.values()) {
+			if (ac.status === "satisfied") satisfiedCriteria++;
+			else if (ac.status === "waived") waivedCriteria++;
+			else if (ac.status === "proxy_verified") proxyVerifiedCriteria++;
+			else pendingCriteria++;
+		}
+
+		const effectiveTotal = totalCriteria - waivedCriteria;
+		acceptanceRatio = effectiveTotal <= 0 ? 1 : satisfiedCriteria / effectiveTotal;
+	}
+
 	return {
 		total_steps: steps.length,
 		completed_steps: completed,
@@ -341,6 +453,12 @@ export function computeWorkflowMetrics(steps: WorkflowStepRecord[]): WorkflowMet
 		total_knowledge_links: knowledgeLinks,
 		resumed_steps: resumed,
 		next_step: nextStep,
+		total_acceptance_criteria: totalCriteria,
+		satisfied_acceptance_criteria: satisfiedCriteria,
+		waived_acceptance_criteria: waivedCriteria,
+		proxy_verified_acceptance_criteria: proxyVerifiedCriteria,
+		pending_acceptance_criteria: pendingCriteria,
+		acceptance_completion_ratio: acceptanceRatio,
 	};
 }
 

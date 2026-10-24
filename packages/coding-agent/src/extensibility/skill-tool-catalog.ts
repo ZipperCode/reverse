@@ -2819,7 +2819,7 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 			"Attaches to or spawns native binary processes under debugger control to inspect register state, single-step assembly instructions, analyze memory heaps/stacks, and monitor dynamic system library calls.",
 		why: "Analyzes packing routines, anti-debugging mechanisms, runtime decryption keys, and dynamically generated control flow that cannot be understood statically.",
 		recommendedNativeTool: "triage",
-		optionalExternalTools: ["radare2", "r2mcp", "frida", "ghidra"],
+		optionalExternalTools: ["radare2", "r2mcp", "frida", "ghidra", "ida"],
 		prerequisites: [],
 		fallbacks: ["binary_metadata_inspect", "readelf", "strings", "file"],
 		setupCommand: "reverse setup reverse radare2",
@@ -3184,7 +3184,7 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			const radareInstalled = toolMap["radare2"]?.status === "installed";
 			const fridaInstalled = toolMap["frida"]?.status === "installed";
 			const ghidraInstalled = toolMap["ghidra"]?.status === "installed";
-
+			const idaInstalled = toolMap["ida"]?.status === "installed";
 			const debugToolEnabled = options.debugToolEnabled !== false;
 			const dapRouteReady = hasDapDebugger && debugToolEnabled;
 			const hasRealDebuggerRoute = dapRouteReady || radareInstalled;
@@ -3192,7 +3192,13 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			isReady = hasRealDebuggerRoute;
 			if (isReady) {
 				status = "ready";
-			} else if (fridaInstalled || ghidraInstalled || availableFallbacks.length > 0 || hasInstalledTool) {
+			} else if (
+				fridaInstalled ||
+				ghidraInstalled ||
+				idaInstalled ||
+				availableFallbacks.length > 0 ||
+				hasInstalledTool
+			) {
 				status = "available_with_fallbacks";
 			} else {
 				status = "missing";
@@ -3208,6 +3214,10 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 				resolvedRecommendedNativeTool = "triage";
 				resolvedPostInstallInvocation =
 					'r2 -d <binary_path> (radare2 CLI debugging) or r2_inspect(action: "disasm", path: "<binary_path>")';
+			} else if (idaInstalled) {
+				resolvedRecommendedNativeTool = "triage";
+				resolvedPostInstallInvocation =
+					'read(path: "<binary_path>:overview") (with idalib) or launch IDA Pro GUI for interactive analysis';
 			} else if (fridaInstalled) {
 				resolvedRecommendedNativeTool = "triage";
 				resolvedPostInstallInvocation =

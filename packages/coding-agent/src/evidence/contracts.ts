@@ -2,6 +2,69 @@ import { redactMemorySecrets } from "../memory-backend/redact";
 
 export type EvidenceKind = "fact" | "hypothesis" | "unknown" | "conclusion";
 
+export const EVIDENCE_ASSURANCE_LEVELS = [
+	"static_candidate",
+	"dynamic_call_observation",
+	"algorithm_recovery",
+	"independent_reproduction",
+] as const;
+export type EvidenceAssuranceLevel = (typeof EVIDENCE_ASSURANCE_LEVELS)[number];
+
+export const ASSURANCE_LEVEL_RANK: Record<EvidenceAssuranceLevel, number> = {
+	static_candidate: 1,
+	dynamic_call_observation: 2,
+	algorithm_recovery: 3,
+	independent_reproduction: 4,
+};
+
+export interface ExecutionObservationWindow {
+	startedAt?: string;
+	endedAt?: string;
+}
+
+export interface ExecutionBinding {
+	artifactSha256?: string;
+	deviceAbi?: string;
+	os?: string;
+	pid?: number;
+	window?: ExecutionObservationWindow;
+}
+
+export interface CommandStageResult {
+	stage: string;
+	command?: string;
+	exitCode: number;
+	status?: "success" | "failed";
+	stdout?: string;
+	stderr?: string;
+}
+
+export interface NegativeSearchScope {
+	searchTarget: string;
+	query: string;
+	scopeBoundary?: string;
+	sampleCount?: number;
+	isExhaustive: boolean;
+	claimScope?: "bounded" | "universal";
+	details?: string;
+}
+
+export interface QuantitativeRatio {
+	verifiedUnits: number;
+	totalRequiredUnits: number;
+	unitDescription?: string;
+}
+
+export interface ObservationContext {
+	subject?: string;
+	assurance?: EvidenceAssuranceLevel;
+	executionBinding?: ExecutionBinding;
+	compoundStages?: CommandStageResult[];
+	negativeScope?: NegativeSearchScope;
+	completionRatio?: QuantitativeRatio;
+	claimScope?: "bounded" | "universal";
+}
+
 export const MAX_TITLE_LENGTH = 256;
 export const MAX_TARGET_LENGTH = 512;
 export const MAX_LOCATOR_LENGTH = 512;
@@ -24,6 +87,8 @@ export interface BaseEvidenceRecord {
 	targetSha256?: string;
 	classification?: string;
 	tags?: string[];
+	subject?: string;
+	context?: ObservationContext;
 }
 
 export interface FactEvidence extends BaseEvidenceRecord {
@@ -61,6 +126,7 @@ export interface ConclusionEvidence extends BaseEvidenceRecord {
 	reproducibility: string;
 	status: "verified" | "refuted";
 	verifiedAt: string;
+	invalidatesConclusions?: string[];
 }
 
 export type EvidenceRecord = FactEvidence | HypothesisEvidence | UnknownEvidence | ConclusionEvidence;
@@ -75,6 +141,13 @@ export interface AddFactInput {
 	excerpt?: string;
 	classification?: string;
 	tags?: string[];
+	subject?: string;
+	assurance?: EvidenceAssuranceLevel;
+	executionBinding?: ExecutionBinding;
+	compoundStages?: CommandStageResult[];
+	negativeScope?: NegativeSearchScope;
+	completionRatio?: QuantitativeRatio;
+	context?: ObservationContext;
 }
 
 export interface AddHypothesisInput {
@@ -87,6 +160,11 @@ export interface AddHypothesisInput {
 	content?: string;
 	classification?: string;
 	tags?: string[];
+	subject?: string;
+	assurance?: EvidenceAssuranceLevel;
+	executionBinding?: ExecutionBinding;
+	negativeScope?: NegativeSearchScope;
+	context?: ObservationContext;
 }
 
 export interface AddUnknownInput {
@@ -98,6 +176,8 @@ export interface AddUnknownInput {
 	content?: string;
 	classification?: string;
 	tags?: string[];
+	subject?: string;
+	context?: ObservationContext;
 }
 
 export type AddEvidenceInput = AddFactInput | AddHypothesisInput | AddUnknownInput;
@@ -114,6 +194,16 @@ export interface VerifyHypothesisInput {
 	facts?: string[];
 	target?: string;
 	targetSha256?: string;
+	subject?: string;
+	assurance?: EvidenceAssuranceLevel;
+	executionBinding?: ExecutionBinding;
+	compoundStages?: CommandStageResult[];
+	negativeScope?: NegativeSearchScope;
+	completionRatio?: QuantitativeRatio;
+	invalidatesConclusions?: string[];
+	context?: ObservationContext;
+	claimScope?: "bounded" | "universal";
+	requireExhaustiveNegative?: boolean;
 }
 
 export interface EvidenceListFilter {

@@ -29,7 +29,6 @@ import {
 	KNOWLEDGE_STATUSES,
 } from "./contracts";
 import type { EvidenceStore } from "../evidence/store";
-import type { ConclusionEvidence, HypothesisEvidence } from "../evidence/contracts";
 import {
 	matchAndScoreKnowledgeRecords,
 	searchBundledReverseKnowledge,
@@ -240,8 +239,26 @@ export class ReverseKnowledgeStore {
 		});
 	}
 
-	async search(filter: ReverseKnowledgeFilter = {}): Promise<ReverseKnowledgeRecord[]> {
-		const records = await this.list();
+	async search(filter: ReverseKnowledgeFilter = {}, evidenceStore?: EvidenceStore): Promise<ReverseKnowledgeRecord[]> {
+		let records = await this.list();
+
+		// Finding 9: Revalidate retained knowledge against active evidence store
+		if (evidenceStore && filter.include_stale !== true) {
+			const validityMap = await evidenceStore.resolveValidity();
+			records = records.filter(record => {
+				if (record.stale) return false;
+				if (record.source_evidence_ids && record.source_evidence_ids.length > 0) {
+					for (const evId of record.source_evidence_ids) {
+						const v = validityMap.get(evId);
+						if (v && (v.isRefuted || v.isStale || !v.isValid)) {
+							return false;
+						}
+					}
+				}
+				return true;
+			});
+		}
+
 		const projectMatches = matchAndScoreKnowledgeRecords(records, filter);
 
 		if (filter.include_bundled === true) {
@@ -319,35 +336,12 @@ export class ReverseKnowledgeStore {
 			let staleFindingType: KnowledgeAuditFinding["type"] = "stale_evidence";
 
 			if (evidenceStore && record.source_evidence_ids && record.source_evidence_ids.length > 0) {
-				for (const evId of record.source_evidence_ids) {
-					const ev = await evidenceStore.getRecord(evId);
-					if (!ev) {
-						isStale = true;
-						staleReason = `Source evidence ID '${evId}' not found in project evidence ledger.`;
-						staleFindingType = "invalid_source";
-						break;
-					}
-					if (ev.kind === "conclusion") {
-						const conc = ev as ConclusionEvidence;
-						if (conc.status === "refuted") {
-							isStale = true;
-							staleReason = `Backing conclusion '${evId}' is marked refuted in evidence ledger.`;
-							staleFindingType = "stale_evidence";
-							break;
-						}
-					}
-					if (ev.kind === "hypothesis") {
-						const hyp = ev as HypothesisEvidence;
-						if (hyp.verifiedBy) {
-							const conc = await evidenceStore.getRecord(hyp.verifiedBy);
-							if (!conc || (conc.kind === "conclusion" && (conc as ConclusionEvidence).status === "refuted")) {
-								isStale = true;
-								staleReason = `Backing conclusion '${hyp.verifiedBy}' for hypothesis '${evId}' is ${!conc ? "missing" : "marked refuted"} in evidence ledger.`;
-								staleFindingType = !conc ? "invalid_source" : "stale_evidence";
-								break;
-							}
-						}
-					}
+				const evalRes = await evidenceStore.evaluateSupport(record.source_evidence_ids);
+				if (!evalRes.valid) {
+					isStale = true;
+					staleReason = evalRes.reason ?? "Source evidence failed validity evaluation";
+					staleFindingType =
+						evalRes.refutedIds.length > 0 || evalRes.staleIds.length > 0 ? "stale_evidence" : "invalid_source";
 				}
 			}
 

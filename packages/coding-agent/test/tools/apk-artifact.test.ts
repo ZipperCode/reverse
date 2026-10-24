@@ -8,6 +8,8 @@ import type { ToolSession } from "@reverse/coding-agent/tools";
 import { ZipParser } from "@reverse/coding-agent/tools/android-package-inspect";
 import { ApkArtifactTool } from "@reverse/coding-agent/tools/apk-artifact";
 import { removeWithRetries } from "@reverse/utils";
+import { EvidenceStore } from "@reverse/coding-agent/evidence/store";
+import { ReverseWorkflowStore, hashFileSha256 } from "@reverse/coding-agent/reverse-workflow";
 
 // ============================================================================
 // Helpers
@@ -406,6 +408,366 @@ describe("apk_artifact tool contracts & safety", () => {
 					serial: "nonexistent-device-serial-99999",
 				}),
 			).rejects.toThrow();
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("Issue #10 lineage: builds A then B preserves A; clean original missing A rejected without output; replay A+B succeeds; reopen retains baseline", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-lineage-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+			const workflowStore = new ReverseWorkflowStore({ repositoryRoot: tempDir });
+			const evidenceStore = new EvidenceStore({ repositoryRoot: tempDir });
+
+			// 1. Setup clean base APK
+			const cleanNativeBytes = Buffer.alloc(512, 0);
+			const cleanDexBytes = createDummyDex(0x00, 64);
+			const baseApkPath = path.join(tempDir, "base.apk");
+			await fs.writeFile(
+				baseApkPath,
+				buildZipBuffer([
+					{ name: "classes.dex", data: cleanDexBytes },
+					{ name: "lib/arm64-v8a/libnative.so", data: cleanNativeBytes },
+					{ name: "AndroidManifest.xml", data: Buffer.from("<manifest/>") },
+				]),
+			);
+
+			// Initialize workflow
+			const wf = await workflowStore.create({
+				target: "base.apk",
+				goal: "Verify cumulative artifact lineage and baseline retention",
+			});
+
+			// 2. Mod 1 applies Patch A in native library (NOP: 1f2003d5 at offset 0x100)
+			const mod1NativeBytes = Buffer.alloc(512, 0);
+			Buffer.from([0x1f, 0x20, 0x03, 0xd5]).copy(mod1NativeBytes, 0x100);
+			const mod1ApkPath = path.join(tempDir, "mod1.apk");
+			await fs.writeFile(
+				mod1ApkPath,
+				buildZipBuffer([
+					{ name: "classes.dex", data: cleanDexBytes },
+					{ name: "lib/arm64-v8a/libnative.so", data: mod1NativeBytes },
+					{ name: "AndroidManifest.xml", data: Buffer.from("<manifest/>") },
+				]),
+			);
+
+			await workflowStore.registerDerivative(wf.id, {
+				build_id: "mod1",
+				target_path: "mod1.apk",
+				patches: [
+					{
+						patch_id: "patch_A",
+						member_path: "lib/arm64-v8a/libnative.so",
+						offset: 0x100,
+						original_bytes: "00000000",
+						expected_bytes: "1f2003d5",
+					},
+				],
+				signature: { status: "unsigned" },
+			});
+
+			const baseline1 = await workflowStore.getBaseline(wf.id);
+			expect(baseline1?.build_id).toBe("mod1");
+
+			// 3. Mod 2 builds B on A using apk_artifact repack: input is mod1.apk, replaces DEX
+			const mod2DexBytes = createDummyDex(0x77, 64);
+			const mod2DexPath = path.join(tempDir, "mod2_classes.dex");
+			await fs.writeFile(mod2DexPath, mod2DexBytes);
+
+			const mod2ApkPath = path.join(tempDir, "mod2.apk");
+			const repackBOnARes = await tool.execute("call-repack-b-on-a", {
+				action: "repack",
+				path: mod1ApkPath,
+				output_path: mod2ApkPath,
+				dex_files: { "classes.dex": mod2DexPath },
+				build_id: "mod2",
+				patches: [
+					{
+						patch_id: "patch_B",
+						member_path: "classes.dex",
+						offset: 0x20,
+						original_bytes: cleanDexBytes.subarray(0x20, 0x24).toString("hex"),
+						expected_bytes: mod2DexBytes.subarray(0x20, 0x24).toString("hex"),
+					},
+				],
+			});
+
+			expect(repackBOnARes.details.status).toBe("ok");
+			expect(repackBOnARes.details.repack?.baseline_promoted).toBe(true);
+			expect(repackBOnARes.details.repack?.lineage_verification?.status).toBe("verified");
+			expect(repackBOnARes.details.repack?.lineage_verification?.checked_patches_count).toBe(2);
+
+			// Verify mod2.apk on disk retains Patch A in native library and adds Patch B in classes.dex
+			const mod2Buf = await fs.readFile(mod2ApkPath);
+			const zip2 = new ZipParser(mod2Buf);
+			const mod2SoEntry = zip2.getEntry("lib/arm64-v8a/libnative.so");
+			expect(mod2SoEntry).toBeDefined();
+			const mod2SoData = zip2.readFile(mod2SoEntry!);
+			if (!mod2SoData) throw new Error("Missing mod2 native library data");
+			expect(mod2SoData.subarray(0x100, 0x104).toString("hex")).toBe("1f2003d5");
+
+			const mod2DexEntry = zip2.getEntry("classes.dex");
+			expect(mod2DexEntry).toBeDefined();
+			const mod2DexData = zip2.readFile(mod2DexEntry!);
+			if (!mod2DexData) throw new Error("Missing mod2 dex data");
+			expect(mod2DexData.subarray(0x20, 0x24).toString("hex")).toBe(
+				mod2DexBytes.subarray(0x20, 0x24).toString("hex"),
+			);
+
+			// 4. Clean original missing A is rejected WITHOUT published output
+			const mod3BrokenPath = path.join(tempDir, "mod3_broken.apk");
+			await expect(
+				tool.execute("call-repack-clean-orig-missing-a", {
+					action: "repack",
+					path: baseApkPath, // clean base, missing Patch A!
+					output_path: mod3BrokenPath,
+					dex_files: { "classes.dex": mod2DexPath },
+				}),
+			).rejects.toThrow(/Active baseline patch 'patch_A' was dropped or mismatched/i);
+
+			// Strict postcondition: mod3_broken.apk was NOT created or published
+			const brokenExists = await fs.stat(mod3BrokenPath).catch(() => null);
+			expect(brokenExists).toBeNull();
+
+			// 5. Deterministic replay A+B from original base succeeds using replace_files
+			const replayNativePath = path.join(tempDir, "replayed_native.so");
+			await fs.writeFile(replayNativePath, mod1NativeBytes);
+
+			const replayApkPath = path.join(tempDir, "mod_replay.apk");
+			const replayRes = await tool.execute("call-repack-replay-ab", {
+				action: "repack",
+				path: baseApkPath,
+				output_path: replayApkPath,
+				dex_files: { "classes.dex": mod2DexPath },
+				replace_files: { "lib/arm64-v8a/libnative.so": replayNativePath },
+				build_id: "mod_replay",
+			});
+
+			expect(replayRes.details.status).toBe("ok");
+			expect(replayRes.details.repack?.baseline_promoted).toBe(true);
+			expect(replayRes.details.repack?.lineage_verification?.status).toBe("verified");
+
+			// 6. Reopen store retains baseline
+			const reopenedStore = new ReverseWorkflowStore({ repositoryRoot: tempDir });
+			const baselineReopened = await reopenedStore.getBaseline(wf.id);
+			expect(baselineReopened).not.toBeNull();
+			expect(baselineReopened?.build_id).toBe("mod_replay");
+			expect(baselineReopened?.output_sha256).toBe(replayRes.details.repack?.sha256);
+
+			// 7. Old hash runtime evidence refused
+			const oldEvidence = await evidenceStore.addHypothesis({
+				kind: "hypothesis",
+				claim: "Cold boot trace on mod1",
+				verificationPlan: "Observe logcat ColdBoot Complete",
+				target: "mod1.apk",
+			});
+			const concOld = await evidenceStore.verifyHypothesis({
+				hypothesisId: oldEvidence.id,
+				method: "trace",
+				command: "am start",
+				result: "pass",
+				conclusion: "mod1 cold boot pass",
+				status: "verified",
+				target: "mod1.apk",
+				targetSha256: await hashFileSha256(mod1ApkPath), // bound to mod1 hash!
+			});
+
+			// Attempting to register derivative with older hash evidence rejected
+			await expect(
+				workflowStore.registerDerivative(wf.id, {
+					build_id: "mod_with_old_ev",
+					target_path: "mod_replay.apk",
+					runtime_evidence_ids: [concOld.id],
+				}),
+			).rejects.toThrow(/does not match derivative output SHA-256/i);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("repack & install_verify: rejects overlapping replacements, path traversal, and baseline drops before ADB", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-safety-checks-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+			const workflowStore = new ReverseWorkflowStore({ repositoryRoot: tempDir });
+
+			const baseApkPath = path.join(tempDir, "base.apk");
+			await fs.writeFile(
+				baseApkPath,
+				buildZipBuffer([
+					{ name: "classes.dex", data: createDummyDex(0, 40) },
+					{ name: "lib/arm64-v8a/libtest.so", data: Buffer.alloc(100, 0) },
+				]),
+			);
+
+			// Overlapping entries in dex_files and replace_files rejected
+			const dummyFile = path.join(tempDir, "dummy.dex");
+			await fs.writeFile(dummyFile, createDummyDex(1, 40));
+
+			await expect(
+				tool.execute("call-overlap", {
+					action: "repack",
+					path: baseApkPath,
+					output_path: path.join(tempDir, "out1.apk"),
+					dex_files: { "classes.dex": dummyFile },
+					replace_files: { "classes.dex": dummyFile },
+				}),
+			).rejects.toThrow(/Overlapping replacement entry 'classes.dex' declared in both/i);
+
+			// Path traversal in entry name rejected
+			await expect(
+				tool.execute("call-traversal", {
+					action: "repack",
+					path: baseApkPath,
+					output_path: path.join(tempDir, "out2.apk"),
+					replace_files: { "../etc/passwd": dummyFile },
+				}),
+			).rejects.toThrow(/Invalid path traversal/i);
+
+			// Establish workflow with active baseline
+			const wf = await workflowStore.create({
+				target: "base.apk",
+				goal: "Verify install_verify safety gate",
+			});
+			const mod1Apk = path.join(tempDir, "mod1.apk");
+			const patchedNativeBytes = Buffer.alloc(100, 0);
+			Buffer.from("PATCHED_NATIVE_BYTES_A").copy(patchedNativeBytes, 0);
+			await fs.writeFile(
+				mod1Apk,
+				buildZipBuffer([
+					{ name: "classes.dex", data: createDummyDex(1, 40) },
+					{ name: "lib/arm64-v8a/libtest.so", data: patchedNativeBytes },
+				]),
+			);
+			await workflowStore.registerDerivative(wf.id, {
+				build_id: "mod1",
+				target_path: "mod1.apk",
+				patches: [
+					{
+						patch_id: "native_patch_A",
+						member_path: "lib/arm64-v8a/libtest.so",
+						offset: 0,
+						original_bytes: Buffer.alloc(22, 0).toString("hex"),
+						expected_bytes: Buffer.from("PATCHED_NATIVE_BYTES_A").toString("hex"),
+					},
+				],
+			});
+
+			// install_verify on clean base.apk (missing native_patch_A) rejected BEFORE executing adb
+			await expect(
+				tool.execute("call-iv-dropped-baseline", {
+					action: "install_verify",
+					path: baseApkPath, // clean base, drops native_patch_A!
+					package: "com.example.app",
+					activity: ".MainActivity",
+					serial: "emulator-5554",
+				}),
+			).rejects.toThrow(/drops active baseline patch 'native_patch_A'/i);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("repack: rejects normalized duplicate entries in dex_files and replace_files maps", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-dup-keys-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+
+			const baseApkPath = path.join(tempDir, "base.apk");
+			await fs.writeFile(baseApkPath, buildZipBuffer([{ name: "classes.dex", data: createDummyDex(0, 40) }]));
+
+			const dummyFile = path.join(tempDir, "dummy.dex");
+			await fs.writeFile(dummyFile, createDummyDex(1, 40));
+
+			// Normalized duplicate in replace_files: "/lib/a.so" and "lib/a.so"
+			await expect(
+				tool.execute("call-dup-replace", {
+					action: "repack",
+					path: baseApkPath,
+					output_path: path.join(tempDir, "out_dup1.apk"),
+					replace_files: {
+						"lib/arm64-v8a/libtest.so": dummyFile,
+						"/lib/arm64-v8a/libtest.so": dummyFile,
+					},
+				}),
+			).rejects.toThrow(/Duplicate replacement entry 'lib\/arm64-v8a\/libtest.so'/i);
+
+			// Normalized duplicate in dex_files: "/classes.dex" and "classes.dex"
+			await expect(
+				tool.execute("call-dup-dex", {
+					action: "repack",
+					path: baseApkPath,
+					output_path: path.join(tempDir, "out_dup2.apk"),
+					dex_files: {
+						"classes.dex": dummyFile,
+						"/classes.dex": dummyFile,
+					},
+				}),
+			).rejects.toThrow(/Duplicate replacement entry 'classes.dex'/i);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("lineage: applies persisted retirement audit so retired patches are not required in verify / install_verify", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "apk-retired-audit-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new ApkArtifactTool(session);
+			const workflowStore = new ReverseWorkflowStore({ repositoryRoot: tempDir });
+
+			const baseApkPath = path.join(tempDir, "base.apk");
+			await fs.writeFile(
+				baseApkPath,
+				buildZipBuffer([
+					{ name: "classes.dex", data: createDummyDex(0, 40) },
+					{ name: "lib/arm64-v8a/libtest.so", data: Buffer.alloc(50, 0) },
+				]),
+			);
+
+			const wf = await workflowStore.create({
+				target: "base.apk",
+				goal: "Verify retired patch audit filtering",
+			});
+
+			// Mod 1 applies patch_A
+			const mod1Apk = path.join(tempDir, "mod1.apk");
+			await fs.writeFile(
+				mod1Apk,
+				buildZipBuffer([
+					{ name: "classes.dex", data: createDummyDex(0, 40) },
+					{ name: "lib/arm64-v8a/libtest.so", data: Buffer.from("PATCH_A_DATA_AAAAAAAAAAAAAAAAAA") },
+				]),
+			);
+			await workflowStore.registerDerivative(wf.id, {
+				build_id: "mod1",
+				target_path: "mod1.apk",
+				patches: [
+					{
+						patch_id: "patch_A",
+						member_path: "lib/arm64-v8a/libtest.so",
+						offset: 0,
+						original_bytes: Buffer.alloc(28, 0).toString("hex"),
+						expected_bytes: Buffer.from("PATCH_A_DATA_AAAAAAAAAAAAAAAAAA").toString("hex"),
+					},
+				],
+			});
+
+			// Explicitly retire patch_A in workflow
+			await workflowStore.retirePatch(wf.id, "patch_A", "Bypassed by alternative logic");
+
+			// Now verify on baseApkPath (which lacks patch_A) passes lineage check because patch_A is retired!
+			const verifyRes = await tool.execute("call-verify-retired", {
+				action: "verify",
+				path: baseApkPath,
+				workflow_id: wf.id,
+			});
+			// Lineage verification does not fail on retired patch_A
+			expect(verifyRes.details.verify?.lineage_verification?.active_patches_count).toBe(0);
 		} finally {
 			await removeWithRetries(tempDir);
 		}

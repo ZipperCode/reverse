@@ -23,7 +23,7 @@ import {
 	type SkillLoadRecord,
 } from "../extensibility/capability-state";
 import { cfgDebugEnabled } from "./settings";
-
+import { getIdaBackendStatus, type IdaBackendStatus } from "../ida/install";
 const reverseCapabilitySchema = type({
 	action: type
 		.enumerated("list", "resolve", "get", "install", "status")
@@ -69,6 +69,7 @@ export interface ReverseCapabilityDetails {
 	capabilities?: ReverseCapabilityStatus[] | CapabilityDescriptor[];
 	platform?: string;
 	mcpServices?: McpDetailedServiceStatus[];
+	idaBackends?: IdaBackendStatus;
 	skills?: { recorded: SkillLoadRecord[] };
 	installation?: {
 		configPath: string;
@@ -295,6 +296,28 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					lines.push(`- **Post-Install Invocation**: \`${cap.postInstallInvocation}\``);
 					lines.push("");
 				}
+				const idaBackends = getIdaBackendStatus({
+					cwd: projectDir,
+					mcpManager: this.session.mcpManager,
+					settings: this.session.settings,
+				});
+				lines.push("### IDA Pro Multi-Backend Status");
+				lines.push(
+					`- **GUI Application**: ${idaBackends.guiAvailable ? `Available (${idaBackends.guiPath})` : "Not found"}`,
+				);
+				lines.push(
+					`- **idalib Headless SDK**: ${idaBackends.idalibAvailable ? `Available (${idaBackends.idalibPath})` : "Not found"}`,
+				);
+				lines.push(
+					`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : "No (requires idalib)"}`,
+				);
+				lines.push(
+					`- **MCP Bridge**: ${idaBackends.mcpBridgeConnected ? "Connected" : idaBackends.mcpBridgeConfigured ? "Configured (disconnected)" : "Not configured (bridge absent does not imply IDA absent)"}`,
+				);
+				if (idaBackends.bridgeAbsentReason) {
+					lines.push(`  - Note: ${idaBackends.bridgeAbsentReason}`);
+				}
+				lines.push("");
 
 				return {
 					content: [{ type: "text", text: lines.join("\n") }],
@@ -303,6 +326,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 						total: targetCaps.length,
 						capabilities: targetCaps,
 						platform: report.platform,
+						idaBackends,
 					},
 				};
 			}
@@ -367,6 +391,31 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 				lines.push(`- **All Defined Fallbacks**: ${capStatus.fallbacks.join(", ")}`);
 				lines.push(`- **Trusted Setup Command**: \`${capStatus.setupCommand}\``);
 				lines.push(`- **Post-Install Invocation**: \`${capStatus.postInstallInvocation}\``);
+				let idaBackends: IdaBackendStatus | undefined;
+				if (capStatus.id === "native_debugger" || capId === "ida") {
+					idaBackends = getIdaBackendStatus({
+						cwd: projectDir,
+						mcpManager: this.session.mcpManager,
+						settings: this.session.settings,
+					});
+					lines.push("");
+					lines.push("#### IDA Pro Backend Status:");
+					lines.push(
+						`- **GUI Application**: ${idaBackends.guiAvailable ? `Available (${idaBackends.guiPath})` : "Not found"}`,
+					);
+					lines.push(
+						`- **idalib Headless SDK**: ${idaBackends.idalibAvailable ? `Available (${idaBackends.idalibPath})` : "Not found"}`,
+					);
+					lines.push(
+						`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : "No (requires idalib)"}`,
+					);
+					lines.push(
+						`- **MCP Bridge**: ${idaBackends.mcpBridgeConnected ? "Connected" : idaBackends.mcpBridgeConfigured ? "Configured (disconnected)" : "Not configured (bridge absent does not imply IDA absent)"}`,
+					);
+					if (idaBackends.bridgeAbsentReason) {
+						lines.push(`  - Note: ${idaBackends.bridgeAbsentReason}`);
+					}
+				}
 
 				return {
 					content: [{ type: "text", text: lines.join("\n") }],
@@ -374,6 +423,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 						action: "get",
 						capability: capStatus,
 						platform: report.platform,
+						...(idaBackends ? { idaBackends } : {}),
 					},
 				};
 			}
@@ -500,6 +550,29 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 					}
 				}
 
+				const idaBackends = getIdaBackendStatus({
+					cwd: projectDir,
+					mcpManager: this.session.mcpManager,
+					settings: this.session.settings,
+				});
+				lines.push("");
+				lines.push("### IDA Pro Backend Status");
+				lines.push(
+					`- **GUI Application**: ${idaBackends.guiAvailable ? `Available (${idaBackends.guiPath})` : "Not found"}`,
+				);
+				lines.push(
+					`- **idalib Headless SDK**: ${idaBackends.idalibAvailable ? `Available (${idaBackends.idalibPath})` : "Not found"}`,
+				);
+				lines.push(
+					`- **Local Database (.idb/.i64)**: Recognized: ${idaBackends.localDatabaseRecognized ? "Yes" : "No"}, Backend Parser Available: ${idaBackends.localDatabaseBackendAvailable ? "Yes (idalib)" : "No (requires idalib)"}`,
+				);
+				lines.push(
+					`- **MCP Bridge**: ${idaBackends.mcpBridgeConnected ? "Connected" : idaBackends.mcpBridgeConfigured ? "Configured (disconnected)" : "Not configured (bridge absent does not imply IDA absent)"}`,
+				);
+				if (idaBackends.bridgeAbsentReason) {
+					lines.push(`  - Note: ${idaBackends.bridgeAbsentReason}`);
+				}
+
 				return {
 					content: [{ type: "text", text: lines.join("\n") }],
 					details: {
@@ -507,6 +580,7 @@ export class ReverseCapabilityTool implements AgentTool<typeof reverseCapability
 						mcpServices,
 						skills: { recorded: skillLoads },
 						platform: report.platform,
+						idaBackends,
 					},
 				};
 			}

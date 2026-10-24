@@ -83,7 +83,7 @@ describe("AgentSession retry delay cap", () => {
 		// A live env var now overrides a stored static api_key; these tests rotate stored Anthropic
 		// credentials, so neutralize env resolution (ignores every provider's ambient env key).
 		vi.spyOn(envApiKey, "getEnvApiKey").mockReturnValue(undefined);
-		for (const provider of ["anthropic", "openai-codex"]) {
+		for (const provider of ["anthropic", "openai-codex", "opencode-go"]) {
 			await authStorage.credentials.remove(provider);
 		}
 		for (const provider of [
@@ -4213,5 +4213,234 @@ describe("AgentSession retry delay cap", () => {
 		expect(retryStartEvents).toHaveLength(0);
 		const last = lastAssistant(session);
 		expect(last.stopReason).toBe("error");
+	});
+	it("bounds persistent transport drop with volatile socket error messages to 1 retry instead of 10", async () => {
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		if (!model) throw new Error("Expected bundled Anthropic test model to exist");
+		let attempts = 0;
+		const mock = createMockModel();
+		registerMockApi(RETRY_CAP_MOCK_API_SOURCE);
+
+		const agent = new Agent({
+			getApiKey: m => `${m.provider}-test-key`,
+			initialState: {
+				model,
+				systemPrompt: ["Test"],
+				tools: [],
+				messages: [],
+			},
+			streamFn: (_requestedModel, context, options) => {
+				attempts += 1;
+				// Volatile socket port and timestamp in each attempt's error message
+				const port = 49150 + attempts;
+				const ts = new Date(1729750000000 + attempts * 1000).toISOString();
+				mock.push({
+					stopReason: "error",
+					errorMessage: `Transport error reading response: connect ECONNRESET 127.0.0.1:${port} at ${ts}`,
+					errorDiagnostic: {
+						normalizedKind: "transport",
+						retryable: true,
+						transportError: {
+							name: "FetchError",
+							message: `connect ECONNRESET 127.0.0.1:${port} at ${ts}`,
+							code: "ECONNRESET",
+						},
+					},
+				});
+				return mock.stream(mock.model, context, options);
+			},
+		});
+
+		const settings = Settings.isolated({ "compaction.enabled": false });
+		settings.setModelRole("default", `${model.provider}/${model.id}`);
+
+		session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings,
+			modelRegistry,
+		});
+
+		vi.spyOn(Math, "random").mockReturnValue(0);
+		mockSchedulerWaitWithClock();
+		const retryStartEvents: AutoRetryStartEvent[] = [];
+		const retryEndEvents: AutoRetryEndEvent[] = [];
+		session.subscribe(event => {
+			if (event.type === "auto_retry_start") retryStartEvents.push(event);
+			if (event.type === "auto_retry_end") retryEndEvents.push(event);
+		});
+
+		await session.prompt("Trigger volatile transport drop");
+		await session.waitForIdle();
+
+		// Fingerprinting ignores volatile message/port; must stop after 1 retry instead of 10
+		expect(attempts).toBe(2);
+		expect(retryStartEvents).toHaveLength(1);
+		expect(retryEndEvents).toHaveLength(1);
+		expect(retryEndEvents[0]).toMatchObject({ success: false, attempt: 1 });
+		const last = lastAssistant(session);
+		expect(last.stopReason).toBe("error");
+		expect(last.errorMessage).toContain("Retry budget exhausted after 1 retry");
+	});
+
+	it("bounds persistent zero-progress empty-body response to 1 retry instead of 10", async () => {
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		if (!model) throw new Error("Expected bundled Anthropic test model to exist");
+		let attempts = 0;
+		const mock = createMockModel();
+		registerMockApi(RETRY_CAP_MOCK_API_SOURCE);
+
+		const agent = new Agent({
+			getApiKey: m => `${m.provider}-test-key`,
+			initialState: {
+				model,
+				systemPrompt: ["Test"],
+				tools: [],
+				messages: [],
+			},
+			streamFn: (_requestedModel, context, options) => {
+				attempts += 1;
+				mock.push({
+					stopReason: "error",
+					errorMessage: "Provider response body was empty",
+					errorDiagnostic: {
+						normalizedKind: "empty-body",
+						retryable: true,
+					},
+				});
+				return mock.stream(mock.model, context, options);
+			},
+		});
+
+		const settings = Settings.isolated({ "compaction.enabled": false });
+		settings.setModelRole("default", `${model.provider}/${model.id}`);
+
+		session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings,
+			modelRegistry,
+		});
+
+		vi.spyOn(Math, "random").mockReturnValue(0);
+		mockSchedulerWaitWithClock();
+		const retryStartEvents: AutoRetryStartEvent[] = [];
+		const retryEndEvents: AutoRetryEndEvent[] = [];
+		session.subscribe(event => {
+			if (event.type === "auto_retry_start") retryStartEvents.push(event);
+			if (event.type === "auto_retry_end") retryEndEvents.push(event);
+		});
+
+		await session.prompt("Trigger empty body response");
+		await session.waitForIdle();
+
+		// Empty-body is recognized as canonical zero-progress failure; bounds to 1 retry
+		expect(attempts).toBe(2);
+		expect(retryStartEvents).toHaveLength(1);
+		expect(retryEndEvents).toHaveLength(1);
+		expect(retryEndEvents[0]).toMatchObject({ success: false, attempt: 1 });
+		const last = lastAssistant(session);
+		expect(last.stopReason).toBe("error");
+		expect(last.errorMessage).toContain("Retry budget exhausted after 1 retry");
+	});
+
+	it("resets zero-progress repeat counter when real tool progress occurs, avoiding premature retry cap", async () => {
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		if (!model) throw new Error("Expected bundled Anthropic test model to exist");
+		let attempts = 0;
+		let toolExecutions = 0;
+		const mock = createMockModel();
+		registerMockApi(RETRY_CAP_MOCK_API_SOURCE);
+
+		const dummySchema = type({ task: "string" });
+		const dummyTool: AgentTool<typeof dummySchema> = {
+			name: "dummy_work",
+			label: "Dummy Work",
+			description: "Perform real work",
+			parameters: dummySchema,
+			execute: async () => {
+				toolExecutions++;
+				return { content: [{ type: "text", text: "step 1 completed" }] };
+			},
+		};
+
+		const agent = new Agent({
+			getApiKey: m => `${m.provider}-test-key`,
+			initialState: {
+				model,
+				systemPrompt: ["Test"],
+				tools: [dummyTool],
+				messages: [],
+			},
+			streamFn: (_requestedModel, context, options) => {
+				attempts += 1;
+				if (attempts === 1) {
+					// Turn 1 fails transiently
+					mock.push({
+						stopReason: "error",
+						errorMessage: "Google API stream ended without a finish reason",
+						errorDiagnostic: { normalizedKind: "incomplete-stream", retryable: true },
+					});
+				} else if (attempts === 2) {
+					// Turn 1 retry succeeds and issues tool call (real work progress)
+					mock.push({
+						content: [
+							{
+								type: "toolCall",
+								id: "call_dummy_1",
+								name: "dummy_work",
+								arguments: { task: "do work" },
+							},
+						],
+					});
+				} else if (attempts === 3) {
+					// Turn 2 sees tool result, then encounters another transient stream drop
+					mock.push({
+						stopReason: "error",
+						errorMessage: "Google API stream ended without a finish reason",
+						errorDiagnostic: { normalizedKind: "incomplete-stream", retryable: true },
+					});
+				} else {
+					// Turn 2 retry succeeds with final text
+					mock.push({ content: ["all tasks finished successfully"] });
+				}
+				return mock.stream(mock.model, context, options);
+			},
+		});
+
+		const settings = Settings.isolated({ "compaction.enabled": false });
+		settings.setModelRole("default", `${model.provider}/${model.id}`);
+
+		session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings,
+			modelRegistry,
+		});
+
+		vi.spyOn(Math, "random").mockReturnValue(0);
+		mockSchedulerWaitWithClock();
+		const retryStartEvents: AutoRetryStartEvent[] = [];
+		const retryEndEvents: AutoRetryEndEvent[] = [];
+		session.subscribe(event => {
+			if (event.type === "auto_retry_start") retryStartEvents.push(event);
+			if (event.type === "auto_retry_end") retryEndEvents.push(event);
+		});
+
+		await session.prompt("Run progress reset test");
+		await session.waitForIdle();
+
+		// Real tool executed
+		expect(toolExecutions).toBe(1);
+		// 4 attempts total (2 retry recoveries)
+		expect(attempts).toBe(4);
+		expect(retryStartEvents).toHaveLength(2);
+		expect(retryEndEvents).toHaveLength(2);
+		expect(retryEndEvents[0]).toMatchObject({ success: true, attempt: 1 });
+		expect(retryEndEvents[1]).toMatchObject({ success: true, attempt: 1 });
+
+		const last = lastAssistant(session);
+		expect(last.stopReason).toBe("stop");
+		expect(last.content).toContainEqual({ type: "text", text: "all tasks finished successfully" });
 	});
 });

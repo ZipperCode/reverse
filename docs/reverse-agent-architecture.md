@@ -172,12 +172,11 @@ Unidbg 是 Runtime Controller，不是 Skill。Skill 只决定何时使用、需
 `dex_patch` 与 `apk_artifact` 将 apk-reverse 的 MIT 工具机制适配为正式内置工具，Python 源码作为文本资产嵌入安装包和独立二进制，运行时经现有 Python 发现机制启动。原始样本保持只读，写入使用明确的新路径、私有暂存与独占发布。
 
 - `dex_patch`：按类、方法、描述符和语义条件定位指令；默认预演等长补丁，校验指令边界、分支/payload、move-result 邻接，按 SHA-1 → Adler-32 顺序更新头部。它执行有限结构校验，ART 类型校验和实际行为验证仍在设备环节完成。
-- `apk_artifact`：按条目哈希与布局差分，替换 DEX，保留嵌套 `META-INF` 运行时资源，处理资源 4 字节和 native 库 16KiB 包内对齐；调用 zipalign 后签名，再执行 apksigner 验证。现有密钥库和环境变量/受保护文件凭证由调用方提供。
+- `apk_artifact`：按条目哈希与布局差分，支持 `dex_files` 与任意条目替换 `replace_files`（二者重叠定义将被严格拒绝），保留嵌套 `META-INF` 运行时资源，处理资源 4 字节和 native 库 16KiB 包内对齐；调用 zipalign 后签名，再执行 apksigner 验证。从干净原始基准或早先衍生版本重打包时，必须保留所有已验证的累积基准补丁（确定性 A + B 重放），或附带强制原因显式退役补丁（`retire_patch`）。产物在目标文件系统执行私有暂存并原子独占发布（`link` 或 `COPYFILE_EXCL`）；若后续工作流衍生版本登记失败，将自动执行回滚删除以保护谱系所有权。现有密钥库和环境变量/受保护文件凭证由调用方提供。
 - 能力解析区分离线 Python、完整签名依赖和设备主机依赖；静态目录检查保持设备连接状态未验证。依赖统一经过现有 CLI/TUI 工具安装目录。
 - 设备校验明确指定 serial，比较已安装 APK 与本地产物 SHA-256，采集启动状态、进程日志和截图；目标功能验证单独记录。产物哈希和补丁坐标接入现有 `reverse_workflow` 构建谱系与证据体系。
 
 使用契约见 [dex_patch](tools/dex_patch.md) 与 [apk_artifact](tools/apk_artifact.md)。上游快照为 `bd6dd0c59ce1f9af75f1293ef9518fb6f5d28c6c`，版权及 MIT 许可保留在 `THIRD-PARTY-NOTICES.txt`；实验性内核与硬件模板未纳入稳定工具。
-
 
 ## Browser 目标链
 
@@ -246,7 +245,8 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
 
 3. **后端连接模式与环境约束**：
    - **Ghidra**：支持无头持久化模式（传入 `target`，维护 `/tmp` 之外的持久工程目录 `project_dir` 并启用 `--save` 跨轮次复用分析结果，每个工程目录仅允许单 Java 进程持有互斥锁）与 GUI 模式（省略 `target`，连接 `backend_url`，默认 `http://127.0.0.1:8080/`）。
-   - **radare2**：通过 r2mcp (`r2pm -r r2mcp`) 建立持久分析会话，调用 `open_file` 打开目标二进制并通过 `show_info` 校验，在多轮对话中保持分析状态，避免单次命令行频繁重开与重搜。
+   - **radare2 与 r2_inspect 契约**：内置 `r2_inspect` 工具严格限定参数为规范选择器（`symbol`、`address`、`target`），任何未知参数别名（如 `function`）均被直接拒绝并返回结构化错误；在结果中忠实回显实际解析的目标（`details.reference` 与 `details.target`），未指定选择器而回退到入口点时显式标记 `referenceDefaulted: true`。会话模式通过 r2mcp (`r2pm -r r2mcp`) 建立持久分析会话，调用 `open_file` 打开目标二进制并通过 `show_info` 校验，在多轮对话中保持分析状态，避免单次命令行频繁重开与重搜。
+   - **IDA 四层后端独立区分**：严格独立判定 IDA 的四类不同后端形态，绝不混淆：1) IDA GUI 桌面应用程序；2) `idalib` 无头 SDK 运行时（`read` 虚拟文件读取与 `ida` 工具后台工作必需）；3) 本地数据库文件（`.idb` / `.i64` 原生解析）；4) 可选 MCP 桥接（`ida-mcp`）。未配置或断开的 MCP 桥接并不代表 IDA 整体安装缺失（bridge absent != whole IDA absent），存在本地 GUI 或 `idalib` 时仍提供对应层级的降级与分析能力。
    - **x64dbg**：支持本地启动（`target`）、附加已有实例（`session_pid`）与跨平台远程连接（`host` + `req_rep_port` + `pub_sub_port`）。注意：绝对 Windows 目标路径在参数与配置中必须保持 Windows 宿主路径格式（如 `C:\targets\app.exe`）；ZeroMQ RPC 协议**无内置认证机制**，远程调试必须经由私有受信网络或 SSH 隧道（如端口转发 `31337`/`31338`），严禁暴露于不受信公网。
 
 4. **状态可观测性分层 (Five-Tier Observable States)**：
@@ -266,8 +266,10 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
    - `template: "native_functions"`：对原生函数调用实施有界参数解码。支持 `symbol`/`symbols`、`offset`/`offsets`，通过 `args_decode` 对参数进行类型化解码（`string`、`int`、`pointer` 等），严格受限于 `args_count`、`maxBufferBytes`（防巨型内存泄漏）与 `max_events`；捕获 `retval` 与 `backtrace`，且清理时只注销自身 hook 句柄，禁止全局 detach。
 
 7. **验证边界与声明约束 (Verification Limits)**：
-   - 当前开发与构建宿主（macOS arm64）上未运行 Windows/x64dbg 宿主环境，亦未执行 live Ghidra 后端冒烟验证；
-   - Frida 原生插桩验证使用本地 C ABI 原生动态库与 mock 符号固件，未在真实 Android 设备 `libart.so` 上实机运行，文档与测试严格保持声明边界客观真实。
+   - 当前开发与构建宿主（macOS arm64）上未运行真实的 Windows/x64dbg 宿主环境，亦未执行 live Ghidra 与 live IDA 后端运行时的端到端冒烟验证；
+   - Frida 原生插桩验证使用本地 C ABI 原生动态库与 mock 符号固件，未在真实 Android 设备 `libart.so` 上实机运行，文档与测试严格保持声明边界客观真实；
+   - Python 子进程管理机制基于数值 PID（numeric PID）实施进程树层级追踪与超时清理，受限于 Agent 会话所有权边界，并非完整的操作系统级安全沙箱或虚拟化容器。
+
 ### 3. 用户面向的 Discover-before-stop / Install-then-dispatch 闭环流程
 
 当逆向分析深入并需要特定外部高级能力时，Agent 严格执行以下五步连贯工作流，杜绝直接报错或卡死：
@@ -290,6 +292,37 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
    - 安装成功并刷新检测后，Agent **立即无缝衔接调度该工具**（执行 `postInstallInvocation` 所对应的操作），推进下一步分析，不强制用户重新输入目标或重开会话。
 5. **Graceful Fallback (优雅降级保障)**：
    - 若用户选择暂不安装或当前环境无包管理器，Agent 绝不中断退出，而是回退到声明的降级工具链（如用 `readelf` 静态提取符号表 + `strings` 筛选关键词），继续记录 Fact 并标注未知项 (Unknown)。
+### 4. 协议泄露恢复与瞬态重试纪律 (Protocol Leak Recovery & Bounded Retry)
+
+在长上下文与多轮逆向对话中，模型可能因复杂推理或采样波动输出带有工具调用格式特征的混合文本（Mixed Protocol Leakage）。reverse 建立了明确的自愈与重试纪律：
+
+1. **协议泄露标记未执行**：对于未能被底层运行时解码为结构化工具调用的疑似协议文本，一律保留原始诊断并生成标记为未执行（`executed: false`）的合成结果，绝不自动拼接执行，亦不静默视为成功。
+2. **有界修正延续**：会话在有限恢复配额（Bounded Recovery Allowance）内保留原始 Provider/Model/Call-ID 诊断信息，发起纠偏轮次促使模型重新生成合规调用，严格杜绝无限重试自旋。
+3. **规范瞬态故障重试与副作用保护**：严格区分 Provider 终端拒绝、传输层错误与规范化错误分类。对真正具备重试语义的瞬态网络或服务端偶发异常允许在上限内重试；对于连续发生且无新工具调用或产物进展的重复零进度故障，提前终止并报告任务失败事件；对于已经产生真实环境副作用（如文件写入、进程修改）的操作，绝不盲目重试。
+
+### 5. 工作流验收绑定、代理观测与证据失效级联 (Workflow Acceptance & Refutation Cascade)
+
+逆向工程涉及严谨的因果推导，不能将片面线索直接等同于完整目标达成：
+
+1. **元数据准则绑定与不可变主题**：工作流验收准则统一存放在单点保留键 `workflow.metadata.acceptance` 下，按步骤 ID（`step_id`）建立索引，且严格验证引用的步骤存在于 `workflow.steps` 中。每条准则声明不可变的目标主题（`subject`，如 `license_validation`）。
+2. **拒绝调用方初始宣称满足**：在工作流初始创建时，所有验收准则状态强制为 `pending`。调用方无权在创建入参中自称满足（`satisfied`）或豁免（`waived`）。
+3. **代理观测隔离 (Proxy Observations)**：当证据记录的主题与准则要求的主题不一致时（例如抓取到普通网络通信却试图以此证明核心登录加密），系统将其分类为 `proxy_verified` 代理观测。代理观测绝不能直接关闭原准则，必须由操作员在明确知情下执行显式交互式豁免（`waive_acceptance`）并记录不可变审计决策。
+4. **实验与交付依赖隔离**：依赖项通过 `scope: "experiment"`（如临时 Frida 脚本、Unidbg 测试桩）与 `scope: "delivery"`（最终交付所需运行库）严格切分。在目标设备声明了独立性约束（`requires_standalone: true`）或排除了特定工具时，交付构建严禁引入外部手机 Oracle、LSPosed 模块等实验依赖；创建依赖时禁止直接传递 `approved_for_delivery: true`，交付授权必须经由专有的交互式确认动作（`approve_dependency`）。
+5. **规范最新证据图失效级联**：逆向假设的验证具有时效性。当最新证据推翻先前提出的结论或证据过期时，`cascadeEvidenceRefutation` 沿活动支撑证明链执行级联回退：将依赖该证据的已完成步骤重新打开为 `pending` 状态（标记 `held_pending_decision`，`decision: "invalidated_by_evidence"`），清空活动证明，重置准则状态，标记构建谱系运行时验证失败，并将已完成工作流恢复为 `active` 状态，确保报告与知识库不包含被推翻的失效事实。
+
+### 6. 工作区分类清理与进程删除守卫 (Classified Cleanup & Process Safety Guard)
+
+1. **产物分类与默认受保护机制**：
+   工作区（`.reverse` / `.rea`）按 `ArtifactClassification` 严格划分产物资产：
+   - `experiment`：实验性中间转储与测试脚本，默认允许清理；
+   - `baseline`、`original`、`evidence`、`rollback`、`userfile`：验证基准、原始样本索引、证据账本、回滚镜像及用户资产，默认处于受保护状态（`protected: true`）。
+2. **具名受保护删除与交互式回调确认 (No Free Boolean)**：
+   清理受保护产物时，必须在 `experimental_targets` 中明确提供具体相对路径，并经由交互式确认回调（`confirmDeleteProtected`）由操作员显式批准；禁止仅靠 `include_protected: true` 自由布尔值进行无差别全量删除。核心复现性清单（`manifest.json`、`target/`、`workflow/`、`evidence/`、`findings/`、`reports/`）始终持久保留。
+3. **常驻 Shell 删除与全局进程名查杀守卫**：
+   在 `bash` 工具层部署常驻拦截守卫：
+   - 拦截全局进程名查杀命令（`taskkill /IM`、`pkill`、`killall`、`Stop-Process -Name`），杜绝因误杀宿主 IDE 或其他 Java/Node 进程造成连带破坏；进程终止必须通过会话受纳管的取消机制（如 `proc://<id>/kill`）；
+   - 拦截对 `.reverse`/`.rea` 目录及受保护产物路径的直接递归删除（`rm -rf` 等），引导调用方使用受控的 `reverse_workspace(action: "clean")` 进行分类清理。
+   - 该守卫作用于工作区根目录及已登记的受保护工作流产物路径，不声明对全局任意文件系统路径具备无死角的通用防护。
 ## 审批与自动化边界
 
 - 静态读取、哈希、格式识别：可自动执行。

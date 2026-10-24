@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import type { AgentTool, AgentToolContext, AgentToolResult, ToolTier } from "@reverse/agent";
+import type { AgentTool, AgentToolContext, AgentToolResult, ToolApprovalDecision } from "@reverse/agent";
 import { type } from "@reverse/reversetype";
 import { prompt, getProjectDir } from "@reverse/utils";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
@@ -34,6 +34,12 @@ const reverseWorkspaceSchema = type({
 	"clean_dumps_only?": type("boolean").describe(
 		"When cleaning, remove only dumps while keeping scripts (default false: cleans dumps and scripts)",
 	),
+	"experimental_targets?": type("string[]").describe(
+		"Specific named experimental targets to clean (relative to workspace). Defaults to all classified experimental entries.",
+	),
+	"include_protected?": type("boolean").describe(
+		"Request deletion of protected artifacts. Requires explicit confirmation decision via available approval not free boolean.",
+	),
 });
 
 export type ReverseWorkspaceParams = typeof reverseWorkspaceSchema.infer;
@@ -44,6 +50,7 @@ export interface ReverseWorkspaceDetails {
 	manifest?: ReverseWorkspaceManifest;
 	inspection?: InspectWorkspaceResult;
 	clean_result?: CleanWorkspaceResult;
+	cancelled?: boolean;
 }
 
 export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSchema, ReverseWorkspaceDetails> {
@@ -55,10 +62,21 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 	readonly parameters = reverseWorkspaceSchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
-	readonly approval = (args: unknown): ToolTier => {
+	readonly approval = (args: unknown): ToolApprovalDecision => {
 		if (args && typeof args === "object" && "action" in args) {
 			const action = String(args.action);
-			if (action === "export" || action === "clean") {
+			if (action === "clean") {
+				if ("include_protected" in args && args.include_protected === true) {
+					return {
+						tier: "write",
+						override: true,
+						policy: "prompt",
+						reason: "Deleting protected artifacts requires explicit user confirmation.",
+					};
+				}
+				return "write";
+			}
+			if (action === "export") {
 				return "write";
 			}
 		}
@@ -195,10 +213,76 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 			}
 
 			case "clean": {
+				let confirmed = false;
+				if (params.include_protected === true) {
+					if (!params.experimental_targets || params.experimental_targets.length === 0) {
+						throw new ToolError(
+							"Explicit targets are required when requesting protected artifact deletion via 'experimental_targets'. Blanket deletion of protected artifacts is prohibited.",
+						);
+					}
+
+					if (!_context?.ui?.confirm) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: `# Workspace Cleanup Refused: \`${workspacePath}\`\n\nDeletion of protected artifacts was refused because interactive UI confirmation is unavailable in this session. Protected artifacts (baseline, evidence, rollback, userfile) cannot be deleted without verified interactive confirmation.`,
+								},
+							],
+							details: {
+								action: "clean",
+								workspace_dir: path.resolve(projectDir, workspacePath),
+								cancelled: true,
+							},
+						};
+					}
+
+					const manifest = await loadWorkspaceManifest(path.resolve(projectDir, workspacePath));
+					const targetedProtected = (manifest?.artifacts ?? [])
+						.filter(
+							a =>
+								a.destination_path &&
+								params.experimental_targets?.includes(a.destination_path) &&
+								(a.protected ||
+									(a.classification && a.classification !== "experiment") ||
+									(!a.classification && a.kind === "script")),
+						)
+						.map(a => `${a.destination_path} (${a.classification ?? "userfile"})`);
+
+					const protectedListing =
+						targetedProtected.length > 0
+							? targetedProtected.map(p => `  - ${p}`).join("\n")
+							: params.experimental_targets.map(t => `  - ${t}`).join("\n");
+
+					confirmed = await _context.ui.confirm(
+						"Protected Workspace Artifact Deletion",
+						`You are requesting deletion of the following protected artifacts:\n${protectedListing}\n\nCore reproducibility manifest and other materials will be retained. Confirm deletion?`,
+					);
+
+					if (!confirmed) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: `# Workspace Cleanup Cancelled: \`${workspacePath}\`\n\nDeletion of protected artifacts was denied by user. No protected artifacts were removed; all core files retained.`,
+								},
+							],
+							details: {
+								action: "clean",
+								workspace_dir: path.resolve(projectDir, workspacePath),
+								cancelled: true,
+							},
+						};
+					}
+				}
+
 				const cleanResult = await cleanWorkspace({
 					projectDir,
 					workspaceDir: workspacePath,
 					removeDumpsOnly: params.clean_dumps_only ?? false,
+					experimentalTargets: params.experimental_targets,
+					includeProtected: params.include_protected ?? false,
+					confirmDeleteProtected: confirmed ? async () => true : undefined,
 				});
 
 				const lines = [
@@ -210,6 +294,28 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 						: "  - (no files removed)",
 					`- **Preserved Core Files**: ${cleanResult.preserved_files.length} (manifest, target, workflow, evidence, findings, reports)`,
 				];
+
+				if (cleanResult.protected_files && cleanResult.protected_files.length > 0) {
+					lines.push(`- **Protected Artifacts Retained**: ${cleanResult.protected_files.length}`);
+					for (const p of cleanResult.protected_files) {
+						lines.push(`  - \`${p}\` (protected)`);
+					}
+				}
+
+				if (cleanResult.locked_or_failed_files && cleanResult.locked_or_failed_files.length > 0) {
+					lines.push("");
+					lines.push("## Deletion Warnings / Locked Files");
+					for (const fail of cleanResult.locked_or_failed_files) {
+						lines.push(`- \`${fail.path}\`: ${fail.error}`);
+					}
+				}
+
+				if (cleanResult.reproducibility) {
+					lines.push("");
+					lines.push("## Minimal Reproducibility Manifest");
+					lines.push(`- **Retained Core Artifacts**: ${cleanResult.reproducibility.retained_count}`);
+					lines.push(`- **Manifest Saved**: \`${cleanResult.reproducibility.manifest_path}\``);
+				}
 
 				return {
 					content: [{ type: "text", text: lines.join("\n") }],

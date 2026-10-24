@@ -170,17 +170,20 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 					}
 				}
 
-				const records = await knowledgeStore.search({
-					query: params.query ?? params.goal,
-					format: filterFormat,
-					target_hash: targetHash,
-					tool: params.tool,
-					kind: params.kind,
-					confidence: params.confidence,
-					include_inactive: params.include_inactive,
-					include_bundled: params.include_bundled,
-					limit,
-				});
+				const records = await knowledgeStore.search(
+					{
+						query: params.query ?? params.goal,
+						format: filterFormat,
+						target_hash: targetHash,
+						tool: params.tool,
+						kind: params.kind,
+						confidence: params.confidence,
+						include_inactive: params.include_inactive,
+						include_bundled: params.include_bundled,
+						limit,
+					},
+					evidenceStore,
+				);
 
 				if (records.length === 0) {
 					const text = [
@@ -421,15 +424,19 @@ export class ReverseKnowledgeTool implements AgentTool<typeof reverseKnowledgeSc
 					}
 				}
 
-				const applyResult = await applyKnowledge(knowledgeStore, {
-					target: rawTarget,
-					format: params.format,
-					target_hash: targetHash,
-					tool: params.tool,
-					goal: params.goal,
-					error: params.error,
-					limit,
-				});
+				const applyResult = await applyKnowledge(
+					knowledgeStore,
+					{
+						target: rawTarget,
+						format: params.format,
+						target_hash: targetHash,
+						tool: params.tool,
+						goal: params.goal,
+						error: params.error,
+						limit,
+					},
+					evidenceStore,
+				);
 
 				if (applyResult.recommendations.length === 0) {
 					const text = [

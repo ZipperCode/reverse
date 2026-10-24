@@ -24,6 +24,7 @@ import {
 	type ReverseWorkspaceStats,
 	type ReverseWorkspaceArtifactRef,
 	type ReverseWorkspaceFileEntry,
+	type ArtifactClassification,
 } from "./contracts";
 import {
 	atomicWriteFile,
@@ -227,6 +228,56 @@ export async function exportWorkflowToWorkspace(options: ExportToWorkspaceOption
 					if (isScript) scriptsCopiedCount++;
 					else dumpsCopiedCount++;
 
+					const lowerRef = ref.toLowerCase();
+					const isTargetRef = resolvedArtifactPath === resolvedTargetPath;
+					const isLinkedToEvidence =
+						(step.evidence_ids && step.evidence_ids.length > 0) ||
+						allHydratedItems.some(item => {
+							const rec = item.record;
+							if (!rec) return false;
+							switch (rec.kind) {
+								case "fact":
+									return rec.locator.includes(ref) || rec.content.includes(ref);
+								case "hypothesis":
+									return rec.claim.includes(ref) || rec.verificationPlan.includes(ref);
+								case "conclusion":
+									return rec.conclusion.includes(ref) || rec.result.includes(ref);
+								default:
+									return false;
+							}
+						});
+
+					let classification: ArtifactClassification;
+					let isProtected: boolean;
+
+					if (isTargetRef || lowerRef.includes("baseline")) {
+						classification = "baseline";
+						isProtected = true;
+					} else if (lowerRef.includes("rollback") || lowerRef.includes("backup") || lowerRef.endsWith(".bak")) {
+						classification = "rollback";
+						isProtected = true;
+					} else if (isLinkedToEvidence || lowerRef.includes("evidence")) {
+						classification = "evidence";
+						isProtected = true;
+					} else if (
+						lowerRef.includes("patch_attempt") ||
+						lowerRef.includes("experiment") ||
+						lowerRef.includes("attempt") ||
+						lowerRef.includes("tmp") ||
+						lowerRef.includes("temp") ||
+						lowerRef.includes("test_mod")
+					) {
+						classification = "experiment";
+						isProtected = false;
+					} else if (isScript) {
+						classification = "userfile";
+						isProtected = true;
+					} else {
+						// Dumps default to evidence if not an explicit experiment scratch
+						classification = "evidence";
+						isProtected = true;
+					}
+
 					artifactRefs.push({
 						id: ref,
 						source_path: path.relative(projectDir, resolvedArtifactPath),
@@ -235,9 +286,21 @@ export async function exportWorkflowToWorkspace(options: ExportToWorkspaceOption
 						size_bytes: contentHash.size,
 						sha256: contentHash.sha256,
 						copied: true,
+						classification,
+						protected: isProtected,
 					});
 				} else {
 					const hashed = await hashFile(resolvedArtifactPath);
+					const isTargetRef = resolvedArtifactPath === resolvedTargetPath;
+					const lowerRef = ref.toLowerCase();
+					let classification: ArtifactClassification;
+					if (isTargetRef) {
+						classification = "original";
+					} else if (lowerRef.includes("rollback") || lowerRef.includes("backup") || lowerRef.endsWith(".bak")) {
+						classification = "rollback";
+					} else {
+						classification = "baseline";
+					}
 					artifactRefs.push({
 						id: ref,
 						source_path: path.relative(projectDir, resolvedArtifactPath),
@@ -246,6 +309,8 @@ export async function exportWorkflowToWorkspace(options: ExportToWorkspaceOption
 						sha256: hashed?.sha256,
 						copied: false,
 						reason: "binary_format_reference_only",
+						classification,
+						protected: true,
 					});
 				}
 			} catch {
@@ -255,14 +320,17 @@ export async function exportWorkflowToWorkspace(options: ExportToWorkspaceOption
 					kind: "reference",
 					copied: false,
 					reason: "file_not_found",
+					classification: "original",
+					protected: true,
 				});
 			}
 		}
 	}
 
 	// 4. Generate core reports and evidence files
-	const findingsData = generateFindingsData(workflow, allHydratedItems, targetInfo);
-	const findingsMd = generateFindingsMarkdown(workflow, allHydratedItems, targetInfo);
+	const validityMap = evidenceStore ? await evidenceStore.resolveValidity() : undefined;
+	const findingsData = generateFindingsData(workflow, allHydratedItems, targetInfo, { validityMap });
+	const findingsMd = generateFindingsMarkdown(workflow, allHydratedItems, targetInfo, { validityMap });
 	const workflowMd = await exportWorkflowToMarkdown(workflow, evidenceStore);
 	const workflowJson = await exportWorkflowToJson(workflow, evidenceStore);
 
@@ -531,10 +599,20 @@ export async function inspectWorkspace(
  * Safely cleans temporary or dump files from a reverse engineering workspace.
  */
 export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<CleanWorkspaceResult> {
-	const { projectDir, removeDumpsOnly = false } = options;
-
+	const {
+		projectDir,
+		removeDumpsOnly = false,
+		experimentalTargets,
+		includeProtected = false,
+		confirmDeleteProtected,
+	} = options;
 	if (!projectDir || typeof projectDir !== "string") {
 		throw new Error("Cannot clean workspace: invalid projectDir");
+	}
+	if (includeProtected && (!experimentalTargets || experimentalTargets.length === 0)) {
+		throw new Error(
+			"Cannot clean workspace: explicit 'experimentalTargets' are required when requesting protected artifact deletion",
+		);
 	}
 
 	const resolvedProjectDir = path.resolve(projectDir);
@@ -658,38 +736,85 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 		}
 	}
 
-	// 10. Identify manifest-indexed generated scripts/dumps only
+	// 10. Classify artifacts and select candidate paths
 	const allowedSubdirs = removeDumpsOnly ? ["dumps"] : ["dumps", "scripts"];
 	const manifestFilePaths = new Set(manifest.files.map(f => f.path));
 
-	// Candidate destination paths from manifest.artifacts that were actually copied
+	// Normalize experimentalTargets filter if provided
+	const filterTargets =
+		experimentalTargets && experimentalTargets.length > 0
+			? new Set(experimentalTargets.map(t => path.normalize(t.trim())))
+			: null;
+
+	// Track protected vs experimental candidate paths
+	const protectedFilePaths = new Set<string>();
 	const candidatePaths: string[] = [];
+	const protectedCandidatesRefused: string[] = [];
+
 	for (const art of manifest.artifacts) {
 		if (art.copied !== true || !art.destination_path) continue;
 
 		const normDest = path.normalize(art.destination_path);
-		// Must not escape
 		if (normDest.startsWith("..") || path.isAbsolute(normDest)) continue;
 
-		// Must match allowed kind and subdirectory
+		// Explicit classification check:
+		// Protected classes: "baseline", "original", "evidence", "rollback", "userfile".
+		// Disposable class: "experiment".
+		// Scripts without explicit classification default to protected ("userfile").
+		const isProtected = art.protected === true || art.classification !== "experiment";
+
+		if (isProtected) {
+			protectedFilePaths.add(normDest);
+		}
+
 		const parts = normDest.split(path.sep);
 		const topDir = parts[0];
 		if (!allowedSubdirs.includes(topDir)) continue;
-
 		if (removeDumpsOnly && art.kind !== "dump") continue;
-		if (!removeDumpsOnly && art.kind !== "dump" && art.kind !== "script") continue;
-
-		// Must also be indexed in manifest.files
 		if (!manifestFilePaths.has(normDest)) continue;
 
-		candidatePaths.push(normDest);
+		// If experimentalTargets filter is set, must be explicitly named
+		if (filterTargets && !filterTargets.has(normDest)) continue;
+
+		if (isProtected) {
+			protectedCandidatesRefused.push(normDest);
+		} else {
+			candidatePaths.push(normDest);
+		}
 	}
 
-	const uniqueCandidatePaths = Array.from(new Set(candidatePaths));
-	const removedFiles: string[] = [];
+	// Check if protected deletion was authorized via explicit confirmation callback
+	let allowProtectedDeletion = false;
+	if (includeProtected && protectedCandidatesRefused.length > 0) {
+		if (confirmDeleteProtected) {
+			allowProtectedDeletion = await confirmDeleteProtected(protectedCandidatesRefused);
+		}
+	}
 
-	// 11. Safely remove each manifest-indexed file, verifying lstat/realpath containment
-	for (const relPath of uniqueCandidatePaths) {
+	if (allowProtectedDeletion) {
+		for (const p of protectedCandidatesRefused) {
+			candidatePaths.push(p);
+		}
+	}
+
+	// Check for parent recursive protected descendant protection:
+	// If any candidate path is a directory or prefix that contains protected files, refuse!
+	const safeCandidatePaths: string[] = [];
+	for (const cand of Array.from(new Set(candidatePaths))) {
+		const hasProtectedDescendant = Array.from(protectedFilePaths).some(
+			prot => !allowProtectedDeletion && (prot === cand || prot.startsWith(cand + path.sep)),
+		);
+		if (hasProtectedDescendant && protectedFilePaths.has(cand)) {
+			continue;
+		}
+		safeCandidatePaths.push(cand);
+	}
+
+	const removedFiles: string[] = [];
+	const lockedOrFailedFiles: Array<{ path: string; error: string }> = [];
+
+	// 11. Safely remove each manifest-indexed file, verifying lstat/realpath containment and postcondition
+	for (const relPath of safeCandidatePaths) {
 		const fullFilePath = assertWithinPath(resolvedWorkspaceDir, relPath);
 
 		let fileLstat: Stats;
@@ -701,7 +826,12 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 		}
 
 		if (fileLstat.isDirectory()) {
-			throw new Error(`Expected file but found directory at ${relPath}`);
+			// Parent directory protection: never delete directories indiscriminately
+			lockedOrFailedFiles.push({
+				path: relPath,
+				error: "Target is a directory; cleanWorkspace only removes designated files",
+			});
+			continue;
 		}
 
 		if (fileLstat.isSymbolicLink()) {
@@ -718,7 +848,31 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 			}
 		}
 
-		await fs.unlink(fullFilePath);
+		try {
+			await fs.unlink(fullFilePath);
+		} catch (unlinkErr) {
+			const msg = unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr);
+			lockedOrFailedFiles.push({ path: relPath, error: `Unlink failed (locked or in-use): ${msg}` });
+			continue;
+		}
+
+		// Postcondition verification: confirm the file was actually removed
+		let postExists = false;
+		try {
+			await fs.lstat(fullFilePath);
+			postExists = true;
+		} catch {
+			postExists = false;
+		}
+
+		if (postExists) {
+			lockedOrFailedFiles.push({
+				path: relPath,
+				error: "File locked or in-use: file still exists after unlink attempt",
+			});
+			continue;
+		}
+
 		removedFiles.push(relPath);
 	}
 
@@ -733,9 +887,35 @@ export async function cleanWorkspace(options: CleanWorkspaceOptions): Promise<Cl
 	}
 	preservedFiles.sort();
 
+	// 13. Update manifest.json with minimal reproducibility record
+	const updatedFiles = manifest.files.filter(f => !removedFiles.includes(f.path));
+	const updatedArtifacts = manifest.artifacts.map(a => {
+		if (a.destination_path && removedFiles.includes(a.destination_path)) {
+			return { ...a, copied: false, reason: "cleaned_experiment" };
+		}
+		return a;
+	});
+
+	manifest.files = updatedFiles;
+	manifest.artifacts = updatedArtifacts;
+	manifest.updated_at = new Date().toISOString();
+	manifest.reproducibility = {
+		retained_artifacts: preservedFiles,
+		preserved_at: new Date().toISOString(),
+		baseline_sha256: manifest.target.sha256,
+	};
+
+	await atomicWriteFile(manifestPath, deterministicJsonStringify(manifest));
+
 	return {
 		workspace_dir: resolvedWorkspaceDir,
 		removed_files: removedFiles,
 		preserved_files: preservedFiles,
+		protected_files: Array.from(protectedFilePaths).sort(),
+		locked_or_failed_files: lockedOrFailedFiles.length > 0 ? lockedOrFailedFiles : undefined,
+		reproducibility: {
+			retained_count: preservedFiles.length,
+			manifest_path: manifestPath,
+		},
 	};
 }

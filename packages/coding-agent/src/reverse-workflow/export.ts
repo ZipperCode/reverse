@@ -4,9 +4,13 @@ import {
 	type ReverseWorkflowRecord,
 	type WorkflowMetrics,
 	type WorkflowStepRecord,
+	type AcceptanceCriterion,
+	type TargetDeviceConstraints,
+	type WorkflowDependencyRecord,
 	computeWorkflowMetrics,
 	MAX_EXPORT_CHARS,
 } from "./contracts";
+import { getWorkflowAcceptanceCriteria, cascadeEvidenceRefutation } from "./acceptance";
 export interface HydratedEvidenceItem {
 	id: string;
 	record?: EvidenceRecord;
@@ -19,13 +23,22 @@ export interface HydratedStepRecord extends WorkflowStepRecord {
 export interface HydratedWorkflowRecord extends Omit<ReverseWorkflowRecord, "steps"> {
 	steps: HydratedStepRecord[];
 	metrics: WorkflowMetrics;
+	acceptance_criteria?: AcceptanceCriterion[];
+	target_device_constraints?: TargetDeviceConstraints;
+	dependencies?: WorkflowDependencyRecord[];
 }
 
 export async function hydrateWorkflowEvidence(
 	workflow: ReverseWorkflowRecord,
 	evidenceStore?: EvidenceStore,
 ): Promise<HydratedWorkflowRecord> {
-	const metrics = computeWorkflowMetrics(workflow.steps);
+	if (evidenceStore) {
+		await cascadeEvidenceRefutation(workflow, evidenceStore).catch(() => undefined);
+	}
+	const metrics = computeWorkflowMetrics(workflow.steps, workflow.metadata);
+	const acceptanceCriteria = getWorkflowAcceptanceCriteria(workflow);
+	const constraints = workflow.metadata?.target_device_constraints as TargetDeviceConstraints | undefined;
+	const dependencies = workflow.metadata?.dependencies as WorkflowDependencyRecord[] | undefined;
 	const steps: HydratedStepRecord[] = [];
 
 	for (const step of workflow.steps) {
@@ -56,6 +69,9 @@ export async function hydrateWorkflowEvidence(
 		...workflow,
 		steps,
 		metrics,
+		...(acceptanceCriteria.length > 0 ? { acceptance_criteria: acceptanceCriteria } : {}),
+		...(constraints ? { target_device_constraints: constraints } : {}),
+		...(dependencies && dependencies.length > 0 ? { dependencies } : {}),
 	};
 }
 
@@ -99,10 +115,75 @@ export async function exportWorkflowToMarkdown(
 		`| Total Steps | Completed | Failed | Pending | Skipped | Evidence Links |`,
 		`| :---: | :---: | :---: | :---: | :---: | :---: |`,
 		`| ${metrics.total_steps} | ${metrics.completed_steps} | ${metrics.failed_steps} | ${metrics.pending_steps} | ${metrics.skipped_steps} | ${metrics.total_evidence_links} |`,
-		"",
-		"## Step Execution Plan",
+		...(metrics.total_acceptance_criteria !== undefined
+			? [
+					"",
+					"### Acceptance Criteria Progress",
+					"",
+					"| Total Criteria | Satisfied | Waived | Proxy Verified | Pending | Criteria Completion |",
+					"| :---: | :---: | :---: | :---: | :---: | :---: |",
+					`| ${metrics.total_acceptance_criteria} | ${metrics.satisfied_acceptance_criteria ?? 0} | ${metrics.waived_acceptance_criteria ?? 0} | ${metrics.proxy_verified_acceptance_criteria ?? 0} | ${metrics.pending_acceptance_criteria ?? 0} | ${Math.round((metrics.acceptance_completion_ratio ?? 0) * 100)}% |`,
+				]
+			: []),
 		"",
 	];
+
+	const allCriteria = getWorkflowAcceptanceCriteria(workflow);
+	if (allCriteria.length > 0) {
+		lines.push("## Acceptance Criteria", "");
+		lines.push("| ID | Title | Subject | Status | Proxy? | Evidence IDs | Waiver Reason |");
+		lines.push("| :--- | :--- | :--- | :---: | :---: | :--- | :--- |");
+		for (const c of allCriteria) {
+			const badge =
+				c.status === "satisfied"
+					? "[SATISFIED]"
+					: c.status === "waived"
+						? "[WAIVED]"
+						: c.status === "proxy_verified"
+							? "[PROXY_VERIFIED]"
+							: "[PENDING]";
+			const isProxy = c.is_proxy ? "Yes" : "No";
+			const evIds =
+				(c.satisfied_by_evidence_ids ?? c.proxy_evidence_ids ?? []).map(id => `\`${id}\``).join(", ") || "none";
+			const waiver = c.waiver_reason ? `${c.waiver_reason} (${c.waived_by_decision ?? "approved"})` : "-";
+			lines.push(`| \`${c.id}\` | ${c.title} | \`${c.subject}\` | ${badge} | ${isProxy} | ${evIds} | ${waiver} |`);
+		}
+		lines.push("");
+	}
+
+	const constraints = workflow.metadata?.target_device_constraints as TargetDeviceConstraints | undefined;
+	const dependencies = workflow.metadata?.dependencies as WorkflowDependencyRecord[] | undefined;
+
+	if (constraints || (dependencies && dependencies.length > 0)) {
+		lines.push("## Target Device Constraints & Dependencies", "");
+		if (constraints) {
+			lines.push(`- **Target Environment**: \`${constraints.target_environment || "unspecified"}\``);
+			lines.push(`- **Requires Standalone**: \`${constraints.requires_standalone ? "YES" : "NO"}\``);
+			if (constraints.disallowed_dependencies && constraints.disallowed_dependencies.length > 0) {
+				lines.push(
+					`- **Disallowed Dependencies**: ${constraints.disallowed_dependencies.map(d => `\`${d}\``).join(", ")}`,
+				);
+			}
+			if (constraints.notes) {
+				lines.push(`- **Notes**: ${constraints.notes}`);
+			}
+		}
+
+		if (dependencies && dependencies.length > 0) {
+			lines.push("", "### Declared Dependencies", "");
+			lines.push("| ID | Name | Kind | Scope | Target Host | Approved for Delivery | Notes |");
+			lines.push("| :--- | :--- | :--- | :---: | :---: | :---: | :--- |");
+			for (const dep of dependencies) {
+				const app = dep.approved_for_delivery ? "APPROVED" : "NOT APPROVED";
+				lines.push(
+					`| \`${dep.id}\` | ${dep.name} | \`${dep.kind}\` | \`${dep.scope}\` | \`${dep.target_host ?? "target_device"}\` | ${app} | ${dep.approval_notes || "-"} |`,
+				);
+			}
+		}
+		lines.push("");
+	}
+
+	lines.push("## Step Execution Plan", "");
 
 	for (const step of hydrated.steps) {
 		const statusBadge =
@@ -128,6 +209,17 @@ export async function exportWorkflowToMarkdown(
 		const paramsStr =
 			typeof step.params_summary === "string" ? step.params_summary : JSON.stringify(step.params_summary);
 		lines.push(`- **Parameters**: \`${paramsStr}\``);
+		const stepCriteria = getWorkflowAcceptanceCriteria(workflow, step.id);
+		if (stepCriteria.length > 0) {
+			lines.push(
+				`- **Step Acceptance Criteria**: ${stepCriteria.map(c => `\`${c.id}\` [${c.status.toUpperCase()}] (Subject: \`${c.subject}\`)`).join(", ")}`,
+			);
+		}
+		if (step.is_delivery_step || step.delivery_scope) {
+			lines.push(
+				`- **Delivery Scope**: \`${step.delivery_scope ?? (step.is_delivery_step ? "delivery" : "experiment")}\``,
+			);
+		}
 
 		if (step.outputs) {
 			const outputStr = typeof step.outputs === "string" ? step.outputs : JSON.stringify(step.outputs);

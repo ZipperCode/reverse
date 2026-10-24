@@ -22,11 +22,8 @@ function createTestSession(cwd: string): ToolSession {
 	};
 }
 
-async function createSyntheticApk(options: {
-	nativeBytes?: Buffer;
-	dexBytes?: Buffer;
-}): Promise<Uint8Array> {
-	const manifest = Buffer.from("<manifest package=\"com.example.app\"/>", "utf8");
+async function createSyntheticApk(options: { nativeBytes?: Buffer; dexBytes?: Buffer }): Promise<Uint8Array> {
+	const manifest = Buffer.from('<manifest package="com.example.app"/>', "utf8");
 
 	const nativeSo = Buffer.alloc(512, 0);
 	if (options.nativeBytes) {
@@ -112,10 +109,7 @@ describe("Issue #10: Durable Build Artifact Lineage & Cumulative Patch Verificat
 		// Mod 2 is built on Mod 1: retains Patch A in libnative.so and adds Patch B in classes.dex
 		const mod2ApkPath = path.join(tempDir, "mod2.apk");
 		const patchBBytes = Buffer.from([0x10, 0x01]);
-		await fs.writeFile(
-			mod2ApkPath,
-			await createSyntheticApk({ nativeBytes: patchABytes, dexBytes: patchBBytes }),
-		);
+		await fs.writeFile(mod2ApkPath, await createSyntheticApk({ nativeBytes: patchABytes, dexBytes: patchBBytes }));
 		const mod2Sha256 = await hashFileSha256(mod2ApkPath);
 
 		const regMod2Res = await workflowTool.execute("call_4", {
@@ -155,10 +149,7 @@ describe("Issue #10: Durable Build Artifact Lineage & Cumulative Patch Verificat
 		// -------------------------------------------------------------------------
 		const brokenModPath = path.join(tempDir, "mod5_broken.apk");
 		// Native bytes are clean 00000000 (missing Patch A!), DEX has patch B
-		await fs.writeFile(
-			brokenModPath,
-			await createSyntheticApk({ dexBytes: patchBBytes }),
-		);
+		await fs.writeFile(brokenModPath, await createSyntheticApk({ dexBytes: patchBBytes }));
 
 		await expect(
 			workflowTool.execute("call_6", {
@@ -187,10 +178,7 @@ describe("Issue #10: Durable Build Artifact Lineage & Cumulative Patch Verificat
 		// (Allowed to replay full active patchset from clean original)
 		// -------------------------------------------------------------------------
 		const replayApkPath = path.join(tempDir, "mod_replayed.apk");
-		await fs.writeFile(
-			replayApkPath,
-			await createSyntheticApk({ nativeBytes: patchABytes, dexBytes: patchBBytes }),
-		);
+		await fs.writeFile(replayApkPath, await createSyntheticApk({ nativeBytes: patchABytes, dexBytes: patchBBytes }));
 
 		const regReplayRes = await workflowTool.execute("call_7", {
 			action: "register_derivative",
@@ -218,10 +206,7 @@ describe("Issue #10: Durable Build Artifact Lineage & Cumulative Patch Verificat
 
 		// Build mod3 without patch_A (native reverted to clean 00000000, DEX has patch_B)
 		const mod3ApkPath = path.join(tempDir, "mod3.apk");
-		await fs.writeFile(
-			mod3ApkPath,
-			await createSyntheticApk({ dexBytes: patchBBytes }),
-		);
+		await fs.writeFile(mod3ApkPath, await createSyntheticApk({ dexBytes: patchBBytes }));
 
 		const regMod3Res = await workflowTool.execute("call_9", {
 			action: "register_derivative",
@@ -324,8 +309,15 @@ describe("Issue #10: Durable Build Artifact Lineage & Cumulative Patch Verificat
 		expect(await store.getDerivative(workflowId, "mod2_with_old_evidence")).toBeNull();
 
 		// Valid evidence bound to mod2's exact output hash promotes runtime_status to verified
+		const hypMod2 = await evidenceStore.addHypothesis({
+			kind: "hypothesis",
+			claim: "Cold boot succeeds with native condition NOPed on mod2",
+			verificationPlan: "Observe logcat ColdBoot Complete on mod2",
+			target: "mod2.apk",
+		});
+
 		const concMod2 = await evidenceStore.verifyHypothesis({
-			hypothesisId: hyp.id,
+			hypothesisId: hypMod2.id,
 			method: "cold_boot_trace",
 			command: "am start -W com.example.app",
 			result: "Success on mod2",

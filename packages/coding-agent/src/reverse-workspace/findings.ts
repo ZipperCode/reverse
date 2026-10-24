@@ -1,9 +1,14 @@
 import type { HydratedEvidenceItem } from "../reverse-workflow/export";
 import type { ReverseWorkflowRecord } from "../reverse-workflow/contracts";
-import type { FactEvidence, HypothesisEvidence, ConclusionEvidence } from "../evidence/contracts";
+import type { FactEvidence, HypothesisEvidence, ConclusionEvidence, EvidenceRecord } from "../evidence/contracts";
+import { resolveEvidenceLedgerValidity, type CanonicalEvidenceValidity } from "../evidence/validity";
 import type { ReverseWorkspaceTargetInfo, ReverseFindingsSummary } from "./contracts";
 import { MAX_REPORT_CHARS } from "./contracts";
 import { redactSecrets } from "./atomic";
+export interface FindingsOptions {
+	validityMap?: Map<string, CanonicalEvidenceValidity> | Record<string, CanonicalEvidenceValidity>;
+	fullEvidenceRecords?: EvidenceRecord[];
+}
 
 /**
  * Extracts and categorizes verified findings, empirical facts, and hypotheses
@@ -13,12 +18,29 @@ export function generateFindingsData(
 	workflow: ReverseWorkflowRecord,
 	hydratedEvidence: HydratedEvidenceItem[],
 	targetInfo: ReverseWorkspaceTargetInfo,
+	options?: FindingsOptions,
 ): ReverseFindingsSummary {
 	const facts: ReverseFindingsSummary["facts"] = [];
 	const verifiedHypotheses: ReverseFindingsSummary["verified_hypotheses"] = [];
 	const unverifiedHypotheses: ReverseFindingsSummary["unverified_hypotheses"] = [];
 	const conclusions: ReverseFindingsSummary["conclusions"] = [];
 
+	let validityMap: Map<string, CanonicalEvidenceValidity>;
+	if (options?.validityMap) {
+		if (options.validityMap instanceof Map) {
+			validityMap = options.validityMap;
+		} else {
+			validityMap = new Map(Object.entries(options.validityMap));
+		}
+	} else {
+		const allRecords: EvidenceRecord[] = options?.fullEvidenceRecords ?? [];
+		if (allRecords.length === 0) {
+			for (const item of hydratedEvidence) {
+				if (item.record) allRecords.push(item.record);
+			}
+		}
+		validityMap = resolveEvidenceLedgerValidity(allRecords);
+	}
 	const seenIds = new Set<string>();
 
 	for (const item of hydratedEvidence) {
@@ -38,7 +60,10 @@ export function generateFindingsData(
 			});
 		} else if (record.kind === "hypothesis") {
 			const h = record as HypothesisEvidence;
-			if (h.verifiedBy) {
+			const validity = validityMap.get(h.id);
+			const isVerified = validity ? validity.effectiveStatus === "verified" : Boolean(h.verifiedBy);
+
+			if (isVerified && h.verifiedBy) {
 				verifiedHypotheses.push({
 					id: h.id,
 					claim: redactSecrets(h.claim),
@@ -56,6 +81,10 @@ export function generateFindingsData(
 			}
 		} else if (record.kind === "conclusion") {
 			const c = record as ConclusionEvidence;
+			const validity = validityMap.get(c.id);
+			const effectiveStatus: "verified" | "refuted" =
+				validity && (validity.isRefuted || validity.isStale) ? "refuted" : c.status;
+
 			conclusions.push({
 				id: c.id,
 				conclusion: redactSecrets(c.conclusion),
@@ -63,7 +92,7 @@ export function generateFindingsData(
 				command: c.command,
 				result: redactSecrets(c.result),
 				reproducibility: c.reproducibility,
-				status: c.status,
+				status: effectiveStatus,
 				hypothesisId: c.hypothesisId,
 				timestamp: c.verifiedAt || c.createdAt,
 			});
@@ -71,8 +100,9 @@ export function generateFindingsData(
 	}
 
 	const keyTakeaways: string[] = [];
-	if (conclusions.length > 0) {
-		for (const c of conclusions.slice(0, 5)) {
+	const activeVerified = conclusions.filter(c => c.status === "verified");
+	if (activeVerified.length > 0) {
+		for (const c of activeVerified.slice(0, 5)) {
 			keyTakeaways.push(c.conclusion.slice(0, 200));
 		}
 	} else if (facts.length > 0) {
@@ -103,9 +133,9 @@ export function generateFindingsMarkdown(
 	workflow: ReverseWorkflowRecord,
 	hydratedEvidence: HydratedEvidenceItem[],
 	targetInfo: ReverseWorkspaceTargetInfo,
+	options?: FindingsOptions,
 ): string {
-	const summary = generateFindingsData(workflow, hydratedEvidence, targetInfo);
-
+	const summary = generateFindingsData(workflow, hydratedEvidence, targetInfo, options);
 	const lines: string[] = [
 		`# Reverse Engineering Findings: ${targetInfo.name}`,
 		"",
@@ -130,10 +160,13 @@ export function generateFindingsMarkdown(
 	}
 	lines.push("");
 
+	const verifiedConcs = summary.conclusions.filter(c => c.status === "verified");
+	const refutedConcs = summary.conclusions.filter(c => c.status === "refuted");
+
 	lines.push("## 2. Verified Conclusions (Ironclad Proof)");
 	lines.push("");
-	if (summary.conclusions.length > 0) {
-		for (const c of summary.conclusions) {
+	if (verifiedConcs.length > 0) {
+		for (const c of verifiedConcs) {
 			lines.push(`### [CONCLUSION] ${c.id}`);
 			lines.push(`- **Conclusion**: ${c.conclusion}`);
 			if (c.method) lines.push(`- **Method**: \`${c.method}\``);
@@ -145,6 +178,20 @@ export function generateFindingsMarkdown(
 	} else {
 		lines.push("_No verified conclusions recorded yet. Hypotheses require dynamic/experimental validation._");
 		lines.push("");
+	}
+
+	if (refutedConcs.length > 0) {
+		lines.push("## 2b. Refuted / Superseded Hypotheses & Conclusions");
+		lines.push("");
+		for (const c of refutedConcs) {
+			lines.push(`### [REFUTED / SUPERSEDED] ${c.id}`);
+			lines.push(`- **Finding**: ${c.conclusion}`);
+			if (c.method) lines.push(`- **Method**: \`${c.method}\``);
+			lines.push("- **Status**: `refuted`");
+			if (c.hypothesisId) lines.push(`- **Hypothesis**: \`${c.hypothesisId}\``);
+			lines.push(`- **Timestamp**: ${c.timestamp}`);
+			lines.push("");
+		}
 	}
 
 	lines.push("## 3. Hypothesis Verification Matrix");

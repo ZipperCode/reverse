@@ -13,11 +13,25 @@ import {
 	type BuildVerificationResult,
 	type PatchRetirementAuditEntry,
 	type PatchStatus,
+	type TargetDeviceConstraints,
+	type WorkflowDependencyRecord,
+	type AcceptanceCriterion,
+	type AcceptanceCriterionInput,
 	encodeWorkflowProjectKey,
 	createWorkflowId,
 	createBuildId,
 	normalizeTargetFormat,
 } from "./contracts";
+import {
+	validateDeploymentConstraints,
+	normalizeAcceptanceCriterion,
+	setWorkflowAcceptanceCriteria,
+	normalizeTargetDeviceConstraints,
+	normalizeWorkflowDependencies,
+	getWorkflowAcceptanceCriteria,
+	updateAcceptanceCriterion,
+} from "./acceptance";
+import { evaluateEvidenceSupport } from "../evidence/validity";
 import { EvidenceStore } from "../evidence/store";
 import {
 	hashFileSha256,
@@ -71,6 +85,9 @@ export interface CreateWorkflowOptions {
 	runtime_session_ids?: string[];
 	metadata?: Record<string, unknown>;
 	max_attempts?: number;
+	target_device_constraints?: TargetDeviceConstraints;
+	dependencies?: WorkflowDependencyRecord[];
+	acceptance_criteria?: AcceptanceCriterionInput[] | AcceptanceCriterion[];
 }
 
 export interface RegisterDerivativeOptions {
@@ -103,6 +120,10 @@ export interface RegisterDerivativeOptions {
 		fingerprint?: string;
 	};
 	verification_conditions?: Record<string, unknown> | string[];
+	target_device_constraints?: TargetDeviceConstraints;
+	scope?: "experiment" | "delivery";
+	delivery_mode?: string;
+	dependencies?: WorkflowDependencyRecord[];
 	evidence_ids?: string[];
 	runtime_evidence_ids?: string[];
 	metadata?: Record<string, unknown>;
@@ -145,6 +166,20 @@ export class ReverseWorkflowStore {
 					}).steps;
 
 		const now = new Date().toISOString();
+		const metadata: Record<string, unknown> = {
+			...input.metadata,
+		};
+
+		const constraints = normalizeTargetDeviceConstraints(input.target_device_constraints);
+		if (constraints) {
+			metadata.target_device_constraints = constraints;
+		}
+
+		const dependencies = normalizeWorkflowDependencies(input.dependencies, { isInitialCreation: true });
+		if (dependencies) {
+			metadata.dependencies = dependencies;
+		}
+
 		const record: ReverseWorkflowRecord = {
 			id: workflowId,
 			target: input.target,
@@ -156,11 +191,56 @@ export class ReverseWorkflowStore {
 			updated_at: now,
 			...(input.knowledge_refs ? { knowledge_refs: input.knowledge_refs } : {}),
 			...(input.runtime_session_ids ? { runtime_session_ids: input.runtime_session_ids } : {}),
-			...(input.metadata ? { metadata: input.metadata } : {}),
+			...(Object.keys(metadata).length > 0 ? { metadata } : {}),
 		};
 
-		await this.save(record);
-		return record;
+		const g4Step = steps.find(s => s.gate === "G4") ?? steps[steps.length - 1];
+		if (g4Step) {
+			g4Step.is_delivery_step = true;
+		}
+
+		if (input.acceptance_criteria && Array.isArray(input.acceptance_criteria)) {
+			const normalizedCriteria = input.acceptance_criteria.map(c =>
+				normalizeAcceptanceCriterion(c, undefined, { isInitialCreation: true }),
+			);
+			setWorkflowAcceptanceCriteria(record, normalizedCriteria);
+		} else if (g4Step) {
+			const rawSubject =
+				input.goal && input.goal.trim()
+					? input.goal
+							.trim()
+							.toLowerCase()
+							.replace(/[^a-z0-9_-]+/g, "_")
+							.slice(0, 64)
+					: `${path
+							.basename(input.target)
+							.toLowerCase()
+							.replace(/[^a-z0-9_-]+/g, "_")}_verification`;
+			const goalSubject = rawSubject.replace(/^_+|_+$/g, "") || "target_verification";
+
+			const defaultCriterion: AcceptanceCriterion = {
+				id: `ac_${g4Step.id}_delivery`,
+				step_id: g4Step.id,
+				title: input.goal
+					? `Verify: ${input.goal.slice(0, 100)}`
+					: `Delivery Verification: ${path.basename(input.target)}`,
+				subject: goalSubject,
+				min_assurance: "dynamic_call_observation",
+				status: "pending",
+			};
+			setWorkflowAcceptanceCriteria(record, [defaultCriterion]);
+		}
+
+		return await withWorkflowStoreWrite(this.projectDirectory, this.lockPath, async () => {
+			const existing = await this.get(workflowId);
+			if (existing) {
+				throw new ToolError(
+					`Workflow with ID '${workflowId}' already exists. Overwriting existing workflows is prohibited to preserve criteria and audit history.`,
+				);
+			}
+			await this.writeWorkflowFileUnlocked(record);
+			return record;
+		});
 	}
 
 	async ensureDir(): Promise<void> {
@@ -186,6 +266,19 @@ export class ReverseWorkflowStore {
 
 	async save(record: ReverseWorkflowRecord): Promise<void> {
 		await withWorkflowStoreWrite(this.projectDirectory, this.lockPath, async () => {
+			const existing = await this.get(record.id);
+			if (existing) {
+				const existingCriteria = getWorkflowAcceptanceCriteria(existing);
+				if (existingCriteria.length > 0) {
+					const currentCriteria = getWorkflowAcceptanceCriteria(record);
+					const currentMap = new Map(currentCriteria.map(c => [c.id, c]));
+					for (const ec of existingCriteria) {
+						if (!currentMap.has(ec.id)) {
+							updateAcceptanceCriterion(record, ec);
+						}
+					}
+				}
+			}
 			await this.writeWorkflowFileUnlocked(record);
 		});
 	}
@@ -282,6 +375,30 @@ export class ReverseWorkflowStore {
 			if (!workflow) {
 				throw new ToolError(`Workflow '${workflowId}' not found.`);
 			}
+			// Validate deployment constraints and dependencies
+			const constraints: TargetDeviceConstraints | undefined = normalizeTargetDeviceConstraints(
+				input.target_device_constraints ??
+					(input.metadata?.target_device_constraints as TargetDeviceConstraints | undefined) ??
+					(workflow.metadata?.target_device_constraints as TargetDeviceConstraints | undefined),
+			);
+
+			const dependencies: WorkflowDependencyRecord[] | undefined = normalizeWorkflowDependencies(
+				input.dependencies ??
+					(input.metadata?.dependencies as WorkflowDependencyRecord[] | undefined) ??
+					(workflow.metadata?.dependencies as WorkflowDependencyRecord[] | undefined),
+			);
+
+			const targetScope: "experiment" | "delivery" =
+				input.scope ??
+				(input.metadata?.scope as "experiment" | "delivery" | undefined) ??
+				(constraints?.requires_standalone ? "delivery" : "experiment");
+
+			const constraintCheck = validateDeploymentConstraints(constraints, dependencies, targetScope);
+			if (!constraintCheck.valid) {
+				throw new ToolError(
+					`Cannot register derivative '${resolvedPath}': ${constraintCheck.violationCode}: ${constraintCheck.violation}`,
+				);
+			}
 
 			const baseTargetPath = workflow.target_abs_path ?? path.resolve(this.repositoryRoot, workflow.target);
 			let originalSha256: string;
@@ -320,7 +437,10 @@ export class ReverseWorkflowStore {
 						`Parent build '${input.parent_build_id}' not found in workflow '${workflowId}' build lineage.`,
 					);
 				}
-				if (input.parent_sha256 && input.parent_sha256.trim().toLowerCase() !== parentBuild.output_sha256.toLowerCase()) {
+				if (
+					input.parent_sha256 &&
+					input.parent_sha256.trim().toLowerCase() !== parentBuild.output_sha256.toLowerCase()
+				) {
 					throw new ToolError(
 						`parent_sha256 '${input.parent_sha256}' does not match parent build '${parentBuild.build_id}' output SHA-256 '${parentBuild.output_sha256}'`,
 					);
@@ -408,16 +528,13 @@ export class ReverseWorkflowStore {
 					`Derivative with build_id '${buildId}' already exists in workflow '${workflowId}' build lineage. Duplicate build IDs are rejected to prevent ambiguous baselines.`,
 				);
 			}
-			const cumulativePatches = accumulatePatches(
-				baseCumulativePatches,
-				input.patches,
-				allRetirements,
-				buildId,
-			);
+			const cumulativePatches = accumulatePatches(baseCumulativePatches, input.patches, allRetirements, buildId);
 
 			if (input.patches && input.patches.length > 0) {
 				const candidateSourcePath = parentBuild
-					? (path.isAbsolute(parentBuild.target_path) ? parentBuild.target_path : path.resolve(this.repositoryRoot, parentBuild.target_path))
+					? path.isAbsolute(parentBuild.target_path)
+						? parentBuild.target_path
+						: path.resolve(this.repositoryRoot, parentBuild.target_path)
 					: baseTargetPath;
 				try {
 					await fs.stat(candidateSourcePath);
@@ -436,9 +553,7 @@ export class ReverseWorkflowStore {
 
 			const verificationResult = await verifyActivePatches(resolvedPath, cumulativePatches);
 			if (verificationResult.status !== "verified") {
-				throw new ToolError(
-					`Derivative '${buildId}' registration rejected: ${verificationResult.failure_reason}`,
-				);
+				throw new ToolError(`Derivative '${buildId}' registration rejected: ${verificationResult.failure_reason}`);
 			}
 
 			const signatureInfo = resolveSignatureInfo(input.signature);
@@ -454,6 +569,30 @@ export class ReverseWorkflowStore {
 
 			if (input.runtime_evidence_ids && input.runtime_evidence_ids.length > 0) {
 				const evidenceStore = new EvidenceStore({ repositoryRoot: this.repositoryRoot });
+				const evalResult = await evaluateEvidenceSupport(evidenceStore, input.runtime_evidence_ids, {
+					requiredTargetSha256: actualSha256,
+				});
+				if (evalResult.refutedIds.length > 0) {
+					throw new ToolError(
+						`Cannot bind refuted runtime evidence to build: ${evalResult.refutedIds.join(", ")}`,
+					);
+				}
+				if (evalResult.staleIds.length > 0) {
+					throw new ToolError(
+						`Cannot bind stale/invalidated runtime evidence to build: ${evalResult.staleIds.join(", ")}`,
+					);
+				}
+				if (evalResult.mismatchedHashIds.length > 0) {
+					throw new ToolError(
+						`Runtime evidence target SHA-256 does not match derivative output SHA-256 '${actualSha256}': ${evalResult.mismatchedHashIds.join(", ")}`,
+					);
+				}
+				if (evalResult.failedStageIds.length > 0) {
+					throw new ToolError(
+						`Runtime evidence contains failed execution stages: ${evalResult.failedStageIds.join(", ")}`,
+					);
+				}
+
 				for (const evId of input.runtime_evidence_ids) {
 					const rec = await evidenceStore.getRecord(evId);
 					if (!rec) {
@@ -484,9 +623,7 @@ export class ReverseWorkflowStore {
 					});
 				}
 				const mergedConditions: Record<string, unknown> = {
-					...(input.verification_conditions
-						? { declared_conditions: input.verification_conditions }
-						: {}),
+					...(input.verification_conditions ? { declared_conditions: input.verification_conditions } : {}),
 					runtime_evidence: runtimeEvidenceConditions,
 				};
 				verificationResult.runtime_status = "verified";
@@ -504,13 +641,16 @@ export class ReverseWorkflowStore {
 				original_sha256: originalSha256,
 				parent_sha256: parentSha256,
 				...(parentBuild ? { parent_build_id: parentBuild.build_id } : {}),
-				...(input.target_version ?? parentBuild?.target_version ?? baselineBuild?.target_version
-					? { target_version: input.target_version ?? parentBuild?.target_version ?? baselineBuild?.target_version }
+				...((input.target_version ?? parentBuild?.target_version ?? baselineBuild?.target_version)
+					? {
+							target_version:
+								input.target_version ?? parentBuild?.target_version ?? baselineBuild?.target_version,
+						}
 					: {}),
-				...(input.abi ?? parentBuild?.abi ?? baselineBuild?.abi
+				...((input.abi ?? parentBuild?.abi ?? baselineBuild?.abi)
 					? { abi: input.abi ?? parentBuild?.abi ?? baselineBuild?.abi }
 					: {}),
-				...(input.architecture ?? parentBuild?.architecture ?? baselineBuild?.architecture
+				...((input.architecture ?? parentBuild?.architecture ?? baselineBuild?.architecture)
 					? { architecture: input.architecture ?? parentBuild?.architecture ?? baselineBuild?.architecture }
 					: {}),
 				cumulative_patches: cumulativePatches,
@@ -519,6 +659,10 @@ export class ReverseWorkflowStore {
 				verification_result: verificationResult,
 				...(input.evidence_ids ? { evidence_ids: input.evidence_ids } : {}),
 				...(validatedRuntimeEvidenceIds.length > 0 ? { runtime_evidence_ids: validatedRuntimeEvidenceIds } : {}),
+				target_device_constraints: constraints,
+				scope: targetScope,
+				...(input.delivery_mode ? { delivery_mode: input.delivery_mode } : {}),
+				...(dependencies ? { dependencies } : {}),
 				...(input.metadata ? { metadata: input.metadata } : {}),
 				created_at: now,
 				updated_at: now,
@@ -553,9 +697,7 @@ export class ReverseWorkflowStore {
 			if (buildId) {
 				targetBuild = workflow.build_lineage?.find(b => b.build_id === buildId);
 				if (!targetBuild) {
-					throw new ToolError(
-						`Target build '${buildId}' not found in workflow '${workflowId}' build lineage.`,
-					);
+					throw new ToolError(`Target build '${buildId}' not found in workflow '${workflowId}' build lineage.`);
 				}
 			} else if (workflow.current_baseline_build_id) {
 				targetBuild = workflow.build_lineage?.find(b => b.build_id === workflow.current_baseline_build_id);
@@ -570,9 +712,7 @@ export class ReverseWorkflowStore {
 				);
 			}
 
-			const activePatch = targetBuild.cumulative_patches.find(
-				p => p.patch_id === patchId && p.status === "active",
-			);
+			const activePatch = targetBuild.cumulative_patches.find(p => p.patch_id === patchId && p.status === "active");
 			if (!activePatch) {
 				throw new ToolError(
 					`Patch '${patchId}' is not an active patch in baseline '${targetBuild.build_id}'. Cannot retire unknown or already retired patch.`,
@@ -605,9 +745,7 @@ export class ReverseWorkflowStore {
 		if (buildId) {
 			derivative = workflow.build_lineage?.find(b => b.build_id === buildId);
 			if (!derivative) {
-				throw new ToolError(
-					`Build ID '${buildId}' not found in workflow '${workflowId}' build lineage.`,
-				);
+				throw new ToolError(`Build ID '${buildId}' not found in workflow '${workflowId}' build lineage.`);
 			}
 		} else if (workflow.current_baseline_build_id) {
 			derivative = workflow.build_lineage?.find(b => b.build_id === workflow.current_baseline_build_id);
@@ -617,9 +755,7 @@ export class ReverseWorkflowStore {
 				);
 			}
 		} else {
-			throw new ToolError(
-				`No active baseline or derivative established in workflow '${workflowId}'.`,
-			);
+			throw new ToolError(`No active baseline or derivative established in workflow '${workflowId}'.`);
 		}
 
 		const checkPath = targetPath ?? derivative.target_path;
@@ -648,7 +784,55 @@ export class ReverseWorkflowStore {
 			};
 		}
 
-		return await verifyActivePatches(resolvedPath, derivative.cumulative_patches);
+		const patchRes = await verifyActivePatches(resolvedPath, derivative.cumulative_patches);
+		if (patchRes.status === "failed") return patchRes;
+
+		const constraints: TargetDeviceConstraints | undefined = normalizeTargetDeviceConstraints(
+			derivative.target_device_constraints ??
+				(derivative.metadata?.target_device_constraints as TargetDeviceConstraints | undefined) ??
+				(workflow.metadata?.target_device_constraints as TargetDeviceConstraints | undefined),
+		);
+
+		const dependencies: WorkflowDependencyRecord[] | undefined = normalizeWorkflowDependencies(
+			derivative.dependencies ??
+				(derivative.metadata?.dependencies as WorkflowDependencyRecord[] | undefined) ??
+				(workflow.metadata?.dependencies as WorkflowDependencyRecord[] | undefined),
+		);
+
+		const targetScope: "experiment" | "delivery" =
+			derivative.scope ??
+			(derivative.metadata?.scope as "experiment" | "delivery" | undefined) ??
+			(constraints?.requires_standalone ? "delivery" : "experiment");
+
+		const constraintCheck = validateDeploymentConstraints(constraints, dependencies, targetScope);
+		if (!constraintCheck.valid) {
+			return {
+				status: "failed",
+				static_status: patchRes.static_status,
+				runtime_status: derivative.verification_result.runtime_status,
+				checked_patches_count: patchRes.checked_patches_count,
+				failure_reason: `${constraintCheck.violationCode}: ${constraintCheck.violation}`,
+			};
+		}
+		if (derivative.runtime_evidence_ids && derivative.runtime_evidence_ids.length > 0) {
+			const evidenceStore = new EvidenceStore({ repositoryRoot: this.repositoryRoot });
+			const evalResult = await evaluateEvidenceSupport(evidenceStore, derivative.runtime_evidence_ids, {
+				requiredTargetSha256: diskSha256,
+			}).catch(() => null);
+
+			if (!evalResult || !evalResult.valid || evalResult.refutedIds.length > 0 || evalResult.staleIds.length > 0) {
+				const reason = evalResult?.reason ?? "Runtime evidence was refuted or is no longer valid.";
+				return {
+					status: "failed",
+					static_status: patchRes.static_status,
+					runtime_status: "failed",
+					checked_patches_count: patchRes.checked_patches_count,
+					failure_reason: `Runtime evidence verification failed: ${reason}`,
+				};
+			}
+		}
+
+		return patchRes;
 	}
 
 	async getBaseline(workflowId: string): Promise<BuildArtifactRecord | null> {

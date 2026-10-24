@@ -1,13 +1,16 @@
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { openArchive, type ArchiveReader } from "@reverse/utils/ar";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { hashFile } from "../reverse-workspace/atomic";
 import type {
+	BuildArtifactRecord,
 	BuildSignatureInfo,
 	BuildSignatureStatus,
 	BuildVerificationResult,
 	CumulativePatchRecord,
 	PatchStatus,
+	ReverseWorkflowRecord,
 } from "./contracts";
 import { ReverseWorkflowStore } from "./store";
 
@@ -62,7 +65,9 @@ export class TargetByteReader {
 				try {
 					const memberFile = await this.archiveReader.readFile(normalizedMember);
 					if (!memberFile || !memberFile.bytes) {
-						throw new ToolError(`Member '${normalizedMember}' in archive '${this.targetPath}' has no readable data.`);
+						throw new ToolError(
+							`Member '${normalizedMember}' in archive '${this.targetPath}' has no readable data.`,
+						);
 					}
 					memberBuf = Buffer.from(
 						memberFile.bytes.buffer,
@@ -122,9 +127,12 @@ export class TargetByteReader {
  * Resolve signature information preserving explicit signed, unsigned, and unknown states.
  * Caller-declared fingerprints are noted as declared without claiming unverified host cert validity.
  */
-export function resolveSignatureInfo(
-	callerClaim?: { status?: BuildSignatureStatus; fingerprint?: string; scheme?: string; details?: string },
-): BuildSignatureInfo {
+export function resolveSignatureInfo(callerClaim?: {
+	status?: BuildSignatureStatus;
+	fingerprint?: string;
+	scheme?: string;
+	details?: string;
+}): BuildSignatureInfo {
 	if (!callerClaim) {
 		return { status: "unknown", details: "No signature metadata declared" };
 	}
@@ -140,7 +148,9 @@ export function resolveSignatureInfo(
 			status: "signed",
 			scheme: callerClaim.scheme,
 			fingerprint: callerClaim.fingerprint,
-			details: callerClaim.details ?? (callerClaim.fingerprint ? "declared, not cryptographically verified" : "unverified_signed_claim"),
+			details:
+				callerClaim.details ??
+				(callerClaim.fingerprint ? "declared, not cryptographically verified" : "unverified_signed_claim"),
 		};
 	}
 
@@ -312,9 +322,7 @@ export function accumulatePatches(
 			}
 			const existing = patchMap.get(r.patch_id);
 			if (!existing) {
-				throw new ToolError(
-					`Cannot retire patch '${r.patch_id}': patch does not exist in cumulative lineage.`,
-				);
+				throw new ToolError(`Cannot retire patch '${r.patch_id}': patch does not exist in cumulative lineage.`);
 			}
 			existing.status = "retired";
 			existing.retirement_reason = r.reason.trim();
@@ -332,9 +340,7 @@ export function accumulatePatches(
 
 			if (isRetired) {
 				if (!np.retirement_reason || np.retirement_reason.trim().length === 0) {
-					throw new ToolError(
-						`Retiring patch '${np.patch_id}' requires a non-empty retirement_reason.`,
-					);
+					throw new ToolError(`Retiring patch '${np.patch_id}' requires a non-empty retirement_reason.`);
 				}
 				const existing = patchMap.get(np.patch_id);
 				if (!existing) {
@@ -432,83 +438,160 @@ export async function formatBuildLineageContext(
 
 	for (const wf of workflows) {
 		if (wf.status !== "active") continue;
-		if (!wf.build_lineage || wf.build_lineage.length === 0) continue;
 
-		if (!wf.current_baseline_build_id) {
-			reports.push({
-				workflow_id: wf.id,
-				target: wf.target,
-				format: wf.format,
-				base_target_sha256: wf.base_target_sha256 ?? wf.target_sha256,
-				baseline_status: "no_baseline_established",
-			});
+		const metadata = (wf.metadata as Record<string, unknown> | undefined) ?? {};
+		const hasLineage = Array.isArray(wf.build_lineage) && wf.build_lineage.length > 0;
+		const rawAcceptance = metadata.acceptance as Record<string, unknown[]> | undefined;
+		const hasAcceptance = rawAcceptance && typeof rawAcceptance === "object" && Object.keys(rawAcceptance).length > 0;
+		const rawConstraints = metadata.target_device_constraints as Record<string, unknown> | undefined;
+		const hasConstraints =
+			rawConstraints && typeof rawConstraints === "object" && Object.keys(rawConstraints).length > 0;
+		const rawDeps = metadata.dependencies as unknown[] | undefined;
+		const hasDeps = Array.isArray(rawDeps) && rawDeps.length > 0;
+
+		if (!hasLineage && !hasAcceptance && !hasConstraints && !hasDeps) {
 			continue;
 		}
 
-		const baseline = wf.build_lineage.find(b => b.build_id === wf.current_baseline_build_id);
-		if (!baseline) {
-			reports.push({
-				workflow_id: wf.id,
-				target: wf.target,
-				format: wf.format,
-				base_target_sha256: wf.base_target_sha256 ?? wf.target_sha256,
-				error: "CORRUPT_BASELINE_REFERENCE",
-				current_baseline_build_id: wf.current_baseline_build_id,
-				message: `Recorded current_baseline_build_id '${wf.current_baseline_build_id}' was not found in build_lineage manifest.`,
-			});
-			continue;
-		}
-
-		if (baseline.verification_result.static_status !== "verified") {
-			reports.push({
-				workflow_id: wf.id,
-				target: wf.target,
-				format: wf.format,
-				base_target_sha256: wf.base_target_sha256 ?? wf.target_sha256,
-				error: "BASELINE_VERIFICATION_FAILED",
-				current_baseline_build_id: baseline.build_id,
-				static_status: baseline.verification_result.static_status,
-				failure_reason: baseline.verification_result.failure_reason,
-			});
-			continue;
-		}
-
-		const activePatches = baseline.cumulative_patches.filter(p => p.status === "active");
-		const retiredPatches = baseline.cumulative_patches.filter(p => p.status === "retired");
-
-		reports.push({
+		const wfReport: Record<string, unknown> = {
 			workflow_id: wf.id,
 			target: wf.target,
 			format: wf.format,
 			base_target_sha256: wf.base_target_sha256 ?? wf.target_sha256,
-			active_baseline: {
-				build_id: baseline.build_id,
-				target_path: baseline.target_path,
-				output_sha256: baseline.output_sha256,
-				parent_sha256: baseline.parent_sha256,
-				parent_build_id: baseline.parent_build_id,
-				static_status: baseline.verification_result.static_status,
-				runtime_status: baseline.verification_result.runtime_status,
-				signature: {
-					status: baseline.signature.status,
-					scheme: baseline.signature.scheme,
-					fingerprint: baseline.signature.fingerprint,
-				},
-				active_patches_count: activePatches.length,
-				active_patches: activePatches.slice(0, 50).map(p => ({
-					patch_id: p.patch_id,
-					member_path: p.member_path,
-					offset: p.offset,
-					expected_bytes: p.expected_bytes,
-				})),
-				has_more_active_patches: activePatches.length > 50,
-				retired_patches: retiredPatches.map(r => ({
-					patch_id: r.patch_id,
-					reason: r.retirement_reason,
-				})),
-				runtime_evidence_ids: baseline.runtime_evidence_ids ?? [],
-			},
-		});
+		};
+
+		if (hasLineage) {
+			if (!wf.current_baseline_build_id) {
+				wfReport.baseline_status = "no_baseline_established";
+			} else {
+				const baseline = wf.build_lineage!.find(b => b.build_id === wf.current_baseline_build_id);
+				if (!baseline) {
+					wfReport.error = "CORRUPT_BASELINE_REFERENCE";
+					wfReport.current_baseline_build_id = wf.current_baseline_build_id;
+					wfReport.message = `Recorded current_baseline_build_id '${wf.current_baseline_build_id}' was not found in build_lineage manifest.`;
+				} else if (baseline.verification_result.static_status !== "verified") {
+					wfReport.error = "BASELINE_VERIFICATION_FAILED";
+					wfReport.current_baseline_build_id = baseline.build_id;
+					wfReport.static_status = baseline.verification_result.static_status;
+					wfReport.failure_reason = baseline.verification_result.failure_reason;
+				} else {
+					const activePatches = baseline.cumulative_patches.filter(p => p.status === "active");
+					const retiredPatches = baseline.cumulative_patches.filter(p => p.status === "retired");
+
+					wfReport.active_baseline = {
+						build_id: baseline.build_id,
+						target_path: baseline.target_path,
+						output_sha256: baseline.output_sha256,
+						parent_sha256: baseline.parent_sha256,
+						parent_build_id: baseline.parent_build_id,
+						static_status: baseline.verification_result.static_status,
+						runtime_status: baseline.verification_result.runtime_status,
+						signature: {
+							status: baseline.signature.status,
+							scheme: baseline.signature.scheme,
+							fingerprint: baseline.signature.fingerprint,
+						},
+						active_patches_count: activePatches.length,
+						active_patches: activePatches.slice(0, 50).map(p => ({
+							patch_id: p.patch_id,
+							member_path: p.member_path,
+							offset: p.offset,
+							expected_bytes: p.expected_bytes,
+						})),
+						has_more_active_patches: activePatches.length > 50,
+						retired_patches: retiredPatches.map(r => ({
+							patch_id: r.patch_id,
+							reason: r.retirement_reason,
+						})),
+						runtime_evidence_ids: baseline.runtime_evidence_ids ?? [],
+					};
+				}
+			}
+		}
+
+		if (hasAcceptance) {
+			const allCriteria: Record<string, unknown>[] = [];
+			for (const [stepId, criteriaList] of Object.entries(rawAcceptance!)) {
+				if (Array.isArray(criteriaList)) {
+					for (const c of criteriaList) {
+						if (c && typeof c === "object" && "id" in c) {
+							const rec = c as Record<string, unknown>;
+							allCriteria.push({
+								id: rec.id,
+								step_id: rec.step_id ?? stepId,
+								title: rec.title,
+								subject: rec.subject,
+								status: rec.status ?? "pending",
+								required_evidence_types: rec.required_evidence_types,
+								min_assurance: rec.min_assurance,
+								satisfied_by_evidence_ids: rec.satisfied_by_evidence_ids,
+								is_proxy: rec.is_proxy,
+							});
+						}
+					}
+				}
+			}
+			const criteriaCap = 50;
+			const pendingCount = allCriteria.filter(c => c.status === "pending").length;
+			const satisfiedCount = allCriteria.filter(
+				c => c.status === "satisfied" || c.status === "proxy_verified",
+			).length;
+			wfReport.acceptance = {
+				total_criteria: allCriteria.length,
+				pending_count: pendingCount,
+				satisfied_count: satisfiedCount,
+				criteria: allCriteria.slice(0, criteriaCap),
+				...(allCriteria.length > criteriaCap
+					? {
+							has_more: true,
+							omitted_count: allCriteria.length - criteriaCap,
+							omitted_pending_ids: allCriteria
+								.slice(criteriaCap)
+								.filter(c => c.status === "pending")
+								.map(c => c.id as string),
+						}
+					: {}),
+			};
+		}
+
+		if (hasConstraints) {
+			wfReport.target_device_constraints = rawConstraints;
+		}
+
+		if (hasDeps) {
+			const depList: Record<string, unknown>[] = [];
+			for (const d of rawDeps!) {
+				if (d && typeof d === "object" && "id" in d) {
+					const dep = d as Record<string, unknown>;
+					depList.push({
+						id: dep.id,
+						name: dep.name,
+						kind: dep.kind,
+						scope: dep.scope,
+						target_host: dep.target_host,
+						approved_for_delivery: dep.approved_for_delivery,
+						approved_for_experiment: dep.approved_for_experiment,
+					});
+				}
+			}
+			const depCap = 30;
+			wfReport.dependencies = {
+				total_dependencies: depList.length,
+				items: depList.slice(0, depCap),
+				...(depList.length > depCap
+					? {
+							has_more: true,
+							omitted_count: depList.length - depCap,
+						}
+					: {}),
+			};
+		}
+		const rawActiveProof = metadata.active_proof as Record<string, string[]> | undefined;
+		if (rawActiveProof && typeof rawActiveProof === "object" && Object.keys(rawActiveProof).length > 0) {
+			wfReport.active_proof = rawActiveProof;
+		}
+
+		reports.push(wfReport);
 	}
 
 	if (reports.length === 0) return undefined;
@@ -519,4 +602,165 @@ export async function formatBuildLineageContext(
 		JSON.stringify({ active_baselines: reports }, null, 2),
 		"```",
 	].join("\n");
+}
+
+export interface ActiveBaselineResolution {
+	store: ReverseWorkflowStore;
+	workflow: ReverseWorkflowRecord | null;
+	baseline: BuildArtifactRecord | null;
+	activePatches: CumulativePatchRecord[];
+	baseTargetSha256?: string;
+}
+
+/**
+ * Automatically link an input sample or explicit workflow ID to an active workflow baseline.
+ * Matches by explicit workflowId, or by matching sample path or SHA256 against workflow targets
+ * and registered build lineage. Rejects ambiguous matches with a clear ToolError.
+ */
+export async function resolveActiveWorkflowBaseline(
+	repoRoot: string,
+	options: {
+		workflowId?: string;
+		targetPath?: string;
+		targetSha256?: string;
+		stateRoot?: string;
+	} = {},
+): Promise<ActiveBaselineResolution> {
+	const store = new ReverseWorkflowStore({ repositoryRoot: repoRoot, stateRoot: options.stateRoot });
+
+	if (options.workflowId) {
+		const wf = await store.get(options.workflowId);
+		if (!wf) {
+			throw new ToolError(`Workflow '${options.workflowId}' not found.`);
+		}
+		// Validate that the target input belongs to this workflow (original base or registered derivative)
+		const targetHash = options.targetSha256?.toLowerCase();
+		const baseHash = (wf.base_target_sha256 ?? wf.target_sha256)?.toLowerCase();
+		const lineageHashes = (wf.build_lineage ?? []).map(b => b.output_sha256.toLowerCase());
+
+		if (targetHash) {
+			const hashMatches = baseHash === targetHash || lineageHashes.includes(targetHash);
+			if (!hashMatches) {
+				let pathMatches = false;
+				if (options.targetPath) {
+					const normInput = path.resolve(repoRoot, options.targetPath);
+					const normBase = path.resolve(repoRoot, wf.target);
+					if (normInput === normBase) {
+						pathMatches = true;
+					} else {
+						pathMatches = (wf.build_lineage ?? []).some(b => path.resolve(repoRoot, b.target_path) === normInput);
+					}
+				}
+				if (!pathMatches) {
+					throw new ToolError(
+						`Input sample does not belong to workflow '${wf.id}': SHA-256 '${options.targetSha256}' matches neither original base nor registered derivative builds.`,
+					);
+				}
+			}
+		}
+
+		const baseline = await store.getBaseline(wf.id);
+		const retiredPatchIds = new Set((wf.retired_patches_audit ?? []).map(r => r.patch_id));
+		const activePatches = (baseline?.cumulative_patches ?? []).filter(
+			p => p.status === "active" && !retiredPatchIds.has(p.patch_id),
+		);
+		return {
+			store,
+			workflow: wf,
+			baseline,
+			activePatches,
+			baseTargetSha256: wf.base_target_sha256 ?? wf.target_sha256,
+		};
+	}
+
+	const workflows = await store.list({ readOnly: true });
+	if (workflows.length === 0) {
+		return { store, workflow: null, baseline: null, activePatches: [] };
+	}
+
+	const targetHash = options.targetSha256?.toLowerCase();
+	const normInputPath = options.targetPath ? path.resolve(repoRoot, options.targetPath) : undefined;
+
+	const matched: ReverseWorkflowRecord[] = [];
+	for (const wf of workflows) {
+		let match = false;
+
+		// Exact SHA-256 identity check against base target or any build in lineage
+		if (targetHash) {
+			const baseHash = (wf.base_target_sha256 ?? wf.target_sha256)?.toLowerCase();
+			if (baseHash === targetHash) {
+				match = true;
+			} else if (wf.build_lineage?.some(b => b.output_sha256.toLowerCase() === targetHash)) {
+				match = true;
+			}
+		}
+
+		// Exact normalized filesystem path check against base target or any build in lineage
+		if (!match && normInputPath) {
+			const normBase = path.resolve(repoRoot, wf.target);
+			if (normBase === normInputPath) {
+				match = true;
+			} else if (wf.build_lineage?.some(b => path.resolve(repoRoot, b.target_path) === normInputPath)) {
+				match = true;
+			}
+		}
+
+		if (match) {
+			matched.push(wf);
+		}
+	}
+
+	if (matched.length > 1) {
+		const ids = matched.map(m => m.id).join(", ");
+		throw new ToolError(
+			`Multiple reverse workflows match input target. Please provide 'workflow_id' to disambiguate: ${ids}`,
+		);
+	}
+
+	if (matched.length === 1) {
+		const wf = matched[0]!;
+		const baseline = await store.getBaseline(wf.id);
+		const retiredPatchIds = new Set((wf.retired_patches_audit ?? []).map(r => r.patch_id));
+		const activePatches = (baseline?.cumulative_patches ?? []).filter(
+			p => p.status === "active" && !retiredPatchIds.has(p.patch_id),
+		);
+		return {
+			store,
+			workflow: wf,
+			baseline,
+			activePatches,
+			baseTargetSha256: wf.base_target_sha256 ?? wf.target_sha256,
+		};
+	}
+
+	return { store, workflow: null, baseline: null, activePatches: [] };
+}
+
+/**
+ * Verify that an artifact preserves all active baseline patches before publication or promotion.
+ * Throws a detailed ToolError if any active baseline patch was dropped or modified.
+ */
+export async function assertArtifactPreservesBaseline(
+	artifactPath: string,
+	activePatches: CumulativePatchRecord[],
+	contextLabel?: string,
+): Promise<BuildVerificationResult> {
+	if (!activePatches || activePatches.length === 0) {
+		return {
+			status: "verified",
+			static_status: "verified",
+			runtime_status: "pending",
+			checked_patches_count: 0,
+			verified_at: new Date().toISOString(),
+		};
+	}
+
+	const verificationResult = await verifyActivePatches(artifactPath, activePatches);
+	if (verificationResult.status !== "verified") {
+		const label = contextLabel ? ` (${contextLabel})` : "";
+		throw new ToolError(
+			`Artifact baseline verification failed${label}: Active patch '${verificationResult.failed_patch_id}' was dropped or mismatched: ${verificationResult.failure_reason}. Repack from original base or incremental modifications must retain all active cumulative patches (replay A+B) or explicitly retire them.`,
+		);
+	}
+	return verificationResult;
 }

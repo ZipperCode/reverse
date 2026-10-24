@@ -42,6 +42,20 @@ const r2InspectSchema = type({
 	),
 });
 
+const ALLOWED_R2_PARAMS: Record<string, true> = {
+	action: true,
+	path: true,
+	target: true,
+	symbol: true,
+	address: true,
+	limit: true,
+	offset: true,
+	mode: true,
+	timeout: true,
+	max_bytes: true,
+	i: true,
+};
+
 export type R2InspectParams = typeof r2InspectSchema.infer;
 export type R2InspectAction = R2InspectParams["action"];
 export type R2InspectMode = "full" | "fold" | "summary";
@@ -138,6 +152,7 @@ export interface R2InstructionInfo {
 	opcode?: string;
 	bytes?: string;
 	type?: string;
+	fcn_name?: string;
 }
 
 export interface R2DecompileResult {
@@ -154,6 +169,10 @@ export interface R2InspectDetails {
 	fallback?: R2FallbackInfo;
 	engine?: string;
 	reference?: string;
+	target?: string;
+	resolvedAddress?: string;
+	resolvedSymbol?: string;
+	referenceDefaulted?: boolean;
 	format?: "json" | "text";
 	info?: R2BinaryInfo;
 	sections?: R2SectionInfo[];
@@ -571,6 +590,7 @@ function normalizeDisasm(raw: unknown): R2InstructionInfo[] {
 			opcode: asText(record.opcode),
 			bytes: asText(record.bytes),
 			type: asText(record.type),
+			fcn_name: asText(record.fcn_name),
 		} as R2InstructionInfo;
 	});
 }
@@ -759,7 +779,12 @@ export interface R2Reference {
 
 function validatedReference(params: R2InspectParams, action: R2InspectAction): R2Reference | undefined {
 	const address = params.address?.trim();
-	const symbol = (params.symbol?.trim() || params.target?.trim()) ?? undefined;
+	const rawSymbol = params.symbol?.trim();
+	const rawTarget = params.target?.trim();
+	if (rawSymbol && rawTarget && rawSymbol !== rawTarget) {
+		throw new ToolError(`Conflicting selectors: symbol "${rawSymbol}" and target "${rawTarget}" do not match`);
+	}
+	const symbol = (rawSymbol || rawTarget) ?? undefined;
 	if (address && address.length > 0) {
 		if (symbol && symbol.length > 0 && params.address !== undefined) {
 			throw new ToolError("Provide either address or symbol, not both");
@@ -868,11 +893,19 @@ export class R2InspectTool implements AgentTool<typeof r2InspectSchema, R2Inspec
 		signal?: AbortSignal,
 	): Promise<AgentToolResult<R2InspectDetails>> {
 		throwIfAborted(signal);
+		const unknownKeys = Object.keys(params).filter(k => !(k in ALLOWED_R2_PARAMS));
+		if (unknownKeys.length > 0) {
+			throw new ToolError(
+				`Unknown parameter${unknownKeys.length > 1 ? "s" : ""} ${unknownKeys.map(k => `"${k}"`).join(", ")}. Supported target selectors are "symbol", "address", or "target".`,
+			);
+		}
 		const requestedPath = params.path.trim();
 		if (requestedPath.length === 0) throw new ToolError("path is required");
 		const action = params.action;
 		const mode: R2InspectMode = params.mode ?? "full";
 		const reference = validatedReference(params, action);
+		const referenceDefaulted = reference === undefined && (action === "disasm" || action === "decompile");
+		const effectiveRef = reference ? reference.value : referenceDefaulted ? "entry0" : undefined;
 		const absolutePath = resolveReadPath(requestedPath, this.session.cwd);
 
 		let info: Stats;
@@ -892,7 +925,7 @@ export class R2InspectTool implements AgentTool<typeof r2InspectSchema, R2Inspec
 			path: displayPath,
 			status: "ok",
 			mode,
-			...(reference ? { reference: reference.value } : {}),
+			...(effectiveRef ? { reference: effectiveRef, target: effectiveRef, referenceDefaulted } : {}),
 		};
 
 		const dependency = r2Dependency(this.options.which);
@@ -1057,6 +1090,115 @@ export class R2InspectTool implements AgentTool<typeof r2InspectSchema, R2Inspec
 				bodyLines = [];
 		}
 
+		let resolvedAddress: string | undefined;
+		let resolvedSymbol: string | undefined;
+
+		if (action === "disasm") {
+			const disasmItems = (normalized.disasm ?? []) as R2InstructionInfo[];
+			const firstItem = disasmItems[0];
+			if (firstItem && firstItem.offset !== "<unknown>") {
+				resolvedAddress = firstItem.offset;
+				resolvedSymbol = firstItem.fcn_name;
+			}
+
+			if (reference) {
+				const stderrLower = run.stderr.toLowerCase();
+				const symbolNotFound =
+					stderrLower.includes("cannot find") ||
+					stderrLower.includes("unknown flag") ||
+					stderrLower.includes("not found");
+				if (disasmItems.length === 0 || symbolNotFound) {
+					const detail = symbolNotFound
+						? firstLine(run.stderr).slice(0, 400)
+						: `Target selector "${reference.value}" produced no disassembly output`;
+					return {
+						content: [
+							{
+								type: "text",
+								text: `radare2 disasm: failed to resolve target selector "${reference.value}" in ${displayPath} (${detail})`,
+							},
+						],
+						details: {
+							...common,
+							status: "error",
+							format: "json",
+							reference: reference.value,
+							target: reference.value,
+							referenceDefaulted: false,
+							error: detail,
+						},
+					};
+				}
+
+				// If reference is an address, verify first instruction offset matches using BigInt
+				if (reference.kind === "address") {
+					let addressMismatch = false;
+					let mismatchDetail = "";
+					try {
+						if (!resolvedAddress) {
+							addressMismatch = true;
+							mismatchDetail = `No valid instruction address returned for selector "${reference.value}"`;
+						} else {
+							const requestedBigInt = BigInt(reference.value);
+							const actualBigInt = BigInt(resolvedAddress);
+							if (requestedBigInt !== actualBigInt) {
+								addressMismatch = true;
+								mismatchDetail = `Target address mismatch: requested ${reference.value} (${requestedBigInt}), but disassembly started at ${resolvedAddress} (${actualBigInt})`;
+							}
+						}
+					} catch (parseError) {
+						addressMismatch = true;
+						mismatchDetail = `Failed to parse address as integer: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
+					}
+					if (addressMismatch) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: `radare2 disasm: failed to resolve target selector "${reference.value}" in ${displayPath} (${mismatchDetail})`,
+								},
+							],
+							details: {
+								...common,
+								status: "error",
+								format: "json",
+								reference: reference.value,
+								target: reference.value,
+								...(resolvedAddress ? { resolvedAddress } : {}),
+								referenceDefaulted: false,
+								error: mismatchDetail,
+							},
+						};
+					}
+				}
+			}
+		}
+
+		if (action === "xrefs" && reference) {
+			const stderrLower = run.stderr.toLowerCase();
+			const symbolNotFound =
+				stderrLower.includes("cannot find") ||
+				stderrLower.includes("unknown flag") ||
+				stderrLower.includes("not found");
+			if (symbolNotFound) {
+				const detail = firstLine(run.stderr).slice(0, 400);
+				return {
+					content: [
+						{
+							type: "text",
+							text: `radare2 xrefs: failed to resolve target selector "${reference.value}" in ${displayPath} (${detail})`,
+						},
+					],
+					details: {
+						...common,
+						status: "error",
+						format: "json",
+						error: detail,
+					},
+				};
+			}
+		}
+
 		const body =
 			mode === "summary"
 				? buildSummaryBody(action, bodyLines, total)
@@ -1064,7 +1206,12 @@ export class R2InspectTool implements AgentTool<typeof r2InspectSchema, R2Inspec
 					? foldR2Text(bodyLines.join("\n"))
 					: bodyLines.join("\n");
 		const displayBody = body.trim().length > 0 ? body : "(no results)";
-		const header = `radare2 ${action}: ${displayPath}${reference ? ` @ ${reference.value}` : ""} (${run.outputBytes} bytes${run.truncated ? ", truncated" : ""})`;
+		const refDisplay = reference
+			? ` @ ${reference.value}${resolvedAddress ? ` (${resolvedAddress})` : ""}`
+			: referenceDefaulted
+				? ` @ entry0 (default)${resolvedAddress ? ` (${resolvedAddress})` : ""}`
+				: "";
+		const header = `radare2 ${action}: ${displayPath}${refDisplay} (${run.outputBytes} bytes${run.truncated ? ", truncated" : ""})`;
 		const modeNote =
 			mode === "summary"
 				? "\n(summary: conservative heuristic; not verified exhaustive)"
@@ -1101,6 +1248,8 @@ export class R2InspectTool implements AgentTool<typeof r2InspectSchema, R2Inspec
 				...common,
 				status: "ok",
 				format: "json",
+				...(resolvedAddress ? { resolvedAddress } : {}),
+				...(resolvedSymbol ? { resolvedSymbol } : {}),
 				...actionDetails,
 				total,
 				count: items !== undefined ? shownItems.length : total,
@@ -1155,7 +1304,7 @@ export class R2InspectTool implements AgentTool<typeof r2InspectSchema, R2Inspec
 			content: [
 				{
 					type: "text",
-					text: `radare2 decompile: ${common.path}${common.reference ? ` @ ${common.reference}` : ""} (${run.outputBytes} bytes${run.truncated ? ", truncated" : ""})\n${text}${pageNote}${truncationNote}${modeNote}`,
+					text: `radare2 decompile: ${common.path}${common.reference ? ` @ ${common.reference}${common.referenceDefaulted ? " (default)" : ""}` : ""} (${run.outputBytes} bytes${run.truncated ? ", truncated" : ""})\n${text}${pageNote}${truncationNote}${modeNote}`,
 				},
 			],
 			details: {

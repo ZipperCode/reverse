@@ -1744,7 +1744,12 @@ async function runLoopBody(
 							rawCall: textLeak.rawSnippet,
 							toolCallId: textLeak.toolCallId,
 							unexecuted: true,
-							details: { tag: textLeak.tag, snippet: textLeak.rawSnippet, model: message.model, provider: message.provider },
+							details: {
+								tag: textLeak.tag,
+								snippet: textLeak.rawSnippet,
+								model: message.model,
+								provider: message.provider,
+							},
 						},
 					};
 				}
@@ -1753,33 +1758,78 @@ async function runLoopBody(
 				if (hasRealValidToolCall) {
 					pausedTurnContinuations = 0;
 					dsmlLeakNudges = 0;
-					protocolLeakNudges = 0;
 					consecutiveMalformedTurns = 0;
-					// If plaintext leak occurred alongside valid structured calls, nudge the model
-					// after the valid tool results settle so the plaintext call is not forgotten
-					if (textLeak && protocolLeakNudges < MAX_PROTOCOL_LEAK_NUDGES) {
+					if (!textLeak) {
+						protocolLeakNudges = 0;
+					} else if (protocolLeakNudges < MAX_PROTOCOL_LEAK_NUDGES) {
+						// If plaintext leak occurred alongside valid structured calls, nudge the model
+						// after the valid tool results settle so the plaintext call is not forgotten
 						const recoveryPrompt = formatProtocolLeakRecoveryPrompt(textLeak);
-						const nudge = injectExecutionAdditionalContext(
-							currentContext,
-							newMessages,
-							stream,
-							recoveryPrompt,
-						);
+						const nudge = injectExecutionAdditionalContext(currentContext, newMessages, stream, recoveryPrompt);
 						if (nudge) additionalMessages.push(nudge);
 						protocolLeakNudges++;
+					} else {
+						// Bounded recovery: persistent leak in mixed turns emits explicit unexecuted failure and halts loop
+						const terminalErrorMsg: AssistantMessage = {
+							role: "assistant",
+							content: [
+								{
+									type: "text",
+									text: `Protocol error: model repeatedly emitted unexecuted tool-call markup as plain text (${textLeak.tag}).`,
+								},
+							],
+							api: message.api,
+							provider: message.provider,
+							model: message.model,
+							usage: createZeroUsage(),
+							stopReason: "error",
+							errorMessage: `Protocol error: model repeatedly emitted unexecuted tool-call markup as plain text (${textLeak.tag}).`,
+							errorDiagnostic: {
+								model: message.model,
+								provider: message.provider,
+								normalizedKind: "protocol-leak",
+								retryable: false,
+								protocolAnomaly: {
+									kind: "unexecuted_protocol_leak",
+									rawName: textLeak.rawName,
+									rawCall: textLeak.rawSnippet,
+									toolCallId: textLeak.toolCallId,
+									unexecuted: true,
+									details: {
+										tag: textLeak.tag,
+										snippet: textLeak.rawSnippet,
+										model: message.model,
+										provider: message.provider,
+									},
+								},
+							},
+							timestamp: Date.now(),
+						};
+						if (message.errorDiagnostic) message.errorDiagnostic.retryable = false;
+						currentContext.messages.push(terminalErrorMsg);
+						newMessages.push(terminalErrorMsg);
+						stream.push({ type: "message_start", message: terminalErrorMsg });
+						stream.push({ type: "message_end", message: terminalErrorMsg });
+						hasMoreToolCalls = false;
 					}
 				} else if (toolCalls.length > 0) {
 					consecutiveMalformedTurns++;
 					if (consecutiveMalformedTurns >= MAX_MALFORMED_TOOL_TURNS) {
 						const malformedTerminalMsg: AssistantMessage = {
 							role: "assistant",
-							content: [{ type: "text", text: "Protocol error: model repeatedly emitted malformed tool calls without executing any valid tools." }],
+							content: [
+								{
+									type: "text",
+									text: "Protocol error: model repeatedly emitted malformed tool calls without executing any valid tools.",
+								},
+							],
 							api: message.api,
 							provider: message.provider,
 							model: message.model,
 							usage: createZeroUsage(),
 							stopReason: "error",
-							errorMessage: "Protocol error: model repeatedly emitted malformed tool calls without executing any valid tools.",
+							errorMessage:
+								"Protocol error: model repeatedly emitted malformed tool calls without executing any valid tools.",
 							errorDiagnostic: {
 								model: message.model,
 								provider: message.provider,
@@ -1834,19 +1884,10 @@ async function runLoopBody(
 					if (nudge) additionalMessages.push(nudge);
 					dsmlLeakNudges++;
 					hasMoreToolCalls = true;
-				} else if (
-					!hasMoreToolCalls &&
-					message.stopReason === "stop" &&
-					textLeak
-				) {
+				} else if (!hasMoreToolCalls && message.stopReason === "stop" && textLeak) {
 					if (protocolLeakNudges < MAX_PROTOCOL_LEAK_NUDGES) {
 						const recoveryPrompt = formatProtocolLeakRecoveryPrompt(textLeak);
-						const nudge = injectExecutionAdditionalContext(
-							currentContext,
-							newMessages,
-							stream,
-							recoveryPrompt,
-						);
+						const nudge = injectExecutionAdditionalContext(currentContext, newMessages, stream, recoveryPrompt);
 						if (nudge) additionalMessages.push(nudge);
 						protocolLeakNudges++;
 						hasMoreToolCalls = true;
@@ -1854,7 +1895,12 @@ async function runLoopBody(
 						// Persistent leak: emit terminal error message so session & persistence record it
 						const terminalErrorMsg: AssistantMessage = {
 							role: "assistant",
-							content: [{ type: "text", text: `Protocol error: model repeatedly emitted unexecuted tool-call markup as plain text (${textLeak.tag}) without structured tool calls.` }],
+							content: [
+								{
+									type: "text",
+									text: `Protocol error: model repeatedly emitted unexecuted tool-call markup as plain text (${textLeak.tag}) without structured tool calls.`,
+								},
+							],
 							api: message.api,
 							provider: message.provider,
 							model: message.model,
@@ -1872,7 +1918,12 @@ async function runLoopBody(
 									rawCall: textLeak.rawSnippet,
 									toolCallId: textLeak.toolCallId,
 									unexecuted: true,
-									details: { tag: textLeak.tag, snippet: textLeak.rawSnippet, model: message.model, provider: message.provider },
+									details: {
+										tag: textLeak.tag,
+										snippet: textLeak.rawSnippet,
+										model: message.model,
+										provider: message.provider,
+									},
 								},
 							},
 							timestamp: Date.now(),
@@ -1887,8 +1938,12 @@ async function runLoopBody(
 						message.errorMessage = terminalErrorMsg.errorMessage;
 						hasMoreToolCalls = false;
 					}
+				} else if (!hasMoreToolCalls && message.stopReason === "stop" && !textLeak) {
+					pausedTurnContinuations = 0;
+					dsmlLeakNudges = 0;
+					protocolLeakNudges = 0;
+					consecutiveMalformedTurns = 0;
 				}
-
 				await emitTurnEnd(stream, currentContext, message, toolResults, config, signal, {
 					additionalMessages,
 					willContinue: hasMoreToolCalls && !isDeadlineExceeded(config.deadline),

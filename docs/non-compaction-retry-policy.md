@@ -136,12 +136,13 @@ If the delay exceeds `retry.maxDelayMs` and no switch succeeds, retry normally f
 
 ### Zero-progress bounded retry cap
 
-Repeated identical canonical stream drop failures (such as `incomplete-stream` where a stream closes before terminal envelope) with zero tool execution or artifact progress are bounded to a single retry attempt instead of exhausting the full 10-attempt retry budget.
+Repeated identical canonical retryable failures—including stream drops (`incomplete-stream` where a stream closes before a terminal envelope), missing response payloads (`empty-body`), and structured retryable transport errors—with zero tool execution or artifact progress are bounded to a single retry attempt instead of exhausting the full 10-attempt retry budget.
 
-When a retry succeeds and real tool progress occurs (a tool call successfully executes and records its result), the failure counter resets.
+Failure fingerprinting keys strictly by stable metadata: provider, model, normalized error kind, raw terminal finish/block reason, transport error class/name, error code, and status. Volatile dynamic strings (such as ephemeral socket ports or timestamps in raw error messages) are excluded so transient transport reconnect diagnostics are canonically recognized across retry attempts.
+
+When a retry succeeds and real progress occurs (a tool call successfully executes and records its result, or an output artifact is generated), the consecutive failure counter resets. Model retries alone without tool or artifact progress do not advance the progress marker. Each fresh prompt or task generation also resets the repeat counter.
 
 Explicit structured terminal statuses (such as content-blocked safety filters or policy rejections) stop immediately with zero retries.
-
 ## Abort mechanics
 
 ### Explicit retry abort

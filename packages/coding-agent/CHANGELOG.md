@@ -44,11 +44,16 @@
 - Fixed IDA 9 and Windows launcher discovery, source/JAR-aware unidbg detection, portable Windows tool installation, and the binwalk Cargo installation route (#1).
 - Fixed compiled builtin skill body/reference resolution and distinct unknown, stale, and missing-resource errors (#3).
 - Preserved MCP stdio startup phase, exit status, signal, and bounded redacted stderr while keeping failed services degraded (#4).
-- Restored skill-first and schema-first reverse workflows and truthful behavioral verification, including MCP activation-budget recovery (#5, #6).
+- Fixed `r2_inspect` to reject unknown selector aliases such as `function`, echo resolved references, flag defaulted entrypoints, and distinguish four separate IDA backends (GUI, idalib, local database, MCP bridge) so that a missing MCP bridge does not treat the entire IDA installation as absent (#5).
+- Bound evidence records to artifact hashes, device ABIs, OS, and process IDs, distinguished static candidates from dynamic execution and independent reproduction, required explicit denominators for quantitative reproducibility, and cascaded refutations through dependent conclusions and active workflows (#6).
 - Marked recreated eval kernels explicitly, requiring dependency setup again without replaying side-effectful history (#7).
 - Applied the default 30-second Frida execution watchdog to enumeration and inspection, with bounded output draining, owned child-tree cleanup, and timeout/cancellation diagnostics (#8).
-- Persisted hash-bound build lineage and cumulative member-byte patches, rejecting omitted patches and stale runtime evidence; provider context reloads the recorded baseline after history compaction or session restoration (#10).
-- Preserved structured provider terminal and transport diagnostics through retry/task events, with bounded no-progress recovery for repeated incomplete streams (#11).
+- Fixed protocol leakage recovery to mark unexecuted malformed or serialized tool calls with raw provider, model, and call-ID diagnostics, and bounded corrective turn continuation without infinite loops (#9).
+- Added cumulative APK and binary derivative lineage verifying container member bytes against active baseline patches, supporting arbitrary entry replacements with `replace_files`, private filesystem staging, atomic exclusive publication, and automatic ownership rollback on registration failure (#10).
+- Differentiated provider terminal status, transport errors, and normalized failure categories, bounding transient retries and halting zero-tool or zero-progress loops early (#11).
+- Added workflow acceptance criteria binding under `metadata.acceptance` with immutable subjects and strict step validation, rejecting initial caller satisfaction claims, classifying mismatched subjects as proxy observations that require explicit human waiver (`waive_acceptance`), and invalidating completed steps when active supporting evidence is refuted (#12).
+- Separated workflow dependency scopes (`experiment` vs `delivery`) and enforced target device standalone constraints, rejecting initial delivery approval on creation and requiring explicit interactive authorization (`approve_dependency`) (#13).
+- Added classified workspace cleanup protecting baselines, evidence, originals, rollbacks, and user files by default, requiring explicit targets and interactive confirmation callbacks for protected deletions without free boolean bypasses, preserving minimal reproducibility manifests, and intercepting broad global executable namekills and direct recursive workspace shell deletions (#14).
 
 ## [18.11.2] - 2026-10-16
 

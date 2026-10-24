@@ -15,6 +15,12 @@ Parameters:
 - `output_path`: Output path for repacked or signed APK artifact. Required for repack and sign. Existing files are strictly rejected (no overwriting existing outputs).
 - `dex_files`: Map of entry names to replacement DEX files on disk (`{"classes.dex": "out/patched.dex"}`).
 - `dex_path`: Shorthand replacement path for `classes.dex`.
+- `replace_files`: Map of arbitrary APK entry names (e.g. `lib/arm64-v8a/libnative.so`, `assets/config.json`) to replacement file paths on disk for multi-component repack or deterministic replay.
+- `workflow_id`: Explicit reverse workflow ID to link this artifact build to (automatically discovered from sample if omitted).
+- `register_derivative`: Whether to automatically record and verify the derivative artifact in the active reverse workflow lineage (default `true` when linked to an active workflow).
+- `build_id`: Explicit build identifier for the derivative artifact record in the workflow lineage.
+- `patches`: Optional list of patch records introduced in this build revision (e.g. `[{ patch_id, member_path, offset, original_bytes, expected_bytes }]`).
+- `runtime_evidence_ids`: Optional list of verified runtime evidence IDs bound to this exact artifact output SHA-256.
 - `strip_signatures`: Whether to strip signature metadata during repack while preserving `META-INF/services/` (default `true`).
 - `sign`: Whether to automatically sign the artifact after repacking (default `false`).
 - `page_align_so`: Whether to align uncompressed native `.so` libraries to 16KiB page boundaries for Android 15+ (default `true`).
@@ -48,7 +54,7 @@ Safety & Security Rules:
 - Absence of signing or verification tools is never reported as verification success.
 - On-device testing does not wipe app data or clear system logcat; captures process-scoped logs and strictly avoids assuming root (`su`).
 - Launch stability is never conflated with functional correctness; the tool explicitly requires separate manual verification of modified features.
-
+- Cumulative baseline preservation: all active baseline patches in the reverse workflow lineage must be preserved in staged output BEFORE publication or installation. Repacking from clean original base dropping active native or DEX patches is rejected and staged output is discarded without publication. Deterministic replay A+B or explicit patch retirement is supported.
 <examples>
 ```
 apk_artifact(action: "diff", original_path: "app-orig.apk", modified_path: "app-mod.apk")

@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $env, $which, logger, type WhichOptions } from "@reverse/utils";
+import { $env, $which, getMCPConfigPath, getProjectDir, logger, type WhichOptions } from "@reverse/utils";
 import { combine } from "../config/registry";
 import type { Settings } from "../config/settings";
 import { cfgIdaEnabled, cfgIdaInstallDir } from "./settings";
@@ -20,6 +20,7 @@ export interface LocateIdaOptions {
 	which?: (cmd: string, options?: WhichOptions) => string | null;
 	requireIdalib?: boolean;
 	settings?: Settings;
+	installDir?: string;
 }
 const IDA_BINARIES: Record<string, readonly string[]> = {
 	win32: ["ida.exe", "idat.exe", "ida64.exe", "idat64.exe", "idaq.exe", "idaq64.exe", "idalib.dll"],
@@ -27,6 +28,24 @@ const IDA_BINARIES: Record<string, readonly string[]> = {
 	linux: ["ida", "ida64", "idat", "idat64", "libidalib.so"],
 };
 
+const IDA_GUI_BINARIES: Record<string, readonly string[]> = {
+	win32: ["ida.exe", "idat.exe", "ida64.exe", "idat64.exe", "idaq.exe", "idaq64.exe"],
+	darwin: ["ida", "ida64", "idat", "idat64"],
+	linux: ["ida", "ida64", "idat", "idat64"],
+};
+
+export function hasIdaGuiBinary(dir: string, platform: NodeJS.Platform = process.platform): boolean {
+	const bins = IDA_GUI_BINARIES[platform] ?? IDA_GUI_BINARIES.linux;
+	for (const b of bins) {
+		try {
+			const candidate = path.join(dir, b);
+			if (fs.existsSync(candidate) && !fs.statSync(candidate).isDirectory()) {
+				return true;
+			}
+		} catch {}
+	}
+	return false;
+}
 export function hasIdalib(dir: string, platform: NodeJS.Platform = process.platform): boolean {
 	const idalib = platform === "darwin" ? "libidalib.dylib" : platform === "win32" ? "idalib.dll" : "libidalib.so";
 	return fs.existsSync(path.join(dir, idalib));
@@ -171,10 +190,7 @@ function defaultInstallDirs(
  * An explicit `configured` directory is authoritative: when it lacks idalib, nothing else is tried.
  * Otherwise checks `$IDADIR`, `ida-config.json`, then standard install locations.
  */
-export function locateIdaInstall(
-	configured?: string,
-	options: LocateIdaOptions = {},
-): string | undefined {
+export function locateIdaInstall(configured?: string, options: LocateIdaOptions = {}): string | undefined {
 	const targetPlatform = options.platform ?? process.platform;
 	const env = options.env ?? process.env;
 	const requireIdalib = options.requireIdalib ?? false;
@@ -199,7 +215,10 @@ export function locateIdaInstall(
 
 	const whichFn = options.which ?? $which;
 	const pathDirs: string[] = [];
-	const bins = targetPlatform === "win32" ? ["ida.exe", "ida", "ida64.exe", "ida64", "idat.exe", "idat"] : ["ida", "ida64", "idat"];
+	const bins =
+		targetPlatform === "win32"
+			? ["ida.exe", "ida", "ida64.exe", "ida64", "idat.exe", "idat"]
+			: ["ida", "ida64", "idat"];
 	for (const b of bins) {
 		try {
 			const found = whichFn(b);
@@ -208,7 +227,9 @@ export function locateIdaInstall(
 				if (found.endsWith(".bat") || found.endsWith(".cmd")) {
 					try {
 						const content = fs.readFileSync(found, "utf8");
-						const match = content.match(/"([^"]*ida(?:64|t|t64|q|q64)?\.exe)"/i) || content.match(/([A-Za-z]:\\[^"'\r\n;]*ida(?:64|t|t64|q|q64)?\.exe)/i);
+						const match =
+							content.match(/"([^"]*ida(?:64|t|t64|q|q64)?\.exe)"/i) ||
+							content.match(/([A-Za-z]:\\[^"'\r\n;]*ida(?:64|t|t64|q|q64)?\.exe)/i);
 						if (match && match[1]) {
 							const targetDir = path.dirname(match[1].trim());
 							if (!pathDirs.includes(targetDir)) pathDirs.push(targetDir);
@@ -255,7 +276,10 @@ export function probeIdaTool(options: LocateIdaOptions = {}): string | null {
 	const env = options.env ?? process.env;
 
 	if (options.which) {
-		const bins = targetPlatform === "win32" ? ["ida.exe", "ida", "ida64.exe", "ida64", "idat.exe", "idat"] : ["ida", "ida64", "idat"];
+		const bins =
+			targetPlatform === "win32"
+				? ["ida.exe", "ida", "ida64.exe", "ida64", "idat.exe", "idat"]
+				: ["ida", "ida64", "idat"];
 		for (const b of bins) {
 			const found = options.which(b);
 			if (found && fs.existsSync(found)) {
@@ -278,8 +302,107 @@ export function probeIdaTool(options: LocateIdaOptions = {}): string | null {
 /** IDA install directory when `ida.enabled` is on and an install is found; undefined otherwise. */
 export const cfgIdaInstall = combine(
 	{ enabled: cfgIdaEnabled, installDir: cfgIdaInstallDir },
-	({ enabled, installDir }) => (enabled ? locateIdaInstall(installDir?.trim() || undefined, { requireIdalib: true }) : undefined),
+	({ enabled, installDir }) =>
+		enabled ? locateIdaInstall(installDir?.trim() || undefined, { requireIdalib: true }) : undefined,
 );
 
 /** Whether IDA features (`read` views, the `ida` tool) are exposed. */
 export const cfgIdaAvailable = cfgIdaInstall.map(dir => dir !== undefined);
+
+export interface IdaBackendStatus {
+	guiAvailable: boolean;
+	guiPath?: string;
+	idalibAvailable: boolean;
+	idalibPath?: string;
+	localDatabaseRecognized: boolean;
+	localDatabaseBackendAvailable: boolean;
+	localDatabaseSupported: boolean;
+	mcpBridgeConfigured: boolean;
+	mcpBridgeConnected: boolean;
+	bridgeAbsentReason?: string;
+}
+
+export function getIdaBackendStatus(
+	options: LocateIdaOptions & {
+		mcpManager?: {
+			getConnectionStatus(name: string): string;
+			getAllServerNames(): string[];
+		};
+		cwd?: string;
+		agentDir?: string;
+		readMcpConfig?: (path: string) => unknown;
+	} = {},
+): IdaBackendStatus {
+	const targetPlatform = options.platform ?? process.platform;
+	const idalibPath = locateIdaInstall(options.installDir, { ...options, requireIdalib: true });
+	const idalibAvailable = Boolean(idalibPath);
+
+	const rawGuiCandidate =
+		locateIdaInstall(options.installDir, { ...options, requireIdalib: false }) ??
+		(options.installDir ? undefined : probeIdaTool(options));
+	const guiPath = rawGuiCandidate && hasIdaGuiBinary(rawGuiCandidate, targetPlatform) ? rawGuiCandidate : undefined;
+	const guiAvailable = Boolean(guiPath);
+
+	const localDatabaseRecognized = true;
+	const localDatabaseBackendAvailable = idalibAvailable;
+	const localDatabaseSupported = idalibAvailable;
+
+	let mcpBridgeConfigured = false;
+	let mcpBridgeConnected = false;
+
+	if (options.mcpManager) {
+		const allNames = options.mcpManager.getAllServerNames();
+		const matchedName = allNames.find(n => n.toLowerCase() === "ida-mcp" || n.toLowerCase() === "ida");
+		if (matchedName) {
+			mcpBridgeConfigured = true;
+			mcpBridgeConnected = options.mcpManager.getConnectionStatus(matchedName) === "connected";
+		}
+	}
+
+	if (!mcpBridgeConfigured) {
+		try {
+			const cwd = options.cwd ?? getProjectDir();
+			const userConfigPath = options.agentDir
+				? path.join(options.agentDir, "mcp.json")
+				: getMCPConfigPath("user", cwd);
+			const configPaths = [getMCPConfigPath("project", cwd), userConfigPath];
+			const readFn =
+				options.readMcpConfig ??
+				(p => {
+					try {
+						return JSON.parse(fs.readFileSync(p, "utf8"));
+					} catch {
+						return null;
+					}
+				});
+			for (const p of configPaths) {
+				const cfg = readFn(p) as { mcpServers?: Record<string, unknown> } | null;
+				if (cfg?.mcpServers && (cfg.mcpServers["ida-mcp"] || cfg.mcpServers["ida"])) {
+					mcpBridgeConfigured = true;
+					break;
+				}
+			}
+		} catch {}
+	}
+
+	let bridgeAbsentReason: string | undefined;
+	if (!mcpBridgeConfigured) {
+		bridgeAbsentReason =
+			"Direct MCP bridge 'ida-mcp' is not configured in mcp.json; IDA GUI and idalib operate independently when installed.";
+	} else if (!mcpBridgeConnected) {
+		bridgeAbsentReason = "Direct MCP bridge 'ida-mcp' is configured but not connected to an active IDA session.";
+	}
+
+	return {
+		guiAvailable,
+		guiPath,
+		idalibAvailable,
+		idalibPath: idalibPath ?? undefined,
+		localDatabaseRecognized,
+		localDatabaseBackendAvailable,
+		localDatabaseSupported,
+		mcpBridgeConfigured,
+		mcpBridgeConnected,
+		...(bridgeAbsentReason ? { bridgeAbsentReason } : {}),
+	};
+}

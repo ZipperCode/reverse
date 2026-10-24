@@ -69,8 +69,32 @@ export async function validateVerifiedOnly(
 
 	const missingEvidenceIds: string[] = [];
 	const refutedEvidenceIds: string[] = [];
+	const invalidEvidenceIds: string[] = [];
+	let validationReason: string | undefined;
 
 	if (evidenceStore && input.source_evidence_ids && input.source_evidence_ids.length > 0) {
+		const evaluation = await evidenceStore.evaluateSupport(input.source_evidence_ids);
+		if (!evaluation.valid) {
+			validationReason = evaluation.reason;
+			for (const id of [
+				...evaluation.refutedIds,
+				...evaluation.staleIds,
+				...evaluation.failedStageIds,
+				...evaluation.unverifiedIds,
+				...evaluation.mismatchedHashIds,
+				...evaluation.mismatchedSubjectIds,
+				...evaluation.nonExhaustiveNegativeIds,
+				...evaluation.unmetKindIds,
+			]) {
+				if (!invalidEvidenceIds.includes(id)) {
+					invalidEvidenceIds.push(id);
+				}
+				if (!refutedEvidenceIds.includes(id)) {
+					refutedEvidenceIds.push(id);
+				}
+			}
+		}
+
 		for (const evId of input.source_evidence_ids) {
 			const record = await evidenceStore.getRecord(evId);
 			if (!record) {
@@ -85,17 +109,35 @@ export async function validateVerifiedOnly(
 			}
 
 			if (record.kind === "hypothesis") {
-				if (!record.verifiedBy) {
+				const validity = evaluation.validityMap[evId];
+				if (!record.verifiedBy || validity?.effectiveStatus !== "verified") {
 					throw new ToolError(
-						`Cannot promote unverified hypothesis '${evId}' ('${record.claim}') to reusable knowledge. Hypotheses must first be verified by a conclusion in the evidence ledger before retention.`,
+						`Cannot promote unverified hypothesis '${evId}' ('${record.claim}') to reusable knowledge. Hypotheses must first be verified by an active, unrefuted conclusion in the evidence ledger before retention.`,
 					);
 				}
 			}
 
 			if (record.kind === "conclusion") {
-				if (record.status !== "verified") {
+				const validity = evaluation.validityMap[evId];
+				if (record.status !== "verified" || validity?.isRefuted || validity?.isStale) {
+					if (!refutedEvidenceIds.includes(evId)) {
+						refutedEvidenceIds.push(evId);
+					}
+					if (!invalidEvidenceIds.includes(evId)) {
+						invalidEvidenceIds.push(evId);
+					}
+				}
+			}
+
+			if (
+				record.context?.compoundStages &&
+				record.context.compoundStages.some(s => s.exitCode !== 0 || s.status === "failed")
+			) {
+				if (!invalidEvidenceIds.includes(evId)) {
+					invalidEvidenceIds.push(evId);
+				}
+				if (!refutedEvidenceIds.includes(evId)) {
 					refutedEvidenceIds.push(evId);
-					continue;
 				}
 			}
 		}
@@ -104,7 +146,9 @@ export async function validateVerifiedOnly(
 	return {
 		missingEvidenceIds,
 		refutedEvidenceIds,
-		unverified: missingEvidenceIds.length > 0 || refutedEvidenceIds.length > 0,
+		invalidEvidenceIds,
+		unverified: missingEvidenceIds.length > 0 || refutedEvidenceIds.length > 0 || invalidEvidenceIds.length > 0,
+		...(validationReason ? { reason: validationReason } : {}),
 	};
 }
 
@@ -146,6 +190,7 @@ export async function learnFromEvidenceAndWorkflows(
 		}
 		offset += page.items.length;
 	}
+	const validityMap = await evidenceStore.resolveValidity();
 	for (const ev of evidenceRecords) {
 		if (ev.kind === "unknown") {
 			skippedUnverified++;
@@ -163,12 +208,20 @@ export async function learnFromEvidenceAndWorkflows(
 		}
 
 		if (ev.kind === "conclusion") {
-			if (ev.status !== "verified") {
-				// Refuted conclusion - skip
+			const validity = validityMap.get(ev.id);
+			if (ev.status !== "verified" || validity?.isRefuted || validity?.isStale) {
+				// Refuted or stale/superseded conclusion - skip
 				skippedUnverified++;
 				continue;
 			}
-
+			if (
+				ev.context?.compoundStages &&
+				ev.context.compoundStages.some(s => s.exitCode !== 0 || s.status === "failed")
+			) {
+				// Conclusion has failed compound stages - skip
+				skippedUnverified++;
+				continue;
+			}
 			if (seenEvidenceIds.has(ev.id)) {
 				// Already retained in knowledge
 				continue;
@@ -337,6 +390,13 @@ export async function learnFromEvidenceAndWorkflows(
 				}
 				const recoveryKey = `${wf.id}:${step.id}`;
 				if (seenRecoveryKeys.has(recoveryKey)) continue;
+				if (audit.evidence_ids && audit.evidence_ids.length > 0) {
+					const evalAudit = await evidenceStore.evaluateSupport(audit.evidence_ids);
+					if (!evalAudit.valid) {
+						skippedUnverified++;
+						continue;
+					}
+				}
 
 				const now = new Date().toISOString();
 				const proposedParamsStr =
@@ -405,20 +465,24 @@ export async function learnFromEvidenceAndWorkflows(
 export async function applyKnowledge(
 	knowledgeStore: ReverseKnowledgeStore,
 	input: ApplyKnowledgeInput,
+	evidenceStore?: EvidenceStore,
 ): Promise<ApplyKnowledgeResult> {
 	const limit = Math.min(Math.max(input.limit ?? DEFAULT_KNOWLEDGE_SEARCH_LIMIT, 1), MAX_KNOWLEDGE_SEARCH_LIMIT);
 
 	const queryParts = [input.goal, input.error, input.tool].filter(Boolean).join(" ");
 	const normalizedFormat = normalizeTargetFormat(input.format);
 
-	const records = await knowledgeStore.search({
-		query: queryParts || undefined,
-		format: normalizedFormat,
-		target_hash: input.target_hash,
-		tool: input.tool,
-		limit,
-		include_stale: false,
-	});
+	const records = await knowledgeStore.search(
+		{
+			query: queryParts || undefined,
+			format: normalizedFormat,
+			target_hash: input.target_hash,
+			tool: input.tool,
+			limit,
+			include_stale: false,
+		},
+		evidenceStore,
+	);
 
 	const recommendations: KnowledgeRecommendation[] = records.map(r => {
 		const source: "evidence_ledger" | "workflow_recovery" | "retained_finding" | "bundled" =

@@ -1,6 +1,6 @@
 # evidence
 
-> Empirical reverse-engineering evidence ledger: record facts, propose hypotheses, verify outcomes, track hash drift, and export structured proof artifacts conforming to the reverse reverse-lab standard.
+Empirical reverse-engineering evidence ledger: record facts, propose hypotheses, verify outcomes, track hash drift, and export structured proof artifacts conforming to the reverse reverse-lab standard.
 
 ## Source
 - Entry: `packages/coding-agent/src/tools/evidence.ts`
@@ -28,7 +28,22 @@
 | `command` | `string` | No* | Exact reproduction command or script invocation (required for `verify`). |
 | `result` | `string` | No* | Observed outcome or delta produced by the experiment (required for `verify`). |
 | `conclusion` | `string` | No* | Confirmed deductive conclusion backed by verification result (required for `verify`). |
-| `reproducibility`| `string` | No | Reproducibility rate or description, e.g. `'100% (5/5 runs)'`. |
+| `status` | `string` | No | Verification outcome status: `"verified"` (default) or `"refuted"`. |
+| `subject` | `string` | No | Target domain subject or component identity (e.g. `login_flow`, `license_check`). Immutable subject binding used to evaluate workflow acceptance criteria. |
+| `assurance` | `string` | No | Assurance tier: `"static_candidate"`, `"dynamic_call_observation"`, `"algorithm_recovery"`, `"independent_reproduction"`. |
+| `artifactSha256` | `string` | No | Exact SHA-256 hash of the execution artifact or library binary. |
+| `deviceAbi` | `string` | No | Target device architecture or ABI (e.g. `arm64-v8a`, `x86_64`). |
+| `os` | `string` | No | Operating system and kernel/platform version of the execution environment. |
+| `pid` | `number` | No | Process ID of the observed execution. |
+| `invalidatesConclusions` | `string[]` | No | Array of prior conclusion IDs invalidated or refuted by this conclusion. |
+| `reproducibility`| `string` | No | Quantitative reproducibility description, e.g. `'5/5 runs (100%)'`. |
+| `verifiedUnits` | `number` | No | Successful verification trial count. |
+| `totalRequiredUnits` | `number` | No | Total required trial count denominator (> 0). |
+| `unitDescription` | `string` | No | Unit description for quantitative ratio (e.g. `'runs'`, `'tests'`). |
+| `isExhaustive` | `boolean` | No | Whether a negative search was exhaustive across the entire target space. |
+| `searchTarget` | `string` | No | Target scope or container file for negative search. |
+| `scopeBoundary` | `string` | No | Boundary of negative search (e.g. `single_file`, `process_memory`, `all_dex`). |
+| `claimScope` | `string` | No | Scope of claim: `"bounded"` for local observations, `"universal"` for total absence claims. |
 | `classification` | `string` | No | Taxonomy or weakness classification, e.g. `CWE-602`, `CWE-798`. |
 | `tags` | `string[]` | No | Categorization tags, e.g. `['auth', 'crypto', 'license']`. |
 | `query` | `string` | No | Keyword search string for filtering list. |
@@ -37,11 +52,29 @@
 | `to_artifact` | `boolean` | No | Force exporting markdown report to session artifact instead of inline text. |
 
 ## Actions
-- **add**: Records a `fact` (requires `sourceTool` + `locator`), a `hypothesis` (requires `claim` + `verificationPlan`), or an `unknown`. Directly adding a `conclusion` is strictly forbidden.
-- **verify**: Verifies an existing hypothesis into a confirmed conclusion record. Requires `hypothesisId`, `method`, `command`, `result`, and `conclusion`. Preserves immutable append-only history.
+- **add**: Records a `fact` (requires `sourceTool` + `locator`), a `hypothesis` (requires `claim` + `verificationPlan`), or an `unknown`. Directly adding a `conclusion` is strictly forbidden. Accepts immutable `subject` and `assurance` level.
+- **verify**: Verifies an existing hypothesis into a conclusion record with `status: "verified"` or `status: "refuted"`. Requires `hypothesisId`, `method`, `command`, `result`, and `conclusion`. Supports explicit refutations and `invalidatesConclusions` targeting earlier superseded conclusions.
 - **show**: Retrieves an entry by ID, recomputes target file SHA-256 and excerpt hashes, and reports any drift or integrity warnings.
-- **list**: Paginates and filters evidence entries by kind, target, or keyword query.
+- **list**: Paginates and filters evidence entries by kind, target, subject, or keyword query.
 - **export**: Generates a structured Markdown proof report matching `reverse-lab/references/evidence.md`. Spills to a session artifact (`artifact://<id>`) when output is large or when `to_artifact: true`.
+
+## Canonical Evidence Graph & Refutation Disciplines
+
+1. **Subject Binding & Proxy Distinctions**:
+   - Evidence records bind to a canonical `subject` (e.g. `license_check`).
+   - Observations recorded under a different subject (e.g. `login_flow`) are classified as proxy observations. When evaluated against workflow acceptance criteria, proxy evidence cannot satisfy the criterion without explicit human waiver (`waive_acceptance`).
+
+2. **Chronological Evaluation & Stale Invalidations**:
+   - Ledger records are append-only.
+   - For any hypothesis, conclusions are resolved in chronological sequence. If the latest conclusion is `status: "refuted"`, the underlying hypothesis is marked refuted, and earlier conclusions for that hypothesis become `stale` (`invalidatedBy`).
+   - Conclusions explicitly listing IDs in `invalidatesConclusions` mark those target conclusions `stale`.
+
+3. **Transitive Refutation Cascades into Workflows**:
+   - If a step or build derivative in a workflow relies on evidence that is later refuted or becomes stale, `cascadeEvidenceRefutation` invalidates the step back to `pending` (`held_pending_decision`, `decision: "invalidated_by_evidence"`), clears active proof, fails the build runtime status, and reopens completed workflows back to `active`.
+
+4. **Quantitative Reproducibility & Negative Search Bounds**:
+   - Percentages without explicit denominators are forbidden: supply `verifiedUnits` and `totalRequiredUnits` (`totalRequiredUnits > 0`).
+   - Negative search results (e.g. missing string or symbol) are strictly bounded by `searchTarget` and `scopeBoundary`, and cannot claim universal absence across all execution paths without exhaustive proof.
 
 ## Security & Storage
 - **Per-project state**: Stored under agent state directory (`~/.reverse/evidence/<project-key>/ledger.jsonl`), completely isolating ledger data from the workspace repository.

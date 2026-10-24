@@ -84,7 +84,9 @@ export interface RetainKnowledgeInput {
 export interface EvidenceValidationResult {
 	missingEvidenceIds: string[];
 	refutedEvidenceIds: string[];
+	invalidEvidenceIds?: string[];
 	unverified: boolean;
+	reason?: string;
 }
 
 export interface LearnKnowledgeInput {

@@ -6,6 +6,7 @@ import {
 	WALL_TIME_NOTICE_MIN_MS,
 } from "@reverse/tui/tools/bash";
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { type } from "@reverse/reversetype";
 import type {
 	AgentTool,
@@ -41,6 +42,7 @@ import { rewriteGitWorktreeAdd } from "./bash-worktree-rewrite";
 import { canUseInteractiveBashPty } from "./bash-pty-selection";
 import { resolveEvalBackends } from "./eval-backends";
 import { invalidateGithubCacheForBashCommand } from "./gh-cache-invalidation";
+import { checkProcessTerminationSafety } from "./process-safety";
 import { serviceLogs, startService, type ServiceReady } from "../launch/services";
 import { isFindEnabled } from "./jfind";
 import { formatArtifactErrorNotice } from "@reverse/tui/tools/output-meta";
@@ -971,6 +973,33 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 				cwd = cd.path;
 				command = cd.rest;
 			}
+		}
+		// Always-on process termination and workspace artifact safety guard before actual execution
+		const effectiveCwd = cwd ? resolveToCwd(cwd, this.session.cwd) : this.session.cwd;
+		const safety = await checkProcessTerminationSafety(rawCommand, command, 0, this.session.cwd, effectiveCwd);
+		if (safety.blocked) {
+			const text = [
+				`Execution blocked: ${safety.reason}`,
+				"",
+				`Guidance: ${safety.guidance}`,
+				"",
+				`Unexecuted command: ${safety.matchedPattern} in '${safety.command}'`,
+			];
+			if (safety.matchedProtected && safety.matchedProtected.length > 0) {
+				text.push("", "Protected descendants located under target path:");
+				for (const p of safety.matchedProtected.slice(0, 5)) {
+					text.push(`  - ${path.relative(this.session.cwd, p) || p}`);
+				}
+			}
+			return {
+				isError: true,
+				content: [{ type: "text", text: text.join("\n") }],
+				details: {
+					unexecuted: true,
+					blockedReason: safety.reason,
+					guidance: safety.guidance,
+				},
+			};
 		}
 		// Mode selection runs on normalized fields: a caller that materializes
 		// every optional argument with empty or placeholder values still asked

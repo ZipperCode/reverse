@@ -10,6 +10,7 @@ import {
 	type EvidenceRecord,
 	type EvidenceDriftStatus,
 	type EvidenceListResult,
+	type EvidenceAssuranceLevel,
 	MAX_INLINE_CHARS,
 	exportEvidenceToMarkdown,
 	renderListText,
@@ -65,6 +66,33 @@ const evidenceSchema = type({
 		.describe("Verification outcome status ('verified' or 'refuted', default 'verified')"),
 	"classification?": type("string").describe("Taxonomy or weakness classification, e.g. CWE-602, CWE-798"),
 	"tags?": type("string[]").describe("Categorization tags, e.g. ['auth', 'crypto', 'license']"),
+	"subject?": type("string").describe("Target domain subject or component identity (e.g. login_flow, license_check)"),
+	"assurance?": type
+		.enumerated("static_candidate", "dynamic_call_observation", "algorithm_recovery", "independent_reproduction")
+		.describe("Assurance tier of the observed evidence or conclusion"),
+	"artifactSha256?": type("string").describe("Exact SHA-256 hash of the execution artifact"),
+	"deviceAbi?": type("string").describe("Device architecture or ABI (e.g. arm64-v8a, x86_64)"),
+	"os?": type("string").describe("Operating system and version of the execution environment"),
+	"pid?": type("number").describe("Process ID of the observed execution"),
+	"isExhaustive?": type("boolean").describe("Whether a negative search was exhaustive across the entire target space"),
+	"searchTarget?": type("string").describe("Target scope or file for negative search"),
+	"scopeBoundary?": type("string").describe("Boundary of negative search (e.g. single_file, process_memory, all_dex)"),
+	"verifiedUnits?": type("number").describe(
+		"Number of verified units or successful trials for quantitative reproducibility",
+	),
+	"totalRequiredUnits?": type("number").describe("Total required units or total runs denominator (>0)"),
+	"unitDescription?": type("string").describe("Description of units for quantitative ratio (e.g. runs, tests, bytes)"),
+	"invalidatesConclusions?": type("string[]").describe(
+		"Array of prior conclusion IDs invalidated or refuted by this conclusion",
+	),
+	"claimScope?": type
+		.enumerated("bounded", "universal")
+		.describe(
+			"Scope of claim for negative observations ('bounded' for local observation, 'universal' for total absence)",
+		),
+	"requireExhaustiveNegative?": type("boolean").describe(
+		"Whether exhaustive negative search proof is strictly required",
+	),
 	"query?": type("string").describe("Keyword search string for filtering list"),
 	"limit?": type("number").describe("Maximum items returned in list (default 20, max 100)"),
 	"offset?": type("number").describe("Zero-based pagination offset for list (default 0)"),
@@ -137,6 +165,35 @@ export class EvidenceTool implements AgentTool<typeof evidenceSchema, EvidenceDe
 					const content = params.content ?? params.title;
 					if (!content) throw new ToolError("Field 'content' is required for fact evidence");
 
+					const executionBinding =
+						params.artifactSha256 || params.deviceAbi || params.os || params.pid !== undefined
+							? {
+									...(params.artifactSha256 ? { artifactSha256: params.artifactSha256 } : {}),
+									...(params.deviceAbi ? { deviceAbi: params.deviceAbi } : {}),
+									...(params.os ? { os: params.os } : {}),
+									...(params.pid !== undefined ? { pid: params.pid } : {}),
+								}
+							: undefined;
+
+					const negativeScope =
+						params.searchTarget || params.isExhaustive !== undefined
+							? {
+									searchTarget: params.searchTarget ?? params.target ?? "target",
+									query: content,
+									isExhaustive: Boolean(params.isExhaustive),
+									...(params.scopeBoundary ? { scopeBoundary: params.scopeBoundary } : {}),
+								}
+							: undefined;
+
+					const completionRatio =
+						params.totalRequiredUnits !== undefined && params.verifiedUnits !== undefined
+							? {
+									verifiedUnits: params.verifiedUnits,
+									totalRequiredUnits: params.totalRequiredUnits,
+									...(params.unitDescription ? { unitDescription: params.unitDescription } : {}),
+								}
+							: undefined;
+
 					record = await store.addFact({
 						kind: "fact",
 						sourceTool: params.sourceTool,
@@ -147,11 +204,36 @@ export class EvidenceTool implements AgentTool<typeof evidenceSchema, EvidenceDe
 						excerpt: params.excerpt,
 						classification: params.classification,
 						tags: params.tags,
+						subject: params.subject,
+						assurance: params.assurance as EvidenceAssuranceLevel | undefined,
+						executionBinding,
+						negativeScope,
+						completionRatio,
 					});
 				} else if (params.kind === "hypothesis") {
 					if (!params.claim) throw new ToolError("Field 'claim' is required for hypothesis evidence");
 					if (!params.verificationPlan)
 						throw new ToolError("Field 'verificationPlan' is required for hypothesis evidence");
+
+					const executionBinding =
+						params.artifactSha256 || params.deviceAbi || params.os || params.pid !== undefined
+							? {
+									...(params.artifactSha256 ? { artifactSha256: params.artifactSha256 } : {}),
+									...(params.deviceAbi ? { deviceAbi: params.deviceAbi } : {}),
+									...(params.os ? { os: params.os } : {}),
+									...(params.pid !== undefined ? { pid: params.pid } : {}),
+								}
+							: undefined;
+
+					const negativeScope =
+						params.searchTarget || params.isExhaustive !== undefined
+							? {
+									searchTarget: params.searchTarget ?? params.target ?? "target",
+									query: params.claim,
+									isExhaustive: Boolean(params.isExhaustive),
+									...(params.scopeBoundary ? { scopeBoundary: params.scopeBoundary } : {}),
+								}
+							: undefined;
 
 					record = await store.addHypothesis({
 						kind: "hypothesis",
@@ -163,6 +245,10 @@ export class EvidenceTool implements AgentTool<typeof evidenceSchema, EvidenceDe
 						content: params.content,
 						classification: params.classification,
 						tags: params.tags,
+						subject: params.subject,
+						assurance: params.assurance as EvidenceAssuranceLevel | undefined,
+						executionBinding,
+						negativeScope,
 					});
 				} else if (params.kind === "unknown") {
 					const question = params.content ?? params.claim;
@@ -179,6 +265,7 @@ export class EvidenceTool implements AgentTool<typeof evidenceSchema, EvidenceDe
 						content: params.content,
 						classification: params.classification,
 						tags: params.tags,
+						subject: params.subject,
 					});
 				} else {
 					throw new ToolError(`Unsupported kind '${params.kind}' for action 'add'`);
@@ -200,6 +287,35 @@ export class EvidenceTool implements AgentTool<typeof evidenceSchema, EvidenceDe
 				if (!params.result) throw new ToolError("Field 'result' is required for action 'verify'");
 				if (!params.conclusion) throw new ToolError("Field 'conclusion' is required for action 'verify'");
 
+				const executionBinding =
+					params.artifactSha256 || params.deviceAbi || params.os || params.pid !== undefined
+						? {
+								...(params.artifactSha256 ? { artifactSha256: params.artifactSha256 } : {}),
+								...(params.deviceAbi ? { deviceAbi: params.deviceAbi } : {}),
+								...(params.os ? { os: params.os } : {}),
+								...(params.pid !== undefined ? { pid: params.pid } : {}),
+							}
+						: undefined;
+
+				const negativeScope =
+					params.searchTarget || params.isExhaustive !== undefined
+						? {
+								searchTarget: params.searchTarget ?? params.target ?? "target",
+								query: params.conclusion,
+								isExhaustive: Boolean(params.isExhaustive),
+								...(params.scopeBoundary ? { scopeBoundary: params.scopeBoundary } : {}),
+							}
+						: undefined;
+
+				const completionRatio =
+					params.totalRequiredUnits !== undefined && params.verifiedUnits !== undefined
+						? {
+								verifiedUnits: params.verifiedUnits,
+								totalRequiredUnits: params.totalRequiredUnits,
+								...(params.unitDescription ? { unitDescription: params.unitDescription } : {}),
+							}
+						: undefined;
+
 				const conclusion = await store.verifyHypothesis({
 					hypothesisId: params.hypothesisId,
 					method: params.method,
@@ -209,6 +325,17 @@ export class EvidenceTool implements AgentTool<typeof evidenceSchema, EvidenceDe
 					reproducibility: params.reproducibility,
 					status: params.status as "verified" | "refuted" | undefined,
 					title: params.title,
+					facts: params.facts,
+					target: params.target,
+					targetSha256: params.artifactSha256,
+					subject: params.subject,
+					assurance: params.assurance as EvidenceAssuranceLevel | undefined,
+					executionBinding,
+					negativeScope,
+					completionRatio,
+					invalidatesConclusions: params.invalidatesConclusions,
+					claimScope: params.claimScope,
+					requireExhaustiveNegative: params.requireExhaustiveNegative,
 				});
 
 				const hyp = (await store.getRecord(conclusion.hypothesisId)) as HypothesisEvidence | null;
@@ -277,11 +404,18 @@ export class EvidenceTool implements AgentTool<typeof evidenceSchema, EvidenceDe
 					}
 				}
 
-				const text = renderRecordText(record, drift, {
+				const validityMap = await store.resolveValidity();
+				const recordValidity = validityMap.get(record.id);
+
+				let text = renderRecordText(record, drift, {
 					hypothesis: relatedHyp,
 					conclusions: relatedConc,
 					facts: supportingFacts,
 				});
+
+				if (recordValidity && (recordValidity.isRefuted || recordValidity.isStale)) {
+					text += `\n\n--- VALIDITY WARNING ---\n⚠ Canonical Validity: ${recordValidity.effectiveStatus.toUpperCase()} (${recordValidity.reason ?? "superseded by subsequent ledger evidence"})`;
+				}
 
 				return {
 					content: [{ type: "text", text }],

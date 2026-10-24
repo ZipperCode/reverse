@@ -19,11 +19,13 @@ Selection and paging:
 - `mode` controls rendering: `full`, `fold` (collapse blank/duplicate lines and trailing whitespace), or `summary` (counts plus a short preview). `fold` and `summary` are conservative heuristics and are marked unverified.
 
 Input safety:
+- Target selectors are strictly canonical: `symbol`, `target` (documented alias for `symbol`), or `address`.
+- Do not pass parameter aliases such as `function`, `func`, `fn`, or `name`; unrecognized parameters are strictly rejected.
 - `symbol` accepts flag/function names only (`main`, `sym.main`, `sym.imp.malloc`, `fcn.00401000`, `std::vector`).
 - `address` accepts decimal or hex (`0x401000`); do not combine it with `symbol`.
 - Use `path` for the target file; paths resolve against the session cwd.
+- Resolved selector coordinates are echoed in `details.reference` and `details.target`. Defaulting to `entry0` occurs ONLY when no selector is supplied, flagged by `details.referenceDefaulted: true`. When a requested selector cannot be resolved by radare2, the tool returns `status: "error"` instead of substituting `entry0`.
 - Output is capped by `max_bytes` (default 256 KiB, max 4 MiB) and `timeout` (default 30 s, max 120 s). Truncated output is reported with `truncated: true`.
-
 When `radare2` is not installed, returns `status: "missing_dependency"` with the trusted install hint and suggested `objdump`/`strings` fallback commands. Fallbacks are suggestions only; this tool does not execute them.
 
 <examples>

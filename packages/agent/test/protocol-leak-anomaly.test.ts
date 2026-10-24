@@ -244,17 +244,17 @@ describe("Issue #9: Protocol anomaly validation and protocol leak handling", () 
 	it("treats quoted examples and blockquotes in text as inert and stops normally", async () => {
 		const quotedExamples = [
 			// Fenced code block
-			"Here is an example:\n```json\n[tool_use id=broken name=_bash]\n{\"command\":\"echo not-executed\"}\n[/tool_use]\n```\nHope that helps!",
+			'Here is an example:\n```json\n[tool_use id=broken name=_bash]\n{"command":"echo not-executed"}\n[/tool_use]\n```\nHope that helps!',
 			// Multi-backtick inline code
-			"You can see ``[tool_use id=broken name=_bash]\n{\"command\":\"echo not-executed\"}\n[/tool_use]`` in the docs.",
+			'You can see ``[tool_use id=broken name=_bash]\n{"command":"echo not-executed"}\n[/tool_use]`` in the docs.',
 			// 多行代码引用中的协议样例仍是引用，不应触发重新生成。
-			"Example: ``\n[tool_use name=bash]\n{\"command\":\"echo docs\"}\n[/tool_use]\n`` end",
+			'Example: ``\n[tool_use name=bash]\n{"command":"echo docs"}\n[/tool_use]\n`` end',
 			// Blockquote markdown line
-			"> [tool_use id=broken name=_bash]\n> {\"command\":\"echo not-executed\"}\n> [/tool_use]",
+			'> [tool_use id=broken name=_bash]\n> {"command":"echo not-executed"}\n> [/tool_use]',
 			// Natural prose mention
 			"The system emits [tool_use] events during agent execution.",
 			// Code block with embedded backticks on an inner line
-			"Here is a code block with embedded backticks:\n```markdown\nThe delimiter is ``` inside this line\n[tool_use id=broken name=_bash]\n{\"command\":\"echo not-executed\"}\n[/tool_use]\n```\nAll done.",
+			'Here is a code block with embedded backticks:\n```markdown\nThe delimiter is ``` inside this line\n[tool_use id=broken name=_bash]\n{"command":"echo not-executed"}\n[/tool_use]\n```\nAll done.',
 		];
 		for (const contentText of quotedExamples) {
 			const mock = createMockModel({
@@ -315,9 +315,7 @@ describe("Issue #9: Protocol anomaly validation and protocol leak handling", () 
 		const mock = createMockModel({
 			responses: [
 				{
-					content: [
-						"[tool_use id=broken name=_bash]\n{\"command\":\"echo not-executed\"}\n[/tool_use]",
-					],
+					content: ['[tool_use id=broken name=_bash]\n{"command":"echo not-executed"}\n[/tool_use]'],
 				},
 				{
 					content: [
@@ -362,11 +360,12 @@ describe("Issue #9: Protocol anomaly validation and protocol leak handling", () 
 
 		// Intermediate assistant turn has unexecuted_protocol_leak diagnostic
 		const leakedTurn = messages.find(
-			m => m.role === "assistant" && (m as AssistantMessage).errorDiagnostic?.protocolAnomaly?.kind === "unexecuted_protocol_leak",
+			m =>
+				m.role === "assistant" &&
+				(m as AssistantMessage).errorDiagnostic?.protocolAnomaly?.kind === "unexecuted_protocol_leak",
 		) as AssistantMessage;
 		expect(leakedTurn).toBeDefined();
 		expect(leakedTurn.errorDiagnostic?.protocolAnomaly?.unexecuted).toBe(true);
-
 
 		// Final message completed normally
 		const finalMessage = messages.at(-1) as AssistantMessage;
@@ -375,13 +374,9 @@ describe("Issue #9: Protocol anomaly validation and protocol leak handling", () 
 
 	it("fails explicitly when protocol leak persists across bounded retries", async () => {
 		// Model repeatedly emits unexecuted plaintext protocol leaks
-		const leakContent = "[tool_use id=broken name=_bash]\n{\"command\":\"echo not-executed\"}\n[/tool_use]";
+		const leakContent = '[tool_use id=broken name=_bash]\n{"command":"echo not-executed"}\n[/tool_use]';
 		const mock = createMockModel({
-			responses: [
-				{ content: [leakContent] },
-				{ content: [leakContent] },
-				{ content: [leakContent] },
-			],
+			responses: [{ content: [leakContent] }, { content: [leakContent] }, { content: [leakContent] }],
 		});
 
 		const context: AgentContext = {
@@ -411,7 +406,9 @@ describe("Issue #9: Protocol anomaly validation and protocol leak handling", () 
 		// Must NOT end with normal "stop"; must exit with explicit error!
 		const lastMessage = messages.at(-1) as AssistantMessage;
 		expect(lastMessage.stopReason).toBe("error");
-		expect(lastMessage.errorMessage).toContain("Protocol error: model repeatedly emitted unexecuted tool-call markup");
+		expect(lastMessage.errorMessage).toContain(
+			"Protocol error: model repeatedly emitted unexecuted tool-call markup",
+		);
 		expect(lastMessage.errorDiagnostic).toBeDefined();
 		expect(lastMessage.errorDiagnostic?.normalizedKind).toBe("protocol-leak");
 		expect(lastMessage.errorDiagnostic?.protocolAnomaly?.unexecuted).toBe(true);
@@ -458,7 +455,8 @@ describe("Issue #9: Protocol anomaly validation and protocol leak handling", () 
 			mock.stream,
 		);
 
-		for await (const _ of stream) {}
+		for await (const _ of stream) {
+		}
 		const messages = await stream.result();
 
 		// Zero executions
@@ -489,7 +487,7 @@ describe("Issue #9: Protocol anomaly validation and protocol leak handling", () 
 			responses: [
 				{
 					content: [
-						"Here is a plaintext leak:\n[tool_use id=broken name=_bash]\n{\"command\":\"echo not-executed\"}\n[/tool_use]",
+						'Here is a plaintext leak:\n[tool_use id=broken name=_bash]\n{"command":"echo not-executed"}\n[/tool_use]',
 						{
 							type: "toolCall",
 							id: "call_valid_mixed",
@@ -521,16 +519,171 @@ describe("Issue #9: Protocol anomaly validation and protocol leak handling", () 
 			mock.stream,
 		);
 
-		for await (const _ of stream) {}
+		for await (const _ of stream) {
+		}
 		const messages = await stream.result();
 
 		// Valid tool was executed exactly once
 		expect(executed).toBe(1);
 
 		// Assistant message has unexecuted protocol anomaly recorded
-		const assistantMsg = messages.find(m => m.role === "assistant" && (m as AssistantMessage).errorDiagnostic?.protocolAnomaly) as AssistantMessage;
+		const assistantMsg = messages.find(
+			m => m.role === "assistant" && (m as AssistantMessage).errorDiagnostic?.protocolAnomaly,
+		) as AssistantMessage;
 		expect(assistantMsg).toBeDefined();
 		expect(assistantMsg.errorDiagnostic?.protocolAnomaly?.kind).toBe("unexecuted_protocol_leak");
 		expect(assistantMsg.errorDiagnostic?.protocolAnomaly?.unexecuted).toBe(true);
+	});
+	it("bounds mixed valid tool calls and plaintext leak across repeated turns with bounded executions and explicit error", async () => {
+		let executed = 0;
+		const bashSchema = type({ "command?": "string" });
+		const bashTool: AgentTool<typeof bashSchema> = {
+			name: "bash",
+			label: "Bash",
+			description: "Run bash",
+			parameters: bashSchema,
+			execute: async () => {
+				executed++;
+				return { content: [{ type: "text", text: `executed count ${executed}` }] };
+			},
+		};
+
+		// 4 consecutive turns of mixed valid tool + plaintext leak markup
+		const mock = createMockModel({
+			responses: [
+				{
+					content: [
+						'Leaked markup:\n[tool_use id=bad1 name=_bash]\n{"command":"echo 1"}\n[/tool_use]',
+						{ type: "toolCall", id: "valid_1", name: "bash", arguments: { command: "echo legit1" } },
+					],
+				},
+				{
+					content: [
+						'Leaked markup again:\n[tool_use id=bad2 name=_bash]\n{"command":"echo 2"}\n[/tool_use]',
+						{ type: "toolCall", id: "valid_2", name: "bash", arguments: { command: "echo legit2" } },
+					],
+				},
+				{
+					content: [
+						'Leaked markup third time:\n[tool_use id=bad3 name=_bash]\n{"command":"echo 3"}\n[/tool_use]',
+						{ type: "toolCall", id: "valid_3", name: "bash", arguments: { command: "echo legit3" } },
+					],
+				},
+				{
+					content: [
+						"Should not be reached because cap was exceeded on turn 3.",
+						{ type: "toolCall", id: "valid_4", name: "bash", arguments: { command: "echo legit4" } },
+					],
+				},
+			],
+		});
+
+		const context: AgentContext = {
+			systemPrompt: [],
+			messages: [],
+			tools: [bashTool],
+		};
+
+		const stream = agentLoop(
+			[{ role: "user", content: "test mixed loop", timestamp: Date.now() }],
+			context,
+			{
+				model: mock.model,
+				convertToLlm: identityConverter,
+			},
+			undefined,
+			mock.stream,
+		);
+
+		for await (const _ of stream) {
+		}
+		const messages = await stream.result();
+
+		// Bounded execution: exactly 3 valid tool executions ran (one per turn up to MAX_PROTOCOL_LEAK_NUDGES)
+		expect(executed).toBe(3);
+
+		// Loop must have stopped with an explicit terminal error
+		const lastMessage = messages.at(-1) as AssistantMessage;
+		expect(lastMessage.stopReason).toBe("error");
+		expect(lastMessage.errorMessage).toContain(
+			"Protocol error: model repeatedly emitted unexecuted tool-call markup as plain text",
+		);
+		expect(lastMessage.errorDiagnostic?.normalizedKind).toBe("protocol-leak");
+		expect(lastMessage.errorDiagnostic?.protocolAnomaly?.unexecuted).toBe(true);
+		expect(lastMessage.errorDiagnostic?.retryable).toBe(false);
+	});
+
+	it("resets protocol leak nudge counter when a clean turn occurs", async () => {
+		let executed = 0;
+		const bashSchema = type({ "command?": "string" });
+		const bashTool: AgentTool<typeof bashSchema> = {
+			name: "bash",
+			label: "Bash",
+			description: "Run bash",
+			parameters: bashSchema,
+			execute: async () => {
+				executed++;
+				return { content: [{ type: "text", text: `ok ${executed}` }] };
+			},
+		};
+
+		// Turn 1: mixed valid + leak
+		// Turn 2: clean valid tool call without text leak (resets leak counter)
+		// Turn 3: mixed valid + leak (gets fresh nudge rather than hitting cap)
+		// Turn 4: clean stop
+		const mock = createMockModel({
+			responses: [
+				{
+					content: [
+						'Leaked markup:\n[tool_use id=bad1 name=_bash]\n{"command":"echo 1"}\n[/tool_use]',
+						{ type: "toolCall", id: "valid_1", name: "bash", arguments: { command: "echo 1" } },
+					],
+				},
+				{
+					content: [
+						"Clean assistant turn without any leaks.",
+						{ type: "toolCall", id: "valid_2", name: "bash", arguments: { command: "echo 2" } },
+					],
+				},
+				{
+					content: [
+						'Leaked markup again:\n[tool_use id=bad3 name=_bash]\n{"command":"echo 3"}\n[/tool_use]',
+						{ type: "toolCall", id: "valid_3", name: "bash", arguments: { command: "echo 3" } },
+					],
+				},
+				{
+					content: ["Completed cleanly."],
+				},
+			],
+		});
+
+		const context: AgentContext = {
+			systemPrompt: [],
+			messages: [],
+			tools: [bashTool],
+		};
+
+		const stream = agentLoop(
+			[{ role: "user", content: "test clean reset", timestamp: Date.now() }],
+			context,
+			{
+				model: mock.model,
+				convertToLlm: identityConverter,
+			},
+			undefined,
+			mock.stream,
+		);
+
+		for await (const _ of stream) {
+		}
+		const messages = await stream.result();
+
+		// All 3 valid tool calls executed
+		expect(executed).toBe(3);
+
+		// Loop completed cleanly with stop reason "stop"
+		const lastMessage = messages.at(-1) as AssistantMessage;
+		expect(lastMessage.stopReason).toBe("stop");
+		expect(lastMessage.errorMessage).toBeUndefined();
 	});
 });

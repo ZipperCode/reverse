@@ -560,13 +560,24 @@ def handle_repack(params: dict) -> dict:
     if "dex_path" in params and "classes.dex" not in dex_files:
         dex_files["classes.dex"] = params["dex_path"]
 
+    def normalize_entry_name(name: str) -> str:
+        clean = name.strip().replace("\\", "/").lstrip("/")
+        if not clean:
+            raise ValueError(f"Entry name cannot be empty: {name!r}")
+        parts = clean.split("/")
+        if any(p in ("", ".", "..") for p in parts):
+            raise ValueError(f"Invalid path traversal or empty segment in entry name: {name!r}")
+        return clean
+
     replacements = {}
     for entry_name, file_on_disk in dex_files.items():
         if not isinstance(entry_name, str) or not entry_name.strip():
             raise ValueError("dex_files keys must be non-empty entry name strings")
         if not isinstance(file_on_disk, str) or not file_on_disk.strip():
             raise ValueError(f"dex_files value for '{entry_name}' must be a non-empty file path string")
-        entry_clean = entry_name.strip()
+        entry_clean = normalize_entry_name(entry_name)
+        if entry_clean in replacements:
+            raise ValueError(f"Duplicate entry '{entry_clean}' declared in dex_files")
         disk_abs = os.path.abspath(file_on_disk)
         if not os.path.isfile(disk_abs):
             raise FileNotFoundError(f"Replacement DEX file not found: {disk_abs} (for {entry_clean})")
@@ -576,6 +587,24 @@ def handle_repack(params: dict) -> dict:
             raise ValueError(f"File {disk_abs} is not a valid DEX file (missing DEX magic header)")
         replacements[entry_clean] = data
 
+    replace_files = params.get("replace_files") or {}
+    if not isinstance(replace_files, dict):
+        raise ValueError("replace_files must be a dictionary mapping entry names to file paths")
+
+    for entry_name, file_on_disk in replace_files.items():
+        if not isinstance(entry_name, str) or not entry_name.strip():
+            raise ValueError("replace_files keys must be non-empty entry name strings")
+        if not isinstance(file_on_disk, str) or not file_on_disk.strip():
+            raise ValueError(f"replace_files value for '{entry_name}' must be a non-empty file path string")
+        entry_clean = normalize_entry_name(entry_name)
+        if entry_clean in replacements:
+            raise ValueError(f"Overlapping replacement entry '{entry_clean}' declared in both dex_files and replace_files")
+        disk_abs = os.path.abspath(file_on_disk)
+        if not os.path.isfile(disk_abs):
+            raise FileNotFoundError(f"Replacement file not found: {disk_abs} (for {entry_clean})")
+        with open(disk_abs, "rb") as df:
+            data = df.read()
+        replacements[entry_clean] = data
     strip_signatures = bool(params.get("strip_signatures", True))
 
     plan = []

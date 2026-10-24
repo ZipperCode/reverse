@@ -11,6 +11,7 @@ import {
 	R2InspectTool,
 	type R2InspectAction,
 	type R2InspectDetails,
+	type R2InspectParams,
 	type R2RunResult,
 	type R2Runner,
 	type ToolSession,
@@ -269,6 +270,39 @@ describe("r2_inspect input validation", () => {
 			await expect(
 				tool.execute("call", { action: "disasm", path: target, symbol: "main", address: "0x401000" }),
 			).rejects.toThrow(/not both/);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("rejects unknown target selector aliases such as function, func, or fn", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "r2-unknown-key-"));
+		try {
+			const target = await writeTarget(tempDir);
+			const tool = new R2InspectTool(createTestSession(tempDir), { which: foundWhich });
+			await expect(
+				tool.execute("call", {
+					action: "disasm",
+					path: target,
+					function: "JNI_OnLoad",
+				} as unknown as R2InspectParams),
+			).rejects.toThrow(/Unknown parameter "function"/);
+			await expect(
+				tool.execute("call", { action: "disasm", path: target, func: "JNI_OnLoad" } as unknown as R2InspectParams),
+			).rejects.toThrow(/Unknown parameter "func"/);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("rejects conflicting symbol and target selectors", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "r2-conflict-"));
+		try {
+			const target = await writeTarget(tempDir);
+			const tool = new R2InspectTool(createTestSession(tempDir), { which: foundWhich });
+			await expect(
+				tool.execute("call", { action: "disasm", path: target, symbol: "funcA", target: "funcB" }),
+			).rejects.toThrow(/Conflicting selectors/);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -602,6 +636,70 @@ describe("r2_inspect mode folding and decompilation", () => {
 			expect(detailsOf(result).status).toBe("error");
 			expect(detailsOf(result).error).toContain("r2pm -ci r2dec");
 			expect(textOf(result)).toContain("action=disasm");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});
+
+describe("r2_inspect selector echoing and verification", () => {
+	it("echoes resolved target and explicit referenceDefaulted flag", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "r2-echo-"));
+		try {
+			const target = await writeTarget(tempDir);
+			const { runner, calls } = fakeRunner(() => JSON.stringify([{ offset: 4198400, disasm: "nop" }]));
+			const tool = new R2InspectTool(createTestSession(tempDir), { which: foundWhich, runner });
+
+			// 1. Without selector -> defaults to entry0
+			const defaultRes = await tool.execute("call-1", { action: "disasm", path: target });
+			expect(calls[0]?.args).toContain("pdj 100 @ entry0");
+			expect(detailsOf(defaultRes).reference).toBe("entry0");
+			expect(detailsOf(defaultRes).target).toBe("entry0");
+			expect(detailsOf(defaultRes).referenceDefaulted).toBe(true);
+			expect(detailsOf(defaultRes).resolvedAddress).toBe("0x401000");
+			expect(textOf(defaultRes)).toContain("@ entry0 (default) (0x401000)");
+
+			// 2. With canonical symbol -> echoes symbol without defaulted flag
+			const symbolRes = await tool.execute("call-2", { action: "disasm", path: target, symbol: "JNI_OnLoad" });
+			expect(calls[1]?.args).toContain("pdj 100 @ JNI_OnLoad");
+			expect(detailsOf(symbolRes).reference).toBe("JNI_OnLoad");
+			expect(detailsOf(symbolRes).target).toBe("JNI_OnLoad");
+			expect(detailsOf(symbolRes).referenceDefaulted).toBe(false);
+			expect(detailsOf(symbolRes).resolvedAddress).toBe("0x401000");
+			expect(textOf(symbolRes)).toContain("@ JNI_OnLoad (0x401000)");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("detects backend selector mismatch and fails with error when requested symbol is missing", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "r2-mismatch-"));
+		try {
+			const target = await writeTarget(tempDir);
+			const { runner } = fakeRunner(() => "[]", { stderr: "Cannot find address for flag 'missing_sym'" });
+			const tool = new R2InspectTool(createTestSession(tempDir), { which: foundWhich, runner });
+
+			const result = await tool.execute("call", { action: "disasm", path: target, symbol: "missing_sym" });
+			expect(detailsOf(result).status).toBe("error");
+			expect(detailsOf(result).error).toContain("Cannot find address for flag");
+			expect(textOf(result)).toContain("failed to resolve target selector");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("detects address selector mismatch via BigInt comparison", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "r2-addr-mismatch-"));
+		try {
+			const target = await writeTarget(tempDir);
+			// Runner returns disassembly at 0x401000, but caller requested 0x402000
+			const { runner } = fakeRunner(() => JSON.stringify([{ offset: 4198400, disasm: "nop" }]));
+			const tool = new R2InspectTool(createTestSession(tempDir), { which: foundWhich, runner });
+
+			const result = await tool.execute("call", { action: "disasm", path: target, address: "0x402000" });
+			expect(detailsOf(result).status).toBe("error");
+			expect(detailsOf(result).error).toContain("Target address mismatch");
+			expect(textOf(result)).toContain("failed to resolve target selector");
 		} finally {
 			await removeWithRetries(tempDir);
 		}

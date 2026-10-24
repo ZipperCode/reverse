@@ -11,14 +11,19 @@ Actions:
   - Produces executive summaries in `.reverse/reports/workflow_report.md` and `findings_report.md`.
 - `status`: Inspect local `.reverse/` workspace integrity, validate `manifest.json`, check standard directory layout, and report file counts.
 - `manifest`: Read and parse the workspace `manifest.json` file.
-- `clean`: Safely clean dump or temporary files from `.reverse/dumps/` while preserving reports, evidence, and manifests.
-
+- `clean`: Safely clean experimental artifacts or dump files while strictly preserving verified baselines, originals, evidence, rollback archives, and user scripts.
+  - Classifies artifacts: protected (`baseline`, `original`, `evidence`, `rollback`, `userfile`) vs disposable (`experiment`).
+  - Refuses deletion of protected artifacts without explicit confirmation decision; preserves minimal reproducibility manifest.
+  - Verifies deletion postconditions and reports locked or in-use files honestly.
+  - Supports `experimental_targets` to clean specific named experimental attempts only.
 Security & Integrity:
 - Target binaries are accessed strictly read-only and preserved by reference.
 - Atomic writes: files are written to temporary paths and atomically replaced.
 - Secret redaction: tokens, passwords, and API keys are scrubbed before writing reports.
 - Clutter prevention: raw huge binaries (> 1 MiB) are never duplicated into the workspace.
-
+- Artifact lifecycle protection: baseline builds, verified evidence, rollback patches, and user scripts are protected by default from automated deletion.
+- Postcondition verification: deletion is verified on disk; locked files or permission failures are reported honestly rather than assumed deleted.
+- Minimal reproducibility preservation: core artifact references and hashes are recorded in manifest reproducibility metadata.
 <examples>
 ```
 // 1. Export workflow to default .reverse/ workspace

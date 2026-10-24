@@ -13,37 +13,92 @@ APK entry-level diff, DEX replacement, aligned repacking, signing, verification,
 | Action | Required inputs | Dependencies / result |
 | --- | --- | --- |
 | `diff` | `original_path` (or `path`), `modified_path` | Python 3.9+; SHA-256 entry comparison, content/compression/layout differences, additions/removals |
-| `repack` | `path`, fresh `output_path` | Python 3.9+; optional `dex_files` map or `dex_path`; explicitly unsigned unless `sign: true` |
+| `repack` | `path`, fresh `output_path` | Python 3.9+; optional `dex_files` map, `replace_files` map, or `dex_path`; explicitly unsigned unless `sign: true` |
 | `sign` | `path`, fresh `output_path`, `keystore_path`, `key_alias`, password reference | Python, zipalign, apksigner, Java; alignment before signing, then cryptographic verification |
 | `verify` | `path` | Python for ZIP/CRC/layout checks; apksigner and Java for cryptographic APK verification |
 | `install_verify` | `path`, `package` (or `package_name`), `activity`, explicit `serial` | Python and adb, authorized device; exact installed APK hash and two-sample launch stability |
 
 Use `reverse_capability({ action: "resolve", capability: "apk_artifact_generation" })` for separate offline, signing, and device-host readiness. Catalog readiness does not establish that a device is connected. Missing dependencies use the existing CLI/TUI setup catalog (`reverse setup reverse python`, `zipalign`, `apksigner`, `java`, `adb`). No dependency is installed implicitly.
 
+## Inputs
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `action` | `string` | Yes | Action: `"diff"`, `"repack"`, `"sign"`, `"verify"`, `"install_verify"`. |
+| `path` | `string` | No* | Input target APK file path (alias `original_path`). |
+| `original_path` | `string` | No | Alias for `path` in `diff`. |
+| `modified_path` | `string` | No | Path to modified APK file in `diff`. |
+| `output_path` | `string` | No* | Fresh destination path for repacked or signed APK artifact. |
+| `dex_files` | `Record<string, string>` | No | Mapping of DEX entry names to replacement DEX files on disk (e.g. `{"classes.dex": "patched.dex"}`). |
+| `dex_path` | `string` | No | Shorthand local path to replace `"classes.dex"`. |
+| `replace_files` | `Record<string, string>` | No | Map of arbitrary APK entry names (e.g. `lib/arm64-v8a/libnative.so`, assets) to replacement file paths on disk for multi-component repacks or deterministic replays. Overlapping entries with `dex_files` are strictly rejected. |
+| `strip_signatures` | `boolean` | No | Strip direct signature files under `META-INF` (default `true`). |
+| `page_align_so` | `boolean` | No | Align stored native shared libraries to 16 KiB (default `true`). |
+| `sign` | `boolean` | No | Sign artifact immediately during repack (default `false`). |
+| `keystore_path` | `string` | No | Path to Java keystore (`.jks` / `.keystore`) for signing. |
+| `key_alias` | `string` | No | Key alias within the keystore. |
+| `ks_pass_env` | `string` | No | Environment variable holding the keystore password. |
+| `ks_pass_file` | `string` | No | Protected file path holding the keystore password. |
+| `min_sdk_version` | `number` | No | Minimum SDK version for alignment and signing (default 21). |
+| `package` | `string` | No | Android package name for `install_verify` (alias `package_name`). |
+| `activity` | `string` | No | Activity name to launch for `install_verify` (e.g. `".MainActivity"`). |
+| `serial` | `string` | No | Explicit device serial identifier for `install_verify`. |
+
 ## Repack, compare, sign
 
 ```typescript
+// 1. Repack with both DEX and native .so file replacements
 apk_artifact({
-  action: "repack", path: "original.apk",
+  action: "repack",
+  path: "original.apk",
   output_path: "artifacts/unsigned.apk",
-  dex_files: { "classes.dex": "artifacts/patched.dex" }
+  dex_files: { "classes.dex": "artifacts/patched.dex" },
+  replace_files: { "lib/arm64-v8a/libnative.so": "artifacts/libnative_patched.so" }
 });
+
+// 2. Diff entry differences
 apk_artifact({
-  action: "diff", original_path: "original.apk",
+  action: "diff",
+  original_path: "original.apk",
   modified_path: "artifacts/unsigned.apk"
 });
+
+// 3. Align and sign
 apk_artifact({
-  action: "sign", path: "artifacts/unsigned.apk",
+  action: "sign",
+  path: "artifacts/unsigned.apk",
   output_path: "artifacts/signed.apk",
-  keystore_path: "keys/lab.jks", key_alias: "lab",
-  ks_pass_env: "LAB_KEYSTORE_PASSWORD", min_sdk_version: 21
+  keystore_path: "keys/lab.jks",
+  key_alias: "lab",
+  ks_pass_env: "LAB_KEYSTORE_PASSWORD",
+  min_sdk_version: 21
 });
-apk_artifact({ action: "verify", path: "artifacts/signed.apk", min_sdk_version: 21 });
+
+// 4. Verify cryptographic signature and alignment
+apk_artifact({
+  action: "verify",
+  path: "artifacts/signed.apk",
+  min_sdk_version: 21
+});
 ```
 
 `repack` can also request `sign: true` with the same signing parameters; the final requested path is published only after signing and verification succeed. It strips direct signature metadata under `META-INF` by default and preserves nested services and other runtime resources. `resources.arsc` is STORED and 4-byte aligned; stored native libraries are 16KiB page-aligned by default. This controls APK packaging, not the library's internal ELF segment alignment.
 
-`dex_files` maps entry names to local DEX paths; new entries can also be supplied. Replacements are not a full DEX rebuild or ART verification. Use `dex_patch` for method-level inspection and guarded edits.
+`dex_files` maps entry names to local DEX paths; `replace_files` maps arbitrary entry names (such as native `.so` binaries or asset files) to local replacement files. Replacements are not a full DEX rebuild or ART verification. Use `dex_patch` for method-level inspection and guarded edits. Duplicate replacement definitions overlapping between `dex_files` and `replace_files` are strictly rejected.
+
+## Cumulative Lineage & Staged Publication Rollback
+
+1. **Cumulative Baseline Patchset Preservation (A + B Replay)**:
+   - When repacking from a clean original base or earlier derivative, `apk_artifact` consults active workflow lineage.
+   - All previously verified active baseline patches must be preserved (deterministic replay A + B) or explicitly retired with an audit trail via `retire_patch` or `retired_patches` carrying a mandatory `retirement_reason`.
+   - The tool inspects container member bytes directly prior to publication; dropping verified baseline patches causes immediate rejection, and staged output is discarded without publication.
+
+2. **Private Staging & Exclusive Publication**:
+   - Repacked and signed artifacts are assembled in private staging files on the destination filesystem (`.tmp-stage-...`).
+   - Publication uses atomic hard linking or exclusive copy (`COPYFILE_EXCL`), ensuring incomplete builds never appear at destination paths.
+
+3. **Ownership Rollback**:
+   - If subsequent workflow derivative registration fails, the newly published output file is automatically unlinked and rolled back to maintain strict ownership and build lineage integrity.
 
 ## Signing credentials and verification
 
@@ -58,9 +113,12 @@ apk_artifact({ action: "verify", path: "artifacts/signed.apk", min_sdk_version: 
 
 ```typescript
 apk_artifact({
-  action: "install_verify", path: "artifacts/signed.apk",
-  package: "com.example.app", activity: ".MainActivity",
-  serial: "emulator-5554", output_dir: "artifacts/device-run"
+  action: "install_verify",
+  path: "artifacts/signed.apk",
+  package: "com.example.app",
+  activity: ".MainActivity",
+  serial: "emulator-5554",
+  output_dir: "artifacts/device-run"
 });
 ```
 
@@ -68,6 +126,7 @@ Use a fresh `output_dir` for screenshots and process-scoped logs; an explicit `s
 
 The installed base APK is pulled and hash-compared with the input artifact. A stable process and screenshot are installation/launch evidence only: `feature_verified` remains `false`. Exercise the exact changed feature separately and bind verified evidence to the artifact hash through existing workflow/build-lineage APIs.
 
-## Output safety
+## Execution and Verification Boundaries
 
-Original samples and existing output files are preserved. Repack/sign outputs use private staging on the destination filesystem and exclusive publication. Invalid archives, duplicate entries, encrypted data, and oversized decompressed content are rejected. Diff filtering (`filter`, a regex) limits displayed entries without hiding whether any differences exist; `max_entries` limits each displayed section.
+- **Python Subprocess Boundaries**: Arbitrary Python worker execution uses managed child process trees and numeric PID tracking to handle timeout and termination safely within agent session ownership. This process-level management is not a full OS-level sandbox or hardware container.
+- **Runtime Environment Verification**: True physical Android devices and hardware runtimes were not validated on host environments without device connections. Offline tool checks verify packaging and cryptographic signatures, while live device execution requires explicitly specified device serials.

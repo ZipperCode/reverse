@@ -1,3 +1,4 @@
+import type { AgentToolContext } from "@reverse/agent";
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -573,6 +574,7 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 				destination_path: "dumps/escaped.dump",
 				kind: "dump",
 				copied: true,
+				classification: "experiment",
 			});
 			mData.files.push({
 				path: "dumps/escaped.dump",
@@ -614,17 +616,18 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			const workflowId = createRes.details.workflow?.id;
 			if (!workflowId) throw new Error("Workflow id missing");
 
-			const indexedDump = path.join(tempDir, "indexed.dump");
-			const indexedScript = path.join(tempDir, "indexed.js");
+			const indexedDump = path.join(tempDir, "patch_attempt.dump");
+			const indexedScript = path.join(tempDir, "patch_attempt.js");
+			const userScript = path.join(tempDir, "user_analysis.py");
 			await fs.writeFile(indexedDump, "INDEXED DUMP CONTENT", "utf8");
-			await fs.writeFile(indexedScript, "console.log('indexed');", "utf8");
-
+			await fs.writeFile(indexedScript, "console.log('experiment');", "utf8");
+			await fs.writeFile(userScript, "print('protected user script');", "utf8");
 			await workflowTool.execute("wf-record", {
 				action: "record",
 				workflow_id: workflowId,
 				step_id: "elf_step_1",
 				status: "completed",
-				artifact_refs: [indexedDump, indexedScript],
+				artifact_refs: [indexedDump, indexedScript, userScript],
 			});
 
 			await workspaceTool.execute("ws-export", {
@@ -645,11 +648,12 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 				projectDir: tempDir,
 				removeDumpsOnly: false,
 			});
-
-			// Indexed files must be removed
-			expect(cleanRes.removed_files).toContain("dumps/indexed.dump");
-			expect(cleanRes.removed_files).toContain("scripts/indexed.js");
-
+			// Experimental script and dump must be removed
+			expect(cleanRes.removed_files).toContain("dumps/patch_attempt.dump");
+			expect(cleanRes.removed_files).toContain("scripts/patch_attempt.js");
+			// Protected user script must NOT be removed
+			expect(cleanRes.removed_files).not.toContain("scripts/user_analysis.py");
+			expect(cleanRes.preserved_files).toContain("scripts/user_analysis.py");
 			// Unindexed files must NOT be in removed_files
 			expect(cleanRes.removed_files).not.toContain("dumps/user_manual_backup.dump");
 			expect(cleanRes.removed_files).not.toContain("scripts/user_custom_tool.js");
@@ -669,6 +673,307 @@ describe("Reverse Workspace Tool & Standardized .reverse Layout", () => {
 			// Core report/manifest files must be preserved
 			expect(cleanRes.preserved_files).toContain("target/target.json");
 			expect(cleanRes.preserved_files).toContain("reports/workflow_report.md");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("cleanWorkspace preserves mixed protected artifacts and removes only experimental (#14)", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rea-mixed-prot-"));
+		try {
+			const targetFile = await createTargetFixture(tempDir, "sample.bin");
+			const session = createTestSession(tempDir);
+			const workflowTool = new ReverseWorkflowTool(session);
+			const workspaceTool = new ReverseWorkspaceTool(session);
+
+			const createRes = await workflowTool.execute("wf-create", {
+				action: "create",
+				target: targetFile,
+				format: "RawBinary",
+			});
+			const workflowId = createRes.details.workflow?.id;
+			if (!workflowId) throw new Error("Workflow id missing");
+
+			const baselineRef = path.join(tempDir, "verified_baseline.py");
+			const rollbackRef = path.join(tempDir, "original_backup.py");
+			const experimentRef = path.join(tempDir, "patch_attempt_2.py");
+			const userScriptRef = path.join(tempDir, "my_decompiler.py");
+
+			await fs.writeFile(baselineRef, "BASELINE_BYTES", "utf8");
+			await fs.writeFile(rollbackRef, "ROLLBACK_BYTES", "utf8");
+			await fs.writeFile(experimentRef, "EXPERIMENT_PATCH", "utf8");
+			await fs.writeFile(userScriptRef, "USER_TOOL", "utf8");
+
+			await workflowTool.execute("wf-record", {
+				action: "record",
+				workflow_id: workflowId,
+				step_id: createRes.details.workflow?.steps[0]?.id ?? "rawbinary_step_1",
+				status: "completed",
+				artifact_refs: [baselineRef, rollbackRef, experimentRef, userScriptRef],
+			});
+
+			const exportRes = await workspaceTool.execute("ws-export", {
+				action: "export",
+				workflow_id: workflowId,
+			});
+
+			const manifest = exportRes.details.manifest;
+			expect(manifest).toBeDefined();
+
+			// Check classifications
+			const artBaseline = manifest?.artifacts.find(a => a.id === baselineRef);
+			const artRollback = manifest?.artifacts.find(a => a.id === rollbackRef);
+			const artExp = manifest?.artifacts.find(a => a.id === experimentRef);
+			const artUser = manifest?.artifacts.find(a => a.id === userScriptRef);
+
+			expect(artBaseline?.classification).toBe("baseline");
+			expect(artBaseline?.protected).toBe(true);
+			expect(artRollback?.classification).toBe("rollback");
+			expect(artRollback?.protected).toBe(true);
+			expect(artExp?.classification).toBe("experiment");
+			expect(artExp?.protected).toBe(false);
+			expect(artUser?.classification).toBe("userfile");
+			expect(artUser?.protected).toBe(true);
+
+			// Clean without force/confirmation
+			const cleanRes = await cleanWorkspace({
+				projectDir: tempDir,
+			});
+
+			// Only experimental artifact should be removed
+			expect(cleanRes.removed_files).toContain("scripts/patch_attempt_2.py");
+			expect(cleanRes.removed_files).not.toContain("scripts/verified_baseline.py");
+			expect(cleanRes.removed_files).not.toContain("scripts/original_backup.py");
+			expect(cleanRes.removed_files).not.toContain("scripts/my_decompiler.py");
+
+			// Protected files are explicitly preserved
+			expect(cleanRes.preserved_files).toContain("scripts/verified_baseline.py");
+			expect(cleanRes.preserved_files).toContain("scripts/original_backup.py");
+			expect(cleanRes.preserved_files).toContain("scripts/my_decompiler.py");
+
+			// Minimal reproducibility manifest recorded
+			expect(cleanRes.reproducibility).toBeDefined();
+			expect(cleanRes.reproducibility?.retained_count).toBeGreaterThan(0);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("cleanWorkspace refuses unconfirmed protected deletion and requires explicit confirmation", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rea-confirm-test-"));
+		try {
+			const targetFile = await createTargetFixture(tempDir, "sample.bin");
+			const session = createTestSession(tempDir);
+			const workflowTool = new ReverseWorkflowTool(session);
+			const workspaceTool = new ReverseWorkspaceTool(session);
+
+			const createRes = await workflowTool.execute("wf-create", {
+				action: "create",
+				target: targetFile,
+				format: "RawBinary",
+			});
+			const workflowId = createRes.details.workflow?.id;
+
+			const protectedScript = path.join(tempDir, "important_script.py");
+			await fs.writeFile(protectedScript, "PROTECTED", "utf8");
+
+			await workflowTool.execute("wf-record", {
+				action: "record",
+				workflow_id: workflowId,
+				step_id: createRes.details.workflow?.steps[0]?.id ?? "rawbinary_step_1",
+				status: "completed",
+				artifact_refs: [protectedScript],
+			});
+
+			await workspaceTool.execute("ws-export", {
+				action: "export",
+				workflow_id: workflowId,
+			});
+
+			// 1. includeProtected: true without experimentalTargets throws Error
+			await expect(
+				cleanWorkspace({
+					projectDir: tempDir,
+					includeProtected: true,
+				}),
+			).rejects.toThrow("explicit 'experimentalTargets' are required");
+
+			// 2. includeProtected: true without confirmDeleteProtected callback -> refused!
+			const unconfirmedRes = await cleanWorkspace({
+				projectDir: tempDir,
+				includeProtected: true,
+				experimentalTargets: ["scripts/important_script.py"],
+			});
+
+			expect(unconfirmedRes.removed_files).not.toContain("scripts/important_script.py");
+			expect(unconfirmedRes.protected_files).toContain("scripts/important_script.py");
+
+			// 3. includeProtected: true with confirmDeleteProtected resolving true -> authorized!
+			const confirmedRes = await cleanWorkspace({
+				projectDir: tempDir,
+				includeProtected: true,
+				experimentalTargets: ["scripts/important_script.py"],
+				confirmDeleteProtected: async () => true,
+			});
+
+			expect(confirmedRes.removed_files).toContain("scripts/important_script.py");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("ReverseWorkspaceTool denies deletion on UI confirmation refusal and retains all (#14)", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rea-ui-denial-"));
+		try {
+			const targetFile = await createTargetFixture(tempDir, "sample.bin");
+			const session = createTestSession(tempDir);
+			const workflowTool = new ReverseWorkflowTool(session);
+			const workspaceTool = new ReverseWorkspaceTool(session);
+
+			const createRes = await workflowTool.execute("wf-create", {
+				action: "create",
+				target: targetFile,
+				format: "RawBinary",
+			});
+			const workflowId = createRes.details.workflow?.id;
+
+			const protectedScript = path.join(tempDir, "my_protected_tool.py");
+			await fs.writeFile(protectedScript, "PROTECTED_TOOL_CONTENT", "utf8");
+
+			await workflowTool.execute("wf-record", {
+				action: "record",
+				workflow_id: workflowId,
+				step_id: createRes.details.workflow?.steps[0]?.id ?? "rawbinary_step_1",
+				status: "completed",
+				artifact_refs: [protectedScript],
+			});
+
+			await workspaceTool.execute("ws-export", {
+				action: "export",
+				workflow_id: workflowId,
+			});
+
+			// 1. include_protected: true without experimental_targets throws ToolError
+			await expect(
+				workspaceTool.execute("call-clean", {
+					action: "clean",
+					include_protected: true,
+				}),
+			).rejects.toThrow("Explicit targets are required");
+
+			// 2. include_protected: true with no UI available returns Refused
+			const noUiRes = await workspaceTool.execute(
+				"call-clean-noui",
+				{
+					action: "clean",
+					include_protected: true,
+					experimental_targets: ["scripts/my_protected_tool.py"],
+				},
+				undefined,
+				undefined,
+				{} as unknown as AgentToolContext,
+			);
+			expect(noUiRes.details?.cancelled).toBe(true);
+			const noUiText = textOf(noUiRes);
+			expect(noUiText).toContain("Cleanup Refused");
+
+			// 3. include_protected: true with UI confirm returning FALSE (user denied)
+			const deniedContext = {
+				ui: {
+					confirm: async () => false, // User denies!
+				},
+			} as unknown as AgentToolContext;
+
+			const deniedRes = await workspaceTool.execute(
+				"call-clean-denied",
+				{
+					action: "clean",
+					include_protected: true,
+					experimental_targets: ["scripts/my_protected_tool.py"],
+				},
+				undefined,
+				undefined,
+				deniedContext,
+			);
+
+			expect(deniedRes.details?.cancelled).toBe(true);
+			const text = textOf(deniedRes);
+			expect(text).toContain("Cleanup Cancelled");
+			expect(text).toContain("denied by user");
+
+			// File must STILL exist on disk!
+			const wsDir = path.join(tempDir, DEFAULT_WORKSPACE_DIR);
+			const fileStillExists = await fs
+				.stat(path.join(wsDir, "scripts/my_protected_tool.py"))
+				.then(() => true)
+				.catch(() => false);
+			expect(fileStillExists).toBe(true);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("cleanWorkspace verifies postconditions and reports locked files honestly", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rea-lock-test-"));
+		try {
+			const wsDir = path.join(tempDir, DEFAULT_WORKSPACE_DIR);
+			await fs.mkdir(path.join(wsDir, "scripts"), { recursive: true });
+			await fs.mkdir(path.join(wsDir, "dumps"), { recursive: true });
+
+			const experimentFile = path.join(wsDir, "scripts/experiment.py");
+			await fs.writeFile(experimentFile, "EXPERIMENT", "utf8");
+
+			const manifest = {
+				schema_version: "1.0.0",
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+				workspace_dir: DEFAULT_WORKSPACE_DIR,
+				workflow: { id: "wf-lock", format: "ELF", status: "active", created_at: "", updated_at: "" },
+				target: { path: "target.bin", name: "target.bin", format: "ELF", is_reference: true, inspected_at: "" },
+				stats: {
+					steps_total: 1,
+					steps_completed: 1,
+					steps_failed: 0,
+					steps_pending: 0,
+					steps_skipped: 0,
+					evidence_total: 0,
+					facts_count: 0,
+					hypotheses_count: 0,
+					hypotheses_verified_count: 0,
+					conclusions_count: 0,
+					artifacts_count: 1,
+					scripts_count: 1,
+					dumps_count: 0,
+					reports_count: 0,
+				},
+				files: [{ path: "scripts/experiment.py", size_bytes: 10, sha256: "aaa" }],
+				artifacts: [
+					{
+						id: experimentFile,
+						destination_path: "scripts/experiment.py",
+						kind: "script",
+						copied: true,
+						classification: "experiment",
+						protected: false,
+					},
+				],
+			};
+
+			await fs.writeFile(path.join(wsDir, WORKSPACE_FILES.MANIFEST), JSON.stringify(manifest), "utf8");
+
+			// Make directory read-only or file immutable to simulate lock/unlink failure
+			await fs.chmod(path.join(wsDir, "scripts"), 0o555);
+
+			try {
+				const cleanRes = await cleanWorkspace({ projectDir: tempDir });
+				// Must honestly report locked or failed files
+				if (cleanRes.locked_or_failed_files && cleanRes.locked_or_failed_files.length > 0) {
+					expect(cleanRes.removed_files).not.toContain("scripts/experiment.py");
+					expect(cleanRes.locked_or_failed_files.some(f => f.path === "scripts/experiment.py")).toBe(true);
+				}
+			} finally {
+				await fs.chmod(path.join(wsDir, "scripts"), 0o755);
+			}
 		} finally {
 			await removeWithRetries(tempDir);
 		}

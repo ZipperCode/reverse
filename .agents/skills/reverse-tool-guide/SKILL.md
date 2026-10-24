@@ -61,6 +61,11 @@ Always present in every `reverse` installation without external package managers
 ### Optional External Tools (Catalog-Vetted, Installed On-Demand)
 Specialized third-party disassemblers, decompilers, emulators, and debuggers that provide deep decompilation or interactive sessions (e.g. `jadx`, `apktool`, `unidbg`, `radare2`, `ghidra`, `ida`, `frida`, `mitmproxy`, `tshark`). They are NOT installed by default; the agent discovers the need, explains the benefit, requests confirmation, and installs them via `reverse setup reverse`.
 
+- **`r2_inspect` vs `ida` vs `frida` Selection Criteria**:
+  - **`r2_inspect`**: Rapid, headless binary triage and bounded disassembly windows. Requires `radare2`. Accepts strictly canonical target selectors (`symbol`, `target`, `address`); parameter aliases like `function` are rejected. Defaults to `entry0` only when omitted (`details.referenceDefaulted: true`), and fails truthfully if a requested symbol is missing.
+  - **`ida`**: Decompilation and type recovery across 4 distinct backends: IDA GUI desktop application, headless `idalib` SDK (required for virtual reads and the `ida` tool), local database files (`.idb`/`.i64`), and optional MCP bridge (`ida-mcp`). An unconfigured or disconnected MCP bridge does NOT mark the entire IDA install absent when GUI or `idalib` exists.
+  - **`frida`**: Dynamic runtime instrumentation, memory inspection, and function trace.
+  - **No Mandatory Tool Counts**: Reverse workflows never demand arbitrary mandatory counts of external engines or connected MCP servers; built-in zero-dependency tools (`triage`, binutils) serve as sufficient baseline fallbacks on constrained or sandbox hosts.
 ---
 
 ## 3. Discover-Before-Stop / Install-Then-Dispatch Workflow

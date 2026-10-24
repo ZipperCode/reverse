@@ -3,12 +3,23 @@ import * as path from "node:path";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import type { ReverseKnowledgeStore } from "../reverse-knowledge/store";
 import type { EvidenceStore } from "../evidence/store";
+import type { EvidenceRecord } from "../evidence/contracts";
+import { evaluateEvidenceSupport } from "../evidence/validity";
+import {
+	cascadeEvidenceRefutation,
+	getWorkflowAcceptanceCriteria,
+	evaluateAcceptanceSatisfaction,
+	validateDeploymentConstraints,
+	updateAcceptanceCriterion,
+} from "./acceptance";
 import { isDynamicLocator } from "../reverse-runtime-session/dynamic-events";
 import {
 	type ReverseWorkflowRecord,
 	type WorkflowStepRecord,
 	type ProgressionAuditEntry,
 	type ProgressionStatus,
+	type TargetDeviceConstraints,
+	type WorkflowDependencyRecord,
 	validateEvidenceIdFormat,
 	validateKnowledgeIdFormat,
 } from "./contracts";
@@ -147,6 +158,9 @@ export async function advanceWorkflow(
 	const auditEntries: ProgressionAuditEntry[] = [];
 	const evaluatedSteps: WorkflowStepRecord[] = [];
 	const allKnowledgeRefs = new Set<string>(workflow.knowledge_refs ?? []);
+	if (context.evidenceStore) {
+		await cascadeEvidenceRefutation(workflow, context.evidenceStore).catch(() => undefined);
+	}
 
 	// 1. Guardrail: Validate target ambiguity and accessibility
 	const targetPath = workflow.target_abs_path ?? path.resolve(context.repositoryRoot, workflow.target);
@@ -160,7 +174,7 @@ export async function advanceWorkflow(
 		targetAccessible = false;
 	}
 
-	if (!targetAccessible) {
+	if (!targetAccessible && !options.step_id) {
 		const decision = "stopped_ambiguous_target";
 		const reason = `Target '${workflow.target}' cannot be accessed or resolved on disk at '${targetPath}'. Auto progression halted.`;
 		const audit: ProgressionAuditEntry = {
@@ -188,7 +202,7 @@ export async function advanceWorkflow(
 		};
 	}
 
-	if (workflow.format === "unknown") {
+	if (workflow.format === "unknown" && !options.step_id) {
 		const decision = "stopped_ambiguous_target";
 		const reason = `Target format is unknown or ambiguous; requires manual triage before auto progression can proceed safely.`;
 		const audit: ProgressionAuditEntry = {
@@ -281,6 +295,7 @@ export async function advanceWorkflow(
 		}
 
 		// Validate evidence links if provided
+		const fetchedEvidenceRecords: EvidenceRecord[] = [];
 		if (options.evidence_ids && options.evidence_ids.length > 0 && context.evidenceStore) {
 			for (const evId of options.evidence_ids) {
 				if (!validateEvidenceIdFormat(evId)) {
@@ -290,8 +305,154 @@ export async function advanceWorkflow(
 				if (!exists) {
 					throw new ToolError(`Evidence ID '${evId}' not found in project evidence ledger.`);
 				}
+				fetchedEvidenceRecords.push(exists);
 			}
+
+			// Validate evidence support integrity
+			const evalResult = await evaluateEvidenceSupport(context.evidenceStore, options.evidence_ids);
+			if (evalResult.refutedIds.length > 0) {
+				throw new ToolError(
+					`Cannot advance step '${step.id}': supporting evidence has been refuted: ${evalResult.refutedIds.join(", ")}`,
+				);
+			}
+			if (evalResult.staleIds.length > 0) {
+				throw new ToolError(
+					`Cannot advance step '${step.id}': supporting evidence is stale or invalidated: ${evalResult.staleIds.join(", ")}`,
+				);
+			}
+			if (evalResult.failedStageIds.length > 0) {
+				throw new ToolError(
+					`Cannot advance step '${step.id}': supporting evidence contains failed execution stages: ${evalResult.failedStageIds.join(", ")}`,
+				);
+			}
+
 			step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...options.evidence_ids]));
+		}
+
+		// If completing the step, enforce Acceptance Criteria and Delivery Constraints
+		if (options.status === "completed") {
+			// 1. Acceptance criteria enforcement
+			const stepCriteria = getWorkflowAcceptanceCriteria(workflow, step.id);
+			if (stepCriteria.length > 0) {
+				let allSatisfied = true;
+				let proxyDetected = false;
+				let proxyReasonMessage: string | undefined;
+
+				for (const criterion of stepCriteria) {
+					if (criterion.status === "waived" || criterion.status === "satisfied") continue;
+
+					const satisfaction = await evaluateAcceptanceSatisfaction(
+						criterion,
+						fetchedEvidenceRecords,
+						context.evidenceStore,
+					);
+					if (satisfaction.isProxy) {
+						proxyDetected = true;
+						proxyReasonMessage = satisfaction.proxyReason;
+						criterion.status = "proxy_verified";
+						criterion.is_proxy = true;
+						criterion.proxy_for_criterion_id = criterion.id;
+						criterion.proxy_evidence_ids = satisfaction.matchingEvidenceIds;
+						criterion.updated_at = now;
+						updateAcceptanceCriterion(workflow, criterion);
+						allSatisfied = false;
+					} else if (satisfaction.status === "satisfied") {
+						criterion.status = "satisfied";
+						criterion.is_proxy = false;
+						criterion.proxy_for_criterion_id = undefined;
+						criterion.proxy_evidence_ids = undefined;
+						criterion.satisfied_by_evidence_ids = satisfaction.matchingEvidenceIds;
+						criterion.updated_at = now;
+						updateAcceptanceCriterion(workflow, criterion);
+					} else {
+						allSatisfied = false;
+					}
+				}
+
+				if (!allSatisfied) {
+					const decision = "held_pending_decision";
+					const reason = proxyDetected
+						? (proxyReasonMessage ??
+							`Proxy observation recorded for step '${step.id}', but original acceptance criteria remain pending without explicit user waiver.`)
+						: `Step '${step.id}' cannot be completed: required acceptance criteria remain unsatisfied.`;
+
+					step.progression_status = "held_pending_decision";
+					step.decision = decision;
+					step.decision_reason = reason;
+					step.updated_at = now;
+
+					const audit: ProgressionAuditEntry = {
+						step_id: step.id,
+						step_title: step.title,
+						tool: step.tool,
+						gate: step.gate,
+						action: "advance",
+						status: "held_pending_decision",
+						decision,
+						reason,
+						is_low_risk: false,
+						timestamp: now,
+						params_summary: step.params_summary,
+					};
+					workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+
+					return {
+						advanced: false,
+						status: "held_pending_decision",
+						decision,
+						reason,
+						evaluated_steps: [step],
+						pending_decision_step: step,
+						audit_entries: [audit],
+						knowledge_refs: Array.from(allKnowledgeRefs),
+						workflow,
+					};
+				}
+			}
+
+			// 2. Delivery & Target Device constraints enforcement
+			const isDelivery = step.is_delivery_step || step.delivery_scope === "delivery" || step.gate === "G4";
+			if (isDelivery) {
+				const constraints = workflow.metadata?.target_device_constraints as TargetDeviceConstraints | undefined;
+				const dependencies = workflow.metadata?.dependencies as WorkflowDependencyRecord[] | undefined;
+				const constraintCheck = validateDeploymentConstraints(constraints, dependencies, "delivery");
+				if (!constraintCheck.valid) {
+					const decision = "held_pending_decision";
+					const reason = `Delivery step '${step.id}' halted: ${constraintCheck.violation}`;
+
+					step.progression_status = "held_pending_decision";
+					step.decision = decision;
+					step.decision_reason = reason;
+					step.updated_at = now;
+
+					const audit: ProgressionAuditEntry = {
+						step_id: step.id,
+						step_title: step.title,
+						tool: step.tool,
+						gate: step.gate,
+						action: "advance",
+						status: "held_pending_decision",
+						decision,
+						reason,
+						is_low_risk: false,
+						timestamp: now,
+						params_summary: step.params_summary,
+					};
+					workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+
+					return {
+						advanced: false,
+						status: "held_pending_decision",
+						decision,
+						reason,
+						evaluated_steps: [step],
+						pending_decision_step: step,
+						audit_entries: [audit],
+						knowledge_refs: Array.from(allKnowledgeRefs),
+						workflow,
+					};
+				}
+			}
 		}
 
 		if (options.knowledge_refs && options.knowledge_refs.length > 0 && context.knowledgeStore) {
@@ -342,8 +503,19 @@ export async function advanceWorkflow(
 		workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
 
 		const allDone = workflow.steps.every(s => s.status === "completed" || s.status === "skipped");
-		if (allDone) {
+		const allCriteria = getWorkflowAcceptanceCriteria(workflow);
+		const unresolvedCriteria = allCriteria.filter(c => c.status !== "satisfied" && c.status !== "waived");
+		if (allDone && unresolvedCriteria.length === 0) {
 			workflow.status = "completed";
+		} else {
+			workflow.status = "active";
+		}
+
+		if (options.status === "completed") {
+			if (!workflow.metadata) workflow.metadata = {};
+			const activeProof = (workflow.metadata.active_proof as Record<string, string[]> | undefined) ?? {};
+			activeProof[step.id] = options.evidence_ids ?? [];
+			workflow.metadata.active_proof = activeProof;
 		}
 		workflow.updated_at = now;
 
@@ -376,6 +548,69 @@ export async function advanceWorkflow(
 		evaluatedSteps.push(step);
 
 		// Assess risk of tool
+		// Check delivery step
+		const isDelivery = step.is_delivery_step || step.delivery_scope === "delivery" || step.gate === "G4";
+		if (isDelivery) {
+			terminalStatus = "held_pending_decision";
+			terminalDecision = `Held delivery step '${step.id}' pending explicit verification decision`;
+			terminalReason = `Delivery step '${step.id}' requires verified delivery build and explicit deployment decision.`;
+			pendingDecisionStep = step;
+
+			step.progression_status = "held_pending_decision";
+			step.decision = terminalDecision;
+			step.decision_reason = terminalReason;
+			step.updated_at = now;
+
+			const audit: ProgressionAuditEntry = {
+				step_id: step.id,
+				step_title: step.title,
+				tool: step.tool,
+				gate: step.gate,
+				action: "auto_advance",
+				status: "held_pending_decision",
+				decision: terminalDecision,
+				reason: terminalReason,
+				is_low_risk: false,
+				timestamp: now,
+				params_summary: step.params_summary,
+			};
+			auditEntries.push(audit);
+			workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+			break;
+		}
+
+		// Check acceptance criteria
+		const stepCriteria = getWorkflowAcceptanceCriteria(workflow, step.id);
+		const pendingCriteria = stepCriteria.filter(c => c.status !== "satisfied" && c.status !== "waived");
+		if (pendingCriteria.length > 0 && (step.gate === "G2" || step.gate === "G3" || step.gate === "G4")) {
+			terminalStatus = "held_pending_decision";
+			terminalDecision = `Held step '${step.id}' pending satisfaction of ${pendingCriteria.length} acceptance criteria`;
+			terminalReason = `Step '${step.id}' has required acceptance criteria (${pendingCriteria.map(c => c.id).join(", ")}) that cannot be auto-advanced without explicit verification evidence.`;
+			pendingDecisionStep = step;
+
+			step.progression_status = "held_pending_decision";
+			step.decision = terminalDecision;
+			step.decision_reason = terminalReason;
+			step.updated_at = now;
+
+			const audit: ProgressionAuditEntry = {
+				step_id: step.id,
+				step_title: step.title,
+				tool: step.tool,
+				gate: step.gate,
+				action: "auto_advance",
+				status: "held_pending_decision",
+				decision: terminalDecision,
+				reason: terminalReason,
+				is_low_risk: false,
+				timestamp: now,
+				params_summary: step.params_summary,
+			};
+			auditEntries.push(audit);
+			workflow.progression_audit = [...(workflow.progression_audit ?? []), audit];
+			break;
+		}
+
 		const risk = assessStepRisk(step);
 
 		if (!risk.is_low_risk) {
@@ -499,15 +734,24 @@ export async function advanceWorkflow(
 
 	if (stepsEvaluated === 0) {
 		const allDone = workflow.steps.every(s => s.status === "completed" || s.status === "skipped");
-		if (allDone) {
+		const allCriteria = getWorkflowAcceptanceCriteria(workflow);
+		const unresolvedCriteria = allCriteria.filter(c => c.status !== "satisfied" && c.status !== "waived");
+		if (allDone && unresolvedCriteria.length === 0) {
 			terminalStatus = "completed";
-			terminalDecision = "All workflow steps completed";
-			terminalReason = "No pending steps remaining in reverse engineering plan.";
+			terminalDecision = "All workflow steps and acceptance criteria completed";
+			terminalReason = "No pending steps or unresolved acceptance criteria remaining.";
 			workflow.status = "completed";
 		} else {
 			terminalStatus = "held_pending_decision";
-			terminalDecision = "No pending low-risk steps eligible for progression";
-			terminalReason = "All remaining steps are in non-pending or completed state.";
+			terminalDecision =
+				unresolvedCriteria.length > 0
+					? `Held workflow completion: ${unresolvedCriteria.length} acceptance criteria remain unresolved`
+					: "No pending low-risk steps eligible for progression";
+			terminalReason =
+				unresolvedCriteria.length > 0
+					? `Acceptance criteria (${unresolvedCriteria.map(c => c.id).join(", ")}) must be satisfied with verified evidence or explicitly waived before workflow completion.`
+					: "All remaining steps are in non-pending or completed state.";
+			workflow.status = "active";
 		}
 	}
 

@@ -24,21 +24,24 @@
 
 ## Outputs
 - `details.status`: `ok`, `missing_dependency`, or `error`.
+- `details.reference` and `details.target`: canonical string of the resolved symbol, address, or defaulted `entry0`.
+- `details.referenceDefaulted`: boolean, set to `true` when defaulting to `entry0` on omitted selector, and `false` when explicitly specified.
 - Parsed list/info fields: `info`, `sections`, `imports`, `exports`, `strings`, `functions`, `xrefs`, `disasm`, or `decompile` (text plus `lineCount`).
 - Paging metadata: `total`, `count`, `offset`, `hasMore`.
-- Execution metadata: `outputBytes`, `truncated`, `timedOut`, `parseError`, `raw` (bounded preview), `engine`, `dependency`, `reference`, `mode`.
+- Execution metadata: `outputBytes`, `truncated`, `timedOut`, `parseError`, `raw` (bounded preview), `engine`, `dependency`, `reference`, `target`, `referenceDefaulted`, `mode`.
 - `status: "ok"` with `truncated: true` means the cap was reached but usable output was returned.
 - If radare2 JSON cannot be parsed, returns `status: "error"` with `parseError` and a bounded raw preview instead of throwing.
+- When a requested `symbol`, `target`, or `address` cannot be found by radare2, returns `status: "error"` instead of silently falling back to `entry0`.
 - `mode: "fold"`/`"summary"` set `unverified: true` and append an explicit heuristic notice.
 - `decompile` returns decompiler text rather than JSON; if `pdc` is unavailable it returns an error with the `r2pm -ci r2dec` hint.
-
 ## Flow
-1. `execute()` validates `path`, expands it with `resolveReadPath()`, stats it, rejects non-files and files over 1 GiB.
-2. `symbol`/`address` are strictly validated (`ADDRESS_PATTERN`, `SYMBOL_PATTERN`); combining both is rejected, and `xrefs` requires one.
-3. Dependency status uses `checkToolRequirements([{ id: "radare2" }])`, which consults `SKILL_TOOL_CATALOG.radare2`.
-4. Missing dependency returns `status: "missing_dependency"` plus catalog install hints and action-specific `objdump`/`strings`/`readelf` fallbacks (`executed: false`).
-5. Present dependency runs a fixed argv (`r2 -q -e scr.color=0 ... -c <action-command> -c q <path>`) through `Bun.spawn` with `stdin: "ignore"`, timeout, abort, and output caps.
-6. `info`, `sections`, `imports`, `exports`, `strings`, `functions`, `xrefs`, and `disasm` parse r2 JSON into stable, paginated fields; `decompile` pages and folds text.
+1. `execute()` rejects unknown parameters (such as `function`, `func`, `fn`) with actionable `ToolError`.
+2. `execute()` validates `path`, expands it with `resolveReadPath()`, stats it, rejects non-files and files over 1 GiB.
+3. `symbol`/`target`/`address` are canonical selectors. Conflicting `symbol` and `target` values are rejected; combining `address` with `symbol` is rejected; `xrefs` requires a selector. Disasm/decompile default to `entry0` only when omitted.
+4. Dependency status uses `checkToolRequirements([{ id: "radare2" }])`, which consults `SKILL_TOOL_CATALOG.radare2`.
+5. Missing dependency returns `status: "missing_dependency"` plus catalog install hints and action-specific `objdump`/`strings`/`readelf` fallbacks (`executed: false`).
+6. Present dependency runs a fixed argv (`r2 -q -e scr.color=0 ... -c <action-command> -c q <path>`) through `Bun.spawn` with `stdin: "ignore"`, timeout, abort, and output caps.
+7. `info`, `sections`, `imports`, `exports`, `strings`, `functions`, `xrefs`, and `disasm` parse r2 JSON into stable, paginated fields; `decompile` pages and folds text.
 
 ## Safety
 - Only fixed action commands are built; there is no parameter that accepts an arbitrary r2 command.

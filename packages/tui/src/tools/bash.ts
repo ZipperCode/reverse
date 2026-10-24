@@ -83,6 +83,10 @@ export interface BashToolDetails {
 		jobId: string;
 		type: "bash";
 	};
+	/** Unexecuted process-safety violation details */
+	unexecuted?: boolean;
+	blockedReason?: string;
+	guidance?: string;
 }
 
 function escapeBashEnvValueForDisplay(value: unknown): string {

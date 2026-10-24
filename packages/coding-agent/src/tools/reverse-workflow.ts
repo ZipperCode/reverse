@@ -45,7 +45,21 @@ import {
 	type BuildVerificationResult,
 	type PatchRetirementAuditEntry,
 	type RegisterDerivativeOptions,
+	type AcceptanceCriterion,
+	type TargetDeviceConstraints,
+	type WorkflowDependencyRecord,
+	getWorkflowAcceptanceCriteria,
+	setWorkflowAcceptanceCriteria,
+	evaluateAcceptanceSatisfaction,
+	validateDeploymentConstraints,
+	updateAcceptanceCriterion,
+	cascadeEvidenceRefutation,
+	normalizeAcceptanceCriterion,
+	normalizeTargetDeviceConstraints,
+	normalizeWorkflowDependencies,
 } from "../reverse-workflow";
+import { evaluateEvidenceSupport } from "../evidence/validity";
+import type { EvidenceRecord } from "../evidence/contracts";
 import type { OutputMeta } from "@reverse/tui/tools/output-meta";
 const reverseWorkflowSchema = type({
 	action: type
@@ -64,6 +78,8 @@ const reverseWorkflowSchema = type({
 			"register_derivative",
 			"verify_lineage",
 			"retire_patch",
+			"waive_acceptance",
+			"approve_dependency",
 		)
 		.describe(
 			"Workflow orchestrator action: create (initialize target-routed workflow plan), plan (preview/generate deterministic plan), status (inspect workflow and step progress), record (record step execution, outputs, and evidence ledger links), retry (retry failed step with bounded attempts and caller params), recover (diagnose failure, attribute category, propose deterministic fallback/corrected params, record audit trail, and transition to pending), retry_plan (preview failure attribution and recovery plan without mutating state), export (produce bounded Markdown/JSON report), destroy (delete workflow), advance (progress or record next allowlisted low-risk static step), auto_advance (progress next allowlisted read/static triage step, attaching verified prior knowledge and halting on dynamic/high-risk tools or ambiguous targets)",
@@ -168,6 +184,23 @@ const reverseWorkflowSchema = type({
 		"Array of evidence IDs bound to this exact derivative output SHA-256",
 	),
 	"verification_conditions?": type("unknown").describe("Optional verification conditions or requirements"),
+	"criterion_id?": type("string").describe("Acceptance criterion identifier for 'waive_acceptance' action"),
+	"dependency_id?": type("string").describe("Workflow dependency identifier for 'approve_dependency' action"),
+	"acceptance_criteria?": type("unknown").describe(
+		"Array of acceptance criteria: [{ id, title, target_object, required_evidence_types?, min_assurance? }]",
+	),
+	"target_device_constraints?": type("unknown").describe(
+		"Target device constraints: { target_environment?, disallowed_dependencies?, allowed_delivery_modes?, requires_standalone? }",
+	),
+	"dependencies?": type("unknown").describe(
+		"Array of workflow dependencies: [{ id, name, kind, scope, target_host?, approved_for_delivery? }]",
+	),
+	"scope?": type
+		.enumerated("experiment", "delivery")
+		.describe("Target scope or deployment mode: 'experiment' or 'delivery'"),
+	"delivery_mode?": type("string").describe(
+		"Delivery packaging mode for derivative registration (e.g. 'standalone_package', 'modified_apk')",
+	),
 });
 
 export type ReverseWorkflowParams = typeof reverseWorkflowSchema.infer;
@@ -187,7 +220,9 @@ export interface ReverseWorkflowDetails {
 		| "auto_advance"
 		| "register_derivative"
 		| "verify_lineage"
-		| "retire_patch";
+		| "retire_patch"
+		| "waive_acceptance"
+		| "approve_dependency";
 	derivative?: BuildArtifactRecord;
 	derivatives?: BuildArtifactRecord[];
 	baseline?: BuildArtifactRecord;
@@ -228,6 +263,10 @@ export interface ReverseWorkflowDetails {
 	setup_command?: string;
 	advanced?: boolean;
 	meta?: OutputMeta;
+	criterion?: AcceptanceCriterion;
+	dependency?: WorkflowDependencyRecord;
+	waiver_approved?: boolean;
+	dependency_approved?: boolean;
 }
 
 export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSchema, ReverseWorkflowDetails> {
@@ -252,6 +291,8 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				action === "auto_advance" ||
 				action === "register_derivative" ||
 				action === "retire_patch" ||
+				action === "waive_acceptance" ||
+				action === "approve_dependency" ||
 				(action === "export" &&
 					(("to_workspace" in args && Boolean(args.to_workspace)) ||
 						("workspace_path" in args && Boolean(args.workspace_path))))
@@ -344,6 +385,16 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				const workflowId = params.workflow_id ?? params.id ?? createWorkflowId();
 				const now = new Date().toISOString();
 
+				const metadata: Record<string, unknown> = {};
+				const constraints = normalizeTargetDeviceConstraints(params.target_device_constraints);
+				if (constraints) {
+					metadata.target_device_constraints = constraints;
+				}
+				const dependencies = normalizeWorkflowDependencies(params.dependencies, { isInitialCreation: true });
+				if (dependencies) {
+					metadata.dependencies = dependencies;
+				}
+
 				const workflow: ReverseWorkflowRecord = {
 					id: workflowId,
 					target: path.relative(this.session.cwd, targetPath) || targetPath,
@@ -357,10 +408,18 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					created_at: now,
 					updated_at: now,
 					...(knowledgeRefs ? { knowledge_refs: knowledgeRefs } : {}),
+					...(Object.keys(metadata).length > 0 ? { metadata } : {}),
 				};
 
+				if (Array.isArray(params.acceptance_criteria)) {
+					const normalizedCriteria = params.acceptance_criteria.map(c =>
+						normalizeAcceptanceCriterion(c, undefined, { isInitialCreation: true }),
+					);
+					setWorkflowAcceptanceCriteria(workflow, normalizedCriteria);
+				}
+
 				await store.save(workflow);
-				const metrics = computeWorkflowMetrics(workflow.steps);
+				const metrics = computeWorkflowMetrics(workflow.steps, workflow.metadata);
 
 				const stepListText = workflow.steps
 					.map(s => `  - [${s.id}] ${s.title} -> tool: \`${s.tool}\` (${s.gate})`)
@@ -552,6 +611,13 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				if (!workflow) {
 					throw new ToolError(`Workflow '${workflowId}' not found.`);
 				}
+				const refutationResult = await cascadeEvidenceRefutation(workflow, evidenceStore).catch(() => null);
+				if (
+					refutationResult &&
+					(refutationResult.invalidatedSteps.length > 0 || refutationResult.invalidatedCriteria.length > 0)
+				) {
+					await store.save(workflow);
+				}
 
 				if (params.step_id) {
 					const step = workflow.steps.find(s => s.id === params.step_id);
@@ -645,7 +711,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					};
 				}
 
-				const metrics = computeWorkflowMetrics(workflow.steps);
+				const metrics = computeWorkflowMetrics(workflow.steps, workflow.metadata);
 				const stepRows = workflow.steps.map(s => {
 					const evLinks = s.evidence_ids?.length ? ` [${s.evidence_ids.length} ev]` : "";
 					const runtTag = s.runtime_session_id ? ` [runt: ${s.runtime_session_id}]` : "";
@@ -663,6 +729,11 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					`- **Target**: \`${workflow.target}\` (${workflow.format})`,
 					`- **Status**: ${workflow.status.toUpperCase()}`,
 					`- **Metrics**: ${metrics.completed_steps} completed, ${metrics.failed_steps} failed, ${metrics.pending_steps} pending, ${metrics.total_evidence_links} evidence links${metrics.resumed_steps ? `, ${metrics.resumed_steps} resumed` : ""}${metrics.total_knowledge_links ? `, ${metrics.total_knowledge_links} knowledge links` : ""}`,
+					...(metrics.total_acceptance_criteria !== undefined
+						? [
+								`- **Acceptance Criteria**: ${metrics.satisfied_acceptance_criteria ?? 0}/${metrics.total_acceptance_criteria} satisfied (${metrics.pending_acceptance_criteria ?? 0} pending${metrics.proxy_verified_acceptance_criteria ? `, ${metrics.proxy_verified_acceptance_criteria} proxy verified` : ""}${metrics.waived_acceptance_criteria ? `, ${metrics.waived_acceptance_criteria} waived` : ""}) - ${Math.round((metrics.acceptance_completion_ratio ?? 0) * 100)}% completion`,
+							]
+						: []),
 					workflow.knowledge_refs && workflow.knowledge_refs.length > 0
 						? `- **Knowledge References**: ${workflow.knowledge_refs.map(id => `\`${id}\``).join(", ")}`
 						: undefined,
@@ -817,17 +888,114 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						resume: resumeMeta,
 					};
 				}
+				if (status === "completed") {
+					await cascadeEvidenceRefutation(workflow, evidenceStore).catch(() => null);
+
+					// 1. Evidence validation via evaluateEvidenceSupport
+					const evidenceRecords: EvidenceRecord[] = [];
+					if (step.evidence_ids && step.evidence_ids.length > 0) {
+						const evalResult = await evaluateEvidenceSupport(evidenceStore, step.evidence_ids);
+						if (evalResult.refutedIds.length > 0) {
+							throw new ToolError(
+								`Cannot mark step '${step.id}' completed: supporting evidence has been refuted: ${evalResult.refutedIds.join(", ")}`,
+							);
+						}
+						if (evalResult.staleIds.length > 0) {
+							throw new ToolError(
+								`Cannot mark step '${step.id}' completed: supporting evidence is stale or invalidated: ${evalResult.staleIds.join(", ")}`,
+							);
+						}
+						if (evalResult.failedStageIds.length > 0) {
+							throw new ToolError(
+								`Cannot mark step '${step.id}' completed: supporting evidence contains failed execution stages: ${evalResult.failedStageIds.join(", ")}`,
+							);
+						}
+						for (const evId of step.evidence_ids) {
+							const rec = await evidenceStore.getRecord(evId);
+							if (rec) evidenceRecords.push(rec);
+						}
+					}
+
+					// 2. Acceptance criteria gate
+					const stepCriteria = getWorkflowAcceptanceCriteria(workflow, step.id);
+					if (stepCriteria.length > 0) {
+						let allSatisfied = true;
+						let proxyDetected = false;
+						let proxyReasonMessage: string | undefined;
+
+						for (const criterion of stepCriteria) {
+							if (criterion.status === "waived" || criterion.status === "satisfied") continue;
+
+							const satisfaction = await evaluateAcceptanceSatisfaction(
+								criterion,
+								evidenceRecords,
+								evidenceStore,
+							);
+							if (satisfaction.isProxy) {
+								proxyDetected = true;
+								proxyReasonMessage = satisfaction.proxyReason;
+								criterion.status = "proxy_verified";
+								criterion.is_proxy = true;
+								criterion.proxy_for_criterion_id = criterion.id;
+								criterion.proxy_evidence_ids = satisfaction.matchingEvidenceIds;
+								criterion.updated_at = new Date().toISOString();
+								updateAcceptanceCriterion(workflow, criterion);
+								allSatisfied = false;
+							} else if (satisfaction.status === "satisfied") {
+								criterion.status = "satisfied";
+								criterion.satisfied_by_evidence_ids = satisfaction.matchingEvidenceIds;
+								criterion.updated_at = new Date().toISOString();
+								updateAcceptanceCriterion(workflow, criterion);
+							} else {
+								allSatisfied = false;
+							}
+						}
+
+						if (!allSatisfied) {
+							await store.save(workflow);
+							const msg = proxyDetected
+								? (proxyReasonMessage ??
+									`Proxy observation recorded for step '${step.id}', but original acceptance criteria remain pending without explicit user waiver.`)
+								: `Step '${step.id}' cannot be marked completed: required acceptance criteria remain unsatisfied.`;
+							throw new ToolError(msg);
+						}
+					}
+
+					// 3. Delivery & Target Device constraints gate
+					const isDelivery = step.is_delivery_step || step.delivery_scope === "delivery" || step.gate === "G4";
+					if (isDelivery) {
+						const constraints = workflow.metadata?.target_device_constraints as
+							| TargetDeviceConstraints
+							| undefined;
+						const dependencies = workflow.metadata?.dependencies as WorkflowDependencyRecord[] | undefined;
+						const constraintCheck = validateDeploymentConstraints(constraints, dependencies, "delivery");
+						if (!constraintCheck.valid) {
+							throw new ToolError(
+								`Delivery step '${step.id}' cannot be marked completed: ${constraintCheck.violationCode}: ${constraintCheck.violation}`,
+							);
+						}
+					}
+				}
 
 				step.attempts = (step.attempts ?? 0) + 1;
 				step.status = status;
 				step.updated_at = new Date().toISOString();
 
-				// Update overall workflow status
+				// Update overall workflow status: verify that ALL acceptance criteria are satisfied or waived
 				const allDone = workflow.steps.every(s => s.status === "completed" || s.status === "skipped");
-				if (allDone) {
+				const allCriteria = getWorkflowAcceptanceCriteria(workflow);
+				const unresolvedCriteria = allCriteria.filter(c => c.status !== "satisfied" && c.status !== "waived");
+				if (allDone && unresolvedCriteria.length === 0) {
 					workflow.status = "completed";
 				} else {
 					workflow.status = "active";
+				}
+
+				if (status === "completed") {
+					if (!workflow.metadata) workflow.metadata = {};
+					const activeProof = (workflow.metadata.active_proof as Record<string, string[]> | undefined) ?? {};
+					activeProof[step.id] = params.evidence_ids ?? [];
+					workflow.metadata.active_proof = activeProof;
 				}
 				workflow.updated_at = new Date().toISOString();
 				if (allDone && workflow.metadata?.auto_export_workspace === true) {
@@ -844,7 +1012,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				}
 
 				await store.save(workflow);
-				const metrics = computeWorkflowMetrics(workflow.steps);
+				const metrics = computeWorkflowMetrics(workflow.steps, workflow.metadata);
 
 				const text = [
 					`Updated step \`${step.id}\` in workflow \`${workflow.id}\`:`,
@@ -1639,6 +1807,10 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					signature: signatureOption,
 					runtime_evidence_ids: params.runtime_evidence_ids,
 					verification_conditions: params.verification_conditions as Record<string, unknown> | undefined,
+					target_device_constraints: params.target_device_constraints as TargetDeviceConstraints | undefined,
+					scope: params.scope,
+					delivery_mode: params.delivery_mode,
+					dependencies: params.dependencies as WorkflowDependencyRecord[] | undefined,
 				});
 
 				const activeCount = derivative.cumulative_patches.filter(p => p.status === "active").length;
@@ -1760,6 +1932,168 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						action: "retire_patch",
 						workflow: workflow ?? undefined,
 						retirement_audit: audit,
+					},
+				};
+			}
+			case "waive_acceptance": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) {
+					throw new ToolError("workflow_id is required for 'waive_acceptance' action.");
+				}
+				const criterionId = params.criterion_id;
+				if (!criterionId) {
+					throw new ToolError("criterion_id is required for 'waive_acceptance' action.");
+				}
+				const reason = params.reason ?? params.failure_reason ?? params.error;
+				if (!reason || reason.trim().length === 0) {
+					throw new ToolError("reason is mandatory for 'waive_acceptance' action.");
+				}
+
+				const workflow = await store.get(workflowId);
+				if (!workflow) {
+					throw new ToolError(`Workflow '${workflowId}' not found.`);
+				}
+
+				const criteria = getWorkflowAcceptanceCriteria(workflow);
+				const targetCriterion = criteria.find(c => c.id === criterionId);
+				if (!targetCriterion) {
+					throw new ToolError(`Acceptance criterion '${criterionId}' not found in workflow '${workflowId}'.`);
+				}
+
+				// Enforce interactive confirmation via session UI
+				const toolContext = this.session.getToolContext?.();
+				let approved = false;
+
+				if (toolContext?.ui && toolContext.hasUI !== false) {
+					approved = await toolContext.ui.confirm(
+						"Approve Acceptance Criterion Waiver?",
+						`Workflow: ${workflowId}\nCriterion: ${targetCriterion.id} (${targetCriterion.title})\nSubject: ${targetCriterion.subject}\nReason: ${reason}\n\nExplicitly waiving this requirement will allow the workflow to complete without satisfying this acceptance criterion.`,
+					);
+				} else {
+					throw new ToolError(
+						`Acceptance criterion waiver requires explicit interactive user confirmation via session UI. Non-interactive waiver of criterion '${criterionId}' is prohibited. Please confirm interactively or create a new workflow revision with a linked revision ID.`,
+					);
+				}
+
+				if (!approved) {
+					throw new ToolError(`User denied waiver for acceptance criterion '${criterionId}'.`);
+				}
+
+				const now = new Date().toISOString();
+				targetCriterion.status = "waived";
+				targetCriterion.waiver_reason = reason;
+				targetCriterion.waiver_timestamp = now;
+				targetCriterion.waived_by_decision = "user_interactive_approval";
+				targetCriterion.updated_at = now;
+
+				updateAcceptanceCriterion(workflow, targetCriterion);
+				workflow.updated_at = now;
+				await store.save(workflow);
+
+				const text = [
+					`# Explicit Acceptance Criterion Waiver Approved`,
+					`- **Workflow**: \`${workflowId}\``,
+					`- **Criterion ID**: \`${targetCriterion.id}\``,
+					`- **Title**: ${targetCriterion.title}`,
+					`- **Subject**: \`${targetCriterion.subject}\``,
+					`- **Waiver Reason**: ${reason}`,
+					`- **Approved Decision**: \`user_interactive_approval\``,
+					`- **Timestamp**: ${now}`,
+				].join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: {
+						action: "waive_acceptance",
+						workflow,
+						criterion: targetCriterion,
+						waiver_approved: true,
+					},
+				};
+			}
+
+			case "approve_dependency": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) {
+					throw new ToolError("workflow_id is required for 'approve_dependency' action.");
+				}
+				const dependencyId = params.dependency_id;
+				if (!dependencyId) {
+					throw new ToolError("dependency_id is required for 'approve_dependency' action.");
+				}
+				const reason = params.reason ?? params.failure_reason ?? params.error;
+				if (!reason || reason.trim().length === 0) {
+					throw new ToolError("reason is mandatory for 'approve_dependency' action.");
+				}
+
+				const workflow = await store.get(workflowId);
+				if (!workflow) {
+					throw new ToolError(`Workflow '${workflowId}' not found.`);
+				}
+
+				const dependencies: WorkflowDependencyRecord[] =
+					(workflow.metadata?.dependencies as WorkflowDependencyRecord[] | undefined) ?? [];
+				const targetDep = dependencies.find(d => d.id === dependencyId);
+				if (!targetDep) {
+					throw new ToolError(`Dependency '${dependencyId}' not found in workflow '${workflowId}'.`);
+				}
+
+				// Enforce interactive confirmation via session UI
+				const toolContext = this.session.getToolContext?.();
+				let approved = false;
+
+				if (toolContext?.ui && toolContext.hasUI !== false) {
+					approved = await toolContext.ui.confirm(
+						"Approve Dependency for Delivery?",
+						`Workflow: ${workflowId}\nDependency: ${targetDep.id} (${targetDep.name})\nKind: ${targetDep.kind}\nTarget Host: ${targetDep.target_host ?? "target_device"}\nReason: ${reason}\n\nApproving this dependency will authorize delivery builds and packages to require or include this dependency.`,
+					);
+				} else {
+					throw new ToolError(
+						`Delivery dependency approval requires explicit interactive user confirmation via session UI. Non-interactive approval of dependency '${dependencyId}' is prohibited.`,
+					);
+				}
+
+				if (!approved) {
+					throw new ToolError(`User denied delivery approval for dependency '${dependencyId}'.`);
+				}
+
+				const now = new Date().toISOString();
+				targetDep.approved_for_delivery = true;
+				targetDep.approval_notes = reason;
+				targetDep.approved_at = now;
+				targetDep.decision_id = "user_interactive_approval";
+
+				const depIdx = dependencies.findIndex(d => d.id === dependencyId);
+				if (depIdx >= 0) {
+					dependencies[depIdx] = targetDep;
+				} else {
+					dependencies.push(targetDep);
+				}
+				if (!workflow.metadata) workflow.metadata = {};
+				workflow.metadata.dependencies = dependencies;
+
+				workflow.updated_at = now;
+				await store.save(workflow);
+
+				const text = [
+					`# Delivery Dependency Approval Granted`,
+					`- **Workflow**: \`${workflowId}\``,
+					`- **Dependency ID**: \`${targetDep.id}\``,
+					`- **Name**: ${targetDep.name}`,
+					`- **Kind**: \`${targetDep.kind}\``,
+					`- **Scope**: \`delivery\``,
+					`- **Approval Reason**: ${reason}`,
+					`- **Approved Decision**: \`user_interactive_approval\``,
+					`- **Timestamp**: ${now}`,
+				].join("\n");
+
+				return {
+					content: [{ type: "text", text }],
+					details: {
+						action: "approve_dependency",
+						workflow,
+						dependency: targetDep,
+						dependency_approved: true,
 					},
 				};
 			}

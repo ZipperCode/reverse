@@ -360,7 +360,7 @@ export class TurnRecovery {
 	#streamStallContinueCount = 0;
 	#lastCanonicalFailureFingerprint: string | undefined;
 	#repeatedSameFailureCount = 0;
-	#lastSuccessfulToolProgressMarker = 0;
+	#lastSuccessfulProgressMarker = 0;
 	#lastPromptGeneration = -1;
 	#acceptTerminalEmptyStopForPrompt = false;
 	// Three fields sit near the word "serve" and are deliberately distinct:
@@ -860,7 +860,9 @@ export class TurnRecovery {
 			if (record.retryErrors) retryErrors = await this.#markPendingRetryErrors(record.retryErrors);
 		} finally {
 			try {
-				const errorDiagnostic = !end.success ? (end.errorDiagnostic ?? record.terminalTurn?.errorDiagnostic) : undefined;
+				const errorDiagnostic = !end.success
+					? (end.errorDiagnostic ?? record.terminalTurn?.errorDiagnostic)
+					: undefined;
 				await this.#host.emitSessionEvent({
 					type: "auto_retry_end",
 					...end,
@@ -1734,37 +1736,70 @@ export class TurnRecovery {
 		);
 	}
 
-	#getSuccessfulToolExecutionCount(): number {
+	#getExecutionProgressCount(): number {
 		const messages = this.#host.agent.state.messages;
 		let count = 0;
+		const seenArtifactIds = new Set<string>();
 		for (const msg of messages) {
-			if (msg.role === "toolResult" && !msg.isError) {
-				const details = msg.details as { executed?: boolean } | undefined;
-				if (details?.executed !== false) {
+			if (msg.role === "toolResult") {
+				const isSuccess =
+					!msg.isError &&
+					(!msg.details ||
+						typeof msg.details !== "object" ||
+						!("executed" in msg.details) ||
+						msg.details.executed !== false);
+				if (isSuccess) {
 					count++;
+				}
+				if (
+					msg.details &&
+					typeof msg.details === "object" &&
+					"artifactId" in msg.details &&
+					typeof msg.details.artifactId === "string" &&
+					msg.details.artifactId.length > 0
+				) {
+					if (!seenArtifactIds.has(msg.details.artifactId)) {
+						seenArtifactIds.add(msg.details.artifactId);
+						if (!isSuccess) {
+							count++;
+						}
+					}
 				}
 			}
 		}
 		return count;
 	}
 
+	#isCanonicalZeroProgressRetryableFailure(message: AssistantMessage, id: number): boolean {
+		const diag = message.errorDiagnostic;
+		if (diag?.retryable === false) return false;
+		const kind = diag?.normalizedKind;
+		if (kind === "incomplete-stream" || kind === "empty-body" || kind === "transport") {
+			return true;
+		}
+		if (diag?.transportError !== undefined && (diag.retryable === true || AIError.retriable(id))) {
+			return true;
+		}
+		return false;
+	}
+
 	#computeErrorFingerprint(message: AssistantMessage, id: number): string {
 		const diag = message.errorDiagnostic;
 		const rawTerminal = diag?.rawTerminal;
 		const transport = diag?.transportError;
-		const parts: string[] = [
-			message.provider ?? "",
-			message.model ?? "",
-			diag?.normalizedKind ?? "",
-		];
+		const parts: string[] = [message.provider ?? "", message.model ?? "", diag?.normalizedKind ?? ""];
 		if (rawTerminal) {
 			if (rawTerminal.finishReason) parts.push(`finish:${rawTerminal.finishReason}`);
 			if (rawTerminal.blockReason) parts.push(`block:${rawTerminal.blockReason}`);
 		}
 		if (transport) {
-			if (transport.name) parts.push(`trans_name:${transport.name}`);
-			if (transport.code) parts.push(`trans_code:${transport.code}`);
-			if (transport.status) parts.push(`trans_status:${transport.status}`);
+			let transportClass = transport.name;
+			if (!transportClass && "errorClass" in transport && typeof transport.errorClass === "string") {
+				transportClass = transport.errorClass;
+			}
+			parts.push(`trans_name:${transportClass || "transport"}`);
+			if (transport.code !== undefined) parts.push(`trans_code:${transport.code}`);
+			if (transport.status !== undefined) parts.push(`trans_status:${transport.status}`);
 		}
 		if (message.errorStatus) {
 			parts.push(`status:${message.errorStatus}`);
@@ -2607,26 +2642,25 @@ export class TurnRecovery {
 		const errorMessage = message.errorMessage || "Unknown error";
 		const id = this.#classifyRetryMessage(message);
 
-		const currentToolCount = this.#getSuccessfulToolExecutionCount();
+		const currentProgress = this.#getExecutionProgressCount();
 		const currentFingerprint = this.#computeErrorFingerprint(message, id);
 
-		const isIncompleteStreamFailure =
-			message.errorDiagnostic?.normalizedKind === "incomplete-stream";
+		const isCanonicalZeroProgressFailure = this.#isCanonicalZeroProgressRetryableFailure(message, id);
 
 		if (generation !== this.#lastPromptGeneration) {
 			this.#lastPromptGeneration = generation;
-			this.#lastSuccessfulToolProgressMarker = currentToolCount;
+			this.#lastSuccessfulProgressMarker = currentProgress;
 			this.#repeatedSameFailureCount = 0;
 			this.#lastCanonicalFailureFingerprint = undefined;
-		} else if (currentToolCount > this.#lastSuccessfulToolProgressMarker) {
-			this.#lastSuccessfulToolProgressMarker = currentToolCount;
+		} else if (currentProgress > this.#lastSuccessfulProgressMarker) {
+			this.#lastSuccessfulProgressMarker = currentProgress;
 			this.#repeatedSameFailureCount = 0;
 			this.#lastCanonicalFailureFingerprint = undefined;
-		} else if (currentToolCount < this.#lastSuccessfulToolProgressMarker) {
-			this.#lastSuccessfulToolProgressMarker = currentToolCount;
+		} else if (currentProgress < this.#lastSuccessfulProgressMarker) {
+			this.#lastSuccessfulProgressMarker = currentProgress;
 		}
 
-		if (isIncompleteStreamFailure) {
+		if (isCanonicalZeroProgressFailure) {
 			if (this.#lastCanonicalFailureFingerprint === currentFingerprint) {
 				this.#repeatedSameFailureCount++;
 			} else {
@@ -2638,7 +2672,7 @@ export class TurnRecovery {
 			this.#lastCanonicalFailureFingerprint = undefined;
 		}
 
-		const isZeroProgressRepeatedFailure = isIncompleteStreamFailure && this.#repeatedSameFailureCount > 1;
+		const isZeroProgressRepeatedFailure = isCanonicalZeroProgressFailure && this.#repeatedSameFailureCount > 1;
 
 		const maxRetries = this.#isBoundedThinkingStreamClose(message)
 			? Math.min(retrySettings.maxRetries, 1)
@@ -2933,8 +2967,13 @@ export class TurnRecovery {
 		}
 		const structuredNonRetryable =
 			message.errorDiagnostic?.retryable === false ||
-			(message.errorDiagnostic?.normalizedKind === "content-blocked" && message.errorDiagnostic.rawTerminal !== undefined);
-		if ((classifierRefusal || accountPolicyDenial || structuredNonRetryable) && !switchedCredential && !switchedModel) {
+			(message.errorDiagnostic?.normalizedKind === "content-blocked" &&
+				message.errorDiagnostic.rawTerminal !== undefined);
+		if (
+			(classifierRefusal || accountPolicyDenial || structuredNonRetryable) &&
+			!switchedCredential &&
+			!switchedModel
+		) {
 			// A prior attempt in this saga already announced `auto_retry_start`
 			// (retryAttempt was incremented for each call to this method, so > 1
 			// means at least one earlier attempt started the loop) but this
@@ -2944,7 +2983,12 @@ export class TurnRecovery {
 			// an announcement that never resolves.
 			if (this.#retryAttempt > 1) {
 				await this.#closeRetrySaga(
-					{ success: false, attempt: this.#retryAttempt - 1, finalError: errorMessage, errorDiagnostic: message.errorDiagnostic },
+					{
+						success: false,
+						attempt: this.#retryAttempt - 1,
+						finalError: errorMessage,
+						errorDiagnostic: message.errorDiagnostic,
+					},
 					{ terminalTurn: message },
 				);
 			}

@@ -52,6 +52,8 @@ export interface ReverseWorkspaceStats {
 	reports_count: number;
 }
 
+export type ArtifactClassification = "experiment" | "baseline" | "original" | "evidence" | "rollback" | "userfile";
+
 export interface ReverseWorkspaceArtifactRef {
 	id: string;
 	source_path?: string;
@@ -61,6 +63,8 @@ export interface ReverseWorkspaceArtifactRef {
 	sha256?: string;
 	copied: boolean; // true if small safe copy placed in workspace; false if kept as safe external reference
 	reason?: string;
+	classification?: ArtifactClassification;
+	protected?: boolean;
 }
 
 export interface ReverseWorkspaceFileEntry {
@@ -86,6 +90,11 @@ export interface ReverseWorkspaceManifest {
 	stats: ReverseWorkspaceStats;
 	files: ReverseWorkspaceFileEntry[];
 	artifacts: ReverseWorkspaceArtifactRef[];
+	reproducibility?: {
+		retained_artifacts: string[];
+		preserved_at: string;
+		baseline_sha256?: string;
+	};
 }
 
 export interface ReverseFindingsSummary {
@@ -163,10 +172,19 @@ export interface CleanWorkspaceOptions {
 	workspaceDir?: string;
 	projectDir: string;
 	removeDumpsOnly?: boolean;
+	experimentalTargets?: string[];
+	includeProtected?: boolean;
+	confirmDeleteProtected?: (protectedPaths: string[]) => Promise<boolean>;
 }
 
 export interface CleanWorkspaceResult {
 	workspace_dir: string;
 	removed_files: string[];
 	preserved_files: string[];
+	protected_files?: string[];
+	locked_or_failed_files?: Array<{ path: string; error: string }>;
+	reproducibility?: {
+		retained_count: number;
+		manifest_path: string;
+	};
 }

@@ -51,6 +51,14 @@ Actions:
   - Runtime evidence IDs must bind strictly to the exact derivative output SHA-256; prior hash successes never promote new revisions.
 - `verify_lineage`: Re-verify an artifact on disk against its registered cumulative patches, source/parent hashes, and container member bytes.
 - `retire_patch`: Explicitly retire/withdraw a patch in derivative lineage with a mandatory reason, preventing accidental regression without mutating historical records.
+- `waive_acceptance`: Explicitly waive an acceptance criterion requirement for a workflow step.
+  - Requires `workflow_id`, `criterion_id`, and mandatory `reason`.
+  - Strictly enforces interactive user confirmation via session UI; caller boolean claims (`approved: true`) are never trusted. In non-interactive environments, rejects with actionable error requiring interactive confirmation or a new revision workflow.
+  - Records structured waiver decision (`user_interactive_approval`), waiver timestamp, and reason without destroying criterion history.
+- `approve_dependency`: Explicitly approve an experimental or external dependency for delivery packaging.
+  - Requires `workflow_id`, `dependency_id`, `scope: "delivery"`, and mandatory `reason`.
+  - Strictly enforces interactive user confirmation via session UI. Experimental lab approvals never authorize delivery deployment.
+  - Enforces target device constraints (e.g. standalone requirements prohibiting tethered external phone oracles on vehicle IVI targets).
 Security & Guardrails:
 - Does not execute arbitrary shell commands or launch uncontrolled background processes.
 - Target files are accessed strictly read-only.
@@ -60,6 +68,9 @@ Security & Guardrails:
 - Isolated project storage with advisory file locking and atomic replacement.
 - Clean standardized `.reverse/` workspace: target binary is accessed strictly read-only and preserved by reference (never mutated or duplicated); only safe small scripts/dumps (<= 1 MiB) are copied with credentials and tokens scrubbed.
 - Prior knowledge integration: bounded, verified findings and recovery patterns from `reverse_knowledge` are surfaced without executing unverified hypotheses.
+- Stable acceptance criteria: steps bind to immutable target subjects; proxy observations (e.g. official UI observation vs independent protocol, or static API inventory vs login traffic) are categorized as proxy_verified and cannot close original criteria without explicit waiver.
+- Delivery dependency boundaries: experimental dependencies (LSPosed, external phone oracle helpers) cannot be packaged into delivery builds without explicit interactive delivery approval.
+- Refutation cascade: when supporting evidence is refuted or becomes stale, derived completion claims are immediately invalidated, reopening steps pending honest verification without mutating historical audit records.
 <examples>
 ```
 // 1. Create a workflow for a Linux binary target

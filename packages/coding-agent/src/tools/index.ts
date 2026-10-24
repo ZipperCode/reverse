@@ -223,6 +223,7 @@ export * from "./reverse-knowledge";
 export * from "./reverse-dynamic-evidence";
 export * from "./reverse-workspace";
 export * from "./reverse-capability";
+export * from "./process-safety";
 export type { VibeToolDetails } from "@reverse/tui/tools/vibe";
 export * from "./write";
 export * from "./xdev";
