@@ -46,6 +46,8 @@
 
 ### Fixed
 
+- 修复 Windows 工具环境重复持久化时反斜杠路径被 dotenv 解码成换行的问题，保留既有配置和行尾，并支持独立的 `UNIDBG_HOME`、`UNIDBG_JAVA_HOME`，避免覆盖其他工具所需的新版 Java。
+- 修复 DexKit 在 Windows 下识别 MinGW DLL 产物及 JNI 导出校验的问题；Unidbg 编译、启动和注册探查统一使用经过验证的专用 JDK 8。
 - Fixed backend-specific recovery setup selection so a missing Simplify or Frida DEX dumper does not install an unrelated optional engine; destination collisions are rejected before JADX dependency execution. DexKit's Java bridge is embedded as a text asset for standalone installation.
 - Preserved ARM subregister/Thumb state validation and exact 64-bit recovery fixtures; LLVM differential verification executes bounded snapshot memory callbacks and keeps finite artifact observations separate from formal SMT proofs.
 - 修复 Windows 运行中 `reverse.exe` 的本地重装 `EPERM`：先暂存源程序，再将旧目标改名并原子替换，不结束旧进程；同源同目标重装也保留有效备份。

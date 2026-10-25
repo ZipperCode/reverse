@@ -10,7 +10,16 @@
 - 独立 CLI 命令：`reverse unidbg [build|scaffold|launch|stop|status|probe]`。
 - 方法指引：`skill://android-reverse`、`skill://reverse-lab`。
 
-构建与执行**严格依赖 JDK 8 (Java 1.8)**。Java 9+ 引入的内置模块系统 `java.lang.Module` 与 Unidbg 核心包 `com.github.unidbg.Module` 存在类名冲突，无法在 JDK 9+ 下通过编译。可通过 `JAVA_HOME` 或 `javaHome` 参数指定 JDK 8 路径。
+构建与执行**严格依赖 JDK 8 (Java 1.8)**。Java 9+ 引入的内置模块系统 `java.lang.Module` 与 Unidbg 核心包 `com.github.unidbg.Module` 存在类名冲突。选择顺序为显式 `javaHome`（CLI 为 `--java-home`）→ `UNIDBG_JAVA_HOME` → `JAVA_HOME` → `PATH`；显式路径无效时直接报错，不静默回退。
+
+与 JADX、DexKit 或 Android SDK 共用主机时，保留默认新版 Java，只为 Unidbg 配置专用 JDK 8。在用户 Agent 目录的 `.env` 中设置以下非敏感路径，已有其他配置保持不变：
+
+```dotenv
+UNIDBG_HOME='C:/tools/unidbg'
+UNIDBG_JAVA_HOME='C:/tools/jdk8'
+```
+
+`UNIDBG_HOME` 应指向包含已编译 API、Android 和 CPU 后端模块的完整源码根目录，不能只指向 Maven 缓存中的单个 JAR。用 `reverse setup reverse --check --category android` 复查主机支持；`canStart: true` 表示启动条件齐备，未创建活动 Harness 时不会将运行会话标成已连接。
 
 ## 参数定义
 
@@ -29,7 +38,7 @@
 | `overwrite` | `boolean` | `scaffold` 可选 | 生成脚手架时是否覆盖已有输出文件（默认 `false`）。 |
 | `params` | `string` | `scaffold` 可选 | 逗号分隔的参数类型声明（如 `"bytes,int"`、`"int[],context"` 或 `"input:string"`）。 |
 | `unidbgHome` | `string` | 可选 | Unidbg 源码根目录或安装路径（支持环境变量 `UNIDBG_HOME`）。 |
-| `javaHome` | `string` | 可选 | JDK 8 安装根目录路径（支持环境变量 `JAVA_HOME`）。 |
+| `javaHome` | `string` | 可选 | JDK 8 安装根目录路径；未指定时优先使用 `UNIDBG_JAVA_HOME`，其次 `JAVA_HOME`。 |
 | `mirror` | `aliyun \| default` | `build` 可选 | Maven 仓库镜像源（默认 `default`）。 |
 | `skipTests` | `boolean` | `build` 可选 | 编译时是否跳过单元测试（默认 `true`）。 |
 | `harness` | `string` | `launch` 必填 | 要启动的 Harness Java 源码路径（`.java`）或已编译类名。 |

@@ -329,22 +329,82 @@ function findJavaHome(env?: Record<string, string | undefined>): string | null {
 	return null;
 }
 
+const DEXKIT_JNI_EXPORT_PREFIX = Buffer.from("Java_org_luckypray_dexkit_DexKitBridge_");
+
+/** 只接受 PE 导出表中的 JNI 名称，不把节内普通文本当作导出。 */
+function hasDexKitJniExport(buf: Buffer): boolean {
+	if (buf.length < 64 || buf.readUInt16LE(0) !== 0x5a4d) return false;
+	const peOffset = buf.readUInt32LE(0x3c);
+	if (peOffset < 64 || peOffset + 24 > buf.length || buf.readUInt32LE(peOffset) !== 0x4550) return false;
+	const sectionCount = buf.readUInt16LE(peOffset + 6);
+	const optionalSize = buf.readUInt16LE(peOffset + 20);
+	const optionalOffset = peOffset + 24;
+	if (optionalSize < 2 || optionalOffset + optionalSize > buf.length) return false;
+	const magic = buf.readUInt16LE(optionalOffset);
+	if (magic !== 0x20b && magic !== 0x10b) return false;
+	const exportDirectory = optionalOffset + (magic === 0x20b ? 112 : 96);
+	if (exportDirectory + 8 > optionalOffset + optionalSize) return false;
+	const exportRva = buf.readUInt32LE(exportDirectory);
+	if (!exportRva || !buf.readUInt32LE(exportDirectory + 4)) return false;
+	const sectionOffset = optionalOffset + optionalSize;
+	if (sectionOffset + sectionCount * 40 > buf.length) return false;
+	const resolveRva = (rva: number, size: number): { offset: number; end: number } | undefined => {
+		for (let index = 0; index < sectionCount; index++) {
+			const section = sectionOffset + index * 40;
+			const delta = rva - buf.readUInt32LE(section + 12);
+			const rawSize = buf.readUInt32LE(section + 16);
+			const rawOffset = buf.readUInt32LE(section + 20);
+			if (delta >= 0 && delta + size <= rawSize && rawOffset + delta + size <= buf.length) {
+				return { offset: rawOffset + delta, end: Math.min(rawOffset + rawSize, buf.length) };
+			}
+		}
+		return undefined;
+	};
+	const table = resolveRva(exportRva, 40);
+	if (!table) return false;
+	const nameCount = buf.readUInt32LE(table.offset + 24);
+	const names = resolveRva(buf.readUInt32LE(table.offset + 32), nameCount * 4);
+	if (!nameCount || !names) return false;
+	for (let index = 0; index < nameCount; index++) {
+		const name = resolveRva(buf.readUInt32LE(names.offset + index * 4), DEXKIT_JNI_EXPORT_PREFIX.length + 1);
+		if (!name) continue;
+		if (
+			buf.compare(
+				DEXKIT_JNI_EXPORT_PREFIX,
+				0,
+				DEXKIT_JNI_EXPORT_PREFIX.length,
+				name.offset,
+				name.offset + DEXKIT_JNI_EXPORT_PREFIX.length,
+			) !== 0
+		) {
+			continue;
+		}
+		const end = buf.indexOf(0, name.offset + DEXKIT_JNI_EXPORT_PREFIX.length);
+		if (end > name.offset + DEXKIT_JNI_EXPORT_PREFIX.length && end < name.end) return true;
+	}
+	return false;
+}
+
 /**
- * Verifies exported JNI symbols in the compiled host shared library.
+ * 校验已编译共享库中导出的 DexKit JNI 符号。
+ * 在 win32 下采用结构化 PE 导出表解析（零外部子进程依赖，杜绝弱文本扫描误判并规避 devshell PATH 缺失），
+ * 严格校验真实的 JNI 函数导出（Java_org_luckypray_dexkit_DexKitBridge_*）；
+ * 在 Unix/macOS 下使用系统原生 nm。
  */
-function verifyJniSymbols(libPath: string, platform: NodeJS.Platform = process.platform): boolean {
+export function verifyJniSymbols(libPath: string, platform: NodeJS.Platform = process.platform): boolean {
 	if (!fs.existsSync(libPath)) return false;
 	try {
 		const stat = fs.statSync(libPath);
 		if (stat.size < 100_000) return false;
+		if (platform === "win32") {
+			return hasDexKitJniExport(fs.readFileSync(libPath));
+		}
 		const { execSync } = require("node:child_process");
 		let cmd = "";
 		if (platform === "darwin") {
 			cmd = `nm -gU "${libPath}" | grep -E "Java_org_luckypray_dexkit_DexKitBridge"`;
 		} else if (platform === "linux") {
 			cmd = `nm -D "${libPath}" 2>/dev/null | grep -E "Java_org_luckypray_dexkit_DexKitBridge"`;
-		} else if (platform === "win32") {
-			cmd = `dumpbin /EXPORTS "${libPath}" 2>nul | findstr "Java_org_luckypray_dexkit_DexKitBridge"`;
 		}
 		if (!cmd) return false;
 		const out = execSync(cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
@@ -916,11 +976,10 @@ export async function installDexKit(options: DexKitInstallOptions = {}): Promise
 				throw new Error(`CMake build failed: ${buildRes.stderr || buildRes.stdout}`);
 			}
 
-			const buildCandidates = [
-				path.join(buildDir, libName),
-				path.join(buildDir, "Release", libName),
-				path.join(buildDir, "dexkit", libName),
-			];
+			const libCandidateNames = nodePlatform === "win32" ? [libName, `lib${libName}`] : [libName];
+			const buildCandidates = [buildDir, path.join(buildDir, "Release"), path.join(buildDir, "dexkit")].flatMap(
+				dir => libCandidateNames.map(name => path.join(dir, name)),
+			);
 			const foundLib = buildCandidates.find(p => fs.existsSync(p));
 			if (!foundLib) {
 				throw new Error(`Compiled shared library ${libName} not found in ${buildDir}`);

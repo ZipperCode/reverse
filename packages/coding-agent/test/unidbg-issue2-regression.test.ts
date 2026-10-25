@@ -15,6 +15,7 @@ import {
 	filterDynamicEvents,
 } from "../src/reverse-runtime-session/dynamic-events";
 import { validateJdk8 } from "../src/extensibility/unidbg-builder";
+import { evaluateUnidbgReadiness } from "../src/extensibility/readiness-evaluator";
 import { UnidbgTool } from "../src/tools/unidbg";
 import type { ToolSession } from "../src/tools";
 import { stopHarnessProcess } from "../src/commands/unidbg";
@@ -159,6 +160,44 @@ describe("Issue #2 Regression Tests: Unidbg Automation & Lifecycle", () => {
 			const res = validateJdk8(path.join(tempDir, "nonexistent-jdk"));
 			expect(res.valid).toBe(false);
 			expect(res.error).toContain("does not contain a valid Java executable");
+		});
+
+		it("专用 JDK 路径优先于默认 Java，显式参数优先且无效时不回退", () => {
+			const defaultHome = path.join(tempDir, "default-java");
+			const dedicatedHome = path.join(tempDir, "unidbg-java");
+			const explicitHome = path.join(tempDir, "explicit-java");
+			const env = { JAVA_HOME: defaultHome, UNIDBG_JAVA_HOME: dedicatedHome };
+
+			const dedicated = validateJdk8(undefined, env);
+			expect(dedicated.valid).toBe(false);
+			expect(dedicated.javaHome).toBe(dedicatedHome);
+			expect(dedicated.error).toContain(path.join(dedicatedHome, "bin"));
+
+			const explicit = validateJdk8(explicitHome, env);
+			expect(explicit.valid).toBe(false);
+			expect(explicit.javaHome).toBe(explicitHome);
+			expect(explicit.error).toContain(path.join(explicitHome, "bin"));
+		});
+
+		it("专用运行环境缺少 javac 时报告 JRE 不完整，不回退默认 Java", () => {
+			const jreDir = path.join(tempDir, "jre-only-fixture");
+			fs.mkdirSync(path.join(jreDir, "bin"), { recursive: true });
+			fs.writeFileSync(path.join(jreDir, "bin", process.platform === "win32" ? "java.exe" : "java"), "");
+			const env = { UNIDBG_JAVA_HOME: jreDir, JAVA_HOME: path.join(tempDir, "default-java") };
+			const result = validateJdk8(undefined, env);
+			expect(result.valid).toBe(false);
+			expect(result.error).toContain("found JRE only");
+		});
+
+		it("readiness 使用专用 JDK 路径并保留进程默认环境", () => {
+			const originalJavaHome = process.env.JAVA_HOME;
+			const dedicatedHome = path.join(tempDir, "missing-unidbg-java");
+			const result = evaluateUnidbgReadiness({
+				env: { JAVA_HOME: path.join(tempDir, "default-java"), UNIDBG_JAVA_HOME: dedicatedHome },
+			});
+			expect(result.compatible).toBe(false);
+			expect(result.javaHome).toBe(dedicatedHome);
+			expect(process.env.JAVA_HOME).toBe(originalJavaHome);
 		});
 
 		it("strict priority: explicit options.dir overrides ambient env.UNIDBG_HOME", async () => {

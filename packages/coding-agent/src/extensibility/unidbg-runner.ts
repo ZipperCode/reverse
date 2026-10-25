@@ -533,7 +533,7 @@ export async function launchUnidbgHarness(options: UnidbgLaunchOptions): Promise
 
 	const isWin = process.platform === "win32";
 	const javaExe = isWin ? "java.exe" : "java";
-	const javaBin = jdk.javaHome ? path.join(jdk.javaHome, "bin", javaExe) : "java";
+	const javaBin = jdk.javaBin ?? (jdk.javaHome ? path.join(jdk.javaHome, "bin", javaExe) : "java");
 	const classpath = await assembleUnidbgClasspath(unidbgDir, isIos, extraClasspathDir, jdk.javaHome);
 
 	const env: NodeJS.ProcessEnv = {
@@ -1024,11 +1024,12 @@ export async function probeUnidbgRegisterNatives(options: UnidbgProbeLaunchOptio
 		});
 		fs.writeFileSync(probeSourcePath, code, "utf8");
 
-		const { outDir, className } = await compileHarnessSource(probeSourcePath, unidbgDir, false, options.javaHome);
-		const classpath = await assembleUnidbgClasspath(unidbgDir, false, outDir, options.javaHome);
+		const { outDir, className } = await compileHarnessSource(probeSourcePath, unidbgDir, false, jdk.javaHome);
+		const classpath = await assembleUnidbgClasspath(unidbgDir, false, outDir, jdk.javaHome);
 
-		const javaExe = process.platform === "win32" ? "java.exe" : "java";
-		const javaBin = options.javaHome ? path.join(options.javaHome, "bin", javaExe) : javaExe;
+		const isWin = process.platform === "win32";
+		const javaExe = isWin ? "java.exe" : "java";
+		const javaBin = jdk.javaBin ?? (jdk.javaHome ? path.join(jdk.javaHome, "bin", javaExe) : "java");
 
 		const javaArgs = [
 			"-Dfile.encoding=UTF-8",
@@ -1044,7 +1045,10 @@ export async function probeUnidbgRegisterNatives(options: UnidbgProbeLaunchOptio
 			cwd: unidbgDir,
 			env: {
 				...process.env,
-				JAVA_HOME: options.javaHome,
+				JAVA_HOME: jdk.javaHome,
+				PATH: jdk.javaHome
+					? `${path.join(jdk.javaHome, "bin")}${path.delimiter}${process.env.PATH || ""}`
+					: process.env.PATH,
 			},
 		});
 

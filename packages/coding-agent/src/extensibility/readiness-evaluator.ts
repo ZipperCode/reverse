@@ -84,8 +84,7 @@ export function evaluateUnidbgReadiness(options: EvaluateUnidbgOptions = {}): Un
 	});
 	const installed = inspected.foundPath !== null;
 
-	const targetJavaHome = options.javaHome ?? env.JAVA_HOME;
-	const jdkCheck = validateJdk8(targetJavaHome, env);
+	const jdkCheck = validateJdk8(options.javaHome, env);
 	const compatible = jdkCheck.valid;
 
 	let canStart = false;
@@ -103,7 +102,7 @@ export function evaluateUnidbgReadiness(options: EvaluateUnidbgOptions = {}): Un
 			jdkCheck.error ??
 			"JDK 8 (1.8) is strictly required for Unidbg. JDK 9+ introduces java.lang.Module which conflicts with Unidbg compilation/runtime.";
 		remedy =
-			"Install Eclipse Adoptium Temurin 8 or OpenJDK 8 ('brew install --cask temurin@8' on macOS or 'winget install EclipseAdoptium.Temurin.8.JDK' on Windows) and set JAVA_HOME.";
+			"Install Eclipse Adoptium Temurin 8 or OpenJDK 8 ('brew install --cask temurin@8' on macOS or 'winget install EclipseAdoptium.Temurin.8.JDK' on Windows) and set UNIDBG_JAVA_HOME (or JAVA_HOME).";
 	} else if (inspected.unidbgDir) {
 		const launchPrereqs = checkUnidbgLaunchPrerequisites(inspected.unidbgDir, false, env);
 		if (!launchPrereqs.ok) {

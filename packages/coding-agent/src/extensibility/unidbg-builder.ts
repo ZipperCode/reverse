@@ -43,13 +43,21 @@ export interface UnidbgBuildResult {
 }
 
 /**
- * Validate that the specified or ambient Java installation is strictly JDK 8 (1.8).
- * Rejects JDK 9+ with explicit explanation of the java.lang.Module collision.
- * If explicit javaHome is provided, it must be validated directly and never silently fallback to PATH.
+ * 校验指定或环境中的 Java 安装是否严格为 JDK 8 (1.8)。
+ * 优先级：显式 javaHome 参数 > env.UNIDBG_JAVA_HOME > env.JAVA_HOME > PATH。
+ * 显式或专用环境变量指定了无效路径仍直接拒绝，不静默 fallback。
  */
 export function validateJdk8(javaHome?: string, env: NodeJS.ProcessEnv = process.env): JdkValidationResult {
 	let javaBin: string | null = null;
-	const targetHome = javaHome ?? env.JAVA_HOME;
+	let targetHome: string | undefined;
+
+	if (javaHome !== undefined) {
+		targetHome = javaHome;
+	} else if (env.UNIDBG_JAVA_HOME !== undefined && env.UNIDBG_JAVA_HOME !== "") {
+		targetHome = env.UNIDBG_JAVA_HOME;
+	} else if (env.JAVA_HOME !== undefined && env.JAVA_HOME !== "") {
+		targetHome = env.JAVA_HOME;
+	}
 
 	if (targetHome !== undefined) {
 		const exeName = process.platform === "win32" ? "java.exe" : "java";
@@ -72,7 +80,7 @@ export function validateJdk8(javaHome?: string, env: NodeJS.ProcessEnv = process
 		return {
 			valid: false,
 			javaHome: targetHome,
-			error: "Java executable not found. JDK 8 is required for Unidbg. Please install JDK 8 and set JAVA_HOME.",
+			error: "Java executable not found. JDK 8 is required for Unidbg. Please install JDK 8 and set UNIDBG_JAVA_HOME or JAVA_HOME.",
 		};
 	}
 
@@ -113,7 +121,7 @@ export function validateJdk8(javaHome?: string, env: NodeJS.ProcessEnv = process
 			error:
 				`JDK 8 (1.8) is strictly required for Unidbg (found Java ${versionStr}). ` +
 				`JDK 9+ introduces java.lang.Module which conflicts with Unidbg's com.github.unidbg.Module during compilation. ` +
-				`Please set JAVA_HOME to a JDK 8 installation.`,
+				`Please set UNIDBG_JAVA_HOME (or JAVA_HOME) to a JDK 8 installation.`,
 		};
 	}
 

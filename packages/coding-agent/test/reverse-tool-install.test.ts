@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { parseEnv } from "node:util";
 import {
 	applyPersistedReverseEnvironment,
 	canInstallReverseItem,
@@ -319,8 +320,9 @@ describe("reverse-tool-install shared API", () => {
 			const savedContent = await fs.promises.readFile(initialEnvFile, "utf-8");
 			expect(savedContent).toContain("EXISTING_API_KEY=secret123");
 			expect(savedContent).toContain("PATH=/custom/existing/path");
-			expect(savedContent).toContain(`JAVA_HOME="${fakeJavaHome}"`);
-			expect(savedContent).toContain(`REVERSE_TOOL_PATHS="${fakeBin}"`);
+			const parsed = parseEnv(savedContent);
+			expect(parsed.JAVA_HOME).toBe(fakeJavaHome);
+			expect(parsed.REVERSE_TOOL_PATHS).toBe(fakeBin);
 
 			expect(process.env.JAVA_HOME).toBe(fakeJavaHome);
 			expect(Bun.env.JAVA_HOME).toBe(fakeJavaHome);
@@ -345,6 +347,110 @@ describe("reverse-tool-install shared API", () => {
 			expect(Reflect.get(process.env, "JAVA_HOME")).toBe(fakeJavaHome);
 			expect(Reflect.get(Bun.env, "JAVA_HOME")).toBe(fakeJavaHome);
 			expect(process.env.PATH?.startsWith(fakeToolDir)).toBe(true);
+		});
+
+		it("Windows 路径往返：包含反斜杠与类似换行符字符（如 \\nodejs）不被转义，二次持久化正常合并且不报错", async () => {
+			const fakeNodeDir = path.join(tempDir, "Program Files", "nodejs");
+			const fakeDexkitDir = path.join(tempDir, "agent", "tools", "dexkit");
+			const fakeBlackdexDir = path.join(tempDir, "agent", "tools", "blackdex");
+			await fs.promises.mkdir(fakeNodeDir, { recursive: true });
+			await fs.promises.mkdir(fakeDexkitDir, { recursive: true });
+			await fs.promises.mkdir(fakeBlackdexDir, { recursive: true });
+
+			// 首次写入 DexKit 与 nodejs 路径
+			await persistToolEnvironment(
+				{
+					extraPaths: [fakeDexkitDir, fakeNodeDir],
+				},
+				tempDir,
+			);
+
+			// 二次写入 BlackDex 路径（模拟首次安装 DexKit 后连续安装 BlackDex）
+			await persistToolEnvironment(
+				{
+					extraPaths: [fakeBlackdexDir],
+				},
+				tempDir,
+			);
+
+			// 验证新会话 bootstrap 能够正确还原全部路径，无路径损坏
+			delete process.env.JAVA_HOME;
+			delete Bun.env.JAVA_HOME;
+			process.env.PATH = "/usr/bin:/bin";
+			applyPersistedReverseEnvironment(tempDir);
+
+			const parts = (process.env.PATH ?? "").split(path.delimiter);
+			expect(parts).toContain(fakeDexkitDir);
+			expect(parts).toContain(fakeNodeDir);
+			expect(parts).toContain(fakeBlackdexDir);
+		});
+
+		it("兼容旧版双引号写入的 Windows REVERSE_TOOL_PATHS 与 JAVA_HOME，正确提取并保留原始路径", async () => {
+			const legacyJava = path.join(tempDir, "Program Files", "nodejs-jdk");
+			const legacyTool = path.join(tempDir, "tools", "legacy-bin");
+			await fs.promises.mkdir(legacyJava, { recursive: true });
+			await fs.promises.mkdir(legacyTool, { recursive: true });
+
+			// 模拟旧版安装器已经落盘的双引号 Windows 路径
+			const envFile = path.join(tempDir, ".env");
+			await fs.promises.writeFile(
+				envFile,
+				`CUSTOM_VAR="other\\nsecret"\nJAVA_HOME="${legacyJava}"\nREVERSE_TOOL_PATHS="${legacyTool}"\n`,
+			);
+
+			// 启动加载应正确恢复原始路径，不因 \\n 解码为换行而丢失
+			delete process.env.JAVA_HOME;
+			delete Bun.env.JAVA_HOME;
+			process.env.PATH = "/usr/bin:/bin";
+			applyPersistedReverseEnvironment(tempDir);
+
+			expect(Reflect.get(process.env, "JAVA_HOME")).toBe(legacyJava);
+			expect((process.env.PATH ?? "").split(path.delimiter)).toContain(legacyTool);
+
+			// 进一步进行增量持久化，应能够安全合并而不抛出 dotenv 格式错误
+			const newTool = path.join(tempDir, "tools", "new-bin");
+			await fs.promises.mkdir(newTool, { recursive: true });
+			await persistToolEnvironment(
+				{
+					extraPaths: [newTool],
+				},
+				tempDir,
+			);
+
+			const finalContent = await fs.promises.readFile(envFile, "utf-8");
+			expect(finalContent).toContain('CUSTOM_VAR="other\\nsecret"');
+		});
+
+		it("支持独立持久化 UNIDBG_HOME 与 UNIDBG_JAVA_HOME，且不覆盖全局 Java 21", async () => {
+			const globalJdk21 = path.join(tempDir, "jdk-21");
+			const unidbgJdk8 = path.join(tempDir, "jdk-8");
+			const unidbgRoot = path.join(tempDir, "unidbg-root");
+			await fs.promises.mkdir(globalJdk21, { recursive: true });
+			await fs.promises.mkdir(unidbgJdk8, { recursive: true });
+			await fs.promises.mkdir(unidbgRoot, { recursive: true });
+
+			// 持久化全局 Java 21
+			await persistToolEnvironment({ javaHome: globalJdk21 }, tempDir);
+
+			// 持久化 Unidbg 专用 JDK8 与根目录
+			await persistToolEnvironment(
+				{
+					unidbgHome: unidbgRoot,
+					unidbgJavaHome: unidbgJdk8,
+				},
+				tempDir,
+			);
+
+			// 清理内存环境后通过 bootstrap 还原
+			delete process.env.JAVA_HOME;
+			delete process.env.UNIDBG_HOME;
+			delete process.env.UNIDBG_JAVA_HOME;
+			applyPersistedReverseEnvironment(tempDir);
+
+			// 全局 JAVA_HOME 依然是 Java 21，未被 JDK8 覆盖
+			expect(Reflect.get(process.env, "JAVA_HOME")).toBe(globalJdk21);
+			expect(Reflect.get(process.env, "UNIDBG_HOME")).toBe(unidbgRoot);
+			expect(Reflect.get(process.env, "UNIDBG_JAVA_HOME")).toBe(unidbgJdk8);
 		});
 	});
 

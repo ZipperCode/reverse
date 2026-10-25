@@ -2712,8 +2712,14 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		description: "Strict JDK 8 environment required by Unidbg native emulation (incompatible with JDK 9+)",
 		optional: true,
 		binaries: [],
+		envPaths: [
+			{ env: "UNIDBG_JAVA_HOME", suffix: "/bin" },
+			{ env: "UNIDBG_JAVA_HOME" },
+			{ env: "JAVA_HOME", suffix: "/bin" },
+			{ env: "JAVA_HOME" },
+		],
 		probe: deps => {
-			const res = validateJdk8(deps?.env?.JAVA_HOME, deps?.env);
+			const res = validateJdk8(undefined, deps?.env);
 			if (res.valid) {
 				return res.javaHome ?? res.javaBin ?? "jdk8";
 			}
@@ -2726,9 +2732,10 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		},
 		manualUrl: "https://adoptium.net/temurin/releases/?version=8",
 		manualInstructions: {
-			darwin: "Install Eclipse Adoptium Temurin 8 ('brew install --cask temurin@8') and set JAVA_HOME.",
-			linux: "Install OpenJDK 8 ('apt install openjdk-8-jdk') and set JAVA_HOME to /usr/lib/jvm/java-8-openjdk.",
-			win32: "Install Eclipse Adoptium Temurin 8 ('winget install EclipseAdoptium.Temurin.8.JDK') and set JAVA_HOME.",
+			darwin:
+				"Install Eclipse Adoptium Temurin 8 ('brew install --cask temurin@8') and set UNIDBG_JAVA_HOME (or JAVA_HOME).",
+			linux: "Install OpenJDK 8 ('apt install openjdk-8-jdk') and set UNIDBG_JAVA_HOME (or JAVA_HOME) to /usr/lib/jvm/java-8-openjdk.",
+			win32: "Install Eclipse Adoptium Temurin 8 ('winget install EclipseAdoptium.Temurin.8.JDK') and set UNIDBG_JAVA_HOME (or JAVA_HOME).",
 		},
 		installCommands: {
 			darwin: [

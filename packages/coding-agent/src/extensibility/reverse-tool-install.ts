@@ -172,15 +172,50 @@ function quoteEnvironmentValue(value: string): string {
 	if (/[\r\n]/.test(value) || (value.includes("'") && value.includes('"'))) {
 		throw new Error("Tool environment paths must fit a single quoted dotenv value.");
 	}
-	return value.includes('"') ? `'${value}'` : `"${value}"`;
+	return !value.includes("'") ? `'${value}'` : `"${value}"`;
+}
+
+/**
+ * 窄读取受管路径环境变量（REVERSE_TOOL_PATHS / JAVA_HOME / UNIDBG_HOME / UNIDBG_JAVA_HOME）。
+ * 优先通过 parseEnv 解析标准 dotenv；
+ * 若解析值包含 \r 或 \n（由于旧版安装器以双引号包裹 Windows 路径，导致 parseEnv 将 \n/\r 误解码为 LF/CR），
+ * 则回退到直接从原始文本行中提取双引号内的字面路径，保证 Windows 路径不被破坏。
+ * 绝不读取或改写其他用户自定义键或敏感凭据。
+ */
+function readManagedPathEnvValue(
+	rawContent: string,
+	key: "REVERSE_TOOL_PATHS" | "JAVA_HOME" | "UNIDBG_HOME" | "UNIDBG_JAVA_HOME",
+): string | undefined {
+	const parsed = parseEnv(rawContent);
+	const parsedVal = parsed[key];
+	if (typeof parsedVal === "string" && !/[\r\n]/.test(parsedVal)) {
+		return parsedVal;
+	}
+
+	const lines = rawContent.split(/\r?\n/);
+	const keyRegex = new RegExp(`^\\s*${key}\\s*=\\s*"(.*)"\\s*$`);
+	for (const line of lines) {
+		const match = line.match(keyRegex);
+		if (match) {
+			return match[1];
+		}
+	}
+
+	return typeof parsedVal === "string" ? parsedVal : undefined;
 }
 
 /**
  * Persist narrow, trusted reverse toolchain environment into the agent profile (.env).
- * Preserves user's existing PATH and other custom variables. Persists ONLY REVERSE_TOOL_PATHS and JAVA_HOME.
+ * Preserves user's existing PATH and other custom variables. Persists ONLY REVERSE_TOOL_PATHS,
+ * JAVA_HOME, and dedicated runtime variables (UNIDBG_HOME, UNIDBG_JAVA_HOME).
  */
 export async function persistToolEnvironment(
-	entries: { javaHome?: string; extraPaths?: string[] },
+	entries: {
+		javaHome?: string;
+		extraPaths?: string[];
+		unidbgHome?: string;
+		unidbgJavaHome?: string;
+	},
 	agentDir?: string,
 ): Promise<void> {
 	const targetAgentDir = agentDir ?? getAgentDir();
@@ -188,8 +223,12 @@ export async function persistToolEnvironment(
 	const envFile = path.join(targetAgentDir, ".env");
 
 	let currentLines: string[] = [];
+	let eol = "\n";
 	try {
 		const content = await fs.promises.readFile(envFile, "utf-8");
+		if (content.includes("\r\n")) {
+			eol = "\r\n";
+		}
 		currentLines = content.split(/\r?\n/);
 	} catch (error) {
 		if (!isEnoent(error)) {
@@ -216,7 +255,31 @@ export async function persistToolEnvironment(
 		Bun.env.JAVA_HOME = entries.javaHome;
 	}
 
-	// 2. Persist tool directories into REVERSE_TOOL_PATHS (do NOT overwrite user's PATH line)
+	// 2. Persist UNIDBG_HOME (dedicated Unidbg root)
+	if (entries.unidbgHome) {
+		const line = `UNIDBG_HOME=${quoteEnvironmentValue(entries.unidbgHome)}`;
+		if (existingKeys.has("UNIDBG_HOME")) {
+			currentLines[existingKeys.get("UNIDBG_HOME")!] = line;
+		} else {
+			currentLines.push(line);
+		}
+		process.env.UNIDBG_HOME = entries.unidbgHome;
+		Bun.env.UNIDBG_HOME = entries.unidbgHome;
+	}
+
+	// 3. Persist UNIDBG_JAVA_HOME (dedicated Unidbg JDK8, never clobbering global Java 21)
+	if (entries.unidbgJavaHome) {
+		const line = `UNIDBG_JAVA_HOME=${quoteEnvironmentValue(entries.unidbgJavaHome)}`;
+		if (existingKeys.has("UNIDBG_JAVA_HOME")) {
+			currentLines[existingKeys.get("UNIDBG_JAVA_HOME")!] = line;
+		} else {
+			currentLines.push(line);
+		}
+		process.env.UNIDBG_JAVA_HOME = entries.unidbgJavaHome;
+		Bun.env.UNIDBG_JAVA_HOME = entries.unidbgJavaHome;
+	}
+
+	// 4. Persist tool directories into REVERSE_TOOL_PATHS (do NOT overwrite user's PATH line)
 	if (entries.extraPaths && entries.extraPaths.length > 0) {
 		const validDirs = entries.extraPaths.filter(d => {
 			try {
@@ -230,9 +293,8 @@ export async function persistToolEnvironment(
 			let storedPaths: string[] = [];
 			const storedLineIdx = existingKeys.get("REVERSE_TOOL_PATHS");
 			if (storedLineIdx !== undefined) {
-				storedPaths = (parseEnv(currentLines.join("\n")).REVERSE_TOOL_PATHS ?? "")
-					.split(path.delimiter)
-					.filter(Boolean);
+				const rawStored = readManagedPathEnvValue(currentLines.join("\n"), "REVERSE_TOOL_PATHS");
+				storedPaths = (rawStored ?? "").split(path.delimiter).filter(Boolean);
 			}
 
 			const merged = [...new Set([...validDirs, ...storedPaths])];
@@ -253,9 +315,9 @@ export async function persistToolEnvironment(
 		}
 	}
 
-	// Atomically write updated .env
+	// Atomically write updated .env preserving existing line endings
 	const tmpFile = `${envFile}.${process.pid}.${Date.now()}.tmp`;
-	await fs.promises.writeFile(tmpFile, currentLines.filter(l => l !== undefined).join("\n") + "\n", {
+	await fs.promises.writeFile(tmpFile, currentLines.filter(l => l !== undefined).join(eol) + eol, {
 		mode: 0o600,
 	});
 	await fs.promises.rename(tmpFile, envFile);
@@ -276,18 +338,37 @@ export function applyPersistedReverseEnvironment(agentDir?: string): void {
 
 	try {
 		const raw = fs.readFileSync(envFile, "utf-8");
-		const parsed = parseEnv(raw);
 
-		if (parsed.JAVA_HOME && typeof parsed.JAVA_HOME === "string") {
-			const jHome = parsed.JAVA_HOME.trim();
+		const javaHomeVal = readManagedPathEnvValue(raw, "JAVA_HOME");
+		if (javaHomeVal) {
+			const jHome = javaHomeVal.trim();
 			if (path.isAbsolute(jHome) && fs.existsSync(jHome)) {
 				process.env.JAVA_HOME = jHome;
 				Bun.env.JAVA_HOME = jHome;
 			}
 		}
 
-		if (parsed.REVERSE_TOOL_PATHS && typeof parsed.REVERSE_TOOL_PATHS === "string") {
-			const extraPaths = parsed.REVERSE_TOOL_PATHS.split(path.delimiter).filter(Boolean);
+		const unidbgHomeVal = readManagedPathEnvValue(raw, "UNIDBG_HOME");
+		if (unidbgHomeVal) {
+			const uHome = unidbgHomeVal.trim();
+			if (path.isAbsolute(uHome) && fs.existsSync(uHome)) {
+				process.env.UNIDBG_HOME = uHome;
+				Bun.env.UNIDBG_HOME = uHome;
+			}
+		}
+
+		const unidbgJavaHomeVal = readManagedPathEnvValue(raw, "UNIDBG_JAVA_HOME");
+		if (unidbgJavaHomeVal) {
+			const uJavaHome = unidbgJavaHomeVal.trim();
+			if (path.isAbsolute(uJavaHome) && fs.existsSync(uJavaHome)) {
+				process.env.UNIDBG_JAVA_HOME = uJavaHome;
+				Bun.env.UNIDBG_JAVA_HOME = uJavaHome;
+			}
+		}
+
+		const reverseToolPathsVal = readManagedPathEnvValue(raw, "REVERSE_TOOL_PATHS");
+		if (reverseToolPathsVal) {
+			const extraPaths = reverseToolPathsVal.split(path.delimiter).filter(Boolean);
 			const valid = extraPaths.filter(d => {
 				try {
 					return path.isAbsolute(d) && fs.existsSync(d) && fs.statSync(d).isDirectory();
@@ -1172,7 +1253,11 @@ export async function installReverseItem(
 			if (step.installer === "unidbg" || step.id === "unidbg") {
 				options.onChunk?.(`[reverse] Building Unidbg from source with verified JDK 8...\n`);
 				const { buildUnidbg } = await import("./unidbg-builder");
-				const javaHome = options.env?.JAVA_HOME ?? process.env.JAVA_HOME;
+				const javaHome =
+					options.env?.UNIDBG_JAVA_HOME ??
+					process.env.UNIDBG_JAVA_HOME ??
+					options.env?.JAVA_HOME ??
+					process.env.JAVA_HOME;
 				const unidbgDir =
 					options.env?.UNIDBG_HOME ??
 					options.env?.UNIDBG_ROOT ??
@@ -1198,7 +1283,8 @@ export async function installReverseItem(
 				}
 				await persistToolEnvironment(
 					{
-						javaHome,
+						unidbgHome: buildRes.unidbgDir,
+						unidbgJavaHome: javaHome,
 						extraPaths: [buildRes.unidbgDir],
 					},
 					options.agentDir,
