@@ -527,7 +527,7 @@ export const REVERSE_TASK_AUTOLOAD_SKILLS = ["reverse-lab"] as const;
 
 const REVERSE_TASK_PATTERNS = [
 	/\b(?:reverse(?:[-_\s]?engineer(?:ing|ed|s)?|[-_\s]?eng)\b|\breversing\b|decompil(?:e|ation|ed|er|ing|es)?|disassembl(?:e|y|ed|er|ing|es)?)\b/i,
-	/\b(?:apktool|jadx|droidasc|android_package_inspect|dex_patch|apk_artifact|app_experiment|runtime_analyze|network_replay|mitm_capture|radare2|r2mcp|ghidra|ghidra_inspect|analyzeHeadless|ida-?pro|idapro|idalib|r2_inspect|dotnet_inspect|r2pipe|frida|pcap_inspect|sqlite_inspect|firmware_inspect|crashdump_inspect|binary_metadata_inspect|evm_inspect|binary_diff|reverse_workflow|reverse_runtime_session|reverse_knowledge|reverse_dynamic_evidence|reverse_capability|native_mcp_session|x64dbg|binwalk|vbindiff|triton_analyze|vmp_dump|native_devirtualize|vmprotect|vmpdump|novmp|mergen|blutter|il2cppdumper)\b/i,
+	/\b(?:apktool|jadx|droidasc|android_package_inspect|dex_patch|apk_artifact|app_experiment|runtime_analyze|network_replay|mitm_capture|radare2|r2mcp|ghidra|ghidra_inspect|analyzeHeadless|ida-?pro|idapro|idalib|r2_inspect|dotnet_inspect|r2pipe|frida|pcap_inspect|sqlite_inspect|firmware_inspect|crashdump_inspect|binary_metadata_inspect|evm_inspect|binary_diff|reverse_workflow|reverse_runtime_session|reverse_knowledge|reverse_dynamic_evidence|reverse_capability|native_mcp_session|x64dbg|binwalk|vbindiff|triton_analyze|vmp_dump|native_devirtualize|vmprotect|vmpdump|novmp|mergen|blutter|il2cppdumper|dex_unpack|dex_repair|dex_search|deobfuscate|instruction_trace|native_recover|ollvm|flattening|d810|simplify|msynth|blackdex|dexkit)\b/i,
 	/\b(?:mach-o|macho|fat\s+binary|pe32\+?|elf(?:32|64)?|minidump|coredump|uimage|squashfs|bytecode|evm)\b/i,
 	/\b\w+\.(?:apk|dex|dylib|so|dll|exe|ipa|aab|pcap|pcapng|sqlite|sqlite3|db|dmp|dump|bin|rom|img|evm|har)\b/i,
 	/AndroidManifest(?:\.xml)?/i,
@@ -563,12 +563,12 @@ export function resolveTargetReverseSkills(assignment?: string, context?: string
 
 	// Android / DEX / APK 路由
 	const isAndroid =
-		/\b(?:android|apk|dex|aab|smali|dalvik|jadx|apktool|droidasc|android_package_inspect|dex_patch|apk_artifact)\b/i.test(
+		/\b(?:android|apk|dex|aab|smali|dalvik|jadx|apktool|droidasc|android_package_inspect|dex_patch|apk_artifact|dex_unpack|dex_repair|dex_search|frida[-_]dexdump|blackdex|fart|dexkit|simplify)\b/i.test(
 			text,
 		) ||
 		/\b\w+\.(?:apk|dex|aab)\b/i.test(text) ||
 		/AndroidManifest(?:\.xml)?/i.test(text) ||
-		/(?:安卓|安卓应用|安卓逆向)/.test(text) ||
+		/(?:安卓|安卓应用|安卓逆向|脱壳)/.test(text) ||
 		(/\bapp_experiment\b/i.test(text) && /\b(?:device|adb|package|serial|component|android)\b/i.test(text));
 	if (isAndroid) {
 		selected.add("android-reverse");
@@ -577,22 +577,21 @@ export function resolveTargetReverseSkills(assignment?: string, context?: string
 	// Native 路由：SO、JNI、ELF、Mach-O、PE、DLL、Ghidra、IDA 等
 	// 对于 Android 任务，仅当出现明确的 SO / JNI / 原生层证据时才加载 native-binary-reverse
 	const hasNativeEvidence =
-		/\b(?:jni|lib[a-zA-Z0-9_-]+\.so|\.so\b|\.dylib\b|\.dll\b|native[-_\s]?librar(?:y|ies)|native[-_\s]?method|elf(?:32|64)?|mach-o|macho|radare2|r2mcp|ghidra|ghidra_inspect|ida-?pro|idapro|idalib|r2_inspect|r2pipe|unidbg|readelf|objdump|vbindiff|native_mcp_session)\b/i.test(
+		/\b(?:jni|lib[a-zA-Z0-9_-]+\.so|\.so\b|\.dylib\b|\.dll\b|native[-_\s]?librar(?:y|ies)|native[-_\s]?method|elf(?:32|64)?|mach-o|macho|radare2|r2mcp|ghidra|ghidra_inspect|ida-?pro|idapro|idalib|r2_inspect|r2pipe|unidbg|readelf|objdump|vbindiff|native_mcp_session|native_recover|instruction_trace|qbdi|d810(?:-ng)?|msynth|ollvm|control[-_\s]?flow[-_\s]?flattening|cff\b|flattening|mba\b|mixed[-_\s]?boolean[-_\s]?arithmetic)\b/i.test(
 			text,
-		) || /(?:jni|动态链接库|\.so\b|原生库|反汇编)/i.test(text);
+		) || /(?:jni|动态链接库|\.so\b|原生库|反汇编|控制流平坦化|不透明谓词|虚假控制流)/i.test(text);
 
 	const isPureNativeTarget =
 		!isAndroid &&
-		(/\b(?:native|binary|elf(?:32|64)?|mach-o|macho|disassembl(?:y|e|er)|ghidra|radare2|ida|r2_inspect|ghidra_inspect)\b/i.test(
+		(/\b(?:native|binary|elf(?:32|64)?|mach-o|macho|disassembl(?:y|e|er)|ghidra|radare2|ida|r2_inspect|ghidra_inspect|native_recover|instruction_trace|deobfuscate|ollvm|control[-_\s]?flow[-_\s]?flattening|cff\b|flattening|mba\b|mixed[-_\s]?boolean[-_\s]?arithmetic|d810(?:-ng)?|msynth)\b/i.test(
 			text,
 		) ||
 			/\b\w+\.(?:so|dylib|dll|exe|bin|elf)\b/i.test(text) ||
-			/(?:二进制|动态库|原生|机器码)/.test(text));
+			/(?:二进制|动态库|原生|机器码|混淆还原)/.test(text));
 
 	if (hasNativeEvidence || isPureNativeTarget) {
 		selected.add("native-binary-reverse");
 	}
-
 	// Web / HAR / 接口鉴权 / 协议抓包路由
 	const isWebProtocol =
 		/\b(?:har\b|pcap|pcapng|http\b|https\b|websocket\b|mitm|mitmproxy|authz|api[-_\s]?authz|token\b|bearer|jwt|cookie\b|rest[-_\s]?api|graphql|network[-_\s]?replay|sourcemap|wasm_inspect)\b/i.test(
@@ -607,9 +606,9 @@ export function resolveTargetReverseSkills(assignment?: string, context?: string
 
 	// VMP 虚拟化逆向路由
 	const isVmp =
-		/\b(?:vmp\b|vmprotect|devirtualiz(?:e|ation)|vmp_dump|vmpdump|triton|triton_analyze|novmp|bytecode\s+virtual\s+machine)\b/i.test(
+		/\b(?:vmp\b|vmprotect|devirtualiz(?:e|ation)|vmp_dump|vmpdump|triton|triton_analyze|novmp|bytecode\s+virtual\s+machine|native_recover|instruction_trace|ollvm|control[-_\s]?flow[-_\s]?flattening|cff\b|flattening|mba\b|mixed[-_\s]?boolean[-_\s]?arithmetic|custom[-_\s]?vmp|android[-_\s]?vmp)\b/i.test(
 			text,
-		) || /(?:虚拟化保护|虚拟机脱壳|指令还原)/.test(text);
+		) || /(?:虚拟化保护|虚拟机脱壳|指令还原|自定义vmp|混淆还原|符号执行)/.test(text);
 
 	if (isVmp) {
 		selected.add("vmp-reverse");

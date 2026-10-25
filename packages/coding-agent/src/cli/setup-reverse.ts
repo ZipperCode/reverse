@@ -47,6 +47,7 @@ import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
 import { getJshookMcpServer, inspectJshookMcp } from "../extensibility/jshookmcp-install";
 import { getNativeMcpServer, inspectNativeMcp, type NativeMcpService } from "../extensibility/native-mcp-install";
 import { getPortableToolRecipe } from "../extensibility/portable-tool-install";
+import { isProtectionToolId } from "../extensibility/protection-toolchain";
 import { expandTilde } from "../tools/path-utils";
 import { cfgDebugEnabled } from "../tools/settings";
 import { hasIdalib, locateIdaInstall, probeIdaPythonEnvironment } from "../ida/install";
@@ -462,7 +463,10 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 						"Compiles Ghidra FindCrypt extension from upstream source (TorgoTorgo/ghidra-findcrypt commit 5c2fd5b, GPL-3.0) against target Ghidra and installs it into Ghidra Extensions.",
 					),
 				};
-			} else if (["blutter", "hbctool", "hermes-dec", "il2cppdumper"].includes(desc.id)) {
+			} else if (
+				["blutter", "hbctool", "hermes-dec", "il2cppdumper"].includes(desc.id) ||
+				isProtectionToolId(desc.id)
+			) {
 				chosenCmd = {
 					manager: "managed",
 					command: `${APP_NAME} setup reverse ${desc.id} --execute`,
@@ -803,7 +807,8 @@ export function isTrustedCatalogArgv(
 				item.id === "blutter" ||
 				item.id === "hbctool" ||
 				item.id === "hermes-dec" ||
-				item.id === "il2cppdumper") &&
+				item.id === "il2cppdumper" ||
+				isProtectionToolId(item.id)) &&
 			item.installArgv.length === 5 &&
 			item.installArgv[0] === APP_NAME &&
 			item.installArgv[1] === "setup" &&

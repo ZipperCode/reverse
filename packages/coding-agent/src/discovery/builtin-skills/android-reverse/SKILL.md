@@ -2,8 +2,8 @@
 name: android-reverse
 description: Android application and native library reverse engineering specialist. Focuses on APK/DEX static decompilation, smali patching, JNI native library triage, and ADB/Frida dynamic instrumentation.
 metadata:
-  requiresOptional: jadx, apktool, adb, frida, droidasc, unidbg, bundletool, dex2jar, baksmali, scrcpy, python, zipalign, apksigner, ghidra, lief, ghidra-findcrypt, sofixer
-  capabilities: apk_unpacking, dex_patching, apk_artifact_generation, android_native_emulation, native_elf_analysis, native_elf_repair, native_crypto_constant_analysis
+  requiresOptional: jadx, apktool, adb, frida, droidasc, unidbg, bundletool, dex2jar, baksmali, scrcpy, python, zipalign, apksigner, ghidra, lief, ghidra-findcrypt, sofixer, frida-dexdump, fart, dexkit, jadx-string-decrypt, simplify, blackdex
+  capabilities: apk_unpacking, dex_patching, apk_artifact_generation, android_native_emulation, native_elf_analysis, native_elf_repair, native_crypto_constant_analysis, dex_runtime_unpacking, dex_codeitem_repair, dex_structural_search, bytecode_deobfuscation
 ---
 
 # Android Reverse Engineering Specialist
@@ -38,9 +38,12 @@ Read `skill://reverse-lab/references/evidence.md` for artifact formats.
 | **`android_native_emulation`** (Capability) | Headless ARM32/ARM64 CPU emulation and JNI invocation of native `.so` crypto algorithms without a device | `android_native_workflow` (built-in triage) | `unidbg` (Maven Java harness) | `reverse setup reverse unidbg` | `frida` / `frida_session` (live device) ➔ static `r2_inspect` / `ghidra_inspect` / `readelf` |
 | **`dex_patching`** (Capability) | Direct Dalvik bytecode inspection, DEX header validation, and semantic byte patching | `dex_patch` (built-in) | `python`, `jadx`, `baksmali` | `reverse setup reverse python` | `droidasc` ➔ `dexdump` ➔ smali patch |
 | **`apk_artifact_generation`** (Capability) | Container entry diff, archive repackaging, Split APK package sets, 4-byte/16KiB page alignment, v1-v3 signing | `apk_artifact` (built-in) | `python`, `zipalign`, `apksigner`, `java`, `adb` | `reverse setup reverse apksigner` | `apktool b` + `unzip` |
+| **`dex_runtime_unpacking`** (Capability) | Dynamic memory extraction of packed/encrypted DEX from ART runtime via Frida or BlackDex | `dex_unpack` | `frida-dexdump`, `blackdex` | `reverse setup reverse frida-dexdump --execute` | `android_package_inspect` (static) / `dex_repair` |
+| **`dex_codeitem_repair`** (Capability) | Offline restoration and relocation of dumped FART CodeItem method records into valid DEX | `dex_repair` | `fart` | `reverse setup reverse fart --execute` | `dex_patch` (dry_run) |
+| **`dex_structural_search`** (Capability) | High-performance structural query of classes, methods, and cross-references via DexKit | `dex_search` | `dexkit` | `reverse setup reverse dexkit --execute` | `droidasc` / `android_package_inspect` |
+| **`bytecode_deobfuscation`** (Capability) | Automated string decryption, reflection unrolling, and Dalvik VM simplification | `deobfuscate` | `jadx` (`jadx-string-decrypt`), `simplify`, `blackdex` | `reverse setup reverse jadx-string-decrypt --execute` | `android_package_inspect` / `dex_patch` |
 | **`app_experiment`** (Method Tool) | Bounded mobile device lab experiments (component invocation, provider query, run-as sandbox extract, webview debug, network replay, pinning diagnose) | `app_experiment` (built-in) | `adb`, `frida`, `mitmproxy` | `reverse setup reverse adb` | Static manifest / DEX inspect via `android_package_inspect` |
 | **`runtime_analyze`** (Method Tool) | Multi-runtime mobile application inspection (Flutter Dart AOT, React Native Hermes HBC, Unity IL2CPP) | `runtime_analyze` (built-in) | `blutter`, `hbctool`, `hermes-dec`, `il2cppdumper` | `reverse setup reverse blutter` | Native ELF / binary triage via `triage` / `r2_inspect` |
-
 ### Core Toolchain & Prerequisites
 
 - **Native Package & DEX Inspector (`android_package_inspect`)**: BUILT-IN (Zero-dependency). Recommended first-stop for native inspection of Android packages (`.apk`, `.aab`, `.apks`) and bare Dalvik executables (`.dex`). Parses container entries, DEX headers/classes, Android Binary XML manifests, signature schemes (v1, v2, v3, v3.1, SourceStamp), and resource trees in-process with optional bridges for `apksigner` and `aapt2`.
@@ -54,6 +57,10 @@ Read `skill://reverse-lab/references/evidence.md` for artifact formats.
 - **Multi-Runtime Analyzer (`runtime_analyze`)**: BUILT-IN. Detects and analyzes embedded app frameworks. Actions: `inventory` (detects Flutter, React Native/Hermes, Unity IL2CPP), `hermes` (disassembles Hermes bytecode via compatible `hbctool` or `hermes-dec`), `il2cpp` (extracts symbols and generates `dump.cs` / scripts via Il2CppDumper), `flutter` (extracts AOT symbols from `libapp.so` + `libflutter.so` via Blutter).
 - **Dynamic Instrumentation (`frida`, `frida_session`, `adb_observe`, `adb`)**: OPTIONAL. Use the built-in `frida` tool for open dynamic execution and inspection: execute custom Frida JavaScript scripts (`script` or `script_path`) against processes via attach (`pid`/`process`) or spawn (`spawn`), supporting hook implementation replacement and memory inspection, as well as device discovery, process enumeration, module listing, and trace observation; record dynamic evidence to `./artifacts` and cite in evidence chains.
 
+- **Runtime DEX Unpacker (`dex_unpack`)**: BUILT-IN TOOL. Extracts packed or dynamically loaded DEX files directly from ART memory using `frida-dexdump` (host CLI). The alternative BlackDex device unpacker is invoked through `deobfuscate(backend: "blackdex")`. `dex_unpack` requires an explicit `device` and `package` or `pid`. It evaluates output headers, checksums, and incomplete method-body boundaries (`needs_repair`), and emits handoff recommendations to `dex_repair` and `dex_patch`.
+- **Offline FART CodeItem Restorer (`dex_repair`)**: BUILT-IN TOOL. Repairs empty-code stub methods in unpacked DEX files by parsing and stitching dumped FART `.bin` CodeItem records. Relocates variable-size code items, updates class_data ULEB offsets, recalculates SHA-1 and Adler32 checksums, and verifies output DEX integrity. Defaults to `dry_run: true` for safety.
+- **DEX Structural Search Engine (`dex_search`)**: BUILT-IN TOOL. Performs fast structural queries against DEX and APK files using LuckyPray DexKit. Matches classes, methods, and fields on string constants, signatures, annotations, and caller/callee cross-references, outputting stable descriptors for handoff to Frida hooks or decompilation.
+- **Android Bytecode Deobfuscator (`deobfuscate`)**: BUILT-IN TOOL. Normalizes obfuscated Dalvik bytecode using pluggable backends: `jadx` with `jadx-string-decrypt` plugin (constant folding, string decryption, reflection unrolling), `simplify` (bounded virtual Dalvik execution), and `blackdex` (device unpacking). Outputs complexity reduction metrics and artifact paths.
 ### Tool Execution Guidance & Readiness Protocol
 
 Before invoking any tool via `write` to `xd://<tool>`, inspect its schema and usage rules with `read xd://<tool>`. Emit notices for the current step only without noise.

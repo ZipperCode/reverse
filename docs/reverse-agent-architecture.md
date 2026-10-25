@@ -434,3 +434,41 @@ Agent 面向分析**场景与能力**（Capability），而非单纯记忆零散
 5. **NoVmp 边界**：仅适用于已脱壳的 VMP 3.0–3.5 目标；其实验性重编译（`-experimental:recompile`）不提供可执行性保证。
 6. **Trace 局部性**：Triton 离线回放仅证明所采集单条轨迹上的代数关系，未覆盖分支不可假定具有相同行为。
 7. **锁步差分验证必须性**：任何脱壳反混淆成果在未经与原样本在沙箱内进行多组测试向量（边界值、随机值、有效载荷）输入输出与副作用对比验证前，一律标记为 `[HYPOTHESIS]`，验证通过后方可录入 Evidence 账本。
+
+## 保护分析与有界恢复支持边界 (Protection Analysis, Deobfuscation & Bounded Recovery)
+
+### 1. 架构定位与可发现性原则
+
+针对 Android 加固（DEX 加壳、抽取壳/函数体剥离）、控制流平坦化（OLLVM CFF）、不透明谓词、混合布尔算术（MBA）混淆以及自定义/Android 本地虚拟机保护，`reverse` 扩展了 6 项一等方法工具：
+- `dex_unpack`（运行时 DEX 转储）
+- `dex_repair`（离线 FART CodeItem 修复）
+- `dex_search`（DexKit 结构化代码搜索）
+- `deobfuscate`（多引擎反混淆适配器）
+- `instruction_trace`（受控指令追踪与状态采集）
+- `native_recover`（有界多路径符号执行与差分验证）
+
+架构原则保持不变：**不引入新的平台角色，不重构编排引擎**，工具作为轻量单动作执行器挂载，通过 Skill 前言能力声明与目标感知自动加载。Android VMP 场景根据证据协同加载 `android-reverse`、`native-binary-reverse` 与 `vmp-reverse`，在无明确 Windows PE 证据时不自动加载 `windows-reverse`。
+
+### 2. 真实工具契约与端到端边界 (E2E Boundaries)
+
+| 工具名称 | 对应动作 | 核心参数与输入边界 | 产物规范与上下文约束 |
+|---|---|---|---|
+| `dex_unpack` | `status`, `dump` | 后端枚举仅支持 `frida-dexdump`（BlackDex 归入 `deobfuscate`）；强制要求显式 `device`（拒绝设备隐式盲目转储）与 `package` 或 `pid`；可选 `spawn`, `deep_search`, `out_dir`, `timeout_ms` | 产物写入 `./artifacts/`；输出 DEX 文件头有效性、SHA-256、Adler32 校验码与 `incomplete_method_boundary`；若存在空函数体（`needs_repair: true`），明确向 `dex_repair` 交接 |
+| `dex_repair` | `status`, `repair` | 内置 permissive Python 引擎（基于 `dexutil.py` 与 `dex-repair-worker.py`，依赖 Python 运行时，无需外部 fart 二进制）；`path` (目标 DEX/APK), `records` (FART `.bin` 记录), `dry_run` (默认 `true`), `out` (输出路径，严禁就地覆写输入) | 解析方法索引，重定位变长 CodeItem，更新 `class_data` ULEB 偏移与 `map_list`，重算 SHA-1 与 Adler32 校验和；提供校验前后的完整头信息比对与验证状态 |
+| `dex_search` | 查询动作 (`type` / `action`: `class`, `method`, `field`, `callers`, `callees`, `field_uses`, `batch_strings`, `info`) | `target` (APK/DEX 路径), `using_strings`, `using_numbers`, `return_type`, `param_types`, `method`, `field`, `search_packages`；基于 LuckyPray DexKit Core 本地库与 JVM 桥接 | 避免在分析端直接全量反编译整包，根据符号常数、特征签名或调用关系精确检索，返回稳定描述符供 Frida 挂钩或 JADX 局部反编译消费 |
+| `deobfuscate` | `status`, `analyze` | `backend: "jadx" \| "d810-ng" \| "simplify" \| "msynth" \| "blackdex"`；JADX 使用 `analyze`；后端参数包括 `rules`、`unflattener`、`expression`、`bit_width`、`class_filter` | 复用对应上游引擎，保留输入与独立产物；`D810G`（overkazaf 的 IDA 微代码研究分支）与 `vmp-devirt` 作为研究参考保留 |
+| `instruction_trace` | `status`, `capture` | 显式目标 `pid` / `process` / `spawn` / `session_id`、模块和函数/地址范围；QBDI 函数执行提供 `signature`；引擎 `auto` / `qbdi` / `stalker`，格式 `jsonl` / `salwan` | 输出指令字节、执行前状态和伴随清单；依据读取、执行缺口及截断状态标记 `replay_handoff.valid`，使用其 `params` 交接至 Triton |
+| `native_recover` | `status`, `explore`, `handlers`, `merge`, `verify` | 显式 `BoundedSnapshot`（架构、入口、停机地址集合、初始寄存器、内存段字节与权限、带 concrete seed 的符号输入、目标输出）；有界预算（`branch_budget`, `max_instructions`, `timeout_ms`） | 运用 Triton DSE 工作表与 Z3 前缀分支反转探索状态空间；提取 Handler 转移公式；在域重叠一致性校验与全覆盖守卫下合并为 ITE 树及 SMT2/LLVM IR；双向验证机器码与表达式 |
+
+### 3. 验证与推进纪律 (Progression & Epistemic Discipline)
+
+1. **风险分级与自动推进阻断**：
+   - 新增保护工具中，仅 `action: "status"`（只读环境与能力探测）被允许在 auto-progression 中静默自动执行；
+   - 任何涉及执行、转储、写入或重度分析的动作（`dump`, `repair`, `capture`, `analyze`, `explore`, `handlers`, `merge`, `verify`）均属于高风险或动态操作，**一律阻断自动推进**，保持挂起状态并交由操作员显式授权。
+2. **无任意设备连接与无伪造种子**：
+   - 降级恢复计划中，若动态设备不可用，平滑回退至离线静态检查（如 `android_package_inspect`），严禁自动猜测并连接任意设备序列号；
+   - 符号执行探索中，严禁编造默认或虚假的符号输入种子；必须基于真实快照或调用方提供的上下文。
+3. **认知边界与非全域等价性保证**：
+   - 有限向量的测试吻合（如 50/50 向量双向匹配）仅证明**在已测试输入集合与已覆盖路径域内**的行为一致性，**绝不构成全域数学等价性证明**；
+   - SMT 形式化求解器证明仅在已建模路径谓词的前提下有效，未覆盖的输入组合必须保留守卫及反例报告；
+   - 验证结论严格区分有限向量测试（`finite_vectors`）、SMT 形式化求解（`smt_formal`）与真实机器码双向比对。

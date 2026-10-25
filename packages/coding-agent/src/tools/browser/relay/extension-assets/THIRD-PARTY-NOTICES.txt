@@ -76,6 +76,107 @@ SOFTWARE.
 
 
 -------------------------------------------------------------------------------
+FART — Android ART runtime function-level CodeItem extraction and offline repair
+https://github.com/hanbinglengyue/FART
+Adapted offline-repair source commit: 3d017f196b900c4b306caea771bd92189ed441cf
+
+Adapted into reverse's embedded dex_repair tool (dex-repair-worker.py and dexutil.py).
+Implements method index mapping, variable-size CodeItem relocation, class_data
+ULEB offset recalculation, map_list item updates, and Adler-32 / SHA-1 header checksum
+restoration. Shipped as an embedded permissive Python helper without external binary dependencies.
+
+Apache License
+Version 2.0, January 2004
+http://www.apache.org/licenses/
+
+Copyright 2019 hanbinglengyue (FART project)
+Copyright 2026 reverse contributors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+-------------------------------------------------------------------------------
+ADOPTED EXTERNAL PROTECTION TOOLCHAIN RECEIPTS
+==============================================
+
+The following external tools, runtimes, and bridges are supported through reverse's
+managed installation toolchain (packages/coding-agent/src/extensibility/protection-toolchain.ts).
+They are resolved on demand; native libraries, JVM assets, and Python packages stay in managed external tool directories.
+
+- QBDI — QuarkslaB Dynamic Binary Instrumentation
+  https://github.com/QBDI/QBDI
+  Upstream release: v0.12.1 (commit 09b2efb66d242b3616a4723e4b487f623b0e93d7)
+  License: Apache-2.0
+  Copyright (c) 2015-2024 Quarkslab
+  Used for controlled instruction tracing and synchronized pre-instruction memory/register capture in instruction_trace.
+
+- DexKit — Dalvik/ART DEX Structural Code Search Engine
+  https://github.com/LuckyPray/DexKit
+  Upstream release: v2.3.0 (commit c9cd12a14b75409bebd2f73e4dfc5ff575df3eb8)
+  License: LGPL-3.0 (Core native library) / Apache-2.0 (JVM/native bridge)
+  Copyright (c) 2022-2024 LuckyPray
+  Used for fast class, method, field, and cross-reference graph queries in dex_search.
+
+- jadx-string-decrypt — JADX String Decryption & Deobfuscation Plugin
+  https://github.com/Arsylk/jadx-string-decrypt
+  Upstream release: v1.14.0 (SHA256: 23ac54326a4ceabb4fae4c7591e0f480bf4e3c5260e6cff8204da402dd19772a)
+  License: Apache-2.0
+  Copyright (c) 2020-2024 Arsylk
+  Used as a bytecode deobfuscation backend in deobfuscate(backend: "jadx").
+
+- frida-dexdump — Fast Dalvik/ART In-Memory DEX Dumper
+  https://github.com/hluwa/frida-dexdump
+  Upstream release: v2.0.1
+  License: GPL-3.0
+  Copyright (c) 2020-2024 hluwa
+  Used for dynamic runtime memory DEX extraction in dex_unpack.
+
+- BlackDex — Android ART Runtime Dynamic DEX Unpacker
+  https://github.com/CodingGay/BlackDex
+  Upstream release: v3.2 (app-BlackDex32.apk, app-BlackDex64.apk)
+  License: Apache-2.0
+  Copyright (c) 2020-2024 ZhengHaiPeng (CodingGay)
+  Used as an automated Android device dynamic unpacking backend in deobfuscate(backend: "blackdex").
+
+- d810-ng — De-obfuscation Framework for IDA Pro Microcode
+  https://github.com/w00tzenheimer/d810-ng
+  Upstream release: v0.6.6
+  License: AGPL-3.0
+  Copyright (c) 2021-2024 eShard / w00tzenheimer
+  Used for IDA Pro 9+ Hex-Rays microcode control-flow unflattening and rule-based normalization in deobfuscate(backend: "d810-ng").
+
+- simplify — Android Dalvik Virtual Machine De-obfuscator
+  https://github.com/CalebFenton/simplify
+  Upstream release: v1.3.0
+  License: GPL-3.0
+  Copyright (c) 2015-2024 Caleb Fenton
+  Used for bounded virtual execution and constant propagation in deobfuscate(backend: "simplify").
+
+- msynth — Program Synthesis for Mixed Boolean-Arithmetic (MBA) Deobfuscation
+  https://github.com/mrphrazer/msynth
+  Upstream release: v1.0.0 (commit dfd0f9e2cd0890658fe752aa207a2cfda2aef8d7, Miasm commit 1dc5fa90311992c92b7cff08f3c5354ece67a995)
+  License: GPL-2.0
+  Authors: Tim Blazytko and Moritz Schloegel
+  Used for MBA AST simplification and Z3 SMT equivalence verification in deobfuscate(backend: "msynth").
+
+- tritondse — Triton-based Dynamic Symbolic Execution Library
+  https://github.com/quarkslab/tritondse
+  Upstream release: v0.1.14 (commit c7e02b6196d740ba663c492fefdc70c0daa61367)
+  License: Apache-2.0
+  Copyright (c) 2020-2024 Quarkslab
+  Optional managed DSE library; native_recover executes bounded snapshots directly through Triton.
+
+-------------------------------------------------------------------------------
 crates/vendor/brush-core/LICENSE
 
 This directory contains a vendored, locally-patched copy of brush-core from the
@@ -1103,7 +1204,7 @@ These packages participate only in generation/web build tooling and are not ship
 
 SCOPED NON-PERMISSIVE PACKAGES
 ------------------------------
-The exact @img/sharp-libvips-* 1.2.4 all-target family is LGPL-3.0-or-later. It is not distributed in REVERSE npm bundles or standalone assets: @huggingface/transformers is always external, installed into a user-side versioned runtime on demand, and sharp is stubbed for speech/text. The dynamically loaded native library remains replaceable. Corresponding source is available from https://github.com/lovell/sharp-libvips.git and upstream libvips sources.
+The exact @img/sharp-libvips-* 1.2.4 all-target family is LGPL-3.0-or-later. It is not distributed in OMP npm bundles or standalone assets: @huggingface/transformers is always external, installed into a user-side versioned runtime on demand, and sharp is stubbed for speech/text. The dynamically loaded native library remains replaceable. Corresponding source is available from https://github.com/lovell/sharp-libvips.git and upstream libvips sources.
 
 lightningcss 1.32.0 and its exact target leaves are MPL-2.0 build-only dependencies. MPL is not globally allowed and these packages are absent from runtime artifacts.
 

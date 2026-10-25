@@ -33,6 +33,14 @@ When a tool is absent, apply the **Discover-Before-Stop / Install-Then-Dispatch*
 | **`native_function_lifting`** (x64 PE function to LLVM IR) | `native_devirtualize(backend: "mergen")` | `triton_analyze` / `r2_inspect` |
 | **`vmp_legacy_devirtualization`** (VMP 3.0–3.5 VTIL devirt) | `native_devirtualize(backend: "novmp")` | `triton_analyze` |
 | **`symbolic_trace_analysis`** (Symbolic replay & MBA simplification) | `triton_analyze(action: "replay", ...)` | `r2_inspect` / IDA Pro |
+| **`dex_runtime_unpacking`** (In-memory DEX dump) | `dex_unpack(action: "dump", package: <pkg>, device: <dev>)` | `android_package_inspect` (static) |
+| **`dex_codeitem_repair`** (FART CodeItem restore) | `dex_repair(action: "repair", path: <dex>, records: <bins>)` | `dex_patch(dry_run: true)` |
+| **`dex_structural_search`** (DexKit code query) | `dex_search(target: <apk>, type: "method", ...)` | `droidasc(op: "findrefs")` |
+| **`instruction_trace_capture`** (QBDI/Stalker trace) | `instruction_trace(action: "capture", process: <proc>, ...)` | `frida` / `frida_session` |
+| **`native_path_recovery`** (Bounded DSE recovery) | `native_recover(action: "explore" / "handlers" / "merge" / "verify")` | `triton_analyze` (single path) |
+| **`native_cfg_deobfuscation`** (OLLVM unflattening) | `deobfuscate(backend: "d810-ng", path: <bin>, function: <addr>)` | `r2_inspect` / `ghidra_inspect` |
+| **`mba_simplification`** (MBA AST synthesis) | `deobfuscate(backend: "msynth", expression: <expr>)` | `triton_analyze(synthesize: true)` |
+| **`bytecode_deobfuscation`** (Dalvik deobfuscation) | `deobfuscate(backend: "jadx", path: <apk>)` | `android_package_inspect` / `dex_patch` |
 ## 1. Triage: `file`, `strings`, `xxd`
 
 ```bash
@@ -213,3 +221,31 @@ triton_analyze(action: "replay", trace: "./artifacts/trace.txt", initial_registe
 - Always preserve original binaries read-only; output dumps, lifted IR, and VTIL to `./artifacts/`.
 - Mergen supports single clean x64 functions without SMC; VMP 3.6 is best effort.
 - Triton operates on offline traces in Salwan format (`mr:`, `r:`, `i:`); bounds instruction count and saves large IR to artifacts.
+
+## 10. Protection Analysis, Deobfuscation & Recovery: `dex_unpack`, `dex_repair`, `dex_search`, `instruction_trace`, `native_recover`, `deobfuscate`
+
+```text
+# Dynamic DEX memory unpacking
+dex_unpack(action: "dump", backend: "frida-dexdump", package: "com.example.app", device: "emulator-5554", out_dir: "./artifacts/unpacked_dex")
+
+# Offline FART CodeItem repair
+dex_repair(action: "repair", path: "./artifacts/unpacked_dex/classes.dex", records: "./artifacts/unpacked_dex/ins.bin", dry_run: false, out: "./artifacts/repaired.dex")
+
+# DexKit structural search
+dex_search(target: "app.apk", type: "method", using_strings: ["decrypt"], return_type: "java.lang.String")
+
+# Controlled instruction tracing
+instruction_trace(action: "capture", process: "target_process", scope: "function", module: "libnative.so", function: "decrypt_core", engine: "auto", format: "jsonl", output_path: "./artifacts/trace.jsonl")
+
+# Bounded multi-path DSE exploration & verification (see docs/tools/native_recover.md for full workflows)
+native_recover(action: "explore", snapshot: { arch: "aarch64", entry: "0x1000", stop_addresses: ["0x1004"], registers: { pc: "0x1000", sp: "0x8000" }, segments: [{ address: "0x1000", bytes: "00040091", permissions: "r-x" }], symbolic_inputs: [{ name: "x0", alias: "x", seed: "0x0" }], output: { kind: "register", target: "x0" } }, bounds: { branch_budget: 4, max_depth: 4, max_instructions: 100 })
+native_recover(action: "verify", snapshot: { arch: "aarch64", entry: "0x1000", stop_addresses: ["0x1004"], registers: { pc: "0x1000", sp: "0x8000" }, segments: [{ address: "0x1000", bytes: "00040091", permissions: "r-x" }], symbolic_inputs: [{ name: "x0", alias: "x", seed: "0x0" }], output: { kind: "register", target: "x0" } }, recovered: { kind: "smt2", expression: "(bvadd x (_ bv1 64))", inputs: [{ name: "x", size_bits: 64, reg: "x0" }], output: { kind: "register", target: "x0" }, strict_memory_check: true }, vectors: [{ x: "0x0" }, { x: "0xa" }, { x: "0xffffffffffffffff" }], test_generation: { boundary: true, random_count: 8, seed: 42 }, proof_mode: "both")
+
+# Deobfuscation backends
+deobfuscate(action: "analyze", backend: "d810-ng", path: "sample.so", function: "0x1000", rules: ["ollvm", "mba"])
+deobfuscate(action: "analyze", backend: "msynth", expression: "(x ^ y) + 2 * (x & y)", bit_width: 32, variables: ["x", "y"])
+deobfuscate(action: "analyze", backend: "jadx", path: "protected.apk", decrypt_strings: true, fold_consts: true)
+```
+
+- Dynamic actions (`dump`, `capture`, `explore`, `verify`, `analyze`) require explicit authorization and are classified as high-risk/dynamic; only `action: "status"` is low-risk.
+- Bounded snapshot verification does not assert universal mathematical equivalence from finite test vectors.

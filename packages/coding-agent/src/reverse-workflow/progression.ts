@@ -152,6 +152,37 @@ export function assessStepRisk(step: WorkflowStepRecord): StepRiskAssessment {
 			reason: `Tool 'reverse_capability' with action '${action || "unknown"}' requires explicit execution authorization. Auto progression halted; step remains pending manual decision.`,
 		};
 	}
+	// Protection analysis tools: dex_unpack, dex_repair, instruction_trace, dex_search, deobfuscate, native_recover, triton_analyze
+	// Only "status" read action is permitted for auto-progression. Any write, execution, dynamic tracing, or heavy analysis action
+	// is classified as high-risk or dynamic, halting auto-progression for explicit operator decision.
+	if (
+		tool === "dex_unpack" ||
+		tool === "dex_repair" ||
+		tool === "instruction_trace" ||
+		tool === "dex_search" ||
+		tool === "deobfuscate" ||
+		tool === "native_recover" ||
+		tool === "triton_analyze"
+	) {
+		const action = extractStepAction(step);
+		if (action === "status") {
+			return {
+				is_low_risk: true,
+				tool: step.tool,
+				gate: step.gate,
+				risk_level: "low",
+				reason: `Tool '${step.tool}' (action: 'status') is an allowlisted read-only status check (${step.gate}).`,
+			};
+		}
+		const isDynamic = tool === "instruction_trace" || tool === "dex_unpack" || tool === "native_recover";
+		return {
+			is_low_risk: false,
+			tool: step.tool,
+			gate: step.gate,
+			risk_level: isDynamic ? "dynamic" : "high",
+			reason: `Tool '${step.tool}' with action '${action || "execute"}' is a ${isDynamic ? "dynamic runtime" : "high-risk analysis/write"} operation. Auto progression halted; step remains pending manual decision.`,
+		};
+	}
 
 	// Check explicitly prohibited / high-risk / dynamic tools
 	for (const dynamicTool of HIGH_RISK_OR_DYNAMIC_TOOLS) {

@@ -18,6 +18,99 @@ import traceback
 
 FLAGS = {"cf", "zf", "sf", "of", "af", "pf", "df"}
 
+def normalize_reg_name(name, arch_str):
+    if not name or not isinstance(name, str):
+        return name
+    n = name.lower().strip()
+    if arch_str == "arm32":
+        if n == "cpsr":
+            return "apsr"
+        if n == "lr":
+            return "r14"
+        if n == "r13":
+            return "sp"
+        if n == "r15":
+            return "pc"
+    elif arch_str == "aarch64":
+        if n in ("pstate", "cpsr"):
+            return "nzcv"
+        if n == "lr":
+            return "x30"
+    return n
+
+def is_vector_register(name, arch_str):
+    if not name or not isinstance(name, str):
+        return False
+    n = name.lower().strip()
+    if arch_str in ("x86", "x86_64"):
+        return n.startswith(("xmm", "ymm", "zmm", "mm"))
+    elif arch_str == "arm32":
+        if (n.startswith("q") or n.startswith("d") or n.startswith("s")) and n[1:].isdigit():
+            return True
+        return False
+    elif arch_str == "aarch64":
+        if (n.startswith("v") or n.startswith("q") or n.startswith("d") or
+            n.startswith("s") or n.startswith("h") or n.startswith("b")) and n[1:].isdigit():
+            return True
+        return False
+    return False
+
+def get_arch_spec(arch_str, ARCH=None):
+    arch_str = arch_str.lower().strip()
+    x86_arch = getattr(ARCH, "X86", None) if ARCH else None
+    x86_64_arch = getattr(ARCH, "X86_64", None) if ARCH else None
+    arm32_arch = getattr(ARCH, "ARM32", None) if ARCH else None
+    aarch64_arch = getattr(ARCH, "AARCH64", None) if ARCH else None
+
+    specs = {
+        "x86": {
+            "arch_name": "x86",
+            "triton_arch": x86_arch,
+            "gpr_bits": 32,
+            "gpr_order": ["eax", "ebx", "ecx", "edx", "edi", "esi", "ebp", "esp"],
+            "flags": {"cf", "zf", "sf", "of", "af", "pf", "df"},
+            "flag_parents": {"eflags"},
+            "zero_regs": set(),
+            "pc": "eip",
+            "sp": "esp",
+        },
+        "x86_64": {
+            "arch_name": "x86_64",
+            "triton_arch": x86_64_arch,
+            "gpr_bits": 64,
+            "gpr_order": ["rax", "rbx", "rcx", "rdx", "rdi", "rsi", "rbp", "rsp",
+                          "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"],
+            "flags": {"cf", "zf", "sf", "of", "af", "pf", "df"},
+            "flag_parents": {"rflags", "eflags"},
+            "zero_regs": set(),
+            "pc": "rip",
+            "sp": "rsp",
+        },
+        "arm32": {
+            "arch_name": "arm32",
+            "triton_arch": arm32_arch,
+            "gpr_bits": 32,
+            "gpr_order": ["r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
+                          "r8", "r9", "r10", "r11", "r12", "sp", "r14", "pc"],
+            "flags": {"z", "v", "n", "c"},
+            "flag_parents": {"apsr", "cpsr"},
+            "zero_regs": set(),
+            "pc": "pc",
+            "sp": "sp",
+        },
+        "aarch64": {
+            "arch_name": "aarch64",
+            "triton_arch": aarch64_arch,
+            "gpr_bits": 64,
+            "gpr_order": [f"x{i}" for i in range(31)] + ["sp", "pc"],
+            "flags": {"z", "v", "n", "c"},
+            "flag_parents": {"nzcv", "pstate", "cpsr"},
+            "zero_regs": {"xzr", "wzr"},
+            "pc": "pc",
+            "sp": "sp",
+        },
+    }
+    return specs.get(arch_str)
 def parse_int(val, field_name="value"):
     if isinstance(val, int):
         return val
@@ -29,6 +122,256 @@ def get_reg_bounds(reg_obj):
     bv = reg_obj.getBitvector()
     return bv.getLow(), bv.getHigh()
 
+def extract_register(item):
+    """Normalize Triton register item which may be a Register or a (Register, AST) tuple."""
+    if isinstance(item, (tuple, list)):
+        return item[0]
+    return item
+
+def extract_memory_access(item):
+    """Normalize Triton memory access item which may be a MemoryAccess or a (MemoryAccess, AST) tuple."""
+    if isinstance(item, (tuple, list)):
+        return item[0]
+    return item
+
+def get_canonical_parent(ctx, reg_obj, arch_str):
+    """
+    Returns (parent_reg_obj, parent_name, low, high)
+    properly mapping AArch64 Wn -> Xn, wsp -> sp, wzr -> xzr, ARM32 synonyms, and bitvector bounds.
+    """
+    p_obj = ctx.getParentRegister(reg_obj) if (ctx and hasattr(ctx, "getParentRegister")) else None
+    p_name = p_obj.getName().lower() if p_obj else reg_obj.getName().lower()
+    r_name = reg_obj.getName().lower()
+
+    if arch_str == "aarch64":
+        if p_name.startswith("w") and len(p_name) > 1 and p_name[1:].isdigit():
+            idx = int(p_name[1:])
+            if 0 <= idx <= 30:
+                p_name = f"x{idx}"
+                if ctx and hasattr(ctx, "getRegister"):
+                    try:
+                        p_obj = ctx.getRegister(p_name)
+                    except Exception:
+                        pass
+        elif p_name == "wsp":
+            p_name = "sp"
+            if ctx and hasattr(ctx, "getRegister"):
+                try:
+                    p_obj = ctx.getRegister("sp")
+                except Exception:
+                    pass
+        elif p_name == "wzr":
+            p_name = "xzr"
+            if ctx and hasattr(ctx, "getRegister"):
+                try:
+                    p_obj = ctx.getRegister("xzr")
+                except Exception:
+                    pass
+        elif r_name.startswith("w") and len(r_name) > 1 and r_name[1:].isdigit():
+            idx = int(r_name[1:])
+            if 0 <= idx <= 30:
+                p_name = f"x{idx}"
+                if ctx and hasattr(ctx, "getRegister"):
+                    try:
+                        p_obj = ctx.getRegister(p_name)
+                    except Exception:
+                        pass
+        elif r_name == "wsp":
+            p_name = "sp"
+            if ctx and hasattr(ctx, "getRegister"):
+                try:
+                    p_obj = ctx.getRegister("sp")
+                except Exception:
+                    pass
+        elif r_name == "wzr":
+            p_name = "xzr"
+            if ctx and hasattr(ctx, "getRegister"):
+                try:
+                    p_obj = ctx.getRegister("xzr")
+                except Exception:
+                    pass
+    elif arch_str == "arm32":
+        if p_name == "cpsr":
+            p_name = "apsr"
+        elif p_name == "lr":
+            p_name = "r14"
+        elif p_name == "r13":
+            p_name = "sp"
+        elif p_name == "r15":
+            p_name = "pc"
+
+    low, high = get_reg_bounds(reg_obj)
+    return p_obj, p_name, low, high
+def is_self_zeroing_instruction(inst, arch_str, ctx):
+    try:
+        from triton import OPERAND
+        disasm_lower = inst.getDisassembly().lower()
+        if arch_str in ("x86", "x86_64"):
+            zeroing_mnemonics = ("xor ", "sub ", "pxor ", "xorps ", "xorpd ", "vpxor ", "vxorps ", "vxorpd ")
+            if any(disasm_lower.startswith(m) for m in zeroing_mnemonics):
+                ops = inst.getOperands()
+                if len(ops) >= 2 and ops[0].getType() == OPERAND.REG and ops[1].getType() == OPERAND.REG:
+                    if ops[0].getId() == ops[1].getId():
+                        _, p_name, _, _ = get_canonical_parent(ctx, ops[0], arch_str)
+                        return ops[0].getName().lower(), p_name
+        elif arch_str in ("arm32", "aarch64"):
+            zeroing_mnemonics = ("eor ", "eors ", "sub ", "subs ")
+            if any(disasm_lower.startswith(m) for m in zeroing_mnemonics):
+                ops = inst.getOperands()
+                if len(ops) >= 3 and ops[0].getType() == OPERAND.REG and ops[1].getType() == OPERAND.REG and ops[2].getType() == OPERAND.REG:
+                    if ops[1].getId() == ops[2].getId():
+                        _, p_name, _, _ = get_canonical_parent(ctx, ops[0], arch_str)
+                        return ops[0].getName().lower(), p_name
+    except Exception:
+        pass
+    return None
+
+def is_write_artifact_symbolic(ctx, spec, is_thumb_inst, exec_addr, opcodes, inst, p_name):
+    """
+    Symbolic dependency proof to distinguish write artifacts from genuine dependencies:
+    When an instruction writes to a register that Triton's internal semantic generator
+    probed/read (e.g. ARM32 conditional/subregister AST modeling), prove whether the
+    instruction's outputs, flags, memory operations, and branch conditions universally
+    depend on the prior state of `p_name`.
+
+    Builds an isolated probe context, symbolizes `p_name` with a unique alias,
+    processes the instruction with Triton constant folding and AST simplification,
+    and inspects all output ASTs. If NO output, flag, address, or condition is symbolized
+    (i.e. all outputs are completely independent of `p_name`), the read is provably an
+    internal write artifact, not a genuine dependency.
+    """
+    try:
+        from triton import TritonContext, Instruction, MemoryAccess, MODE, EXCEPTION
+        triton_arch = spec["triton_arch"]
+        if triton_arch is None:
+            return False
+
+        probe_ctx = TritonContext(triton_arch)
+        if spec["arch_name"] == "arm32" and hasattr(probe_ctx, "setThumb"):
+            probe_ctx.setThumb(is_thumb_inst)
+        probe_ctx.setMode(MODE.ALIGNED_MEMORY, True)
+        probe_ctx.setMode(MODE.CONSTANT_FOLDING, True)
+        probe_ctx.setMode(MODE.AST_OPTIMIZATIONS, True)
+
+        # Copy only the registers needed by this instruction from ctx, excluding p_name
+        for item in inst.getReadRegisters():
+            r_obj = extract_register(item)
+            r_nm = r_obj.getName().lower()
+            _, r_p_nm, _, _ = get_canonical_parent(ctx, r_obj, spec["arch_name"])
+            if r_p_nm != p_name and r_nm != p_name:
+                try:
+                    probe_ctx.setConcreteRegisterValue(probe_ctx.getRegister(r_nm), ctx.getConcreteRegisterValue(r_obj))
+                except Exception:
+                    pass
+
+        for special in ("sp", "pc"):
+            if special != p_name:
+                try:
+                    probe_ctx.setConcreteRegisterValue(probe_ctx.getRegister(special), ctx.getConcreteRegisterValue(ctx.getRegister(special)))
+                except Exception:
+                    pass
+
+        # Copy concrete memory loaded by this instruction if defined in main ctx
+        if hasattr(inst, "getLoadAccess"):
+            for item in inst.getLoadAccess():
+                mem_acc = extract_memory_access(item)
+                m_addr = mem_acc.getAddress()
+                m_sz = mem_acc.getSize()
+                for b_i in range(m_sz):
+                    b_acc = MemoryAccess(m_addr + b_i, 1)
+                    if ctx.isConcreteMemoryValueDefined(b_acc):
+                        probe_ctx.setConcreteMemoryValue(b_acc, ctx.getConcreteMemoryValue(b_acc))
+
+        # Symbolize target parent register with a unique probe alias
+        sym_alias = f"__probe_missing_{p_name}"
+        try:
+            p_reg = probe_ctx.getRegister(p_name)
+            probe_ctx.symbolizeRegister(p_reg, sym_alias)
+        except Exception:
+            return False
+
+        probe_inst = Instruction(exec_addr, opcodes)
+        if is_thumb_inst and hasattr(probe_inst, "setThumb"):
+            probe_inst.setThumb(True)
+
+        status = probe_ctx.processing(probe_inst)
+        if status != EXCEPTION.NO_FAULT:
+            return False
+
+        # Helper to verify if an AST node depends on the symbolized missing register
+        def ast_depends_on_missing(node):
+            if node is None:
+                return False
+            try:
+                ast_ctx = probe_ctx.getAstContext()
+                unrolled = ast_ctx.unroll(node) if hasattr(ast_ctx, "unroll") else node
+                return unrolled.isSymbolized()
+            except Exception:
+                # Fail-closed: on any API error, treat as dependent (not an artifact)
+                return True
+
+        # 1. Inspect all written register ASTs
+        if hasattr(probe_inst, "getWrittenRegisters"):
+            for item in probe_inst.getWrittenRegisters():
+                w_reg = extract_register(item)
+                try:
+                    w_ast = probe_ctx.getRegisterAst(w_reg)
+                    if ast_depends_on_missing(w_ast):
+                        return False
+                except Exception:
+                    return False
+
+        # 2. Inspect all flag register ASTs
+        for f in spec["flags"]:
+            try:
+                f_reg = probe_ctx.getRegister(f)
+                f_ast = probe_ctx.getRegisterAst(f_reg)
+                if ast_depends_on_missing(f_ast):
+                    return False
+            except Exception:
+                return False
+
+        # 3. Inspect memory stores (both stored value AST and store address AST)
+        if hasattr(probe_inst, "getStoreAccess"):
+            for item in probe_inst.getStoreAccess():
+                mem_acc = extract_memory_access(item)
+                try:
+                    lea_ast = mem_acc.getLeaAst()
+                    if ast_depends_on_missing(lea_ast):
+                        return False
+                    val_ast = probe_ctx.getMemoryAst(mem_acc)
+                    if ast_depends_on_missing(val_ast):
+                        return False
+                except Exception:
+                    return False
+
+        # 4. Inspect memory loads (load address AST)
+        if hasattr(probe_inst, "getLoadAccess"):
+            for item in probe_inst.getLoadAccess():
+                mem_acc = extract_memory_access(item)
+                try:
+                    lea_ast = mem_acc.getLeaAst()
+                    if ast_depends_on_missing(lea_ast):
+                        return False
+                except Exception:
+                    return False
+
+        # 5. Inspect path constraints
+        if hasattr(probe_ctx, "getPathConstraints"):
+            try:
+                for pc in probe_ctx.getPathConstraints():
+                    if hasattr(pc, "getBranchConstraints"):
+                        for bc in pc.getBranchConstraints():
+                            if hasattr(bc, "getConstraint"):
+                                if ast_depends_on_missing(bc.getConstraint()):
+                                    return False
+            except Exception:
+                return False
+
+        # All output expressions, flags, and memory addresses are proven independent of p_name
+        return True
+    except Exception:
+        return False
 class RegisterBitTracker:
     """按位跟踪通用寄存器的初始化状态，防止读 AL 误判整个 RAX 已初始化"""
     def __init__(self):
@@ -45,6 +388,12 @@ class RegisterBitTracker:
         req_mask = ((1 << width) - 1) << low
         curr = self.masks.get(parent_name, 0)
         return (curr & req_mask) == req_mask
+
+    def mark_undefined(self, parent_name, low, high):
+        width = high - low + 1
+        mask = ((1 << width) - 1) << low
+        curr = self.masks.get(parent_name, 0)
+        self.masks[parent_name] = curr & ~mask
 
 def parse_trace_line(line, line_no, gpr_order):
     line = line.strip()
@@ -111,10 +460,15 @@ def parse_trace_line(line, line_no, gpr_order):
         return ("mr", addr, size, data)
 
     elif line.startswith("r:"):
-        parts = line.split(":")
-        if len(parts) < 2:
+        raw_content = line[2:].strip()
+        if not raw_content:
             raise ValueError(f"Malformed Salwan r: record at line {line_no}")
-        raw_items = parts[1:]
+        if ":" in raw_content:
+            raw_items = [p.strip() for p in raw_content.split(":") if p.strip()]
+        else:
+            raw_items = [p.strip() for p in raw_content.split() if p.strip()]
+        if not raw_items:
+            raise ValueError(f"Malformed Salwan r: record at line {line_no}")
         reg_map = {}
         if any("=" in p for p in raw_items):
             for p in raw_items:
@@ -241,21 +595,25 @@ def action_replay(request):
             "error": f"Triton library is not installed: {str(e)}. Run 'reverse setup reverse triton --execute' to install the managed Triton toolchain."
         }
 
-    arch_str = request.get("arch", "x86_64").lower()
-    if arch_str == "x86":
-        triton_arch = ARCH.X86
-        gpr_bits = 32
-        gpr_order = ["eax", "ebx", "ecx", "edx", "edi", "esi", "ebp", "esp"]
-    elif arch_str == "x86_64":
-        triton_arch = ARCH.X86_64
-        gpr_bits = 64
-        gpr_order = ["rax", "rbx", "rcx", "rdx", "rdi", "rsi", "rbp", "rsp",
-                     "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"]
-    else:
+    arch_str = request.get("arch", "x86_64").lower().strip()
+    spec = get_arch_spec(arch_str, ARCH)
+    if not spec:
         return {
             "status": "error",
-            "error": f"Unsupported architecture '{arch_str}'. Supported architectures: x86, x86_64."
+            "error": f"Unsupported architecture '{arch_str}'. Supported architectures: x86, x86_64, arm32, aarch64."
         }
+    triton_arch = spec["triton_arch"]
+    if triton_arch is None:
+        return {
+            "status": "error",
+            "error": f"Architecture '{arch_str}' is not supported by installed Triton library."
+        }
+    gpr_bits = spec["gpr_bits"]
+    gpr_order = spec["gpr_order"]
+    flags = spec["flags"]
+    flag_parents = spec["flag_parents"]
+    zero_regs = spec["zero_regs"]
+    thumb_mode = bool(request.get("thumb", False))
 
     output_cfg = request.get("output")
     if not output_cfg or not isinstance(output_cfg, dict):
@@ -281,7 +639,8 @@ def action_replay(request):
     ctx.setMode(MODE.ALIGNED_MEMORY, True)
     ctx.setMode(MODE.AST_OPTIMIZATIONS, True)
     ctx.setMode(MODE.CONSTANT_FOLDING, True)
-
+    if arch_str == "arm32" and hasattr(ctx, "setThumb"):
+        ctx.setThumb(thumb_mode)
     bounds = request.get("bounds") or {}
     max_instructions = int(bounds.get("max_instructions") or 50000)
     do_synthesize = bool(request.get("synthesize", True))
@@ -297,16 +656,19 @@ def action_replay(request):
     def on_get_concrete_memory(callback_ctx, mem_access):
         nonlocal missing_memory_detected
         if guard_active and missing_memory_detected is None:
-            if not callback_ctx.isConcreteMemoryValueDefined(mem_access) and not callback_ctx.isMemorySymbolized(mem_access):
-                missing_memory_detected = (mem_access.getAddress(), mem_access.getSize())
-
+            m_a = mem_access.getAddress()
+            m_s = mem_access.getSize()
+            for b_i in range(m_s):
+                if not callback_ctx.isConcreteMemoryValueDefined(MemoryAccess(m_a + b_i, 1)):
+                    missing_memory_detected = (m_a + b_i, 1)
+                    break
     if hasattr(CALLBACK, "GET_CONCRETE_MEMORY_VALUE"):
         ctx.addCallback(CALLBACK.GET_CONCRETE_MEMORY_VALUE, on_get_concrete_memory)
 
     # 1. 显式具体寄存器初始化
     initial_regs = request.get("initial_registers") or {}
     for r_name, r_val_raw in initial_regs.items():
-        r_name_clean = r_name.lower().strip()
+        r_name_clean = normalize_reg_name(r_name, arch_str)
         try:
             reg_obj = ctx.getRegister(r_name_clean)
         except Exception:
@@ -321,18 +683,21 @@ def action_replay(request):
             }
         ctx.setConcreteRegisterValue(reg_obj, val)
 
-        if r_name_clean in FLAGS:
+        if r_name_clean in flags or (hasattr(ctx, "isFlag") and ctx.isFlag(reg_obj)):
             initialized_flags.add(r_name_clean)
-        elif r_name_clean in ("eflags", "rflags"):
-            initialized_flags.update(FLAGS)
+        elif r_name_clean in flag_parents:
+            initialized_flags.update(flags)
 
-        p_name = ctx.getParentRegister(reg_obj).getName().lower()
+        p_obj, p_name, low, high = get_canonical_parent(ctx, reg_obj, arch_str)
+        if p_name in flag_parents:
+            initialized_flags.update(flags)
+
         if arch_str == "x86_64" and reg_obj.getBitSize() == 32 and p_name in gpr_order:
             reg_tracker.mark_initialized(p_name, 0, 63)
-        elif p_name in gpr_order:
-            low, high = get_reg_bounds(reg_obj)
+        elif arch_str == "aarch64" and reg_obj.getBitSize() == 32 and (p_name in gpr_order or p_name.startswith("x") or p_name == "sp"):
+            reg_tracker.mark_initialized(p_name, 0, 63)
+        elif p_name in gpr_order or is_vector_register(p_name, arch_str) or p_name in ("sp", "pc", "r14", "lr"):
             reg_tracker.mark_initialized(p_name, low, high)
-
     # 2. 显式具体内存初始化（校验 bounds 与数值宽度）
     initial_mem = request.get("initial_memory") or []
     for item in initial_mem:
@@ -357,7 +722,7 @@ def action_replay(request):
     # 3. 显式符号输入寄存器（提取真实种子数值，严禁假定为 0）
     sym_regs_req = request.get("symbolic_registers") or []
     for sym_item in sym_regs_req:
-        r_name = sym_item.get("name", "").lower().strip()
+        r_name = normalize_reg_name(sym_item.get("name", ""), arch_str)
         alias = sym_item.get("alias") or r_name
         try:
             reg_obj = ctx.getRegister(r_name)
@@ -366,7 +731,7 @@ def action_replay(request):
 
         reg_bits = reg_obj.getBitSize()
         max_seed_val = (1 << reg_bits) - 1
-
+        p_obj, p_name, low, high = get_canonical_parent(ctx, reg_obj, arch_str)
         if "seed" in sym_item:
             seed = parse_int(sym_item["seed"], f"symbolic_register.{r_name}.seed")
             if seed < 0 or seed > max_seed_val:
@@ -376,8 +741,6 @@ def action_replay(request):
                 }
             ctx.setConcreteRegisterValue(reg_obj, seed)
         else:
-            p_name = ctx.getParentRegister(reg_obj).getName().lower()
-            low, high = get_reg_bounds(reg_obj)
             if p_name in gpr_order and not reg_tracker.is_fully_initialized(p_name, low, high):
                 return {
                     "status": "error",
@@ -387,14 +750,14 @@ def action_replay(request):
 
         ctx.symbolizeRegister(reg_obj, alias)
 
-        if r_name in FLAGS:
+        if r_name in flags or (hasattr(ctx, "isFlag") and ctx.isFlag(reg_obj)):
             initialized_flags.add(r_name)
 
-        p_name = ctx.getParentRegister(reg_obj).getName().lower()
         if arch_str == "x86_64" and reg_obj.getBitSize() == 32 and p_name in gpr_order:
             reg_tracker.mark_initialized(p_name, 0, 63)
-        elif p_name in gpr_order:
-            low, high = get_reg_bounds(reg_obj)
+        elif arch_str == "aarch64" and reg_obj.getBitSize() == 32 and (p_name in gpr_order or p_name.startswith("x") or p_name == "sp"):
+            reg_tracker.mark_initialized(p_name, 0, 63)
+        elif p_name in gpr_order or is_vector_register(p_name, arch_str) or p_name in ("sp", "pc", "r14", "lr"):
             reg_tracker.mark_initialized(p_name, low, high)
 
     # 4. 显式符号输入内存（必须提供真实种子）
@@ -403,7 +766,6 @@ def action_replay(request):
         addr = parse_int(sym_mem.get("address"), "symbolic_memory.address")
         size = int(sym_mem.get("size") or 1)
         alias = sym_mem.get("alias") or f"mem_{hex(addr)}"
-
         if "seed" not in sym_mem:
             return {
                 "status": "error",
@@ -465,7 +827,8 @@ def action_replay(request):
 
         elif tag == "r":
             _, reg_dict = parsed
-            for r_k, r_v in reg_dict.items():
+            for r_k_raw, r_v in reg_dict.items():
+                r_k = normalize_reg_name(r_k_raw, arch_str)
                 try:
                     reg_obj = ctx.getRegister(r_k)
                 except Exception:
@@ -486,16 +849,20 @@ def action_replay(request):
                     if curr != r_v:
                         ctx.setConcreteRegisterValue(reg_obj, r_v)
 
-                    if r_k in FLAGS:
+                    if r_k in flags or (hasattr(ctx, "isFlag") and ctx.isFlag(reg_obj)):
                         initialized_flags.add(r_k)
-                    elif r_k in ("eflags", "rflags"):
-                        initialized_flags.update(FLAGS)
+                    elif r_k in flag_parents:
+                        initialized_flags.update(flags)
 
-                    p_name = ctx.getParentRegister(reg_obj).getName().lower()
+                    p_obj, p_name, low, high = get_canonical_parent(ctx, reg_obj, arch_str)
+                    if p_name in flag_parents:
+                        initialized_flags.update(flags)
+
                     if arch_str == "x86_64" and reg_obj.getBitSize() == 32 and p_name in gpr_order:
                         reg_tracker.mark_initialized(p_name, 0, 63)
-                    elif p_name in gpr_order:
-                        low, high = get_reg_bounds(reg_obj)
+                    elif arch_str == "aarch64" and reg_obj.getBitSize() == 32 and (p_name in gpr_order or p_name.startswith("x") or p_name == "sp"):
+                        reg_tracker.mark_initialized(p_name, 0, 63)
+                    elif p_name in gpr_order or is_vector_register(p_name, arch_str) or p_name in ("sp", "pc", "r14", "lr"):
                         reg_tracker.mark_initialized(p_name, low, high)
 
         elif tag == "i":
@@ -515,7 +882,15 @@ def action_replay(request):
                     "error": f"Invalid instruction opcode hex '{i_hex}' at line {line_no}: {str(e)}"
                 }
 
-            inst = Instruction(i_addr, opcodes)
+            is_thumb_inst = thumb_mode or (arch_str == "arm32" and ((i_addr & 1 != 0) or i_size == 2 or (hasattr(ctx, "isThumb") and ctx.isThumb())))
+            exec_addr = (i_addr & ~1) if (arch_str == "arm32" and (i_addr & 1 != 0)) else i_addr
+
+            if arch_str == "arm32" and hasattr(ctx, "setThumb"):
+                ctx.setThumb(is_thumb_inst)
+
+            inst = Instruction(exec_addr, opcodes)
+            if is_thumb_inst and hasattr(inst, "setThumb"):
+                inst.setThumb(True)
 
             # 激活内存回调守卫并执行模拟
             guard_active = True
@@ -543,7 +918,8 @@ def action_replay(request):
             instructions_executed += 1
 
             # 执行后验证读取的内存（兜底非回调路径）
-            for mem_acc, _ in inst.getLoadAccess():
+            for item in inst.getLoadAccess():
+                mem_acc = extract_memory_access(item)
                 if not ctx.isConcreteMemoryValueDefined(mem_acc) and not ctx.isMemorySymbolized(mem_acc):
                     return {
                         "status": "error",
@@ -553,13 +929,29 @@ def action_replay(request):
                         )
                     }
 
-            # 执行后验证读取的通用寄存器与标志位：严格校验位范围，哪怕部分位被标记为符号，未初始化的位也必须报错
-            for reg_read, _ in inst.getReadRegisters():
-                r_read_name = reg_read.getName().lower()
-                p_name = ctx.getParentRegister(reg_read).getName().lower()
+            # 执行后验证读取的通用寄存器、标志位与向量寄存器
+            self_zero = is_self_zeroing_instruction(inst, arch_str, ctx)
+            written_regs = set()
+            written_parents = set()
+            for item in inst.getWrittenRegisters():
+                w_reg = extract_register(item)
+                w_name = w_reg.getName().lower()
+                written_regs.add(w_name)
+                _, w_p, _, _ = get_canonical_parent(ctx, w_reg, arch_str)
+                written_parents.add(w_p)
 
+            for item in inst.getReadRegisters():
+                reg_read = extract_register(item)
+                r_read_name = reg_read.getName().lower()
+                p_obj, p_name, low, high = get_canonical_parent(ctx, reg_read, arch_str)
+
+                # Hardware zero register in AArch64 (xzr/wzr) is always initialized to 0
+                if r_read_name in zero_regs or p_name in zero_regs:
+                    continue
+                if self_zero and (r_read_name == self_zero[0] or p_name == self_zero[1]):
+                    continue
                 # 标志位校验
-                if r_read_name in FLAGS:
+                if r_read_name in flags or (hasattr(ctx, "isFlag") and ctx.isFlag(reg_read)):
                     if r_read_name not in initialized_flags and not ctx.isRegisterSymbolized(reg_read):
                         return {
                             "status": "error",
@@ -568,11 +960,30 @@ def action_replay(request):
                                 f"reads uninitialized flag '{r_read_name}'."
                             )
                         }
+                    continue
 
-                # 通用寄存器按位校验（即使父寄存器包含部分符号，未初始化的位也必须拦截）
-                if p_name in gpr_order:
-                    low, high = get_reg_bounds(reg_read)
+                # 向量寄存器校验（严禁填零）
+                if is_vector_register(r_read_name, arch_str) or is_vector_register(p_name, arch_str):
                     if not reg_tracker.is_fully_initialized(p_name, low, high):
+                        if (p_name in written_parents or r_read_name in written_regs) and is_write_artifact_symbolic(
+                            ctx, spec, is_thumb_inst, exec_addr, opcodes, inst, p_name
+                        ):
+                            continue
+                        return {
+                            "status": "error",
+                            "error": (
+                                f"Missing register state at line {line_no}: instruction at 0x{i_addr:x} ({inst.getDisassembly()}) "
+                                f"reads uninitialized vector register '{reg_read.getName()}'."
+                            )
+                        }
+
+                # 通用、控制与段寄存器按位校验
+                else:
+                    if not reg_tracker.is_fully_initialized(p_name, low, high):
+                        if (p_name in written_parents or r_read_name in written_regs) and is_write_artifact_symbolic(
+                            ctx, spec, is_thumb_inst, exec_addr, opcodes, inst, p_name
+                        ):
+                            continue
                         return {
                             "status": "error",
                             "error": (
@@ -582,34 +993,49 @@ def action_replay(request):
                         }
 
             # 记录写入的寄存器位区间与标志位
-            for reg_written, _ in inst.getWrittenRegisters():
+            for item in inst.getWrittenRegisters():
+                reg_written = extract_register(item)
                 w_name = reg_written.getName().lower()
-                if w_name in FLAGS:
-                    initialized_flags.add(w_name)
-                elif w_name in ("eflags", "rflags"):
-                    initialized_flags.update(FLAGS)
+                p_obj, p_name, low, high = get_canonical_parent(ctx, reg_written, arch_str)
 
-                p_name = ctx.getParentRegister(reg_written).getName().lower()
+                if w_name in flags or (hasattr(ctx, "isFlag") and ctx.isFlag(reg_written)):
+                    initialized_flags.add(w_name)
+                elif w_name in flag_parents:
+                    initialized_flags.update(flags)
+
+                if p_name in flag_parents:
+                    initialized_flags.update(flags)
+
                 if arch_str == "x86_64" and reg_written.getBitSize() == 32 and p_name in gpr_order:
                     reg_tracker.mark_initialized(p_name, 0, 63)
-                elif p_name in gpr_order:
-                    low, high = get_reg_bounds(reg_written)
+                elif arch_str == "aarch64" and reg_written.getBitSize() == 32 and (p_name in gpr_order or p_name.startswith("x") or p_name == "sp"):
+                    reg_tracker.mark_initialized(p_name, 0, 63)
+                elif p_name in gpr_order or is_vector_register(p_name, arch_str) or p_name in ("sp", "pc", "r14", "lr"):
                     reg_tracker.mark_initialized(p_name, low, high)
 
+            # Invalidate undefined registers and flags
+            for item in inst.getUndefinedRegisters():
+                reg_undef = extract_register(item)
+                u_name = reg_undef.getName().lower()
+                p_obj, p_name, low, high = get_canonical_parent(ctx, reg_undef, arch_str)
+                if u_name in flags:
+                    initialized_flags.discard(u_name)
+                elif u_name in flag_parents or p_name in flag_parents:
+                    initialized_flags.difference_update(flags)
+                reg_tracker.mark_undefined(p_name, low, high)
     # 7. 提取目标输出（必须显式验证存在且已初始化）
     target_ast = None
     concrete_return = None
 
     if out_kind == "register":
-        out_target = output_cfg["target"].strip().lower()
+        out_target = normalize_reg_name(output_cfg["target"], arch_str)
         try:
             out_reg = ctx.getRegister(out_target)
         except Exception:
             return {"status": "error", "error": f"Output register '{out_target}' not found for {arch_str}."}
 
-        p_name = ctx.getParentRegister(out_reg).getName().lower()
-        low, high = get_reg_bounds(out_reg)
-        if p_name in gpr_order and not reg_tracker.is_fully_initialized(p_name, low, high):
+        p_obj, p_name, low, high = get_canonical_parent(ctx, out_reg, arch_str)
+        if (p_name in gpr_order or is_vector_register(p_name, arch_str) or p_name in ("sp", "pc", "r14", "lr")) and not reg_tracker.is_fully_initialized(p_name, low, high):
             return {
                 "status": "error",
                 "error": f"Requested output register '{out_target}' was not initialized during execution."
@@ -704,6 +1130,24 @@ def action_replay(request):
             )
         }
     }
+def action_arch_info(request):
+    arch_str = request.get("arch", "x86_64").lower().strip()
+    spec = get_arch_spec(arch_str)
+    if not spec:
+        return {"status": "error", "error": f"Unknown architecture '{arch_str}'"}
+    return {
+        "status": "ok",
+        "result": {
+            "arch": spec["arch_name"],
+            "gpr_bits": spec["gpr_bits"],
+            "gpr_order": spec["gpr_order"],
+            "flags": sorted(list(spec["flags"])),
+            "flag_parents": sorted(list(spec["flag_parents"])),
+            "zero_regs": sorted(list(spec["zero_regs"])),
+            "pc": spec["pc"],
+            "sp": spec["sp"],
+        }
+    }
 
 def main():
     try:
@@ -719,9 +1163,10 @@ def main():
             resp = action_status(request)
         elif action == "replay":
             resp = action_replay(request)
+        elif action == "arch_info":
+            resp = action_arch_info(request)
         else:
-            resp = {"status": "error", "error": f"Unknown action '{action}'. Supported: 'status', 'replay'."}
-
+            resp = {"status": "error", "error": f"Unknown action '{action}'. Supported: 'status', 'replay', 'arch_info'."}
         print(json.dumps(resp))
         sys.stdout.flush()
 

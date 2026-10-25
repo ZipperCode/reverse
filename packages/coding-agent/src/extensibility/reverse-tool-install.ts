@@ -67,6 +67,7 @@ import { installLiefVenv } from "./lief-install";
 import { buildAndInstallSoFixer, canBuildSoFixer } from "./sofixer-toolchain";
 import { buildAndInstallGhidraFindCrypt, canBuildGhidraFindCrypt, resolveGhidraInstallDir } from "./findcrypt-install";
 import { installRuntimeTool } from "./runtime-toolchain";
+import { installProtectionTool, isProtectionToolId, type ProtectionToolId } from "./protection-toolchain";
 import { readMCPConfigFile, setMcpServerEnabled, updateMCPServer } from "../mcp/config-writer";
 import type { MCPServerConnection } from "../mcp/types";
 import type { MCPManager } from "../mcp/manager";
@@ -115,7 +116,8 @@ export interface ReverseInstallStep {
 		| "lief"
 		| "sofixer"
 		| "ghidra-findcrypt"
-		| "runtime-toolchain";
+		| "runtime-toolchain"
+		| "protection-toolchain";
 }
 
 export interface ReverseInstallPlan {
@@ -535,6 +537,26 @@ export function getReverseInstallPlan(
 				kind: "cli",
 				packageManager: "managed",
 				installer: "runtime-toolchain",
+				command: `${APP_NAME} setup reverse ${id} --execute`,
+				argv: [APP_NAME, "setup", "reverse", id, "--execute"],
+				riskNote: t(
+					`cli.setup.reverse.${id}.risk`,
+					`Provisions managed ${desc.name ?? id} into agent tools directory.`,
+				),
+				isDependency: id !== item.id,
+				manualInstructions: desc.manualInstructions?.[platform],
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
+		if (isProtectionToolId(id)) {
+			steps.push({
+				id,
+				name: desc.name ?? id,
+				kind: "cli",
+				packageManager: "managed",
+				installer: "protection-toolchain",
 				command: `${APP_NAME} setup reverse ${id} --execute`,
 				argv: [APP_NAME, "setup", "reverse", id, "--execute"],
 				riskNote: t(
@@ -1074,7 +1096,9 @@ export async function installReverseItem(
 			step.id === "blutter" ||
 			step.id === "hbctool" ||
 			step.id === "hermes-dec" ||
-			step.id === "il2cppdumper"
+			step.id === "il2cppdumper" ||
+			step.installer === "protection-toolchain" ||
+			isProtectionToolId(step.id)
 		) {
 			// Trusted internal portable/build/venv installer
 		} else if (
@@ -1336,6 +1360,40 @@ export async function installReverseItem(
 				return {
 					success: true,
 					message: `Successfully installed ${step.name}.`,
+				};
+			}
+			if (step.installer === "protection-toolchain" || isProtectionToolId(step.id)) {
+				options.onChunk?.(`[reverse] Installing managed protection tool ${step.name}...\n`);
+				const res = await installProtectionTool(step.id as ProtectionToolId, {
+					agentDir: options.agentDir,
+					onChunk: options.onChunk,
+					onLog: options.onChunk,
+					signal: options.signal,
+					platform,
+					which: bin => which(bin, { cache: WhichCachePolicy.Bypass }),
+				});
+				if (!res.success) {
+					return {
+						success: false,
+						message: res.error ?? `Installation failed for ${step.name}.`,
+					};
+				}
+				const binDir = path.dirname(res.executablePath);
+				const isVenvBin = binDir.includes(".venv");
+				if (binDir && fs.existsSync(binDir) && !isVenvBin && path.basename(binDir) === "bin") {
+					await persistToolEnvironment(
+						{
+							extraPaths: [binDir],
+						},
+						options.agentDir,
+					);
+				}
+				if (step.isDependency) {
+					continue;
+				}
+				return {
+					success: true,
+					message: res.message ?? `Successfully installed ${step.name}.`,
 				};
 			}
 

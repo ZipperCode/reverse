@@ -2,8 +2,8 @@
 name: native-binary-reverse
 description: Universal native binary reverse engineering specialist for ELF, Mach-O, Fat universal binaries, PE foundations, shared libraries, and raw firmware objects. Guides format triage, section and segment analysis, symbol and relocation inspection, PIE/ASLR/stripped mitigation auditing, disassembly, dynamic verification, and structured evidence chains.
 metadata:
-  requiresOptional: radare2, ida, frida, ghidra, x64dbg-mcp, ghidra-mcp, r2mcp, lief, ghidra-findcrypt, sofixer
-  capabilities: native_debugger, native_elf_analysis, native_elf_repair, native_crypto_constant_analysis
+  requiresOptional: radare2, ida, frida, ghidra, x64dbg-mcp, ghidra-mcp, r2mcp, lief, ghidra-findcrypt, sofixer, qbdi, d810-ng, msynth, triton, tritondse
+  capabilities: native_debugger, native_elf_analysis, native_elf_repair, native_crypto_constant_analysis, instruction_trace_capture, native_path_recovery, native_cfg_deobfuscation, mba_simplification
 ---
 
 # Native Binary Reverse Engineering Specialist
@@ -62,12 +62,19 @@ Follow the positive triage-to-evidence progression:
 4. **Evidence Tracking (`evidence`)**:
    - Record discovered offsets, symbols, and behaviors using `evidence(action: "add", kind: "fact", ...)` and confirm hypotheses with `evidence(action: "verify", ...)`.
 
+5. **Protection Analysis & Deobfuscation (`deobfuscate`, `instruction_trace`, `native_recover`)**:
+   - **`instruction_trace`**: Controlled instruction tracer capturing machine bytes, addresses, concrete register states, and pre-instruction memory reads via QBDI or Stalker into JSONL/Salwan trace files with companion manifest sidecars.
+   - **`native_recover`**: Bounded multi-path Dynamic Symbolic Execution (DSE) worklist engine. Explores branching machine code from a `BoundedSnapshot`, inverts feasible branches under prefixes using Z3 solver, extracts handler semantics, merges paths into guarded ITE trees / LLVM IR, and verifies outputs differential-lockstep against machine bytes.
+   - **`deobfuscate`**: Normalizes obfuscated machine functions using pluggable backends: `d810-ng` for IDA 9+ microcode control-flow unflattening (OLLVM, Tigress, opaque predicates), and `msynth` for MBA expression synthesis and SMT verification. (Note: `D810G` is documented strictly as a research-only reference).
 ### Canonical Capability Mapping
 
 | Canonical Capability ID | Analytical Scenario | Recommended Native Tool | Optional External Tools | Trusted Setup Command | Fallback Tier |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`native_debugger`** | Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native ELF, PE, and Mach-O binaries | `debug` (when DAP adapter discovered) / `triage` (built-in fallback) / `native_mcp_session` | `radare2`, `ida`, `frida`, `ghidra`, `x64dbg-mcp`, `ghidra-mcp`, `r2mcp` | `reverse setup reverse radare2` / `reverse setup reverse x64dbg-mcp` / `reverse setup reverse ghidra-mcp` / `reverse setup reverse r2mcp` | `binary_metadata_inspect`, `readelf`, `objdump`, `strings`, `file` |
-
+| **`native_debugger`** | Dynamic runtime debugging, breakpoint inspection, register state analysis, memory mapping, and execution trace of native ELF, PE, and Mach-O binaries | `debug` (when DAP adapter discovered) / `triage` (built-in fallback) / `native_mcp_session` | `radare2`, `ida`, `frida`, `ghidra`, `x64dbg-mcp`, `ghidra-mcp`, `r2mcp` | `reverse setup reverse radare2` / `reverse setup reverse x64dbg-mcp` / `reverse setup reverse ghidra-mcp` / `reverse setup reverse r2mcp` | `binary_metadata_inspect` |
+| **`instruction_trace_capture`** | Controlled instruction execution tracing with synchronized register states and memory read dereferences | `instruction_trace` | `qbdi`, `frida` | `reverse setup reverse qbdi --execute` | `frida` / `frida_session` / `triage` |
+| **`native_path_recovery`** | Bounded multi-path DSE exploration, handler semantic extraction, guarded ITE merge, and differential verification on machine snapshots | `native_recover` | `triton` | `reverse setup reverse triton --execute` | `triton_analyze` / `r2_inspect` |
+| **`native_cfg_deobfuscation`** | Control-flow unflattening, opaque predicate removal, and OLLVM normalization | `deobfuscate(backend: "d810-ng")` | `d810-ng`, `ida` | `reverse setup reverse d810-ng --execute` | `r2_inspect` / `ghidra_inspect` / `triage` |
+| **`mba_simplification`** | Mixed Boolean-Arithmetic (MBA) algebraic expression synthesis and SMT equivalence checking | `deobfuscate(backend: "msynth")` | `msynth` | `reverse setup reverse msynth --execute` | `triton_analyze` / `r2_inspect` |
 ### Capability Resolution Protocol
 
 When disassembling complex functions, decompiling control flow, or attaching debuggers, execute the Discover-Before-Stop / Install-Then-Dispatch lifecycle via `reverse_capability`:

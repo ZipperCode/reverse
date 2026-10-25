@@ -2,8 +2,8 @@
 name: vmp-reverse
 description: VMProtect and virtualized native code analysis, process memory dumping, symbolic trace analysis, and function devirtualization workflow. Guides VM entry/dispatch identification, process memory dump and IAT reconstruction, offline Salwan execution trace recording, symbolic simplification with Triton, and function lifting via Mergen and NoVmp backends with lockstep differential verification.
 metadata:
-  capabilities: symbolic_trace_analysis, vmp_dump_repair, native_function_lifting, vmp_legacy_devirtualization
-  requiresOptional: triton, vmpdump, mergen, novmp, radare2, x64dbg-mcp
+  capabilities: symbolic_trace_analysis, native_path_recovery, instruction_trace_capture, vmp_dump_repair, native_function_lifting, vmp_legacy_devirtualization
+  requiresOptional: triton, tritondse, qbdi, vmpdump, mergen, novmp, radare2, x64dbg-mcp
 ---
 
 # VMProtect & Virtualized Native Code Devirtualization Workflow
@@ -40,22 +40,23 @@ For general multi-platform orchestration and evidence chains, consult `skill://r
   - **Empirical Verification**: Validate all lifted or synthesized logic through lockstep differential testing comparing original execution against the recovered model.
 
 ### Dependency Guidance & Selective Prompting
-- When an optional tool is absent, prompt the operator ONLY for the tool required by the selected task and backend (e.g. prompt for `vmpdump` only when attempting a process dump, `mergen` only when lifting an x64 PE function, `novmp` only for legacy VMP 3.0–3.5 routines, or `triton` for trace replay).
+- When an optional tool is absent, prompt the operator ONLY for the tool required by the selected task and backend (e.g. prompt for `vmpdump` only when attempting a process dump, `mergen` only when lifting an x64 PE function, `novmp` only for legacy VMP 3.0–3.5 routines, or `triton` for trace replay or bounded path recovery).
 - When the required tool is already present, proceed silently without prompts.
 
 ---
 
-## 2. Four Method Capabilities & Catalog Mapping
+## 2. Six Method Capabilities & Catalog Mapping
 
-`vmp-reverse` routes tasks across four distinct method capabilities:
+`vmp-reverse` routes tasks across six distinct method capabilities:
 
 | Capability ID | Purpose & Scenario | Tool Name & Backend | Catalog Tool ID | Trusted Setup Command | Fallback Tier |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **`vmp_dump_repair`** | Dump running x64 PE process past OEP & rebuild IAT on Windows | `vmp_dump` | `vmpdump` | `reverse setup reverse vmpdump --execute` | Debugger memory dump via `native_mcp_session` (x64dbg) or Scylla; manual import fix |
 | **`native_function_lifting`** | Lift single x64 PE function to LLVM IR (`.ll`) for deobfuscation | `native_devirtualize(action: "lift", backend: "mergen")` | `mergen` | `reverse setup reverse mergen --execute` | Symbolic trace replay (`triton_analyze`) or static disassembly via `r2_inspect` / IDA |
 | **`vmp_legacy_devirtualization`** | Static devirtualization of unpacked VMP 3.0–3.5 x64 routines into VTIL | `native_devirtualize(action: "lift", backend: "novmp")` | `novmp` | `reverse setup reverse novmp --execute` | `native_function_lifting` (Mergen) or `symbolic_trace_analysis` (Triton) |
-| **`symbolic_trace_analysis`** | Dynamic symbolic execution of execution traces, MBA simplification, LLVM IR | `triton_analyze(action: "replay")` | `triton` | `reverse setup reverse triton --execute` | Static pattern deobfuscation with `r2_inspect` or IDA Pro |
-
+| **`instruction_trace_capture`** | Capture bounded execution traces with synchronized register and memory access | `instruction_trace` | `qbdi` | `reverse setup reverse qbdi --execute` | Dynamic hook via `frida` / `frida_session` or debugger stepping |
+| **`symbolic_trace_analysis`** | Dynamic concolic replay of execution traces across x86/x64/ARM32/AArch64, MBA simplification, LLVM IR | `triton_analyze(action: "replay")` | `triton` | `reverse setup reverse triton --execute` | Static pattern deobfuscation with `r2_inspect` or IDA Pro |
+| **`native_path_recovery`** | Bounded multi-path DSE exploration, handler extraction, guarded ITE merge, and differential verification | `native_recover` | `triton` | `reverse setup reverse triton --execute` | Single-path replay (`triton_analyze`) or static disassembly via `r2_inspect` |
 ---
 
 ## 3. Tool Invocations & Actual Schemas
@@ -160,8 +161,111 @@ Used to analyze instruction traces of VM handlers or obfuscated routines using S
   - `output`: Object identifying the evaluation target: register object `{ kind: "register", target: "eax" }` or memory object `{ kind: "memory", address: "0x140003000", size: 4 }`.
   - Produces: Simplified AST formula, synthesized algebraic expression artifact (`synth_expr_artifact_id`), and optional LLVM IR (`llvm_ir_artifact_id`).
 
----
+### 4. `instruction_trace` (Controlled Dynamic Tracing)
+Used to record synchronized instruction sequences, register values, and memory reads into JSONL or Salwan trace formats.
 
+- **Status Check**:
+  ```json
+  instruction_trace({ action: "status" })
+  ```
+- **Capture Invocation**:
+  ```json
+  instruction_trace({
+    action: "capture",
+    process: "target_process",
+    scope: "function",
+    module: "libtarget.so",
+    function: "vm_dispatcher",
+    engine: "auto",
+    format: "jsonl",
+    max_instructions: 20000,
+    timeout_ms: 30000,
+    max_bytes: 33554432,
+    output_path: "./artifacts/trace_target.jsonl"
+  })
+  ```
+  - Produces: Trace file (`.jsonl` or `.txt`) and companion sidecar `.manifest.json` with `memory_reads_complete: true` and `replay_handoff` for `triton_analyze`.
+
+### 5. `native_recover` (Bounded DSE Exploration, Handler Extraction & Differential Verification)
+Used for multi-path bounded DSE analysis on concrete machine snapshots (`BoundedSnapshot`).
+
+- **Status Check**:
+  ```json
+  native_recover({ action: "status" })
+  ```
+- **Explore Bounded Paths**:
+  ```json
+  native_recover({
+    action: "explore",
+    snapshot: {
+      arch: "aarch64",
+      entry: "0x1000",
+      stop_addresses: ["0x1004"],
+      registers: { pc: "0x1000", sp: "0x8000" },
+      segments: [{ address: "0x1000", bytes: "00040091", permissions: "r-x" }],
+      symbolic_inputs: [{ name: "x0", alias: "x", seed: "0x0" }],
+      output: { kind: "register", target: "x0" }
+    },
+    bounds: { branch_budget: 4, max_depth: 4, max_instructions: 100 }
+  })
+  ```
+- **Extract Handler Semantics**:
+  ```json
+  native_recover({
+    action: "handlers",
+    snapshot: {
+      arch: "aarch64",
+      entry: "0x1000",
+      stop_addresses: ["0x1004"],
+      registers: { pc: "0x1000", sp: "0x8000" },
+      segments: [{ address: "0x1000", bytes: "00040091", permissions: "r-x" }],
+      symbolic_inputs: [{ name: "x0", alias: "x", seed: "0x0" }],
+      output: { kind: "register", target: "x0" }
+    },
+    range: { start: "0x1000", stop: "0x1004" },
+    inputs: [{ name: "x0", alias: "x", seed: "0x0" }],
+    output: { kind: "register", target: "x0" }
+  })
+  ```
+- **Merge Paths into Guarded ITE Tree**:
+  ```json
+  native_recover({
+    action: "merge",
+    paths: [
+      { path_id: 0, status: "completed", predicate: "(= x 0)", output_ast: "x" },
+      { path_id: 1, status: "completed", predicate: "(not (= x 0))", output_ast: "(bvadd x (_ bv1 64))" }
+    ],
+    inputs: [{ name: "x", size_bits: 64 }],
+    output_size_bits: 64
+  })
+  ```
+- **Differential Verification**:
+  ```json
+  native_recover({
+    action: "verify",
+    snapshot: {
+      arch: "aarch64",
+      entry: "0x1000",
+      stop_addresses: ["0x1004"],
+      registers: { pc: "0x1000", sp: "0x8000" },
+      segments: [{ address: "0x1000", bytes: "00040091", permissions: "r-x" }],
+      symbolic_inputs: [{ name: "x0", alias: "x", seed: "0x0" }],
+      output: { kind: "register", target: "x0" }
+    },
+    recovered: {
+      kind: "smt2",
+      expression: "(bvadd x (_ bv1 64))",
+      inputs: [{ name: "x", size_bits: 64, reg: "x0" }],
+      output: { kind: "register", target: "x0" },
+      strict_memory_check: true
+    },
+    vectors: [{ x: "0x0" }, { x: "0xa" }, { x: "0xffffffffffffffff" }],
+    test_generation: { boundary: true, random_count: 8, seed: 42 },
+    proof_mode: "both"
+  })
+  ```
+
+*(For full multi-path branching, ARM32 handler extraction and domain merge workflows, consult `docs/tools/native_recover.md`.)*
 ## 4. End-to-End Recommended Workflow
 
 ```
@@ -171,18 +275,24 @@ Used to analyze instruction traces of VM handlers or obfuscated routines using S
 [2. OEP Breakpoint & Process Dump] ──> vmp_dump(action: "dump", observed_oep: true)
                │
                ▼
-[3. Devirtualization Backend Selection]
+[3. Trace Capture or Memory Dump]
        ├─────────────────────────────────┬─────────────────────────────────┐
-       ▼ (Clean x64 Function)            ▼ (Legacy VMP 3.0-3.5)            ▼ (SMC / Handlers / Traced)
-[native_devirtualize: mergen]     [native_devirtualize: novmp]     [triton_analyze: replay]
+       ▼ (Windows Running PE)            ▼ (Controlled Function Tracing)   ▼ (Static Dump/Snapshot)
+[vmp_dump: dump OEP]              [instruction_trace: capture]      [triage / r2_inspect]
+       │                                 │                                 │
+       ▼                                 ▼                                 ▼
+[4. Analysis & Devirtualization Backend]
+       ├─────────────────────────────────┬─────────────────────────────────┤
+       ▼ (Clean x64 Function)            ▼ (Single-Path Trace MBA)         ▼ (Multi-Path Bounded DSE)
+[native_devirtualize: mergen]     [triton_analyze: replay]          [native_recover: explore/handlers]
        │                                 │                                 │
        └─────────────────────────────────┴─────────────────────────────────┘
                                          │
                                          ▼
-[4. Lockstep Differential Verification] ──> Test Vectors (Original vs Recovered)
+[5. Guarded Merge & Differential Verify] ──> native_recover(action: "merge" / "verify")
                                          │
                                          ▼
-[5. Evidence Ledger Confirmation] ───────> evidence(action: "verify", ...)
+[6. Evidence Ledger Confirmation] ───────> evidence(action: "verify", ...)
 ```
 
 ### Phase 1: Triage & VM Entry Identification

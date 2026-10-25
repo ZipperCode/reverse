@@ -79,22 +79,25 @@ Once the format and packing status are determined, dispatch to the corresponding
 ### Route N: Native Binaries (Linux ELF, Apple Mach-O & Universal, Firmware)
 - **Artifacts**: Linux/POSIX ELF (`.so`, executables, `.o`), Apple Mach-O (`.dylib`, executables, Universal Fat binaries), cross-compiled embedded binaries, raw firmware/memory blobs.
 - **Core Strategy**: Start with zero-dependency built-in `triage` to profile format, architecture, bitness, endianness, section table, stripped status, and Fat slices. Proceed to `read-binary` (IDA Pro) or `r2_inspect` / `radare2` for deep symbol, section, relocation, and decompilation analysis. Use `frida` (one-shot hooks/traces) or `frida_session` (persistent multi-turn analysis sessions) or LLDB/GDB for dynamic verification.
+- **Protection Analysis**: Use `instruction_trace` for bounded dynamic instruction and memory read capture via QBDI/Stalker. Use `native_recover` for multi-path bounded DSE exploration, handler semantic extraction, guarded ITE merging, and differential verification. Use `deobfuscate` (`backend: "d810-ng"` or `"msynth"`) for control-flow unflattening (OLLVM) and MBA algebraic simplification.
 - **Reference**: `skill://native-binary-reverse`.
 
 ### Route A: Android Applications & JNI Libraries
 - **Artifacts**: Android application packages (`.apk`, `.aab`, Split APK sets), Dalvik bytecode (`.dex`), and JNI native libraries embedded inside or coupled to an Android app (`lib/<abi>/*.so`).
-- **Routing Guard**: Standalone Linux/POSIX ELF binaries or general shared libraries MUST route to **Route N (`native-binary-reverse`)**, NOT Android. Only route to Route A when analyzing an Android package, Dalvik bytecode, or JNI bindings (`Java_*`, `JNI_OnLoad`). Prioritize zero-prep on-demand queries with `android_package_inspect` and `droidasc`. Fall back to targeted `jadx` or `apktool`. For Split APK packages, use `apk_artifact` for atomic multi-package repacking, diffing, signing, and install verification across members. For controlled device experiments, use `app_experiment` (actions: `preflight`, `invoke_component`, `query_provider`, `extract_sandbox_data`, `webview_debug`, `network_replay`, `mitm_capture`, `pinning_diagnose`). For dynamic confirmation, use `frida` for one-shot tests and `frida_session` for stateful multi-step hooking against running or spawned apps.
+- **Routing Guard**: Standalone Linux/POSIX ELF binaries or general shared libraries MUST route to **Route N (`native-binary-reverse`)**, NOT Android. Only route to Route A when analyzing an Android package, Dalvik bytecode, or JNI bindings (`Java_*`, `JNI_OnLoad`). Prioritize zero-prep on-demand queries with `android_package_inspect` and `droidasc`. Fall back to targeted `jadx` or `apktool`. For Split APK packages, use `apk_artifact` for atomic multi-package repacking, diffing, signing, and install verification.
+- **Protection Analysis**: Use `dex_unpack` for dynamic in-memory extraction of packed DEX from ART runtime (`frida-dexdump`, `blackdex`). Use `dex_repair` for offline reconstruction of empty-code stub methods from FART CodeItem records. Use `dex_search` for DexKit structural cross-reference queries. Use `deobfuscate` (`jadx-string-decrypt`, `simplify`) for Dalvik bytecode deobfuscation and string decryption.
 - **Reference**: `skill://reverse-lab/references/android.md`.
+
 ### Route B: Windows Native Executables & Libraries
 - **Artifacts**: PE32 / PE32+ `.exe`, `.dll`, `.sys`, `.node` addons.
 - **Core Strategy**: For foundational format and section triage, `triage` or `native-binary-reverse` provides baseline inspection. When Windows subsystem specifics, Win32 IAT auditing, ETW/API Monitor traces (`windows_observe`), or Windows anti-debug techniques are required, dispatch to `windows-reverse`.
 - **Reference**: `skill://reverse-lab/references/windows.md`.
 
 ### Route V: VMProtect & Virtualized Native Code
-- **Artifacts**: PE binaries protected with VMProtect (VMP 2.x, 3.x) or custom virtual machines, unpacked process memory dumps, offline instruction execution traces.
-- **Core Strategy**: Triage VM entry dispatcher stubs with `triage` and `r2_inspect`. Reconstruct process memory and IAT past OEP using `vmp_dump`. Lift individual x64 PE functions to LLVM IR with `native_devirtualize(backend: "mergen")` or legacy VMP 3.0–3.5 routines to VTIL with `native_devirtualize(backend: "novmp")`. Simplify MBA expressions and branch predicates from traces using `triton_analyze`. Enforce dual-execution differential verification before accepting deobfuscated models.
+- **Artifacts**: PE or native binaries protected with VMProtect (VMP 2.x, 3.x), OLLVM, or custom native/Android virtual machines, unpacked process memory dumps, offline instruction execution traces.
+- **Core Strategy**: Triage VM entry dispatcher stubs with `triage` and `r2_inspect`. For Windows PE targets, reconstruct process memory and IAT past OEP using `vmp_dump`. Lift individual x64 PE functions to LLVM IR with `native_devirtualize(backend: "mergen")` or legacy VMP 3.0–3.5 routines to VTIL with `native_devirtualize(backend: "novmp")`. For traced routines, simplify MBA expressions from traces using `triton_analyze`. For branching machine code and custom native/Android VMP, perform bounded multi-path DSE exploration, handler extraction, guarded merge, and differential verification with `native_recover`. Enforce lockstep differential verification before accepting deobfuscated models.
+- **Android VMP Guard**: Android custom VMP targets route `android-reverse`, `native-binary-reverse`, and `vmp-reverse` based on evidence (e.g. APK with native `.so` containing virtualized handlers); they do NOT load `windows-reverse` automatically unless actual Windows PE evidence is present.
 - **Reference**: `skill://vmp-reverse`.
-
 ### Route C: Web Frontends & Protocol Payloads
 - **Artifacts**: Bundled JavaScript (`.js`, `.mjs`), WebAssembly (`.wasm`), network HTTP/WebSocket traffic (HAR, JSON).
 - **Core Strategy**: Apply search-first token discipline. Extract endpoints, auth headers, and crypto primitives using native `ast_grep` or `grep` before reading full files. Reconstruct original source via SourceMaps when available.
@@ -141,6 +144,14 @@ Before executing resource-heavy tools or disassemblers, evaluate required capabi
    - Android package decompilation & Dalvik analysis ➔ `apk_unpacking`
    - Android DEX bytecode inspection & semantic patching ➔ `dex_patching`
    - Android APK container repacking, alignment & signing ➔ `apk_artifact_generation`
+   - Android dynamic DEX runtime unpacking ➔ `dex_runtime_unpacking`
+   - Android offline FART CodeItem repair ➔ `dex_codeitem_repair`
+   - Android DEX structural code search ➔ `dex_structural_search`
+   - Android Dalvik bytecode deobfuscation ➔ `bytecode_deobfuscation`
+   - Native instruction trace capture ➔ `instruction_trace_capture`
+   - Native bounded multi-path recovery & verification ➔ `native_path_recovery`
+   - Native CFG deobfuscation & unflattening ➔ `native_cfg_deobfuscation`
+   - Mixed Boolean-Arithmetic (MBA) simplification ➔ `mba_simplification`
    - Dynamic Web & DOM inspection ➔ `browser_debugger`
    - Native binary disassembly & dynamic stepping ➔ `native_debugger`
    - WebSocket real-time frame inspection ➔ `websocket_capture`
@@ -150,7 +161,6 @@ Before executing resource-heavy tools or disassemblers, evaluate required capabi
    - Native x64 PE function lifting to LLVM IR ➔ `native_function_lifting`
    - Legacy VMProtect 3.0–3.5 VTIL devirtualization ➔ `vmp_legacy_devirtualization`
    - Symbolic trace execution & MBA simplification ➔ `symbolic_trace_analysis`
-
 2. **Query Capability Readiness via `reverse_capability`**:
    Always check readiness through the capability resolver before tool invocation:
    ```json

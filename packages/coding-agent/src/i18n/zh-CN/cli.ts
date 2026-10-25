@@ -288,6 +288,107 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 		"在无头 Ghidra 分析期间运行 FindCrypt 自动分析器，扫描并标记密码学常量候选位置（AES S 盒、散列初始向量及查找表）。",
 	"cli.setup.reverse.capability.native_crypto_constant_analysis.why":
 		"快速获取密码学常量候选位置与交叉引用入口，辅助结合后续反编译流程验证算法实现，而非直接断言加密函数。",
+	"cli.setup.reverse.tool.frida-dexdump.description": "利用 Frida 从正在运行的 Dalvik/ART 进程内存中转储 DEX 字节码。",
+	"cli.setup.reverse.tool.frida-dexdump.purpose":
+		"对经过动态加壳或内存加载的 Android 应用提取完整或解密后的 DEX 模块。",
+	"cli.setup.reverse.frida-dexdump.name": "frida-dexdump 内存脱壳工具",
+	"cli.setup.reverse.frida-dexdump.risk":
+		"在 agent 目录创建隔离虚拟环境并安装固定版本 frida-dexdump (2.0.1, GPL-3.0)。",
+	"cli.setup.reverse.tool.fart.description": "Android ART 运行时主动调用脱壳框架及离线 CodeItem 修复资产。",
+	"cli.setup.reverse.tool.fart.purpose": "配合定制 ROM 或脱壳脚本转储并重构被抽取的方法代码体。",
+	"cli.setup.reverse.fart.name": "FART 主动脱壳资产",
+	"cli.setup.reverse.fart.risk": "下载并部署固定版本 FART 离线修复脚本与资源（Apache-2.0）。",
+	"cli.setup.reverse.tool.qbdi.description": "QuarkslaB 原生动态二进制插桩框架与 Frida 绑定，提供细粒度指令级跟踪。",
+	"cli.setup.reverse.tool.qbdi.purpose": "在无需主机直接运行不可信目标的前提下，记录函数指令执行轨迹与基本块覆盖。",
+	"cli.setup.reverse.qbdi.name": "QBDI 动态二进制插桩",
+	"cli.setup.reverse.qbdi.risk": "在 agent 目录部署固定版本 QBDI (v0.12.1, Apache-2.0) 原生库与 Frida 运行时绑定。",
+	"cli.setup.reverse.tool.jadx-string-decrypt.description":
+		"JADX 静态反混淆插件，自动解密硬编码或运行时调用的混淆字符串。",
+	"cli.setup.reverse.tool.jadx-string-decrypt.purpose": "还原混淆代码中的 API 路径、加密秘钥与敏感配置字符串。",
+	"cli.setup.reverse.jadx-string-decrypt.name": "JADX 字符串解密插件",
+	"cli.setup.reverse.jadx-string-decrypt.risk":
+		"下载并安装固定版本 jadx-string-decrypt 插件 JAR (v1.14.0, Apache-2.0)。",
+	"cli.setup.reverse.tool.dexkit.description": "基于 C++20 与 JVM 的高性能 DEX 结构化搜索与代码特征匹配引擎。",
+	"cli.setup.reverse.tool.dexkit.purpose": "在大型 multi-DEX APK 中毫秒级定位类、方法特征、调用方与字符串引用。",
+	"cli.setup.reverse.dexkit.name": "DexKit 结构化搜索引擎",
+	"cli.setup.reverse.dexkit.risk": "编译并安装固定版本 DexKit (v2.3.0, LGPL-3.0 Core) 原生库与 Java 桥接器。",
+	"cli.setup.reverse.tool.d810-ng.description": "IDA Pro 反编译器控制流平坦化与不透明谓词反混淆分析框架。",
+	"cli.setup.reverse.tool.d810-ng.purpose": "消除原生二进制函数中的混淆分发块和无效控制流，恢复清晰的控制流图。",
+	"cli.setup.reverse.d810-ng.name": "D810-ng 控制流反混淆框架",
+	"cli.setup.reverse.d810-ng.risk": "在 agent 目录创建隔离虚拟环境并安装固定版本 d810-ng (v0.6.6, AGPL-3.0)。",
+	"cli.setup.reverse.tool.blackdex.description": "无需 Root 权限的 Android ART 运行时通用快速脱壳应用。",
+	"cli.setup.reverse.tool.blackdex.purpose": "在真机或模拟器上直接运行并转储受保护加壳应用的 DEX 文件。",
+	"cli.setup.reverse.blackdex.name": "BlackDex 动态脱壳应用",
+	"cli.setup.reverse.blackdex.risk": "下载并校验固定版本 BlackDex (v3.2, Apache-2.0) 32位与64位 APK。",
+	"cli.setup.reverse.tool.simplify.description": "通过沙箱 Dalvik 虚拟机模拟执行并化简 Smali 字节码的反混淆工具。",
+	"cli.setup.reverse.tool.simplify.purpose": "通过虚拟机符号执行计算反射调用、数学变换和死代码分支。",
+	"cli.setup.reverse.simplify.name": "Simplify Dalvik 反混淆器",
+	"cli.setup.reverse.simplify.risk": "下载并部署固定版本 Simplify (v1.3.0, GPL-3.0) 可执行 JAR 与包装脚本。",
+	"cli.setup.reverse.tool.msynth.description": "利用程序合成与 SMT 求解器化简混合布尔算术 (MBA) 混淆表达式。",
+	"cli.setup.reverse.tool.msynth.purpose": "将冗长复杂的位运算与算术混合混淆公式等价转换为简明代数表达式。",
+	"cli.setup.reverse.msynth.name": "msynth MBA 混淆化简器",
+	"cli.setup.reverse.msynth.risk": "在 agent 目录创建隔离虚拟环境并安装固定版本 msynth (GPL-2.0) 与 Z3 求解器。",
+	"cli.setup.reverse.tool.tritondse.description":
+		"可选的上游动态符号执行库，基于 Triton 构建自定义路径探索与符号分析脚本（quarkslab/tritondse，Apache-2.0）。",
+	"cli.setup.reverse.tool.tritondse.purpose":
+		"为自定义符号执行脚本与探索用例提供可选上游 DSE 库支持；原生有界快照求解直接由 native_recover 通过 Triton 完成。",
+	"cli.setup.reverse.tritondse.name": "TritonDSE 符号执行引擎",
+	"cli.setup.reverse.tritondse.risk": "在 agent 目录创建隔离虚拟环境并安装固定版本 tritondse (v0.1.14, Apache-2.0)。",
+	"cli.setup.reverse.capability.dex_runtime_unpacking.name": "Android DEX 运行时脱壳",
+	"cli.setup.reverse.capability.dex_runtime_unpacking.scenario":
+		"从运行中的 Android 进程或内存转储中提取已解密的 DEX 字节码。",
+	"cli.setup.reverse.capability.dex_runtime_unpacking.description":
+		"使用 frida-dexdump 或 BlackDex 从 Dalvik/ART 内存导出已解密 DEX，并记录来源证据。",
+	"cli.setup.reverse.capability.dex_runtime_unpacking.why":
+		"绕过静态加壳保护，在应用完成运行时自解密后直接捕获真实逻辑代码。",
+	"cli.setup.reverse.capability.dex_codeitem_repair.name": "DEX 代码项重构与头部修复",
+	"cli.setup.reverse.capability.dex_codeitem_repair.scenario":
+		"重构被抽取或损坏的方法 code_item，并修复 Adler-32 与 SHA-1 头部校验。",
+	"cli.setup.reverse.capability.dex_codeitem_repair.description":
+		"将脱壳转储的方法字节码缝合修复回合法 DEX 结构，保留原始输入并生成独立产物。",
+	"cli.setup.reverse.capability.dex_codeitem_repair.why":
+		"抽取类加壳会将方法体置空以对抗反编译；重构可恢复能够被反编译的有效类定义。",
+	"cli.setup.reverse.capability.instruction_trace_capture.name": "指令级动态执行轨迹采集",
+	"cli.setup.reverse.capability.instruction_trace_capture.scenario":
+		"采集原生二进制函数执行的有界指令轨迹与基本块覆盖率。",
+	"cli.setup.reverse.capability.instruction_trace_capture.description":
+		"利用 QBDI 或 Frida Stalker 记录执行指令与寄存器上下文，保存结构化证据。",
+	"cli.setup.reverse.capability.instruction_trace_capture.why":
+		"暴露真实运行分支和解密循环，无需在主机直接执行不受信目标代码。",
+	"cli.setup.reverse.capability.dex_structural_search.name": "DEX 高性能结构化特征搜索",
+	"cli.setup.reverse.capability.dex_structural_search.scenario":
+		"在 multi-DEX 文件中毫秒级匹配类、方法、字段、字符串与调用图特征。",
+	"cli.setup.reverse.capability.dex_structural_search.description":
+		"借助 DexKit 引擎快速检索混淆命名、特征算法与特定 SDK 依赖。",
+	"cli.setup.reverse.capability.dex_structural_search.why":
+		"无需全量反编译即可在大规模 APK 中精确定位加解密入口与调用关系。",
+	"cli.setup.reverse.capability.bytecode_deobfuscation.name": "Android Dalvik 字节码反混淆",
+	"cli.setup.reverse.capability.bytecode_deobfuscation.scenario":
+		"自动解密静态加密字符串、解析动态反射调用并化简字节码。",
+	"cli.setup.reverse.capability.bytecode_deobfuscation.description":
+		"使用 JADX 插件、Simplify 模拟器或脱壳工具消除混淆层，输出清晰代码。",
+	"cli.setup.reverse.capability.bytecode_deobfuscation.why":
+		"剥离字符串加密与反射包装，直接显示明文 URL、接口密钥与真实调用点。",
+	"cli.setup.reverse.capability.native_cfg_deobfuscation.name": "原生控制流图平坦化反混淆",
+	"cli.setup.reverse.capability.native_cfg_deobfuscation.scenario":
+		"消除原生二进制函数中的控制流平坦化、虚假分支与不透明谓词。",
+	"cli.setup.reverse.capability.native_cfg_deobfuscation.description":
+		"运行 D810-ng 微码规则重构清晰控制流图并恢复易读的反编译伪代码。",
+	"cli.setup.reverse.capability.native_cfg_deobfuscation.why":
+		"平坦化分发逻辑会破坏反编译器的高层抽象；归一化可重现原始循环与分支结构。",
+	"cli.setup.reverse.capability.mba_simplification.name": "混合布尔算术 (MBA) 表达式化简",
+	"cli.setup.reverse.capability.mba_simplification.scenario": "将复杂位运算与算术混合表达式化简为线性运算或标准公式。",
+	"cli.setup.reverse.capability.mba_simplification.description":
+		"使用 msynth 程序合成框架与 Z3 求解器搜索等价精简表达式并输出证明。",
+	"cli.setup.reverse.capability.mba_simplification.why":
+		"混淆器常将普通加减异或扩充为数百项位运算；程序合成可直接找回原始算术语义。",
+	"cli.setup.reverse.capability.native_path_recovery.name": "原生执行路径探索与约束求解",
+	"cli.setup.reverse.capability.native_path_recovery.scenario":
+		"恢复触发目标代码块或校验分支所需的符号约束与输入参数。",
+	"cli.setup.reverse.capability.native_path_recovery.description":
+		"直接利用受管 Triton 与 Z3 对有界机器快照探索执行路径并求解分支约束，计算满足目标跳转的合法输入。",
+	"cli.setup.reverse.capability.native_path_recovery.why":
+		"求解绕过安全校验或进入关键业务分支所需的具体数值，无需盲目穷举测试。",
 	"cli.setup.menu.title": "系统与工具链配置 (Setup)",
 	"cli.setup.panel.providers.label": "模型服务商 (providers)",
 	"cli.setup.panel.providers.desc": "配置 OAuth 登录、API Key 及 Web 搜索服务",

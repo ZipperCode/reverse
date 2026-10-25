@@ -360,7 +360,53 @@ frida_session(action: "stop", session_id: "android-audit")
 
 ---
 
-## 6. Subagent Delegation Model for Android
+## 6. Phase 5: Runtime DEX Unpacking, FART Repair & Structural Search
+
+When auditing hardened or reinforced Android applications where DEX files are encrypted or packed in memory, apply the unpack-then-repair pipeline:
+
+### 1. In-Memory DEX Extraction (`dex_unpack`)
+Extract packed DEX files from the running ART runtime:
+```json
+dex_unpack({
+  "action": "dump",
+  "backend": "frida-dexdump",
+  "package": "com.example.protected",
+  "device": "emulator-5554",
+  "deep_search": true,
+  "out_dir": "./artifacts/unpacked_dex"
+})
+```
+- Requires an explicit `device` serial and target `package` or `pid`.
+- Inspects dumped DEX headers and evaluates `incomplete_method_boundary`. If `needs_repair: true` is returned (methods contain empty code stubs from function-level extractors like FART), hand off to `dex_repair`.
+
+### 2. Offline FART CodeItem Repair (`dex_repair`)
+Stitch dumped CodeItem records back into the target DEX file:
+```json
+dex_repair({
+  "action": "repair",
+  "path": "./artifacts/unpacked_dex/classes.dex",
+  "records": "./artifacts/unpacked_dex/123456_ins.bin",
+  "dry_run": false,
+  "out": "./artifacts/repaired_dex/classes_repaired.dex"
+})
+```
+- Parses method index records, calculates new code item offsets, relocates instructions, updates `class_data` ULEB offsets, and recalculates SHA-1 and Adler32 checksums.
+- Verify output with `dry_run: true` before writing.
+
+### 3. Structural Graph Search via DexKit (`dex_search`)
+Query classes, methods, and cross-references across multi-DEX applications:
+```json
+dex_search({
+  "target": "target.apk",
+  "type": "method",
+  "using_strings": ["SECRET_KEY", "AES/CBC"],
+  "return_type": "Ljava/lang/String;"
+})
+```
+- Produces stable descriptors for handoff to JADX decompilation or Frida hook targeting.
+---
+
+## 7. Subagent Delegation Model for Android
 
 When handling complex Android tasks, follow structured handoffs (`sha256`, `path`, `package`, `abi`, `serial`, `subject`, `evidence_ids`, `allowed_actions`):
 - **`scout` subagent**: Runs `droidasc` manifest and xref queries to map components, detect obfuscators, and locate relevant class names.

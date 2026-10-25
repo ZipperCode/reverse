@@ -1075,6 +1075,123 @@ export class FridaSessionStore {
 	}
 }
 
+function getFridaSessionStoreForProject(cwd: string, stateRoot?: string): FridaSessionStore {
+	const projectKey = encodeProjectKey(cwd);
+	const baseDir = stateRoot
+		? stateRoot.endsWith("frida-sessions") || stateRoot.endsWith("frida_sessions")
+			? path.resolve(stateRoot)
+			: path.join(path.resolve(stateRoot), "frida-sessions")
+		: getFridaSessionsDir();
+	const projectDir = path.join(baseDir, projectKey);
+	return new FridaSessionStore(projectDir);
+}
+
+export interface ResolvedFridaSessionTarget {
+	sessionId: string;
+	mode: "batch" | "live";
+	status: FridaSessionRecord["status"];
+	liveStatus?: FridaSessionRecord["liveStatus"];
+	isLiveActive: boolean;
+	target: FridaSessionTarget;
+	pid?: number;
+	process?: string;
+	spawn?: string;
+	device?: string;
+	usb?: boolean;
+	host?: string;
+	activeChildPid?: number;
+}
+
+/**
+ * Narrow read-only session target resolver.
+ * Resolves an active or stored Frida session to concrete attachment settings.
+ * If target.type is "spawn" and an activeChildPid exists, maps activeChildPid
+ * directly to `pid` and omits `spawn` so consumers attach independently
+ * to the running process rather than re-spawning a duplicate instance.
+ */
+export async function resolveFridaSessionTarget(
+	cwd: string,
+	sessionId?: string,
+	stateRoot?: string,
+): Promise<ResolvedFridaSessionTarget | null> {
+	const projectKey = encodeProjectKey(cwd);
+	const trimmedId = sessionId?.trim();
+	let record: FridaSessionRecord | null = null;
+	let isLiveActive = false;
+
+	if (trimmedId) {
+		const liveCtx = ACTIVE_LIVE_SESSIONS.get(getLiveSessionKey(projectKey, trimmedId));
+		if (liveCtx && !liveCtx.disposed) {
+			record = liveCtx.record;
+			isLiveActive = !liveCtx.client.exited && liveCtx.record.status === "active";
+		}
+	} else {
+		for (const [key, ctx] of ACTIVE_LIVE_SESSIONS) {
+			if (key.startsWith(`${projectKey}:`) && !ctx.disposed && ctx.record.status === "active") {
+				record = ctx.record;
+				isLiveActive = !ctx.client.exited;
+				break;
+			}
+		}
+	}
+
+	if (!record) {
+		const store = getFridaSessionStoreForProject(cwd, stateRoot);
+		if (trimmedId) {
+			record = await store.get(trimmedId);
+		} else {
+			const all = await store.list();
+			const active = all.find(s => s.status === "active");
+			record = active ?? all[0] ?? null;
+		}
+	}
+
+	if (!record) return null;
+
+	const target = record.target;
+	const activeChildPid = record.activeChildPid;
+	let pid: number | undefined;
+	let processName: string | undefined;
+	let spawnTarget: string | undefined;
+
+	if (target.type === "spawn") {
+		// When activeChildPid is available (running live or recorded spawned child),
+		// map activeChildPid directly to `pid` and omit `spawn` to attach rather than re-spawn.
+		if (activeChildPid !== undefined) {
+			pid = activeChildPid;
+		} else {
+			spawnTarget = target.spawn ?? (typeof target.value === "string" ? target.value : undefined);
+		}
+	} else if (target.type === "pid") {
+		const resolved =
+			target.pid ?? (typeof target.value === "number" ? target.value : Number.parseInt(String(target.value), 10));
+		if (!Number.isNaN(resolved)) {
+			pid = resolved;
+		}
+	} else if (target.type === "process") {
+		processName = target.process ?? String(target.value);
+		if (activeChildPid !== undefined) {
+			pid = activeChildPid;
+		}
+	}
+
+	return {
+		sessionId: record.id,
+		mode: record.mode ?? "batch",
+		status: record.status,
+		liveStatus: record.liveStatus,
+		isLiveActive,
+		target: { ...target },
+		pid,
+		process: processName,
+		spawn: spawnTarget,
+		device: target.device,
+		usb: target.usb,
+		host: target.host,
+		activeChildPid,
+	};
+}
+
 export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, FridaSessionDetails> {
 	readonly name = "frida_session";
 	readonly description = fridaSessionDescription;
@@ -1099,14 +1216,7 @@ export class FridaSessionTool implements AgentTool<typeof fridaSessionSchema, Fr
 	}
 
 	private getStore(): FridaSessionStore {
-		const projectKey = encodeProjectKey(this.session.cwd);
-		const baseDir = this.stateRoot
-			? this.stateRoot.endsWith("frida-sessions") || this.stateRoot.endsWith("frida_sessions")
-				? path.resolve(this.stateRoot)
-				: path.join(path.resolve(this.stateRoot), "frida-sessions")
-			: getFridaSessionsDir();
-		const projectDir = path.join(baseDir, projectKey);
-		return new FridaSessionStore(projectDir);
+		return getFridaSessionStoreForProject(this.session.cwd, this.stateRoot);
 	}
 
 	async execute(

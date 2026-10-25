@@ -34,6 +34,20 @@ export { resolveGhidraFindCrypt, canBuildGhidraFindCrypt, FINDCRYPT_VERSION, FIN
 import { resolveBlutter, resolveHbctool, resolveHermesDec, resolveIl2CppDumper } from "./runtime-toolchain";
 export { resolveBlutter, resolveHbctool, resolveHermesDec, resolveIl2CppDumper };
 import {
+	resolveProtectionTool,
+	type ProtectionToolId,
+	type ProtectionToolResolved,
+	ALL_PROTECTION_TOOL_IDS,
+	isProtectionToolId,
+} from "./protection-toolchain";
+export {
+	resolveProtectionTool,
+	type ProtectionToolId,
+	type ProtectionToolResolved,
+	ALL_PROTECTION_TOOL_IDS,
+	isProtectionToolId,
+};
+import {
 	evaluateUnidbgReadiness,
 	evaluateApkUnpackingReadiness,
 	type UnidbgReadiness,
@@ -3219,6 +3233,533 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			],
 		},
 	},
+	"frida-dexdump": {
+		id: "frida-dexdump",
+		name: "frida-dexdump",
+		category: "android",
+		description: "Fast Dalvik/ART memory DEX dumper CLI via Frida (GPL-3.0)",
+		binaries: ["frida-dexdump"],
+		probe: deps => {
+			const res = resolveProtectionTool("frida-dexdump", deps);
+			return res?.canStart ? res.path : null;
+		},
+		secondary: ["frida", "python"],
+		installHints: {
+			darwin: ["reverse setup reverse frida-dexdump --execute", "pip install frida-dexdump==2.0.1"],
+			linux: ["reverse setup reverse frida-dexdump --execute", "pip install frida-dexdump==2.0.1"],
+			win32: ["reverse setup reverse frida-dexdump --execute", "pip install frida-dexdump==2.0.1"],
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse frida-dexdump --execute",
+					argv: ["reverse", "setup", "reverse", "frida-dexdump", "--execute"],
+					riskNote:
+						"Provisions managed virtual environment and installs frida-dexdump (GPL-3.0) into agent tools directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse frida-dexdump --execute",
+					argv: ["reverse", "setup", "reverse", "frida-dexdump", "--execute"],
+					riskNote:
+						"Provisions managed virtual environment and installs frida-dexdump (GPL-3.0) into agent tools directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse frida-dexdump --execute",
+					argv: ["reverse", "setup", "reverse", "frida-dexdump", "--execute"],
+					riskNote:
+						"Provisions managed virtual environment and installs frida-dexdump (GPL-3.0) into agent tools directory.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'dex_unpack(action: "unpack", package_name: "<pkg>")',
+			whenToUse: "Fast memory-based DEX extraction from a running Android process via Frida.",
+			prerequisites: ["frida-dexdump", "frida"],
+			outputLimits: "Saves dumped DEX files to specified output directory and records hashes in evidence.",
+			fallback: "blackdex or memory dump inspect.",
+			examples: [
+				{
+					description: "Dump all memory DEX files for running package",
+					command: "frida-dexdump -u -f com.example.app -o /tmp/dumped_dex",
+				},
+			],
+		},
+	},
+	qbdi: {
+		id: "qbdi",
+		name: "QBDI Dynamic Binary Instrumentation",
+		category: "binary",
+		description: "QuarkslaB Dynamic Binary Instrumentation native libraries and Frida bindings (Apache-2.0)",
+		binaries: [],
+		probe: deps => {
+			const res = resolveProtectionTool("qbdi", deps);
+			return res?.canStart ? res.path : null;
+		},
+		secondary: ["frida"],
+		installHints: {
+			darwin: ["reverse setup reverse qbdi --execute"],
+			linux: ["reverse setup reverse qbdi --execute"],
+			win32: ["reverse setup reverse qbdi --execute"],
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse qbdi --execute",
+					argv: ["reverse", "setup", "reverse", "qbdi", "--execute"],
+					riskNote:
+						"Provisions QBDI v0.10.0 native library and Frida runtime bindings into agent tools directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse qbdi --execute",
+					argv: ["reverse", "setup", "reverse", "qbdi", "--execute"],
+					riskNote:
+						"Provisions QBDI v0.10.0 native library and Frida runtime bindings into agent tools directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse qbdi --execute",
+					argv: ["reverse", "setup", "reverse", "qbdi", "--execute"],
+					riskNote:
+						"Provisions QBDI v0.10.0 native library and Frida runtime bindings into agent tools directory.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'instruction_trace(action: "trace", target: "<target>")',
+			whenToUse: "Fine-grained instruction-level execution tracing and basic block coverage via Frida-QBDI bridge.",
+			prerequisites: ["qbdi", "frida"],
+			outputLimits: "Retains bounded instruction traces in evidence artifacts; avoids flooding session context.",
+			fallback: "Frida Stalker native instruction trace.",
+			examples: [
+				{
+					description: "Trace instructions of target function",
+					command: 'instruction_trace(action: "trace", function: "target_func")',
+				},
+			],
+		},
+	},
+	"jadx-string-decrypt": {
+		id: "jadx-string-decrypt",
+		name: "JADX String Decryptor Plugin",
+		category: "decompiler",
+		description: "JADX deobfuscator plugin for automated string decryption (Arsylk/jadx-string-decrypt, Apache-2.0)",
+		binaries: [],
+		probe: deps => {
+			const res = resolveProtectionTool("jadx-string-decrypt", deps);
+			return res?.canStart ? res.path : null;
+		},
+		secondary: ["java", "jadx"],
+		installHints: {
+			darwin: ["reverse setup reverse jadx-string-decrypt --execute"],
+			linux: ["reverse setup reverse jadx-string-decrypt --execute"],
+			win32: ["reverse setup reverse jadx-string-decrypt --execute"],
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse jadx-string-decrypt --execute",
+					argv: ["reverse", "setup", "reverse", "jadx-string-decrypt", "--execute"],
+					riskNote:
+						"Installs JADX string decryption plugin jar (v1.14.0, Apache-2.0) into agent jadx-plugins directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse jadx-string-decrypt --execute",
+					argv: ["reverse", "setup", "reverse", "jadx-string-decrypt", "--execute"],
+					riskNote:
+						"Installs JADX string decryption plugin jar (v1.14.0, Apache-2.0) into agent jadx-plugins directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse jadx-string-decrypt --execute",
+					argv: ["reverse", "setup", "reverse", "jadx-string-decrypt", "--execute"],
+					riskNote:
+						"Installs JADX string decryption plugin jar (v1.14.0, Apache-2.0) into agent jadx-plugins directory.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'deobfuscate(action: "analyze", backend: "jadx", path: "<target.apk>")',
+			whenToUse: "Automated static decryption of obfuscated strings in Android DEX / APK bytecode.",
+			prerequisites: ["jadx-string-decrypt", "jadx", "java"],
+			outputLimits: "Saves decrypted mapping to artifact; does not flood stdout.",
+			fallback: "simplify or manual smali / frida hook.",
+			examples: [
+				{
+					description: "Deobfuscate strings using JADX plugin",
+					command: 'deobfuscate(action: "analyze", backend: "jadx", path: "sample.apk")',
+				},
+			],
+		},
+	},
+	dexkit: {
+		id: "dexkit",
+		name: "DexKit Structural Search Engine",
+		category: "android",
+		description:
+			"High-performance DEX structural search and pattern matching engine (LuckyPray/DexKit, LGPL-3.0 Core, Apache-2.0 bridge)",
+		binaries: ["dexkit", "dexkit-search"],
+		probe: deps => {
+			const res = resolveProtectionTool("dexkit", deps);
+			return res?.canStart ? res.path : null;
+		},
+		secondary: ["java"],
+		installHints: {
+			darwin: ["reverse setup reverse dexkit --execute"],
+			linux: ["reverse setup reverse dexkit --execute"],
+			win32: ["reverse setup reverse dexkit --execute"],
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse dexkit --execute",
+					argv: ["reverse", "setup", "reverse", "dexkit", "--execute"],
+					riskNote: "Provisions DexKit v2.3.0 native library and JVM search bridge into agent tools directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse dexkit --execute",
+					argv: ["reverse", "setup", "reverse", "dexkit", "--execute"],
+					riskNote: "Provisions DexKit v2.3.0 native library and JVM search bridge into agent tools directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse dexkit --execute",
+					argv: ["reverse", "setup", "reverse", "dexkit", "--execute"],
+					riskNote: "Provisions DexKit v2.3.0 native library and JVM search bridge into agent tools directory.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'dex_search(target: "<target.apk_or_dex>", type: "class", using_strings: ["<keyword>"])',
+			whenToUse:
+				"Fast structural searching for classes, methods, strings, opcodes, and call hierarchies in DEX files.",
+			prerequisites: ["dexkit", "java"],
+			outputLimits: "Returns structured match lists bounded by limit; keeps raw results in artifacts.",
+			fallback: "jadx or baksmali grep.",
+			examples: [
+				{
+					description: "Find classes by method signatures and string references",
+					command: 'dex_search(target: "classes.dex", type: "class", using_strings: ["secret_key"])',
+				},
+			],
+		},
+	},
+	"d810-ng": {
+		id: "d810-ng",
+		name: "D810-ng Deobfuscation Framework",
+		category: "decompiler",
+		description:
+			"Control flow de-obfuscation and MBA simplification framework for IDA Pro / microcode (w00tzenheimer/d810-ng, AGPL-3.0)",
+		binaries: [],
+		probe: deps => {
+			const res = resolveProtectionTool("d810-ng", deps);
+			return res?.canStart ? res.path : null;
+		},
+		secondary: ["python"],
+		installHints: {
+			darwin: ["reverse setup reverse d810-ng --execute"],
+			linux: ["reverse setup reverse d810-ng --execute"],
+			win32: ["reverse setup reverse d810-ng --execute"],
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse d810-ng --execute",
+					argv: ["reverse", "setup", "reverse", "d810-ng", "--execute"],
+					riskNote: "Provisions managed D810-ng (AGPL-3.0) environment into agent tools directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse d810-ng --execute",
+					argv: ["reverse", "setup", "reverse", "d810-ng", "--execute"],
+					riskNote: "Provisions managed D810-ng (AGPL-3.0) environment into agent tools directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse d810-ng --execute",
+					argv: ["reverse", "setup", "reverse", "d810-ng", "--execute"],
+					riskNote: "Provisions managed D810-ng (AGPL-3.0) environment into agent tools directory.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'deobfuscate(action: "analyze", backend: "d810-ng", path: "<target.so>", function: "0x...")',
+			whenToUse:
+				"Removing control flow flattening, opaque predicates, and instruction substitutions from native binaries.",
+			prerequisites: ["d810-ng", "python"],
+			outputLimits: "Saves simplified microcode and CFG diagrams in artifacts.",
+			fallback: "msynth or triton_analyze.",
+			examples: [
+				{
+					description: "Deobfuscate flattened control flow in native function",
+					command: 'deobfuscate(action: "analyze", backend: "d810-ng", path: "libnative.so", function: "0x1234")',
+				},
+			],
+		},
+	},
+	blackdex: {
+		id: "blackdex",
+		name: "BlackDex Unpacker",
+		category: "android",
+		description: "Android ART dynamic unpacker application (CodingGay/BlackDex, Apache-2.0)",
+		binaries: [],
+		probe: deps => {
+			const res = resolveProtectionTool("blackdex", deps);
+			return res?.canStart ? res.path : null;
+		},
+		secondary: ["adb"],
+		installHints: {
+			darwin: ["reverse setup reverse blackdex --execute"],
+			linux: ["reverse setup reverse blackdex --execute"],
+			win32: ["reverse setup reverse blackdex --execute"],
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse blackdex --execute",
+					argv: ["reverse", "setup", "reverse", "blackdex", "--execute"],
+					riskNote: "Downloads pinned BlackDex v3.2 APKs (Apache-2.0) into agent tools directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse blackdex --execute",
+					argv: ["reverse", "setup", "reverse", "blackdex", "--execute"],
+					riskNote: "Downloads pinned BlackDex v3.2 APKs (Apache-2.0) into agent tools directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse blackdex --execute",
+					argv: ["reverse", "setup", "reverse", "blackdex", "--execute"],
+					riskNote: "Downloads pinned BlackDex v3.2 APKs (Apache-2.0) into agent tools directory.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'deobfuscate(action: "analyze", backend: "blackdex", package_name: "<pkg>")',
+			whenToUse:
+				"Dynamic DEX unpacking for protected Android apps on real devices or emulators without root requirement.",
+			prerequisites: ["blackdex", "adb"],
+			outputLimits: "Pulls unpacked DEX files into local evidence directory.",
+			fallback: "frida-dexdump or fart.",
+			examples: [
+				{
+					description: "Unpack target package using BlackDex",
+					command: 'deobfuscate(action: "analyze", backend: "blackdex", package_name: "com.example.protected")',
+				},
+			],
+		},
+	},
+	simplify: {
+		id: "simplify",
+		name: "Simplify Dalvik Deobfuscator",
+		category: "decompiler",
+		description: "Dalvik virtual machine de-obfuscator JAR executing Smali bytecode (CalebFenton/simplify, GPL-3.0)",
+		binaries: ["simplify"],
+		probe: deps => {
+			const res = resolveProtectionTool("simplify", deps);
+			return res?.canStart ? res.path : null;
+		},
+		secondary: ["java"],
+		installHints: {
+			darwin: ["reverse setup reverse simplify --execute"],
+			linux: ["reverse setup reverse simplify --execute"],
+			win32: ["reverse setup reverse simplify --execute"],
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse simplify --execute",
+					argv: ["reverse", "setup", "reverse", "simplify", "--execute"],
+					riskNote: "Downloads pinned Simplify v1.3.0 JAR (GPL-3.0) and generates executable wrappers.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse simplify --execute",
+					argv: ["reverse", "setup", "reverse", "simplify", "--execute"],
+					riskNote: "Downloads pinned Simplify v1.3.0 JAR (GPL-3.0) and generates executable wrappers.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse simplify --execute",
+					argv: ["reverse", "setup", "reverse", "simplify", "--execute"],
+					riskNote: "Downloads pinned Simplify v1.3.0 JAR (GPL-3.0) and generates executable wrappers.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'deobfuscate(action: "analyze", backend: "simplify", path: "<target.dex>")',
+			whenToUse:
+				"Executing Smali through a sandbox Dalvik VM to evaluate and simplify reflection, arithmetic, and dead branches.",
+			prerequisites: ["simplify", "java"],
+			outputLimits: "Emits simplified DEX files into private output directory with diff summary.",
+			fallback: "jadx-string-decrypt or dex_patch.",
+			examples: [
+				{
+					description: "Simplify obfuscated DEX file",
+					command: 'deobfuscate(action: "analyze", backend: "simplify", path: "obfuscated.dex")',
+				},
+			],
+		},
+	},
+	msynth: {
+		id: "msynth",
+		name: "msynth MBA Simplifier",
+		category: "binary",
+		description:
+			"Program synthesis framework for Mixed Boolean-Arithmetic (MBA) deobfuscation (mrphrazer/msynth, GPL-2.0)",
+		binaries: [],
+		probe: deps => {
+			const res = resolveProtectionTool("msynth", deps);
+			return res?.canStart ? res.path : null;
+		},
+		secondary: ["python"],
+		installHints: {
+			darwin: ["reverse setup reverse msynth --execute"],
+			linux: ["reverse setup reverse msynth --execute"],
+			win32: ["reverse setup reverse msynth --execute"],
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse msynth --execute",
+					argv: ["reverse", "setup", "reverse", "msynth", "--execute"],
+					riskNote:
+						"Provisions managed msynth environment with z3-solver and miasm (GPL-2.0) into agent tools directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse msynth --execute",
+					argv: ["reverse", "setup", "reverse", "msynth", "--execute"],
+					riskNote:
+						"Provisions managed msynth environment with z3-solver and miasm (GPL-2.0) into agent tools directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse msynth --execute",
+					argv: ["reverse", "setup", "reverse", "msynth", "--execute"],
+					riskNote:
+						"Provisions managed msynth environment with z3-solver and miasm (GPL-2.0) into agent tools directory.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'deobfuscate(action: "analyze", backend: "msynth", expression: "<mba_expr>")',
+			whenToUse: "Synthesizing simplified linear/arithmetic expressions from complex obfuscated MBA formulas.",
+			prerequisites: ["msynth", "python"],
+			outputLimits: "Returns simplified candidate formulas and verification proofs.",
+			fallback: "triton_analyze expression simplification.",
+			examples: [
+				{
+					description: "Simplify MBA expression",
+					command: 'deobfuscate(action: "analyze", backend: "msynth", expression: "(x ^ y) + 2 * (x & y)")',
+				},
+			],
+		},
+	},
+	tritondse: {
+		id: "tritondse",
+		name: "TritonDSE Symbolic Execution Engine",
+		category: "binary",
+		description:
+			"Optional upstream Triton-based dynamic symbolic execution library and path explorer (quarkslab/tritondse, Apache-2.0)",
+		optional: true,
+		binaries: [],
+		probe: deps => {
+			const res = resolveProtectionTool("tritondse", deps);
+			return res?.canStart ? res.path : null;
+		},
+		secondary: ["python", "triton"],
+		installHints: {
+			darwin: ["reverse setup reverse tritondse --execute"],
+			linux: ["reverse setup reverse tritondse --execute"],
+			win32: ["reverse setup reverse tritondse --execute"],
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse tritondse --execute",
+					argv: ["reverse", "setup", "reverse", "tritondse", "--execute"],
+					riskNote: "Provisions managed tritondse (Apache-2.0) environment into agent tools directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse tritondse --execute",
+					argv: ["reverse", "setup", "reverse", "tritondse", "--execute"],
+					riskNote: "Provisions managed tritondse (Apache-2.0) environment into agent tools directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse tritondse --execute",
+					argv: ["reverse", "setup", "reverse", "tritondse", "--execute"],
+					riskNote: "Provisions managed tritondse (Apache-2.0) environment into agent tools directory.",
+				},
+			],
+		},
+		usage: {
+			canonical: "python -c \"import tritondse; print('TRITONDSE_OK')\"",
+			whenToUse:
+				"Optional upstream dynamic symbolic execution library for custom exploration harnesses, AST manipulation, and Triton integration scripts.",
+			prerequisites: ["tritondse", "triton", "python"],
+			outputLimits:
+				"Run custom DSE scripts within the isolated environment; bounded snapshot recovery is handled natively by native_recover.",
+			fallback: "native_recover for bounded machine snapshots, or triton_analyze for trace replay.",
+			examples: [
+				{
+					description: "Verify TritonDSE installation and import core modules",
+					command: "python -c \"from tritondse import Config, ProcessState, Architecture; print('TRITONDSE_OK')\"",
+				},
+			],
+		},
+	},
 };
 
 /** All tools catalogued for the reverse engineering toolchain. */
@@ -3468,9 +4009,9 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		id: "symbolic_trace_analysis",
 		name: "Symbolic Trace Analysis",
 		category: "binary",
-		scenario: "Recover symbolic input/output relations from captured x86 or x64 execution traces.",
+		scenario: "Recover symbolic input/output relations from captured x86, x64, or ARM execution traces.",
 		description:
-			"Replays bounded instruction and state evidence with Triton, simplifies expressions and emits LLVM IR when the installed engine supports it.",
+			"Replays bounded instruction and state evidence with Triton, simplifies expressions and emits LLVM IR when the installed engine supports it (supports x86, x64, and ARM architectures).",
 		why: "Separates target semantics from obfuscation along observed paths without running target machine code on the host.",
 		recommendedNativeTool: "triton_analyze",
 		optionalExternalTools: ["triton"],
@@ -3570,6 +4111,137 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		fallbacks: ["ghidra_inspect", "strings", "r2_inspect"],
 		setupCommand: "reverse setup reverse ghidra-findcrypt",
 		postInstallInvocation: 'ghidra_inspect(action: "findcrypt", path: "<target.so>")',
+	},
+	dex_runtime_unpacking: {
+		id: "dex_runtime_unpacking",
+		name: "Android DEX Runtime Unpacking",
+		category: "android",
+		scenario:
+			"Unpack dynamically loaded, protected, or packed DEX bytecode from running Android processes or memory dumps.",
+		description:
+			"Extracts decrypted DEX files from Dalvik/ART process memory using frida-dexdump or BlackDex, retaining dumped bytecode artifacts and recording source provenance.",
+		why: "Bypasses packers and protectors by dumping loaded DEX files directly from ART memory after runtime decryption routines have executed.",
+		recommendedNativeTool: "dex_unpack",
+		optionalExternalTools: ["frida-dexdump", "blackdex", "frida", "adb"],
+		prerequisites: ["python"],
+		fallbacks: ["strings", "android_package_inspect"],
+		setupCommand: "reverse setup reverse frida-dexdump --execute",
+		postInstallInvocation: 'dex_unpack(action: "status") or dex_unpack(action: "unpack", package_name: "<pkg>")',
+	},
+	dex_codeitem_repair: {
+		id: "dex_codeitem_repair",
+		name: "DEX CodeItem Reconstruction & Header Repair",
+		category: "android",
+		scenario: "Reconstruct stripped, corrupted, or extracted method code_items and fix Adler-32 / SHA-1 DEX headers.",
+		description:
+			"Stitches extracted method bytecode dump bins back into valid class_def structures and repairs Dalvik DEX headers without overwriting original inputs.",
+		why: "Packing techniques (e.g. FART / code item extraction) extract method bytecodes to prevent static decompilation; repair restores valid class structures for analysis.",
+		recommendedNativeTool: "dex_repair",
+		optionalExternalTools: [],
+		prerequisites: ["python"],
+		fallbacks: ["dex_patch", "baksmali"],
+		setupCommand: "reverse setup reverse python",
+		postInstallInvocation: 'dex_repair(action: "repair", dex_path: "<corrupt.dex>", dump_dir: "<dump_dir>")',
+	},
+	instruction_trace_capture: {
+		id: "instruction_trace_capture",
+		name: "Instruction-Level Dynamic Execution Trace",
+		category: "binary",
+		scenario:
+			"Capture bounded instruction-level dynamic execution traces and basic block coverage of native routines.",
+		description:
+			"Traces executed native instructions and registers using QBDI dynamic binary instrumentation or Frida Stalker, emitting structured execution logs into private artifacts.",
+		why: "Exposes real runtime execution flow, decryptor loops, and dynamic branch outcomes without requiring host execution of untrusted binaries.",
+		recommendedNativeTool: "instruction_trace",
+		optionalExternalTools: ["qbdi", "frida"],
+		prerequisites: ["frida"],
+		fallbacks: ["triage", "radare2"],
+		setupCommand: "reverse setup reverse qbdi --execute",
+		postInstallInvocation:
+			'instruction_trace(action: "status") or instruction_trace(action: "trace", target: "<target>")',
+	},
+	dex_structural_search: {
+		id: "dex_structural_search",
+		name: "DEX High-Performance Structural Search",
+		category: "android",
+		scenario:
+			"Query classes, methods, fields, strings, opcodes, and call hierarchies across large DEX files using DexKit.",
+		description:
+			"Executes high-performance C++20 and JVM pattern queries across multiple DEX files to locate obfuscated methods, cryptographic callers, and SDK signatures.",
+		why: "Provides sub-second structural pattern matching on multi-DEX APKs without full decompilation or regex overhead.",
+		recommendedNativeTool: "dex_search",
+		optionalExternalTools: ["dexkit"],
+		prerequisites: ["java"],
+		fallbacks: ["droidasc", "jadx"],
+		setupCommand: "reverse setup reverse dexkit --execute",
+		postInstallInvocation:
+			'dex_search(target: "<sample.apk_or_dex>", type: "info") or dex_search(target: "<sample.apk_or_dex>", type: "class", using_strings: ["<keyword>"])',
+	},
+	bytecode_deobfuscation: {
+		id: "bytecode_deobfuscation",
+		name: "Android Dalvik Bytecode Deobfuscation",
+		category: "android",
+		scenario: "Decrypt encrypted strings, resolve reflection calls, and simplify obfuscated Dalvik bytecode.",
+		description:
+			"Deobfuscates DEX bytecode using JADX string decryption plugin, Simplify Dalvik emulator, or BlackDex, producing readable classes and mapping tables.",
+		why: "Removes string encryption and dynamic reflection layers to reveal plain URLs, keys, and API calls.",
+		recommendedNativeTool: "deobfuscate",
+		optionalExternalTools: ["jadx-string-decrypt", "simplify", "blackdex"],
+		prerequisites: ["java"],
+		fallbacks: ["dex_patch", "jadx"],
+		setupCommand: "reverse setup reverse jadx-string-decrypt --execute",
+		postInstallInvocation:
+			'deobfuscate(action: "status", backend: "jadx") or deobfuscate(action: "analyze", backend: "jadx", path: "<target.apk>")',
+	},
+	native_cfg_deobfuscation: {
+		id: "native_cfg_deobfuscation",
+		name: "Native Control Flow Graph Deobfuscation",
+		category: "binary",
+		scenario:
+			"Normalize control flow flattening, remove bogus blocks, and resolve opaque predicates in native binary functions.",
+		description:
+			"Runs D810-ng microcode normalization on IDA Pro or native decompilers to reconstruct clean control flow graphs and readable pseudo-code.",
+		why: "Control flow flattening and bogus dispatch blocks obstruct static analysis; normalization recovers original loop and conditional structures.",
+		recommendedNativeTool: "deobfuscate",
+		optionalExternalTools: ["d810-ng", "ida"],
+		prerequisites: ["python", "ida"],
+		fallbacks: ["elf_inspect", "triage"],
+		setupCommand: "reverse setup reverse d810-ng --execute",
+		postInstallInvocation:
+			'deobfuscate(action: "status", backend: "d810-ng") or deobfuscate(action: "analyze", backend: "d810-ng", path: "<binary>", function: "0x...")',
+	},
+	mba_simplification: {
+		id: "mba_simplification",
+		name: "Mixed Boolean-Arithmetic (MBA) Simplification",
+		category: "binary",
+		scenario: "Simplify complex mixed boolean-arithmetic expressions into linear arithmetic or standard formulas.",
+		description:
+			"Uses msynth program synthesis and SMT solvers (Z3) to rewrite complex obfuscated MBA expressions into concise algebraic equivalents.",
+		why: "Obfuscators disguise basic arithmetic operations (e.g. additions and XORs) as hundred-term bitwise formulas; synthesis recovers simple original semantics.",
+		recommendedNativeTool: "deobfuscate",
+		optionalExternalTools: ["msynth", "triton"],
+		prerequisites: ["python"],
+		fallbacks: ["triton_analyze"],
+		setupCommand: "reverse setup reverse msynth --execute",
+		postInstallInvocation:
+			'deobfuscate(action: "status", backend: "msynth") or deobfuscate(action: "analyze", backend: "msynth", expression: "<mba_expr>")',
+	},
+	native_path_recovery: {
+		id: "native_path_recovery",
+		name: "Native Execution Path Recovery & Symbolic Solving",
+		category: "binary",
+		scenario:
+			"Recover input predicates and symbolic constraints required to reach target native basic blocks or license checks.",
+		description:
+			"Explores execution paths and solves branch conditions on bounded machine snapshots using managed Triton and Z3 directly, computing valid trigger inputs without running target code natively.",
+		why: "Determines precise input constraints (such as license keys or challenge tokens) needed to satisfy branch predicates along target paths.",
+		recommendedNativeTool: "native_recover",
+		optionalExternalTools: ["triton", "tritondse"],
+		prerequisites: ["python", "triton"],
+		fallbacks: ["triton_analyze", "triage"],
+		setupCommand: "reverse setup reverse triton --execute",
+		postInstallInvocation:
+			'native_recover(action: "status"), then native_recover(action: "explore", snapshot: <BoundedSnapshot>) (see docs/tools/native_recover.md)',
 	},
 };
 
@@ -4116,6 +4788,56 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			} else {
 				status = "missing";
 			}
+		} else if (cap.id === "dex_runtime_unpacking") {
+			const hasUnpacker = toolRefs.some(
+				t =>
+					(t.id === "frida-dexdump" || t.id === "blackdex") && (t.status === "installed" || t.status === "ready"),
+			);
+			isReady = hasUnpacker;
+			status = isReady
+				? "ready"
+				: availableFallbacks.length > 0 || hasInstalledTool
+					? "available_with_fallbacks"
+					: "missing";
+		} else if (cap.id === "dex_codeitem_repair") {
+			const hasPython = toolMap["python"]?.status === "installed" || probePythonTool() !== null;
+			isReady = hasPython;
+			status = isReady ? "ready" : availableFallbacks.length > 0 ? "available_with_fallbacks" : "missing";
+		} else if (cap.id === "instruction_trace_capture") {
+			const hasEngine = toolRefs.some(
+				t => (t.id === "qbdi" || t.id === "frida") && (t.status === "installed" || t.status === "ready"),
+			);
+			isReady = hasEngine;
+			status = isReady ? "ready" : availableFallbacks.length > 0 ? "available_with_fallbacks" : "missing";
+		} else if (cap.id === "dex_structural_search") {
+			const hasEngine = toolRefs.some(t => t.id === "dexkit" && (t.status === "installed" || t.status === "ready"));
+			isReady = hasEngine;
+			status = isReady ? "ready" : availableFallbacks.length > 0 ? "available_with_fallbacks" : "missing";
+		} else if (cap.id === "bytecode_deobfuscation") {
+			const hasDeobf = toolRefs.some(
+				t =>
+					(t.id === "jadx-string-decrypt" || t.id === "simplify" || t.id === "blackdex") &&
+					(t.status === "installed" || t.status === "ready"),
+			);
+			isReady = hasDeobf;
+			status = isReady ? "ready" : availableFallbacks.length > 0 ? "available_with_fallbacks" : "missing";
+		} else if (cap.id === "native_cfg_deobfuscation") {
+			const hasD810 = toolRefs.some(t => t.id === "d810-ng" && (t.status === "installed" || t.status === "ready"));
+			const hasIda = toolRefs.some(t => t.id === "ida" && (t.status === "installed" || t.status === "ready"));
+			isReady = hasD810 && hasIda;
+			status = isReady
+				? "ready"
+				: hasD810 || availableFallbacks.length > 0 || hasInstalledTool
+					? "available_with_fallbacks"
+					: "missing";
+		} else if (cap.id === "mba_simplification") {
+			const hasEngine = toolRefs.some(t => t.id === "msynth" && (t.status === "installed" || t.status === "ready"));
+			isReady = hasEngine;
+			status = isReady ? "ready" : availableFallbacks.length > 0 ? "available_with_fallbacks" : "missing";
+		} else if (cap.id === "native_path_recovery") {
+			const hasEngine = toolRefs.some(t => t.id === "triton" && (t.status === "installed" || t.status === "ready"));
+			isReady = hasEngine;
+			status = isReady ? "ready" : availableFallbacks.length > 0 ? "available_with_fallbacks" : "missing";
 		} else {
 			isReady = hasInstalledTool;
 			if (isReady) {

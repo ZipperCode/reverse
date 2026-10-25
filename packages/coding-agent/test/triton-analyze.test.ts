@@ -53,8 +53,10 @@ describe("TritonAnalyzeTool plan mode and approval gates", () => {
 
 		const statusRes = await tool.execute("call-2", { action: "status" });
 		expect(statusRes.details.action).toBe("status");
-	});
 
+		const archRes = await tool.execute("call-3", { action: "arch_info", arch: "aarch64" });
+		expect(archRes.details.action).toBe("arch_info");
+	});
 	it.skipIf(!hasTriton)("fails with specific missing file message when trace file does not exist", async () => {
 		const session = createMockSession(tempDir);
 		const tool = new TritonAnalyzeTool(session);
@@ -258,4 +260,133 @@ describe("Triton worker semantic invariants", () => {
 		expect(result.details.devirt_expr_preview).toBeDefined();
 		expect(result.details.devirt_expr_preview).toContain("bvxor");
 	});
+
+	it.skipIf(!hasTriton)("replays AArch64 trace with Wn zero-extension into Xn and zero register support", async () => {
+		const session = createMockSession(tempDir);
+		const tool = new TritonAnalyzeTool(session);
+
+		// AArch64 instructions:
+		// 0x401000: mov w0, #42 (40 05 80 52) - writes 32-bit W0, zero-extends into X0
+		// 0x401004: add x0, x0, xzr (00 00 1f 8b) - reads xzr (hardware zero register)
+		const tracePath = path.join(tempDir, "aarch64_test.trace");
+		await fs.promises.writeFile(tracePath, ["i:0x401000:4:40058052", "i:0x401004:4:00001f8b"].join("\n"));
+
+		const result = await tool.execute("test-aarch64", {
+			action: "replay",
+			arch: "aarch64",
+			trace: tracePath,
+			initial_registers: {
+				pc: "0x401000",
+				sp: "0x7ffffff0",
+			},
+			output: { kind: "register", target: "x0" },
+		});
+
+		expect(result.details.concrete_return).toBe("0x2a");
+	});
+
+	it.skipIf(!hasTriton)(
+		"rejects uninitialized AArch64 register read (add x0, x0, xzr without initialization)",
+		async () => {
+			const session = createMockSession(tempDir);
+			const tool = new TritonAnalyzeTool(session);
+
+			// AArch64 instructions:
+			// 0x401000: mov w2, #42 (42 05 80 52) - writes W2, leaving X0 uninitialized
+			// 0x401004: add x0, x0, xzr (00 00 1f 8b) - reads uninitialized X0
+			const tracePath = path.join(tempDir, "aarch64_uninit.trace");
+			await fs.promises.writeFile(tracePath, ["i:0x401000:4:42058052", "i:0x401004:4:00001f8b"].join("\n"));
+
+			await expect(
+				tool.execute("test-aarch64-uninit", {
+					action: "replay",
+					arch: "aarch64",
+					trace: tracePath,
+					initial_registers: {
+						pc: "0x401000",
+						sp: "0x7ffffff0",
+					},
+					output: { kind: "register", target: "x0" },
+				}),
+			).rejects.toThrow();
+		},
+	);
+
+	it.skipIf(!hasTriton)("replays ARM32 trace in Thumb mode", async () => {
+		const session = createMockSession(tempDir);
+		const tool = new TritonAnalyzeTool(session);
+
+		// ARM32 Thumb instructions:
+		// 0x401000: movs r0, #42 (2a 20)
+		// 0x401002: nop (00 bf)
+		const tracePath = path.join(tempDir, "arm32_thumb.trace");
+		await fs.promises.writeFile(tracePath, ["i:0x401000:2:2a20", "i:0x401002:2:00bf"].join("\n"));
+
+		const result = await tool.execute("test-arm32-thumb", {
+			action: "replay",
+			arch: "arm32",
+			thumb: true,
+			trace: tracePath,
+			initial_registers: {
+				pc: "0x401000",
+				sp: "0x7ffffff0",
+			},
+			output: { kind: "register", target: "r0" },
+		});
+
+		expect(result.details.concrete_return).toBe("0x2a");
+	});
+
+	it.skipIf(!hasTriton)("rejects uninitialized vector register read with explicit error", async () => {
+		const session = createMockSession(tempDir);
+		const tool = new TritonAnalyzeTool(session);
+
+		// x86_64 instruction reading uninitialized XMM1:
+		// 0x401000: movaps xmm0, xmm1 (0f 28 c1)
+		const tracePath = path.join(tempDir, "uninit_xmm.trace");
+		await fs.promises.writeFile(tracePath, "i:0x401000:3:0f28c1\n");
+
+		await expect(
+			tool.execute("test-uninit-vector", {
+				action: "replay",
+				arch: "x86_64",
+				trace: tracePath,
+				initial_registers: { rip: "0x401000", rsp: "0x7ffffff0" },
+				output: { kind: "register", target: "rax" },
+			}),
+		).rejects.toThrow(/reads uninitialized vector register 'xmm1'/);
+	});
+
+	it.skipIf(!hasTriton)(
+		"supports structured JSONL records for instructions, registers, and memory reads",
+		async () => {
+			const session = createMockSession(tempDir);
+			const tool = new TritonAnalyzeTool(session);
+
+			const tracePath = path.join(tempDir, "structured.jsonl");
+			await fs.promises.writeFile(
+				tracePath,
+				[
+					JSON.stringify({ type: "registers", values: { rip: "0x401000", rdi: "0x7", rsp: "0x7ffffff0" } }),
+					JSON.stringify({
+						type: "instruction",
+						address: "0x401000",
+						bytes: "89f8",
+						size: 2,
+						disasm: "mov eax, edi",
+					}),
+				].join("\n"),
+			);
+
+			const result = await tool.execute("test-jsonl-trace", {
+				action: "replay",
+				arch: "x86_64",
+				trace: tracePath,
+				symbolic_registers: [{ name: "rdi", alias: "x", seed: "0x7" }],
+				output: { kind: "register", target: "eax" },
+			});
+
+			expect(result.details.concrete_return).toBe("0x7");
+		},
+	);
 });

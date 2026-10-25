@@ -116,6 +116,12 @@ import { UnidbgTool } from "./unidbg";
 import { TritonAnalyzeTool } from "./triton-analyze";
 import { VmpDumpTool } from "./vmp-dump";
 import { NativeDevirtualizeTool } from "./native-devirtualize";
+import { DexUnpackTool } from "./dex-unpack";
+import { DexRepairTool } from "./dex-repair";
+import { InstructionTraceTool } from "./instruction-trace";
+import { DexSearchTool } from "./dex-search";
+import { DeobfuscateTool } from "./deobfuscate";
+import { NativeRecoverTool } from "./native-recover";
 import { isMountableUnderXdev, resolveXdevTool, type XdevState } from "./xdev";
 import { YieldTool } from "./yield";
 
@@ -672,6 +678,12 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	triton_analyze: s => new TritonAnalyzeTool(s),
 	vmp_dump: s => new VmpDumpTool(s),
 	native_devirtualize: s => new NativeDevirtualizeTool(s),
+	dex_unpack: s => new DexUnpackTool(s),
+	dex_repair: s => new DexRepairTool(s),
+	instruction_trace: s => new InstructionTraceTool(s),
+	dex_search: s => new DexSearchTool(s),
+	deobfuscate: s => new DeobfuscateTool(s),
+	native_recover: s => new NativeRecoverTool(s),
 	bash: s => new BashTool(s),
 	edit: s => new EditTool(s),
 	ast_grep: s => new AstGrepTool(s),
@@ -1068,6 +1080,13 @@ export { NativeMcpSessionTool } from "./native-mcp-session";
 export { TritonAnalyzeTool } from "./triton-analyze";
 export { VmpDumpTool } from "./vmp-dump";
 export { NativeDevirtualizeTool } from "./native-devirtualize";
+export { DexUnpackTool } from "./dex-unpack";
+export { DexRepairTool } from "./dex-repair";
+export { InstructionTraceTool } from "./instruction-trace";
+export * from "./instruction-trace-session";
+export { DexSearchTool } from "./dex-search";
+export { DeobfuscateTool } from "./deobfuscate";
+export { NativeRecoverTool } from "./native-recover";
 export type {
 	TodoStatus,
 	TodoOperation,

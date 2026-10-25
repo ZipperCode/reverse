@@ -517,6 +517,12 @@ describe("autoloadSkills through task spawn", () => {
 		expect(isReverseTask("analyze captured HAR trace for API authz tokens and authentication headers")).toBe(true);
 		expect(isReverseTask("reverse sample target.apk and decompile manifest")).toBe(true);
 		expect(isReverseTask("triage AndroidManifest.xml for exported components")).toBe(true);
+		expect(isReverseTask("unpack DEX memory using dex_unpack and repair with dex_repair")).toBe(true);
+		expect(isReverseTask("search classes with dex_search and dexkit")).toBe(true);
+		expect(isReverseTask("deobfuscate OLLVM control-flow flattening and MBA expressions")).toBe(true);
+		expect(isReverseTask("capture instruction trace with instruction_trace and recover with native_recover")).toBe(
+			true,
+		);
 	});
 
 	it("resolves autoloadSkills correctly with method- and target-aware selection", () => {
@@ -534,6 +540,7 @@ describe("autoloadSkills through task spawn", () => {
 		const mockWebProtocol = makeMockSkill("web-protocol-reverse");
 		const mockVmpReverse = makeMockSkill("vmp-reverse");
 		const mockOtherSkill = makeMockSkill("other-skill");
+		const mockWindowsReverse = makeMockSkill("windows-reverse");
 
 		const session = {
 			skills: [
@@ -543,6 +550,7 @@ describe("autoloadSkills through task spawn", () => {
 				mockWebProtocol,
 				mockVmpReverse,
 				mockOtherSkill,
+				mockWindowsReverse,
 			],
 		} as unknown as ToolSession;
 
@@ -628,6 +636,46 @@ describe("autoloadSkills through task spawn", () => {
 		const nativeNames = nativeResult.autoloadSkills.map(s => s.name);
 		expect(nativeNames).toContain("reverse-lab");
 		expect(nativeNames).toContain("native-binary-reverse");
+
+		// 5b. Android DEX unpack & repair task loads android-reverse without native
+		const dexUnpackResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment: "unpack memory DEX using dex_unpack and repair stub methods via dex_repair",
+		});
+		const dexUnpackNames = dexUnpackResult.autoloadSkills.map(s => s.name);
+		expect(dexUnpackNames).toContain("reverse-lab");
+		expect(dexUnpackNames).toContain("android-reverse");
+		expect(dexUnpackNames).not.toContain("native-binary-reverse");
+		expect(dexUnpackNames).not.toContain("windows-reverse");
+
+		// 5c. Android Custom VMP loads Android, Native, and VMP without loading Windows
+		const androidVmpResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment:
+				"reverse Android custom VMP protection in libcore.so, devirtualize handlers with instruction_trace and native_recover",
+		});
+		const androidVmpNames = androidVmpResult.autoloadSkills.map(s => s.name);
+		expect(androidVmpNames).toContain("reverse-lab");
+		expect(androidVmpNames).toContain("android-reverse");
+		expect(androidVmpNames).toContain("native-binary-reverse");
+		expect(androidVmpNames).toContain("vmp-reverse");
+		expect(androidVmpNames).not.toContain("windows-reverse");
+
+		// 5d. Native OLLVM & MBA deobfuscation loads native and vmp without Android or Windows
+		const ollvmResult = resolveAutoloadSkills(session, taskAgent, {
+			session,
+			invocationKind: "task",
+			assignment:
+				"deobfuscate OLLVM control-flow flattening and MBA expressions in sample.elf using native_recover and deobfuscate",
+		});
+		const ollvmNames = ollvmResult.autoloadSkills.map(s => s.name);
+		expect(ollvmNames).toContain("reverse-lab");
+		expect(ollvmNames).toContain("native-binary-reverse");
+		expect(ollvmNames).toContain("vmp-reverse");
+		expect(ollvmNames).not.toContain("android-reverse");
+		expect(ollvmNames).not.toContain("windows-reverse");
 
 		// 6. Normal non-reverse task on task agent
 		const normalResult = resolveAutoloadSkills(session, taskAgent, {

@@ -37,7 +37,15 @@ This reference defines the degradation ladders, tool detection mechanisms, and i
 | **`vmp_dump_repair`** | native `vmp_dump` | `vmpdump` (Windows x64) | `native_mcp_session` (x64dbg) dump | `triage` / `strings` |
 | **`native_function_lifting`** | native `native_devirtualize(backend: "mergen")` | `mergen` (Windows x64 / Docker) | `triton_analyze` / `r2_inspect` | `objdump -d` / `strings` |
 | **`vmp_legacy_devirtualization`** | native `native_devirtualize(backend: "novmp")` | `novmp` (Windows x64) | `mergen` / `triton_analyze` | `r2_inspect` / `strings` |
+| **`instruction_trace_capture`** | native `instruction_trace` | `qbdi` (Frida bindings) | `frida` / `frida_session` | `r2_inspect` / debugger trace |
 | **`symbolic_trace_analysis`** | native `triton_analyze` | `triton` (`triton-library` venv) | `r2_inspect` / IDA Pro | `strings` / assembly audit |
+| **`native_path_recovery`** | native `native_recover` | `triton` | `triton_analyze` (single path) | `r2_inspect` static CFG |
+| **`native_cfg_deobfuscation`** | native `deobfuscate(backend: "d810-ng")` | `d810-ng` (IDA Pro 9+) | `r2_inspect` / `ghidra_inspect` | `objdump -d` / manual unflattening |
+| **`mba_simplification`** | native `deobfuscate(backend: "msynth")` | `msynth` | `triton_analyze(synthesize: true)` | Z3 python / AST rewrite |
+| **`dex_runtime_unpacking`** | native `dex_unpack` | `frida-dexdump` / `blackdex` | `android_package_inspect` (static) / `dex_repair` | `unzip` / `strings` |
+| **`dex_codeitem_repair`** | native `dex_repair` | Python runtime; supplied FART records | `dex_patch` (dry_run) | `dexutil.py` / raw byte inspect |
+| **`dex_structural_search`** | native `dex_search` | `dexkit` (JVM/native bridge) | `droidasc` / `android_package_inspect` | `grep` / `dexdump` |
+| **`bytecode_deobfuscation`** | native `deobfuscate(backend: "jadx")` | `jadx` (`jadx-string-decrypt`) / `simplify` | `android_package_inspect` / `dex_patch` | static regex / ast_grep |
 ---
 
 ## 3. Platform Tool Catalog & Installation Matrix
@@ -161,6 +169,32 @@ When an optional tool is absent, consult this catalog for platform-appropriate p
   - Requirements: Python 3.8+ managed virtual environment with `triton-library`.
   - Setup: `reverse setup reverse triton --execute`
   - Fallback: Static assembly disassembly via `r2_inspect` or IDA Pro.
+
+### 11. Protection Analysis & Deobfuscation Toolchain
+- **`dex_unpack` / `frida-dexdump` / `blackdex`** (ART runtime DEX memory extractor):
+  - Requirements: Host CLI `frida-dexdump` or device APK `blackdex`. Requires explicit `device` and `package`/`pid`.
+  - Setup: `reverse setup reverse frida-dexdump --execute`
+  - Fallback: `android_package_inspect` for static analysis of already extracted DEX files.
+- **`dex_repair` / `fart`** (Offline FART CodeItem restorer):
+  - Requirements: Self-contained permissive Python/dexutil engine; FART dump `.bin` records.
+  - Setup: `reverse setup reverse fart --execute`
+  - Fallback: `dex_patch` in dry-run mode for manual opcode and header repair.
+- **`dex_search` / `dexkit`** (DexKit DEX structural search):
+  - Requirements: LuckyPray DexKit Core native library + Java/Kotlin bridge.
+  - Setup: `reverse setup reverse dexkit --execute`
+  - Fallback: `droidasc` (on-demand query) or `android_package_inspect` (static class listing).
+- **`instruction_trace` / `qbdi`** (Controlled execution tracer):
+  - Requirements: QBDI Frida bindings or Stalker supervisor.
+  - Setup: `reverse setup reverse qbdi --execute`
+  - Fallback: `frida` / `frida_session` for one-shot hooks or static `r2_inspect` disassembly.
+- **`native_recover` / `triton`** (Bounded multi-path DSE recovery):
+  - Requirements: Managed Python environment with `triton-library` and Z3 solver (`tritondse` optional separately).
+  - Setup: `reverse setup reverse triton --execute`
+  - Fallback: `triton_analyze` for single-path trace replay or static disassembly via `r2_inspect`.
+- **`deobfuscate` / `d810-ng` / `msynth` / `jadx-string-decrypt` / `simplify`** (Deobfuscation backends):
+  - Requirements: Pluggable by backend (`d810-ng` requires IDA Pro 9+; `msynth` requires managed Python; `jadx` requires JADX; `simplify` requires Java).
+  - Setup: `reverse setup reverse <backend-id> --execute`
+  - Fallback: Static disassembler / decompiler inspection.
 ---
 
 ## 4. Capability Discovery, Setup & Immediate Dispatch Protocol

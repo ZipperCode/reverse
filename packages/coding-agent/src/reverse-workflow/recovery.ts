@@ -15,6 +15,7 @@ import { getMcpService } from "../extensibility/mcp-service-catalog";
 import { getMCPConfigPath, getProjectDir } from "@reverse/utils";
 import { readMcpConfigFileSync } from "../cli/setup-reverse";
 import type { MCPConfigFile } from "../mcp/types";
+import { isProtectionToolId, resolveProtectionTool } from "../extensibility/protection-toolchain";
 export interface ToolInstallHint {
 	macos: string;
 	linux: string;
@@ -102,6 +103,102 @@ export const TOOL_INSTALL_HINTS: Record<string, ToolInstallHint> = {
 		windows: "cargo install ast-grep",
 		fallback: "ast-grep -> ast_grep or grep",
 	},
+	"frida-dexdump": {
+		macos: "pipx install frida-dexdump",
+		linux: "pipx install frida-dexdump",
+		windows: "pip install frida-dexdump",
+		fallback: "dex_unpack -> android_package_inspect",
+	},
+	dex_unpack: {
+		macos: "pipx install frida-dexdump",
+		linux: "pipx install frida-dexdump",
+		windows: "pip install frida-dexdump",
+		fallback: "dex_unpack -> android_package_inspect",
+	},
+	dexkit: {
+		macos: "reverse setup reverse dexkit --execute",
+		linux: "reverse setup reverse dexkit --execute",
+		windows: "reverse setup reverse dexkit --execute",
+		fallback: "dex_search -> droidasc or android_package_inspect",
+	},
+	dex_search: {
+		macos: "reverse setup reverse dexkit --execute",
+		linux: "reverse setup reverse dexkit --execute",
+		windows: "reverse setup reverse dexkit --execute",
+		fallback: "dex_search -> droidasc or android_package_inspect",
+	},
+	"jadx-string-decrypt": {
+		macos: "reverse setup reverse jadx-string-decrypt --execute",
+		linux: "reverse setup reverse jadx-string-decrypt --execute",
+		windows: "reverse setup reverse jadx-string-decrypt --execute",
+		fallback: "deobfuscate -> android_package_inspect",
+	},
+	"d810-ng": {
+		macos: "reverse setup reverse d810-ng --execute",
+		linux: "reverse setup reverse d810-ng --execute",
+		windows: "reverse setup reverse d810-ng --execute",
+		fallback: "deobfuscate -> r2_inspect or ghidra_inspect",
+	},
+	simplify: {
+		macos: "reverse setup reverse simplify --execute",
+		linux: "reverse setup reverse simplify --execute",
+		windows: "reverse setup reverse simplify --execute",
+		fallback: "deobfuscate -> dex_patch or android_package_inspect",
+	},
+	msynth: {
+		macos: "reverse setup reverse msynth --execute",
+		linux: "reverse setup reverse msynth --execute",
+		windows: "reverse setup reverse msynth --execute",
+		fallback: "deobfuscate -> triton_analyze or r2_inspect",
+	},
+	blackdex: {
+		macos: "reverse setup reverse blackdex --execute",
+		linux: "reverse setup reverse blackdex --execute",
+		windows: "reverse setup reverse blackdex --execute",
+		fallback: "dex_unpack -> android_package_inspect",
+	},
+	qbdi: {
+		macos: "reverse setup reverse qbdi --execute",
+		linux: "reverse setup reverse qbdi --execute",
+		windows: "reverse setup reverse qbdi --execute",
+		fallback: "instruction_trace -> frida or triage",
+	},
+	instruction_trace: {
+		macos: "reverse setup reverse qbdi --execute",
+		linux: "reverse setup reverse qbdi --execute",
+		windows: "reverse setup reverse qbdi --execute",
+		fallback: "instruction_trace -> frida or triage",
+	},
+	triton: {
+		macos: "reverse setup reverse triton --execute",
+		linux: "reverse setup reverse triton --execute",
+		windows: "reverse setup reverse triton --execute",
+		fallback: "triton_analyze -> r2_inspect or triage",
+	},
+	tritondse: {
+		macos: "reverse setup reverse tritondse --execute",
+		linux: "reverse setup reverse tritondse --execute",
+		windows: "reverse setup reverse tritondse --execute",
+		fallback: "native_recover -> triton_analyze",
+	},
+	native_recover: {
+		macos: "reverse setup reverse tritondse --execute",
+		linux: "reverse setup reverse tritondse --execute",
+		windows: "reverse setup reverse tritondse --execute",
+		fallback: "native_recover -> triton_analyze",
+	},
+	deobfuscate: {
+		macos: "reverse setup reverse d810-ng --execute",
+		linux: "reverse setup reverse d810-ng --execute",
+		windows: "reverse setup reverse d810-ng --execute",
+		fallback: "deobfuscate -> r2_inspect or android_package_inspect",
+	},
+	dex_repair: {
+		macos: "python3 (embedded in reverse via dexutil.py)",
+		linux: "python3 (embedded in reverse via dexutil.py)",
+		windows: "python (embedded in reverse via dexutil.py)",
+		fallback: "dex_repair -> dex_patch",
+	},
 };
 
 /**
@@ -118,6 +215,12 @@ export function getCapabilitySetupCommand(toolName: string): string | undefined 
 		return directCap.setupCommand;
 	}
 
+	// 已定位具体缺失后端时，安装该后端，避免误走同一能力的其他可选实现。
+	const skillTool = SKILL_TOOL_CATALOG[normalized];
+	if (skillTool) {
+		return `reverse setup reverse ${skillTool.id} --execute`;
+	}
+
 	// 2. Search capabilities by optional external tools, recommended native tool, or fallbacks
 	for (const cap of Object.values(CAPABILITY_CATALOG)) {
 		if (
@@ -129,12 +232,6 @@ export function getCapabilitySetupCommand(toolName: string): string | undefined 
 				return cap.setupCommand;
 			}
 		}
-	}
-
-	// 3. Fallback to skill tool catalog if entry exists
-	const skillTool = SKILL_TOOL_CATALOG[normalized];
-	if (skillTool) {
-		return `reverse setup reverse ${skillTool.id}`;
 	}
 
 	return undefined;
@@ -211,12 +308,49 @@ export function classifyFailure(errorMessage: string, context: FailureClassifica
 			pattern:
 				/\badb\b.*(?:not found|cannot find|no such file|command not found)|failed to execute adb.*(?:enoent|not found)/i,
 		},
-		{ name: "frida", pattern: /\bfrida\b.*(?:not found|cannot find|no such file|command not found|frida-tools)/i },
+		{
+			name: "frida",
+			pattern: /\bfrida\b(?![-_]dexdump).*(?:not found|cannot find|no such file|command not found|frida-tools)/i,
+		},
 		{ name: "wabt", pattern: /\b(?:wabt|wasm2wat|wat2wasm)\b.*(?:not found|cannot find|command not found)/i },
 		{ name: "tshark", pattern: /\btshark\b.*(?:not found|cannot find|command not found)/i },
 		{ name: "vbindiff", pattern: /\bvbindiff\b.*(?:not found|cannot find|command not found)/i },
 		{ name: "ast-grep", pattern: /\bast-grep\b.*(?:not found|cannot find|command not found)/i },
 		{ name: "unidbg", pattern: /\bunidbg\b.*(?:not found|cannot find|no such file|command not found)/i },
+		{
+			name: "frida-dexdump",
+			pattern:
+				/\b(?:frida-dexdump|dex_unpack)\b.*(?:not found|cannot find|no such file|command not found)|(?:not found|cannot find|no such file|command not found).*\b(?:frida-dexdump|dex_unpack)\b/i,
+		},
+		{
+			name: "dexkit",
+			pattern: /\b(?:dexkit|dex_search)\b.*(?:not found|cannot find|no such file|command not found)/i,
+		},
+		{ name: "d810-ng", pattern: /\b(?:d810-ng|d810)\b.*(?:not found|cannot find|no such file|command not found)/i },
+		{
+			name: "simplify",
+			pattern:
+				/\bsimplify\b.*(?:not found|cannot find|no such file|command not found)|(?:not found|cannot find|no such file|command not found).*\bsimplify\b/i,
+		},
+		{ name: "msynth", pattern: /\bmsynth\b.*(?:not found|cannot find|no such file|command not found)/i },
+		{ name: "blackdex", pattern: /\bblackdex\b.*(?:not found|cannot find|no such file|command not found)/i },
+		{
+			name: "qbdi",
+			pattern: /\b(?:qbdi|instruction_trace)\b.*(?:not found|cannot find|no such file|command not found)/i,
+		},
+		{
+			name: "triton",
+			pattern: /\b(?:triton-library|triton_analyze)\b.*(?:not found|cannot find|no such file|command not found)/i,
+		},
+		{
+			name: "tritondse",
+			pattern: /\b(?:tritondse|native_recover)\b.*(?:not found|cannot find|no such file|command not found)/i,
+		},
+		{ name: "deobfuscate", pattern: /\bdeobfuscate\b.*(?:not found|cannot find|no such file|command not found)/i },
+		{
+			name: "dex_repair",
+			pattern: /\b(?:dex_repair|fart)\b.*(?:not found|cannot find|no such file|command not found)/i,
+		},
 	];
 
 	for (const tp of toolPatterns) {
@@ -445,6 +579,29 @@ export function verifyInstalledTool(toolId: string, options: VerifyToolOptions =
 			missing_reason: missingReason,
 			setup_command: `reverse setup reverse ${service.id}`,
 		};
+	}
+	// 1b. Check protection toolchain resolver
+	if (isProtectionToolId(normalizedId)) {
+		const resolved = resolveProtectionTool(normalizedId);
+		if (resolved) {
+			const isVerified = resolved.installed && resolved.compatible && resolved.canStart;
+			let missingReason: string | undefined;
+			if (!resolved.installed) {
+				missingReason = `Protection tool '${normalizedId}' is not installed in managed or system environment.`;
+			} else if (!resolved.compatible) {
+				missingReason = `Protection tool '${normalizedId}' is not compatible with host environment.`;
+			} else if (!resolved.canStart) {
+				missingReason = `Protection tool '${normalizedId}' prerequisites are incomplete.`;
+			}
+			return {
+				verified: isVerified,
+				tool_id: normalizedId,
+				kind: "cli",
+				foundPath: resolved.path || null,
+				missing_reason: missingReason,
+				setup_command: `reverse setup reverse ${normalizedId} --execute`,
+			};
+		}
 	}
 
 	// 2. Check CLI tool / binary
@@ -814,6 +971,146 @@ export function resolveCapabilityRecovery(
 				verificationBoundary: "Static offline binary byte and block diffing.",
 				reasoning: "Visual diff utility unavailable. Degraded to built-in 'binary_diff'.",
 				alternatives: ["binary_diff"],
+			};
+		}
+		case "dex_runtime_unpacking":
+		case "dex_unpack":
+		case "frida-dexdump": {
+			return {
+				nextTool: "android_package_inspect",
+				nextParams: { path: targetPath, action: "dex" },
+				capabilityDepth: "static",
+				prerequisites: ["target_apk_present"],
+				verificationBoundary:
+					"Static analysis of available DEX files from unpacked APK/container. Cannot dynamically dump in-memory packed or encrypted classes without dex_unpack and an authorized live device.",
+				remainingAcceptance:
+					"Dynamic runtime unpacking and in-memory DEX extraction criteria remain unsatisfied without live environment.",
+				reasoning:
+					"Dynamic DEX unpacking tool is unavailable. Degraded smoothly to zero-prep built-in 'android_package_inspect' for static DEX inspection.",
+				alternatives: ["android_package_inspect", "dex_repair", "dex_patch"],
+			};
+		}
+
+		case "dex_codeitem_repair":
+		case "dex_repair":
+		case "fart": {
+			return {
+				nextTool: "dex_patch",
+				nextParams: { path: targetPath, dry_run: true },
+				capabilityDepth: "static",
+				prerequisites: ["target_dex_present"],
+				verificationBoundary:
+					"Static Dalvik bytecode inspection and patch validation; cannot reconstruct stripped CodeItem method bodies without dump records and dex_repair.",
+				remainingAcceptance: "Offline CodeItem method restoration from FART dump records remains unsatisfied.",
+				reasoning:
+					"DEX repair engine is unavailable. Degraded to static Dalvik bytecode inspection via 'dex_patch' in dry-run mode.",
+				alternatives: ["dex_patch", "android_package_inspect"],
+			};
+		}
+
+		case "dex_structural_search":
+		case "dex_search":
+		case "dexkit": {
+			return {
+				nextTool: "android_package_inspect",
+				nextParams: { path: targetPath, action: "dex" },
+				capabilityDepth: "static",
+				prerequisites: ["target_apk_present"],
+				verificationBoundary:
+					"Static DEX class and method signature listing. Deep structural caller/callee graphs and cross-reference queries require dex_search with DexKit.",
+				remainingAcceptance: "Structural code search and cross-reference graph queries remain unsatisfied.",
+				reasoning:
+					"DexKit structural search is unavailable. Degraded to static class listing via built-in 'android_package_inspect'.",
+				alternatives: ["android_package_inspect", "droidasc", "jadx"],
+			};
+		}
+
+		case "instruction_trace_capture":
+		case "instruction_trace":
+		case "qbdi": {
+			return {
+				nextTool: isNative ? "r2_inspect" : "triage",
+				nextParams: isNative
+					? { path: targetPath, action: "functions" }
+					: { path: targetPath, strings: true, limit: 30 },
+				capabilityDepth: isNative ? "static" : "triage",
+				prerequisites: ["target_binary_present"],
+				verificationBoundary:
+					"Static disassembly and binary reconnaissance only; synchronized instruction-level register and memory trace capture requires instruction_trace with QBDI.",
+				remainingAcceptance:
+					"Instruction-level trace capture with synchronized registers and memory reads remains unsatisfied.",
+				reasoning:
+					"Controlled instruction tracer 'instruction_trace' is unavailable. Degraded to static disassembly/triage without automatic execution.",
+				alternatives: ["frida", "r2_inspect", "triage"],
+			};
+		}
+
+		case "bytecode_deobfuscation":
+		case "native_cfg_deobfuscation":
+		case "mba_simplification":
+		case "deobfuscate":
+		case "d810-ng":
+		case "simplify":
+		case "msynth":
+		case "jadx-string-decrypt":
+		case "blackdex": {
+			if (isNative) {
+				return {
+					nextTool: "r2_inspect",
+					nextParams: { path: targetPath, action: "functions" },
+					capabilityDepth: "static",
+					prerequisites: ["target_binary_present"],
+					verificationBoundary:
+						"Static function disassembly and CFG inspection; automated control-flow unflattening and MBA algebraic simplification require deobfuscate.",
+					remainingAcceptance: "Automated CFG normalization and MBA algebraic simplification remain unsatisfied.",
+					reasoning: "Deobfuscation engine is unavailable. Degraded to static disassembly via r2_inspect.",
+					alternatives: ["r2_inspect", "ghidra_inspect", "triage"],
+				};
+			}
+			return {
+				nextTool: "android_package_inspect",
+				nextParams: { path: targetPath, action: "dex" },
+				capabilityDepth: "static",
+				prerequisites: ["target_apk_present"],
+				verificationBoundary:
+					"Static DEX class listing; automated bytecode deobfuscation and string decryption require deobfuscate.",
+				remainingAcceptance: "Automated Dalvik bytecode deobfuscation remains unsatisfied.",
+				reasoning:
+					"Bytecode deobfuscation tool is unavailable. Degraded to static DEX inspection via android_package_inspect.",
+				alternatives: ["android_package_inspect", "dex_patch"],
+			};
+		}
+
+		case "native_path_recovery":
+		case "native_recover":
+		case "tritondse": {
+			return {
+				nextTool: "triton_analyze",
+				nextParams: { action: "status" },
+				capabilityDepth: "static",
+				verificationBoundary:
+					"Single-path concolic execution or status check; multi-path branch inversion, handler semantic extraction, and differential verification across domain require native_recover.",
+				remainingAcceptance:
+					"Multi-path DSE exploration and differential equivalence verification remain unsatisfied.",
+				reasoning:
+					"Bounded native recovery engine 'native_recover' is unavailable. Degraded to status check via triton_analyze without arbitrary seed defaults.",
+				alternatives: ["triton_analyze", "r2_inspect", "triage"],
+			};
+		}
+
+		case "symbolic_trace_analysis":
+		case "triton_analyze":
+		case "triton": {
+			return {
+				nextTool: "r2_inspect",
+				nextParams: { path: targetPath, action: "functions" },
+				capabilityDepth: "static",
+				prerequisites: ["target_binary_present"],
+				verificationBoundary:
+					"Static disassembly and CFG audit; symbolic trace replay and AST synthesis require triton_analyze with triton-library.",
+				remainingAcceptance: "Symbolic trace replay and synthesized AST expression remain unsatisfied.",
+				reasoning: "Triton symbolic engine is unavailable. Degraded to static disassembly via r2_inspect.",
+				alternatives: ["r2_inspect", "ghidra_inspect", "triage"],
 			};
 		}
 
@@ -1222,6 +1519,91 @@ export function generateRecoveryPlan(
 				capabilityDepth = "static";
 				verificationBoundary = "Regex pattern matching only; no structural AST awareness.";
 				reasoning = `External CLI 'ast-grep' is missing. Degraded to regex search via 'grep'.`;
+			} else if (originalTool === "dex_unpack" || originalTool === "frida-dexdump") {
+				nextTool = "android_package_inspect";
+				nextParams = { path: effectiveTargetPath, action: "dex" };
+				alternatives = ["android_package_inspect", "dex_repair", "dex_patch"];
+				capabilityDepth = "static";
+				prerequisites = ["target_apk_present"];
+				verificationBoundary =
+					"Static package and DEX inspection; runtime in-memory unpacking requires an attached device and frida-dexdump.";
+				remainingAcceptance =
+					"Dynamic runtime in-memory extraction of packed DEX remains unsatisfied without device and unpacker.";
+				reasoning = `DEX unpacker '${originalTool}' is missing or device is unavailable. Degraded to built-in 'android_package_inspect' for static DEX inspection without automatic device execution.`;
+			} else if (originalTool === "dex_repair" || originalTool === "fart") {
+				nextTool = "dex_patch";
+				nextParams = { path: effectiveTargetPath, dry_run: true };
+				alternatives = ["dex_patch", "android_package_inspect"];
+				capabilityDepth = "static";
+				prerequisites = ["target_dex_present"];
+				verificationBoundary =
+					"Static Dalvik bytecode inspection and patch validation; cannot reconstruct stripped CodeItems without dump records and FART repair engine.";
+				remainingAcceptance = "Offline CodeItem restoration from FART dump records remains unsatisfied.";
+				reasoning = `DEX repair tool '${originalTool}' is missing. Degraded to built-in 'dex_patch' with dry_run: true.`;
+			} else if (originalTool === "dex_search" || originalTool === "dexkit") {
+				nextTool = "android_package_inspect";
+				nextParams = { path: effectiveTargetPath, action: "dex" };
+				alternatives = ["android_package_inspect", "droidasc"];
+				capabilityDepth = "static";
+				prerequisites = ["target_apk_present"];
+				verificationBoundary =
+					"Static DEX class and method listing; deep cross-reference and structural search require dex_search with DexKit.";
+				remainingAcceptance = "DexKit structural code search criteria remain unsatisfied.";
+				reasoning = `DexKit structural search '${originalTool}' is missing. Degraded to built-in 'android_package_inspect'.`;
+			} else if (originalTool === "instruction_trace" || originalTool === "qbdi") {
+				nextTool = isNative ? "r2_inspect" : "triage";
+				nextParams = isNative
+					? { path: effectiveTargetPath, action: "functions" }
+					: { path: effectiveTargetPath, strings: true, limit: 30 };
+				alternatives = ["frida", "r2_inspect", "triage"];
+				capabilityDepth = isNative ? "static" : "triage";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary =
+					"Static disassembly and triage only; instruction-level dynamic execution trace capture requires instruction_trace with QBDI.";
+				remainingAcceptance = "Synchronized instruction, register, and memory trace capture remains unsatisfied.";
+				reasoning = `Instruction trace tool '${originalTool}' is missing. Degraded to static disassembly/triage without automatic execution.`;
+			} else if (originalTool === "deobfuscate") {
+				if (isNative) {
+					nextTool = "r2_inspect";
+					nextParams = { path: effectiveTargetPath, action: "functions" };
+					alternatives = ["r2_inspect", "ghidra_inspect", "triage"];
+					capabilityDepth = "static";
+					prerequisites = ["target_binary_present"];
+					verificationBoundary =
+						"Static function disassembly; automated control-flow unflattening and MBA algebraic simplification require deobfuscate.";
+					remainingAcceptance = "Automated CFG normalization and MBA simplification remain unsatisfied.";
+					reasoning = `Deobfuscation tool '${originalTool}' is missing. Degraded to static disassembly via r2_inspect.`;
+				} else {
+					nextTool = "android_package_inspect";
+					nextParams = { path: effectiveTargetPath, action: "dex" };
+					alternatives = ["android_package_inspect", "dex_patch"];
+					capabilityDepth = "static";
+					prerequisites = ["target_apk_present"];
+					verificationBoundary =
+						"Static DEX class listing; automated bytecode deobfuscation and string decryption require deobfuscate.";
+					remainingAcceptance = "Automated Dalvik bytecode deobfuscation remains unsatisfied.";
+					reasoning = `Deobfuscation tool '${originalTool}' is missing. Degraded to static DEX inspection via android_package_inspect.`;
+				}
+			} else if (originalTool === "native_recover" || originalTool === "tritondse") {
+				nextTool = "triton_analyze";
+				nextParams = { action: "status" };
+				alternatives = ["triton_analyze", "r2_inspect", "triage"];
+				capabilityDepth = "static";
+				verificationBoundary =
+					"Single-path concolic execution or status check; multi-path branch inversion, handler semantic extraction, and differential verification across domain require native_recover.";
+				remainingAcceptance =
+					"Multi-path DSE exploration and differential equivalence verification remain unsatisfied.";
+				reasoning = `Bounded native recovery tool '${originalTool}' is missing. Degraded to status check via triton_analyze without arbitrary seed defaults.`;
+			} else if (originalTool === "triton_analyze" || originalTool === "triton") {
+				nextTool = "r2_inspect";
+				nextParams = { path: effectiveTargetPath, action: "functions" };
+				alternatives = ["r2_inspect", "ghidra_inspect", "triage"];
+				capabilityDepth = "static";
+				prerequisites = ["target_binary_present"];
+				verificationBoundary =
+					"Static disassembly only; symbolic trace replay and AST synthesis require triton_analyze with triton-library.";
+				remainingAcceptance = "Symbolic execution trace replay and AST simplification remain unsatisfied.";
+				reasoning = `Triton symbolic engine '${originalTool}' is missing. Degraded to static disassembly via r2_inspect.`;
 			} else {
 				nextTool = "triage";
 				nextParams = { path: effectiveTargetPath, strings: true, limit: 30 };

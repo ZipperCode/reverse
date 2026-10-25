@@ -79,10 +79,18 @@ const tritonStatusSchema = type({
 	action: "'status'",
 });
 
+const tritonArchInfoSchema = type({
+	action: "'arch_info'",
+	"arch?": type.enumerated("x86", "x86_64", "arm32", "aarch64").describe("Target architecture (default: 'x86_64')"),
+});
+
 const tritonReplaySchema = type({
 	action: "'replay'",
 	trace: type("string").describe("Path to trace file on disk (Salwan mr:/r:/i: format or JSONL)"),
-	"arch?": type.enumerated("x86", "x86_64").describe("Target architecture (default: 'x86_64')"),
+	"arch?": type.enumerated("x86", "x86_64", "arm32", "aarch64").describe("Target architecture (default: 'x86_64')"),
+	"thumb?": type("boolean").describe(
+		"Enable ARM Thumb execution mode for ARM32 (default false, or auto-detected if address is odd)",
+	),
 	"initial_registers?": type({
 		"[string]": "string | number",
 	}).describe("Explicit initial concrete register values (e.g. { rip: '0x401000', rdi: '0x1234' })"),
@@ -97,7 +105,7 @@ const tritonReplaySchema = type({
 	"lift_llvm?": type("boolean").describe("Attempt lifting symbolic expression to LLVM IR (default true)"),
 });
 
-export const tritonAnalyzeSchema = tritonStatusSchema.or(tritonReplaySchema);
+export const tritonAnalyzeSchema = tritonStatusSchema.or(tritonReplaySchema).or(tritonArchInfoSchema);
 
 export type TritonAnalyzeParams = typeof tritonAnalyzeSchema.infer;
 
@@ -106,7 +114,7 @@ export type TritonAnalyzeParams = typeof tritonAnalyzeSchema.infer;
 // ============================================================================
 
 export interface TritonAnalyzeDetails {
-	action: "status" | "replay";
+	action: "status" | "replay" | "arch_info";
 	installed: boolean;
 	python_path?: string | null;
 	triton_version?: string | null;
@@ -398,7 +406,7 @@ export class TritonAnalyzeTool implements AgentTool<typeof tritonAnalyzeSchema, 
 	 */
 	readonly approval = (args: unknown): ToolTier => {
 		if (args && typeof args === "object" && "action" in args) {
-			if (args.action === "status") {
+			if (args.action === "status" || args.action === "arch_info") {
 				return "read";
 			}
 		}
@@ -418,9 +426,9 @@ export class TritonAnalyzeTool implements AgentTool<typeof tritonAnalyzeSchema, 
 
 		// Plan Mode 守卫：replay 涉及仿真和写入工件，必须被 Plan Mode 拦截；仅 status 允许在 Plan Mode 运行
 		const planMode = this.session.getPlanModeState?.();
-		if (planMode?.enabled && params.action !== "status") {
+		if (planMode?.enabled && params.action !== "status" && params.action !== "arch_info") {
 			throw new ToolError(
-				"Plan mode: triton trace replay executes symbolic emulation and writes session artifacts. Only 'status' is permitted in plan mode.",
+				"Plan mode: triton trace replay executes symbolic emulation and writes session artifacts. Only 'status' and 'arch_info' are permitted in plan mode.",
 			);
 		}
 
@@ -521,6 +529,48 @@ export class TritonAnalyzeTool implements AgentTool<typeof tritonAnalyzeSchema, 
 			};
 		}
 
+		if (params.action === "arch_info") {
+			if (!pythonPath) {
+				throw new ToolError(`Triton is not installed or configured in this environment. ${MANAGED_INSTALL_HINT}`);
+			}
+			const workerRes = await runTritonWorker<{
+				arch: string;
+				gpr_bits: number;
+				gpr_order: string[];
+				flags: string[];
+				flag_parents: string[];
+				zero_regs: string[];
+				pc: string;
+				sp: string;
+			}>({
+				pythonPath,
+				cwd: this.session.cwd,
+				request: { action: "arch_info", arch: params.arch ?? "x86_64" },
+				signal,
+				timeoutMs: 10000,
+			});
+			if (workerRes.status === "error" || !workerRes.result) {
+				throw new ToolError(workerRes.error || "Failed to retrieve architecture info");
+			}
+			const info = workerRes.result;
+			const textLines = [
+				`Architecture Specification: ${info.arch}`,
+				`- Bitness: ${info.gpr_bits}-bit`,
+				`- GPR Order: ${info.gpr_order.join(", ")}`,
+				`- Flags: ${info.flags.join(", ")}`,
+				`- Flag Parents: ${info.flag_parents.join(", ")}`,
+				info.zero_regs.length > 0 ? `- Zero Registers: ${info.zero_regs.join(", ")}` : null,
+				`- Program Counter: ${info.pc}, Stack Pointer: ${info.sp}`,
+			].filter(Boolean) as string[];
+			return {
+				content: [{ type: "text", text: textLines.join("\n") }],
+				details: {
+					action: "arch_info",
+					installed: true,
+					arch: info.arch,
+				},
+			};
+		}
 		// ------------------------------------------------------------------------
 		// Action: replay
 		// ------------------------------------------------------------------------
@@ -553,6 +603,7 @@ export class TritonAnalyzeTool implements AgentTool<typeof tritonAnalyzeSchema, 
 			action: "replay",
 			trace: resolvedTracePath,
 			arch: params.arch ?? "x86_64",
+			thumb: params.thumb,
 			initial_registers: params.initial_registers,
 			initial_memory: params.initial_memory,
 			symbolic_registers: params.symbolic_registers,

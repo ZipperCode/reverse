@@ -187,14 +187,70 @@ def read_uleb(b, o):
     result = 0
     shift = 0
     length = len(b)
-    while o < length:
+    count = 0
+    while o < length and count < 5:
         x = b[o]
         o += 1
+        count += 1
         result |= (x & 0x7F) << shift
         if (x & 0x80) == 0:
-            break
+            return result, o
         shift += 7
     return result, o
+
+
+def read_sleb(b, o):
+    """Decode signed LEB128 -> (value, new_offset)."""
+    result = 0
+    shift = 0
+    length = len(b)
+    count = 0
+    while o < length and count < 5:
+        byte = b[o]
+        o += 1
+        count += 1
+        result |= (byte & 0x7F) << shift
+        shift += 7
+        if (byte & 0x80) == 0:
+            if (byte & 0x40) != 0:
+                result |= -(1 << shift)
+            result = result & 0xFFFFFFFF
+            if result > 0x7FFFFFFF:
+                result -= 0x100000000
+            return result, o
+    return 0, o
+
+
+def write_uleb(val: int) -> bytes:
+    """Encode unsigned integer to LEB128 bytes."""
+    val = int(val) & 0xFFFFFFFF
+    out = bytearray()
+    while True:
+        b = val & 0x7F
+        val >>= 7
+        if val != 0:
+            b |= 0x80
+        out.append(b)
+        if val == 0:
+            break
+    return bytes(out)
+
+
+def write_sleb(val: int) -> bytes:
+    """Encode signed integer to LEB128 bytes."""
+    val = int(val)
+    out = bytearray()
+    more = True
+    while more:
+        b = val & 0x7F
+        val >>= 7
+        sign_bit = (b & 0x40) != 0
+        if (val == 0 and not sign_bit) or (val == -1 and sign_bit):
+            more = False
+        else:
+            b |= 0x80
+        out.append(b)
+    return bytes(out)
 
 
 def insn_units(op, data, pos, end):
