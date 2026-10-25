@@ -6,10 +6,9 @@
  * user-specified directory via `--bin-dir` or `--prefix`), validates the binary
  * `--version` output as an identity sanity check before installation with a strict
  * timeout and bounded output, creates atomic installs with chmod 0755, creates
- * collision backups that never overwrite prior backups, verifies reverse
- * ownership before uninstalling, and never alters shell profile files or requires
- * root privileges. Note: --version verification is an identity sanity guard, not
- * a cryptographic authenticity or signature check.
+ * 创建不覆盖既有备份的备份文件，卸载前验证目标归属；不修改 shell 配置，也不要求管理员权限。
+ * Windows 替换先暂存新程序，再将旧程序改名，保持正在运行的进程不被中断。
+ * 版本检查仅验证程序身份，不提供密码学真实性或完整性保证。
  *
  * Options:
  *   --binary <path>      Path to existing standalone binary (default: packages/coding-agent/dist/reverse[.exe])
@@ -361,24 +360,47 @@ export async function runLocalInstall(options: InstallOptions = {}): Promise<{
 		// Ensure target directory exists
 		await fs.mkdir(targetDir, { recursive: true });
 
-		// Perform backup if destination exists without clobbering prior backups
-		if (targetExists && backupPath) {
-			await fs.copyFile(targetPath, backupPath);
-		}
-
-		// Atomic copy: write to unique temp file in the same directory, chmod, then atomic rename
+		// 先暂存源文件，再移动旧目标，保证同源同目标重装和复制失败都不损伤旧程序。
 		const tempPath = path.join(
 			targetDir,
 			`.${binaryName}.tmp.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`,
 		);
+		let targetMovedToBackup = false;
+		let retiredPath: string | undefined;
 		try {
 			await fs.copyFile(sourceBinary, tempPath);
 			if (platform !== "win32") {
 				await fs.chmod(tempPath, 0o755);
 			}
+			// Windows 允许将运行中的程序改名，腾出目标路径后再原子放入新程序。
+			if (targetExists) {
+				if (backupPath) {
+					if (platform === "win32") {
+						try {
+							await fs.rename(targetPath, backupPath);
+							targetMovedToBackup = true;
+						} catch {
+							await fs.copyFile(targetPath, backupPath);
+						}
+					} else {
+						await fs.copyFile(targetPath, backupPath);
+					}
+				} else if (platform === "win32") {
+					const candidate = `${targetPath}.retired.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
+					try {
+						await fs.rename(targetPath, candidate);
+						retiredPath = candidate;
+					} catch {}
+				}
+			}
 			await fs.rename(tempPath, targetPath);
 		} catch (err) {
 			await fs.rm(tempPath, { force: true }).catch(() => {});
+			if (targetMovedToBackup && backupPath) {
+				await fs.rename(backupPath, targetPath).catch(() => {});
+			} else if (retiredPath) {
+				await fs.rename(retiredPath, targetPath).catch(() => {});
+			}
 			throw err;
 		}
 

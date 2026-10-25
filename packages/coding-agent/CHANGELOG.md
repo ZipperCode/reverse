@@ -48,6 +48,7 @@
 
 - Fixed backend-specific recovery setup selection so a missing Simplify or Frida DEX dumper does not install an unrelated optional engine; destination collisions are rejected before JADX dependency execution. DexKit's Java bridge is embedded as a text asset for standalone installation.
 - Preserved ARM subregister/Thumb state validation and exact 64-bit recovery fixtures; LLVM differential verification executes bounded snapshot memory callbacks and keeps finite artifact observations separate from formal SMT proofs.
+- 修复 Windows 运行中 `reverse.exe` 的本地重装 `EPERM`：先暂存源程序，再将旧目标改名并原子替换，不结束旧进程；同源同目标重装也保留有效备份。
 - Fixed reverse setup stalls by sharing one toolchain inspection across each CLI batch plan and TUI menu round; subsequent rounds and post-install checks refresh dependency status.
 - Separated dependency presence, runtime compatibility, launch prerequisites, connected sessions, target bindings, and observed execution in reverse readiness; added scoped CLI discovery and preserved complete fallback dependency snapshots.
 - Unified XML/AXML application security metadata, permission resets, exported/enabled uncertainty, Deep Link constraints, and inherited network-security-config policies; aligned artifact writes and process/device actions with read/write/exec approval.

@@ -229,6 +229,30 @@ describe("install-local: installation lifecycle", () => {
 		}
 	});
 
+	test.skipIf(process.platform !== "win32")(
+		"Windows 同源同目标重装保留原程序备份",
+		async () => {
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-install-same-path-"));
+			try {
+				const source = path.join(tempDir, "fixture.ts");
+				const target = path.join(tempDir, "reverse.exe");
+				await fs.writeFile(source, 'console.log("reverse/18.11.2");\n');
+				const build = await Bun.build({ entrypoints: [source], compile: { outfile: target } });
+				if (!build.success) throw new Error("无法编译安装验证程序");
+				const expected = await Bun.file(target).bytes();
+				const result = await runLocalInstall({ binary: target, binDir: tempDir });
+				expect(result.success).toBe(true);
+				expect(result.version).toBe("18.11.2");
+				expect(result.backupPath).toBeDefined();
+				expect(await Bun.file(target).bytes()).toEqual(expected);
+				expect(await Bun.file(result.backupPath!).bytes()).toEqual(expected);
+			} finally {
+				await fs.rm(tempDir, { recursive: true, force: true });
+			}
+		},
+		30_000,
+	);
+
 	test("refuses to uninstall an unverified binary unless force is set", async () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-install-uninstall-"));
 		const destDir = path.join(tempDir, "bin");

@@ -119,6 +119,8 @@ bun run install:local --check
 bun run uninstall:local
 ```
 
+Windows 重装会先暂存源程序，再将旧目标改名后原子替换，不强制结束正在运行的会话；`--binary` 与安装目标为同一路径也可重装。旧会话继续使用旧文件，重新启动后使用新版。默认保留旧程序备份；指定 `--no-backup` 时，为避开运行中文件锁，仍可能留下 `.retired.*` 文件。
+
 > **Note on Binary Validation**: The `--binary` validator in `install:local` performs a local identity sanity check by running `<binary> --version` to verify the output matches the expected `reverse/` identifier before copying. It is an identity sanity guard, not a cryptographic authenticity or integrity verification (cryptographic signatures and release checksums belong to the official release pipeline).
 
 #### Run Tests
