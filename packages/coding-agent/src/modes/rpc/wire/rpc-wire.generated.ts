@@ -531,7 +531,10 @@ export interface BashResult {
 	exitCode?: number;
 	timedOut?: boolean;
 	artifactId?: string;
+	artifactBytes?: number;
 	artifactElidedBytes?: number;
+	artifactMaxBytes?: number;
+	artifactBudgetExhausted?: boolean;
 	artifactError?: Record<string, unknown>;
 	workingDir?: string;
 	images?: ImageContent[];

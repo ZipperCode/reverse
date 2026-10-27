@@ -26,6 +26,18 @@ function sanitizeToolType(toolType: string): string {
 	return sanitized.length > 0 ? sanitized : "tool";
 }
 
+// 语义分析产物与原始恢复快照不计入流式日志累计预算，避免截断或拒写逆向分析结论。
+const SEMANTIC_ARTIFACT_TOOL_TYPES: Record<string, true> = {
+	shake: true,
+	deobfuscate_msynth: true,
+	deobfuscate_d810: true,
+	"elf-query": true,
+	native_recover: true,
+	triton_analyze: true,
+	ida: true,
+	"bash-original": true,
+};
+
 /**
  * Persist an artifact only when the filesystem confirms the complete payload is
  * readable, then swap it into place atomically.
@@ -79,7 +91,8 @@ export class ArtifactManager {
 	#initPromise: Promise<void> | null = null;
 	readonly #ready: Promise<void> | undefined;
 	readonly #reservedIdsDir: string | undefined;
-
+	readonly #capturedFileBytes = new Map<string, number>();
+	readonly #reservedCaptureBytes = new Map<string, number>();
 	/**
 	 * @param dir Directory that will hold artifact files. Created lazily on first save.
 	 * @param ready Settles once `dir` is seeded (a session move copying the previous
@@ -121,26 +134,97 @@ export class ArtifactManager {
 	 * This ensures we don't overwrite artifacts when resuming a session.
 	 */
 	async #scanExistingIds(): Promise<void> {
-		const files = await this.listFiles();
+		const dirFiles = await this.listFiles();
+		const allFiles = [...dirFiles];
 		if (this.#reservedIdsDir) {
 			try {
-				files.push(...(await fs.readdir(this.#reservedIdsDir)));
+				allFiles.push(...(await fs.readdir(this.#reservedIdsDir)));
 			} catch {
 				// A missing source artifacts dir reserves nothing.
 			}
 		}
 		let maxId = -1;
-		for (const file of files) {
+		for (const file of allFiles) {
 			// Files are named: {id}.{toolType}.log
-			const match = file.match(/^(\d+)\..*\.log$/);
+			const match = file.match(/^(\d+)\.([A-Za-z0-9_-]+)\.log$/);
 			if (match) {
 				const id = parseInt(match[1], 10);
 				if (id > maxId) maxId = id;
 			}
 		}
+		for (const file of dirFiles) {
+			const match = file.match(/^(\d+)\.([A-Za-z0-9_-]+)\.log$/);
+			if (!match || SEMANTIC_ARTIFACT_TOOL_TYPES[match[2]]) continue;
+			const fullPath = path.resolve(this.#dir, file);
+			if (this.#capturedFileBytes.has(fullPath)) continue;
+			const size = Bun.file(fullPath).size;
+			if (Number.isFinite(size) && size > 0) {
+				this.#capturedFileBytes.set(fullPath, size);
+			}
+		}
 		this.#nextId = maxId + 1;
 	}
 
+	/** Ensure the artifact directory and existing capture-log accounting are initialized. */
+	async ensureInitialized(): Promise<void> {
+		await this.#ensureDir();
+	}
+
+	/** Total bytes persisted or reserved for tool capture logs in this session. */
+	getCapturedLogBytes(): number {
+		let total = 0;
+		for (const bytes of this.#capturedFileBytes.values()) total += bytes;
+		for (const bytes of this.#reservedCaptureBytes.values()) total += bytes;
+		return total;
+	}
+
+	/** Remaining session capture-log byte budget, or `undefined` when `sessionMaxBytes <= 0` (unbounded). */
+	getRemainingCaptureBudgetBytes(sessionMaxBytes: number): number | undefined {
+		if (sessionMaxBytes <= 0) return undefined;
+		return Math.max(0, sessionMaxBytes - this.getCapturedLogBytes());
+	}
+
+	/** True when a positive session capture-log budget is configured and already exhausted. */
+	isCaptureBudgetExhausted(sessionMaxBytes: number): boolean {
+		return sessionMaxBytes > 0 && this.getCapturedLogBytes() >= sessionMaxBytes;
+	}
+
+	/** Reserve in-flight capture bytes for a streaming sink before its final size is known. */
+	reserveCaptureBytes(filePath: string, bytes: number): void {
+		const key = path.resolve(filePath);
+		if (bytes > 0) {
+			this.#reservedCaptureBytes.set(key, Math.max(0, bytes));
+		} else {
+			this.#reservedCaptureBytes.delete(key);
+		}
+	}
+
+	/** Release an in-flight reservation and record the final on-disk byte size for `filePath`. */
+	recordCapturedArtifact(filePath: string, bytes: number): void {
+		const key = path.resolve(filePath);
+		this.#reservedCaptureBytes.delete(key);
+		if (bytes > 0) {
+			this.#capturedFileBytes.set(key, bytes);
+		} else {
+			this.#capturedFileBytes.delete(key);
+		}
+	}
+	/** Record captured bytes for a persisted `{id}.{toolType}.log` artifact id. */
+	recordCapturedById(id: string, toolType: string, bytes: number): void {
+		const filename = `${id}.${sanitizeToolType(toolType)}.log`;
+		this.recordCapturedArtifact(path.join(this.#dir, filename), bytes);
+	}
+
+	/** Record captured bytes (keyed by `filePath` when provided to prevent double-counting). */
+	recordCapturedBytes(bytes: number, filePath?: string): void {
+		if (filePath) {
+			this.recordCapturedArtifact(filePath, bytes);
+			return;
+		}
+		if (bytes > 0) {
+			this.#capturedFileBytes.set(`__capture_${this.#nextId}_${this.#capturedFileBytes.size}`, bytes);
+		}
+	}
 	/**
 	 * Atomically allocate next artifact ID.
 	 * IDs are sequential within the session.
@@ -169,8 +253,8 @@ export class ArtifactManager {
 	 * @returns Artifact ID (numeric string)
 	 */
 	async save(content: string, toolType: string): Promise<string> {
-		const { id, path } = await this.allocatePath(toolType);
-		await writeArtifact(path, content);
+		const { id, path: artifactPath } = await this.allocatePath(toolType);
+		await writeArtifact(artifactPath, content);
 		return id;
 	}
 

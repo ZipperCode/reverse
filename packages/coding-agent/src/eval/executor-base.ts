@@ -1,13 +1,14 @@
 import { logger } from "@reverse/utils";
 import { Settings } from "../config/settings";
 import { createKernelResetStatusEvent, formatKernelLossNotice } from "./kernel-reset";
-import { type OutputArtifactError, OutputSink } from "@reverse/tui/tools/streaming-output";
+import { type OutputArtifactError, OutputSink, type OutputSummary } from "@reverse/tui/tools/streaming-output";
 import { statusEventKey } from "@reverse/tui/tools/eval";
 import type { ToolSession } from "../tools";
 import {
 	resolveOutputMaxColumns,
 	resolveOutputSinkArtifactMaxBytes,
 	resolveOutputSinkHeadBytes,
+	resolveOutputSinkSpillThreshold,
 } from "../tools/output-meta";
 import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP, isEvalTimeoutControlEvent } from "./bridge-timeout";
 import type { JsStatusEvent } from "./js/shared/types";
@@ -89,8 +90,11 @@ export interface KernelExecutionResult {
 	cancelled: boolean;
 	truncated: boolean;
 	artifactId: string | undefined;
+	artifactBytes?: number;
 	/** Bytes the artifact cap dropped from the saved file's middle (the artifact is a head/tail sample). */
 	artifactElidedBytes?: number;
+	artifactMaxBytes?: number;
+	artifactBudgetExhausted?: boolean;
 	artifactError?: OutputArtifactError;
 	totalLines: number;
 	totalBytes: number;
@@ -98,6 +102,10 @@ export interface KernelExecutionResult {
 	outputBytes: number;
 	displayOutputs: EvalDisplayOutput[];
 	stdinRequested: boolean;
+	definedNames?: string[];
+	definedNamesOmitted?: number;
+	missingNames?: string[];
+	recoveryGuidance?: string;
 }
 
 /** Minimal kernel surface the base executor drives, satisfied by every backend kernel. */
@@ -119,6 +127,17 @@ export interface GenericKernel<TEnv> {
 		timedOut: boolean;
 		kernelKilled?: boolean;
 		stdinRequested?: boolean;
+		definedNames?: string[];
+		definedNamesOmitted?: number;
+		error?: {
+			name: string;
+			value: string;
+			traceback: string[];
+			missingNames?: string[];
+			definedNames?: string[];
+			definedNamesOmitted?: number;
+			recoveryGuidance?: string;
+		};
 	}>;
 }
 
@@ -452,6 +471,7 @@ export async function executeWithKernelBase<
 		onChunk: options?.onChunk,
 		artifactPath: options?.artifactPath,
 		artifactId: options?.artifactId,
+		spillThreshold: resolveOutputSinkSpillThreshold(settings),
 		headBytes: resolveOutputSinkHeadBytes(settings),
 		artifactMaxBytes: resolveOutputSinkArtifactMaxBytes(settings),
 		maxColumns: resolveOutputMaxColumns(settings),
@@ -569,14 +589,21 @@ export async function executeWithKernelBase<
 			if (annotation) {
 				sink.push(`${annotation}\n`);
 			}
-			const dumped = await sink.dump();
+			const dumped = (await sink.dump()) as OutputSummary & {
+				artifactBytes?: number;
+				artifactMaxBytes?: number;
+				artifactBudgetExhausted?: boolean;
+			};
 			return {
 				exitCode: undefined,
 				cancelled: true,
 				truncated: dumped.truncated,
 				output: dumped.output,
 				artifactId: dumped.artifactId ?? undefined,
+				artifactBytes: dumped.artifactBytes,
 				artifactElidedBytes: dumped.artifactElidedBytes,
+				artifactMaxBytes: dumped.artifactMaxBytes,
+				artifactBudgetExhausted: dumped.artifactBudgetExhausted,
 				artifactError: dumped.artifactError,
 				totalLines: dumped.totalLines,
 				totalBytes: dumped.totalBytes,
@@ -584,18 +611,33 @@ export async function executeWithKernelBase<
 				outputBytes: dumped.outputBytes,
 				displayOutputs,
 				stdinRequested: !!result.stdinRequested,
+				...(kernelKilled
+					? {}
+					: {
+							definedNames: result.definedNames,
+							definedNamesOmitted: result.definedNamesOmitted,
+						}),
 			};
 		}
 
 		if (result.stdinRequested) {
-			const dumped = await sink.dump("Kernel requested stdin; interactive input is not supported.");
+			const dumped = (await sink.dump(
+				"Kernel requested stdin; interactive input is not supported.",
+			)) as OutputSummary & {
+				artifactBytes?: number;
+				artifactMaxBytes?: number;
+				artifactBudgetExhausted?: boolean;
+			};
 			return {
 				exitCode: 1,
 				cancelled: false,
 				truncated: dumped.truncated,
 				output: dumped.output,
 				artifactId: dumped.artifactId ?? undefined,
+				artifactBytes: dumped.artifactBytes,
 				artifactElidedBytes: dumped.artifactElidedBytes,
+				artifactMaxBytes: dumped.artifactMaxBytes,
+				artifactBudgetExhausted: dumped.artifactBudgetExhausted,
 				artifactError: dumped.artifactError,
 				totalLines: dumped.totalLines,
 				totalBytes: dumped.totalBytes,
@@ -603,18 +645,29 @@ export async function executeWithKernelBase<
 				outputBytes: dumped.outputBytes,
 				displayOutputs,
 				stdinRequested: true,
+				definedNames: result.definedNames,
+				definedNamesOmitted: result.definedNamesOmitted,
 			};
 		}
 
 		const exitCode = result.status === "ok" ? 0 : 1;
-		const dumped = await sink.dump();
+		const dumped = (await sink.dump()) as OutputSummary & {
+			artifactBytes?: number;
+			artifactMaxBytes?: number;
+			artifactBudgetExhausted?: boolean;
+		};
+		const definedNames = result.definedNames ?? result.error?.definedNames;
+		const definedNamesOmitted = result.definedNamesOmitted ?? result.error?.definedNamesOmitted;
 		return {
 			exitCode,
 			cancelled: false,
 			truncated: dumped.truncated,
 			output: dumped.output,
 			artifactId: dumped.artifactId ?? undefined,
+			artifactBytes: dumped.artifactBytes,
 			artifactElidedBytes: dumped.artifactElidedBytes,
+			artifactMaxBytes: dumped.artifactMaxBytes,
+			artifactBudgetExhausted: dumped.artifactBudgetExhausted,
 			artifactError: dumped.artifactError,
 			totalLines: dumped.totalLines,
 			totalBytes: dumped.totalBytes,
@@ -622,20 +675,33 @@ export async function executeWithKernelBase<
 			outputBytes: dumped.outputBytes,
 			displayOutputs,
 			stdinRequested: false,
+			...(definedNames !== undefined ? { definedNames } : {}),
+			...(definedNamesOmitted !== undefined ? { definedNamesOmitted } : {}),
+			...(result.error?.missingNames && result.error.missingNames.length > 0
+				? { missingNames: result.error.missingNames }
+				: {}),
+			...(result.error?.recoveryGuidance ? { recoveryGuidance: result.error.recoveryGuidance } : {}),
 		};
 	} catch (err) {
 		if (isCancellationError(err, cancelledErrorClass) || abortShield.abortRequested || abortShield.signal?.aborted) {
 			const timedOut = abortShield.timedOut || isTimedOutCancellation(err, cancelledErrorClass, abortShield.signal);
-			const dumped = await sink.dump(
+			const dumped = (await sink.dump(
 				timedOut ? formatTimeoutAnnotation(executionTimeoutMs ?? options?.idleTimeoutMs) : undefined,
-			);
+			)) as OutputSummary & {
+				artifactBytes?: number;
+				artifactMaxBytes?: number;
+				artifactBudgetExhausted?: boolean;
+			};
 			return {
 				exitCode: undefined,
 				cancelled: true,
 				truncated: dumped.truncated,
 				output: dumped.output,
 				artifactId: dumped.artifactId ?? undefined,
+				artifactBytes: dumped.artifactBytes,
 				artifactElidedBytes: dumped.artifactElidedBytes,
+				artifactMaxBytes: dumped.artifactMaxBytes,
+				artifactBudgetExhausted: dumped.artifactBudgetExhausted,
 				artifactError: dumped.artifactError,
 				totalLines: dumped.totalLines,
 				totalBytes: dumped.totalBytes,

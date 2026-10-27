@@ -28,6 +28,52 @@ export type TodoStatus = "pending" | "in_progress" | "completed" | "abandoned" |
 /** Operation names accepted by the todo tool and echoed in successful result details. */
 export type TodoOperation = "init" | "start" | "done" | "rm" | "drop" | "block" | "unblock" | "append" | "view";
 
+/** Expected semantic outcome for a tool-callable acceptance requirement. */
+export type TodoExpectedOutcome = "success" | "expected_error";
+
+/** Immutable acceptance requirement bound to a todo task at creation (`init` / `append`). */
+export interface TodoAcceptanceTarget {
+	kind: "tool_callable";
+	/** Tool required to be callable/executable (e.g. "triton_analyze", "ghidra_inspect"). */
+	tool: string;
+	/** Optional action or mode within the tool (e.g. "status", "findcrypt", "replay"). */
+	action?: string;
+	/** Optional expected target path or identifier. */
+	target?: string;
+	/**
+	 * Expected outcome anchored at init/append ("success" default; "expected_error" for
+	 * deliberate negative/error-path verification).
+	 */
+	expectedOutcome?: TodoExpectedOutcome;
+}
+
+/** Concrete tool execution evidence bound to a completed task. */
+export interface TodoEvidenceRecord {
+	toolCallId: string;
+	entryId?: string;
+	tool: string;
+	action?: string;
+	target?: string;
+	semanticSuccess: boolean;
+	isError?: boolean;
+	timestamp?: number;
+	generation?: number;
+	summary?: string;
+}
+
+/** Unresolved tool/capability failure observed for a task. */
+export interface TodoFailureRecord {
+	toolCallId: string;
+	entryId?: string;
+	tool: string;
+	action?: string;
+	target?: string;
+	reason: string;
+	isReadinessFailure?: boolean;
+	timestamp?: number;
+	generation?: number;
+}
+
 /** A task displayed within a todo phase. */
 export interface TodoItem {
 	content: string;
@@ -36,6 +82,16 @@ export interface TodoItem {
 	blocker?: string;
 	details?: string;
 	notes?: string[];
+	/** Immutable acceptance criteria anchored at init/append. */
+	acceptance?: TodoAcceptanceTarget[];
+	/** Concrete tool execution evidence verifying completion. */
+	evidence?: TodoEvidenceRecord[];
+	/** Active-task unresolved capability/tool failures observed during execution. */
+	unresolvedFailures?: TodoFailureRecord[];
+	/** When this task is a fallback workaround, the original task content it substitutes for. */
+	fallbackOf?: string;
+	/** Plan generation counter when the task was created. */
+	generation?: number;
 }
 
 /** A named group of todo tasks. */
@@ -234,7 +290,7 @@ type TodoRenderOp = {
 	op?: string;
 	task?: string;
 	phase?: string;
-	items?: string[];
+	items?: Array<string | { content?: string }>;
 };
 
 /** New single-op shape `{op,...}`; legacy `{ops:[...]}` still seen in old transcripts. */
@@ -408,7 +464,9 @@ function computeTouchedPhases(
 	// The phase holding the in_progress task is where attention sits after the
 	// auto-promotion that follows every completion.
 	for (const phase of phases) {
-		if (phase.tasks.some(task => task.status === "in_progress")) touched.add(phase.name);
+		if (phase.tasks.some(task => task.status === "in_progress" || task.status === "blocked")) {
+			touched.add(phase.name);
+		}
 	}
 	// Phases with a task that just transitioned to completed in this update.
 	for (const transition of completedTasks) touched.add(transition.phase);
@@ -439,8 +497,14 @@ function computeTouchedPhases(
  * move the counter or its phase reads as permanently stuck.
  */
 function formatPhaseProgress(phase: TodoPhase, uiTheme: Theme): string {
-	const done = phase.tasks.filter(isClosedTodo).length;
-	return uiTheme.fg("dim", `  ${done}/${phase.tasks.length}`);
+	const completed = phase.tasks.filter(task => task.status === "completed").length;
+	const dropped = phase.tasks.filter(task => task.status === "abandoned").length;
+	const blocked = phase.tasks.filter(task => task.status === "blocked").length;
+	const extras: string[] = [];
+	if (dropped > 0) extras.push(`${dropped} dropped`);
+	if (blocked > 0) extras.push(`${blocked} blocked`);
+	const suffix = extras.length > 0 ? ` (${extras.join(", ")})` : "";
+	return uiTheme.fg("dim", `  ${completed}/${phase.tasks.length}${suffix}`);
 }
 
 /** One-line summary for a collapsed (untouched) phase: dim header + progress. */
@@ -521,12 +585,17 @@ function describeTodoResult(
 	if (total === 0) {
 		return { tool: { title: "Todo" }, body: [noteText(forDisplay(resultText(result) || "No todos"))] };
 	}
-	const closed = phases.reduce((sum, phase) => sum + phase.tasks.filter(isClosedTodo).length, 0);
+	const completed = phases.reduce(
+		(sum, phase) => sum + phase.tasks.filter(task => task.status === "completed").length,
+		0,
+	);
+	const blocked = phases.reduce((sum, phase) => sum + phase.tasks.filter(task => task.status === "blocked").length, 0);
 	const activeDescs = options.expanded ? [] : activeTodoDescriptionsProvider();
 	const isMatched = (task: TodoItem): boolean =>
 		activeDescs.length > 0 && todoMatchesAnyDescription(task.content, activeDescs);
+	const target = blocked > 0 ? `${completed}/${total} (${blocked} blocked)` : `${completed}/${total}`;
 	return {
-		tool: { title: "Todo", target: `${closed}/${total}`, targetKind: "text" },
+		tool: { title: "Todo", target, targetKind: "text" },
 		body: [node("checklist", { mode: "full", phases: todoChecklistPhases(phases, isMatched) }, [], "checklist")],
 		preview: "none",
 		open: true,

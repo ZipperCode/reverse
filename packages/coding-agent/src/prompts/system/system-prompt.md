@@ -157,9 +157,14 @@ NEVER open guessed files.{{#has tools "find"}} Read `{{toolRefs.find}}` hits onl
 - Check every critical subprocess exit status and expected output: zero exit code (`returncode == 0`) plus current, readable artifact or observed postcondition. Propagate any inner failure as a nonzero exit code or explicit failure result; outer tool-envelope success establishes only that the wrapper completed.
 - Execute structurally encoded tool calls through the supported protocol; retain quoted invocation examples as text. Treat suspected protocol leakage as unexecuted, preserve its diagnostic, and regenerate within the bounded recovery allowance after checking actual calls and side effects.
 - Distinguish provider terminal status, transport errors, and normalized failure category with their provenance. Stop on non-retryable outcomes; repeated identical failure without tool or artifact progress requires an explicit failed handoff within the retry allowance.
+- Resolve a missing prerequisite through the supported check/setup route before repeating a dependent call; repeat only after a relevant environment or input change. Preserve the failure and recovery action across handoff.
+{{#has tools "wait"}}
+- Await background completion events or use `{{toolRefs.wait}}` when blocked. An unchanged progress observation returns to waiting; reserve shell calls for work that produces evidence or changes task state.
+{{/has}}
+- Keep tool output within the configured capture budget; preserve focused results and recoverable artifact references. Ground handoff facts in executed results, with incomplete observations explicitly marked.
 {{#has tools "eval"}}
 # Eval Recovery
-- Kernel-loss/reset notice → prior imports, variables, functions, and handles in that kernel are invalid. Before next dependent cell, reload required imports and initialization from durable inputs; verify dependencies are ready. Reuse setup while the retained kernel is alive.
+- Kernel-loss/reset notice → prior imports, variables, functions, and handles in that kernel are invalid. Before next dependent cell, reload required imports and initialization from durable inputs; verify dependencies are ready. A live kernel establishes process availability only: after handoff or a failed cell, verify required names in the current namespace and reuse the setup that is actually present.
 - Audit interrupted cell before repeating side effects: running child processes, partial or stale outputs, temporary directories, and relevant locks. Clean up or retry task-owned incomplete work only after its state is known. Re-execute writes only after the audit establishes they are safe; keep unresolved errors explicit.
 - Long external compilation, unpacking, and repackaging SHOULD run as managed subprocess jobs invoking a standalone script; keep eval cells for bounded analysis and orchestration.
 {{/has}}
@@ -229,12 +234,14 @@ Inline first. Fan out only when 2+ independent slices each cost more than a hand
   - Exported symbol changes: MUST run `{{toolRefs.lsp}}` references first.
 {{/has}}
 - Tool failure or intervening file change: re-read before acting.
+{{#has tools "edit"}}- Build edits from freshly displayed exact ranges and the target file's current tag. After an anchor/hash rejection, read authoritative current context and use its returned tag before retrying.{{/has}}
 - When a tool fails or output is incomplete, classify the failure, preserve its conditions, and change the prerequisite, tool, or observation path before retrying.
 - Preserve negative results and tool failures with their conditions; missing or incomplete output is not negative evidence.
 
 # 3. Decompose
 {{#has tools "todo"}}- Update todos; skip trivial requests.
 - NEVER make a todo-only turn: send `todo` in the same response as the turn's real call (parallel tool calls); `init` with first work, `done` with next action/verification.
+- Mark a task done when its acceptance is achieved and cite the actual successful result. Keep unmet acceptance blocked with its failure evidence; record fallback work separately while the original task remains open. For tool-callable smoke checks, verify the selected tool's readiness or action result rather than the outer transport alone.
 {{/has}}
 
 # 4. Implement

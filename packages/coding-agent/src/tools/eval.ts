@@ -33,7 +33,13 @@ import evalDescription from "../prompts/tools/eval.md" with { type: "text" };
 import evalAgentsTopic from "../prompts/tools/eval-agents.md" with { type: "text" };
 import evalJudgeTopic from "../prompts/tools/eval-judge.md" with { type: "text" };
 import evalHelpersTopic from "../prompts/tools/eval-helpers.md" with { type: "text" };
-import { DEFAULT_MAX_BYTES, OutputSink, type OutputSummary, TailBuffer } from "@reverse/tui/tools/streaming-output";
+import {
+	DEFAULT_MAX_BYTES,
+	OutputSink,
+	type OutputSinkOptions,
+	type OutputSummary,
+	TailBuffer,
+} from "@reverse/tui/tools/streaming-output";
 import { sessionDelegationBias } from "../task/prompt-policy";
 import { resolveSpawnPolicy } from "../task/spawn-policy";
 import { canSpawnAtDepth } from "../task/types";
@@ -44,7 +50,14 @@ import { truncateForPrompt } from "./approval";
 import { type EvalBackendsAllowance, resolveEvalBackends } from "./eval-backends";
 import { recordStatusEvent, type StatusEventLog } from "@reverse/tui/tools/eval";
 import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
-import { resolveOutputMaxColumns, resolveOutputSinkArtifactMaxBytes, resolveOutputSinkHeadBytes } from "./output-meta";
+import {
+	isArtifactSessionBudgetExhausted,
+	resolveArtifactSessionMaxBytes,
+	resolveOutputMaxColumns,
+	resolveOutputSinkArtifactMaxBytes,
+	resolveOutputSinkHeadBytes,
+	resolveOutputSinkSpillThreshold,
+} from "./output-meta";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
 import { hasWaitTool } from "./wait";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
@@ -811,20 +824,48 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 
 			const sessionFile = session.getSessionFile?.() ?? undefined;
 			const kernelOwnerId = session.getEvalKernelOwnerId?.() ?? undefined;
-			const { path: artifactPath, id: artifactId } = (await session.allocateOutputArtifact?.("eval")) ?? {};
+			const artifactManager = session.getArtifactManager?.() ?? undefined;
+			if (artifactManager?.ensureInitialized) {
+				await artifactManager.ensureInitialized().catch(() => {});
+			}
+			const budgetExhausted = isArtifactSessionBudgetExhausted(session.settings, artifactManager);
+			const { path: artifactPath, id: artifactId } = budgetExhausted
+				? {}
+				: ((await session.allocateOutputArtifact?.("eval")) ?? {});
 			session.assertEvalExecutionAllowed?.();
-			outputSink = new OutputSink({
+			const perCallArtifactMaxBytes = resolveOutputSinkArtifactMaxBytes(session.settings);
+			const effectiveArtifactMaxBytes = resolveOutputSinkArtifactMaxBytes(session.settings, artifactManager);
+			const sessionMaxBytes = resolveArtifactSessionMaxBytes(session.settings);
+			const remainingSessionBytes = artifactManager?.getRemainingCaptureBudgetBytes(sessionMaxBytes);
+			const artifactCapFromSessionBudget =
+				remainingSessionBytes !== undefined &&
+				(perCallArtifactMaxBytes === 0 || remainingSessionBytes < perCallArtifactMaxBytes);
+			if (artifactPath && artifactManager?.reserveCaptureBytes && effectiveArtifactMaxBytes > 0) {
+				artifactManager.reserveCaptureBytes(artifactPath, effectiveArtifactMaxBytes);
+			}
+			const sinkOptions: OutputSinkOptions = {
 				artifactPath,
 				artifactId,
+				spillThreshold: resolveOutputSinkSpillThreshold(session.settings),
 				headBytes: resolveOutputSinkHeadBytes(session.settings),
-				artifactMaxBytes: resolveOutputSinkArtifactMaxBytes(session.settings),
+				artifactMaxBytes: effectiveArtifactMaxBytes,
+				artifactSessionBudgetExhausted: budgetExhausted,
+				artifactCapFromSessionBudget,
+				onArtifactFinalized: bytes => {
+					if (artifactPath && artifactManager?.recordCapturedArtifact) {
+						artifactManager.recordCapturedArtifact(artifactPath, bytes);
+					} else if (bytes > 0) {
+						artifactManager?.recordCapturedBytes(bytes);
+					}
+				},
 				maxColumns: resolveOutputMaxColumns(session.settings),
 				onChunk: chunk => {
 					tailBuffer.append(chunk);
 					if (activeLiveCell) activeLiveCell.chars += chunk.length;
 					pushUpdate();
 				},
-			});
+			};
+			outputSink = new OutputSink(sinkOptions);
 			const sessionId = session.getEvalSessionId?.() ?? defaultEvalSessionId(session);
 
 			for (let i = 0; i < cells.length; i++) {
@@ -963,13 +1004,40 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 						? `${runtimeOutput ? `${runtimeOutput}\n` : ""}Eval environment: ${cell.environment}.`
 						: runtimeOutput;
 				const imageText = cellImageNotes.join("\n");
-				const cellOutput = [stdoutTrimmed, imageText].filter(Boolean).join("\n\n");
+				let diagnosticBlock = "";
+				if (
+					(result.missingNames && result.missingNames.length > 0 && !stdoutTrimmed.includes("Missing names:")) ||
+					(result.recoveryGuidance && !stdoutTrimmed.includes("Recovery:"))
+				) {
+					const diagLines: string[] = [];
+					if (result.missingNames && result.missingNames.length > 0 && !stdoutTrimmed.includes("Missing names:")) {
+						diagLines.push(`Missing names: ${result.missingNames.join(", ")}`);
+					}
+					if (!stdoutTrimmed.includes("Observed namespace names:")) {
+						if (result.definedNames) {
+							const preview = result.definedNames.slice(0, 20).join(", ") || "(none)";
+							const extra = Math.max(0, result.definedNames.length - 20) + (result.definedNamesOmitted ?? 0);
+							diagLines.push(`Observed namespace names: ${extra > 0 ? `${preview} (+${extra} more)` : preview}`);
+						} else {
+							diagLines.push("Observed namespace names: unverified");
+						}
+					}
+					if (result.recoveryGuidance && !stdoutTrimmed.includes("Recovery:")) {
+						diagLines.push(`Recovery: ${result.recoveryGuidance}`);
+					}
+					diagnosticBlock = diagLines.join("\n");
+				}
+				const cellOutput = [stdoutTrimmed, diagnosticBlock, imageText].filter(Boolean).join("\n\n");
 				cellResult.output = cellOutput;
 				cellResult.views = cellViews.length > 0 ? cellViews : undefined;
 				cellResult.exitCode = result.exitCode;
 				cellResult.durationMs = durationMs;
 				cellResult.statusEvents = cellStatus.statusEvents;
 				cellResult.statusEventsElided = cellStatus.statusEventsElided;
+				cellResult.definedNames = result.definedNames;
+				cellResult.definedNamesOmitted = result.definedNamesOmitted;
+				cellResult.missingNames = result.missingNames;
+				cellResult.recoveryGuidance = result.recoveryGuidance;
 
 				if (cellOutput) {
 					cellOutputs.push(cellOutput);
@@ -995,6 +1063,14 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 						statusEvents: callStatus.statusEvents,
 						statusEventsElided: callStatus.statusEventsElided,
 						isError: true,
+						...(result.definedNames !== undefined ? { definedNames: result.definedNames } : {}),
+						...(result.definedNamesOmitted !== undefined
+							? { definedNamesOmitted: result.definedNamesOmitted }
+							: {}),
+						...(result.missingNames && result.missingNames.length > 0
+							? { missingNames: result.missingNames }
+							: {}),
+						...(result.recoveryGuidance ? { recoveryGuidance: result.recoveryGuidance } : {}),
 					};
 					const resetEvent = callStatus.statusEvents?.find(e => e.op === "kernel_reset");
 					if (resetEvent && typeof resetEvent.message === "string") {
@@ -1024,12 +1100,17 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 				(hasImages ? `(${images.length} image${images.length === 1 ? "" : "s"}; no text output)` : "(no output)");
 			const summaryForMeta = await summarizeFinal(combinedOutput, finalizeOutput);
 
+			const lastDefinedCell = [...cellResults].reverse().find(c => c.definedNames !== undefined);
 			const details: EvalToolDetails = {
 				language: languages[0],
 				languages,
 				cells: cellResults,
 				statusEvents: callStatus.statusEvents,
 				statusEventsElided: callStatus.statusEventsElided,
+				...(lastDefinedCell?.definedNames !== undefined ? { definedNames: lastDefinedCell.definedNames } : {}),
+				...(lastDefinedCell?.definedNamesOmitted !== undefined
+					? { definedNamesOmitted: lastDefinedCell.definedNamesOmitted }
+					: {}),
 			};
 			const resetEvent = callStatus.statusEvents?.find(e => e.op === "kernel_reset");
 			if (resetEvent && typeof resetEvent.message === "string") {
@@ -1057,31 +1138,45 @@ async function summarizeFinal(
 	combinedOutput: string,
 	finalizeOutput: () => Promise<OutputSummary | undefined>,
 ): Promise<OutputSummary> {
-	const rawSummary = (await finalizeOutput()) ?? {
+	const rawSummary = ((await finalizeOutput()) ?? {
 		output: "",
 		truncated: false,
 		totalLines: 0,
 		totalBytes: 0,
 		outputLines: 0,
 		outputBytes: 0,
+	}) as OutputSummary & {
+		artifactBytes?: number;
+		artifactMaxBytes?: number;
+		artifactBudgetExhausted?: boolean;
 	};
 	const outputLines = combinedOutput.length > 0 ? combinedOutput.split("\n").length : 0;
 	const outputBytes = Buffer.byteLength(combinedOutput, "utf-8");
 	const missingLines = Math.max(0, rawSummary.totalLines - rawSummary.outputLines);
 	const missingBytes = Math.max(0, rawSummary.totalBytes - rawSummary.outputBytes);
-	return {
+	const summary: OutputSummary & {
+		artifactBytes?: number;
+		artifactMaxBytes?: number;
+		artifactBudgetExhausted?: boolean;
+	} = {
 		output: combinedOutput,
 		truncated: rawSummary.truncated,
 		totalLines: outputLines + missingLines,
 		totalBytes: outputBytes + missingBytes,
 		outputLines,
 		outputBytes,
+		elidedBytes: rawSummary.elidedBytes,
+		elidedLines: rawSummary.elidedLines,
 		artifactId: rawSummary.artifactId,
+		artifactBytes: rawSummary.artifactBytes,
 		artifactElidedBytes: rawSummary.artifactElidedBytes,
+		artifactMaxBytes: rawSummary.artifactMaxBytes,
+		artifactBudgetExhausted: rawSummary.artifactBudgetExhausted,
 		artifactError: rawSummary.artifactError,
 		columnDroppedBytes: rawSummary.columnDroppedBytes,
 		columnTruncatedLines: rawSummary.columnTruncatedLines,
 		columnTruncatedRange: rawSummary.columnTruncatedRange,
 		columnMax: rawSummary.columnMax,
 	};
+	return summary;
 }

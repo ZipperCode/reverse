@@ -6,7 +6,15 @@ import { loadXtermTerminal } from "@reverse/tui/tools/terminal-output";
 import { Settings } from "../config/settings";
 import { OutputSink, type OutputSummary } from "@reverse/tui/tools/streaming-output";
 import { TerminalGraphicsDecoder } from "../utils/terminal-graphics";
-import { resolveOutputMaxColumns, resolveOutputSinkArtifactMaxBytes, resolveOutputSinkHeadBytes } from "./output-meta";
+import {
+	type CaptureBudgetTracker,
+	isArtifactSessionBudgetExhausted,
+	resolveArtifactSessionMaxBytes,
+	resolveOutputMaxColumns,
+	resolveOutputSinkArtifactMaxBytes,
+	resolveOutputSinkHeadBytes,
+	resolveOutputSinkSpillThreshold,
+} from "./output-meta";
 
 export interface BashInteractiveResult extends OutputSummary {
 	exitCode: number | undefined;
@@ -24,11 +32,13 @@ export async function runInteractiveBashPty(
 		timeoutMs?: number;
 		signal?: AbortSignal;
 		env?: Record<string, string>;
+		settings?: Settings;
 		artifactPath?: string;
 		artifactId?: string;
+		artifactManager?: CaptureBudgetTracker | null;
 	},
 ): Promise<BashInteractiveResult> {
-	const settings = await Settings.init();
+	const settings = options.settings ?? (await Settings.init());
 	// Load the xterm Terminal ctor here (async boundary) — the ui.custom factory below is sync.
 	const XtermTerminal = await loadXtermTerminal();
 	const { shell: resolvedShell, env: shellEnv } = settings.getShellConfig();
@@ -40,11 +50,34 @@ export async function runInteractiveBashPty(
 	// monochrome marker. A key left out keeps the inherited launch value.
 	const { GIT_EDITOR: _gitEditor, GPG_TTY: _gpgTty, CI: _ci, NO_COLOR: _noColor, ...interactiveShellEnv } = shellEnv;
 	const graphics = new TerminalGraphicsDecoder();
+	const artifactManager = options.artifactManager ?? null;
+	const budgetExhausted = isArtifactSessionBudgetExhausted(settings, artifactManager);
+	const perCallArtifactMaxBytes = resolveOutputSinkArtifactMaxBytes(settings);
+	const effectiveArtifactMaxBytes = resolveOutputSinkArtifactMaxBytes(settings, artifactManager);
+	const sessionMaxBytes = resolveArtifactSessionMaxBytes(settings);
+	const remainingSessionBytes = artifactManager?.getRemainingCaptureBudgetBytes(sessionMaxBytes);
+	const artifactCapFromSessionBudget =
+		remainingSessionBytes !== undefined &&
+		(perCallArtifactMaxBytes === 0 || remainingSessionBytes < perCallArtifactMaxBytes);
+	const effectiveArtifactPath = budgetExhausted ? undefined : options.artifactPath;
+	if (effectiveArtifactPath && artifactManager?.reserveCaptureBytes && effectiveArtifactMaxBytes > 0) {
+		artifactManager.reserveCaptureBytes(effectiveArtifactPath, effectiveArtifactMaxBytes);
+	}
 	const sink = new OutputSink({
-		artifactPath: options.artifactPath,
-		artifactId: options.artifactId,
+		artifactPath: effectiveArtifactPath,
+		artifactId: budgetExhausted ? undefined : options.artifactId,
+		spillThreshold: resolveOutputSinkSpillThreshold(options.settings),
 		headBytes: resolveOutputSinkHeadBytes(settings),
-		artifactMaxBytes: resolveOutputSinkArtifactMaxBytes(settings),
+		artifactMaxBytes: effectiveArtifactMaxBytes,
+		artifactSessionBudgetExhausted: budgetExhausted,
+		artifactCapFromSessionBudget,
+		onArtifactFinalized: bytes => {
+			if (effectiveArtifactPath && artifactManager?.recordCapturedArtifact) {
+				artifactManager.recordCapturedArtifact(effectiveArtifactPath, bytes);
+			} else if (bytes > 0) {
+				artifactManager?.recordCapturedBytes(bytes);
+			}
+		},
 		maxColumns: resolveOutputMaxColumns(settings),
 	});
 	try {

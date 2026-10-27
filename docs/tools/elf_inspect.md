@@ -40,6 +40,8 @@
 elf_inspect({ action: "status" })
 ```
 
+确定性的 `missing_module` / `missing_interpreter` 会记录到当前会话的依赖门禁。解释器、环境变量与候选 site-packages 指纹不变时，后续调用直接返回 `blocked_prerequisite`，保留原始 `sourceToolCallId` / `sourceEntryId` 与安装命令，避免反复启动失败探针。并发调用共享一次探测；环境改变或显式 `status` 复查会重新验证。探针启动异常或超时单独返回 `probe_failed`，不会误报为已确认缺包。
+
 ## 调用示例
 
 ### 1. 深度查询构造函数 (`constructors`)
@@ -159,3 +161,4 @@ elf_inspect({
    - SoFixer 严格适用于 Android ARM32 / ARM64 小端共享库，且要求最低 `PT_LOAD` 虚拟基址为 `0x0`（标准 `ET_DYN` 布局）。非 ARM 二进制或非零 PT_LOAD 基址布局将被明确拦截并报错，保留原始转储供其他分析引擎处理。
 4. **有效性诚实汇报**：
    - 重建产物经由 LIEF 校验有效后，才允许向 `output_path` 发布；未通过校验或缺少 LIEF 时明确报告风险，绝不向用户伪造“修复成功”保证。
+   - LIEF 缺失或探针失败时，`repair` / `dump_and_repair` 返回 `isError: true` 与结构化前置失败；已产出的 SoFixer 候选保留在 `candidate` 记录指定路径，标记为未验证。后续相同依赖指纹下的调用在 SoFixer 启动前受门禁阻断，安装依赖后再执行验证。

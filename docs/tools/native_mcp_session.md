@@ -14,6 +14,8 @@
 
 受管 x64dbg/Ghidra 安装在独立 Python 环境中配置依赖（需要 Python >= 3.10）。x64dbg 安装 `x64dbg_automate[mcp]==0.9.2`；GhidraMCP 使用固定 commit 与 SHA-256 校验的官方发布包；radare2 通过 `r2pm -Uci r2mcp` 安装，使用 `r2pm -r r2mcp` 启动。缺失依赖时工具返回明确安装引导，不进行静默后台下载。
 
+Windows 安装会读取 `r2mcp.exe` 与 radare2 DLL 的 PE 导入表，检查 MSVCRT / UCRT 配对。`r2pm` 安装失败或产物 CRT 不匹配时，安装动作使用已检出的 radare2-mcp 源码执行匹配 CRT 的 Meson 构建（UCRT 示例：`meson setup build-ucrt -Dr2_prefix=<RADARE2_PREFIX> -Dbuildtype=release -Dc_args=-mcrtdll=ucrt -Dc_link_args=-mcrtdll=ucrt`，然后 `meson compile -C build-ucrt r2mcp`），部署至 `R2PM_BINDIR`。已有构建目录才使用 `--reconfigure`。配置写入前必须完成真实 MCP `initialize` 与 `tools/list`；启动命令仍为 `r2pm -r r2mcp`。需要 Meson、Ninja 和支持对应 CRT 的 C 编译器。
+
 ## 参数定义
 
 | 参数 | 类型 | 适用动作 | 说明 |

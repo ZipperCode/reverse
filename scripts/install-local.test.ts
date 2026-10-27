@@ -1,3 +1,4 @@
+import type { Subprocess } from "bun";
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -252,6 +253,150 @@ describe("install-local: installation lifecycle", () => {
 		},
 		30_000,
 	);
+
+	test.skipIf(process.platform !== "win32")(
+		"Windows 运行中 reverse.exe 持锁时默认备份与 --no-backup 覆盖安装均成功且保持原进程存活",
+		async () => {
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-install-win-held-"));
+			let heldProc1: Subprocess | undefined;
+			let heldProc2: Subprocess | undefined;
+			try {
+				const sourceV1 = path.join(tempDir, "fixture-v1.ts");
+				const sourceV2 = path.join(tempDir, "fixture-v2.ts");
+				const target = path.join(tempDir, "reverse.exe");
+				const stagedV2 = path.join(tempDir, "reverse-v2.exe");
+				await fs.writeFile(
+					sourceV1,
+					'if (process.argv.includes("--version")) { console.log("reverse/18.11.1"); process.exit(0); }\nconsole.log("READY");\nsetInterval(() => {}, 1000);\n',
+				);
+				await fs.writeFile(
+					sourceV2,
+					'if (process.argv.includes("--version")) { console.log("reverse/18.11.2"); process.exit(0); }\nconsole.log("READY");\nsetInterval(() => {}, 1000);\n',
+				);
+				const build1 = await Bun.build({ entrypoints: [sourceV1], compile: { outfile: target } });
+				const build2 = await Bun.build({ entrypoints: [sourceV2], compile: { outfile: stagedV2 } });
+				if (!build1.success || !build2.success) throw new Error("无法编译 Windows 持锁验证程序");
+
+				// 1. Hold target reverse.exe open in a running subprocess
+				heldProc1 = Bun.spawn([target, "--hold"], { stdout: "pipe", stderr: "pipe" });
+				const reader1 = (heldProc1.stdout as ReadableStream<Uint8Array>).getReader();
+				await reader1.read();
+				reader1.releaseLock();
+				expect(heldProc1.exitCode).toBeNull();
+
+				// Default install with backup while target is held running
+				const withBackup = await runLocalInstall({ binary: stagedV2, binDir: tempDir });
+				expect(withBackup.success).toBe(true);
+				expect(withBackup.version).toBe("18.11.2");
+				expect(withBackup.backupPath).toBeDefined();
+				expect(await fs.exists(withBackup.backupPath!)).toBe(true);
+				expect(heldProc1.exitCode).toBeNull();
+
+				// 2. Hold newly installed reverse.exe open and reinstall with --no-backup
+				heldProc2 = Bun.spawn([target, "--hold"], { stdout: "pipe", stderr: "pipe" });
+				const reader2 = (heldProc2.stdout as ReadableStream<Uint8Array>).getReader();
+				await reader2.read();
+				reader2.releaseLock();
+				expect(heldProc2.exitCode).toBeNull();
+
+				const noBackup = await runLocalInstall({ binary: stagedV2, binDir: tempDir, backup: false });
+				expect(noBackup.success).toBe(true);
+				expect(noBackup.version).toBe("18.11.2");
+				expect(noBackup.backupPath).toBeUndefined();
+				expect(heldProc2.exitCode).toBeNull();
+
+				// 3. Release held process and verify unlocked --no-backup cleans up its .retired.* file
+				heldProc2.kill();
+				await heldProc2.exited;
+				const beforeUnlocked = new Set(await fs.readdir(tempDir));
+				const unlockedNoBackup = await runLocalInstall({ binary: stagedV2, binDir: tempDir, backup: false });
+				expect(unlockedNoBackup.success).toBe(true);
+				const afterUnlocked = await fs.readdir(tempDir);
+				const addedRetired = afterUnlocked.filter(name => name.includes(".retired.") && !beforeUnlocked.has(name));
+				expect(addedRetired).toEqual([]);
+			} finally {
+				for (const proc of [heldProc1, heldProc2]) {
+					if (proc && proc.exitCode === null) {
+						try {
+							proc.kill();
+							await proc.exited;
+						} catch {}
+					}
+				}
+				await fs.rm(tempDir, { recursive: true, force: true });
+			}
+		},
+		60_000,
+	);
+
+	test("preserves target binary on same-source reinstall and honors --no-backup without leaving staging files", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-install-same-source-"));
+		const targetBinary = path.join(tempDir, "reverse");
+
+		try {
+			const scriptContent = "#!/bin/sh\necho 'reverse/18.11.2'\n";
+			await Bun.write(targetBinary, scriptContent);
+			await fs.chmod(targetBinary, 0o755);
+
+			// Same-source + same-target with backup enabled
+			const withBackup = await runLocalInstall({
+				binary: targetBinary,
+				binDir: tempDir,
+				platform: "darwin",
+			});
+			expect(withBackup.success).toBe(true);
+			expect(withBackup.backupPath).toBeDefined();
+			expect(await Bun.file(targetBinary).text()).toBe(scriptContent);
+			expect(await Bun.file(withBackup.backupPath!).text()).toBe(scriptContent);
+
+			// Same-source + same-target with --no-backup
+			const noBackup = await runLocalInstall({
+				binary: targetBinary,
+				binDir: tempDir,
+				backup: false,
+				platform: "darwin",
+			});
+			expect(noBackup.success).toBe(true);
+			expect(noBackup.backupPath).toBeUndefined();
+			expect(await Bun.file(targetBinary).text()).toBe(scriptContent);
+			const entries = await fs.readdir(tempDir);
+			expect(entries.some(name => name.includes(".tmp."))).toBe(false);
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test("restores previous target binary when in-place verification fails after replacement", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-install-inplace-rollback-"));
+		const sourceBinary = path.join(tempDir, "source-reverse");
+		const destDir = path.join(tempDir, "bin");
+		const targetBinary = path.join(destDir, "reverse");
+
+		try {
+			await fs.mkdir(destDir, { recursive: true });
+			const originalScript = "#!/bin/sh\necho 'reverse/18.11.1'\n";
+			await Bun.write(targetBinary, originalScript);
+			await fs.chmod(targetBinary, 0o755);
+
+			// Script passes when executed from sourceBinary path, fails when executed from targetBinary path
+			const locationSensitiveScript =
+				"#!/bin/sh\ncase \"$0\" in\n  *source-reverse) echo 'reverse/18.11.2'; exit 0 ;;\n  *) echo 'corrupted in target' >&2; exit 1 ;;\nesac\n";
+			await Bun.write(sourceBinary, locationSensitiveScript);
+			await fs.chmod(sourceBinary, 0o755);
+
+			const result = await runLocalInstall({
+				binary: sourceBinary,
+				binDir: destDir,
+				platform: "darwin",
+			});
+			expect(result.success).toBe(false);
+			expect(result.message).toContain("failed in-place verification");
+			expect(result.message).toContain("Restored previous binary");
+			expect(await Bun.file(targetBinary).text()).toBe(originalScript);
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
 
 	test("refuses to uninstall an unverified binary unless force is set", async () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-install-uninstall-"));

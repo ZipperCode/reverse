@@ -47,6 +47,14 @@
 
 ### Fixed
 
+- Bound todo completion to immutable tool/action/target requirements and journal-backed execution evidence; preserved unresolved failures, fallback originals, blocked HUD rows, and separate dropped counts across native, bridged, Cursor, RPC, and user-edit paths (#21).
+- Prevented pure-shell no-op spawning and unchanged running-agent progress polling while caller-owned async work is pending; repeated no-progress observations request the existing `wait` tool choice without inventing execution failures (#16).
+- Added session-scoped, fingerprinted LIEF prerequisite blocking with concurrent probe coalescing and journal provenance; distinguished confirmed missing dependencies from probe startup errors/timeouts (#17).
+- Separated retained eval process liveness from observed Python namespace bindings, exposed missing-name recovery metadata, and kept the process-wide Python bridge from pinning a disposed standalone host (#19).
+- Enforced exact capture artifact caps including loss notices, shared session reservations, and explicit budget exhaustion; added bounded JSONL metrics and five-axis baseline comparison with fixture/model provenance (#20).
+- Distinguished cross-file hash tags from unknown snapshots and exposed structured edit rejection counters without weakening unseen-line protection (#18).
+- Added Windows radare2 MCP CRT inspection and matching Meson rebuild fallback, with actual MCP initialize/tools-list required before configuration persistence; native Windows deployment remains separately verifiable (#4).
+- Corrected the root scripts' no-emit TypeScript configuration so imported workspace sources are checked without composite-project file-list errors; strict checking remains enabled.
 - Fixed cached and restricted-folder approval coverage for mixed URL/file reads, selector-shaped literal grep targets, archive members, and bounded multisegment globs.
 - Preserved OAuth discovery endpoints while redacting credential values, retained bounded stderr on subprocess send failures, and kept session-owned MCP tool internals out of metadata enumeration.
 - Fixed localized submit-button role queries and restored standalone HTML eval Markdown views without loading the removed hosted collaboration application.

@@ -18,9 +18,13 @@ import { isCmdShell, isExecutable, type ShellConfig } from "@reverse/utils/procm
 import { Settings } from "../config/settings";
 import { type OutputArtifactError, OutputSink, type OutputSummary } from "@reverse/tui/tools/streaming-output";
 import {
+	type CaptureBudgetTracker,
+	isArtifactSessionBudgetExhausted,
+	resolveArtifactSessionMaxBytes,
 	resolveOutputMaxColumns,
 	resolveOutputSinkArtifactMaxBytes,
 	resolveOutputSinkHeadBytes,
+	resolveOutputSinkSpillThreshold,
 } from "../tools/output-meta";
 import { quotePosixArgv } from "../utils/shell-quote";
 import { getOrCreateSnapshot } from "../utils/shell-snapshot";
@@ -90,9 +94,13 @@ export interface BashExecutorOptions {
 	 * so the persistent shell it used is dropped instead of kept for a next call.
 	 */
 	isSessionCurrent?: () => boolean;
+	/** Session settings override (defaults to `Settings.init()`). */
+	settings?: Settings;
 	/** Artifact path/id for full output storage */
 	artifactPath?: string;
 	artifactId?: string;
+	/** Session-scoped artifact manager for cumulative capture-log budgeting. */
+	artifactManager?: CaptureBudgetTracker | null;
 	/**
 	 * Invoked when the native minimizer rewrote the command's output, giving
 	 * the caller a chance to persist the lossless original capture (typically
@@ -126,8 +134,11 @@ export interface BashResult {
 	outputLines: number;
 	outputBytes: number;
 	artifactId?: string;
+	artifactBytes?: number;
 	/** Bytes the artifact cap dropped from the saved file's middle (the artifact is a head/tail sample). */
 	artifactElidedBytes?: number;
+	artifactMaxBytes?: number;
+	artifactBudgetExhausted?: boolean;
 	artifactError?: OutputArtifactError;
 	workingDir?: string;
 	/** Terminal graphics extracted from raw stdout before sanitization or truncation. */
@@ -539,7 +550,7 @@ async function executeUserShellPty(run: {
 }
 
 export async function executeBash(command: string, options?: BashExecutorOptions): Promise<BashResult> {
-	const settings = await Settings.init();
+	const settings = options?.settings ?? (await Settings.init());
 	const baseShellConfig = settings.getShellConfig();
 	const shellConfig =
 		options?.useUserShell === true ? resolveUserShellConfig(settings, baseShellConfig) : baseShellConfig;
@@ -596,6 +607,19 @@ export async function executeBash(command: string, options?: BashExecutorOptions
 	const graphics = new TerminalGraphicsDecoder();
 	const onChunk = usePty ? undefined : options?.onChunk;
 	const onPreview = usePty ? undefined : options?.onPreview;
+	const artifactManager = options?.artifactManager ?? null;
+	const budgetExhausted = isArtifactSessionBudgetExhausted(settings, artifactManager);
+	const perCallArtifactMaxBytes = resolveOutputSinkArtifactMaxBytes(settings);
+	const effectiveArtifactMaxBytes = resolveOutputSinkArtifactMaxBytes(settings, artifactManager);
+	const sessionMaxBytes = resolveArtifactSessionMaxBytes(settings);
+	const remainingSessionBytes = artifactManager?.getRemainingCaptureBudgetBytes(sessionMaxBytes);
+	const artifactCapFromSessionBudget =
+		remainingSessionBytes !== undefined &&
+		(perCallArtifactMaxBytes === 0 || remainingSessionBytes < perCallArtifactMaxBytes);
+	const effectiveArtifactPath = budgetExhausted ? undefined : options?.artifactPath;
+	if (effectiveArtifactPath && artifactManager?.reserveCaptureBytes && effectiveArtifactMaxBytes > 0) {
+		artifactManager.reserveCaptureBytes(effectiveArtifactPath, effectiveArtifactMaxBytes);
+	}
 	const sink: OutputSink = new OutputSink({
 		onChunk:
 			onChunk || onPreview
@@ -604,10 +628,20 @@ export async function executeBash(command: string, options?: BashExecutorOptions
 						onPreview?.(sink.preview());
 					}
 				: undefined,
-		artifactPath: options?.artifactPath,
-		artifactId: options?.artifactId,
+		artifactPath: effectiveArtifactPath,
+		artifactId: budgetExhausted ? undefined : options?.artifactId,
+		spillThreshold: resolveOutputSinkSpillThreshold(options?.settings),
 		headBytes: resolveOutputSinkHeadBytes(settings),
-		artifactMaxBytes: resolveOutputSinkArtifactMaxBytes(settings),
+		artifactMaxBytes: effectiveArtifactMaxBytes,
+		artifactSessionBudgetExhausted: budgetExhausted,
+		artifactCapFromSessionBudget,
+		onArtifactFinalized: bytes => {
+			if (effectiveArtifactPath && artifactManager?.recordCapturedArtifact) {
+				artifactManager.recordCapturedArtifact(effectiveArtifactPath, bytes);
+			} else if (bytes > 0) {
+				artifactManager?.recordCapturedBytes(bytes);
+			}
+		},
 		maxColumns: resolveOutputMaxColumns(settings),
 		chunkThrottleMs: onChunk || onPreview ? (options?.chunkThrottleMs ?? 50) : 0,
 	});

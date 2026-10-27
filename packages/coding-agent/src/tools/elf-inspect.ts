@@ -16,12 +16,24 @@ import { type } from "@reverse/reversetype";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { prompt } from "@reverse/utils";
 import elfInspectDescription from "../prompts/tools/elf-inspect.md" with { type: "text" };
-import { resolveLiefPython } from "../extensibility/lief-install";
+import {
+	computeLiefReadinessFingerprint,
+	type LiefDetailedProbeResult,
+	type LiefProbeResult,
+	type LiefRequirementDeps,
+	resolveLiefPythonDetailed,
+} from "../extensibility/lief-install";
 import { normalizeSoFixerArch, resolveSoFixer } from "../extensibility/sofixer-toolchain";
+import {
+	type DependencyGate,
+	type DeterministicPrerequisiteBlock,
+	getSessionDependencyGate,
+	type PrerequisiteFailureKind,
+} from "../session/dependency-gate";
 import { appendArtifactReference, saveArtifactText } from "./gh-common";
 import type { ToolSession } from "./index";
 import { resolveReadPath, resolveToCwd } from "./path-utils";
-import { runReversePython } from "./reverse-python";
+import { type ReversePythonOptions, type ReversePythonResult, runReversePython } from "./reverse-python";
 import { throwIfAborted } from "./tool-errors";
 import { getFileMetadata, runSafeSubprocess, safePublishArtifact } from "./vmp-common";
 import { executeModuleDump, type MemoryRangeInfo, type UnmappedGapInfo } from "./elf-dump-helper";
@@ -120,11 +132,15 @@ export interface DumpManifest {
 
 export interface ElfStatusDetails {
 	action: "status";
+	ready: boolean;
 	lief: {
 		available: boolean;
+		status?: "available" | "missing_module" | "missing_interpreter" | "probe_failed";
 		pythonBin: string | null;
 		version: string | null;
 		modulePath?: string | null;
+		probeError?: string;
+		readinessFingerprint?: string;
 		installHint: string;
 	};
 	sofixer: {
@@ -144,6 +160,54 @@ export interface ElfQueryDetails {
 	fileSize: number;
 	data: unknown;
 	artifactId?: string;
+}
+
+/** SoFixer output preserved when LIEF structural validation cannot run. */
+export interface ElfRepairCandidatePreservation {
+	dumpPath: string;
+	baseAddress: string;
+	arch: "32" | "64";
+	sofixerPath: string;
+	candidatePath: string;
+	candidateSha256: string;
+	candidateBytes: number;
+	manifestVerified: boolean;
+}
+
+export interface ElfPrerequisiteBlockedDetails {
+	action: "query" | "dump" | "repair" | "dump_and_repair";
+	isError: true;
+	status: "blocked_prerequisite";
+	deterministicFailure: true;
+	missingDependency: "lief";
+	failureKind: PrerequisiteFailureKind;
+	setupCommand: "reverse setup reverse lief";
+	blockedByGate: boolean;
+	sourceToolCallId: string;
+	sourceEntryId?: string;
+	readinessFingerprint: string;
+	attemptCount: number;
+	reason: string;
+	path?: string;
+	queryType?: string;
+	/** Preserved SoFixer candidate; never reported as a successful repair. */
+	candidate?: ElfRepairCandidatePreservation;
+	dump?: ElfDumpDetails;
+	prerequisiteBlock: DeterministicPrerequisiteBlock;
+}
+
+export interface ElfProbeFailedDetails {
+	action: "query" | "repair" | "dump_and_repair";
+	isError: true;
+	status: "probe_failed";
+	deterministicFailure: false;
+	probeError: string;
+	readinessFingerprint: string;
+	path?: string;
+	queryType?: string;
+	/** Preserved SoFixer candidate; never reported as a successful repair. */
+	candidate?: ElfRepairCandidatePreservation;
+	dump?: ElfDumpDetails;
 }
 
 export interface ElfDumpDetails {
@@ -194,9 +258,35 @@ export interface ElfDumpAndRepairDetails {
 export type ElfInspectDetails =
 	| ElfStatusDetails
 	| ElfQueryDetails
+	| ElfPrerequisiteBlockedDetails
+	| ElfProbeFailedDetails
 	| ElfDumpDetails
 	| ElfRepairDetails
 	| ElfDumpAndRepairDetails;
+
+export interface ElfWorkerPayload {
+	status: string;
+	result?: unknown;
+	error?: string;
+}
+
+export interface ElfInspectToolDeps {
+	liefOptions?: LiefRequirementDeps;
+	resolveLiefDetailed?: (options?: LiefRequirementDeps) => LiefDetailedProbeResult | Promise<LiefDetailedProbeResult>;
+	computeFingerprint?: (options?: LiefRequirementDeps) => string;
+	runWorker?: (options: ReversePythonOptions) => Promise<ReversePythonResult<ElfWorkerPayload>>;
+	gate?: DependencyGate;
+}
+
+function isPrerequisiteFailureDetails(
+	details: ElfRepairDetails | ElfPrerequisiteBlockedDetails | ElfProbeFailedDetails,
+): details is ElfPrerequisiteBlockedDetails | ElfProbeFailedDetails {
+	return "status" in details;
+}
+
+const LIEF_SETUP_COMMAND = "reverse setup reverse lief" as const;
+const LIEF_UNAVAILABLE_BASE_MESSAGE =
+	"LIEF Python library is not available. Deep ELF inspection requires LIEF. Run 'reverse setup reverse lief' to install.";
 
 // ============================================================================
 // Tool Implementation
@@ -208,6 +298,7 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 	readonly parameters = elfInspectSchema;
 	readonly description: string;
 	readonly tier: ToolTier = "read";
+	readonly #gate: DependencyGate;
 
 	readonly approval = (args: unknown): ToolTier => {
 		if (args && typeof args === "object" && "action" in args) {
@@ -220,12 +311,152 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 		return "exec";
 	};
 
-	constructor(private readonly session: ToolSession) {
+	constructor(
+		private readonly session: ToolSession,
+		private readonly deps?: ElfInspectToolDeps,
+	) {
 		this.description = prompt.render(elfInspectDescription);
+		this.#gate = deps?.gate ?? getSessionDependencyGate(session);
+		this.session.registerSessionChangeCallback?.(() => {
+			this.#gate.reset();
+		});
+	}
+
+	#getLiefOptions(): LiefRequirementDeps {
+		return {
+			cwd: this.session.cwd,
+			...this.deps?.liefOptions,
+		};
+	}
+
+	#computeLiefFingerprint(): string {
+		const opts = this.#getLiefOptions();
+		return this.deps?.computeFingerprint ? this.deps.computeFingerprint(opts) : computeLiefReadinessFingerprint(opts);
+	}
+
+	async #resolveLiefDetailed(): Promise<LiefDetailedProbeResult> {
+		const opts = this.#getLiefOptions();
+		return this.deps?.resolveLiefDetailed
+			? await this.deps.resolveLiefDetailed(opts)
+			: resolveLiefPythonDetailed(opts);
+	}
+
+	/**
+	 * Build the blocked-prerequisite result shared by query/repair surfaces so the
+	 * structured record (never a successful repair) is identical on every path.
+	 */
+	#buildBlockedFailure(
+		action: "query" | "repair",
+		block: DeterministicPrerequisiteBlock,
+		extra: { path?: string; queryType?: string; candidate?: ElfRepairCandidatePreservation },
+	): AgentToolResult<ElfPrerequisiteBlockedDetails> & { details: ElfPrerequisiteBlockedDetails } {
+		const provenanceSuffix = block.blockedByGate
+			? ` [Blocked by session prerequisite gate: attempt #${block.attemptCount}, first recorded at call ${block.sourceToolCallId}${block.sourceEntryId ? ` (entry ${block.sourceEntryId})` : ""}; do not retry until '${block.setupCommand}' completes or status readiness changes.]`
+			: "";
+		const candidateSuffix = extra.candidate
+			? ` SoFixer candidate preserved at '${extra.candidate.candidatePath}' — it is UNVALIDATED and is not a successful repair; re-run after LIEF is available to validate it.`
+			: "";
+		const details: ElfPrerequisiteBlockedDetails = {
+			action,
+			isError: true,
+			status: "blocked_prerequisite",
+			deterministicFailure: true,
+			missingDependency: "lief",
+			failureKind: block.failureKind,
+			setupCommand: LIEF_SETUP_COMMAND,
+			blockedByGate: block.blockedByGate,
+			sourceToolCallId: block.sourceToolCallId,
+			sourceEntryId: block.sourceEntryId,
+			readinessFingerprint: block.readinessFingerprint,
+			attemptCount: block.attemptCount,
+			reason: block.reason,
+			path: extra.path,
+			queryType: extra.queryType,
+			candidate: extra.candidate,
+			prerequisiteBlock: block,
+		};
+		return {
+			content: [{ type: "text", text: `${LIEF_UNAVAILABLE_BASE_MESSAGE}${candidateSuffix}${provenanceSuffix}` }],
+			details,
+			isError: true,
+		};
+	}
+
+	#buildProbeFailedFailure(
+		action: "query" | "repair",
+		probeError: string,
+		fingerprint: string,
+		extra: { path?: string; queryType?: string; candidate?: ElfRepairCandidatePreservation },
+	): AgentToolResult<ElfProbeFailedDetails> & { details: ElfProbeFailedDetails } {
+		const candidateSuffix = extra.candidate
+			? ` SoFixer candidate preserved at '${extra.candidate.candidatePath}' — unvalidated and not a successful repair.`
+			: "";
+		const probeText = `LIEF environment probe failed to execute (${probeError}). This indicates an interpreter or subprocess runner failure rather than a confirmed missing LIEF package. Re-run 'elf_inspect' with action 'status' or inspect the Python runtime environment before attempting installation.${candidateSuffix}`;
+		const details: ElfProbeFailedDetails = {
+			action,
+			isError: true,
+			status: "probe_failed",
+			deterministicFailure: false,
+			probeError,
+			readinessFingerprint: fingerprint,
+			path: extra.path,
+			queryType: extra.queryType,
+			candidate: extra.candidate,
+		};
+		return {
+			content: [{ type: "text", text: probeText }],
+			details,
+			isError: true,
+		};
+	}
+
+	async #acquireLiefForAction(
+		action: "query" | "repair",
+		toolCallId: string,
+	): Promise<
+		| { status: "available"; value: LiefProbeResult }
+		| { status: "blocked"; block: DeterministicPrerequisiteBlock }
+		| { status: "probe_failed"; error: string; fingerprint: string }
+	> {
+		return this.#gate.acquireOrProbe<LiefProbeResult>({
+			toolName: this.name,
+			action,
+			missingDependency: "lief",
+			setupCommand: LIEF_SETUP_COMMAND,
+			toolCallId,
+			getReadinessFingerprint: () => this.#computeLiefFingerprint(),
+			runProbe: async () => {
+				const detailed = await this.#resolveLiefDetailed();
+				if (detailed.status === "available" && detailed.pythonBin) {
+					return {
+						status: "available",
+						value: {
+							pythonBin: detailed.pythonBin,
+							version: detailed.version ?? "1.0.0",
+							modulePath: detailed.modulePath ?? "",
+						},
+						fingerprint: detailed.readinessFingerprint,
+					};
+				}
+				if (detailed.status === "probe_failed") {
+					return {
+						status: "probe_failed",
+						error: detailed.error ?? "LIEF subprocess probe failed",
+						fingerprint: detailed.readinessFingerprint,
+					};
+				}
+				return {
+					status: "deterministic_missing",
+					failureKind: detailed.status === "missing_interpreter" ? "missing_interpreter" : "missing_module",
+					reason: LIEF_UNAVAILABLE_BASE_MESSAGE,
+					fingerprint: detailed.readinessFingerprint,
+				};
+			},
+		});
 	}
 
 	async execute(
-		_toolCallId: string,
+		toolCallId: string,
 		params: ElfInspectParams,
 		signal?: AbortSignal,
 		_updateCallback?: AgentToolUpdateCallback,
@@ -244,13 +475,13 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 			case "status":
 				return this.handleStatus(signal);
 			case "query":
-				return this.handleQuery(params, signal);
+				return this.handleQuery(toolCallId, params, signal);
 			case "dump":
 				return this.handleDump(params, signal);
 			case "repair":
-				return this.handleRepair(params, signal);
+				return this.handleRepair(toolCallId, params, signal);
 			case "dump_and_repair":
-				return this.handleDumpAndRepair(params, signal);
+				return this.handleDumpAndRepair(toolCallId, params, signal);
 			default:
 				throw new ToolError(`Unsupported action: ${String(params.action)}`);
 		}
@@ -265,18 +496,29 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 	): Promise<AgentToolResult<ElfStatusDetails> & { details: ElfStatusDetails }> {
 		throwIfAborted(signal);
 
-		const liefRes = resolveLiefPython({ cwd: this.session.cwd });
+		// 显式 status 探测始终直接执行实时探针，并在探测通过后解除会话级前置依赖门禁
+		const liefDetailed = await this.#resolveLiefDetailed();
+		if (liefDetailed.available) {
+			this.#gate.clearDependency("lief");
+		}
 		const sofixer32 = resolveSoFixer({ arch: "32", cwd: this.session.cwd });
 		const sofixer64 = resolveSoFixer({ arch: "64", cwd: this.session.cwd });
 
 		const details: ElfStatusDetails = {
 			action: "status",
+			ready: liefDetailed.available,
 			lief: {
-				available: liefRes !== null,
-				pythonBin: liefRes?.pythonBin ?? null,
-				version: liefRes?.version ?? null,
-				modulePath: liefRes?.modulePath ?? null,
-				installHint: "Run 'reverse setup reverse lief' to install LIEF in a managed Python environment.",
+				available: liefDetailed.available,
+				status: liefDetailed.status,
+				pythonBin: liefDetailed.pythonBin,
+				version: liefDetailed.version,
+				modulePath: liefDetailed.modulePath,
+				...(liefDetailed.status === "probe_failed" && liefDetailed.error ? { probeError: liefDetailed.error } : {}),
+				readinessFingerprint: liefDetailed.readinessFingerprint,
+				installHint:
+					liefDetailed.status === "probe_failed"
+						? `LIEF probe failed to execute (${liefDetailed.error ?? "runner error"}). Verify Python interpreter execution or environment before installing.`
+						: "Run 'reverse setup reverse lief' to install LIEF in a managed Python environment.",
 			},
 			sofixer: {
 				available: sofixer32 !== null || sofixer64 !== null,
@@ -288,12 +530,20 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 			},
 		};
 
+		const liefStatusLabel = details.lief.available
+			? "AVAILABLE"
+			: details.lief.status === "probe_failed"
+				? "NOT AVAILABLE (PROBE FAILED)"
+				: "NOT AVAILABLE";
+
 		const textLines = [
 			"ELF Engine Environment Status:",
-			`• LIEF (Deep ELF Analysis): ${details.lief.available ? "AVAILABLE" : "NOT AVAILABLE"}`,
+			`• LIEF (Deep ELF Analysis): ${liefStatusLabel}`,
 			details.lief.available
 				? `  - Interpreter: ${details.lief.pythonBin}\n  - Version: ${details.lief.version}`
-				: `  - Hint: ${details.lief.installHint}`,
+				: details.lief.status === "probe_failed"
+					? `  - Probe Error: ${details.lief.probeError}\n  - Hint: ${details.lief.installHint}`
+					: `  - Hint: ${details.lief.installHint}`,
 			`• SoFixer (ELF Memory Dump Repair): ${details.sofixer.available ? "AVAILABLE" : "NOT AVAILABLE"}`,
 			`  - 64-bit ARM64 (aarch64): ${details.sofixer.binaries.arch64 ?? "Missing"}`,
 			`  - 32-bit ARM32 (armv7/armeabi): ${details.sofixer.binaries.arch32 ?? "Missing"}`,
@@ -313,9 +563,14 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 	// --------------------------------------------------------------------------
 
 	private async handleQuery(
+		toolCallId: string,
 		params: ElfInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<ElfQueryDetails> & { details: ElfQueryDetails }> {
+	): Promise<
+		AgentToolResult<ElfQueryDetails | ElfPrerequisiteBlockedDetails | ElfProbeFailedDetails> & {
+			details: ElfQueryDetails | ElfPrerequisiteBlockedDetails | ElfProbeFailedDetails;
+		}
+	> {
 		throwIfAborted(signal);
 
 		if (!params.path) {
@@ -346,38 +601,63 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 			throw new ToolError(`Address number ${params.address} is not a safe integer. Please provide a hex string.`);
 		}
 
-		const liefRes = resolveLiefPython({ cwd: this.session.cwd });
-		if (!liefRes) {
-			throw new ToolError(
-				"LIEF Python library is not available. Deep ELF inspection requires LIEF. Run 'reverse setup reverse lief' to install.",
-			);
+		const queryType = params.query_type ?? "info";
+		const liefGateOutcome = await this.#acquireLiefForAction("query", toolCallId);
+		if (liefGateOutcome.status === "blocked") {
+			return this.#buildBlockedFailure("query", liefGateOutcome.block, { path: resolvedPath, queryType });
 		}
 
-		const queryType = params.query_type ?? "info";
+		if (liefGateOutcome.status === "probe_failed") {
+			return this.#buildProbeFailedFailure("query", liefGateOutcome.error, liefGateOutcome.fingerprint, {
+				path: resolvedPath,
+				queryType,
+			});
+		}
+
+		const liefRes = liefGateOutcome.value;
 		const boundedLimit = Math.min(Math.max(params.limit ?? 50, 1), 500);
 		const boundedTimeout = Math.min(Math.max(params.timeout ?? 60, 1), 300);
-
-		const pyRes = await runReversePython<{ status: string; result?: unknown; error?: string }>({
-			cwd: this.session.cwd,
-			sources: {
-				"elf-inspect-worker.py": elfInspectWorkerSource,
-			},
-			entry: "elf-inspect-worker.py",
-			request: {
-				action: "query",
-				path: resolvedPath,
-				query_type: queryType,
-				filter: params.filter,
-				limit: boundedLimit,
-				offset: params.offset ?? 0,
-				address: params.address,
-				file_offset: params.file_offset,
-			},
-			pythonPath: liefRes.pythonBin,
-			requiredPackage: "lief",
-			signal,
-			timeoutMs: boundedTimeout * 1000,
-		});
+		const pyRes = this.deps?.runWorker
+			? await this.deps.runWorker({
+					cwd: this.session.cwd,
+					sources: {
+						"elf-inspect-worker.py": elfInspectWorkerSource,
+					},
+					entry: "elf-inspect-worker.py",
+					request: {
+						action: "query",
+						path: resolvedPath,
+						query_type: queryType,
+						filter: params.filter,
+						limit: boundedLimit,
+						offset: params.offset ?? 0,
+						address: params.address,
+						file_offset: params.file_offset,
+					},
+					pythonPath: liefRes.pythonBin,
+					signal,
+					timeoutMs: boundedTimeout * 1000,
+				})
+			: await runReversePython<ElfWorkerPayload>({
+					cwd: this.session.cwd,
+					sources: {
+						"elf-inspect-worker.py": elfInspectWorkerSource,
+					},
+					entry: "elf-inspect-worker.py",
+					request: {
+						action: "query",
+						path: resolvedPath,
+						query_type: queryType,
+						filter: params.filter,
+						limit: boundedLimit,
+						offset: params.offset ?? 0,
+						address: params.address,
+						file_offset: params.file_offset,
+					},
+					pythonPath: liefRes.pythonBin,
+					signal,
+					timeoutMs: boundedTimeout * 1000,
+				});
 
 		if (pyRes.status === "missing_dependency") {
 			throw new ToolError(`LIEF execution missing dependency: ${pyRes.error}`);
@@ -546,9 +826,14 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 	// --------------------------------------------------------------------------
 
 	private async handleRepair(
+		toolCallId: string,
 		params: ElfInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<ElfRepairDetails> & { details: ElfRepairDetails }> {
+	): Promise<
+		AgentToolResult<ElfRepairDetails | ElfPrerequisiteBlockedDetails | ElfProbeFailedDetails> & {
+			details: ElfRepairDetails | ElfPrerequisiteBlockedDetails | ElfProbeFailedDetails;
+		}
+	> {
 		throwIfAborted(signal);
 
 		if (!params.dump_path) {
@@ -664,6 +949,17 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 			);
 		}
 
+		// 已登记的确定性缺失前提：直接返回阻塞，不重复执行 SoFixer 后端
+		const knownBlock = this.#gate.blockIfKnown({
+			toolName: this.name,
+			action: "repair",
+			missingDependency: "lief",
+			getReadinessFingerprint: () => this.#computeLiefFingerprint(),
+		});
+		if (knownBlock) {
+			return this.#buildBlockedFailure("repair", knownBlock, { path: resolvedDumpPath });
+		}
+
 		// Allocate private temporary directory with secure mkdtemp to prevent symlink/collision attacks
 		const tempCandidateDir = await fs.mkdtemp(path.join(os.tmpdir(), "reverse-sofixer-"));
 		const tempCandidatePath = path.join(tempCandidateDir, `fixed-${path.basename(resolvedDumpPath)}`);
@@ -712,7 +1008,31 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 		}
 
 		// Structural validation of candidate via LIEF (defaults to false until validated)
-		const liefRes = resolveLiefPython({ cwd: this.session.cwd });
+		const liefGateOutcome = await this.#acquireLiefForAction("repair", toolCallId);
+		// 已生成的 SoFixer 候选先保留并在结构化失败中显式暴露，绝不作为成功修复返回
+		const preservation: ElfRepairCandidatePreservation = {
+			dumpPath: resolvedDumpPath,
+			baseAddress: baseAddrStr,
+			arch: detectedArch,
+			sofixerPath: sofixer.path,
+			candidatePath: tempCandidatePath,
+			candidateSha256: candidateMeta.sha256,
+			candidateBytes: candidateMeta.bytes,
+			manifestVerified,
+		};
+		if (liefGateOutcome.status === "blocked") {
+			return this.#buildBlockedFailure("repair", liefGateOutcome.block, {
+				path: resolvedDumpPath,
+				candidate: preservation,
+			});
+		}
+		if (liefGateOutcome.status === "probe_failed") {
+			return this.#buildProbeFailedFailure("repair", liefGateOutcome.error, liefGateOutcome.fingerprint, {
+				path: resolvedDumpPath,
+				candidate: preservation,
+			});
+		}
+		const liefRes = liefGateOutcome.value;
 		let validationResult: {
 			candidate_valid: boolean;
 			is_analyzable: boolean;
@@ -725,30 +1045,42 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 			is_analyzable: false,
 			is_runnable: false,
 			analyzable_notice: "Unvalidated candidate. LIEF structural validation was unavailable or failed to execute.",
-			risks: liefRes
-				? ["LIEF structural validation failed to execute"]
-				: ["LIEF library not available to structurally validate candidate"],
+			risks: ["LIEF structural validation failed to execute"],
 		};
 
 		if (liefRes) {
-			const valPy = await runReversePython<{ status: string; result?: typeof validationResult; error?: string }>({
-				cwd: this.session.cwd,
-				sources: {
-					"elf-inspect-worker.py": elfInspectWorkerSource,
-				},
-				entry: "elf-inspect-worker.py",
-				request: {
-					action: "validate",
-					path: tempCandidatePath,
-				},
-				pythonPath: liefRes.pythonBin,
-				requiredPackage: "lief",
-				signal,
-				timeoutMs: 30000,
-			});
+			const valPy = this.deps?.runWorker
+				? await this.deps.runWorker({
+						cwd: this.session.cwd,
+						sources: {
+							"elf-inspect-worker.py": elfInspectWorkerSource,
+						},
+						entry: "elf-inspect-worker.py",
+						request: {
+							action: "validate",
+							path: tempCandidatePath,
+						},
+						pythonPath: liefRes.pythonBin,
+						signal,
+						timeoutMs: 30000,
+					})
+				: await runReversePython<ElfWorkerPayload>({
+						cwd: this.session.cwd,
+						sources: {
+							"elf-inspect-worker.py": elfInspectWorkerSource,
+						},
+						entry: "elf-inspect-worker.py",
+						request: {
+							action: "validate",
+							path: tempCandidatePath,
+						},
+						pythonPath: liefRes.pythonBin,
+						signal,
+						timeoutMs: 30000,
+					});
 
 			if (valPy.status === "ok" && valPy.result?.status === "ok" && valPy.result.result) {
-				validationResult = valPy.result.result;
+				validationResult = valPy.result.result as typeof validationResult;
 			} else {
 				validationResult.risks.push(valPy.error || valPy.stderr || "Worker validation error");
 			}
@@ -818,9 +1150,14 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 	// --------------------------------------------------------------------------
 
 	private async handleDumpAndRepair(
+		toolCallId: string,
 		params: ElfInspectParams,
 		signal?: AbortSignal,
-	): Promise<AgentToolResult<ElfDumpAndRepairDetails> & { details: ElfDumpAndRepairDetails }> {
+	): Promise<
+		AgentToolResult<ElfDumpAndRepairDetails | ElfPrerequisiteBlockedDetails | ElfProbeFailedDetails> & {
+			details: ElfDumpAndRepairDetails | ElfPrerequisiteBlockedDetails | ElfProbeFailedDetails;
+		}
+	> {
 		throwIfAborted(signal);
 
 		// Step 1: Dump (reserve output_path exclusively for final repaired candidate)
@@ -828,6 +1165,7 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 
 		// Step 2: Repair using the dumped artifact and its companion manifest
 		const repairRes = await this.handleRepair(
+			toolCallId,
 			{
 				...params,
 				action: "repair",
@@ -839,17 +1177,37 @@ export class ElfInspectTool implements AgentTool<typeof elfInspectSchema, ElfIns
 			signal,
 		);
 
+		const dumpText = dumpRes.content[0]?.type === "text" ? dumpRes.content[0].text : "";
+		const repairText = repairRes.content[0]?.type === "text" ? repairRes.content[0].text : "";
+
+		// 修复阶段的前置依赖失败必须原样上抛，不能折叠为成功的 dump_and_repair
+		const repairDetailsOrFailure = repairRes.details;
+		if (isPrerequisiteFailureDetails(repairDetailsOrFailure)) {
+			const details: ElfPrerequisiteBlockedDetails | ElfProbeFailedDetails = {
+				...repairDetailsOrFailure,
+				action: "dump_and_repair",
+				dump: dumpRes.details,
+			};
+			return {
+				content: [
+					{
+						type: "text",
+						text: [dumpText, "\n" + "=".repeat(60) + "\n", repairText].join("\n"),
+					},
+				],
+				details,
+				isError: true,
+			};
+		}
+		const repairDetails = repairDetailsOrFailure;
+
 		const details: ElfDumpAndRepairDetails = {
 			action: "dump_and_repair",
 			dump: dumpRes.details,
-			repair: repairRes.details,
+			repair: repairDetails,
 		};
 
-		const text = [
-			dumpRes.content[0]?.type === "text" ? dumpRes.content[0].text : "",
-			"\n" + "=".repeat(60) + "\n",
-			repairRes.content[0]?.type === "text" ? repairRes.content[0].text : "",
-		].join("\n");
+		const text = [dumpText, "\n" + "=".repeat(60) + "\n", repairText].join("\n");
 
 		return {
 			content: [{ type: "text", text }],

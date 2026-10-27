@@ -6,7 +6,7 @@ use pi_edit::modes::hashline::{
 		format_replace_header, split_addressable_file_lines,
 	},
 	input::{Patch, SplitOptions, contains_recognizable_hashline_operations},
-	mismatch::{MismatchDetails, format_mismatch_message},
+	mismatch::{MismatchDetails, format_mismatch_message, mismatch_error},
 	parser::{AbsoluteRangeOp, ParseFailure, parse_patch, parse_patch_streaming},
 	prefixes::{
 		hashline_parse_text, is_read_metadata_line, is_read_truncation_notice,
@@ -767,16 +767,16 @@ fn mismatch_messages_distinguish_stale_and_unrecognized_hashes() {
 		hash_recognized:    true,
 		tag_origin_paths:   Vec::new(),
 	};
+	assert_eq!(mismatch_error(&stale).kind(), "stale_tag");
 	let message = format_mismatch_message(&stale);
-	assert!(message.contains("Edit rejected for a.ts: file changed between read and edit."));
+	assert!(message.contains("#3C4D"));
 	assert!(message.contains("*2:two"));
+
 	let unknown = MismatchDetails { hash_recognized: false, ..stale };
-	let message = format_mismatch_message(&unknown);
-	assert!(message.contains("hash #1A2B is not from this session"));
-	assert!(message.contains("never invent the tag"));
-	// When the unrecognized tag was actually issued earlier in this session
-	// for a different path, the rejection names that path so a relative
-	// worktree lane doesn't follow a wrong-tree suggestion.
+	assert_eq!(mismatch_error(&unknown).kind(), "unknown_tag");
+	let unknown_message = format_mismatch_message(&unknown);
+	assert!(unknown_message.contains("#3C4D"));
+
 	let known_elsewhere = MismatchDetails {
 		path:               Some("a.ts".into()),
 		expected_file_hash: "1A2B".into(),
@@ -786,12 +786,12 @@ fn mismatch_messages_distinguish_stale_and_unrecognized_hashes() {
 		hash_recognized:    false,
 		tag_origin_paths:   vec!["/build/x/wt/crates/a/mcp.rs".into()],
 	};
+	assert_eq!(mismatch_error(&known_elsewhere).kind(), "other_file_tag");
 	let message = format_mismatch_message(&known_elsewhere);
-	assert!(message.contains("hash #1A2B is not from this session"));
-	assert!(
-		message.contains("Hash #1A2B was issued in this session for /build/x/wt/crates/a/mcp.rs.")
-	);
-	assert!(message.contains("never invent the tag"));
+	assert_ne!(message, unknown_message);
+	assert!(!message.contains("is not from this session"), "{message}");
+	assert!(message.contains("/build/x/wt/crates/a/mcp.rs"), "{message}");
+	assert!(message.contains("#3C4D"), "{message}");
 }
 
 #[test]

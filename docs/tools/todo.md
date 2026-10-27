@@ -21,12 +21,12 @@ The params object **is** a single op — the discriminator and its fields live a
 | --- | --- | --- | --- |
 | `init` | `list` **or** flat `items` | `phase` (names the phase for the flat `items` form; defaults to `Tasks`) | Replaces the entire list — with `list`, uses the given phases; with a flat `items` array, synthesizes one phase. Every new task starts `pending` before normalization. |
 | `start` | `task` | None | Marks one task `in_progress`; any other `in_progress` task is demoted to `pending`. |
-| `done` | `task` or `phase` or neither | None | Marks the target task, phase, or all tasks `completed`. |
+| `done` | `task` or `phase` or neither | `call_id`, `call_ids` | Completes targets only when immutable acceptance requirements and unresolved observed failures are satisfied by real session executions. A rejected operation leaves the pre-call state intact. |
 | `drop` | `task` or `phase` or neither | None | Marks the target task, phase, or all tasks `abandoned`. |
 | `block` | `task` or `phase` | `reason` | Marks actionable target tasks `blocked`; completed/abandoned tasks are left closed. Whitespace in `reason` is collapsed to one line. |
 | `unblock` | `task` or `phase` | None | Returns blocked target tasks to `pending` and clears their blocker notes. |
 | `rm` | `task` or `phase` or neither | None | Removes the target task, clears the phase's task list, or clears all task lists. |
-| `append` | `phase`, `items` | None | Appends new `pending` tasks to a phase; creates the phase if missing. |
+| `append` | `phase`, `items` | `acceptance`, `fallback_of` | Appends new `pending` tasks; a fallback is separately linked to its original task, which remains blocked. |
 | `view` | None | None | Echoes the current list. A `view` call is read-only: no normalization, no state write. |
 
 ### Fields
@@ -34,11 +34,14 @@ The params object **is** a single op — the discriminator and its fields live a
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `op` | `"init" \| "start" \| "done" \| "rm" \| "drop" \| "block" \| "unblock" \| "append" \| "view"` | Yes in the schema | Operation discriminator. At execution time, an omitted op is repaired only for unambiguous `list`/`items` payloads (see Flow). |
-| `list` | `{ phase: string; items: string[] }[]` | For `init` (unless a flat `items` list is given) | Full replacement payload. Each phase's `items` has `minItems: 1`; an explicit `list: []` clears all phases. |
+| `list` | `{ phase: string; items: TaskEntry[] }[]` | For `init` (unless flat `items` is given) | Phase payload; each item is a task string or `{ content, acceptance?, fallback_of? }`. |
 | `task` | `string` | For `start`; for task-targeted `done`/`drop`/`block`/`unblock`/`rm` | Exact task content match. |
 | `phase` | `string` | For `append`; for phase-targeted `done`/`drop`/`block`/`unblock`/`rm`; optional for a flat `init` | Exact phase name match, except `append` lazily creates a missing phase and a flat `init` synthesizes one (default `Tasks`). |
-| `items` | `string[]` | For `append`; or as a flat `init` payload | Tasks to append, or the full task list for a flat `init`. Op-specific validation requires at least one item; a stray empty array on an unrelated op is schema-valid and ignored. |
+| `items` | `TaskEntry[]` | For `append`; or flat `init` | Task strings or structured task entries. Requires at least one item for creation; unrelated ops ignore a stray empty array. |
 | `reason` | `string` | No | Optional blocker note for `block`; normalized to a single trimmed line. |
+| `acceptance` | `Target \| Target[]` | No | Creation-time requirement: `{ kind?: "tool_callable", tool, action?, target?, expectedOutcome?: "success" \| "expected_error" }`. Bound to the task rather than mutable `done` arguments. |
+| `call_id`, `call_ids` | `string`, `string[]` | No | Actual session tool-call IDs cited by `done`; the journal verifies identity, target, generation, and semantic outcome. |
+| `fallback_of` | `string` | No | Original task content when creating a substitute task; substitute evidence does not close the original. |
 
 ## Outputs
 The tool returns a single-shot `AgentToolResult`:
@@ -57,6 +60,8 @@ The tool returns a single-shot `AgentToolResult`:
 
 - `TodoPhase`: `{ name: string, tasks: TodoItem[] }`
 - `TodoItem`: `{ content: string, status: "pending" | "in_progress" | "completed" | "abandoned" | "blocked", blocker?: string }`
+- Optional metadata: immutable `acceptance[]`, verified `evidence[]`, `unresolvedFailures[]`, `fallbackOf`, and plan `generation`. Evidence includes `toolCallId`, actual tool/action/target, semantic outcome and journal provenance.
+- `installed: false`, unavailable prerequisites, failed tool execution, and unexecuted wait-guard interceptions do not establish callability. An unrelated successful tool does not resolve a recorded failure. Completed, dropped, and blocked counts are displayed separately.
 
 The TUI renderer (`todoToolRenderer`) merges call and result into one transcript block and renders phases as a tree. Collapsed transcript previews cap tree items at `PREVIEW_LIMITS.COLLAPSED_ITEMS` (`8`).
 
@@ -94,7 +99,7 @@ The TUI renderer (`todoToolRenderer`) merges call and result into one transcript
 | `completed` | Can be set back to `in_progress` if targeted | Stays `completed` | Becomes `abandoned` if targeted | No change | No change | Removed | No status change |
 | `abandoned` | Can be set back to `in_progress` if targeted | Becomes `completed` if targeted | Stays `abandoned` | No change | No change | Removed | No status change |
 
-Normalization then re-applies the single-active-task rule after the op runs.
+The table describes status transitions after validation: every `done` must satisfy evidence checks, and `drop` / `rm` / replanning cannot erase a still-required acceptance target. Normalization then re-applies the single-active-task rule. Background-start acknowledgements and `read xd://` documentation are not execution evidence; settled `wait` snapshots and automatic async delivery bind the actual outcome to the originating call.
 
 ### Op targeting rules
 - `done`, `drop`, `rm`:
@@ -103,12 +108,12 @@ Normalization then re-applies the single-active-task rule after the op runs.
   - else: affect every task in every phase.
 - `block` and `unblock` use the same task-or-phase lookup but reject an omitted target.
 - `append` is the only op that creates a missing phase.
-- `init` discards previous phases entirely.
+- `init` rebuilds phase order and advances the plan generation while retaining immutable requirements, unresolved failures, and fallback identity for existing tasks.
 
 ### Markdown round-trip helpers
 The same file also exposes non-tool helpers used by `/todo`:
-- `phasesToMarkdown(...)` serializes phases as headings plus checklist items (`[ ]`, `[/]`, `[x]`, `[-]`, `[!]`). A blocked reason is preserved in a trailing `<!-- blocker: ... -->` comment.
-- `markdownToPhases(...)` parses that format, defaults orphan tasks into a `Todos` phase, also accepts `>` as `in_progress` and `~` as `abandoned`, restores blocked notes, and runs the same normalization step.
+- `phasesToMarkdown(...)` serializes phase/checklist state (`[ ]`, `[/]`, `[x]`, `[-]`, `[!]`) and preserves blocker, acceptance, evidence, failure, fallback and generation metadata in trailing comments.
+- `markdownToPhases(...)` restores that metadata and normalizes active state. Session setters revalidate completion against real executions and preserve existing immutable requirements; editing Markdown, Cursor sync, RPC, or a finished subagent does not supply missing execution evidence.
 
 ## Side Effects
 - Filesystem
@@ -153,7 +158,7 @@ The same file also exposes non-tool helpers used by `/todo`:
 - A `todo` call carries a single op; any error in it discards every mutation the op made.
 - Runtime-level tool failure is handled outside the tool body: `agent-session` injects a hidden reminder and the event controller warns the user that visible progress may be stale.
 - Idempotency is op-specific:
-  - `init` is a full replacement; replaying the same payload yields the same state.
+  - `init` rebuilds the plan with a fresh generation; evidence from older dispatch generations does not satisfy the new plan.
   - `start`, `done`, `drop`, `block`, and `unblock` are effectively idempotent on an existing target state, though `start` also demotes another active task and a repeated `block` can update its reason.
   - Task-targeted `rm` is not idempotent: the second call errors because the task is gone. Phase-targeted `rm` only empties the phase, so repeating it succeeds; untargeted `rm` similarly clears task lists without removing phase objects.
   - `append` is not idempotent: duplicate task content is rejected with `Task "..." already exists`; the `append` op validates up front, so an op with any duplicate appends nothing.

@@ -30,6 +30,11 @@ import agentPromptDoc from "../prompts/internal-urls/agent.md" with { type: "tex
 import agentProgressTemplate from "../prompts/tools/agent-url-progress.md" with { type: "text" };
 import agentSupersededTemplate from "../prompts/tools/agent-url-superseded.md" with { type: "text" };
 import { loadSessionMessagesReadOnly } from "../session/session-loader";
+import {
+	type AgentProgressFingerprint,
+	buildAgentRefProgressFingerprint,
+	getWaitPollGuard,
+} from "../session/wait-poll-guard";
 import { artifactsDirsFromRegistry } from "./registry-helpers";
 import type {
 	InternalResource,
@@ -221,7 +226,7 @@ export class AgentProtocolHandler implements ProtocolHandler {
 			// non-terminal yield, or parked before publishing) is the same
 			// registry `write agent://<id>` delivers to: answer with its progress.
 			const ref = registry.get(outputId);
-			if (ref && ref.kind !== "advisor") return this.#resolveProgress(url, ref, extraction);
+			if (ref && ref.kind !== "advisor") return this.#resolveProgress(url, ref, extraction, context, registry);
 			if (!scan) throw new Error("No session - agent outputs unavailable");
 			if (!scan.anyDirExists) throw new Error("No artifacts directory found");
 			const registered = registry
@@ -246,13 +251,44 @@ export class AgentProtocolHandler implements ProtocolHandler {
 		// A published file belongs to a finished run. If the agent is streaming
 		// again (follow-up or IRC wake), the file is the previous run's result;
 		// unmarked, a reader takes it as the current state.
+		let progressFingerprint: AgentProgressFingerprint | undefined;
 		if (!extraction && isSuperseded(registry, outputId)) {
+			const ref = registry.get(outputId);
+			if (ref) {
+				const liveMessages = ref.session?.messages ?? [];
+				progressFingerprint = buildAgentRefProgressFingerprint(ref, {
+					sections: yieldSections(liveMessages),
+					lastText: lastAssistantText(liveMessages),
+					superseded: true,
+				});
+				if (context?.session && !context.skipDirectoryListing) {
+					const check = getWaitPollGuard(context.session).observeAgentProgress(ref, progressFingerprint, {
+						registry,
+					});
+					if (!check.allowed) {
+						return {
+							url: url.href,
+							content: `${check.meta.reason}\n`,
+							contentType: "text/markdown",
+							size: Buffer.byteLength(check.meta.reason, "utf-8") + 1,
+							notes: [`Unchanged superseded progress poll #${check.meta.count} intercepted (${ref.status})`],
+							details: {
+								waitPollGuard: check.meta,
+								agentProgressFingerprint: progressFingerprint,
+							} as InternalResource["details"],
+							shape: "document",
+						};
+					}
+				}
+			}
 			const publishedAt = (await fs.stat(scan.foundPath)).mtimeMs;
 			content = `${prompt.render(agentSupersededTemplate, {
 				id: outputId,
 				age: formatDuration(Math.max(0, Date.now() - publishedAt)),
 			})}${rawContent}`;
 			notes.push(`Superseded: ${outputId} is running a newer turn`);
+		} else if (!extraction && context?.session && !context.skipDirectoryListing) {
+			getWaitPollGuard(context.session).recordAgentPublishedOutput(outputId);
 		}
 		let contentType: InternalResource["contentType"] = "text/markdown";
 
@@ -302,6 +338,9 @@ export class AgentProtocolHandler implements ProtocolHandler {
 			size: Buffer.byteLength(content, "utf-8"),
 			sourcePath: extractedFrom,
 			notes,
+			...(progressFingerprint
+				? { details: { agentProgressFingerprint: progressFingerprint } as InternalResource["details"] }
+				: {}),
 			shape: extraction ? "value" : "document",
 		};
 	}
@@ -312,7 +351,13 @@ export class AgentProtocolHandler implements ProtocolHandler {
 	 * its latest assistant text. Reads the live session's messages, else the
 	 * retained session file. JSON-path extraction needs the published output.
 	 */
-	async #resolveProgress(url: InternalUrl, ref: AgentRef, extraction: boolean): Promise<InternalResource> {
+	async #resolveProgress(
+		url: InternalUrl,
+		ref: AgentRef,
+		extraction: boolean,
+		context?: ResolveContext,
+		registry?: AgentRegistry,
+	): Promise<InternalResource> {
 		if (extraction) {
 			throw new Error(
 				`Output ${ref.id} is not published yet (status: ${ref.status}); read agent://${ref.id} for its progress.`,
@@ -329,6 +374,28 @@ export class AgentProtocolHandler implements ProtocolHandler {
 		}
 		const sections = yieldSections(messages);
 		const lastText = lastAssistantText(messages);
+		const fingerprint = buildAgentRefProgressFingerprint(ref, {
+			sections,
+			lastText,
+			superseded: false,
+		});
+		if (context?.session && !context.skipDirectoryListing) {
+			const check = getWaitPollGuard(context.session).observeAgentProgress(ref, fingerprint, { registry });
+			if (!check.allowed) {
+				return {
+					url: url.href,
+					content: `${check.meta.reason}\n`,
+					contentType: "text/markdown",
+					size: Buffer.byteLength(check.meta.reason, "utf-8") + 1,
+					notes: [`Unchanged progress poll #${check.meta.count} intercepted (${ref.status})`],
+					details: {
+						waitPollGuard: check.meta,
+						agentProgressFingerprint: fingerprint,
+					} as InternalResource["details"],
+					shape: "document",
+				};
+			}
+		}
 		const content = `${prompt.render(agentProgressTemplate, {
 			id: ref.id,
 			status: ref.status,
@@ -342,6 +409,7 @@ export class AgentProtocolHandler implements ProtocolHandler {
 			contentType: "text/markdown",
 			size: Buffer.byteLength(content, "utf-8"),
 			notes: [`No published output; progress from ${source} (${ref.status})`],
+			details: { agentProgressFingerprint: fingerprint } as InternalResource["details"],
 			shape: "document",
 		};
 	}

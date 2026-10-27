@@ -137,6 +137,46 @@ export async function readBounded(stream: ReadableStream<Uint8Array>, maxBytes: 
 	return new TextDecoder().decode(combined);
 }
 
+async function settleVerificationProcess(
+	proc: Subprocess | undefined,
+	timeoutMs: number,
+): Promise<{ settled: boolean; residualPid?: number }> {
+	if (!proc || proc.exitCode !== null) {
+		return { settled: true };
+	}
+	const graceMs = Math.min(200, Math.max(50, Math.floor(timeoutMs / 4)));
+	const forceMs = Math.min(800, Math.max(100, timeoutMs));
+	try {
+		proc.kill();
+	} catch {}
+	let graceTimer: Timer | undefined;
+	const exitedOnTerm = await Promise.race([
+		proc.exited.then(() => true).catch(() => proc.exitCode !== null),
+		new Promise<boolean>(resolve => {
+			graceTimer = setTimeout(() => resolve(false), graceMs);
+		}),
+	]);
+	clearTimeout(graceTimer);
+	if (exitedOnTerm || proc.exitCode !== null) {
+		return { settled: true };
+	}
+	try {
+		proc.kill("SIGKILL");
+	} catch {}
+	let forceTimer: Timer | undefined;
+	const exitedOnKill = await Promise.race([
+		proc.exited.then(() => true).catch(() => proc.exitCode !== null),
+		new Promise<boolean>(resolve => {
+			forceTimer = setTimeout(() => resolve(false), forceMs);
+		}),
+	]);
+	clearTimeout(forceTimer);
+	if (exitedOnKill || proc.exitCode !== null) {
+		return { settled: true };
+	}
+	return { settled: false, residualPid: proc.pid };
+}
+
 export async function verifyExecutable(
 	binaryPath: string,
 	timeoutMs: number = DEFAULT_VERIFY_TIMEOUT_MS,
@@ -161,9 +201,11 @@ export async function verifyExecutable(
 			}, timeoutMs);
 		});
 		if (!(proc.stdout instanceof ReadableStream) || !(proc.stderr instanceof ReadableStream)) {
+			const cleanup = await settleVerificationProcess(proc, timeoutMs);
+			const residualNote = !cleanup.settled ? ` (verification process pid ${cleanup.residualPid} did not exit)` : "";
 			return {
 				ok: false,
-				error: "Subprocess stdout or stderr is not a readable stream",
+				error: `Subprocess stdout or stderr is not a readable stream${residualNote}`,
 			};
 		}
 
@@ -185,15 +227,19 @@ export async function verifyExecutable(
 		return validateBinaryVersionOutput(stdoutText);
 	} catch (err) {
 		clearTimeout(timer);
+		const cleanup = await settleVerificationProcess(proc, timeoutMs);
+		const residualNote = !cleanup.settled
+			? ` (verification process pid ${cleanup.residualPid} did not exit after SIGKILL)`
+			: "";
 		if (timedOut) {
 			return {
 				ok: false,
-				error: `Binary verification timed out after ${timeoutMs}ms`,
+				error: `Binary verification timed out after ${timeoutMs}ms${residualNote}`,
 			};
 		}
 		return {
 			ok: false,
-			error: `Failed to execute binary at "${binaryPath}": ${err instanceof Error ? err.message : String(err)}`,
+			error: `Failed to execute binary at "${binaryPath}": ${err instanceof Error ? err.message : String(err)}${residualNote}`,
 		};
 	} finally {
 		clearTimeout(timer);
@@ -366,6 +412,7 @@ export async function runLocalInstall(options: InstallOptions = {}): Promise<{
 			`.${binaryName}.tmp.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`,
 		);
 		let targetMovedToBackup = false;
+		let backupCopied = false;
 		let retiredPath: string | undefined;
 		try {
 			await fs.copyFile(sourceBinary, tempPath);
@@ -381,9 +428,11 @@ export async function runLocalInstall(options: InstallOptions = {}): Promise<{
 							targetMovedToBackup = true;
 						} catch {
 							await fs.copyFile(targetPath, backupPath);
+							backupCopied = true;
 						}
 					} else {
 						await fs.copyFile(targetPath, backupPath);
+						backupCopied = true;
 					}
 				} else if (platform === "win32") {
 					const candidate = `${targetPath}.retired.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
@@ -396,10 +445,18 @@ export async function runLocalInstall(options: InstallOptions = {}): Promise<{
 			await fs.rename(tempPath, targetPath);
 		} catch (err) {
 			await fs.rm(tempPath, { force: true }).catch(() => {});
-			if (targetMovedToBackup && backupPath) {
-				await fs.rename(backupPath, targetPath).catch(() => {});
-			} else if (retiredPath) {
-				await fs.rename(retiredPath, targetPath).catch(() => {});
+			const displacedPath = targetMovedToBackup && backupPath ? backupPath : retiredPath;
+			if (displacedPath) {
+				try {
+					await fs.rename(displacedPath, targetPath);
+				} catch (rollbackErr) {
+					const primaryMsg = err instanceof Error ? err.message : String(err);
+					const rollbackMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
+					throw new Error(
+						`Failed to replace "${targetPath}" (${primaryMsg}), and rollback from "${displacedPath}" also failed (${rollbackMsg})`,
+						{ cause: err },
+					);
+				}
 			}
 			throw err;
 		}
@@ -407,13 +464,44 @@ export async function runLocalInstall(options: InstallOptions = {}): Promise<{
 		// Verify installed binary in place
 		const installedVerify = await verifyExecutable(targetPath, timeoutMs);
 		if (!installedVerify.ok) {
+			let rollbackNote = "";
+			let removeErrorMsg: string | undefined;
+			try {
+				if (await fileExists(targetPath)) {
+					await fs.rm(targetPath);
+				}
+			} catch (rmErr) {
+				removeErrorMsg = rmErr instanceof Error ? rmErr.message : String(rmErr);
+			}
+			if (targetExists) {
+				const displacedPath = targetMovedToBackup && backupPath ? backupPath : retiredPath;
+				try {
+					if (displacedPath) {
+						await fs.rename(displacedPath, targetPath);
+						rollbackNote = ` Restored previous binary from ${displacedPath}.`;
+					} else if (backupCopied && backupPath) {
+						await fs.copyFile(backupPath, targetPath);
+						rollbackNote = ` Restored previous binary from ${backupPath}.`;
+					}
+				} catch (rollbackErr) {
+					const sourcePath = displacedPath ?? backupPath ?? targetPath;
+					const rollbackMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
+					const rmDetail = removeErrorMsg ? ` (removing failed target also failed: ${removeErrorMsg})` : "";
+					rollbackNote = ` Failed to restore previous binary from ${sourcePath}: ${rollbackMsg}${rmDetail}.`;
+				}
+			} else if (removeErrorMsg) {
+				rollbackNote = ` Failed to remove invalid target binary at ${targetPath}: ${removeErrorMsg}.`;
+			}
 			return {
 				success: false,
 				targetPath,
-				message: `Installed binary at ${targetPath} failed in-place verification: ${installedVerify.error}`,
+				backupPath,
+				message: `Installed binary at ${targetPath} failed in-place verification: ${installedVerify.error}.${rollbackNote}`,
 			};
 		}
-
+		if (retiredPath) {
+			await fs.rm(retiredPath, { force: true }).catch(() => {});
+		}
 		const inPath = isDirectoryInPath(targetDir);
 		let pathAdvice = "";
 		if (!inPath) {

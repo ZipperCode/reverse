@@ -4,13 +4,14 @@ import { Badges, ResultText, Row } from "../parts";
 import type { ToolRenderer, ToolRenderProps } from "../types";
 import { detailsRecord, isRecord, normalizeWs, str, truncate } from "../util";
 
-type TaskStatus = "pending" | "in_progress" | "completed" | "abandoned";
+type TaskStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
 
 const TASK_ICONS: Record<TaskStatus, string> = {
 	completed: "✓",
 	in_progress: "→",
 	abandoned: "✕",
 	pending: "○",
+	blocked: "!",
 };
 
 const ROMAN_PAIRS: ReadonlyArray<readonly [number, string]> = [
@@ -70,7 +71,10 @@ function Summary({ args }: ToolRenderProps): ReactNode {
 			firstTask = str(entry.task) ?? str(entry.phase);
 			if (firstTask === null && Array.isArray(entry.list)) {
 				const head = entry.list.find(isRecord);
-				if (head && Array.isArray(head.items)) firstTask = str(head.items[0]);
+				if (head && Array.isArray(head.items)) {
+					const item = head.items[0];
+					firstTask = str(item) ?? (isRecord(item) ? str(item.content) : null);
+				}
 			}
 		}
 	}
@@ -124,11 +128,12 @@ function Board({ phases }: { phases: unknown[] }): ReactNode {
 			if (!isRecord(task)) continue;
 			const raw: unknown = task.status;
 			const status: TaskStatus =
-				raw === "completed" || raw === "in_progress" || raw === "abandoned" ? raw : "pending";
+				raw === "completed" || raw === "in_progress" || raw === "abandoned" || raw === "blocked" ? raw : "pending";
 			rendered.push(
 				<div key={`p${i}t${t}`} className={`tv-task tv-task--${status}`}>
 					<span className="tv-task-icon">{TASK_ICONS[status]}</span>
 					<span>{str(task.content) ?? ""}</span>
+					{status === "blocked" && <span>{str(task.blocker) ?? "blocked"}</span>}
 				</div>,
 			);
 		}

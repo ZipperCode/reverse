@@ -94,6 +94,7 @@ export type {
 export * from "./schemas";
 export * from "./store";
 export { type EditMode } from "@reverse/tui/tools/edit";
+export * from "./error-kind";
 
 type TInput =
 	| typeof replaceEditSchema

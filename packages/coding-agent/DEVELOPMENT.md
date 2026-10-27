@@ -26,6 +26,8 @@ Never invoke `tsc`/`npx tsc` directly — `bun run check` is the typecheck gate.
 changing the React tool renderers under `collab-web/src/tool-render/`, rebuild them
 with `bun run gen:tool-views`.
 
+Root maintenance scripts are checked from the repository root with `bunx --no-install tsgo -p tsconfig.tools.json --noEmit`. This is a strict, no-emit application configuration rather than a composite declaration-build project; imported workspace sources remain part of its checked program.
+
 Scope fake timers to the deadline a test exercises, then restore real timers
 before real socket listeners are started. Bun's mocked clock can defer
 `server.listen` callbacks, leaving registry publication and teardown waiting.

@@ -47,14 +47,21 @@ export interface ExecutorBackendResult {
 	cancelled: boolean;
 	truncated: boolean;
 	artifactId: string | undefined;
+	artifactBytes?: number;
 	/** Bytes the artifact cap dropped from the saved file's middle (the artifact is a head/tail sample). */
 	artifactElidedBytes?: number;
+	artifactMaxBytes?: number;
+	artifactBudgetExhausted?: boolean;
 	artifactError?: OutputArtifactError;
 	totalLines: number;
 	totalBytes: number;
 	outputLines: number;
 	outputBytes: number;
 	displayOutputs: EvalDisplayOutput[];
+	definedNames?: string[];
+	definedNamesOmitted?: number;
+	missingNames?: string[];
+	recoveryGuidance?: string;
 }
 
 /** Outcome of {@link ExecutorBackend.checkAvailability}. */

@@ -15,14 +15,13 @@ export const DEFAULT_MAX_BYTES = 50 * 1024;
 export const DEFAULT_MAX_COLUMN = 512;
 
 /**
- * Default artifact-on-disk cap for {@link OutputSink}: 16 MiB, split into a
- * {@link ARTIFACT_DEFAULT_HEAD_BYTES} head and a rolling tail. `0` means
- * unbounded (the complete raw stream is preserved).
+ * Default artifact-on-disk cap for {@link OutputSink}: 4 MiB (including any
+ * truncation marker), split into a {@link ARTIFACT_DEFAULT_HEAD_BYTES} head and
+ * a rolling tail. `0` means unbounded (the complete raw stream is preserved).
  */
-export const ARTIFACT_DEFAULT_MAX_BYTES = 16 * 1024 * 1024; // 16 MiB
-/** Default head budget; the remainder becomes the rolling tail window. */
-export const ARTIFACT_DEFAULT_HEAD_BYTES = 3 * 1024 * 1024; // 3 MiB
-/** Upper bound on how far the rolling artifact tail may outgrow its budget between trims. */
+export const ARTIFACT_DEFAULT_MAX_BYTES = 4 * 1024 * 1024; // 4 MiB
+/** Default head budget; the remainder becomes the rolling tail + notice window. */
+export const ARTIFACT_DEFAULT_HEAD_BYTES = 1 * 1024 * 1024; // 1 MiB
 const ARTIFACT_TAIL_MAX_SLACK_BYTES = 4 * 1024 * 1024;
 
 const NL = "\n";
@@ -34,7 +33,7 @@ const ELLIPSIS = "…";
 // =============================================================================
 
 /** First failed artifact I/O operation; safe to persist without exposing filesystem errors. */
-export type OutputArtifactError = "open" | "write" | "flush" | "end";
+export type OutputArtifactError = "open" | "write" | "flush" | "end" | "budget";
 
 /** Captured output with inline truncation and artifact storage metadata. */
 export interface OutputSummary {
@@ -62,11 +61,17 @@ export interface OutputSummary {
 	columnMax?: number;
 	/** Artifact ID for internal URL access (artifact://<id>) when truncated */
 	artifactId?: string;
+	/** Exact UTF-8 bytes written to the on-disk artifact file (including any truncation notice). */
+	artifactBytes?: number;
 	/**
 	 * Bytes the artifact cap dropped from the middle of the saved file. When
 	 * set, `artifact://<id>` holds a head/tail sample, not the full output.
 	 */
 	artifactElidedBytes?: number;
+	/** Effective per-call artifact byte cap when > 0. */
+	artifactMaxBytes?: number;
+	/** True when the session cumulative capture-log budget capped or skipped saving this artifact. */
+	artifactBudgetExhausted?: boolean;
 	/** Full raw output was not completely saved; artifactId is unavailable. */
 	artifactError?: OutputArtifactError;
 }
@@ -99,20 +104,24 @@ export interface OutputSinkOptions {
 	/** Minimum ms between onChunk calls. 0 = every chunk (default). */
 	chunkThrottleMs?: number;
 	/**
-	 * Cap on bytes written to the artifact-on-disk file. When the cap is hit,
-	 * the head window is preserved verbatim and subsequent output feeds a
-	 * rolling tail window; on close, the sink writes a single
-	 * `[ARTIFACT TRUNCATED: …]` notice between them. Default
-	 * {@link ARTIFACT_DEFAULT_MAX_BYTES} (16 MiB); `0` = unbounded.
+	 * Hard cap on total bytes written to the artifact-on-disk file, including
+	 * any `[ARTIFACT TRUNCATED: …]` notice spliced between head and tail. Default
+	 * {@link ARTIFACT_DEFAULT_MAX_BYTES} (4 MiB); `0` = unbounded.
 	 */
 	artifactMaxBytes?: number;
 	/**
 	 * Bytes reserved for the head window of the capped artifact file. The
-	 * tail window receives `artifactMaxBytes - artifactHeadBytes`. Default
-	 * {@link ARTIFACT_DEFAULT_HEAD_BYTES}, but at most half of
-	 * `artifactMaxBytes`; clamped to `[0, artifactMaxBytes]`.
+	 * tail + notice window receives `artifactMaxBytes - artifactHeadBytes`.
+	 * Default {@link ARTIFACT_DEFAULT_HEAD_BYTES}, at most half of
+	 * `artifactMaxBytes`.
 	 */
 	artifactHeadBytes?: number;
+	/** Session cumulative capture budget already exhausted; skip file creation and report `artifactError: "budget"` on spill. */
+	artifactSessionBudgetExhausted?: boolean;
+	/** True when `artifactMaxBytes` was clamped down by the remaining session capture budget. */
+	artifactCapFromSessionBudget?: boolean;
+	/** Invoked once when the artifact sink closes (or capture fails), reporting exact bytes persisted. */
+	onArtifactFinalized?: (bytesWritten: number, error?: OutputArtifactError) => void;
 }
 
 /** Retained text and measurements describing a truncated output window. */
@@ -878,6 +887,131 @@ export class TailBuffer {
 	}
 }
 
+/** Fitted notice + tail slice guaranteed to fit within `maxBytes - headWritten`. */
+interface FittedArtifactTail {
+	notice: string;
+	noticeBytes: number;
+	tailText: string;
+	tailBytes: number;
+	elidedBytes: number;
+}
+
+/**
+ * Fit the `[ARTIFACT TRUNCATED: …]` marker and kept tail slice inside the
+ * remaining byte budget `maxBytes - headWritten` so total on-disk bytes never
+ * exceed `maxBytes`, while keeping streams `<= maxBytes` verbatim without any marker.
+ */
+function fitCappedArtifactTailAndNotice(
+	headWritten: number,
+	tailRing: string,
+	tailIncomingBytes: number,
+	maxBytes: number,
+): FittedArtifactTail {
+	const totalStreamBytes = headWritten + tailIncomingBytes;
+	if (totalStreamBytes <= maxBytes) {
+		const tailBytes = Buffer.byteLength(tailRing, "utf-8");
+		return { notice: "", noticeBytes: 0, tailText: tailRing, tailBytes, elidedBytes: 0 };
+	}
+
+	const remaining = Math.max(0, maxBytes - headWritten);
+	const headSep = headWritten > 0 ? "\n" : "";
+
+	const tryFitWithBuilder = (
+		buildNotice: (keptTailBytes: number, keptTailText: string) => string,
+	): FittedArtifactTail | null => {
+		const emptyNotice = buildNotice(0, "");
+		const emptyNoticeBytes = Buffer.byteLength(emptyNotice, "utf-8");
+		if (emptyNoticeBytes > remaining) return null;
+
+		let tailSlice = truncateTailBytes(tailRing, Math.max(0, remaining - emptyNoticeBytes));
+		for (let attempt = 0; attempt < 4; attempt++) {
+			const candidateNotice = buildNotice(tailSlice.bytes, tailSlice.text);
+			const candidateNoticeBytes = Buffer.byteLength(candidateNotice, "utf-8");
+			if (candidateNoticeBytes + tailSlice.bytes <= remaining) {
+				return {
+					notice: candidateNotice,
+					noticeBytes: candidateNoticeBytes,
+					tailText: tailSlice.text,
+					tailBytes: tailSlice.bytes,
+					elidedBytes: Math.max(1, totalStreamBytes - headWritten - tailSlice.bytes),
+				};
+			}
+			if (candidateNoticeBytes > remaining) break;
+			tailSlice = truncateTailBytes(tailRing, Math.max(0, remaining - candidateNoticeBytes));
+		}
+		return {
+			notice: emptyNotice,
+			noticeBytes: emptyNoticeBytes,
+			tailText: "",
+			tailBytes: 0,
+			elidedBytes: Math.max(1, totalStreamBytes - headWritten),
+		};
+	};
+
+	const fullFit = tryFitWithBuilder((keptTailBytes, keptTailText) => {
+		const dropped = Math.max(1, totalStreamBytes - headWritten - keptTailBytes);
+		const tailSep = keptTailBytes > 0 && !keptTailText.startsWith("\n") ? "\n" : "";
+		return (
+			`${headSep}[ARTIFACT TRUNCATED: kept first ${formatBytes(headWritten)} + last ${formatBytes(keptTailBytes)} ` +
+			`of ${formatBytes(totalStreamBytes)}; ${formatBytes(dropped)} elided from the middle]${tailSep}`
+		);
+	});
+	if (fullFit) return fullFit;
+
+	const compactFit = tryFitWithBuilder((keptTailBytes, keptTailText) => {
+		const dropped = Math.max(1, totalStreamBytes - headWritten - keptTailBytes);
+		const tailSep = keptTailBytes > 0 && !keptTailText.startsWith("\n") ? "\n" : "";
+		return `${headSep}[ARTIFACT TRUNCATED: ${formatBytes(dropped)} elided]${tailSep}`;
+	});
+	if (compactFit) return compactFit;
+
+	const minimalFit = tryFitWithBuilder((keptTailBytes, keptTailText) => {
+		const tailSep = keptTailBytes > 0 && !keptTailText.startsWith("\n") ? "\n" : "";
+		return `${headSep}[ARTIFACT TRUNCATED]${tailSep}`;
+	});
+	if (minimalFit) return minimalFit;
+
+	// 极小字节上限兜底：连最小标记都放不下时按 UTF-8 边界截断标记本身，严格保证总落盘字节 <= maxBytes。
+	const clipped = truncateHeadBytes(`${headSep}[ARTIFACT TRUNCATED]`, remaining);
+	return {
+		notice: clipped.text,
+		noticeBytes: clipped.bytes,
+		tailText: "",
+		tailBytes: 0,
+		elidedBytes: Math.max(1, totalStreamBytes - headWritten),
+	};
+}
+
+/**
+ * Cap a serialized artifact body to `maxBytes` UTF-8 bytes on disk (including
+ * the `[ARTIFACT TRUNCATED: …]` marker between head and tail). `maxBytes <= 0`
+ * keeps `content` unbounded.
+ */
+export function capArtifactText(
+	content: string,
+	maxBytes: number,
+	headBytes?: number,
+): { content: string; bytes: number; elidedBytes?: number } {
+	const totalBytes = Buffer.byteLength(content, "utf-8");
+	if (maxBytes <= 0 || totalBytes <= maxBytes) {
+		return { content, bytes: totalBytes };
+	}
+	const requestedHead = headBytes ?? Math.min(ARTIFACT_DEFAULT_HEAD_BYTES, Math.floor(maxBytes / 2));
+	const headBudget = maxBytes > 1 ? Math.max(0, Math.min(requestedHead, maxBytes - 1)) : 0;
+	const headSlice = truncateHeadBytes(content, headBudget);
+	const remainder = content.substring(headSlice.text.length);
+	const remainderBytes = totalBytes - headSlice.bytes;
+	const tailWindowBudget = Math.max(0, maxBytes - headSlice.bytes);
+	const tailRing = truncateTailBytes(remainder, tailWindowBudget).text;
+	const fitted = fitCappedArtifactTailAndNotice(headSlice.bytes, tailRing, remainderBytes, maxBytes);
+	const composed = `${headSlice.text}${fitted.notice}${fitted.tailText}`;
+	return {
+		content: composed,
+		bytes: headSlice.bytes + fitted.noticeBytes + fitted.tailBytes,
+		elidedBytes: fitted.elidedBytes > 0 ? fitted.elidedBytes : undefined,
+	};
+}
+
 // =============================================================================
 // OutputSink — line-buffered output with file spill support
 // =============================================================================
@@ -947,13 +1081,18 @@ export class OutputSink {
 	readonly #artifactTailBudget: number;
 	/** Overshoot tolerated before trimming, so trimming costs amortized O(1) per byte instead of O(budget) per chunk. */
 	readonly #artifactTailSlack: number;
+	readonly #artifactSessionBudgetExhausted: boolean;
+	readonly #artifactCapFromSessionBudget: boolean;
+	readonly #onArtifactFinalized?: (bytesWritten: number, error?: OutputArtifactError) => void;
 	#artifactHeadBytesWritten = 0;
 	#artifactHeadClosed = false;
 	#artifactTailRing = "";
 	#artifactTailRingBytes = 0;
 	#artifactTailIncomingBytes = 0;
+	#artifactWrittenBytes = 0;
 	/** Bytes the cap dropped from the artifact middle, recorded when the tail is flushed. */
 	#artifactElidedBytes = 0;
+	#artifactBudgetExhausted = false;
 	constructor(options?: OutputSinkOptions) {
 		const {
 			artifactPath,
@@ -965,6 +1104,9 @@ export class OutputSink {
 			chunkThrottleMs = 0,
 			artifactMaxBytes = ARTIFACT_DEFAULT_MAX_BYTES,
 			artifactHeadBytes,
+			artifactSessionBudgetExhausted = false,
+			artifactCapFromSessionBudget = false,
+			onArtifactFinalized,
 		} = options ?? {};
 		this.#artifactPath = artifactPath;
 		this.#artifactId = artifactId;
@@ -974,11 +1116,15 @@ export class OutputSink {
 		this.#onChunk = onChunk;
 		this.#chunkThrottleMs = chunkThrottleMs;
 		this.#artifactMaxBytes = Math.max(0, artifactMaxBytes);
-		// The default head yields to the rolling tail on small caps: it takes at
-		// most half, so the most recent output is always kept.
+		this.#artifactSessionBudgetExhausted = artifactSessionBudgetExhausted;
+		this.#artifactCapFromSessionBudget = artifactCapFromSessionBudget;
+		this.#onArtifactFinalized = onArtifactFinalized;
+		// 预留至少 1 字节给截断标记（当总流未超限时尾部窗口仍可补齐完整字节），确保落盘总字节含标记严格 <= artifactMaxBytes。
 		const headBytesRequested =
 			artifactHeadBytes ?? Math.min(ARTIFACT_DEFAULT_HEAD_BYTES, Math.floor(this.#artifactMaxBytes / 2));
-		this.#artifactHeadBudget = Math.max(0, Math.min(headBytesRequested, this.#artifactMaxBytes));
+		const maxHeadForCap = this.#artifactMaxBytes > 1 ? this.#artifactMaxBytes - 1 : 0;
+		this.#artifactHeadBudget =
+			this.#artifactMaxBytes === 0 ? 0 : Math.max(0, Math.min(headBytesRequested, maxHeadForCap));
 		this.#artifactTailBudget = Math.max(0, this.#artifactMaxBytes - this.#artifactHeadBudget);
 		this.#artifactTailSlack = Math.min(this.#artifactTailBudget, ARTIFACT_TAIL_MAX_SLACK_BYTES);
 	}
@@ -1076,10 +1222,15 @@ export class OutputSink {
 		// representation differs, overflows memory, hits the column cap, or a
 		// prior chunk already opened the artifact.
 		if (
-			this.#artifactPath &&
+			(this.#artifactPath || this.#artifactSessionBudgetExhausted) &&
 			(this.#file != null || substituted || cappedThisChunk || this.#willOverflow(cappedBytes))
 		) {
-			this.#writeToFile(chunk);
+			if (this.#artifactSessionBudgetExhausted) {
+				this.#artifactBudgetExhausted = true;
+				this.#recordArtifactError("budget");
+			} else {
+				this.#writeToFile(chunk);
+			}
 		}
 		if (cappedBytes === 0) return;
 
@@ -1316,8 +1467,8 @@ export class OutputSink {
 			this.#artifactHeadClosed = true;
 			overflow = chunk.substring(headSlice.text.length);
 		}
-		if (overflow.length === 0 || this.#artifactTailBudget === 0) {
-			// No tail budget: count the dropped bytes so the notice reflects them.
+		const tailCapacity = Math.max(this.#artifactTailBudget, this.#artifactMaxBytes - this.#artifactHeadBytesWritten);
+		if (overflow.length === 0 || tailCapacity === 0) {
 			if (overflow.length > 0) {
 				this.#artifactTailIncomingBytes += Buffer.byteLength(overflow, "utf-8");
 			}
@@ -1330,7 +1481,7 @@ export class OutputSink {
 		if (this.#artifactError) return;
 		const chunkBytes = Buffer.byteLength(chunk, "utf-8");
 		this.#artifactTailIncomingBytes += chunkBytes;
-		const budget = this.#artifactTailBudget;
+		const budget = Math.max(this.#artifactTailBudget, this.#artifactMaxBytes - this.#artifactHeadBytesWritten);
 		if (chunkBytes >= budget) {
 			// Chunk alone dominates — keep only its tail slice.
 			const { text, bytes } = truncateTailBytes(chunk, budget);
@@ -1344,8 +1495,9 @@ export class OutputSink {
 	}
 
 	#trimArtifactTail(): void {
-		if (this.#artifactTailRingBytes <= this.#artifactTailBudget) return;
-		const { text, bytes } = truncateTailBytes(this.#artifactTailRing, this.#artifactTailBudget);
+		const budget = Math.max(this.#artifactTailBudget, this.#artifactMaxBytes - this.#artifactHeadBytesWritten);
+		if (this.#artifactTailRingBytes <= budget) return;
+		const { text, bytes } = truncateTailBytes(this.#artifactTailRing, budget);
 		this.#artifactTailRing = text;
 		this.#artifactTailRingBytes = bytes;
 	}
@@ -1358,9 +1510,11 @@ export class OutputSink {
 	}
 
 	#writeArtifact(chunk: string, operation: OutputArtifactError = "write"): void {
-		if (!this.#file || this.#artifactError) return;
+		if (!this.#file || this.#artifactError || chunk.length === 0) return;
+		const chunkBytes = Buffer.byteLength(chunk, "utf-8");
 		try {
 			const written = this.#file.sink.write(chunk);
+			this.#artifactWrittenBytes += chunkBytes;
 			if (typeof written !== "number") {
 				const writes = (this.#pendingArtifactWrites ??= new Set());
 				const pending = written.then(
@@ -1515,23 +1669,25 @@ export class OutputSink {
 		if (!this.#file || this.#artifactError) return;
 		if (this.#artifactMaxBytes === 0) return;
 		this.#trimArtifactTail();
-		const tailBytes = this.#artifactTailRingBytes;
-		const droppedBytes = Math.max(0, this.#artifactTailIncomingBytes - tailBytes);
-		if (tailBytes === 0 && droppedBytes === 0) return;
+		if (this.#artifactTailRingBytes === 0 && this.#artifactTailIncomingBytes === 0) return;
 
-		if (droppedBytes > 0) {
-			this.#artifactElidedBytes = droppedBytes;
-			const headWritten = this.#artifactHeadBytesWritten;
-			const totalCapped = headWritten + this.#artifactTailIncomingBytes;
-			const headSep = headWritten > 0 ? "\n" : "";
-			const tailSep = tailBytes > 0 && !this.#artifactTailRing.startsWith("\n") ? "\n" : "";
-			const notice =
-				`${headSep}[ARTIFACT TRUNCATED: kept first ${formatBytes(headWritten)} + last ${formatBytes(tailBytes)} ` +
-				`of ${formatBytes(totalCapped)}; ${formatBytes(droppedBytes)} elided from the middle]${tailSep}`;
-			this.#writeArtifact(notice, "flush");
+		const fitted = fitCappedArtifactTailAndNotice(
+			this.#artifactHeadBytesWritten,
+			this.#artifactTailRing,
+			this.#artifactTailIncomingBytes,
+			this.#artifactMaxBytes,
+		);
+		if (fitted.elidedBytes > 0) {
+			this.#artifactElidedBytes = fitted.elidedBytes;
+			if (this.#artifactCapFromSessionBudget) {
+				this.#artifactBudgetExhausted = true;
+			}
+			if (fitted.noticeBytes > 0) {
+				this.#writeArtifact(fitted.notice, "flush");
+			}
 		}
-		if (tailBytes > 0) {
-			this.#writeArtifact(this.#artifactTailRing, "flush");
+		if (fitted.tailBytes > 0) {
+			this.#writeArtifact(fitted.tailText, "flush");
 		}
 	}
 
@@ -1632,10 +1788,16 @@ export class OutputSink {
 					? { first: this.#columnFirstCutLine, last: this.#columnLastCutLine }
 					: undefined,
 			artifactId: this.#artifactError ? undefined : this.#file?.artifactId,
+			artifactBytes: this.#artifactError || !this.#file?.artifactId ? undefined : this.#artifactWrittenBytes,
 			artifactElidedBytes:
 				this.#artifactError || !this.#file?.artifactId || this.#artifactElidedBytes === 0
 					? undefined
 					: this.#artifactElidedBytes,
+			artifactMaxBytes:
+				this.#artifactMaxBytes > 0 && (this.#file?.artifactId != null || this.#artifactBudgetExhausted)
+					? this.#artifactMaxBytes
+					: undefined,
+			artifactBudgetExhausted: this.#artifactBudgetExhausted ? true : undefined,
 			artifactError: this.#artifactError,
 		};
 	}
@@ -1660,7 +1822,10 @@ export class OutputSink {
 		}
 		if (this.#pendingArtifactWrites?.size) await Promise.all(this.#pendingArtifactWrites);
 		const file = this.#file;
-		if (!file) return;
+		if (!file) {
+			this.#onArtifactFinalized?.(0, this.#artifactError);
+			return;
+		}
 		// Capture failures must not replace the command's result. Always close,
 		// even when tail replay or flushing fails, and never advertise that file.
 		try {
@@ -1675,6 +1840,17 @@ export class OutputSink {
 			} catch {
 				this.#recordArtifactError("end");
 			}
+			// 失败路径上部分字节可能已经落盘：按磁盘实际保留量结算，避免释放“未落盘”预留后
+			// 会话累计预算被低估，让后续捕获超出硬上限。`artifactId` 仍保持不可用，不宣称可恢复。
+			let retainedBytes = this.#artifactWrittenBytes;
+			if (this.#artifactError) {
+				try {
+					retainedBytes = (await fs.promises.stat(file.path)).size;
+				} catch {
+					retainedBytes = 0;
+				}
+			}
+			this.#onArtifactFinalized?.(retainedBytes, this.#artifactError);
 		}
 	}
 

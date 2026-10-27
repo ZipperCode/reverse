@@ -6,6 +6,7 @@ import { getThemeByName } from "@reverse/tui/theme";
 import { OutputSink } from "@reverse/tui/tools/streaming-output";
 import { bashToolRenderer } from "@reverse/tui/tools/bash";
 import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
+import { ArtifactManager } from "@reverse/coding-agent/session/artifacts";
 import { outputMeta } from "@reverse/coding-agent/tools/output-meta";
 import { removeWithRetries, sanitizeText } from "@reverse/utils";
 
@@ -116,11 +117,11 @@ describe("OutputSink fd lifecycle", () => {
 			artifactPath,
 			artifactId: "capped",
 			spillThreshold: 16,
-			artifactMaxBytes: 40,
+			artifactMaxBytes: 200,
 			artifactHeadBytes: 20,
 		});
 		sink.push("h".repeat(30));
-		sink.push("t".repeat(60));
+		sink.push("t".repeat(240));
 		await sink.dispose();
 		await sink.dispose();
 		sink.push("late callback");
@@ -267,5 +268,42 @@ describe("OutputSink fd lifecycle", () => {
 		const rendered = sanitizeText(component.render(160).join("\n"));
 		expect(rendered).toContain("not saved completely");
 		expect(rendered).not.toContain("artifact://");
+	});
+
+	test("a partially written capture is settled at its retained size so the session budget stays bounded", async () => {
+		const dir = await createTempDir();
+		const manager = new ArtifactManager(path.join(dir, "artifacts"));
+		await manager.ensureInitialized();
+		const sessionBudget = 4096;
+		const artifactPath = path.join(dir, "partial.txt");
+		const writer = instrumentArtifact(artifactPath);
+		vi.spyOn(writer, "flush").mockImplementation(() => {
+			throw new Error("flush failed");
+		});
+		let finalizedBytes: number | undefined;
+		const sink = new OutputSink({
+			artifactPath,
+			artifactId: "partial",
+			spillThreshold: 4,
+			artifactMaxBytes: 120,
+			artifactHeadBytes: 40,
+			onArtifactFinalized: (bytes, error) => {
+				finalizedBytes = bytes;
+				manager.recordCapturedArtifact(artifactPath, bytes);
+				if (error !== "flush") throw new Error(`expected flush failure, got ${String(error)}`);
+			},
+		});
+		sink.push("p".repeat(300));
+		const summary = await sink.dump();
+		await sink.dispose();
+
+		expect(summary.artifactError).toBe("flush");
+		expect(summary.artifactId).toBeUndefined();
+		// 部分字节确实留在磁盘上，必须计入会话预算，否则下一轮捕获可超出硬上限。
+		const retained = (await fs.stat(artifactPath)).size;
+		expect(retained).toBeGreaterThan(0);
+		expect(finalizedBytes).toBe(retained);
+		expect(manager.getCapturedLogBytes()).toBe(retained);
+		expect(manager.getRemainingCaptureBudgetBytes(sessionBudget)).toBe(sessionBudget - retained);
 	});
 });

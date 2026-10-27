@@ -208,6 +208,307 @@ export function verifySha256(buf: Buffer, expectedHash: string): boolean {
 	return actual.toLowerCase() === expectedHash.toLowerCase();
 }
 
+export type PeCrtFamily = "ucrt" | "msvcrt" | "mixed" | "unknown";
+
+export interface PeCrtInspection {
+	isPe: boolean;
+	importedDlls: string[];
+	crtFamily: PeCrtFamily;
+}
+
+export interface WindowsRadare2CrtCompatibility {
+	compatible: boolean | undefined;
+	r2BinaryPath?: string;
+	r2Crt: PeCrtFamily;
+	r2ImportedDlls: string[];
+	pluginPath?: string;
+	pluginCrt: PeCrtFamily;
+	pluginImportedDlls: string[];
+	reason?: string;
+}
+
+/**
+ * Bounded synchronous PE import table reader.
+ * Reads only MZ/PE headers, section headers, import descriptors, and imported DLL name strings
+ * via positioned fs.readSync calls without loading entire binaries into memory.
+ */
+export function inspectPeImportedDlls(filePath: string): PeCrtInspection {
+	let fd: number | undefined;
+	try {
+		if (!fs.existsSync(filePath)) {
+			return { isPe: false, importedDlls: [], crtFamily: "unknown" };
+		}
+		const stat = fs.statSync(filePath);
+		if (!stat.isFile() || stat.size < 128) {
+			return { isPe: false, importedDlls: [], crtFamily: "unknown" };
+		}
+		fd = fs.openSync(filePath, "r");
+		const dosHeader = Buffer.alloc(64);
+		if (fs.readSync(fd, dosHeader, 0, 64, 0) < 64 || dosHeader[0] !== 0x4d || dosHeader[1] !== 0x5a) {
+			return { isPe: false, importedDlls: [], crtFamily: "unknown" };
+		}
+		const peOffset = dosHeader.readUInt32LE(0x3c);
+		if (peOffset < 64 || peOffset + 24 > stat.size) {
+			return { isPe: false, importedDlls: [], crtFamily: "unknown" };
+		}
+
+		const coffHeader = Buffer.alloc(24);
+		if (
+			fs.readSync(fd, coffHeader, 0, 24, peOffset) < 24 ||
+			coffHeader[0] !== 0x50 ||
+			coffHeader[1] !== 0x45 ||
+			coffHeader[2] !== 0x00 ||
+			coffHeader[3] !== 0x00
+		) {
+			return { isPe: false, importedDlls: [], crtFamily: "unknown" };
+		}
+
+		const numSections = coffHeader.readUInt16LE(6);
+		const sizeOfOptionalHeader = coffHeader.readUInt16LE(20);
+		if (sizeOfOptionalHeader < 96 || numSections === 0 || numSections > 96) {
+			return { isPe: true, importedDlls: [], crtFamily: "unknown" };
+		}
+
+		const optAndSectionsSize = sizeOfOptionalHeader + numSections * 40;
+		if (optAndSectionsSize > 65536 || peOffset + 24 + optAndSectionsSize > stat.size) {
+			return { isPe: true, importedDlls: [], crtFamily: "unknown" };
+		}
+
+		const optAndSections = Buffer.alloc(optAndSectionsSize);
+		if (fs.readSync(fd, optAndSections, 0, optAndSectionsSize, peOffset + 24) < optAndSectionsSize) {
+			return { isPe: true, importedDlls: [], crtFamily: "unknown" };
+		}
+
+		const magic = optAndSections.readUInt16LE(0);
+		const isPe64 = magic === 0x20b;
+		const isPe32 = magic === 0x10b;
+		if (!isPe32 && !isPe64) {
+			return { isPe: true, importedDlls: [], crtFamily: "unknown" };
+		}
+
+		const numRvaAndSizesOffset = isPe64 ? 108 : 92;
+		const importDirOffset = isPe64 ? 112 + 8 : 96 + 8;
+		if (sizeOfOptionalHeader < importDirOffset + 8) {
+			return { isPe: true, importedDlls: [], crtFamily: "unknown" };
+		}
+		const numRvaAndSizes = optAndSections.readUInt32LE(numRvaAndSizesOffset);
+		if (numRvaAndSizes < 2) {
+			return { isPe: true, importedDlls: [], crtFamily: "unknown" };
+		}
+
+		const importRva = optAndSections.readUInt32LE(importDirOffset);
+		if (importRva === 0) {
+			return { isPe: true, importedDlls: [], crtFamily: "unknown" };
+		}
+
+		const sections: Array<{ virtualAddress: number; virtualSize: number; rawOffset: number; rawSize: number }> = [];
+		for (let i = 0; i < numSections; i++) {
+			const secBase = sizeOfOptionalHeader + i * 40;
+			const virtualSize = optAndSections.readUInt32LE(secBase + 8);
+			const virtualAddress = optAndSections.readUInt32LE(secBase + 12);
+			const rawSize = optAndSections.readUInt32LE(secBase + 16);
+			const rawOffset = optAndSections.readUInt32LE(secBase + 20);
+			sections.push({ virtualAddress, virtualSize, rawOffset, rawSize });
+		}
+
+		const rvaToFileOffset = (rva: number): number | null => {
+			for (const sec of sections) {
+				const span = Math.max(sec.virtualSize, sec.rawSize);
+				if (rva >= sec.virtualAddress && rva < sec.virtualAddress + span) {
+					const delta = rva - sec.virtualAddress;
+					if (sec.rawSize > 0 && delta >= sec.rawSize) return null;
+					const offset = sec.rawOffset + delta;
+					return offset >= 0 && offset < stat.size ? offset : null;
+				}
+			}
+			return rva < stat.size ? rva : null;
+		};
+
+		const importTableOffset = rvaToFileOffset(importRva);
+		if (importTableOffset === null) {
+			return { isPe: true, importedDlls: [], crtFamily: "unknown" };
+		}
+
+		const importedDlls: string[] = [];
+		const descBuf = Buffer.alloc(20);
+		const nameBuf = Buffer.alloc(256);
+		const maxDescriptors = 256;
+
+		for (let i = 0; i < maxDescriptors; i++) {
+			const pos = importTableOffset + i * 20;
+			if (pos + 20 > stat.size) break;
+			if (fs.readSync(fd, descBuf, 0, 20, pos) < 20) break;
+
+			const originalFirstThunk = descBuf.readUInt32LE(0);
+			const nameRva = descBuf.readUInt32LE(12);
+			const firstThunk = descBuf.readUInt32LE(16);
+			if (originalFirstThunk === 0 && nameRva === 0 && firstThunk === 0) {
+				break;
+			}
+			if (nameRva === 0) continue;
+
+			const nameOffset = rvaToFileOffset(nameRva);
+			if (nameOffset === null) continue;
+			const maxRead = Math.min(256, stat.size - nameOffset);
+			if (maxRead <= 0) continue;
+			const bytesRead = fs.readSync(fd, nameBuf, 0, maxRead, nameOffset);
+			if (bytesRead <= 0) continue;
+
+			let end = 0;
+			while (end < bytesRead && nameBuf[end] !== 0) {
+				end++;
+			}
+			if (end > 0) {
+				const dllName = nameBuf.subarray(0, end).toString("ascii").trim().toLowerCase();
+				if (dllName && !importedDlls.includes(dllName)) {
+					importedDlls.push(dllName);
+				}
+			}
+		}
+
+		return {
+			isPe: true,
+			importedDlls,
+			crtFamily: detectPeCrtFamily(importedDlls),
+		};
+	} catch {
+		return { isPe: false, importedDlls: [], crtFamily: "unknown" };
+	} finally {
+		if (fd !== undefined) {
+			try {
+				fs.closeSync(fd);
+			} catch {}
+		}
+	}
+}
+
+/** Classify Windows CRT family from imported DLL names. */
+export function detectPeCrtFamily(importedDlls: readonly string[]): PeCrtFamily {
+	let hasUcrt = false;
+	let hasMsvcrt = false;
+	for (const raw of importedDlls) {
+		const dll = raw.toLowerCase();
+		if (
+			dll === "ucrtbase.dll" ||
+			dll === "ucrtbased.dll" ||
+			dll.startsWith("api-ms-win-crt-") ||
+			dll.startsWith("vcruntime")
+		) {
+			hasUcrt = true;
+		} else if (dll === "msvcrt.dll" || /^msvcr\d+d?\.dll$/.test(dll)) {
+			hasMsvcrt = true;
+		}
+	}
+	if (hasUcrt && hasMsvcrt) return "mixed";
+	if (hasUcrt) return "ucrt";
+	if (hasMsvcrt) return "msvcrt";
+	return "unknown";
+}
+
+/** Locate r_util.dll / r_core.dll / radare2.exe for CRT inspection relative to r2 binary. */
+function findRadare2ReferencePePath(r2BinPath: string | undefined): string | undefined {
+	if (!r2BinPath) return undefined;
+	const binDir = path.dirname(r2BinPath);
+	const prefixDir = path.dirname(binDir);
+	const candidates = [
+		path.join(binDir, "r_util.dll"),
+		path.join(binDir, "libr_util.dll"),
+		path.join(binDir, "r_core.dll"),
+		path.join(binDir, "libr_core.dll"),
+		path.join(prefixDir, "bin", "r_util.dll"),
+		path.join(prefixDir, "lib", "r_util.dll"),
+		r2BinPath,
+	];
+	return candidates.find(candidate => fs.existsSync(candidate));
+}
+
+/**
+ * Inspect Windows CRT compatibility between radare2 (r_util.dll / r2.exe) and r2mcp.exe.
+ * Cross-CRT allocation/free (e.g. r_util.dll allocating via UCRT r_str_newf and r2mcp.exe
+ * freeing via msvcrt.dll free) crashes r2mcp during startup before MCP initialize.
+ */
+export function inspectWindowsRadare2CrtCompatibility(
+	r2BinPath: string | undefined,
+	pluginPath: string | undefined,
+): WindowsRadare2CrtCompatibility {
+	const r2RefPath = findRadare2ReferencePePath(r2BinPath);
+	const r2Inspect = r2RefPath
+		? inspectPeImportedDlls(r2RefPath)
+		: { isPe: false, importedDlls: [], crtFamily: "unknown" as const };
+	const pluginInspect = pluginPath
+		? inspectPeImportedDlls(pluginPath)
+		: { isPe: false, importedDlls: [], crtFamily: "unknown" as const };
+
+	if (!r2Inspect.isPe && !pluginInspect.isPe) {
+		return {
+			compatible: undefined,
+			r2BinaryPath: r2RefPath,
+			r2Crt: r2Inspect.crtFamily,
+			r2ImportedDlls: r2Inspect.importedDlls,
+			pluginPath,
+			pluginCrt: pluginInspect.crtFamily,
+			pluginImportedDlls: pluginInspect.importedDlls,
+		};
+	}
+
+	if (pluginInspect.crtFamily === "mixed") {
+		return {
+			compatible: false,
+			r2BinaryPath: r2RefPath,
+			r2Crt: r2Inspect.crtFamily,
+			r2ImportedDlls: r2Inspect.importedDlls,
+			pluginPath,
+			pluginCrt: pluginInspect.crtFamily,
+			pluginImportedDlls: pluginInspect.importedDlls,
+			reason: `r2mcp binary (${pluginPath}) links both UCRT and msvcrt.dll (${pluginInspect.importedDlls.join(", ")}), risking cross-CRT heap corruption.`,
+		};
+	}
+
+	if (
+		r2Inspect.crtFamily !== "unknown" &&
+		r2Inspect.crtFamily !== "mixed" &&
+		pluginInspect.crtFamily !== "unknown" &&
+		r2Inspect.crtFamily !== pluginInspect.crtFamily
+	) {
+		return {
+			compatible: false,
+			r2BinaryPath: r2RefPath,
+			r2Crt: r2Inspect.crtFamily,
+			r2ImportedDlls: r2Inspect.importedDlls,
+			pluginPath,
+			pluginCrt: pluginInspect.crtFamily,
+			pluginImportedDlls: pluginInspect.importedDlls,
+			reason: `CRT mismatch between r2mcp (${pluginInspect.crtFamily}: ${pluginInspect.importedDlls.join(", ")}) and radare2 (${r2Inspect.crtFamily}: ${r2Inspect.importedDlls.join(", ")}). Rebuild r2mcp with -mcrtdll=${r2Inspect.crtFamily}.`,
+		};
+	}
+
+	if (
+		r2Inspect.crtFamily !== "unknown" &&
+		r2Inspect.crtFamily !== "mixed" &&
+		pluginInspect.crtFamily === r2Inspect.crtFamily
+	) {
+		return {
+			compatible: true,
+			r2BinaryPath: r2RefPath,
+			r2Crt: r2Inspect.crtFamily,
+			r2ImportedDlls: r2Inspect.importedDlls,
+			pluginPath,
+			pluginCrt: pluginInspect.crtFamily,
+			pluginImportedDlls: pluginInspect.importedDlls,
+		};
+	}
+
+	return {
+		compatible: undefined,
+		r2BinaryPath: r2RefPath,
+		r2Crt: r2Inspect.crtFamily,
+		r2ImportedDlls: r2Inspect.importedDlls,
+		pluginPath,
+		pluginCrt: pluginInspect.crtFamily,
+		pluginImportedDlls: pluginInspect.importedDlls,
+	};
+}
+
 export interface NativeMcpInspectResult {
 	installed: boolean;
 	version?: string;
@@ -223,10 +524,16 @@ export interface NativeMcpInspectResult {
  */
 export function inspectNativeMcp(
 	service: NativeMcpService,
-	options?: { agentDir?: string; env?: Record<string, string | undefined> },
+	options?: {
+		agentDir?: string;
+		env?: Record<string, string | undefined>;
+		platform?: NodeJS.Platform;
+		which?: (cmd: string) => string | null;
+	},
 ): NativeMcpInspectResult {
 	const agentDir = options?.agentDir ?? getAgentDir();
-
+	const platform = options?.platform ?? process.platform;
+	const whichFn = options?.which ?? $which;
 	switch (service) {
 		case "x64dbg": {
 			const venvDir = getServiceVenvDir("x64dbg", agentDir);
@@ -312,33 +619,53 @@ export function inspectNativeMcp(
 		}
 
 		case "radare2": {
-			const r2Bin = $which("r2");
-			const r2pmBin = $which("r2pm");
+			const r2Bin = whichFn("r2") ?? whichFn("radare2");
+			const r2pmBin = whichFn("r2pm");
+			const exeNames = platform === "win32" ? ["r2mcp.exe", "r2mcp"] : ["r2mcp"];
 
-			// 检查 radare2 插件目录及标准候选路径
 			// 检查 radare2 插件目录及标准候选路径 (包括 R2PM_PREFIX / R2PM_BINDIR 环境变量)
 			const r2mcpLocations: string[] = [];
 			const envR2pmBin = options?.env?.R2PM_BINDIR ?? process.env.R2PM_BINDIR;
-			if (envR2pmBin) r2mcpLocations.push(path.join(envR2pmBin, "r2mcp"));
+			if (envR2pmBin) {
+				for (const exe of exeNames) r2mcpLocations.push(path.join(envR2pmBin, exe));
+			}
 			const envR2pmPrefix = options?.env?.R2PM_PREFIX ?? process.env.R2PM_PREFIX;
-			if (envR2pmPrefix) r2mcpLocations.push(path.join(envR2pmPrefix, "bin", "r2mcp"));
+			if (envR2pmPrefix) {
+				for (const exe of exeNames) r2mcpLocations.push(path.join(envR2pmPrefix, "bin", exe));
+			}
 
-			const home = process.env.HOME || process.env.USERPROFILE || "";
+			const home =
+				options?.env?.HOME ?? options?.env?.USERPROFILE ?? process.env.HOME ?? process.env.USERPROFILE ?? "";
 			if (home) {
-				r2mcpLocations.push(
-					path.join(home, ".local", "share", "radare2", "prefix", "bin", "r2mcp"),
-					path.join(home, ".local", "share", "radare2", "plugins", "r2mcp"),
-					path.join(home, ".local", "share", "radare2", "plugins", "bin", "r2mcp"),
-					path.join(home, ".local", "share", "radare2", "r2pm", "git", "radare2-mcp", "r2mcp"),
-				);
-				if (process.platform === "win32") {
+				for (const exe of exeNames) {
+					r2mcpLocations.push(
+						path.join(home, ".local", "share", "radare2", "prefix", "bin", exe),
+						path.join(home, ".local", "share", "radare2", "plugins", exe),
+						path.join(home, ".local", "share", "radare2", "plugins", "bin", exe),
+						path.join(home, ".local", "share", "radare2", "r2pm", "git", "radare2-mcp", exe),
+						path.join(home, ".local", "share", "radare2", "r2pm", "git", "r2mcp", exe),
+					);
+				}
+				if (platform === "win32") {
 					r2mcpLocations.push(
 						path.join(home, "AppData", "Local", "radare2", "prefix", "bin", "r2mcp.exe"),
 						path.join(home, "AppData", "Local", "radare2", "plugins", "r2mcp.exe"),
+						path.join(home, "AppData", "Local", "radare2", "r2pm", "git", "r2mcp", "build-ucrt", "r2mcp.exe"),
+						path.join(
+							home,
+							"AppData",
+							"Local",
+							"radare2",
+							"r2pm",
+							"git",
+							"radare2-mcp",
+							"build-ucrt",
+							"r2mcp.exe",
+						),
 					);
 				}
 			}
-			const whichR2mcp = $which("r2mcp");
+			const whichR2mcp = whichFn("r2mcp");
 			if (whichR2mcp) r2mcpLocations.unshift(whichR2mcp);
 
 			const foundPlugin = r2mcpLocations.find(loc => fs.existsSync(loc));
@@ -347,7 +674,15 @@ export function inspectNativeMcp(
 			if (!r2pmBin) missing.push("r2pm");
 			if (!foundPlugin) missing.push("r2mcp");
 
-			const installed = Boolean(r2Bin && r2pmBin && foundPlugin);
+			const crtCheck =
+				platform === "win32" && (r2Bin || foundPlugin)
+					? inspectWindowsRadare2CrtCompatibility(r2Bin ?? undefined, foundPlugin)
+					: undefined;
+			if (foundPlugin && crtCheck?.compatible === false) {
+				missing.push(`r2mcp (CRT mismatch: r2mcp=${crtCheck.pluginCrt} vs radare2=${crtCheck.r2Crt})`);
+			}
+
+			const installed = Boolean(r2Bin && r2pmBin && foundPlugin && crtCheck?.compatible !== false);
 			return {
 				installed,
 				missing,
@@ -356,6 +691,15 @@ export function inspectNativeMcp(
 					r2Path: r2Bin ?? undefined,
 					r2pmPath: r2pmBin ?? undefined,
 					pluginPath: foundPlugin,
+					...(crtCheck
+						? {
+								crtCompatible: crtCheck.compatible,
+								r2Crt: crtCheck.r2Crt,
+								pluginCrt: crtCheck.pluginCrt,
+								r2ReferenceBinary: crtCheck.r2BinaryPath,
+								crtReason: crtCheck.reason,
+							}
+						: {}),
 				},
 			};
 		}
@@ -482,19 +826,19 @@ async function defaultExecCommand(
 	let settled = false;
 
 	const cwd = options?.cwd ?? process.cwd();
+	const effectiveEnv = options?.env ? { ...process.env, ...options.env } : process.env;
 	const resolved = await resolveStdioSpawnCommand(
 		{ type: "stdio", command: cmd, args },
-		{ cwd, env: options?.env ?? process.env, platform: process.platform },
+		{ cwd, env: effectiveEnv, platform: process.platform },
 	);
 	options?.signal?.throwIfAborted();
 	const child = spawn(resolved.cmd[0], resolved.cmd.slice(1), {
 		cwd,
 		stdio: ["ignore", "pipe", "pipe"],
-		env: options?.env ?? process.env,
+		env: effectiveEnv,
 		windowsHide: resolved.windowsHide,
 		windowsVerbatimArguments: resolved.windowsVerbatimArguments,
 	});
-
 	const onAbort = () => {
 		if (!settled) {
 			settled = true;
@@ -550,6 +894,9 @@ export interface NativeMcpInstallOptions {
 	onChunk?: (text: string) => void;
 	pythonPath?: string;
 	x64dbgPath?: string;
+	platform?: NodeJS.Platform;
+	env?: Record<string, string | undefined>;
+	which?: (cmd: string) => string | null;
 	fetch?: (
 		input: Parameters<typeof globalThis.fetch>[0],
 		init?: Parameters<typeof globalThis.fetch>[1],
@@ -695,6 +1042,175 @@ export async function extractGhidraMcpRelease(
 	return { wheelPath: targetWheelPath, jarPath: targetJarPath };
 }
 
+const TRUSTED_R2MCP_GIT_URLS: Record<string, true> = {
+	"https://github.com/radareorg/radare2-mcp": true,
+	"https://github.com/radareorg/radare2-mcp.git": true,
+	"https://github.com/dnakov/radare2-mcp": true,
+	"https://github.com/dnakov/radare2-mcp.git": true,
+};
+
+/** Extract R2PM_GIT URL from local r2pm db/r2mcp metadata if it matches upstream radare2-mcp. */
+export function parseTrustedR2mcpGitUrl(pkgScript: string): string | null {
+	const match = pkgScript.match(/^\s*R2PM_GIT\s+"([^"]+)"/m) ?? pkgScript.match(/^\s*R2PM_GIT\s+(\S+)/m);
+	if (!match) return null;
+	const url = match[1].trim();
+	return TRUSTED_R2MCP_GIT_URLS[url] ? url : null;
+}
+
+function appendCompilerFlag(existing: string | undefined, flag: string): string {
+	if (!existing || existing.trim().length === 0) return flag;
+	if (existing.split(/\s+/).includes(flag)) return existing;
+	return `${existing} ${flag}`;
+}
+
+async function queryR2EnvVar(
+	exec: NonNullable<NativeMcpInstallOptions["execCommand"]>,
+	bin: string,
+	varName: string,
+	options: { cwd: string; env?: Record<string, string | undefined>; signal?: AbortSignal },
+): Promise<string | undefined> {
+	const res = await exec(bin, ["-H", varName], {
+		cwd: options.cwd,
+		env: options.env,
+		signal: options.signal,
+	});
+	if (res.exitCode !== 0) return undefined;
+	const trimmed = res.stdout.trim().split(/\r?\n/)[0]?.trim();
+	return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+async function buildWindowsR2mcpFromSource(params: {
+	r2Bin: string;
+	r2pmBin: string;
+	targetCrt: "ucrt" | "msvcrt" | undefined;
+	cwd: string;
+	baseEnv: Record<string, string | undefined>;
+	buildEnv: Record<string, string | undefined>;
+	whichFn: (cmd: string) => string | null;
+	exec: NonNullable<NativeMcpInstallOptions["execCommand"]>;
+	signal?: AbortSignal;
+	onChunk?: (text: string) => void;
+}): Promise<string> {
+	const { r2Bin, r2pmBin, targetCrt, cwd, baseEnv, buildEnv, whichFn, exec, signal, onChunk } = params;
+
+	const mesonBin = whichFn("meson");
+	if (!mesonBin) {
+		const crtHint = targetCrt ? ` -Dc_args=-mcrtdll=${targetCrt} -Dc_link_args=-mcrtdll=${targetCrt}` : "";
+		throw new Error(
+			`Windows r2mcp source build requires 'meson' and a C toolchain on PATH. ` +
+				`Install meson + ninja + MinGW-w64/UCRT compiler, then re-run setup or build manually with: ` +
+				`meson setup build-${targetCrt ?? "ucrt"} -Dr2_prefix=<RADARE2_PREFIX> -Dbuildtype=release${crtHint} && meson compile -C build-${targetCrt ?? "ucrt"} r2mcp`,
+		);
+	}
+
+	const r2pmGitDir =
+		baseEnv.R2PM_GITDIR ?? (await queryR2EnvVar(exec, r2pmBin, "R2PM_GITDIR", { cwd, env: buildEnv, signal }));
+	const r2pmBinDir =
+		baseEnv.R2PM_BINDIR ?? (await queryR2EnvVar(exec, r2pmBin, "R2PM_BINDIR", { cwd, env: buildEnv, signal }));
+	if (!r2pmGitDir || !r2pmBinDir) {
+		throw new Error(
+			"Unable to resolve R2PM_GITDIR or R2PM_BINDIR from 'r2pm -H'. Ensure radare2/r2pm is properly initialized.",
+		);
+	}
+
+	const candidateSrcDirs = [path.join(r2pmGitDir, "r2mcp"), path.join(r2pmGitDir, "radare2-mcp")];
+	let srcDir = candidateSrcDirs.find(dir => fs.existsSync(path.join(dir, "meson.build")));
+
+	if (!srcDir) {
+		const r2pmDbDir =
+			baseEnv.R2PM_DBDIR ??
+			(await queryR2EnvVar(exec, r2pmBin, "R2PM_DBDIR", { cwd, env: buildEnv, signal })) ??
+			path.join(r2pmGitDir, "radare2-pm", "db");
+		const dbPkgFile = path.join(r2pmDbDir, "r2mcp");
+		if (!fs.existsSync(dbPkgFile)) {
+			throw new Error(
+				`r2mcp source directory not found in ${r2pmGitDir} and r2pm package metadata ${dbPkgFile} is missing. Run 'r2pm -U' first.`,
+			);
+		}
+		const gitUrl = parseTrustedR2mcpGitUrl(await fs.promises.readFile(dbPkgFile, "utf-8"));
+		if (!gitUrl) {
+			throw new Error(`Untrusted or missing R2PM_GIT source URL in ${dbPkgFile}; refusing source checkout.`);
+		}
+		const gitBin = whichFn("git");
+		if (!gitBin) {
+			throw new Error(
+				`r2mcp source is not checked out in ${r2pmGitDir} and 'git' was not found on PATH to clone ${gitUrl}.`,
+			);
+		}
+		const cloneTarget = path.join(r2pmGitDir, "r2mcp");
+		await fs.promises.mkdir(r2pmGitDir, { recursive: true });
+		onChunk?.(`[r2mcp] Cloning radare2-mcp source from ${gitUrl} into ${cloneTarget}...\n`);
+		const cloneRes = await exec(
+			gitBin,
+			["clone", "--depth=1", "--recursive", "-c", "core.autocrlf=input", gitUrl, cloneTarget],
+			{ cwd: r2pmGitDir, env: buildEnv, signal, onChunk },
+		);
+		if (cloneRes.exitCode !== 0 || !fs.existsSync(path.join(cloneTarget, "meson.build"))) {
+			throw new Error(
+				`Failed to clone r2mcp source (exit code ${cloneRes.exitCode}): ${cloneRes.stderr || cloneRes.stdout}`,
+			);
+		}
+		srcDir = cloneTarget;
+	}
+
+	const queriedR2Prefix = await queryR2EnvVar(exec, r2Bin, "R2_PREFIX", { cwd, env: buildEnv, signal });
+	const derivedR2Prefix = path.dirname(path.dirname(r2Bin));
+	const r2Prefix = queriedR2Prefix && fs.existsSync(queriedR2Prefix) ? queriedR2Prefix : derivedR2Prefix;
+	const r2PrefixPosix = r2Prefix.replace(/\\/g, "/");
+
+	const crtFlag = targetCrt ? `-mcrtdll=${targetCrt}` : undefined;
+	const buildDirName = targetCrt === "msvcrt" ? "build-msvcrt" : targetCrt === "ucrt" ? "build-ucrt" : "builddir";
+	const buildDirPath = path.join(srcDir, buildDirName);
+	const hasExistingBuild =
+		fs.existsSync(path.join(buildDirPath, "build.ninja")) ||
+		fs.existsSync(path.join(buildDirPath, "meson-private", "coredata.dat"));
+
+	const setupArgs = [
+		...(hasExistingBuild ? ["setup", "--reconfigure"] : ["setup"]),
+		buildDirName,
+		`-Dr2_prefix=${r2PrefixPosix}`,
+		"-Dbuildtype=release",
+		...(crtFlag ? [`-Dc_args=${crtFlag}`, `-Dc_link_args=${crtFlag}`] : []),
+	];
+
+	onChunk?.(`[r2mcp] Configuring Meson build (${setupArgs.join(" ")})...\n`);
+	const setupRes = await exec(mesonBin, setupArgs, {
+		cwd: srcDir,
+		env: buildEnv,
+		signal,
+		onChunk,
+	});
+	if (setupRes.exitCode !== 0) {
+		throw new Error(
+			`Meson setup for r2mcp failed with exit code ${setupRes.exitCode}: ${setupRes.stderr || setupRes.stdout}`,
+		);
+	}
+
+	onChunk?.(`[r2mcp] Compiling r2mcp target via "${mesonBin} compile -C ${buildDirName} r2mcp"...\n`);
+	const compileRes = await exec(mesonBin, ["compile", "-C", buildDirName, "r2mcp"], {
+		cwd: srcDir,
+		env: buildEnv,
+		signal,
+		onChunk,
+	});
+	if (compileRes.exitCode !== 0) {
+		throw new Error(
+			`Meson compile for r2mcp failed with exit code ${compileRes.exitCode}: ${compileRes.stderr || compileRes.stdout}`,
+		);
+	}
+
+	const builtCandidates = [path.join(buildDirPath, "r2mcp.exe"), path.join(buildDirPath, "src", "r2mcp.exe")];
+	const builtExe = builtCandidates.find(candidate => fs.existsSync(candidate));
+	if (!builtExe) {
+		throw new Error(`Meson compile succeeded, but r2mcp.exe was not found in ${buildDirPath}.`);
+	}
+
+	await fs.promises.mkdir(r2pmBinDir, { recursive: true });
+	const destExe = path.join(r2pmBinDir, "r2mcp.exe");
+	await fs.promises.copyFile(builtExe, destExe);
+	return destExe;
+}
+
 /**
  * Install a native MCP service into the managed profile, perform live verification handshake,
  * and persist configuration.
@@ -732,6 +1248,9 @@ export async function installNativeMcpService(
 	const exec = options.execCommand ?? defaultExecCommand;
 	const fetchFn = options.fetch ?? globalThis.fetch;
 	const agentDir = options.agentDir ?? getAgentDir();
+	const platform = options.platform ?? process.platform;
+	const baseEnv = options.env ?? process.env;
+	const whichFn = options.which ?? $which;
 
 	const targetServerConfig = getNativeMcpServer(service, {
 		agentDir,
@@ -755,30 +1274,78 @@ export async function installNativeMcpService(
 
 	// 2. 根据服务类型执行受管环境与包安装
 	if (service === "radare2") {
-		// radare2 MCP: 验证 r2/r2pm，执行 r2pm -Uci r2mcp 并校验二进制
-		const r2Bin = $which("r2");
-		const r2pmBin = $which("r2pm");
+		// radare2 MCP: 验证 r2/r2pm，检查 Windows CRT 契约，执行安装并在需要时回退到匹配 CRT 的源码编译
+		const r2Bin = whichFn("r2") ?? whichFn("radare2");
+		const r2pmBin = whichFn("r2pm");
 		if (!r2Bin || !r2pmBin) {
 			throw new Error("radare2 and r2pm must be installed before installing r2mcp.");
+		}
+
+		let targetCrt: "ucrt" | "msvcrt" | undefined;
+		const buildEnv: Record<string, string | undefined> = { ...baseEnv };
+		if (platform === "win32") {
+			const r2RefPath = findRadare2ReferencePePath(r2Bin);
+			const r2Pe = r2RefPath ? inspectPeImportedDlls(r2RefPath) : undefined;
+			if (r2Pe?.crtFamily === "ucrt" || r2Pe?.crtFamily === "msvcrt") {
+				targetCrt = r2Pe.crtFamily;
+				const crtFlag = `-mcrtdll=${targetCrt}`;
+				buildEnv.CFLAGS = appendCompilerFlag(buildEnv.CFLAGS, crtFlag);
+				buildEnv.LDFLAGS = appendCompilerFlag(buildEnv.LDFLAGS, crtFlag);
+			}
 		}
 
 		options.onChunk?.(`[r2mcp] Installing radare2 MCP plugin via "${r2pmBin} -Uci r2mcp"...\n`);
 		const installRes = await exec(r2pmBin, ["-Uci", "r2mcp"], {
 			cwd,
+			env: buildEnv,
 			signal: options.signal,
 			onChunk: options.onChunk,
 		});
-		if (installRes.exitCode !== 0) {
+
+		let postInspect = inspectNativeMcp("radare2", {
+			agentDir,
+			env: baseEnv,
+			platform,
+			which: whichFn,
+		});
+
+		if (platform === "win32" && (installRes.exitCode !== 0 || !postInspect.installed)) {
+			const reason =
+				postInspect.details?.crtCompatible === false
+					? String(postInspect.details.crtReason ?? "CRT mismatch detected")
+					: installRes.exitCode !== 0
+						? `r2pm -Uci r2mcp exited with ${installRes.exitCode}`
+						: "r2mcp.exe not found after r2pm install";
+			options.onChunk?.(`[r2mcp] ${reason}; building r2mcp from upstream source with matching CRT...\n`);
+			await buildWindowsR2mcpFromSource({
+				r2Bin,
+				r2pmBin,
+				targetCrt,
+				cwd,
+				baseEnv,
+				buildEnv,
+				whichFn,
+				exec,
+				signal: options.signal,
+				onChunk: options.onChunk,
+			});
+			postInspect = inspectNativeMcp("radare2", {
+				agentDir,
+				env: baseEnv,
+				platform,
+				which: whichFn,
+			});
+		} else if (installRes.exitCode !== 0) {
 			throw new Error(
 				`r2pm install failed with exit code ${installRes.exitCode}: ${installRes.stderr || installRes.stdout}`,
 			);
 		}
 
-		// 验证插件已成功编译并安装
-		const postInspect = inspectNativeMcp("radare2", { agentDir });
 		if (!postInspect.installed) {
+			const crtReason =
+				typeof postInspect.details?.crtReason === "string" ? ` ${postInspect.details.crtReason}` : "";
 			throw new Error(
-				`r2mcp installation completed but plugin binary was not found in radare2 plugin paths. Check r2pm build logs.`,
+				`r2mcp installation completed but compatible plugin binary was not verified (${postInspect.missing.join(", ")}).${crtReason}`,
 			);
 		}
 	} else {
@@ -983,7 +1550,12 @@ export async function installNativeMcpService(
 	}
 
 	// 3. 校验文件系统状态
-	const postInspection = inspectNativeMcp(service, { agentDir, env: process.env });
+	const postInspection = inspectNativeMcp(service, {
+		agentDir,
+		env: baseEnv,
+		platform,
+		which: whichFn,
+	});
 	if (!postInspection.installed) {
 		throw new Error(
 			`Installation finished but inspection failed for service "${service}". Missing: ${postInspection.missing.join(", ")}`,
@@ -998,8 +1570,16 @@ export async function installNativeMcpService(
 	let connection: MCPServerConnection | undefined;
 	let toolNames: string[] = [];
 
+	const handshakeServerConfig = options.env
+		? getNativeMcpServer(service, {
+				agentDir,
+				x64dbgPath: options.x64dbgPath,
+				env: { ...targetServerConfig.env, ...options.env },
+			})
+		: targetServerConfig;
+
 	try {
-		connection = await connect(serverName, targetServerConfig, { signal: options.signal });
+		connection = await connect(serverName, handshakeServerConfig, { signal: options.signal });
 		const tools = await getTools(connection, { signal: options.signal });
 		if (!tools || tools.length === 0) {
 			throw new Error(`MCP server '${serverName}' connected successfully but exposed zero tools.`);

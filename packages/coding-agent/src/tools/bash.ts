@@ -49,13 +49,14 @@ import { serviceLogs, startService, type ServiceReady } from "../launch/services
 import { isFindEnabled } from "./jfind";
 import { formatArtifactErrorNotice } from "@reverse/tui/tools/output-meta";
 import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
-import { resolveInlineByteCapBudget } from "./output-meta";
+import { isArtifactSessionBudgetExhausted, resolveInlineByteCapBudget } from "./output-meta";
 import { resolveToCwd } from "./path-utils";
 import { extractLeadingCdTarget, extractLiteralAndChainSegments, tokenizeShellSegments } from "./shell-tokenize";
 import { ToolAbortError } from "./tool-errors";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { clampTimeout, TOOL_TIMEOUTS } from "./tool-timeouts";
+import { getWaitPollGuard } from "../session/wait-poll-guard";
 
 import {
 	cfgAstEditEnabled,
@@ -1065,6 +1066,20 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 				},
 			};
 		}
+		// 异步等待态下拦截纯 shell 空操作（`true` / `:` / 空命令），防止派生无意义子进程或后台作业轮询
+		const noopWaitGuard = getWaitPollGuard(this.session).checkBashCommand(toolCallId, rawCommand);
+		if (noopWaitGuard) {
+			return {
+				useless: true,
+				content: [{ type: "text", text: noopWaitGuard.reason }],
+				details: {
+					unexecuted: true,
+					blockedReason: noopWaitGuard.reason,
+					guidance: noopWaitGuard.guidance,
+					waitPollGuard: noopWaitGuard,
+				} as BashToolDetails,
+			};
+		}
 		// Mode selection runs on normalized fields: a caller that materializes
 		// every optional argument with empty or placeholder values still asked
 		// for a plain command. Only `async: true` is an async request, a blank
@@ -1619,8 +1634,15 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			}
 		}
 
-		// Allocate artifact for truncated output storage
-		const { path: artifactPath, id: artifactId } = (await this.session.allocateOutputArtifact?.("bash")) ?? {};
+		// Allocate artifact for truncated output storage unless session capture budget is exhausted
+		const artifactManager = this.session.getArtifactManager?.() ?? null;
+		if (artifactManager?.ensureInitialized) {
+			await artifactManager.ensureInitialized().catch(() => {});
+		}
+		const budgetExhausted = isArtifactSessionBudgetExhausted(this.session.settings, artifactManager);
+		const { path: artifactPath, id: artifactId } = budgetExhausted
+			? {}
+			: ((await this.session.allocateOutputArtifact?.("bash")) ?? {});
 
 		const interactiveUi = canUseInteractiveBashPty(pty === true, ctx) ? ctx?.ui : undefined;
 		if (pty && !interactiveUi) {
@@ -1637,8 +1659,10 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 					timeoutMs,
 					signal,
 					env: backendPreflight?.env,
+					settings: this.session.settings,
 					artifactPath,
 					artifactId,
+					artifactManager,
 				})
 			: // executeBash runs its OWN direnv preflight internally — pass the RAW
 				// command here so the unset prefix is not applied twice.
@@ -1651,8 +1675,10 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 					signal,
 					gitGuard: cfgBashGitGuard.get(this.session.settings),
 					filesystem: this.#urlFilesystem(signal, approvalTier).shellFilesystem(),
+					settings: this.session.settings,
 					artifactPath,
 					artifactId,
+					artifactManager,
 					// Stream the sink's own inline view rather than re-buffering chunks.
 					onPreview: onUpdate ? text => onUpdate({ content: [{ type: "text", text }], details: {} }) : undefined,
 					onMinimizedSave: originalText => saveBashOriginalArtifact(this.session, originalText),

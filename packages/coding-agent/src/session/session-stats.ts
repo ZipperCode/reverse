@@ -10,6 +10,7 @@ import { isRecord } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 
+import { extractEditErrorKind } from "../edit/error-kind";
 import type { ContextUsage } from "../extensibility/extensions/types";
 import {
 	computeNonMessageBreakdown,
@@ -226,12 +227,9 @@ export class SessionStatsTracker {
 				if (message.toolName === "task") {
 					const usage = taskToolUsage(message.details);
 					if (usage) addUsage(usage);
-				} else if (message.toolName === "edit" && message.isError) {
-					const { details } = message;
-					if (details && typeof details === "object" && "errorKind" in details) {
-						const kind = details.errorKind;
-						if (typeof kind === "string") editRejections[kind] = (editRejections[kind] ?? 0) + 1;
-					}
+				} else if (message.isError) {
+					const kind = extractEditErrorKind(message);
+					if (kind) editRejections[kind] = (editRejections[kind] ?? 0) + 1;
 				}
 			} else if (message.role === "assistant") {
 				assistantMessages++;

@@ -4206,11 +4206,13 @@ export class InteractiveMode implements InteractiveModeContext {
 				if (task.status !== "pending" && task.status !== "in_progress" && task.status !== "blocked") {
 					return task;
 				}
+				// 子代理结束只表明其工作收尾；带验收或未解决失败的任务仍由实际证据决定。
+				if (task.acceptance || task.unresolvedFailures?.length) return task;
 				if (!todoMatchesAnyDescription(task.content, completedDescs)) return task;
 				mutated = true;
 				// Drop any blocker note along with the blocked status — the wait the
 				// note described is over.
-				return { content: task.content, status: "completed" as const };
+				return { ...task, status: "completed" as const, blocker: undefined };
 			}),
 		}));
 		if (!mutated) return;

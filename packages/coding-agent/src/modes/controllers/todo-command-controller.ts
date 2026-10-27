@@ -445,13 +445,14 @@ export class TodoCommandController {
 	#commit(nextPhases: TodoPhase[], action: string, opts?: { removed?: boolean }): void {
 		// Persist first so HUD visibility binds to the new canonical source.
 		this.ctx.session.setTodoPhases(nextPhases);
-		this.ctx.sessionManager.appendCustomEntry(USER_TODO_EDIT_CUSTOM_TYPE, { phases: nextPhases });
-		this.ctx.setTodos(nextPhases);
+		const effective = this.ctx.session.getTodoPhases();
+		this.ctx.sessionManager.appendCustomEntry(USER_TODO_EDIT_CUSTOM_TYPE, { phases: effective });
+		this.ctx.setTodos(effective);
 
 		// 3. Inject system reminder so the agent learns about the change next turn.
 		//    Removals carry explicit intent so the agent does not rebuild the
 		//    cleared/removed items on its next turn (issue #5258).
-		const reminderText = buildSystemReminder(action, nextPhases, opts?.removed ?? false);
+		const reminderText = buildSystemReminder(action, effective, opts?.removed ?? false);
 		const message = {
 			role: "developer" as const,
 			content: [{ type: "text" as const, text: reminderText }],

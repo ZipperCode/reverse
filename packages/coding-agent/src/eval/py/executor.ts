@@ -154,8 +154,11 @@ export interface PythonResult {
 	truncated: boolean;
 	/** Artifact ID if full output was saved to artifact storage */
 	artifactId?: string;
+	artifactBytes?: number;
 	/** Bytes the artifact cap dropped from the saved file's middle (the artifact is a head/tail sample). */
 	artifactElidedBytes?: number;
+	artifactMaxBytes?: number;
+	artifactBudgetExhausted?: boolean;
 	artifactError?: OutputArtifactError;
 	/** Total number of lines in the output stream */
 	totalLines: number;
@@ -169,6 +172,10 @@ export interface PythonResult {
 	displayOutputs: EvalDisplayOutput[];
 	/** Whether stdin was requested */
 	stdinRequested: boolean;
+	definedNames?: string[];
+	definedNamesOmitted?: number;
+	missingNames?: string[];
+	recoveryGuidance?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -492,23 +499,24 @@ async function executeWithKernel(
 		},
 	});
 
-	if (
-		!isPerCall &&
-		options?.toolSession &&
-		options.filename &&
-		path.isAbsolute(options.filename) &&
-		result.exitCode === 0 &&
-		!result.cancelled &&
-		(!("isAlive" in kernel && typeof kernel.isAlive === "function") || kernel.isAlive())
-	) {
-		updateEvalState(options.toolSession, {
-			language: "python",
-			kernelId,
-			alive: true,
-			generation: currentGen,
-			interpreter: kernelInterpreter,
-			loadedPath: options.filename,
-		});
+	const kernelStillAlive = !("isAlive" in kernel && typeof kernel.isAlive === "function") || kernel.isAlive();
+	if (!isPerCall && options?.toolSession && kernelStillAlive) {
+		const loadedPath =
+			options.filename && path.isAbsolute(options.filename) && result.exitCode === 0 && !result.cancelled
+				? options.filename
+				: undefined;
+		if (loadedPath !== undefined || result.definedNames !== undefined) {
+			updateEvalState(options.toolSession, {
+				language: "python",
+				kernelId,
+				alive: true,
+				generation: currentGen,
+				interpreter: kernelInterpreter,
+				loadedPath,
+				definedNames: result.definedNames,
+				definedNamesOmitted: result.definedNamesOmitted,
+			});
+		}
 	}
 	return result;
 }

@@ -497,10 +497,16 @@ describe("AgentSession session stats", () => {
 			result("edit", true, { diff: "", errorKind: "unseen_lines" }, 1),
 			result("edit", true, { diff: "", errorKind: "stale_tag" }, 2),
 			result("edit", true, { diff: "", errorKind: "unseen_lines" }, 3),
+			result(
+				"write",
+				true,
+				{ xdev: { tool: "edit", mode: "execute", inner: { diff: "", errorKind: "other_file_tag" } } },
+				4,
+			),
 			// Written before edits recorded a kind.
-			result("edit", true, undefined, 4),
-			result("edit", false, { diff: "+1|x" }, 5),
-			result("bash", true, { errorKind: "parse" }, 6),
+			result("edit", true, undefined, 5),
+			result("edit", false, { diff: "+1|x" }, 6),
+			result("bash", true, { errorKind: "parse" }, 7),
 		];
 		session = new AgentSession({
 			agent: new Agent({ initialState: { model: model(), systemPrompt: ["Test"], tools: [], messages } }),
@@ -509,7 +515,11 @@ describe("AgentSession session stats", () => {
 			modelRegistry,
 		});
 
-		expect(session.getSessionStats().editRejections).toEqual({ unseen_lines: 2, stale_tag: 1 });
+		expect(session.getSessionStats().editRejections).toEqual({
+			unseen_lines: 2,
+			stale_tag: 1,
+			other_file_tag: 1,
+		});
 	});
 
 	it("drops anchored tool schemas after switching to a model that defers them", () => {

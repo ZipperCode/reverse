@@ -127,22 +127,35 @@ Behavior:
 
 1. Every chunk is sanitized with `sanitizeWithOptionalSixelPassthrough(..., sanitizeText)` and appended to in-memory accounting.
 2. Optional live `onChunk` receives sanitized pre-column-cap chunks, throttled if configured.
-3. A per-line column cap or a caller-supplied bounded `inline` representation can shorten the LLM-facing buffer; artifact mirroring then keeps the complete sanitized stream. Carriage-return progress updates are normalized to line boundaries, with split CRLF collapsed.
-4. When the in-memory tail buffer would exceed spill threshold (`DEFAULT_MAX_BYTES`, 50KB), sink marks output truncated and starts artifact mirroring if an artifact path is available.
-5. If a file sink is opened, it first writes the current buffer, then all queued/subsequent sanitized chunks.
+3. A per-line column cap or caller-supplied bounded `inline` representation can shorten the LLM-facing buffer; artifact mirroring retains the sanitized stream up to its explicit disk budget. Carriage-return updates normalize to line boundaries, with split CRLF collapsed.
+4. Streaming tools use the existing spill/head/tail settings; default head/tail windows are 6 KiB each with a 16 KiB streaming spill threshold. `ReadTool` page limits remain separate.
+5. Artifact mirroring writes a head/tail sample when the per-call cap is reached. The default cap is 4 MiB including the truncation notice; `tools.artifactMaxBytes=0` removes the per-call cap.
 6. In-memory buffer is trimmed to a tail window, or to head + elision marker + tail when head retention is configured.
-7. `dump()` finalizes the capture and returns `artifactId` only when no artifact I/O failure was observed. `artifactError` records the first failed operation (`open`, `write`, `flush`, or `end`) without persisting raw filesystem error text.
+7. `dump()` finalizes capture; `artifactId` identifies a complete capture or an explicitly marked head/tail sample. `artifactBytes`, `artifactElidedBytes`, and `artifactMaxBytes` report exact disk accounting. I/O failures (`open`, `write`, `flush`, `end`) and exhausted session budget (`budget`) are distinct.
 
 Practical effect:
 
 - UI/tool return shows bounded output,
-- full sanitized output (up to the artifact cap) is preserved in artifact file and referenced as `artifact://<id>` when file-backed artifact mirroring succeeded.
+- An `artifact://<id>` recovery link identifies exactly the retained bytes. Once the disk cap elides the middle, those omitted bytes are not recoverable from that artifact; metadata and the notice expose this loss.
 
-If artifact I/O fails, the sink stops further capture attempts, retains the existing bounded inline output, and still closes its writer. The tool's execution result is unchanged; its output metadata and terminal warning state that full output was not saved completely, without advertising the incomplete artifact as a full recovery source. `dump()` and `dispose()` share completion so concurrent finalization cannot publish success before an asynchronous write or close failure settles. Failed capture is not retried. The sink caps the artifact file at `artifactMaxBytes` (default 16 MiB; tool executors pass `tools.artifactMaxBytes`, where `0` = unbounded): it keeps a head window (`artifactHeadBytes`, default 3 MiB but at most half the cap) plus a rolling tail, joined by an `ARTIFACT TRUNCATED` notice. When the cap drops bytes, `dump()` reports them as `artifactElidedBytes`, and the output notice labels `artifact://<id>` as a head/tail sample instead of full output.
+If artifact I/O fails, the sink stops further capture attempts, retains bounded inline output, and closes its writer. Execution success stays unchanged; metadata warns that full output was not saved without offering the incomplete file as a full recovery source. `dump()` and `dispose()` share completion so finalization waits for asynchronous writes and close failures. Failed capture is not retried. The capped file keeps a head window (`artifactHeadBytes`, default 1 MiB, at most half the cap), a rolling tail, and an `ARTIFACT TRUNCATED` notice.
 
 The capture warning also survives background job delivery, `wait` recovery, non-consuming `read proc://<id>` inspection, cancellation, and transcript rebuilds. Capture failures belong to individual jobs, not the aggregate report. Oversized recovery snapshots can persist the complete annotated report, including healthy jobs' results, and advertise it as a "full report" rather than a full original command log. Each source capture warning appears once in model-facing text and once on its own live or rebuilt terminal row. Individual incomplete captures are still not re-spilled and advertised as full original output.
 
 Transcript rebuilds also read capture errors from historical per-job fields. A historical aggregate warning is retained when no job identifies its source; it is not repeated when a row already carries the same failure.
+
+### Capture session budget and quantitative audit
+
+`tools.artifactSessionMaxBytes` defaults to 64 MiB (`0` = unlimited) across a shared `ArtifactManager`, including adopted subagent captures. Resume scans existing capture logs; in-flight reservations prevent parallel sinks or centralized spills from spending the same remaining bytes. Exhaustion keeps output bounded inline and sets `artifactBudgetExhausted` / `artifactError: "budget"` without changing tool execution success. Explicit semantic saves, source artifacts, shake recovery snapshots, and handoff documents remain lossless rather than silently passing through capture truncation.
+
+Audit an existing journal locally:
+
+```sh
+bun scripts/session-output-metrics.ts /path/session.jsonl --json
+bun scripts/session-output-metrics.ts /path/fixed.jsonl --baseline /path/baseline.jsonl --json --require-pass
+```
+
+The report separates source runtime identity from analyzer identity and records output bytes, capture maxima, compression counts/intervals/tokens, shaken ratios, post-compaction rereads, missing eval names, edit rejections, and prerequisite gate counts. `--artifacts-dir` / `--baseline-artifacts-dir` override sibling artifact discovery. Malformed or oversized JSONL rows are counted. Missing observations remain unknown. Handoff comparison evaluates structural and supplied invariant coverage; fixture provenance stays unknown for real-model quality, and fewer compactions alone cannot pass the comparison.
 
 ## URL access model
 

@@ -17,6 +17,8 @@ import type { Setting } from "../config/registry";
 import type { Settings } from "../config/settings";
 
 import {
+	capArtifactText,
+	DEFAULT_MAX_BYTES,
 	type OutputSummary,
 	type TruncationResult,
 	truncateMiddle,
@@ -27,12 +29,23 @@ import { renderError } from "./tool-errors";
 import {
 	cfgToolsArtifactHeadBytes,
 	cfgToolsArtifactMaxBytes,
+	cfgToolsArtifactSessionMaxBytes,
 	cfgToolsArtifactSpillThreshold,
 	cfgToolsArtifactTailBytes,
 	cfgToolsArtifactTailLines,
 	cfgToolsOutputMaxColumns,
 } from "./settings";
 
+/** Minimal interface on `ArtifactManager` consulted for session capture-log budgeting. */
+export interface CaptureBudgetTracker {
+	ensureInitialized?(): Promise<void>;
+	getRemainingCaptureBudgetBytes(sessionMaxBytes: number): number | undefined;
+	isCaptureBudgetExhausted(sessionMaxBytes: number): boolean;
+	reserveCaptureBytes?(filePath: string, bytes: number): void;
+	recordCapturedArtifact?(filePath: string, bytes: number): void;
+	recordCapturedById?(id: string, toolType: string, bytes: number): void;
+	recordCapturedBytes(bytes: number, filePath?: string): void;
+}
 /** Input for {@link OutputMetaBuilder.limits}. `columnUnit` defaults to `chars`. */
 export interface LimitsInput {
 	matchLimit?: number;
@@ -192,7 +205,9 @@ export class OutputMetaBuilder {
 	/** Add truncation, column limits, and capture failures from OutputSummary. */
 	truncationFromSummary(summary: OutputSummary, options: TruncationSummaryOptions): this {
 		if (summary.artifactError) this.#meta.artifactError = summary.artifactError;
-		// A per-line column cap only trims individual lines (with a `…` marker);
+		if (summary.artifactBudgetExhausted || summary.artifactError === "budget") {
+			this.#meta.artifactBudgetExhausted = true;
+		}
 		// it is not a window/byte truncation, so surface it as its own limit
 		// notice rather than a "Showing lines X-Y … limit" range. This runs even
 		// when the output is otherwise complete (`truncated === false`). The sink
@@ -207,8 +222,12 @@ export class OutputMetaBuilder {
 		const { direction, startLine = 1, totalFileLines } = options;
 		const totalLines = totalFileLines ?? summary.totalLines;
 		const artifactId = summary.artifactError ? undefined : summary.artifactId;
+		const artifactBytes = artifactId ? summary.artifactBytes : undefined;
 		// A capped artifact holds only a head/tail sample; the notice must say so.
 		const artifactElidedBytes = artifactId ? summary.artifactElidedBytes : undefined;
+		const artifactMaxBytes = summary.artifactMaxBytes;
+		const artifactBudgetExhausted =
+			summary.artifactBudgetExhausted || summary.artifactError === "budget" ? true : undefined;
 
 		// Middle elision: the sink retained head + tail with an elision marker.
 		if (summary.elidedBytes != null && summary.elidedBytes > 0) {
@@ -228,7 +247,10 @@ export class OutputMetaBuilder {
 				elidedBytes: summary.elidedBytes,
 				elidedLines,
 				artifactId,
+				...(artifactBytes !== undefined ? { artifactBytes } : {}),
 				...(artifactElidedBytes ? { artifactElidedBytes } : {}),
+				...(artifactMaxBytes !== undefined ? { artifactMaxBytes } : {}),
+				...(artifactBudgetExhausted ? { artifactBudgetExhausted } : {}),
 			};
 			return this;
 		}
@@ -260,10 +282,12 @@ export class OutputMetaBuilder {
 			outputBytes: summary.outputBytes,
 			shownRange: { start: shownStart, end: shownEnd },
 			artifactId,
+			...(artifactBytes !== undefined ? { artifactBytes } : {}),
 			...(artifactElidedBytes ? { artifactElidedBytes } : {}),
+			...(artifactMaxBytes !== undefined ? { artifactMaxBytes } : {}),
+			...(artifactBudgetExhausted ? { artifactBudgetExhausted } : {}),
 			nextOffset: direction === "head" ? shownEnd + 1 : undefined,
 		};
-
 		return this;
 	}
 
@@ -498,6 +522,18 @@ export function resolveOutputSinkHeadBytes(s: Settings | undefined): number {
 }
 
 /**
+ * Resolve the OutputSink `spillThreshold` inline byte budget from session settings.
+ * When session settings are supplied, bounds inline streaming output to
+ * `Math.min(threshold, Math.max(16 KiB, headBytes + tailBytes))` (when `headBytes > 0`)
+ * so large streaming runs stay compact in LLM context without altering `ReadTool` page limits.
+ */
+export function resolveOutputSinkSpillThreshold(s: Settings | undefined): number {
+	if (!s) return DEFAULT_MAX_BYTES;
+	const { threshold, headBytes, tailBytes } = getSpillConfig(s);
+	if (headBytes <= 0) return threshold;
+	return Math.min(threshold, Math.max(16 * 1024, headBytes + tailBytes));
+}
+/**
  * Slack on top of the configured spill threshold before the final-defense
  * inline byte cap fires. The OutputSink already bounds inline bodies to the
  * threshold; only notice slop (wall time, exit code, elision marker,
@@ -536,20 +572,49 @@ export function resolveOutputMaxColumns(s: Settings | undefined): number {
 }
 
 /**
- * Resolve the OutputSink `artifactMaxBytes` cap (bytes) from session settings
- * (`tools.artifactMaxBytes`, in MB). `0` keeps artifact files unbounded.
+ * Resolve the session cumulative capture-log budget (bytes) from session settings
+ * (`tools.artifactSessionMaxBytes`, in MB). `0` disables the cumulative cap.
  */
-export function resolveOutputSinkArtifactMaxBytes(s: Settings | undefined): number {
-	const megabytes = s ? cfgToolsArtifactMaxBytes.get(s) : cfgToolsArtifactMaxBytes.default;
+export function resolveArtifactSessionMaxBytes(s: Settings | undefined): number {
+	const megabytes = s ? cfgToolsArtifactSessionMaxBytes.get(s) : cfgToolsArtifactSessionMaxBytes.default;
 	return Math.max(0, Math.floor(megabytes * 1024 * 1024));
 }
 
 /**
- * If the tool result text exceeds the spill threshold, save the full output
- * as a session artifact and replace the content with a head+tail (middle
- * elision) view plus an artifact reference. When `tools.artifactHeadBytes`
- * is 0, falls back to tail-only truncation. Skips when the tool already
- * saved its own artifact (e.g. bash/python via OutputSink).
+ * True when a positive session capture-log budget is configured and `artifactManager`
+ * has already exhausted it.
+ */
+export function isArtifactSessionBudgetExhausted(
+	s: Settings | undefined,
+	artifactManager?: Pick<CaptureBudgetTracker, "isCaptureBudgetExhausted"> | null,
+): boolean {
+	if (!artifactManager) return false;
+	const sessionMaxBytes = resolveArtifactSessionMaxBytes(s);
+	return artifactManager.isCaptureBudgetExhausted(sessionMaxBytes);
+}
+
+/**
+ * Resolve the OutputSink `artifactMaxBytes` cap (bytes) from session settings
+ * (`tools.artifactMaxBytes`, in MB), clamped by any remaining session capture-log
+ * budget on `artifactManager`. `0` keeps artifact files unbounded.
+ */
+export function resolveOutputSinkArtifactMaxBytes(
+	s: Settings | undefined,
+	artifactManager?: Pick<CaptureBudgetTracker, "getRemainingCaptureBudgetBytes"> | null,
+): number {
+	const megabytes = s ? cfgToolsArtifactMaxBytes.get(s) : cfgToolsArtifactMaxBytes.default;
+	const perCallBytes = Math.max(0, Math.floor(megabytes * 1024 * 1024));
+	const sessionMaxBytes = resolveArtifactSessionMaxBytes(s);
+	const remainingSessionBytes = artifactManager?.getRemainingCaptureBudgetBytes(sessionMaxBytes);
+	if (remainingSessionBytes === undefined) return perCallBytes;
+	if (perCallBytes === 0) return remainingSessionBytes;
+	return Math.min(perCallBytes, remainingSessionBytes);
+}
+/**
+ * If the tool result text exceeds the spill threshold, save the output (full or
+ * capped head/tail sample within per-call and session capture budgets) as a
+ * session artifact and replace the inline content with a bounded head+tail view
+ * plus an artifact reference. Skips when the tool already saved its own artifact.
  */
 async function spillLargeResultToArtifact(
 	result: AgentToolResult,
@@ -591,27 +656,70 @@ async function spillLargeResultToArtifact(
 	}
 	const fullText = textParts.length === 1 ? textParts[0] : textParts.join("\n");
 
-	// Save the full output as an artifact so the elided bytes stay recoverable.
-	// In a persistent session this hits `Bun.write`, which can throw (disk full,
-	// permissions). The spill wraps arbitrary tools (built-in, MCP, extension,
-	// RPC-host); a save failure must never convert a successful call into an
-	// error, nor re-expose the full (possibly context-blowing) output. Mirror
-	// `enforceInlineByteCap`: always truncate past the threshold, and only
-	// attach the `artifact://` recovery link when the save actually succeeded.
+	// Persist the spilled output as a session capture artifact (bounded by per-call
+	// and cumulative session budgets) so elided bytes stay recoverable. Always
+	// truncate inline past the threshold, and only attach `artifact://` when saved.
 	let artifactId: string | undefined;
-	// A failed stream capture only left a preview here. Saving that preview
-	// would invent a misleading full-output recovery link, not recover the log.
-	if (!existingMeta?.artifactError) {
+	let artifactBytes: number | undefined;
+	let artifactElidedBytes: number | undefined;
+	let effectiveArtifactMaxBytes: number | undefined;
+	let artifactBudgetExhausted = false;
+	let budgetError = false;
+
+	const perCallMaxBytes = resolveOutputSinkArtifactMaxBytes(context?.settings);
+	const sessionMaxBytes = resolveArtifactSessionMaxBytes(context?.settings);
+	const artifactManager = sessionManager.getArtifactManager?.() ?? null;
+	if (artifactManager?.ensureInitialized) {
 		try {
-			artifactId = await sessionManager.saveArtifact(fullText, toolName);
-		} catch (error) {
-			logger.warn("Failed to spill large tool result to artifact", {
-				tool: toolName,
-				error: error instanceof Error ? error.message : String(error),
-			});
+			await artifactManager.ensureInitialized();
+		} catch {
+			// Fall through to save attempt below, which logs I/O failures boundedly.
 		}
 	}
 
+	// A failed stream capture only left a preview here. Saving that preview
+	// would invent a misleading full-output recovery link, not recover the log.
+	if (!existingMeta?.artifactError) {
+		const remainingSessionBytes = artifactManager?.getRemainingCaptureBudgetBytes(sessionMaxBytes);
+		if (remainingSessionBytes !== undefined && remainingSessionBytes <= 0) {
+			artifactBudgetExhausted = true;
+			budgetError = true;
+			if (perCallMaxBytes > 0 || sessionMaxBytes > 0) {
+				effectiveArtifactMaxBytes = perCallMaxBytes > 0 ? perCallMaxBytes : sessionMaxBytes;
+			}
+		} else {
+			const capBytes =
+				remainingSessionBytes === undefined
+					? perCallMaxBytes
+					: perCallMaxBytes === 0
+						? remainingSessionBytes
+						: Math.min(perCallMaxBytes, remainingSessionBytes);
+			const clampedBySession =
+				remainingSessionBytes !== undefined && (perCallMaxBytes === 0 || remainingSessionBytes < perCallMaxBytes);
+			const cappedArtifact = capArtifactText(fullText, capBytes);
+			const reservationKey = `__spill_${crypto.randomUUID()}`;
+			artifactManager?.reserveCaptureBytes?.(reservationKey, cappedArtifact.bytes);
+			try {
+				artifactId = await sessionManager.saveArtifact(cappedArtifact.content, toolName);
+				if (artifactId) {
+					artifactManager?.recordCapturedById?.(artifactId, toolName, cappedArtifact.bytes);
+					artifactBytes = cappedArtifact.bytes;
+					artifactElidedBytes = cappedArtifact.elidedBytes;
+					if (capBytes > 0) effectiveArtifactMaxBytes = capBytes;
+					if (clampedBySession && cappedArtifact.elidedBytes) {
+						artifactBudgetExhausted = true;
+					}
+				}
+			} catch (error) {
+				logger.warn("Failed to spill large tool result to artifact", {
+					tool: toolName,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			} finally {
+				artifactManager?.reserveCaptureBytes?.(reservationKey, 0);
+			}
+		}
+	}
 	// Truncate: middle elision when a head budget is configured, otherwise tail-only.
 	const useMiddle = headBytes > 0;
 	const truncated = useMiddle
@@ -665,6 +773,10 @@ async function spillLargeResultToArtifact(
 			elidedLines,
 			elidedBytes,
 			artifactId,
+			...(artifactId && artifactBytes !== undefined ? { artifactBytes } : {}),
+			...(artifactId && artifactElidedBytes ? { artifactElidedBytes } : {}),
+			...(effectiveArtifactMaxBytes !== undefined ? { artifactMaxBytes: effectiveArtifactMaxBytes } : {}),
+			...(artifactBudgetExhausted ? { artifactBudgetExhausted: true } : {}),
 			nextOffset: existingMeta?.truncation?.nextOffset,
 		};
 	} else {
@@ -679,13 +791,21 @@ async function spillLargeResultToArtifact(
 			maxBytes: tailBytes,
 			shownRange: { start: shownStart, end: truncated.totalLines },
 			artifactId,
+			...(artifactId && artifactBytes !== undefined ? { artifactBytes } : {}),
+			...(artifactId && artifactElidedBytes ? { artifactElidedBytes } : {}),
+			...(effectiveArtifactMaxBytes !== undefined ? { artifactMaxBytes: effectiveArtifactMaxBytes } : {}),
+			...(artifactBudgetExhausted ? { artifactBudgetExhausted: true } : {}),
 			nextOffset: existingMeta?.truncation?.nextOffset,
 		};
 	}
 
-	const newMeta: OutputMeta = { ...existingMeta, truncation: truncationMeta };
+	const newMeta: OutputMeta = {
+		...existingMeta,
+		truncation: truncationMeta,
+		...(budgetError ? { artifactError: "budget" as const } : {}),
+		...(artifactBudgetExhausted ? { artifactBudgetExhausted: true } : {}),
+	};
 	const newDetails = { ...result.details, meta: newMeta };
-
 	// Prune the raw payload only MCP results duplicate into `details.rawContent`.
 	// Identify them by the required `serverName` + `mcpToolName` markers (the same
 	// signature the MCP renderer uses) so a property-name collision on an

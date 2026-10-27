@@ -165,4 +165,53 @@ describe("eval state registry", () => {
 		expect(resumeContext).toContain("were not restored");
 		expect(resumeContext).toContain("re-run required setup");
 	});
+
+	it("tracks bounded observed public bindings, filters private names, and clears snapshot on death or generation change", () => {
+		const cwd = path.resolve("state-contract", "namespace-readiness");
+		const session = toolSession("state-contract-namespace", cwd);
+		updateEvalState(session, {
+			language: "python",
+			kernelId: "py-ns-1",
+			alive: true,
+			generation: 1,
+		});
+		expect(getEvalState(session)?.runtimes[0]).toMatchObject({
+			namespaceStatus: "unverified",
+			definedNames: [],
+			definedNamesOmitted: 0,
+		});
+		expect(formatEvalStateContext(session)).toContain("namespace=unverified");
+
+		const manyNames = ["_private_secret", "__dunder__", ...Array.from({ length: 70 }, (_, i) => `var_${i}`)];
+		updateEvalState(session, {
+			language: "python",
+			kernelId: "py-ns-1",
+			alive: true,
+			generation: 1,
+			definedNames: manyNames,
+			definedNamesOmitted: 3,
+		});
+		const observed = getEvalState(session)?.runtimes[0];
+		expect(observed?.namespaceStatus).toBe("observed");
+		expect(observed?.definedNames).toHaveLength(64);
+		expect(observed?.definedNames).not.toContain("_private_secret");
+		expect(observed?.definedNames).not.toContain("__dunder__");
+		expect(observed?.definedNamesOmitted).toBe(9);
+		const formattedObserved = formatEvalStateContext(session);
+		expect(formattedObserved).toContain("namespace=observed");
+		expect(formattedObserved).toContain("Observed public bindings: var_0, var_1");
+		expect(formattedObserved).toContain("+9 more omitted");
+
+		updateEvalState(session, {
+			language: "python",
+			kernelId: "py-ns-1",
+			alive: false,
+			generation: 1,
+		});
+		const afterDeath = getEvalState(session)?.runtimes[0];
+		expect(afterDeath?.alive).toBe(false);
+		expect(afterDeath?.namespaceStatus).toBe("unverified");
+		expect(afterDeath?.definedNames).toEqual([]);
+		expect(afterDeath?.definedNamesOmitted).toBe(0);
+	});
 });

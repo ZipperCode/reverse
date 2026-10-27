@@ -510,6 +510,7 @@ export class ExtensionToolWrapper<TParameters extends TSchema = TSchema, TDetail
 			result = {
 				content: [{ type: "text", text: executionError.message }],
 				details: undefined as TDetails,
+				isError: true,
 			};
 		}
 		if (!loopDispatchedToolCall) {

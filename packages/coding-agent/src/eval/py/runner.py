@@ -44,6 +44,7 @@ import io
 import itertools
 import json
 import hashlib
+import heapq
 import linecache
 import locale
 import math
@@ -212,6 +213,7 @@ class _RunnerState:
             "__builtins__": builtins,
         }
         self.last_install_marker: int = 0
+        self.baseline_names: set[str] | None = None
         self.loop: asyncio.AbstractEventLoop | None = None
         self.active_executions: int = 0
         # Best-effort attribution target for captured fd-1 bytes (child
@@ -2668,6 +2670,59 @@ def _handle_tool_request(req: dict) -> None:
         _CURRENT_RID.reset(token)
 
 
+_MAX_NAMESPACE_NAMES = 64
+_NAME_ERROR_PATTERNS = (
+    re.compile(r"^name '([^']+)' is not defined$"),
+    re.compile(r"^free variable '([^']+)' referenced before assignment"),
+    re.compile(r"^local variable '([^']+)' referenced before assignment"),
+    re.compile(r"^cannot access local variable '([^']+)'"),
+)
+
+
+def _extract_missing_name(exc: BaseException) -> str | None:
+    """Extract missing symbol name across Python 3.9+ NameError/UnboundLocalError."""
+    attr_name = getattr(exc, "name", None)
+    if isinstance(attr_name, str) and attr_name:
+        return attr_name
+    message = str(exc)
+    for pattern in _NAME_ERROR_PATTERNS:
+        match = pattern.match(message)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _snapshot_public_namespace_names() -> tuple[list[str], int]:
+    """Capture bounded public binding names from user_ns without reading values."""
+    # 仅遍历 dict 键名，绝不读取值或触发描述符/repr，确保观测零副作用且保留异常前的部分赋值结果。
+    if (
+        _STATE.baseline_names is None
+        and dict.get(_STATE.user_ns, "__reverse_prelude_loaded__") is True
+    ):
+        _STATE.baseline_names = {
+            key
+            for key in dict.keys(_STATE.user_ns)
+            if isinstance(key, str) and not key.startswith("_")
+        }
+    baseline = _STATE.baseline_names or set()
+    user_keys: list[str] = []
+    baseline_keys: list[str] = []
+    for key in dict.keys(_STATE.user_ns):
+        if not isinstance(key, str) or key.startswith("_"):
+            continue
+        if key in baseline:
+            baseline_keys.append(key)
+        else:
+            user_keys.append(key)
+    total_public = len(user_keys) + len(baseline_keys)
+    selected = heapq.nsmallest(_MAX_NAMESPACE_NAMES, user_keys)
+    remaining = _MAX_NAMESPACE_NAMES - len(selected)
+    if remaining > 0 and baseline_keys:
+        selected.extend(heapq.nsmallest(remaining, baseline_keys))
+    omitted = max(0, total_public - len(selected))
+    return selected, omitted
+
+
 async def _handle_request_async(req: dict) -> None:
     rid = str(req.get("id"))
     execution_reserved = bool(req.pop("_execution_reserved", False))
@@ -2701,6 +2756,7 @@ async def _handle_request_async(req: dict) -> None:
             )
         except SyntaxError as exc:
             _emit_error(rid, exc)
+            defined_names, defined_omitted = _snapshot_public_namespace_names()
             _emit(
                 {
                     "type": "done",
@@ -2708,11 +2764,14 @@ async def _handle_request_async(req: dict) -> None:
                     "status": "error",
                     "executionCount": execution_count,
                     "cancelled": False,
+                    "definedNames": defined_names,
+                    "definedNamesOmitted": defined_omitted,
                 }
             )
             return
         except BaseException as exc:  # noqa: BLE001 - runtime setup errors must settle the request
             _emit_error(rid, exc)
+            defined_names, defined_omitted = _snapshot_public_namespace_names()
             _emit(
                 {
                     "type": "done",
@@ -2720,6 +2779,8 @@ async def _handle_request_async(req: dict) -> None:
                     "status": "error",
                     "executionCount": execution_count,
                     "cancelled": False,
+                    "definedNames": defined_names,
+                    "definedNamesOmitted": defined_omitted,
                 }
             )
             return
@@ -2754,6 +2815,7 @@ async def _handle_request_async(req: dict) -> None:
                 pass
 
         _flush_stream_proxies(rid)
+        defined_names, defined_omitted = _snapshot_public_namespace_names()
         _emit(
             {
                 "type": "done",
@@ -2761,6 +2823,8 @@ async def _handle_request_async(req: dict) -> None:
                 "status": status,
                 "executionCount": execution_count,
                 "cancelled": cancelled,
+                "definedNames": defined_names,
+                "definedNamesOmitted": defined_omitted,
             }
         )
     finally:
@@ -2787,12 +2851,52 @@ def _emit_error(rid: str, exc: BaseException, source_filename: str = "<cell>") -
         if user_frames:
             formatted.stack = traceback.StackSummary.from_list(user_frames)
         tb_lines = list(formatted.format())
+    extra_fields: dict[str, Any] = {}
     if isinstance(exc, ModuleNotFoundError) and exc.name:
         tb_lines.append(
             f"Install the distribution that provides module {exc.name!r} with "
             "`%pip install <distribution-name>` in eval. "
             "Distribution names can differ from import names."
         )
+    elif isinstance(exc, NameError):
+        missing_name = _extract_missing_name(exc)
+        missing_names = [missing_name] if missing_name else []
+        defined_names, defined_omitted = _snapshot_public_namespace_names()
+        case_matches: list[str] = []
+        if missing_name:
+            target_lower = missing_name.lower()
+            for key in dict.keys(_STATE.user_ns):
+                if (
+                    isinstance(key, str)
+                    and not key.startswith("_")
+                    and key != missing_name
+                    and key.lower() == target_lower
+                ):
+                    case_matches.append(key)
+        hint_prefix = ""
+        if case_matches:
+            variants = ", ".join(repr(item) for item in sorted(case_matches)[:3])
+            hint_prefix = f"Case-variant binding present in namespace: {variants}. "
+        recovery_guidance = (
+            f"{hint_prefix}Define or import the missing name explicitly in this cell before referencing it; "
+            "alive kernel status, handoff summaries, or statements after an earlier exception do not establish bindings. "
+            "Audit partial side effects before re-running setup."
+        )
+        if missing_names:
+            tb_lines.append(f"Missing names: {', '.join(missing_names)}")
+        preview_limit = 20
+        observed_preview = (
+            ", ".join(defined_names[:preview_limit]) if defined_names else "(none)"
+        )
+        extra_observed = max(0, len(defined_names) - preview_limit) + defined_omitted
+        if extra_observed > 0:
+            observed_preview = f"{observed_preview} (+{extra_observed} more)"
+        tb_lines.append(f"Observed namespace names: {observed_preview}")
+        tb_lines.append(f"Recovery: {recovery_guidance}")
+        extra_fields["missingNames"] = missing_names
+        extra_fields["definedNames"] = defined_names
+        extra_fields["definedNamesOmitted"] = defined_omitted
+        extra_fields["recoveryGuidance"] = recovery_guidance
     _emit(
         {
             "type": "error",
@@ -2800,6 +2904,7 @@ def _emit_error(rid: str, exc: BaseException, source_filename: str = "<cell>") -
             "ename": type(exc).__name__,
             "evalue": str(exc),
             "traceback": [line.rstrip("\n") for line in tb_lines],
+            **extra_fields,
         }
     )
 

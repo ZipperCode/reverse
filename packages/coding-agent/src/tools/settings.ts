@@ -38,7 +38,7 @@ export const cfgToolsArtifactSpillThreshold = register({
 export const cfgToolsArtifactTailBytes = register({
 	id: "tools.artifactTailBytes",
 	type: "number",
-	default: 20,
+	default: 6,
 	ui: {
 		tab: "tools",
 		group: "Output Limits",
@@ -48,8 +48,9 @@ export const cfgToolsArtifactTailBytes = register({
 			{ value: "1", label: "1 KB", description: "~250 tokens" },
 			{ value: "2.5", label: "2.5 KB", description: "~625 tokens" },
 			{ value: "5", label: "5 KB", description: "~1.25K tokens" },
+			{ value: "6", label: "6 KB", description: "Default; ~1.5K tokens" },
 			{ value: "10", label: "10 KB", description: "~2.5K tokens" },
-			{ value: "20", label: "20 KB", description: "Default; ~5K tokens" },
+			{ value: "20", label: "20 KB", description: "~5K tokens" },
 			{ value: "50", label: "50 KB", description: "~12.5K tokens" },
 			{ value: "100", label: "100 KB", description: "~25K tokens" },
 			{ value: "200", label: "200 KB", description: "~50K tokens" },
@@ -60,7 +61,7 @@ export const cfgToolsArtifactTailBytes = register({
 export const cfgToolsArtifactHeadBytes = register({
 	id: "tools.artifactHeadBytes",
 	type: "number",
-	default: 20,
+	default: 6,
 	ui: {
 		tab: "tools",
 		group: "Output Limits",
@@ -72,8 +73,9 @@ export const cfgToolsArtifactHeadBytes = register({
 			{ value: "1", label: "1 KB", description: "~250 tokens" },
 			{ value: "2.5", label: "2.5 KB", description: "~625 tokens" },
 			{ value: "5", label: "5 KB", description: "~1.25K tokens" },
+			{ value: "6", label: "6 KB", description: "Default; ~1.5K tokens" },
 			{ value: "10", label: "10 KB", description: "~2.5K tokens" },
-			{ value: "20", label: "20 KB", description: "Default; ~5K tokens" },
+			{ value: "20", label: "20 KB", description: "~5K tokens" },
 			{ value: "50", label: "50 KB", description: "~12.5K tokens" },
 			{ value: "100", label: "100 KB", description: "~25K tokens" },
 			{ value: "200", label: "200 KB", description: "~50K tokens" },
@@ -127,19 +129,42 @@ export const cfgToolsArtifactTailLines = register({
 export const cfgToolsArtifactMaxBytes = register({
 	id: "tools.artifactMaxBytes",
 	type: "number",
-	default: 16,
+	default: 4,
 	ui: {
 		tab: "tools",
 		group: "Output Limits",
 		label: "Artifact File Cap (MB)",
 		description:
-			"Maximum size of the artifact file saved for streaming tool output (bash, python, js eval). Larger output keeps its beginning (up to 3 MB) and its most recent remainder, with a truncation notice between them. 0 = unlimited.",
+			"Maximum on-disk size (including truncation notice) of each artifact file saved for tool output. Larger output keeps its beginning and most recent remainder with a truncation notice between them. 0 = unlimited.",
 		options: [
 			{ value: "0", label: "Unlimited", description: "Save the complete output" },
-			{ value: "4", label: "4 MB" },
-			{ value: "16", label: "16 MB", description: "Default" },
+			{ value: "4", label: "4 MB", description: "Default" },
+			{ value: "16", label: "16 MB" },
 			{ value: "64", label: "64 MB" },
 			{ value: "256", label: "256 MB" },
+			{ value: "1024", label: "1 GB" },
+		],
+	},
+});
+
+export const cfgToolsArtifactSessionMaxBytes = register({
+	id: "tools.artifactSessionMaxBytes",
+	type: "number",
+	default: 64,
+	ui: {
+		tab: "tools",
+		group: "Output Limits",
+		label: "Session Artifact Budget (MB)",
+		description:
+			"Cumulative session budget for captured tool output logs on disk. When exhausted, further tool outputs stay bounded inline with an explicit budget warning instead of writing new capture logs. 0 = unlimited.",
+		options: [
+			{ value: "0", label: "Unlimited", description: "No cumulative session cap" },
+			{ value: "16", label: "16 MB" },
+			{ value: "32", label: "32 MB" },
+			{ value: "64", label: "64 MB", description: "Default" },
+			{ value: "128", label: "128 MB" },
+			{ value: "256", label: "256 MB" },
+			{ value: "512", label: "512 MB" },
 			{ value: "1024", label: "1 GB" },
 		],
 	},

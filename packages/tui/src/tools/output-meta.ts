@@ -23,10 +23,16 @@ export interface TruncationMeta {
 	elidedBytes?: number;
 	/** Lines elided from the middle. */
 	elidedLines?: number;
-	/** Artifact ID if full output was saved */
+	/** Artifact ID if output (full or capped head/tail sample) was saved */
 	artifactId?: string;
+	/** Exact UTF-8 bytes written to the on-disk artifact file (including any truncation notice). */
+	artifactBytes?: number;
 	/** Bytes the artifact cap dropped from the saved file's middle; the artifact is then a head/tail sample. */
 	artifactElidedBytes?: number;
+	/** Effective per-call artifact byte cap when > 0. */
+	artifactMaxBytes?: number;
+	/** True when the session cumulative capture-log budget capped or skipped saving this artifact. */
+	artifactBudgetExhausted?: boolean;
 	/** Next offset for pagination (head truncation only) */
 	nextOffset?: number;
 	/**
@@ -86,6 +92,8 @@ export interface OutputMeta {
 	truncation?: TruncationMeta;
 	/** Capture failure of this output itself; aggregate reports keep source failures on their entries. */
 	artifactError?: OutputArtifactError;
+	/** True when the session cumulative capture-log budget capped or skipped saving this artifact. */
+	artifactBudgetExhausted?: boolean;
 	source?: SourceMeta;
 	/** The output is a bounded page of a file or session artifact its `source` re-reads with line selectors; spill-to-artifact skips it. */
 	pagedSource?: true;
@@ -294,6 +302,9 @@ export function formatStyledArtifactReference(artifactId: string, theme: Theme):
 
 /** Describe an incomplete artifact capture. */
 export function formatArtifactErrorNotice(error: OutputArtifactError): string {
+	if (error === "budget") {
+		return "Full output was not saved completely (session artifact budget exhausted)";
+	}
 	return `Full output was not saved completely (artifact ${error} failed)`;
 }
 

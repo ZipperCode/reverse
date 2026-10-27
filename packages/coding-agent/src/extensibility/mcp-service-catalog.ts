@@ -146,12 +146,15 @@ export const MCP_SERVICE_CATALOG: Readonly<Record<string, McpServiceDescriptor>>
 		installHints: {
 			darwin: ["r2pm -Uci r2mcp"],
 			linux: ["r2pm -Uci r2mcp"],
-			win32: ["r2pm -Uci r2mcp"],
+			win32: [
+				"r2pm -Uci r2mcp",
+				"meson setup build-ucrt -Dr2_prefix=<RADARE2_PREFIX> -Dbuildtype=release -Dc_args=-mcrtdll=ucrt -Dc_link_args=-mcrtdll=ucrt && meson compile -C build-ucrt r2mcp",
+			],
 		},
 		manualInstructions: {
 			darwin: "Install radare2 first, then run 'r2pm -Uci r2mcp'. Launch with 'r2pm -r r2mcp'.",
 			linux: "Install radare2 first, then run 'r2pm -Uci r2mcp'. Launch with 'r2pm -r r2mcp'.",
-			win32: "Install radare2 first, then run 'r2pm -Uci r2mcp'. Launch with 'r2pm -r r2mcp'.",
+			win32: "Install radare2 first, then run 'reverse setup reverse r2mcp --execute' or 'r2pm -Uci r2mcp'. On Windows, r2mcp.exe must match the radare2 DLL CRT (UCRT vs MSVCRT); if r2pm deploys an msvcrt-linked binary against UCRT r_util.dll, build with 'meson setup build-ucrt -Dr2_prefix=<RADARE2_PREFIX> -Dbuildtype=release -Dc_args=-mcrtdll=ucrt -Dc_link_args=-mcrtdll=ucrt && meson compile -C build-ucrt r2mcp' and copy r2mcp.exe into R2PM_BINDIR. Launch with 'r2pm -r r2mcp'.",
 		},
 		installCommands: {
 			darwin: [
@@ -178,12 +181,12 @@ export const MCP_SERVICE_CATALOG: Readonly<Record<string, McpServiceDescriptor>>
 					command: "r2pm -Uci r2mcp",
 					argv: ["r2pm", "-Uci", "r2mcp"],
 					riskNote:
-						"Updates the r2pm package database and installs r2mcp from the radare2 package repository. Requires radare2/r2pm.",
+						"Updates the r2pm package database and installs r2mcp from the radare2 package repository. On Windows, verifies CRT compatibility with radare2 (r_util.dll) and rebuilds with Meson (-mcrtdll=ucrt) when needed.",
 				},
 			],
 		},
 		riskNote:
-			"r2pm installs from the radare2 package repository and may compile the plugin locally. The executable is meant to be launched by the MCP client, not directly.",
+			"r2pm installs from the radare2 package repository and may compile the plugin locally. On Windows, r2mcp.exe must share the same C runtime (UCRT vs MSVCRT) as radare2's r_util.dll to prevent cross-CRT free() crashes prior to MCP initialize. The executable is meant to be launched by the MCP client, not directly.",
 		usage: {
 			canonical: "r2mcp tools: open/seek/analyze, disassemble, xrefs, strings, r2 command escape",
 			whenToUse:

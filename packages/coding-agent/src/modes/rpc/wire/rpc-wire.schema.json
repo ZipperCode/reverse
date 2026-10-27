@@ -2710,8 +2710,17 @@
 				"artifactId": {
 					"type": "string"
 				},
+				"artifactBytes": {
+					"type": "integer"
+				},
 				"artifactElidedBytes": {
 					"type": "integer"
+				},
+				"artifactMaxBytes": {
+					"type": "integer"
+				},
+				"artifactBudgetExhausted": {
+					"type": "boolean"
 				},
 				"artifactError": {
 					"type": "object",

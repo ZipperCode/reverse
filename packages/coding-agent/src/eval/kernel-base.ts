@@ -37,10 +37,22 @@ export interface KernelExecuteOptions {
 	allowStdin?: boolean;
 }
 
+export interface KernelExecuteError {
+	name: string;
+	value: string;
+	traceback: string[];
+	missingNames?: string[];
+	definedNames?: string[];
+	definedNamesOmitted?: number;
+	recoveryGuidance?: string;
+}
+
 export interface KernelExecuteResult {
 	status: "ok" | "error";
 	executionCount?: number;
-	error?: { name: string; value: string; traceback: string[] };
+	error?: KernelExecuteError;
+	definedNames?: string[];
+	definedNamesOmitted?: number;
 	cancelled: boolean;
 	timedOut: boolean;
 	stdinRequested: boolean;
@@ -128,6 +140,10 @@ export interface Frame {
 	digest?: string;
 	admissionRejected?: boolean;
 	values?: Record<string, unknown>;
+	missingNames?: string[];
+	definedNames?: string[];
+	definedNamesOmitted?: number;
+	recoveryGuidance?: string;
 }
 
 interface PendingExecution {
@@ -135,7 +151,9 @@ interface PendingExecution {
 	options?: KernelExecuteOptions;
 	status: "ok" | "error";
 	executionCount?: number;
-	error?: { name: string; value: string; traceback: string[] };
+	error?: KernelExecuteError;
+	definedNames?: string[];
+	definedNamesOmitted?: number;
 	cancelled: boolean;
 	timedOut: boolean;
 	admissionRejected?: boolean;
@@ -314,6 +332,8 @@ export abstract class BaseKernel<TExecuteOptions extends KernelExecuteOptions = 
 				status: pending.status,
 				executionCount: pending.executionCount,
 				error: pending.error,
+				definedNames: pending.definedNames,
+				definedNamesOmitted: pending.definedNamesOmitted,
 				cancelled: pending.cancelled,
 				timedOut: pending.timedOut,
 				stdinRequested: pending.stdinRequested,
@@ -538,6 +558,8 @@ export abstract class BaseKernel<TExecuteOptions extends KernelExecuteOptions = 
 				stdinRequested: entry.stdinRequested,
 				executionCount: entry.executionCount,
 				error: entry.error,
+				definedNames: entry.definedNames,
+				definedNamesOmitted: entry.definedNamesOmitted,
 				kernelKilled: entry.kernelKilled || kernelKilledDefault,
 			});
 		}
@@ -677,12 +699,41 @@ export abstract class BaseKernel<TExecuteOptions extends KernelExecuteOptions = 
 			}
 			case "error": {
 				const traceback = Array.isArray(frame.traceback) ? frame.traceback.map(String) : [];
+				let missingNames: string[] | undefined;
+				if (Array.isArray(frame.missingNames)) {
+					const seen = new Set<string>();
+					missingNames = [];
+					for (const item of frame.missingNames) {
+						if (typeof item !== "string" || item.length === 0 || seen.has(item)) continue;
+						seen.add(item);
+						missingNames.push(item);
+					}
+				}
+				const definedNames = Array.isArray(frame.definedNames)
+					? frame.definedNames.filter((item): item is string => typeof item === "string" && !item.startsWith("_"))
+					: undefined;
+				const definedNamesOmitted =
+					typeof frame.definedNamesOmitted === "number" && frame.definedNamesOmitted >= 0
+						? frame.definedNamesOmitted
+						: undefined;
+				const recoveryGuidance =
+					typeof frame.recoveryGuidance === "string" && frame.recoveryGuidance.length > 0
+						? frame.recoveryGuidance
+						: undefined;
 				pending.status = "error";
 				pending.error = {
 					name: String(frame.ename ?? "Error"),
 					value: String(frame.evalue ?? ""),
 					traceback,
+					...(missingNames && missingNames.length > 0 ? { missingNames } : {}),
+					...(definedNames ? { definedNames } : {}),
+					...(definedNamesOmitted !== undefined ? { definedNamesOmitted } : {}),
+					...(recoveryGuidance ? { recoveryGuidance } : {}),
 				};
+				if (definedNames) {
+					pending.definedNames = definedNames;
+					pending.definedNamesOmitted = definedNamesOmitted ?? 0;
+				}
 				const message =
 					traceback.length > 0 ? `${traceback.join("\n")}\n` : `${pending.error.name}: ${pending.error.value}\n`;
 				if (pending.options?.onChunk) {
@@ -693,6 +744,15 @@ export abstract class BaseKernel<TExecuteOptions extends KernelExecuteOptions = 
 			case "done": {
 				if (typeof frame.executionCount === "number") {
 					pending.executionCount = frame.executionCount;
+				}
+				if (Array.isArray(frame.definedNames)) {
+					pending.definedNames = frame.definedNames.filter(
+						(item): item is string => typeof item === "string" && !item.startsWith("_"),
+					);
+					pending.definedNamesOmitted =
+						typeof frame.definedNamesOmitted === "number" && frame.definedNamesOmitted >= 0
+							? frame.definedNamesOmitted
+							: 0;
 				}
 				if (frame.status === "error" && pending.status === "ok") {
 					pending.status = "error";

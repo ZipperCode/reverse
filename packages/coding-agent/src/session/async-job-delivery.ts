@@ -55,6 +55,8 @@ type AsyncResultJobDetails = {
 	agentId?: string;
 	label?: string;
 	durationMs?: number;
+	/** Actual settled command exit status; absence is not successful verification. */
+	exitCode?: number;
 	/** Source capture metadata belongs to this job, not to the enclosing delivery report. */
 	meta?: OutputMeta;
 	/** Full structured payload (source/mode/status/data/error), when the job used an output schema. */
@@ -118,6 +120,10 @@ export function buildAsyncResultBatchMessage(entries: AsyncResultEntry[]): Custo
 			agentId: entry.job?.agentId,
 			label: entry.job?.label,
 			durationMs: entry.durationMs,
+			exitCode:
+				typeof entry.job?.latestDetails?.exitCode === "number" && Number.isFinite(entry.job.latestDetails.exitCode)
+					? entry.job.latestDetails.exitCode
+					: undefined,
 			meta: entry.job?.latestDetails?.meta,
 			structured,
 			structuredJson: structuredJson === undefined ? undefined : escapeHarnessTags(structuredJson),
@@ -137,6 +143,7 @@ export function buildAsyncResultBatchMessage(entries: AsyncResultEntry[]): Custo
 			agentId: job.agentId,
 			label: job.label,
 			durationMs: job.durationMs,
+			...(job.exitCode !== undefined ? { exitCode: job.exitCode } : {}),
 			...(job.meta ? { meta: job.meta } : {}),
 			...(job.structured ? { schema: job.structured } : {}),
 		})),

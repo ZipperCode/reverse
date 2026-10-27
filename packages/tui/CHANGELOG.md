@@ -10,6 +10,8 @@
 
 ### Fixed
 
+- Enforced exact capture-log byte caps including head/tail truncation notices and reported session-budget exhaustion without changing execution success.
+- Preserved todo acceptance/evidence/fallback metadata and displayed missing eval bindings separately from live-runtime identity.
 - Kept long MCP Markdown lines clipped in collapsed cards and fully visible after expansion.
 - Made expanded grouped reads reveal retained content even when collapsed previews are disabled, and removed the 12-line expanded limit from generic and MCP text output.
 - Kept native tool errors open with bounded diagnostic previews and suppressed expansion hints when no details are hidden.

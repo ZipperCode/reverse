@@ -5,8 +5,27 @@ import type { Settings } from "../config/settings";
 import eagerTaskPrompt from "../prompts/system/eager-task.md" with { type: "text" };
 import eagerTodoPrompt from "../prompts/system/eager-todo.md" with { type: "text" };
 import midRunTodoNudgePrompt from "../prompts/system/mid-run-todo-nudge.md" with { type: "text" };
-import { getLatestTodoPhasesFromEntries, isTodoPhase } from "../tools/todo";
-import { type TodoItem, type TodoPhase } from "@reverse/tui/tools/todo";
+import {
+	cloneTodoPhases,
+	evaluateToolSemanticOutcome,
+	extractBranchToolExecutions,
+	getLatestTodoPhasesFromEntries,
+	isTodoPhase,
+	matchesToolTargetCriterion,
+	maxTodoGeneration,
+	nextActionableTask,
+	type ObservedToolExecutionResult,
+	reconcileAndValidateTodoPhases,
+	TODO_EXECUTION_SNAPSHOT_CUSTOM_TYPE,
+	type TodoCompletionValidation,
+	validateTodoTaskCompletion,
+} from "../tools/todo";
+import {
+	type TodoEvidenceRecord,
+	type TodoFailureRecord,
+	type TodoItem,
+	type TodoPhase,
+} from "@reverse/tui/tools/todo";
 import { buildNamedToolChoice } from "../utils/tool-choice";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { SessionManager } from "./session-manager";
@@ -88,6 +107,23 @@ export interface TodoTrackerHost {
 }
 
 /** Owns canonical todo state, eager preludes, and completion reminders. */
+interface ToolCallReservation {
+	toolName: string;
+	args?: unknown;
+	activeTaskContent?: string;
+	generation: number;
+}
+
+const BENIGN_EXPLORATORY_TOOLS: Record<string, true> = {
+	read: true,
+	glob: true,
+	grep: true,
+	todo: true,
+};
+
+const MAX_RECENT_EXECUTIONS = 128;
+
+/** Owns canonical todo state, eager preludes, and completion reminders. */
 export class TodoTracker {
 	readonly #host: TodoTrackerHost;
 	#phases: TodoPhase[] = [];
@@ -95,6 +131,9 @@ export class TodoTracker {
 	#reminderAwaitingProgress = false;
 	#mutationsSinceLastTouch = 0;
 	#midRunNudgeCount = 0;
+	#callReservations = new Map<string, ToolCallReservation>();
+	#recordedCallIds = new Set<string>();
+	#recentExecutions: ObservedToolExecutionResult[] = [];
 
 	constructor(host: TodoTrackerHost) {
 		this.#host = host;
@@ -102,26 +141,63 @@ export class TodoTracker {
 
 	/** Returns a defensive clone of the current todo phases. */
 	get phases(): TodoPhase[] {
-		return this.#clonePhases(this.#phases);
+		return cloneTodoPhases(this.#phases);
 	}
 
-	/** Replaces todo phases with a defensive clone. */
+	/** Replaces todo phases with a defensive clone, preserving immutable acceptance metadata. */
 	setPhases(phases: TodoPhase[]): void {
-		this.#phases = this.#clonePhases(phases);
+		if (phases.length === 0) {
+			this.#phases = [];
+			this.#midRunNudgeCount = 0;
+			return;
+		}
+		const { phases: reconciled, errors } = reconcileAndValidateTodoPhases(
+			this.#phases,
+			phases,
+			this.#allObservedExecutions(),
+			this.#host.sessionManager.getCwd(),
+		);
+		if (errors.length > 0) {
+			throw new Error(errors.join("; "));
+		}
+		this.#phases = reconciled;
 		// Every state write lands here — the native tool, a Cursor sync, or a
 		// bridged call — so the nudge budget re-arms on the progress it
 		// rations. Views, failed batches, and unchanged reads never arrive.
 		this.#midRunNudgeCount = 0;
 	}
 
+	/** Validates whether a task may transition to completed against observed session tool executions. */
+	validateCompletion(
+		task: TodoItem,
+		phases: readonly TodoPhase[] = this.#phases,
+		citedCallIds?: readonly string[],
+	): TodoCompletionValidation {
+		return validateTodoTaskCompletion(
+			task,
+			phases,
+			this.#allObservedExecutions(),
+			citedCallIds,
+			this.#host.sessionManager.getCwd(),
+		);
+	}
+
 	/** Rehydrates todo phases from the current transcript branch. */
 	syncFromBranch(): void {
-		this.setPhases(getLatestTodoPhasesFromEntries(this.#host.sessionManager.getBranch()));
+		const branch = this.#host.sessionManager.getBranch();
+		this.#callReservations.clear();
+		this.#recordedCallIds.clear();
+		this.#recentExecutions = extractBranchToolExecutions(branch).slice(-MAX_RECENT_EXECUTIONS);
+		for (const exec of this.#recentExecutions) {
+			this.#recordedCallIds.add(exec.toolCallId);
+		}
+		this.#phases = cloneTodoPhases(getLatestTodoPhasesFromEntries(branch));
+		this.#midRunNudgeCount = 0;
 	}
 
 	/** Returns a defensive clone suitable for snapshots and branch state. */
 	clonePhases(phases: TodoPhase[]): TodoPhase[] {
-		return this.#clonePhases(phases);
+		return cloneTodoPhases(phases);
 	}
 
 	/** Resets per-prompt reminder and mutation budgets. */
@@ -130,16 +206,107 @@ export class TodoTracker {
 		this.#reminderAwaitingProgress = false;
 		this.#mutationsSinceLastTouch = 0;
 		this.#midRunNudgeCount = 0;
+		this.#callReservations.clear();
+	}
+
+	/**
+	 * Captures the active todo task and plan generation at tool-call dispatch time,
+	 * before concurrent `todo` mutations in the same batch can advance the pointer.
+	 */
+	beforeToolCall(toolCallId: string, toolName: string, args: unknown): void {
+		if (!toolCallId || toolName === "todo") return;
+		const existing = this.#callReservations.get(toolCallId);
+		if (existing) {
+			// Non-loop nested xd:// dispatch reuses the outer write toolCallId; preserve
+			// the call-start active task and generation while refining the inner tool/args.
+			existing.toolName = toolName;
+			existing.args = args;
+			return;
+		}
+		if (this.#callReservations.size >= MAX_RECENT_EXECUTIONS) {
+			const oldest = this.#callReservations.keys().next().value;
+			if (oldest !== undefined) this.#callReservations.delete(oldest);
+		}
+		this.#callReservations.set(toolCallId, {
+			toolName,
+			args,
+			activeTaskContent: nextActionableTask(this.#phases)?.content,
+			generation: maxTodoGeneration(this.#phases),
+		});
+	}
+
+	/** Removes a call-start reservation when a tool call is blocked or cancelled before completion. */
+	cancelToolCall(toolCallId: string): void {
+		this.#callReservations.delete(toolCallId);
+	}
+
+	/** Records completion of a bridged tool call (eval / extension wrapper preflight). */
+	onBridgedToolResult(
+		toolCallId: string,
+		result: { content?: unknown; details?: unknown; isError?: boolean; useless?: boolean },
+	): void {
+		const reservation = this.#callReservations.get(toolCallId);
+		this.#callReservations.delete(toolCallId);
+		if (!reservation) return;
+		const isError = Boolean(result.isError);
+		if (!isError && MUTATING_TOOLS[reservation.toolName]) {
+			this.#mutationsSinceLastTouch++;
+		}
+		this.#reminderAwaitingProgress = false;
+		this.#recordObservedToolOutcome({
+			toolCallId,
+			toolName: reservation.toolName,
+			args: reservation.args,
+			details: result.details,
+			isError,
+			useless: result.useless,
+			activeTaskContent: reservation.activeTaskContent,
+			generation: reservation.generation,
+		});
 	}
 
 	/** Records a completed tool result before asynchronous event processing begins. */
-	onToolResult(toolName: string, isError: boolean): void {
+	onToolResult(
+		toolName: string,
+		isError: boolean,
+		message?: {
+			toolCallId?: string;
+			toolName?: string;
+			details?: unknown;
+			content?: unknown;
+			isError?: boolean;
+			useless?: boolean;
+			timestamp?: number;
+		},
+	): void {
 		if (toolName === "todo") {
 			this.#mutationsSinceLastTouch = 0;
 		} else if (!isError && MUTATING_TOOLS[toolName]) {
 			this.#mutationsSinceLastTouch++;
 		}
 		this.#reminderAwaitingProgress = false;
+		if (toolName === "todo" || !message) return;
+
+		const toolCallId = typeof message.toolCallId === "string" ? message.toolCallId : undefined;
+		if (!toolCallId) return;
+		const reservation = this.#callReservations.get(toolCallId);
+		this.#callReservations.delete(toolCallId);
+
+		const resolvedArgs = reservation?.args ?? this.#findToolCallArgsInMessages(toolCallId);
+		const activeTaskContent = reservation?.activeTaskContent ?? nextActionableTask(this.#phases)?.content;
+		const generation = reservation?.generation ?? maxTodoGeneration(this.#phases);
+
+		this.#recordObservedToolOutcome({
+			toolCallId,
+			toolName: message.toolName ?? toolName,
+			args: resolvedArgs,
+			details: message.details,
+			isError: Boolean(message.isError ?? isError),
+			useless: message.useless,
+			timestamp: message.timestamp,
+			activeTaskContent,
+			generation,
+		});
 	}
 
 	/** Detects whether a successful todo result came from an init operation. */
@@ -368,15 +535,222 @@ export class TodoTracker {
 		};
 	}
 
-	#clonePhases(phases: TodoPhase[]): TodoPhase[] {
-		return phases.map(phase => ({
-			name: phase.name,
-			tasks: phase.tasks.map(task =>
-				task.blocker !== undefined
-					? { content: task.content, status: task.status, blocker: task.blocker }
-					: { content: task.content, status: task.status },
-			),
-		}));
+	#allObservedExecutions(): ObservedToolExecutionResult[] {
+		const branchExecs = extractBranchToolExecutions(this.#host.sessionManager.getBranch());
+		if (this.#recentExecutions.length === 0) return branchExecs;
+		const byId = new Map<string, ObservedToolExecutionResult>();
+		for (const exec of branchExecs) byId.set(exec.toolCallId, exec);
+		for (const exec of this.#recentExecutions) byId.set(exec.toolCallId, exec);
+		return [...byId.values()];
+	}
+
+	#findToolCallArgsInMessages(toolCallId: string): Record<string, unknown> | undefined {
+		const messages = this.#host.agent.state.messages;
+		for (let i = messages.length - 1; i >= 0; i--) {
+			const msg = messages[i];
+			if (!msg || msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+			for (const block of msg.content) {
+				if (!isRecord(block) || block.type !== "toolCall" || block.id !== toolCallId) continue;
+				return isRecord(block.arguments) ? block.arguments : undefined;
+			}
+		}
+		return undefined;
+	}
+
+	#recordObservedToolOutcome(input: {
+		toolCallId: string;
+		toolName: string;
+		args?: unknown;
+		details?: unknown;
+		isError: boolean;
+		useless?: boolean;
+		timestamp?: number;
+		activeTaskContent?: string;
+		generation: number;
+	}): void {
+		if (this.#recordedCallIds.has(input.toolCallId)) return;
+		const outcome = evaluateToolSemanticOutcome(
+			input.toolName,
+			input.details,
+			input.isError,
+			input.args,
+			input.useless,
+		);
+		if (outcome.ignored) return;
+
+		if (this.#recordedCallIds.size >= MAX_RECENT_EXECUTIONS) {
+			const oldestCallId = this.#recordedCallIds.values().next().value;
+			if (oldestCallId !== undefined) this.#recordedCallIds.delete(oldestCallId);
+		}
+		this.#recordedCallIds.add(input.toolCallId);
+		const observed: ObservedToolExecutionResult = {
+			toolCallId: input.toolCallId,
+			toolName: input.toolName,
+			effectiveToolName: outcome.effectiveToolName,
+			action: outcome.action,
+			target: outcome.target,
+			args: outcome.effectiveArgs,
+			details: input.details,
+			isError: input.isError,
+			semanticSuccess: outcome.semanticSuccess,
+			isReadinessFailure: outcome.isReadinessFailure,
+			failureReason: outcome.failureReason,
+			timestamp: input.timestamp ?? Date.now(),
+			generation: input.generation,
+			activeTaskContent: input.activeTaskContent,
+		};
+		if (this.#recentExecutions.length >= MAX_RECENT_EXECUTIONS) {
+			this.#recentExecutions.shift();
+		}
+		this.#recentExecutions.push(observed);
+
+		if (this.#phases.length === 0) return;
+
+		let mutatedPhases = false;
+		const nextPhases = cloneTodoPhases(this.#phases);
+		// Work executed under a fallback task belongs to that fallback, never to the task it
+		// substitutes for: it can neither clear the original's failures nor satisfy its acceptance.
+		const fallbackOfByContent = new Map<string, string>();
+		for (const phase of nextPhases) {
+			for (const candidate of phase.tasks) {
+				if (candidate.fallbackOf !== undefined) fallbackOfByContent.set(candidate.content, candidate.fallbackOf);
+			}
+		}
+		for (const phase of nextPhases) {
+			for (const task of phase.tasks) {
+				if (
+					input.activeTaskContent !== undefined &&
+					input.activeTaskContent !== task.content &&
+					fallbackOfByContent.has(input.activeTaskContent)
+				) {
+					continue;
+				}
+				const cwd = this.#host.sessionManager.getCwd();
+				const isActiveTask = input.activeTaskContent !== undefined && task.content === input.activeTaskContent;
+				const matchingAcceptance = (task.acceptance ?? []).filter(criterion =>
+					matchesToolTargetCriterion(criterion, observed, cwd),
+				);
+
+				if (!outcome.semanticSuccess) {
+					const expectsError =
+						matchingAcceptance.length > 0 &&
+						matchingAcceptance.every(c => c.expectedOutcome === "expected_error");
+					if (expectsError) {
+						const evRecord: TodoEvidenceRecord = {
+							toolCallId: observed.toolCallId,
+							tool: observed.effectiveToolName,
+							semanticSuccess: false,
+							isError: observed.isError,
+							timestamp: observed.timestamp,
+							generation: observed.generation,
+						};
+						if (observed.action !== undefined) evRecord.action = observed.action;
+						if (observed.target !== undefined) evRecord.target = observed.target;
+						task.evidence = [
+							...(task.evidence ?? []).filter(e => e.toolCallId !== evRecord.toolCallId),
+							evRecord,
+						];
+						mutatedPhases = true;
+						continue;
+					}
+
+					const isSubstantiveFailure =
+						outcome.isReadinessFailure ||
+						matchingAcceptance.length > 0 ||
+						!BENIGN_EXPLORATORY_TOOLS[outcome.effectiveToolName];
+
+					if ((isActiveTask && isSubstantiveFailure) || matchingAcceptance.length > 0) {
+						const failureRec: TodoFailureRecord = {
+							toolCallId: observed.toolCallId,
+							tool: observed.effectiveToolName,
+							reason: outcome.failureReason ?? "tool execution failed",
+							isReadinessFailure: outcome.isReadinessFailure,
+							timestamp: observed.timestamp,
+							generation: observed.generation,
+						};
+						if (observed.action !== undefined) failureRec.action = observed.action;
+						if (observed.target !== undefined) failureRec.target = observed.target;
+						const existingFailures = task.unresolvedFailures ?? [];
+						if (!existingFailures.some(f => f.toolCallId === failureRec.toolCallId)) {
+							task.unresolvedFailures = [...existingFailures, failureRec];
+							mutatedPhases = true;
+						}
+						// A new failure for the same tool/action/target supersedes prior positive evidence on that target.
+						if (task.evidence && task.evidence.length > 0) {
+							const filteredEv = task.evidence.filter(
+								ev =>
+									!matchesToolTargetCriterion(
+										{ tool: ev.tool, action: ev.action, target: ev.target },
+										observed,
+										cwd,
+									),
+							);
+							if (filteredEv.length !== task.evidence.length) {
+								task.evidence = filteredEv.length > 0 ? filteredEv : undefined;
+								mutatedPhases = true;
+							}
+						}
+					}
+				} else {
+					// Semantic success: check if it resolves any unresolvedFailures on this task.
+					if (task.unresolvedFailures && task.unresolvedFailures.length > 0) {
+						const remainingFailures = task.unresolvedFailures.filter(
+							f =>
+								!matchesToolTargetCriterion(
+									{ tool: f.tool, action: f.action, target: f.target },
+									observed,
+									cwd,
+								),
+						);
+						if (remainingFailures.length !== task.unresolvedFailures.length) {
+							task.unresolvedFailures = remainingFailures.length > 0 ? remainingFailures : undefined;
+							const evRecord: TodoEvidenceRecord = {
+								toolCallId: observed.toolCallId,
+								tool: observed.effectiveToolName,
+								semanticSuccess: true,
+								timestamp: observed.timestamp,
+								generation: observed.generation,
+							};
+							if (observed.action !== undefined) evRecord.action = observed.action;
+							if (observed.target !== undefined) evRecord.target = observed.target;
+							task.evidence = [
+								...(task.evidence ?? []).filter(e => e.toolCallId !== evRecord.toolCallId),
+								evRecord,
+							];
+							mutatedPhases = true;
+						}
+					}
+					// Also record evidence if it satisfies a positive acceptance criterion on this task.
+					if (matchingAcceptance.some(c => (c.expectedOutcome ?? "success") === "success")) {
+						const evRecord: TodoEvidenceRecord = {
+							toolCallId: observed.toolCallId,
+							tool: observed.effectiveToolName,
+							semanticSuccess: true,
+							timestamp: observed.timestamp,
+							generation: observed.generation,
+						};
+						if (observed.action !== undefined) evRecord.action = observed.action;
+						if (observed.target !== undefined) evRecord.target = observed.target;
+						task.evidence = [
+							...(task.evidence ?? []).filter(e => e.toolCallId !== evRecord.toolCallId),
+							evRecord,
+						];
+						mutatedPhases = true;
+					}
+				}
+			}
+		}
+
+		if (mutatedPhases) {
+			this.#phases = nextPhases;
+		}
+		// Persist durable execution snapshot when phases mutated or when a bridged/active tool ran under an active todo plan.
+		if (mutatedPhases || input.activeTaskContent !== undefined) {
+			this.#host.sessionManager.appendCustomEntry(TODO_EXECUTION_SNAPSHOT_CUSTOM_TYPE, {
+				phases: cloneTodoPhases(this.#phases),
+				execution: observed,
+			});
+		}
 	}
 }
 

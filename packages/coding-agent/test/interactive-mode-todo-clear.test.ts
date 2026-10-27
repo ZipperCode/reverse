@@ -404,6 +404,42 @@ describe("InteractiveMode todo HUD persistence", () => {
 		// The blocker note is dropped with the blocked status — the wait is over.
 		expect(task?.blocker).toBeUndefined();
 	});
+
+	it("keeps a tool-callable task blocked when its subagent finishes without acceptance evidence", async () => {
+		await replaceMode();
+		setTodoClearDelay(-1);
+		vi.spyOn(mode.statusLine, "watchBranch").mockImplementation(() => {});
+		session.setTodoPhases([
+			{
+				name: "Verification",
+				tasks: [
+					{
+						content: "Verify Triton callable",
+						status: "blocked",
+						blocker: "triton unavailable",
+						acceptance: [{ kind: "tool_callable", tool: "triton_analyze", action: "status" }],
+					},
+				],
+			},
+		]);
+		mode.setTodos(session.getTodoPhases());
+		await mode.init();
+		vi.useFakeTimers();
+		eventBus.emit(TASK_SUBAGENT_LIFECYCLE_CHANNEL, {
+			id: "TritonVerifier",
+			index: 0,
+			agent: "task",
+			description: "Verify Triton callable",
+			status: "completed",
+			detached: true,
+		});
+		vi.advanceTimersByTime(100);
+		const task = session.getTodoPhases()[0]?.tasks[0];
+		expect(task?.status).toBe("blocked");
+		expect(task?.blocker).toBe("triton unavailable");
+		expect(task?.acceptance).toEqual([{ kind: "tool_callable", tool: "triton_analyze", action: "status" }]);
+		expect(renderTodos(mode)).toContain("Verify Triton callable");
+	});
 	it("does not persist a stale reveal after the owning snapshot changes", async () => {
 		await replaceMode();
 		vi.useFakeTimers();

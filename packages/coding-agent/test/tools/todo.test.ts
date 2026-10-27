@@ -2,14 +2,16 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import { type } from "@reverse/reversetype";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { initTheme, theme } from "@reverse/tui/theme";
-import type { ToolSession } from "@reverse/coding-agent/tools";
 import {
 	markdownToPhases,
 	nextActionableTask,
 	phasesToMarkdown,
 	resolveTodoMarkdownPath,
+	TODO_EXECUTION_SNAPSHOT_CUSTOM_TYPE,
 	TodoTool,
+	type ToolSession,
 } from "@reverse/coding-agent/tools";
 import {
 	selectCollapsedTodos,
@@ -1031,5 +1033,780 @@ describe("todoToolRenderer.renderCall preview sanitization", () => {
 		expect(rendered).not.toContain("\t");
 		expect(Bun.stripANSI(rendered)).toContain("ship");
 		expect(Bun.stripANSI(rendered)).toContain("it");
+	});
+});
+
+describe("TodoTool acceptance, capability readiness, and fallback decoupling (#21)", () => {
+	function createJournalSession(cwd = "/tmp/test") {
+		const sessionManager = SessionManager.inMemory(cwd);
+		let phases: TodoPhase[] = [];
+		const session: ToolSession = {
+			cwd,
+			hasUI: false,
+			getSessionFile: () => null,
+			getSessionSpawns: () => "*",
+			sessionManager,
+			settings: Settings.isolated(),
+			getTodoPhases: () => phases,
+			setTodoPhases: next => {
+				phases = next;
+			},
+		};
+		return { session, sessionManager };
+	}
+
+	function recordToolCallAndResult(
+		sessionManager: SessionManager,
+		callId: string,
+		toolName: string,
+		args: Record<string, unknown>,
+		result: { text?: string; details?: unknown; isError?: boolean; useless?: boolean },
+	) {
+		sessionManager.appendMessage({
+			role: "assistant",
+			content: [{ type: "toolCall", id: callId, name: toolName, arguments: args }],
+			api: "anthropic-messages",
+			provider: "anthropic",
+			model: "claude-sonnet-4-5",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "toolUse",
+			timestamp: Date.now(),
+		});
+		sessionManager.appendMessage({
+			role: "toolResult",
+			toolCallId: callId,
+			toolName,
+			content: [{ type: "text", text: result.text ?? "ok" }],
+			details: result.details,
+			isError: Boolean(result.isError),
+			...(result.useless ? { useless: true } : {}),
+			timestamp: Date.now(),
+		});
+	}
+
+	async function runCommittedTodo(
+		tool: TodoTool,
+		sessionManager: SessionManager,
+		callId: string,
+		params: Record<string, unknown>,
+	) {
+		const res = await tool.execute(callId, params as never);
+		sessionManager.appendMessage({
+			role: "toolResult",
+			toolCallId: callId,
+			toolName: "todo",
+			content: res.content,
+			details: res.details,
+			isError: Boolean(res.isError),
+			timestamp: Date.now(),
+		});
+		return res;
+	}
+
+	it("replays synthetic Q timeline: 4x triton Not Available before smoke start + findcrypt ok keeps smoke blocked/not 4/4 until real triton call succeeds", async () => {
+		const { session, sessionManager } = createJournalSession("/tmp/qianniu");
+		const tool = new TodoTool(session);
+
+		await runCommittedTodo(tool, sessionManager, "todo-init", {
+			op: "init",
+			list: [
+				{
+					phase: "Verification",
+					items: [
+						"locate target routine",
+						"recover formula",
+						"verify offline KAT",
+						{
+							content: "smoke：triton_analyze status / ghidra_inspect findcrypt 可调用",
+							acceptance: [
+								{ kind: "tool_callable", tool: "triton_analyze", action: "status" },
+								{ kind: "tool_callable", tool: "ghidra_inspect", action: "findcrypt" },
+							],
+						},
+					],
+				},
+			],
+		});
+
+		// Four triton status probes fail with installed:false (isError:false) BEFORE the smoke item starts.
+		for (let i = 1; i <= 4; i++) {
+			recordToolCallAndResult(
+				sessionManager,
+				`triton-fail-${i}`,
+				"write",
+				{ path: "xd://triton_analyze", content: '{"action":"status"}' },
+				{
+					text: "Triton Environment Status: Not Available\n- Installed: false",
+					details: {
+						xdev: {
+							tool: "triton_analyze",
+							mode: "execute",
+							args: { action: "status" },
+							inner: { action: "status", installed: false, python_path: null },
+						},
+					},
+					isError: false,
+				},
+			);
+		}
+
+		await runCommittedTodo(tool, sessionManager, "todo-d1", { op: "done", task: "locate target routine" });
+		await runCommittedTodo(tool, sessionManager, "todo-d2", { op: "done", task: "recover formula" });
+		await runCommittedTodo(tool, sessionManager, "todo-d3", { op: "done", task: "verify offline KAT" });
+
+		// ghidra_inspect findcrypt succeeds via xd://
+		recordToolCallAndResult(
+			sessionManager,
+			"findcrypt-ok",
+			"write",
+			{ path: "xd://ghidra_inspect", content: '{"mode":"findcrypt","path":"sample.bin"}' },
+			{
+				text: "Found AES S-Box",
+				details: {
+					xdev: {
+						tool: "ghidra_inspect",
+						mode: "execute",
+						args: { mode: "findcrypt", path: "sample.bin" },
+						inner: { status: "ok", mode: "findcrypt", path: "sample.bin" },
+					},
+				},
+				isError: false,
+			},
+		);
+
+		// Attempting to mark smoke done must fail because triton_analyze status never succeeded.
+		const prematureDone = await runCommittedTodo(tool, sessionManager, "todo-smoke-premature", {
+			op: "done",
+			task: "smoke：triton_analyze status / ghidra_inspect findcrypt 可调用",
+		});
+		expect(prematureDone.isError).toBe(true);
+		const prematureText = prematureDone.content.find(c => c.type === "text")?.text ?? "";
+		expect(prematureText).toContain("triton_analyze");
+		expect(prematureText).not.toContain("Overall: 4/4 done, 0 open.");
+
+		// Explicit block records honest blocked summary and non-green TUI card.
+		const blockedRes = await runCommittedTodo(tool, sessionManager, "todo-smoke-block", {
+			op: "block",
+			task: "smoke：triton_analyze status / ghidra_inspect findcrypt 可调用",
+			reason: "triton_analyze status Not Available (4 probes)",
+		});
+		expect(blockedRes.isError).toBeUndefined();
+		const blockedSummary = blockedRes.content.find(c => c.type === "text")?.text ?? "";
+		expect(blockedSummary).toContain("Overall: 3/4 done, 0 open, 1 blocked.");
+		expect(blockedSummary).toContain("Remaining items: none (1 blocked).");
+
+		const renderedBlocked = Bun.stripANSI(
+			todoToolRenderer.renderResult(blockedRes, { expanded: true, isPartial: false }, theme).render(120).join("\n"),
+		);
+		expect(renderedBlocked).toContain("blocked: triton_analyze status Not Available");
+
+		// Real triton_analyze status probe now succeeds.
+		recordToolCallAndResult(
+			sessionManager,
+			"triton-ok-5",
+			"write",
+			{ path: "xd://triton_analyze", content: '{"action":"status"}' },
+			{
+				text: "Triton Environment Status: Available",
+				details: {
+					xdev: {
+						tool: "triton_analyze",
+						mode: "execute",
+						args: { action: "status" },
+						inner: { action: "status", installed: true, python_path: "/venv/bin/python" },
+					},
+				},
+				isError: false,
+			},
+		);
+
+		const finalDone = await runCommittedTodo(tool, sessionManager, "todo-smoke-done", {
+			op: "done",
+			task: "smoke：triton_analyze status / ghidra_inspect findcrypt 可调用",
+		});
+		expect(finalDone.isError).toBeUndefined();
+		const smokeTask = finalDone.details?.phases[0]?.tasks[3];
+		expect(smokeTask?.status).toBe("completed");
+		expect(smokeTask?.evidence?.map(e => e.toolCallId)).toEqual(["triton-ok-5", "findcrypt-ok"]);
+	});
+
+	it("rejects invalid, wrong-target (suffix/case), prior-generation, and superseded call_id evidence", async () => {
+		const { session, sessionManager } = createJournalSession("/workspace/proj");
+		const tool = new TodoTool(session);
+
+		// Generation 1 call BEFORE replan
+		await runCommittedTodo(tool, sessionManager, "init-g1", {
+			op: "init",
+			items: ["old plan"],
+		});
+		recordToolCallAndResult(
+			sessionManager,
+			"gen1-r2-ok",
+			"r2_inspect",
+			{ mode: "info", path: "/workspace/proj/libtarget.so" },
+			{ details: { status: "ok", mode: "info", path: "/workspace/proj/libtarget.so" } },
+		);
+
+		// Replan (Generation 2) with exact target requirement
+		await runCommittedTodo(tool, sessionManager, "init-g2", {
+			op: "init",
+			items: [
+				{
+					content: "inspect exact target",
+					acceptance: {
+						kind: "tool_callable",
+						tool: "r2_inspect",
+						action: "info",
+						target: "/workspace/proj/libtarget.so",
+					},
+				},
+			],
+		});
+
+		// 1. Nonexistent call_id rejected
+		const missingId = await tool.execute("d-missing", {
+			op: "done",
+			task: "inspect exact target",
+			call_id: "does-not-exist",
+		});
+		expect(missingId.isError).toBe(true);
+
+		// 2. Prior-generation call_id rejected
+		const staleGen = await tool.execute("d-stale", {
+			op: "done",
+			task: "inspect exact target",
+			call_id: "gen1-r2-ok",
+		});
+		expect(staleGen.isError).toBe(true);
+
+		// 3. Suffix-spoofed target (/evil/workspace/proj/libtarget.so) and case mismatch rejected
+		recordToolCallAndResult(
+			sessionManager,
+			"wrong-suffix",
+			"r2_inspect",
+			{ mode: "info", path: "/evil/workspace/proj/libtarget.so" },
+			{ details: { status: "ok", mode: "info", path: "/evil/workspace/proj/libtarget.so" } },
+		);
+		recordToolCallAndResult(
+			sessionManager,
+			"wrong-case",
+			"r2_inspect",
+			{ mode: "info", path: "/workspace/proj/LibTarget.so" },
+			{ details: { status: "ok", mode: "info", path: "/workspace/proj/LibTarget.so" } },
+		);
+		expect(
+			(await tool.execute("d-suffix", { op: "done", task: "inspect exact target", call_id: "wrong-suffix" }))
+				.isError,
+		).toBe(true);
+		expect(
+			(await tool.execute("d-case", { op: "done", task: "inspect exact target", call_id: "wrong-case" })).isError,
+		).toBe(true);
+
+		// 4. Valid target call succeeds, then a later call for the same target fails -> cannot cherry-pick old call_id
+		recordToolCallAndResult(
+			sessionManager,
+			"exact-ok",
+			"r2_inspect",
+			{ mode: "info", path: "./libtarget.so" },
+			{ details: { status: "ok", mode: "info", path: "/workspace/proj/libtarget.so" } },
+		);
+		recordToolCallAndResult(
+			sessionManager,
+			"exact-later-fail",
+			"r2_inspect",
+			{ mode: "info", path: "/workspace/proj/libtarget.so" },
+			{ details: { status: "missing_dependency", mode: "info", path: "/workspace/proj/libtarget.so" } },
+		);
+		const superseded = await tool.execute("d-superseded", {
+			op: "done",
+			task: "inspect exact target",
+			call_id: "exact-ok",
+		});
+		expect(superseded.isError).toBe(true);
+
+		// Recovery call on exact target allows completion
+		recordToolCallAndResult(
+			sessionManager,
+			"exact-recovered",
+			"r2_inspect",
+			{ mode: "info", path: "/workspace/proj/libtarget.so" },
+			{ details: { status: "ok", mode: "info", path: "/workspace/proj/libtarget.so" } },
+		);
+		const okRes = await tool.execute("d-ok", {
+			op: "done",
+			task: "inspect exact target",
+			call_id: "exact-recovered",
+		});
+		expect(okRes.isError).toBeUndefined();
+		expect(okRes.details?.phases[0]?.tasks[0]?.evidence?.[0]?.toolCallId).toBe("exact-recovered");
+	});
+
+	it("keeps original task blocked when a fallback task completes and rejects fallback evidence on original", async () => {
+		const { session, sessionManager } = createJournalSession();
+		const tool = new TodoTool(session);
+
+		await runCommittedTodo(tool, sessionManager, "init-fb", {
+			op: "init",
+			phase: "Verify",
+			items: [
+				{
+					content: "symbolic trace via triton",
+					acceptance: { kind: "tool_callable", tool: "triton_analyze", action: "replay" },
+				},
+			],
+		});
+
+		// Append fallback task; original task transitions to blocked automatically.
+		const appended = await runCommittedTodo(tool, sessionManager, "append-fb", {
+			op: "append",
+			phase: "Verify",
+			fallback_of: "symbolic trace via triton",
+			items: ["offline Python KAT verification"],
+		});
+		expect(appended.isError).toBeUndefined();
+		expect(appended.details?.phases[0]?.tasks[0]?.status).toBe("blocked");
+		expect(appended.details?.phases[0]?.tasks[1]?.fallbackOf).toBe("symbolic trace via triton");
+
+		recordToolCallAndResult(
+			sessionManager,
+			"kat-eval-ok",
+			"eval",
+			{ language: "py", code: "assert 20 == 20" },
+			{ details: {}, isError: false },
+		);
+
+		const fbDone = await runCommittedTodo(tool, sessionManager, "done-fb", {
+			op: "done",
+			task: "offline Python KAT verification",
+			call_id: "kat-eval-ok",
+		});
+		expect(fbDone.isError).toBeUndefined();
+		const summary = fbDone.content.find(c => c.type === "text")?.text ?? "";
+		expect(summary).toContain("Overall: 1/2 done, 0 open, 1 blocked.");
+		expect(fbDone.details?.phases[0]?.tasks[0]?.status).toBe("blocked");
+
+		// Attempting to close original task using fallback's call_id must fail.
+		const hijack = await tool.execute("done-orig-hijack", {
+			op: "done",
+			task: "symbolic trace via triton",
+			call_id: "kat-eval-ok",
+		});
+		expect(hijack.isError).toBe(true);
+	});
+
+	it("supports deliberate expected_error acceptance, WaitPollGuard neutrality, dropped-not-done counts, and markdown metadata round-trip", async () => {
+		const { session, sessionManager } = createJournalSession();
+		const tool = new TodoTool(session);
+
+		await runCommittedTodo(tool, sessionManager, "init-neg", {
+			op: "init",
+			phase: "Checks",
+			items: [
+				{
+					content: "verify invalid flag is rejected",
+					acceptance: {
+						kind: "tool_callable",
+						tool: "bash",
+						action: "mycli --bad-flag",
+						expectedOutcome: "expected_error",
+					},
+				},
+				{
+					content: "run real smoke command",
+					acceptance: { kind: "tool_callable", tool: "bash" },
+				},
+				"optional polish",
+			],
+		});
+
+		// WaitPollGuard intercepted `bash true` must NOT satisfy `bash` callable requirement.
+		recordToolCallAndResult(
+			sessionManager,
+			"wait-guard-noop",
+			"bash",
+			{ command: "true" },
+			{
+				details: {
+					unexecuted: true,
+					waitPollGuard: { intercepted: true, kind: "noop_bash", reason: "noop", count: 1 },
+				},
+				isError: false,
+				useless: true,
+			},
+		);
+		const noopAttempt = await tool.execute("done-smoke-noop", {
+			op: "done",
+			task: "run real smoke command",
+		});
+		expect(noopAttempt.isError).toBe(true);
+
+		// Deliberate negative test fails as expected -> satisfies expected_error.
+		recordToolCallAndResult(
+			sessionManager,
+			"neg-probe-1",
+			"bash",
+			{ command: "mycli --bad-flag" },
+			{ details: { exitCode: 2 }, isError: true },
+		);
+		const negDone = await runCommittedTodo(tool, sessionManager, "done-neg", {
+			op: "done",
+			task: "verify invalid flag is rejected",
+		});
+		expect(negDone.isError).toBeUndefined();
+		expect(negDone.details?.phases[0]?.tasks[0]?.evidence?.[0]?.toolCallId).toBe("neg-probe-1");
+
+		// Drop plain optional task -> counted as dropped, NEVER counted as `done`.
+		const droppedRes = await runCommittedTodo(tool, sessionManager, "drop-opt", {
+			op: "drop",
+			task: "optional polish",
+		});
+		const dropSummary = droppedRes.content.find(c => c.type === "text")?.text ?? "";
+		expect(dropSummary).toContain("Overall: 1/3 done, 1 open, 1 dropped.");
+
+		// Markdown export/import round-trip preserves immutable acceptance & evidence.
+		const md = phasesToMarkdown(session.getTodoPhases?.() ?? []);
+		const { phases: parsed, errors } = markdownToPhases(md);
+		expect(errors).toEqual([]);
+		expect(parsed[0]?.tasks[0]?.evidence?.[0]?.toolCallId).toBe("neg-probe-1");
+		expect(parsed[0]?.tasks[1]?.acceptance).toEqual([{ kind: "tool_callable", tool: "bash" }]);
+
+		// Immutable acceptance task cannot be dropped or removed.
+		expect((await tool.execute("try-drop", { op: "drop", task: "run real smoke command" })).isError).toBe(true);
+		expect((await tool.execute("try-rm", { op: "rm", task: "run real smoke command" })).isError).toBe(true);
+	});
+});
+
+describe("TodoTool evidence provenance (#21): docs reads, async settlement, dispatch generation, fallback attribution", () => {
+	function createJournalSession(cwd = "/tmp/test") {
+		const sessionManager = SessionManager.inMemory(cwd);
+		let phases: TodoPhase[] = [];
+		const session: ToolSession = {
+			cwd,
+			hasUI: false,
+			getSessionFile: () => null,
+			getSessionSpawns: () => "*",
+			sessionManager,
+			settings: Settings.isolated(),
+			getTodoPhases: () => phases,
+			setTodoPhases: next => {
+				phases = next;
+			},
+		};
+		return { session, sessionManager };
+	}
+
+	function appendAssistantCall(
+		sessionManager: SessionManager,
+		callId: string,
+		toolName: string,
+		args: Record<string, unknown>,
+	) {
+		sessionManager.appendMessage({
+			role: "assistant",
+			content: [{ type: "toolCall", id: callId, name: toolName, arguments: args }],
+			api: "anthropic-messages",
+			provider: "anthropic",
+			model: "claude-sonnet-4-5",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "toolUse",
+			timestamp: Date.now(),
+		});
+	}
+
+	function appendToolResult(
+		sessionManager: SessionManager,
+		callId: string,
+		toolName: string,
+		result: { text?: string; details?: unknown; isError?: boolean; useless?: boolean },
+	) {
+		sessionManager.appendMessage({
+			role: "toolResult",
+			toolCallId: callId,
+			toolName,
+			content: [{ type: "text", text: result.text ?? "ok" }],
+			details: result.details,
+			isError: Boolean(result.isError),
+			...(result.useless ? { useless: true } : {}),
+			timestamp: Date.now(),
+		});
+	}
+
+	async function runTodo(
+		tool: TodoTool,
+		sessionManager: SessionManager,
+		callId: string,
+		params: Record<string, unknown>,
+	) {
+		const res = await tool.execute(callId, params as never);
+		sessionManager.appendMessage({
+			role: "toolResult",
+			toolCallId: callId,
+			toolName: "todo",
+			content: res.content,
+			details: res.details,
+			isError: Boolean(res.isError),
+			timestamp: Date.now(),
+		});
+		return res;
+	}
+
+	/** Durable execution record the tracker writes when it attributes an execution to a task. */
+	function appendExecutionAttribution(
+		sessionManager: SessionManager,
+		phases: TodoPhase[],
+		execution: Record<string, unknown>,
+	) {
+		sessionManager.appendCustomEntry(TODO_EXECUTION_SNAPSHOT_CUSTOM_TYPE, { phases, execution });
+	}
+
+	it("treats read xd:// documentation as a non-execution and binds background bash only through a settled wait job", async () => {
+		const { session, sessionManager } = createJournalSession();
+		const tool = new TodoTool(session);
+		await runTodo(tool, sessionManager, "init-provenance", {
+			op: "init",
+			phase: "Checks",
+			items: [
+				{
+					content: "check triton status",
+					acceptance: { kind: "tool_callable", tool: "triton_analyze", action: "status" },
+				},
+				{ content: "background build", acceptance: { kind: "tool_callable", tool: "bash", action: "make build" } },
+				{ content: "background test", acceptance: { kind: "tool_callable", tool: "bash", action: "make test" } },
+			],
+		});
+
+		// `read xd://triton_analyze` returns docs only: it can never satisfy the status requirement.
+		appendAssistantCall(sessionManager, "docs-read", "read", { path: "xd://triton_analyze" });
+		appendToolResult(sessionManager, "docs-read", "read", { text: "# triton_analyze\nSchema: …" });
+		expect(
+			(await tool.execute("done-status-docs", { op: "done", task: "check triton status", call_id: "docs-read" }))
+				.isError,
+		).toBe(true);
+
+		// Background start ack is not verification; the settled `wait` snapshot is.
+		appendAssistantCall(sessionManager, "bg-build", "bash", { command: "make build" });
+		appendToolResult(sessionManager, "bg-build", "bash", {
+			text: "started",
+			details: { async: { state: "running", jobId: "job-build", type: "bash" } },
+		});
+		expect(
+			(await tool.execute("done-build-ack", { op: "done", task: "background build", call_id: "bg-build" })).isError,
+		).toBe(true);
+
+		appendAssistantCall(sessionManager, "wait-running", "wait", {});
+		appendToolResult(sessionManager, "wait-running", "wait", {
+			details: { op: "wait", jobs: [{ id: "job-build", type: "bash", status: "running" }] },
+		});
+		expect((await tool.execute("done-build-running", { op: "done", task: "background build" })).isError).toBe(true);
+
+		appendAssistantCall(sessionManager, "wait-settled", "wait", {});
+		appendToolResult(sessionManager, "wait-settled", "wait", {
+			details: {
+				op: "wait",
+				jobs: [{ id: "job-build", type: "bash", status: "completed", exitCode: 0 }],
+			},
+		});
+		const settledDone = await tool.execute("done-build-settled", { op: "done", task: "background build" });
+		expect(settledDone.isError).toBeUndefined();
+		expect(settledDone.details?.phases[0]?.tasks[1]?.evidence?.[0]?.toolCallId).toBe("bg-build");
+
+		// A completed job with a non-zero exit code is a settled failure, never verification.
+		appendAssistantCall(sessionManager, "bg-test", "bash", { command: "make test" });
+		appendToolResult(sessionManager, "bg-test", "bash", {
+			text: "started",
+			details: { async: { state: "running", jobId: "job-test", type: "bash" } },
+		});
+		appendAssistantCall(sessionManager, "wait-test", "wait", {});
+		appendToolResult(sessionManager, "wait-test", "wait", {
+			details: { op: "wait", jobs: [{ id: "job-test", type: "bash", status: "completed", exitCode: 2 }] },
+		});
+		expect((await tool.execute("done-test-failed", { op: "done", task: "background test" })).isError).toBe(true);
+	});
+
+	it("keeps a result's dispatch-time plan generation when it is persisted after a later init", async () => {
+		const { session, sessionManager } = createJournalSession();
+		const tool = new TodoTool(session);
+
+		await runTodo(tool, sessionManager, "init-gen1", { op: "init", items: ["gen1 plan"] });
+		// Dispatched under generation 1, but its persisted result lands after the replan below.
+		appendAssistantCall(sessionManager, "stale-bash", "bash", { command: "uname -a" });
+		await runTodo(tool, sessionManager, "init-gen2", {
+			op: "init",
+			items: [{ content: "gen2 verify", acceptance: { kind: "tool_callable", tool: "bash", action: "uname -a" } }],
+		});
+		appendToolResult(sessionManager, "stale-bash", "bash", { details: { output: "Linux", exitCode: 0 } });
+
+		const staleDone = await tool.execute("done-stale", { op: "done", task: "gen2 verify" });
+		expect(staleDone.isError).toBe(true);
+
+		appendAssistantCall(sessionManager, "fresh-bash", "bash", { command: "uname -a" });
+		appendToolResult(sessionManager, "fresh-bash", "bash", { details: { output: "Linux", exitCode: 0 } });
+		const freshDone = await tool.execute("done-fresh", { op: "done", task: "gen2 verify" });
+		expect(freshDone.isError).toBeUndefined();
+		expect(freshDone.details?.phases[0]?.tasks[0]?.evidence?.[0]?.toolCallId).toBe("fresh-bash");
+	});
+
+	it("settles auto-delivered background jobs from the delivery frame's reported exit code", async () => {
+		const { session, sessionManager } = createJournalSession();
+		const tool = new TodoTool(session);
+		await runTodo(tool, sessionManager, "init-async-delivery", {
+			op: "init",
+			phase: "Build",
+			items: [
+				{ content: "package build", acceptance: { kind: "tool_callable", tool: "bash", action: "npm run build" } },
+				{ content: "test suite", acceptance: { kind: "tool_callable", tool: "bash", action: "npm test" } },
+				{ content: "lint pass", acceptance: { kind: "tool_callable", tool: "bash", action: "npm run lint" } },
+				{ content: "serve smoke", acceptance: { kind: "tool_callable", tool: "bash", action: "npm run serve" } },
+			],
+		});
+
+		const startBackground = (callId: string, command: string, jobId: string) => {
+			appendAssistantCall(sessionManager, callId, "bash", { command });
+			appendToolResult(sessionManager, callId, "bash", {
+				text: "started",
+				details: { async: { state: "running", jobId, type: "bash" } },
+			});
+		};
+
+		startBackground("bg-ok-call", "npm run build", "job-ok");
+		sessionManager.appendCustomEntry("async-result", {
+			jobs: [{ jobId: "job-ok", type: "bash", status: "completed", exitCode: 0 }],
+		});
+		const okDone = await tool.execute("done-build", { op: "done", task: "package build" });
+		expect(okDone.isError).toBeUndefined();
+		expect(okDone.details?.phases[0]?.tasks[0]?.evidence?.[0]?.toolCallId).toBe("bg-ok-call");
+
+		startBackground("bg-fail-call", "npm test", "job-fail");
+		sessionManager.appendCustomEntry("async-result", {
+			jobs: [{ jobId: "job-fail", type: "bash", status: "completed", exitCode: 1 }],
+		});
+		expect((await tool.execute("done-tests", { op: "done", task: "test suite" })).isError).toBe(true);
+
+		// BashToolDetails reports `exitCode` only when non-zero; a completed bash job already means
+		// exit 0, so a frame without a code still settles the originating call as verified.
+		startBackground("bg-unknown-call", "npm run lint", "job-unknown");
+		sessionManager.appendCustomEntry("async-result", {
+			jobs: [{ jobId: "job-unknown", type: "bash", status: "completed" }],
+		});
+		const lintDone = await tool.execute("done-lint", { op: "done", task: "lint pass" });
+		expect(lintDone.isError).toBeUndefined();
+		expect(lintDone.details?.phases[0]?.tasks[2]?.evidence?.[0]?.toolCallId).toBe("bg-unknown-call");
+
+		// A delivered failure settles as a failure, never a pass.
+		startBackground("bg-killed-call", "npm run serve", "job-killed");
+		sessionManager.appendCustomEntry("async-result", {
+			jobs: [{ jobId: "job-killed", type: "bash", status: "failed" }],
+		});
+		expect(
+			(await tool.execute("done-serve", { op: "done", task: "serve smoke", call_id: "bg-killed-call" })).isError,
+		).toBe(true);
+	});
+
+	it("excludes executions attributed to a fallback task from the original task's acceptance and failures", async () => {
+		const { session, sessionManager } = createJournalSession();
+		const tool = new TodoTool(session);
+
+		const init = await runTodo(tool, sessionManager, "init-original", {
+			op: "init",
+			phase: "Trace",
+			items: [
+				{
+					content: "triton symbolic trace",
+					acceptance: { kind: "tool_callable", tool: "triton_analyze", action: "replay" },
+				},
+			],
+		});
+		const gen1 = init.details?.phases[0]?.tasks[0]?.generation ?? 1;
+
+		// Original attempt fails availability while attributed to the original task.
+		appendAssistantCall(sessionManager, "triton-original-fail", "triton_analyze", { action: "replay" });
+		appendToolResult(sessionManager, "triton-original-fail", "triton_analyze", {
+			details: { action: "replay", installed: false },
+		});
+		appendExecutionAttribution(sessionManager, init.details?.phases ?? [], {
+			toolCallId: "triton-original-fail",
+			toolName: "triton_analyze",
+			effectiveToolName: "triton_analyze",
+			action: "replay",
+			details: { action: "replay", installed: false },
+			isError: false,
+			semanticSuccess: false,
+			isReadinessFailure: true,
+			failureReason: "tool not installed",
+			generation: gen1,
+			activeTaskContent: "triton symbolic trace",
+		});
+
+		const appended = await runTodo(tool, sessionManager, "append-fallback", {
+			op: "append",
+			phase: "Trace",
+			fallback_of: "triton symbolic trace",
+			items: ["unidbg symbolic trace"],
+		});
+		expect(appended.details?.phases[0]?.tasks[0]?.status).toBe("blocked");
+
+		// The fallback succeeds with the SAME tool/action, attributed to the fallback task.
+		appendAssistantCall(sessionManager, "triton-fallback-ok", "triton_analyze", { action: "replay" });
+		appendToolResult(sessionManager, "triton-fallback-ok", "triton_analyze", {
+			details: { action: "replay", installed: true },
+		});
+		appendExecutionAttribution(sessionManager, appended.details?.phases ?? [], {
+			toolCallId: "triton-fallback-ok",
+			toolName: "triton_analyze",
+			effectiveToolName: "triton_analyze",
+			action: "replay",
+			details: { action: "replay", installed: true },
+			isError: false,
+			semanticSuccess: true,
+			isReadinessFailure: false,
+			generation: appended.details?.phases[0]?.tasks[1]?.generation ?? gen1,
+			activeTaskContent: "unidbg symbolic trace",
+		});
+
+		const hijack = await tool.execute("done-original-via-fallback", {
+			op: "done",
+			task: "triton symbolic trace",
+			call_id: "triton-fallback-ok",
+		});
+		expect(hijack.isError).toBe(true);
+		expect(String(hijack.content[0]?.type === "text" ? hijack.content[0].text : "")).toContain("fallback");
+		expect((await tool.execute("done-original-auto", { op: "done", task: "triton symbolic trace" })).isError).toBe(
+			true,
+		);
+
+		// Original-attributed success is the only thing that closes the original task.
+		appendAssistantCall(sessionManager, "triton-original-ok", "triton_analyze", { action: "replay" });
+		appendToolResult(sessionManager, "triton-original-ok", "triton_analyze", {
+			details: { action: "replay", installed: true },
+		});
+		appendExecutionAttribution(sessionManager, appended.details?.phases ?? [], {
+			toolCallId: "triton-original-ok",
+			toolName: "triton_analyze",
+			effectiveToolName: "triton_analyze",
+			action: "replay",
+			details: { action: "replay", installed: true },
+			isError: false,
+			semanticSuccess: true,
+			isReadinessFailure: false,
+			generation: gen1,
+			activeTaskContent: "triton symbolic trace",
+		});
+		const closed = await tool.execute("done-original-ok", { op: "done", task: "triton symbolic trace" });
+		expect(closed.isError).toBeUndefined();
+		expect(closed.details?.phases[0]?.tasks[0]?.evidence?.[0]?.toolCallId).toBe("triton-original-ok");
 	});
 });

@@ -3,7 +3,13 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
-import { EditTool, getEditStore } from "@reverse/coding-agent/edit";
+import {
+	classifyEditRejection,
+	EditTool,
+	extractEditErrorKind,
+	getEditStore,
+	inferEditErrorKindFromText,
+} from "@reverse/coding-agent/edit";
 import { type EditToolDetails } from "@reverse/tui/tools/edit";
 import type { EditMode } from "@reverse/tui/tools/edit";
 import type { ToolSession } from "@reverse/coding-agent/tools";
@@ -138,6 +144,62 @@ describe("EditTool details", () => {
 		expect(result.isError).toBe(true);
 		expect(result.details).toEqual({ diff: "", errorKind: "stale_tag" });
 		expect(result.content[0]).toMatchObject({ text: expect.stringContaining("file changed between read and edit") });
+	});
+
+	test("extracts and classifies edit rejections across direct, xd://edit, and historical journal shapes", () => {
+		const directUnseen = {
+			toolName: "edit",
+			isError: true,
+			details: { diff: "", errorKind: "unseen_lines" },
+		};
+		expect(extractEditErrorKind(directUnseen)).toBe("unseen_lines");
+		expect(classifyEditRejection(directUnseen)).toBe("anchor_reject");
+
+		const xdevCrossFile = {
+			toolName: "write",
+			isError: true,
+			details: {
+				xdev: {
+					tool: "edit",
+					mode: "execute",
+					inner: { diff: "", errorKind: "other_file_tag" },
+				},
+			},
+		};
+		expect(extractEditErrorKind(xdevCrossFile)).toBe("other_file_tag");
+		expect(classifyEditRejection(xdevCrossFile)).toBe("hash_reject");
+
+		const nonEditXdev = {
+			toolName: "write",
+			isError: true,
+			details: {
+				xdev: {
+					tool: "ast_edit",
+					mode: "execute",
+					inner: { errorKind: "parse" },
+				},
+			},
+		};
+		expect(extractEditErrorKind(nonEditXdev)).toBeUndefined();
+
+		const legacyCrossFile = {
+			toolName: "edit",
+			isError: true,
+			content: [
+				{
+					type: "text",
+					text: "Edit rejected for target.js: hash #272E is not from this session.\nHash #272E was issued in this session for D:\\map\\other.js.\nThe current file hashes to #6FDC.",
+				},
+			],
+		};
+		expect(extractEditErrorKind(legacyCrossFile)).toBeUndefined();
+		expect(extractEditErrorKind(legacyCrossFile, { allowTextFallback: true })).toBe("other_file_tag");
+		expect(classifyEditRejection(legacyCrossFile)).toBe("hash_reject");
+		expect(
+			inferEditErrorKindFromText(
+				"Edit rejected for target.js: hash #272E was issued for another file in this session, not for this file.",
+			),
+		).toBe("other_file_tag");
 	});
 
 	test("preserves diff metadata while native snapshot pruning removes oversized texts", async () => {

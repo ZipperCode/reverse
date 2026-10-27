@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@reverse/agent";
 import { Settings } from "@reverse/coding-agent/config/settings";
-import { EditTool } from "@reverse/coding-agent/edit";
+import { classifyEditRejection, EditTool, extractEditErrorKind } from "@reverse/coding-agent/edit";
 import type { ToolSession } from "@reverse/coding-agent/tools";
 import { ReadTool } from "@reverse/coding-agent/tools/read";
 import { removeWithRetries } from "@reverse/utils";
@@ -59,19 +59,50 @@ describe("read → edit seen-line guard under default settings", () => {
 		await removeWithRetries(cwd);
 	});
 
-	it("rejects a hunk anchored on a line the read elided", async () => {
+	it("rejects unseen-line and cross-file-tag edits without mutating the file, then applies once the range is displayed", async () => {
 		const session = createSession(cwd);
-		const read = textOutput(await new ReadTool(session).execute("read", { path: "draw.py:7-7" }));
-		expect(read.split("\n")[0]).toMatch(/^\[draw\.py#[0-9A-F]{4}\]$/);
-		expect(read).toContain("…");
-		expect(read).not.toContain("beta),");
+		const otherFile = path.join(cwd, "other.py");
+		const otherSource = "def other():\n    return 1\n";
+		await Bun.write(otherFile, otherSource);
 
-		const result = await new EditTool(session, "hashline").execute("edit", {
-			input: `${read.split("\n")[0]}\nPUT 4.=4:\n+            beta, gamma),\n`,
+		const readDraw = textOutput(await new ReadTool(session).execute("read", { path: "draw.py:7-7" }));
+		const drawHeader = readDraw.split("\n")[0]!;
+		expect(drawHeader).toMatch(/^\[draw\.py#[0-9A-F]{4}\]$/);
+		expect(readDraw).toContain("…");
+		expect(readDraw).not.toContain("beta),");
+
+		const readOther = textOutput(await new ReadTool(session).execute("read", { path: "other.py:1-2" }));
+		const otherTag = readOther.split("\n")[0]!.match(/#([0-9A-F]{4})\]$/)?.[1];
+		expect(otherTag).toBeDefined();
+
+		// 1. Unseen line anchor is rejected; file content and hash remain untouched.
+		const unseenResult = await new EditTool(session, "hashline").execute("edit-unseen", {
+			input: `${drawHeader}\nPUT 4.=4:\n+            beta, gamma),\n`,
 		});
-
-		expect(textOutput(result)).toContain("never displayed");
+		expect(unseenResult.isError).toBe(true);
+		expect(extractEditErrorKind(unseenResult)).toBe("unseen_lines");
+		expect(classifyEditRejection(unseenResult)).toBe("anchor_reject");
 		expect(await Bun.file(file).text()).toBe(SOURCE);
+
+		// 2. Cross-file tag is rejected; both files remain untouched.
+		const crossTagResult = await new EditTool(session, "hashline").execute("edit-cross-tag", {
+			input: `[draw.py#${otherTag}]\nPUT 7.=7:\n+        callout_xy=(0.240, 0.258))\n`,
+		});
+		expect(crossTagResult.isError).toBe(true);
+		expect(extractEditErrorKind(crossTagResult)).toBe("other_file_tag");
+		expect(classifyEditRejection(crossTagResult)).toBe("hash_reject");
+		expect(textOutput(crossTagResult)).toContain("other.py");
+		expect(await Bun.file(file).text()).toBe(SOURCE);
+		expect(await Bun.file(otherFile).text()).toBe(otherSource);
+
+		// 3. Re-reading the target range and applying with the current tag succeeds.
+		const fullRangeRead = textOutput(await new ReadTool(session).execute("read", { path: "draw.py:3-5" }));
+		const currentHeader = fullRangeRead.split("\n")[0]!;
+		const applied = await new EditTool(session, "hashline").execute("edit-valid", {
+			input: `${currentHeader}\nPUT 4.=4:\n+            beta, gamma),\n`,
+		});
+		expect(applied.isError).not.toBe(true);
+		expect(await Bun.file(file).text()).toBe(SOURCE.replace("beta),", "beta, gamma),"));
 	});
 
 	it("applies a hunk anchored on a line the read displayed", async () => {

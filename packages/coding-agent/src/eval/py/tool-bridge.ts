@@ -223,6 +223,11 @@ async function startServer(): Promise<BridgeServer> {
 		},
 	});
 
+	// 桥接服务器是进程级单例：它只服务于仍存活的 kernel，不能让自身 handle 阻止宿主事件循环
+	// 退出（否则 kernel 全部关闭后独立脚本进程仍不退出，见 #19 冒烟复现）。unref 不改变监听
+	// 与请求语义——只要有 kernel 子进程存活，宿主就仍被其管道句柄保活。
+	server.unref?.();
+
 	const info: PyToolBridgeInfo = {
 		url: `http://${server.hostname}:${server.port}`,
 		token,

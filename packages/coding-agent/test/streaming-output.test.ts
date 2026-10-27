@@ -2,7 +2,14 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { AgentToolContext } from "@reverse/agent";
+import { Settings } from "@reverse/coding-agent/config/settings";
+import { ArtifactManager } from "@reverse/coding-agent/session/artifacts";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
+	ARTIFACT_DEFAULT_HEAD_BYTES,
+	ARTIFACT_DEFAULT_MAX_BYTES,
+	capArtifactText,
 	enforceInlineByteCap,
 	formatHeadTruncationNotice,
 	formatMiddleElisionMarker,
@@ -16,10 +23,9 @@ import {
 	truncateTail,
 	truncateTailBytes,
 } from "@reverse/tui/tools/streaming-output";
-import { stripOutputNotice } from "@reverse/tui/tools/output-meta";
-import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
-import { outputMeta } from "@reverse/coding-agent/tools/output-meta";
-import { removeWithRetries } from "@reverse/utils";
+import { formatOutputNotice, stripOutputNotice } from "@reverse/tui/tools/output-meta";
+import { outputMeta, postProcessToolResult } from "@reverse/coding-agent/tools/output-meta";
+import { formatBytes, removeWithRetries } from "@reverse/utils";
 
 const createdTempDirs: string[] = [];
 const originalForceProtocol = Bun.env.PI_FORCE_IMAGE_PROTOCOL;
@@ -420,33 +426,35 @@ describe("OutputSink", () => {
 		expect(chunks).toEqual(["a"]);
 	});
 
-	test("caps artifact-on-disk size: head + notice + tail when stream exceeds cap", async () => {
+	test("caps artifact-on-disk size: head + notice + tail stays <= artifactMaxBytes", async () => {
 		const dir = await createTempDir();
 		const artifactPath = path.join(dir, "capped.log");
 		const sink = new OutputSink({
 			artifactPath,
 			artifactId: "art-cap",
 			spillThreshold: 16,
-			artifactMaxBytes: 32,
-			artifactHeadBytes: 16,
+			artifactMaxBytes: 256,
+			artifactHeadBytes: 64,
 		});
 
-		// Push 64 raw bytes; cap is 32 (16 head + 16 tail). Expect head=first 16,
-		// notice in the middle, tail=last 16, total file size between 32 and
-		// 32 + notice length.
-		const payload = "0123456789ABCDEF".repeat(4); // 64 bytes
-		await sink.push(payload);
-		await sink.dump();
+		const headBlock = "HEAD0123456789AB".repeat(4); // 64 bytes
+		const middleBlock = "M".repeat(384);
+		const tailBlock = "0123456789ABCDEF".repeat(4); // 64 bytes
+		const payload = `${headBlock}${middleBlock}${tailBlock}`; // 512 bytes
+		sink.push(payload);
+		const summary = await sink.dump();
 		const artifactText = await Bun.file(artifactPath).text();
+		const diskBytes = byteLength(artifactText);
 
-		expect(artifactText.startsWith("0123456789ABCDEF")).toBe(true);
-		expect(artifactText.endsWith("0123456789ABCDEF")).toBe(true);
+		expect(diskBytes).toBeLessThanOrEqual(256);
+		expect(summary.artifactBytes).toBe(diskBytes);
+		expect(summary.artifactMaxBytes).toBe(256);
+		expect(artifactText.startsWith(headBlock)).toBe(true);
+		expect(artifactText.endsWith("89ABCDEF")).toBe(true);
 		expect(artifactText).toContain("[ARTIFACT TRUNCATED:");
 		expect(artifactText).toContain("elided from the middle");
-		// Strip the notice (with surrounding separators) and assert head + tail are
-		// preserved verbatim at exactly the budget bytes.
 		const stripped = artifactText.replace(/\n?\[ARTIFACT TRUNCATED:[^\]]+\]\n?/g, "");
-		expect(byteLength(stripped)).toBe(32);
+		expect(summary.artifactElidedBytes).toBe(byteLength(payload) - byteLength(stripped));
 	});
 
 	test("artifact cap stays a no-op when total stream fits inside the cap", async () => {
@@ -461,20 +469,18 @@ describe("OutputSink", () => {
 		});
 
 		// Forces spill (in-memory tail) but file should stay verbatim.
-		await sink.push("abcde");
-		await sink.push("fghij");
-		await sink.dump();
+		sink.push("abcde");
+		sink.push("fghij");
+		const summary = await sink.dump();
 		const artifactText = await Bun.file(artifactPath).text();
 
 		expect(artifactText).toBe("abcdefghij");
+		expect(summary.artifactBytes).toBe(10);
+		expect(summary.artifactElidedBytes).toBeUndefined();
 		expect(artifactText).not.toContain("[ARTIFACT TRUNCATED:");
 	});
 
 	test("artifact stays verbatim when spillover exceeds head budget but still fits inside the cap", async () => {
-		// Regression for the PR #2083 review: when the head budget is filled
-		// but the rest still fits in the tail ring, droppedBytes is zero —
-		// the file MUST be the verbatim stream with no `[ARTIFACT TRUNCATED: …]`
-		// marker spliced into the middle.
 		const dir = await createTempDir();
 		const artifactPath = path.join(dir, "spilled.log");
 		const sink = new OutputSink({
@@ -487,66 +493,92 @@ describe("OutputSink", () => {
 
 		// 24 bytes total: head takes 16, tail ring receives 8 (fits, no eviction).
 		const payload = "0123456789ABCDEFghijklmn";
-		await sink.push(payload);
-		await sink.dump();
+		sink.push(payload);
+		const summary = await sink.dump();
 		const artifactText = await Bun.file(artifactPath).text();
 
 		expect(artifactText).toBe(payload);
+		expect(summary.artifactBytes).toBe(24);
+		expect(summary.artifactElidedBytes).toBeUndefined();
 		expect(artifactText).not.toContain("[ARTIFACT TRUNCATED:");
 	});
 
-	test("artifact cap stays bounded across many small streaming chunks", async () => {
+	test("artifact cap stays bounded across many small streaming chunks (including notice)", async () => {
 		const dir = await createTempDir();
 		const artifactPath = path.join(dir, "stream.log");
 		const sink = new OutputSink({
 			artifactPath,
 			artifactId: "art-stream",
 			spillThreshold: 16,
-			artifactMaxBytes: 32,
-			artifactHeadBytes: 16,
+			artifactMaxBytes: 256,
+			artifactHeadBytes: 64,
 		});
 
-		// 200 chunks * 4 bytes = 800 bytes streamed; cap is 32.
+		// 200 chunks * 4 bytes = 800 bytes streamed; total on-disk bytes <= 256.
 		for (let i = 0; i < 200; i++) {
-			await sink.push(String(i % 10).repeat(4));
+			sink.push(String(i % 10).repeat(4));
 		}
-		await sink.dump();
+		const summary = await sink.dump();
 		const artifactText = await Bun.file(artifactPath).text();
+		const diskBytes = byteLength(artifactText);
 
+		expect(diskBytes).toBeLessThanOrEqual(256);
+		expect(summary.artifactBytes).toBe(diskBytes);
 		expect(artifactText).toContain("[ARTIFACT TRUNCATED:");
-		const stripped = artifactText.replace(/\n?\[ARTIFACT TRUNCATED:[^\]]+\]\n?/g, "");
-		expect(byteLength(stripped)).toBe(32);
 	});
 
 	test("head-retained bytes count against the artifact cap", async () => {
-		// Regression for the rebase onto a13e9827f: #createFileSink flushes the
-		// in-memory head retention into the artifact sink before the buffer. If
-		// that flush bypasses #emitToSink, the head bytes escape the cap
-		// accounting and the on-disk file grows past artifactMaxBytes.
 		const dir = await createTempDir();
 		const artifactPath = path.join(dir, "head-capped.log");
 		const sink = new OutputSink({
 			artifactPath,
 			artifactId: "art-head-cap",
-			spillThreshold: 4,
-			headBytes: 8,
-			artifactMaxBytes: 16,
-			artifactHeadBytes: 8,
+			spillThreshold: 16,
+			headBytes: 16,
+			artifactMaxBytes: 180,
+			artifactHeadBytes: 32,
 		});
 
-		// 64 bytes total: the first 8 land in the in-memory head; the overflow
-		// opens the artifact sink, which replays the head first. The replayed
-		// head must consume the artifact head budget exactly, leaving the tail
-		// ring (8 bytes) for the rest.
-		for (let i = 0; i < 16; i++) {
-			await sink.push("abcd");
+		for (let i = 0; i < 80; i++) {
+			sink.push("abcd");
 		}
-		await sink.dump();
+		const summary = await sink.dump();
 		const artifactText = await Bun.file(artifactPath).text();
+		const diskBytes = byteLength(artifactText);
 
+		expect(diskBytes).toBeLessThanOrEqual(180);
+		expect(summary.artifactBytes).toBe(diskBytes);
+		expect(artifactText.startsWith("abcd".repeat(8))).toBe(true);
 		expect(artifactText).toContain("[ARTIFACT TRUNCATED:");
-		const stripped = artifactText.replace(/\n?\[ARTIFACT TRUNCATED:[^\]]+\]\n?/g, "");
-		expect(byteLength(stripped)).toBe(16);
+	});
+
+	test("tiny caps and split UTF-8 multibyte chunks never exceed artifactMaxBytes or corrupt UTF-8", async () => {
+		const dir = await createTempDir();
+		for (const [cap, head] of [
+			[16, 8],
+			[32, 16],
+			[64, 32],
+			[180, 45],
+		] as const) {
+			const artifactPath = path.join(dir, `tiny-${cap}.log`);
+			const sink = new OutputSink({
+				artifactPath,
+				artifactId: `tiny-${cap}`,
+				spillThreshold: 8,
+				artifactMaxBytes: cap,
+				artifactHeadBytes: head,
+			});
+			const chunks = ["αβγ", "😀🎉🚀", "中文逆向测试", "é€😀".repeat(25)];
+			for (const chunk of chunks) sink.push(chunk);
+			const summary = await sink.dump();
+			const rawBytes = await Bun.file(artifactPath).bytes();
+			const decoded = new TextDecoder("utf-8", { fatal: true }).decode(rawBytes);
+
+			expect(rawBytes.byteLength).toBeLessThanOrEqual(cap);
+			expect(summary.artifactBytes).toBe(rawBytes.byteLength);
+			expect(summary.artifactElidedBytes).toBeGreaterThan(0);
+			expect(decoded.includes("\uFFFD")).toBe(false);
+		}
 	});
 
 	test("artifactMaxBytes=0 restores unbounded artifact streaming", async () => {
@@ -568,29 +600,34 @@ describe("OutputSink", () => {
 		expect(artifactText).not.toContain("[ARTIFACT TRUNCATED:");
 	});
 
-	test("default sink caps an oversized artifact at 16 MiB with a truncation notice between head and tail", async () => {
+	test("default sink caps an oversized artifact at 4 MiB (including truncation notice) between head and tail", async () => {
 		const dir = await createTempDir();
 		const artifactPath = path.join(dir, "oversized.log");
 		const sink = new OutputSink({ artifactPath, artifactId: "art-oversized" });
 
+		expect(ARTIFACT_DEFAULT_MAX_BYTES).toBe(4 * 1024 * 1024);
+		expect(ARTIFACT_DEFAULT_HEAD_BYTES).toBe(1 * 1024 * 1024);
+
 		const line = `${"x".repeat(1023)}\n`;
 		const block = line.repeat(64); // 64 KiB, a typical pipe read
 		sink.push("HEAD-START\n");
-		for (let i = 0; i < 320; i++) sink.push(block); // 20 MiB
+		for (let i = 0; i < 96; i++) sink.push(block); // 6 MiB (> 4 MiB default cap)
 		sink.push("TAIL-END\n");
 		const summary = await sink.dump();
 		const artifactText = await Bun.file(artifactPath).text();
+		const diskBytes = byteLength(artifactText);
 
 		expect(summary.artifactId).toBe("art-oversized");
+		expect(diskBytes).toBeLessThanOrEqual(ARTIFACT_DEFAULT_MAX_BYTES);
+		expect(diskBytes).toBeGreaterThan(ARTIFACT_DEFAULT_MAX_BYTES - 512);
+		expect(summary.artifactBytes).toBe(diskBytes);
+		expect(summary.artifactElidedBytes).toBeGreaterThan(2 * 1024 * 1024);
 		expect(artifactText.startsWith("HEAD-START\n")).toBe(true);
 		expect(artifactText.endsWith(`${line}TAIL-END\n`)).toBe(true);
 		const notices = artifactText.match(/\[ARTIFACT TRUNCATED:[^\]]+\]/g) ?? [];
 		expect(notices).toHaveLength(1);
 		expect(notices[0]).toContain("elided from the middle");
-		const stripped = artifactText.replace(/\n?\[ARTIFACT TRUNCATED:[^\]]+\]\n?/g, "");
-		expect(byteLength(stripped)).toBe(16 * 1024 * 1024);
-		// The head window is the stream's first 3 MiB, verbatim.
-		expect(artifactText.indexOf("[ARTIFACT TRUNCATED:")).toBe(3 * 1024 * 1024 + 1);
+		expect(artifactText.indexOf("[ARTIFACT TRUNCATED:")).toBe(ARTIFACT_DEFAULT_HEAD_BYTES + 1);
 	});
 
 	test("default sink keeps a spilled artifact below the cap lossless", async () => {
@@ -610,54 +647,60 @@ describe("OutputSink", () => {
 		expect(notice).toContain("Read artifact://art-small-default for full output");
 	});
 
-	test("a small cap without an explicit head budget still keeps the most recent output", async () => {
+	test("a small cap without an explicit head budget still keeps the most recent output within cap", async () => {
 		const dir = await createTempDir();
 		const artifactPath = path.join(dir, "small-cap.log");
 		const sink = new OutputSink({
 			artifactPath,
 			artifactId: "art-small-cap",
 			spillThreshold: 8,
-			artifactMaxBytes: 64,
+			artifactMaxBytes: 256,
 		});
 
-		const payload = Array.from({ length: 50 }, (_, i) => String(i).padStart(4, "0")).join(""); // 200 bytes
+		const payload = Array.from({ length: 120 }, (_, i) => String(i).padStart(4, "0")).join(""); // 480 bytes
 		sink.push(payload);
-		await sink.dump();
+		const summary = await sink.dump();
 		const artifactText = await Bun.file(artifactPath).text();
+		const diskBytes = byteLength(artifactText);
 
-		expect(artifactText.startsWith(payload.slice(0, 32))).toBe(true);
-		expect(artifactText.endsWith(payload.slice(-32))).toBe(true);
-		const stripped = artifactText.replace(/\n?\[ARTIFACT TRUNCATED:[^\]]+\]\n?/g, "");
-		expect(stripped).toBe(payload.slice(0, 32) + payload.slice(-32));
+		expect(diskBytes).toBeLessThanOrEqual(256);
+		expect(summary.artifactBytes).toBe(diskBytes);
+		expect(artifactText.startsWith(payload.slice(0, 128))).toBe(true);
+		expect(artifactText.endsWith("01180119")).toBe(true);
 	});
 
 	test("a capped artifact is advertised as a head/tail sample, not as full output", async () => {
 		const dir = await createTempDir();
+		const artifactPath = path.join(dir, "sampled.log");
 		const sink = new OutputSink({
-			artifactPath: path.join(dir, "sampled.log"),
+			artifactPath,
 			artifactId: "art-sampled",
 			spillThreshold: 16,
 			maxColumns: 8,
-			artifactMaxBytes: 32,
-			artifactHeadBytes: 16,
+			artifactMaxBytes: 200,
+			artifactHeadBytes: 32,
 		});
 
-		// 136 bytes of 17-byte lines: over the 32-byte artifact cap and the 8-byte column cap.
-		sink.push("0123456789ABCDEF\n".repeat(8));
+		// 340 bytes of 17-byte lines: over the 200-byte artifact cap and the 8-byte column cap.
+		sink.push("0123456789ABCDEF\n".repeat(20));
 		const summary = await sink.dump();
+		const diskBytes = byteLength(await Bun.file(artifactPath).text());
+		expect(diskBytes).toBeLessThanOrEqual(200);
 		expect(summary.artifactId).toBe("art-sampled");
-		expect(summary.artifactElidedBytes).toBe(136 - 32);
+		expect(summary.artifactBytes).toBe(diskBytes);
+		expect(summary.artifactElidedBytes).toBeGreaterThan(140);
 
+		const elided = summary.artifactElidedBytes!;
+		const formattedElided = formatBytes(elided);
 		const meta = outputMeta().truncationFromSummary(summary, { direction: "tail" }).get();
-		expect(meta?.truncation?.artifactElidedBytes).toBe(104);
-		expect(meta?.limits?.columnTruncated?.artifactElidedBytes).toBe(104);
+		expect(meta?.truncation?.artifactElidedBytes).toBe(elided);
+		expect(meta?.truncation?.artifactBytes).toBe(diskBytes);
+		expect(meta?.truncation?.artifactMaxBytes).toBe(200);
+		expect(meta?.limits?.columnTruncated?.artifactElidedBytes).toBe(elided);
 		const notice = formatOutputNotice(meta);
-		// Both the truncation and the column-cap notices carry the reference.
-		expect(
-			notice.match(
-				/Read artifact:\/\/art-sampled for a head\/tail sample of the output; 104B from its middle was not saved/g,
-			),
-		).toHaveLength(2);
+		// Both the truncation and the column-cap notices carry the partial sample reference.
+		const expectedRef = `Read artifact://art-sampled for a head/tail sample of the output; ${formattedElided} from its middle was not saved`;
+		expect(notice.split(expectedRef).length - 1).toBe(2);
 		expect(notice).not.toContain("for full output");
 	});
 	test("createInput decodes streamed UTF-8 chunks correctly", async () => {
@@ -1155,5 +1198,217 @@ describe("OutputSink maxColumns (per-line cap)", () => {
 		expect(dropped).toBeGreaterThan(0);
 		// elided + dropped + kept ≤ totalBytes (with a small slack for the marker/newlines).
 		expect(elided + dropped).toBeLessThan(dumped.totalBytes);
+	});
+});
+
+describe("centralized spillLargeResultToArtifact and session capture budget", () => {
+	test("capArtifactText enforces exact byte budget including truncation notice", () => {
+		const source = `${"H".repeat(200)}${"M".repeat(2000)}${"T".repeat(200)}`;
+		const capped = capArtifactText(source, 256, 64);
+		expect(capped.bytes).toBeLessThanOrEqual(256);
+		expect(byteLength(capped.content)).toBe(capped.bytes);
+		expect(capped.content.startsWith("H".repeat(64))).toBe(true);
+		expect(capped.content.endsWith("T".repeat(32))).toBe(true);
+		expect(capped.content).toContain("[ARTIFACT TRUNCATED:");
+		expect(capped.elidedBytes).toBeGreaterThan(2000);
+	});
+
+	test("postProcessToolResult caps spilled artifacts, labels partial samples, and honors session cumulative budget + resume without blocking semantic artifacts", async () => {
+		const dir = await createTempDir();
+		const sessionsDir = path.join(dir, "sessions");
+		const sessionManager = SessionManager.create(dir, sessionsDir);
+		await sessionManager.ensureOnDisk();
+		try {
+			// Per-call cap: 0.0005 MB (~524 B), session cap: 0.0008 MB (~838 B), spill threshold: 0.1 KB (102 B).
+			const settings = Settings.isolated({
+				"tools.artifactSpillThreshold": 0.1,
+				"tools.artifactHeadBytes": 0.03,
+				"tools.artifactTailBytes": 0.03,
+				"tools.artifactMaxBytes": 0.0005,
+				"tools.artifactSessionMaxBytes": 0.0008,
+			});
+			const context = { sessionManager, settings } as unknown as AgentToolContext;
+			const bigPayload = Array.from({ length: 120 }, (_, i) => `row-${String(i).padStart(3, "0")}-payload`).join(
+				"\n",
+			);
+
+			// 1. Semantic artifacts saved directly do not consume the capture-log budget.
+			const artifactManager = sessionManager.getArtifactManager()!;
+			const semanticId = await artifactManager.save("S".repeat(4096), "deobfuscate_msynth");
+			expect(semanticId).toBeDefined();
+			expect(artifactManager.getCapturedLogBytes()).toBe(0);
+
+			// 2. First spilled tool result caps on-disk artifact to <= ~524 B and advertises partial sample.
+			const first = await postProcessToolResult(
+				{ content: [{ type: "text", text: bigPayload }], details: {} },
+				"adb_observe",
+				context,
+			);
+			const firstMeta = first.details?.meta;
+			expect(first.isError).toBeUndefined();
+			expect(firstMeta?.truncation?.artifactId).toBeDefined();
+			expect(firstMeta?.truncation?.artifactBytes).toBeLessThanOrEqual(524);
+			expect(firstMeta?.truncation?.artifactElidedBytes).toBeGreaterThan(0);
+			const firstPath = await sessionManager.getArtifactPath(firstMeta!.truncation!.artifactId!);
+			expect(firstPath).not.toBeNull();
+			const firstDiskText = await Bun.file(firstPath!).text();
+			expect(byteLength(firstDiskText)).toBe(firstMeta?.truncation?.artifactBytes);
+			const firstRendered = first.content.map(b => (b.type === "text" ? b.text : "")).join("\n");
+			expect(firstRendered).toContain("head/tail sample");
+			expect(firstRendered).not.toContain("for full output");
+
+			// 3. Second spilled tool result clamps to remaining session budget (~314 B) and marks budget exhausted.
+			const second = await postProcessToolResult(
+				{ content: [{ type: "text", text: bigPayload }], details: {} },
+				"adb_observe",
+				context,
+			);
+			const secondMeta = second.details?.meta;
+			expect(secondMeta?.truncation?.artifactId).toBeDefined();
+			expect(secondMeta?.truncation?.artifactBytes).toBeLessThanOrEqual(838 - firstMeta!.truncation!.artifactBytes!);
+			expect(secondMeta?.artifactBudgetExhausted).toBe(true);
+
+			// 4. Repeated spills keep shrinking to the remaining session budget until capture is exhausted;
+			//    the exhausted attempt fails boundedly inline without turning the tool into an error or
+			//    claiming an artifact was saved.
+			let exhaustedMeta: typeof secondMeta;
+			let exhaustedText = "";
+			for (let attempt = 0; attempt < 6; attempt++) {
+				const next = await postProcessToolResult(
+					{ content: [{ type: "text", text: bigPayload }], details: {} },
+					"adb_observe",
+					context,
+				);
+				expect(next.isError).toBeUndefined();
+				if (next.details?.meta?.artifactError === "budget") {
+					exhaustedMeta = next.details.meta;
+					exhaustedText = next.content.map(b => (b.type === "text" ? b.text : "")).join("\n");
+					break;
+				}
+				expect(artifactManager.getCapturedLogBytes()).toBeLessThanOrEqual(838);
+			}
+			expect(exhaustedMeta?.artifactError).toBe("budget");
+			expect(exhaustedMeta?.artifactBudgetExhausted).toBe(true);
+			expect(exhaustedMeta?.truncation?.artifactId).toBeUndefined();
+			expect(exhaustedText).toContain("session artifact budget exhausted");
+			expect(exhaustedText).not.toContain("artifact://");
+			expect(artifactManager.getCapturedLogBytes()).toBeLessThanOrEqual(838);
+
+			// 5. Resumed ArtifactManager over the same directory reconstructs capture-log bytes (excluding semantic logs)
+			//    and avoids double counting on rewrite.
+			const resumedManager = new ArtifactManager(artifactManager.dir);
+			await resumedManager.ensureInitialized();
+			expect(resumedManager.getCapturedLogBytes()).toBe(artifactManager.getCapturedLogBytes());
+			expect(resumedManager.getRemainingCaptureBudgetBytes(838)).toBe(
+				artifactManager.getRemainingCaptureBudgetBytes(838),
+			);
+			resumedManager.recordCapturedArtifact(firstPath!, firstMeta!.truncation!.artifactBytes!);
+			expect(resumedManager.getCapturedLogBytes()).toBe(artifactManager.getCapturedLogBytes());
+		} finally {
+			await sessionManager.close();
+		}
+	});
+
+	test("in-flight capture reservations prevent concurrent streaming sinks from overshooting the session budget", async () => {
+		const dir = await createTempDir();
+		const manager = new ArtifactManager(path.join(dir, "artifacts"));
+		await manager.ensureInitialized();
+		const sessionBudget = 400;
+		const perCallBudget = 256;
+
+		// First in-flight stream allocates and reserves its 256 B cap before finishing.
+		const firstAlloc = await manager.allocatePath("bash");
+		expect(manager.isCaptureBudgetExhausted(sessionBudget)).toBe(false);
+		const firstCap = Math.min(perCallBudget, manager.getRemainingCaptureBudgetBytes(sessionBudget)!);
+		manager.reserveCaptureBytes(firstAlloc.path, firstCap);
+		expect(manager.getRemainingCaptureBudgetBytes(sessionBudget)).toBe(144);
+
+		// Second concurrent stream started while the first is still running sees only 144 B remaining, not 400 B.
+		const secondAlloc = await manager.allocatePath("eval");
+		const secondRemaining = manager.getRemainingCaptureBudgetBytes(sessionBudget)!;
+		expect(secondRemaining).toBe(144);
+		const secondCap = Math.min(perCallBudget, secondRemaining);
+		manager.reserveCaptureBytes(secondAlloc.path, secondCap);
+		expect(manager.isCaptureBudgetExhausted(sessionBudget)).toBe(true);
+
+		// Third concurrent stream while both are in-flight sees 0 B remaining and fails capture boundedly inline.
+		const thirdSink = new OutputSink({
+			spillThreshold: 8,
+			artifactMaxBytes: perCallBudget,
+			artifactSessionBudgetExhausted: manager.isCaptureBudgetExhausted(sessionBudget),
+		});
+		thirdSink.push("X".repeat(64));
+		const thirdSummary = await thirdSink.dump();
+		expect(thirdSummary.artifactId).toBeUndefined();
+		expect(thirdSummary.artifactError).toBe("budget");
+		expect(thirdSummary.artifactBudgetExhausted).toBe(true);
+
+		// Finalizing the first two sinks replaces their reservations with exact on-disk byte counts.
+		const firstSink = new OutputSink({
+			artifactPath: firstAlloc.path,
+			artifactId: firstAlloc.id,
+			spillThreshold: 8,
+			artifactMaxBytes: firstCap,
+			artifactHeadBytes: 32,
+			onArtifactFinalized: bytes => manager.recordCapturedArtifact(firstAlloc.path, bytes),
+		});
+		firstSink.push("A".repeat(600));
+		const firstSummary = await firstSink.dump();
+
+		const secondSink = new OutputSink({
+			artifactPath: secondAlloc.path,
+			artifactId: secondAlloc.id,
+			spillThreshold: 8,
+			artifactMaxBytes: secondCap,
+			artifactHeadBytes: 32,
+			artifactCapFromSessionBudget: true,
+			onArtifactFinalized: bytes => manager.recordCapturedArtifact(secondAlloc.path, bytes),
+		});
+		secondSink.push("B".repeat(600));
+		const secondSummary = await secondSink.dump();
+
+		expect(firstSummary.artifactBytes).toBeLessThanOrEqual(256);
+		expect(secondSummary.artifactBytes).toBeLessThanOrEqual(144);
+		expect(secondSummary.artifactBudgetExhausted).toBe(true);
+		expect(manager.getCapturedLogBytes()).toBe(firstSummary.artifactBytes! + secondSummary.artifactBytes!);
+		expect(manager.getCapturedLogBytes()).toBeLessThanOrEqual(sessionBudget);
+	});
+
+	test("concurrent postProcessToolResult fanout reserves in-flight spill bytes so parallel spills cannot overshoot session budget", async () => {
+		const dir = await createTempDir();
+		const sessionManager = SessionManager.create(dir, path.join(dir, "fanout-sessions"));
+		await sessionManager.ensureOnDisk();
+		try {
+			// Per-call cap ~524 B, session cap ~838 B. Three parallel spills of ~2 KB would each see the
+			// full 838 B remaining if only finalized bytes were counted; with in-flight reservations the
+			// captured total must stay within the session cap and at most one attempt may fail on budget.
+			const settings = Settings.isolated({
+				"tools.artifactSpillThreshold": 0.1,
+				"tools.artifactHeadBytes": 0.03,
+				"tools.artifactTailBytes": 0.03,
+				"tools.artifactMaxBytes": 0.0005,
+				"tools.artifactSessionMaxBytes": 0.0008,
+			});
+			const context = { sessionManager, settings } as unknown as AgentToolContext;
+			const artifactManager = sessionManager.getArtifactManager()!;
+			await artifactManager.ensureInitialized();
+			const payload = Array.from({ length: 120 }, (_, i) => `fanout-${String(i).padStart(3, "0")}-data`).join("\n");
+
+			const results = await Promise.all([
+				postProcessToolResult({ content: [{ type: "text", text: payload }], details: {} }, "tool_a", context),
+				postProcessToolResult({ content: [{ type: "text", text: payload }], details: {} }, "tool_b", context),
+				postProcessToolResult({ content: [{ type: "text", text: payload }], details: {} }, "tool_c", context),
+			]);
+
+			for (const result of results) expect(result.isError).toBeUndefined();
+			const captured = artifactManager.getCapturedLogBytes();
+			expect(captured).toBeLessThanOrEqual(838);
+			// Each recorded artifact's own bytes are the on-disk size it reported, so no reservation leaked.
+			const savedBytes = results.reduce((sum, r) => sum + (r.details?.meta?.truncation?.artifactBytes ?? 0), 0);
+			expect(savedBytes).toBe(captured);
+			expect(results.filter(r => r.details?.meta?.artifactError === "budget").length).toBeLessThanOrEqual(1);
+		} finally {
+			await sessionManager.close();
+		}
 	});
 });

@@ -125,6 +125,13 @@ type Inbound<WireType, Server> = Report<
 	MismatchedKeys<WireType, Server>
 >;
 
+/** Client → server value where the server accepts optional internal metadata beyond the wire subset. */
+type InboundSubset<WireType, Server> = Report<
+	never,
+	Exclude<RequiredKeysOf<Server>, RequiredKeysOf<WireType>>,
+	MismatchedKeys<WireType, Server>
+>;
+
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : { left: A; right: B }) : { left: A; right: B };
 
 // --- Commands -------------------------------------------------------------
@@ -250,9 +257,9 @@ export type State = Assert<
 		dumpTool: Outbound<NonNullable<RpcSessionState["dumpTools"]>[number], Wire.ToolDescriptor>;
 		contextUsage: Outbound<ContextUsage, Wire.ContextUsage>;
 		todoPhase: Outbound<TodoPhase, Wire.TodoPhase>;
-		todoItem: Outbound<TodoItem, Wire.TodoItem>;
+		todoItem: OutboundSubset<TodoItem, Wire.TodoItem>;
 		todoPhaseInbound: Inbound<Wire.TodoPhase, TodoPhase>;
-		todoItemInbound: Inbound<Wire.TodoItem, TodoItem>;
+		todoItemInbound: InboundSubset<Wire.TodoItem, TodoItem>;
 		goal: Outbound<Goal, Wire.Goal>;
 		goalModeState: Outbound<GoalModeState, Wire.GoalModeState>;
 		goalResult: Outbound<RpcGoalResult, Wire.GoalResult>;

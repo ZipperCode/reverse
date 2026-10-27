@@ -93,6 +93,12 @@ pub fn format_mismatch_message(details: &MismatchDetails) -> String {
 				"Edit rejected{path}: the header needs this file's current tag, #{}.",
 				details.actual_file_hash
 			)
+		} else if !details.tag_origin_paths.is_empty() {
+			format!(
+				"Edit rejected{path}: hash #{} was issued for another file in this session, not for \
+				 this file.",
+				details.expected_file_hash
+			)
 		} else {
 			format!(
 				"Edit rejected{path}: hash #{} is not from this session.",
@@ -123,8 +129,9 @@ pub fn format_mismatch_message(details: &MismatchDetails) -> String {
 
 fn current_tag_advice(actual_file_hash: &str) -> String {
 	format!(
-		"The current file hashes to #{actual_file_hash}. Re-read the file with `read` to copy a \
-		 current [path#tag] header — never invent the tag and never reuse one from a prior session."
+		"The current file hashes to #{actual_file_hash}. Use the returned current context under \
+		 this tag or re-read the exact target range with `read` to copy a current [path#tag] header \
+		 — never invent the tag and never reuse one from another file or prior session."
 	)
 }
 

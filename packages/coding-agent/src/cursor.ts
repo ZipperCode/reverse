@@ -1018,8 +1018,12 @@ export class CursorExecHandlers implements ICursorExecHandlers {
 		let phases: TodoPhase[] | undefined;
 		if (snapshot && setPhases) {
 			const phaseByContent = new Map<string, string>();
+			const taskByContent = new Map<string, TodoPhase["tasks"][number]>();
 			for (const phase of existing) {
-				for (const task of phase.tasks) phaseByContent.set(task.content, phase.name);
+				for (const task of phase.tasks) {
+					phaseByContent.set(task.content, phase.name);
+					taskByContent.set(task.content, task);
+				}
 			}
 
 			const grouped = new Map<string, TodoPhase["tasks"]>();
@@ -1030,7 +1034,9 @@ export class CursorExecHandlers implements ICursorExecHandlers {
 					tasks = [];
 					grouped.set(name, tasks);
 				}
-				tasks.push({ content: todo.content, status: todo.status as TodoStatus });
+				const previous = taskByContent.get(todo.content);
+				// 远端平面清单没有验收证据字段，保留本地约束而不是让同步擦除它们。
+				tasks.push({ ...previous, content: todo.content, status: todo.status as TodoStatus });
 			}
 
 			// Preserve the local phase order; phases new to this snapshot append.
@@ -1046,8 +1052,8 @@ export class CursorExecHandlers implements ICursorExecHandlers {
 				phases = undefined;
 			} else {
 				setPhases(next);
-				this.options.persistTodoPhases?.(next);
-				phases = next;
+				phases = this.options.getTodoPhases?.() ?? next;
+				this.options.persistTodoPhases?.(phases);
 			}
 		}
 

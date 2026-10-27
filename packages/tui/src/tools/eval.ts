@@ -111,6 +111,10 @@ export interface EvalCellResult {
 	statusEvents?: EvalStatusEvent[];
 	/** Evictable events dropped from the front of `statusEvents` (see {@link recordStatusEvent}). */
 	statusEventsElided?: number;
+	definedNames?: string[];
+	definedNamesOmitted?: number;
+	missingNames?: string[];
+	recoveryGuidance?: string;
 }
 
 /** Tool result detail object surfaced to the UI/transcript. */
@@ -128,6 +132,10 @@ export interface EvalToolDetails {
 	languages?: EvalLanguage[];
 	/** Optional human-readable notice (e.g. fallback explanation). */
 	notice?: string;
+	definedNames?: string[];
+	definedNamesOmitted?: number;
+	missingNames?: string[];
+	recoveryGuidance?: string;
 	/** Present when the cell was auto-backgrounded as an async job; `cancelled`: killed before it finished. */
 	async?: {
 		state: "running" | "completed" | "failed" | "cancelled";

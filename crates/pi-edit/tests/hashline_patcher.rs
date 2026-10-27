@@ -235,16 +235,15 @@ async fn rejection_names_the_path_a_foreign_tag_was_issued_for() {
 	let tag = workspace.snapshot("wt/crates/a/mcp.rs", "worktree\n", None);
 	let writer = common::DiskWriter::default();
 	let input = format!("[crates/a/mcp.rs#{tag}]\nPUT 1.=1:\n+changed\n");
-	let error = workspace
+	let err = workspace
 		.apply_json(&json!({ "input": input }), &writer)
 		.await
-		.expect_err("foreign tag must be rejected")
-		.to_string();
+		.expect_err("foreign tag must be rejected");
+	assert_eq!(err.kind(), "other_file_tag");
+	let error = err.to_string();
 	let origin = pi_edit::path_policy::canonical_key(&worktree);
-	assert!(
-		error.contains(&format!("Hash #{tag} was issued in this session for {}.", origin.display())),
-		"{error}"
-	);
+	assert!(!error.contains("is not from this session"), "{error}");
+	assert!(error.contains(&origin.display().to_string()), "{error}");
 	assert!(writer.requests.lock().is_empty());
 	assert_eq!(workspace.read("crates/a/mcp.rs").as_deref(), Some("parent\n"));
 	assert_eq!(workspace.read("wt/crates/a/mcp.rs").as_deref(), Some("worktree\n"));
@@ -682,4 +681,76 @@ async fn refuses_a_repair_whose_kept_row_hides_a_restated_copy() {
 		.to_string();
 	assert!(error.contains("`PUT 2.=4:` rejected"), "{error}");
 	assert_eq!(workspace.read("Stat.tsx").as_deref(), Some(GRID));
+}
+
+#[tokio::test]
+async fn rejects_unseen_and_cross_file_tags_unchanged_then_applies_thirty_edits() {
+	let mut workspace = common::Workspace::new(EditMode::Hashline);
+	workspace.config.enforce_seen_lines = true;
+	let initial_target = numbered_lines(120);
+	let initial_other = "const other = 1;\n";
+	workspace.write("target.js", &initial_target);
+	workspace.write("other.js", initial_other);
+	let initial_target_hash = pi_edit::store::file_hash(&initial_target);
+
+	let partial_seen: Vec<u32> = (100..=120).collect();
+	let target_tag = workspace.snapshot("target.js", &initial_target, Some(&partial_seen));
+	let other_tag = workspace.snapshot("other.js", initial_other, Some(&[1]));
+	let writer = common::DiskWriter::default();
+
+	// 1. Unseen line anchor is rejected without mutating target.js.
+	let unseen_err = workspace
+		.apply_json(
+			&json!({ "input": format!("[target.js#{target_tag}]\nPUT 13.=13:\n+line 13 updated\n") }),
+			&writer,
+		)
+		.await
+		.expect_err("unseen line must be rejected");
+	assert_eq!(unseen_err.kind(), "unseen_lines");
+	assert!(writer.requests.lock().is_empty());
+	assert_eq!(workspace.read("target.js").as_deref(), Some(initial_target.as_str()));
+	assert_eq!(
+		pi_edit::store::file_hash(workspace.read("target.js").as_deref().unwrap()),
+		initial_target_hash
+	);
+
+	// 2. Cross-file tag is rejected without mutating target.js or other.js.
+	let cross_err = workspace
+		.apply_json(
+			&json!({ "input": format!("[target.js#{other_tag}]\nPUT 105.=105:\n+line 105 cross\n") }),
+			&writer,
+		)
+		.await
+		.expect_err("cross-file tag must be rejected");
+	assert_eq!(cross_err.kind(), "other_file_tag");
+	assert!(!cross_err.to_string().contains("is not from this session"), "{cross_err}");
+	assert!(writer.requests.lock().is_empty());
+	assert_eq!(workspace.read("target.js").as_deref(), Some(initial_target.as_str()));
+	assert_eq!(workspace.read("other.js").as_deref(), Some(initial_other));
+	assert_eq!(
+		pi_edit::store::file_hash(workspace.read("target.js").as_deref().unwrap()),
+		initial_target_hash
+	);
+
+	// 3. Controlled 30-edit sequence following exact-range read + current-tag
+	//    protocol -> 0 rejections.
+	for line_no in 1..=30_u32 {
+		let current_text = workspace.read("target.js").expect("target.js exists");
+		let current_tag = workspace.snapshot("target.js", &current_text, Some(&[line_no]));
+		workspace
+			.apply_json(
+				&json!({
+					"input": format!("[target.js#{current_tag}]\nPUT {line_no}.={line_no}:\n+edited line {line_no}\n")
+				}),
+				&writer,
+			)
+			.await
+			.unwrap_or_else(|err| panic!("protocol edit {line_no} failed: {err}"));
+	}
+
+	let final_text = workspace.read("target.js").expect("target.js exists");
+	for line_no in 1..=30_u32 {
+		assert!(final_text.contains(&format!("edited line {line_no}\n")), "missing edit {line_no}");
+	}
+	assert!(final_text.contains("line 31\n"));
 }

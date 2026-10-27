@@ -21,6 +21,7 @@
 - Queued peer messages are checked first. Already-settled but undelivered owned jobs are returned without another wait. If a peer message wins a race with job completion, that job remains eligible for normal async delivery.
 - Job waits emit progress snapshots every 500 ms when an update callback is present. Job results/snapshots use `details: { op: "wait", jobs: ... }`; peer-message results use the messaging result shape.
 - A running subagent's row carries its latest progress, e.g. `` - `AcpSurface` [task] — <label> — 5h7m · 90 req · $18.40 · ctx 160K/1M · stage: <stage> ``: run time, requests, cost, context fill, self-estimated completion and stage, whichever its progress record reports. Bash and eval rows, and task rows without a progress record, stay `` - `<id>` [<type>] — <label> ``. `read proc://` and `read proc://<id>` show the same progress on running task rows.
+- While caller-owned asynchronous work is pending, bare `bash true`, `bash :`, and empty commands are intercepted before spawning. Unchanged running `agent://` progress is returned once per generation/progress snapshot; later identical reads return structured `details.waitPollGuard` guidance with `useless: true`. Two consecutive no-progress polls request the existing forced `wait` tool choice. Meaningful progress, completed output, and a new user prompt remain readable; unrelated agents and compound shell commands are unaffected.
 
 ## Related surfaces
 - `read proc://` lists caller-visible jobs and project services; `read proc://<id>` inspects state/output without consuming delivery.

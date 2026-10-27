@@ -22,12 +22,16 @@ export function isEvalStateContext(message: AgentMessage | undefined): message i
 
 const MAX_SESSION_BUCKETS = 256;
 const MAX_LOADED_PATHS = 12;
+const MAX_DEFINED_NAMES = 64;
 const MAX_FIELD_CHARS = 512;
 
 /** Language identifiers used by retained-kernel lifecycle notifications. */
 export type EvalStateLanguage = "python" | "js";
 
-/** A backend's observed kernel lifecycle or successful script-load event. */
+/** Whether the host has an actual runtime namespace snapshot for this kernel generation. */
+export type EvalNamespaceStatus = "observed" | "unverified";
+
+/** A backend's observed kernel lifecycle, namespace snapshot, or successful script-load event. */
 export interface EvalStateUpdate {
 	language: EvalStateLanguage;
 	kernelId?: string;
@@ -36,9 +40,11 @@ export interface EvalStateUpdate {
 	environment?: string;
 	interpreter?: string;
 	loadedPath?: string;
+	definedNames?: readonly string[];
+	definedNamesOmitted?: number;
 }
 
-/** Runtime identity and bounded load history; never contains user values. */
+/** Runtime identity, bounded namespace bindings, and load history; never contains user values. */
 export interface EvalRuntimeState {
 	language: EvalStateLanguage;
 	kernelId?: string;
@@ -47,6 +53,9 @@ export interface EvalRuntimeState {
 	environment?: string;
 	interpreter?: string;
 	cwd: string;
+	namespaceStatus: EvalNamespaceStatus;
+	definedNames: readonly string[];
+	definedNamesOmitted: number;
 	loadedPaths: readonly string[];
 	loadedPathsOmitted: number;
 	updatedAt: number;
@@ -61,10 +70,11 @@ export interface EvalStateSnapshot {
 
 const FALLBACK_OWNER = "\0unscoped";
 
-interface MutableEvalRuntimeState extends Omit<EvalRuntimeState, "loadedPaths"> {
+interface MutableEvalRuntimeState extends Omit<EvalRuntimeState, "loadedPaths" | "definedNames"> {
 	configKey: string;
 	shared: boolean;
 	ownerIds: Set<string>;
+	definedNames: string[];
 	loadedPaths: string[];
 }
 
@@ -139,6 +149,32 @@ function appendLoadedPath(runtime: MutableEvalRuntimeState, loadedPath: string):
 	}
 }
 
+function applyNamespaceSnapshot(
+	runtime: MutableEvalRuntimeState,
+	definedNames: readonly string[] | undefined,
+	definedNamesOmitted: number | undefined,
+): void {
+	if (definedNames === undefined) return;
+	const seen = new Set<string>();
+	const publicNames: string[] = [];
+	for (const raw of definedNames) {
+		if (typeof raw !== "string") continue;
+		const trimmed = raw.trim();
+		if (!trimmed || trimmed.startsWith("_") || seen.has(trimmed)) continue;
+		seen.add(trimmed);
+		publicNames.push(trimmed);
+	}
+	const capped = publicNames.slice(0, MAX_DEFINED_NAMES);
+	const droppedByCap = Math.max(0, publicNames.length - capped.length);
+	const upstreamOmitted =
+		typeof definedNamesOmitted === "number" && Number.isFinite(definedNamesOmitted) && definedNamesOmitted > 0
+			? Math.floor(definedNamesOmitted)
+			: 0;
+	runtime.namespaceStatus = "observed";
+	runtime.definedNames = capped;
+	runtime.definedNamesOmitted = upstreamOmitted + droppedByCap;
+}
+
 function runtimeEntryByKernel(
 	bucket: EvalSessionBucket,
 	language: EvalStateLanguage,
@@ -203,6 +239,10 @@ export function updateEvalState(session: ToolSession, update: EvalStateUpdate): 
 		}
 		if (!runtime) return;
 		runtime.alive = false;
+		// 内核终止后立即清空已观测符号，避免跨代残留误导后续请求或交接摘要。
+		runtime.namespaceStatus = "unverified";
+		runtime.definedNames = [];
+		runtime.definedNamesOmitted = 0;
 		if (update.generation !== undefined) runtime.generation = update.generation;
 		runtime.environment = environment ?? runtime.environment;
 		runtime.interpreter = interpreter ?? runtime.interpreter;
@@ -248,18 +288,28 @@ export function updateEvalState(session: ToolSession, update: EvalStateUpdate): 
 				sharedRuntime && predecessor?.[1].shared
 					? new Set([...predecessor[1].ownerIds, ownerId])
 					: new Set([ownerId]),
+			namespaceStatus: "unverified",
+			definedNames: [],
+			definedNamesOmitted: 0,
 			loadedPaths: [],
 			loadedPathsOmitted: 0,
 			updatedAt: now,
 		};
+		applyNamespaceSnapshot(runtime, update.definedNames, update.definedNamesOmitted);
 		bucket.runtimes.set(runtimeRecordKey(update.language, configKey, kernelId, ownerId), runtime);
 	} else {
 		runtime.ownerIds.add(ownerId);
 		runtime.alive = true;
-		if (update.generation !== undefined) runtime.generation = update.generation;
+		if (update.generation !== undefined && update.generation !== runtime.generation) {
+			runtime.generation = update.generation;
+			runtime.namespaceStatus = "unverified";
+			runtime.definedNames = [];
+			runtime.definedNamesOmitted = 0;
+		}
 		runtime.environment = environment ?? runtime.environment;
 		runtime.interpreter = interpreter ?? runtime.interpreter;
 		runtime.cwd = cwd;
+		applyNamespaceSnapshot(runtime, update.definedNames, update.definedNamesOmitted);
 		runtime.updatedAt = Date.now();
 	}
 	if (update.loadedPath) appendLoadedPath(runtime, update.loadedPath);
@@ -275,6 +325,9 @@ function cloneRuntime(runtime: MutableEvalRuntimeState): EvalRuntimeState {
 		environment: runtime.environment,
 		interpreter: runtime.interpreter,
 		cwd: runtime.cwd,
+		namespaceStatus: runtime.namespaceStatus,
+		definedNames: [...runtime.definedNames],
+		definedNamesOmitted: runtime.definedNamesOmitted,
 		loadedPaths: [...runtime.loadedPaths],
 		loadedPathsOmitted: runtime.loadedPathsOmitted,
 		updatedAt: runtime.updatedAt,
@@ -327,8 +380,21 @@ function formatRuntime(runtime: EvalRuntimeState, index: number, languageCount: 
 		runtime.kernelId ? `kernel=${safeField(runtime.kernelId)}` : undefined,
 		runtime.environment ? `environment=${safeField(runtime.environment)}` : undefined,
 		runtime.interpreter ? `runtime=${safeField(runtime.interpreter)}` : undefined,
+		runtime.alive ? `namespace=${runtime.namespaceStatus}` : undefined,
 	].filter((value): value is string => value !== undefined);
 	const lines = [`- ${label}: ${status}; ${metadata.join("; ")}`];
+	if (runtime.alive) {
+		if (runtime.namespaceStatus === "observed") {
+			const namesText = runtime.definedNames.length > 0 ? runtime.definedNames.map(safeField).join(", ") : "(none)";
+			const omittedSuffix =
+				runtime.definedNamesOmitted > 0 ? ` (… +${runtime.definedNamesOmitted} more omitted)` : "";
+			lines.push(`  Observed public bindings: ${namesText}${omittedSuffix}`);
+		} else {
+			lines.push(
+				"  Namespace bindings: unverified (process liveness does not confirm prior definitions; verify before use)",
+			);
+		}
+	}
 	if (runtime.loadedPaths.length > 0) {
 		lines.push("  Successfully loaded scripts (newest last):");
 		for (const loadedPath of runtime.loadedPaths) lines.push(`  - ${safeField(loadedPath)}`);

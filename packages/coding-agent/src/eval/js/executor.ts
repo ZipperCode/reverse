@@ -1,9 +1,10 @@
-import { DEFAULT_MAX_BYTES, type OutputArtifactError, OutputSink } from "@reverse/tui/tools/streaming-output";
+import { type OutputArtifactError, OutputSink, type OutputSummary } from "@reverse/tui/tools/streaming-output";
 import type { ToolSession } from "../../tools";
 import {
 	resolveOutputMaxColumns,
 	resolveOutputSinkArtifactMaxBytes,
 	resolveOutputSinkHeadBytes,
+	resolveOutputSinkSpillThreshold,
 } from "../../tools/output-meta";
 import { isEvalTimeoutControlEvent, withBridgeTimeoutPause } from "../bridge-timeout";
 import { DisplayOutputCollector } from "../executor-base";
@@ -53,14 +54,63 @@ export interface JsResult {
 	cancelled: boolean;
 	truncated: boolean;
 	artifactId?: string;
+	artifactBytes?: number;
 	/** Bytes the artifact cap dropped from the saved file's middle (the artifact is a head/tail sample). */
 	artifactElidedBytes?: number;
+	artifactMaxBytes?: number;
+	artifactBudgetExhausted?: boolean;
 	artifactError?: OutputArtifactError;
 	totalLines: number;
 	totalBytes: number;
 	outputLines: number;
 	outputBytes: number;
 	displayOutputs: EvalDisplayOutput[];
+	missingNames?: string[];
+	recoveryGuidance?: string;
+}
+
+const JS_REFERENCE_ERROR_PATTERNS: readonly RegExp[] = [
+	/^Can't find variable:\s*([A-Za-z_$][\w$]*)$/,
+	/^([A-Za-z_$][\w$]*) is not defined$/,
+	/^Cannot access '([A-Za-z_$][\w$]*)' before initialization\.?$/,
+	/^Assignment to undeclared variable\s+([A-Za-z_$][\w$]*)\.?$/,
+];
+
+function extractJsReferenceErrorDiagnostic(
+	error: unknown,
+): { missingNames: string[]; recoveryGuidance: string; formattedSuffix: string } | undefined {
+	if (!(error instanceof Error)) return undefined;
+	const isReferenceError =
+		error.name === "ReferenceError" || (typeof error.stack === "string" && /^\s*ReferenceError:/m.test(error.stack));
+	if (!isReferenceError) return undefined;
+
+	const cleaned = error.message
+		.replace(/^Unhandled rejection \(missing await\?\):\s*/, "")
+		.replace(/^ReferenceError:\s*/, "")
+		.trim();
+	const missingNames: string[] = [];
+	for (const pattern of JS_REFERENCE_ERROR_PATTERNS) {
+		const match = pattern.exec(cleaned);
+		if (match?.[1]) {
+			missingNames.push(match[1]);
+			break;
+		}
+	}
+	const recoveryGuidance =
+		"Define or import the missing binding explicitly in this cell before referencing it; " +
+		"alive JS worker status, handoff summaries, or statements after an earlier exception do not establish bindings. " +
+		"Audit partial side effects before re-running setup.";
+	const lines: string[] = [];
+	if (missingNames.length > 0) {
+		lines.push(`Missing names: ${missingNames.join(", ")}`);
+	}
+	lines.push("Observed namespace names: unverified (probe with typeof before referencing prior bindings)");
+	lines.push(`Recovery: ${recoveryGuidance}`);
+	return {
+		missingNames,
+		recoveryGuidance,
+		formattedSuffix: lines.join("\n"),
+	};
 }
 
 function getExecutionTimeoutMs(options: Pick<JsExecutorOptions, "deadlineMs" | "timeoutMs">): number | undefined {
@@ -112,7 +162,7 @@ export async function executeJs(code: string, options: JsExecutorOptions): Promi
 	const outputSink = new OutputSink({
 		artifactPath: options.artifactPath,
 		artifactId: options.artifactId,
-		spillThreshold: DEFAULT_MAX_BYTES,
+		spillThreshold: resolveOutputSinkSpillThreshold(options.session.settings),
 		headBytes: resolveOutputSinkHeadBytes(options.session.settings),
 		artifactMaxBytes: resolveOutputSinkArtifactMaxBytes(options.session.settings),
 		maxColumns: resolveOutputMaxColumns(options.session.settings),
@@ -189,14 +239,21 @@ export async function executeJs(code: string, options: JsExecutorOptions): Promi
 				},
 			},
 		});
-		const summary = await outputSink.dump();
+		const summary = (await outputSink.dump()) as OutputSummary & {
+			artifactBytes?: number;
+			artifactMaxBytes?: number;
+			artifactBudgetExhausted?: boolean;
+		};
 		return {
 			output: summary.output,
 			exitCode: 0,
 			cancelled: false,
 			truncated: summary.truncated,
 			artifactId: summary.artifactId,
+			artifactBytes: summary.artifactBytes,
 			artifactElidedBytes: summary.artifactElidedBytes,
+			artifactMaxBytes: summary.artifactMaxBytes,
+			artifactBudgetExhausted: summary.artifactBudgetExhausted,
 			artifactError: summary.artifactError,
 			totalLines: summary.totalLines,
 			totalBytes: summary.totalBytes,
@@ -239,14 +296,21 @@ export async function executeJs(code: string, options: JsExecutorOptions): Promi
 					outputSink.push(`${annotation}\n`);
 				}
 			}
-			const summary = await outputSink.dump();
+			const summary = (await outputSink.dump()) as OutputSummary & {
+				artifactBytes?: number;
+				artifactMaxBytes?: number;
+				artifactBudgetExhausted?: boolean;
+			};
 			return {
 				output: summary.output,
 				exitCode: undefined,
 				cancelled: true,
 				truncated: summary.truncated,
 				artifactId: summary.artifactId,
+				artifactBytes: summary.artifactBytes,
 				artifactElidedBytes: summary.artifactElidedBytes,
+				artifactMaxBytes: summary.artifactMaxBytes,
+				artifactBudgetExhausted: summary.artifactBudgetExhausted,
 				artifactError: summary.artifactError,
 				totalLines: summary.totalLines,
 				totalBytes: summary.totalBytes,
@@ -256,6 +320,8 @@ export async function executeJs(code: string, options: JsExecutorOptions): Promi
 			};
 		}
 		const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+		const refDiagnostic = extractJsReferenceErrorDiagnostic(error);
+		const formattedMessage = refDiagnostic ? `${message}\n${refDiagnostic.formattedSuffix}` : message;
 		if (pendingJsRecreationNotices.has(options.sessionId)) {
 			const recreation = pendingJsRecreationNotices.get(options.sessionId)!;
 			const lossNotice = formatKernelLossNotice({
@@ -275,24 +341,35 @@ export async function executeJs(code: string, options: JsExecutorOptions): Promi
 			});
 			display.push({ type: "status", event: lossEvent });
 			options.onStatus?.(lossEvent);
-			outputSink.push(`${message}\n${lossNotice}`);
+			outputSink.push(`${formattedMessage}\n${lossNotice}`);
 		} else {
-			outputSink.push(message);
+			outputSink.push(formattedMessage);
 		}
-		const summary = await outputSink.dump();
+		const summary = (await outputSink.dump()) as OutputSummary & {
+			artifactBytes?: number;
+			artifactMaxBytes?: number;
+			artifactBudgetExhausted?: boolean;
+		};
 		return {
 			output: summary.output,
 			exitCode: 1,
 			cancelled: false,
 			truncated: summary.truncated,
 			artifactId: summary.artifactId,
+			artifactBytes: summary.artifactBytes,
 			artifactElidedBytes: summary.artifactElidedBytes,
+			artifactMaxBytes: summary.artifactMaxBytes,
+			artifactBudgetExhausted: summary.artifactBudgetExhausted,
 			artifactError: summary.artifactError,
 			totalLines: summary.totalLines,
 			totalBytes: summary.totalBytes,
 			outputLines: summary.outputLines,
 			outputBytes: summary.outputBytes,
 			displayOutputs,
+			...(refDiagnostic && refDiagnostic.missingNames.length > 0
+				? { missingNames: refDiagnostic.missingNames }
+				: {}),
+			...(refDiagnostic ? { recoveryGuidance: refDiagnostic.recoveryGuidance } : {}),
 		};
 	} finally {
 		await outputSink.dispose();

@@ -477,6 +477,7 @@ import { ToolChoiceQueue } from "./tool-choice-queue";
 import { planTurnPersistence, sameMessageContent, sessionMessagePersistenceKey } from "./turn-persistence";
 import { TurnRecovery, type TurnRecoveryHost } from "./turn-recovery";
 import { YieldQueue } from "./yield-queue";
+import { registerWaitPollGuard, WaitPollGuard } from "./wait-poll-guard";
 
 export * from "./agent-session-events";
 export * from "./agent-session-types";
@@ -980,6 +981,7 @@ export class AgentSession implements SettingsScope {
 	#planModeReminderCount = 0;
 	#planModeReminderAwaitingProgress = false;
 	readonly #todo: TodoTracker;
+	readonly #waitPollGuard: WaitPollGuard;
 	readonly #modelMentions: ModelMentionRegistry;
 	#workPoolYieldItems: readonly WorkPoolYieldItem[] = [];
 	/** Item set matching the last successfully rebuilt provider prompt. The base
@@ -1940,6 +1942,18 @@ export class AgentSession implements SettingsScope {
 			consumeLastServedToolChoiceLabel: () => this.#toolChoiceQueue.consumeLastServedLabel(),
 		};
 		this.#todo = new TodoTracker(todoHost);
+		this.#waitPollGuard = registerWaitPollGuard(
+			new WaitPollGuard({
+				session: config.evalToolSession,
+				sessionManager: this.sessionManager,
+				asyncJobManager: () => this.#asyncJobManager,
+				agentRegistry: () => config.evalToolSession?.agentRegistry,
+				agentId: () => this.#agentId,
+				promptSequence: () => this.#promptSequence,
+				hasRunningAsyncWork: () => this.#hasPendingAsyncWake(),
+			}),
+			{ session: config.evalToolSession, sessionManager: this.sessionManager },
+		);
 		this.#modelMentions = new ModelMentionRegistry({
 			sessionManager: this.sessionManager,
 			modelRegistry: this.#modelRegistry,
@@ -2330,9 +2344,32 @@ export class AgentSession implements SettingsScope {
 		};
 		this.#ttsr = new TtsrCoordinator(ttsrHost, config.ttsrManager);
 		this.#extensionRunner?.setToolCallPreflight?.({
-			before: (toolCallId, tool, args) => this.#ttsr.beforeBridgedToolCall(toolCallId, tool, args),
-			after: (toolCallId, result, context) => this.#ttsr.afterBridgedToolCall(toolCallId, result, context),
-			cancel: toolCallId => this.#ttsr.cancelBridgedToolCall(toolCallId),
+			before: async (toolCallId, tool, args) => {
+				this.#todo.beforeToolCall(toolCallId, tool.name, args);
+				try {
+					const result = await this.#ttsr.beforeBridgedToolCall(toolCallId, tool, args);
+					if (result?.block) this.#todo.cancelToolCall(toolCallId);
+					if (result?.block) return result;
+					const waitResult = await this.#waitPollGuard.beforeBridgedToolCall(toolCallId, tool, args);
+					if (waitResult?.block) this.#todo.cancelToolCall(toolCallId);
+					if (waitResult) return waitResult;
+					return result;
+				} catch (error) {
+					this.#todo.cancelToolCall(toolCallId);
+					throw error;
+				}
+			},
+			after: async (toolCallId, result, context) => {
+				const guarded = (await this.#waitPollGuard.afterBridgedToolCall(toolCallId, result, context)) ?? result;
+				const settled = (await this.#ttsr.afterBridgedToolCall(toolCallId, guarded, context)) ?? guarded;
+				this.#todo.onBridgedToolResult(toolCallId, settled);
+				return settled;
+			},
+			cancel: toolCallId => {
+				this.#todo.cancelToolCall(toolCallId);
+				this.#ttsr.cancelBridgedToolCall(toolCallId);
+				this.#waitPollGuard.cancelBridgedToolCall(toolCallId);
+			},
 		});
 		this.agent.setOnBeforeYield(() => this.#ttsr.settleJudgments());
 		this.agent.setOnModelCallSystemPrompt(prompt => {
@@ -2685,7 +2722,11 @@ export class AgentSession implements SettingsScope {
 			},
 			obfuscateTextForProvider: text => this.#obfuscateTextForProvider(text),
 			deobfuscateFromProvider: text => this.#deobfuscateFromProvider(text),
-			convertMessagesToLlm: (messages, signal, model) => this.convertMessagesToLlm(messages, signal, model),
+			convertMessagesToLlm: (messages, signal, model) => {
+				// 交接读取当前内核观测，避免把失败 cell 的源码当成已建立的定义。
+				const runtimeState = this.#buildEvalStateContextMessage(messages);
+				return this.convertMessagesToLlm(runtimeState ? [...messages, runtimeState] : messages, signal, model);
+			},
 			prepareSimpleStreamOptions: (options, provider) => this.prepareSimpleStreamOptions(options, provider),
 			effectiveServiceTier: model => this.#models.effectiveServiceTier(model),
 		};
@@ -4272,7 +4313,7 @@ export class AgentSession implements SettingsScope {
 		// and only successful mutating tools tick — read-only exploration is
 		// not progress an agent could mark done.
 		if (event.type === "message_end" && event.message.role === "toolResult") {
-			this.#todo.onToolResult(event.message.toolName, event.message.isError);
+			this.#todo.onToolResult(event.message.toolName, event.message.isError, event.message);
 		}
 		// Track the settled assistant turn synchronously as well: agent_end
 		// maintenance reads `#lastAssistantMessage`, and when a turn's events all
@@ -5396,6 +5437,8 @@ export class AgentSession implements SettingsScope {
 	}
 
 	#afterToolCall(ctx: AfterToolCallContext): AfterToolCallResult | undefined {
+		const waitResult = this.#waitPollGuard.afterToolCall(ctx);
+		if (waitResult) return waitResult;
 		if (
 			this.#isTerminalYieldToolResult({
 				toolName: ctx.toolCall.name,
@@ -5423,10 +5466,19 @@ export class AgentSession implements SettingsScope {
 	async #beforeToolCall(ctx: BeforeToolCallContext, signal?: AbortSignal): Promise<BeforeToolCallResult | undefined> {
 		const runner = this.#extensionRunner;
 		runner?.markLoopToolCall?.(ctx.toolCall.id, ctx.tool.name);
+		// 在派发时绑定任务，避免同批 todo 变更把结果归给后一个任务。
+		this.#todo.beforeToolCall(ctx.toolCall.id, ctx.tool.name, ctx.args);
 		const ttsrResult = await this.#ttsr.beforeToolCall(ctx);
 		if (ttsrResult) {
 			runner?.clearLoopToolCall?.(ctx.toolCall.id, ctx.tool.name);
+			this.#todo.cancelToolCall(ctx.toolCall.id);
 			return ttsrResult;
+		}
+		const waitResult = await this.#waitPollGuard.beforeToolCall(ctx);
+		if (waitResult?.block) {
+			runner?.clearLoopToolCall?.(ctx.toolCall.id, ctx.tool.name);
+			this.#todo.cancelToolCall(ctx.toolCall.id);
+			return waitResult;
 		}
 		if (!runner?.hasHandlers("tool_call")) return undefined;
 		const metadata = ctx.toolCall.providerMetadata;
@@ -5457,15 +5509,18 @@ export class AgentSession implements SettingsScope {
 			);
 		} catch (error) {
 			runner.clearLoopToolCall?.(ctx.toolCall.id, ctx.tool.name);
+			this.#todo.cancelToolCall(ctx.toolCall.id);
 			throw error;
 		}
 		if (callResult?.block) {
 			runner.clearLoopToolCall?.(ctx.toolCall.id, ctx.tool.name);
+			this.#todo.cancelToolCall(ctx.toolCall.id);
 			return { block: true, reason: callResult.reason || "Tool execution was blocked by an extension" };
 		}
 		// A computer call's event input is a synthetic {actions, pendingSafetyChecks}
 		// view, not the execution params — a revision cannot map back onto them.
 		const args = callResult?.input !== undefined && !computer ? callResult.input : undefined;
+		if (args !== undefined) this.#todo.beforeToolCall(ctx.toolCall.id, ctx.tool.name, args);
 		const additionalContext = callResult?.additionalContext;
 		if (args === undefined && additionalContext === undefined) return undefined;
 		return { args, additionalContext };
