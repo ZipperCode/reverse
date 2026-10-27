@@ -6,8 +6,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Type } from "@reverse/reversetype/typebox";
-import type { AgentMessage, AgentTool, AgentToolContext } from "@reverse/agent";
+import { Agent, type AgentMessage, type AgentTool, type AgentToolContext } from "@reverse/agent";
 import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import type { MessageCreateParams } from "@reverse/ai/providers/anthropic-wire";
 import type { ImageContent, TextContent } from "@reverse/ai";
 import { kCursorExecResolved } from "@reverse/ai/utils/block-symbols";
@@ -31,9 +32,11 @@ import type {
 	InputEventResult,
 } from "@reverse/coding-agent/extensibility/extensions/types";
 import { ExtensionToolWrapper } from "@reverse/coding-agent/extensibility/extensions/wrapper";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { getSessionPrerequisiteConstraintGate } from "@reverse/coding-agent/session/prerequisite-constraints";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
-import { getProjectAgentDir, logger, TempDir } from "@reverse/utils";
+import { getProjectAgentDir, isRecord, logger, TempDir } from "@reverse/utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 describe("ExtensionRunner", () => {
@@ -2723,6 +2726,120 @@ describe("ExtensionRunner", () => {
 				}),
 			).rejects.toThrow("denied by user");
 			expect(cancelled).toBe(1);
+		});
+
+		it("carries a real bridged prerequisite-constraint block's provenance without running, then resumes once ready", async () => {
+			const manager = SessionManager.inMemory(tempDir.path());
+			const keptEntryId = manager.appendMessage({ role: "user", content: "seed turn", timestamp: Date.now() });
+			const handoffEntryId = manager.appendCompaction(
+				"Handoff context\n- Do not repeat `elf_inspect` on libc without installing its missing LIEF prerequisite.",
+				undefined,
+				keptEntryId,
+				100,
+				{ method: "handoff" },
+			);
+			const settings = Settings.isolated({ "compaction.enabled": false, "tools.approvalMode": "yolo" });
+			authStorage.keys.setRuntime("mock", "test-key");
+			const runner = new ExtensionRunner(
+				[],
+				new ExtensionRuntime(),
+				tempDir.path(),
+				manager,
+				modelRegistry,
+				undefined,
+				settings,
+			);
+			const mock = createMockModel({ responses: [] });
+			// A real backend would touch the target here; the block must prevent that.
+			const outputPath = path.join(tempDir.path(), "elf-inspect-output.txt");
+			const executions: unknown[] = [];
+			const fakeElf: AgentTool = {
+				name: "elf_inspect",
+				label: "ELF inspect",
+				description: "Synthetic backend that records any execution",
+				parameters: Type.Object({ action: Type.Optional(Type.String()) }),
+				execute: async (_toolCallId: string, params: unknown) => {
+					executions.push(params);
+					fs.writeFileSync(outputPath, "executed");
+					return { content: [{ type: "text" as const, text: "executed" }] };
+				},
+			} as unknown as AgentTool;
+			const wrapped = new ExtensionToolWrapper(fakeElf, runner) as AgentTool;
+			const agent = new Agent({
+				getApiKey: () => "test-key",
+				initialState: { model: mock.model, systemPrompt: ["Test"], tools: [wrapped] },
+				streamFn: mock.stream,
+				convertToLlm,
+			});
+			const session = new AgentSession({
+				agent,
+				sessionManager: manager,
+				settings,
+				modelRegistry,
+				extensionRunner: runner,
+				toolRegistry: new Map([["elf_inspect", wrapped]]),
+				autoApprove: true,
+			});
+			try {
+				// Seed the canonical session gate with a deterministic readiness probe: the real
+				// AgentSession bridge still performs the block, only the environment probe is pinned.
+				let readiness: "missing" | "ready" = "missing";
+				let probes = 0;
+				const host = () => ({
+					cwd: manager.getCwd(),
+					getSessionFile: () => manager.getSessionFile(),
+					getSessionId: () => session.sessionId,
+					getArtifactsDir: () => manager.getArtifactsDir() ?? null,
+					sessionManager: manager,
+				});
+				const seeded = getSessionPrerequisiteConstraintGate(host(), {
+					probeDependency: async () => {
+						probes++;
+						return readiness === "missing"
+							? { status: "missing" as const, detail: "lief missing (test)" }
+							: { status: "ready" as const };
+					},
+				});
+				expect(getSessionPrerequisiteConstraintGate(host())).toBe(seeded);
+
+				const result = await wrapped.execute("bridged-constraint-call", { action: "query" });
+
+				// The seeded gate, not a real environment probe, answered the bridge.
+				expect(probes).toBe(1);
+				expect(executions).toEqual([]);
+				expect(fs.existsSync(outputPath)).toBe(false);
+				expect(result.isError).toBe(true);
+				const details = result.details;
+				if (!isRecord(details)) throw new Error("expected structured failure details");
+				expect(details.unexecuted).toBe(true);
+				expect(details.executed).toBe(false);
+				const constraint = details.prerequisiteConstraint;
+				if (!isRecord(constraint)) throw new Error("expected prerequisiteConstraint details");
+				expect(constraint).toMatchObject({
+					status: "blocked_prerequisite_constraint",
+					deterministicFailure: true,
+					toolName: "elf_inspect",
+					missingDependency: "lief",
+					sourceLine: 2,
+				});
+				expect(constraint.sourceFile).toBe(`handoff://${handoffEntryId}`);
+				const text = result.content.find((block): block is TextContent => block.type === "text")?.text ?? "";
+				expect(text).toContain("blocked by an explicit handoff constraint");
+				expect(text).toContain(`handoff://${handoffEntryId}:2`);
+
+				// The block's pending record is consumed, not stranded: the same call id runs once the
+				// dependency is ready instead of being overridden by the stale constraint.
+				readiness = "ready";
+				const unblocked = await wrapped.execute("bridged-constraint-call", { action: "query" });
+				expect(executions).toEqual([{ action: "query" }]);
+				expect(fs.existsSync(outputPath)).toBe(true);
+				expect(unblocked.isError).not.toBe(true);
+				expect(unblocked.content.find((block): block is TextContent => block.type === "text")?.text).toBe(
+					"executed",
+				);
+			} finally {
+				await session.dispose();
+			}
 		});
 
 		it("does not present approval before canonical or wire-aliased tool previews are ready", async () => {

@@ -1341,13 +1341,15 @@ async function runLoopBody(
 				executionResult.additionalContext,
 			);
 			await emitTurnEnd(stream, currentContext, resumeTail, executionResult.toolResults, config, signal, {
-				willContinue: !isDeadlineExceeded(config.deadline),
+				willContinue: executionResult.stopTurn !== true && !isDeadlineExceeded(config.deadline),
 				...(resumeContextMessage ? { additionalMessages: [resumeContextMessage] } : {}),
 			});
 			turnOpen = false;
 			// A tool hook may mark its completed result as terminal (e.g. subagent
-			// yield) — same stop-before-next-model-call rule as the main loop.
-			if (signal?.reason === TERMINAL_TOOL_RESULT_ABORT_REASON) {
+			// yield) — same stop-before-next-model-call rule as the main loop. A
+			// batch the hook declared unexecuted yields before any model call for
+			// the same reason.
+			if (executionResult.stopTurn === true || signal?.reason === TERMINAL_TOOL_RESULT_ABORT_REASON) {
 				endAgentStream(stream, newMessages, telemetry, stepCounter.count);
 				return;
 			}
@@ -1670,6 +1672,9 @@ async function runLoopBody(
 
 				const toolResults: ToolResultMessage[] = [];
 				const additionalMessages: AgentMessage[] = [];
+				// Set when the hook declared the batch unexecuted because the
+				// assistant message ended the turn itself (bounded stop contract).
+				let batchDeclaredStop = false;
 				if (softNonCompliant && softRequiredTool !== undefined) {
 					SpeculativeOperationCoordinator.discardForMessage(message, "soft tool requirement deferred execution");
 					if (softRequirementState.escalations >= MAX_SOFT_TOOL_ESCALATIONS) {
@@ -1714,6 +1719,7 @@ async function runLoopBody(
 						[...liveAccepted, ...liveDeferred],
 					);
 					toolResults.push(...executionResult.toolResults);
+					batchDeclaredStop = executionResult.stopTurn === true;
 
 					for (const result of toolResults) {
 						currentContext.messages.push(result);
@@ -1753,8 +1759,10 @@ async function runLoopBody(
 				}
 
 				// A tool hook may mark its completed result as terminal (e.g. subagent yield).
+				// A batch the hook declared unexecuted also terminates here: re-sampling
+				// would send the same stop-declared message into another poll loop.
 				// Stop before the next provider call without changing external/user abort semantics.
-				if (signal?.reason === TERMINAL_TOOL_RESULT_ABORT_REASON) {
+				if (batchDeclaredStop || signal?.reason === TERMINAL_TOOL_RESULT_ABORT_REASON) {
 					hasMoreToolCalls = false;
 				}
 
@@ -3078,6 +3086,8 @@ interface PreparedToolCall {
 	protocolAnomaly?: ProtocolAnomalyDiagnostic;
 	blocked?: boolean;
 	blockReason?: string;
+	/** The hook declared the whole batch unexecuted and the turn terminal. */
+	stopTurn?: boolean;
 	prepareError?: unknown;
 }
 
@@ -3397,6 +3407,10 @@ async function prepareToolCallDispatch(
 		if (beforeResult?.block) {
 			entry.blocked = true;
 			entry.blockReason = beforeResult.reason;
+			// `stopTurn` is a batch-level decision: the host's hook saw the
+			// assistant message declare the turn finished, so no call in this
+			// batch may run and the loop must yield instead of re-sampling.
+			if (beforeResult.stopTurn === true) entry.stopTurn = true;
 			continue;
 		}
 		if (isNonBlankContext(beforeResult?.additionalContext)) {
@@ -3505,7 +3519,7 @@ async function executeToolCalls(
 	// Steering the provider took off the queue during the response that emitted
 	// this batch; it injects at this batch's boundary like queued steering.
 	liveSteering: readonly AgentMessage[],
-): Promise<{ toolResults: ToolResultMessage[]; additionalContext?: string }> {
+): Promise<{ toolResults: ToolResultMessage[]; additionalContext?: string; stopTurn?: boolean }> {
 	const tools = currentContext.tools;
 	const {
 		hasSteeringMessages,
@@ -3598,6 +3612,7 @@ async function executeToolCalls(
 			protocolAnomaly: prepared.protocolAnomaly,
 			blocked: prepared.blocked === true,
 			blockReason: prepared.blockReason,
+			stopTurn: prepared.stopTurn === true,
 			prepareError: prepared.prepareError,
 			preparedContext: prepared.additionalContext,
 			reportedContext: [] as string[],
@@ -3605,6 +3620,21 @@ async function executeToolCalls(
 			transformError: prepared.transformError,
 		};
 	});
+
+	// One call declaring the turn finished holds for the whole batch: a batch
+	// is the model's single response, so partial execution would contradict the
+	// declaration and keep the poll loop alive. Calls the hook did not block are
+	// marked here rather than re-running `beforeToolCall`, so every remaining
+	// result is synthesized once, in call order, with no execution start.
+	const stopTurnDeclared = records.some(record => record.stopTurn);
+	if (stopTurnDeclared) {
+		for (const record of records) {
+			if (record.blocked) continue;
+			record.blocked = true;
+			record.blockReason =
+				"The turn was declared finished without tool calls while work this agent started is still pending. The call was not executed; end the turn and wait for the pending result to be delivered.";
+		}
+	}
 
 	// Derive batch readiness from existing dispatch records, not extra participants.
 	const refreshPauseState = (): void => {
@@ -3706,10 +3736,15 @@ async function executeToolCalls(
 		}
 	};
 
-	const emitToolResult = (record: (typeof records)[number], result: AgentToolResult<any>, isError: boolean): void => {
+	const emitToolResult = (
+		record: (typeof records)[number],
+		result: AgentToolResult<any>,
+		isError: boolean,
+		options?: { emitStart?: boolean },
+	): void => {
 		if (record.resultEmitted) return;
 		const { toolCall } = record;
-		if (!record.started) {
+		if (!record.started && options?.emitStart !== false) {
 			stream.push({
 				type: "tool_execution_start",
 				toolCallId: toolCall.id,
@@ -3775,6 +3810,11 @@ async function executeToolCalls(
 		config.onPauseChange?.(false);
 
 		const { toolCall, tool } = record;
+		// Preflight-blocked calls never execute: they must not publish a
+		// `tool_execution_start` (the raw journal counts real attempts only).
+		// The end frame still follows so live UI settles the call, and
+		// `afterToolCall` still normalizes the synthetic result below.
+		const blockedPreflight = record.blocked === true;
 		// Validation (and the beforeToolCall hook) ran in the prepare phase; a
 		// failure recorded there surfaces here at the record's scheduled slot so
 		// result emission keeps batch order.
@@ -3798,6 +3838,7 @@ async function executeToolCalls(
 					details,
 				},
 				true,
+				{ emitStart: !blockedPreflight },
 			);
 			return;
 		}
@@ -3809,17 +3850,24 @@ async function executeToolCalls(
 				toolName: toolCall.name,
 				status: "aborted",
 			});
-			emitToolResult(record, createToolSignalAbortedResult(record.signal), true);
+			emitToolResult(record, createToolSignalAbortedResult(record.signal), true, {
+				emitStart: !blockedPreflight,
+			});
 			return;
 		}
-		record.started = true;
-		stream.push({
-			type: "tool_execution_start",
-			toolCallId: toolCall.id,
-			toolName: toolCall.name,
-			args: effectiveArgs,
-			intent: toolCall.intent,
-		});
+		// Blocked calls were decided in the dispatch preflight, before any
+		// concurrency scheduling: they never execute and must not publish a
+		// `tool_execution_start` (the raw journal counts real attempts only).
+		if (!blockedPreflight) {
+			record.started = true;
+			stream.push({
+				type: "tool_execution_start",
+				toolCallId: toolCall.id,
+				toolName: toolCall.name,
+				args: effectiveArgs,
+				intent: toolCall.intent,
+			});
+		}
 
 		const toolSpan = startExecuteToolSpan(telemetry, {
 			tool,
@@ -3985,13 +4033,15 @@ async function executeToolCalls(
 			// user abort can also fail a non-interruptible tool (e.g. cancelled
 			// ask); keep its actual error instead of attributing it to the queue.
 			record.skipped = true;
-			emitToolResult(record, createSkippedToolResult(interruptState.source, executionStarted), true);
+			emitToolResult(record, createSkippedToolResult(interruptState.source, executionStarted), true, {
+				emitStart: !blockedPreflight,
+			});
 		} else {
 			// A tool that finished before the interrupt landed (`completedToolExecution`)
 			// keeps its real result even if its signal aborted around completion:
 			// the model must see the work it actually performed (#4752).
 			// Non-interruptible tools also retain errors from external user aborts.
-			emitToolResult(record, result, isError);
+			emitToolResult(record, result, isError, { emitStart: !blockedPreflight });
 		}
 
 		const firstTextBlock = result.content?.[0];
@@ -4154,7 +4204,9 @@ async function executeToolCalls(
 				toolName: record.toolCall.name,
 				status: "skipped",
 			});
-			emitToolResult(record, createSkippedToolResult(interruptState.source, false), true);
+			emitToolResult(record, createSkippedToolResult(interruptState.source, false), true, {
+				emitStart: record.blocked !== true,
+			});
 		}
 	}
 	await speculationCoordinator?.discardAll("candidate was not dispatched");
@@ -4175,6 +4227,7 @@ async function executeToolCalls(
 	return {
 		toolResults: emittedToolResults,
 		...(additionalContext !== undefined ? { additionalContext } : {}),
+		...(stopTurnDeclared ? { stopTurn: true } : {}),
 	};
 }
 

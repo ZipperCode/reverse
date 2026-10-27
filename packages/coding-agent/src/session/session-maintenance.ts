@@ -379,11 +379,13 @@ function mergeLlmCompactionPreserveData(
 function handoffSummaryFromDocument(
 	document: string,
 	preparation: CompactionPreparation,
-): { summary: string; details: CompactionDetails } {
+	savedPath?: string,
+): { summary: string; details: CompactionDetails & { handoffDocumentPath?: string } } {
 	const { readFiles, modifiedFiles } = computeFileLists(preparation.fileOps);
 	return {
 		summary: upsertFileOperations(document, readFiles, modifiedFiles, preparation.fileOps.read),
-		details: { readFiles, modifiedFiles },
+		// 保存实际交接文档位置，恢复约束时才能定位原文件行号，而非按时间猜测来源。
+		details: { readFiles, modifiedFiles, ...(savedPath ? { handoffDocumentPath: savedPath } : {}) },
 	};
 }
 
@@ -2094,7 +2096,7 @@ export class SessionMaintenance {
 		try {
 			const result = await this.#host.generateHandoffDocument(customInstructions, options);
 			if (!result) return undefined;
-			const { summary, details } = handoffSummaryFromDocument(result.document, preparation);
+			const { summary, details } = handoffSummaryFromDocument(result.document, preparation, result.savedPath);
 			await this.#commitCompactionEntry({
 				summary,
 				shortSummary: undefined,
@@ -2283,7 +2285,7 @@ export class SessionMaintenance {
 				signal,
 			});
 			if (!generated) return clear();
-			const { summary, details } = handoffSummaryFromDocument(generated.document, preparation);
+			const { summary, details } = handoffSummaryFromDocument(generated.document, preparation, generated.savedPath);
 			armed = {
 				result: {
 					summary,
@@ -5433,7 +5435,11 @@ export class SessionMaintenance {
 				preserveData = compactionPrep.preserveData;
 				providerReplayThroughEntryId = compactionPrep.providerReplayThroughEntryId;
 			} else if (handoffDocument) {
-				const handoffSummary = handoffSummaryFromDocument(handoffDocument.document, preparation);
+				const handoffSummary = handoffSummaryFromDocument(
+					handoffDocument.document,
+					preparation,
+					handoffDocument.savedPath,
+				);
 				summary = handoffSummary.summary;
 				shortSummary = undefined;
 				firstKeptEntryId = preparation.firstKeptEntryId;

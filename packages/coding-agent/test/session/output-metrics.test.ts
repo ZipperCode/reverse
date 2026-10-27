@@ -26,6 +26,96 @@ afterEach(async () => {
 	}
 });
 
+const LIVE_HANDOFF_DOCUMENT = [
+	"## Goal",
+	"Verify that compaction output stays within artifact and handoff budgets.",
+	"## Constraints & Preferences",
+	"- Deterministic analysis; no network access during replay.",
+	"- Keep the anchor `ANCHOR_SHA = abcdef` unchanged across runs.",
+	"## Progress",
+	"### Done",
+	"- [x] Captured the baseline session and artifact directories.",
+	"- [x] Re-ran the candidate workload with the new budget settings.",
+	"## Key Decisions",
+	"- Keep per-call capture logs under the configured 4 MiB budget.",
+	"## Critical Context",
+	"- `ANCHOR_SHA = abcdef` identifies the retained capture log region.",
+	"## Next Steps",
+	"1. Re-run the replay and compare all five acceptance axes.",
+].join("\n");
+
+/** Committed compaction summary of a live handoff: the document plus the appended file-operations tag. */
+const LIVE_HANDOFF_SUMMARY = `${LIVE_HANDOFF_DOCUMENT}\n\n<modified-files>\n- packages/a.ts (Write)\n</modified-files>`;
+
+function buildHandoffSessionEntries(options: {
+	id: string;
+	compactions: number;
+	shaken: boolean;
+	summary?: string;
+}): unknown[] {
+	const entries: unknown[] = [
+		{ type: "session", version: 3, id: options.id, timestamp: "2026-10-25T00:00:00.000Z", cwd: "/workspace" },
+	];
+	for (let index = 0; index < options.compactions; index++) {
+		entries.push({
+			type: "compaction",
+			id: `c${index + 1}`,
+			parentId: index === 0 ? null : `c${index}`,
+			timestamp: `2026-10-25T00:${String(15 * (index + 1)).padStart(2, "0")}:00.000Z`,
+			method: "handoff",
+			firstKeptEntryId: `c${index + 1}`,
+			tokensBefore: 120_000,
+			tokensAfter: 50_000,
+			summary: options.summary ?? LIVE_HANDOFF_SUMMARY,
+		});
+	}
+	entries.push({
+		type: "message",
+		id: "m1",
+		parentId: `c${options.compactions}`,
+		timestamp: "2026-10-25T00:46:00.000Z",
+		message: {
+			role: "toolResult",
+			toolCallId: "t1",
+			toolName: "bash",
+			isError: false,
+			content: [
+				{
+					type: "text",
+					text: options.shaken
+						? "[shaken ~500 tokens — recover: artifact://1 (region 1)]"
+						: "bounded inline output",
+				},
+			],
+			timestamp: 1,
+		},
+	});
+	return entries;
+}
+
+async function writeLiveHandoffSession(options: {
+	file: string;
+	artifactsDir: string;
+	compactions: number;
+	captureBytes: number;
+	shaken: boolean;
+}): Promise<void> {
+	const entries = buildHandoffSessionEntries({
+		id: path.basename(options.file, ".jsonl"),
+		compactions: options.compactions,
+		shaken: options.shaken,
+	});
+	await fs.writeFile(options.file, `${entries.map(entry => JSON.stringify(entry)).join("\n")}\n`, "utf8");
+	await fs.writeFile(
+		path.join(options.artifactsDir, "handoff-2026-10-25T00-15-00-000Z.md"),
+		LIVE_HANDOFF_DOCUMENT,
+		"utf8",
+	);
+	if (options.captureBytes > 0) {
+		await fs.writeFile(path.join(options.artifactsDir, "1.bash.log"), "A".repeat(options.captureBytes), "utf8");
+	}
+}
+
 describe("session output and compaction metrics (#20)", () => {
 	it("computes compaction distributions, shaken regions vs rows, artifact caps, and skips oversized lines in streaming pass", async () => {
 		const root = await makeTempSessionDir();
@@ -640,8 +730,17 @@ describe("session output and compaction metrics (#20)", () => {
 		const passing = compareSessionOutputMetrics(candidate, baseline, {
 			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
 		});
-		expect(passing.passed).toBe(true);
-		expect(passing.compactionDropAloneGuardTriggered).toBe(false);
+		// Journal compaction summaries have no corroborating saved handoff documents in this
+		// fixture, so provenance stays `unverified` and axis (e) is unmeasured: only the four
+		// deterministic axes pass and the overall gate must not.
+		expect(passing.axes.compactionPace.status).toBe("pass");
+		expect(passing.axes.singleArtifactCap.status).toBe("pass");
+		expect(passing.axes.shakenRatio.status).toBe("pass");
+		expect(passing.axes.postCompactionStateErrors.status).toBe("pass");
+		expect(passing.axes.handoffStructuralCoverage.status).toBe("unknown");
+		expect(passing.deterministicAxesPassed).toBe(true);
+		expect(passing.passed).toBe(false);
+		expect(passing.compactionDropAloneGuardTriggered).toBe(true);
 
 		// When compaction count drops (2 -> 1) but single capture log exceeds budget, overall pass must be false
 		// and compactionDropAloneGuardTriggered must be true.
@@ -664,6 +763,16 @@ describe("session output and compaction metrics (#20)", () => {
 		expect(fixtureComparison.axes.handoffStructuralCoverage.status).toBe("unknown");
 		expect(fixtureComparison.deterministicAxesPassed).toBe(true);
 		expect(fixtureComparison.passed).toBe(false);
+
+		// A `live_model` assertion is not proof: without a corroborating saved document the
+		// report stays unverified and axis (e) remains unknown.
+		const assertedCandidate = await computeSessionOutputMetrics(candFile, { handoffProvenance: "live_model" });
+		expect(assertedCandidate.artifacts.handoffQuality?.provenance).toBe("unverified");
+		const assertedComparison = compareSessionOutputMetrics(assertedCandidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(assertedComparison.axes.handoffStructuralCoverage.status).toBe("unknown");
+		expect(assertedComparison.passed).toBe(false);
 
 		// Validated schema round-trip succeeds on real report and rejects incomplete payloads.
 		const parsedRoundTrip = parseSessionOutputMetricsReport(JSON.parse(JSON.stringify({ metrics: candidate })));
@@ -712,5 +821,186 @@ describe("session output and compaction metrics (#20)", () => {
 		expect(report.artifacts.truncatedCaptureLogCount).toBe(3);
 		expect(report.artifacts.totalCaptureLogElidedBytes).toBeNull();
 		expect(report.artifacts.topCaptureLogs.every(log => log.truncatedOnDisk)).toBe(true);
+	});
+
+	it("passes all five axes for observed live-model handoffs with checked invariants on both sides", async () => {
+		const root = await makeTempSessionDir();
+		const baseDir = path.join(root, "base");
+		const candDir = path.join(root, "cand");
+		await fs.mkdir(baseDir, { recursive: true });
+		await fs.mkdir(candDir, { recursive: true });
+
+		const baseFile = path.join(root, "base.jsonl");
+		const candFile = path.join(root, "cand.jsonl");
+		await writeLiveHandoffSession({
+			file: baseFile,
+			artifactsDir: baseDir,
+			compactions: 2,
+			captureBytes: 2_048,
+			shaken: true,
+		});
+		await writeLiveHandoffSession({
+			file: candFile,
+			artifactsDir: candDir,
+			compactions: 1,
+			captureBytes: 1_024,
+			shaken: false,
+		});
+
+		const invariants = [{ name: "anchor_sha", pattern: "ANCHOR_SHA = abcdef" }];
+		const baseline = await computeSessionOutputMetrics(baseFile, { handoffInvariants: invariants });
+		const candidate = await computeSessionOutputMetrics(candFile, { handoffInvariants: invariants });
+
+		// Provenance is inferred only because each saved document reproduces its journal summary.
+		expect(baseline.artifacts.handoffQuality?.provenance).toBe("live_model");
+		expect(candidate.artifacts.handoffQuality?.provenance).toBe("live_model");
+
+		const comparison = compareSessionOutputMetrics(candidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(comparison.axes.handoffStructuralCoverage.status).toBe("pass");
+		expect(comparison.axes.handoffStructuralCoverage.reason).toContain("invariants 1/1");
+		expect(comparison.deterministicAxesPassed).toBe(true);
+		expect(comparison.passed).toBe(true);
+		expect(comparison.compactionDropAloneGuardTriggered).toBe(false);
+
+		// Live-model provenance with no supplied invariants leaves invariant coverage unmeasured.
+		const noInvariantCandidate = await computeSessionOutputMetrics(candFile);
+		expect(noInvariantCandidate.artifacts.handoffQuality?.provenance).toBe("live_model");
+		const noInvariantComparison = compareSessionOutputMetrics(noInvariantCandidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(noInvariantComparison.axes.handoffStructuralCoverage.status).toBe("unknown");
+		expect(noInvariantComparison.axes.handoffStructuralCoverage.reason).toContain("no required handoff invariants");
+		expect(noInvariantComparison.passed).toBe(false);
+
+		// A truncated saved file that merely appears inside the journal summary is not the same
+		// generated document and must not claim live-model provenance.
+		await fs.writeFile(
+			path.join(candDir, "handoff-2026-10-25T00-15-00-000Z.md"),
+			LIVE_HANDOFF_DOCUMENT.slice(0, 200),
+			"utf8",
+		);
+		const truncatedCandidate = await computeSessionOutputMetrics(candFile, { handoffInvariants: invariants });
+		expect(truncatedCandidate.artifacts.handoffQuality?.provenance).toBe("unverified");
+
+		// A saved handoff document with no matching journal summary proves nothing about
+		// provenance; the axis falls back to unknown instead of trusting the file.
+		await fs.writeFile(
+			path.join(candDir, "handoff-2026-10-25T00-15-00-000Z.md"),
+			LIVE_HANDOFF_DOCUMENT.replace(
+				"Verify that compaction output stays within artifact and handoff budgets.",
+				"A different session generated this document after the replay.",
+			),
+			"utf8",
+		);
+		const unrelatedCandidate = await computeSessionOutputMetrics(candFile, { handoffInvariants: invariants });
+		expect(unrelatedCandidate.artifacts.handoffQuality?.provenance).toBe("unverified");
+		const unrelatedComparison = compareSessionOutputMetrics(unrelatedCandidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(unrelatedComparison.axes.handoffStructuralCoverage.status).toBe("unknown");
+		expect(unrelatedComparison.passed).toBe(false);
+
+		// An unreadable handoff document is evaluated as a failed document rather than skipped:
+		// the readable subset must never claim full coverage in its place.
+		await fs.writeFile(path.join(candDir, "handoff-2026-10-25T00-15-00-000Z.md"), LIVE_HANDOFF_DOCUMENT, "utf8");
+		await fs.mkdir(path.join(candDir, "handoff-2026-10-25T00-16-00-000Z.md"), { recursive: true });
+		const unreadableCandidate = await computeSessionOutputMetrics(candFile, { handoffInvariants: invariants });
+		expect(unreadableCandidate.artifacts.handoffQuality?.evaluatedCount).toBe(2);
+		expect(unreadableCandidate.artifacts.handoffQuality?.structuralCompleteCount).toBe(1);
+		expect(
+			unreadableCandidate.artifacts.handoffQuality?.documents.some(doc => doc.source.includes("(unreadable)")),
+		).toBe(true);
+		const unreadableComparison = compareSessionOutputMetrics(unreadableCandidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(unreadableComparison.axes.handoffStructuralCoverage.status).not.toBe("pass");
+		expect(unreadableComparison.passed).toBe(false);
+	});
+
+	it("keeps absent artifact evidence and incomplete JSONL unmeasured instead of passing on defaults", async () => {
+		const root = await makeTempSessionDir();
+		const baseFile = path.join(root, "missing-base.jsonl");
+		const candFile = path.join(root, "missing-cand.jsonl");
+		const baseEntries = buildHandoffSessionEntries({ id: "b", compactions: 2, shaken: true });
+		const candEntries = buildHandoffSessionEntries({ id: "c", compactions: 1, shaken: false });
+		await fs.writeFile(baseFile, `${baseEntries.map(entry => JSON.stringify(entry)).join("\n")}\n`, "utf8");
+		await fs.writeFile(candFile, `${candEntries.map(entry => JSON.stringify(entry)).join("\n")}\n`, "utf8");
+
+		const baseline = await computeSessionOutputMetrics(baseFile, {
+			artifactsDir: path.join(root, "missing-base-artifacts"),
+		});
+		const candidate = await computeSessionOutputMetrics(candFile, {
+			artifactsDir: path.join(root, "missing-cand-artifacts"),
+		});
+		expect(candidate.artifactsDirExists).toBe(false);
+
+		const comparison = compareSessionOutputMetrics(candidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(comparison.axes.compactionPace.status).toBe("pass");
+		expect(comparison.axes.singleArtifactCap.status).toBe("unknown");
+		expect(comparison.axes.singleArtifactCap.candidateValue).toBeNull();
+		expect(comparison.axes.singleArtifactCap.reason).toContain("unmeasured, not 0");
+		expect(comparison.axes.handoffStructuralCoverage.status).toBe("unknown");
+		expect(comparison.deterministicAxesPassed).toBe(false);
+		expect(comparison.passed).toBe(false);
+
+		// An existing empty artifact directory is a measured maximum of 0 when the transcript
+		// references nothing on disk; that is evidence, not a missing measurement.
+		const emptyDir = path.join(root, "empty-cand-artifacts");
+		await fs.mkdir(emptyDir, { recursive: true });
+		const emptyCandidate = await computeSessionOutputMetrics(candFile, { artifactsDir: emptyDir });
+		const emptyComparison = compareSessionOutputMetrics(emptyCandidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(emptyComparison.axes.singleArtifactCap.status).toBe("pass");
+		expect(emptyComparison.axes.singleArtifactCap.candidateValue).toBe(0);
+
+		// A capture-log name that cannot be measured as a regular file leaves the directory only
+		// partially inspected: `artifactsDirExists` is false and the cap axis stays unknown.
+		const dirtyDir = path.join(root, "dirty-cand-artifacts");
+		await fs.mkdir(path.join(dirtyDir, "2.bash.log"), { recursive: true });
+		const dirtyCandidate = await computeSessionOutputMetrics(candFile, { artifactsDir: dirtyDir });
+		expect(dirtyCandidate.artifactsDirExists).toBe(false);
+		const dirtyComparison = compareSessionOutputMetrics(dirtyCandidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(dirtyComparison.axes.singleArtifactCap.status).toBe("unknown");
+		expect(dirtyComparison.axes.singleArtifactCap.candidateValue).toBeNull();
+
+		// A transcript that references spilled artifacts turns the same empty directory into
+		// missing evidence: the maximum must stay unmeasured rather than become 0.
+		const shakenFile = path.join(root, "shaken-cand.jsonl");
+		const shakenEntries = buildHandoffSessionEntries({ id: "s", compactions: 1, shaken: true });
+		await fs.writeFile(shakenFile, `${shakenEntries.map(entry => JSON.stringify(entry)).join("\n")}\n`, "utf8");
+		const shakenCandidate = await computeSessionOutputMetrics(shakenFile, { artifactsDir: emptyDir });
+		expect(shakenCandidate.toolResults.shakenRegions.distinctArtifactIds).toEqual(["1"]);
+		const shakenComparison = compareSessionOutputMetrics(shakenCandidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(shakenComparison.axes.singleArtifactCap.status).toBe("unknown");
+		expect(shakenComparison.axes.singleArtifactCap.reason).toContain("references spilled artifacts");
+
+		// A skipped/malformed JSONL record makes every entry-derived axis unmeasured, so a
+		// computed pass cannot stand on partial input.
+		const corruptFile = path.join(root, "corrupt-cand.jsonl");
+		await fs.writeFile(
+			corruptFile,
+			`${candEntries.map(entry => JSON.stringify(entry)).join("\n")}\n{"type":"message",\n`,
+			"utf8",
+		);
+		const corruptCandidate = await computeSessionOutputMetrics(corruptFile, { artifactsDir: emptyDir });
+		expect(corruptCandidate.malformedRecords).toBe(1);
+		const corruptComparison = compareSessionOutputMetrics(corruptCandidate, baseline, {
+			maxSingleCaptureLogBytes: 4 * 1024 * 1024,
+		});
+		expect(corruptComparison.axes.compactionPace.status).toBe("unknown");
+		expect(corruptComparison.axes.compactionPace.reason).toContain("malformed=1");
+		expect(corruptComparison.axes.shakenRatio.status).toBe("unknown");
+		expect(corruptComparison.axes.postCompactionStateErrors.status).toBe("unknown");
+		expect(corruptComparison.axes.singleArtifactCap.status).toBe("pass");
+		expect(corruptComparison.passed).toBe(false);
 	});
 });

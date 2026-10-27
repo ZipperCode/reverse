@@ -478,6 +478,7 @@ import { planTurnPersistence, sameMessageContent, sessionMessagePersistenceKey }
 import { TurnRecovery, type TurnRecoveryHost } from "./turn-recovery";
 import { YieldQueue } from "./yield-queue";
 import { registerWaitPollGuard, WaitPollGuard } from "./wait-poll-guard";
+import { getSessionPrerequisiteConstraintGate, type PrerequisiteConstraintBlock } from "./prerequisite-constraints";
 
 export * from "./agent-session-events";
 export * from "./agent-session-types";
@@ -982,6 +983,10 @@ export class AgentSession implements SettingsScope {
 	#planModeReminderAwaitingProgress = false;
 	readonly #todo: TodoTracker;
 	readonly #waitPollGuard: WaitPollGuard;
+	readonly #pendingPrerequisiteConstraints = new Map<
+		string,
+		{ prerequisiteConstraint: PrerequisiteConstraintBlock }
+	>();
 	readonly #modelMentions: ModelMentionRegistry;
 	#workPoolYieldItems: readonly WorkPoolYieldItem[] = [];
 	/** Item set matching the last successfully rebuilt provider prompt. The base
@@ -2353,6 +2358,11 @@ export class AgentSession implements SettingsScope {
 					const waitResult = await this.#waitPollGuard.beforeBridgedToolCall(toolCallId, tool, args);
 					if (waitResult?.block) this.#todo.cancelToolCall(toolCallId);
 					if (waitResult) return waitResult;
+					const constraint = await this.#checkPrerequisiteConstraint(toolCallId, tool.name, args);
+					if (constraint) {
+						this.#todo.cancelToolCall(toolCallId);
+						return constraint;
+					}
 					return result;
 				} catch (error) {
 					this.#todo.cancelToolCall(toolCallId);
@@ -2361,6 +2371,12 @@ export class AgentSession implements SettingsScope {
 			},
 			after: async (toolCallId, result, context) => {
 				const guarded = (await this.#waitPollGuard.afterBridgedToolCall(toolCallId, result, context)) ?? result;
+				const constraint = this.#takePrerequisiteConstraintResult(toolCallId, guarded.details);
+				if (constraint) {
+					const blocked = { ...guarded, ...constraint };
+					this.#todo.onBridgedToolResult(toolCallId, blocked);
+					return blocked;
+				}
 				const settled = (await this.#ttsr.afterBridgedToolCall(toolCallId, guarded, context)) ?? guarded;
 				this.#todo.onBridgedToolResult(toolCallId, settled);
 				return settled;
@@ -2369,6 +2385,7 @@ export class AgentSession implements SettingsScope {
 				this.#todo.cancelToolCall(toolCallId);
 				this.#ttsr.cancelBridgedToolCall(toolCallId);
 				this.#waitPollGuard.cancelBridgedToolCall(toolCallId);
+				this.#pendingPrerequisiteConstraints.delete(toolCallId);
 			},
 		});
 		this.agent.setOnBeforeYield(() => this.#ttsr.settleJudgments());
@@ -5436,9 +5453,40 @@ export class AgentSession implements SettingsScope {
 		}
 	}
 
+	async #checkPrerequisiteConstraint(
+		toolCallId: string,
+		toolName: string,
+		args: unknown,
+	): Promise<BeforeToolCallResult | undefined> {
+		// 每次按当前会话身份获取共享门禁，切换/恢复会话不会保留旧分支的依赖约束。
+		const gate = getSessionPrerequisiteConstraintGate({
+			cwd: this.sessionManager.getCwd(),
+			getSessionFile: () => this.sessionManager.getSessionFile(),
+			getSessionId: () => this.sessionId,
+			getArtifactsDir: () => this.sessionManager.getArtifactsDir(),
+			sessionManager: this.sessionManager,
+		});
+		const block = await gate.check({ toolName, args: isRecord(args) ? args : undefined, toolCallId });
+		if (!block) return undefined;
+		this.#pendingPrerequisiteConstraints.set(toolCallId, { prerequisiteConstraint: block });
+		return { block: true, reason: block.reason };
+	}
+
+	#takePrerequisiteConstraintResult(toolCallId: string, details: unknown): AfterToolCallResult | undefined {
+		const constraint = this.#pendingPrerequisiteConstraints.get(toolCallId);
+		if (!constraint) return undefined;
+		this.#pendingPrerequisiteConstraints.delete(toolCallId);
+		return {
+			details: { ...(isRecord(details) ? details : {}), ...constraint, unexecuted: true, executed: false },
+			isError: true,
+		};
+	}
+
 	#afterToolCall(ctx: AfterToolCallContext): AfterToolCallResult | undefined {
 		const waitResult = this.#waitPollGuard.afterToolCall(ctx);
 		if (waitResult) return waitResult;
+		const constraint = this.#takePrerequisiteConstraintResult(ctx.toolCall.id, ctx.result.details);
+		if (constraint) return constraint;
 		if (
 			this.#isTerminalYieldToolResult({
 				toolName: ctx.toolCall.name,
@@ -5479,6 +5527,12 @@ export class AgentSession implements SettingsScope {
 			runner?.clearLoopToolCall?.(ctx.toolCall.id, ctx.tool.name);
 			this.#todo.cancelToolCall(ctx.toolCall.id);
 			return waitResult;
+		}
+		const constraint = await this.#checkPrerequisiteConstraint(ctx.toolCall.id, ctx.tool.name, ctx.args);
+		if (constraint) {
+			runner?.clearLoopToolCall?.(ctx.toolCall.id, ctx.tool.name);
+			this.#todo.cancelToolCall(ctx.toolCall.id);
+			return constraint;
 		}
 		if (!runner?.hasHandlers("tool_call")) return undefined;
 		const metadata = ctx.toolCall.providerMetadata;

@@ -48,6 +48,9 @@
 ### Fixed
 
 - Bound todo completion to immutable tool/action/target requirements and journal-backed execution evidence; preserved unresolved failures, fallback originals, blocked HUD rows, and separate dropped counts across native, bridged, Cursor, RPC, and user-edit paths (#21).
+- Honored explicit current-turn stop declarations while caller-owned work is pending, held same-response tool batches as unexecuted, and excluded preflight blocks from raw execution-start counts (#16).
+- Bound agent-authored handoff and notebook prerequisite directives to trusted catalog readiness, with verified document/line provenance, reset-boundary isolation, and structured native/bridged failures (#17).
+- Kept missing or partially inspected artifacts, incomplete journals, and unchecked handoff invariants from passing quantitative acceptance; required a baseline for `--require-pass` and matched saved handoffs to journal summaries (#20).
 - Prevented pure-shell no-op spawning and unchanged running-agent progress polling while caller-owned async work is pending; repeated no-progress observations request the existing `wait` tool choice without inventing execution failures (#16).
 - Added session-scoped, fingerprinted LIEF prerequisite blocking with concurrent probe coalescing and journal provenance; distinguished confirmed missing dependencies from probe startup errors/timeouts (#17).
 - Separated retained eval process liveness from observed Python namespace bindings, exposed missing-name recovery metadata, and kept the process-wide Python bridge from pinning a disposed standalone host (#19).

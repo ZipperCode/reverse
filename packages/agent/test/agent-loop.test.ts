@@ -5908,6 +5908,9 @@ describe("agentLoopContinue with AgentMessage", () => {
 		}
 
 		expect(executed).toEqual([]);
+		// A blocked call never executes, so the raw journal must not record an
+		// execution start for it; only the synthetic end settles the call.
+		expect(events.some(event => event.type === "tool_execution_start")).toBe(false);
 		const toolEnd = events.find(e => e.type === "tool_execution_end");
 		expect(toolEnd).toBeDefined();
 		if (toolEnd?.type === "tool_execution_end") {

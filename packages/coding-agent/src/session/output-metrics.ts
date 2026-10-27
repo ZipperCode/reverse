@@ -28,6 +28,8 @@ const MAX_PENDING_TOOL_CALLS = 4_096;
 const MAX_TRACKED_SHAKEN_ARTIFACTS = 4_096;
 const MAX_TRACKED_HANDOFF_SUMMARIES = 128;
 const MAX_OBSERVED_RUNTIMES = 64;
+/** Below this normalized length, two documents can share only a heading; treat that as unproven. */
+const MIN_HANDOFF_MATCH_CHARS = 128;
 const MAX_EVAL_MISSING_NAMES = 512;
 const MAX_DISTINCT_KEY_BUCKETS = 256;
 const LOG_TRUNCATION_MARKER_RE = /\[ARTIFACT TRUNCATED[^\]\r\n]*\]/i;
@@ -85,9 +87,11 @@ export interface HandoffDocumentQuality {
 
 export interface HandoffQualitySummary {
 	evaluationScope: "structural_and_invariant_coverage";
+	/** `live_model` only when a saved document matches a journal compaction summary, or the caller asserts it. */
 	provenance: HandoffProvenance;
 	evaluatedCount: number;
 	structuralCompleteCount: number;
+	/** `null` when no required invariants were supplied: coverage is unmeasured, not fully matched. */
 	invariantMatchedCount: number | null;
 	documents: Array<{ source: string; quality: HandoffDocumentQuality }>;
 }
@@ -95,6 +99,7 @@ export interface SessionOutputMetricsReport {
 	schemaVersion: 1;
 	sessionFile: string | null;
 	artifactsDir: string | null;
+	/** False when the artifact directory is absent, unreadable, or only partially inspectable: evidence is unverified, not empty. */
 	artifactsDirExists: boolean;
 	sessionId: string | null;
 	runtimeVersion: string | null;
@@ -213,7 +218,14 @@ export interface SessionOutputMetricsReport {
 export interface SessionOutputMetricsOptions {
 	artifactsDir?: string;
 	maxLineBytes?: number;
+	/** Required handoff invariants; without them invariant coverage is reported as unmeasured (`null`). */
 	handoffInvariants?: readonly HandoffRequiredInvariant[];
+	/**
+	 * Optional provenance override that can only downgrade: `fixture` or `unverified`.
+	 * `live_model` is reported only when a saved `handoff-*.md` exactly matches a journal
+	 * compaction summary; passing `live_model` here never turns an uncorroborated document
+	 * into proof.
+	 */
 	handoffProvenance?: HandoffProvenance;
 }
 
@@ -240,7 +252,7 @@ export interface AxisEvaluation {
 }
 
 export interface SessionOutputComparisonReport {
-	/** True only when all 5 axes pass (including non-fixture handoff coverage). */
+	/** True only when all 5 axes pass, including live-model handoff coverage with checked invariants on both sides. */
 	passed: boolean;
 	/** True when the 4 deterministic non-model axes pass and handoff did not fail. */
 	deterministicAxesPassed: boolean;
@@ -957,7 +969,7 @@ class MetricsAccumulator {
 			options.artifactsDir,
 			this.handoffSummaries,
 			options.handoffInvariants,
-			options.handoffProvenance ?? "unverified",
+			options.handoffProvenance,
 		);
 		const durationMs =
 			this.firstTimestampMs !== null &&
@@ -1164,11 +1176,40 @@ async function countShakeArtifactRegions(filePath: string): Promise<number> {
 	return count;
 }
 
+/**
+ * The harness appends a cumulative file-operations appendix when it commits a
+ * handoff document as a compaction summary (`<files>`, plus the legacy
+ * `<read-files>`/`<modified-files>` tags). Stripping it recovers the generated
+ * document so the two forms can be compared exactly.
+ */
+function stripHandoffFileOperations(text: string): string {
+	return text
+		.replace(/<files>[\s\S]*?<\/files>\s*/g, "")
+		.replace(/<read-files>[\s\S]*?<\/read-files>\s*/g, "")
+		.replace(/<modified-files>[\s\S]*?<\/modified-files>\s*/g, "")
+		.trimEnd();
+}
+
+/**
+ * A saved `handoff-*.md` document and the compaction summary it produced differ
+ * only by that file-operations appendix, so they are compared for exact equality
+ * after stripping the appendix and normalizing whitespace. Substring containment
+ * is deliberately not accepted: a truncated or partial file that merely appears
+ * inside a journal summary is not evidence of the same generated document.
+ */
+function handoffDocumentsMatch(savedDocument: string, journalSummary: string): boolean {
+	const saved = stripHandoffFileOperations(savedDocument).replace(/\s+/g, " ").trim();
+	const journal = stripHandoffFileOperations(journalSummary).replace(/\s+/g, " ").trim();
+	if (saved.length < MIN_HANDOFF_MATCH_CHARS || journal.length < MIN_HANDOFF_MATCH_CHARS) return false;
+	return saved === journal;
+}
+
 async function scanArtifactsDirectory(
 	artifactsDir: string | null,
 	journalHandoffSummaries: readonly { source: string; summary: string }[],
 	handoffInvariants: readonly HandoffRequiredInvariant[] | undefined,
-	handoffProvenance: HandoffProvenance,
+	/** Optional downgrade override (`fixture`/`unverified`); omitted = infer `live_model` from matched journal/saved documents. */
+	handoffProvenance: HandoffProvenance | undefined,
 ): Promise<{
 	exists: boolean;
 	captureLogCount: number;
@@ -1202,6 +1243,10 @@ async function scanArtifactsDirectory(
 	let shakeArtifactCount = 0;
 	let shakeArtifactBytes = 0;
 	let shakeArtifactRegionsTotal = 0;
+	// A capture-log entry we could not stat or read leaves the directory only partially
+	// inspected. `exists` is reported false in that case so the cap axis stays unknown
+	// rather than passing on the subset we happened to measure.
+	let captureInspectionComplete = true;
 
 	const handoffFiles: string[] = [];
 
@@ -1223,22 +1268,41 @@ async function scanArtifactsDirectory(
 		let size = 0;
 		try {
 			const st = await fs.stat(fullPath);
-			if (!st.isFile()) continue;
+			if (!st.isFile()) {
+				captureInspectionComplete = false;
+				continue;
+			}
 			size = st.size;
 		} catch {
+			captureInspectionComplete = false;
 			continue;
 		}
 
 		if (toolType === "shake") {
+			let regions: number;
+			try {
+				regions = await countShakeArtifactRegions(fullPath);
+			} catch {
+				captureInspectionComplete = false;
+				continue;
+			}
 			shakeArtifactCount++;
 			shakeArtifactBytes += size;
-			shakeArtifactRegionsTotal += await countShakeArtifactRegions(fullPath);
+			shakeArtifactRegionsTotal += regions;
 			continue;
 		}
 
+		let marker: { truncated: boolean; elidedBytes: number | null };
+		try {
+			marker = await detectLogTruncationMarker(fullPath, size);
+		} catch {
+			// The size is real metadata, but an unreadable body cannot be checked for
+			// truncation markers; leave the log out of the measured set.
+			captureInspectionComplete = false;
+			continue;
+		}
 		captureLogCount++;
 		totalCaptureLogBytes += size;
-		const marker = await detectLogTruncationMarker(fullPath, size);
 		if (marker.truncated) {
 			truncatedCaptureLogCount++;
 			totalCaptureLogElidedBytes =
@@ -1265,6 +1329,11 @@ async function scanArtifactsDirectory(
 
 	handoffFiles.sort();
 	const evaluatedDocs: Array<{ source: string; quality: HandoffDocumentQuality }> = [];
+	// Whether each evaluated document is corroborated by the journal's own
+	// `method: "handoff"` compaction entry. Only then is it evidence that a live
+	// model produced the document; a saved file by itself (or a journal summary
+	// without its saved counterpart) proves nothing about provenance.
+	const journalCorroborated: boolean[] = [];
 	if (artifactsDir && handoffFiles.length > 0) {
 		for (const fileName of handoffFiles) {
 			try {
@@ -1273,8 +1342,16 @@ async function scanArtifactsDirectory(
 					source: fileName,
 					quality: evaluateHandoffDocumentQuality(md, handoffInvariants),
 				});
+				journalCorroborated.push(journalHandoffSummaries.some(item => handoffDocumentsMatch(md, item.summary)));
 			} catch {
-				// Unreadable handoff file is skipped rather than crashing the report.
+				// An unreadable handoff document must count as a failed document rather than be
+				// skipped: dropping it would let the readable subset claim full coverage, and its
+				// content cannot be corroborated by a journal summary.
+				evaluatedDocs.push({
+					source: `${fileName} (unreadable)`,
+					quality: evaluateHandoffDocumentQuality("", handoffInvariants),
+				});
+				journalCorroborated.push(false);
 			}
 		}
 	} else if (journalHandoffSummaries.length > 0) {
@@ -1283,15 +1360,26 @@ async function scanArtifactsDirectory(
 				source: item.source,
 				quality: evaluateHandoffDocumentQuality(item.summary, handoffInvariants),
 			});
+			journalCorroborated.push(false);
 		}
 	}
+
+	// Handoff provenance can only be downgraded. A caller-supplied `live_model` never upgrades an
+	// uncorroborated document to proof: `live_model` is reported only when every evaluated
+	// document is backed by a matching journal compaction summary.
+	const resolvedProvenance: HandoffProvenance =
+		handoffProvenance === "fixture" || handoffProvenance === "unverified"
+			? handoffProvenance
+			: evaluatedDocs.length > 0 && journalCorroborated.every(Boolean)
+				? "live_model"
+				: "unverified";
 
 	const handoffQuality: HandoffQualitySummary | null =
 		evaluatedDocs.length === 0
 			? null
 			: {
 					evaluationScope: "structural_and_invariant_coverage",
-					provenance: handoffProvenance,
+					provenance: resolvedProvenance,
 					evaluatedCount: evaluatedDocs.length,
 					structuralCompleteCount: evaluatedDocs.filter(d => d.quality.structuralComplete).length,
 					invariantMatchedCount:
@@ -1301,7 +1389,9 @@ async function scanArtifactsDirectory(
 					documents: evaluatedDocs,
 				};
 	return {
-		exists,
+		// `exists` means "verified": the directory was readable and every capture-log entry
+		// could be inspected. A partial scan is not an empty measurement.
+		exists: exists && captureInspectionComplete,
 		captureLogCount,
 		totalCaptureLogBytes,
 		truncatedCaptureLogCount,
@@ -1448,7 +1538,13 @@ export async function computeSessionOutputMetricsFromEntries(
  * (b) max per-call capture log <= configured budget
  * (c) shaken toolResult ratio decreases (or stays 0 when already 0)
  * (d) post-compaction state/anchor error indicators do not increase
- * (e) handoff structural/invariant coverage does not regress (`"unknown"` when handoff docs were not generated)
+ * (e) handoff structural/invariant coverage does not regress
+ *
+ * Eligibility is strict: an axis whose evidence is missing or unmeasured is `"unknown"`, never a
+ * default `pass`. (b) is unknown when the candidate artifact directory is absent (or references
+ * spilled artifacts with no capture log on disk), (e) requires observed live-model provenance plus
+ * supplied invariants on both sides, and entry-derived axes are downgraded to `"unknown"` when
+ * either report skipped malformed/oversized JSONL records.
  *
  * Enforces the explicit #20 rule: compaction count reduction alone never passes when another axis fails or is unknown.
  */
@@ -1484,18 +1580,45 @@ export function compareSessionOutputMetrics(
 		baselineValue: { count: baseCount, avgIntervalMs: baseInterval },
 	};
 
-	// (b) Max single per-call capture log <= configured budget
-	const candMaxBytes = candidate.artifacts.maxCaptureLog?.bytes ?? 0;
-	const baseMaxBytes = baseline.artifacts.maxCaptureLog?.bytes ?? 0;
-	const singleArtifactCap: AxisEvaluation = {
-		status: candMaxBytes <= maxCap ? "pass" : "fail",
-		reason:
-			candMaxBytes <= maxCap
-				? `max capture log ${candMaxBytes} B <= budget ${maxCap} B`
-				: `max capture log ${candMaxBytes} B exceeds budget ${maxCap} B`,
-		candidateValue: candMaxBytes,
-		baselineValue: baseMaxBytes,
-	};
+	// (b) Max single per-call capture log <= configured budget.
+	// A missing artifact directory, or a transcript that references spilled artifacts
+	// we cannot find on disk, leaves the maximum unmeasured: it must stay `unknown`
+	// and never collapse to 0 so the budget check passes by absence of evidence.
+	const candMaxBytes = candidate.artifacts.maxCaptureLog?.bytes ?? null;
+	const baseMaxBytes = baseline.artifactsDirExists ? (baseline.artifacts.maxCaptureLog?.bytes ?? 0) : null;
+	const captureEvidenceExpected =
+		candidate.toolResults.shakenRegions.distinctArtifactIds.length > 0 ||
+		candidate.toolResults.truncationMeta.truncatedResultCount > 0 ||
+		candidate.toolResults.truncationMeta.totalArtifactBytes > 0;
+	let singleArtifactCap: AxisEvaluation;
+	if (!candidate.artifactsDirExists) {
+		singleArtifactCap = {
+			status: "unknown",
+			reason: `candidate artifact directory ${candidate.artifactsDir ?? "(none)"} is absent, unreadable, or only partially inspected; max capture log is unmeasured, not 0`,
+			candidateValue: null,
+			baselineValue: baseMaxBytes,
+		};
+	} else if (candMaxBytes === null && captureEvidenceExpected) {
+		singleArtifactCap = {
+			status: "unknown",
+			reason:
+				"candidate transcript references spilled artifacts but no capture log was found on disk; max capture log is unmeasured, not 0",
+			candidateValue: null,
+			baselineValue: baseMaxBytes,
+		};
+	} else {
+		const measuredMaxBytes = candMaxBytes ?? 0;
+		const measuredLogs = candidate.artifacts.captureLogCount;
+		singleArtifactCap = {
+			status: measuredMaxBytes <= maxCap ? "pass" : "fail",
+			reason:
+				measuredMaxBytes <= maxCap
+					? `max capture log ${measuredMaxBytes} B across ${measuredLogs} measured log(s) <= budget ${maxCap} B`
+					: `max capture log ${measuredMaxBytes} B across ${measuredLogs} measured log(s) exceeds budget ${maxCap} B`,
+			candidateValue: measuredMaxBytes,
+			baselineValue: baseMaxBytes,
+		};
+	}
 
 	// (c) [shaken] ratio decreases (or remains 0 when baseline is 0)
 	const candShaken = candidate.toolResults.shakenToolResultRatio;
@@ -1539,9 +1662,20 @@ export function compareSessionOutputMetrics(
 		baselineValue: baseStateErrors,
 	};
 
-	// (e) Handoff structural & required-invariant coverage does not regress (`unknown` if no handoff docs or fixture-only)
+	// (e) Handoff structural & required-invariant coverage does not regress.
+	// A pass requires observed `live_model` provenance AND checked required invariants on
+	// BOTH sides. Fixture/unverified provenance or absent invariants leave real handoff
+	// quality unmeasured, so the axis stays `unknown` instead of passing by default.
 	const candHandoff = candidate.artifacts.handoffQuality;
 	const baseHandoff = baseline.artifacts.handoffQuality;
+	const candHandoffSummary = candHandoff
+		? {
+				provenance: candHandoff.provenance,
+				evaluatedCount: candHandoff.evaluatedCount,
+				structuralCompleteCount: candHandoff.structuralCompleteCount,
+				invariantMatchedCount: candHandoff.invariantMatchedCount,
+			}
+		: null;
 	const baseHandoffSummary = baseHandoff
 		? {
 				provenance: baseHandoff.provenance,
@@ -1558,74 +1692,100 @@ export function compareSessionOutputMetrics(
 			candidateValue: null,
 			baselineValue: baseHandoffSummary,
 		};
-	} else if (candHandoff.provenance === "fixture") {
+	} else if (candHandoff.provenance !== "live_model") {
 		handoffStructuralCoverage = {
 			status: "unknown",
-			reason:
-				"candidate handoff documents are deterministic fixture templates only; real-model handoff quality not exercised",
-			candidateValue: {
-				provenance: candHandoff.provenance,
-				evaluatedCount: candHandoff.evaluatedCount,
-				structuralCompleteCount: candHandoff.structuralCompleteCount,
-				invariantMatchedCount: candHandoff.invariantMatchedCount,
-			},
+			reason: `candidate handoff provenance is "${candHandoff.provenance}"; only observed live-model handoff documents exercise real handoff quality`,
+			candidateValue: candHandoffSummary,
+			baselineValue: baseHandoffSummary,
+		};
+	} else if (candHandoff.invariantMatchedCount === null) {
+		handoffStructuralCoverage = {
+			status: "unknown",
+			reason: "no required handoff invariants were supplied for the candidate; invariant coverage is unmeasured",
+			candidateValue: candHandoffSummary,
+			baselineValue: baseHandoffSummary,
+		};
+	} else if (!baseHandoff || baseHandoff.evaluatedCount === 0) {
+		handoffStructuralCoverage = {
+			status: "unknown",
+			reason: "baseline run has no evaluated handoff documents; handoff regression cannot be measured",
+			candidateValue: candHandoffSummary,
+			baselineValue: baseHandoffSummary,
+		};
+	} else if (baseHandoff.provenance !== "live_model") {
+		handoffStructuralCoverage = {
+			status: "unknown",
+			reason: `baseline handoff provenance is "${baseHandoff.provenance}"; the regression baseline is not an observed live-model handoff`,
+			candidateValue: candHandoffSummary,
+			baselineValue: baseHandoffSummary,
+		};
+	} else if (baseHandoff.invariantMatchedCount === null) {
+		handoffStructuralCoverage = {
+			status: "unknown",
+			reason: "no required handoff invariants were supplied for the baseline; invariant coverage is unmeasured",
+			candidateValue: candHandoffSummary,
 			baselineValue: baseHandoffSummary,
 		};
 	} else {
 		const candStructRate = candHandoff.structuralCompleteCount / candHandoff.evaluatedCount;
-		const baseStructRate =
-			baseHandoff && baseHandoff.evaluatedCount > 0
-				? baseHandoff.structuralCompleteCount / baseHandoff.evaluatedCount
-				: 1;
-		const candInvRate =
-			candHandoff.invariantMatchedCount !== null
-				? candHandoff.invariantMatchedCount / candHandoff.evaluatedCount
-				: null;
-		const baseInvRate =
-			baseHandoff && baseHandoff.evaluatedCount > 0 && baseHandoff.invariantMatchedCount !== null
-				? baseHandoff.invariantMatchedCount / baseHandoff.evaluatedCount
-				: candInvRate !== null
-					? 1
-					: null;
-		const structOk = candStructRate >= baseStructRate && candStructRate === 1;
-		const invOk = candInvRate === null || (baseInvRate !== null && candInvRate >= baseInvRate && candInvRate === 1);
+		const baseStructRate = baseHandoff.structuralCompleteCount / baseHandoff.evaluatedCount;
+		const candInvRate = candHandoff.invariantMatchedCount / candHandoff.evaluatedCount;
+		const baseInvRate = baseHandoff.invariantMatchedCount / baseHandoff.evaluatedCount;
+		const structOk = candStructRate === 1 && candStructRate >= baseStructRate;
+		const invOk = candInvRate === 1 && candInvRate >= baseInvRate;
 		handoffStructuralCoverage = {
 			status: structOk && invOk ? "pass" : "fail",
 			reason:
 				structOk && invOk
-					? `handoff structural coverage ${candHandoff.structuralCompleteCount}/${candHandoff.evaluatedCount}` +
-						(candHandoff.invariantMatchedCount !== null
-							? `, invariants ${candHandoff.invariantMatchedCount}/${candHandoff.evaluatedCount}`
-							: "")
-					: `handoff structural/invariant coverage incomplete or regressed`,
-			candidateValue: {
-				provenance: candHandoff.provenance,
-				evaluatedCount: candHandoff.evaluatedCount,
-				structuralCompleteCount: candHandoff.structuralCompleteCount,
-				invariantMatchedCount: candHandoff.invariantMatchedCount,
-			},
+					? `handoff structural coverage ${candHandoff.structuralCompleteCount}/${candHandoff.evaluatedCount}, invariants ${candHandoff.invariantMatchedCount}/${candHandoff.evaluatedCount}`
+					: `handoff structural/invariant coverage incomplete or regressed (structural ${candHandoff.structuralCompleteCount}/${candHandoff.evaluatedCount}, invariants ${candHandoff.invariantMatchedCount}/${candHandoff.evaluatedCount})`,
+			candidateValue: candHandoffSummary,
 			baselineValue: baseHandoffSummary,
 		};
 	}
 
-	const deterministicFour = [compactionPace, singleArtifactCap, shakenRatio, postCompactionStateErrors];
+	// Entry-derived axes are unmeasured when either report skipped JSONL records: a missing
+	// entry may hide a compaction, a shaken row, or a reconstruction error, so a `pass`
+	// computed from partial input is downgraded to `unknown` (measured `fail`s stand).
+	const candidateGaps = candidate.malformedRecords + candidate.oversizedLinesSkipped;
+	const baselineGaps = baseline.malformedRecords + baseline.oversizedLinesSkipped;
+	const entryCompletenessIssue =
+		candidateGaps === 0 && baselineGaps === 0
+			? null
+			: `entry-derived axis unmeasured: JSONL gaps (candidate malformed=${candidate.malformedRecords} skipped=${candidate.oversizedLinesSkipped}, baseline malformed=${baseline.malformedRecords} skipped=${baseline.oversizedLinesSkipped})`;
+	const downgradeUnmeasured = (axis: AxisEvaluation): AxisEvaluation =>
+		entryCompletenessIssue === null || axis.status !== "pass"
+			? axis
+			: {
+					status: "unknown",
+					reason: `${axis.reason}; ${entryCompletenessIssue}`,
+					candidateValue: axis.candidateValue,
+					baselineValue: axis.baselineValue,
+				};
+	const compactionPaceAxis = downgradeUnmeasured(compactionPace);
+	const shakenRatioAxis = downgradeUnmeasured(shakenRatio);
+	const postCompactionStateErrorsAxis = downgradeUnmeasured(postCompactionStateErrors);
+	const handoffStructuralCoverageAxis = downgradeUnmeasured(handoffStructuralCoverage);
+
+	const deterministicFour = [compactionPaceAxis, singleArtifactCap, shakenRatioAxis, postCompactionStateErrorsAxis];
 	const deterministicAxesPassed =
-		deterministicFour.every(axis => axis.status === "pass") && handoffStructuralCoverage.status !== "fail";
-	const otherAxes = [singleArtifactCap, shakenRatio, postCompactionStateErrors, handoffStructuralCoverage];
-	const allAxesPass = compactionPace.status === "pass" && otherAxes.every(axis => axis.status === "pass");
+		deterministicFour.every(axis => axis.status === "pass") && handoffStructuralCoverageAxis.status !== "fail";
+	const otherAxes = [singleArtifactCap, shakenRatioAxis, postCompactionStateErrorsAxis, handoffStructuralCoverageAxis];
+	const allAxesPass = compactionPaceAxis.status === "pass" && otherAxes.every(axis => axis.status === "pass");
 	const compactionDropAloneGuardTriggered =
-		compactionPace.status === "pass" && otherAxes.some(axis => axis.status !== "pass");
+		compactionPaceAxis.status === "pass" && otherAxes.some(axis => axis.status !== "pass");
 
 	return {
 		passed: allAxesPass,
 		deterministicAxesPassed,
 		compactionDropAloneGuardTriggered,
 		axes: {
-			compactionPace,
+			compactionPace: compactionPaceAxis,
 			singleArtifactCap,
-			shakenRatio,
-			postCompactionStateErrors,
-			handoffStructuralCoverage,
+			shakenRatio: shakenRatioAxis,
+			postCompactionStateErrors: postCompactionStateErrorsAxis,
+			handoffStructuralCoverage: handoffStructuralCoverageAxis,
 		},
 	};
 }

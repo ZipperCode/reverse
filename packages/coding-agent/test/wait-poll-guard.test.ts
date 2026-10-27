@@ -1,17 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentTool } from "@reverse/agent";
+import { Agent, type AgentTool, type BeforeToolCallContext } from "@reverse/agent";
+import type { ToolResultMessage } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import { AsyncJobManager } from "@reverse/coding-agent/async/job-manager";
+import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { callSessionTool } from "@reverse/coding-agent/eval/js/tool-bridge";
 import { InternalUrlRouter } from "@reverse/coding-agent/internal-urls";
 import { resetRegisteredArtifactDirsForTests } from "@reverse/coding-agent/internal-urls/registry-helpers";
 import { IrcBus } from "@reverse/coding-agent/irc/bus";
 import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
-import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
+import { convertToLlm } from "@reverse/coding-agent/session/messages";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { ToolChoiceQueue } from "@reverse/coding-agent/session/tool-choice-queue";
 import {
+	detectExplicitTurnStopDeclaration,
 	extractWaitPollGuardMeta,
 	getWaitPollGuard,
 	isPureShellNoopCommand,
@@ -23,6 +30,7 @@ import { WaitTool } from "@reverse/coding-agent/tools/wait";
 import { WriteTool } from "@reverse/coding-agent/tools/write";
 import { resolveXdevTool, type XdevState } from "@reverse/coding-agent/tools/xdev";
 import { Shell } from "@reverse/natives";
+import { type } from "@reverse/reversetype";
 import { TempDir } from "@reverse/utils";
 
 let tempDir: TempDir;
@@ -113,6 +121,25 @@ function makeToolSession(options: {
 	toolsByName.set("wait", new WaitTool(session) as unknown as Tool);
 	toolsByName.set("write", new WriteTool(session) as unknown as Tool);
 	return session;
+}
+
+/**
+ * `WaitPollGuard.beforeToolCall` only reads the assistant message, tool name,
+ * tool-call id and args; the rest of the loop context is irrelevant here.
+ */
+function waitGuardContext(
+	assistantMessage: unknown,
+	toolCallId: string,
+	toolName: string,
+	args: Record<string, unknown>,
+): BeforeToolCallContext {
+	return {
+		assistantMessage,
+		toolCall: { type: "toolCall", id: toolCallId, name: toolName, arguments: args },
+		tool: { name: toolName },
+		args,
+		context: { messages: [], tools: [] },
+	} as unknown as BeforeToolCallContext;
 }
 
 describe("WaitPollGuard (#16)", () => {
@@ -446,5 +473,366 @@ describe("WaitPollGuard (#16)", () => {
 
 		pending.resolve("done");
 		await manager.waitForAll();
+	});
+
+	it("detects only explicit current-assistant stop declarations, rejecting quoted, code, negated, conditional and historical copies", () => {
+		const stopWithStop = "We must stop. End reply with no tool call. I'll do that.";
+		const stopWithEnd = "I must end reply without tool call. Let's do that.";
+
+		expect(
+			detectExplicitTurnStopDeclaration({
+				role: "assistant",
+				content: [{ type: "thinking", thinking: stopWithStop }],
+			}),
+		).toEqual({ sentence: "We must stop", directive: "End reply with no tool call" });
+		expect(
+			detectExplicitTurnStopDeclaration({
+				role: "assistant",
+				content: [{ type: "text", text: stopWithEnd }],
+			}),
+		).toEqual({
+			sentence: "I must end reply without tool call",
+			directive: "I must end reply without tool call",
+		});
+		expect(
+			detectExplicitTurnStopDeclaration({
+				role: "assistant",
+				content: [{ type: "text", text: "我必须结束回复，不带工具调用。" }],
+			}),
+		).toMatchObject({ sentence: expect.stringContaining("结束回复") });
+
+		const rejected = [
+			// 引号、行内代码与引用块中的同文属于引用/展示，不是本轮声明。
+			`The report says "${stopWithStop}" but the child is still running.`,
+			`\`${stopWithStop}\``,
+			`> ${stopWithStop}`,
+			// 历史转述框架之后的内容同样是引用。
+			`Earlier I wrote: ${stopWithStop}`,
+			"The issue text quoted: We must stop. End reply with no tool call. I'll do that.",
+			// 否定、条件与单纯的“不要轮询”都不算结束声明。
+			"We must not stop. End reply with no tool call.",
+			"If we must stop, end the reply without tool calls.",
+			"I should not poll for the child.",
+		];
+		for (const thinking of rejected) {
+			expect(
+				detectExplicitTurnStopDeclaration({ role: "assistant", content: [{ type: "thinking", thinking }] }),
+			).toBeUndefined();
+		}
+		// 用户消息或其它角色即使逐字包含原句也不会终止回合。
+		expect(
+			detectExplicitTurnStopDeclaration({ role: "user", content: [{ type: "text", text: stopWithStop }] }),
+		).toBeUndefined();
+		expect(
+			detectExplicitTurnStopDeclaration({
+				role: "assistant",
+				content: [{ type: "text", text: "Done." }],
+			}),
+		).toBeUndefined();
+	});
+
+	it("declares the whole batch stopped for owned pending work while leaving legitimate concurrent work alone", async () => {
+		const manager = new AsyncJobManager({ onJobComplete: () => {} });
+		const gate = Promise.withResolvers<string>();
+		manager.register("task", "OwnedChild", async () => await gate.promise, { id: "OwnedChild", ownerId: "Main" });
+		const session = makeToolSession({ manager, agentId: "Main" });
+		const guard = getWaitPollGuard(session);
+
+		// 普通等待措辞不构成结束声明：write/todo 与 wait 同批照常放行。
+		const normalMessage = {
+			role: "assistant",
+			content: [{ type: "text", text: "I'll write the results and then wait for OwnedChild." }],
+		};
+		expect(
+			await guard.beforeToolCall(
+				waitGuardContext(normalMessage, "write-ok", "write", { path: "ok.txt", content: "hi" }),
+			),
+		).toBeUndefined();
+		expect(await guard.beforeToolCall(waitGuardContext(normalMessage, "wait-ok", "wait", {}))).toBeUndefined();
+
+		const assistantMessage = {
+			role: "assistant",
+			content: [
+				{ type: "thinking", thinking: "We must stop. End reply with no tool call. I'll do that." },
+				{ type: "toolCall", id: "bash-stop", name: "bash", arguments: { command: "printf blocked" } },
+				{ type: "toolCall", id: "read-stop", name: "read", arguments: { path: "agent://OwnedChild" } },
+			],
+		};
+		const bashContext = waitGuardContext(assistantMessage, "bash-stop", "bash", { command: "printf blocked" });
+		const readContext = waitGuardContext(assistantMessage, "read-stop", "read", { path: "agent://OwnedChild" });
+		const bashBlock = await guard.beforeToolCall(bashContext);
+		expect(bashBlock).toMatchObject({ block: true, stopTurn: true });
+		expect(await guard.beforeToolCall(readContext)).toMatchObject({ block: true, stopTurn: true });
+
+		// 每个被整批停下的调用都由后置钩子归一化为非错误、未执行的结果。
+		const normalized = guard.afterToolCall({
+			...bashContext,
+			result: { content: [{ type: "text", text: bashBlock?.reason ?? "" }], details: {} },
+			isError: true,
+		});
+		expect(normalized).toMatchObject({ isError: false, useless: true });
+		expect(normalized?.details).toMatchObject({
+			unexecuted: true,
+			waitPollGuard: { intercepted: true, kind: "turn_stop_declared" },
+		});
+
+		gate.resolve("done");
+		await manager.waitForAll();
+	});
+
+	it("does not declare a stop without owned pending work or for another agent's job", async () => {
+		const manager = new AsyncJobManager({ onJobComplete: () => {} });
+		const gate = Promise.withResolvers<string>();
+		manager.register("task", "OtherChild", async () => await gate.promise, { id: "OtherChild", ownerId: "Child" });
+		const session = makeToolSession({ manager, agentId: "Main" });
+		const guard = getWaitPollGuard(session);
+		const message = {
+			role: "assistant",
+			content: [{ type: "thinking", thinking: "We must stop. End reply with no tool call. I'll do that." }],
+		};
+		expect(
+			await guard.beforeToolCall(
+				waitGuardContext(message, "write-other", "write", { path: "x.txt", content: "hi" }),
+			),
+		).toBeUndefined();
+
+		// 没有任何自有异步工作时，同一句声明也不构成停条件（普通 true 仍合法）。
+		const idleGuard = getWaitPollGuard(makeToolSession({ agentId: "Main" }));
+		expect(
+			await idleGuard.beforeToolCall(waitGuardContext(message, "true-idle", "bash", { command: "true" })),
+		).toBeUndefined();
+
+		gate.resolve("done");
+		await manager.waitForAll();
+	});
+
+	it("historical stop declarations leave the real loop batch unexecuted while an owned job is pending", async () => {
+		const manager = new AsyncJobManager({ onJobComplete: () => {} });
+		const jobGate = Promise.withResolvers<string>();
+		manager.register("task", "InterpreterDecode", async () => await jobGate.promise, {
+			id: "InterpreterDecode",
+			ownerId: "Main",
+		});
+		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
+		// Prompt admission resolves the key through ModelRegistry, not Agent's
+		// getApiKey, so the mock provider needs a runtime key here.
+		authStorage.keys.setRuntime("openai", "openai-test-key");
+		const sessions: AgentSession[] = [];
+		try {
+			const runScenario = async (phrase: string) => {
+				const markerPath = path.join(tempDir.path(), `forbidden-${sessions.length}.txt`);
+				const toolSession = makeToolSession({ manager, agentId: "Main" });
+				const writeSchema = type({ path: "string", content: "string" });
+				const writeTool: AgentTool<typeof writeSchema> = {
+					name: "write",
+					label: "Write",
+					description: "Test-only write tool",
+					parameters: writeSchema,
+					async execute(_toolCallId, args) {
+						await Bun.write(path.join(tempDir.path(), args.path), args.content);
+						return { content: [{ type: "text" as const, text: "written" }], details: {} };
+					},
+				};
+				const tools = [new BashTool(toolSession), new ReadTool(toolSession), writeTool] as unknown as AgentTool[];
+				const mock = createMockModel({
+					provider: "openai",
+					id: "gpt-test",
+					responses: [
+						{
+							content: [
+								{ type: "thinking", thinking: phrase },
+								{
+									type: "toolCall",
+									id: `stop-bash-${sessions.length}`,
+									name: "bash",
+									arguments: { command: `printf blocked > ${markerPath}` },
+								},
+								{
+									type: "toolCall",
+									id: `stop-read-${sessions.length}`,
+									name: "read",
+									arguments: { path: "agent://InterpreterDecode" },
+								},
+							],
+						},
+						{
+							content: [
+								{
+									type: "toolCall",
+									id: "legit-write",
+									name: "write",
+									arguments: { path: "next.txt", content: "ok" },
+								},
+							],
+						},
+						{ content: ["Next turn answered."] },
+					],
+					handler: { content: ["Unexpected extra model call"] },
+				});
+				const settings = Settings.isolated({
+					"compaction.enabled": false,
+					"retry.enabled": false,
+					"todo.enabled": false,
+					"todo.reminders": false,
+				});
+				settings.setModelRole("default", `${mock.model.provider}/${mock.model.id}`);
+				const agent = new Agent({
+					getApiKey: () => "test-key",
+					initialState: { model: mock.model, systemPrompt: ["Test"], tools, messages: [] },
+					convertToLlm,
+					streamFn: mock.stream,
+				});
+				const session = new AgentSession({
+					agent,
+					sessionManager: SessionManager.create(tempDir.path(), path.join(tempDir.path(), "sessions")),
+					settings,
+					modelRegistry: new ModelRegistry(authStorage),
+					toolRegistry: new Map(tools.map(tool => [tool.name, tool] as [string, AgentTool])),
+					agentId: "Main",
+					asyncJobManager: manager,
+				});
+				sessions.push(session);
+				const starts: string[] = [];
+				session.subscribe(event => {
+					if (event.type === "tool_execution_start") starts.push(event.toolName);
+				});
+
+				await session.prompt("Wait for InterpreterDecode");
+				await session.waitForIdle();
+				await session.sessionManager.flush();
+				const sessionFile = session.sessionManager.getSessionFile();
+				if (!sessionFile) throw new Error("Expected a persisted session file");
+				// 原始 JSONL 消费口径：自定义记录 `tool_execution_start` 必须为零。
+				const journalStartEntries = (await Bun.file(sessionFile).text())
+					.split("\n")
+					.filter(line => line.trim().length > 0)
+					.filter(line => {
+						const entry: unknown = JSON.parse(line);
+						return (
+							typeof entry === "object" &&
+							entry !== null &&
+							"customType" in entry &&
+							entry.customType === "tool_execution_start"
+						);
+					});
+				const toolResults = session.messages.filter(
+					(message): message is ToolResultMessage => message.role === "toolResult",
+				);
+				return { mock, session, starts, journalStartEntries, toolResults, markerPath };
+			};
+
+			for (const phrase of [
+				"We must stop. End reply with no tool call. I'll do that.",
+				"I must end reply without tool call. Let's do that.",
+			]) {
+				const { mock, session, starts, journalStartEntries, toolResults, markerPath } = await runScenario(phrase);
+				// 停条件真的让出回合：没有第二次 provider 请求。
+				expect(mock.calls).toHaveLength(1);
+				// 原始执行起点为零（事件流与落盘 journal 双口径）：bash 未派生、read 未读取。
+				expect(starts).toEqual([]);
+				expect(journalStartEntries).toEqual([]);
+				expect(await Bun.file(markerPath).exists()).toBe(false);
+				// 历史仍成对保留，且全部归一化为未执行的合成结果。
+				expect(toolResults).toHaveLength(2);
+				for (const result of toolResults) {
+					expect(result.isError).toBe(false);
+					expect(result.useless).toBe(true);
+					expect(result.details).toMatchObject({
+						unexecuted: true,
+						waitPollGuard: { intercepted: true, kind: "turn_stop_declared" },
+					});
+				}
+				// 下一次用户提问正常解除等待；同批合法的 write 在自有任务仍在运行时照常执行。
+				await session.prompt("Next request");
+				await session.waitForIdle();
+				expect(mock.calls).toHaveLength(3);
+				expect(starts).toEqual(["write"]);
+				expect(await Bun.file(path.join(tempDir.path(), "next.txt")).text()).toBe("ok");
+			}
+		} finally {
+			for (const session of sessions) await session.dispose();
+			jobGate.resolve("released");
+			await manager.waitForAll();
+			authStorage.close();
+		}
+	});
+
+	it("a sole wait in the real loop starts once and receives the actual child result", async () => {
+		const manager = new AsyncJobManager({ onJobComplete: () => {} });
+		const jobGate = Promise.withResolvers<string>();
+		const jobId = manager.register("task", "SlowChild", async () => await jobGate.promise, {
+			id: "SlowChild",
+			ownerId: "Main",
+		});
+		// The wait snapshot is the consumer of this child's result: suppressing its
+		// separate async delivery keeps the wait un-interrupted, so the result it
+		// returns is the job's own completion rather than a queued notice.
+		manager.acknowledgeDeliveries([jobId]);
+		const authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
+		authStorage.keys.setRuntime("openai", "openai-test-key");
+		let session: AgentSession | undefined;
+		try {
+			const toolSession = makeToolSession({ manager, agentId: "Main" });
+			const waitTool = new WaitTool(toolSession);
+			const mock = createMockModel({
+				provider: "openai",
+				id: "gpt-test",
+				responses: [
+					{ content: [{ type: "toolCall", id: "wait-only", name: "wait", arguments: {} }] },
+					{ content: ["Settled."] },
+				],
+				handler: { content: ["Settled."] },
+			});
+			const settings = Settings.isolated({
+				"compaction.enabled": false,
+				"retry.enabled": false,
+				"todo.enabled": false,
+				"launch.enabled": false,
+			});
+			settings.setModelRole("default", `${mock.model.provider}/${mock.model.id}`);
+			const tools = [waitTool] as unknown as AgentTool[];
+			const agent = new Agent({
+				getApiKey: () => "test-key",
+				initialState: { model: mock.model, systemPrompt: ["Test"], tools, messages: [] },
+				convertToLlm,
+				streamFn: mock.stream,
+			});
+			session = new AgentSession({
+				agent,
+				sessionManager: SessionManager.inMemory(tempDir.path()),
+				settings,
+				modelRegistry: new ModelRegistry(authStorage),
+				toolRegistry: new Map([[waitTool.name, waitTool as unknown as AgentTool]]),
+				agentId: "Main",
+				asyncJobManager: manager,
+			});
+			const starts: string[] = [];
+			const waitResults: unknown[] = [];
+			session.subscribe(event => {
+				if (event.type !== "tool_execution_start" && event.type !== "tool_execution_end") return;
+				if (event.toolName !== "wait") return;
+				if (event.type === "tool_execution_start") {
+					starts.push(event.toolName);
+					// 让真实子任务在 wait 阻塞期间结束，验证它收到实际结果。
+					jobGate.resolve("decoded 38 opcodes");
+				} else {
+					waitResults.push(event.result.details);
+				}
+			});
+
+			await session.prompt("Wait for SlowChild");
+			await session.waitForIdle();
+			expect(starts).toEqual(["wait"]);
+			expect(mock.calls).toHaveLength(2);
+			expect(waitResults).toHaveLength(1);
+			expect(waitResults[0]).toMatchObject({
+				jobs: [{ id: "SlowChild", status: "completed", resultText: "decoded 38 opcodes" }],
+			});
+		} finally {
+			jobGate.resolve("released");
+			await manager.waitForAll();
+			await session?.dispose();
+			authStorage.close();
+		}
 	});
 });

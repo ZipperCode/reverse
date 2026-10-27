@@ -152,10 +152,15 @@ Audit an existing journal locally:
 
 ```sh
 bun scripts/session-output-metrics.ts /path/session.jsonl --json
-bun scripts/session-output-metrics.ts /path/fixed.jsonl --baseline /path/baseline.jsonl --json --require-pass
+bun scripts/session-output-metrics.ts /path/fixed.jsonl --baseline /path/baseline.jsonl \
+  --handoff-invariants '[{"name":"target_sha","pattern":"TARGET_SHA = abcdef"}]' --json --require-pass
 ```
 
-The report separates source runtime identity from analyzer identity and records output bytes, capture maxima, compression counts/intervals/tokens, shaken ratios, post-compaction rereads, missing eval names, edit rejections, and prerequisite gate counts. `--artifacts-dir` / `--baseline-artifacts-dir` override sibling artifact discovery. Malformed or oversized JSONL rows are counted. Missing observations remain unknown. Handoff comparison evaluates structural and supplied invariant coverage; fixture provenance stays unknown for real-model quality, and fewer compactions alone cannot pass the comparison.
+The report separates source runtime identity from analyzer identity and records output bytes, capture maxima, compression counts/intervals/tokens, shaken ratios, post-compaction rereads, missing eval names, edit rejections, and prerequisite gate counts. `--artifacts-dir` / `--baseline-artifacts-dir` override sibling artifact discovery. Missing or partially inspected artifacts leave the cap axis unknown; a measured empty directory is distinct from missing evidence. Malformed or oversized JSONL rows prevent entry-derived axes from passing on an incomplete transcript.
+
+`--require-pass` requires `--baseline` and exits nonzero unless all five axes pass. Both runs need evaluated handoff invariants (`--handoff-invariants` supplies literal substrings shared by both JSONL inputs). A saved handoff document must match its journal summary after whitespace and file-operations appendix normalization to infer `live_model`; absent documents, partial matches, unverified origin, and unchecked invariants remain unknown. `--handoff-provenance fixture|unverified` can downgrade evidence, not assert model provenance. Saved JSON reports retain their original evidence and are not re-evaluated by CLI handoff flags.
+
+Historical source sessions and their artifact directories must be supplied to recompute an original baseline. Synthetic paired runs remain separate evidence; they do not replace the original-session comparison.
 
 ## URL access model
 

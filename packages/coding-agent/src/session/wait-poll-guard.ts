@@ -3,13 +3,17 @@
  *
  * 约束边界：
  * - 等待态仅由当前调用方实际拥有的未完成异步工作（AsyncJobManager 运行中/待投递任务、
- *   当前会话拥有的后台服务、当前调用方派生且仍在运行的子代理）决定，严禁解析 thinking 或依赖 intent 文本。
+ *   当前会话拥有的后台服务、当前调用方派生且仍在运行的子代理）决定；等待态判定本身严禁解析
+ *   thinking 或依赖 intent 文本。
  * - 当存在上述待完成异步工作时，拦截裸 shell 空操作（精确解析 `true`、`:` 或空命令，绝不拦截
  *   `cmd || true` 等复合命令或带参命令），阻止派生无意义子进程；无待完成异步工作时，独立 `true` 保持合法。
  * - 对 `agent://<id>` 的同一运行代次与进度快照（status + generation + yield sections + 最新文本）
  *   最多允许读取观测 1 次；在快照未变化、代次未结束且用户未发起新提问前，后续重复读取直接短路并引导调用 `wait`
  *   或结束当前回合等待事件注入。
  * - 连续无进展轮询计数跨 `read agent://` 与 `bash true` 共享，交替调用不会重置计数。
+ * - 当存在自有未完成异步工作时，若当前 assistant 消息自身显式声明“本轮结束、不带工具调用”
+ *   （见 `detectExplicitTurnStopDeclaration`），同一批调用整体不执行、不产生
+ *   `tool_execution_start`，并让循环直接让出回合而不再次请求模型。
  */
 import type {
 	AfterToolCallContext,
@@ -68,7 +72,7 @@ export interface AgentProgressFingerprintInput {
 /** 拦截结果附加在 `result.details.waitPollGuard` 上的结构化元数据。 */
 export interface WaitPollGuardInterceptMeta {
 	readonly intercepted: true;
-	readonly kind: "noop_bash" | "unchanged_agent_progress";
+	readonly kind: "noop_bash" | "unchanged_agent_progress" | "turn_stop_declared";
 	readonly count: number;
 	readonly preventedNoopBashCount: number;
 	readonly unchangedAgentReadCount: number;
@@ -77,6 +81,8 @@ export interface WaitPollGuardInterceptMeta {
 	readonly command?: string;
 	readonly targetAgentId?: string;
 	readonly progressDigest?: string;
+	/** `turn_stop_declared`：承担“结束本轮”声明的原文句子。 */
+	readonly declaration?: string;
 }
 
 /** 从工具结果 `details` 中安全提取 `waitPollGuard` 拦截元数据。 */
@@ -216,6 +222,149 @@ interface ObservedAgentProgressState {
 	observations: number;
 }
 
+/** 当前 assistant 消息中“本轮到此结束、不再调用工具”的确定性声明。 */
+export interface TurnStopDeclaration {
+	/** 承担“结束本轮”意图的句子（已去除代码块、引用与引号内容）。 */
+	readonly sentence: string;
+	/** 同一消息中给出“不带工具调用”指令的句子。 */
+	readonly directive: string;
+}
+
+// 逐句排除条件；仅在英文单词边界内匹配，避免误伤 `no tool call` 等正常措辞。
+const EN_STOP_NEGATION =
+	/\b(?:not|never|don't|doesn't|didn't|shouldn't|mustn't|cannot|can't|won't|wouldn't|needn't)\b/i;
+const EN_STOP_CONDITIONAL =
+	/\b(?:if|unless|suppose|supposing|whether|assuming|in\s+case|would|could|might|when|once|until|whenever)\b/i;
+const EN_STOP_HISTORICAL = /\b(?:earlier|previously|formerly|yesterday|ago|last\s+time|in\s+the\s+past)\b/i;
+// 转述框架：`Earlier I wrote: …`、`The issue says …` 之后的内容属于引用，不是本轮声明。
+const EN_REPORTED_SPEECH =
+	/\b(?:said|says|say|wrote|writes|written|noted|notes|mentioned|mentions|quoted|quotes|claimed|claims|stated|states|told|tells|reported|reports|according\s+to)\b/i;
+const EN_REPORTED_FRAME =
+	/\b(?:earlier|previously|formerly|yesterday|last\s+time|in\s+the\s+past|ago|quoted|verbatim|reportedly|supposedly)\b/i;
+const EN_REPORTED_PREFIX =
+	/^(?:it|you|the\s+(?:issue|report|prompt|user|task|spec|specification|message|instruction|quote))\b/i;
+
+const EN_FIRST_PERSON_STOP =
+	/\b(?:i|we)\s+(?:must|should|need\s+to|have\s+to|will|'ll|am\s+going\s+to|are\s+going\s+to)\s+(?:now\s+|just\s+)?(?:stop|end|finish|conclude|yield|return)\b/i;
+const EN_IMPERATIVE_STOP =
+	/^(?:ok(?:ay)?[\s,]+|so\s+|now\s+|then\s+)?(?:stop|end|finish|conclude)\s+(?:here|now|the\s+turn|this\s+turn|the\s+reply|this\s+reply)\b/i;
+const EN_STOP_COMMITMENT =
+	/^(?:ok(?:ay)?[\s,]+)?(?:let's|lets|let\s+us|i'll|i\s+will|we'll|we\s+will)\s+(?:now\s+|just\s+)?do\s+that\b/i;
+const EN_NO_TOOL_DIRECTIVE =
+	/\b(?:end|finish|stop|close)\s+(?:(?:the|this|my|our)\s+)?(?:reply|turn|response|message)\s+(?:here\s+)?(?:with\s+no|without(?:\s+any|\s+further)?)\s+(?:further\s+)?tool\s*calls?\b/i;
+const EN_NO_TOOL_PHRASE = /\b(?:with\s+no|without(?:\s+any|\s+further)?)\s+(?:further\s+)?tool\s*calls?\b/i;
+
+const ZH_STOP_NEGATION = /(?:不要|不必|不能|不得|无需|别|请勿|切勿)\s*(?:再|急着)?\s*(?:结束|停止|终止)/;
+const ZH_STOP_CONDITIONAL = /(?:如果|假如|假设|若是|万一|是否|要是|倘若|一旦)/;
+const ZH_STOP_HISTORICAL = /(?:之前|以前|此前|刚才|曾经|刚刚|早先|已经说过|说过|提到过|想过)/;
+const ZH_REPORTED_SPEECH = /(?:之前|以前|此前|刚才|曾经|刚刚)[^。！？\n]{0,16}(?:说|写|提到|标记)/;
+const ZH_FIRST_PERSON_STOP =
+	/(?:我们?|自己)\s*(?:必须|应当|应该|需要|要|现在|直接|就|决定|准备|将)?\s*(?:结束|停止|终止|收尾)(?:掉)?(?:这个|本次|当前|本)?(?:回复|回答|回合|轮次|这一轮|本轮|这轮|对话)?/;
+const ZH_IMPERATIVE_STOP =
+	/^(?:现在|就|直接|马上)?\s*(?:结束|停止|终止|收尾)(?:这个|本次|当前|本)?(?:回复|回答|回合|轮次|这一轮|本轮|这轮)/;
+const ZH_STOP_COMMITMENT = /(?:就|现在)?(?:这么|这样|照此|照这个)(?:做|办)|(?:我|我们)(?:就)?(?:这样|这么)(?:做|办)/;
+const ZH_NO_TOOL_DIRECTIVE = /(?:不带|不携带|不附带|不使用|不调用|不发出|不要再?发出|不要调用|无需|不再)(?:任何)?工具/;
+
+/** 去掉不承载“本轮意图”的文本：围栏/行内代码、引用块、引号转述。 */
+function sanitizeStopEvidence(raw: string): string {
+	return raw
+		.replace(/```[\s\S]*?(?:```|$)/g, "\n")
+		.replace(/~~~[\s\S]*?(?:~~~|$)/g, "\n")
+		.replace(/`[^`\n]*`/g, " ")
+		.replace(/^[ \t]*>.*$/gm, "\n")
+		.replace(/"[^"\n]*"/g, " ")
+		.replace(/“[^”\n]*”/g, " ")
+		.replace(/『[^』\n]*』/g, " ")
+		.replace(/「[^」\n]*」/g, " ")
+		.replace(/[*]+/g, " ");
+}
+
+function isExcludedStopSentence(sentence: string): boolean {
+	return (
+		EN_STOP_NEGATION.test(sentence) ||
+		EN_STOP_CONDITIONAL.test(sentence) ||
+		EN_STOP_HISTORICAL.test(sentence) ||
+		ZH_STOP_NEGATION.test(sentence) ||
+		ZH_STOP_CONDITIONAL.test(sentence) ||
+		ZH_STOP_HISTORICAL.test(sentence)
+	);
+}
+
+/** `Earlier I wrote: …` / `The issue says …` 之后同一消息的句子按转述/历史处理。 */
+function isReportedSpeechIntro(sentence: string): boolean {
+	if (ZH_REPORTED_SPEECH.test(sentence)) return true;
+	return EN_REPORTED_SPEECH.test(sentence) && (EN_REPORTED_FRAME.test(sentence) || EN_REPORTED_PREFIX.test(sentence));
+}
+
+/**
+ * 判定当前 assistant 消息是否**显式**声明本轮结束且不再调用工具（Issue #16 停条件）。
+ *
+ * 只检查这条消息自身实际书写的 `text` / `thinking` 块，绝不读取用户消息、工具结果或
+ * 意图字段。判定是确定性的、有界的：
+ * 1. 去掉代码块/行内代码、引用行、引号转述、Markdown 强调符；
+ * 2. 按句切分，逐句排除否定、条件、历史框架，以及 `Earlier I wrote:` 型转述段落；
+ * 3. 必须同时出现“结束本轮”的声明句（第一人称/祈使句，含 `Let's do that` 收尾）
+ *    与“不带工具调用”的指令句。
+ *
+ * 因此历史事故原句 `We must stop. End reply with no tool call. I'll do that.` 与
+ * `I must end reply without tool call. Let's do that.` 会被识别；被引号、代码块、
+ * 否定、条件或历史转述包住的同文不会。它不是通用意图分类器，也不处理其它措辞变体。
+ */
+export function detectExplicitTurnStopDeclaration(message: unknown): TurnStopDeclaration | undefined {
+	if (!message || typeof message !== "object") return undefined;
+	// Only the current assistant's own authored blocks count; user/tool payloads
+	// may quote the phrase and must never end a turn.
+	if ("role" in message && message.role !== undefined && message.role !== "assistant") return undefined;
+	const blocks = "content" in message && Array.isArray(message.content) ? message.content : [];
+	const parts: string[] = [];
+	for (const block of blocks) {
+		if (!block || typeof block !== "object") continue;
+		if ("type" in block && "text" in block && block.type === "text" && typeof block.text === "string") {
+			parts.push(block.text);
+		} else if (
+			"type" in block &&
+			"thinking" in block &&
+			block.type === "thinking" &&
+			typeof block.thinking === "string"
+		) {
+			parts.push(block.thinking);
+		}
+	}
+	if (parts.length === 0) return undefined;
+	const sentences = sanitizeStopEvidence(parts.join("\n"))
+		.split(/[.!?;。！？；\n\r]+/u)
+		.map(sentence => sentence.trim())
+		.filter(Boolean);
+	let reported = false;
+	let directive: string | undefined;
+	let sentence: string | undefined;
+	for (const candidate of sentences) {
+		if (isReportedSpeechIntro(candidate)) {
+			reported = true;
+			continue;
+		}
+		if (reported || isExcludedStopSentence(candidate)) continue;
+		if (
+			EN_NO_TOOL_DIRECTIVE.test(candidate) ||
+			EN_NO_TOOL_PHRASE.test(candidate) ||
+			ZH_NO_TOOL_DIRECTIVE.test(candidate)
+		) {
+			directive ??= candidate;
+		}
+		if (
+			EN_FIRST_PERSON_STOP.test(candidate) ||
+			EN_IMPERATIVE_STOP.test(candidate) ||
+			EN_STOP_COMMITMENT.test(candidate) ||
+			ZH_FIRST_PERSON_STOP.test(candidate) ||
+			ZH_IMPERATIVE_STOP.test(candidate) ||
+			ZH_STOP_COMMITMENT.test(candidate)
+		) {
+			sentence ??= candidate;
+		}
+	}
+	return directive && sentence ? { sentence, directive } : undefined;
+}
+
 /**
  * 会话级异步等待与防空转门禁。
  */
@@ -229,6 +378,8 @@ export class WaitPollGuard {
 	#lastPromptBoundaryKey: string | undefined;
 	#cachedLeafId: string | null | undefined = undefined;
 	#cachedLatestUserEntryId: string | undefined;
+	/** 每条 assistant 消息的显式停回合判定（消息对象即键，避免同批重复解析）。 */
+	readonly #turnStopByMessage = new WeakMap<object, TurnStopDeclaration | null>();
 
 	constructor(host: WaitPollGuardHost = {}) {
 		this.#host = host;
@@ -532,11 +683,55 @@ export class WaitPollGuard {
 		this.#consecutiveNoProgressPolls = 0;
 	}
 
+	/** 读取（并按消息缓存）当前 assistant 消息的显式停回合声明；无自有异步工作时恒为未声明。 */
+	#declaredTurnStop(message: unknown): TurnStopDeclaration | undefined {
+		if (!message || typeof message !== "object") return undefined;
+		const cached = this.#turnStopByMessage.get(message);
+		if (cached !== undefined) return cached ?? undefined;
+		const declaration = detectExplicitTurnStopDeclaration(message);
+		// The stop only holds while this caller owns pending async work; a plain
+		// message pays nothing beyond the bounded text scan.
+		const confirmed = declaration && this.hasOwnedPendingAsyncWork() ? declaration : undefined;
+		this.#turnStopByMessage.set(message, confirmed ?? null);
+		return confirmed;
+	}
+
+	/** 为整批未执行的调用生成结构化拦截元数据，供历史归一化与 UI 呈现。 */
+	#recordDeclaredTurnStop(
+		toolCallId: string | undefined,
+		declaration: TurnStopDeclaration,
+	): WaitPollGuardInterceptMeta {
+		const guidance =
+			"End the turn now without tool calls; the pending background result or subagent completion is delivered to you automatically. Do not poll.";
+		const reason = `Not executed: your own message declared the turn finished without tool calls while work you started is still pending ("${declaration.sentence}"). ${guidance}`;
+		const meta: WaitPollGuardInterceptMeta = {
+			intercepted: true,
+			kind: "turn_stop_declared",
+			count: this.#consecutiveNoProgressPolls,
+			preventedNoopBashCount: this.#preventedNoopBashCount,
+			unchangedAgentReadCount: this.#unchangedAgentReadCount,
+			reason,
+			guidance,
+			declaration: declaration.sentence,
+		};
+		if (toolCallId) {
+			this.#interceptedByToolCallId.set(toolCallId, meta);
+		}
+		return meta;
+	}
+
 	/**
 	 * 供 `AgentSession.#beforeToolCall` 接入的可选前置钩子（与工具内拦截幂等协同）。
 	 */
 	async beforeToolCall(ctx: BeforeToolCallContext): Promise<BeforeToolCallResult | undefined> {
 		this.#syncPromptBoundary();
+		// 显式停回合声明优先于逐工具策略：同一批调用必须全部未执行，否则模型会
+		// 用同一条消息里的工具调用推翻自己刚声明的结束条件（Issue #16）。
+		const declaredStop = this.#declaredTurnStop(ctx.assistantMessage);
+		if (declaredStop) {
+			const meta = this.#recordDeclaredTurnStop(ctx.toolCall.id, declaredStop);
+			return { block: true, stopTurn: true, reason: meta.reason };
+		}
 		const toolName = ctx.tool.name;
 		if (toolName === "wait") {
 			this.recordWaitInvocation();
@@ -579,15 +774,15 @@ export class WaitPollGuard {
 	 * 将 `beforeToolCall` 拦截的空转调用归一化为非错误（`isError: false, useless: true`）且附带结构化 `waitPollGuard` 元数据。
 	 */
 	afterToolCall(ctx: AfterToolCallContext): AfterToolCallResult | undefined {
-		if (ctx.toolCall.name === "wait") {
-			this.recordWaitInvocation();
-			return undefined;
-		}
+		// `wait` normally settles on its own; it only reaches the normalization
+		// path when the batch was intercepted before dispatch (e.g. a declared
+		// stop), so the intercept map must be consulted before the early return.
+		const intercepted = this.#interceptedByToolCallId.get(ctx.toolCall.id);
+		if (ctx.toolCall.name === "wait") this.recordWaitInvocation();
 		const existingDetails =
 			ctx.result.details && typeof ctx.result.details === "object"
 				? (ctx.result.details as Record<string, unknown>)
 				: {};
-		const intercepted = this.#interceptedByToolCallId.get(ctx.toolCall.id);
 		if (!intercepted) {
 			if (extractWaitPollGuardMeta(existingDetails)) {
 				return { isError: false, useless: true };
@@ -599,7 +794,9 @@ export class WaitPollGuard {
 			content: [{ type: "text", text: intercepted.reason }],
 			details: {
 				...existingDetails,
-				...(intercepted.kind === "noop_bash" ? { unexecuted: true } : {}),
+				...(intercepted.kind === "noop_bash" || intercepted.kind === "turn_stop_declared"
+					? { unexecuted: true }
+					: {}),
 				blockedReason: intercepted.reason,
 				guidance: intercepted.guidance,
 				waitPollGuard: intercepted,

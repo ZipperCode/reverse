@@ -336,7 +336,31 @@ export class ExtensionToolWrapper<TParameters extends TSchema = TSchema, TDetail
 				context,
 			);
 			if (preflight?.block) {
-				throw new Error(preflight.reason || "Tool execution was blocked by a preflight rule");
+				const reason = preflight.reason || "Tool execution was blocked by a preflight rule";
+				// A bridged before-hook can block after recording state its after-hook folds into the
+				// result — `wait`/`bash` no-op normalization (`useless: true`), a prerequisite
+				// constraint's structured `sourceFile`/`sourceLine`, TTSR interrupt bookkeeping.
+				// Throwing straight away would strand that state and drop the provenance. The tool
+				// itself never runs, so the after-hook sees an explicit `isError` result for a call
+				// that executed nothing; when it supplies a normalization, that result is returned
+				// instead of an exception. Without one the block stays a throw, exactly as before.
+				const blockedResult: AgentToolResult<TDetails, TParameters> = {
+					content: [{ type: "text", text: reason }],
+					details: undefined as TDetails,
+					isError: true,
+				};
+				let postflight: AgentToolResult | undefined;
+				try {
+					postflight = await this.runner.runToolCallPreflightAfter?.(toolCallId, blockedResult, context);
+				} catch (err) {
+					// The runner's after-hook never settled this id, so clear any state the
+					// before-hook recorded instead of leaving it keyed to a call that is gone.
+					cancelPreflight();
+					throw err;
+				}
+				if (postflight) return postflight as AgentToolResult<TDetails, TParameters>;
+				cancelPreflight();
+				throw new Error(reason);
 			}
 		}
 

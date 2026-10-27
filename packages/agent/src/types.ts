@@ -587,8 +587,12 @@ export interface AgentLoopConfig extends SimpleStreamOptions {
 	 * `tool_execution_start`, and `tool.execute`. On the streamed path it runs
 	 * before the assistant message's `message_start`/`message_end` are emitted.
 	 *
-	 * Return `{ block: true }` to prevent execution. The loop emits an error tool
-	 * result instead (using `reason` as the error text, or a default if omitted).
+	 * Return `{ block: true }` to prevent execution. The loop emits a tool result
+	 * instead (using `reason` as its text, or a default if omitted) and, for
+	 * blocked calls only, publishes no `tool_execution_start`, so raw execution
+	 * counts match real attempts. Return `{ block: true, stopTurn: true }` to
+	 * additionally leave the whole batch unexecuted and yield the turn without
+	 * another model request — see {@link BeforeToolCallResult.stopTurn}.
 	 *
 	 * Return `{ args }` to replace the arguments the call runs with. The
 	 * replacement is revalidated against the tool schema and written back to the
@@ -919,6 +923,19 @@ export interface BeforeToolCallResult {
 	reason?: string;
 	args?: Record<string, unknown>;
 	additionalContext?: string;
+	/**
+	 * With `block: true`, ends the whole tool batch and the turn: every call in
+	 * the batch is recorded as an unexecuted blocked result — no
+	 * `tool_execution_start`, no `tool.execute` — and the loop yields after
+	 * `onTurnEnd` instead of requesting another model response.
+	 *
+	 * Used when the assistant message itself already declared the turn
+	 * finished (for example while background work the caller started is still
+	 * pending), so the declaration cannot be overridden by the tool calls in
+	 * the same response. Plain `block: true` keeps its existing per-call
+	 * semantics and still lets the model answer the blocked result.
+	 */
+	stopTurn?: boolean;
 }
 
 /**

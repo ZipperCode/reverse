@@ -42,6 +42,10 @@ elf_inspect({ action: "status" })
 
 确定性的 `missing_module` / `missing_interpreter` 会记录到当前会话的依赖门禁。解释器、环境变量与候选 site-packages 指纹不变时，后续调用直接返回 `blocked_prerequisite`，保留原始 `sourceToolCallId` / `sourceEntryId` 与安装命令，避免反复启动失败探针。并发调用共享一次探测；环境改变或显式 `status` 复查会重新验证。探针启动异常或超时单独返回 `probe_failed`，不会误报为已确认缺包。
 
+当前分支的 handoff 与上下文笔记可声明明确的安装前置约束，例如 ``Do not repeat `elf_inspect` on libc without installing its missing LIEF prerequisite.``。AgentSession 原生及 `xd://` / eval 桥接预检将目录中已知工具与依赖绑定；确认依赖缺失时返回 `prerequisiteConstraint`，保留 `sourceKind`、`sourceFile`、`sourceLine`、安装命令及 `unexecuted`。同类约束也适用于 Triton、radare2 等目录依赖；恢复检查操作仍可执行，依赖就绪后解除拦截。
+
+物理 `文件:行` 来源要求交接记录明确链接到本会话 artifacts 内的文档，且文档与已提交摘要一致；没有保存文件时使用明确标记的 `handoff://<entryId>` / `context-notes://<entryId>` 逻辑来源。代码块、引用、示例与历史转述不是生效约束；用户文件和工具结果不参与约束导入。`/clear` 的 reset boundary 之前的约束停止生效。
+
 ## 调用示例
 
 ### 1. 深度查询构造函数 (`constructors`)
