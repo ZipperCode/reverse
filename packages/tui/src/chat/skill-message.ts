@@ -1,4 +1,3 @@
-import { pathToFileURL } from "node:url";
 import type { TextContent } from "@reverse/ai";
 import { type Component } from "../tui";
 import { Box } from "../components/box";
@@ -11,11 +10,12 @@ import { getMarkdownTheme, theme } from "../theme";
 import type { MouseRoutable, SgrMouseEvent } from "../mouse";
 import type { CustomMessage, SkillPromptDetails } from "./messages";
 import { fileHyperlink } from "../render";
+import { tryFileUri } from "../render/hyperlink";
 import { collapseSkillTokens, skillChipLabel, skillChipStyle, skillToken } from "../prompt/composer-attachments";
 import { type UserBubbleOptions, UserMessageComponent, userBubbleColor } from "./user-message";
 import type { TspSpan } from "@reverse/wire";
-import { card, md, node, span, text } from "../native/describe";
-import { type NativeChild, type NativeNode, type NativeUiEvent, rootToggleExpanded } from "../native/node";
+import { card, md, node, span } from "../native/describe";
+import { type NativeChild, type NativeNode, type NativeUiEvent } from "../native/node";
 import { Memo } from "../native/memo";
 
 /**
@@ -100,15 +100,13 @@ export class SkillMessageComponent extends Container implements MouseRoutable {
 	}
 
 	handleNativeEvent(event: NativeUiEvent): void {
-		const expanded = rootToggleExpanded(event);
-		if (expanded !== undefined) this.setExpanded(expanded);
+		if (event.type === "toggle" && event.key === "prompt") this.setExpanded(!event.collapsed);
 	}
 
 	/**
-	 * A user-toned card (role `reverse.skill`): the skill chip (linked to its
-	 * SKILL.md) and prompt size in the head, the user's draft as markdown, and
-	 * the loaded skill prompt, described only while expanded because it can
-	 * be large.
+	 * A user-toned card (role `reverse.skill`): the skill chip and prompt size in
+	 * the head, the user's draft always visible, and only the loaded skill
+	 * prompt behind a disclosure.
 	 */
 	override describe(): NativeNode {
 		return this.#native.get([this.#expanded], () => {
@@ -125,11 +123,7 @@ export class SkillMessageComponent extends Container implements MouseRoutable {
 			const leading = display.startsWith(label) && /^\s*$/.test(display.charAt(label.length));
 			const draft = leading ? display.slice(label.length).trim() : display;
 			const head: TspSpan[] = [
-				span(
-					label,
-					"customMessageLabel strong",
-					details?.path ? { href: pathToFileURL(details.path).href } : undefined,
-				),
+				span(label, "customMessageLabel strong", details?.path ? { href: tryFileUri(details.path) } : undefined),
 			];
 			if (typeof details?.lineCount === "number") {
 				head.push(span(`  ${details.lineCount} ${details.lineCount === 1 ? "line" : "lines"}`, "muted"));
@@ -137,20 +131,20 @@ export class SkillMessageComponent extends Container implements MouseRoutable {
 			const children: NativeChild[] = [];
 			if (draft) children.push(md(draft));
 			const promptText = this.#expanded ? this.#extractText() : "";
-			if (promptText) {
-				children.push(
-					node(
-						"section",
-						{ head: [span("prompt", "muted")], role: "reverse.skill.prompt" },
-						[md(promptText)],
-						"prompt",
-					),
-				);
-			}
-			return card(
-				{ role: "reverse.skill", tone: "user", head, collapsible: true, collapsed: !this.#expanded },
-				children.length > 0 ? children : [text([span(label, "muted")])],
+			children.push(
+				node(
+					"section",
+					{
+						head: [span("prompt", "muted")],
+						role: "reverse.skill.prompt",
+						collapsible: true,
+						collapsed: !this.#expanded,
+					},
+					promptText ? [md(promptText)] : [],
+					"prompt",
+				),
 			);
+			return card({ role: "reverse.skill", tone: "user", head }, children);
 		});
 	}
 

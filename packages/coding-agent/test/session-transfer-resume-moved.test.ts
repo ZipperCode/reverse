@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { parseArgs } from "@reverse/coding-agent/cli/args";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { createSessionManager } from "@reverse/coding-agent/main";
-import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { closeSessionIndex } from "@reverse/coding-agent/session/session-index";
 import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
@@ -30,7 +30,7 @@ describe("resuming a session that moved away", () => {
 	});
 
 	afterEach(async () => {
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		if (originalAgentDir) {
 			setAgentDir(originalAgentDir);
 		} else {

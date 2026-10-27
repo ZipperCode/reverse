@@ -53,6 +53,17 @@ describe("TritonAnalyzeTool plan mode and approval gates", () => {
 
 		const statusRes = await tool.execute("call-2", { action: "status" });
 		expect(statusRes.details.action).toBe("status");
+		if (!hasTriton) {
+			expect(statusRes.details.installed).toBe(false);
+			await expect(tool.execute("call-3", { action: "arch_info", arch: "aarch64" })).rejects.toThrow(
+				/Triton is not installed or configured in this environment/,
+			);
+		}
+	});
+
+	it.skipIf(!hasTriton)("permits arch_info action under plan mode when Triton is installed", async () => {
+		const session = createMockSession(tempDir, { planMode: true });
+		const tool = new TritonAnalyzeTool(session);
 
 		const archRes = await tool.execute("call-3", { action: "arch_info", arch: "aarch64" });
 		expect(archRes.details.action).toBe("arch_info");

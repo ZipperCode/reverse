@@ -2,8 +2,8 @@ import type { SettingTranslation } from "../../types";
 
 export const tasksSettingsZhCN: Record<string, SettingTranslation> = {
 	"task.isolation.enabled": {
-		label: "隔离子代理",
-		description: "在检出的隔离副本中运行子代理，之后再整合它们的更改",
+		label: "允许隔离子代理",
+		description: "允许通过 `isolated: true` 按任务隔离；未指定该选项的任务在共享检出中运行",
 	},
 	"isolation.backend": {
 		label: "隔离后端",

@@ -28,6 +28,7 @@ import { assumedTspHello, NativeBackend, type NativeHost } from "./native/backen
 import { col } from "./native/describe";
 import { TSP_PREFIX, type TspHello } from "./native/encode";
 import type { DescribeContext, NativeNode, NativeScreen, NativeSurfaceProvider, NativeUiEvent } from "./native/node";
+import { cropSixelTop } from "./sixel";
 import { STDOUT_BACKLOG_CLEAR_BYTES, setAltScreenActive, type Terminal } from "./terminal";
 import { classifyTerminalMultiplexerModule, terminalMultiplexerSessions } from "./terminal-multiplexer";
 import {
@@ -36,6 +37,8 @@ import {
 	encodeKittyDeleteImage,
 	encodeKittyDeletePlacement,
 	encodeKittyPlacementLine,
+	getCellDimensions,
+	getTerminalBackgroundColor,
 	ImageProtocol,
 	isImageProtocolForced,
 	isInsideTerminalMultiplexer,
@@ -45,7 +48,9 @@ import {
 	shouldEnableSynchronizedOutputByDefault,
 	synchronizedOutputUserOverride,
 	TERMINAL,
+	withDirectPlacementLift,
 } from "./terminal-capabilities";
+import { onTerminalBackgroundFallbackChange } from "./theme/theme";
 import { compositeLineAt } from "./render/composite";
 import { tmuxMultiplexer } from "./multiplexers/tmux";
 import {
@@ -105,6 +110,11 @@ const PAINT_END_NO_SYNC = ENABLE_AUTOWRAP;
 // native text selection.
 const MOUSE_TRACKING_ON = "\x1b[?1000h\x1b[?1003h\x1b[?1006h";
 const MOUSE_TRACKING_OFF = "\x1b[?1006l\x1b[?1003l\x1b[?1000l";
+// Cell-size replies: CSI 6 ; height ; width t in pixels, and iTerm2's
+// OSC 1337 ; ReportCellSize = height ; width [; scale] ST in points.
+const CELL_SIZE_REPLY = /^\x1b\[6;(\d+);(\d+)t$/;
+const ITERM2_CELL_SIZE_REPLY =
+	/^\x1b\]1337;ReportCellSize=(\d+(?:\.\d+)?);(\d+(?:\.\d+)?)(?:;(\d+(?:\.\d+)?))?(?:\x07|\x1b\\)$/;
 
 type MouseTrackingState = "off" | "inline" | "full";
 
@@ -997,6 +1007,8 @@ export class TUI extends Container {
 	#screenImagePlacements = new Map<number, LiveImagePlacement>();
 	#altImagePlacements = new Map<number, LiveImagePlacement>();
 	#nextImagePlacementId = 1;
+	/** Last top-clipped SIXEL crop; only the block straddling row 0 is ever cropped. */
+	#sixelCrop: { source: string; pixels: number; maxHeightPixels: number; output: string } | undefined;
 	#ghosttyInitialImageDelayDone = false;
 	#ghosttyInitialImageDelayTimer: RenderTimer | undefined;
 	#ghosttyImageReadyAtMs = 0;
@@ -1007,6 +1019,7 @@ export class TUI extends Container {
 	#forceViewportRepaintOnNextRender = false;
 	#hasEverRendered = false;
 	#stopped = false;
+	#appearanceReportUnsubscribe: (() => void) | undefined;
 	#cancelPostmortemRestore?: () => void;
 	/** True between a `deferInput` start() and enableInput(). */
 	#inputDeferred = false;
@@ -1478,6 +1491,34 @@ export class TUI extends Container {
 
 	start(options?: TUIStartOptions): void {
 		this.#stopped = false;
+		this.#appearanceReportUnsubscribe?.();
+		let backgroundRgb: number | undefined;
+		let subscribed = true;
+		const repaintForBackgroundChange = () => {
+			if (!subscribed || this.#stopped) return;
+			const nextBackgroundRgb = getTerminalBackgroundColor();
+			// Track RGB before the SIXEL guard: the startup OSC 11 reply usually
+			// arrives before DA1 enables SIXEL, so revisiting the same color once
+			// SIXEL is live must not replay identical rows.
+			if (nextBackgroundRgb === backgroundRgb) return;
+			backgroundRgb = nextBackgroundRgb;
+			if (TERMINAL.imageProtocol !== ImageProtocol.Sixel) return;
+			// Track RGB even during optimistic native ownership: fallback paints
+			// with the latest color, so a later return to the startup RGB must repaint.
+			// Never write rows while the native surface still owns rendering.
+			if (this.#nativeLive) return;
+			this.invalidate();
+			// Match theme changes: replay owned history on direct terminals, but
+			// leave multiplexer scrollback intact and repaint only the viewport.
+			this.requestRender(true, { clearScrollback: !isInsideTerminalMultiplexer() });
+		};
+		const unsubscribe = this.terminal.onAppearanceReport?.(repaintForBackgroundChange);
+		const unsubscribeFallback = onTerminalBackgroundFallbackChange(repaintForBackgroundChange);
+		this.#appearanceReportUnsubscribe = () => {
+			subscribed = false;
+			unsubscribe?.();
+			unsubscribeFallback();
+		};
 		this.#debugPaint = undefined;
 		this.#debugServer?.stop();
 		this.#debugServer = undefined;
@@ -1605,6 +1646,9 @@ export class TUI extends Container {
 			() => this.stop(),
 			{ deferInput: this.#inputDeferred, isLoopStalled: () => this.#watchdog.isStalled() },
 		);
+		// ProcessTerminal.start() resets the previous owner's RGB. Seed only
+		// after that reset so an identical OSC 11 reply still repaints fallback rows.
+		backgroundRgb = TERMINAL.imageProtocol === ImageProtocol.Sixel ? getTerminalBackgroundColor() : undefined;
 		if (this.#stopped) return;
 		this.#cancelPostmortemRestore?.();
 		this.#cancelPostmortemRestore = postmortem.register("tui-restore", () => this.stop());
@@ -2528,6 +2572,9 @@ export class TUI extends Container {
 		// Query terminal for cell size in pixels: CSI 16 t
 		// Response format: CSI 6 ; height ; width t
 		this.terminal.write("\x1b[16t");
+		// iTerm2 never answers CSI 16 t. Without a size, rows reserved for an image
+		// and crops of a partly scrolled one assume 9x18 cells and land offset.
+		if (TERMINAL.imageProtocol === ImageProtocol.Iterm2) this.terminal.write("\x1b]1337;ReportCellSize\x1b\\");
 	}
 
 	/**
@@ -2580,6 +2627,8 @@ export class TUI extends Container {
 	}
 
 	stop(): void {
+		this.#appearanceReportUnsubscribe?.();
+		this.#appearanceReportUnsubscribe = undefined;
 		this.#cancelPostmortemRestore?.();
 		this.#cancelPostmortemRestore = undefined;
 		this.#debugServer?.stop();
@@ -3015,14 +3064,19 @@ export class TUI extends Container {
 	}
 
 	#consumeCellSizeResponse(data: string): boolean {
-		// Response format: ESC [ 6 ; height ; width t
-		const match = data.match(/^\x1b\[6;(\d+);(\d+)t$/);
-		if (!match) {
-			return false;
+		let heightPx: number;
+		let widthPx: number;
+		const pixels = CELL_SIZE_REPLY.exec(data);
+		if (pixels) {
+			heightPx = parseInt(pixels[1], 10);
+			widthPx = parseInt(pixels[2], 10);
+		} else {
+			const points = ITERM2_CELL_SIZE_REPLY.exec(data);
+			if (!points) return false;
+			const scale = points[3] ? Number(points[3]) : 1;
+			heightPx = Math.round(Number(points[1]) * scale);
+			widthPx = Math.round(Number(points[2]) * scale);
 		}
-
-		const heightPx = parseInt(match[1], 10);
-		const widthPx = parseInt(match[2], 10);
 		if (heightPx <= 0 || widthPx <= 0) {
 			return true;
 		}
@@ -3238,21 +3292,42 @@ export class TUI extends Container {
 	}
 
 	/**
-	 * Clip a Kitty direct placement and record its live owner; history
-	 * placements have no mutable owner. Other direct placements (SIXEL,
-	 * iTerm2) have no delete command and composite over whatever pixels they
-	 * land on, so the rows they paint above `screenRow` are erased first.
+	 * Clip direct placements to the visible source slice: Kitty tracks a live
+	 * placement owner, while SIXEL crops the encoded raster. An iTerm2 image
+	 * or a Kitty transmit-and-display image cannot be cropped, so a block
+	 * clipped at the top is omitted rather than painted over following text.
+	 * SIXEL and iTerm2 have no delete command and composite over existing
+	 * pixels, so erase the visible rows they paint above the line before repainting.
+	 *
+	 * `frameRow` is the line's row within the frame it was rendered in, so at
+	 * most that many rows above it belong to its image block. A viewport whose
+	 * top clips a block sits below history rows on screen; bounding the lift by
+	 * the physical row instead would erase and paint over those history rows
+	 * just before they scroll into native scrollback.
 	 */
 	#imageLineSequence(
 		line: string,
-		screenRow: number,
+		frameRow: number,
 		placements: Map<number, LiveImagePlacement> | undefined,
 		placementRow: number,
 	): string {
-		if (screenRow < 0) return line;
+		if (frameRow < 0) return line;
 		const parsed = parseKittyDirectPlacementLine(line);
 		if (!parsed) {
-			const lift = Math.min(directPlacementLift(line), screenRow);
+			const requestedLift = directPlacementLift(line);
+			const lift = Math.min(requestedLift, frameRow);
+			if (requestedLift > lift) {
+				const cellHeight = getCellDimensions().heightPx;
+				const cropPixels = Math.round((requestedLift - lift) * cellHeight);
+				const maxHeightPixels = Math.floor((frameRow + 1) * cellHeight);
+				const clipped = line.replace(/\x1bP[0-9;]*q[\s\S]*?\x1b\\/g, sequence =>
+					this.#cropSixel(sequence, cropPixels, maxHeightPixels),
+				);
+				// Re-anchoring an uncropped OSC/APC image would paint its hidden
+				// rows below the reserved slice, over the following text.
+				if (clipped === line) return "";
+				line = withDirectPlacementLift(clipped, lift);
+			}
 			return lift > 0 ? `\x1b[${lift}A${`${ERASE_LINE}\x1b[B`.repeat(lift)}${line}` : line;
 		}
 		const previous = placements?.get(placementRow);
@@ -3266,10 +3341,36 @@ export class TUI extends Container {
 				placementId,
 				columns: parsed.columns,
 				rows: parsed.rows,
-				screenRow,
+				screenRow: frameRow,
 				imageHeightPx: this.#imageBudget.getPlacementGeometry(parsed.imageId)?.heightPx ?? 0,
 			})
 		);
+	}
+
+	/**
+	 * Crop a SIXEL raster whose top rows lie above the viewport. A raster the
+	 * cropper cannot parse is dropped: painting it whole would overwrite the
+	 * rows below the visible slice.
+	 */
+	#cropSixel(source: string, pixels: number, maxHeightPixels: number): string {
+		const cached = this.#sixelCrop;
+		if (
+			cached !== undefined &&
+			cached.pixels === pixels &&
+			cached.maxHeightPixels === maxHeightPixels &&
+			cached.source === source
+		) {
+			return cached.output;
+		}
+		let output: string;
+		try {
+			output = cropSixelTop(source, pixels, maxHeightPixels);
+		} catch (err) {
+			logger.warn("Dropping top-clipped SIXEL image that cannot be cropped", { err });
+			output = "";
+		}
+		this.#sixelCrop = { source, pixels, maxHeightPixels, output };
+		return output;
 	}
 
 	#terminalLine(line: PreparedLine): string {
@@ -3593,9 +3694,9 @@ export class TUI extends Container {
 				buffer += `\x1b[${newTop + index + 1};1H${this.#lineRewriteSequence(
 					current,
 					width,
-					newTop + index,
+					index,
 					this.#osc66SpacerGlyphWidth(prepared.lines, index),
-					{ imagePlacements: this.#screenImagePlacements },
+					{ imagePlacements: this.#screenImagePlacements, imageRow: newTop + index },
 				)}`;
 			}
 			if (this.#providerWindow.length > rows && newTop + rows < height) {
@@ -3628,15 +3729,18 @@ export class TUI extends Container {
 			}
 			for (let index = 0; index < rows; index++) {
 				if (screenRow > startTop) buffer += "\n";
+				// Replay-split rows continue the history ledger written above them;
+				// the provider's own rows reach no higher than its viewport top.
+				const moved = index < replayViewportRows;
 				append(
 					this.#lineRewriteSequence(
 						prepared.rows[index]!,
 						width,
-						Math.min(screenRow, height - 1),
+						moved ? Math.min(screenRow, height - 1) : index,
 						this.#osc66SpacerGlyphWidth(prepared.lines, index),
 						{
 							blankRow: compactReplay,
-							imagePlacements: index < replayViewportRows ? undefined : this.#screenImagePlacements,
+							imagePlacements: moved ? undefined : this.#screenImagePlacements,
 							imageRow: newTop + index,
 						},
 					),
@@ -4255,10 +4359,15 @@ export class TUI extends Container {
 		);
 	}
 
+	/**
+	 * Terminal bytes that rewrite one row. `frameRow` is the row's index within
+	 * the frame it belongs to (see {@link #imageLineSequence}); `imageRow`, the
+	 * physical row keying live Kitty placements, defaults to it.
+	 */
 	#lineRewriteSequence(
 		line: PreparedLine,
 		width: number,
-		screenRow = -1,
+		frameRow = -1,
 		spacerGlyphWidth = -1,
 		options?: { blankRow?: boolean; imagePlacements?: Map<number, LiveImagePlacement>; imageRow?: number },
 	): string {
@@ -4279,7 +4388,7 @@ export class TUI extends Container {
 		} else if (line.isImage) {
 			rewrite =
 				ERASE_LINE +
-				this.#imageLineSequence(line.line, screenRow, options?.imagePlacements, options?.imageRow ?? screenRow);
+				this.#imageLineSequence(line.line, frameRow, options?.imagePlacements, options?.imageRow ?? frameRow);
 		} else {
 			const terminalLine = this.#terminalLine(line);
 			if (options?.blankRow) {

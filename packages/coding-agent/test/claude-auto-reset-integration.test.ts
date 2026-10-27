@@ -3,6 +3,7 @@ import { Agent } from "@reverse/agent";
 import type { ResetCreditAccountStatus, ResetCreditTarget, SessionRestrictionLease, UsageReport } from "@reverse/ai";
 import { createMockModel } from "@reverse/ai/providers/mock";
 import * as envApiKey from "@reverse/ai/env-api-key";
+import { closeModelCache } from "@reverse/catalog/model-cache";
 import { getBundledModel } from "@reverse/catalog/models";
 import { runUsageCommand } from "@reverse/coding-agent/cli/usage-cli";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
@@ -760,6 +761,8 @@ describe("Claude saved-reset trigger integration", () => {
 				else process.env[key] = value;
 			}
 			__resetDirsFromEnvForTests();
+			// The CLI's ModelRegistry opened `<agentDir>/models.db`; Windows cannot delete it while open.
+			closeModelCache();
 		}
 	});
 

@@ -52,9 +52,13 @@ if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 	process.exit(1);
 }
 
-try {
-	process.title = APP_NAME;
-} catch {}
+// On Windows `process.title` is the shared console title, not a process name
+// (see `setProcessName`): every reverse child would retitle the pane's tab.
+if (process.platform !== "win32") {
+	try {
+		process.title = APP_NAME;
+	} catch {}
+}
 
 // `Bun.build`-API compiled Windows executables report `import.meta.main ===
 // false`: the standalone loader keys the entry module with native backslashes
@@ -84,6 +88,7 @@ const PREPAINT_SAFE_FLAGS: Record<string, true> = {
 	"--no-extensions": true,
 	"--no-skills": true,
 	"--no-rules": true,
+	"--no-context-files": true,
 	"--no-tools": true,
 	"--no-lsp": true,
 	"--no-title": true,
@@ -114,10 +119,12 @@ async function installNetworkBootstrap(): Promise<void> {
 async function showHelp(config: CliConfig<CommandMetadata>): Promise<void> {
 	// Root help historically loads the selected profile's environment. The
 	// lazily loaded help module imports it statically after profile bootstrap.
-	const [{ renderRootHelp }, { getExtraHelpText }] = await Promise.all([
+	const [{ renderRootHelp }, { getExtraHelpText }, { loadEffectiveSettings }] = await Promise.all([
 		import("@reverse/utils/cli"),
 		import("./cli/help-extra"),
+		import("./config/persisted-locale"),
 	]);
+	await loadEffectiveSettings();
 	renderRootHelp(config);
 	const extra = getExtraHelpText();
 	if (extra.trim().length > 0) {
@@ -548,9 +555,6 @@ export async function runCli(argv: string[]): Promise<void> {
 		await runSmokeTest();
 		return;
 	}
-	// Apply persisted reverse toolchain environment (JAVA_HOME, REVERSE_TOOL_PATHS) after worker dispatch
-	const { applyPersistedReverseEnvironment } = await import("./extensibility/reverse-tool-install");
-	applyPersistedReverseEnvironment();
 
 	try {
 		const [{ run }, { commands, resolveCliArgv }] = await Promise.all([
@@ -566,6 +570,20 @@ export async function runCli(argv: string[]): Promise<void> {
 			return;
 		}
 		runningCommand = resolved.argv[0];
+		const isMetadataOnly =
+			helpOrVersion ||
+			runningCommand === "--help" ||
+			runningCommand === "-h" ||
+			runningCommand === "--version" ||
+			runningCommand === "-v" ||
+			runningCommand === "help" ||
+			runningCommand === "" ||
+			resolved.argv.slice(1).some(arg => arg === "--help" || arg === "-h");
+		if (!isMetadataOnly) {
+			// Command boundary: keep help/version startup free of the reverse toolchain installer and native addon graph.
+			const { applyPersistedReverseEnvironment } = await import("./extensibility/reverse-tool-install");
+			applyPersistedReverseEnvironment();
+		}
 		await run({ bin: APP_NAME, version: VERSION, argv: resolved.argv, commands, metadataHelp: showHelp });
 	} finally {
 		stopStartupComposer?.();

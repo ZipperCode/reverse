@@ -42,7 +42,7 @@ export const cfgPowerSleepPrevention = register({
 		group: "Power",
 		label: "Sleep Prevention",
 		description:
-			"Prevent the system sleeping during active sessions. Each level is cumulative — it adds the flags of all lower levels.",
+			"Prevent the system sleeping while the agent is running a turn; an idle session, including one waiting on background jobs, does not hold it. Each level is cumulative — it adds the flags of all lower levels.",
 		options: [
 			{
 				value: "off",
@@ -52,7 +52,7 @@ export const cfgPowerSleepPrevention = register({
 			{
 				value: "idle",
 				label: "Prevent Idle Sleep",
-				description: "Keep the system awake while a session is open (macOS `caffeinate -i`)",
+				description: "Keep the system awake while the agent is running a turn (macOS `caffeinate -i`)",
 			},
 			{
 				value: "display",
@@ -79,6 +79,46 @@ export const cfgPrewalkEnabled = register({
 		label: "Enable Prewalk",
 		description:
 			"Start on the active model, then switch to a fast/cheap model (default the 'smol' role) at the first edit/write after the plan nudge's todo list exists — the strong model plans, commits the todos, and starts the implementation before handing off. Overridable per session with --prewalk / --no-prewalk.",
+	},
+});
+
+export const cfgPrewalkAuto = register({
+	id: "prewalk.auto",
+	type: "enum",
+	values: ["off", "suggest", "on"] as const,
+	default: "off",
+	ui: {
+		tab: "model",
+		group: "Prewalk",
+		label: "Auto Prewalk",
+		description:
+			"Ask the native judge resolved through the 'judge' role whether each new top-level user task front-loads its hard reasoning. Needs a native judge; without one nothing is classified. Independent of Enable Prewalk.",
+		options: [
+			{ value: "off", label: "Off", description: "Never classify prompts for prewalk" },
+			{
+				value: "suggest",
+				label: "Suggest",
+				description: "Classify each task and report the decision without arming prewalk",
+			},
+			{
+				value: "on",
+				label: "On",
+				description:
+					"For confidently front-loaded tasks, arm a handoff from the active model to the auto target; the next task starts back on the planning model",
+			},
+		],
+	},
+});
+
+export const cfgPrewalkAutoTarget = register({
+	id: "prewalk.autoTarget",
+	type: "string",
+	default: "@smol",
+	ui: {
+		tab: "model",
+		group: "Prewalk",
+		label: "Auto-prewalk target",
+		description: "Model or role (default '@smol') auto-prewalk hands off to at the first edit/write.",
 	},
 });
 
@@ -1126,8 +1166,9 @@ export const cfgProvidersCacheRetention = register({
 			},
 			{
 				value: "long",
-				label: "Long (1h)",
-				description: "1h TTL where the provider supports it; pricier writes, only warmed during active runs",
+				label: "Long (1h+)",
+				description:
+					"Longer TTL where supported (Anthropic/Bedrock 1h, OpenAI GPT-5.6+ Responses 12h); pricier writes, only warmed during active runs",
 			},
 			{ value: "none", label: "Off", description: "Disable prompt caching and cache-affinity routing" },
 		],
@@ -1439,4 +1480,28 @@ export const cfgThinkingBudgets = combine({
 	high: cfgThinkingBudgetsHigh,
 	xhigh: cfgThinkingBudgetsXhigh,
 	max: cfgThinkingBudgetsMax,
+});
+
+/** Rejects a cost threshold that is not a positive USD amount. */
+function validateCostThreshold(id: string): (raw: unknown) => void {
+	return raw => {
+		if (raw === undefined || raw === null || (typeof raw === "number" && Number.isFinite(raw) && raw > 0)) return;
+		throw new Error(`Invalid ${id}: expected a positive USD amount, got ${Bun.inspect(raw)}.`);
+	};
+}
+
+/** Session-tree spend (USD) at which reverse warns once; `--warn-cost` overrides it for one run. */
+export const cfgSessionWarnCost = register({
+	id: "session.warnCost",
+	type: "number",
+	default: undefined,
+	validate: validateCostThreshold("session.warnCost"),
+});
+
+/** Session-tree spend (USD) at which reverse stops sending model requests; `--max-cost` overrides it for one run. */
+export const cfgSessionMaxCost = register({
+	id: "session.maxCost",
+	type: "number",
+	default: undefined,
+	validate: validateCostThreshold("session.maxCost"),
 });

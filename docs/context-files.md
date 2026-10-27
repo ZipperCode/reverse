@@ -21,8 +21,8 @@ The native provider is the recommended format for new projects. It reads from yo
 
 | File                                          | Scope   | Behavior                                                                                                                                                                                                                                             |
 | --------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `~/.reverse/agent/AGENTS.md`                      | User    | User-level context for every session unless the `native` provider is disabled.                                                                                                                                                                       |
-| `<nearest-non-empty-ancestor>/.reverse/AGENTS.md` | Project | Project context, but only when `AGENTS.md` exists in the **nearest non-empty `.reverse/` directory** found while walking from cwd toward the repository root. reverse does not continue to a farther `.reverse/` directory when the nearest one lacks this file. |
+| `~/.reverse/agent/AGENTS.md`                      | User    | User-level context unless the `native` provider is disabled. Main sessions and advisors receive it; task subagents do not, including when they rediscover additional workspace roots. See [Inputs by session type](system-prompt-customization.md#inputs-by-session-type). |
+| `<nearest-non-empty-ancestor>/.reverse/AGENTS.md` | Project | Project context, but only when `AGENTS.md` exists in the **nearest non-empty `.reverse/` directory** found while walking from cwd toward the repository root. reverse does not continue to a farther `.reverse/` directory when the nearest one lacks this file. Main sessions and advisors receive it; task subagents do not inherit it. |
 | `~/.reverse/agent/RULES.md`                       | User    | User-level sticky rule content. Loaded as an always-apply rule, not as a context file.                                                                                                                                                               |
 | `<nearest-non-empty-ancestor>/.reverse/RULES.md`  | Project | Project sticky content, but only when `RULES.md` exists in the same nearest non-empty `.reverse/` directory selected by the walk.                                                                                                                        |
 
@@ -50,7 +50,7 @@ Starting a session in `repo/packages/api`:
 - The native context file is `repo/packages/api/.reverse/AGENTS.md` (the nearest one). `repo/.reverse/AGENTS.md` is **not** also included.
 - Because `repo/packages/api/.reverse/` is the nearest non-empty native directory, project sticky content can only come from `repo/packages/api/.reverse/RULES.md`. If that file is absent, `repo/.reverse/RULES.md` is **not** used.
 
-Put broad, durable project background in `AGENTS.md`. Reserve `RULES.md` for short, hard requirements that must stay visible across long conversations.
+Put broad, durable project background in `AGENTS.md`. Reserve `RULES.md` for short, hard requirements that must stay visible across long conversations. Task subagents drop every context file named `AGENTS.md` — inherited from the parent or discovered for an additional workspace root — but still get `RULES.md`, so put anything helpers must follow in `RULES.md`. The filter is by file name only: `AGENTS.md` text pulled in through an `@` import from another file (such as `CLAUDE.md`) and `contextFiles.extra` files such as `AGENTS.local.md` still reach subagents.
 
 ## Other supported context conventions
 

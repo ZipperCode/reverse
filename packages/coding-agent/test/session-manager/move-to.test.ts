@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { SessionHeader } from "@reverse/coding-agent/session/session-entries";
 import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
-import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { closeSessionIndex } from "@reverse/coding-agent/session/session-index";
 import { resolveResumableSession } from "@reverse/coding-agent/session/session-listing";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { stripOuterDoubleQuotes } from "@reverse/coding-agent/tools/path-utils";
@@ -76,7 +76,7 @@ describe("SessionManager.moveTo", () => {
 
 	afterEach(async () => {
 		// Title changes open history.db under testAgentDir; Windows cannot delete an open file.
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		if (originalAgentDir) {
 			setAgentDir(originalAgentDir);
 		} else {

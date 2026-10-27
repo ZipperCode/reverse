@@ -1,8 +1,23 @@
-import { Args, type CommandMetadata, Flags } from "@reverse/utils/cli";
+import { Args, type CommandMetadata, type FlagDescriptor, Flags } from "@reverse/utils/cli";
 import { APP_NAME, CONFIG_DIR_NAME } from "@reverse/utils/dirs";
 import { formatKeyHint } from "@reverse/tui/key-hint-format";
 import { CLI_THINKING_LEVELS } from "@reverse/tui/thinking";
+import type * as PersistedLocale from "../config/persisted-locale";
 import { SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
+import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
+
+function localizedFlag<T extends FlagDescriptor>(flag: T, key: string): T {
+	const fallback = flag.description ?? "";
+	return Object.defineProperty(flag, "description", {
+		get() {
+			// 延后读取配置，避免启动阶段帮助元数据提前拉起默认 profile 环境。
+			const { getEffectiveLocale }: typeof PersistedLocale = require("../config/persisted-locale");
+			return getEffectiveLocale() === "zh-CN" ? (CLI_TRANSLATIONS_ZH_CN[key] ?? fallback) : fallback;
+		},
+		enumerable: true,
+		configurable: true,
+	});
+}
 
 export const launchHelp = {
 	description: "AI coding assistant",
@@ -29,7 +44,9 @@ export const launchHelp = {
 			description:
 				"Switch from the active model to a fast/cheap model at the first edit/write after the plan's todo list exists (default off; see prewalk.enabled)",
 		}),
-		"no-prewalk": Flags.boolean({ description: "Disable prewalk even if prewalk.enabled is set" }),
+		"no-prewalk": Flags.boolean({
+			description: "Disable prewalk, including prewalk.auto, even if prewalk.enabled is set",
+		}),
 		"prewalk-into": Flags.string({ description: 'Target model for prewalk (default the "smol" role)' }),
 		"plan-yolo": Flags.boolean({
 			description:
@@ -89,6 +106,13 @@ export const launchHelp = {
 		advisor: Flags.boolean({
 			description: "Enable the advisor runtime (passively reviews each turn and injects notes)",
 		}),
+		"wait-async": localizedFlag(
+			Flags.boolean({
+				description:
+					"Print mode: before exiting, wait for this run's background jobs and wake the session with each result (async.printWake); no time limit unless --max-time is set",
+			}),
+			"cli.launch.flag.wait-async",
+		),
 		"external-thinking": Flags.boolean({
 			description:
 				"Use a private scratchpad while disabling supported GPT, Claude, and Gemini reasoning (at your own risk: providers have flagged this request shape as abuse)",
@@ -105,6 +129,10 @@ export const launchHelp = {
 		"no-skills": Flags.boolean({ description: "Disable skills discovery and loading" }),
 		skills: Flags.string({ description: "Comma-separated glob patterns to filter skills (e.g., git-*,docker)" }),
 		"no-rules": Flags.boolean({ description: "Disable rules discovery and loading" }),
+		"no-context-files": localizedFlag(
+			Flags.boolean({ description: "Disable context files (AGENTS.md, CLAUDE.md, ...)" }),
+			"cli.launch.flag.no-context-files",
+		),
 		export: Flags.string({ description: "Export session file to HTML and exit" }),
 		"no-title": Flags.boolean({ description: "Disable title auto-generation" }),
 		"no-ui": Flags.boolean({
@@ -112,13 +140,26 @@ export const launchHelp = {
 		}),
 		"print-thoughts": Flags.boolean({ description: "Include thinking blocks in print mode text output" }),
 		"max-time": Flags.string({ description: "Stop the session after this duration (e.g., 600, 10m, 1h)" }),
+		"warn-cost": localizedFlag(
+			Flags.string({
+				description: "Warn once when the session's spend, subagents included, reaches this many USD",
+			}),
+			"cli.launch.flag.warn-cost",
+		),
+		"max-cost": localizedFlag(
+			Flags.string({
+				description:
+					"Stop sending model requests once the session's spend reaches this many USD; requests already in flight can finish past it (print mode exits 3)",
+			}),
+			"cli.launch.flag.max-cost",
+		),
 		"auto-approve": Flags.boolean({
 			aliases: ["yolo"],
 			description: "Auto-approve all tool calls (skip approval prompts)",
 		}),
 		"approval-mode": Flags.string({
-			options: ["always-ask", "write", "yolo"],
-			description: "Override tools.approvalMode for this session (always-ask|write|yolo)",
+			options: ["always-ask", "always-ask-cached", "write", "yolo"],
+			description: "Override tools.approvalMode for this session (always-ask|always-ask-cached|write|yolo)",
 		}),
 	},
 	examples: [

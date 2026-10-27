@@ -1,5 +1,4 @@
-import { MCP_TOOL_NAME_PREFIX } from "@reverse/tui/tools/mcp";
-import type { MCPToolDetails } from "@reverse/tui/tools/mcp";
+import { formatMCPProgress, MCP_TOOL_NAME_PREFIX, type MCPProgress, type MCPToolDetails } from "@reverse/tui/tools/mcp";
 /**
  * MCP to CustomTool bridge.
  *
@@ -20,6 +19,7 @@ import type {
 import { extractUriScheme } from "../internal-urls/parse";
 import { InternalUrlRouter } from "../internal-urls/router";
 import type { Theme } from "@reverse/tui/theme";
+import { formatApprovalArguments } from "../tools/approval";
 import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 import { recordMcpToolExecution, setMcpTargetBinding } from "../extensibility/capability-state";
@@ -28,6 +28,7 @@ import { formatMCPToolFailure, MCPTransportError } from "./errors";
 import { describeMCPCall, describeMCPResult, renderMCPCall, renderMCPResult } from "@reverse/tui/tools/mcp";
 import type {
 	MCPAuthChallenge,
+	MCPRequestOptions,
 	MCPServerConnection,
 	MCPToolCallParams,
 	MCPToolCallResult,
@@ -553,6 +554,63 @@ type MCPToolCallAttempt = {
 	error?: unknown;
 };
 
+/** Minimum spacing between one call's progress updates; a burst coalesces to its newest progress. */
+export const PROGRESS_UPDATE_INTERVAL_MS = 50;
+
+interface ProgressUpdater {
+	onProgress: NonNullable<MCPRequestOptions["onProgress"]>;
+	/** Stop updating once the call settles; a coalesced update still waiting is dropped. */
+	close(): void;
+}
+
+/**
+ * Turn a call's progress notifications into tool updates. The first progress
+ * shows immediately; progress inside the following interval waits and only
+ * the newest is shown when it ends. Heartbeats that repeat the displayed text
+ * (the same phase message) emit nothing.
+ */
+function progressUpdater(
+	onUpdate: AgentToolUpdateCallback<MCPToolDetails> | undefined,
+	serverName: string,
+	mcpToolName: string,
+	provider?: string,
+	providerName?: string,
+): ProgressUpdater | undefined {
+	if (!onUpdate) return undefined;
+	let lastText: string | undefined;
+	let waiting: MCPProgress | undefined;
+	let cooldown: NodeJS.Timeout | undefined;
+	let closed = false;
+	const show = (progress: MCPProgress) => {
+		const text = formatMCPProgress(progress);
+		if (text === lastText) return;
+		lastText = text;
+		onUpdate({
+			content: [{ type: "text", text }],
+			details: { serverName, mcpToolName, provider, providerName, progress },
+		});
+		cooldown = setTimeout(() => {
+			cooldown = undefined;
+			const next = waiting;
+			waiting = undefined;
+			if (next) show(next);
+		}, PROGRESS_UPDATE_INTERVAL_MS);
+	};
+	return {
+		onProgress: progress => {
+			if (closed) return;
+			if (cooldown) waiting = progress;
+			else show(progress);
+		},
+		close: () => {
+			closed = true;
+			clearTimeout(cooldown);
+			cooldown = undefined;
+			waiting = undefined;
+		},
+	};
+}
+
 function getMcpAuthChallenge(result: MCPToolCallResult): MCPAuthChallenge | undefined {
 	if (!result.isError) return undefined;
 	const values = result._meta?.["mcp/www_authenticate"];
@@ -567,8 +625,9 @@ async function callToolWithAuthRetry(
 	args: MCPToolArgs,
 	reconnect: MCPReconnect | undefined,
 	signal?: AbortSignal,
+	onProgress?: MCPRequestOptions["onProgress"],
 ): Promise<MCPToolCallAttempt> {
-	const result = await callTool(connection, toolName, args, { signal });
+	const result = await callTool(connection, toolName, args, { signal, onProgress });
 	const authChallenge = getMcpAuthChallenge(result);
 	if (!authChallenge || !reconnect) return { connection, result };
 
@@ -584,7 +643,7 @@ async function callToolWithAuthRetry(
 	try {
 		return {
 			connection: newConnection,
-			result: await callTool(newConnection, toolName, args, { signal }),
+			result: await callTool(newConnection, toolName, args, { signal, onProgress }),
 		};
 	} catch (error) {
 		rethrowIfAborted(error, signal);
@@ -894,6 +953,7 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 	 * explicit `false`; an omitted flag would leave nothing to preserve.
 	 */
 	readonly strict = false as const;
+	readonly formatApprovalDetails = formatApprovalArguments;
 
 	/** Create MCPTool instances for all tools from an MCP server connection */
 	static fromTools(connection: MCPServerConnection, tools: MCPToolDefinition[], reconnect?: MCPReconnect): MCPTool[] {
@@ -934,7 +994,7 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 	async execute(
 		_toolCallId: string,
 		params: unknown,
-		_onUpdate: AgentToolUpdateCallback<MCPToolDetails> | undefined,
+		onUpdate: AgentToolUpdateCallback<MCPToolDetails> | undefined,
 		_ctx: CustomToolContext,
 		signal?: AbortSignal,
 	): Promise<CustomToolResult<MCPToolDetails>> {
@@ -943,8 +1003,10 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		const args = await prepareOutboundArgs(params, this.tool.inputSchema, _ctx);
 		const provider = this.connection._source?.provider;
 		const providerName = this.connection._source?.providerName;
+		const progress = progressUpdater(onUpdate, this.connection.name, this.tool.name, provider, providerName);
+		const onProgress = progress?.onProgress;
 		try {
-			const outcome = await this.#executeInner(args, provider, providerName, signal);
+			const outcome = await this.#executeInner(args, provider, providerName, signal, onProgress);
 			recordExecutionOutcome(
 				this.connection.name,
 				this.tool.name,
@@ -964,22 +1026,26 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 				this.connection,
 			);
 			throw error;
+		} finally {
+			progress?.close();
 		}
 	}
 
 	async #executeInner(
-		args: Record<string, unknown> | undefined,
+		args: MCPToolArgs,
 		provider?: string,
 		providerName?: string,
 		signal?: AbortSignal,
+		onProgress?: MCPRequestOptions["onProgress"],
 	): Promise<{ result: CustomToolResult<MCPToolDetails>; connection: MCPServerConnection }> {
 		try {
 			const attempt = await callToolWithAuthRetry(
 				this.connection,
 				this.tool.name,
-				args ?? {},
+				args,
 				this.reconnect,
 				signal,
+				onProgress,
 			);
 			if (attempt.error !== undefined) {
 				return {
@@ -1020,7 +1086,7 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 					const retryProvider = newConn._source?.provider ?? provider;
 					const retryProviderName = newConn._source?.providerName ?? providerName;
 					try {
-						const result = await callTool(newConn, this.tool.name, args ?? {}, { signal });
+						const result = await callTool(newConn, this.tool.name, args, { signal, onProgress });
 						return {
 							result: buildResult(result, newConn.name, this.tool.name, retryProvider, retryProviderName),
 							connection: newConn,
@@ -1069,6 +1135,7 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 	readonly mergeCallAndResult = true;
 	/** See {@link MCPTool.strict}: MCP servers own validation, so stay non-strict. */
 	readonly strict = false as const;
+	readonly formatApprovalDetails = formatApprovalArguments;
 
 	readonly #fallbackProvider: string | undefined;
 	readonly #fallbackProviderName: string | undefined;
@@ -1122,7 +1189,7 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 	async execute(
 		_toolCallId: string,
 		params: unknown,
-		_onUpdate: AgentToolUpdateCallback<MCPToolDetails> | undefined,
+		onUpdate: AgentToolUpdateCallback<MCPToolDetails> | undefined,
 		_ctx: CustomToolContext,
 		signal?: AbortSignal,
 	): Promise<CustomToolResult<MCPToolDetails>> {
@@ -1131,8 +1198,10 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		const args = await prepareOutboundArgs(params, this.tool.inputSchema, _ctx);
 		const provider = this.#fallbackProvider;
 		const providerName = this.#fallbackProviderName;
+		const progress = progressUpdater(onUpdate, this.serverName, this.tool.name, provider, providerName);
+		const onProgress = progress?.onProgress;
 		try {
-			const outcome = await this.#executeInner(args, provider, providerName, signal);
+			const outcome = await this.#executeInner(args, provider, providerName, signal, onProgress);
 			recordExecutionOutcome(this.serverName, this.tool.name, args, outcome.result, sessionKey, outcome.connection);
 			return outcome.result;
 		} catch (error) {
@@ -1144,20 +1213,30 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 				sessionKey,
 			);
 			throw error;
+		} finally {
+			progress?.close();
 		}
 	}
 
 	async #executeInner(
-		args: Record<string, unknown> | undefined,
+		args: MCPToolArgs,
 		provider?: string,
 		providerName?: string,
 		signal?: AbortSignal,
+		onProgress?: MCPRequestOptions["onProgress"],
 	): Promise<{ result: CustomToolResult<MCPToolDetails>; connection?: MCPServerConnection }> {
 		try {
 			const connection = await untilAborted(signal, () => this.getConnection());
 			throwIfAborted(signal);
 			try {
-				const attempt = await callToolWithAuthRetry(connection, this.tool.name, args ?? {}, this.reconnect, signal);
+				const attempt = await callToolWithAuthRetry(
+					connection,
+					this.tool.name,
+					args,
+					this.reconnect,
+					signal,
+					onProgress,
+				);
 				if (attempt.error !== undefined) {
 					return {
 						result: buildErrorResult(
@@ -1200,7 +1279,7 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 						const retryProvider = newConn._source?.provider ?? provider;
 						const retryProviderName = newConn._source?.providerName ?? providerName;
 						try {
-							const result = await callTool(newConn, this.tool.name, args ?? {}, { signal });
+							const result = await callTool(newConn, this.tool.name, args, { signal, onProgress });
 							return {
 								result: buildResult(result, this.serverName, this.tool.name, retryProvider, retryProviderName),
 								connection: newConn,
@@ -1231,7 +1310,7 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 				const newConn = await reconnectWithAbort(this.reconnect, signal);
 				if (newConn) {
 					try {
-						const result = await callTool(newConn, this.tool.name, args ?? {}, { signal });
+						const result = await callTool(newConn, this.tool.name, args, { signal, onProgress });
 						return {
 							result: buildResult(
 								result,

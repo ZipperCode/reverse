@@ -4,6 +4,7 @@ import { Agent } from "@reverse/agent";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
 import { AgentSession } from "@reverse/coding-agent/session/agent-session";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
@@ -73,6 +74,30 @@ describe("InteractiveMode live settings", () => {
 		expect(effective.leftSegments).toEqual(["time", "model"]);
 		expect(effective.contextLine).toBe("off");
 		expect(mode.hideThinkingBlock).toBe(true);
+	});
+
+	it("coalesces restored agent registrations and renders their final state", async () => {
+		const sync = vi.spyOn(mode, "syncRunningSubagentBadge");
+		const badge = vi.spyOn(mode.statusLine, "setRunningSubagents");
+		const registry = AgentRegistry.global();
+		const ids = Array.from({ length: 100 }, (_, index) => `restore-burst-${index}`);
+		vi.useFakeTimers();
+		try {
+			for (const id of ids) {
+				registry.register({ id, displayName: id, kind: "sub", session: null, status: "running" });
+			}
+			expect(sync).not.toHaveBeenCalled();
+			vi.advanceTimersByTime(100);
+			expect(sync).toHaveBeenCalledTimes(1);
+			expect(badge.mock.calls.at(-1)?.[0]).toEqual(expect.arrayContaining(ids));
+			for (const id of ids) registry.unregister(id);
+			vi.advanceTimersByTime(100);
+			expect(sync).toHaveBeenCalledTimes(2);
+			expect(badge.mock.calls.at(-1)?.[0].some(id => ids.includes(id))).toBe(false);
+		} finally {
+			vi.useRealTimers();
+			for (const id of ids) registry.unregister(id);
+		}
 	});
 
 	it("keeps an explicitly configured unicode status bar after Glyph Protocol confirmation", async () => {

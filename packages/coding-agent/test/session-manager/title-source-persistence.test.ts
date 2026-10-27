@@ -8,7 +8,7 @@ import {
 	type SessionHeader,
 	TITLE_CHANGE_ENTRY_TYPE,
 } from "@reverse/coding-agent/session/session-entries";
-import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { closeSessionIndex } from "@reverse/coding-agent/session/session-index";
 import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { FileSessionStorage, type WriteTextAtomicOptions } from "@reverse/coding-agent/session/session-storage";
@@ -74,7 +74,7 @@ describe("session title source persistence", () => {
 
 	afterEach(() => {
 		// Title changes open history.db under testAgentDir; Windows cannot delete an open file.
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		if (originalAgentDir) {
 			setAgentDir(originalAgentDir);
 		} else {

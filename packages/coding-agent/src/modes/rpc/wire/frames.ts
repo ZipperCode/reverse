@@ -26,6 +26,10 @@ export const frameDefs = {
 			"model?": "string",
 			"httpStatus?": "number.integer",
 			retryable: doc("boolean", "Transient: resubmitting later may succeed (reverse's own retries are exhausted)."),
+			"code?": doc(
+				"'cost_cap'",
+				"`cost_cap`: the session reached `session.maxCost` (`--max-cost`) and reverse did not send the next request.",
+			),
 		},
 		'Failure detail of a `prompt_result` with `status: "error"`.',
 	),

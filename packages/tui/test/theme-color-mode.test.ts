@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import { describe, expect, it } from "bun:test";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@reverse/tui/terminal-multiplexer";
 import { colorToAnsi, detectColorMode } from "@reverse/tui/theme/color";
 
 describe("theme color mode", () => {
@@ -27,12 +28,15 @@ describe("theme color mode", () => {
 				cwd: path.resolve(import.meta.dir, "../../.."),
 				env: {
 					...process.env,
+					...Object.fromEntries(TERMINAL_MULTIPLEXER_ENV_KEYS.map(key => [key, ""])),
 					KITTY_WINDOW_ID: "",
 					GHOSTTY_RESOURCES_DIR: "",
 					WEZTERM_PANE: "",
 					ITERM_SESSION_ID: "",
 					VSCODE_PID: "",
 					ALACRITTY_WINDOW_ID: "",
+					LC_TERMINAL: "",
+					LC_TERMINAL_VERSION: "",
 					TERM_PROGRAM: "Apple_Terminal",
 					TERM: "xterm-256color",
 					COLORTERM: "",
@@ -48,6 +52,7 @@ describe("theme color mode", () => {
 		]);
 
 		expect(exitCode, stderr).toBe(0);
-		expect(stdout).toBe("\x1b[38;5;223m");
+		expect(stdout).toBe(colorToAnsi("#f5e0ac", "256color"));
+		expect(stdout).not.toBe(colorToAnsi("#f5e0ac", "truecolor"));
 	});
 });

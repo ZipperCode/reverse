@@ -6,6 +6,7 @@ import { $env } from "@reverse/utils/env";
 import { APP_NAME } from "@reverse/utils/dirs";
 import chalk from "@reverse/utils/chalk";
 import type { ServiceTierOpenAISettingValue } from "../config/service-tier";
+import type { ApprovalMode } from "../tools/approval";
 import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "@reverse/tui/thinking";
 import { BUILTIN_TOOL_NAMES, normalizeToolNames } from "../tools/builtin-names";
 import {
@@ -44,6 +45,8 @@ export interface Args {
 	planYolo?: boolean;
 	planYoloInto?: string;
 	maxTime?: number;
+	warnCost?: number;
+	maxCost?: number;
 	apiKey?: string;
 	systemPrompt?: string;
 	systemPromptTemplate?: string;
@@ -52,6 +55,8 @@ export interface Args {
 	serviceTier?: ServiceTierOpenAISettingValue;
 	hideThinking?: boolean;
 	advisor?: boolean;
+	/** Print mode: wake the session with background-job results before exiting (`async.printWake`). */
+	waitAsync?: boolean;
 	externalThinking?: boolean;
 	continue?: boolean;
 	resume?: string | true;
@@ -86,11 +91,12 @@ export interface Args {
 	noSkills?: boolean;
 	skills?: string[];
 	noRules?: boolean;
+	noContextFiles?: boolean;
 	noTitle?: boolean;
 	/** RPC modes only: run extensions without a UI; `rpc-ui` tool UI remains enabled. */
 	noUi?: boolean;
 	autoApprove?: boolean;
-	approvalMode?: "always-ask" | "write" | "yolo";
+	approvalMode?: ApprovalMode;
 	messages: string[];
 	fileArgs: string[];
 	/** Extension-registered flags this parse recognized — name to value. */
@@ -358,6 +364,8 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.hideThinking = true;
 		} else if (arg === "--advisor") {
 			result.advisor = true;
+		} else if (arg === "--wait-async") {
+			result.waitAsync = true;
 		} else if (arg === "--external-thinking") {
 			result.externalThinking = true;
 		} else if (arg === "--prewalk") {
@@ -376,6 +384,8 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.noSkills = true;
 		} else if (arg === "--no-rules") {
 			result.noRules = true;
+		} else if (arg === "--no-context-files") {
+			result.noContextFiles = true;
 		} else if (arg === "--no-title") {
 			result.noTitle = true;
 		} else if (arg === "--no-ui") {

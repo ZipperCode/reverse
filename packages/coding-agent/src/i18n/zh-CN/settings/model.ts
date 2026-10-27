@@ -6,6 +6,26 @@ export const modelSettingsZhCN: Record<string, SettingTranslation> = {
 		description:
 			"先使用当前模型，在计划提示的待办列表出现后、首次编辑/写入时切换到快速/低成本模型（默认 'smol' 角色）——强模型负责规划、提交待办并开始实现，然后交接。可用 --prewalk / --no-prewalk 按会话覆盖。",
 	},
+	"prewalk.auto": {
+		label: "自动预走（Auto Prewalk）",
+		description:
+			"通过 'judge' 角色解析出的原生评判模型判断每个新的顶层用户任务是否将困难推理解析前置。需要原生评判模型；若无则不进行分类。独立于“启用预走（Prewalk）”。",
+		options: {
+			off: { label: "关闭", description: "从不对提示进行预走分类" },
+			suggest: {
+				label: "建议",
+				description: "对每个任务进行分类并报告结论，但不启用预走",
+			},
+			on: {
+				label: "开启",
+				description: "对于高置信度的推理前置任务，准备从当前模型交接到自动目标模型；下一个任务重新从规划模型开始",
+			},
+		},
+	},
+	"prewalk.autoTarget": {
+		label: "自动预走目标",
+		description: "自动预走在首次编辑/写入时交接到的模型或角色（默认 '@smol'）。",
+	},
 	"images.describeForTextModels": {
 		label: "为纯文本模型描述图片",
 		description:
@@ -360,6 +380,16 @@ export const modelSettingsZhCN: Record<string, SettingTranslation> = {
 			"3": { label: "3 步", description: "默认。" },
 			"4": { label: "4 步" },
 			"5": { label: "5 步" },
+		},
+	},
+	"advisor.continueSeverity": {
+		label: "顾问继续运行严重度",
+		description:
+			"在代理给出最终回答结束后，可唤醒代理继续运行的顾问笔记最低严重度。较低严重度的笔记会作为卡片留在记录末尾，并随你的下一条消息送达代理。",
+		options: {
+			nit: { label: "细微（Nit）", description: "每条笔记都会使运行继续。" },
+			concern: { label: "关切（Concern）", description: "关切和阻塞项会使运行继续。默认。" },
+			blocker: { label: "阻塞（Blocker）", description: "仅阻塞项会使运行继续。" },
 		},
 	},
 	"advisor.reviewMode": {

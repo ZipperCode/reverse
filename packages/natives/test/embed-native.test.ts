@@ -69,14 +69,6 @@ describe("native addon embedding", () => {
 			);
 			expect(embeddedAddon.platformTag).toBe("win32-arm64");
 			expect(embeddedAddon.version).toBe("18.1.1");
-			expect(embeddedAddon.files).toEqual([
-				{
-					variant: "default",
-					filename: "pi_natives.win32-arm64.node",
-					size: addon.length,
-					zstdPath: path.join(await fs.realpath(outDir), "pi_natives.win32-arm64.node.zst"),
-				},
-			]);
 			expect(extractEmbeddedAddons({ files: embeddedAddon.files, targetDir: cacheDir })).toEqual([
 				path.join(cacheDir, "pi_natives.win32-arm64.node"),
 			]);

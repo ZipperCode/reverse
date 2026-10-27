@@ -220,6 +220,7 @@ describe("libkitty end-to-end", () => {
 		const composer = new Composer({ terminal: term });
 		mode = new InteractiveMode(session, "test", undefined, () => {}, undefined, undefined, undefined, composer);
 		await mode.init({ suppressWelcomeIntro: true });
+		mode.expandThinkingBlocks = true;
 		void mode.getUserInput();
 		await term.waitForRender();
 
@@ -374,6 +375,7 @@ describe("libkitty end-to-end", () => {
 		session.sessionManager.appendMessage({ role: "user", content: "Show the answer", timestamp: 0 });
 		session.sessionManager.appendMessage(message);
 		await mode.init({ suppressWelcomeIntro: true });
+		mode.expandThinkingBlocks = true;
 		mode.noteDisplayableThinkingContent(message);
 		mode.setTodos([{ content: "Review answer", status: "in_progress" }]);
 		await mode.renderInitialMessages({ clearTerminalHistory: true });

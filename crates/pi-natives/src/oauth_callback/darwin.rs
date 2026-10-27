@@ -607,7 +607,8 @@ pub(super) fn prepare(context: &Context) -> Result<Snapshot> {
 			&& bundle_id.starts_with(BUNDLE_PREFIX)
 		{
 			bail!(
-				"stale reverse callback handler {bundle_id} has no recovery journal; remove it and retry"
+				"stale reverse callback handler {bundle_id} has no recovery journal; remove it and \
+				 retry"
 			);
 		}
 		Ok(Snapshot {
@@ -1054,7 +1055,9 @@ mod tests {
 	#[test]
 	fn live_legacy_owner_is_not_recovered() {
 		let root = TempDir::new();
-		let legacy_app = root.0.join("home/Applications/reverse OAuth Callback live.app");
+		let legacy_app = root
+			.0
+			.join("home/Applications/reverse OAuth Callback live.app");
 		fs::create_dir_all(&legacy_app).unwrap();
 		let (context, _) = context(&root, ApplicationState::Absent);
 		let recovery_path = legacy_recovery_path(&context);

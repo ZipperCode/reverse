@@ -2,6 +2,8 @@
 
 `reverse` is an independent terminal reverse-engineering and coding agent built from an upstream source snapshot of oh-my-pi, developed in repository `https://github.com/ZipperCode/rev`.
 
+当前版本跟随 [oh-my-pi 18.13.1](https://github.com/can1357/oh-my-pi/releases/tag/v18.13.1)，同步上游功能与修复，同时保留 reverse 的逆向能力、独立配置和中文设置。后续升级基线与验证流程见[上游同步指南](docs/porting-from-pi-mono.md#reverse--oh-my-pi-release-tracking)。源码开发使用 Bun 1.4.4；升级后重新构建原生模块与可执行文件。
+
 ## Quickstart & Installation
 
 ### Is npm required?
@@ -69,7 +71,7 @@ Standalone release assets will be published to the GitHub Releases page (`https:
 If you are developing or building from this repository, the development toolchain is required:
 
 #### Prerequisites
-- [Bun](https://bun.sh) >= 1.3.14
+- [Bun](https://bun.sh) 1.4.4 (development/package-manager pin; standalone binaries embed their runtime)
 - Python >= 3.10 (required for eval engine and test runner)
 - Rust / Cargo toolchain (for native crates `crates/*`)
 - Ninja and pkg-config for native bindings

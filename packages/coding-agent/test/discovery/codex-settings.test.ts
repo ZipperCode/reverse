@@ -7,6 +7,7 @@ import { type Settings as SettingsCapabilityItem, settingsCapability } from "@re
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import { loadCapability } from "@reverse/coding-agent/discovery";
 import { cfgPersonality } from "@reverse/coding-agent/session/settings";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
 import { removeWithRetries } from "@reverse/utils";
 
 describe("Codex config.toml settings", () => {
@@ -30,6 +31,8 @@ describe("Codex config.toml settings", () => {
 	afterEach(async () => {
 		clearFsCache();
 		resetSettingsForTest();
+		// `Settings.init` opened `<agentDir>/agent.db`; Windows cannot delete it while open.
+		AgentStorage.close();
 		vi.restoreAllMocks();
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;

@@ -1764,8 +1764,13 @@ type ListToken = Token & {
 	start?: number;
 	loose: boolean;
 };
-type TableCellToken = { tokens?: Token[] };
-type TableToken = Token & { header: TableCellToken[]; rows: TableCellToken[][]; raw?: string };
+type TableCellToken = { tokens?: Token[]; align?: Tokens.TableCell["align"] };
+type TableToken = Token & {
+	header: TableCellToken[];
+	rows: TableCellToken[][];
+	raw?: string;
+	align?: Array<Tokens.TableCell["align"]>;
+};
 
 /** `item` as marked lexes it inside a loose list: tight `text` blocks become paragraphs. */
 function loosenListItem(item: Tokens.ListItem): Tokens.ListItem {
@@ -1779,6 +1784,33 @@ function loosenListItem(item: Tokens.ListItem): Tokens.ListItem {
 	};
 }
 
+const REFERENCE_LABEL_RE = /\[[^[\]]*[^\s[\]][^[\]]*\]/;
+const LABEL_FREE_TOKENS = new Set(["checkbox", "code", "codespan", "escape", "html", "image", "math"]);
+
+function labelSource(tokens: readonly Token[]): string {
+	let source = "";
+	for (const token of tokens) {
+		if (token.type === "list") {
+			for (const item of (token as Tokens.List).items) source += `${labelSource(item.tokens)}\n\n`;
+		} else if (token.type === "table") {
+			const table = token as TableToken;
+			for (const cell of [...table.header, ...table.rows.flat()]) source += `${labelSource(cell.tokens ?? [])}\n\n`;
+		} else if ("tokens" in token && token.tokens) {
+			source += labelSource(token.tokens);
+		} else {
+			source += LABEL_FREE_TOKENS.has(token.type) ? " " : token.raw;
+		}
+	}
+	return source;
+}
+
+/** Whether a reference definition arriving later could still turn part of `item` into a link. */
+function hasUnresolvedReferenceLabel(item: Tokens.ListItem): boolean {
+	return labelSource(item.tokens)
+		.split(BLANK_LINE_RE)
+		.some(block => REFERENCE_LABEL_RE.test(block));
+}
+
 function formatHyperlink(text: string, target: string): string {
 	if (!TERMINAL.hyperlinks || !target) {
 		return text;
@@ -1790,6 +1822,63 @@ function formatHyperlink(text: string, target: string): string {
 	}
 
 	return `\x1b]8;;${safeTarget}\x07${text}\x1b]8;;\x07`;
+}
+
+const CODE_ESCAPE_RE = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\))/y;
+const CODE_URL_RE = /(?<![A-Za-z0-9+.-])https?:\/\/[^\s\x00-\x1f\x7f<>"'`]+/g;
+const CODE_URL_TRAILING_RE = /[.,;:!?]+$/;
+const CODE_URL_OPENERS: Partial<Record<string, string>> = { ")": "(", "]": "[", "}": "{" };
+
+/** Whether `url` ends in a closing bracket that has no matching opener inside it. */
+function endsWithUnbalancedCloser(url: string): boolean {
+	const closer = url.at(-1) ?? "";
+	const opener = CODE_URL_OPENERS[closer];
+	return opener !== undefined && url.split(closer).length > url.split(opener).length;
+}
+
+/**
+ * Wrap each http(s) URL in a highlighted code row with an OSC 8 hyperlink.
+ * The row is hard-wrapped later; wrapTextWithAnsi reopens the link on every
+ * fragment, so terminals open the whole URL instead of only the first visual
+ * line. URLs are located in the visible text so syntax-highlight escapes
+ * inside them stay in place and the visible width is unchanged.
+ */
+function linkifyCodeUrls(line: string): string {
+	if (!TERMINAL.hyperlinks || !line.includes("://") || line.includes("\x1b]8;")) {
+		return line;
+	}
+
+	let visible = "";
+	const offsets: number[] = [];
+	for (let i = 0; i < line.length;) {
+		if (line.charCodeAt(i) === 0x1b) {
+			CODE_ESCAPE_RE.lastIndex = i;
+			const match = CODE_ESCAPE_RE.exec(line);
+			if (match) {
+				i += match[0].length;
+				continue;
+			}
+		}
+		offsets.push(i);
+		visible += line[i];
+		i++;
+	}
+
+	let result = "";
+	let copied = 0;
+	for (const match of visible.matchAll(CODE_URL_RE)) {
+		let url = match[0].replace(CODE_URL_TRAILING_RE, "");
+		// A closer only belongs to the URL when it balances an opener inside it.
+		while (endsWithUnbalancedCloser(url)) {
+			url = url.slice(0, -1).replace(CODE_URL_TRAILING_RE, "");
+		}
+		if (!/:\/\/./.test(url)) continue;
+		const start = offsets[match.index] ?? 0;
+		const end = (offsets[match.index + url.length - 1] ?? start) + 1;
+		result += line.slice(copied, start) + formatHyperlink(line.slice(start, end), url);
+		copied = end;
+	}
+	return copied === 0 ? line : result + line.slice(copied);
 }
 
 function isAsciiTextSizingPayload(text: string): boolean {
@@ -2145,6 +2234,7 @@ interface StreamingListCache {
 	start: number;
 	tailStart: number;
 	stableCount: number;
+	referenceStop?: number;
 	list: Tokens.List;
 }
 /**
@@ -2232,6 +2322,13 @@ export class Markdown implements Component {
 	// The frozen prefix's leading run in front of the first of those openers:
 	// no append can change its tokens, so getLastRenderStableText publishes it.
 	#streamSettledText?: string;
+	// The text in front of the newest top-level item of a list that is still
+	// streaming as the last block. Once an item's marker line has ended, no
+	// append can add to the items in front of it, and #renderList draws each
+	// item from its own tokens alone, so their rows are final. Kept while later
+	// texts extend it, so the published prefix never shrinks when the list
+	// stops being the last block.
+	#streamListSettledText?: string;
 	// The prefix before a rewind that only a closer on the still-growing last
 	// line caused. Once a later text holds no closer line after it, that
 	// prefix is right again, so #lexTokens puts it back.
@@ -2411,14 +2508,18 @@ export class Markdown implements Component {
 	}
 
 	/**
-	 * Width-independent source prefix of the last render ending at a frozen
-	 * Markdown block boundary that no append can move: it stops in front of a
-	 * display-math opener whose block an append could still close. Only
+	 * Width-independent source prefix of the last render that no append can
+	 * change: up to a frozen Markdown block boundary, stopping in front of a
+	 * display-math opener whose block an append could still close, or, while a
+	 * list streams as the last block, up to its newest top-level item. Only
 	 * meaningful while streaming (transient render cache on); grows
 	 * monotonically under append-only `setText`.
 	 */
 	getLastRenderStableText(): string {
-		return this.#transientRenderCache ? (this.#streamSettledText ?? "") : "";
+		if (!this.#transientRenderCache) return "";
+		const settled = this.#streamSettledText ?? "";
+		const list = this.#streamListSettledText;
+		return list !== undefined && list.length > settled.length ? list : settled;
 	}
 
 	get transientRenderCache(): boolean {
@@ -2589,6 +2690,9 @@ export class Markdown implements Component {
 	#checkpointStreamingList(text: string, tokens: Token[]): void {
 		const previous = this.#streamingListCache;
 		this.#streamingListCache = undefined;
+		if (this.#streamListSettledText !== undefined && !text.startsWith(this.#streamListSettledText)) {
+			this.#streamListSettledText = undefined;
+		}
 		let index = tokens.length - 1;
 		while (tokens[index]?.type === "space") index--;
 		const token = tokens[index];
@@ -2603,6 +2707,7 @@ export class Markdown implements Component {
 		let cursor = canResume ? previous.tailStart : start;
 		let tailStart = start;
 		let stableCount = 0;
+		let referenceStop = canResume ? previous.referenceStop : undefined;
 		const indent = /^ */.exec(list.raw)![0].length;
 		for (let i = canResume ? previous.stableCount : 0; i < list.items.length; i++) {
 			const item = list.items[i]!;
@@ -2614,9 +2719,34 @@ export class Markdown implements Component {
 				tailStart = position;
 				stableCount = i;
 			}
+			if (referenceStop === undefined && hasUnresolvedReferenceLabel(item)) referenceStop = tailStart;
 			cursor = position + item.raw.length;
 		}
-		this.#streamingListCache = { text, before: tokens.slice(0, index), start, tailStart, stableCount, list };
+		// Items from stableCount on are scanned again next time and may still
+		// resolve their own labels, so only a finished item's label is kept.
+		if (referenceStop !== undefined && referenceStop >= tailStart) referenceStop = undefined;
+		this.#streamingListCache = {
+			text,
+			before: tokens.slice(0, index),
+			start,
+			tailStart,
+			stableCount,
+			referenceStop,
+			list,
+		};
+		// No append can add to an item once a later one has begun, but a later
+		// reference definition can still restyle a bracketed label in it. The
+		// list must also start right at the settled boundary: in front of it may
+		// sit a display-math opener whose closer, arriving after the list, would
+		// turn the whole run, list included, into one math block.
+		const settledEnd = referenceStop ?? tailStart;
+		if (
+			settledEnd > start &&
+			(this.#streamSettledText?.length ?? 0) === start &&
+			settledEnd > (this.#streamListSettledText?.length ?? 0)
+		) {
+			this.#streamListSettledText = text.slice(0, settledEnd);
+		}
 	}
 
 	/**
@@ -2629,6 +2759,7 @@ export class Markdown implements Component {
 		this.#streamPrefixTokens = undefined;
 		this.#streamPrefixOpeners = NO_OPENERS;
 		this.#streamSettledText = undefined;
+		this.#streamListSettledText = undefined;
 		this.#streamPrefixLineCache = undefined;
 		this.#tailRowCache = undefined;
 		this.#listItemRowsCache = undefined;
@@ -3414,7 +3545,8 @@ export class Markdown implements Component {
 		const tokenText = "text" in token && typeof token.text === "string" ? token.text : "";
 		const lang = "lang" in token && typeof token.lang === "string" ? token.lang : undefined;
 		const addBodyLine = (line: string): void => {
-			bodyLines.push(renderedLine(literalCode ? line : codeIndent + line, literalCode));
+			const linked = linkifyCodeUrls(line);
+			bodyLines.push(renderedLine(literalCode ? linked : codeIndent + linked, literalCode));
 		};
 
 		const streaming = this.transientRenderCache && !this.#renderingStablePrefix;
@@ -4351,7 +4483,7 @@ export class Markdown implements Component {
 	 * Delegates to wrapTextWithAnsi() so ANSI codes + long tokens are handled
 	 * consistently with the rest of the renderer.
 	 */
-	#wrapCellText(text: string, maxWidth: number): string[] {
+	#wrapCellText(text: string, maxWidth: number, clampOversized = true): string[] {
 		const cellWidth = Math.max(1, maxWidth);
 		// Wrap the whole cell in one call so wrapTextWithAnsi() balances OSC 8
 		// hyperlink state across explicit newlines (e.g. `<br>` rendered as \n);
@@ -4366,7 +4498,34 @@ export class Markdown implements Component {
 		// (e.g. mdCode) would bleed into the "│" and the following cells.
 		// Terminate each line at default fg, clearing bold/italic but keeping
 		// any ambient background (message-bg rendering) intact.
-		return wrapped.map(line => `${line}\x1b[22m\x1b[23m\x1b[39m`);
+		// A wide glyph can exceed a one-cell column without wrapping (a 2-cell
+		// emoji in a column squeezed to 1), so clamp here before the row is
+		// spliced between borders; otherwise the overwide row is re-wrapped and
+		// the trailing border lands on its own line.
+		return wrapped.map(line => {
+			const fitted = clampOversized && visibleWidth(line) > cellWidth ? truncateToWidth(line, cellWidth) : line;
+			return `${fitted}\x1b[22m\x1b[23m\x1b[39m`;
+		});
+	}
+
+	/**
+	 * Pad a table cell to the width of its column, following the column's GFM
+	 * alignment: a right-aligned cell ends at the column's right edge, a
+	 * centered one is surrounded by padding, and anything else stays flush left.
+	 */
+	#alignCellText(text: string, width: number, align: Tokens.TableCell["align"]): string {
+		const gap = Math.max(0, width - visibleWidth(text));
+		if (gap === 0) return text;
+		switch (align) {
+			case "right":
+				return padding(gap) + text;
+			case "center": {
+				const left = Math.floor(gap / 2);
+				return padding(left) + text + padding(gap - left);
+			}
+			default:
+				return text + padding(gap);
+		}
 	}
 
 	/**
@@ -4510,6 +4669,12 @@ export class Markdown implements Component {
 		const h = t.horizontal;
 		const v = t.vertical;
 
+		// GFM alignment belongs to the column: the marker in the delimiter row
+		// applies to the header and to every body cell below it.
+		const columnAligns: Array<Tokens.TableCell["align"]> = token.header.map(
+			(cell, i) => cell.align ?? token.align?.[i] ?? null,
+		);
+
 		// Render top border
 		const topBorderCells = columnWidths.map(w => h.repeat(w));
 		lines.push(`${t.topLeft}${h}${topBorderCells.join(`${h}${t.teeDown}${h}`)}${h}${t.topRight}`);
@@ -4524,7 +4689,7 @@ export class Markdown implements Component {
 		for (let lineIdx = 0; lineIdx < headerLineCount; lineIdx++) {
 			const rowParts = headerCellLines.map((cellLines, colIdx) => {
 				const text = cellLines[lineIdx] || "";
-				const padded = text + padding(Math.max(0, columnWidths[colIdx] - visibleWidth(text)));
+				const padded = this.#alignCellText(text, columnWidths[colIdx], columnAligns[colIdx] ?? null);
 				return this.#theme.bold(padded);
 			});
 			lines.push(`${v} ${rowParts.join(` ${v} `)} ${v}`);
@@ -4542,12 +4707,34 @@ export class Markdown implements Component {
 				const text = this.#renderInlineTokens(cell.tokens || [], styleContext);
 				return this.#wrapCellText(text, columnWidths[i]);
 			});
-			const rowLineCount = Math.max(...rowCellLines.map(c => c.length));
+			let rowLineCount = Math.max(...rowCellLines.map(c => c.length));
+			// The open cell is laid out in widths measured without it, so it can
+			// wrap past the lines its row's finished cells need. Those extra lines
+			// come and go as the cell grows and the column widens, moving every row
+			// below the table each frame; hold the row at its finished cells' height
+			// until the cell closes and counts toward the widths. While lines are
+			// held back, only the last kept line makes room for a `…`: it is
+			// re-wrapped one column narrower, since the wrapper closes the line's
+			// links and styles where truncation would cut them off, and dropped when
+			// even that overflows (a wide glyph in a two-cell column).
+			if (rowIndex === lastRow && rowCellLines[openCell]) {
+				const settledLineCount = Math.max(1, ...rowCellLines.filter((_, i) => i !== openCell).map(c => c.length));
+				if (rowCellLines[openCell].length > settledLineCount) {
+					const width = columnWidths[openCell];
+					const kept = rowCellLines[openCell].slice(0, settledLineCount);
+					const last =
+						width > 1 ? (this.#wrapCellText(kept[settledLineCount - 1], width - 1, false)[0] ?? "") : "";
+					kept[settledLineCount - 1] = `${visibleWidth(last) < width ? last : ""}…`;
+					rowCellLines[openCell] = kept;
+				}
+				rowLineCount = settledLineCount;
+			}
 
 			for (let lineIdx = 0; lineIdx < rowLineCount; lineIdx++) {
 				const rowParts = rowCellLines.map((cellLines, colIdx) => {
 					const text = cellLines[lineIdx] || "";
-					return text + padding(Math.max(0, columnWidths[colIdx] - visibleWidth(text)));
+					const align = row[colIdx]?.align ?? columnAligns[colIdx] ?? null;
+					return this.#alignCellText(text, columnWidths[colIdx], align);
 				});
 				lines.push(`${v} ${rowParts.join(` ${v} `)} ${v}`);
 			}

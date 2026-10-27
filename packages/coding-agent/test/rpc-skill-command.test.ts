@@ -2,10 +2,16 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { buildSkillPromptMessage, renderSkillPromptMessage } from "@reverse/coding-agent/extensibility/skills";
 import { dispatchRpcSkillPrompt, tryRunRpcSkillCommand } from "@reverse/coding-agent/modes/rpc/rpc-mode";
 import { RpcExtensionUserMessageTracker, RpcPromptResults } from "@reverse/coding-agent/modes/rpc/rpc-prompt-results";
 import { type CustomMessage, SKILL_PROMPT_MESSAGE_TYPE } from "@reverse/coding-agent/session/messages";
 import { removeWithRetries, Snowflake } from "@reverse/utils";
+
+const skillPromptBuilder = {
+	buildUserSkillPrompt: buildSkillPromptMessage,
+	renderUserSkillPrompt: renderSkillPromptMessage,
+};
 
 describe("tryRunRpcSkillCommand", () => {
 	test("dispatches registered /skill commands as skill prompt messages", async () => {
@@ -21,6 +27,7 @@ describe("tryRunRpcSkillCommand", () => {
 
 		const handled = await tryRunRpcSkillCommand(
 			{
+				...skillPromptBuilder,
 				skillsSettings: { enableSkillCommands: true },
 				skills: [
 					{ name: "reviewer", description: "Review code", filePath: skillPath, baseDir: dir, source: "project" },
@@ -58,6 +65,7 @@ describe("tryRunRpcSkillCommand", () => {
 		try {
 			const handled = await tryRunRpcSkillCommand(
 				{
+					...skillPromptBuilder,
 					skillsSettings: { enableSkillCommands: true },
 					skills: [
 						{
@@ -99,6 +107,7 @@ describe("tryRunRpcSkillCommand", () => {
 		try {
 			const handled = await tryRunRpcSkillCommand(
 				{
+					...skillPromptBuilder,
 					skillsSettings: { enableSkillCommands: true },
 					skills: [
 						{
@@ -134,6 +143,7 @@ describe("tryRunRpcSkillCommand", () => {
 	test("ignores unknown skill commands so normal prompt handling can continue", async () => {
 		const handled = await tryRunRpcSkillCommand(
 			{
+				...skillPromptBuilder,
 				skillsSettings: { enableSkillCommands: true },
 				skills: [],
 				async promptCustomMessage() {
@@ -158,6 +168,7 @@ describe("tryRunRpcSkillCommand", () => {
 		try {
 			const handled = await tryRunRpcSkillCommand(
 				{
+					...skillPromptBuilder,
 					skillsSettings: { enableSkillCommands: true },
 					skills: [
 						{
@@ -216,6 +227,7 @@ describe("dispatchRpcSkillPrompt", () => {
 		const result = await dispatchRpcSkillPrompt({
 			...promptResultsFor("cmd-1"),
 			session: {
+				...skillPromptBuilder,
 				skillsSettings: { enableSkillCommands: true },
 				skills: [
 					{ name: "reviewer", description: "Review code", filePath: skillPath, baseDir: dir, source: "project" },
@@ -257,6 +269,7 @@ describe("dispatchRpcSkillPrompt", () => {
 		const resultPromise = dispatchRpcSkillPrompt({
 			...promptResultsFor("cmd-1b"),
 			session: {
+				...skillPromptBuilder,
 				skillsSettings: { enableSkillCommands: true },
 				skills: [
 					{ name: "reviewer", description: "Review code", filePath: skillPath, baseDir: dir, source: "project" },
@@ -295,6 +308,7 @@ describe("dispatchRpcSkillPrompt", () => {
 		const result = await dispatchRpcSkillPrompt({
 			...promptResultsFor("cmd-2"),
 			session: {
+				...skillPromptBuilder,
 				skillsSettings: { enableSkillCommands: true },
 				skills: [],
 				async promptCustomMessage() {
@@ -318,6 +332,7 @@ describe("dispatchRpcSkillPrompt", () => {
 		await dispatchRpcSkillPrompt({
 			...promptResultsFor("cmd-3"),
 			session: {
+				...skillPromptBuilder,
 				skillsSettings: { enableSkillCommands: true },
 				skills: [
 					{ name: "reviewer", description: "Review code", filePath: skillPath, baseDir: dir, source: "project" },
@@ -347,6 +362,7 @@ describe("dispatchRpcSkillPrompt", () => {
 			dispatchRpcSkillPrompt({
 				...promptResultsFor("cmd-4"),
 				session: {
+					...skillPromptBuilder,
 					skillsSettings: { enableSkillCommands: true },
 					skills: [
 						{
@@ -382,6 +398,7 @@ describe("dispatchRpcSkillPrompt", () => {
 		const result = await dispatchRpcSkillPrompt({
 			...promptResultsFor("cmd-5", frames),
 			session: {
+				...skillPromptBuilder,
 				skillsSettings: { enableSkillCommands: true },
 				skills: [
 					{ name: "reviewer", description: "Review code", filePath: skillPath, baseDir: dir, source: "project" },
@@ -419,6 +436,7 @@ describe("dispatchRpcSkillPrompt", () => {
 			const result = await dispatchRpcSkillPrompt({
 				...promptResultsFor("cmd-img"),
 				session: {
+					...skillPromptBuilder,
 					skillsSettings: { enableSkillCommands: true },
 					skills: [
 						{

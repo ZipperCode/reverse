@@ -23,7 +23,8 @@ import {
 	OPENAI_COMPAT_DISCOVERY_DEFAULT_MAX_TOKENS,
 	resolveLiteLLMApi,
 } from "@reverse/catalog/provider-models/openai-compat";
-import type { KindApiKind, ModelSpec, OpenAICompat } from "@reverse/catalog/types";
+import { type KindApiKind, type ModelSpec, type OpenAICompat, runnerApiKind } from "@reverse/catalog/types";
+import { Effort } from "@reverse/catalog/effort";
 import { isRecord } from "@reverse/utils";
 import type { ProviderDiscovery } from "./models-config-schema";
 
@@ -185,6 +186,12 @@ export interface DiscoveryProviderConfig {
 	remoteCompaction?: RemoteCompactionConfig<Api>;
 	discovery: ProviderDiscovery;
 	optional?: boolean;
+	/**
+	 * Extra roots probed in order when `baseUrl` yields no reachable server.
+	 * Only the implicit llama.cpp provider sets this, so both its legacy (8080)
+	 * and current (9931) default ports are discovered.
+	 */
+	fallbackBaseUrls?: string[];
 }
 
 /** Registry-provided capabilities the protocol probes need; never the registry itself. */
@@ -196,6 +203,9 @@ export interface DiscoveryContext {
 	 * Returns undefined when no key is stored or it is a local/no-auth
 	 * sentinel; otherwise an {@link ApiKey} whose resolver participates in the
 	 * central force-refresh/rotate auth-retry policy on 401/usage-limit.
+	 * The bearer authenticates only the discovery request: discovered models
+	 * carry just the provider's configured headers, since the model cache
+	 * never persists header values and drops rows that had them.
 	 */
 	getBearerApiKeyResolver(provider: string): Promise<ApiKey | undefined>;
 }
@@ -615,15 +625,42 @@ async function discoverLlamaCppServerMetadata(
 	}
 }
 
+/** Default llama-server roots probed for the implicit provider: legacy first, then the current default. */
+export const LLAMA_CPP_DEFAULT_BASE_URLS = ["http://127.0.0.1:8080", "http://127.0.0.1:9931"] as const;
+
 export async function discoverLlamaCppModels(
 	providerConfig: DiscoveryProviderConfig,
 	ctx: DiscoveryContext,
 ): Promise<Model<Api>[]> {
-	const baseUrl = normalizeLlamaCppBaseUrl(providerConfig.baseUrl);
+	const fallbacks = providerConfig.fallbackBaseUrls ?? [];
+	try {
+		return await discoverLlamaCppModelsAt(providerConfig, providerConfig.baseUrl, ctx);
+	} catch (primaryError) {
+		// Any HTTP status means a server answered; fall back only when nothing
+		// does, so a failing preferred server (401, 500, …) is never masked.
+		if (primaryError instanceof DiscoveryHttpError) throw primaryError;
+		for (const fallbackBaseUrl of fallbacks) {
+			try {
+				return await discoverLlamaCppModelsAt(providerConfig, fallbackBaseUrl, ctx);
+			} catch (fallbackError) {
+				// A fallback server that answered owns the outcome: its auth
+				// rejection must surface as unauthenticated, not as the primary outage.
+				if (fallbackError instanceof DiscoveryHttpError) throw fallbackError;
+			}
+		}
+		throw primaryError;
+	}
+}
+
+async function discoverLlamaCppModelsAt(
+	providerConfig: DiscoveryProviderConfig,
+	configuredBaseUrl: string | undefined,
+	ctx: DiscoveryContext,
+): Promise<Model<Api>[]> {
+	const baseUrl = normalizeLlamaCppBaseUrl(configuredBaseUrl);
 	const modelsUrl = `${baseUrl}/models`;
 
 	const baseHeaders: Record<string, string> = { ...providerConfig.headers };
-	let headers = baseHeaders;
 	const customTimeoutMs = providerConfig.discovery.timeoutMs;
 	const attempt = async (h: Record<string, string>) => {
 		const [payload, metadata] = await Promise.all([
@@ -635,7 +672,6 @@ export async function discoverLlamaCppModels(
 				if (!response.ok) {
 					throw new DiscoveryHttpError(response.status, modelsUrl);
 				}
-				headers = h;
 				return (await response.json()) as unknown;
 			}),
 			discoverLlamaCppServerMetadata(ctx, baseUrl, h, customTimeoutMs),
@@ -671,7 +707,7 @@ export async function discoverLlamaCppModels(
 					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 					contextWindow,
 					maxTokens: resolveLlamaCppMaxTokens(contextWindow, serverMetadata?.maxTokens),
-					headers,
+					headers: baseHeaders,
 				},
 				providerConfig.discovery.type,
 			),
@@ -818,6 +854,7 @@ export function extractReportedModelLimits(item: unknown): {
 	rawInput?: ("text" | "image")[];
 } {
 	if (!isRecord(item)) return {};
+	const metadata = isRecord(item.metadata) ? item.metadata : undefined;
 	const limits = isRecord(item.limits) ? item.limits : undefined;
 	const maxInputTokens = toTokenLimitOrUndefined(limits?.max_input_tokens);
 	const maxOutputTokens = toTokenLimitOrUndefined(limits?.max_output_tokens);
@@ -841,16 +878,18 @@ export function extractReportedModelLimits(item: unknown): {
 		toTokenLimitOrUndefined(item.inputTokenLimit) ??
 		toTokenLimitOrUndefined(item.max_model_len) ??
 		toTokenLimitOrUndefined(item.context_length) ??
+		toTokenLimitOrUndefined(metadata?.context_window) ??
 		reportedLimitsContextWindow;
 	const rawName =
 		typeof item.displayName === "string" && item.displayName.trim().length > 0
 			? item.displayName.trim()
 			: typeof item.display_name === "string" && item.display_name.trim().length > 0
 				? item.display_name.trim()
-				: typeof item.name === "string" && item.name.trim().length > 0
-					? item.name.trim()
-					: undefined;
-
+				: typeof metadata?.display_name === "string" && metadata.display_name.trim().length > 0
+					? metadata.display_name.trim()
+					: typeof item.name === "string" && item.name.trim().length > 0
+						? item.name.trim()
+						: undefined;
 	const rawInput = extractOpenAIModelsListInputCapabilities(item);
 	return { rawContext, rawMaxTokens, rawName, rawInput };
 }
@@ -865,9 +904,16 @@ function extractOpenAIModelsListInputCapabilities(item: {
 	input?: unknown;
 	input_modalities?: unknown;
 	architecture?: unknown;
+	metadata?: unknown;
 }): ("text" | "image")[] | undefined {
 	const architecture = isRecord(item.architecture) ? item.architecture : undefined;
-	const modalities = collectModalities([item.input, item.input_modalities, architecture?.input_modalities]);
+	const metadata = isRecord(item.metadata) ? item.metadata : undefined;
+	const modalities = collectModalities([
+		item.input,
+		item.input_modalities,
+		architecture?.input_modalities,
+		metadata?.input_modalities,
+	]);
 	if (modalities.size === 0) return undefined;
 	return modalities.has("image") ? ["text", "image"] : ["text"];
 }
@@ -903,6 +949,62 @@ function extractOpenAIModelsListOutputTask(item: {
 			return undefined;
 	}
 }
+/**
+ * Reasoning tiers reverse can send as `reasoning_effort` on OpenAI-compatible
+ * chat routes. `none` is the wire off-switch rather than an effort tier,
+ * `minimal` is rejected upstream by the GPT-6 generation, and `ultra` has no
+ * reverse effort equivalent (it fans out to subagents), so all three are dropped
+ * from server-advertised ladders.
+ */
+const ADVERTISED_REASONING_EFFORTS: readonly Effort[] = [
+	Effort.Low,
+	Effort.Medium,
+	Effort.High,
+	Effort.XHigh,
+	Effort.Max,
+];
+
+function advertisedReasoningEffort(value: unknown): Effort | undefined {
+	if (typeof value !== "string") return undefined;
+	const normalized = value.toLowerCase();
+	return (ADVERTISED_REASONING_EFFORTS as readonly string[]).includes(normalized) ? (normalized as Effort) : undefined;
+}
+
+function extractReasoningLevels(value: unknown): Effort[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const efforts: Effort[] = [];
+	for (const entry of value) {
+		const effort = isRecord(entry) ? advertisedReasoningEffort(entry.effort) : advertisedReasoningEffort(entry);
+		if (effort !== undefined && !efforts.includes(effort)) efforts.push(effort);
+	}
+	if (efforts.length === 0) return undefined;
+	// Report the canonical least-to-most order regardless of wire order.
+	efforts.sort(
+		(left, right) => ADVERTISED_REASONING_EFFORTS.indexOf(left) - ADVERTISED_REASONING_EFFORTS.indexOf(right),
+	);
+	return efforts;
+}
+
+/**
+ * Read server-advertised reasoning support from an OpenAI-compatible
+ * `/v1/models` row. codex-lb nests the Codex registry fields under `metadata`
+ * (`supported_reasoning_levels: [{ effort }]`, `default_reasoning_level`);
+ * other gateways may advertise the same fields top-level. Returns undefined
+ * when the row advertises no usable effort tier.
+ */
+function extractAdvertisedReasoning(item: {
+	metadata?: unknown;
+	supported_reasoning_levels?: unknown;
+	default_reasoning_level?: unknown;
+}): { efforts: Effort[]; defaultLevel?: Effort } | undefined {
+	const metadata = isRecord(item.metadata) ? item.metadata : undefined;
+	const efforts = extractReasoningLevels(metadata?.supported_reasoning_levels ?? item.supported_reasoning_levels);
+	if (efforts === undefined) return undefined;
+	const rawDefault = metadata?.default_reasoning_level ?? item.default_reasoning_level;
+	const defaultLevel = advertisedReasoningEffort(rawDefault);
+	if (defaultLevel !== undefined && efforts.includes(defaultLevel)) return { efforts, defaultLevel };
+	return { efforts };
+}
 
 export async function discoverOpenAIModelsList(
 	providerConfig: DiscoveryProviderConfig,
@@ -921,7 +1023,6 @@ export async function discoverOpenAIModelsList(
 	const modelsUrl = appendModelsPath(baseUrl);
 
 	const baseHeaders: Record<string, string> = { ...providerConfig.headers };
-	let headers = baseHeaders;
 	// LM Studio is a desktop server reached over loopback, so an unanswered
 	// probe means "not installed / not running", never "slow link": give it the
 	// same tight budget the other implicit local engines use instead of the
@@ -949,7 +1050,6 @@ export async function discoverOpenAIModelsList(
 				if (!res.ok) {
 					throw new DiscoveryHttpError(res.status, modelsUrl);
 				}
-				headers = h;
 				return (await res.json()) as {
 					data?: Array<{
 						id?: string;
@@ -966,6 +1066,9 @@ export async function discoverOpenAIModelsList(
 						output_modalities?: unknown;
 						architecture?: unknown;
 						mode?: unknown;
+						metadata?: unknown;
+						supported_reasoning_levels?: unknown;
+						default_reasoning_level?: unknown;
 					}>;
 				};
 			}),
@@ -996,11 +1099,19 @@ export async function discoverOpenAIModelsList(
 		// headers/baseUrl/cost stay local.
 		const reference = resolveModelReference(id, references) as ModelSpec<Api> | undefined;
 		const referenceCompat = reference?.compat as OpenAICompat | undefined;
+		// codex-lb and similar registries nest the route's identity beside its
+		// reasoning ladder: `display_name`, `context_window`, `input_modalities`.
+		const metadata = isRecord(item.metadata) ? item.metadata : undefined;
+		const advertisedName = typeof metadata?.display_name === "string" ? metadata.display_name.trim() : "";
 		const reported = extractReportedModelLimits(item);
 		const input = nativeMetadataForModel?.input ?? reported.rawInput ?? reference?.input ?? ["text"];
 		const reportedMaxTokens = reported.rawMaxTokens;
 		const reportedContextWindow =
-			reported.rawContext ?? nativeMetadataForModel?.contextWindow ?? reference?.contextWindow ?? null;
+			reported.rawContext ??
+			toPositiveNumberOrUndefined(metadata?.context_window) ??
+			nativeMetadataForModel?.contextWindow ??
+			reference?.contextWindow ??
+			null;
 		// A row that advertises a dedicated task answers through that task's
 		// runner, not the provider's chat API: leaving it on chat both hides it
 		// from its own role and offers the picker a model the chat endpoint
@@ -1009,7 +1120,7 @@ export async function discoverOpenAIModelsList(
 		if (task) {
 			specs.push({
 				id,
-				name: reference?.name ?? id,
+				name: advertisedName || reference?.name || id,
 				api: task.api,
 				kind: task.kind,
 				provider: providerConfig.provider,
@@ -1022,23 +1133,38 @@ export async function discoverOpenAIModelsList(
 				// token window. Neither produces output tokens.
 				contextWindow: task.kind === "embedding" ? reportedContextWindow : null,
 				maxTokens: null,
-				headers,
+				headers: baseHeaders,
 			} as ModelSpec<Api>);
 			continue;
 		}
 		const api =
 			providerConfig.discovery.type === "litellm"
-				? resolveLiteLLMApi(undefined, id, providerConfig.api)
+				? resolveLiteLLMApi(item, id, providerConfig.api)
 				: providerConfig.api;
 		const contextWindow = reportedContextWindow ?? DISCOVERY_DEFAULT_CONTEXT_WINDOW;
+		// A row that advertises its own reasoning ladder (codex-lb `metadata`
+		// fields, or the top-level equivalents) is authoritative for its route:
+		// ids absent from the bundled catalog would otherwise stay non-reasoning
+		// and never send `reasoning_effort`.
+		const advertisedReasoning = extractAdvertisedReasoning(item);
 		specs.push({
 			id,
-			name: reference?.name ?? id,
+			name: advertisedName || reference?.name || id,
 			api,
+			kind: runnerApiKind(api),
 			provider: providerConfig.provider,
 			baseUrl,
-			reasoning: reference?.reasoning ?? false,
-			thinking: inheritReferenceThinking(undefined, reference, providerConfig.provider),
+			reasoning: reference?.reasoning === true || advertisedReasoning !== undefined,
+			thinking:
+				advertisedReasoning !== undefined
+					? {
+							mode: "effort" as const,
+							efforts: advertisedReasoning.efforts,
+							...(advertisedReasoning.defaultLevel !== undefined
+								? { defaultLevel: advertisedReasoning.defaultLevel }
+								: {}),
+						}
+					: inheritReferenceThinking(undefined, reference, providerConfig.provider),
 			input,
 			...(providerConfig.discovery.type === "lm-studio" ? { imageInputDecoder: "stb" as const } : {}),
 			// Proxy/gateway pricing is provider-specific and rarely matches
@@ -1053,11 +1179,11 @@ export async function discoverOpenAIModelsList(
 				reportedMaxTokens ?? reference?.maxTokens ?? discoveryDefaultMaxTokens(api),
 				contextWindow,
 			),
-			headers,
+			headers: baseHeaders,
 			compat: {
 				supportsStore: false,
 				supportsDeveloperRole: false,
-				supportsReasoningEffort: referenceCompat?.supportsReasoningEffort ?? false,
+				supportsReasoningEffort: referenceCompat?.supportsReasoningEffort ?? advertisedReasoning !== undefined,
 				...(referenceCompat?.reasoningEffortMap ? { reasoningEffortMap: referenceCompat.reasoningEffortMap } : {}),
 				...(referenceCompat?.omitReasoningEffort !== undefined
 					? { omitReasoningEffort: referenceCompat.omitReasoningEffort }
@@ -1079,10 +1205,8 @@ export async function discoverLiteLLMModels(
 	const references = getBundledModelReferenceIndex();
 	const resolveReference = (id: string) => resolveModelReference(id, references) as ModelSpec<Api> | undefined;
 	const baseHeaders: Record<string, string> = { ...providerConfig.headers };
-	let headers = baseHeaders;
 	const timeoutMs = providerConfig.discovery.timeoutMs ?? 10_000;
 	const attempt = async (h: Record<string, string>) => {
-		headers = h;
 		let authError: DiscoveryHttpError | undefined;
 		const authAwareFetch: FetchImpl = async (input, init) => {
 			const response = await ctx.fetch(input, init);
@@ -1125,7 +1249,7 @@ export async function discoverLiteLLMModels(
 	if (richModels === null) {
 		return discoverOpenAIModelsList({ ...providerConfig, baseUrl }, ctx);
 	}
-	return richModels.map(spec => buildDiscoveredModel({ ...spec, headers }, "litellm"));
+	return richModels.map(spec => buildDiscoveredModel({ ...spec, headers: baseHeaders }, "litellm"));
 }
 
 /**
@@ -1151,7 +1275,6 @@ export async function discoverProxyModels(
 	const modelsUrl = `${baseUrl}/models`;
 
 	const baseHeaders: Record<string, string> = { ...providerConfig.headers };
-	let headers = baseHeaders;
 	const timeoutMs = providerConfig.discovery.timeoutMs ?? 10_000;
 	const attempt = async (h: Record<string, string>) =>
 		withTimeoutSignal(timeoutMs, async signal => {
@@ -1162,7 +1285,6 @@ export async function discoverProxyModels(
 			if (!res.ok) {
 				throw new DiscoveryHttpError(res.status, modelsUrl);
 			}
-			headers = h;
 			return (await res.json()) as {
 				data?: Array<{ id?: string; name?: string; supported_endpoint_types?: string[]; context_length?: number }>;
 			};
@@ -1212,7 +1334,7 @@ export async function discoverProxyModels(
 					reference?.contextWindow ??
 					DISCOVERY_DEFAULT_CONTEXT_WINDOW,
 				maxTokens: reference?.maxTokens ?? discoveryDefaultMaxTokens(api),
-				headers,
+				headers: baseHeaders,
 				// OpenAI-compat fields are no-ops on anthropic models; the
 				// Anthropic SDK ignores them. Provider-level disableStrictTools
 				// flows in via #applyProviderCompat for the third-party-Anthropic
@@ -1232,8 +1354,7 @@ export async function discoverProxyModels(
 }
 
 export function normalizeLlamaCppBaseUrl(baseUrl?: string): string {
-	const defaultBaseUrl = "http://127.0.0.1:8080";
-	const raw = baseUrl || defaultBaseUrl;
+	const raw = baseUrl || LLAMA_CPP_DEFAULT_BASE_URLS[0];
 	try {
 		const parsed = new URL(raw);
 		const trimmedPath = parsed.pathname.replace(/\/+$/g, "");

@@ -1,9 +1,10 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import type { AgentTool } from "@reverse/agent";
 import type { TSchema } from "@reverse/ai";
 import { INTENT_FIELD } from "@reverse/wire";
-import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
-import { renderMCPResult, setMcpRenderMarkdownResults } from "@reverse/tui/tools/mcp";
+import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
+import { cfgMcpRenderMarkdownResults } from "@reverse/coding-agent/mcp/settings";
+import { renderMCPResult } from "@reverse/tui/tools/mcp";
 import { DeferredMCPTool, MCPTool } from "@reverse/coding-agent/mcp/tool-bridge";
 import { type MCPToolDetails } from "@reverse/tui/tools/mcp";
 import type { MCPServerConnection, MCPToolDefinition, MCPTransport } from "@reverse/coding-agent/mcp/types";
@@ -14,12 +15,6 @@ import { formatOutputNotice } from "@reverse/tui/tools/output-meta";
 import { formatExpandHint, formatStatusIcon } from "@reverse/tui/render/render-utils";
 import { TUI } from "@reverse/tui";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
-
-beforeAll(async () => {
-	resetSettingsForTest();
-	await Settings.init({ inMemory: true, cwd: process.cwd() });
-	await initTheme(false, undefined, undefined, "dark", "light");
-}, 15_000);
 
 async function getRequiredTheme() {
 	const uiTheme = await getThemeByName("dark");
@@ -112,6 +107,16 @@ async function renderCompletedMCPTool(isError: boolean): Promise<string> {
 }
 
 describe("MCP tool rendering", () => {
+	beforeAll(async () => {
+		resetSettingsForTest();
+		await Settings.init({ inMemory: true, cwd: process.cwd() });
+		await initTheme(false, undefined, undefined, "dark", "light");
+	}, 15_000);
+
+	afterEach(() => {
+		cfgMcpRenderMarkdownResults.set(settings, true);
+	});
+
 	it("replaces the pending call header with a success header after completion", async () => {
 		const uiTheme = await getRequiredTheme();
 		const pendingIcon = Bun.stripANSI(formatStatusIcon("pending", uiTheme));
@@ -184,22 +189,18 @@ describe("MCP tool rendering", () => {
 	}, 15_000);
 
 	it("renders [MCP] badge in Markdown MCP result", () => {
-		setMcpRenderMarkdownResults(true);
-		try {
-			const result = {
-				content: [{ type: "text" as const, text: "# Heading\nMarkdown content" }],
-				details: { serverName: "docs", mcpToolName: "search" },
-			};
-			const rendered = Bun.stripANSI(
-				renderMCPResult(result, { expanded: false, isPartial: false }, activeTheme, { query: "test" })
-					.render(160)
-					.join("\n"),
-			);
-			expect(rendered).toContain("docs/search");
-			expect(rendered).toContain("MCP");
-		} finally {
-			setMcpRenderMarkdownResults(false);
-		}
+		cfgMcpRenderMarkdownResults.set(settings, true);
+		const result = {
+			content: [{ type: "text" as const, text: "# Heading\nMarkdown content" }],
+			details: { serverName: "docs", mcpToolName: "search" },
+		};
+		const rendered = Bun.stripANSI(
+			renderMCPResult(result, { expanded: false, isPartial: false }, activeTheme, { query: "test" })
+				.render(160)
+				.join("\n"),
+		);
+		expect(rendered).toContain("docs/search");
+		expect(rendered).toContain("MCP");
 	});
 
 	it("sets MCP badge on native tool head for describeCall and describeResult across success and error", () => {
@@ -251,7 +252,7 @@ describe("MCP tool rendering", () => {
 		};
 
 		// 1. Plain text branch (Markdown disabled)
-		setMcpRenderMarkdownResults(false);
+		cfgMcpRenderMarkdownResults.set(settings, false);
 		const dynamicHint = Bun.stripANSI(formatExpandHint(activeTheme, false, true));
 		const collapsedPlain = Bun.stripANSI(
 			renderMCPResult(result, { expanded: false, isPartial: false }, activeTheme, { query: "q" })
@@ -273,28 +274,39 @@ describe("MCP tool rendering", () => {
 		expect(expandedPlain).not.toContain("… 26 more lines");
 
 		// 2. Markdown branch
-		setMcpRenderMarkdownResults(true);
-		try {
-			const collapsedMd = Bun.stripANSI(
-				renderMCPResult(result, { expanded: false, isPartial: false }, activeTheme, { query: "q" })
-					.render(160)
-					.join("\n"),
+		cfgMcpRenderMarkdownResults.set(settings, true);
+		const collapsedMd = Bun.stripANSI(
+			renderMCPResult(result, { expanded: false, isPartial: false }, activeTheme, { query: "q" })
+				.render(160)
+				.join("\n"),
+		);
+		expect(collapsedMd).toContain("content row 1");
+		expect(collapsedMd).toContain("content row 4");
+		expect(collapsedMd).not.toContain("content row 30");
+		expect(collapsedMd).toContain("… 26 more lines");
+		expect(collapsedMd).toContain(dynamicHint);
+		const expandedMd = Bun.stripANSI(
+			renderMCPResult(result, { expanded: true, isPartial: false }, activeTheme, { query: "q" })
+				.render(160)
+				.join("\n"),
+		);
+		expect(expandedMd).toContain("content row 1");
+		expect(expandedMd).toContain("content row 30");
+		expect(expandedMd).not.toContain("… 26 more lines");
+
+		// Long single line clips sentinel while collapsed and reveals it when expanded in both branches
+		const longLine = `${"wide-content ".repeat(16)}ENDMARK`;
+		const longResult = { content: [{ type: "text" as const, text: longLine }] };
+		for (const markdownEnabled of [false, true]) {
+			cfgMcpRenderMarkdownResults.set(settings, markdownEnabled);
+			const collapsedLong = Bun.stripANSI(
+				renderMCPResult(longResult, { expanded: false, isPartial: false }, activeTheme).render(100).join("\n"),
 			);
-			expect(collapsedMd).toContain("content row 1");
-			expect(collapsedMd).toContain("content row 4");
-			expect(collapsedMd).not.toContain("content row 30");
-			expect(collapsedMd).toContain("… 26 more lines");
-			expect(collapsedMd).toContain(dynamicHint);
-			const expandedMd = Bun.stripANSI(
-				renderMCPResult(result, { expanded: true, isPartial: false }, activeTheme, { query: "q" })
-					.render(160)
-					.join("\n"),
+			expect(collapsedLong).not.toContain("ENDMARK");
+			const expandedLong = Bun.stripANSI(
+				renderMCPResult(longResult, { expanded: true, isPartial: false }, activeTheme).render(100).join("\n"),
 			);
-			expect(expandedMd).toContain("content row 1");
-			expect(expandedMd).toContain("content row 30");
-			expect(expandedMd).not.toContain("… 26 more lines");
-		} finally {
-			setMcpRenderMarkdownResults(false);
+			expect(expandedLong).toContain("ENDMARK");
 		}
 	});
 
@@ -307,18 +319,14 @@ describe("MCP tool rendering", () => {
 		};
 
 		// Plain text
-		setMcpRenderMarkdownResults(false);
+		cfgMcpRenderMarkdownResults.set(settings, false);
 		const plainRaw = renderMCPResult(result, { expanded: false, isPartial: false }, uiTheme).render(160).join("\n");
 		expect(plainRaw).toContain(uiTheme.fg("error", "Something failed badly"));
 
 		// Markdown
-		setMcpRenderMarkdownResults(true);
-		try {
-			const mdRaw = renderMCPResult(result, { expanded: false, isPartial: false }, uiTheme).render(160).join("\n");
-			expect(mdRaw).toContain(uiTheme.fg("error", "Something failed badly"));
-		} finally {
-			setMcpRenderMarkdownResults(false);
-		}
+		cfgMcpRenderMarkdownResults.set(settings, true);
+		const mdRaw = renderMCPResult(result, { expanded: false, isPartial: false }, uiTheme).render(160).join("\n");
+		expect(mdRaw).toContain(uiTheme.fg("error", "Something failed badly"));
 	});
 
 	it("applies generic fallback via actual ToolExecutionComponent with 4-line collapsed and uncapped expanded", () => {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { createBrowserPrelude } from "@reverse/coding-agent/tools/browser";
 import { findFreeCdpPort, relayTargets } from "@reverse/coding-agent/tools/browser/attach";
@@ -17,13 +17,23 @@ const BLOCKS = [
 	{ block: 7, url: "https://docs.example/c", title: "Docs C", owner: null, shown: true, driven: false },
 ];
 
-const ENV_KEYS = ["TERN_PANE_SOCKET", "TERN_PANE", "PI_BROWSER_TERN", "PI_BROWSER_RELAY"] as const;
-const savedEnv = new Map(ENV_KEYS.map(key => [key, process.env[key]]));
+const ENV_KEYS = [
+	"TERN_PANE_SOCKET",
+	"TERN_PANE",
+	"PI_BROWSER_TERN",
+	"PI_BROWSER_RELAY",
+	"REVERSE_BROWSER_RELAY",
+] as const;
+let savedEnv: Record<string, string | undefined>;
 
 let daemon: FakeDaemon | undefined;
 let relay: RelayServer | undefined;
 let extension: WebSocket | undefined;
 const opened: string[] = [];
+
+beforeEach(() => {
+	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
+});
 
 afterEach(async () => {
 	for (const name of opened.splice(0)) await releaseTab(name, { kill: false }).catch(() => undefined);
@@ -33,7 +43,7 @@ afterEach(async () => {
 	extension = undefined;
 	relay?.stop();
 	relay = undefined;
-	for (const [key, value] of savedEnv) {
+	for (const [key, value] of Object.entries(savedEnv)) {
 		if (value === undefined) delete process.env[key];
 		else process.env[key] = value;
 	}

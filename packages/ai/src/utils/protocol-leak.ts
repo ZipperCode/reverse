@@ -76,7 +76,11 @@ export function stripQuotedAndBlockquoted(text: string): string {
 				const matchStr = fenceMatch[1]!;
 				const char = matchStr[0]!;
 				const len = matchStr.length;
-				if (char === fenceChar && len >= fenceLength && line.slice(line.indexOf(matchStr) + len).trim().length === 0) {
+				if (
+					char === fenceChar &&
+					len >= fenceLength &&
+					line.slice(line.indexOf(matchStr) + len).trim().length === 0
+				) {
 					inFence = false;
 					fenceChar = "";
 					fenceLength = 0;

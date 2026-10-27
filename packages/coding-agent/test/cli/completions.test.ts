@@ -2,7 +2,9 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type CompletionSpec, generateCompletion } from "@reverse/coding-agent/cli/completion-gen";
+import { buildSpec, type CompletionSpec, generateCompletion } from "@reverse/coding-agent/cli/completion-gen";
+import { generateLiveCompletion } from "@reverse/coding-agent/commands/completions";
+import type { CliConfig, CommandCtor } from "@reverse/utils/cli";
 
 // A compact synthetic spec exercising every value-source kind and an aliased
 // subcommand.
@@ -88,4 +90,142 @@ describe.skipIf(!hasZsh)("zsh action helper under _arguments' calling convention
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
 	});
+});
+
+describe("generateCompletion — zsh", () => {
+	const out = generateCompletion("zsh", spec);
+
+	it("emits the compdef header and dual-mode (autoload + eval) tail", () => {
+		expect(out.startsWith("#compdef reverse")).toBe(true);
+		expect(out).toContain('if [ "$funcstack[1]" = "_reverse" ]; then');
+		expect(out).toContain("compdef _reverse reverse");
+	});
+
+	it("maps value sources to the right _arguments actions", () => {
+		expect(out).toContain("'--model[Model to use]:model:_reverse_call models'");
+		expect(out).toContain("'--models[Model list]:models:_reverse_models_list'");
+		expect(out).toContain("'--thinking[Effort]:value:(low high)'");
+		expect(out).toContain("'--tools[Tools]:value:_reverse_tools'");
+		expect(out).toContain("'(-r --resume)'{-r,--resume}'[Resume]:session:_reverse_call sessions'");
+		expect(out).toContain("'--session-dir[Dir]:dir:_files -/'");
+		// repeatable short+long flag uses the `*{...}` form
+		expect(out).toContain("'*'{-e,--extension}'[Ext]:file:_files'");
+		// the static tool list helper is baked
+		expect(out).toContain("_reverse_tools() { _values -s , 'tools' read bash }");
+	});
+
+	it("dispatches aliased subcommands and completes positional enums", () => {
+		expect(out).toContain("worktree|wt) _reverse_cmd_worktree ;;");
+		expect(out).toContain("':action:(list clear)'");
+	});
+});
+
+describe("generateCompletion — fish", () => {
+	const out = generateCompletion("fish", spec);
+
+	it("declares the no-subcommand predicate over every command token", () => {
+		expect(out).toContain("function __fish_reverse_no_subcommand");
+		expect(out).toContain("if contains -- $i commit worktree wt");
+	});
+
+	it("renders subcommand names, including aliases, with descriptions", () => {
+		expect(out).toContain("-a 'commit' -d 'Commit'");
+		expect(out).toContain("-a 'wt' -d 'Worktrees'");
+	});
+
+	it("maps value sources to fish completion args", () => {
+		expect(out).toContain(
+			"-l model -d 'Model to use' -x -a '(command reverse __complete models -- (commandline -ct))'",
+		);
+		expect(out).toContain("-l thinking -d 'Effort' -x -a 'low high'");
+		expect(out).toContain("-l tools -d 'Tools' -x -a 'read bash'");
+		expect(out).toContain("-s r -l resume -d 'Resume' -x -a '(command reverse __complete sessions");
+		// a bare boolean flag takes no value
+		expect(out).toContain("-s p -l print -d 'Print'");
+		expect(out).not.toContain("-l print -d 'Print' -x");
+	});
+
+	it("gates a positional enum on its subcommand", () => {
+		expect(out).toContain("-n '__fish_seen_subcommand_from worktree wt' -a 'list clear'");
+	});
+});
+
+describe("buildSpec", () => {
+	function fakeCmd(props: Partial<CommandCtor>): CommandCtor {
+		return props as unknown as CommandCtor;
+	}
+
+	it("lifts the root command's flags and excludes root + hidden from subcommands", () => {
+		const config: CliConfig = {
+			bin: "reverse",
+			version: "0",
+			commands: new Map<string, CommandCtor>([
+				["launch", fakeCmd({ hidden: true, flags: { model: { kind: "string" } }, args: {} })],
+				["__complete", fakeCmd({ hidden: true, flags: {}, args: {} })],
+				["config", fakeCmd({ description: "Cfg", flags: { json: { kind: "boolean" } }, args: {} })],
+			]),
+		};
+		const result = buildSpec(config, "launch", new Map([["config", ["c"]]]));
+
+		expect(result.root.flags.map(f => f.name)).toContain("model");
+		// hidden (__complete) and the root entry (launch) are both dropped
+		expect(result.commands.map(c => c.name)).toEqual(["config"]);
+		expect(result.commands[0]?.aliases).toEqual(["c"]);
+	});
+
+	it("classifies flag value sources from descriptor metadata", () => {
+		const config: CliConfig = {
+			bin: "reverse",
+			version: "0",
+			commands: new Map<string, CommandCtor>([
+				[
+					"launch",
+					fakeCmd({
+						hidden: true,
+						flags: {
+							model: { kind: "string" },
+							thinking: { kind: "string", options: ["low", "high"] },
+							"no-tools": { kind: "boolean" },
+							"session-dir": { kind: "string" },
+						},
+						args: {},
+					}),
+				],
+			]),
+		};
+		const root = buildSpec(config, "launch", new Map()).root;
+		const byName = new Map(root.flags.map(f => [f.name, f.value.kind]));
+		expect(byName.get("model")).toBe("models");
+		expect(byName.get("thinking")).toBe("enum");
+		expect(byName.get("no-tools")).toBe("flag");
+		expect(byName.get("session-dir")).toBe("dir");
+	});
+});
+
+describe("live completion surface", () => {
+	it("generates a zsh script reflecting the registered commands and flags", async () => {
+		const stdout = await generateLiveCompletion("zsh");
+
+		// Real top-level flags from launch's static `flags` table. Flags with a
+		// short char render as `{-r,--resume}`, so only assert the bracket form for
+		// the long-only ones and check the char-paired form separately.
+		for (const flag of ["--model", "--thinking", "--mode", "--approval-mode", "--tools", "--no-tools"]) {
+			expect(stdout).toContain(`${flag}[`);
+		}
+		expect(stdout).toContain("{-r,--resume}");
+		// Real enum option sets flow through unchanged.
+		expect(stdout).toContain(":value:(off minimal low medium high xhigh max auto)");
+		expect(stdout).toContain(":value:(always-ask always-ask-cached write yolo)");
+		// Real subcommands present; dynamic callbacks wired.
+		expect(stdout).toContain("_reverse_cmd_commit");
+		expect(stdout).toContain("'completions:");
+		// zsh routes single-value dynamic flags through the _reverse_call action, which
+		// itself shells out to `reverse __complete $kind`.
+		expect(stdout).toContain("_reverse_call models");
+		expect(stdout).toContain("_reverse_call sessions");
+		expect(stdout).toContain("command reverse __complete $kind");
+		// Hidden/default commands must NOT surface as completable subcommands.
+		expect(stdout).not.toContain("_reverse_cmd_launch");
+		expect(stdout).not.toContain("_reverse_cmd___complete");
+	}, 30_000);
 });

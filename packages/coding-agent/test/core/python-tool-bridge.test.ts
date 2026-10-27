@@ -126,7 +126,7 @@ describe("Python tool bridge HTTP server", () => {
 		try {
 			const prelude = PYTHON_PRELUDE.replace(
 				"from __future__ import annotations",
-				"from __future__ import annotations\n__reverse_display = lambda *args, **kwargs: None",
+				"from __future__ import annotations\n__reverse_emit_status = __reverse_emit_image = lambda *args, **kwargs: None",
 			);
 			const script = `${prelude}
 __reverse_run_id__ = "run"
@@ -324,7 +324,7 @@ asyncio.run(check_intent())
 		try {
 			const prelude = PYTHON_PRELUDE.replace(
 				"from __future__ import annotations",
-				"from __future__ import annotations\n__reverse_display = lambda *args, **kwargs: None",
+				"from __future__ import annotations\n__reverse_emit_status = __reverse_emit_image = lambda *args, **kwargs: None",
 			);
 			// Mirror the runner rewrite shape: `await tool.read({...})` becomes
 			// `await __reverse_with_call_site__(siteId, tool.read, {...})`.

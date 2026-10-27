@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { closeDb } from "@reverse/stats";
-import { getAgentDir, getSessionsDir, setAgentDir, TempDir } from "@reverse/utils";
+import { __resetDirsFromEnvForTests, getSessionsDir, setAgentDir, TempDir } from "@reverse/utils";
 import { runStatsCommand } from "../src/cli/stats-cli";
 
 const XDG_KEYS = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;
@@ -12,18 +12,18 @@ const XDG_KEYS = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;
 // unpriced-usage fix, so subscription-only usage with no reference price (e.g.
 // SuperGrok) printed as a real `$0.0000` charge instead of `N/A`.
 describe("reverse stats --summary", () => {
-	const originalAgentDir = getAgentDir();
 	const originalEnv: Record<string, string | undefined> = {};
 	let tempDir: TempDir;
 
 	beforeEach(() => {
+		closeDb();
 		tempDir = TempDir.createSync("@reverse-stats-summary-");
-		for (const key of [...XDG_KEYS, "PI_CONFIG_DIR"]) {
+		for (const key of [...XDG_KEYS, "REVERSE_CONFIG_DIR", "REVERSE_CODING_AGENT_DIR", "REVERSE_PROFILE"]) {
 			originalEnv[key] = process.env[key];
 			delete process.env[key];
 		}
 		const configDir = path.relative(os.homedir(), tempDir.join("config"));
-		process.env.PI_CONFIG_DIR = configDir;
+		process.env.REVERSE_CONFIG_DIR = configDir;
 		setAgentDir(path.join(os.homedir(), configDir, "agent"));
 	});
 
@@ -33,7 +33,7 @@ describe("reverse stats --summary", () => {
 			if (value === undefined) delete process.env[key];
 			else process.env[key] = value;
 		}
-		setAgentDir(originalAgentDir);
+		__resetDirsFromEnvForTests();
 		tempDir.removeSync();
 	});
 

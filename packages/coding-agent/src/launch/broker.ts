@@ -1553,24 +1553,29 @@ class DaemonBroker {
 	}
 
 	/**
-	 * Give up the scope once the socket file is gone. The native lease outlives a
-	 * deleted runtime dir, so a broker that kept running would hold the scope
-	 * while every new broker exits on the held lease and every new client fails
-	 * with `connect ENOENT`. Shutting down releases the lease, and the next client
-	 * spawns a broker that rebuilds the scope.
+	 * Give up the scope once the socket file or runtime dir is gone. The native
+	 * lease and a relocated Unix socket outlive a deleted runtime dir, so a
+	 * broker that kept running would hold the scope while every new broker exits
+	 * on the held lease and every new client fails with `connect ENOENT` or an
+	 * authentication mismatch. Shutting down releases the lease, and the next
+	 * client spawns a broker that rebuilds the scope.
 	 */
 	#watchEndpoint(): void {
+		const isMissing = (target: string): Promise<boolean> =>
+			fs.stat(target).then(
+				() => false,
+				error => isEnoent(error),
+			);
 		this.#endpointTimer = setInterval(() => {
-			void fs
-				.stat(this.#endpoint)
-				.then(
-					() => undefined,
-					error => {
-						if (!isEnoent(error) || this.#shuttingDown) return;
-						logger.warn("Daemon broker socket was deleted; releasing the scope", { endpoint: this.#endpoint });
-						return this.shutdown();
-					},
-				)
+			void Promise.all([isMissing(this.#endpoint), isMissing(this.#runtimeDir)])
+				.then(([endpointMissing, runtimeDirMissing]) => {
+					if ((!endpointMissing && !runtimeDirMissing) || this.#shuttingDown) return;
+					logger.warn("Daemon broker socket or runtime directory was deleted; releasing the scope", {
+						endpoint: this.#endpoint,
+						runtimeDir: this.#runtimeDir,
+					});
+					return this.shutdown();
+				})
 				.catch(error => {
 					logger.warn("Daemon broker shutdown after socket loss failed", {
 						error: error instanceof Error ? error.message : String(error),

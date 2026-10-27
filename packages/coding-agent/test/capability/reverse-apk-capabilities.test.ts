@@ -181,17 +181,65 @@ describe("Reverse APK Capabilities & Readiness State Transitions", () => {
 	});
 
 	describe("apk_unpacking baseline preservation", () => {
-		it("maintains jadx readiness independent of patch tool states", () => {
-			const withJadx = resolveReverseCapabilities({
+		it("maintains jadx and full unpacking readiness independent of dex patch python state", () => {
+			const withJadxAndJava = resolveReverseCapabilities({
+				platform: "darwin",
+				toolStatuses: [
+					{ id: "jadx", status: "installed" },
+					{ id: "java", status: "installed" },
+					{ id: "python", status: "missing" },
+				],
+			});
+			const jadxUnpackingCap = withJadxAndJava.find(c => c.id === "apk_unpacking");
+			expect(jadxUnpackingCap?.canStart).toBe(true);
+			expect(jadxUnpackingCap?.unpackingStages?.baseline.ready).toBe(true);
+			expect(jadxUnpackingCap?.unpackingStages?.javaDecompile.ready).toBe(true);
+			expect(jadxUnpackingCap?.unpackingStages?.smali.ready).toBe(false);
+			expect(jadxUnpackingCap?.ready).toBe(false);
+			expect(jadxUnpackingCap?.status).toBe("available_with_fallbacks");
+			expect(jadxUnpackingCap?.blockedRequirements).toEqual(["apktool"]);
+			expect(jadxUnpackingCap?.blockedRequirements).not.toContain("python");
+
+			const fullUnpackingToolchain = resolveReverseCapabilities({
+				platform: "darwin",
+				toolStatuses: [
+					{ id: "jadx", status: "installed" },
+					{ id: "apktool", status: "installed" },
+					{ id: "java", status: "installed" },
+					{ id: "python", status: "missing" },
+				],
+			});
+			const fullUnpackingCap = fullUnpackingToolchain.find(c => c.id === "apk_unpacking");
+			const patchCap = fullUnpackingToolchain.find(c => c.id === "dex_patching");
+			expect(fullUnpackingCap?.canStart).toBe(true);
+			expect(fullUnpackingCap?.ready).toBe(true);
+			expect(fullUnpackingCap?.status).toBe("ready");
+			expect(fullUnpackingCap?.blockedRequirements).toBeUndefined();
+			expect(fullUnpackingCap?.unpackingStages?.baseline.ready).toBe(true);
+			expect(fullUnpackingCap?.unpackingStages?.javaDecompile.ready).toBe(true);
+			expect(fullUnpackingCap?.unpackingStages?.smali.ready).toBe(true);
+			expect(patchCap?.ready).toBe(false);
+			expect(patchCap?.blockedRequirements).toContain("python");
+		});
+
+		it("blocks jadx and apktool stages when java runtime is missing while keeping baseline ready", () => {
+			const jadxWithoutJava = resolveReverseCapabilities({
 				platform: "darwin",
 				toolStatuses: [
 					{ id: "jadx", status: "installed" },
 					{ id: "python", status: "missing" },
 				],
 			});
-			const unpackingCap = withJadx.find(c => c.id === "apk_unpacking");
-			expect(unpackingCap?.ready).toBe(true);
-			expect(unpackingCap?.status).toBe("ready");
+			const unpackingCap = jadxWithoutJava.find(c => c.id === "apk_unpacking");
+			expect(unpackingCap?.canStart).toBe(true);
+			expect(unpackingCap?.ready).toBe(false);
+			expect(unpackingCap?.status).toBe("available_with_fallbacks");
+			expect(unpackingCap?.unpackingStages?.baseline.ready).toBe(true);
+			expect(unpackingCap?.unpackingStages?.javaDecompile.ready).toBe(false);
+			expect(unpackingCap?.unpackingStages?.javaDecompile.missingTools).toContain("java");
+			expect(unpackingCap?.unpackingStages?.smali.ready).toBe(false);
+			expect(unpackingCap?.blockedRequirements).toEqual(["java", "apktool"]);
+			expect(unpackingCap?.blockedRequirements).not.toContain("python");
 		});
 	});
 

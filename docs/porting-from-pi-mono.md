@@ -3,6 +3,40 @@
 This guide is a repeatable checklist for porting changes from pi-mono into this repo.
 Use it for any merge: single file, feature branch, or full release sync.
 
+## reverse ↔ oh-my-pi release tracking
+
+reverse follows the stable [oh-my-pi releases](https://github.com/can1357/oh-my-pi/releases), retaining its own executable, package scope, configuration, prompts, providers, and reverse-engineering tools.
+
+- Current upstream release: **18.13.1** (`0838d2ab4407b74e870de07e1a6780a13c7d542c`, 2026-10-27).
+- Imported range: `v18.11.2` (`470b7efb67673960d37e3e64584669e6e9caad1c`) → `v18.13.1`.
+- All release-train TypeScript packages, the workspace catalog, native crate versions, and lockfiles use the upstream release version. The independently versioned browser-relay extension and tool-views package retain their upstream versions.
+- Development uses upstream's pinned **Bun 1.4.4**. Build the native addon before starting the updated CLI; version stamps and new native exports must match.
+
+### 18.13.1 integration verification
+
+- Frozen Bun installation, native addon build, standalone binary build, and the TypeScript lint/format/type gate passed with Bun 1.4.4.
+- Source and standalone CLI report `reverse/18.13.1`; both pass `--smoke-test`. Isolated print mode completed through a loopback OpenAI-compatible provider without contacting configured user providers.
+- Exercised the interactive setup/tool installer, localized browser submit-name round trips, real HTML session export expansion/Markdown safety, OAuth recovery, subprocess diagnostics, and cached/restricted-folder authorization for mixed reads and archive/literal/glob searches.
+- Workspace (7 chunks), runtime (34), UI (71), singleton (1,251 passing tests), TUI (4,102), and isolated stats/identity suites (198) passed. Native/tooling/browser coverage passed 103 of 106 chunks; the three Node-dependent fixture groups failed with Node absent from the restricted verification PATH, then all 45 tests passed with the installed Node 24 runtime on PATH.
+- Rust full-suite verification passed: **4,016 tests**, with 5 skipped; the runnable doctest passed too. Replaced the pre-existing macOS kernel/login-record equality assumption with per-host VFS fixtures proving default-file boot-record precedence and kernel fallback when no boot record exists, without changing runtime behavior or the host's login records. TypeScript and Rust quality gates, source/standalone CLI smoke checks, and live native `uptime -s` checks also passed.
+
+### Future release syncs
+
+1. Fetch the upstream repository and choose its latest stable tag, rather than unreleased `main` work:
+
+   ```sh
+   git fetch upstream --tags
+   git diff v18.13.1..<next-stable-tag> -- packages crates docs scripts package.json bun.lock Cargo.toml Cargo.lock
+   ```
+
+2. Apply that release delta with a three-way merge using the recorded upstream release as the base. The original fork was imported as a source snapshot and has no shared upstream Git ancestor; a plain unrelated-history merge is not the integration baseline.
+3. Map `@oh-my-pi/pi-*` imports to the existing `@reverse/*` packages, including `pi-agent-core` → `agent`, `omp-stats` → `stats`, and `omptype` → `reversetype`. Preserve app-level `reverse`/`REVERSE_*` identity and the existing low-level `PI_*` contracts. Keep third-party identifiers and protocols, such as DeepInfra `sort_by=omp`, OpenMP variables, and legacy pi extension imports, unchanged.
+4. Keep intentionally removed public distribution infrastructure and hosted collab/share/update/automatic issue-reporting services absent. Merge their shared runtime fixes only where those paths still exist. Preserve the complete reverse tool registry, dependency checks, provider model discovery/multi-select, and all five CLI/TUI setup panels with real installation actions.
+5. Regenerate compatibility rules, native bindings, browser-relay assets, and HTML tool views through their existing scripts. Keep English text and add Chinese configuration translations through the i18n layer. Synthesize system-prompt changes from parallel drafts; user prompt templates retain their existing content.
+6. Run frozen dependency installation, native and executable builds, TypeScript/Rust checks, relevant behavioral suites, source and compiled CLI smoke tests, and an isolated interactive setup preview. Update this release marker and package changelogs with the new upstream range and any intentionally excluded surfaces.
+
+The sections below describe the older **pi-mono → omp** porting process; its historical marker is separate from reverse's omp release baseline above.
+
 ## Last Sync Point (historical upstream marker)
 
 **Commit:** `b21b42d032919de2f2e6920a76fa9a37c3920c0a`

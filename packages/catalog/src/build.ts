@@ -19,7 +19,16 @@ import {
 	NO_RECURRING_TARIFF,
 	parseDatedCostCards,
 } from "./pricing";
-import { type Api, type EffectiveTokenCost, MODEL_KINDS, type Model, type ModelCost, type ModelSpec } from "./types";
+import {
+	type AntigravityModelWireProfile,
+	type Api,
+	type EffectiveTokenCost,
+	MODEL_KINDS,
+	type Model,
+	type ModelAccountAccess,
+	type ModelCost,
+	type ModelSpec,
+} from "./types";
 import { cleanModelName } from "./utils";
 
 function numberField(source: object, key: string): number | undefined {
@@ -53,6 +62,11 @@ function applyCatalogAssignments<TApi extends Api>(model: Model<TApi>, catalog: 
 		model.contextWindowAuthoritative = true;
 	} else {
 		delete model.contextWindowAuthoritative;
+	}
+	if (catalog.longContextWindowUncapped === true) {
+		model.longContextWindowUncapped = true;
+	} else {
+		delete model.longContextWindowUncapped;
 	}
 	const webSearch = catalog.webSearch;
 	if (
@@ -330,6 +344,14 @@ export function applyCatalogCorrections(
 		const maxTokens = numberField(limitsPatch, "maxTokens");
 		if (maxTokens !== undefined) model.maxTokens = maxTokens;
 	}
+	const maxTokensFallback = catalog.maxTokensFallback;
+	if (typeof maxTokensFallback === "number" && model.maxTokens === null) {
+		model.maxTokens = maxTokensFallback;
+	}
+	const maxTokensCeiling = catalog.maxTokensCeiling;
+	if (typeof maxTokensCeiling === "number" && model.maxTokens !== null && model.maxTokens > maxTokensCeiling) {
+		model.maxTokens = maxTokensCeiling;
+	}
 	const contextWindowFloor = catalog.contextWindowFloor;
 	if (typeof contextWindowFloor === "number") {
 		model.contextWindow = Math.max(model.contextWindow ?? 0, contextWindowFloor);
@@ -338,6 +360,42 @@ export function applyCatalogCorrections(
 	if (isInputModalities(inputModalities)) {
 		model.input = inputModalities;
 	}
+}
+
+/**
+ * Lower discovered Antigravity per-SKU output caps to the host's
+ * `max-tokens-ceiling`. The transport sends a profile's `maxOutputTokens`
+ * verbatim, so a roster value above the ceiling (Claude 4.x advertises 65,536;
+ * Cloud Code Assist 400s past 64,000, #3067) must be corrected here as the
+ * row's `maxTokens` is.
+ */
+function capAntigravityWireProfiles(
+	model: Pick<Model<Api>, "antigravityWireProfiles" | "accountAccess">,
+	ceiling: unknown,
+): void {
+	if (typeof ceiling !== "number") return;
+	const cap = (
+		profiles: Readonly<Record<string, AntigravityModelWireProfile>> | undefined,
+	): Readonly<Record<string, AntigravityModelWireProfile>> | undefined => {
+		if (profiles === undefined) return undefined;
+		let capped: Record<string, AntigravityModelWireProfile> | undefined;
+		for (const [wireId, profile] of Object.entries(profiles)) {
+			if (profile.maxOutputTokens === undefined || profile.maxOutputTokens <= ceiling) continue;
+			capped ??= { ...profiles };
+			capped[wireId] = { ...profile, maxOutputTokens: ceiling };
+		}
+		return capped ?? profiles;
+	};
+	model.antigravityWireProfiles = cap(model.antigravityWireProfiles);
+	if (model.accountAccess === undefined) return;
+	let accountAccess: Record<string, ModelAccountAccess> | undefined;
+	for (const [accountKey, access] of Object.entries(model.accountAccess)) {
+		const profiles = cap(access.antigravityWireProfiles);
+		if (profiles === access.antigravityWireProfiles) continue;
+		accountAccess ??= { ...model.accountAccess };
+		accountAccess[accountKey] = { ...access, antigravityWireProfiles: profiles };
+	}
+	if (accountAccess !== undefined) model.accountAccess = accountAccess;
 }
 
 /**
@@ -432,6 +490,7 @@ export function buildModel<TApi extends Api>(spec: ModelSpec<TApi>): Model<TApi>
 	};
 	applyCatalogAssignments(model, policy.catalog);
 	applyCatalogCorrections(model, policy.catalog);
+	capAntigravityWireProfiles(model, policy.catalog.maxTokensCeiling);
 	// Configured kinds and lifetimes replace catalog values rather than merging with them.
 	if (spec.kindConfig !== undefined) model.kind = spec.kindConfig;
 	if (spec.promptCacheConfig !== undefined) model.promptCache = { ...spec.promptCacheConfig };

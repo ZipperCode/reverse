@@ -89,7 +89,12 @@ describe("createAgentSession defaultInactive tool activation", () => {
 	beforeAll(async () => {
 		registryAuthDir = path.join(os.tmpdir(), `pi-sdk-tool-activation-auth-${Snowflake.next()}`);
 		fs.mkdirSync(registryAuthDir, { recursive: true });
-		modelRegistry = new ModelRegistry(await discoverAuthStorage(registryAuthDir));
+		const registrySettings = Settings.isolated();
+		modelRegistry = new ModelRegistry(
+			await discoverAuthStorage(registryAuthDir, { settings: registrySettings }),
+			path.join(registryAuthDir, "models.yml"),
+			{ settings: registrySettings },
+		);
 	});
 
 	// Shared options for every session. `rules: []` and `workspaceTree` short-circuit
@@ -193,7 +198,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 			expect(write).toBeDefined();
 			await expect(
 				write!.execute("device-only-fs", { path: path.join(tempDir, "nope.txt"), content: "x" }),
-			).rejects.toThrow("Filesystem writes are not available");
+			).rejects.toThrow("Other filesystem paths are refused");
 		} finally {
 			await session.dispose();
 		}
@@ -216,7 +221,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 					path: path.join(tempDir, "before.txt"),
 					content: "x",
 				}),
-			).rejects.toThrow("Filesystem writes are not available");
+			).rejects.toThrow("Other filesystem paths are refused");
 
 			await session.setActiveToolsByName(session.getEnabledToolNames());
 
@@ -225,7 +230,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 					path: path.join(tempDir, "after.txt"),
 					content: "x",
 				}),
-			).rejects.toThrow("Filesystem writes are not available");
+			).rejects.toThrow("Other filesystem paths are refused");
 		} finally {
 			await session.dispose();
 		}
@@ -517,7 +522,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 			if (!write) throw new Error("expected dormant write transport");
 			await expect(
 				write.execute("late-device-fs", { path: path.join(tempDir, "nope.txt"), content: "x" }),
-			).rejects.toThrow("Filesystem writes are not available");
+			).rejects.toThrow("Other filesystem paths are refused");
 		} finally {
 			await session.dispose();
 		}
@@ -1846,7 +1851,7 @@ describe("createAgentSession defaultInactive tool activation", () => {
 			expect(write).toBeDefined();
 			await expect(
 				write!.execute("device-only-fs", { path: path.join(tempDir, "nope.txt"), content: "x" }),
-			).rejects.toThrow("Filesystem writes are not available");
+			).rejects.toThrow("Other filesystem paths are refused");
 		} finally {
 			await session.dispose();
 		}

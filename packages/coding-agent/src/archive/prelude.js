@@ -7,7 +7,7 @@
 		const defined = Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined));
 		const response = await globalThis.__reverse_prelude__("archive", { ...defined, action });
 		if (!silent && response && typeof response.text === "string" && response.text.length > 0) {
-			globalThis.__reverse_display__(response.text);
+			globalThis.__reverse_log__("log", response.text);
 		}
 		return response && typeof response === "object" ? response.details : undefined;
 	};

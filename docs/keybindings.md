@@ -37,10 +37,11 @@ app.history.search: []
 | `app.tools.expand`           | `Ctrl+O`                                                              | Toggle transcript details: tool output, thinking, Skill instructions, and error details                                                                                               |
 | `app.tools.toggleVisibility` | `Ctrl+Shift+O`                                                        | Show or hide tool activity                                                                                                                                                           |
 | `app.ask.hide`               | `Alt+H`                                                               | Hide a pending `ask` question to one line (the Hide button in Tern); the same key, `Enter`, or Show brings it back                                                                   |
-| `app.approval.approve`       | `Ctrl+Enter`, `Ctrl+Q`                                                | Approve a pending tool call (the Approve button in Tern); `Esc` denies. Plain `Enter` never approves                                                                                  |
+| `app.approval.approve`       | `Ctrl+Enter`, `Ctrl+Q`                                                | Approve a pending tool call outright (the Approve button in Tern); `Esc` denies, and `Enter` takes the Approve/Deny choice highlighted with the arrows                                  |
 | `app.thinking.toggle`        | `Ctrl+T`                                                              | Toggle thinking-block visibility                                                                                                                                                     |
 | `app.thinking.cycle`         | `Shift+Tab`                                                           | Cycle thinking level                                                                                                                                                                 |
 | `app.editor.external`        | `Ctrl+G`                                                              | Edit the draft in `$VISUAL` / `$EDITOR`                                                                                                                                              |
+| `app.local.open`             | `Alt+G`                                                               | Pick a session `local://` file and edit it in `$VISUAL` / `$EDITOR` (same as `/local`)                                                                                              |
 | `app.message.followUp`       | `Ctrl+Q`, `Ctrl+Enter`                                                | Queue a follow-up message                                                                                                                                                            |
 | `app.message.dequeue`        | `Alt+Up`, `Shift+Up`                                                  | Dequeue a queued message back into the editor                                                                                                                                        |
 | `app.retry`                  | `F5`, `Alt+R`                                                         | Retry the last failed assistant turn                                                                                                                                                 |
@@ -131,7 +132,8 @@ The status line also shows the mode, pending command, and multi-line Visual sele
 | `dd` `yy` `cc`                | Linewise delete / yank / change                                |
 | `d` `y` `c` + text object     | Operate over a text object, e.g. `diw`, `ca(`, `ci"`, `dap`    |
 | `p` `P`                       | Put the last yank or delete after / before the cursor          |
-| `u`                           | Undo                                                            |
+| `u`                           | Undo (a whole Insert session, or a whole `.`, undoes in one step) |
+| `.`                           | Repeat the last change, including text typed in the Insert session it opened; a count replaces the original one (`3.`) |
 
 ### Text objects
 

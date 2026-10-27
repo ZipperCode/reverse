@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { sanitizeText } from "@reverse/utils";
 import type { HighlightStream } from "@reverse/natives";
 import type { Component } from "../tui";
 import { fencedCode } from "../components/markdown";
@@ -158,10 +159,12 @@ function describeFigure(figure: ToolFigure | undefined): NativeNode | undefined 
 	return { ...md(text, { role: "reverse.tool.write.figure", stream: !figure.closed }), key: "figure" };
 }
 
-/** The written content as numbered code, keyed so it keeps its node as the figure above it comes and goes. */
+/**
+ * The written content as numbered code, highlighted by Tern from the file's path,
+ * keyed so it keeps its node as the figure above it comes and goes.
+ */
 function describeSource(rawPath: string, content: string): NativeNode {
-	const lang = rawPath ? getLanguageFromPath(rawPath) : undefined;
-	return { ...code(content, { lang, numbers: true, wrap: true }), key: "source" };
+	return { ...code(content, { path: rawPath || undefined, numbers: true, wrap: true }), key: "source" };
 }
 
 function countLines(text: string): number {
@@ -429,6 +432,8 @@ function renderContentPreview(
 /** Render context for the write tool: resolves an `xd://`-mounted tool so its live renderer drives device dispatch previews. */
 export interface WriteRenderContext {
 	resolveXdevMounted?: (name: string) => XdevMountedRenderer | undefined;
+	/** Original result metadata used only for filesystem link targets. */
+	rawDetails?: unknown;
 }
 
 /** Process id and operation named by the text after `proc://`. */
@@ -545,6 +550,15 @@ function describeWriteUrl(
 	}
 }
 
+function writeResolvedPath(rawDetails: unknown, fallback: string | undefined): string | undefined {
+	return rawDetails !== null &&
+		typeof rawDetails === "object" &&
+		"resolvedPath" in rawDetails &&
+		typeof rawDetails.resolvedPath === "string"
+		? rawDetails.resolvedPath
+		: fallback;
+}
+
 /** Native write head shared by the call and result: `Write · path · 22 lines`, executable/diagnostics chips. */
 function writeToolHead(
 	rawPath: string,
@@ -558,7 +572,7 @@ function writeToolHead(
 	if (diagnostics) badges.push(diagnostics);
 	return {
 		title: "Write",
-		target: rawPath ? displayPath(rawPath) : undefined,
+		target: rawPath ? sanitizeText(displayPath(rawPath)) : undefined,
 		targetKind: "path",
 		href: fileHref(details?.resolvedPath),
 		meta: lineCount > 0 ? [`${lineCount} line${lineCount === 1 ? "" : "s"}`] : undefined,
@@ -615,7 +629,7 @@ export const writeToolRenderer = {
 			if (isResolutionDeviceName(xdev.name)) return renderResolutionDeviceCall(xdev.name, args.content, uiTheme);
 			return renderXdevCall(xdev.name, args.content, options, uiTheme, options.renderContext?.resolveXdevMounted);
 		}
-		const filePath = shortenPath(rawPath);
+		const filePath = sanitizeText(shortenPath(rawPath));
 		const lang = rawPath ? (getLanguageFromPath(rawPath) ?? "text") : "text";
 		const langIcon = uiTheme.fg("muted", uiTheme.getLangIcon(lang));
 		const styledPath = filePath ? uiTheme.fg("accent", filePath) : uiTheme.fg("toolOutput", "…");
@@ -699,14 +713,14 @@ export const writeToolRenderer = {
 		}
 		const rawPath =
 			typeof args?.file_path === "string" ? args.file_path : typeof args?.path === "string" ? args.path : "";
-		const filePath = shortenPath(rawPath);
+		const filePath = sanitizeText(shortenPath(rawPath));
 		const fileContent = normalizeDisplayText(args?.content);
 		const lang = rawPath ? getLanguageFromPath(rawPath) : undefined;
 		const langIcon = uiTheme.fg("muted", uiTheme.getLangIcon(lang));
 		// The header shows the cwd-relative path but links to the absolute path the
 		// write resolved to (args.path may be relative, which would yield a broken
 		// `file://` URI). Falls back to plain text when the result lacks a path.
-		const linkTarget = result.details?.resolvedPath;
+		const linkTarget = writeResolvedPath(options.renderContext?.rawDetails, result.details?.resolvedPath);
 		const styledPath = filePath ? uiTheme.fg("accent", filePath) : uiTheme.fg("toolOutput", "…");
 		const pathDisplay = filePath && linkTarget ? fileHyperlink(linkTarget, styledPath) : styledPath;
 
@@ -828,7 +842,7 @@ export const writeToolRenderer = {
 		const diagnostics = isPartial ? undefined : result.details?.diagnostics;
 		const tool = writeToolHead(rawPath, fileContent, {
 			madeExecutable: !isPartial && result.details?.madeExecutable === true,
-			resolvedPath: result.details?.resolvedPath,
+			resolvedPath: writeResolvedPath(options.renderContext?.rawDetails, result.details?.resolvedPath),
 			diagnostics,
 		});
 		if (result.isError) return { tool, tone: "error", body: [errorText(resultText(result))] };

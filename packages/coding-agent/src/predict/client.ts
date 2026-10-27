@@ -12,7 +12,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { IpcConnection, ipcEndpoint, type PredictedWord } from "@reverse/natives";
 import type { WordCompletionEngine, WordPredictionBackend } from "@reverse/tui/prompt/word-completion";
-import { getAgentDir, logger, ptree, VERSION } from "@reverse/utils";
+import { compareVersions, getAgentDir, logger, ptree, VERSION } from "@reverse/utils";
 import { daemonClientForGlobal } from "../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../launch/ensure";
 import { resolveWorkerSpawnCmd, SMOKE_TEST_TIMEOUT_MS, workerEnvFromParent } from "../subprocess/worker-client";
@@ -115,7 +115,10 @@ class DaemonConnection {
 	}
 }
 
-/** Connect and confirm the daemon speaks this reverse version; `undefined` when nothing usable listens. */
+/**
+ * Connect and confirm the daemon speaks this reverse version or a newer one;
+ * `undefined` when nothing usable listens.
+ */
 async function connectDaemon(endpoint: string): Promise<DaemonConnection | undefined> {
 	let ipc: IpcConnection;
 	try {
@@ -126,8 +129,12 @@ async function connectDaemon(endpoint: string): Promise<DaemonConnection | undef
 	const connection = new DaemonConnection(ipc);
 	try {
 		const pong = await connection.request(id => ({ id, op: "ping" }), REQUEST_TIMEOUT_MS);
-		if (pong.ok && pong.op === "ping" && pong.version === VERSION) return connection;
-		// A daemon from another reverse version: retire it so this version's starts.
+		if (pong.ok && pong.op === "ping" && (pong.version === VERSION || compareVersions(pong.version, VERSION) > 0)) {
+			return connection;
+		}
+		// A daemon from an older reverse version: retire it so this version's starts. A newer
+		// one keeps serving: after an in-place upgrade this process would start that same
+		// newer build again, and retiring it cuts off every process already on it.
 		await connection.request(id => ({ id, op: "shutdown" }), REQUEST_TIMEOUT_MS).catch(() => undefined);
 	} catch (error) {
 		logger.debug("text-predict: daemon ping failed", { endpoint, error: String(error) });

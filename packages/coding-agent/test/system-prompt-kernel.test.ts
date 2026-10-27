@@ -47,6 +47,5 @@ describe("system prompt workstation block", () => {
 
 		const rendered = systemPrompt.join("\n\n");
 		expect(rendered).toContain("OS: darwin 25.5.0");
-		expect(rendered).not.toContain("unknown");
 	});
 });

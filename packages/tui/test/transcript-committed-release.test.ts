@@ -215,7 +215,6 @@ describe("committed transcript blocks release render caches", () => {
 		for (const tool of liveTools) tool.stopAnimation();
 		liveTools.length = 0;
 		vi.restoreAllMocks();
-		setMcpRenderMarkdownResults(false);
 	});
 
 	it("releases a block once when it commits and after every replay render, never while it is live", () => {

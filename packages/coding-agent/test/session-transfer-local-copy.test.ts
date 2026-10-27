@@ -4,7 +4,7 @@ import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { FileEntry, SessionHeader } from "@reverse/coding-agent/session/session-entries";
-import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { closeSessionIndex } from "@reverse/coding-agent/session/session-index";
 import { findSessionFiles } from "@reverse/coding-agent/session/session-listing";
 import { loadEntriesFromFile } from "@reverse/coding-agent/session/session-loader";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
@@ -61,7 +61,7 @@ describe("reverse session unpack against a local copy", () => {
 	});
 
 	afterEach(async () => {
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		if (originalAgentDir) {
 			setAgentDir(originalAgentDir);
 		} else {

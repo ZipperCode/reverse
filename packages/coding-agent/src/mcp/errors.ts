@@ -94,6 +94,26 @@ export class MCPTransportError extends Error {
 	}
 }
 
+/** Prevent replay once a request may have reached the server. */
+export function nonRetryableMCPTransportError(error: MCPTransportError): MCPTransportError {
+	if (!error.retryable) return error;
+	return new MCPTransportError({
+		transport: error.transport,
+		stage: error.stage,
+		failure: error.failure,
+		message: error.message,
+		retryable: false,
+		code: error.code,
+		data: error.data,
+		traceId: error.traceId,
+		phase: error.phase,
+		signal: error.signal,
+		stderr: error.stderr,
+		command: error.command,
+		cause: error,
+	});
+}
+
 function errorCode(error: unknown): string | number | undefined {
 	if (!isRecord(error)) return undefined;
 	if (typeof error.code === "string" || typeof error.code === "number") return error.code;
@@ -109,7 +129,11 @@ function sanitizeDiagnosticText(value: string, maxChars: number): string {
 			// Redact quoted JSON sensitive keys first while JSON quote/escape boundaries are intact
 			.replace(
 				/("([A-Za-z0-9_-]*(?:authorization|bearer|cookie|signature|access[-_]?token|api[-_]?key|key|token|secret|password|pwd|credential|private[-_]?key|client[-_]?secret|signing[-_]?secret)[A-Za-z0-9_-]*)"\s*:\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,}]+)/gi,
-				'$1"[redacted]"',
+				(match, prefix: string, key: string) => {
+					// OAuth 发现读取端点元数据；URL 凭据仍由前后的专用规则脱敏。
+					if (/^(?:authorization|token)[_-]?(?:url|uri|endpoint)$/i.test(key)) return match;
+					return `${prefix}"[redacted]"`;
+				},
 			)
 			// Redact entire Cookie and Set-Cookie header lines (handling both literal newlines and escaped \n / \r)
 			.replace(/((?:\b(?:cookie|set[-_]?cookie)\b\s*[:=]\s*))(?:\\.[^"'\r\n\\]*|[^"'\r\n\\])+/gi, "$1[redacted]")
@@ -122,9 +146,9 @@ function sanitizeDiagnosticText(value: string, maxChars: number): string {
 			// WWW-Authenticate challenge whose params (resource_metadata, scope, error)
 			// drive OAuth discovery, so leave it intact. Exclude quotes so adjacent JSON is not swallowed.
 			.replace(/\b(Bearer|Basic)\s+(?![\w.~+/-]+\s*=\s*")[^\s,;"']+/gi, "$1 [redacted]")
-			.replace(/([?&](?:access[-_]?token|api[-_]?key|key|token|secret|password)=)[^&#\s]+/gi, "$1[redacted]")
+			.replace(/([?&](?:access[-_]?token|api[-_]?key|key|token|secret|password)=)[^&#\s"'\\]+/gi, "$1[redacted]")
 			.replace(
-				/((?:api[-_]?key|private[-_]?key|access[-_]?key|client[-_]?secret|signing[-_]?secret|token|secret|passw(?:or)?d|pwd|credential)\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;}]+)/gi,
+				/((?:api[-_]?key|private[-_]?key|access[-_]?key|client[-_]?secret|signing[-_]?secret|token|secret|passw(?:or)?d|pwd|credential)\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;}"'\\]+)/gi,
 				"$1[redacted]",
 			)
 			.replace(
@@ -427,6 +451,16 @@ export function normalizeMCPTransportError(
 }
 
 function nextStep(error: MCPTransportError): string {
+	// Every connection-class failure is retryable before dispatch, so a non-retryable one was lost after sending.
+	if (
+		!error.retryable &&
+		(error.failure === "connect" ||
+			error.failure === "eof" ||
+			error.failure === "reset" ||
+			error.failure === "closed")
+	) {
+		return "The connection was lost after the request was sent, so it may already have run; check its effect before retrying.";
+	}
 	if (error.transport === "stdio" && (error.failure === "eof" || error.failure === "connect")) {
 		if (error.phase === "spawn" || error.failure === "connect") {
 			return "Verify that the command executable exists and has execution permissions.";

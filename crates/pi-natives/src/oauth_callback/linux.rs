@@ -878,8 +878,8 @@ mod tests {
 		fs::create_dir_all(preference_path.parent().unwrap()).unwrap();
 		fs::write(
 			&preference_path,
-			"[Default Applications]\nx-scheme-handler/reverse-auth=previous.desktop;\ntext/html=browser.\
-			 desktop;\n",
+			"[Default Applications]\nx-scheme-handler/reverse-auth=previous.desktop;\ntext/\
+			 html=browser.desktop;\n",
 		)
 		.unwrap();
 		let snapshot = prepare(&context).unwrap();

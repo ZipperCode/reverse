@@ -5,10 +5,11 @@
 //! an assistive client that queries the application's `AXRole`, and publish it
 //! over IPC a few hundred milliseconds later; a read before that sees an empty
 //! page. Older Electron builds it only once `AXManualAccessibility` is set, so
-//! reverse writes that flag only to an Electron window whose web content did not
-//! appear: it switches on the app's full screen-reader mode, which costs the
-//! app work on every page change until it quits, and Electron 38 reads it back
-//! as `false` whatever its state, so no client can tell who switched it on.
+//! reverse writes that flag only to an Electron window whose web content did
+//! not appear: it switches on the app's full screen-reader mode, which costs
+//! the app work on every page change until it quits, and Electron 38 reads it
+//! back as `false` whatever its state, so no client can tell who switched it
+//! on.
 
 use std::{
 	cell::RefCell,

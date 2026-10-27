@@ -116,7 +116,7 @@ export const contextSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"compaction.idleTimeoutSeconds": {
 		label: "空闲压缩延迟",
-		description: "空闲后等待多少秒再压缩",
+		description: "空闲后等待多少秒再压缩；对于 1 小时提示缓存，则改为在缓存即将过期前执行压缩",
 		options: {
 			"60": { label: "1 分钟" },
 			"120": { label: "2 分钟" },

@@ -1,8 +1,24 @@
 import { describe, expect, it } from "bun:test";
 import { $which, TempDir } from "@reverse/utils";
 import { PYTHON_PRELUDE } from "../../../src/eval/py/prelude";
+import { enumeratePythonRuntimes } from "../../../src/eval/py/runtime";
 import { artifactReadBridge } from "../../helpers/artifact-read-bridge";
-const pythonPath = Bun.env.PYTHON ?? ($which("python3") ? "python3" : "python");
+
+const pythonPath =
+	Bun.env.PYTHON ??
+	[
+		...enumeratePythonRuntimes(process.cwd(), process.env).map(r => r.pythonPath),
+		$which("python3.12"),
+		$which("python3.11"),
+		$which("python3.10"),
+	].find(
+		(candidate): candidate is string =>
+			typeof candidate === "string" &&
+			Bun.spawnSync([candidate, "-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)"], {
+				stdio: ["ignore", "ignore", "ignore"],
+			}).exitCode === 0,
+	) ??
+	($which("python3") ? "python3" : "python");
 
 async function runPrelude(
 	code: string,
@@ -10,7 +26,7 @@ async function runPrelude(
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
 	const prelude = PYTHON_PRELUDE.replace(
 		"from __future__ import annotations",
-		"from __future__ import annotations\n__reverse_display = lambda *args, **kwargs: None",
+		"from __future__ import annotations\n__reverse_emit_status = __reverse_emit_image = lambda *args, **kwargs: None",
 	);
 	const script = `${prelude}\n${code}`;
 	// The full prelude exceeds Windows' ~32k `python -c` command-line limit

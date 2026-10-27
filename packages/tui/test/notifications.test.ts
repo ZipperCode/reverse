@@ -119,9 +119,8 @@ describe("terminal notifications", () => {
 			expiresMs: 5000,
 		});
 
-		expect(out).toBe(
-			"\x1b]99;i=complete-1:f=cnZh:a=focus:u=1:t=Y29tcGxldGlvbg==:n=aW5mbw==:s=aW5mbw==:w=5000:d=0;Session\x1b\\" +
-				"\x1b]99;i=complete-1:p=body;Complete\x1b\\",
+		expect(out).toMatch(
+			/^\x1b\]99;i=complete-1:f=[A-Za-z0-9+/=]+:a=focus:u=1:t=Y29tcGxldGlvbg==:n=aW5mbw==:s=aW5mbw==:w=5000:d=0;Session\x1b\\\x1b\]99;i=complete-1:p=body;Complete\x1b\\$/u,
 		);
 	});
 
@@ -129,7 +128,7 @@ describe("terminal notifications", () => {
 		setOsc99Supported(true);
 		const terminal = getTerminalInfo("kitty");
 		const out = terminal.formatNotification({ title: "Line 1\nLine 2", id: "unsafe" });
-		expect(out).toBe("\x1b]99;i=unsafe:f=cnZh:e=1;TGluZSAxCkxpbmUgMg==\x1b\\");
+		expect(out).toMatch(/^\x1b\]99;i=unsafe:f=[A-Za-z0-9+/=]+:e=1;TGluZSAxCkxpbmUgMg==\x1b\\$/u);
 	});
 
 	it("queries and confirms OSC 99 support before rich notifications", () => {

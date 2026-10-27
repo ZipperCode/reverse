@@ -430,7 +430,12 @@ describe("EventController thinking visibility", () => {
 			},
 		} as Extract<AgentSessionEvent, { type: "message_update" }>);
 
+		expect(Bun.stripANSI(component.render(80).join("\n"))).not.toContain("server-side reasoning");
+		component.setExpanded(true);
 		expect(Bun.stripANSI(component.render(80).join("\n"))).toContain("server-side reasoning");
+		component.setExpanded(false);
+		expect(Bun.stripANSI(component.render(80).join("\n"))).not.toContain("server-side reasoning");
+		component.dispose();
 	});
 });
 

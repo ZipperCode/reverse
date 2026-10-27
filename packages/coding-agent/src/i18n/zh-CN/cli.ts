@@ -402,4 +402,11 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.setup.panel.speech.desc": "配置并下载语音转文字 (STT) 与文字转语音 (TTS) 本地模型",
 	"cli.setup.menu.exit": "← 退出",
 	"cli.setup.menu.exitDesc": "关闭设置菜单",
+	"cli.modelRole.widget.name": "作业小组件",
+	"cli.launch.flag.wait-async":
+		"打印模式：退出前等待本次运行的后台作业，并在每个结果返回时唤醒会话（async.printWake）；除非设置了 --max-time，否则无时间限制",
+	"cli.launch.flag.no-context-files": "禁用上下文文件（AGENTS.md、CLAUDE.md 等）",
+	"cli.launch.flag.warn-cost": "当会话开销（含子代理）达到该美元数额时发出一次警告",
+	"cli.launch.flag.max-cost":
+		"当会话开销达到该美元数额后停止发送模型请求；进行中的请求仍可完成并超出该上限（打印模式以状态码 3 退出）",
 };

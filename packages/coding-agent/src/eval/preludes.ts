@@ -1,7 +1,6 @@
 import type { AgentToolContext, AgentToolResult, AgentToolUpdateCallback, ToolApproval } from "@reverse/agent";
-import { untilAborted } from "@reverse/utils";
+import { untilAborted } from "@reverse/utils/abortable";
 import type { ToolSession } from "../tools";
-import { denyError, requestApproval, resolveApproval, resolveApprovalFromContext } from "../tools/approval";
 
 /** Host context supplied when an eval prelude calls back out of its language VM. */
 export interface EvalPreludeContext {
@@ -86,15 +85,27 @@ async function approvePreludeInvocation(
 	context: EvalPreludeContext,
 ): Promise<void> {
 	context.signal?.throwIfAborted();
+	// Execute-time boundary: prelude registration/summary helpers must not pull in the approval/settings/native graph.
+	const { approvalRestrictions, denyError, requestApproval, resolveApproval, resolveApprovalFromContext } =
+		await import("../tools/approval");
 	// Fourth execute-time site: same helper as wrapper/cursor/mcp so a missing
 	// context cannot silently yolo. Empty `context.context` fail-closes;
 	// omitting it inherits the live session settings (schema default yolo).
+	const settings = context.context?.settings ?? context.session.settings;
 	const { approvalMode: mode, userPolicies: policies } = resolveApprovalFromContext(
-		context.context ?? (context.session.settings ? { settings: context.session.settings } : undefined),
+		context.context ?? (settings ? { settings } : undefined),
 	);
 	const subject: { name: string; approval?: ToolApproval } = { name: definition.name };
 	if (definition.approval !== undefined) subject.approval = definition.approval;
-	const resolved = resolveApproval(subject, parameters, mode, policies);
+	// A prelude names no path of its own, so a restricted folder matches it by the session's directory.
+	const resolved = resolveApproval(
+		subject,
+		parameters,
+		mode,
+		policies,
+		undefined,
+		approvalRestrictions(settings, context.session.cwd),
+	);
 	if (resolved.policy === "deny") throw denyError(resolved, definition.name);
 	if (resolved.policy !== "prompt") return;
 
@@ -105,8 +116,10 @@ async function approvePreludeInvocation(
 				`Set tools.approval.${definition.name}: allow or use an interactive UI to approve the call.`,
 		);
 	}
-	const approved = await untilAborted(context.signal, () => requestApproval(ui, subject, parameters, resolved.reason));
-	if (!approved) throw new Error(`Eval prelude call denied by user: ${definition.name}`);
+	const answer = await untilAborted(context.signal, () =>
+		requestApproval(ui, subject, parameters, { reason: resolved.reason }),
+	);
+	if (answer === "deny") throw new Error(`Eval prelude call denied by user: ${definition.name}`);
 }
 
 /**

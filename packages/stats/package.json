@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@reverse/stats",
-  "version": "18.11.2",
+  "version": "18.13.1",
   "description": "Local observability dashboard for reverse AI usage statistics",
   "homepage": "https://github.com/ZipperCode/rev",
   "author": {

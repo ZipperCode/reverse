@@ -12,7 +12,7 @@ import type {
 import { createArchivePrelude } from "@reverse/coding-agent/archive/prelude-definition";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { HistoryStorage } from "@reverse/coding-agent/session/history-storage";
-import { recordSessionRecap, resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { recordSessionRecap, closeSessionIndex } from "@reverse/coding-agent/session/session-index";
 import { sessionDirForCwd } from "@reverse/coding-agent/session/session-paths";
 import type { ToolSession } from "@reverse/coding-agent/tools";
 import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@reverse/utils";
@@ -63,13 +63,13 @@ beforeEach(() => {
 	app = path.join(root, "app");
 	lib = path.join(root, "lib");
 	HistoryStorage.close();
-	resetSessionIndexForTests();
+	closeSessionIndex();
 	setAgentDir(path.join(root, "agent"));
 });
 
 afterEach(() => {
 	HistoryStorage.close();
-	resetSessionIndexForTests();
+	closeSessionIndex();
 	if (originalAgentDir) {
 		setAgentDir(originalAgentDir);
 	} else {

@@ -148,7 +148,12 @@ describe("streaming reveal", () => {
 		expect(textAt(display, 1)).toBe("");
 
 		const component = new AssistantMessageComponent(display);
+		expect(Bun.stripANSI(component.render(80).join("\n"))).not.toContain("...");
+		component.setExpanded(true);
 		expect(Bun.stripANSI(component.render(80).join("\n"))).toContain("...");
+		component.setExpanded(false);
+		expect(Bun.stripANSI(component.render(80).join("\n"))).not.toContain("...");
+		component.dispose();
 	});
 
 	it("refreshes prose-only setting during unsmoothed streaming updates", () => {

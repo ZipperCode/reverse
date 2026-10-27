@@ -770,11 +770,33 @@ mod tests {
 
 	#[cfg(target_vendor = "apple")]
 	#[test]
-	fn live_since_matches_kern_boottime() {
-		let (host, _) = Host::for_test("uptime", "", std::env::temp_dir());
-		let boot = system_boot_time(&host).expect("kern.boottime");
-		let (code, out, err) = run_with_env(&[("TZ", "UTC")], &["-s"]);
-		assert_eq!((code, err.as_str()), (0, ""));
-		assert_eq!(out, format!("{}\n", since_line(boot, &utc())));
+	fn default_since_prefers_last_boot_record() {
+		let file = utmp_file(&[
+			(BOOT_TIME, 0, "", 946_684_740),
+			(BOOT_TIME, 1, "", 946_684_800),
+		]);
+		let (mut host, capture) = Host::for_test("uptime", "", std::env::temp_dir());
+		host.set_test_var("TZ", "UTC");
+		// Login records can differ from kern.boottime; shadow only this
+		// host's default file so parallel tests and the real utmpx stay intact.
+		host.set_test_fs(host.fs().mount_file(UTMP_FILE, file.reopen().unwrap().into()));
+		let parsed = <Uptime as clap::Parser>::try_parse_from(["uptime", "-s"]).unwrap();
+		assert_eq!((parsed.run(&mut host), capture.err()), (0, String::new()));
+		assert_eq!(capture.out(), "2000-01-01 00:00:00\n");
+	}
+
+	#[cfg(target_vendor = "apple")]
+	#[test]
+	fn default_since_falls_back_without_boot_record() {
+		for records in [&[][..], &[(USER_PROCESS, 1, "alice", 946_684_800)][..]] {
+			let file = utmp_file(records);
+			let (mut host, capture) = Host::for_test("uptime", "", std::env::temp_dir());
+			host.set_test_var("TZ", "UTC");
+			host.set_test_fs(host.fs().mount_file(UTMP_FILE, file.reopen().unwrap().into()));
+			let boot = system_boot_time(&host).expect("kern.boottime");
+			let parsed = <Uptime as clap::Parser>::try_parse_from(["uptime", "-s"]).unwrap();
+			assert_eq!((parsed.run(&mut host), capture.err()), (0, String::new()), "{records:?}");
+			assert_eq!(capture.out(), format!("{}\n", since_line(boot, &utc())), "{records:?}");
+		}
 	}
 }

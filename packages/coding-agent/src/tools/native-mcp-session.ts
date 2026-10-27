@@ -295,11 +295,11 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 
 	constructor(private readonly session: ToolSession) {}
 
-	private get sessionKey(): object {
+	get #sessionKey(): object {
 		return this.session.sessionManager ?? this.session;
 	}
 
-	private get mcpManager(): MCPManager {
+	get #mcpManager(): MCPManager {
 		// 严密隔离会话：要求 ToolSession 显式持有 mcpManager，绝不退化为进程全局单例
 		if (!this.session.mcpManager) {
 			throw new ToolError(
@@ -308,7 +308,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 		}
 		return this.session.mcpManager;
 	}
-	private get agentDir(): string {
+	get #agentDir(): string {
 		const s = this.session.settings;
 		if (s && "getAgentDir" in s && typeof s.getAgentDir === "function") {
 			return s.getAgentDir();
@@ -316,8 +316,8 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 		return getAgentDir();
 	}
 
-	private get ownedSessions(): Map<string, OwnedNativeSession> {
-		return getSessionScopedState(this.sessionKey).sessions;
+	get #ownedSessions(): Map<string, OwnedNativeSession> {
+		return getSessionScopedState(this.#sessionKey).sessions;
 	}
 
 	async execute(
@@ -356,7 +356,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 			throw new ToolError("Parameter 'service' ('x64dbg' | 'ghidra' | 'radare2') is required for 'connect' action");
 		}
 		const service = params.service;
-		const agentDir = this.agentDir;
+		const agentDir = this.#agentDir;
 
 		// 1. 检验外部工具依赖状态；如果未安装，绝不进行静默自动下载，而是引导用户执行受信的 setup 指令
 		const inspect = inspectNativeMcp(service, { agentDir });
@@ -370,7 +370,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 		}
 
 		// 2. 检查现有会话复用：严格比对所有稳定规范参数（target, project_dir, backend_url, x64dbg_path, session_pid, remote host/ports）
-		for (const existing of this.ownedSessions.values()) {
+		for (const existing of this.#ownedSessions.values()) {
 			if (
 				existing.status === "connected" &&
 				existing.service === service &&
@@ -383,7 +383,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 				existing.remote?.reqPort === params.req_rep_port &&
 				existing.remote?.pubPort === params.pub_sub_port
 			) {
-				const status = this.mcpManager.getConnectionStatus(existing.serverName);
+				const status = this.#mcpManager.getConnectionStatus(existing.serverName);
 				if (status === "connected") {
 					return {
 						content: [
@@ -429,7 +429,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 
 				const existingLock = ACTIVE_GHIDRA_PROJECTS.get(canonicalProjectKey);
 				if (existingLock) {
-					const lockSession = this.ownedSessions.get(existingLock.sessionId);
+					const lockSession = this.#ownedSessions.get(existingLock.sessionId);
 					if (lockSession && lockSession.status === "connected") {
 						throw new ToolError(
 							`Ghidra project directory '${resolvedProjectDir}' is already locked by active session '${existingLock.sessionId}'. ` +
@@ -470,7 +470,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 			throwIfAborted(signal);
 
 			// 5. 挂载至宿主 MCPManager
-			const loadResult = await this.mcpManager.connectServers(
+			const loadResult = await this.#mcpManager.connectServers(
 				{ [serverName]: serverConfig },
 				{ [serverName]: sourceMeta },
 				undefined,
@@ -479,13 +479,13 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 
 			const connectErr = loadResult.errors.get(serverName);
 			if (connectErr) {
-				await this.mcpManager.disconnectServer(serverName).catch(() => {});
+				await this.#mcpManager.disconnectServer(serverName).catch(() => {});
 				throw new ToolError(`Failed to establish native MCP server connection '${serverName}': ${connectErr}`);
 			}
 
-			connection = this.mcpManager.getConnection(serverName);
+			connection = this.#mcpManager.getConnection(serverName);
 			if (!connection) {
-				await this.mcpManager.disconnectServer(serverName).catch(() => {});
+				await this.#mcpManager.disconnectServer(serverName).catch(() => {});
 				throw new ToolError(`Connection '${serverName}' not found in active MCP manager.`);
 			}
 
@@ -493,7 +493,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 			if (connection.tools && connection.tools.length > 0) {
 				discoveredTools = connection.tools.map(t => t.name);
 			} else {
-				discoveredTools = this.mcpManager
+				discoveredTools = this.#mcpManager
 					.getTools()
 					.filter(t => t.mcpServerName === serverName)
 					.map(t => t.mcpToolName ?? t.name);
@@ -640,7 +640,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 					targetMatched,
 					target: targetMatched && targetPath ? targetPath : undefined,
 				},
-				this.sessionKey,
+				this.#sessionKey,
 				connection,
 			);
 
@@ -757,11 +757,11 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 				stepId: params.step_id,
 			};
 
-			this.ownedSessions.set(sessionId, ownedSession);
+			this.#ownedSessions.set(sessionId, ownedSession);
 			if (canonicalProjectKey) {
 				ACTIVE_GHIDRA_PROJECTS.set(canonicalProjectKey, {
 					projectDir: canonicalProjectKey,
-					ownerKey: this.sessionKey,
+					ownerKey: this.#sessionKey,
 					sessionId,
 				});
 			}
@@ -800,7 +800,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 			if (canonicalProjectKey) {
 				ACTIVE_GHIDRA_PROJECTS.delete(canonicalProjectKey);
 			}
-			await this.mcpManager.disconnectServer(serverName).catch(() => {});
+			await this.#mcpManager.disconnectServer(serverName).catch(() => {});
 			const message = err instanceof Error ? err.message : String(err);
 			throw new ToolError(`Failed to initialize native MCP session for '${service}': ${message}`);
 		}
@@ -808,14 +808,14 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 
 	private async handleStatus(params: NativeMcpSessionParams): Promise<AgentToolResult<NativeMcpSessionResult>> {
 		if (params.session_id) {
-			const session = this.ownedSessions.get(params.session_id);
+			const session = this.#ownedSessions.get(params.session_id);
 			if (!session) {
 				throw new ToolError(
 					`Native MCP session '${params.session_id}' not found in this session's active native sessions.`,
 				);
 			}
-			const connStatus = this.mcpManager.getConnectionStatus(session.serverName);
-			const runtimeState = getMcpServerRuntimeState(session.serverName, this.sessionKey);
+			const connStatus = this.#mcpManager.getConnectionStatus(session.serverName);
+			const runtimeState = getMcpServerRuntimeState(session.serverName, this.#sessionKey);
 
 			const lines: string[] = [
 				`### Native MCP Session Status: \`${session.sessionId}\``,
@@ -844,7 +844,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 		}
 
 		// 列出本 ToolSession 所有会话的状态摘要
-		const filtered = Array.from(this.ownedSessions.values()).filter(
+		const filtered = Array.from(this.#ownedSessions.values()).filter(
 			s => !params.service || s.service === params.service,
 		);
 
@@ -866,8 +866,8 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 	}
 
 	private async handleList(params: NativeMcpSessionParams): Promise<AgentToolResult<NativeMcpSessionResult>> {
-		const agentDir = this.agentDir;
-		const allSessions = Array.from(this.ownedSessions.values()).filter(
+		const agentDir = this.#agentDir;
+		const allSessions = Array.from(this.#ownedSessions.values()).filter(
 			s => !params.service || s.service === params.service,
 		);
 
@@ -910,7 +910,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 		if (!params.session_id) {
 			throw new ToolError("Parameter 'session_id' is required for 'disconnect' action");
 		}
-		const session = this.ownedSessions.get(params.session_id);
+		const session = this.#ownedSessions.get(params.session_id);
 		if (!session) {
 			throw new ToolError(`Session '${params.session_id}' not found in active native sessions for this session.`);
 		}
@@ -921,7 +921,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 		// 对 x64dbg 执行友好 detach，绝不调用 terminate_session 误杀宿主调试器或目标被调试程序
 		if (session.service === "x64dbg") {
 			try {
-				const connection = this.mcpManager.getConnection(session.serverName);
+				const connection = this.#mcpManager.getConnection(session.serverName);
 				if (connection) {
 					const detachRes = await callTool(connection, "disconnect", {});
 					if (detachRes.isError) {
@@ -938,7 +938,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 
 		// 卸载与清理 MCPManager 连接；若失败则保留持有状态与工程锁，并抛出错误
 		try {
-			await this.mcpManager.disconnectServer(session.serverName);
+			await this.#mcpManager.disconnectServer(session.serverName);
 		} catch (unmountErr) {
 			throw new ToolError(
 				`Failed to unmount native MCP server '${session.serverName}': ${unmountErr instanceof Error ? unmountErr.message : String(unmountErr)}. ` +
@@ -964,7 +964,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 
 		// 清理会话状态
 		session.status = "disconnected";
-		this.ownedSessions.delete(params.session_id);
+		this.#ownedSessions.delete(params.session_id);
 
 		// 更新运行时持久化记录状态为 closed
 		if (session.runtimeSessionId) {
@@ -982,7 +982,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 		}
 
 		// 解绑目标
-		setMcpTargetBinding(session.serverName, { targetMatched: false }, this.sessionKey);
+		setMcpTargetBinding(session.serverName, { targetMatched: false }, this.#sessionKey);
 
 		const detachSummary = detachOk
 			? "Debugger detached cleanly."
@@ -1081,7 +1081,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 		if (!params.session_id) {
 			throw new ToolError("Parameter 'session_id' is required for 'jni_enrich' action");
 		}
-		const session = this.ownedSessions.get(params.session_id);
+		const session = this.#ownedSessions.get(params.session_id);
 		if (!session) {
 			throw new ToolError(`Session not found: '${params.session_id}'`);
 		}
@@ -1227,7 +1227,7 @@ export class NativeMcpSessionTool implements AgentTool<typeof nativeMcpSessionSc
 		}
 
 		// Discover upstream MCP tools
-		const connection = this.mcpManager.getConnection(session.serverName);
+		const connection = this.#mcpManager.getConnection(session.serverName);
 		if (!connection) {
 			throw new ToolError(`Active connection lost for server '${session.serverName}'`);
 		}

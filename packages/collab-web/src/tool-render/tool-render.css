@@ -554,6 +554,31 @@
 	overflow-wrap: anywhere;
 }
 
+.tv-md {
+	font-size: 11.5px;
+	line-height: 1.55;
+	color: var(--tv-fg);
+	overflow-wrap: anywhere;
+	overflow-x: auto;
+}
+
+.tv-md table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.tv-md th,
+.tv-md td {
+	padding: 4px 8px;
+	border: 1px solid var(--tv-border);
+	text-align: left;
+}
+
+.tv-md pre {
+	white-space: pre;
+	overflow-x: auto;
+}
+
 /* ---- syntax tokens (highlight.js, scoped) ----
  * Minimal monochrome-plus-accent palette; only applies when the host exposes
  * a global hljs (the HTML export page). */

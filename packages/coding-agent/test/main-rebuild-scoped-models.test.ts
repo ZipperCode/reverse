@@ -8,11 +8,14 @@ import { resolveModelScope } from "@reverse/coding-agent/config/model-resolver";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import {
 	buildSessionOptions,
+	rebuildScopedModels,
 	rebuildScopedModelsAfterDiscovery,
 	resolveScopedModels,
 	type ScopedModelSink,
 	toSessionScopedModels,
 } from "@reverse/coding-agent/main";
+import { createSetupHost } from "@reverse/coding-agent/modes/setup";
+import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { TempDir } from "@reverse/utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
@@ -145,6 +148,70 @@ describe("rebuildScopedModelsAfterDiscovery", () => {
 
 		expect(session.setCalls).toBe(0);
 		expect(session.scopedModels.map(s => s.model.id)).toEqual(["a"]);
+	});
+});
+
+describe("rebuildScopedModels after login", () => {
+	it("adds a newly available allowed model to the existing scope", async () => {
+		const settings = Settings.isolated();
+		const registry = new FakeRegistry([model("a")]);
+		const session = new FakeSession(await startupScope(["prov/a", "prov/b"], registry, settings));
+
+		registry.available = [model("a"), model("b")];
+		await rebuildScopedModels(session, parseArgs(["--models", "prov/a,prov/b"]), registry, settings);
+
+		expect(session.scopedModels.map(entry => entry.model.id)).toEqual(["a", "b"]);
+	});
+
+	it("keeps a newly available model outside the explicit CLI scope", async () => {
+		const settings = Settings.isolated({ enabledModels: ["prov/*"] });
+		const registry = new FakeRegistry([model("a")]);
+		const session = new FakeSession(await startupScope(["prov/a"], registry, settings));
+
+		registry.available = [model("a"), model("b")];
+		await rebuildScopedModels(session, parseArgs(["--models", "prov/a"]), registry, settings);
+
+		expect(session.scopedModels.map(entry => entry.model.id)).toEqual(["a"]);
+	});
+
+	it("uses the current enabledModels scope when no CLI scope is provided", async () => {
+		const settings = Settings.isolated({ enabledModels: ["prov/a", "prov/b"] });
+		const registry = new FakeRegistry([model("a")]);
+		const session = new FakeSession(await startupScope(["prov/a"], registry, settings));
+
+		registry.available = [model("a"), model("b")];
+		await rebuildScopedModels(session, parseArgs([]), registry, settings);
+
+		expect(session.scopedModels.map(entry => entry.model.id)).toEqual(["a", "b"]);
+	});
+
+	it("makes setup-discovered models selectable without changing the active model", async () => {
+		const settings = Settings.isolated({ enabledModels: ["prov/*"] });
+		const active = model("a");
+		const refreshed: string[] = [];
+		const registry = Object.assign(new FakeRegistry([active]), {
+			async refreshProvider(this: FakeRegistry, provider: string) {
+				refreshed.push(provider);
+				this.available = [active, model("b")];
+			},
+		});
+		const session = new FakeSession([{ model: active }]);
+		const ctx = {
+			settings,
+			session: { model: active, modelRegistry: registry },
+			refreshScopedModelsAfterLogin: async () => {
+				await rebuildScopedModels(session, parseArgs([]), registry, settings);
+			},
+		};
+
+		await createSetupHost(ctx as unknown as InteractiveModeContext).refreshProvider("prov");
+
+		expect(session.scopedModels.map(entry => entry.model.id)).toEqual(["a", "b"]);
+		expect(ctx.session.model).toBe(active);
+
+		// An OAuth alias refreshes the provider its credential is stored under.
+		await createSetupHost(ctx as unknown as InteractiveModeContext).refreshProvider("openai-codex-device");
+		expect(refreshed).toEqual(["prov", "openai-codex"]);
 	});
 });
 

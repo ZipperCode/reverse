@@ -1,4 +1,5 @@
 import type { AssistantMessage, ImageContent, TextContent } from "@reverse/ai";
+import { presentNarrationAsAnswer } from "@reverse/ai/utils/narration";
 import { type Component, Container } from "../tui";
 import { Image, type ImageBudget } from "../components/image";
 import { ImageProtocol, TERMINAL } from "../terminal-capabilities";
@@ -1911,7 +1912,8 @@ export class AssistantMessageComponent extends Container implements MouseRoutabl
 		this.#lastUpdateTransient = opts?.transient === true;
 		// Everything below renders the display form; #lastMessage keeps the
 		// verbatim message so re-renders re-derive the reaction deterministically.
-		message = this.#displayMessage(message, this.#lastUpdateTransient);
+		// Narration the provider returned as thinking renders as answer text.
+		message = this.#displayMessage(presentNarrationAsAnswer(message), this.#lastUpdateTransient);
 		this.#displayedMessage = message;
 		this.#updateThinkingClocks(message);
 

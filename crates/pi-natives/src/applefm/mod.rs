@@ -99,7 +99,8 @@ mod platform {
 		if DYLIB.is_empty() {
 			return Err(Unavailable {
 				reason:  "not_built",
-				message: "This reverse build does not include Apple Foundation Models support".to_owned(),
+				message: "This reverse build does not include Apple Foundation Models support"
+					.to_owned(),
 			});
 		}
 		if macos_major().is_none_or(|major| major < MIN_MACOS_MAJOR) {

@@ -8,7 +8,6 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import type { EditStore } from "@reverse/natives";
-import type { AgentMessage } from "@reverse/agent";
 import type { ImageContent } from "@reverse/ai";
 import { formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@reverse/utils";
 import {
@@ -193,7 +192,7 @@ export async function generateFileMentionMessages(
 	filePaths: string[],
 	cwd: string,
 	options?: { autoResizeImages?: boolean; useHashLines?: boolean; snapshotStore?: EditStore },
-): Promise<AgentMessage[]> {
+): Promise<FileMentionMessage[]> {
 	if (filePaths.length === 0) return [];
 
 	const autoResizeImages = options?.autoResizeImages ?? true;

@@ -1,5 +1,6 @@
 import type { ThinkingLevel } from "@reverse/agent";
 import type { Api, ApiKey, Model } from "@reverse/ai";
+import { roleDefaultModels } from "@reverse/catalog/compat/behavior";
 import type { ApiKeyResolverRegistry } from "../config/api-key-resolver";
 import {
 	getModelMatchPreferences,
@@ -10,7 +11,6 @@ import {
 } from "../config/model-resolver";
 import { CHAT_MODEL_ROLE_IDS } from "../config/model-roles";
 import type { Settings } from "../config/settings";
-import MODEL_PRIO from "../priority.json" with { type: "json" };
 import { concreteThinkingLevel } from "@reverse/tui/thinking";
 
 export interface ResolvedCommitModel {
@@ -79,7 +79,7 @@ export async function resolveSmolModel(
 	}
 
 	const matchPreferences = getModelMatchPreferences(settings);
-	for (const pattern of MODEL_PRIO.smol) {
+	for (const pattern of roleDefaultModels().smol) {
 		const candidate = parseModelPattern(pattern, available, matchPreferences).model;
 		if (!candidate) continue;
 		const apiKey = await modelRegistry.getApiKey(candidate);

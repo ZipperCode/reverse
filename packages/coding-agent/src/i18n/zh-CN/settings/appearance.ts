@@ -144,6 +144,11 @@ export const appearanceSettingsZhCN: Record<string, SettingTranslation> = {
 			preserve: { label: "保留", description: "仅重绘视口，历史仍按旧宽度换行" },
 		},
 	},
+	"tui.completeScrollback": {
+		label: "完整回滚缓冲区",
+		description:
+			"将因 HUD 或对话框增长而被推离屏幕的记录行直接送入回滚缓冲区；当其缩小时，记录与输入区之间会保留空白行，直到新输出填满它们",
+	},
 	"terminal.showProgress": {
 		label: "原生终端进度",
 		description: "代理或上下文维护运行时发送 OSC 9;4 不确定进度（Tern 中始终开启）",

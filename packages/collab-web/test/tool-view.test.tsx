@@ -88,9 +88,7 @@ describe("ToolView xd:// dispatches", () => {
 	});
 
 	it("defaults a running xd://reject to discard before details arrive", () => {
-		const html = renderToStaticMarkup(
-			<ToolView name="reject" defaultOpen running args={{ reason: "" }} />,
-		);
+		const html = renderToStaticMarkup(<ToolView name="reject" defaultOpen running args={{ reason: "" }} />);
 
 		expect(html).toContain("proposed → rejected");
 	});
@@ -160,7 +158,17 @@ describe("ToolView xd:// dispatches", () => {
 					content: [],
 					details: {
 						op: "wait",
-						jobs: [{ id: "a1b2", type: "bash", status: "completed", label: "build", durationMs: 25, resultText: "Built", errorText: "" }],
+						jobs: [
+							{
+								id: "a1b2",
+								type: "bash",
+								status: "completed",
+								label: "build",
+								durationMs: 25,
+								resultText: "Built",
+								errorText: "",
+							},
+						],
 					},
 				}}
 			/>,
@@ -198,7 +206,7 @@ describe("ToolView ask renderer", () => {
 			/>,
 		);
 
-		expect(html).toContain('<span>OAuth2</span>');
+		expect(html).toContain("<span>OAuth2</span>");
 		expect(html).toContain("keep the redirect short-lived");
 	});
 
@@ -217,7 +225,13 @@ describe("ToolView ask renderer", () => {
 					content: [{ type: "text", text: "User answers:" }],
 					details: {
 						results: [
-							{ id: "db", question: "Storage backend?", multi: false, selectedOptions: ["Postgres"], note: "managed instance" },
+							{
+								id: "db",
+								question: "Storage backend?",
+								multi: false,
+								selectedOptions: ["Postgres"],
+								note: "managed instance",
+							},
 							{ id: "cache", question: "Cache?", multi: false, selectedOptions: ["Redis"] },
 						],
 					},
@@ -225,9 +239,54 @@ describe("ToolView ask renderer", () => {
 			/>,
 		);
 
-		expect(html).toContain('<span>Postgres</span>');
+		expect(html).toContain("<span>Postgres</span>");
 		expect(html).toContain("managed instance");
 		// The cache question answered without a note must not leak the db note.
 		expect(html.match(/managed instance/g)?.length).toBe(1);
+	});
+});
+
+describe("ToolView eval Markdown", () => {
+	function renderMarkdown(text: string): string {
+		return renderToStaticMarkup(
+			<ToolView
+				name="eval"
+				defaultOpen
+				result={{
+					content: [],
+					details: {
+						cells: [
+							{
+								index: 0,
+								language: "py",
+								code: "display(report)",
+								status: "ok",
+								output: text,
+								views: [{ text, view: { kind: "markdown", text } }],
+							},
+						],
+					},
+				}}
+			/>,
+		);
+	}
+
+	it("renders Markdown structure without a live application host", () => {
+		const html = renderMarkdown("## Result\n\n**verified** and [reference](https://example.com/report)");
+		expect(html).toContain("<h2>Result</h2>");
+		expect(html).toContain("<strong>verified</strong>");
+		expect(html).toContain('href="https://example.com/report"');
+	});
+
+	it("escapes raw HTML and rejects executable links and image URLs", () => {
+		const html = renderMarkdown(
+			"<img src=x onerror=alert(1)>\n\n[unsafe](javascript:alert) ![blocked](javascript:alert)",
+		);
+		expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+		expect(html).toContain("unsafe");
+		expect(html).toContain("blocked");
+		expect(html).not.toContain('href="javascript:');
+		expect(html).not.toContain('src="javascript:');
+		expect(html).not.toContain("<img src=x");
 	});
 });

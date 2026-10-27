@@ -18,7 +18,7 @@ import {
 } from "@reverse/coding-agent/modes/settings";
 import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
 import { HistoryStorage } from "@reverse/coding-agent/session/history-storage";
-import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { closeSessionIndex } from "@reverse/coding-agent/session/session-index";
 import type { ToolSession } from "@reverse/coding-agent/tools";
 import { Composer } from "@reverse/tui/prompt/composer";
 import { initTheme } from "@reverse/tui/theme";
@@ -60,7 +60,7 @@ describe("cfg:// approval prompt wiring", () => {
 		setProjectDir(originalProject);
 		AgentStorage.close();
 		HistoryStorage.close();
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		closeModelCache();
 		await fs.rm(tmp, { recursive: true, force: true });
 	});

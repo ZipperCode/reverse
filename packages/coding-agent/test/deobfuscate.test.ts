@@ -116,12 +116,43 @@ describe("DeobfuscateTool Status Probing", () => {
 
 describe("DeobfuscateTool Destination & Input Protection", () => {
 	let tempDir: string;
+	let originalSimplifyJar: string | undefined;
+	let originalPath: string | undefined;
 
 	beforeEach(async () => {
+		originalSimplifyJar = process.env.SIMPLIFY_JAR;
+		originalPath = process.env.PATH;
 		tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "deobf-protect-"));
+
+		// Provision deterministic minimal Simplify JAR fixture and PATH java stub
+		// so destination validation in executeSimplify is reached without requiring
+		// external Simplify JAR installation while never faking execution success.
+		const fixtureJar = path.join(tempDir, "simplify-fixture.jar");
+		await fs.promises.writeFile(fixtureJar, Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(26)]));
+		process.env.SIMPLIFY_JAR = fixtureJar;
+
+		const binDir = path.join(tempDir, "bin");
+		await fs.promises.mkdir(binDir, { recursive: true });
+		const javaStub = path.join(binDir, process.platform === "win32" ? "java.cmd" : "java");
+		await fs.promises.writeFile(
+			javaStub,
+			process.platform === "win32" ? "@echo off\r\nexit /b 1\r\n" : "#!/bin/sh\nexit 1\n",
+			{ mode: 0o755 },
+		);
+		process.env.PATH = originalPath ? `${binDir}${path.delimiter}${originalPath}` : binDir;
 	});
 
 	afterEach(async () => {
+		if (originalSimplifyJar === undefined) {
+			delete process.env.SIMPLIFY_JAR;
+		} else {
+			process.env.SIMPLIFY_JAR = originalSimplifyJar;
+		}
+		if (originalPath === undefined) {
+			delete process.env.PATH;
+		} else {
+			process.env.PATH = originalPath;
+		}
 		try {
 			await fs.promises.rm(tempDir, { recursive: true, force: true });
 		} catch {}

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Restored standalone eval Markdown and table views using the shared parser and scoped export styles; embedded HTML and unsafe link/image schemes remain escaped or rejected.
+
 ## [18.8.0] - 2026-10-07
 
 ### Changed

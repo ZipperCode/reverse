@@ -19,7 +19,7 @@ import {
 } from "@reverse/ai";
 import { clampThinkingLevelForModel, resolveWireModelId } from "@reverse/catalog/model-thinking";
 import { parseCloudflareCredential } from "@reverse/catalog/wire/cloudflare";
-import { getAntigravityUserAgent, getGeminiCliHeaders } from "@reverse/catalog/wire/gemini-headers";
+import { getAntigravityHeaders, getGeminiCliHeaders } from "@reverse/catalog/wire/gemini-headers";
 import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@reverse/tui/thinking";
 import { fetchWithRetry, USER_AGENT } from "@reverse/utils";
 
@@ -390,11 +390,12 @@ async function callGeminiSearch(
 	timeoutMs: number | undefined,
 ): Promise<GeminiSearchResult> {
 	const endpoint = baseUrl.replace(/\/+$/, "");
-	const headers = auth.isAntigravity ? { "User-Agent": getAntigravityUserAgent() } : getGeminiCliHeaders();
+	const headers = auth.isAntigravity
+		? getAntigravityHeaders()
+		: { Accept: "text/event-stream", ...getGeminiCliHeaders() };
 
 	const requestMetadata = auth.isAntigravity
 		? {
-				requestType: "agent",
 				userAgent: "antigravity",
 				requestId: `agent-${crypto.randomUUID()}`,
 			}
@@ -445,7 +446,6 @@ async function callGeminiSearch(
 			...configuredHeaders,
 			Authorization: `Bearer ${auth.accessToken}`,
 			"Content-Type": "application/json",
-			Accept: "text/event-stream",
 			...headers,
 		},
 		body: JSON.stringify(requestBody),

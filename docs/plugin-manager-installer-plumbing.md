@@ -64,6 +64,7 @@ Marketplace installs add registry and cache state alongside those runtime entrie
 - user plugins data root `installed_plugins.json` (`~/.reverse/plugins/installed_plugins.json` by default) — user-scoped marketplace installs
 - `<anchor>/.reverse/plugins/installed_plugins.json` — project-scoped marketplace installs
 - user plugins data root `cache/{marketplaces,plugins}/` — cached catalogs and plugin directories
+- user plugins data root `project_registries.json` — project `installed_plugins.json` files whose installs link into the shared plugin cache; consulted before a cached plugin directory is deleted, so cleanup run outside a project does not remove a directory that project still uses
 - `<scope>/plugins/node_modules/<package>` — symlink to the cached plugin, allowing its `package.json` `reverse.extensions` and tools to load
 - `<scope>/plugins/reverse-plugins.lock.json` — enablement and feature state shared with the runtime plugin loader
 

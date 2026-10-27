@@ -235,6 +235,60 @@ describe("wrapCode cross-cell persistence", () => {
 			delete globals.reversePersistedVar;
 		}
 	});
+	it("retains block var bindings after await without exposing block lexicals or function locals", async () => {
+		const global = globalThis;
+		const wrapped = await wrapCode(`await Promise.resolve();
+if (true) { var reverseBranchVar = 47; let reverseBlockLet = 12; }
+if (false) { var reverseSkippedVar = 1; }
+function nested() { var reverseLocalVar = 9; return reverseLocalVar; }
+function readBranch() { return reverseBranchVar; }
+if (nested() !== 9) throw new Error("function local was lost");`);
+		try {
+			await indirectEval(wrapped.source);
+			expect(indirectEval("reverseBranchVar")).toBe(47);
+			expect(indirectEval("typeof reverseSkippedVar")).toBe("undefined");
+			expect(Reflect.has(global, "reverseSkippedVar")).toBe(true);
+			expect(indirectEval("typeof reverseBlockLet")).toBe("undefined");
+			expect(indirectEval("typeof reverseLocalVar")).toBe("undefined");
+			indirectEval("reverseBranchVar = 48");
+			expect(indirectEval("readBranch()")).toBe(48);
+		} finally {
+			Reflect.deleteProperty(global, "reverseBranchVar");
+			Reflect.deleteProperty(global, "reverseSkippedVar");
+			Reflect.deleteProperty(global, "nested");
+			Reflect.deleteProperty(global, "readBranch");
+		}
+	});
+
+	it("keeps a catch-parameter var initializer on the catch binding after await", async () => {
+		const global = globalThis;
+		const wrapped = await wrapCode(`await Promise.resolve();
+try { throw 0; } catch (reverseCaught) { var reverseCaught = 1; var reverseAfterCatch = reverseCaught + 1; }`);
+		try {
+			await indirectEval(wrapped.source);
+			expect(indirectEval("[typeof reverseCaught, reverseAfterCatch]")).toEqual(["undefined", 2]);
+			expect(Reflect.has(global, "reverseCaught")).toBe(true);
+		} finally {
+			Reflect.deleteProperty(global, "reverseCaught");
+			Reflect.deleteProperty(global, "reverseAfterCatch");
+		}
+	});
+
+	it("retains var bindings declared by top-level for loops after await", async () => {
+		const global = globalThis;
+		const wrapped = await wrapCode(`await Promise.resolve();
+for (var reverseLoopIndex = 0; reverseLoopIndex < 2; reverseLoopIndex++) {}
+for (var reverseLoopItem of [3, 5]) {}
+for (var reverseLoopKey in { a: 1 }) {}`);
+		try {
+			await indirectEval(wrapped.source);
+			expect(indirectEval("[reverseLoopIndex, reverseLoopItem, reverseLoopKey]")).toEqual([2, 5, "a"]);
+		} finally {
+			Reflect.deleteProperty(global, "reverseLoopIndex");
+			Reflect.deleteProperty(global, "reverseLoopItem");
+			Reflect.deleteProperty(global, "reverseLoopKey");
+		}
+	});
 });
 
 // Runtime call-site identity: wrapCode wraps bare `tool.read(...)` calls in

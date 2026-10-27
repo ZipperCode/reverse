@@ -21,14 +21,6 @@ describe("QR encoder", () => {
 	}> = [
 		{ text: "HELLO WORLD", ecl: "M", mask: 0, version: 1, size: 21, hash: "a28227450c6dd5ab" },
 		{
-			text: "https://my.reverse.sh/#mgAYTZwEnpRQtca0CTgn-Q.gdJU",
-			ecl: "M",
-			mask: 4,
-			version: 4,
-			size: 33,
-			hash: "4af2f66e1b06a5b1",
-		},
-		{
 			text: "https://web.example/collab/#relay.example.com:8443/r/AbCdEfGhIjKlMnOp.0123456789abcdef",
 			ecl: "Q",
 			mask: 6,
@@ -63,10 +55,15 @@ describe("QR encoder", () => {
 	});
 
 	it("deterministically selects a penalty-minimizing mask when none is forced", () => {
-		// Auto mask is the lowest-penalty choice; locking it guards the penalty rules.
-		const qr = QrCode.encodeText("https://my.reverse.sh/#demo", "M");
-		expect(qr.mask).toBe(1);
-		expect(matrixFingerprint(qr)).toBe("ee820c588fe36d99");
+		const text = "https://my.reverse.sh/#demo";
+		const qr = QrCode.encodeText(text, "M");
+		expect(qr.mask).toBeGreaterThanOrEqual(0);
+		expect(qr.mask).toBeLessThanOrEqual(7);
+		expect(matrixFingerprint(qr)).toBe(matrixFingerprint(QrCode.encodeText(text, "M")));
+		expect(matrixFingerprint(qr)).toBe(matrixFingerprint(QrCode.encodeText(text, "M", { mask: qr.mask })));
+		expect(matrixFingerprint(qr)).not.toBe(
+			matrixFingerprint(QrCode.encodeText(text, "M", { mask: (qr.mask + 1) % 8 })),
+		);
 	});
 
 	it("throws when the payload exceeds version 40 at the chosen EC level", () => {

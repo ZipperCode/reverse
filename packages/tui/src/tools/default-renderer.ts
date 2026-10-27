@@ -10,7 +10,7 @@ import type { Theme } from "../theme/theme";
 import { formatOutputPaneLines } from "../render/output-pane";
 import { renderStatusLine, type StatusLineOptions } from "../render/status-line";
 import { plainToolCard, type ToolCardPhase } from "../render/tool-card";
-import { formatExpandHint, replaceTabs, truncateToWidth } from "../render/render-utils";
+import { clipCollapsed, formatExpandHint, replaceTabs } from "../render/render-utils";
 import {
 	describeJsonTree,
 	formatArgsInline,
@@ -146,15 +146,20 @@ function buildDefaultToolBody(input: DefaultToolRenderInput, uiTheme: Theme, con
 			}
 		} else {
 			let renderedAsJson = false;
-			if (textContent.startsWith("{") || textContent.startsWith("[")) {
+			if (isTreeSafeJson(textContent)) {
 				try {
 					const parsed = JSON.parse(textContent);
-					const maxDepth = options.expanded ? JSON_TREE_MAX_DEPTH_EXPANDED : JSON_TREE_MAX_DEPTH_COLLAPSED;
-					const maxLines = options.expanded ? JSON_TREE_MAX_LINES_EXPANDED : JSON_TREE_MAX_LINES_COLLAPSED;
-					const maxScalarLen = options.expanded ? JSON_TREE_SCALAR_LEN_EXPANDED : JSON_TREE_SCALAR_LEN_COLLAPSED;
-					const tree = renderJsonTreeLines(parsed, uiTheme, maxDepth, maxLines, maxScalarLen);
+					const tree = renderJsonTreeLines(parsed, uiTheme, {
+						maxDepth: options.expanded ? JSON_TREE_MAX_DEPTH_EXPANDED : JSON_TREE_MAX_DEPTH_COLLAPSED,
+						maxLines: options.expanded ? JSON_TREE_MAX_LINES_EXPANDED : JSON_TREE_MAX_LINES_COLLAPSED,
+						maxScalarLen: options.expanded ? JSON_TREE_SCALAR_LEN_EXPANDED : JSON_TREE_SCALAR_LEN_COLLAPSED,
+						// A result's own `i` or `__partialJson` keys are data, not call metadata.
+						hiddenRootKeys: [],
+					});
 
-					if (tree.lines.length > 0) {
+					// An expanded tree that hit a cap would show less than the raw output, so
+					// Ctrl+O falls through to the uncapped raw view instead.
+					if (tree.lines.length > 0 && !(options.expanded && tree.truncated)) {
 						body.push(...tree.lines);
 						if (!options.expanded) {
 							if (
@@ -163,8 +168,6 @@ function buildDefaultToolBody(input: DefaultToolRenderInput, uiTheme: Theme, con
 							) {
 								body.push(formatExpandHint(uiTheme, false, true));
 							}
-						} else if (tree.truncated) {
-							body.push(uiTheme.fg("dim", "…"));
 						}
 						renderedAsJson = true;
 					}
@@ -173,13 +176,16 @@ function buildDefaultToolBody(input: DefaultToolRenderInput, uiTheme: Theme, con
 				}
 			}
 			if (!renderedAsJson) {
+				// No expanded cap: the terminal's own disclosure clamp is the only
+				// bound, so Ctrl+O reveals every row the collapsed view promised.
 				const isError = result.isError ?? false;
 				const pane = formatOutputPaneLines(
 					{
 						lines: textContent.split("\n"),
 						expanded: options.expanded,
 						collapsedMaxLines: 4,
-						styleLine: line => truncateToWidth(styleDefaultToolOutputLine(line, isError, uiTheme), contentWidth),
+						styleLine: line =>
+							clipCollapsed(styleDefaultToolOutputLine(line, isError, uiTheme), contentWidth, options.expanded),
 					},
 					uiTheme,
 				);
@@ -208,14 +214,37 @@ export function formatDefaultToolExecution(
 	return [renderStatusLine(status, uiTheme), ...buildDefaultToolBody(input, uiTheme, contentWidth)].join("\n");
 }
 
+/**
+ * Serialized JSON past this size keeps the raw view: the tree caps out at a few
+ * hundred rows anyway, and parsing and indexing a huge payload only to discard
+ * the tree can stall the UI.
+ */
+const JSON_TREE_MAX_CHARS = 64 * 1024;
+/** An integer literal of 16+ digits may exceed `Number.MAX_SAFE_INTEGER` and change when parsed. */
+const UNSAFE_INTEGER_RE = /(?<![\w.])-?\d{16,}(?![\w.])/;
+
+/**
+ * Whether a tool result can render as a JSON tree without losing anything the
+ * raw text shows: a bracketed payload small enough to index, with no integer a
+ * double would round (64-bit ids).
+ */
+function isTreeSafeJson(text: string): boolean {
+	return (
+		(text.startsWith("{") || text.startsWith("[")) &&
+		text.length <= JSON_TREE_MAX_CHARS &&
+		!UNSAFE_INTEGER_RE.test(text)
+	);
+}
+
 /** Inline args summary budget in characters (a data cap, not a width). */
 const NATIVE_ARGS_SUMMARY_CHARS = 160;
-/** Result text kept for the native card body. */
-const NATIVE_RESULT_MAX_CHARS = 64 * 1024;
 
 /**
  * TSP view of the generic fallback card: the tool label with a one-line args
  * summary as the head target; the result as a JSON tree or raw `ansi` output.
+ * The complete output goes over the wire — the card-level disclosure clamp the
+ * terminal applies is the only bound, so an expanded card keeps every row. JSON
+ * the tree's depth, node or scalar caps would cut keeps the raw path instead.
  */
 function renderNativeErrorNode(message: string, lines?: number): NativeNode {
 	const body = plainText(message).trim();
@@ -246,29 +275,51 @@ export function describeDefaultToolExecution(input: DefaultToolRenderInput): Nat
 			: undefined;
 	const tool: NativeToolHead = { title: input.label, target: summary || undefined, targetKind: "text" };
 	if (!result) return { tool };
-	const output = result.output.trimEnd().slice(0, NATIVE_RESULT_MAX_CHARS);
+	const output = result.output.trimEnd();
 	const tone = result.skipped ? "info" : result.isError ? "error" : undefined;
 	const expanded = input.options?.expanded ?? false;
 	const previewLines = expanded ? undefined : 4;
 	if (!output) return { tool, tone, body: [noteText("(no output)")], preview: { lines: 4 } };
 	if (result.isError) {
-		let errorChild: NativeNode;
-		if (output.startsWith("{") || output.startsWith("[")) {
+		let errorChild: NativeNode | undefined;
+		if (isTreeSafeJson(output)) {
 			try {
-				errorChild = describeJsonTree(JSON.parse(output));
+				let truncated = false;
+				const tree = describeJsonTree(JSON.parse(output), {
+					hiddenRootKeys: [],
+					onTruncated: () => {
+						truncated = true;
+					},
+				});
+				if (!truncated) errorChild = tree;
 			} catch {
-				errorChild = renderNativeErrorNode(output, previewLines);
+				// Not JSON: shown as error node below.
 			}
-		} else {
-			errorChild = renderNativeErrorNode(output, previewLines);
 		}
-		return { tool, tone: "error", body: [errorChild], preview: { lines: 4 } };
+		return {
+			tool,
+			tone: "error",
+			body: [errorChild ?? renderNativeErrorNode(output, previewLines)],
+			preview: { lines: 4 },
+		};
 	}
-	if (output.startsWith("{") || output.startsWith("[")) {
+	if (isTreeSafeJson(output)) {
+		let parsed: unknown;
 		try {
-			return { tool, tone, body: [describeJsonTree(JSON.parse(output))], preview: { lines: 4 } };
+			parsed = JSON.parse(output);
 		} catch {
 			// Not JSON: shown as raw output below.
+		}
+		if (parsed !== undefined) {
+			let truncated = false;
+			const tree = describeJsonTree(parsed, {
+				// A result's own `i` or `__partialJson` keys are data, not call metadata.
+				hiddenRootKeys: [],
+				onTruncated: () => {
+					truncated = true;
+				},
+			});
+			if (!truncated) return { tool, tone, body: [tree], preview: { lines: 4 } };
 		}
 	}
 	return {

@@ -15,7 +15,7 @@ beforeEach(() => {
 	const temp = isolation.current();
 	if (
 		!temp ||
-		path.resolve(os.homedir(), process.env.PI_CONFIG_DIR ?? "") !== temp.join("config") ||
+		path.resolve(os.homedir(), process.env.REVERSE_CONFIG_DIR ?? "") !== temp.join("config") ||
 		!getStatsDbPath().startsWith(`${temp.path()}${path.sep}`)
 	) {
 		throw new Error("Stats tests require an isolated temporary configuration and database");

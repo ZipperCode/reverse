@@ -18,7 +18,7 @@ export interface RelayKind {
 export const DEFAULT_RELAY_URL = "http://127.0.0.1:9234";
 
 export interface ResolveRelayKindOptions {
-	/** `browser.relay` setting; `PI_BROWSER_RELAY=0|1` overrides it. */
+	/** `browser.relay` setting; `REVERSE_BROWSER_RELAY=0|1` overrides it. */
 	settingEnabled?: boolean;
 	/** `browser.relayUrl` setting; falls back to {@link DEFAULT_RELAY_URL}. */
 	url?: string;

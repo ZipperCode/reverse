@@ -15,6 +15,7 @@ import { Agent, type StreamFn } from "@reverse/agent";
 import type { FetchImpl, Model, SimpleStreamOptions } from "@reverse/ai";
 import { streamSimple } from "@reverse/ai";
 import { resolveApiKeyOnce } from "@reverse/ai/auth-retry";
+import { closeModelCache } from "@reverse/catalog/model-cache";
 import { getBundledModel } from "@reverse/catalog/models";
 import { SessionAccountPoolScope } from "@reverse/coding-agent/config/account-pools";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
@@ -48,11 +49,15 @@ describe("AgentSession advisor provider-options parity", () => {
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;
 	let model: Model;
+	let cacheDir: TempDir;
 
 	beforeAll(() => {
 		authStorage = createInMemoryAuthStorage();
 		authStorage.keys.setRuntime("anthropic", "test-key");
-		modelRegistry = new ModelRegistry(authStorage);
+		// An isolated discovery cache keeps the bundled catalog authoritative; the
+		// developer's `~/.reverse` models.db can drop models these tests select.
+		cacheDir = TempDir.createSync("@pi-advisor-parity-cache-");
+		modelRegistry = new ModelRegistry(authStorage, undefined, { cacheDbPath: cacheDir.join("models.db") });
 		const bundled = getBundledModel("anthropic", "claude-sonnet-4-5");
 		if (!bundled) throw new Error("Expected built-in anthropic model to exist");
 		model = bundled;
@@ -60,6 +65,8 @@ describe("AgentSession advisor provider-options parity", () => {
 
 	afterAll(() => {
 		authStorage.close();
+		closeModelCache();
+		cacheDir.removeSync();
 	});
 
 	let tempDir: TempDir;

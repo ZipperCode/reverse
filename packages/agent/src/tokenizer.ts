@@ -1,6 +1,8 @@
 import type { AssistantMessage, Model } from "@reverse/ai";
+import { renderDemotedThinking } from "@reverse/ai/dialect/demotion";
+import { ollamaChatDropsOwnThinking } from "@reverse/ai/providers/ollama";
 import { isColdReplayableResponsesTurn } from "@reverse/ai/providers/openai-shared";
-import { shouldDropTruncatedThinkingOnlyAssistant } from "@reverse/ai/providers/transform-messages";
+import { isSameModelTurn, shouldDropTruncatedThinkingOnlyAssistant } from "@reverse/ai/providers/transform-messages";
 import {
 	getOpenAIResponsesHistoryItems,
 	sanitizeOpenAIResponsesAssistantHistoryItemsForReplay,
@@ -207,6 +209,7 @@ export class Tokenizer {
 	readonly #frameBilling: snapcompact.FrameBilling;
 	readonly frameBillingKey: string;
 	readonly #reasoningReader: ReasoningReplayReader | undefined;
+	readonly #dropsOllamaThinking: boolean;
 	/** Claude's own API and prefix-bound hosts keep another model's signature from their deployment. */
 	readonly #readsDeploymentSignatures: boolean;
 	readonly reasoningReplayKey: string;
@@ -244,6 +247,7 @@ export class Tokenizer {
 		this.#frameBilling = snapcompact.frameBilling(model ?? undefined);
 		this.frameBillingKey = snapcompact.frameBillingKey(this.#frameBilling);
 		this.#reasoningReader = reasoningReplayReader(model);
+		this.#dropsOllamaThinking = ollamaChatDropsOwnThinking(model);
 		const compat = model?.compat;
 		this.#readsDeploymentSignatures =
 			model?.api === "anthropic-messages" &&
@@ -415,6 +419,8 @@ export class Tokenizer {
 				// reaches the wire then (the payload items replay instead); a turn whose
 				// backend reported no reasoning tokens keeps the signature as its price.
 				const replayedReasoning = this.#replayedReasoningTokens(message);
+				const ollamaReader = this.#reasoningReader?.api === "ollama-chat" ? this.#reasoningReader : undefined;
+				const ownOllamaTurn = ollamaReader !== undefined && isSameModelTurn(message, ollamaReader);
 				if (typeof replayedReasoning === "number") extra += replayedReasoning;
 				const signaturesPriced = this.thinkingReplayTokens === "signature";
 				// The replay's signature rule (`transformMessages`): an aborted or
@@ -441,6 +447,13 @@ export class Tokenizer {
 					if (block.type === "text") {
 						fragments.push(block.text);
 					} else if (block.type === "thinking") {
+						// `transformMessages` drops another model's empty thinking and demotes the
+						// rest to visible text; only the reader's own thinking stays native.
+						if (ollamaReader && !ownOllamaTurn) {
+							if (block.thinking.trim()) fragments.push(renderDemotedThinking(ollamaReader.id, block.thinking));
+							continue;
+						}
+						if (this.#dropsOllamaThinking && ownOllamaTurn) continue;
 						fragments.push(block.thinking);
 						// Providers charge for the opaque signature/reasoning payload that
 						// rides alongside the thinking text (OpenAI Responses encrypted
@@ -561,6 +574,7 @@ export class Tokenizer {
 			snapcompact.frameBillingKey(snapcompact.frameBilling(model ?? undefined)) === this.frameBillingKey &&
 			reasoningReplayKey(model) === this.reasoningReplayKey &&
 			resolveThinkingReplayTokens(model ?? {}) === this.thinkingReplayTokens &&
+			ollamaChatDropsOwnThinking(model) === this.#dropsOllamaThinking &&
 			(options?.nativeHistoryReplay ?? true) === this.nativeHistoryReplay
 		);
 	}

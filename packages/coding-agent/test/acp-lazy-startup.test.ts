@@ -145,6 +145,7 @@ class LazyFakeSession {
 	}
 	setActiveToolsByName(): void {}
 	setClientBridge(): void {}
+	setMcpServerInstructionsSource(): void {}
 	getPlanModeState(): undefined {
 		return undefined;
 	}

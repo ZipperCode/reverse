@@ -122,7 +122,11 @@ export const providersSettingsZhCN: Record<string, SettingTranslation> = {
 				label: "短（5 分钟）",
 				description: "缓存写入成本最低；可搭配缓存预热在空闲时保持短条目存活",
 			},
-			long: { label: "长（1 小时）", description: "提供商支持时 TTL 为 1 小时；写入更贵，仅在活动运行期间预热" },
+			long: {
+				label: "长（1 小时+）",
+				description:
+					"在受支持处使用更长 TTL（Anthropic/Bedrock 为 1 小时，OpenAI GPT-5.6+ Responses 为 12 小时）；写入更贵，仅在活动运行期间预热",
+			},
 			none: { label: "关闭", description: "禁用提示缓存和缓存亲和路由" },
 		},
 	},

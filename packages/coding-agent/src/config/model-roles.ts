@@ -14,6 +14,9 @@ import { isValidThemeColor } from "@reverse/tui/theme";
 import type { Settings } from "./settings";
 
 import { cfgCycleOrder, cfgModelTags } from "./model-settings";
+import { resolveEffectiveLocale } from "@reverse/utils/i18n";
+import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
+import { effectsSettings, lookup } from "./registry";
 
 /** Canonical prefix for a configured model role selector. */
 export const MODEL_ROLE_ALIAS_PREFIX = "@";
@@ -53,6 +56,17 @@ function acceptsJudge(model: Model): boolean {
 	return kind === "judge" || kind === "tiny" || kind === "chat";
 }
 
+const WIDGET_ROLE_NAME_EN = "Job widgets";
+
+function resolveWidgetRoleName(settings?: Settings): string {
+	const activeSettings = settings ?? effectsSettings();
+	const layered = activeSettings ? lookup("language")?.layered(activeSettings) : undefined;
+	const locale = resolveEffectiveLocale(typeof layered === "string" ? layered : undefined);
+	return locale === "zh-CN"
+		? (CLI_TRANSLATIONS_ZH_CN["cli.modelRole.widget.name"] ?? WIDGET_ROLE_NAME_EN)
+		: WIDGET_ROLE_NAME_EN;
+}
+
 export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
 	default: { tag: "DEFAULT", name: "Default", color: "success", section: "chat", accepts: acceptsChat },
 	smol: { tag: "SMOL", name: "Fast", color: "warning", section: "chat", accepts: acceptsChat },
@@ -64,6 +78,15 @@ export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
 	memory: { tag: "MEMORY", name: "Memory", color: "dim", section: "chat", accepts: acceptsTinyOrChat },
 	task: { tag: "TASK", name: "Subtask", color: "muted", section: "chat", accepts: acceptsChat },
 	advisor: { tag: "ADVISOR", name: "Advisor", color: "accent", section: "chat", accepts: acceptsChat },
+	widget: {
+		tag: "WIDGET",
+		get name() {
+			return resolveWidgetRoleName();
+		},
+		color: "dim",
+		section: "chat",
+		accepts: acceptsChat,
+	},
 	image: {
 		tag: "IMAGE",
 		name: "Image generation",
@@ -136,11 +159,12 @@ export function getRoleInfo(role: string, settings: Settings): RoleInfo {
 	const builtIn = isModelRole(role) ? MODEL_ROLES[role] : undefined;
 	const configuredTags = cfgModelTags.get(settings);
 	const configured = Object.hasOwn(configuredTags, role) ? configuredTags[role] : undefined;
+	const builtInName = role === "widget" ? resolveWidgetRoleName(settings) : builtIn?.name;
 
 	if (configured) {
 		return {
 			tag: builtIn?.tag,
-			name: configured.name || builtIn?.name || role,
+			name: configured.name || builtInName || role,
 			color: configured.color && isValidThemeColor(configured.color) ? configured.color : builtIn?.color,
 			hidden: configured.hidden ?? builtIn?.hidden,
 			accepts: builtIn?.accepts ?? acceptsChat,
@@ -148,7 +172,11 @@ export function getRoleInfo(role: string, settings: Settings): RoleInfo {
 		};
 	}
 
-	if (builtIn) return builtIn;
+	if (builtIn) {
+		return role === "widget" && builtInName && builtInName !== builtIn.name
+			? { ...builtIn, name: builtInName }
+			: builtIn;
+	}
 
 	return { name: role, color: "muted", accepts: acceptsChat, section: "chat" };
 }

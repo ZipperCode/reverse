@@ -20,10 +20,14 @@
 //! - Backtraces are captured via [`Backtrace::force_capture`], so they work
 //!   regardless of `RUST_BACKTRACE`.
 //! - The crash log path mirrors the JS side (`packages/utils/src/dirs.ts`):
-//!   `$XDG_STATE_HOME/reverse/logs/` on Linux / macOS when the user has migrated to
-//!   XDG (i.e. that directory already exists and `PI_CODING_AGENT_DIR` isn't
-//!   pointed somewhere custom), otherwise `<home>/<PI_CONFIG_DIR>/logs/`
-//!   (defaulting to `~/.reverse/logs/`).
+//!   `$XDG_STATE_HOME/reverse/logs/` on Linux / macOS when the user has
+//!   migrated to XDG (i.e. that directory already exists and
+//!   `PI_CODING_AGENT_DIR` isn't pointed somewhere custom), otherwise
+//!   `<home>/<PI_CONFIG_DIR>/logs/` (defaulting to `~/.reverse/logs/`).
+//! - This crate's own unit-test build writes to a per-user temp dir instead
+//!   (see `test_logs_dir`). The release addon a `bun test` process loads is not
+//!   a test build, so its crash reports still go to the path above while that
+//!   process's JS logs go to the temp dir.
 //! - Hook installation is idempotent across repeated module loads.
 
 use std::{
@@ -256,8 +260,26 @@ fn persist(report: &str, kind: CrashKind, echo_stderr: bool) {
 }
 
 fn crash_log_path(kind: CrashKind) -> Option<PathBuf> {
-	let dir = logs_dir()?;
+	// Unit tests panic, many on purpose; keep their reports out of the
+	// developer's real logs dir.
+	let dir = if cfg!(test) {
+		test_logs_dir()
+	} else {
+		logs_dir()?
+	};
 	Some(build_crash_log_path(&dir, kind, process::id(), unix_millis()))
+}
+
+/// Crash-report directory of the unit-test build. On Unix the uid suffix keeps
+/// users of a shared `/tmp` from owning each other's directory; Windows' temp
+/// dir is already per-user.
+fn test_logs_dir() -> PathBuf {
+	#[cfg(unix)]
+	// SAFETY: getuid takes no arguments and cannot fail.
+	let name = format!("pi-natives-test-logs-{}", unsafe { libc::getuid() });
+	#[cfg(not(unix))]
+	let name = String::from("pi-natives-test-logs");
+	std::env::temp_dir().join(name)
 }
 
 fn build_crash_log_path(dir: &Path, kind: CrashKind, pid: u32, now_ms: u128) -> PathBuf {
@@ -276,8 +298,9 @@ fn resolve_logs_dir(
 	config_dir_override: Option<&OsStr>,
 	xdg_state_logs: Option<PathBuf>,
 ) -> PathBuf {
-	// XDG takes precedence so users who migrated to `$XDG_STATE_HOME/reverse/logs/`
-	// see native crash reports in the same directory the JS logger rotates.
+	// XDG takes precedence so users who migrated to
+	// `$XDG_STATE_HOME/reverse/logs/` see native crash reports in the same
+	// directory the JS logger rotates.
 	if let Some(p) = xdg_state_logs {
 		return p;
 	}
@@ -585,8 +608,10 @@ mod tests {
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
 	fn default_agent_dir_respects_pi_config_dir() {
-		let dir =
-			default_agent_dir(Path::new("/tmp/pi-natives-test-home"), Some(OsStr::new(".reverse-dev")));
+		let dir = default_agent_dir(
+			Path::new("/tmp/pi-natives-test-home"),
+			Some(OsStr::new(".reverse-dev")),
+		);
 		assert_eq!(dir, PathBuf::from("/tmp/pi-natives-test-home/.reverse-dev/agent"));
 	}
 
@@ -596,12 +621,27 @@ mod tests {
 		let panic_log = build_crash_log_path(dir, CrashKind::Panic, 4242, 1_700_000_000_000);
 		assert_eq!(
 			panic_log,
-			PathBuf::from("/tmp/pi-natives-test-home/.reverse/logs/native-panic-4242-1700000000000.log")
+			PathBuf::from(
+				"/tmp/pi-natives-test-home/.reverse/logs/native-panic-4242-1700000000000.log"
+			)
 		);
 		let alloc_log = build_crash_log_path(dir, CrashKind::Alloc, 99, 1);
 		assert_eq!(
 			alloc_log,
 			PathBuf::from("/tmp/pi-natives-test-home/.reverse/logs/native-alloc-99-1.log")
 		);
+	}
+
+	#[test]
+	fn unit_test_crash_reports_stay_out_of_the_real_logs_dir() {
+		let test_logs = test_logs_dir();
+		assert!(test_logs.starts_with(std::env::temp_dir()));
+		// SAFETY: getuid takes no arguments and cannot fail.
+		#[cfg(unix)]
+		assert!(test_logs.ends_with(format!("pi-natives-test-logs-{}", unsafe { libc::getuid() })));
+		for kind in [CrashKind::Panic, CrashKind::Alloc] {
+			let path = crash_log_path(kind).expect("a test build always has a crash log path");
+			assert_eq!(path.parent(), Some(test_logs.as_path()));
+		}
 	}
 }

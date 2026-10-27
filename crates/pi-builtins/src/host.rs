@@ -2098,6 +2098,12 @@ mod testing {
 			self.env.insert(key.to_string(), value.to_string());
 		}
 
+		/// Replaces the test filesystem so fixtures can shadow system paths
+		/// without modifying the host's files.
+		pub(crate) fn set_test_fs(&mut self, filesystem: pi_vfs::BlockingFs) {
+			self.paths.filesystem = filesystem;
+		}
+
 		/// Requests cancellation on a test host.
 		pub(crate) fn cancel_for_test(&self) {
 			self.cancel.store(true, super::Ordering::Relaxed);

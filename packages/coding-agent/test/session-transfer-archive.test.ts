@@ -6,7 +6,7 @@ import * as path from "node:path";
 import type { ImageContent } from "@reverse/ai";
 import { BlobStore, isBlobRef } from "@reverse/coding-agent/session/blob-store";
 import type { FileEntry, SessionHeader } from "@reverse/coding-agent/session/session-entries";
-import { resetSessionIndexForTests } from "@reverse/coding-agent/session/session-index";
+import { closeSessionIndex } from "@reverse/coding-agent/session/session-index";
 import { findSessionFiles } from "@reverse/coding-agent/session/session-listing";
 import { loadEntriesFromFile, resolveBlobRefsInEntries } from "@reverse/coding-agent/session/session-loader";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
@@ -60,7 +60,7 @@ describe("reverse session pack/unpack archive", () => {
 	});
 
 	afterEach(async () => {
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		if (originalAgentDir) {
 			setAgentDir(originalAgentDir);
 		} else {

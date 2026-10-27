@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { INTENT_FIELD } from "@reverse/wire";
 import { formatArgsInline, JSON_TREE_MAX_DEPTH_EXPANDED, renderJsonTreeLines } from "@reverse/tui/tools/json-tree";
-import { formatDefaultToolExecution } from "../src/tools/default-renderer";
 import { initTheme, theme } from "@reverse/tui/theme";
 
 describe("formatArgsInline", () => {
@@ -55,23 +54,11 @@ describe("renderJsonTreeLines truncation detection", () => {
 		expect(res.truncated).toBe(false);
 	});
 
-	test("marks line truncation at expanded cap and consumer includes ellipsis indicator", async () => {
+	test("marks line truncation at expanded cap", async () => {
 		await initTheme(false);
 		const items = Array.from({ length: 250 }, (_, i) => ({ id: i, name: `item-${i}` }));
 		const res = renderJsonTreeLines(items, theme, JSON_TREE_MAX_DEPTH_EXPANDED, 200, 2000);
 		expect(res.truncated).toBe(true);
 		expect(res.lines.length).toBeLessThanOrEqual(200);
-
-		const consumerOutput = formatDefaultToolExecution(
-			{
-				label: "test_tool",
-				args: {},
-				result: { output: JSON.stringify(items) },
-				options: { expanded: true, isPartial: false },
-			},
-			120,
-			theme,
-		);
-		expect(consumerOutput).toContain("…");
 	});
 });

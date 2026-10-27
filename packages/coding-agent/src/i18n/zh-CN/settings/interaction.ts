@@ -9,11 +9,15 @@ export const interactionSettingsZhCN: Record<string, SettingTranslation> = {
 	"tools.approvalMode": {
 		label: "工具审批",
 		description:
-			"工具调用的默认审批行为。'Always ask' 仅自动批准只读工具。'Write' 自动批准读取和工作区写入工具。'Yolo' 自动批准所有层级；用户策略仍可能要求确认或阻止。",
+			"工具调用的默认审批行为。'Always ask' 仅自动批准只读工具。'Ask and remember' 在读取文件前也会询问，并可记住文件或文件夹。'Write' 自动批准读取和工作区写入工具。'Yolo' 自动批准所有层级；用户策略仍可能要求确认或阻止。",
 		options: {
 			"always-ask": {
 				label: "始终询问",
 				description: "自动批准只读工具；写入和执行工具需要确认。",
+			},
+			"always-ask-cached": {
+				label: "询问并记住",
+				description: "读取或写入文件前询问，可选择在当前会话或所有会话中记住该文件或其文件夹；执行工具需要确认。",
 			},
 			write: {
 				label: "写入",
@@ -24,6 +28,11 @@ export const interactionSettingsZhCN: Record<string, SettingTranslation> = {
 				description: "自动批准读取、写入和执行工具。用户策略仍可要求确认或阻止调用。",
 			},
 		},
+	},
+	"tools.restrictedFolders": {
+		label: "受限文件夹",
+		description:
+			'无论处于何种审批模式或已有何种记住的授权，所有读取、写入、编辑、搜索或命令都需要显式批准的文件夹。该文件夹及其下所有内容均受限；命令按其运行所在目录匹配。路径的 JSON 列表，例如 ["~/secrets"]。',
 	},
 	autoResume: {
 		label: "自动恢复",
@@ -242,10 +251,11 @@ export const interactionSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"power.sleepPrevention": {
 		label: "防止睡眠",
-		description: "活动会话期间防止系统睡眠。每个级别都是累积的——会包含所有更低级别的标志。",
+		description:
+			"在代理运行轮次期间防止系统睡眠；空闲会话（包括等待后台作业的会话）不会保持唤醒。每个级别都是累积的——会包含所有更低级别的标志。",
 		options: {
 			off: { label: "关闭", description: "不阻止任何睡眠" },
-			idle: { label: "阻止空闲睡眠", description: "会话打开时保持系统唤醒（macOS `caffeinate -i`）" },
+			idle: { label: "阻止空闲睡眠", description: "代理运行轮次期间保持系统唤醒（macOS `caffeinate -i`）" },
 			display: { label: "阻止显示器睡眠", description: "同时防止显示器空闲睡眠（macOS `caffeinate -i -d`）" },
 			system: {
 				label: "阻止系统睡眠",

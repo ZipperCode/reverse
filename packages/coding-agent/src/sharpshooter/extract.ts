@@ -2,6 +2,7 @@ import { type } from "@reverse/reversetype";
 import type { AgentMessage } from "@reverse/agent";
 import { completeSimple, Effort, type Model, retryTransientCompletion } from "@reverse/ai";
 import { clampThinkingLevelForModel } from "@reverse/catalog/model-thinking";
+import { getSegmenter } from "@reverse/tui";
 import { logger, prompt } from "@reverse/utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue, resolveRoleSelection } from "../config/model-resolver";
@@ -13,7 +14,7 @@ import { customMessageContentText } from "../session/checkpoint-entries";
 import { appendSharpshooterDelta } from "./queue";
 import type { SharpshooterDelta, SharpshooterDeltaKind, SharpshooterDeltaSource, SharpshooterFriction } from "./types";
 
-import { cfgSharpshooterModel } from "./settings";
+import { cfgSharpshooterMinPromptLength, cfgSharpshooterModel } from "./settings";
 
 const SHARPSHOOTER_DELTA_KINDS = {
 	architecture_decision: true,
@@ -49,6 +50,10 @@ const recordDeltasTool = {
 };
 
 const kExtractionInFlight = Symbol("sharpshooter.extractionInFlight");
+
+// Empty prompts never reach the length gate, so a floor of 1 filters nothing;
+// 2 is the smallest floor that still drops one-character acks ("好", "y").
+const MIN_PROMPT_LENGTH_FLOOR = 2;
 
 interface ExtractionHost extends AgentSession {
 	[kExtractionInFlight]?: Promise<void>;
@@ -185,7 +190,14 @@ export function maybeStartSharpshooterExtraction(options: {
 		const envelope = buildSharpshooterEnvelope(session.messages, options.message);
 		if (!envelope) return;
 		const trimmedPrompt = envelope.prompt.trim();
-		if (trimmedPrompt.startsWith("/") || trimmedPrompt.length < 16) return;
+		if (trimmedPrompt.startsWith("/")) return;
+		// Count user-perceived characters, not UTF-16 units: `.length` reports 2 for "👍".
+		const minLength = Math.max(MIN_PROMPT_LENGTH_FLOOR, cfgSharpshooterMinPromptLength.get(options.settings));
+		let characters = 0;
+		for (const _grapheme of getSegmenter().segment(trimmedPrompt)) {
+			if (++characters >= minLength) break;
+		}
+		if (characters < minLength) return;
 
 		const run = runSharpshooterExtraction(options, envelope)
 			.catch(error => {

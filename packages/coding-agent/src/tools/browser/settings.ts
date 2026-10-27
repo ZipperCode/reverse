@@ -38,7 +38,7 @@ export const cfgBrowserRelay = register({
 		group: "Grep & Browser",
 		label: "Browser Relay",
 		description:
-			"Drive your own Chrome tabs through the reverse browser relay. Install the extension once (`reverse browser-relay install`); the relay server auto-starts when the browser prelude needs it. Takes precedence over Browser CDP URL; set PI_BROWSER_RELAY=0 or PI_BROWSER_RELAY=1 to override.",
+			"Drive your own Chrome tabs through the reverse browser relay. Install the extension once (`reverse browser-relay install`); the relay server auto-starts when the browser prelude needs it. Takes precedence over Browser CDP URL; set REVERSE_BROWSER_RELAY=0 or REVERSE_BROWSER_RELAY=1 to override.",
 	},
 });
 

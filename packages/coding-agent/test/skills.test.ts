@@ -146,14 +146,14 @@ describe("skills", () => {
 			});
 		});
 		it("should load from customDirectories only when built-ins disabled", async () => {
-			const { skills } = customDirectorySkills;
+			const skills = customDirectorySkills.skills.filter(s => s.source !== "builtin-skills:user");
 			expect(skills.length).toBeGreaterThan(0);
 			// Custom directory skills have source "custom:user"
 			expect(skills.every(s => s.source.startsWith("custom"))).toBe(true);
 		});
 
 		it("should return customDirectory skills sorted by name (case-insensitive)", async () => {
-			const { skills } = customDirectorySkills;
+			const skills = customDirectorySkills.skills.filter(s => s.source !== "builtin-skills:user");
 
 			expect(skills.map(s => s.name)).toEqual(expectedFixtureSkillOrder);
 		});
@@ -484,7 +484,7 @@ description: Skill loaded from a tilde-expanded custom directory.
 
 	it("should return empty when all sources disabled and no custom dirs", async () => {
 		const { skills } = await loadSkills({ ...DISABLE_ALL_BUILTIN_SKILLS });
-		expect(skills).toHaveLength(0);
+		expect(skills.filter(s => s.source !== "builtin-skills:user")).toHaveLength(0);
 	});
 
 	it("should filter skills with includeSkills glob patterns", async () => {
@@ -539,7 +539,10 @@ describe("collision handling", () => {
 			...DISABLE_ALL_BUILTIN_SKILLS,
 			customDirectories: [first, second],
 		});
-		const names = skills.map(skill => skill.name).sort();
+		const names = skills
+			.filter(skill => skill.source !== "builtin-skills:user")
+			.map(skill => skill.name)
+			.sort();
 		expect(names).toEqual(["calendar", "second/calendar"]);
 		expect(skills.find(skill => skill.name === "calendar")?.filePath).toBe(path.join(first, "calendar", "SKILL.md"));
 		expect(skills.find(skill => skill.name === "second/calendar")?.filePath).toBe(
@@ -555,8 +558,9 @@ describe("collision handling", () => {
 			...DISABLE_ALL_BUILTIN_SKILLS,
 			customDirectories: [first, mirror],
 		});
-		expect(skills.map(skill => skill.name)).toEqual(["calendar"]);
-		expect(skills[0].filePath).toBe(path.join(first, "calendar", "SKILL.md"));
+		const nonBundled = skills.filter(skill => skill.source !== "builtin-skills:user");
+		expect(nonBundled.map(skill => skill.name)).toEqual(["calendar"]);
+		expect(nonBundled[0].filePath).toBe(path.join(first, "calendar", "SKILL.md"));
 		expect(warnings.filter(warning => warning.message.includes("collision"))).toHaveLength(0);
 	});
 
@@ -571,7 +575,10 @@ describe("collision handling", () => {
 				...DISABLE_ALL_BUILTIN_SKILLS,
 				customDirectories: [first, second, path.join(tempDir, "third")],
 			});
-			const names = skills.map(skill => skill.name).sort();
+			const names = skills
+				.filter(skill => skill.source !== "builtin-skills:user")
+				.map(skill => skill.name)
+				.sort();
 			expect(names).toEqual(["calendar", "second/calendar"]);
 			const collision = warnings.filter(warning => warning.message.includes("name collision"));
 			expect(collision).toHaveLength(1);
@@ -625,7 +632,12 @@ describe("collision handling", () => {
 				cwd: project,
 				customDirectories: [second],
 			});
-			expect(skills.map(skill => skill.name).sort()).toEqual(["calendar", "claude/calendar"]);
+			expect(
+				skills
+					.filter(skill => skill.source !== "builtin-skills:user")
+					.map(skill => skill.name)
+					.sort(),
+			).toEqual(["calendar", "claude/calendar"]);
 			expect(skills.find(skill => skill.name === "calendar")?.filePath).toBe(
 				path.join(second, "calendar", "SKILL.md"),
 			);
@@ -647,8 +659,9 @@ describe("collision handling", () => {
 				cwd: project,
 				customDirectories: [mirror],
 			});
-			expect(skills.map(skill => skill.name)).toEqual(["calendar"]);
-			expect(skills[0].filePath).toBe(path.join(mirror, "calendar", "SKILL.md"));
+			const nonBundled = skills.filter(skill => skill.source !== "builtin-skills:user");
+			expect(nonBundled.map(skill => skill.name)).toEqual(["calendar"]);
+			expect(nonBundled[0].filePath).toBe(path.join(mirror, "calendar", "SKILL.md"));
 			expect(warnings.filter(warning => warning.message.includes("collision"))).toHaveLength(0);
 		} finally {
 			await removeWithRetries(project);
@@ -724,7 +737,12 @@ describe("collision handling", () => {
 			await fs.mkdir(path.join(selfNamed, "calendar"), { recursive: true });
 			await fs.copyFile(path.join(second, "calendar", "SKILL.md"), path.join(selfNamed, "calendar", "SKILL.md"));
 			const { skills } = await loadSkills({ ...DISABLE_ALL_BUILTIN_SKILLS, customDirectories: [first, selfNamed] });
-			expect(skills.map(skill => skill.name).sort()).toEqual(["calendar", "calendar/calendar"]);
+			expect(
+				skills
+					.filter(skill => skill.source !== "builtin-skills:user")
+					.map(skill => skill.name)
+					.sort(),
+			).toEqual(["calendar", "calendar/calendar"]);
 			const handler = new SkillProtocolHandler();
 			const bareSkill = await handler.resolve(parseInternalUrl("skill://calendar")!, { skills });
 			expect(bareSkill.content).toContain("Calendar (First)");
@@ -741,7 +759,12 @@ describe("collision handling", () => {
 			...DISABLE_ALL_BUILTIN_SKILLS,
 			customDirectories: [first, second, nested],
 		});
-		expect(skills.map(skill => skill.name).sort()).toEqual(["calendar", "second/calendar", "second/calendar~2"]);
+		expect(
+			skills
+				.filter(skill => skill.source !== "builtin-skills:user")
+				.map(skill => skill.name)
+				.sort(),
+		).toEqual(["calendar", "second/calendar", "second/calendar~2"]);
 		expect(skills.find(skill => skill.name === "calendar")?.filePath).toBe(path.join(first, "calendar", "SKILL.md"));
 		expect(skills.find(skill => skill.name === "second/calendar~2")?.filePath).toBe(
 			path.join(nested, "calendar", "SKILL.md"),
@@ -762,13 +785,12 @@ describe("collision handling", () => {
 			...DISABLE_ALL_BUILTIN_SKILLS,
 			customDirectories: [tildeMain, tildeSecond, tildeThird],
 		});
-		expect(skills.map(skill => skill.name).sort()).toEqual([
-			"foo",
-			"foo~2",
-			"tilde-second/foo",
-			"tilde-second/foo~2",
-			"tilde-third/foo",
-		]);
+		expect(
+			skills
+				.filter(skill => skill.source !== "builtin-skills:user")
+				.map(skill => skill.name)
+				.sort(),
+		).toEqual(["foo", "foo~2", "tilde-second/foo", "tilde-second/foo~2", "tilde-third/foo"]);
 		expect(skills.find(skill => skill.name === "foo")?.filePath).toBe(path.join(tildeMain, "foo", "SKILL.md"));
 		expect(skills.find(skill => skill.name === "foo~2")?.filePath).toBe(path.join(tildeMain, "foo-raw", "SKILL.md"));
 		expect(skills.find(skill => skill.name === "tilde-second/foo~2")?.filePath).toBe(
@@ -786,7 +808,12 @@ describe("collision handling", () => {
 			...DISABLE_ALL_BUILTIN_SKILLS,
 			customDirectories: [squatter, first, second],
 		});
-		expect(skills.map(skill => skill.name).sort()).toEqual(["calendar", "second/calendar"]);
+		expect(
+			skills
+				.filter(skill => skill.source !== "builtin-skills:user")
+				.map(skill => skill.name)
+				.sort(),
+		).toEqual(["calendar", "second/calendar"]);
 		expect(skills.find(skill => skill.name === "second/calendar")?.filePath).toBe(
 			path.join(second, "calendar", "SKILL.md"),
 		);
@@ -807,7 +834,9 @@ describe("collision handling", () => {
 			customDirectories: [first, second],
 			disabledExtensions: ["skill:second/calendar"],
 		});
-		expect(skills.map(skill => skill.name)).toEqual(["calendar"]);
+		expect(skills.filter(skill => skill.source !== "builtin-skills:user").map(skill => skill.name)).toEqual([
+			"calendar",
+		]);
 	});
 
 	it("matches include patterns against the namespaced name", async () => {
@@ -824,7 +853,9 @@ describe("collision handling", () => {
 			customDirectories: [first, second],
 			ignoredSkills: ["second/*"],
 		});
-		expect(excluded.skills.map(skill => skill.name)).toEqual(["calendar"]);
+		expect(excluded.skills.filter(skill => skill.source !== "builtin-skills:user").map(skill => skill.name)).toEqual([
+			"calendar",
+		]);
 	});
 
 	it("keeps the bare winner when includeSkills names it directly", async () => {
@@ -869,7 +900,7 @@ describe("collision handling", () => {
 			expect(byName.get("calendar")?.filePath).toBe(path.join(second, "calendar", "SKILL.md"));
 			expect(byName.get("claude/calendar")?.filePath).toBe(path.join(providerDir, "SKILL.md"));
 			expect(byName.get("claude/calendar~2")?.filePath).toBe(path.join(claudeRoot, "calendar", "SKILL.md"));
-			expect(skills).toHaveLength(3);
+			expect(skills.filter(skill => skill.source !== "builtin-skills:user")).toHaveLength(3);
 		} finally {
 			await removeWithRetries(project);
 		}

@@ -6,11 +6,17 @@ import * as path from "node:path";
 import type { FetchImpl, Model } from "@reverse/ai";
 import type { OAuthCredentials } from "@reverse/ai/oauth/types";
 import { resolveOpenAIRequestSetup } from "@reverse/ai/providers/openai-shared";
+import { streamOpenAICompletions } from "@reverse/ai/providers/openai-completions";
 import { buildModel } from "@reverse/catalog/build";
 import { Effort } from "@reverse/catalog/effort";
 import { writeModelCache } from "@reverse/catalog/model-cache";
-import { getBundledModel } from "@reverse/catalog/models";
-import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@reverse/catalog/provider-models";
+import { fingerprintStaticModels } from "@reverse/catalog/model-manager";
+import { getBundledModel, getBundledModels } from "@reverse/catalog/models";
+import {
+	cursorModelManagerOptions,
+	resolveModelCacheProviderId,
+	resolveOllamaModelCacheProviderId,
+} from "@reverse/catalog/provider-models";
 import type { ModelKind, ModelSpec, OpenAICompat } from "@reverse/catalog/types";
 import { CODEX_CLIENT_VERSION } from "@reverse/catalog/wire/codex";
 import {
@@ -1625,6 +1631,75 @@ describe("ModelRegistry runtime discovery", () => {
 		expect(llama?.input).toEqual(["text", "image"]);
 	});
 
+	test("implicit llama.cpp discovery falls back to port 9931 when 8080 is unreachable", async () => {
+		const fetchMock: FetchImpl = async input => {
+			const url = String(input);
+			if (url.startsWith("http://127.0.0.1:8080/")) {
+				throw new TypeError("Unable to connect");
+			}
+			if (url === "http://127.0.0.1:9931/models") {
+				return new Response(JSON.stringify({ data: [{ id: "gemma-3-4b" }] }), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				});
+			}
+			if (url === "http://127.0.0.1:9931/props") {
+				return new Response(JSON.stringify({ default_generation_settings: { n_ctx: 16384 } }), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				});
+			}
+			throw new Error(`Unexpected URL: ${url}`);
+		};
+		const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
+		await registry.refresh();
+		const model = registry.find("llama.cpp", "gemma-3-4b");
+		expect(model?.baseUrl).toBe("http://127.0.0.1:9931/v1");
+		expect(model?.contextWindow).toBe(16384);
+	});
+
+	test("implicit llama.cpp discovery reports a 9931 auth rejection as unauthenticated, not an 8080 outage", async () => {
+		const fetchMock: FetchImpl = async input => {
+			const url = String(input);
+			if (url.startsWith("http://127.0.0.1:8080/")) {
+				throw new TypeError("Unable to connect");
+			}
+			if (url.startsWith("http://127.0.0.1:9931/")) {
+				return new Response("unauthorized", { status: 401 });
+			}
+			throw new Error(`Unexpected URL: ${url}`);
+		};
+		const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
+		await registry.refresh();
+		expect(registry.getProviderDiscoveryState("llama.cpp")?.status).toBe("unauthenticated");
+	});
+
+	test("implicit llama.cpp discovery does not bypass a failing 8080 server for 9931", async () => {
+		const requested: string[] = [];
+		const fetchMock: FetchImpl = async input => {
+			const url = String(input);
+			requested.push(url);
+			if (url === "http://127.0.0.1:8080/models") {
+				return new Response("internal error", { status: 500 });
+			}
+			if (url === "http://127.0.0.1:8080/props") {
+				return new Response("internal error", { status: 500 });
+			}
+			if (url === "http://127.0.0.1:9931/models") {
+				return new Response(JSON.stringify({ data: [{ id: "other-server-model" }] }), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				});
+			}
+			throw new Error(`Unexpected URL: ${url}`);
+		};
+		const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
+		await registry.refresh();
+		expect(registry.find("llama.cpp", "other-server-model")).toBeUndefined();
+		expect(registry.getProviderDiscoveryState("llama.cpp")?.status).toBe("unavailable");
+		expect(requested.some(url => url.startsWith("http://127.0.0.1:9931/"))).toBe(false);
+	});
+
 	test("llama.cpp discovery routes Qwen models to chat-completions with the top-level disable dialect", async () => {
 		const fetchMock: FetchImpl = async input => {
 			const url = String(input);
@@ -3074,6 +3149,87 @@ describe("ModelRegistry runtime discovery", () => {
 		expect(unknown?.reasoning).toBe(false);
 	});
 
+	test("openai-models-list discovery marks advertised reasoning ladders reasoning-capable (codex-lb metadata shape)", async () => {
+		writeRawModelsJson({
+			"openai-test": {
+				baseUrl: "http://127.0.0.1:9994",
+				api: "openai-completions",
+				auth: "none",
+				discovery: { type: "openai-models-list" },
+			},
+		});
+		const fetchMock: FetchImpl = async input => {
+			const url = String(input);
+			if (url === "http://127.0.0.1:9994/v1/models") {
+				// codex-lb shape: the Codex registry nests `supported_reasoning_levels`
+				// and `default_reasoning_level` under `metadata`. `acme-think-1` has
+				// no bundled reference, so without advertised-level parsing it stays
+				// non-reasoning and requests never carry `reasoning_effort`.
+				return new Response(
+					JSON.stringify({
+						data: [
+							{
+								id: "acme-think-1",
+								object: "model",
+								owned_by: "codex-lb",
+								metadata: {
+									display_name: "Acme Think 1",
+									context_window: 272000,
+									input_modalities: ["text", "image"],
+									supported_reasoning_levels: [
+										{ effort: "low" },
+										{ effort: "medium" },
+										{ effort: "high" },
+										{ effort: "xhigh" },
+										{ effort: "max" },
+										{ effort: "ultra" },
+									],
+									default_reasoning_level: "medium",
+								},
+							},
+						],
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`Unexpected URL: ${url}`);
+		};
+		const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
+		await registry.refresh();
+		const advertised = registry.find("openai-test", "acme-think-1");
+		// The same metadata block carries the route's identity and window; the
+		// bundled-catalog fallback must not shadow what the server advertises.
+		expect(advertised?.name).toBe("Acme Think 1");
+		expect(advertised?.contextWindow).toBe(272_000);
+		expect(advertised?.input).toEqual(["text", "image"]);
+		expect(advertised?.reasoning).toBe(true);
+		expect(advertised?.thinking?.mode).toBe("effort");
+		expect(advertised?.thinking?.efforts).toEqual([Effort.Low, Effort.Medium, Effort.High, Effort.XHigh, Effort.Max]);
+		expect(advertised?.thinking?.defaultLevel).toBe(Effort.Medium);
+		const advertisedCompat = advertised?.compat as OpenAICompat | undefined;
+		expect(advertisedCompat?.supportsReasoningEffort).toBe(true);
+		if (!advertised || advertised.api !== "openai-completions") {
+			throw new Error("expected the discovered model to use OpenAI Completions");
+		}
+		// A request at effort `high` carries the wire effort.
+		let requestPayload: Record<string, unknown> | undefined;
+		const chatFetch: FetchImpl = async (input, init) => {
+			requestPayload = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown>;
+			const events = [
+				{ id: "chatcmpl-advertised-fixture", choices: [{ index: 0, delta: { role: "assistant", content: "OK" } }] },
+				{ id: "chatcmpl-advertised-fixture", choices: [{ index: 0, finish_reason: "stop", delta: {} }] },
+			];
+			const body = `${events.map(event => `data: ${JSON.stringify(event)}`).join("\n\n")}\n\ndata: [DONE]\n\n`;
+			return new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+		};
+		await streamOpenAICompletions(
+			advertised as Model<"openai-completions">,
+			{ messages: [{ role: "user", content: "Reply with exactly OK.", timestamp: Date.now() }] },
+			{ apiKey: "TEST_KEY", fetch: chatFetch, reasoning: "high" },
+		).result();
+		expect(requestPayload?.reasoning_effort).toBe("high");
+	});
+
 	test("openai-models-list discovery reads server-advertised input modalities for ids absent from the catalog", async () => {
 		writeRawModelsJson({
 			"openai-test": {
@@ -3794,6 +3950,58 @@ describe("ModelRegistry runtime discovery", () => {
 		]);
 	});
 
+	test("configured litellm discovery routes decisions-mode groups to the judge role on both paths (#16939)", async () => {
+		writeRawModelsJson({
+			"litellm-rich": {
+				baseUrl: "http://127.0.0.1:4012/v1",
+				api: "openai-completions",
+				auth: "none",
+				discovery: { type: "litellm" },
+			},
+			"litellm-fallback": {
+				baseUrl: "http://127.0.0.1:4013/v1",
+				api: "openai-completions",
+				auth: "none",
+				discovery: { type: "litellm" },
+			},
+		});
+		const fetchMock: FetchImpl = async input => {
+			const url = String(input);
+			if (url === "http://127.0.0.1:4012/model_group/info") {
+				return Response.json({
+					data: [
+						{
+							model_group: "typesafe/jev-1.14",
+							mode: "decisions",
+							providers: ["typesafe"],
+							supports_vision: false,
+						},
+						{ model_group: "keep-chat", mode: "chat", providers: ["anthropic"], supports_vision: false },
+					],
+				});
+			}
+			if (url === "http://127.0.0.1:4013/v1/models") {
+				return Response.json({
+					data: [
+						{ id: "typesafe/jev-1.14", mode: "decisions" },
+						{ id: "keep-chat", mode: "chat" },
+					],
+				});
+			}
+			return new Response("Not Found", { status: 404 });
+		};
+
+		const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
+		await registry.refresh();
+
+		for (const provider of ["litellm-rich", "litellm-fallback"]) {
+			expect(registry.find(provider, "typesafe/jev-1.14")).toMatchObject({ api: "openai-decisions", kind: "judge" });
+			const chat = registry.find(provider, "keep-chat");
+			expect(chat?.api).toBe("openai-completions");
+			expect(chat?.kind).toBeUndefined();
+		}
+	});
+
 	test("litellm discovery reuses configured bearer on rich and fallback requests", async () => {
 		writeRawModelsJson({
 			"litellm-test": {
@@ -3926,6 +4134,77 @@ describe("ModelRegistry runtime discovery", () => {
 
 		const restored = registry.find("github-copilot", "gpt-5.6-sol-1m");
 		expect(restored?.headers).toEqual(bundledBase.headers);
+	});
+
+	test("repeated Copilot cache hydration keeps the cached catalog with two signed-in accounts", async () => {
+		// Startup hydrates credential-scoped caches twice (CLI, then session
+		// creation). Discovery keys the Copilot cache on the account it peeks; a
+		// rotating pick read account A's row first, then account B's empty
+		// namespace, whose bundled fallback replaced A's cached `-1m` variants.
+		const bundledBase = getBundledModel("github-copilot", "gpt-5.6-sol");
+		if (!bundledBase?.headers) {
+			throw new Error("Expected bundled Copilot base to carry transport headers");
+		}
+		const cachedVariant = buildModel({
+			...(bundledBase as ModelSpec<"openai-responses">),
+			id: "gpt-5.6-sol-1m",
+			name: "GPT-5.6 Sol (1M)",
+			requestModelId: "gpt-5.6-sol",
+			contextWindow: 1_050_000,
+		});
+		const expires = Date.now() + 3_600_000;
+		await authStorage.credentials.set("github-copilot", [
+			{ type: "oauth", access: "gho_account_a", refresh: "refresh-a", expires },
+			{ type: "oauth", access: "gho_account_b", refresh: "refresh-b", expires },
+		]);
+		// Discovery's Copilot key is the structured peek of account A.
+		const accountACacheId = resolveModelCacheProviderId("github-copilot", {
+			apiKey: JSON.stringify({ token: "gho_account_a" }),
+		});
+		writeModelCache(accountACacheId, Date.now(), [cachedVariant], true, "", cacheDbPath, [bundledBase]);
+
+		const registry = new ModelRegistry(authStorage, modelsJsonPath);
+		await registry.hydrateCredentialScopedModelCaches();
+		await registry.hydrateCredentialScopedModelCaches();
+
+		expect(registry.find("github-copilot", "gpt-5.6-sol-1m")?.headers).toEqual(bundledBase.headers);
+	});
+
+	test("Cursor startup hydration reads the row discovery wrote after the access token expired", async () => {
+		// Cursor rows are keyed on the token's account subject, so a rotated token
+		// keys the same row. Startup hydration reads offline, where peek drops an
+		// expired token; without the credential the read could not key that row and
+		// discovery-only Cursor models stayed missing until a refresh minted a token.
+		const jwt = (claims: Record<string, unknown>) =>
+			`${Buffer.from('{"alg":"HS256"}').toString("base64url")}.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.sig`;
+		const bundledBase = getBundledModel("cursor", "claude-opus-5-5");
+		if (!bundledBase) {
+			throw new Error("Expected bundled Cursor claude-opus-5-5 model to exist");
+		}
+		const discovered = buildModel({
+			...(bundledBase as ModelSpec<"cursor-agent">),
+			id: "claude-opus-5-5-1m",
+			name: "Claude Opus 5.5 (1M)",
+			contextWindow: 1_000_000,
+		});
+		const tokenAtWrite = jwt({ sub: "auth0|user_a", iat: 1_800_000_000, exp: 1_800_003_600 });
+		const expiredStoredToken = jwt({ sub: "auth0|user_a", iat: 1_800_086_400, exp: 1_800_090_000 });
+		const writeKey = cursorModelManagerOptions({ apiKey: tokenAtWrite }).cacheProviderId;
+		if (!writeKey) throw new Error("Expected Cursor manager options to name a cache namespace");
+		// Cursor discovery is authoritative: the row carries the manager's static fingerprint.
+		const fingerprint = fingerprintStaticModels(getBundledModels("cursor"), true);
+		writeModelCache(writeKey, Date.now(), [discovered], true, fingerprint, cacheDbPath);
+		await authStorage.credentials.set("cursor", {
+			type: "oauth",
+			access: expiredStoredToken,
+			refresh: "cursor-refresh",
+			expires: Date.now() - 60_000,
+		});
+
+		const registry = new ModelRegistry(authStorage, modelsJsonPath);
+		await registry.hydrateCredentialScopedModelCaches();
+
+		expect(registry.find("cursor", "claude-opus-5-5-1m")?.contextWindow).toBe(1_000_000);
 	});
 
 	test("startup drops a current Copilot alias whose headers differ from its bundled base", () => {

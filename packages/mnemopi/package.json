@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@reverse/mnemopi",
-  "version": "18.11.2",
+  "version": "18.13.1",
   "description": "Local SQLite memory engine for reverse agents",
   "homepage": "https://github.com/ZipperCode/rev",
   "author": {

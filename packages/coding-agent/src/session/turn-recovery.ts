@@ -30,6 +30,7 @@ import { formatModelStringWithRouting, resolveModelOverride } from "../config/mo
 
 import type { Settings } from "../config/settings";
 import type { RetryErrorUpdate } from "../extensibility/shared-events";
+import { isEvalStateContext } from "../eval/state";
 import emptyStopRetryTemplate from "../prompts/system/empty-stop-retry.md" with { type: "text" };
 import malformedFunctionCallRetryTemplate from "../prompts/system/malformed-function-call-retry.md" with { type: "text" };
 import streamStallContinueTemplate from "../prompts/system/stream-stall-continue.md" with { type: "text" };
@@ -129,8 +130,19 @@ function hasNonWhitespace(value: string): boolean {
 	return NON_WHITESPACE_RE.test(value);
 }
 
+/**
+ * End of the conversation in `messages`, before trailing eval runtime snapshots.
+ * A session appends one at startup — right after the turn resume recovery closed
+ * — and on display-context rebuilds, so it trails a failed turn without ending it.
+ */
+function conversationEnd(messages: readonly AgentMessage[]): number {
+	let end = messages.length;
+	while (end > 0 && isEvalStateContext(messages[end - 1])) end--;
+	return end;
+}
+
 function syntheticToolResultTailStart(messages: readonly AgentMessage[]): number {
-	let index = messages.length;
+	let index = conversationEnd(messages);
 	while (index > 0 && isSyntheticToolResultMessage(messages[index - 1])) {
 		index--;
 	}
@@ -149,7 +161,7 @@ function abortedToolCallTail(messages: readonly AgentMessage[]): boolean {
 	const turnEnd = retryableAssistantTurnEnd(messages);
 	if (turnEnd === undefined) return false;
 	// Synthetic tool results only ever trail a turn that emitted tool calls.
-	if (turnEnd < messages.length) return true;
+	if (isSyntheticToolResultMessage(messages[turnEnd])) return true;
 	const beforeTurn = messages[turnEnd - 2];
 	return beforeTurn?.role === "toolResult" && beforeTurn.isError === true;
 }
@@ -169,7 +181,7 @@ function abortedToolCallTail(messages: readonly AgentMessage[]): boolean {
  * truncated, so those are re-generated via a fresh model call instead.
  */
 function toolReplayStart(messages: readonly AgentMessage[]): number | undefined {
-	let end = messages.length;
+	let end = conversationEnd(messages);
 	const tail = messages[end - 1];
 	if (tail?.role === "assistant") {
 		if (tail.stopReason !== "aborted" && tail.stopReason !== "error") return undefined;
@@ -671,7 +683,9 @@ export class TurnRecovery {
 	 * reminder to pick up where the text stopped, and continue. Honors
 	 * `retry.enabled`; bounded per prompt, past the cap the error surfaces as before.
 	 * A socket close counts here but not for tool turns: without tool calls there
-	 * is no executed side effect whose resumption policy it could change.
+	 * is no executed side effect whose resumption policy it could change. So does a
+	 * Codex native-lane steer rejection: the server dropped the response over our
+	 * own `response.steer`, and the rejected steer drains as ordinary input next.
 	 */
 	handleCommittedTextStreamStall(message: AssistantMessage): boolean {
 		const id = this.#classifyRetryMessage(message);
@@ -680,7 +694,7 @@ export class TurnRecovery {
 			AIError.retriable(id) &&
 			!this.#host.streamingEditAbortTriggered() &&
 			isUnexpectedSocketCloseMessage(message.errorMessage ?? "");
-		if (!socketClosed && !this.#isMidStreamTransportFailure(message, id)) {
+		if (!socketClosed && !AIError.isCodexSteerRejection(message) && !this.#isMidStreamTransportFailure(message, id)) {
 			this.#streamStallContinueCount = 0;
 			return false;
 		}
@@ -809,9 +823,15 @@ export class TurnRecovery {
 		return (await recorded).switchedCredential;
 	}
 
-	/** Prompts after transient overlap with a prior agent run. */
-	promptAgentWithIdleRetry(messages: AgentMessage[], options?: { toolChoice?: ToolChoice }): Promise<void> {
-		return this.#promptAgentWithIdleRetry(messages, options);
+	/** Prompts after transient overlap with a prior agent run. `onClaimed` fires synchronously
+	 *  right after a successful `agent.prompt` claim (before the run is awaited), letting the
+	 *  caller mark the exact moment its own run went live. */
+	promptAgentWithIdleRetry(
+		messages: AgentMessage[],
+		options?: { toolChoice?: ToolChoice },
+		onClaimed?: () => void,
+	): Promise<void> {
+		return this.#promptAgentWithIdleRetry(messages, options, onClaimed);
 	}
 
 	/** Parses provider retry and rate-limit reset hints into a delay. */
@@ -1053,13 +1073,13 @@ export class TurnRecovery {
 			if (providerEmptyOutput) {
 				finalError = "Assistant returned no final output after retry cap; try switching models";
 			} else if (outputTokensExcludingKnownReasoning > 0 && assistantMessage.content.length === 0) {
-				// Billed non-reasoning output on a truly zero-block stop means content was
-				// generated and then dropped downstream (a filter/refusal flattened to
-				// `finish_reason: "stop"` by a proxy, or a lossy API translation) — the
-				// context/`/shake images` hint is wrong here, so name the billed output
-				// instead. Known reasoning-only usage is not evidence that deliverable
-				// content was dropped, and thinking-only stops retain a thinking block.
-				finalError = `Assistant returned an empty stop after retry cap, but the provider billed ${outputTokens} output token${outputTokens === 1 ? "" : "s"} for it; content was generated and then dropped before delivery, which usually points to a provider-side content filter or a lossy API translation rather than a context problem`;
+				// Report the usage without inferring why no deliverable content arrived.
+				const reasoningTokens = assistantMessage.usage.reasoningTokens;
+				const reasoningDetail =
+					reasoningTokens === undefined
+						? ""
+						: ` (${reasoningTokens} reasoning token${reasoningTokens === 1 ? "" : "s"})`;
+				finalError = `Assistant returned an empty stop after retry cap; provider reported ${outputTokens} output token${outputTokens === 1 ? "" : "s"}${reasoningDetail}, but no text or tool calls were delivered. Usage alone does not establish the cause`;
 			} else {
 				finalError =
 					"Assistant returned empty stop after retry cap; try switching models or `/shake images` to remove archived frames";
@@ -1654,10 +1674,13 @@ export class TurnRecovery {
 
 	/**
 	 * Mid-generation transport death: the local idle watchdog's stream stall, an
-	 * HTTP/2 stream reset, or a gateway close without the terminal event. A
-	 * premature close (no finish_reason/terminal event) is the same failure
-	 * class as a stall or reset. Resets and closes are ignored while a
-	 * deliberate abort, disposal, or streaming-edit abort owns the stream.
+	 * HTTP/2 stream reset, a gateway close without the terminal event, or a
+	 * truncated stream envelope. A premature close (no finish_reason/terminal
+	 * event) and an envelope that never reached its terminal frame — including a
+	 * gateway's in-band `error` frame, which the provider reports as the same
+	 * envelope truncation — are the same failure class as a stall or reset.
+	 * Resets and closes are ignored while a deliberate abort, disposal, or
+	 * streaming-edit abort owns the stream.
 	 */
 	#isMidStreamTransportFailure(message: AssistantMessage, id: number): boolean {
 		if (message.stopReason !== "error" || !AIError.retriable(id)) return false;
@@ -1667,6 +1690,7 @@ export class TurnRecovery {
 			return false;
 		}
 		return (
+			AIError.isStreamEnvelopeTruncationText(errorMessage) ||
 			HTTP2_STREAM_RESET_ERROR_RE.test(errorMessage) ||
 			AIError.PYTHON_HTTP2_STREAM_RESET_PATTERN.test(errorMessage) ||
 			AIError.PYTHON_HTTP_INCOMPLETE_CHUNK_PATTERN.test(errorMessage) ||
@@ -1970,10 +1994,14 @@ export class TurnRecovery {
 		return current && current !== pinned ? [pinned, current] : [pinned];
 	}
 
-	/** Live session role for chain lookup, provided its assignment still matches the active model. */
+	/**
+	 * Live session role for chain lookup, provided its assignment still matches the active model.
+	 * Temporary switches record the `fallback` role; skipping them keeps the assigned role (e.g. a
+	 * subagent's own, possibly empty, chain) once the session is back on that role's model.
+	 */
 	#liveRetryRoleHint(currentModel: Model | null | undefined): string | undefined {
-		const role = this.#host.sessionManager?.getLastModelChangeRole?.();
-		if (!role || role === EPHEMERAL_MODEL_CHANGE_ROLE || !currentModel) return undefined;
+		const role = this.#host.sessionManager?.getLastModelChangeRole?.({ skipEphemeral: true });
+		if (!role || !currentModel) return undefined;
 		const configured = this.#host.settings.getModelRole(role);
 		if (!configured) return undefined;
 		const resolved = resolveModelOverride([configured], this.#host.modelRegistry, this.#host.settings);
@@ -2322,21 +2350,39 @@ export class TurnRecovery {
 				// failure — an unbounded retry loop against a model that cannot work.
 				if (this.#isNoOpRetryFallback(candidate, selector)) continue;
 				if (options?.excludeProvider === candidate.provider) continue;
-				// Anthropic signatures and redacted blocks are model-bound, while the
-				// latest assistant response must remain byte-identical. A same-provider
-				// model switch can satisfy neither constraint, so keep retrying the
-				// source model or consider a later cross-provider candidate whose
-				// message transform can safely demote the foreign thinking.
-				// Exception: when redeeming Anthropic fallback credit on refusal, the server
-				// validates thinking blocks across the boundary itself using the credit token.
+				// Redeeming Anthropic fallback credit replays the refused request's frozen
+				// body; the server validates thinking blocks across the boundary itself
+				// using the credit token.
 				const canRedeemFallbackCredit =
 					creditHandle !== undefined &&
 					candidate.api === "anthropic-messages" &&
 					candidate.provider === failedMessage.provider &&
 					creditTargets.includes(candidate.id) &&
 					Date.now() < creditHandle.expiresAt;
+				// Anthropic signatures and redacted blocks are model-bound, while the
+				// latest assistant response must remain byte-identical. On a transient
+				// failure keep retrying the source model, or consider a later
+				// cross-provider candidate whose message transform can safely demote the
+				// foreign thinking.
+				// A classifier refusal is exempt: the source model declines the same
+				// request again, and Anthropic's documented retry for a refusal resends
+				// the history unchanged on another Claude model, which drops the thinking
+				// blocks it cannot read (preserved thinking, "Switching models
+				// mid-conversation"). Skipping same-provider candidates here ended the turn
+				// on the refusal with every Anthropic entry of the chain untried.
+				// While the refusal's fallback credit can still be redeemed, only its
+				// targets pass, so an earlier non-target entry cannot forfeit the credit.
+				// An Anthropic-compatible proxy that will not verify a sibling model's
+				// signature is covered by the transport, not by skipping the hop: the
+				// `Invalid signature in thinking block` 400 escalates to a retry that
+				// replays no thinking and succeeds, and the session stops replaying it
+				// afterwards.
+				const creditLive =
+					creditHandle !== undefined && creditTargets.length > 0 && Date.now() < creditHandle.expiresAt;
+				const refusalMayReplay = options?.refusalWalk === true && !creditLive;
 				if (
 					!canRedeemFallbackCredit &&
+					!refusalMayReplay &&
 					candidate.api === "anthropic-messages" &&
 					latestAssistant?.api === "anthropic-messages" &&
 					latestAssistant.provider === candidate.provider &&
@@ -3083,6 +3129,7 @@ export class TurnRecovery {
 		// hidden redirect so the retried turn sees a directive to break the repeated
 		// pattern instead of re-sampling the same stalled reasoning.
 		this.#maybeInjectThinkingLoopRedirect(id);
+		this.#maybeInjectMalformedFunctionCallRedirect(id, maxRetries, preserveFailedTurn, switchedModel);
 
 		// Day-scale provider waits (a monthly quota reset parsed from the error
 		// text) exceed the signed 32-bit timer limit; sleepLong chunks the sleep
@@ -3222,6 +3269,25 @@ export class TurnRecovery {
 			"agent",
 		);
 	}
+	#maybeInjectMalformedFunctionCallRedirect(
+		id: number,
+		maxRetries: number,
+		preserveFailedTurn: boolean,
+		switchedModel: boolean,
+	): void {
+		if (!AIError.is(id, AIError.Flag.MalformedFunctionCall)) return;
+		if (preserveFailedTurn || switchedModel) return;
+		const reminder = prompt.render(malformedFunctionCallRetryTemplate, {
+			retryCount: this.#retryAttempt,
+			maxRetries,
+		});
+		this.#host.agent.appendMessage({
+			role: "developer",
+			content: [{ type: "text", text: reminder }],
+			attribution: "agent",
+			timestamp: Date.now(),
+		});
+	}
 
 	/**
 	 * Cancel in-progress retry.
@@ -3232,11 +3298,31 @@ export class TurnRecovery {
 		this.resolveRetry();
 	}
 
-	async #promptAgentWithIdleRetry(messages: AgentMessage[], options?: { toolChoice?: ToolChoice }): Promise<void> {
+	async #promptAgentWithIdleRetry(
+		messages: AgentMessage[],
+		options?: { toolChoice?: ToolChoice },
+		onClaimed?: () => void,
+	): Promise<void> {
 		const deadline = Date.now() + 30_000;
 		for (;;) {
+			// A claim whose synchronous prefix throws (busy agent, missing
+			// model) returns an already-rejected promise. Probe for that
+			// before firing `onClaimed`: a busy-retry parked behind an
+			// autonomous run must not report that run's streaming as ours
+			// going live. The rejection handler rethrows, so the error
+			// still surfaces at the await below.
+			let claimFailed = false;
 			try {
-				await this.#host.agent.prompt(messages, options);
+				const claim = this.#host.agent.prompt(messages, options).then(undefined, error => {
+					claimFailed = true;
+					throw error;
+				});
+				// One microtask turn: an already-rejected promise's reaction
+				// job is queued ahead of this await's continuation, so
+				// `claimFailed` is settled by the time we resume.
+				await Promise.resolve();
+				if (!claimFailed) onClaimed?.();
+				await claim;
 				return;
 			} catch (err) {
 				if (!(err instanceof AgentBusyError)) {
@@ -3287,7 +3373,7 @@ export class TurnRecovery {
 		if (abortedToolCallTail(active)) return true;
 		// A trailing assistant message is authoritative for a live session: a
 		// settled successful turn leaves nothing to retry.
-		if (active.at(-1)?.role === "assistant") return false;
+		if (active[conversationEnd(active) - 1]?.role === "assistant") return false;
 		// A restored session omits the failed turn (and its synthetic results)
 		// from provider context, so — mirroring retry() — the persisted display
 		// transcript decides whether a retryable tool-call tail exists.
@@ -3331,8 +3417,12 @@ export class TurnRecovery {
 				await this.#stripForToolReplay(messages, replayStart);
 			} else {
 				// Remove the failed/aborted assistant message plus its synthetic tool
-				// results (same as auto-retry does before re-attempting).
-				this.#host.agent.replaceMessages(messages.slice(0, activeTurnEnd - 1));
+				// results (same as auto-retry does before re-attempting), keeping the
+				// trailing eval snapshot the continuation is sent with.
+				this.#host.agent.replaceMessages([
+					...messages.slice(0, activeTurnEnd - 1),
+					...messages.slice(conversationEnd(messages)),
+				]);
 			}
 		} else {
 			// A restored session already dropped the failed assistant turn (and its
@@ -3358,10 +3448,11 @@ export class TurnRecovery {
 	 * Strip the failed tool batch (and any aborted boundary) for a tool replay:
 	 * reparent the persisted leaf onto the anchor assistant entry — so the
 	 * dropped results cannot resurface on reload or pair duplicate toolCallIds
-	 * on replay — then cut the active context to the same point.
+	 * on replay — then cut the active context to the same point. Trailing eval
+	 * snapshots go too: none may sit between the calls and their re-run results.
 	 */
 	async #stripForToolReplay(messages: readonly AgentMessage[], replayStart: number): Promise<void> {
-		const tail = messages[messages.length - 1];
+		const tail = messages[conversationEnd(messages) - 1];
 		if (tail?.role === "assistant") {
 			try {
 				await this.#host.waitForSessionMessagePersistence(tail);

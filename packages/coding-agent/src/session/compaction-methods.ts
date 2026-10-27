@@ -5,6 +5,7 @@ import {
 	shouldUseProviderNativeCompaction,
 } from "@reverse/agent/compaction";
 import type { Model } from "@reverse/ai";
+import { sendsImageInputOnWire } from "@reverse/ai/providers/vision-guard";
 import type { CompactionSettings } from "./context-settings";
 
 /** Choices presented by the ordered compaction-method setting. */
@@ -13,7 +14,7 @@ export const COMPACTION_METHOD_CHOICES = [
 		value: "remote",
 		label: "Server compaction",
 		description:
-			"Use provider-native server compaction (OpenAI Responses compact, Anthropic compaction beta) when the active route supports it",
+			"Use provider-native server compaction (OpenAI Responses compact, Anthropic compaction beta, including on Bedrock) when the active route supports it",
 	},
 	{
 		value: "snapcompact",
@@ -126,7 +127,7 @@ export function resolveSpeculationMethod(
 			candidate === "remote"
 				? canUseRemoteCompaction(model, resolveMethodSettings(settings, candidate))
 				: candidate === "snapcompact"
-					? model?.input?.includes("image") === true
+					? !!model && sendsImageInputOnWire(model)
 					: true;
 		if (!available) continue;
 		return candidate === "remote" || candidate === "handoff" || candidate === "soft" ? candidate : undefined;

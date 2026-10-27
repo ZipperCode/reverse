@@ -6,7 +6,7 @@ Shared utilities for [reverse](https://github.com/ZipperCode/rev) packages. Zero
 
 | Module                                                                                                             | Purpose                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `logger`                                                                                                           | Centralized logger writing to `~/.reverse/logs/` with rotation (TUI-safe — never stdout)     |
+| `logger`                                                                                                           | Centralized logger writing to `~/.reverse/logs/` (`bun test`: temp dir), rotating, never stdout  |
 | `prompt`                                                                                                           | Handlebars-based prompt templating and formatting helpers                                    |
 | `dirs`                                                                                                             | Path helpers for reverse config directories (`~/.reverse`, XDG-aware on Linux)               |
 | `stream`                                                                                                           | `readStream` / `readLines` helpers over `ReadableStream`                                     |

@@ -35,6 +35,7 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
+    "@reverse/utils": "catalog:",
     "@reverse/wire": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

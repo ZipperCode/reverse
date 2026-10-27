@@ -251,6 +251,23 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 		label: "计算机截图高度",
 		description: "截图最大高度（像素）",
 	},
+	"computer.backgroundFallback": {
+		label: "计算机后台回退策略",
+		description:
+			"当窗口输入的后台路由不可用时的处理方式：在接管模式下重新运行并将焦点切回你的应用（macOS；其他平台为普通接管），或者拒绝执行，同时阻止代理自行切到前台或打开 macOS 菜单",
+		options: {
+			takeover: {
+				label: "接管",
+				description:
+					"在该次调用期间短暂将目标窗口切到前台，随后将焦点切回你的应用（macOS 上即使你持续输入也能恢复）",
+			},
+			refuse: {
+				label: "拒绝",
+				description:
+					"使该调用失败；不进行任何焦点接管，同时代理自身的接管、置顶、激活式打开、桌面输入以及 macOS 菜单（上下文菜单、弹出菜单和菜单按钮；打开时会占用键盘）也会被拒绝",
+			},
+		},
+	},
 	"images.questionTimeoutMs": {
 		label: "图片提问超时",
 		description:
@@ -345,6 +362,16 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 		label: "异步执行",
 		description: "启用异步 bash 命令和后台任务执行",
 	},
+	"async.printWake": {
+		label: "作业结果唤醒打印模式",
+		description:
+			"在打印模式（-p、--mode json）下，最后一条提示结束后若本次运行的后台作业仍在活动，则保持运行，并在每个作业产生结果时于同一会话中启动新轮次；当不再有待处理作业或结果时退出。关闭：打印模式在完成提示后立即退出并取消运行中的作业",
+	},
+	"async.widgets": {
+		label: "实时作业小组件",
+		description:
+			"在等待卡片、作业胶囊和作业面板中，为每个运行中的后台作业绘制实时小组件（根据其输出生成的图表、进度条、状态网格）。`widget` 模型角色（默认：`smol`）会为每个作业编写一份规范；后续更新无需再次调用模型",
+	},
 	"tools.xdev": {
 		label: "xd:// 工具",
 		description:
@@ -381,11 +408,11 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 	"browser.relay": {
 		label: "浏览器中继",
 		description:
-			"通过 reverse 浏览器中继驱动你自己的 Chrome 标签页。安装一次扩展（`reverse browser-relay install`）；浏览器前奏需要时中继服务器会自动启动。优先于浏览器 CDP URL；设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 可覆盖。",
+			"通过 reverse 浏览器中继驱动你自己的 Chrome 标签页。安装一次扩展（`reverse browser-relay install`）；浏览器前奏需要时中继服务器会自动启动。优先于浏览器 CDP URL；设置 REVERSE_BROWSER_RELAY=0 或 REVERSE_BROWSER_RELAY=1 可覆盖。",
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继 URL",
-		description: "reverse 浏览器中继端点（默认 http://127.0.0.1:9224）。",
+		description: "reverse 浏览器中继端点（默认 http://127.0.0.1:9234）。",
 	},
 	"browser.headless": {
 		label: "无头浏览器",

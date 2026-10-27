@@ -16,6 +16,7 @@ import * as path from "node:path";
 import { expandWindowsLongPath } from "@reverse/natives/path";
 import { engines, version } from "../package.json" with { type: "json" };
 import { isEnoent, isEnotdir } from "./fs-error";
+import { isBunTestRuntime } from "./test-runtime";
 
 /** App name (e.g. "reverse") */
 export const APP_NAME: string = "reverse";
@@ -176,12 +177,33 @@ function standardizeProjectPath(p: string): string {
 	return process.platform === "win32" ? expandWindowsLongPath(p) : standardizeMacOSPath(p);
 }
 
-export function resolveEquivalentPath(inputPath: string): string {
+export interface EquivalentPathOptions {
+	/**
+	 * Resolve a path that does not exist yet through its deepest existing ancestor, keeping the
+	 * missing suffix, so a symlinked parent canonicalizes the same before and after the path appears.
+	 */
+	throughMissing?: boolean;
+}
+
+export function resolveEquivalentPath(inputPath: string, options?: EquivalentPathOptions): string {
 	const resolvedPath = path.resolve(inputPath);
 	try {
 		return fs.realpathSync(resolvedPath);
 	} catch {
-		return resolvedPath;
+		if (!options?.throughMissing) return resolvedPath;
+	}
+	const missing: string[] = [];
+	let current = resolvedPath;
+	for (;;) {
+		const parent = path.dirname(current);
+		if (parent === current) return resolvedPath;
+		missing.unshift(path.basename(current));
+		current = parent;
+		try {
+			return path.join(fs.realpathSync(current), ...missing);
+		} catch {
+			// Keep walking: a higher ancestor may exist.
+		}
 	}
 }
 
@@ -653,8 +675,17 @@ export function getReportsDir(): string {
 	return dirs.rootSubdir("reports", "state");
 }
 
-/** Get the logs directory (~/.reverse/logs). */
+/**
+ * Get the logs directory (~/.reverse/logs). `bun test` processes get
+ * `<tmpdir>/reverse-test-logs-<uid>` instead, so suites never write into the
+ * developer's real logs; the uid suffix (as for the test session-owners dir)
+ * keeps users of a shared `/tmp` from owning each other's directory.
+ */
 export function getLogsDir(): string {
+	if (isBunTestRuntime()) {
+		const uid = typeof process.getuid === "function" ? process.getuid() : os.userInfo().username;
+		return path.join(os.tmpdir(), `reverse-test-logs-${uid}`);
+	}
 	return dirs.rootSubdir("logs", "state");
 }
 
@@ -1023,7 +1054,7 @@ export function getTinyModelsCacheDir(agentDir?: string): string {
 export function getDocumentConversionCacheDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, path.join("cache", "document-conversions"), "cache");
 }
-/** Get the creverseoser speculative cache database (~/.reverse/agent/cache/creverseoser.db; XDG default: $XDG_CACHE_HOME/reverse/cache/creverseoser.db). */
+/** Get the composer speculative cache database (~/.reverse/agent/cache/composer.db; XDG default: $XDG_CACHE_HOME/reverse/cache/composer.db). */
 export function getComposerCacheDbPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, path.join("cache", "composer.db"), "cache");
 }
@@ -1064,7 +1095,7 @@ export function getCommandsDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "commands");
 }
 
-/** Get the prreversets directory (~/.reverse/agent/prreversets). */
+/** Get the prompts directory (~/.reverse/agent/prompts). */
 export function getPromptsDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "prompts");
 }
@@ -1217,7 +1248,7 @@ export function getProjectModulesDir(cwd: string = getProjectDir()): string {
 	return path.join(getProjectAgentDir(cwd), "modules");
 }
 
-/** Get the project-level prreversets directory (.reverse/prreversets). */
+/** Get the project-level prompts directory (.reverse/prompts). */
 export function getProjectPromptsDir(cwd: string = getProjectDir()): string {
 	return path.join(getProjectAgentDir(cwd), "prompts");
 }

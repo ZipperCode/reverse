@@ -208,7 +208,9 @@ describe("AssistantMessageComponent mermaid markdown", () => {
 
 		expect(TERMINAL.imageProtocol).toBeNull();
 		expect(rendered).toContain("Start");
-		expect(rendered).toContain("Start--");
+		expect(rendered).toContain("Stop");
+		expect(rendered).toMatch(/[►▼]/);
+		expect(rendered).not.toContain("Start--");
 		expect(rendered).not.toContain("```mermaid");
 		expect(rendered).not.toContain("flowchart TD");
 	});

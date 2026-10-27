@@ -4,6 +4,7 @@ import { ApprovalDialogComponent } from "@reverse/tui/overlays/approval-dialog";
 import { AskDialogComponent } from "@reverse/tui/overlays/ask-dialog";
 import { HookEditorComponent } from "@reverse/tui/overlays/hook-editor";
 import { TreeSelectorComponent } from "@reverse/tui/overlays/tree-selector";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
 import { SpaceHoldGesture } from "@reverse/tui/space-hold";
@@ -72,6 +73,7 @@ async function createContext() {
 		"app.thinking.toggle": ["ctrl+t"],
 		"app.history.search": ["ctrl+r"],
 		"app.editor.external": ["ctrl+g"],
+		"app.local.open": ["alt+g"],
 		"app.model.selectTemporary": ["ctrl+y"],
 		"app.model.select": ["alt+m"],
 		"app.retry": ["alt+r"],
@@ -118,6 +120,7 @@ async function createContext() {
 		queuedMessageCount: 0,
 		abort,
 		retry,
+		prewarmModelConnection: vi.fn(),
 	};
 	const updatePendingMessagesDisplay = vi.fn();
 	const handleBtwBranchKey = vi.fn(async () => true);
@@ -225,7 +228,7 @@ async function createContext() {
 		hideToolActivity: false,
 		toolOutputExpanded: false,
 		settings: Settings.isolated(),
-		chatContainer: { children: [], setToolActivityVisible: vi.fn() },
+		chatContainer: new TranscriptContainer(),
 		handleHotkeysCommand: vi.fn(),
 		handlePlanModeCommand: vi.fn(),
 		handleNewCommand: vi.fn(),
@@ -997,6 +1000,7 @@ describe("InputController global editor actions", () => {
 	const CTRL_G = "\x07";
 	const CTRL_SHIFT_O = "\x1b[111;6u";
 	const ALT_L = "\x1bl";
+	const ALT_G = "\x1bg";
 
 	beforeAll(async () => {
 		await initTheme(false);
@@ -1097,6 +1101,24 @@ describe("InputController global editor actions", () => {
 
 		expect(dispatchInput(listeners, CTRL_G)).toBeUndefined();
 		expect(openExternalEditor).not.toHaveBeenCalled();
+	});
+
+	it("opens the local:// file picker on Alt+G but not while a hook selector is focused", async () => {
+		const context = await createContext();
+		const controller = new context.InputController(context.ctx);
+		const openLocalFilePicker = vi.spyOn(controller, "openLocalFilePicker").mockResolvedValue();
+		controller.setupKeyHandlers();
+		const listeners = registeredInputListeners(context.spies.addInputListener);
+
+		expect(dispatchInput(listeners, ALT_G)).toEqual({ consume: true });
+		expect(openLocalFilePicker).toHaveBeenCalledTimes(1);
+
+		// A second Alt+G while the picker is up must not stack another picker.
+		const selector = {};
+		context.ctx.hookSelector = selector as InteractiveModeContext["hookSelector"];
+		context.setFocused(selector);
+		expect(dispatchInput(listeners, ALT_G)).toBeUndefined();
+		expect(openLocalFilePicker).toHaveBeenCalledTimes(1);
 	});
 
 	it("defers the tree selector's Ctrl+Shift+O filter binding", async () => {
