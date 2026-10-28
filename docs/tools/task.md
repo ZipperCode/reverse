@@ -61,11 +61,19 @@ Runtime stays permissive: the flat form is accepted even while `task.batch` is o
 
 Batch calls reject a top-level `agent` rather than silently discarding a specialist selector and spawning the default agent. Put `agent` on each `tasks[]` item when selecting `reviewer`, `scout`, or a custom agent; the agent name is not inferred from the task text.
 
+When bundled seance is spawnable, each item has two schema branches: ordinary agents omit `sourceSession`/`model`; `agent: "seance"` requires a non-blank `sourceSession` and accepts a non-blank model selector or a non-empty selector array. If seance is the session's default agent, omitting `agent` selects that branch. Ordinary blank selector placeholders (`""`, whitespace, `null`, or `[]`) normalize to omission at the shared planning boundary; populated selectors are rejected. Batch item selectors survive schema validation even when seance is hidden, so validation never silently drops a requested source or model override.
+
 There is no legacy per-call `schema` parameter. Use `outputSchema` and optional `schemaMode`; when absent, structured output falls back to the agent definition's `output` frontmatter and then the inherited parent session schema.
 
 ## Outputs
 
 The tool returns one text block plus `details: TaskToolDetails`.
+
+Local shape and seance-contract rejections set `isError: true` and `details: { dispatchFailure: { code, key, message }, executed: false, unexecuted: true, ... }`. No child/job/provider request starts for those failures. `key` identifies the condition to fix, independently of task prose, shared context, item names, or call IDs. Other preflight errors carry the execution flags without a semantic failure key; child/provider failures are ordinary execution results.
+
+With `model.toolCallLoopGuard.enabled` (default `true`), the same deterministic failure accumulates to `model.toolCallLoopGuard.threshold` (default `5`) despite rewording. The threshold injects one correction; the next unchanged failure is blocked before execution and stops the turn, with `toolCallLoopGuard.blocked: true`, `unexecuted: true`, and `executed: false`. Native calls stop the whole response batch; eval and `write xd://task` preserve the enclosing result before refusing the next model request. A corrected argument or changed tool-owned precondition passes the gate; a successful call clears that tool's failure history. A new prompt or session identity resets the guard. Exact repeated batches still use the existing argument fingerprint, and configured exempt tools remain exempt.
+
+Exact-batch comparisons wait until every call's post-extension arguments are prepared. A repair to a later call therefore takes effect before the batch can be stopped; all calls held by a terminal preflight carry `unexecuted: true` and `executed: false`.
 
 When `async.enabled=true`, the Task tool description supplies background-job guidance: results auto-deliver, blocked callers can use `wait` if the tool is active, `read proc://<id>` inspects without consuming delivery, `write proc://<id>/kill` cancels, and `write agent://<id>` coordinates when peer messaging is enabled. Spawn acknowledgments do not repeat these instructions.
 

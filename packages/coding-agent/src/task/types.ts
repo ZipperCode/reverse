@@ -7,11 +7,13 @@ export type {
 	SubagentProgressPayload,
 	SubagentLifecyclePayload,
 } from "@reverse/tui/overlays/session-observer-registry";
-import { type BaseType, type FluentType, type } from "@reverse/reversetype";
+import type { DeterministicDispatchFailure } from "@reverse/ai";
+import { type BaseType, type Type, type } from "@reverse/reversetype";
 import { $env } from "@reverse/utils";
 
 import type { AgentSessionEvent } from "../session/agent-session";
 import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
+import { SEANCE_AGENT_NAME } from "./seance-policy";
 
 const parseNumber = (value: string | undefined, defaultValue: number): number => {
 	if (value) {
@@ -45,6 +47,27 @@ const outputSchemaInputSchema = type("object | boolean | string | null");
 // Coarse per-spawn thinking effort; must stay in sync with TASK_EFFORTS in ../thinking.
 const effortRule = '"lo" | "med" | "hi"' as const;
 
+/** Kinds of deterministic local rejection the task tool reports before dispatch. */
+export type TaskPlanFailureCode = "task.shape" | "task.effort" | "task.seance";
+
+/**
+ * A deterministic local rejection of a task call, produced by the same plan
+ * validation dispatch uses. `key` names the semantic precondition — never task
+ * prose, a caller-chosen name, or an item index — so a reworded call with the
+ * same defect keeps its identity while a corrected call changes it. `message`
+ * states the correction.
+ */
+export interface TaskPlanFailure extends DeterministicDispatchFailure {
+	readonly code: TaskPlanFailureCode;
+}
+
+// Batch items are validated inside an array, where the argument validator's
+// root-key preservation does not reach: a deleting item (`"+": "delete"`) would
+// erase a caller's reserved `sourceSession`/`model` (or a blank placeholder)
+// before the planning boundary could judge it, silently changing the intent. An
+// open index signature keeps every undeclared key instead, so `planSpawns`
+// decides; it also leaves them out of the advertised property list. Spawn
+// planning ignores them, so a stale key stays inert rather than rejecting the call.
 export const taskItemSchema = type({
 	"name?": "string",
 	agent: "string = 'task'",
@@ -53,7 +76,7 @@ export const taskItemSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
-	"+": "delete",
+	"[string]": "unknown",
 });
 const taskItemSchemaIsolated = type({
 	"name?": "string",
@@ -64,7 +87,7 @@ const taskItemSchemaIsolated = type({
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
 	"isolated?": "boolean",
-	"+": "delete",
+	"[string]": "unknown",
 });
 
 export const taskSchema = type({
@@ -133,10 +156,30 @@ function taskAgentSchemaRule(defaultAgent: string): string {
 }
 
 type SeanceTaskSchemaFields = {
-	"sourceSession?"?: FluentType<string>;
-	"model?"?: FluentType<string | string[]>;
+	readonly sourceSession: Type;
+	readonly model?: Type;
 };
 
+const SEANCE_AGENT_SCHEMA = type(`'${SEANCE_AGENT_NAME}'`);
+// Mirrors the seance branch's literal so the exclusion cannot drift from it.
+const NON_SEANCE_AGENT_SCHEMA = type("string").matching(new RegExp(`^(?!${SEANCE_AGENT_NAME}$)`));
+
+/**
+ * Build the wire schema for one settings combination.
+ *
+ * When the bundled seance agent is spawnable (`seanceFields` present) the shape
+ * is a discriminated union:
+ * - the ordinary branch advertises no `sourceSession`/`model` and excludes
+ *   `agent: "seance"`, so a seance call can never read as an ordinary spawn;
+ * - the seance branch pins `agent: "seance"` and requires a non-blank
+ *   `sourceSession` plus non-blank model selectors.
+ *
+ * Both branches are closed, so a call carrying a reserved field for the wrong
+ * agent fails validation instead of being healed into a different intent; the
+ * tool's lenient argument handling hands such a call to `planSpawns`, which
+ * reports the actionable reason. Without a seance branch, flat schemas delete
+ * unknown keys; batch items retain them for the same planning boundary.
+ */
 function createTaskSchema(options: {
 	isolationEnabled: boolean;
 	batchEnabled: boolean;
@@ -144,81 +187,69 @@ function createTaskSchema(options: {
 	effortEnabled: boolean;
 	evalToolsEnabled: boolean;
 	structured: boolean;
-	seanceFields: SeanceTaskSchemaFields;
+	seanceFields?: SeanceTaskSchemaFields;
 }): BaseType {
-	const agent = taskAgentSchemaRule(options.defaultAgent);
 	const effortField = options.effortEnabled ? { "effort?": effortRule } : {};
 	const schemaFields = options.structured
 		? { "outputSchema?": outputSchemaInputSchema, "schemaMode?": '"permissive" | "strict"' }
 		: {};
 	const toolsField = options.evalToolsEnabled ? { "tools?": "string[]" } : {};
-	const seanceFields = options.seanceFields;
-	if (options.batchEnabled) {
-		if (options.isolationEnabled) {
-			const item = type.raw({
-				"name?": "string",
-				agent,
-				task: "string",
-				solutionSpace: "string",
-				...effortField,
-				...schemaFields,
-				...toolsField,
-				...seanceFields,
-				"isolated?": "boolean",
-				"+": "delete",
-			});
-			return guardBatchAgent(
-				type.raw({
-					context: "string",
-					tasks: item.array(),
-					"+": "delete",
-				}),
-			);
-		}
-		const item = type.raw({
-			"name?": "string",
-			agent,
-			task: "string",
-			solutionSpace: "string",
-			...effortField,
-			...schemaFields,
-			...toolsField,
-			...seanceFields,
-			"+": "delete",
-		});
-		return guardBatchAgent(
-			type.raw({
-				context: "string",
-				tasks: item.array(),
-				"+": "delete",
-			}),
-		);
-	}
-	if (options.isolationEnabled) {
-		return type.raw({
-			"name?": "string",
-			agent,
-			task: "string",
-			solutionSpace: "string",
-			...effortField,
-			...schemaFields,
-			...toolsField,
-			...seanceFields,
-			"isolated?": "boolean",
-			"+": "delete",
-		});
-	}
-	return type.raw({
+	const isolatedField = options.isolationEnabled ? { "isolated?": "boolean" } : {};
+	const commonFields = {
 		"name?": "string",
-		agent,
 		task: "string",
 		solutionSpace: "string",
 		...effortField,
 		...schemaFields,
 		...toolsField,
-		...seanceFields,
-		"+": "delete",
-	});
+		...isolatedField,
+	};
+	const seanceFields = options.seanceFields;
+	let items: BaseType;
+	if (!seanceFields) {
+		items = type.raw({
+			...commonFields,
+			agent: taskAgentSchemaRule(options.defaultAgent),
+			// Batch items only: the flat root's undeclared keys already survive validation.
+			...(options.batchEnabled ? { "[string]": "unknown" } : { "+": "delete" }),
+		});
+	} else {
+		// A session whose spawn policy defaults to seance resolves an omitted
+		// `agent` to seance, so both branches must name the agent explicitly there.
+		const seanceIsDefault = options.defaultAgent === SEANCE_AGENT_NAME;
+		const advertisedDefault =
+			!seanceIsDefault && TASK_AGENT_NAME_PATTERN.test(options.defaultAgent.trim())
+				? options.defaultAgent.trim()
+				: undefined;
+		// Validation excludes the seance agent; the wire states the same exclusion
+		// portably (`not`/`const`) instead of leaking the predicate as a plain string.
+		const ordinaryAgent = type.withJsonSchema(NON_SEANCE_AGENT_SCHEMA, {
+			type: "string",
+			not: { const: SEANCE_AGENT_NAME },
+			...(advertisedDefault !== undefined ? { default: advertisedDefault } : {}),
+		});
+		const ordinary = type.raw({
+			...commonFields,
+			...(seanceIsDefault ? { agent: ordinaryAgent } : { "agent?": ordinaryAgent }),
+			"+": "reject",
+		});
+		const seance = type.raw({
+			...commonFields,
+			...(seanceIsDefault ? { "agent?": SEANCE_AGENT_SCHEMA } : { agent: SEANCE_AGENT_SCHEMA }),
+			sourceSession: seanceFields.sourceSession,
+			...(seanceFields.model ? { "model?": seanceFields.model } : {}),
+			"+": "reject",
+		});
+		items = ordinary.or(seance);
+	}
+	if (!options.batchEnabled) return items;
+	return guardBatchAgent(
+		type.raw({
+			context: "string",
+			tasks: items.array(),
+			"+": "delete",
+		}),
+	);
 }
 
 /** Build the task wire schema for the current settings and spawn policy. */
@@ -231,14 +262,13 @@ export function getTaskSchema(options: {
 	/** Advertise `outputSchema`/`schemaMode` (`task.structured`); default on. */
 	structured?: boolean;
 	defaultAgent?: string;
-	/** Advertise historical source/model fields for the bundled seance agent. */
+	/** Advertise the historical seance branch: `agent: "seance"` plus its source/model selectors. */
 	seanceFields?: SeanceTaskSchemaFields;
 }): TaskToolSchemaInstance {
 	const defaultAgent = options.defaultAgent ?? "task";
 	const effortEnabled = options.effortEnabled ?? false;
 	const evalToolsEnabled = options.evalToolsEnabled ?? true;
 	const structured = options.structured ?? true;
-	const seanceFields = options.seanceFields ?? {};
 	if (defaultAgent === "task" && !effortEnabled && evalToolsEnabled && structured && !options.seanceFields) {
 		if (options.batchEnabled) return options.isolationEnabled ? taskSchemaBatch : taskSchemaBatchNoIsolation;
 		return options.isolationEnabled ? taskSchema : taskSchemaNoIsolation;
@@ -252,7 +282,6 @@ export function getTaskSchema(options: {
 		evalToolsEnabled,
 		structured,
 		defaultAgent,
-		seanceFields,
 	});
 	taskSchemaCache.set(key, schema);
 	return schema;

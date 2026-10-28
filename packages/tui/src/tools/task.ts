@@ -1,4 +1,4 @@
-import type { Usage } from "@reverse/ai";
+import type { DeterministicDispatchFailure, Usage } from "@reverse/ai";
 import { isRecord } from "@reverse/utils";
 import type { ThemeColor } from "../theme/theme";
 import type { ConfiguredThinkingLevel } from "../render/render-utils";
@@ -2557,6 +2557,16 @@ export interface TaskToolDetails {
 		jobId: string;
 		type: "task";
 	};
+	/**
+	 * Deterministic local rejection that stopped the call before any subagent
+	 * started: stable `code`/`key` plus the correction to apply. Absent for
+	 * child or provider failures, which are not deterministic.
+	 */
+	dispatchFailure?: DeterministicDispatchFailure;
+	/** `false` when the call was rejected before any subagent dispatch. */
+	executed?: boolean;
+	/** Mirror of `executed === false`, for readers that ask whether anything ran. */
+	unexecuted?: boolean;
 }
 
 /** Patch and baseline metadata for an isolated nested repository. */

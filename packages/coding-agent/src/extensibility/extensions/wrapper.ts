@@ -154,7 +154,7 @@ export function wrapRegisteredTools(registeredTools: RegisteredTool[], runner: E
 }
 
 const LOOP_DISPATCH_CONTEXT = Symbol("reverse.loop-dispatch");
-type LoopAwareToolContext = AgentToolContext & { [LOOP_DISPATCH_CONTEXT]?: true };
+type LoopAwareToolContext = AgentToolContext & { [LOOP_DISPATCH_CONTEXT]?: string };
 
 function computerSafetyChecks(context: AgentToolContext | undefined): ComputerSafetyCheck[] {
 	const metadata = context?.toolCall?.providerMetadata;
@@ -244,11 +244,13 @@ export class ExtensionToolWrapper<TParameters extends TSchema = TSchema, TDetail
 		// unconditionally so it cannot go stale; emit here only for dispatches
 		// the loop never saw — nested xd:// device dispatches and direct
 		// (non-loop) execution such as Cursor exec handlers.
-		const inheritedLoopDispatch = (context as LoopAwareToolContext | undefined)?.[LOOP_DISPATCH_CONTEXT] === true;
+		// 仅同名包装层共享原调用门禁；write → xd://task 等跨工具调用必须单独检查。
+		const inheritedLoopDispatch =
+			(context as LoopAwareToolContext | undefined)?.[LOOP_DISPATCH_CONTEXT] === this.tool.name;
 		const loopDispatchedToolCall =
 			(this.runner.consumeLoopToolCall?.(toolCallId, this.tool.name) ?? false) || inheritedLoopDispatch;
 		if (loopDispatchedToolCall && context && !inheritedLoopDispatch) {
-			(context as LoopAwareToolContext)[LOOP_DISPATCH_CONTEXT] = true;
+			(context as LoopAwareToolContext)[LOOP_DISPATCH_CONTEXT] = this.tool.name;
 		}
 		const loopEmittedToolCall = this.runner.consumeToolCallEmitted(toolCallId, this.tool.name);
 		// Resolve approval settings up front. A `deny` on the original input short-circuits before the

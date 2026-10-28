@@ -19,7 +19,7 @@ import type { ToolSession } from "../tools";
 import { resolveToCwd } from "../tools/path-utils";
 import { getBundledAgent } from "./agents";
 import { SEANCE_AGENT_NAME } from "./seance-policy";
-import type { AgentDefinition } from "./types";
+import type { AgentDefinition, TaskPlanFailure } from "./types";
 
 export interface ResolvedSeanceSource {
 	file: string;
@@ -156,10 +156,35 @@ export async function resolveSeanceSource(
 	}
 	throw new Error(`Session "${label}" was not found.`);
 }
-const modelSelectorInputSchema = type("string | string[]");
+
+/**
+ * A non-blank string: at least one non-whitespace character. Validation runs a
+ * native refinement; the wire states the same constraint as a portable JSON
+ * Schema `pattern` instead of leaking a predicate that has no wire form.
+ */
+const nonBlankStringSchema = type.withJsonSchema(type("string").matching(/\S/), {
+	type: "string",
+	pattern: "\\S",
+});
+
+/** One or more non-blank model selectors: a selector, or a non-empty selector array. */
+const modelSelectorInputSchema = type.withJsonSchema(
+	type("string").matching(/\S/).or(type("string").matching(/\S/).array().atLeastLength(1)),
+	{
+		anyOf: [
+			{ type: "string", pattern: "\\S" },
+			{ type: "array", minItems: 1, items: { type: "string", pattern: "\\S" } },
+		],
+	},
+);
+/**
+ * Wire fields of the seance branch of the task schema: a required non-blank
+ * `sourceSession` and optional non-blank model selectors. `types.ts` places
+ * them only in the `agent: "seance"` branch.
+ */
 export const seanceTaskSchemaFields = {
-	"sourceSession?": type("string"),
-	"model?": modelSelectorInputSchema,
+	sourceSession: nonBlankStringSchema,
+	model: modelSelectorInputSchema,
 };
 export const seanceTaskGuidance = seanceTaskGuidanceTemplate;
 
@@ -168,20 +193,37 @@ function validateSeanceFields(
 	agent: string,
 	label: string,
 	seanceAdvertised: boolean,
-): string | undefined {
+): TaskPlanFailure | undefined {
 	if (agent !== SEANCE_AGENT_NAME) {
 		if (item.sourceSession !== undefined)
-			return `\`sourceSession\` is only accepted for the \`${SEANCE_AGENT_NAME}\` agent.`;
-		if (item.model !== undefined) return `\`model\` is only accepted for the \`${SEANCE_AGENT_NAME}\` agent.`;
+			return {
+				code: "task.seance",
+				key: "task.seance:reserved-source-session",
+				message: `\`sourceSession\` is reserved for the \`${SEANCE_AGENT_NAME}\` agent. Remove it, or set \`agent: "${SEANCE_AGENT_NAME}"\` and pass the source session there.`,
+			};
+		if (item.model !== undefined)
+			return {
+				code: "task.seance",
+				key: "task.seance:reserved-model",
+				message: `\`model\` is reserved for the \`${SEANCE_AGENT_NAME}\` agent. Remove it, or set \`agent: "${SEANCE_AGENT_NAME}"\` and pass the model selector there.`,
+			};
 		return undefined;
 	}
 	// Hidden bundled seance (plan mode, policy) is rejected at spawn; a custom shadow is an ordinary agent.
 	if (!seanceAdvertised) return undefined;
 	if (typeof item.sourceSession !== "string" || item.sourceSession.trim().length === 0) {
-		return `${label} selects the \`${SEANCE_AGENT_NAME}\` agent and requires a non-empty \`sourceSession\`.`;
+		return {
+			code: "task.seance",
+			key: "task.seance:source-session-missing",
+			message: `${label} selects the \`${SEANCE_AGENT_NAME}\` agent and requires a non-empty \`sourceSession\` naming the session file or saved session id to consult.`,
+		};
 	}
 	if ("tools" in item && item.tools?.length)
-		return `${label} cannot pass custom tools to the read-only \`${SEANCE_AGENT_NAME}\` agent.`;
+		return {
+			code: "task.seance",
+			key: "task.seance:custom-tools",
+			message: `${label} cannot pass custom tools to the read-only \`${SEANCE_AGENT_NAME}\` agent. Drop \`tools\`.`,
+		};
 	const model: unknown = item.model;
 	if (
 		model !== undefined &&
@@ -192,7 +234,11 @@ function validateSeanceFields(
 				model.every(value => typeof value === "string" && value.trim().length > 0))
 		)
 	) {
-		return `${label} has an invalid \`model\` selector. Provide a non-empty selector or selector array.`;
+		return {
+			code: "task.seance",
+			key: "task.seance:model-selector",
+			message: `${label} has an invalid \`model\` selector. Provide a non-empty selector or selector array.`,
+		};
 	}
 	return undefined;
 }
@@ -202,11 +248,15 @@ export function validateSeanceParams(context: {
 	batchEnabled: boolean;
 	defaultAgent: string;
 	seanceAdvertised: boolean;
-}): string | undefined {
+}): TaskPlanFailure | undefined {
 	const { params, batchEnabled, defaultAgent, seanceAdvertised } = context;
 	if (batchEnabled && params.tasks !== undefined) {
 		if (params.sourceSession !== undefined || params.model !== undefined) {
-			return `Put \`sourceSession\` and \`model\` on the individual \`${SEANCE_AGENT_NAME}\` item inside \`tasks[]\`.`;
+			return {
+				code: "task.seance",
+				key: "task.seance:batch-placement",
+				message: `Put \`sourceSession\` and \`model\` on the individual \`${SEANCE_AGENT_NAME}\` item inside \`tasks[]\`, not on the batch call.`,
+			};
 		}
 		for (let index = 0; index < params.tasks.length; index++) {
 			const item = params.tasks[index]!;

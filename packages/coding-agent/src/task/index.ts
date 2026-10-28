@@ -18,7 +18,7 @@ import { taskSubprocessRenderer } from "@reverse/tui/tools/subprocess";
  */
 import path from "node:path";
 import type { AgentTool, AgentToolResult, AgentToolUpdateCallback, ToolSpeculationPolicy } from "@reverse/agent";
-import type { Usage } from "@reverse/ai";
+import type { DeterministicDispatchFailure, Usage } from "@reverse/ai";
 import { $env, logger, prompt } from "@reverse/utils";
 import type { ToolSession } from "..";
 import type { EffectiveExtensionRoots } from "../capability/types";
@@ -39,7 +39,13 @@ import { formatTaskResultSummary } from "./result-summary";
 import { isScoutSpawnable, type ResolvedSpawnPolicy, resolveSpawnPolicy } from "./spawn-policy";
 import { isBundledSeance, seanceTaskGuidance, seanceTaskSchemaFields, validateSeanceParams } from "./seance";
 import { SEANCE_AGENT_NAME } from "./seance-policy";
-import { type AgentDefinition, canSpawnAtDepth, getTaskSchema, type TaskToolSchemaInstance } from "./types";
+import {
+	type AgentDefinition,
+	canSpawnAtDepth,
+	getTaskSchema,
+	type TaskPlanFailure,
+	type TaskToolSchemaInstance,
+} from "./types";
 import type { AgentProgress, SingleResult, TaskItem, TaskParams, TaskToolDetails } from "@reverse/tui/tools/task";
 import { AsyncJobError, type AsyncJobManager } from "../async";
 import { hasResolvableTranscript } from "../internal-urls/registry-helpers";
@@ -208,11 +214,33 @@ function renderDescription(options: TaskDescriptionOptions): string {
 		asyncGuidance: options.asyncGuidance,
 	});
 }
-function createTaskModeError(text: string): AgentToolResult<TaskToolDetails> {
+
+/**
+ * A call rejected by deterministic local planning: no agent, job, or child was
+ * started, and `dispatchFailure` is the same descriptor `getDispatchFailure`
+ * reports for these arguments.
+ */
+function createDispatchFailureResult(failure: TaskPlanFailure): AgentToolResult<TaskToolDetails> {
+	return {
+		content: [{ type: "text", text: failure.message }],
+		isError: true,
+		details: {
+			projectAgentsDir: null,
+			results: [],
+			totalDurationMs: 0,
+			dispatchFailure: failure,
+			executed: false,
+			unexecuted: true,
+		},
+	};
+}
+
+/** A call rejected while resolving spawn policy or eval tools — before any child started. */
+function createPreflightError(text: string): AgentToolResult<TaskToolDetails> {
 	return {
 		content: [{ type: "text", text }],
 		isError: true,
-		details: { projectAgentsDir: null, results: [], totalDurationMs: 0 },
+		details: { projectAgentsDir: null, results: [], totalDurationMs: 0, executed: false, unexecuted: true },
 	};
 }
 
@@ -221,20 +249,42 @@ function createTaskModeError(text: string): AgentToolResult<TaskToolDetails> {
  * cannot accept. `outputSchema` is a first-class per-spawn field; stale
  * `schema` remains an eval-only alias and is rejected.
  */
-function validateShapeParams(batchEnabled: boolean, params: TaskParams): string | undefined {
+function validateShapeParams(batchEnabled: boolean, params: TaskParams): TaskPlanFailure | undefined {
 	if (Object.hasOwn(params, "schema")) {
-		return "The task tool uses `outputSchema`; rename the stale `schema` field.";
+		return {
+			code: "task.shape",
+			key: "task.shape:stale-schema",
+			message: "The task tool uses `outputSchema`; rename the stale `schema` field.",
+		};
 	}
 	if (batchEnabled && params.tasks !== undefined && Object.hasOwn(params, "agent")) {
-		return "Top-level `agent` is not part of the batch shape. Set `tasks[].agent` instead.";
+		return {
+			code: "task.shape",
+			key: "task.shape:batch-agent",
+			message: "Top-level `agent` is not part of the batch shape. Set `tasks[].agent` instead.",
+		};
 	}
 	if (!batchEnabled) {
 		const disallowed = (["tasks", "context"] as const).filter(field => params[field] !== undefined);
 		if (disallowed.length > 0) {
-			return `task.batch is disabled, so the task tool does not accept ${disallowed.map(f => `\`${f}\``).join(" or ")}. Spawn one agent per call with \`task\`, or enable the task.batch setting.`;
+			return {
+				code: "task.shape",
+				key: `task.shape:batch-disabled:${disallowed.join(",")}`,
+				message: `task.batch is disabled, so the task tool does not accept ${disallowed.map(f => `\`${f}\``).join(" or ")}. Spawn one agent per call with \`task\`, or enable the task.batch setting.`,
+			};
 		}
 	}
 	return undefined;
+}
+
+/** Reject an out-of-range `effort` selector on internal/stale-transcript calls that bypass the wire schema. */
+function validateEffort(effort: TaskEffort | undefined, label: string): TaskPlanFailure | undefined {
+	if (effort === undefined || TASK_EFFORTS.includes(effort)) return undefined;
+	return {
+		code: "task.effort",
+		key: "task.effort:invalid-value",
+		message: `${label} has an invalid \`effort\` value ${JSON.stringify(effort)}. Use "lo", "med", or "hi".`,
+	};
 }
 
 /**
@@ -248,26 +298,32 @@ function validateShapeParams(batchEnabled: boolean, params: TaskParams): string 
  * undefined when valid.
  */
 
-/** Reject an out-of-range `effort` selector on internal/stale-transcript calls that bypass the wire schema. */
-function validateEffort(effort: TaskEffort | undefined, label: string): string | undefined {
-	if (effort === undefined || TASK_EFFORTS.includes(effort)) return undefined;
-	return `${label} has an invalid \`effort\` value ${JSON.stringify(effort)}. Use "lo", "med", or "hi".`;
-}
-
-function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string | undefined {
+function validateSpawnParams(params: TaskParams, batchEnabled: boolean): TaskPlanFailure | undefined {
 	const hasTask = typeof params.task === "string" && params.task.trim() !== "";
 	const tasks = params.tasks;
 	if (batchEnabled && tasks !== undefined) {
 		if (!Array.isArray(tasks) || tasks.length === 0) {
-			return "Missing `tasks`. Provide at least one task item ({ name?, agent?, task }).";
+			return {
+				code: "task.shape",
+				key: "task.shape:tasks-missing",
+				message: "Missing `tasks`. Provide at least one task item ({ name?, agent?, task }).",
+			};
 		}
 		if (hasTask) {
-			return "Top-level `task` is not part of the batch shape. Put the work in `tasks[]` items.";
+			return {
+				code: "task.shape",
+				key: "task.shape:batch-top-level-task",
+				message: "Top-level `task` is not part of the batch shape. Put the work in `tasks[]` items.",
+			};
 		}
 		for (let i = 0; i < tasks.length; i++) {
 			const item = tasks[i];
 			if (!item || typeof item.task !== "string" || item.task.trim() === "") {
-				return `Task ${i + 1}${item?.name ? ` (\`${item.name}\`)` : ""} is missing \`task\`. Every task needs complete, self-contained instructions.`;
+				return {
+					code: "task.shape",
+					key: "task.shape:item-task",
+					message: `Task ${i + 1}${item?.name ? ` (\`${item.name}\`)` : ""} is missing \`task\`. Every task needs complete, self-contained instructions.`,
+				};
 			}
 			const effortError = validateEffort(item.effort, `Task ${i + 1}${item.name ? ` (\`${item.name}\`)` : ""}`);
 			if (effortError) return effortError;
@@ -279,21 +335,88 @@ function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string 
 			const key = name.toLowerCase();
 			const existing = seen.get(key);
 			if (existing !== undefined) {
-				return `Duplicate task name ${existing === name ? `\`${name}\`` : `\`${existing}\` / \`${name}\``}. Provided names must be unique within a call (case-insensitive).`;
+				return {
+					code: "task.shape",
+					key: "task.shape:duplicate-name",
+					message: `Duplicate task name ${existing === name ? `\`${name}\`` : `\`${existing}\` / \`${name}\``}. Provided names must be unique within a call (case-insensitive).`,
+				};
 			}
 			seen.set(key, name);
 		}
 		if (typeof params.context !== "string" || params.context.trim() === "") {
-			return "Missing `context`. Provide the shared background for this batch — goal, constraints, and any contract the tasks share.";
+			return {
+				code: "task.shape",
+				key: "task.shape:context-missing",
+				message:
+					"Missing `context`. Provide the shared background for this batch — goal, constraints, and any contract the tasks share.",
+			};
 		}
 		return undefined;
 	}
 	if (!hasTask) {
-		return batchEnabled
-			? "Missing `tasks`. Provide a `tasks` array (one subagent per item) with a shared `context`."
-			: "Missing `task`. Provide complete, self-contained instructions for the agent.";
+		return {
+			code: "task.shape",
+			key: "task.shape:task-missing",
+			message: batchEnabled
+				? "Missing `tasks`. Provide a `tasks` array (one subagent per item) with a shared `context`."
+				: "Missing `task`. Provide complete, self-contained instructions for the agent.",
+		};
 	}
 	return validateEffort(params.effort, "The call");
+}
+
+/** Reserved seance selectors, in the order they are reported. */
+const RESERVED_SELECTOR_FIELDS = ["sourceSession", "model"] as const;
+
+/** A placeholder that carries no intent: `null`, an empty/blank string, or an empty array. */
+function isBlankReservedSelector(value: unknown): boolean {
+	return (
+		value === null ||
+		(typeof value === "string" && value.trim() === "") ||
+		(Array.isArray(value) && value.length === 0)
+	);
+}
+
+/** Clone `item` without blank reserved selectors; returns `item` itself when nothing changes. */
+function stripBlankReservedSelectors<T extends TaskParams | TaskItem>(item: T): T {
+	let next = item;
+	for (const field of RESERVED_SELECTOR_FIELDS) {
+		if (!Object.hasOwn(item, field)) continue;
+		if (!isBlankReservedSelector((item as Record<string, unknown>)[field])) continue;
+		if (next === item) next = { ...item } as T;
+		delete (next as Record<string, unknown>)[field];
+	}
+	return next;
+}
+
+/**
+ * Drop blank `sourceSession`/`model` placeholders from ordinary spawns, so a
+ * model-emitted `""`/`null`/`[]` reaches dispatch exactly like an omitted
+ * field. Seance spawns keep theirs: a blank source session there is a real
+ * error. The shared planning boundary (dispatch, speculation, and
+ * `getDispatchFailure`) applies this, and it never mutates the caller's
+ * arguments — only the objects it changes are cloned.
+ */
+function normalizeReservedPlaceholders(params: TaskParams, defaultAgent: string): TaskParams {
+	const resolvesToSeance = (agent: string | undefined): boolean =>
+		(agent?.trim() || defaultAgent) === SEANCE_AGENT_NAME;
+	const tasks = Array.isArray(params.tasks) ? params.tasks : undefined;
+	if (tasks && tasks.length > 0) {
+		// A batch has no top-level spawn, so a top-level selector is always a misplaced placeholder.
+		let next = stripBlankReservedSelectors(params);
+		let tasksChanged = false;
+		const items = tasks.map(item => {
+			if (item === null || typeof item !== "object" || resolvesToSeance(item.agent)) return item;
+			const stripped = stripBlankReservedSelectors(item);
+			if (stripped !== item) tasksChanged = true;
+			return stripped;
+		});
+		if (!tasksChanged) return next;
+		next = { ...next, tasks: items };
+		return next;
+	}
+	if (resolvesToSeance(params.agent)) return params;
+	return stripBlankReservedSelectors(params);
 }
 
 /**
@@ -370,8 +493,12 @@ function planSpawns(
 	batchEnabled: boolean,
 	defaultAgent: string,
 	seanceAdvertised: boolean,
-): SpawnPlan | string {
-	const params = repairTaskParams(rawParams as TaskParams);
+): SpawnPlan | TaskPlanFailure {
+	const repaired = repairTaskParams(rawParams as TaskParams);
+	// Non-object arguments (a bare string, `null`) have no shape to normalize; the
+	// shape checks below report the missing instruction instead of throwing.
+	const call = repaired !== null && typeof repaired === "object" ? repaired : {};
+	const params = normalizeReservedPlaceholders(call, defaultAgent);
 	const error =
 		validateShapeParams(batchEnabled, params) ??
 		validateSpawnParams(params, batchEnabled) ??
@@ -379,6 +506,10 @@ function planSpawns(
 	if (error) return error;
 	const items = resolveSpawnItems(params);
 	return { params, items, spawns: items.map(item => spawnParamsFor(params, item, defaultAgent)) };
+}
+
+function isSpawnPlan(plan: SpawnPlan | TaskPlanFailure): plan is SpawnPlan {
+	return "spawns" in plan;
 }
 
 /**
@@ -675,13 +806,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 	readonly #launchSessions = new Map<string, TaskLaunchSession>();
 	readonly #launcher: TaskLauncher = {
 		spawns: args => {
-			const plan = planSpawns(
-				args,
-				this.#isBatchEnabled(),
-				this.#defaultAgent(),
-				this.#seanceSchemaFields() !== undefined,
-			);
-			return typeof plan === "string" ? undefined : plan.spawns;
+			const plan = this.#plan(args);
+			return isSpawnPlan(plan) ? plan.spawns : undefined;
 		},
 		start: (toolCallId, spawn, index, signal) => this.#startSpeculative(toolCallId, spawn, index, signal),
 	};
@@ -726,6 +852,19 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 	renderCall(args: unknown, options: Parameters<typeof renderTaskCall>[1], theme: Theme) {
 		return renderTaskCall(repairTaskParams(args as TaskParams), options, theme);
+	}
+
+	/**
+	 * Deterministic local rejection for `args`, or `undefined` when the call may
+	 * dispatch. Pure and cheap: it runs the same plan validation as dispatch —
+	 * shape, placement, effort, and seance field rules — and never resolves an
+	 * agent, reads a file, or spawns a child. `key` names the semantic
+	 * precondition, so a reworded call with the same defect is recognizable
+	 * while a corrected call returns `undefined` or a different key.
+	 */
+	getDispatchFailure(args: unknown): DeterministicDispatchFailure | undefined {
+		const plan = this.#plan(args);
+		return isSpawnPlan(plan) ? undefined : plan;
 	}
 
 	/** Background-job lifecycle contract; inherited by extension replacements that delegate to Task. */
@@ -777,6 +916,12 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 	#isStructured(): boolean {
 		return cfgTaskStructured.get(this.session.settings);
+	}
+
+	/** The one planning boundary: dispatch, speculative launch, and `getDispatchFailure` all use it. */
+	#plan(rawParams: unknown): SpawnPlan | TaskPlanFailure {
+		const seanceAdvertised = this.#seanceSchemaFields() !== undefined;
+		return planSpawns(rawParams, this.#isBatchEnabled(), this.#defaultAgent(), seanceAdvertised);
 	}
 
 	/**
@@ -968,20 +1113,20 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		// item's agent type against the session's actual default agent.
 		const defaultAgent = this.#defaultAgent();
 		const batchEnabled = this.#isBatchEnabled();
-		const plan = planSpawns(rawParams, batchEnabled, defaultAgent, this.#seanceSchemaFields() !== undefined);
-		if (typeof plan === "string") {
-			return createTaskModeError(plan);
+		const plan = this.#plan(rawParams);
+		if (!isSpawnPlan(plan)) {
+			return createDispatchFailureResult(plan);
 		}
 		const { params, items: spawnItems, spawns: normalizedSpawnParams } = plan;
 		const evalToolNames = spawnItems.flatMap(item => item.tools ?? []);
 		if (evalToolNames.length > 0) {
 			if (this.session.getPlanModeState?.()?.enabled === true) {
-				return createTaskModeError("Task execution failed: Eval-defined tools are unavailable in plan mode.");
+				return createPreflightError("Task execution failed: Eval-defined tools are unavailable in plan mode.");
 			}
 			try {
 				await describeEvalTools(this.session, evalToolNames, signal);
 			} catch (error) {
-				return createTaskModeError(
+				return createPreflightError(
 					`Task execution failed: ${error instanceof Error ? error.message : String(error)}`,
 				);
 			}
@@ -1003,9 +1148,9 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			.filter((failure): failure is { index: number; error: string } => failure !== undefined);
 		if (preflightFailures.length > 0) {
 			if (!batchEnabled) {
-				return createTaskModeError(`Task execution failed: ${preflightFailures[0]!.error}`);
+				return createPreflightError(`Task execution failed: ${preflightFailures[0]!.error}`);
 			}
-			return createTaskModeError(
+			return createPreflightError(
 				preflightFailures
 					.map(({ index, error }) => {
 						const item = spawnItems[index]!;

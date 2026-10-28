@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Added a tool-owned deterministic dispatch preflight contract and preserved the triggering guard's reason across whole-batch terminal blocks.
 - Rejected malformed tool names with explicit unexecuted diagnostics and bounded regeneration for leaked invocation markup, preserving quoted examples and already-executed side effects (#9).
 
 ## [18.13.1] - 2026-10-27

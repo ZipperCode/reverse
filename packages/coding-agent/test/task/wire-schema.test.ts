@@ -107,16 +107,6 @@ describe("task wire schema", () => {
 		expect(items[1]?.agent).toBe("reviewer");
 	});
 
-	it("deletes stale keys from batch items", () => {
-		const batch = getTaskSchema({ isolationEnabled: false, batchEnabled: true });
-		const items = parsedItems(
-			batch({ context: "ctx", tasks: [{ task: "x", solutionSpace: "c", role: "DB migration specialist" }] }),
-		);
-		const item = items[0] ?? {};
-		expect("role" in item).toBe(false);
-		expect(item.task).toBe("x");
-	});
-
 	it("rejects a batch-level specialist instead of silently spawning the default agent", () => {
 		for (const options of [
 			{ isolationEnabled: false, batchEnabled: true },

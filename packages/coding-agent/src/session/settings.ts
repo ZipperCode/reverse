@@ -315,7 +315,8 @@ export const cfgModelToolCallLoopGuardEnabled = register({
 		tab: "model",
 		group: "Thinking",
 		label: "Tool-Call Loop Guard",
-		description: "Detect consecutive identical tool calls across turns and inject a corrective steer",
+		description:
+			"Detect repeated calls and deterministic dispatch failures; warn at the threshold and block unchanged retries before execution",
 	},
 });
 
@@ -327,7 +328,8 @@ export const cfgModelToolCallLoopGuardThreshold = register({
 		tab: "model",
 		group: "Thinking",
 		label: "Tool-Call Loop Threshold",
-		description: "Consecutive identical tool calls required before the corrective steer is injected",
+		description:
+			"Repeated calls or same-cause deterministic dispatch failures before warning; the next unchanged retry stops the turn",
 	},
 });
 

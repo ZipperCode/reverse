@@ -22,6 +22,7 @@ import type {
 } from "@reverse/ai";
 import type { Dialect } from "@reverse/ai/dialect";
 import type { HarmonyAuditEvent } from "@reverse/ai/utils/harmony-leak";
+import type { DeterministicDispatchFailure } from "@reverse/ai/utils/tool-call-loop-guard";
 import type { AppendOnlyContextManager } from "./append-only-context";
 import type { AgentRunCoverage, AgentRunSummary } from "./run-collector";
 import type { SentToolDefinitions } from "./sent-tool-definitions";
@@ -929,10 +930,9 @@ export interface BeforeToolCallResult {
 	 * `tool_execution_start`, no `tool.execute` — and the loop yields after
 	 * `onTurnEnd` instead of requesting another model response.
 	 *
-	 * Used when the assistant message itself already declared the turn
-	 * finished (for example while background work the caller started is still
-	 * pending), so the declaration cannot be overridden by the tool calls in
-	 * the same response. Plain `block: true` keeps its existing per-call
+	 * Used for a terminal dispatch guard, including a repeated-failure circuit
+	 * breaker or an assistant declaration that the turn is finished while
+	 * background work is pending. Plain `block: true` keeps its existing per-call
 	 * semantics and still lets the model answer the blocked result.
 	 */
 	stopTurn?: boolean;
@@ -1199,6 +1199,12 @@ export interface AgentTool<
 	speculation?: ToolSpeculationPolicy;
 	/** If true, schema validation errors are non-fatal: raw args are passed to execute() instead of returning an error to the LLM, and unknown root keys a closed schema would drop stay on the args. Malformed argument JSON still returns the parse error. */
 	lenientArgValidation?: boolean;
+	/**
+	 * Pure local validation of arguments and current configuration. A failure key
+	 * identifies the condition to fix, independent of task prose or display names;
+	 * the loop rechecks it before blocking a known deterministic failure.
+	 */
+	getDispatchFailure?: (args: unknown) => DeterministicDispatchFailure | undefined;
 	/**
 	 * Whether the agent loop may abort this tool mid-execution — or skip it
 	 * before it starts — to deliver a queued steering message. A function

@@ -1,13 +1,25 @@
 import {
+	type AfterToolCallContext,
+	type AfterToolCallResult,
 	type Agent,
 	type AgentEvent,
 	type AgentMessage,
+	type AgentTool,
+	type AgentToolResult,
 	type AgentTurnEndContext,
+	type BeforeToolCallContext,
+	type BeforeToolCallResult,
 	createToolScopedAbortReason,
 } from "@reverse/agent";
-import type { AssistantMessage, AssistantMessageEvent, Model } from "@reverse/ai";
+import type { AssistantMessage, AssistantMessageEvent, Model, ToolCall } from "@reverse/ai";
 import { GeminiHeaderRunDetector } from "@reverse/ai/utils/thinking-loop";
-import { type RepeatedToolCallDetection, ToolCallLoopGuard } from "@reverse/ai/utils/tool-call-loop-guard";
+import {
+	type DeterministicDispatchFailure,
+	normalizeDeterministicDispatchFailure,
+	type RepeatedDispatchFailureDetection,
+	type RepeatedToolCallDetection,
+	ToolCallLoopGuard,
+} from "@reverse/ai/utils/tool-call-loop-guard";
 import { logger, prompt } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import geminiToolReminderTemplate from "../prompts/system/gemini-tool-call-reminder.md" with { type: "text" };
@@ -15,7 +27,10 @@ import streamingEditRecoveryTemplate from "../prompts/system/streaming-edit-reco
 import type { CustomMessage } from "./messages";
 import type { SessionManager } from "./session-manager";
 import {
+	dispatchFailureRedirectDetails,
+	renderDispatchFailureRedirect,
 	renderToolCallLoopRedirect,
+	TOOL_CALL_LOOP_DISPATCH_FAILURE_REDIRECT_TYPE,
 	TOOL_CALL_LOOP_REDIRECT_TYPE,
 	toolCallLoopRedirectDetails,
 } from "./tool-call-loop-redirect";
@@ -48,6 +63,34 @@ const STREAMING_EDIT_NOTICE_SOURCE = "streaming-edit";
 // ("No changes would be made to <path>..."). Prefix match (not equality)
 // because the Rust messages append the path and mode-specific suffixes.
 const NO_CHANGES_PREVIEW_PREFIX = "No changes would be made";
+/** Bridged tool names remembered between a bridge pre-dispatch check and its result. */
+const BRIDGED_TOOL_NAME_LIMIT = 256;
+/** Native blocked call ids remembered until their synthetic result is normalized. */
+const BLOCKED_TOOL_CALL_LIMIT = 16;
+
+/**
+ * Reads a tool's pure dispatch precondition verdict. Core's optional
+ * `AgentTool.getDispatchFailure` is the only source; absent means the call
+ * would dispatch. A throwing validator is a tool bug and must never block
+ * legitimate work, so it degrades to "would dispatch".
+ */
+function readToolDispatchFailure(tool: AgentTool, args: unknown): DeterministicDispatchFailure | undefined {
+	if (!tool.getDispatchFailure) return undefined;
+	try {
+		return normalizeDeterministicDispatchFailure(tool.getDispatchFailure(args));
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Block reason for a reissued deterministic rejection. Names the producer's
+ * correction message instead of claiming identical arguments: a reworded
+ * request can carry the same broken precondition.
+ */
+function dispatchFailureBlockReason(failure: RepeatedDispatchFailureDetection): string {
+	return `Not executed: \`${failure.toolName}\` still cannot dispatch for the same reason it was rejected ${failure.count} times (${failure.code}): ${failure.message} Correct what that message reports before calling it again.`;
+}
 
 /** Capabilities borrowed by the session's streaming and loop guards. */
 export interface StreamGuardsHost {
@@ -202,20 +245,158 @@ export class LoopGuards {
 	#geminiHeaderDetector: GeminiHeaderRunDetector | undefined;
 	#toolCallLoopGuard: ToolCallLoopGuard | undefined;
 	#toolCallLoopGuardSettingsKey: string | undefined;
+	/** Prompt sequence the loop guard state belongs to; a new prompt resets it. */
+	#loopGuardPromptSequence: number | undefined;
+	/** Session id the loop guard state belongs to; switching sessions resets it too. */
+	#loopGuardSessionId: string | undefined;
+	/** Bridged call id → tool name, so the bridge result hook can clear/count without one. */
+	#bridgedToolNames = new Map<string, string>();
+	/** Native calls this guard blocked, so their synthetic results carry observable metadata. */
+	#blockedToolCallIds = new Set<string>();
+	/** The turn's batch was stopped before dispatch; its synthetic turn earns no new warning. */
+	#blockedTurnPending = false;
 
 	constructor(host: StreamGuardsHost) {
 		this.#host = host;
 	}
 
+	/**
+	 * Native pre-dispatch gate. Blocks a call whose deterministic precondition
+	 * already failed at the threshold, or a batch reproducing the last warned
+	 * identical repetition, before `tool_execution_start`, approval, and child
+	 * spawn; `stopTurn` then yields without another provider request.
+	 */
+	beforeToolCall(ctx: BeforeToolCallContext): BeforeToolCallResult | undefined {
+		const guard = this.#activeToolCallLoopGuard();
+		if (!guard) return undefined;
+		// Compare against the arguments that would actually run: validation
+		// normalization or an extension revision may already have repaired the
+		// call, which must never be blocked by the model's stale arguments.
+		guard.recordDispatchedArgs(ctx.toolCall.id, ctx.args);
+		// The tool's own precondition verdict is authoritative for structured
+		// rejections: `undefined` after a configuration fix unlocks the same
+		// arguments even if they also matched a warned identical batch.
+		const failure = readToolDispatchFailure(ctx.tool, ctx.args);
+		const toolCalls = ctx.assistantMessage.content.filter((part): part is ToolCall => part.type === "toolCall");
+		// Exact repetition is judged only on the last prepared call of the batch:
+		// every call's final (post-revision) arguments must be known, otherwise a
+		// later extension repair would be pre-empted by a stale raw match. A call
+		// that never prepares (invalid schema / extension block) leaves the exact
+		// stop unavailable for that batch; semantic checks still run per call.
+		const repeatedBatch = guard.hasAllDispatchedArgs(toolCalls) ? guard.blockedRepeatedBatch(toolCalls) : null;
+		if (repeatedBatch) {
+			logger.warn("blocked repeated tool-call batch after a loop redirect", {
+				toolName: repeatedBatch.toolName,
+				count: repeatedBatch.count,
+			});
+			this.#rememberBlockedToolCall(ctx.toolCall.id);
+			this.#blockedTurnPending = true;
+			return {
+				block: true,
+				stopTurn: true,
+				reason: `Not executed: \`${repeatedBatch.toolName}\` was already called ${repeatedBatch.count} times in a row with the same arguments. Change the arguments or the approach instead of resending that batch.`,
+			};
+		}
+		const blocked = guard.blockedDispatchFailure(ctx.tool.name, failure);
+		if (!blocked) return undefined;
+		logger.warn("blocked repeated deterministic tool dispatch failure", {
+			toolName: blocked.toolName,
+			code: blocked.code,
+			count: blocked.count,
+		});
+		this.#rememberBlockedToolCall(ctx.toolCall.id);
+		this.#blockedTurnPending = true;
+		return { block: true, stopTurn: true, reason: dispatchFailureBlockReason(blocked) };
+	}
+
+	/**
+	 * Native post-execution observation: normalizes a result this guard blocked
+	 * (observable `toolCallLoopGuard.blocked` metadata, never a dispatch
+	 * failure), clears a tool's history on success, and counts a deterministic
+	 * rejection.
+	 */
+	afterToolCall(ctx: AfterToolCallContext): AfterToolCallResult | undefined {
+		if (this.#blockedToolCallIds.delete(ctx.toolCall.id)) {
+			const previousDetails = ctx.result.details;
+			const base =
+				previousDetails && typeof previousDetails === "object" && !Array.isArray(previousDetails)
+					? previousDetails
+					: {};
+			return {
+				details: { ...base, unexecuted: true, executed: false, toolCallLoopGuard: { blocked: true } },
+				isError: true,
+			};
+		}
+		this.#activeToolCallLoopGuard()?.observeToolResult({
+			toolCallId: ctx.toolCall.id,
+			toolName: ctx.toolCall.name,
+			isError: ctx.isError,
+			details: ctx.result.details,
+		});
+		return undefined;
+	}
+
+	/**
+	 * Bridge (eval / extension wrapper) pre-dispatch gate. Bridge hooks return a
+	 * plain `{ block, reason }`; the host must preserve the blocked result and
+	 * stop the turn before the next provider request when `stopTurn` is set.
+	 */
+	beforeBridgedToolCall(toolCallId: string, tool: AgentTool, args: unknown): BeforeToolCallResult | undefined {
+		const guard = this.#activeToolCallLoopGuard();
+		if (!guard) return undefined;
+		const failure = guard.blockedDispatchFailure(tool.name, readToolDispatchFailure(tool, args));
+		if (failure) {
+			logger.warn("blocked repeated deterministic tool dispatch failure (bridge)", {
+				toolName: failure.toolName,
+				code: failure.code,
+				count: failure.count,
+			});
+			return { block: true, stopTurn: true, reason: dispatchFailureBlockReason(failure) };
+		}
+		if (this.#bridgedToolNames.size >= BRIDGED_TOOL_NAME_LIMIT) {
+			const oldest = this.#bridgedToolNames.keys().next().value;
+			if (oldest !== undefined) this.#bridgedToolNames.delete(oldest);
+		}
+		this.#bridgedToolNames.set(toolCallId, tool.name);
+		return undefined;
+	}
+
+	/** Bridge post-execution observation for the tool name remembered at dispatch. */
+	afterBridgedToolCall(toolCallId: string, result: AgentToolResult<unknown>): void {
+		const toolName = this.#bridgedToolNames.get(toolCallId);
+		if (toolName === undefined) return;
+		this.#bridgedToolNames.delete(toolCallId);
+		this.#activeToolCallLoopGuard()?.observeToolResult({
+			toolCallId,
+			toolName,
+			isError: result.isError === true,
+			details: result.details,
+		});
+	}
+
+	/** Drops the remembered bridge dispatch (blocked, cancelled, or never executed). */
+	cancelBridgedToolCall(toolCallId: string): void {
+		this.#bridgedToolNames.delete(toolCallId);
+	}
+
 	/** Records a completed turn and injects a redirect when calls repeat. */
 	recordTurn(messages: AgentMessage[], context: AgentTurnEndContext | undefined): void {
 		if (context?.message.role !== "assistant") return;
-		const detection = this.#activeToolCallLoopGuard()?.recordTurn({
-			message: context.message,
-			toolResults: context.toolResults,
-			injectedContext: (context.additionalMessages?.length ?? 0) > 0,
-		});
+		const guard = this.#activeToolCallLoopGuard();
+		if (!guard) return;
+		const stoppedBeforeDispatch = this.#blockedTurnPending;
+		this.#blockedTurnPending = false;
+		const detection = stoppedBeforeDispatch
+			? null
+			: guard.recordTurn({
+					message: context.message,
+					toolResults: context.toolResults,
+					injectedContext: (context.additionalMessages?.length ?? 0) > 0,
+				});
 		if (detection) this.#injectToolCallLoopRedirect(messages, detection);
+		for (const warning of guard.drainDispatchFailureWarnings()) {
+			this.#injectDispatchFailureRedirect(messages, warning);
+		}
 	}
 
 	/** Feeds a streamed assistant event to the Gemini header-runaway detector. */
@@ -234,6 +415,19 @@ export class LoopGuards {
 	}
 
 	#activeToolCallLoopGuard(): ToolCallLoopGuard | undefined {
+		// A new prompt is a true boundary: accumulated repetitions and
+		// deterministic-failure buckets from the previous prompt cannot block a
+		// fresh request. A session switch changes the id and resets too.
+		const sequence = this.#host.promptSequence();
+		const sessionId = this.#host.sessionManager.getSessionId();
+		if (this.#loopGuardPromptSequence !== sequence || this.#loopGuardSessionId !== sessionId) {
+			this.#loopGuardPromptSequence = sequence;
+			this.#loopGuardSessionId = sessionId;
+			this.#toolCallLoopGuard?.reset();
+			this.#bridgedToolNames.clear();
+			this.#blockedToolCallIds.clear();
+			this.#blockedTurnPending = false;
+		}
 		if (cfgModelToolCallLoopGuardEnabled.get(this.#host.settings) !== true) {
 			this.#toolCallLoopGuard = undefined;
 			this.#toolCallLoopGuardSettingsKey = undefined;
@@ -249,6 +443,14 @@ export class LoopGuards {
 			this.#toolCallLoopGuardSettingsKey = settingsKey;
 		}
 		return this.#toolCallLoopGuard;
+	}
+
+	#rememberBlockedToolCall(toolCallId: string): void {
+		if (this.#blockedToolCallIds.size >= BLOCKED_TOOL_CALL_LIMIT) {
+			const oldest = this.#blockedToolCallIds.values().next().value;
+			if (oldest !== undefined) this.#blockedToolCallIds.delete(oldest);
+		}
+		this.#blockedToolCallIds.add(toolCallId);
 	}
 
 	#injectToolCallLoopRedirect(messages: AgentMessage[], detection: RepeatedToolCallDetection): void {
@@ -268,6 +470,34 @@ export class LoopGuards {
 		if (this.#host.agent.state.messages !== messages) this.#host.agent.appendMessage(redirectMessage);
 		this.#host.sessionManager.appendCustomMessageEntry(
 			TOOL_CALL_LOOP_REDIRECT_TYPE,
+			content,
+			false,
+			details,
+			"agent",
+		);
+	}
+
+	#injectDispatchFailureRedirect(messages: AgentMessage[], detection: RepeatedDispatchFailureDetection): void {
+		logger.warn("deterministic tool dispatch failure loop detected", {
+			toolName: detection.toolName,
+			code: detection.code,
+			count: detection.count,
+		});
+		const content = renderDispatchFailureRedirect(detection);
+		const details = dispatchFailureRedirectDetails(detection);
+		const redirectMessage: CustomMessage = {
+			role: "custom",
+			customType: TOOL_CALL_LOOP_DISPATCH_FAILURE_REDIRECT_TYPE,
+			content,
+			display: false,
+			details,
+			attribution: "agent",
+			timestamp: Date.now(),
+		};
+		messages.push(redirectMessage);
+		if (this.#host.agent.state.messages !== messages) this.#host.agent.appendMessage(redirectMessage);
+		this.#host.sessionManager.appendCustomMessageEntry(
+			TOOL_CALL_LOOP_DISPATCH_FAILURE_REDIRECT_TYPE,
 			content,
 			false,
 			details,

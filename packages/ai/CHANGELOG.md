@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Tracked deterministic tool dispatch failures by structured cause rather than task wording, with bounded state, prompt/session resets, corrected-precondition recovery, and hard-stop checks for warned retries.
 - Preserved structured Google terminal reasons and observed transport errors separately; missing terminal envelopes retain partial output without inferring filter or network causes from generated text (#11).
 
 ## [18.13.1] - 2026-10-27

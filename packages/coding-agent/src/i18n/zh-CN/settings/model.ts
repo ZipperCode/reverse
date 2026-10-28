@@ -80,11 +80,11 @@ export const modelSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	"model.toolCallLoopGuard.enabled": {
 		label: "工具调用循环防护",
-		description: "检测跨轮次连续相同的工具调用，并注入纠正性引导",
+		description: "检测重复调用及同因确定性派发失败；达到阈值后提醒，并在执行前拦截未修正的重试",
 	},
 	"model.toolCallLoopGuard.threshold": {
 		label: "工具调用循环阈值",
-		description: "注入纠正性引导前，需要出现的连续相同工具调用次数",
+		description: "提醒前累计的重复调用或同因确定性派发失败次数；下一次未修正的重试会停止当前回合",
 	},
 	"model.toolCallLoopGuard.exemptTools": {
 		label: "工具调用循环豁免工具",

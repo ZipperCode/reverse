@@ -1235,6 +1235,8 @@ export class AgentSession implements SettingsScope {
 		},
 	};
 	#promptSequence = 0;
+	readonly #pendingBridgedLoopStops = new Set<string>();
+	#pendingBridgedLoopTurnStop: { promptSequence: number; sessionId: string } | undefined;
 	#skippedPostTurnSpeculationCompletion: Promise<void> | undefined;
 	#pendingAgentEndEmit: AgentSessionEvent | undefined;
 	#inFlightSettledCallbacks: Array<() => void | Promise<void>> = [];
@@ -2363,6 +2365,12 @@ export class AgentSession implements SettingsScope {
 						this.#todo.cancelToolCall(toolCallId);
 						return constraint;
 					}
+					const loopResult = this.#loopGuards.beforeBridgedToolCall(toolCallId, tool, args);
+					if (loopResult?.block) {
+						this.#todo.cancelToolCall(toolCallId);
+						if (loopResult.stopTurn) this.#pendingBridgedLoopStops.add(toolCallId);
+						return loopResult;
+					}
 					return result;
 				} catch (error) {
 					this.#todo.cancelToolCall(toolCallId);
@@ -2371,6 +2379,24 @@ export class AgentSession implements SettingsScope {
 			},
 			after: async (toolCallId, result, context) => {
 				const guarded = (await this.#waitPollGuard.afterBridgedToolCall(toolCallId, result, context)) ?? result;
+				if (this.#pendingBridgedLoopStops.delete(toolCallId)) {
+					// 桥接调用没有 stopTurn 返回通道：保留未执行结果，再终止当前模型循环。
+					const blocked: AgentToolResult = {
+						...guarded,
+						isError: true,
+						details: {
+							...(isRecord(guarded.details) ? guarded.details : {}),
+							unexecuted: true,
+							executed: false,
+							toolCallLoopGuard: { blocked: true },
+						},
+					};
+					this.#loopGuards.cancelBridgedToolCall(toolCallId);
+					this.#todo.onBridgedToolResult(toolCallId, blocked);
+					// 先保留外层工具的完整结果，再由下一次模型请求门禁停止回合。
+					this.#pendingBridgedLoopTurnStop = { promptSequence: this.#promptSequence, sessionId: this.sessionId };
+					return blocked;
+				}
 				const constraint = this.#takePrerequisiteConstraintResult(toolCallId, guarded.details);
 				if (constraint) {
 					const blocked = { ...guarded, ...constraint };
@@ -2378,6 +2404,7 @@ export class AgentSession implements SettingsScope {
 					return blocked;
 				}
 				const settled = (await this.#ttsr.afterBridgedToolCall(toolCallId, guarded, context)) ?? guarded;
+				this.#loopGuards.afterBridgedToolCall(toolCallId, settled);
 				this.#todo.onBridgedToolResult(toolCallId, settled);
 				return settled;
 			},
@@ -2385,6 +2412,8 @@ export class AgentSession implements SettingsScope {
 				this.#todo.cancelToolCall(toolCallId);
 				this.#ttsr.cancelBridgedToolCall(toolCallId);
 				this.#waitPollGuard.cancelBridgedToolCall(toolCallId);
+				this.#loopGuards.cancelBridgedToolCall(toolCallId);
+				this.#pendingBridgedLoopStops.delete(toolCallId);
 				this.#pendingPrerequisiteConstraints.delete(toolCallId);
 			},
 		});
@@ -2412,6 +2441,15 @@ export class AgentSession implements SettingsScope {
 			runToolCallIds: () => this.#runToolCallIds,
 		};
 		this.#providerBoundary = new SessionProviderBoundary(providerBoundaryHost);
+		// 门禁在运行前注册；桥接工具先返回完整错误结果，再停止下一次模型请求。
+		this.addDisposer(
+			this.agent.addBeforeModelCall(() => {
+				const stop = this.#pendingBridgedLoopTurnStop;
+				this.#pendingBridgedLoopTurnStop = undefined;
+				if (stop?.promptSequence !== this.#promptSequence || stop.sessionId !== this.sessionId) return undefined;
+				return { stop: true, reason: "A repeated deterministic tool dispatch failure stopped this turn." };
+			}),
+		);
 		const streamGuardsHost: StreamGuardsHost = {
 			agent: this.agent,
 			settings: this.settings,
@@ -5487,6 +5525,8 @@ export class AgentSession implements SettingsScope {
 		if (waitResult) return waitResult;
 		const constraint = this.#takePrerequisiteConstraintResult(ctx.toolCall.id, ctx.result.details);
 		if (constraint) return constraint;
+		const loopResult = this.#loopGuards.afterToolCall(ctx);
+		if (loopResult) return loopResult;
 		if (
 			this.#isTerminalYieldToolResult({
 				toolName: ctx.toolCall.name,
@@ -5501,6 +5541,15 @@ export class AgentSession implements SettingsScope {
 		}
 		return this.#ttsr.afterToolCall(ctx);
 	}
+	#checkToolCallLoop(ctx: BeforeToolCallContext): BeforeToolCallResult | undefined {
+		const result = this.#loopGuards.beforeToolCall(ctx);
+		if (result?.block) {
+			this.#extensionRunner?.clearLoopToolCall?.(ctx.toolCall.id, ctx.tool.name);
+			this.#todo.cancelToolCall(ctx.toolCall.id);
+		}
+		return result;
+	}
+
 	/**
 	 * Emits the extension `tool_call` event for a loop-dispatched call at
 	 * arg-prep time — before concurrency scheduling, `tool_execution_start`,
@@ -5534,7 +5583,7 @@ export class AgentSession implements SettingsScope {
 			this.#todo.cancelToolCall(ctx.toolCall.id);
 			return constraint;
 		}
-		if (!runner?.hasHandlers("tool_call")) return undefined;
+		if (!runner?.hasHandlers("tool_call")) return this.#checkToolCallLoop(ctx);
 		const metadata = ctx.toolCall.providerMetadata;
 		const computer = metadata?.type === "computer" ? metadata : undefined;
 		// Parity with the wrapper's pre-emit short-circuit: an already-denied
@@ -5544,7 +5593,7 @@ export class AgentSession implements SettingsScope {
 		const userPolicies: Record<string, unknown> = cfgToolsApproval.get(this.settings);
 		const approvalArgs = computer ? { actions: computer.actions } : ctx.args;
 		if (resolveApproval(ctx.tool, approvalArgs, "yolo", userPolicies).policy === "deny") {
-			return undefined;
+			return this.#checkToolCallLoop(ctx);
 		}
 		const eventArgs = computer
 			? { actions: computer.actions, pendingSafetyChecks: computer.pendingSafetyChecks }
@@ -5575,6 +5624,8 @@ export class AgentSession implements SettingsScope {
 		// view, not the execution params — a revision cannot map back onto them.
 		const args = callResult?.input !== undefined && !computer ? callResult.input : undefined;
 		if (args !== undefined) this.#todo.beforeToolCall(ctx.toolCall.id, ctx.tool.name, args);
+		const loopResult = this.#checkToolCallLoop(args === undefined ? ctx : { ...ctx, args });
+		if (loopResult) return loopResult;
 		const additionalContext = callResult?.additionalContext;
 		if (args === undefined && additionalContext === undefined) return undefined;
 		return { args, additionalContext };

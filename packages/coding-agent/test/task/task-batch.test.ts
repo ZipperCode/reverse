@@ -59,15 +59,24 @@ function createSession(
 	} as unknown as ToolSession;
 }
 
+/**
+ * Properties of the ordinary call shape. The flat root is a union when the
+ * bundled seance agent is advertised, so read the ordinary branch's shape.
+ */
 function getSchemaProperties(tool: TaskTool): Record<string, unknown> {
-	const properties = toolWireSchema(tool).properties;
+	const wire = toolWireSchema(tool);
+	const shape = Array.isArray(wire.anyOf) && isRecord(wire.anyOf[0]) ? wire.anyOf[0] : wire;
+	const properties = shape.properties;
 	return isRecord(properties) ? properties : {};
 }
 
+/** Properties of the batch item's ordinary branch (`tasks.items` is a union when seance is advertised). */
 function getBatchItemProperties(tool: TaskTool): Record<string, unknown> {
 	const tasks = getSchemaProperties(tool).tasks;
-	if (!isRecord(tasks) || !isRecord(tasks.items) || !isRecord(tasks.items.properties)) return {};
-	return tasks.items.properties;
+	if (!isRecord(tasks) || !isRecord(tasks.items)) return {};
+	const items =
+		Array.isArray(tasks.items.anyOf) && isRecord(tasks.items.anyOf[0]) ? tasks.items.anyOf[0] : tasks.items;
+	return isRecord(items.properties) ? items.properties : {};
 }
 
 function getFirstText(result: { content: Array<{ type: string; text?: string }> }): string {
@@ -356,7 +365,16 @@ describe("task.batch validation", () => {
 		});
 		const tool = await TaskTool.create(createSession({ settings: { "async.enabled": false, "task.batch": true } }));
 		const items = getSchemaProperties(tool).tasks;
-		expect(isRecord(items) && isRecord(items.items) ? items.items.required : undefined).toContain("solutionSpace");
+		const itemSchemas =
+			isRecord(items) && isRecord(items.items)
+				? Array.isArray(items.items.anyOf)
+					? items.items.anyOf.filter(isRecord)
+					: [items.items]
+				: [];
+		expect(itemSchemas.length).toBeGreaterThan(0);
+		for (const itemSchema of itemSchemas) {
+			expect(Array.isArray(itemSchema.required) ? itemSchema.required : undefined).toContain("solutionSpace");
+		}
 
 		const mock = createMockModel({
 			responses: [

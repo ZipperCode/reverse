@@ -3621,18 +3621,15 @@ async function executeToolCalls(
 		};
 	});
 
-	// One call declaring the turn finished holds for the whole batch: a batch
-	// is the model's single response, so partial execution would contradict the
-	// declaration and keep the poll loop alive. Calls the hook did not block are
-	// marked here rather than re-running `beforeToolCall`, so every remaining
-	// result is synthesized once, in call order, with no execution start.
-	const stopTurnDeclared = records.some(record => record.stopTurn);
+	// stopTurn holds for the whole response: keep every call unexecuted and
+	// propagate the triggering guard's reason rather than inventing pending work.
+	const stoppedRecord = records.find(record => record.stopTurn);
+	const stopTurnDeclared = stoppedRecord !== undefined;
 	if (stopTurnDeclared) {
 		for (const record of records) {
 			if (record.blocked) continue;
 			record.blocked = true;
-			record.blockReason =
-				"The turn was declared finished without tool calls while work this agent started is still pending. The call was not executed; end the turn and wait for the pending result to be delivered.";
+			record.blockReason = stoppedRecord?.blockReason ?? "The tool batch was stopped before execution.";
 		}
 	}
 
@@ -3978,7 +3975,7 @@ async function executeToolCalls(
 				caughtError = e;
 				result = {
 					content: [{ type: "text", text: e instanceof Error ? e.message : String(e) }],
-					details: {},
+					details: blockedPreflight ? { unexecuted: true, executed: false } : {},
 				};
 				isError = true;
 			}

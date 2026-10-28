@@ -1,9 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
+import {
+	adaptSchemaForStrict,
+	normalizeSchemaForCCA,
+	normalizeSchemaForGoogle,
+	toolWireSchema,
+	validateSchemaCompatibility,
+	validateStrictSchemaEnforcement,
+} from "@reverse/ai/utils/schema";
+import { type AgentTool, validateAgentToolArguments } from "@reverse/agent";
 import { type } from "@reverse/reversetype";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { TaskTool, taskSchema } from "@reverse/coding-agent/task";
 import { loadBundledAgents, parseAgent } from "@reverse/coding-agent/task/agents";
 import * as discoveryModule from "@reverse/coding-agent/task/discovery";
+import * as executorModule from "@reverse/coding-agent/task/executor";
 import { getTaskSchema } from "@reverse/coding-agent/task/types";
 import { isBundledSeance, seanceTaskSchemaFields } from "@reverse/coding-agent/task/seance";
 import type { AgentDefinition } from "@reverse/coding-agent/task/types";
@@ -12,14 +22,14 @@ import type { ToolSession } from "@reverse/coding-agent/tools";
 let taskSchemaSessionIndex = 0;
 
 function createSession(
-	options: { parentSpawns?: string; disabledAgents?: string[]; planMode?: boolean } = {},
+	options: { parentSpawns?: string; disabledAgents?: string[]; planMode?: boolean; batchEnabled?: boolean } = {},
 ): ToolSession {
 	return {
 		cwd: `/tmp/task-schema-${taskSchemaSessionIndex++}`,
 		hasUI: false,
 		settings: Settings.isolated({
 			"task.isolation.enabled": false,
-			"task.batch": false,
+			"task.batch": options.batchEnabled ?? false,
 			"task.disabledAgents": options.disabledAgents ?? [],
 		}),
 		getSessionFile: () => null,
@@ -30,10 +40,13 @@ function createSession(
 
 const bundledSeance = loadBundledAgents().find(agent => agent.name === "seance")!;
 // Contract: the single-spawn schema (`task.batch: false`; the exported
-// `taskSchema` instance) carries no batch fields while accepting a caller
-// `model`, `outputSchema`, and its validation mode. The batch shape (`tasks[]` + shared
+// `taskSchema` instance) carries no batch fields, and accepts a caller
+// `outputSchema` plus its validation mode. The batch shape (`tasks[]` + shared
 // `context`) is gated by the `task.batch` setting (default on, covered by
-// test/task/task-batch.test.ts).
+// test/task/task-batch.test.ts). The bundled seance agent adds a discriminated
+// `agent: "seance"` branch that owns `sourceSession`/`model`; ordinary calls
+// never advertise them and blank placeholders normalize to absence at the
+// planning boundary.
 
 describe("task schema (single-spawn)", () => {
 	it("requires task", () => {
@@ -127,6 +140,80 @@ describe("task schema seance fields", () => {
 			}
 		}
 	});
+	it("discriminates the ordinary and seance branches in every flat/batch isolation mode", () => {
+		for (const batchEnabled of [false, true]) {
+			for (const isolationEnabled of [false, true]) {
+				const schema = getTaskSchema({
+					batchEnabled,
+					isolationEnabled,
+					effortEnabled: true,
+					seanceFields: seanceTaskSchemaFields,
+				});
+				const wire = schema.toJsonSchema() as Record<string, any>;
+				const branches = (batchEnabled ? wire.properties?.tasks?.items?.anyOf : wire.anyOf) as
+					| Array<Record<string, any>>
+					| undefined;
+				expect(Array.isArray(branches)).toBe(true);
+				expect(branches).toHaveLength(2);
+				const [ordinary, seance] = branches!;
+				// The ordinary branch owns no reserved selector and cannot claim the
+				// seance agent; the exclusion is stated portably, not as a bare string.
+				expect(ordinary!.properties).not.toHaveProperty("sourceSession");
+				expect(ordinary!.properties).not.toHaveProperty("model");
+				expect(ordinary!.properties?.agent).toMatchObject({ type: "string", not: { const: "seance" } });
+				expect(ordinary!.additionalProperties).toBe(false);
+				// The seance branch pins the agent and requires its source session.
+				expect(seance!.properties?.agent).toEqual({ const: "seance" });
+				expect(seance!.required).toContain("sourceSession");
+				// Provider-shaped: a union of object branches, no `oneOf`/`$ref`.
+				expect(wire.oneOf).toBeUndefined();
+				expect(JSON.stringify(wire)).not.toContain('"$ref"');
+
+				const wrap = (item: Record<string, unknown>): Record<string, unknown> =>
+					batchEnabled ? { context: "ctx", tasks: [item] } : item;
+				const accepts = (item: Record<string, unknown>): boolean => !(schema(wrap(item)) instanceof type.errors);
+				expect(accepts({ task: "x", solutionSpace: "s" })).toBe(true);
+				expect(accepts({ agent: "custom-auditor", task: "x", solutionSpace: "s" })).toBe(true);
+				expect(accepts({ agent: "seance", task: "x", solutionSpace: "s", sourceSession: "/s.jsonl" })).toBe(true);
+				// A seance agent without its source is not an ordinary call...
+				expect(accepts({ agent: "seance", task: "x", solutionSpace: "s" })).toBe(false);
+				// ...its source and model selectors carry real values only...
+				expect(accepts({ agent: "seance", task: "x", solutionSpace: "s", sourceSession: "  " })).toBe(false);
+				expect(
+					accepts({
+						agent: "seance",
+						task: "x",
+						solutionSpace: "s",
+						sourceSession: "/s.jsonl",
+						model: [],
+					}),
+				).toBe(false);
+				// ...and ordinary calls cannot smuggle the reserved fields.
+				expect(accepts({ agent: "custom-auditor", task: "x", solutionSpace: "s", sourceSession: "/s.jsonl" })).toBe(
+					false,
+				);
+			}
+		}
+	});
+
+	it("keeps the flat union callable under the provider schema constraints", async () => {
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
+			agents: [bundledSeance],
+			projectAgentsDir: null,
+		});
+		const tool = await TaskTool.create(createSession({ parentSpawns: "task,seance" }));
+		const wire = toolWireSchema(tool) as Record<string, unknown>;
+		expect(Array.isArray(wire.anyOf)).toBe(true);
+		// The tool ships non-strict; the union still survives strict enforcement as
+		// a compatible (loosened) schema, and both stripping providers accept it.
+		expect(adaptSchemaForStrict(wire, tool.strict !== false).strict).toBe(false);
+		expect(validateStrictSchemaEnforcement(wire, adaptSchemaForStrict(wire, true)).compatible).toBe(true);
+		expect(validateSchemaCompatibility(normalizeSchemaForGoogle(wire), "google").compatible).toBe(true);
+		expect(validateSchemaCompatibility(normalizeSchemaForCCA(wire), "cloud-code-assist-claude").compatible).toBe(
+			true,
+		);
+	});
+
 	it("omits seance fields when they are not enabled", () => {
 		for (const batchEnabled of [false, true]) {
 			for (const isolationEnabled of [false, true]) {
@@ -201,11 +288,25 @@ describe("task spawn validation", () => {
 		vi.restoreAllMocks();
 	});
 
-	async function executeText(params: unknown, agents: AgentDefinition[] = []): Promise<string> {
+	async function makeTool(
+		agents: AgentDefinition[] = [],
+		options: { parentSpawns?: string; batchEnabled?: boolean } = {},
+	): Promise<TaskTool> {
 		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({ agents, projectAgentsDir: null });
-		const tool = await TaskTool.create(createSession());
-		const result = await tool.execute("tool-call", params);
+		return TaskTool.create(createSession(options));
+	}
+
+	function firstText(result: { content: Array<{ type: string; text?: string }> }): string {
 		return result.content.find(part => part.type === "text")?.text ?? "";
+	}
+
+	async function executeText(
+		params: unknown,
+		agents: AgentDefinition[] = [],
+		options: { parentSpawns?: string; batchEnabled?: boolean } = {},
+	): Promise<string> {
+		const tool = await makeTool(agents, options);
+		return firstText(await tool.execute("tool-call", params));
 	}
 
 	it("defaults a missing agent to `task`", async () => {
@@ -219,19 +320,130 @@ describe("task spawn validation", () => {
 		const text = await executeText({ agent: "scout" });
 		expect(text).toContain("Missing `task`");
 	});
-	it("rejects a model override for an ordinary task after the enabled schema accepts it", async () => {
-		const schema = getTaskSchema({
-			isolationEnabled: false,
-			batchEnabled: false,
-			seanceFields: seanceTaskSchemaFields,
-		});
-		const params = {
+
+	it("dispatches ordinary blank sourceSession/model placeholders exactly like omitted fields", async () => {
+		// The raw call form internal callers and lenient validation produce: the
+		// schema heals nothing, so the planning boundary must treat `""`/`[]` as
+		// absence for an ordinary agent instead of reporting a reserved field.
+		const flat = await executeText({
 			agent: "scout",
 			task: "Map the auth module.",
 			solutionSpace: "focused inspection",
-			model: "anthropic/claude-sonnet-4-5",
-		};
-		expect(schema(params) instanceof type.errors).toBe(false);
-		expect(await executeText(params, [bundledSeance])).toContain("`model` is only accepted for the `seance` agent.");
+			sourceSession: "",
+			model: [],
+		});
+		expect(flat).toContain('Unknown agent "scout"');
+		expect(flat).not.toContain("reserved");
+
+		const batch = await executeText(
+			{
+				context: "shared context",
+				tasks: [{ agent: "scout", task: "Map the auth module.", solutionSpace: "focused inspection", model: "" }],
+			},
+			[],
+			{ batchEnabled: true },
+		);
+		expect(batch).toContain('Unknown agent "scout"');
+		expect(batch).not.toContain("reserved");
+	});
+
+	it("rejects a populated reserved seance field on an ordinary task with the correction", async () => {
+		const params = { agent: "scout", task: "x", solutionSpace: "s", model: "anthropic/x" };
+		const tool = await makeTool([bundledSeance]);
+		const result = await tool.execute("tool-call", params);
+		expect(firstText(result)).toContain("`model` is reserved for the `seance` agent");
+		expect(result.isError).toBe(true);
+		expect(result.details?.executed).toBe(false);
+		expect(result.details?.unexecuted).toBe(true);
+		expect(result.details?.dispatchFailure).toEqual(tool.getDispatchFailure(params));
+		expect(result.details?.dispatchFailure).toMatchObject({
+			code: "task.seance",
+			key: "task.seance:reserved-model",
+		});
+	});
+
+	it("rejects a populated reserved selector inside a seance-disabled batch before any child spawns", async () => {
+		const run = vi.spyOn(executorModule, "runSubprocess");
+		// The spawn policy hides the bundled seance agent, so the plain batch item
+		// shape is active. That wire used to erase a nested reserved selector before
+		// the planning boundary could see it, silently dropping the caller's intent.
+		const tool = await makeTool([bundledSeance], { parentSpawns: "task", batchEnabled: true });
+		for (const [field, key] of [
+			["model", "task.seance:reserved-model"],
+			["sourceSession", "task.seance:reserved-source-session"],
+		] as const) {
+			const id = `call-${field}`;
+			const validated = validateAgentToolArguments(
+				tool as unknown as AgentTool,
+				{
+					type: "toolCall",
+					id,
+					name: "task",
+					arguments: {
+						context: "Shared background.",
+						tasks: [{ task: "Map the auth module.", solutionSpace: "focused inspection", [field]: "non-empty" }],
+					},
+				},
+				"payload",
+			);
+			const result = await tool.execute(id, validated);
+			expect(result.isError).toBe(true);
+			expect(result.details?.unexecuted).toBe(true);
+			expect(result.details?.dispatchFailure).toMatchObject({ code: "task.seance", key });
+		}
+		expect(run).not.toHaveBeenCalled();
+	});
+
+	it("keeps a valid seance call on the seance path and reports a missing source actionably", async () => {
+		// A resolvable-shaped seance call reaches real preparation; the failure is
+		// about the source file, not about the shape.
+		const valid = await executeText(
+			{ agent: "seance", task: "x", solutionSpace: "s", sourceSession: "/missing/seance-source.jsonl" },
+			[bundledSeance],
+		);
+		expect(valid).toContain("could not be accessed");
+		expect(valid).not.toContain("requires a non-empty `sourceSession`");
+
+		const missing = await executeText({ agent: "seance", task: "x", solutionSpace: "s" }, [bundledSeance]);
+		expect(missing).toContain("requires a non-empty `sourceSession`");
+	});
+
+	it("reports a stable dispatch failure key across reworded and reindexed calls", async () => {
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
+			agents: [bundledSeance],
+			projectAgentsDir: null,
+		});
+		const tool = await TaskTool.create(createSession({ parentSpawns: "task,seance" }));
+		const first = tool.getDispatchFailure({
+			agent: "scout",
+			task: "Map the auth module.",
+			solutionSpace: "s",
+			model: "m",
+		});
+		const reworded = tool.getDispatchFailure({
+			agent: "scout",
+			name: "Renamed",
+			task: "An entirely different assignment.",
+			solutionSpace: "some other space",
+			model: "m",
+		});
+		expect(first?.key).toBe("task.seance:reserved-model");
+		expect(reworded).toEqual(first);
+		expect(
+			tool.getDispatchFailure({ agent: "scout", task: "Map the auth module.", solutionSpace: "s" }),
+		).toBeUndefined();
+
+		const batch = await TaskTool.create(createSession({ parentSpawns: "task,seance", batchEnabled: true }));
+		const indexed = batch.getDispatchFailure({ context: "c", tasks: [{ task: "" }] });
+		const reindexed = batch.getDispatchFailure({
+			context: "other",
+			tasks: [
+				{ task: "ok", solutionSpace: "s" },
+				{ name: "N", task: "" },
+			],
+		});
+		expect(indexed?.key).toBe("task.shape:item-task");
+		expect(reindexed?.key).toBe("task.shape:item-task");
+		expect(indexed?.message).not.toBe(reindexed?.message);
 	});
 });
