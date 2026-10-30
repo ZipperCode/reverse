@@ -1,11 +1,11 @@
 import { centerLine, visibleWidth } from "../../utils";
 import { padToWidth } from "../../render/utils";
-import { gradientEscape, gradientLogo, logoNode, PI_LOGO, type ShineConfig } from "../../prompt/welcome";
+import { APP_NAME, VERSION } from "@reverse/utils";
+import { gradientEscape, gradientLogo, lockupNode, PI_LOGO, type ShineConfig } from "../../prompt/welcome";
 import { theme } from "../../theme/theme";
 import { formatKeyHint } from "../../app-keybindings";
-import { col, node, span, text } from "../../native/describe";
+import { col, kbd, keyed, node, row, span, text } from "../../native/describe";
 import type { NativeNode } from "../../native/node";
-import { Memo } from "../../native/memo";
 
 export const SETUP_SPLASH_MS = 2600;
 export const SETUP_TICK_MS = 33;
@@ -242,34 +242,38 @@ export function renderSetupSplash(width: number, height: number, elapsedMs: numb
 	return cells.map(row => row.join(""));
 }
 
-const splashMemo = new Memo();
+let splashNode: NativeNode | undefined;
 
 /**
- * Native splash: the 2x brand mark with a terminal-clocked shimmer, the
- * wordmark, and the skip hint pinned to the bottom. The water and starfield
- * are cell paintings with no semantic counterpart. A click on the splash
- * sends the `skip` action.
+ * Native splash: reverse's lockup as the welcome draws it (the builtin mark
+ * drawing on beside the wordmark and version), centered, and a quiet Enter
+ * hint pinned to the bottom. The water and starfield are cell paintings with
+ * no semantic counterpart. A click anywhere sends `skip`.
  */
 export function describeSetupSplash(): NativeNode {
-	const hint = skipHint();
-	return splashMemo.get([hint], () =>
-		col(
-			[
-				node("spacer", { grow: 1 }),
-				logoNode(LARGE_LOGO, true),
-				text([span("R e v e r s e", "strong")], { wrap: "none" }),
-				node("spacer", { grow: 1 }),
-				text([span(hint, "dim")], { wrap: "none" }),
-			],
-			{ align: "center", gap: "md", grow: 1, role: "reverse.setup.splash", actions: { click: "skip" } },
-		),
+	splashNode ??= col(
+		[
+			node("spacer", { grow: 1 }, undefined, "top"),
+			lockupNode(VERSION),
+			node("spacer", { grow: 1 }, undefined, "bottom"),
+			keyed(
+				row([text([span("Press", "muted")]), kbd("enter"), text([span("to begin", "muted")])], {
+					align: "center",
+					gap: "xs",
+					role: "reverse.setup.hint",
+				}),
+				"hint",
+			),
+		],
+		{ align: "center", grow: 1, role: "reverse.setup.splash", actions: { click: "skip" } },
 	);
+	return splashNode;
 }
 
 /** Centered fallback for windows too small to hold the full scene. */
 function renderCompactSplash(width: number, height: number, phase: number, shine: ShineConfig): string[] {
 	const art = LARGE_LOGO;
-	const content = [...gradientLogo(art, phase, shine), "", theme.bold("R e v e r s e")];
+	const content = [...gradientLogo(art, phase, shine), "", theme.bold(APP_NAME)];
 	const start = Math.max(0, Math.floor((height - content.length) / 2));
 	const lines: string[] = [];
 	for (let y = 0; y < height; y++) {

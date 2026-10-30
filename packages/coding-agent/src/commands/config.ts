@@ -6,7 +6,7 @@ import { Args, Command, Flags } from "@reverse/utils/cli";
 import { getEffectiveLocale } from "../config/persisted-locale";
 import { CLI_TRANSLATIONS_ZH_CN } from "../i18n/zh-CN/cli";
 import { configHelp as commandHelp } from "../cli/command-help";
-import { type ConfigAction, type ConfigCommandArgs, runConfigCommand } from "../cli/config-cli";
+import { type ConfigAction, type ConfigCommandArgs, type ConfigScope, runConfigCommand } from "../cli/config-cli";
 import { initTheme } from "@reverse/tui/theme";
 
 function helpStr(key: string, fallback: string): string {
@@ -48,6 +48,15 @@ export default class Config extends Command {
 				return helpStr("cli.config.flag.json", "Output JSON");
 			},
 		}),
+		scope: Flags.string({
+			get description() {
+				return helpStr(
+					"cli.config.flag.scope",
+					'With list: only the keys the "global" (agent config.yml) or "project" (<cwd>/.reverse) layer sets, as written',
+				);
+			},
+			options: ["global", "project"],
+		}),
 	};
 
 	async run(): Promise<void> {
@@ -61,6 +70,7 @@ export default class Config extends Command {
 			value,
 			flags: {
 				json: flags.json,
+				scope: flags.scope as ConfigScope | undefined,
 			},
 		};
 

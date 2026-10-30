@@ -1,6 +1,6 @@
 {
   "name": "@reverse/ai",
-  "version": "18.13.1",
+  "version": "18.14.0",
   "description": "Unified LLM API with automatic model discovery and provider configuration",
   "keywords": [
     "ai",
@@ -141,7 +141,8 @@
       "types": "./src/utils/schema/*.ts",
       "import": "./src/utils/schema/*.ts"
     },
-    "./*.js": "./src/*.ts"
+    "./*.js": "./src/*.ts",
+    "./providers/*.js": "./src/providers/*.ts"
   },
   "scripts": {
     "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",
@@ -162,7 +163,7 @@
     "@types/bun": "catalog:"
   },
   "engines": {
-    "bun": ">=1.3.14"
+    "bun": ">=1.4.4"
   },
   "private": true
 }

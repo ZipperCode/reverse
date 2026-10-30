@@ -12,7 +12,7 @@ import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import { resetHangulCompatibilityJamoWidthForTests, setHangulCompatibilityJamoWidth } from "@reverse/tui";
 import type { DescribeContext } from "@reverse/tui/native/node";
-import { PINNED_HUD_TOGGLE_ID } from "@reverse/tui/prompt/composer";
+import { PINNED_HUD_TOGGLE_ID } from "@reverse/coding-agent/task/output-manager";
 import {
 	InteractiveMode,
 	layoutPinnedHud,

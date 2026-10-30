@@ -1,6 +1,6 @@
 # dex_repair
 
-Offline Dalvik CodeItem restoration and DEX reconstruction from FART runtime method dumps. Derived from the Apache-2.0 licensed FART project (`https://github.com/hanbinglengyue/FART`) and Dalvik executable specifications; attribution is preserved in `THIRD-PARTY-NOTICES.txt`.
+Offline Dalvik CodeItem restoration and DEX reconstruction from FART runtime method dumps. Derived from the Apache-2.0 licensed FART project (`https://github.com/hanbinglengyue/FART`) and Dalvik executable specifications; attribution is preserved in `packages/coding-agent/THIRD-PARTY-NOTICES.txt`.
 
 ## Source
 

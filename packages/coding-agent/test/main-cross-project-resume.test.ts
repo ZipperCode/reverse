@@ -15,6 +15,7 @@ import { type Args, parseArgs } from "@reverse/coding-agent/cli/args";
 import * as modelResolverModule from "@reverse/coding-agent/config/model-resolver";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import * as pluginHelpers from "@reverse/coding-agent/discovery/helpers";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { createSessionManager, runRootCommand } from "@reverse/coding-agent/main";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import type { SessionHeader } from "@reverse/coding-agent/session/session-entries";
@@ -49,6 +50,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+	clearReverseExtensionCliRoots();
 	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	restoreEnv("REVERSE_PROFILE", originalReverseProfile);

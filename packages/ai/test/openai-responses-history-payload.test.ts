@@ -1,10 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { type } from "@reverse/reversetype";
-import {
-	type OpenAIResponsesOptions,
-	openAIResponsesReplaysNativeHistory,
-	streamOpenAIResponses,
-} from "@reverse/ai/providers/openai-responses";
+import { type OpenAIResponsesOptions, streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import { openAIResponsesReplaysNativeHistory } from "@reverse/ai/providers/openai-responses-state";
 import { buildResponsesInput } from "@reverse/ai/providers/openai-shared";
 import type { AssistantMessage, Context, Model, ModelSpec, ProviderSessionState, Tool } from "@reverse/ai/types";
 import { createOpenAIResponsesHistoryPayload, sanitizeOpenAIResponsesHistoryItemsForReplay } from "@reverse/ai/utils";

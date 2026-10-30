@@ -28,7 +28,7 @@ import {
 	type SimpleStreamOptions,
 	streamSimple,
 } from "@reverse/ai";
-import { streamAnthropic } from "@reverse/ai/providers/anthropic";
+import { streamAnthropic } from "@reverse/ai/providers/register-builtins";
 import type { Effort } from "@reverse/catalog/effort";
 import { clampThinkingLevelForModel, getSupportedEfforts } from "@reverse/catalog/model-thinking";
 import {
@@ -150,6 +150,7 @@ export const getModel = getBundledModel;
 export const getModels = getBundledModels;
 
 const ANTHROPIC_MESSAGES_API = {
+	// Loads the Anthropic transport on first invocation, not extension setup.
 	stream: streamAnthropic,
 	streamSimple: (model: Model<"anthropic-messages">, context: Context, options?: SimpleStreamOptions) =>
 		streamSimple(model, context, options),

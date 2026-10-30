@@ -12,7 +12,7 @@
  */
 import { fitOutputTokensToContextWindow, type StreamFn, Tokenizer } from "@reverse/agent";
 import { type Model, type SimpleStreamOptions, streamSimple } from "@reverse/ai";
-import { openAIResponsesReplaysNativeHistory } from "@reverse/ai/providers/openai-responses";
+import { openAIResponsesReplaysNativeHistory } from "@reverse/ai/providers/openai-responses-state";
 import { serverSideFallbackModels } from "@reverse/catalog/compat/server-side-fallback";
 import type { Settings } from "../config/settings";
 import { type AnthropicSlowModeLanes, anthropicSlowModeLanes } from "./anthropic-slow-mode";

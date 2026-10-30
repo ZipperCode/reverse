@@ -17,7 +17,7 @@ Sources: [`packages/stats/README.md`](../packages/stats/README.md), [`packages/s
 
 - Package: `@reverse/stats`; bin: `reverse-stats`; main user path: `reverse stats`.
 - Feature: local observability dashboard for AI usage statistics from session JSONL logs.
-- CLI modes: `reverse stats` starts or reuses the dashboard at `http://127.0.0.1:3847`, opens it in the browser, and keeps running. `--port <port>` changes the port; `--host <host>` changes the bind address (loopback by default). `--summary` prints a console summary; `--json` prints JSON and exits. The standalone `reverse-stats` uses `--sync` for its summary mode and does not automatically open a browser.
+- CLI modes: `reverse stats` starts or reuses the dashboard at `http://127.0.0.1:3847` (a free port when another program holds that one), opens it in the browser, and keeps running. `--port <port>` changes the port; `--host <host>` changes the bind address (loopback by default). `--summary` prints a console summary; `--json` prints JSON and exits. The standalone `reverse-stats` uses `--sync` for its summary mode and does not automatically open a browser.
 - Programmatic API: exports helpers such as `syncAllSessions()` and `getDashboardStats()` for embedding.
 - Inputs/storage: scans the active profile's session directory recursively, including nested subagent transcripts; stores aggregates in that profile's stats database. Default paths are `~/.reverse/agent/sessions/` and `~/.reverse/stats.db`; initialized XDG data roots and named profiles change them through the shared directory resolver.
 - Outputs: request/token/cost, provider, model, folder, tool, gain, and frustration dashboards. API endpoints include `/api/stats`, `/api/stats/models`, `/api/stats/folders`, `/api/stats/timeseries`, `/api/stats/tools`, `/api/stats/gain`, `/api/status`, `/api/events` (SSE), and `/api/sync` (POST).
@@ -27,7 +27,7 @@ Sources: [`packages/stats/README.md`](../packages/stats/README.md), [`packages/s
 
 Sources: [`packages/reversetype/README.md`](../packages/reversetype/README.md), [`packages/reversetype/package.json`](../packages/reversetype/package.json), and the repository [reversetype authoring guide](./reversetype-guide.md).
 
-- Package: public `@reverse/reversetype`; install with `bun add @reverse/reversetype`. Its manifest declares Node 20 or newer and Bun 1.3.14 or newer.
+- Package: public `@reverse/reversetype`; install with `bun add @reverse/reversetype`. Its manifest declares Node 20 or newer and Bun 1.4.4 or newer.
 - Feature: callable ArkType-compatible schemas with cheap interpreted startup, lazy hot-path compilation, validation errors, defaults and morphs, and JSON Schema emission.
 - Public surfaces: `@reverse/reversetype` for native authoring, `/typebox` and `/zod` for compatibility builders, and `/ark` for the alias-free ArkType compatibility facade.
 - Runtime behavior: schema calls return the validated value or `type.errors`; `.assert()` returns the value or throws; `.allows()` performs a boolean check.
@@ -91,7 +91,7 @@ Sources: [`packages/collab-web/README.md`](../packages/collab-web/README.md), [`
 Sources: [`packages/snapcompact/README.md`](../packages/snapcompact/README.md), [`packages/snapcompact/package.json`](../packages/snapcompact/package.json), [`packages/snapcompact/src/index.ts`](../packages/snapcompact/src/index.ts).
 
 - Package: public `@reverse/snapcompact`; install with `bun add @reverse/snapcompact`; requires
-  Bun 1.3.14 or newer.
+  Bun 1.4.4 or newer.
 - Feature: deterministic local serialization and PNG rendering of discarded conversation history
   for vision-model context compaction; no model call or API key is required.
 - Public entrypoint includes `compact`, `render`, `renderMany`, `frames`, shape selection, text
@@ -102,7 +102,7 @@ Sources: [`packages/snapcompact/README.md`](../packages/snapcompact/README.md), 
 
 Sources: [`packages/mnemopi/README.md`](../packages/mnemopi/README.md), [`packages/mnemopi/package.json`](../packages/mnemopi/package.json), [`packages/mnemopi/src/cli.ts`](../packages/mnemopi/src/cli.ts), and the coding-agent [Mnemopi memory backend guide](./mnemosyne-memory-backend.md).
 
-- Package: public `@reverse/mnemopi`; bin: `mnemopi`; requires Bun 1.3.14 or newer. Install globally with `bun add --global @reverse/mnemopi`, then run `mnemopi <command>`. From a source checkout, `bun packages/mnemopi/src/cli.ts <command>` runs the same entrypoint.
+- Package: public `@reverse/mnemopi`; bin: `mnemopi`; requires Bun 1.4.4 or newer. Install globally with `bun add --global @reverse/mnemopi`, then run `mnemopi <command>`. From a source checkout, `bun packages/mnemopi/src/cli.ts <command>` runs the same entrypoint.
 - Store and search: `store`/`remember`, `recall`/`search`, `update`/`edit`, and `delete`/`forget`.
 - Inspect and maintain: `stats`, `sleep`/`consolidate`, `diagnose`/`doctor`, JSON `export` and `import`, `scratchpad`/`sp` with `read`, `write`, or `clear`, and `bank` with `list`, `create`, or `delete`.
 - Storage: standalone commands use `~/.hermes/mnemopi/data/mnemopi.db` by default; `MNEMOPI_DATA_DIR` selects a different data directory. This default is separate from reverse's session-managed memory location.

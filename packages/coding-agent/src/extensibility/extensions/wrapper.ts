@@ -360,7 +360,7 @@ export class ExtensionToolWrapper<TParameters extends TSchema = TSchema, TDetail
 					cancelPreflight();
 					throw err;
 				}
-				if (postflight) return postflight as AgentToolResult<TDetails, TParameters>;
+				if (postflight && postflight !== blockedResult) return postflight as AgentToolResult<TDetails, TParameters>;
 				cancelPreflight();
 				throw new Error(reason);
 			}

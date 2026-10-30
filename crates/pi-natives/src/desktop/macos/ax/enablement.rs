@@ -205,10 +205,10 @@ mod tests {
 		let result = await_web_content(
 			family,
 			|| {
-				waits.set(waits.get() + 1);
+				waits.update(|v| v + 1);
 				Ok(waits.get() == appears)
 			},
-			|| writes.set(writes.get() + 1),
+			|| writes.update(|v| v + 1),
 		);
 		(result, waits.get(), writes.get())
 	}
@@ -253,7 +253,7 @@ mod tests {
 					control::wait(READY_POLL)?;
 					Ok(false)
 				},
-				|| writes.set(writes.get() + 1),
+				|| writes.update(|v| v + 1),
 			)
 		});
 		assert_eq!(result.map_err(|error| error.code), Err(ErrorCode::Cancelled));
@@ -273,7 +273,7 @@ mod tests {
 					source.cancel();
 					Ok(false)
 				},
-				|| writes.set(writes.get() + 1),
+				|| writes.update(|v| v + 1),
 			)
 		});
 		assert_eq!(result.map_err(|error| error.code), Err(ErrorCode::Cancelled));

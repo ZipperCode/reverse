@@ -36,7 +36,16 @@ export const interactionSettingsZhCN: Record<string, SettingTranslation> = {
 	},
 	autoResume: {
 		label: "自动恢复",
-		description: "自动恢复当前目录中最近的会话",
+		description:
+			"自动恢复当前目录中最近的会话。若无法恢复其模型且禁用了模型回退，交互式启动会发出警告并在不保留已保存历史的情况下启动新会话",
+	},
+	"session.worktreeScope": {
+		label: "恢复会话工作树范围",
+		description: "选择恢复选择器的当前文件夹列表是否包含同一仓库其他工作树中的会话",
+		options: {
+			directory: { label: "仅当前目录", description: "仅显示保存在此目录中的会话" },
+			repo: { label: "仓库工作树", description: "同时包含同级工作树中的会话" },
+		},
 	},
 	"git.enabled": {
 		label: "启用 Git 集成",

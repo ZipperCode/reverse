@@ -371,4 +371,9 @@ export const providersSettingsZhCN: Record<string, SettingTranslation> = {
 		label: "OTLP 遥测导出",
 		description: "允许 REVERSE 使用 OTEL_* 端点导出追踪、日志和指标。更改在下次启动时生效。",
 	},
+	"retry.rateLimitWalksChain": {
+		label: "速率限制推进回退链",
+		description:
+			"遇到速率限制时，对于思考块由失败模型签名的轮次，不再阻断 retry.fallbackChains 的推进。关闭时（默认），此类轮次会继续重试受限模型直至耗尽 retry.maxRetries，然后才进入回退链。",
+	},
 };

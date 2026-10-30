@@ -4,6 +4,7 @@ import { Agent } from "@reverse/agent";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
 import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
+import { AgentRegistry } from "@reverse/coding-agent/registry/agent-registry";
 import { AgentSession } from "@reverse/coding-agent/session/agent-session";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
@@ -48,7 +49,7 @@ const evalRun: JobWidgetView = {
 	updatedAt: 1_000,
 };
 
-describe("InteractiveMode HUD jobs segment with job widgets", () => {
+describe("InteractiveMode HUD pills", () => {
 	let tempDir: TempDir;
 	let authStorage: AuthStorage;
 	let session: AgentSession;
@@ -129,5 +130,30 @@ describe("InteractiveMode HUD jobs segment with job widgets", () => {
 		const segment = jobsSegment()!;
 		expect(prop(segment, "hovercard")).toBeUndefined();
 		expect(prop(segment, "title")).toBe("1 job running  /jobs");
+	});
+
+	it("keeps a clickable idle agents segment after the last subagent finishes, and drops it once none remain", () => {
+		const registry = AgentRegistry.global();
+		const id = "hud-finished-sub";
+		const agentsSegment = (): NativeNode | undefined => {
+			mode.syncRunningSubagentBadge({ requestRender: false });
+			return nodes(mode.describeHudPills()).find(
+				node => node.key === "agents" && prop(node, "role") === "reverse.hud.seg",
+			);
+		};
+		try {
+			registry.register({ id, displayName: id, kind: "sub", session: null, status: "running" });
+			expect(prop(agentsSegment(), "title")).toStartWith("1 agent running");
+
+			registry.setStatus(id, "idle");
+			const idle = agentsSegment();
+			expect(prop(idle, "actions")).toEqual({ click: "agents.open" });
+			expect(prop(idle, "title")).toStartWith("No agents running · 1 in this session");
+
+			registry.unregister(id);
+			expect(agentsSegment()).toBeUndefined();
+		} finally {
+			registry.unregister(id);
+		}
 	});
 });

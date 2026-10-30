@@ -3,9 +3,9 @@ import { type InputItem, transformRequestBody } from "@reverse/ai/providers/open
 import {
 	buildTransformedCodexRequestBody,
 	convertCodexResponsesMessages,
-	resetOpenAICodexHistoryAfterCompaction,
 	streamOpenAICodexResponses,
 } from "@reverse/ai/providers/openai-codex-responses";
+import { resetOpenAICodexHistoryAfterCompaction } from "@reverse/ai/providers/openai-codex-state";
 import { isOpenAIResponsesProgressEvent } from "@reverse/ai/providers/openai-shared";
 import { configureCredentialRedaction } from "@reverse/ai/providers/transform-messages";
 import type {

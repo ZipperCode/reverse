@@ -10,7 +10,6 @@ export * from "./file-lock";
 export * from "./format";
 export * from "./frontmatter";
 export * from "./fs-error";
-export * from "./fs-open";
 export * from "./incoming-json";
 export * from "./i18n";
 export * from "./json";

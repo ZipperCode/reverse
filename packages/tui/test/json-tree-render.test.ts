@@ -1,7 +1,64 @@
 import { describe, expect, test } from "bun:test";
+import { getThemeByName, initTheme, theme } from "@reverse/tui/theme";
+import {
+	describeJsonTree,
+	formatArgsInline,
+	JSON_TREE_INLINE_LEN,
+	JSON_TREE_MAX_DEPTH_EXPANDED,
+	renderJsonTreeLines,
+} from "@reverse/tui/tools/json-tree";
 import { INTENT_FIELD } from "@reverse/wire";
-import { formatArgsInline, JSON_TREE_MAX_DEPTH_EXPANDED, renderJsonTreeLines } from "@reverse/tui/tools/json-tree";
-import { initTheme, theme } from "@reverse/tui/theme";
+
+/** The top-level rows of `value`'s described tree: label text, and whether it expands. */
+function treeRows(value: unknown): { text: string; expands: boolean }[] {
+	const tree = describeJsonTree(value, { hiddenRootKeys: [] });
+	if (tree.k !== "tree") throw new Error(`expected a tree, got ${tree.k}`);
+	return (tree.p?.nodes ?? []).map(item => ({
+		text: typeof item.label === "string" ? item.label : item.label.map(part => part.t).join(""),
+		expands: (item.children?.length ?? 0) > 0,
+	}));
+}
+
+describe("small JSON containers", () => {
+	// Python's `Counter.most_common()` prints tuples of tuples: one row per pair,
+	// not five rows of bracketed indices.
+	const counts = [
+		[[3, "daemon_wire_decode"], 121],
+		[[6, "vt"], 98],
+	];
+
+	test("show whole on one tree row", () => {
+		expect(treeRows(counts)).toEqual([
+			{ text: '0: [[3, "daemon_wire_decode"], 121]', expands: false },
+			{ text: '1: [[6, "vt"], 98]', expands: false },
+		]);
+		expect(treeRows({ args: { stream: 0, "line count": 70, empty: [] } })).toEqual([
+			{ text: 'args: {stream: 0, "line count": 70, empty: []}', expands: false },
+		]);
+	});
+
+	test("expand once their one-line form passes the budget", () => {
+		const fits = "x".repeat(JSON_TREE_INLINE_LEN - 4);
+		expect(treeRows([[fits], [`${fits}x`]])).toEqual([
+			{ text: `0: ["${fits}"]`, expands: false },
+			{ text: "1 [1]", expands: true },
+		]);
+	});
+
+	test("align their indices like line numbers", () => {
+		const rows = treeRows(Array.from({ length: 11 }, (_, i) => [i]));
+		expect([rows[0]?.text, rows[10]?.text]).toEqual([" 0: [0]", "10: [10]"]);
+	});
+
+	test("show whole on one terminal row", async () => {
+		const theme = (await getThemeByName("dark"))!;
+		const { lines } = renderJsonTreeLines(counts, theme, { maxDepth: 2, maxLines: 10, maxScalarLen: 60 });
+		const plain = lines.map(line => Bun.stripANSI(line).trimEnd());
+		expect(plain).toHaveLength(2);
+		expect(plain[0]).toEndWith(' 0: [[3, "daemon_wire_decode"], 121]');
+		expect(plain[1]).toEndWith(' 1: [[6, "vt"], 98]');
+	});
+});
 
 describe("formatArgsInline", () => {
 	test("a trailing scalar grows into the available width instead of a fixed cap", () => {
@@ -38,7 +95,7 @@ describe("formatArgsInline", () => {
 describe("renderJsonTreeLines truncation detection", () => {
 	test("marks depth truncation when object exceeds maxDepth", async () => {
 		await initTheme(false);
-		const res = renderJsonTreeLines({ a: { b: { c: 1 } } }, theme, 2, 6, 60);
+		const res = renderJsonTreeLines({ a: { b: { c: "x".repeat(JSON_TREE_INLINE_LEN) } } }, theme, 2, 6, 60);
 		expect(res.truncated).toBe(true);
 	});
 

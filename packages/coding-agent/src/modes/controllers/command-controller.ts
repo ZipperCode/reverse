@@ -10,7 +10,17 @@ import {
 	type UsageLimit,
 	type UsageReport,
 } from "@reverse/ai";
-import { type Component, Loader, Markdown, padding, Spacer, Text, visibleWidth, wrapTextWithAnsi } from "@reverse/tui";
+import {
+	type Component,
+	Loader,
+	Markdown,
+	padding,
+	parseSgrMouse,
+	Spacer,
+	Text,
+	visibleWidth,
+	wrapTextWithAnsi,
+} from "@reverse/tui";
 import { formatDuration, logger, Snowflake, sanitizeText } from "@reverse/utils";
 import { getActiveProfile, getConfigDirName } from "@reverse/utils/dirs";
 import { classifyTerminalMultiplexer } from "@reverse/tui/terminal-multiplexer";
@@ -36,11 +46,12 @@ import { MoveOverlay, type MoveOverlayResult } from "@reverse/tui/overlays/move-
 import { moveDirectorySource } from "../move-directory-source";
 import { getMarkdownTheme, getSymbolTheme, theme, type Theme } from "@reverse/tui/theme";
 import type { InteractiveModeContext } from "../../modes/types";
-import { ContextUsageView, contextUsageHead } from "@reverse/tui/status-line/context-usage";
+import { ContextViewer } from "@reverse/tui/overlays/context-viewer";
 import type { OverlayHandle } from "@reverse/tui";
 import { ReportPanel } from "@reverse/tui/overlays/report-panel";
 import type { TspText } from "@reverse/wire";
 import { computeSessionContextBreakdown } from "../../session/context-usage-runtime";
+import { buildSessionContextView } from "../../session/context-view";
 import { buildHotkeysMarkdown, HotkeysSheetComponent } from "@reverse/tui/hotkeys-markdown";
 import { isNativeRendering } from "@reverse/tui/native/state";
 import { buildToolsMarkdown } from "@reverse/tui/prompt/tools-markdown";
@@ -174,8 +185,8 @@ function hasForkApiKeyOverride(argv: string[]): boolean {
 }
 
 export class CommandController {
-	/** The open native report sheet. */
-	#reportSheet: OverlayHandle | undefined;
+	/** The open native report sheet and the component it shows. */
+	#reportSheet: { handle: OverlayHandle; component: Component } | undefined;
 	#forkTerminalDependencies: ForkTerminalDependencies;
 
 	constructor(
@@ -221,9 +232,24 @@ export class CommandController {
 		const sheet = this.#reportSheet;
 		if (!sheet) return;
 		this.#reportSheet = undefined;
-		sheet.hide();
+		sheet.handle.hide();
+		// Like the docked report, a closed sheet is never shown again.
+		sheet.component.dispose?.();
 		this.ctx.ui.setFocus(this.ctx.editorContainer.children[0] ?? this.ctx.editor);
 		this.ctx.ui.requestRender();
+	}
+
+	/** Open `component` as a focused full-screen page; callers close any previous sheet first. */
+	#showFullscreenSheet(component: Component): void {
+		const handle = this.ctx.ui.showOverlay(component, {
+			anchor: "bottom-center",
+			width: "100%",
+			maxHeight: "100%",
+			margin: 0,
+			fullscreen: true,
+		});
+		this.#reportSheet = { handle, component };
+		this.ctx.ui.setFocus(component);
 	}
 
 	/**
@@ -250,19 +276,15 @@ export class CommandController {
 		});
 		if (isNativeRendering()) {
 			report.holdFocus();
-			this.#reportSheet = this.ctx.ui.showOverlay(report, { anchor: "center", width: "90%", maxHeight: "90%" });
+			this.#reportSheet = {
+				handle: this.ctx.ui.showOverlay(report, { anchor: "center", width: "90%", maxHeight: "90%" }),
+				component: report,
+			};
 			this.ctx.ui.setFocus(report);
 		} else if (report.heightAt(terminal.columns) > inline) {
 			fullScreen = true;
 			report.holdFocus();
-			this.#reportSheet = this.ctx.ui.showOverlay(report, {
-				anchor: "bottom-center",
-				width: "100%",
-				maxHeight: "100%",
-				margin: 0,
-				fullscreen: true,
-			});
-			this.ctx.ui.setFocus(report);
+			this.#showFullscreenSheet(report);
 		} else {
 			this.ctx.reportContainer.addChild(report);
 		}
@@ -867,17 +889,27 @@ export class CommandController {
 	}
 
 	handleContextCommand(): void {
-		const breakdown = computeSessionContextBreakdown(this.ctx.session, { snapcompactSavings: true });
-		if (breakdown.contextWindow <= 0) {
+		const session = this.ctx.session;
+		if (!session.model) {
 			this.ctx.showWarning("Context usage is unavailable: no model is selected for this session.");
 			return;
 		}
-		// Natively the body is `/context`'s own card (meters, legend, compaction mark).
-		this.showCommandReport({
-			title: "Context Usage",
-			head: contextUsageHead(breakdown),
-			body: new ContextUsageView(breakdown, theme),
+		// Validate capacity before tokenizing the whole history into a snapshot.
+		const breakdown = computeSessionContextBreakdown(session, { snapcompactSavings: true });
+		if (!(breakdown.contextWindow > 0) || !Number.isFinite(breakdown.contextWindow)) {
+			this.ctx.showWarning("Context usage is unavailable: the model's context window is unknown or invalid.");
+			return;
+		}
+		const data = buildSessionContextView(session, breakdown);
+		this.#clearReport();
+		this.#closeReportSheet();
+		const viewer = new ContextViewer(data, {
+			onClose: () => this.#closeReportSheet(),
+			requestRender: () => this.ctx.ui.requestRender(),
+			getRows: () => this.ctx.ui.terminal.rows,
 		});
+		this.#showFullscreenSheet(viewer);
+		this.ctx.ui.requestRender();
 	}
 
 	async handleMemoryCommand(text: string): Promise<void> {
@@ -1764,7 +1796,10 @@ export class CommandController {
 		isDeferred: boolean,
 		shouldPersistCwd: boolean,
 	): Promise<boolean> {
-		this.ctx.bashComponent = new BashExecutionComponent(command, this.ctx.ui, excludeFromContext);
+		const component = new BashExecutionComponent(command, this.ctx.ui, excludeFromContext);
+		this.ctx.bashComponent = component;
+		let detachInput: (() => void) | undefined;
+		let finished = false;
 
 		if (isDeferred) {
 			this.ctx.pendingMessagesContainer.addChild(this.ctx.bashComponent);
@@ -1790,6 +1825,15 @@ export class CommandController {
 					pty: {
 						...bashPtyViewport(this.ctx.ui),
 						onChunk: chunk => this.ctx.bashComponent?.appendPtyChunk(chunk),
+						onStdin: write => {
+							if (finished) return;
+							// A TSP field without a mode handles printable keys itself and sends
+							// `edit` packets instead of raw input. Label it while the PTY owns
+							// the keyboard so Tern delivers those keys to the input listener.
+							detachInput = this.#forwardKeysToPty(component, write);
+							this.ctx.editor.nativeKeyPassthrough = true;
+							this.ctx.ui.requestRender();
+						},
 					},
 				},
 			);
@@ -1818,10 +1862,32 @@ export class CommandController {
 			}
 			this.ctx.showError(`Bash command failed: ${error instanceof Error ? error.message : "Unknown error"}`);
 		} finally {
+			finished = true;
+			detachInput?.();
+			if (detachInput) this.ctx.editor.nativeKeyPassthrough = false;
 			this.ctx.bashComponent = undefined;
 			this.ctx.ui.requestRender();
 		}
 		return false;
+	}
+
+	/**
+	 * Routes composer keystrokes to a running `!` command's PTY so it can answer
+	 * its own prompts (`read`, shell-startup questions), like a foreground job.
+	 * The interrupt key still cancels; focused dialogs and mouse reports keep
+	 * their input. Returns the detach function.
+	 */
+	#forwardKeysToPty(component: BashExecutionComponent, write: (data: string) => void): () => void {
+		return this.ctx.ui.addInputListener(
+			data => {
+				if (this.ctx.ui.getFocused() !== this.ctx.editor) return undefined;
+				if (this.ctx.keybindings.matches(data, "app.interrupt") || parseSgrMouse(data)) return undefined;
+				const bytes = component.encodePtyInput(data);
+				if (bytes) write(bytes);
+				return { consume: true };
+			},
+			{ prepend: true },
+		);
 	}
 
 	async #applyBashResultCwd(result: BashResult): Promise<boolean> {

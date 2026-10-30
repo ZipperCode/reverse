@@ -5,10 +5,11 @@
  * (extension-flag-aware) persistence validation, so it has to be skipped under
  * `--no-session`.
  */
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { parseArgs } from "@reverse/coding-agent/cli/args";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { runRootCommand } from "@reverse/coding-agent/main";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import { TempDir } from "@reverse/utils";
@@ -19,6 +20,11 @@ class ProcessExitSignal extends Error {
 		this.name = "ProcessExitSignal";
 	}
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearReverseExtensionCliRoots();
+});
 
 describe("runRootCommand — --no-session --resume", () => {
 	it("rejects a bare native --resume without invoking the picker", async () => {

@@ -3,13 +3,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { SessionSelectorComponent } from "@reverse/tui/overlays/session-selector";
+import { Settings } from "@reverse/coding-agent/config/settings";
 import { SelectorController } from "@reverse/coding-agent/modes/controllers/selector-controller";
 import { initTheme } from "@reverse/tui/theme";
 import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 import type { SessionInfo } from "@reverse/coding-agent/session/session-listing";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { Container, Input, Text, TUI } from "@reverse/tui";
-import { Settings } from "@reverse/coding-agent/config/settings";
 import { VirtualRenderScheduler } from "../../../../tui/test/virtual-render-scheduler";
 import { VirtualTerminal } from "../../../../tui/test/virtual-terminal";
 
@@ -146,6 +146,7 @@ describe("SelectorController session replacement overlay", () => {
 		const ctx = {
 			editor,
 			editorContainer,
+			settings: Settings.isolated(),
 			sessionManager: {
 				getCwd: () => "/tmp",
 				getSessionDir: () => "/tmp",
@@ -175,7 +176,7 @@ describe("SelectorController session replacement overlay", () => {
 		selector!.handleInput("\n");
 		await resumeStarted.promise;
 
-		expect(handleResume).toHaveBeenCalledWith(session.path);
+		expect(handleResume).toHaveBeenCalledWith(session.path, { followContinuation: true });
 		expect(hide).not.toHaveBeenCalled();
 
 		// The selector remains mounted until resume finishes, but it must not accept

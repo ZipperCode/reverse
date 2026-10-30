@@ -28,7 +28,7 @@ preload=$scripts_dir/reverse.ts
 timing_preload=$scripts_dir/../../utils/src/module-timer.ts
 
 launch_dir=${REVERSE_DEV_LAUNCH_DIR:-${HOME}/.reverse/.dev-cwd}
-mkdir -p "$launch_dir"
+[ -d "$launch_dir" ] || mkdir -p "$launch_dir"
 
 REVERSE_LAUNCH_CWD=$PWD
 export REVERSE_LAUNCH_CWD

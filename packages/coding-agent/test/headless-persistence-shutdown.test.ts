@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import { parseArgs, type Args } from "@reverse/coding-agent/cli/args";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { runRootCommand } from "@reverse/coding-agent/main";
 import type { CreateAgentSessionResult } from "@reverse/coding-agent/sdk";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
@@ -32,6 +33,9 @@ const RAW_FATAL_DUMP_RE = /(?:^|\n)\s+at [^\n]*:\d+:\d+/;
 const tempDirs: TempDir[] = [];
 
 afterEach(async () => {
+	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+	clearReverseExtensionCliRoots();
+
 	await Promise.all(tempDirs.splice(0).map(dir => dir.remove()));
 });
 

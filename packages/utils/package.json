@@ -1,6 +1,6 @@
 {
   "name": "@reverse/utils",
-  "version": "18.13.1",
+  "version": "18.14.0",
   "description": "Shared utilities for pi packages",
   "keywords": [
     "cli",
@@ -60,7 +60,7 @@
     "@types/bun": "catalog:"
   },
   "engines": {
-    "bun": ">=1.3.14"
+    "bun": ">=1.4.4"
   },
   "private": true
 }

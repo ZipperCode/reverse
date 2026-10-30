@@ -31,7 +31,7 @@ export const launchHelp = {
 	},
 	flags: {
 		model: Flags.string({
-			description: 'Model to use (fuzzy match: "opus", "gpt-5.2", or "openai/gpt-5.2")',
+			description: 'Model to use (fuzzy match: "opus", "gpt-5.2"; exact with a provider: "openai/gpt-5.2")',
 		}),
 		smol: Flags.string({ description: "Smol/fast model for lightweight tasks (or REVERSE_SMOL_MODEL env)" }),
 		slow: Flags.string({ description: "Slow/reasoning model for thorough analysis (or REVERSE_SLOW_MODEL env)" }),

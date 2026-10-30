@@ -10,10 +10,11 @@
  * exits; the in-session `/resume` picker (selector-controller.ts) keeps its own
  * onCancel that just closes the overlay.
  */
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { parseArgs } from "@reverse/coding-agent/cli/args";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { runRootCommand } from "@reverse/coding-agent/main";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import { TempDir } from "@reverse/utils";
@@ -24,6 +25,11 @@ class ProcessExitSignal extends Error {
 		this.name = "ProcessExitSignal";
 	}
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearReverseExtensionCliRoots();
+});
 
 describe("runRootCommand — startup --resume picker cancellation", () => {
 	it("exits cleanly (process.exit 0) when the picker is cancelled instead of returning and hanging", async () => {

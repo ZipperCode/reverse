@@ -9,17 +9,15 @@ import { NO_AUTH_SENTINEL } from "@reverse/ai/auth-retry";
 import {
 	applyClaudeToolPrefix,
 	buildAnthropicClientOptions,
-	buildAnthropicHeaders,
 	claudeCodeSystemInstruction,
 	claudeToolPrefix,
 	deriveClaudeDeviceId,
 	generateClaudeCloakingUserId,
 	isClaudeCloakingUserId,
-	mapStainlessArch,
-	mapStainlessOs,
 	streamAnthropic,
 	stripClaudeToolPrefix,
 } from "@reverse/ai/providers/anthropic";
+import { buildAnthropicHeaders, mapStainlessArch, mapStainlessOs } from "@reverse/ai/providers/anthropic-headers";
 import type { MessageCreateParams } from "@reverse/ai/providers/anthropic-wire";
 import { getClaudeCodeVersion } from "@reverse/ai/providers/claude-code-fingerprint";
 import { getEnvApiKey } from "@reverse/ai/env-api-key";

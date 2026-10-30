@@ -5,12 +5,24 @@ Use it for any merge: single file, feature branch, or full release sync.
 
 ## reverse ↔ oh-my-pi release tracking
 
-reverse follows the stable [oh-my-pi releases](https://github.com/can1357/oh-my-pi/releases), retaining its own executable, package scope, configuration, prompts, providers, and reverse-engineering tools.
+reverse 基于 oh-my-pi 改造，版本号跟随 omp 的稳定版本迭代；每次升级同步对应版本的功能与修复，并保留 reverse 的逆向能力、命名、独立配置、中文设置与提示词约定。
 
-- Current upstream release: **18.13.1** (`0838d2ab4407b74e870de07e1a6780a13c7d542c`, 2026-10-27).
-- Imported range: `v18.11.2` (`470b7efb67673960d37e3e64584669e6e9caad1c`) → `v18.13.1`.
-- All release-train TypeScript packages, the workspace catalog, native crate versions, and lockfiles use the upstream release version. The independently versioned browser-relay extension and tool-views package retain their upstream versions.
-- Development uses upstream's pinned **Bun 1.4.4**. Build the native addon before starting the updated CLI; version stamps and new native exports must match.
+- Current upstream release: **18.14.0** (`31147f9d1a76608549821c3759f8487b4d66c72d`, 2026-10-29).
+- Imported range: `v18.13.1` (`0838d2ab4407b74e870de07e1a6780a13c7d542c`) → `v18.14.0`.
+- All release-train TypeScript packages, the workspace catalog, native crate versions, and lockfiles use the upstream release version. The independently versioned browser-relay extension and export-viewer package retain their upstream versions.
+- Development uses **Bun 1.4.4**; upstream requires Bun >=1.4.4. Build the native addon before starting the updated CLI; version stamps and new native exports must match.
+
+### 18.14.0 integration verification
+
+- Frozen dependency installation, native addon and standalone builds, TypeScript lint/format/types, and root maintenance-script types passed with Bun 1.4.4.
+- Source and standalone CLI report `reverse/18.14.0`; both pass `--smoke-test` and isolated loopback-provider print-mode calls. The interactive Chinese setup exposes all five panels; the reverse panel opens the real tool/service selection and installation prompt.
+- Workspace packages, native/TUI/export-viewer packages (including 4,226 TUI tests), the singleton bucket (1,260 passing tests), all 73 UI chunks, and all 110 native/tooling/browser chunks passed after targeted fixes and reruns of affected chunks. Node-dependent fixture groups use the installed Node 24 runtime.
+- Rust acceptance passed 4,816 tests with 2 skipped, runnable doctests, and the Rust check gate. Live native shell smoke exercised rsync file transfer, AST search, sorting, and recursive grep.
+- A real `file://` HTML export rendered Markdown and a version table with no external script URLs; injected script content did not execute. Source and standalone exports embed the new transcript/trace viewer and work offline.
+- The isolated stats suite passed 197 tests, including dashboard port reuse/conflicts, incremental ingestion, cost accounting, and trace construction.
+- All 34 runtime/session chunks passed after targeted fixes and reruns of affected chunks, including native-resume retry/message persistence, TTSR bridge/security, RPC session-switch cancellation, and prompt-result settlement.
+- This delta includes provider/OAuth fixes, session continuation and idle maintenance, context and JSON viewers, native setup UI, `out://`, file-backed tasks, native AST search/walking, and rsync support.
+- Preserve user prompt templates, reverse-specific toolchain notices, all five setup/install panels, Chinese configuration translations, and the task execution/acceptance gates. Public distribution infrastructure, hosted sharing/update/reporting services, upstream credential/cache databases, and robomp remain excluded.
 
 ### 18.13.1 integration verification
 
@@ -26,13 +38,13 @@ reverse follows the stable [oh-my-pi releases](https://github.com/can1357/oh-my-
 
    ```sh
    git fetch upstream --tags
-   git diff v18.13.1..<next-stable-tag> -- packages crates docs scripts package.json bun.lock Cargo.toml Cargo.lock
+   git diff v18.14.0..<next-stable-tag> -- packages crates docs scripts package.json bun.lock Cargo.toml Cargo.lock
    ```
 
 2. Apply that release delta with a three-way merge using the recorded upstream release as the base. The original fork was imported as a source snapshot and has no shared upstream Git ancestor; a plain unrelated-history merge is not the integration baseline.
 3. Map `@oh-my-pi/pi-*` imports to the existing `@reverse/*` packages, including `pi-agent-core` → `agent`, `omp-stats` → `stats`, and `omptype` → `reversetype`. Preserve app-level `reverse`/`REVERSE_*` identity and the existing low-level `PI_*` contracts. Keep third-party identifiers and protocols, such as DeepInfra `sort_by=omp`, OpenMP variables, and legacy pi extension imports, unchanged.
 4. Keep intentionally removed public distribution infrastructure and hosted collab/share/update/automatic issue-reporting services absent. Merge their shared runtime fixes only where those paths still exist. Preserve the complete reverse tool registry, dependency checks, provider model discovery/multi-select, and all five CLI/TUI setup panels with real installation actions.
-5. Regenerate compatibility rules, native bindings, browser-relay assets, and HTML tool views through their existing scripts. Keep English text and add Chinese configuration translations through the i18n layer. Synthesize system-prompt changes from parallel drafts; user prompt templates retain their existing content.
+5. Regenerate compatibility rules, native bindings, browser-relay assets, and the HTML export viewer through their existing scripts. Keep English text and add Chinese configuration translations through the i18n layer. Synthesize system-prompt changes from parallel drafts; user prompt templates retain their existing content.
 6. Run frozen dependency installation, native and executable builds, TypeScript/Rust checks, relevant behavioral suites, source and compiled CLI smoke tests, and an isolated interactive setup preview. Update this release marker and package changelogs with the new upstream range and any intentionally excluded surfaces.
 
 The sections below describe the older **pi-mono → omp** porting process; its historical marker is separate from reverse's omp release baseline above.
@@ -134,7 +146,7 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "myapp-"));
 
 ## 5) Prefer Bun embeds (no copying)
 
-Do not add new runtime asset copy steps. Keep assets in repo and prefer Bun embeds/imports; preserve existing explicit generation workflows such as `packages/coding-agent/src/export/html/tool-views.generated.js` (built from collab-web sources via `bun run gen:tool-views`).
+Do not add new runtime asset copy steps. Keep assets in repo and prefer Bun embeds/imports; preserve the explicit content-addressed HTML viewer generation workflow (`bun run gen:export-viewer`, built from collab-web sources).
 
 - If upstream copies assets into a dist folder, replace with Bun-friendly embeds.
 - Prompts are static `.md` files; use Bun text imports (`with { type: "text" }`) and Handlebars instead of inline prompt strings.

@@ -8,6 +8,7 @@ import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/set
 import { initializeWithSettings, loadCapability } from "@reverse/coding-agent/discovery";
 import { clearClaudePluginRootsCache } from "@reverse/coding-agent/discovery/helpers";
 import { discoverCustomToolPaths, loadCustomTools } from "@reverse/coding-agent/extensibility/custom-tools/loader";
+import { __closeExtensionParseCacheForTests } from "@reverse/coding-agent/extensibility/plugins/legacy-pi-compat";
 import { __resetDirsFromEnvForTests, CONFIG_DIR_NAME, removeWithRetries, setAgentDir } from "@reverse/utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
@@ -61,6 +62,8 @@ describe("native executable custom tool discovery", () => {
 		restoreEnvValue("REVERSE_PROFILE", originalReverseProfileEnv);
 		restoreEnvValue("REVERSE_CODING_AGENT_DIR", originalAgentDirEnv);
 		__resetDirsFromEnvForTests();
+		// Loading the fixtures opens the legacy extension parse cache under the temp HOME; Windows can't remove it while open.
+		__closeExtensionParseCacheForTests();
 		await removeWithRetries(root);
 	});
 

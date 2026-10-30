@@ -1,9 +1,15 @@
-import { expect, it } from "bun:test";
+import { afterEach, expect, it } from "bun:test";
 import { discoverAuthStorage } from "@reverse/coding-agent/sdk";
 import { parseArgs } from "@reverse/coding-agent/cli/args";
 import { resetSettingsForTest } from "@reverse/coding-agent/config/settings";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { runRootCommand } from "@reverse/coding-agent/main";
 import { getDbBusyTimeoutMs, setInteractiveHost, TempDir } from "@reverse/utils";
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearReverseExtensionCliRoots();
+});
 
 it("classifies an interactive host before opening auth storage", async () => {
 	const previous = setInteractiveHost(false);

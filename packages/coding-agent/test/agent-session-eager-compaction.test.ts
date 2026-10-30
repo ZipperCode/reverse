@@ -4,7 +4,7 @@ import { type } from "@reverse/reversetype";
 import { Agent, type AgentMessage, type AgentTool } from "@reverse/agent";
 import * as compactionModule from "@reverse/agent/compaction";
 import type { Model, TextContent } from "@reverse/ai";
-import * as codexResponses from "@reverse/ai/providers/openai-codex-responses";
+import * as codexResponses from "@reverse/ai/providers/openai-codex-state";
 import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import { getBundledModel } from "@reverse/catalog/models";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";

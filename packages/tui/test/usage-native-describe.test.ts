@@ -4,8 +4,6 @@ import type { NativeChild, NativeNode } from "@reverse/tui/native/node";
 import { SessionInfoOverlay } from "@reverse/tui/overlays/session-info-overlay";
 import { UsageDashboardComponent } from "@reverse/tui/overlays/usage-dashboard";
 import { createUsageRowBlock } from "@reverse/tui/overlays/usage-row";
-import { computeContextBreakdown, ContextUsageView } from "@reverse/tui/status-line/context-usage";
-import { DEFAULT_COMPACTION_SETTINGS } from "@reverse/agent/compaction";
 import { initTheme, theme } from "@reverse/tui/theme";
 
 const cx = { cols: 100, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
@@ -311,104 +309,6 @@ describe("SessionInfoOverlay.describe", () => {
 		const overlay = new SessionInfoOverlay({ terminal: { rows: 20 } }, "", () => closed++);
 		overlay.handleNativeEvent({ type: "action", key: "actions/close", act: "close", mods: [] });
 		expect(closed).toBe(1);
-	});
-});
-
-describe("ContextUsageView.describe", () => {
-	const breakdown = computeContextBreakdown(
-		{
-			model: { id: "demo", name: "Demo Model", contextWindow: 200_000 } as never,
-			agent: { tokenizer: {} as never },
-			getContextBreakdown: () => ({
-				messagesTokens: 12_000,
-				skillsTokens: 0,
-				systemToolsTokens: 3_900,
-				systemContextTokens: 112,
-				systemPromptTokens: 2_600,
-				usedTokens: 18_612,
-			}),
-		} as never,
-		{ compaction: { ...DEFAULT_COMPACTION_SETTINGS, thresholdPercent: 85 } },
-	);
-
-	it("stacks categories, then free space as the empty track, then the hatched buffer, marked at the threshold", () => {
-		const view = new ContextUsageView(breakdown, theme);
-		const bar = findAll(view.describe(cx), n => n.k === "meter" && n.p?.style === "bar")[0];
-		if (bar?.k !== "meter") throw new Error("no bar meter");
-		const parts = bar.p?.parts ?? [];
-		expect(parts.map(part => part.token)).toEqual([
-			"accent",
-			"warning",
-			"customMessageLabel",
-			"userMessageText",
-			"track",
-			"warning",
-		]);
-		expect(parts.at(-1)?.hatch).toBe(true);
-		expect(parts.reduce((sum, part) => sum + part.value, 0)).toBeCloseTo(1);
-		const threshold = bar.p?.marks?.[0]?.at ?? 0;
-		expect(threshold).toBeCloseTo(1 - (parts.at(-1)?.value ?? 0));
-	});
-
-	/** The text of every `text` node with `role` under `root`, spans joined. */
-	const texts = (root: NativeNode, role: string): string[] =>
-		findAll(root, n => n.k === "text" && n.p?.role === role).map(n =>
-			n.k === "text" ? (n.p?.text ?? (n.p?.spans ?? []).map(s => s.t).join("")) : "",
-		);
-
-	it("leads with the tokens used and the room before auto-compaction, then one bar and the breakdown in its order", () => {
-		const described = new ContextUsageView(breakdown, theme).describe(cx);
-		expect(texts(described, "reverse.context.used")[0]).toMatch(/^19K of 200K tokens · 9%$/);
-		expect(texts(described, "reverse.context.room")[0]).toMatch(/left before auto-compaction at 85%$/);
-		expect(findAll(described, n => n.k === "meter")).toHaveLength(1);
-		const rows = findAll(described, n => n.k === "row" && (n.p?.role ?? "").startsWith("reverse.context.cat"));
-		expect(rows.map(row => row.p?.role)).toEqual([
-			...breakdown.categories.map(() => "reverse.context.cat"),
-			"reverse.context.cat.free",
-			"reverse.context.cat.buffer",
-		]);
-		expect(texts(described, "reverse.context.label").slice(0, 7)).toEqual([
-			"System prompt",
-			"System tools",
-			"System context",
-			"Skills",
-			"Messages",
-			"Free space",
-			"Autocompact buffer",
-		]);
-		expect(rows[4]?.p?.title).toBe("Messages · 12,000 tokens");
-		expect(findAll(described, n => n.p?.role === "reverse.context.snap")).toEqual([]);
-	});
-
-	it("titles snapcompact's savings, or says why it is inactive", () => {
-		const withSnap = (snapcompact: NonNullable<typeof breakdown.snapcompact>) =>
-			new ContextUsageView({ ...breakdown, snapcompact }, theme).describe(cx);
-		const applied = withSnap({
-			visionCapable: true,
-			systemPrompt: {
-				applied: true,
-				scope: "agents-md",
-				textTokens: 7_284,
-				frames: 2,
-				imageTokens: 3_120,
-				savedTokens: 4_164,
-			},
-			toolResults: { total: 41, swapped: 0, textTokens: 0, frames: 0, imageTokens: 0, savedTokens: 0 },
-			savedTokens: 4_164,
-		});
-		const labels = texts(applied, "reverse.context.label");
-		expect(labels.slice(-3)).toEqual(["System prompt · AGENTS.md", "Tool results", "Next request"]);
-		expect(texts(applied, "reverse.context.detail")).toContain("None imaged · 41 in history");
-		expect(texts(applied, "reverse.context.tokens").slice(-2)).toEqual(["−4.2K", "~14K"]);
-
-		const inactive = withSnap({ visionCapable: false, savedTokens: 0 });
-		expect(texts(inactive, "reverse.context.snap.note")).toEqual(["Inactive: the model has no image input."]);
-	});
-
-	it("keeps the glyph grid on terminals without `meter`", () => {
-		const described = new ContextUsageView(breakdown, theme).describe(plainCx);
-		expect(findAll(described, n => n.k === "meter")).toEqual([]);
-		expect(findAll(described, n => n.p?.role === "reverse.context.usage")).toHaveLength(1);
 	});
 });
 

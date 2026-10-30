@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AgentOutputManager } from "@reverse/coding-agent/task/output-manager";
-import { PINNED_HUD_TOGGLE_ID } from "@reverse/tui/prompt/composer";
+import { AgentOutputManager, PINNED_HUD_TOGGLE_ID } from "@reverse/coding-agent/task/output-manager";
 import { TempDir } from "@reverse/utils";
 
 // Contract: subagent output ids are the requested name, used verbatim the first

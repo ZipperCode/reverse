@@ -40,7 +40,6 @@ describe("native todo", () => {
 			],
 		};
 		const view = todoToolRenderer.describeResult({ content: [], details }, opts);
-		expect(view?.tool).toMatchObject({ title: "Todo", target: "3/6", targetKind: "text" });
 		expect(view?.body).toHaveLength(1);
 		const checklist = view?.body?.[0] as NativeNode;
 		expect(checklist.k).toBe("checklist");

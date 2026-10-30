@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { buildAnthropicClientOptions, resolveAnthropicPrewarmTarget } from "@reverse/ai/providers/anthropic";
+import { buildAnthropicClientOptions } from "@reverse/ai/providers/anthropic";
+import { resolveAnthropicPrewarmTarget } from "@reverse/ai/providers/anthropic-http-options";
 import { prewarmModelConnection, resetConnectionPrewarmForTesting } from "@reverse/ai/providers/connection-prewarm";
 import type { FetchImpl, Model } from "@reverse/ai/types";
 import { resetDispatchOriginsForTesting, transportFetch } from "@reverse/ai/utils/transport-fetch";

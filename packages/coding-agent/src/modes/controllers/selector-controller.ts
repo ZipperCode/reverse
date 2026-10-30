@@ -1,10 +1,6 @@
 import { type AgentMessage, type AgentToolResult, ThinkingLevel } from "@reverse/agent";
 import type { CompactionOutcome } from "@reverse/agent/compaction";
-import type { Model, PASTE_CODE_LOGIN_PROVIDERS as PasteCodeLoginProviders, UsageReport } from "@reverse/ai";
-import type {
-	getOAuthCredentialProvider as GetOAuthCredentialProvider,
-	getOAuthProviders as GetOAuthProviders,
-} from "@reverse/ai/oauth";
+import type { Model, UsageReport } from "@reverse/ai";
 import type { OAuthProvider } from "@reverse/ai/oauth/types";
 import * as vcs from "@reverse/natives/vcs";
 import type { Component, OverlayHandle } from "@reverse/tui";
@@ -66,6 +62,7 @@ import { getAvailableThemes, getSymbolTheme, previewTheme, theme } from "@revers
 import type {
 	AgentHubOpenOptions,
 	InteractiveModeContext,
+	ResumeSessionOptions,
 	SelectOnlyModelSelectorOptions,
 	SessionPickHandler,
 } from "../../modes/types";
@@ -82,9 +79,9 @@ import { previewModelCompactionPoint, setModelCompactionPoint } from "../../sess
 import { isTranscriptEntry, type TranscriptEntry } from "../../session/session-context";
 import { isUserRequestEntry } from "@reverse/tui/chat/transcript-entry";
 import type { SessionEntry, SessionTreeNode } from "../../session/session-entries";
-import { readSessionInfo, type SessionInfo } from "../../session/session-listing";
+import { findSessionContinuation, readSessionInfo, type SessionInfo } from "../../session/session-listing";
 import { SessionManager } from "../../session/session-manager";
-import { loadPinnedSessionIds } from "../../session/session-pins";
+import { loadPinnedSessionIds, setSessionPinned } from "../../session/session-pins";
 import { FileSessionStorage } from "../../session/session-storage";
 import { listLogoutAccounts, logoutCredential } from "../../slash-commands/helpers/logout";
 import type { LogoutAccount } from "@reverse/tui/overlays/logout-account-selector";
@@ -127,12 +124,10 @@ import { ExtensionDashboard } from "@reverse/tui/overlays/extensions/extension-d
 import { listLiveToolRecords, liveToolRecordFromSession } from "@reverse/tui/overlays/extensions/live-tool-session";
 import { createExtensionDashboardRuntime } from "../components/extensions/dashboard-runtime";
 import { HistorySearchComponent } from "@reverse/tui/overlays/history-search";
-import type { LoginDialogComponent as LoginDialogComponentType } from "@reverse/tui/overlays/login-dialog";
-import type { LogoutAccountSelectorComponent as LogoutAccountSelectorComponentType } from "@reverse/tui/overlays/logout-account-selector";
 import { ModelHubComponent, type ModelRoleSelectionScope } from "@reverse/tui/overlays/model-hub";
 import { createModelBrowserSource } from "../model-browser-source";
+import { formatSessionContinuationNotice } from "../persistence-failure";
 import { ModelPickerComponent } from "@reverse/tui/overlays/model-picker";
-import type { OAuthSelectorComponent as OAuthSelectorComponentType } from "@reverse/tui/overlays/oauth-selector";
 import { PluginSelectorComponent } from "@reverse/tui/overlays/plugin-selector";
 import { type ResetUsageAccount, ResetUsageSelectorComponent } from "@reverse/tui/overlays/reset-usage-selector";
 import { type BranchVariantPath, RewindSelectorComponent } from "@reverse/tui/overlays/rewind-selector";
@@ -149,7 +144,7 @@ import type { SessionObserverRegistry } from "@reverse/tui/overlays/session-obse
 import { cfgAdvisorSyncBacklog } from "../../advisor/settings";
 import { cfgBranchSummaryEnabled } from "../../session/context-settings";
 import { cfgCycleOrder, cfgDisabledProviders, cfgModelRoleStorage } from "../../config/model-settings";
-import { cfgDefaultThinkingLevel, cfgRetryFallbackChains } from "../../session/settings";
+import { cfgDefaultThinkingLevel, cfgRetryFallbackChains, cfgSessionWorktreeScope } from "../../session/settings";
 import {
 	cfgStatusLineCompactThinkingLevel,
 	cfgStatusLineContextLine,
@@ -166,25 +161,22 @@ import {
 } from "../settings";
 import { cfgTaskAgentModelOverrides } from "../../task/settings";
 
-interface ProviderAuthUiModules {
-	PASTE_CODE_LOGIN_PROVIDERS: typeof PasteCodeLoginProviders;
-	getOAuthProviders: typeof GetOAuthProviders;
-	getOAuthCredentialProvider: typeof GetOAuthCredentialProvider;
-	LoginDialogComponent: typeof LoginDialogComponentType;
-	LogoutAccountSelectorComponent: typeof LogoutAccountSelectorComponentType;
-	OAuthSelectorComponent: typeof OAuthSelectorComponentType;
-}
-
-/** Synchronous first-use boundary for provider auth catalog and dialog components. */
-function loadProviderAuthUi(): ProviderAuthUiModules {
+/** First-use boundary for provider auth catalog and dialog components. */
+async function loadProviderAuthUi() {
+	const [{ PASTE_CODE_LOGIN_PROVIDERS }, oauth, loginDialog, logoutSelector, oauthSelector] = await Promise.all([
+		import("@reverse/ai"),
+		import("@reverse/ai/oauth"),
+		import("@reverse/tui/overlays/login-dialog"),
+		import("@reverse/tui/overlays/logout-account-selector"),
+		import("@reverse/tui/overlays/oauth-selector"),
+	]);
 	return {
-		PASTE_CODE_LOGIN_PROVIDERS: require("@reverse/ai/index.js").PASTE_CODE_LOGIN_PROVIDERS,
-		getOAuthProviders: require("@reverse/ai/registry/oauth/index.js").getOAuthProviders,
-		getOAuthCredentialProvider: require("@reverse/ai/registry/oauth/index.js").getOAuthCredentialProvider,
-		LoginDialogComponent: require("@reverse/tui/overlays/login-dialog.js").LoginDialogComponent,
-		LogoutAccountSelectorComponent: require("@reverse/tui/overlays/logout-account-selector.js")
-			.LogoutAccountSelectorComponent,
-		OAuthSelectorComponent: require("@reverse/tui/overlays/oauth-selector.js").OAuthSelectorComponent,
+		PASTE_CODE_LOGIN_PROVIDERS,
+		getOAuthProviders: oauth.getOAuthProviders,
+		getOAuthCredentialProvider: oauth.getOAuthCredentialProvider,
+		LoginDialogComponent: loginDialog.LoginDialogComponent,
+		LogoutAccountSelectorComponent: logoutSelector.LogoutAccountSelectorComponent,
+		OAuthSelectorComponent: oauthSelector.OAuthSelectorComponent,
 	};
 }
 
@@ -285,7 +277,7 @@ export class SelectorController {
 	}
 
 	async #refreshOAuthProviderAuthState(): Promise<void> {
-		const { getOAuthProviders } = loadProviderAuthUi();
+		const { getOAuthProviders } = await loadProviderAuthUi();
 		const oauthProviders = getOAuthProviders();
 		await Promise.all(
 			oauthProviders.map(provider =>
@@ -1831,7 +1823,12 @@ export class SelectorController {
 			};
 		} else {
 			const [loadedSessions, pinnedIds] = await Promise.all([
-				SessionManager.listForPicker(this.ctx.sessionManager.getCwd(), this.ctx.sessionManager.getSessionDir()),
+				SessionManager.listForPicker(
+					this.ctx.sessionManager.getCwd(),
+					this.ctx.sessionManager.getSessionDir(),
+					undefined,
+					cfgSessionWorktreeScope.get(this.ctx.settings),
+				),
 				loadPinnedSessionIds(),
 			]);
 			sessions = loadedSessions;
@@ -1839,7 +1836,7 @@ export class SelectorController {
 			const historyMatcher = historyStorage
 				? (query: string) => historyStorage.matchingSessionIds(query)
 				: undefined;
-			onSelectSession = session => this.handleResumeSession(session.path);
+			onSelectSession = session => this.handleResumeSession(session.path, { followContinuation: true });
 			selectorOptions = {
 				...(!onSelect
 					? {
@@ -1858,6 +1855,40 @@ export class SelectorController {
 									);
 								}
 							},
+							onRename: async (session: SessionInfo, title: string): Promise<string | null> => {
+								if (this.ctx.sessionManager.getSessionFile() === session.path) {
+									// A session that has only been read does not hold
+									// its ownership lease, so another reverse process can
+									// claim it; the live rename would then fork onto
+									// a sibling and still report success, leaving the
+									// row here pointing at the old path. Claim the
+									// lease up front and refuse while it is held by
+									// someone else.
+									const claim = new FileSessionStorage().claimSession(session.id, session.path);
+									if (!claim) {
+										throw new Error(
+											"Failed to rename session: it is currently in use by another reverse process",
+										);
+									}
+									try {
+										const renamed = await this.ctx.sessionManager.setSessionName(title, "user");
+										return renamed ? (this.ctx.sessionManager.getSessionName() ?? null) : null;
+									} finally {
+										claim();
+									}
+								}
+								const renamed = await SessionManager.renameSessionTitle(session.path, title, {
+									cwd: session.cwd,
+								});
+								// The picker renders the failure itself; throwing
+								// hands it the reason so it can show one message
+								// instead of two.
+								if (!renamed) {
+									throw new Error("Failed to rename session: it is currently in use or no longer available");
+								}
+								return renamed;
+							},
+							onSetPinned: (session: SessionInfo, pinned: boolean) => setSessionPinned(session.id, pinned),
 						}
 					: {
 							title: "Select a Session to Consult",
@@ -1969,7 +2000,10 @@ export class SelectorController {
 		return true;
 	}
 
-	async handleResumeSession(sessionPath: string, options?: { settingsFlushed?: boolean }): Promise<boolean> {
+	async handleResumeSession(
+		sessionPath: string,
+		options?: ResumeSessionOptions & { settingsFlushed?: boolean },
+	): Promise<boolean> {
 		const previousCwd = this.ctx.sessionManager.getCwd();
 		// Flush pending settings writes before switching sessions so a save
 		// failure leaves the session, process project dir, and Settings in the
@@ -1982,7 +2016,11 @@ export class SelectorController {
 				return false;
 			}
 		}
-		const target = await this.#relocateFromRemovedWorktree(sessionPath);
+		// The conversation may have gone on in a sibling file while another process held this one.
+		const continuation =
+			options?.continuation ??
+			(options?.followContinuation ? await findSessionContinuation(sessionPath) : undefined);
+		const target = await this.#relocateFromRemovedWorktree(continuation?.session.path ?? sessionPath);
 		if (!target) return false;
 		await this.ctx.prepareSessionSwitch();
 		this.ctx.resetObserverRegistry();
@@ -2018,6 +2056,7 @@ export class SelectorController {
 					? `Resumed session in ${shortenPath(newCwd)}`
 					: "Resumed session",
 		);
+		if (continuation) this.ctx.showWarning(formatSessionContinuationNotice(continuation));
 		if (modelFallbackWarning) this.ctx.showWarning(modelFallbackWarning);
 		return true;
 	}
@@ -2097,7 +2136,8 @@ export class SelectorController {
 	 */
 	async #handleOAuthLogin(providerId: string): Promise<boolean> {
 		this.ctx.showStatus(`Logging in to ${providerId}…`);
-		const { getOAuthCredentialProvider, LoginDialogComponent, PASTE_CODE_LOGIN_PROVIDERS } = loadProviderAuthUi();
+		const { getOAuthCredentialProvider, LoginDialogComponent, PASTE_CODE_LOGIN_PROVIDERS } =
+			await loadProviderAuthUi();
 		const useManualInput = PASTE_CODE_LOGIN_PROVIDERS.has(providerId);
 		let restored = false;
 		const restoreEditor = () => {
@@ -2241,7 +2281,7 @@ export class SelectorController {
 			);
 			return;
 		}
-		const { getOAuthProviders, LogoutAccountSelectorComponent } = loadProviderAuthUi();
+		const { getOAuthProviders, LogoutAccountSelectorComponent } = await loadProviderAuthUi();
 		const provider = getOAuthProviders().find(candidate => candidate.id === providerId);
 		if (accounts.length === 0) {
 			const source = authStorage.keys.describe(
@@ -2280,7 +2320,7 @@ export class SelectorController {
 			return;
 		}
 
-		const { getOAuthProviders, OAuthSelectorComponent } = loadProviderAuthUi();
+		const { getOAuthProviders, OAuthSelectorComponent } = await loadProviderAuthUi();
 		if (mode === "logout") {
 			await this.#refreshOAuthProviderAuthState();
 			const oauthProviders = getOAuthProviders();
@@ -2481,7 +2521,7 @@ export class SelectorController {
 			this.ctx.showStatus("Select a model before pinning a provider account.");
 			return;
 		}
-		const { getOAuthProviders } = loadProviderAuthUi();
+		const { getOAuthProviders } = await loadProviderAuthUi();
 		const provider = getOAuthProviders().find(candidate => candidate.id === accountList.provider);
 		const providerName = provider?.name ?? accountList.provider;
 		const accounts = toSessionPinAccounts(accountList.accounts);

@@ -27,10 +27,8 @@ import * as ai from "@reverse/ai";
 import { NO_AUTH_SENTINEL } from "@reverse/ai/auth-retry";
 import * as AIError from "@reverse/ai/error";
 import { clearAwsCredentialCache } from "@reverse/ai/providers/aws-credentials";
-import {
-	buildTransformedCodexRequestBody,
-	getOpenAICodexTransportDetails,
-} from "@reverse/ai/providers/openai-codex-responses";
+import { buildTransformedCodexRequestBody } from "@reverse/ai/providers/openai-codex-responses";
+import { getOpenAICodexTransportDetails } from "@reverse/ai/providers/openai-codex-state";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,

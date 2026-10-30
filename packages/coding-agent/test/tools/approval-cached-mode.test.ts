@@ -22,7 +22,7 @@ import {
 	clearApprovalGrants,
 	getApprovalGrants,
 } from "@reverse/coding-agent/tools/approval-cache";
-import { approvalTargetKey } from "@reverse/coding-agent/tools/approval-targets";
+import { approvalTargetKey, approvalTreeSearchKey } from "@reverse/coding-agent/tools/approval-targets";
 import { getAgentDir, isRecord, setAgentDir, TempDir } from "@reverse/utils";
 import { shortenPath } from "@reverse/tui/render/render-utils";
 
@@ -186,6 +186,25 @@ describe("grant choices in the prompt", () => {
 		return { ui, prompts };
 	}
 
+	it.each([
+		[
+			"a directory and a file in another directory",
+			(dir: string) => [approvalDirectoryKey(dir), approvalTargetKey(path.dirname(dir), "a.md")!],
+		],
+		[
+			"a file and a recursive search of its directory",
+			(dir: string) => [approvalTargetKey(dir, "a.md")!, approvalTreeSearchKey(approvalDirectoryKey(dir))],
+		],
+		["a file and an internal URL", (dir: string) => [approvalTargetKey(dir, "a.md")!, "local://a.md"]],
+	])("offers no directory grant for %s, since it would not cover every target", async (_, targets) => {
+		const dir = path.join(freshAgentDir(), "work");
+		fs.mkdirSync(dir);
+		const tool: AgentTool = { ...pathTool("read", "read", dir), approvalCacheTargets: () => targets(dir) };
+		const { ui, prompts } = recordingUi();
+		await requestApproval(ui, tool, {}, { grants: true });
+		expect(prompts[0]!.grants?.map(grant => grant.scope)).toEqual(["target"]);
+	});
+
 	it("offers the folder and the file, and names and lists the folder a grant would cover", async () => {
 		const agentDir = freshAgentDir();
 		const desktop = path.join(agentDir, "Desktop");
@@ -332,6 +351,8 @@ describe("always-ask-cached wrapper cycle", () => {
 				input: async () => undefined,
 				notify: () => {},
 				onTerminalInput: () => () => {},
+				rerenderMessage: () => {},
+				getLinkClicksAvailable: () => false,
 				setStatus: () => {},
 				setWorkingMessage: () => {},
 				setWidget: () => {},

@@ -486,4 +486,22 @@ export const toolsSettingsZhCN: Record<string, SettingTranslation> = {
 		label: "MCP 通知防抖",
 		description: "将 MCP 资源更新注入对话前的防抖窗口（毫秒）",
 	},
+	"out.enabled": {
+		label: "任务中途回复",
+		description:
+			"允许主代理写入 out:// 显示 Markdown 回复并继续执行；默认仅在交互界面启用，显式设置适用于其他会话模式。子代理不提供此能力。",
+	},
+	"tools.xdevNotices": {
+		label: "工具设备挂载通知",
+		description: "显示 xd:// 工具挂载和卸载通知；关闭仅隐藏通知，代理仍会在下次请求时获知工具变化。",
+	},
+	"extensionHandlers.modeControl": {
+		label: "扩展模式控制",
+		description: "允许扩展通过 ctx.sessionModes.set() 进入和退出 plan、vibe、goal 和 loop 模式；读取模式状态始终可用",
+	},
+	"extensionRenderers.assistantText": {
+		label: "扩展回复渲染器",
+		description:
+			"允许扩展更改助手回复的绘制方式、就地重绘回复并接收其自有链接的点击；会话、导出和模型上下文仍保留原始回复文本",
+	},
 };

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { KeybindingsManager } from "@reverse/tui/app-keybindings";
 import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
-import { PINNED_HUD_TOGGLE_ID } from "@reverse/tui/prompt/composer";
+import { PINNED_HUD_TOGGLE_ID } from "@reverse/coding-agent/task/output-manager";
 import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
 import { SpaceHoldGesture } from "@reverse/tui/space-hold";
 import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
@@ -55,6 +55,7 @@ function makeHarness(options?: { detailClickResult?: boolean; candidatesAtRow?: 
 			routedDetailClicks.push({ index, col });
 			return options?.detailClickResult ?? false;
 		},
+		activateViewportLink: () => false,
 		focusedAgentId: undefined,
 		focusAgentSession: async (id: string) => {
 			focused.push(id);

@@ -154,18 +154,13 @@ Example:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ZipperCode/rev/main/packages/coding-agent/src/config/mcp-schema.json",
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "/Users/alice/projects",
-        "/Users/alice/Documents"
-      ]
-    }
-  }
+	"$schema": "https://raw.githubusercontent.com/ZipperCode/rev/main/packages/coding-agent/src/config/mcp-schema.json",
+	"mcpServers": {
+		"filesystem": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/alice/projects", "/Users/alice/Documents"]
+		}
+	}
 }
 ```
 
@@ -233,12 +228,12 @@ reverse understands two auth-related objects.
 
 ```json
 {
-  "type": "oauth",
-  "credentialId": "optional-stored-credential-id",
-  "tokenUrl": "optional-token-endpoint",
-  "clientId": "optional-client-id",
-  "clientSecret": "optional-client-secret",
-  "resource": "optional-mcp-resource-uri"
+	"type": "oauth",
+	"credentialId": "optional-stored-credential-id",
+	"tokenUrl": "optional-token-endpoint",
+	"clientId": "optional-client-id",
+	"clientSecret": "optional-client-secret",
+	"resource": "optional-mcp-resource-uri"
 }
 ```
 
@@ -272,13 +267,13 @@ profile for untrusted checkouts.
 
 ```json
 {
-  "clientId": "...",
-  "clientSecret": "...",
-  "scope": "optional space-separated scopes",
-  "redirectUri": "...",
-  "callbackPort": 3334,
-  "callbackPath": "/oauth/callback",
-  "prompt": "consent"
+	"clientId": "...",
+	"clientSecret": "...",
+	"scope": "optional space-separated scopes",
+	"redirectUri": "...",
+	"callbackPort": 3334,
+	"callbackPath": "/oauth/callback",
+	"prompt": "consent"
 }
 ```
 
@@ -326,18 +321,13 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ZipperCode/rev/main/packages/coding-agent/src/config/mcp-schema.json",
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "/absolute/path/one",
-        "/absolute/path/two"
-      ]
-    }
-  }
+	"$schema": "https://raw.githubusercontent.com/ZipperCode/rev/main/packages/coding-agent/src/config/mcp-schema.json",
+	"mcpServers": {
+		"filesystem": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-filesystem", "/absolute/path/one", "/absolute/path/two"]
+		}
+	}
 }
 ```
 
@@ -359,23 +349,16 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ZipperCode/rev/main/packages/coding-agent/src/config/mcp-schema.json",
-  "mcpServers": {
-    "github": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e",
-        "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN"
-      }
-    }
-  }
+	"$schema": "https://raw.githubusercontent.com/ZipperCode/rev/main/packages/coding-agent/src/config/mcp-schema.json",
+	"mcpServers": {
+		"github": {
+			"command": "docker",
+			"args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+			"env": {
+				"GITHUB_PERSONAL_ACCESS_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN"
+			}
+		}
+	}
 }
 ```
 
@@ -417,15 +400,15 @@ Example:
 
 ```json
 {
-  "mcpServers": {
-    "github": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-        "Authorization": "Bearer ${GITHUB_TOKEN}"
-      }
-    }
-  }
+	"mcpServers": {
+		"github": {
+			"type": "http",
+			"url": "https://api.githubcopilot.com/mcp/",
+			"headers": {
+				"Authorization": "Bearer ${GITHUB_TOKEN}"
+			}
+		}
+	}
 }
 ```
 
@@ -444,12 +427,12 @@ Examples:
 
 ```json
 {
-  "env": {
-    "GITHUB_PERSONAL_ACCESS_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN"
-  },
-  "headers": {
-    "X-MCP-Insiders": "true"
-  }
+	"env": {
+		"GITHUB_PERSONAL_ACCESS_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN"
+	},
+	"headers": {
+		"X-MCP-Insiders": "true"
+	}
 }
 ```
 
@@ -521,7 +504,7 @@ reverse loads providers in descending priority. The MCP-capable order is:
 7. OpenCode
 8. Cursor and Windsurf
 9. VS Code
-10. root `mcp.json` / `.mcp.json` fallback files
+10.   root `mcp.json` / `.mcp.json` fallback files
 
 Across providers, the first definition wins. Duplicate names are not merged; OpenCode's internal config layers are the exception described above. A differently named definition is also shadowed when its transport, endpoint/command inputs, auth, and request-id mode are equivalent to a higher-priority definition.
 

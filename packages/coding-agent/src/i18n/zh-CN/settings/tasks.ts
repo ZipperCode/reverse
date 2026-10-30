@@ -251,4 +251,9 @@ export const tasksSettingsZhCN: Record<string, SettingTranslation> = {
 		label: "OpenCode 项目命令",
 		description: "从 .opencode/commands/ 加载命令",
 	},
+	"task.file": {
+		label: "从文件读取任务指令",
+		description:
+			"允许通过 taskFile 指定 UTF-8 指令文件（绝对路径或 local://）；每项在 task 与 taskFile 中选择一个，派发时记录文件内容与 SHA-256。",
+	},
 };

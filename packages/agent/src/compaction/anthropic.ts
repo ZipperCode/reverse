@@ -18,7 +18,6 @@ import type {
 	Usage,
 } from "@reverse/ai";
 import * as AIError from "@reverse/ai/error";
-import { resolveAnthropicCompactionEffort } from "@reverse/ai/providers/anthropic";
 import {
 	supportsAnthropicCompaction,
 	supportsBedrockConverseCompaction,
@@ -251,6 +250,14 @@ export async function requestAnthropicNativeCompaction(
 	signal: AbortSignal | undefined,
 	options: AnthropicNativeCompactionOptions,
 ): Promise<AnthropicNativeCompactionResponse> {
+	// Pure compaction policy checks must not load the provider; only an actual request needs it.
+	const reasoning = isAnthropicMessagesModel(model)
+		? (await import("@reverse/ai/providers/anthropic")).resolveAnthropicCompactionEffort(
+				model,
+				request.context.messages,
+				request.reasoning,
+			)
+		: request.reasoning;
 	const response = await instrumentedCompleteSimple(
 		model,
 		request.context,
@@ -258,9 +265,7 @@ export async function requestAnthropicNativeCompaction(
 			apiKey,
 			signal,
 			maxTokens: request.maxTokens,
-			reasoning: isAnthropicMessagesModel(model)
-				? resolveAnthropicCompactionEffort(model, request.context.messages, request.reasoning)
-				: request.reasoning,
+			reasoning,
 			initiatorOverride: options.initiatorOverride,
 			metadata: options.metadata,
 			fetch: options.fetch,

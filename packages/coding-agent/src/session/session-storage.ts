@@ -7,7 +7,6 @@ import { getSessionOwnersDir } from "@reverse/utils/dirs";
 import { isBunTestRuntime } from "@reverse/utils/env";
 import { type FileLockHandle, tryAcquireFileLock, withFileLockSync } from "@reverse/utils/file-lock";
 import { type FsError, hasFsCode, isEnoent } from "@reverse/utils/fs-error";
-import { openCloexecSync } from "@reverse/utils/fs-open";
 import * as logger from "@reverse/utils/logger";
 import { peekFileEnds } from "@reverse/utils/peek-file";
 import { Snowflake } from "@reverse/utils/snowflake";
@@ -168,6 +167,15 @@ export interface SessionStorage {
 	confirmWrites?(path: string): Promise<void>;
 	ensureDirSync(dir: string): void;
 	existsSync(path: string): boolean;
+	/**
+	 * Whether the backing store has confirmed `path` exists. {@link existsSync}
+	 * on a deferring backend also reports queued, unconfirmed writes; a check
+	 * that must not outlive an aborted publish (an exit-time resume hint) uses
+	 * this instead. In-body backends omit it: their {@link existsSync} already
+	 * reports confirmed state. A {@link defersSyncPublish} backend that omits
+	 * it is treated as never confirmed.
+	 */
+	existsConfirmedSync?(path: string): boolean;
 	writeTextSync(path: string, content: string, options?: SessionStorageWriteOptions): void;
 	/**
 	 * Streaming {@link writeTextSync}: publishes the concatenation of `lines`
@@ -309,7 +317,7 @@ class FileSessionStorageWriter implements SessionStorageWriter {
 			fs.mkdirSync(dir, { recursive: true });
 		}
 		// Open file once, keep fd for lifetime
-		this.#fd = openCloexecSync(
+		this.#fd = fs.openSync(
 			fpath,
 			SESSION_WRITE_FLAGS | (flags === "w" ? fs.constants.O_TRUNC : fs.constants.O_APPEND),
 		);
@@ -340,7 +348,7 @@ class FileSessionStorageWriter implements SessionStorageWriter {
 		const live = statPathByHandle(this.#fpath);
 		if (!live) return fs.fstatSync(this.#fd).size;
 		if (live.ino === held.ino && live.dev === held.dev) return Number(live.size);
-		const nextFd = openCloexecSync(this.#fpath, SESSION_WRITE_FLAGS | fs.constants.O_APPEND);
+		const nextFd = fs.openSync(this.#fpath, SESSION_WRITE_FLAGS | fs.constants.O_APPEND);
 		writerRegistry.unregister(this);
 		try {
 			fs.closeSync(this.#fd);

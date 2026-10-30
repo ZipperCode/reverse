@@ -9,10 +9,11 @@
  * so an unreachable broker stays fatal — the fix is the recovery guidance, not
  * a silent fallback to local credentials.
  */
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import { AuthBrokerError } from "@reverse/ai/auth-broker";
 import { MissingApiKeyError } from "@reverse/ai/error";
 import { parseArgs } from "@reverse/coding-agent/cli/args";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { runRootCommand } from "@reverse/coding-agent/main";
 import { describeAuthBrokerStartupError } from "@reverse/coding-agent/session/auth-broker-config";
 import { setInteractiveHost } from "@reverse/utils";
@@ -23,6 +24,11 @@ class ProcessExitSignal extends Error {
 		this.name = "ProcessExitSignal";
 	}
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearReverseExtensionCliRoots();
+});
 
 describe("describeAuthBrokerStartupError", () => {
 	it("turns a broker connection failure into recovery guidance", async () => {

@@ -24,6 +24,9 @@ import type {
 	TerminalInputHandler,
 } from "../../extensibility/extensions";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
+import { cfgExtensionAssistantTextRenderers } from "../../extensibility/settings";
+import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
+import { isNativeRendering } from "@reverse/tui/native/state";
 import { ApprovalDialogComponent } from "@reverse/tui/overlays/approval-dialog";
 import {
 	type AskDialogPrompt,
@@ -35,6 +38,7 @@ import { installExtensionComposerShape } from "@reverse/tui/overlays/composer-sh
 import { EditorTopGap } from "@reverse/tui/prompt/editor-top-gap";
 import { HookEditorComponent, type HookEditorOptions } from "@reverse/tui/overlays/hook-editor";
 import { HookInputComponent } from "@reverse/tui/overlays/hook-input";
+import { extensionLinkClicksAvailable } from "@reverse/tui/render/extension-links";
 import { HookSelectorComponent, type HookSelectorSlider } from "@reverse/tui/overlays/hook-selector";
 import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, theme } from "@reverse/tui/theme";
 import type { InteractiveModeContext, InteractiveSelectorDialogOptions } from "../../modes/types";
@@ -99,11 +103,37 @@ export class ExtensionUiController {
 			this.#composerShapeDisposers.push(installExtensionComposerShape(definition));
 		}
 		this.ctx.syncComposerShape();
+		this.ctx.syncExtensionLinks();
 	}
 
 	/** Remove extension-owned composer styles from the process registries. */
 	disposeComposerShapes(): void {
 		for (const dispose of this.#composerShapeDisposers.splice(0)) dispose();
+	}
+
+	/**
+	 * Redraw every transcript component of the reply sent at `timestamp` (one per tool-call segment).
+	 * A plain terminal cannot repaint rows it already moved into scrollback, so a reply with retired
+	 * rows rebuilds the scrollback, as the thinking-visibility toggle does; one still in the live
+	 * viewport (and any block in Tern's native view) just repaints.
+	 */
+	#rerenderAssistantMessage(timestamp: number): void {
+		if (!cfgExtensionAssistantTextRenderers.get(this.ctx.settings)) return;
+		const native = isNativeRendering();
+		let redrawn = false;
+		let retired = false;
+		for (const child of this.ctx.chatContainer.children) {
+			if (!(child instanceof AssistantMessageComponent)) continue;
+			if (!child.rerenderMessage(timestamp)) continue;
+			redrawn = true;
+			retired ||= !native && !this.ctx.chatContainer.canRemoveBlock(child);
+		}
+		if (retired) {
+			this.ctx.chatContainer.resetStableEmission();
+			this.ctx.ui.resetDisplay();
+		} else if (redrawn) {
+			this.ctx.ui.requestRender();
+		}
 	}
 
 	/**
@@ -121,6 +151,8 @@ export class ExtensionUiController {
 			approve: (prompt, dialogOptions) => this.showCollabAwareApproval(prompt, dialogOptions),
 			notify: (message, type) => this.showHookNotify(message, type),
 			onTerminalInput: handler => this.addExtensionTerminalInputListener(handler),
+			rerenderMessage: timestamp => this.#rerenderAssistantMessage(timestamp),
+			getLinkClicksAvailable: extensionLinkClicksAvailable,
 			setStatus: (key, text) => this.setHookStatus(key, text),
 			setWorkingMessage: message => this.ctx.setWorkingMessage(message),
 			setWidget: (key, content, options) => this.setHookWidget(key, content, options),
@@ -213,10 +245,12 @@ export class ExtensionUiController {
 			resolvePlanReview: (reviewId, choice, input) => this.ctx.resolvePlanReview(reviewId, choice, input),
 			getPendingPlanReview: () => this.ctx.getPendingPlanReview(),
 			openPlanReview: () => this.ctx.openPlanReview({ fromExtension: true }),
+			sessionModes: this.ctx.sessionModes,
 			getContextUsage: () => this.ctx.session.getContextUsage(),
 			compact: instructionsOrOptions => this.#compactSession(instructionsOrOptions),
 			getSystemPrompt: () => this.ctx.session.systemPrompt,
 			runEphemeralTurn: args => this.ctx.session.runEphemeralTurn(args),
+			startLive: options => this.ctx.startRemoteLive(options),
 		};
 		const commandActions: ExtensionCommandContextActions = {
 			getContextUsage: () => this.ctx.session.getContextUsage(),
@@ -444,10 +478,12 @@ export class ExtensionUiController {
 			resolvePlanReview: (reviewId, choice, input) => this.ctx.resolvePlanReview(reviewId, choice, input),
 			getPendingPlanReview: () => this.ctx.getPendingPlanReview(),
 			openPlanReview: () => this.ctx.openPlanReview({ fromExtension: true }),
+			sessionModes: this.ctx.sessionModes,
 			getContextUsage: () => this.ctx.session.getContextUsage(),
 			compact: instructionsOrOptions => this.#compactSession(instructionsOrOptions),
 			getSystemPrompt: () => this.ctx.session.systemPrompt,
 			runEphemeralTurn: args => this.ctx.session.runEphemeralTurn(args),
+			startLive: options => this.ctx.startRemoteLive(options),
 		};
 		const commandActions: ExtensionCommandContextActions = {
 			getContextUsage: () => this.ctx.session.getContextUsage(),
@@ -713,16 +749,19 @@ export class ExtensionUiController {
 			let promptResolve: ((value: AskDialogPromptValue | undefined) => void) | undefined;
 			let closed = false;
 			const draftEditor = this.ctx.editor;
+			// A draft in progress when the ask lands keeps the keyboard, so in-flight
+			// typing never answers by accident; up/down hand input to the ask and the
+			// draft stays parked beneath it until the ask closes.
 			const inputGuard =
 				draftEditor.getText().length > 0
 					? {
 							isBlocked: () => draftEditor.getText().length > 0,
 							handleInput: (keyData: string) => draftEditor.handleDraftEdit(keyData),
-							hint: "Finish or clear the current prompt to answer",
+							hint: "typing edits your prompt",
 							// Show the draft's insertion cursor while it owns input; drop it
-							// once the draft clears and the ask controls take over.
-							syncPresentation: () => {
-								draftEditor.focused = draftEditor.getText().length > 0;
+							// once the ask controls take over.
+							syncPresentation: (blocked: boolean) => {
+								draftEditor.focused = blocked;
 							},
 						}
 					: undefined;
@@ -930,6 +969,7 @@ export class ExtensionUiController {
 				{
 					timeout: dialogOptions?.timeout,
 					onTimeout: dialogOptions?.onTimeout,
+					secret: dialogOptions?.secret,
 					tui: this.ctx.ui,
 				},
 			);

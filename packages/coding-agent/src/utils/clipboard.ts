@@ -4,6 +4,7 @@ import {
 	readImageFromClipboard as nativeReadImageFromClipboard,
 	readTextFromClipboard as nativeReadTextFromClipboard,
 } from "@reverse/natives/clipboard";
+import { isSshSession } from "@reverse/tui/terminal-capabilities";
 import { writeTerminalSequence } from "@reverse/tui/terminal";
 import { isWsl } from "@reverse/utils";
 import * as logger from "@reverse/utils/logger";
@@ -64,6 +65,17 @@ async function spawnCapture(
 
 function hasDisplay(): boolean {
 	return process.platform !== "linux" || Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+}
+
+/**
+ * True when the clipboard this process reads is the one the user's terminal copies into.
+ * Over SSH every backend reads a clipboard of the remote host (macOS `pbpaste`, the Windows host
+ * behind WSL, Termux, a host-side X11/Wayland desktop). Even an X11-forwarded `DISPLAY` cannot be
+ * trusted: a tmux session on the host keeps a stale `localhost:10.0` whose port a later SSH
+ * session (possibly another user's) can own, so SSH never reads the system clipboard.
+ */
+export function isClipboardTerminalLocal(env: NodeJS.ProcessEnv = process.env): boolean {
+	return !isSshSession(env);
 }
 
 /**

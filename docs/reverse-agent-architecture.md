@@ -200,7 +200,7 @@ Unidbg 是 Runtime Controller，不是 Skill。Skill 只决定何时使用、需
 - 设备校验明确指定 serial，比较已安装 APK 与本地产物 SHA-256，采集启动状态、进程日志和截图；目标功能验证单独记录。产物哈希和补丁坐标接入现有 `reverse_workflow` 构建谱系与证据体系。
 - Split APK 使用 `{ base, splits }` 显式集合，支持逐成员差分、替换、签名、安装与哈希核对。`package-set.json` 保存成员摘要，物理清单摘要与集合摘要分别记录；每次验证重查全体成员，包括无补丁构建。补丁使用 `package_member` 与包内 `member_path` 两级坐标。发布时先独占目录和所有权令牌，再链接成员，最后发布清单；受控读取拒绝未完成的发布目录。回滚仅删除身份仍匹配的本次产物。
 
-使用契约见 [dex_patch](tools/dex_patch.md) 与 [apk_artifact](tools/apk_artifact.md)。上游快照为 `bd6dd0c59ce1f9af75f1293ef9518fb6f5d28c6c`，版权及 MIT 许可保留在 `THIRD-PARTY-NOTICES.txt`；实验性内核与硬件模板未纳入稳定工具。
+使用契约见 [dex_patch](tools/dex_patch.md) 与 [apk_artifact](tools/apk_artifact.md)。上游快照为 `bd6dd0c59ce1f9af75f1293ef9518fb6f5d28c6c`，版权及 MIT 许可保留在 `packages/coding-agent/THIRD-PARTY-NOTICES.txt`；实验性内核与硬件模板未纳入稳定工具。
 
 ## Browser 目标链
 

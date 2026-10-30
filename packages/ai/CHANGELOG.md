@@ -7,6 +7,56 @@
 - Tracked deterministic tool dispatch failures by structured cause rather than task wording, with bounded state, prompt/session resets, corrected-precondition recovery, and hard-stop checks for warned retries.
 - Preserved structured Google terminal reasons and observed transport errors separately; missing terminal envelopes retain partial output without inferring filter or network causes from generated text (#11).
 
+## [18.14.0] - 2026-10-29
+
+### Breaking Changes
+
+- Moved Anthropic header and endpoint helpers, along with Codex session/transport inspection and OpenAI Responses replay/storage helpers, to dedicated provider modules. Update imports from the previous locations.
+- Updated auth-gateway model resolvers to receive `ModelResolveOptions`, including the route's native API wire and the scoped client's accepted grants. Scoped client IDs no longer fall back to scanning all models; resolvers now select the best permitted candidate.
+
+### Added
+
+- Added mTLS support for Anthropic connections through the `CLAUDE_CODE_CLIENT_CERT` and `CLAUDE_CODE_CLIENT_KEY` environment variables.
+
+### Changed
+
+- Provider implementations are now loaded on demand, reducing startup and memory overhead while preserving existing stream timeouts, cancellation, and host overrides.
+- Account policy `priority` now takes precedence when usage information is temporarily unavailable, keeping new sessions on the preferred account.
+- Improved provider-specific credential usage lookups so they no longer wait for unrelated providers, while preserving cache freshness, cancellation isolation, and complete aggregate reports. The corresponding server-side latency improvement requires an updated auth broker.
+- Credential usage is now prefetched during session setup without selecting, pinning, or advancing the OAuth account rotation.
+
+### Fixed
+
+- Fixed Mistral thinking-message replay requests that could be rejected by LiteLLM with a `422 extra_forbidden` error.
+- Fixed native Judge API requests missing the `reverse/<version>` User-Agent, so reverse usage is correctly identified in upstream statistics.
+- Fixed Codex capacity-error retries over WebSocket and SSE ignoring provider-supplied `Retry-After` delays and retrying too early.
+- Fixed cancelled OAuth refresh requests aborting the entire session, and ensured requests joining an existing refresh can still use the refreshed credential when the original request is cancelled.
+- Fixed Cursor models losing reverse system-prompt context, including context files, skills, and rules, on subsequent turns or when earlier messages precede the active turn.
+- Fixed short-lived commands that refresh OAuth credentials, such as `reverse token --force-refresh`, remaining open for several seconds after completing.
+- Fixed TypeSafe authentication when `TYPESAFE_BASE_URL` is configured by validating keys against the correct `/v1/models` endpoint.
+- Fixed forced tool calls on non-reasoning models causing an unhandled reasoning-effort error.
+- Fixed interrupted turns reporting a transport error instead of the caller-provided cancellation reason.
+- Fixed long-running pi-native turns being terminated before their first event by fetch or proxy timeouts by supporting keepalives and the configured first-event timeout.
+- Fixed pi-native clients crashing when the auth gateway reports an upstream failure during streaming.
+- Fixed Cursor turns failing after a mid-turn stream interruption when an automatic retry receives a zero-token provider error; retries now continue on the rotated conversation.
+- Corrected auth-gateway debug logs so they no longer claim a retry occurred when a usage-limit error was returned without retrying.
+
+## [18.13.3] - 2026-10-28
+
+### Changed
+
+- Updated Bun engine requirement to ≥1.4.4
+
+## [18.13.2] - 2026-10-27
+
+### Fixed
+
+- Fixed OAuth logins shared by several processes being disabled with `invalid_grant` when they refreshed at the same time or one of them quit mid-refresh ([#17128](https://github.com/can1357/oh-my-pi/pull/17128) by [@sjawhar](https://github.com/sjawhar))
+- Fixed transient Google 429 rate-limit and capacity responses retrying in place without blocking or rotating credentials, while daily caps and zero-entitlement limits still rotate ([#17127](https://github.com/can1357/oh-my-pi/pull/17127) by [@GTanger](https://github.com/GTanger))
+- Fixed Aliyun DashScope's multimodal gateway failing a turn on its intermittent `InvalidParameter` 400s for valid inline images ("provided URL does not appear to be valid", "Download multimodal file timed out"); they are now retried ([#17101](https://github.com/can1357/oh-my-pi/pull/17101) by [@shuairongzeng](https://github.com/shuairongzeng))
+- Fixed a revoked or rejected GitHub Copilot credential continuing to show its last cached usage quota instead of being dropped ([#17081](https://github.com/can1357/oh-my-pi/issues/17081))
+- Fixed Devin requests compressing the request body on the UI thread, which briefly froze the TUI on long conversations; requests under 1 KiB are now sent uncompressed
+
 ## [18.13.1] - 2026-10-27
 
 ### Fixed
@@ -2331,3 +2381,4 @@
 - Fixed local llama.cpp (and any local OpenAI-compatible server rendering the Qwen3.6+ chat template) re-processing the full prompt every new user message even with `replayReasoningContent` enabled (#3541 follow-up to #3528). Sending `reasoning_content` alone wasn't enough: Qwen3's chat template strips `<think>...</think>` from any assistant turn whose index is `<= last_query_index`, so the moment a new user message (the user's next prompt, or the auto-learn capture-at-stop nudge) lands, every prior assistant turn becomes "older" and is re-rendered without the `<think>` block — diverging from the generation tokens still in the slot's KV cache. The chat-completions encoder now emits `preserve_thinking: true` for Qwen thinking dialects on local servers, route-split the same way the existing `enable_thinking` emission is: the `qwen` dialect rides the top-level field (llama.cpp's `--jinja` hook and Alibaba Cloud Model Studio's compatible-mode), the `qwen-chat-template` dialect (NVIDIA NIM, vLLM/SGLang's chat-template-kwargs path) rides only `chat_template_kwargs.preserve_thinking` because NIM's request schema is `additionalProperties: false` and rejects unknown top-level fields (#2299). The emission is hoisted above the `reasoning.enabled` gate so it fires for THREE cases the original gating missed: (1) runtime-discovered local Qwen models that ship with `reasoning: false` because the upstream `/v1/models` doesn't advertise the capability (same gotcha #3532 fixed for `replayReasoningContent`), (2) caller-disabled reasoning (`/think off`) — the kwarg is a history-rendering knob, not a per-turn thinking switch, and the slot still holds `<think>` tokens from earlier turns, and (3) forced-tool-choice / DeepSeek-style auto-disable. Qwen3.6+ then renders `<think>...</think>` for every assistant turn regardless of position, and the next-turn render matches the cached generation tokens. ([#3541](https://github.com/can1357/oh-my-pi/issues/3541))
 
 Older entries are archived in [packages/ai/CHANGELOG.md@917a36589039](https://github.com/can1357/oh-my-pi/blob/917a365890396071a959dfd2865a3538518ef717/packages/ai/CHANGELOG.md).
+Older entries are archived in [packages/ai/CHANGELOG.md@ef4bc35e85d8](https://github.com/can1357/oh-my-pi/blob/ef4bc35e85d88932d92b01ae7121c9f47208cf40/packages/ai/CHANGELOG.md).

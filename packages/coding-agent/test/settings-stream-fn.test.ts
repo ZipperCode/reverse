@@ -10,7 +10,7 @@
 import { describe, expect, it } from "bun:test";
 import type { StreamFn } from "@reverse/agent";
 import { type Context, type Model, type SimpleStreamOptions, streamSimple } from "@reverse/ai";
-import { configureProviderStoreResponses } from "@reverse/ai/providers/openai-responses";
+import { configureProviderStoreResponses } from "@reverse/ai/providers/openai-responses-state";
 import type { FetchImpl } from "@reverse/ai/types";
 import { getBundledModel } from "@reverse/catalog/models";
 import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";

@@ -6,6 +6,15 @@ export const modelSettingsZhCN: Record<string, SettingTranslation> = {
 		description:
 			"先使用当前模型，在计划提示的待办列表出现后、首次编辑/写入时切换到快速/低成本模型（默认 'smol' 角色）——强模型负责规划、提交待办并开始实现，然后交接。可用 --prewalk / --no-prewalk 按会话覆盖。",
 	},
+	"prewalk.from": {
+		label: "预走规划模型",
+		description: "/prewalk restart 返回用于规划的模型或角色（默认 '@default'）。",
+	},
+	"prewalk.into": {
+		label: "预走目标",
+		description:
+			"预走在首次编辑/写入时交接到的模型或角色（默认 '@smol'）：适用于 /prewalk、/prewalk restart、启用预走及 --prewalk。自动预走使用其独立目标。",
+	},
 	"prewalk.auto": {
 		label: "自动预走（Auto Prewalk）",
 		description:

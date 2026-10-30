@@ -26,7 +26,7 @@
     "agent"
   ],
   "scripts": {
-    "gen:tool-views": "bun scripts/build-tool-views.ts",
+    "gen:export-viewer": "bun scripts/build-export-viewer.ts",
     "test": "bun test test/tool-view.test.tsx",
     "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",
     "check:types": "tsgo -p tsconfig.json --noEmit",
@@ -35,6 +35,7 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
+    "@reverse/stats": "catalog:",
     "@reverse/utils": "catalog:",
     "@reverse/wire": "catalog:",
     "react": "catalog:",
@@ -46,11 +47,11 @@
     "@types/react-dom": "catalog:"
   },
   "engines": {
-    "bun": ">=1.3.14"
+    "bun": ">=1.4.4"
   },
   "files": [
     "src/tool-render",
-    "scripts/build-tool-views.ts",
+    "scripts/build-export-viewer.ts",
     "README.md",
     "CHANGELOG.md"
   ]

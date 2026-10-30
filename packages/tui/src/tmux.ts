@@ -62,7 +62,7 @@ function queryTmuxClientTerminalNames(env: NodeJS.ProcessEnv): readonly string[]
 	}
 }
 
-const TMUX_COMMAND_TIMEOUT_MS = 500;
+const TMUX_COMMAND_TIMEOUT_MS = CLIENT_TERMINAL_TIMEOUT_MS;
 
 /** Run a tmux command against the current server; its stdout, or null on failure. */
 function runTmux(args: string[], env: NodeJS.ProcessEnv): string | null {

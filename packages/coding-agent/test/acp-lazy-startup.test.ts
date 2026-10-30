@@ -1,9 +1,10 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import type { Model } from "@reverse/ai";
 import { buildModel } from "@reverse/catalog/build";
 import { lookup } from "@reverse/coding-agent/config/registry";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { createAcpConnection } from "@reverse/coding-agent/modes/acp/acp-mode";
 import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 import type { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
@@ -172,6 +173,11 @@ async function closeTransport(writable: WritableStream<unknown>): Promise<void> 
 	}
 	await Promise.allSettled([writable.close()]);
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearReverseExtensionCliRoots();
+});
 
 describe("ACP lazy startup", () => {
 	it("applies schema defaults for ACP background jobs", async () => {

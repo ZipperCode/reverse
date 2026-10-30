@@ -33,6 +33,8 @@ export const MAX_OUTPUT_BYTES = parseNumber($env.PI_TASK_MAX_OUTPUT_BYTES, 500_0
 /** Maximum output lines per agent */
 export const MAX_OUTPUT_LINES = parseNumber($env.PI_TASK_MAX_OUTPUT_LINES, 5000);
 
+export const MAX_TASK_FILE_BYTES = 4 * 1024 * 1024;
+
 /** EventBus channel for raw subagent events */
 export const TASK_SUBAGENT_EVENT_CHANNEL = "task:subagent:event";
 
@@ -155,7 +157,7 @@ function taskAgentSchemaRule(defaultAgent: string): string {
 	return "string";
 }
 
-type SeanceTaskSchemaFields = {
+export type SeanceTaskSchemaFields = {
 	readonly sourceSession: Type;
 	readonly model?: Type;
 };
@@ -187,8 +189,10 @@ function createTaskSchema(options: {
 	effortEnabled: boolean;
 	evalToolsEnabled: boolean;
 	structured: boolean;
+	file: boolean;
 	seanceFields?: SeanceTaskSchemaFields;
 }): BaseType {
+	const taskFields = options.file ? { "task?": "string", "taskFile?": "string" } : { task: "string" };
 	const effortField = options.effortEnabled ? { "effort?": effortRule } : {};
 	const schemaFields = options.structured
 		? { "outputSchema?": outputSchemaInputSchema, "schemaMode?": '"permissive" | "strict"' }
@@ -197,7 +201,7 @@ function createTaskSchema(options: {
 	const isolatedField = options.isolationEnabled ? { "isolated?": "boolean" } : {};
 	const commonFields = {
 		"name?": "string",
-		task: "string",
+		...taskFields,
 		solutionSpace: "string",
 		...effortField,
 		...schemaFields,
@@ -261,6 +265,8 @@ export function getTaskSchema(options: {
 	evalToolsEnabled?: boolean;
 	/** Advertise `outputSchema`/`schemaMode` (`task.structured`); default on. */
 	structured?: boolean;
+	/** Advertise `taskFile` (`task.file`); default off. */
+	file?: boolean;
 	defaultAgent?: string;
 	/** Advertise the historical seance branch: `agent: "seance"` plus its source/model selectors. */
 	seanceFields?: SeanceTaskSchemaFields;
@@ -269,11 +275,12 @@ export function getTaskSchema(options: {
 	const effortEnabled = options.effortEnabled ?? false;
 	const evalToolsEnabled = options.evalToolsEnabled ?? true;
 	const structured = options.structured ?? true;
-	if (defaultAgent === "task" && !effortEnabled && evalToolsEnabled && structured && !options.seanceFields) {
+	const file = options.file ?? false;
+	if (defaultAgent === "task" && !effortEnabled && evalToolsEnabled && structured && !file && !options.seanceFields) {
 		if (options.batchEnabled) return options.isolationEnabled ? taskSchemaBatch : taskSchemaBatchNoIsolation;
 		return options.isolationEnabled ? taskSchema : taskSchemaNoIsolation;
 	}
-	const key = `${options.isolationEnabled ? "iso" : "flat"}:${options.batchEnabled ? "batch" : "single"}:${effortEnabled ? "effort" : "default"}:${evalToolsEnabled ? "tools" : "notools"}:${structured ? "structured" : "prose"}:${options.seanceFields ? "seance" : "plain"}:${defaultAgent}`;
+	const key = `${options.isolationEnabled ? "iso" : "flat"}:${options.batchEnabled ? "batch" : "single"}:${effortEnabled ? "effort" : "default"}:${evalToolsEnabled ? "tools" : "notools"}:${structured ? "structured" : "prose"}:${file ? "file" : "inline"}:${options.seanceFields ? "seance" : "plain"}:${defaultAgent}`;
 	const cached = taskSchemaCache.get(key);
 	if (cached) return cached;
 	const schema = createTaskSchema({
@@ -281,6 +288,7 @@ export function getTaskSchema(options: {
 		effortEnabled,
 		evalToolsEnabled,
 		structured,
+		file,
 		defaultAgent,
 	});
 	taskSchemaCache.set(key, schema);

@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import {
-	configureProviderStoreResponses,
-	pollOpenAIResponsesResultForCompletion,
-	streamOpenAIResponses,
-} from "@reverse/ai/providers/openai-responses";
+import { pollOpenAIResponsesResultForCompletion, streamOpenAIResponses } from "@reverse/ai/providers/openai-responses";
+import { configureProviderStoreResponses } from "@reverse/ai/providers/openai-responses-state";
 import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@reverse/ai/types";
 import { getBundledModel } from "@reverse/catalog/models";
 

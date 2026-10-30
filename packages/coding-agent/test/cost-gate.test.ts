@@ -17,6 +17,7 @@ import { runCli } from "@reverse/coding-agent/cli";
 import { parseArgs } from "@reverse/coding-agent/cli/args";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { runRootCommand } from "@reverse/coding-agent/main";
 import { PRINT_MODE_COST_CAP_EXIT_CODE, runPrintMode } from "@reverse/coding-agent/modes/print-mode";
 import { type CreateAgentSessionOptions, createAgentSession } from "@reverse/coding-agent/sdk";
@@ -74,6 +75,11 @@ function streamOf(message: AssistantMessage): AssistantMessageEventStream {
 	);
 	return stream;
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearReverseExtensionCliRoots();
+});
 
 describe("CostGate", () => {
 	function gateWith(values: Record<string, unknown>, recordedSpend = 0) {

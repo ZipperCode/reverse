@@ -27,12 +27,8 @@ import {
 import type { Dialect } from "@reverse/ai/dialect";
 import * as AIError from "@reverse/ai/error";
 import { createOpenAICodexCompactionRequestContext } from "@reverse/ai/providers/openai-codex-compaction";
-import {
-	buildTransformedCodexRequestBody,
-	type OpenAICodexCompactionBody,
-} from "@reverse/ai/providers/openai-codex-responses";
+import type { OpenAICodexCompactionBody } from "@reverse/ai/providers/openai-codex-responses";
 import type { InputItem as CodexInputItem } from "@reverse/ai/providers/openai-codex/request-transformer";
-import { convertTools } from "@reverse/ai/providers/openai-responses";
 import { buildResponsesInput, resolveOpenAICompatPolicy } from "@reverse/ai/providers/openai-shared";
 import { isSurvivingAssistant } from "@reverse/ai/providers/transform-messages";
 import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@reverse/ai/utils";
@@ -1890,6 +1886,8 @@ export async function compact(
 			let codexBody: OpenAICodexCompactionBody | undefined;
 			let remoteHistory: Array<Record<string, unknown>>;
 			if (isCodexResponsesModel(model)) {
+				// Load the serializer only when building a Codex compaction request, not session policy setup.
+				const { buildTransformedCodexRequestBody } = await import("@reverse/ai/providers/openai-codex-responses");
 				const previousCodexInput: CodexInputItem[] = [];
 				for (const item of previousReplacementHistory ?? []) {
 					if (!isCodexInputItem(item)) {
@@ -1950,12 +1948,17 @@ export async function compact(
 					? codexBody.instructions
 					: ""
 				: remoteSystemPrompt.join("\n\n");
+			// Responses serialization is needed only for this native compaction request.
 			const tools = codexBody
 				? Array.isArray(codexBody.tools)
 					? codexBody.tools
 					: undefined
 				: summaryOptions.tools
-					? convertTools(summaryOptions.tools, model.compat.supportsStrictMode, model)
+					? (await import("@reverse/ai/providers/openai-responses")).convertTools(
+							summaryOptions.tools,
+							model.compat.supportsStrictMode,
+							model,
+						)
 					: undefined;
 			const trimmed = trimRemoteCompactionInputToContextWindow(
 				remoteHistory,

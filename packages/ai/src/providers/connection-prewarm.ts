@@ -2,7 +2,7 @@ import { isCatalogEndpointUrl } from "@reverse/catalog/compat/catalog-endpoint";
 import { logger } from "@reverse/utils";
 import type { Api, FetchImpl, Model } from "../types";
 import { lastDispatchOrigin, transportFetch } from "../utils/transport-fetch";
-import { resolveAnthropicPrewarmTarget } from "./anthropic";
+import { resolveAnthropicPrewarmTarget } from "./anthropic-http-options";
 
 /**
  * Minimum gap between warm-ups of one origin. Idle pooled sockets outlive it

@@ -240,39 +240,7 @@ export class WelcomeComponent implements Component {
 	describe(_cx: DescribeContext): NativeNode {
 		const tip = this.tip;
 		if (this.#native && this.#native.tip === tip) return this.#native.node;
-		// Brand lines are short and fixed; never wrap or truncate them.
-		const art = (spans: readonly TspSpan[], role: string): NativeNode =>
-			keyed(text(spans, { wrap: "none", role }), role);
-		const lockupRow = keyed(
-			row(
-				[
-					node(
-						"image",
-						{
-							builtin: "reverse",
-							alt: APP_NAME,
-							w: 128,
-							role: "reverse.welcome.logo",
-						},
-						undefined,
-						"logo",
-					),
-					keyed(
-						col(
-							[
-								art([span(APP_NAME, "strong")], "reverse.welcome.wordmark"),
-								art([span(`v${this.version}`, "dim mono")], "reverse.welcome.version"),
-							],
-							{ role: "reverse.welcome.mark" },
-						),
-						"mark",
-					),
-				],
-				{ align: "center", gap: "md", role: "reverse.welcome.lockup" },
-			),
-			"lockup",
-		);
-		const body: NativeChild[] = [lockupRow];
+		const body: NativeChild[] = [lockupNode(this.version)];
 		if (tip) {
 			const isNew = NEW_TIP_MARKER.test(tip);
 			const tipText = compactText(tipSpans(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip)));
@@ -409,6 +377,41 @@ export class WelcomeComponent implements Component {
 	}
 }
 
+/**
+ * reverse's native lockup (`reverse.welcome.lockup`, keyed `lockup`): the terminal's
+ * builtin `reverse` mark, which it draws on, beside the `reverse` wordmark with
+ * `v<version>` under it. The welcome card and the setup splash show it.
+ */
+export function lockupNode(version: string): NativeNode {
+	// Brand lines are short and fixed; never wrap or truncate them.
+	const art = (spans: readonly TspSpan[], role: string): NativeNode =>
+		keyed(text(spans, { wrap: "none", role }), role);
+	return keyed(
+		row(
+			[
+				node(
+					"image",
+					{ builtin: "reverse", alt: APP_NAME, w: 128, role: "reverse.welcome.logo" },
+					undefined,
+					"logo",
+				),
+				keyed(
+					col(
+						[
+							art([span(APP_NAME, "strong")], "reverse.welcome.wordmark"),
+							art([span(`v${version}`, "dim mono")], "reverse.welcome.version"),
+						],
+						{ role: "reverse.welcome.mark" },
+					),
+					"mark",
+				),
+			],
+			{ align: "center", gap: "md", role: "reverse.welcome.lockup" },
+		),
+		"lockup",
+	);
+}
+
 /** Block-grid brand mark shared by the welcome and setup surfaces. */
 export const PI_LOGO = [
 	"█▀▀▄ █▀▀ █   █ █▀▀ █▀▀▄ █▀▀ █▀▀",
@@ -452,18 +455,6 @@ function centerBlock(lines: readonly string[], width: number): string[] {
 	const widest = lines.reduce((max, line) => Math.max(max, visibleWidth(line)), 0);
 	const indent = padding(Math.max(0, Math.floor((width - widest) / 2)));
 	return lines.map(line => indent + line);
-}
-
-/** The block-grid brand mark as accent lines; `shimmer` declares the terminal-clocked shine sweep. */
-export function logoNode(lines: readonly string[], shimmer: boolean): NativeNode {
-	return col(
-		lines.map(line =>
-			text([span(line, "accent", shimmer ? { fx: "shimmer" } : undefined)], {
-				wrap: "none",
-			}),
-		),
-		{ align: "center", role: "reverse.setup.logo" },
-	);
 }
 
 /** Multi-stop palette for the diagonal gradient. */

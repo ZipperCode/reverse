@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseArgs, validateGoalLaunch, validateGoalStartup } from "@reverse/coding-agent/cli/args";
 import { CliUsageError } from "@reverse/coding-agent/cli/usage-error";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { createSessionManager, runRootCommand } from "@reverse/coding-agent/main";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
@@ -87,6 +88,11 @@ async function launchInteractive(rawArgs: string[]): Promise<{ thrown: unknown; 
 		authStorage.close();
 	}
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearReverseExtensionCliRoots();
+});
 
 describe("--goal launch option", () => {
 	it("parses a quoted objective as one value, not a positional prompt", () => {

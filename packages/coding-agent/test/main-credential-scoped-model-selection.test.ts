@@ -17,6 +17,7 @@ import type { ModelSpec } from "@reverse/catalog/types";
 import { COPILOT_API_HEADERS } from "@reverse/catalog/wire/github-copilot";
 import { parseArgs } from "@reverse/coding-agent/cli/args";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { clearReverseExtensionCliRoots } from "@reverse/coding-agent/discovery/reverse-extension-roots";
 import { runRootCommand } from "@reverse/coding-agent/main";
 import type { CreateAgentSessionOptions } from "@reverse/coding-agent/sdk";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
@@ -33,6 +34,9 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+	clearReverseExtensionCliRoots();
+
 	if (originalAgentDir === undefined) {
 		delete process.env.PI_CODING_AGENT_DIR;
 	} else {

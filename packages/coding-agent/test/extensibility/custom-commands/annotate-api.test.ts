@@ -92,6 +92,23 @@ describe("annotations API: submit", () => {
 		expect(result.text).toContain("rename this");
 	});
 
+	it("preserves each source line on repeated blank lines so notes stay distinguishable", async () => {
+		const { api } = createContext();
+		const result = await api.submit({
+			source: { kind: "text", text: "alpha\r\n\r\nbeta\r\n\r\n" },
+			notes: [
+				{ line: 2, note: "FIRST BLANK" },
+				{ line: 4, note: "TESTING 3" },
+			],
+		});
+		expect(result.annotations).toEqual([
+			{ scope: "line", line: 2, quote: "", note: "FIRST BLANK" },
+			{ scope: "line", line: 4, quote: "", note: "TESTING 3" },
+		]);
+		expect(result.text).toContain("FIRST BLANK");
+		expect(result.text).toContain("TESTING 3");
+	});
+
 	it("rejects a note whose line is outside the source instead of quoting nothing", async () => {
 		const { api, pasteToEditor } = createContext();
 

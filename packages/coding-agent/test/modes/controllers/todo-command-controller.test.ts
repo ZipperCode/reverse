@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -15,7 +15,9 @@ function createContext(cwd: string, phases: TodoPhase[]): InteractiveModeContext
 		},
 		session: {
 			getTodoPhases: () => phases,
-			setTodoPhases: vi.fn(),
+			setTodoPhases: vi.fn(next => {
+				phases = next;
+			}),
 		},
 		sessionManager: {
 			appendCustomEntry: vi.fn(),
@@ -143,13 +145,7 @@ describe("TodoCommandController", () => {
 		expect(ctx.showError).toHaveBeenCalledWith(expect.stringContaining("internal scheme"));
 	});
 
-	function reminderTextFrom(ctx: InteractiveModeContext): string {
-		const appendMessage = ctx.agent.appendMessage as unknown as Mock<(message: unknown) => void>;
-		const message = appendMessage.mock.calls[0][0] as { content: Array<{ text: string }> };
-		return message.content[0].text;
-	}
-
-	it("tells the model not to recreate the list after /todo rm (all)", async () => {
+	it("clears all todo phases after /todo rm", async () => {
 		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-tui-todo-rm-all-"));
 		const phases: TodoPhase[] = [
 			{ name: "Foundation", tasks: [{ content: "Scaffold crate", status: "in_progress" }] },
@@ -160,12 +156,10 @@ describe("TodoCommandController", () => {
 		await controller.handleTodoCommand("rm");
 
 		expect(ctx.agent.appendMessage).toHaveBeenCalledTimes(1);
-		const text = reminderTextFrom(ctx);
-		expect(text).toContain("intentionally cleared the todo list");
-		expect(text).toMatch(/Do NOT recreate/i);
+		expect(ctx.session.getTodoPhases()).toEqual([]);
 	});
 
-	it("tells the model not to re-add a removed phase after /todo rm <phase>", async () => {
+	it("clears tasks from the selected phase while preserving other phases", async () => {
 		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-tui-todo-rm-phase-"));
 		const phases: TodoPhase[] = [
 			{ name: "Foundation", tasks: [{ content: "Scaffold crate", status: "completed" }] },
@@ -176,10 +170,10 @@ describe("TodoCommandController", () => {
 
 		await controller.handleTodoCommand("rm Auth");
 
-		expect(reminderTextFrom(ctx)).toMatch(/Do NOT re-add them/i);
+		expect(ctx.session.getTodoPhases()).toEqual([phases[0]!, { name: "Auth", tasks: [] }]);
 	});
 
-	it("keeps status-mutation reminders neutral (no do-not-recreate directive)", async () => {
+	it("completes the active task", async () => {
 		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-tui-todo-done-"));
 		const phases: TodoPhase[] = [
 			{ name: "Foundation", tasks: [{ content: "Scaffold crate", status: "in_progress" }] },
@@ -189,6 +183,6 @@ describe("TodoCommandController", () => {
 
 		await controller.handleTodoCommand("done");
 
-		expect(reminderTextFrom(ctx)).not.toMatch(/Do NOT/i);
+		expect(ctx.session.getTodoPhases()[0]?.tasks[0]?.status).toBe("completed");
 	});
 });

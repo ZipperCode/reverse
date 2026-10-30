@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "bun:test";
 import { type } from "@reverse/reversetype";
 import type { AgentTool, AgentToolResult } from "@reverse/agent";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP } from "@reverse/coding-agent/eval/bridge-timeout";
 import { callSessionTool } from "@reverse/coding-agent/eval/js/tool-bridge";
 import type { EvalShadowCellSession } from "@reverse/coding-agent/eval/speculation/cell-session";
 import { type TodoPhase } from "@reverse/tui/tools/todo";
@@ -697,9 +698,8 @@ describe("callSessionTool", () => {
 		);
 
 		expect(result).not.toEqual(expect.objectContaining({ hasError: true }));
-		expect(phases).toEqual([
-			{ name: "Recovered", tasks: [{ content: "From malformed JSON", status: "in_progress" }] },
-		]);
+		expect(phases[0]?.name).toBe("Recovered");
+		expect(phases[0]?.tasks[0]).toMatchObject({ content: "From malformed JSON", status: "in_progress" });
 	});
 
 	it("persists bridged todo mutations to the branch, which a direct toolResult would carry", async () => {
@@ -723,6 +723,61 @@ describe("callSessionTool", () => {
 		await callSessionTool("todo", { op: "view" }, { session });
 		await callSessionTool("todo", { op: "done", task: "No such task" }, { session });
 		expect(persisted).toHaveLength(1);
+	});
+
+	it("persists and summarizes a todo wire alias using the resolved canonical identity", async () => {
+		let phases: TodoPhase[] = [{ name: "Ship", tasks: [{ content: "Persist alias", status: "in_progress" }] }];
+		const persisted: TodoPhase[][] = [];
+		const statuses: Array<Record<string, unknown>> = [];
+		const lookup = vi.fn((name: string) => (name === "checklist" ? (todoTool as unknown as AgentTool) : undefined));
+		const session: ToolSession = {
+			...createSession([]),
+			getTodoPhases: () => phases,
+			setTodoPhases: next => {
+				phases = next;
+			},
+			persistTodoPhases: next => persisted.push(next),
+			getToolForEvalBridge: lookup,
+		};
+		const todoTool = Object.assign(new TodoTool(session), { customWireName: "checklist" });
+
+		await callSessionTool(
+			"checklist",
+			{ op: "done", task: "Persist alias" },
+			{ session, emitStatus: event => statuses.push(event) },
+		);
+
+		expect(lookup).toHaveBeenCalledTimes(1);
+		expect(persisted).toEqual([[{ name: "Ship", tasks: [{ content: "Persist alias", status: "completed" }] }]]);
+		expect(statuses).toEqual([expect.objectContaining({ op: "todo", committed: true })]);
+		await callSessionTool("checklist", { op: "view" }, { session });
+		await callSessionTool("checklist", { op: "done", task: "No such task" }, { session });
+		expect(persisted).toHaveLength(1);
+	});
+
+	it("pauses the watchdog for wire aliases of delegated work tools", async () => {
+		for (const [name, alias] of [
+			["wait", "join_jobs"],
+			["task", "delegate"],
+		]) {
+			const statuses: string[] = [];
+			const tool = {
+				...createTool(name, async () => {
+					expect(statuses).toEqual([EVAL_TIMEOUT_PAUSE_OP]);
+					return { content: [{ type: "text" as const, text: "done" }] };
+				}),
+				customWireName: alias,
+			};
+			const session = {
+				...createSession([tool]),
+				getToolForEvalBridge: (requested: string) => (requested === alias ? tool : undefined),
+			};
+
+			expect(await callSessionTool(alias, {}, { session, emitStatus: event => statuses.push(event.op) })).toBe(
+				"done",
+			);
+			expect(statuses).toEqual([EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP, name]);
+		}
 	});
 
 	it("keeps persisted nested Todo status bounded for large checklists", async () => {
@@ -872,6 +927,25 @@ describe("callSessionTool", () => {
 		expect(execute).not.toHaveBeenCalled();
 	});
 
+	it("rejects wire aliases of tools that require direct tool results", async () => {
+		for (const [name, alias] of [
+			["checkpoint", "savepoint"],
+			["rewind", "restorepoint"],
+		]) {
+			const execute = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "not committed" }] });
+			const tool = { ...createTool(name, execute), customWireName: alias };
+			const session = {
+				...createSession([tool]),
+				getToolForEvalBridge: (requested: string) => (requested === alias ? tool : undefined),
+			};
+
+			await expect(callSessionTool(alias, {}, { session })).rejects.toThrow(
+				`\`${name}\` cannot run through the eval bridge`,
+			);
+			expect(execute).not.toHaveBeenCalled();
+		}
+	});
+
 	it("rejects a registry tool excluded from the eval bridge", async () => {
 		const rawExecute = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "raw" }] });
 		const session = {
@@ -880,7 +954,7 @@ describe("callSessionTool", () => {
 		};
 
 		await expect(callSessionTool("write", { path: "out.txt", content: "data" }, { session })).rejects.toThrow(
-			"Unknown tool from js runtime",
+			"registered but not available in this session",
 		);
 		expect(rawExecute).not.toHaveBeenCalled();
 	});

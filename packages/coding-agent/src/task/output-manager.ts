@@ -12,7 +12,8 @@
  */
 import * as fs from "node:fs/promises";
 import { ADVISOR_TRANSCRIPT_STEM } from "../advisor/transcript-recorder";
-import { PINNED_HUD_TOGGLE_ID } from "@reverse/tui/prompt/composer";
+/** HUD expander click target reserved by the allocator so it cannot name a subagent. */
+export const PINNED_HUD_TOGGLE_ID = "@reverse:toggle-pinned-hud";
 
 /**
  * Manages agent output ID allocation to ensure uniqueness.

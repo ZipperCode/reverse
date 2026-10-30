@@ -742,7 +742,10 @@ describe("StdioTransport request failure diagnostics", () => {
 		transport = new StdioTransport({
 			type: "stdio",
 			command: process.execPath,
-			args: ["-e", "process.stderr.write('r2mcp: missing library r_core.dll\\n'); process.exit(42)"],
+			args: [
+				"-e",
+				"process.stdin.once('data', () => { process.stderr.write('r2mcp: missing library r_core.dll\\n'); process.exit(42); }); process.stdin.resume()",
+			],
 			timeout: 3_000,
 		});
 		await transport.connect();

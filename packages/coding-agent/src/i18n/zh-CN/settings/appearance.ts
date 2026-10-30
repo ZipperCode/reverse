@@ -174,6 +174,10 @@ export const appearanceSettingsZhCN: Record<string, SettingTranslation> = {
 		label: "表格自动成图",
 		description: "在支持图形显示的终端中，用主题颜色为代理回答中的数值表格绘制图表",
 		options: {
+			auto: {
+				label: "自动",
+				description: "当 judge 角色解析为原生 TypeSafe jev 模型时使用智能模式，否则始终绘图",
+			},
 			smart: {
 				label: "智能",
 				description: "由评审模型细化每个图表：类型、列、行名与分组、比例尺、哪个方向更好以及标题",
@@ -260,6 +264,17 @@ export const appearanceSettingsZhCN: Record<string, SettingTranslation> = {
 	"display.cacheMissMarker": {
 		label: "缓存未命中标记",
 		description: "当某轮助手请求未命中提示缓存时，在其后显示分隔线",
+	},
+	"display.advisorCollapsedLines": {
+		label: "顾问折叠预览行数",
+		description: "折叠的顾问卡片在标题下方最多显示的笔记行数（0 保留完整预览；可用工具输出切换展开）",
+		options: {
+			"0": { label: "无限制", description: "默认。" },
+			"1": { label: "1 行" },
+			"2": { label: "2 行" },
+			"3": { label: "3 行" },
+			"5": { label: "5 行" },
+		},
 	},
 	"display.collapseCompacted": {
 		label: "折叠已压缩历史",

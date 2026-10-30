@@ -19,7 +19,7 @@ With `reverse --profile <name>`, use `~/.reverse/profiles/<name>/agent/extension
 ```yaml
 # ~/.reverse/agent/config.yml
 extensions:
-  - /path/to/hello-extension
+   - /path/to/hello-extension
 ```
 
 **Option C — load once via CLI flag:**

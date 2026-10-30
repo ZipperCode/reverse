@@ -9,6 +9,7 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 	"cli.config.arg.key": "设置键",
 	"cli.config.arg.value": "值（用于 set/reset）",
 	"cli.config.flag.json": "以 JSON 输出",
+	"cli.config.flag.scope": "配合 list 使用：仅显示 global（用户配置）或 project（当前项目配置）层直接设置的值",
 	"cli.config.usage.get": "用法：{app} config get <key>",
 	"cli.config.usage.set": "用法：{app} config set <key> <value>",
 	"cli.config.usage.reset": "用法：{app} config reset <key>",

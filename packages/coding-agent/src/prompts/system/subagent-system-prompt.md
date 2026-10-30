@@ -35,7 +35,7 @@ You NEVER modify files outside this tree or in the original repository.
 
 {{#if ircSelfId}}
 # Peers
-Message peers via `write` with `path: "agent://<id>"` and `content` (broadcast: `agent://all`). Your id is `{{ircSelfId}}`. Currently visible peers:
+Message peers via `write` with `path: "agent://<id>"` and `content` (broadcast: `agent://all`). Your id is `{{ircSelfId}}`. Peer roster (snapshot):
 {{#if ircPeers}}
 {{#each ircPeers}}
 - `{{this.id}}` — {{this.displayName}} ({{this.kind}}, {{this.status}}){{#if this.activity}}: {{this.activity}}{{/if}}
@@ -51,9 +51,10 @@ Message peers via `write` with `path: "agent://<id>"` and `content` (broadcast: 
 {{/if}}
 
 Use peer messages only for quick coordination, never long-form content. Address peers by exact roster id; NEVER invent names.
-- Discovery: the roster above shows live (running+idle) peers and a parked count. Read bare `history://` for registered agent transcripts; parked identities are omitted from the roster.
+- Discovery: the roster above is a snapshot of live (running+idle) peers and a parked count. Read bare `history://` for current peers and registered agent transcripts.
 - Coordination: before editing a file a sibling may own, message that peer. Idle/parked peers wake when messaged.
 - Follow-up: answer the question first, without quoting it. `write agent://<id>` never blocks.
+- Send acknowledgements and progress to `agent://<id>?progress`; the substantive reply remains owed until delivered through the normal reply path.
 - Your final result reaches Main automatically. Message Main only for questions, blockers, or decisions — never progress or completion reports.
 {{/if}}
 

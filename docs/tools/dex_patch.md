@@ -1,6 +1,6 @@
 # dex_patch
 
-Guarded equal-length Dalvik instruction patching, method inspection, and limited structural validation. Adapted from the MIT-licensed apk-reverse toolkit at commit `bd6dd0c59ce1f9af75f1293ef9518fb6f5d28c6c`; attribution is preserved in `THIRD-PARTY-NOTICES.txt`.
+Guarded equal-length Dalvik instruction patching, method inspection, and limited structural validation. Adapted from the MIT-licensed apk-reverse toolkit at commit `bd6dd0c59ce1f9af75f1293ef9518fb6f5d28c6c`; attribution is preserved in `packages/coding-agent/THIRD-PARTY-NOTICES.txt`.
 
 ## Source
 

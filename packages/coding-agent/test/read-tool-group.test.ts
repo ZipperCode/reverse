@@ -700,6 +700,8 @@ describe("readArgsCollapseIntoGroup", () => {
 		["rule://name"],
 		["mcp://server/resource"],
 		["local://PLAN.md"],
+		["skill://my-skill"],
+		["skill://my-skill/file.md"],
 	])("keeps %s as a full tool execution (not grouped)", target => {
 		expect(readArgsCollapseIntoGroup({ path: target })).toBe(false);
 		expect(readArgsCollapseIntoGroup({ file_path: target })).toBe(false);
@@ -711,8 +713,6 @@ describe("readArgsCollapseIntoGroup", () => {
 		["https://example.com/file"],
 		["xd://"],
 		["xd://generate_image"],
-		["skill://my-skill"],
-		["skill://my-skill/file.md"],
 	])("collapses %s into the read group", target => {
 		expect(readArgsCollapseIntoGroup({ path: target })).toBe(true);
 		expect(readArgsCollapseIntoGroup({ file_path: target })).toBe(true);
