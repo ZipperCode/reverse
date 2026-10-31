@@ -10,8 +10,8 @@ describe("dropSettingsGroupShadows", () => {
 	});
 
 	it("keeps well-formed nested objects for a settings group", () => {
-		const result = dropSettingsGroupShadows({ tui: { resizeScrollback: "preserve" } }, "/proj/.claude/settings.json");
-		expect(result).toEqual({ tui: { resizeScrollback: "preserve" } });
+		const result = dropSettingsGroupShadows({ tui: { mouse: true } }, "/proj/.claude/settings.json");
+		expect(result).toEqual({ tui: { mouse: true } });
 	});
 
 	it("drops nested non-object shadows without discarding valid siblings", () => {

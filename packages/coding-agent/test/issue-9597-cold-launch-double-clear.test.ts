@@ -19,14 +19,11 @@ import {
 	cfgSpellingAutocorrect,
 	cfgSpellingTypoDetection,
 	cfgStartupQuiet,
-	cfgTuiCompleteScrollback,
 	cfgTuiImeSafeCursor,
 	cfgTuiMaxInlineImages,
-	cfgTuiResizeScrollback,
 } from "@reverse/coding-agent/modes/settings";
 
-// Every destructive reset emits one erase-scrollback (ED3). Count that
-// operation without coupling this regression to the ED2/ED3 ordering.
+// Fullscreen startup/reset must leave shell scrollback untouched.
 const ERASE_SCROLLBACK = "\x1b[3J";
 
 /** VirtualTerminal that also records every raw byte the TUI writes. */
@@ -44,11 +41,7 @@ class CapturingTerminal extends VirtualTerminal {
 	}
 }
 
-// Cold launch first clears native history while painting the prepaint welcome.
-// Once InteractiveMode is ready, a normal replay can offer resumed transcript
-// rows and repaint the viewport without another destructive reset. On conhost a
-// second ED3-then-ED2 reset would archive the prepaint frame into scrollback
-// after ED3 already ran, leaving a stale welcome above the live UI (issue #9597).
+// Prepaint and session adoption share one owned screen without archiving welcome frames.
 describe("issue #9597 — cold-launch welcome duplication", () => {
 	let settings: Settings;
 	let config: ComposerPreferences;
@@ -62,8 +55,6 @@ describe("issue #9597 — cold-launch welcome duplication", () => {
 			composerShape: cfgComposerShape.get(settings) ?? "box",
 			showHardwareCursor: cfgShowHardwareCursor.get(settings),
 			maxInlineImages: cfgTuiMaxInlineImages.get(settings),
-			resizeScrollback: cfgTuiResizeScrollback.get(settings),
-			completeScrollback: cfgTuiCompleteScrollback.get(settings),
 			imeSafeCursor: cfgTuiImeSafeCursor.get(settings),
 			autocompleteMaxVisible: cfgAutocompleteMaxVisible.get(settings),
 			spellingTypoDetection: cfgSpellingTypoDetection.get(settings),
@@ -115,14 +106,12 @@ describe("issue #9597 — cold-launch welcome duplication", () => {
 			await mode.init({ suppressWelcomeIntro: resuming, clearInitialTerminalHistory: true });
 			await terminal.waitForRender();
 			await mode.renderInitialMessages({ preserveExistingChat: true });
-			// The replay rebuild paints in idle chunks after the promise resolves;
-			// settle on the frame that actually shows the replayed transcript.
+			// Observe the actual adopted viewport, not normal-buffer history.
 			await terminal.waitForRender(
 				() =>
-					!resuming ||
-					terminal.getScrollBuffer().some(line => Bun.stripANSI(line).includes("resume marker answer")),
+					!resuming || terminal.getViewport().some(line => Bun.stripANSI(line).includes("resume marker answer")),
 			);
-			const rows = terminal.getScrollBuffer().map(l => Bun.stripANSI(l));
+			const rows = terminal.getViewport().map(l => Bun.stripANSI(l));
 			return {
 				resets: terminal.countResets(),
 				welcomeRows: rows.filter(l => l.includes("18.0.4")).length,
@@ -134,17 +123,15 @@ describe("issue #9597 — cold-launch welcome duplication", () => {
 		}
 	}
 
-	it("clears native history once on a fresh launch, leaving one welcome header", async () => {
+	it("preserves shell history on a fresh launch, leaving one welcome header", async () => {
 		const { resets, welcomeRows } = await coldLaunch(false);
-		// The first clear already owns the final welcome frame; the replay must not
-		// clear again, or conhost promotes that frame into scrollback (duplicate).
-		expect(resets).toBe(1);
+		expect(resets).toBe(0);
 		expect(welcomeRows).toBe(1);
 	});
 
-	it("replays a resumed transcript without clearing native history again", async () => {
+	it("adopts a resumed transcript without clearing shell history", async () => {
 		const { resets, scrollBuffer, welcomeRows } = await coldLaunch(true);
-		expect(resets).toBe(1);
+		expect(resets).toBe(0);
 		expect(scrollBuffer).toContain("resume marker answer");
 		expect(welcomeRows).toBe(1);
 	});

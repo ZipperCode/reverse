@@ -46,6 +46,28 @@ beforeAll(async () => {
 	await initTheme();
 });
 
+/** Read the full conversation through the actual bounded viewport, then restore follow-tail. */
+async function browse(
+	composer: Composer,
+	scheduler: VirtualRenderScheduler,
+	terminal: VirtualTerminal,
+): Promise<string[]> {
+	const seen = new Map<number, string>();
+	for (let page = 0; page < REPLY_LINES * 2; page++) {
+		for (const row of terminal.getViewport()) {
+			const text = Bun.stripANSI(row).trim();
+			const token = /QZ[ISC](\d{3})/.exec(text);
+			if (token) seen.set(Number(token[1]), text);
+		}
+		if (seen.size === REPLY_LINES) break;
+		composer.scrollTranscript(-Math.max(1, composer.transcriptViewportHeight - 1));
+		await scheduler.settle(terminal);
+	}
+	composer.scrollTranscriptToBottom();
+	await scheduler.settle(terminal);
+	return [...seen].sort(([a], [b]) => a - b).map(([, text]) => text);
+}
+
 describe("transcript rows under chrome that outlives the turn", () => {
 	for (const rows of [24, 45]) {
 		it(`keeps every line of a long streamed answer at ${rows} rows`, async () => {
@@ -79,17 +101,8 @@ describe("transcript rows under chrome that outlives the turn", () => {
 			message.updateContent(reply(lines.join("\n\n")));
 			message.markTranscriptBlockFinalized();
 			composer.ui.requestRender();
-			// Past the idle-chrome settle window, the chrome that outlived the turn is permanent.
-			await scheduler.advance(terminal, 300);
-
-			const counts = new Map<number, number>();
-			for (const row of terminal.getScrollBuffer()) {
-				const token = /QZC(\d{3})/.exec(Bun.stripANSI(row))?.[1];
-				if (token !== undefined) counts.set(Number(token), (counts.get(Number(token)) ?? 0) + 1);
-			}
-			const missing = Array.from({ length: REPLY_LINES }, (_, i) => i + 1).filter(n => !counts.has(n));
-			const duplicated = [...counts].filter(([, count]) => count > 1).map(([n]) => n);
-			expect({ missing, duplicated }).toEqual({ missing: [], duplicated: [] });
+			await scheduler.settle(terminal);
+			expect(await browse(composer, scheduler, terminal)).toEqual(lines);
 			composer.stop();
 		});
 	}
@@ -123,21 +136,15 @@ describe("transcript rows under chrome that outlives the turn", () => {
 			try {
 				await scheduler.advance(terminal, 300);
 				if (mounting === "runtime remount") {
-					// Replacing session-aware roots resets floor bookkeeping, but
-					// does not imply another agent run or erase existing history.
+					// Remounting roots keeps the same conversation and browsing state.
 					composer.setRuntimeChildren([transcript, chrome, editor]);
 					await scheduler.advance(terminal, 300);
 				}
-				const history = (): string[] =>
-					terminal
-						.getScrollBuffer()
-						.map(row => Bun.stripANSI(row).trim())
-						.filter(row => /^(shell\d+|QZI\d{3} alpha bravo)$/.test(row));
-				expect(history()).toEqual([...shell, ...lines]);
+				expect(await browse(composer, scheduler, terminal)).toEqual(lines);
 				chrome.rows = 7;
 				composer.ui.requestRender();
 				await scheduler.advance(terminal, 300);
-				expect(history()).toEqual([...shell, ...lines]);
+				expect(await browse(composer, scheduler, terminal)).toEqual(lines);
 				expect(
 					terminal
 						.getViewport()
@@ -149,11 +156,17 @@ describe("transcript rows under chrome that outlives the turn", () => {
 				composer.ui.requestRender();
 				await scheduler.advance(terminal, 300);
 				const editorRow = terminal.getViewport().findIndex(row => row.includes("EDITOR"));
-				expect(editorRow).toBeGreaterThanOrEqual(0);
-				expect(editorRow).toBeLessThan(rows - 1);
-				expect(history()).toEqual([...shell, ...lines]);
+				expect(editorRow).toBe(rows - 1);
+				expect(await browse(composer, scheduler, terminal)).toEqual(lines);
 			} finally {
 				composer.stop();
+				await terminal.flush();
+				expect(
+					terminal
+						.getScrollBuffer()
+						.map(row => Bun.stripANSI(row).trim())
+						.filter(row => /^shell\d+$/.test(row)),
+				).toEqual(shell);
 			}
 		});
 	}
@@ -164,11 +177,10 @@ describe("transcript rows under chrome that outlives the turn", () => {
 		const chrome = new TurnChrome();
 		const editorRoot = new Container();
 		editorRoot.addChild(composer.editor);
-		composer.setRuntimeChildren([transcript, chrome, editorRoot], { transientChrome: [editorRoot] });
+		composer.setRuntimeChildren([transcript, chrome, editorRoot]);
 		await scheduler.settle(terminal);
 		return async (beforeStream?: () => Promise<void>): Promise<string[]> => {
 			await beforeStream?.();
-			composer.setRunActive(true);
 			const message = new AssistantMessageComponent();
 			transcript.addChild(message);
 			chrome.rows = 7;
@@ -180,14 +192,9 @@ describe("transcript rows under chrome that outlives the turn", () => {
 			}
 			message.updateContent(reply(lines.join("\n\n")));
 			message.markTranscriptBlockFinalized();
-			composer.setRunActive(false);
 			composer.ui.requestRender();
-			await scheduler.advance(terminal, 300);
-			const seen = new Set<string>();
-			for (const row of terminal.getScrollBuffer()) {
-				const token = /QZS\d{3}/.exec(Bun.stripANSI(row))?.[0];
-				if (token !== undefined) seen.add(token);
-			}
+			await scheduler.settle(terminal);
+			const seen = new Set((await browse(composer, scheduler, terminal)).map(row => /QZS\d{3}/.exec(row)?.[0]));
 			return lines.filter(line => !seen.has(line));
 		};
 	}

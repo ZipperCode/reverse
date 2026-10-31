@@ -26,7 +26,6 @@ import type {
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import { cfgExtensionAssistantTextRenderers } from "../../extensibility/settings";
 import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
-import { isNativeRendering } from "@reverse/tui/native/state";
 import { ApprovalDialogComponent } from "@reverse/tui/overlays/approval-dialog";
 import {
 	type AskDialogPrompt,
@@ -113,25 +112,16 @@ export class ExtensionUiController {
 
 	/**
 	 * Redraw every transcript component of the reply sent at `timestamp` (one per tool-call segment).
-	 * A plain terminal cannot repaint rows it already moved into scrollback, so a reply with retired
-	 * rows rebuilds the scrollback, as the thinking-visibility toggle does; one still in the live
-	 * viewport (and any block in Tern's native view) just repaints.
 	 */
 	#rerenderAssistantMessage(timestamp: number): void {
 		if (!cfgExtensionAssistantTextRenderers.get(this.ctx.settings)) return;
-		const native = isNativeRendering();
 		let redrawn = false;
-		let retired = false;
 		for (const child of this.ctx.chatContainer.children) {
 			if (!(child instanceof AssistantMessageComponent)) continue;
 			if (!child.rerenderMessage(timestamp)) continue;
 			redrawn = true;
-			retired ||= !native && !this.ctx.chatContainer.canRemoveBlock(child);
 		}
-		if (retired) {
-			this.ctx.chatContainer.resetStableEmission();
-			this.ctx.ui.resetDisplay();
-		} else if (redrawn) {
+		if (redrawn) {
 			this.ctx.ui.requestRender();
 		}
 	}

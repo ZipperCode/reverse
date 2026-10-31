@@ -16,7 +16,7 @@ afterEach(() => {
 	vi.restoreAllMocks();
 	vi.useRealTimers();
 });
-it("makes an oversized startup changelog available in scrollback after the intro without input", async () => {
+it("keeps an oversized startup changelog reachable above the fixed editor after the intro", async () => {
 	const terminal = new VirtualTerminal(100, 30);
 	vi.useFakeTimers();
 	let now = 0;
@@ -38,8 +38,16 @@ it("makes an oversized startup changelog available in scrollback after the intro
 		now = 3200;
 		vi.advanceTimersByTime(33);
 		await scheduler.settle(terminal);
-		const rows = terminal.getScrollBuffer().map(row => Bun.stripANSI(row).trimEnd());
-		expect(rows.filter(row => row.startsWith("Changelog entry "))).toEqual(entries);
+		const seen = new Set<string>();
+		for (let page = 0; page < 5; page++) {
+			for (const row of terminal.getViewport()) {
+				const text = Bun.stripANSI(row).trimEnd();
+				if (text.startsWith("Changelog entry ")) seen.add(text);
+			}
+			composer.scrollTranscript(-25);
+			await scheduler.settle(terminal);
+		}
+		expect([...seen].sort((a, b) => Number(a.slice(16)) - Number(b.slice(16)))).toEqual(entries);
 		expect(terminal.getViewport().at(-1)?.trimEnd()).toBe("EDITOR");
 	} finally {
 		composer.stop();

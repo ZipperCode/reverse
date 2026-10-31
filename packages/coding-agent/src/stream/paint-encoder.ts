@@ -122,7 +122,6 @@ export class StreamPaintEncoder {
 	#lastRows: number;
 	#lastViewport: StreamRow[] | undefined;
 	#lastAlt: boolean | undefined;
-	#pendingAlt = false;
 	/** Raw → normalized+redacted rows of the last drained viewport; most rows repeat frame to frame. */
 	#rowCache = new Map<string, StreamRow>();
 
@@ -162,9 +161,7 @@ export class StreamPaintEncoder {
 		}
 		if (paint.columns !== this.#pendingColumns || paint.rows !== this.#pendingRows) this.#pendingForceFull = true;
 		if (this.#lastAlt !== undefined && paint.alt !== this.#lastAlt) this.#pendingForceFull = true;
-		if (paint.alt) this.#pendingForceFull = true;
 		this.#lastAlt = paint.alt;
-		this.#pendingAlt = paint.alt;
 		this.#pendingColumns = paint.columns;
 		this.#pendingRows = paint.rows;
 		this.#pendingRawViewport = paint.viewport;
@@ -207,7 +204,7 @@ export class StreamPaintEncoder {
 
 		const raw = this.#pendingRawViewport;
 		const pendingViewport = this.#pendingViewport;
-		const forceFull = this.#pendingForceFull || this.#pendingReset || resized || this.#pendingAlt;
+		const forceFull = this.#pendingForceFull || this.#pendingReset || resized;
 		this.#pendingReset = false;
 		this.#pendingHistory = [];
 		this.#pendingHistorySkipped = 0;

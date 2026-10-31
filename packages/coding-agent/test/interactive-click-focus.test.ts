@@ -11,6 +11,7 @@ import { ToolExecutionComponent } from "@reverse/tui/chat/tool-execution";
 import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
 import { ReadToolGroupComponent } from "@reverse/tui/chat/read-tool-group";
 import { SkillMessageComponent } from "@reverse/tui/chat/skill-message";
+import { Text } from "@reverse/tui/components/text";
 import type { AssistantMessage } from "@reverse/ai";
 import { Composer } from "@reverse/tui/prompt/composer";
 import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
@@ -1173,5 +1174,182 @@ describe("inline click-to-focus geometry", () => {
 		runner.setSuspendedExtensions(() => false);
 		await Promise.resolve();
 		expect(chat()).toContain("Open the details NOW.");
+	});
+
+	it("maps detail clicks, hover bands, and link hints to scrolled transcript rows without stale pre-scroll coordinates", async () => {
+		cfgExtensionAssistantTextRenderers.set(mode.settings, true);
+		const { activated, firstActivation } = installDemoLinkExtension();
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		await term.waitForRender();
+
+		const tool = new ToolExecutionComponent(
+			"bash",
+			{ command: "scrolled_cmd" },
+			{},
+			undefined,
+			{
+				requestRender: () => mode.ui.requestRender(),
+				requestComponentRender: () => {},
+				resetDisplay: () => {},
+			},
+			tempDir.path(),
+		);
+		tool.updateResult(
+			{ content: [{ type: "text", text: Array.from({ length: 12 }, (_, i) => `Scrolled bash ${i}`).join("\n") }] },
+			false,
+		);
+		mode.chatContainer.addChild(tool);
+
+		const asst = new AssistantMessageComponent();
+		asst.updateContent({
+			role: "assistant",
+			content: [
+				{ type: "thinking", thinking: "Scrolled thinking body 1\nScrolled thinking body 2" },
+				{ type: "text", text: "Open [scrolled link](demo:scrolled/1) in answer" },
+			],
+			api: "anthropic-messages",
+			provider: "anthropic",
+			model: "m",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "stop",
+			timestamp: 1,
+		});
+		mode.chatContainer.addChild(asst);
+
+		const card = new ToolExecutionComponent(
+			"task",
+			{},
+			{},
+			undefined,
+			{
+				requestRender: () => mode.ui.requestRender(),
+				requestComponentRender: () => {},
+				resetDisplay: () => {},
+			},
+			tempDir.path(),
+		);
+		card.updateResult(
+			{
+				content: [{ type: "text", text: "Running 1 agent..." }],
+				details: {
+					projectAgentsDir: null,
+					results: [],
+					totalDurationMs: 1,
+					progress: [
+						{
+							index: 0,
+							id: "ScrolledWorker",
+							agent: "task",
+							agentSource: "bundled",
+							status: "running",
+							task: "scrolled hover work",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 1,
+							requests: 1,
+							tokens: 0,
+							cost: 0,
+							durationMs: 0,
+						},
+					],
+				},
+			},
+			true,
+		);
+		mode.chatContainer.addChild(card);
+
+		for (let i = 0; i < 40; i++) {
+			mode.chatContainer.addChild(new Text(`FILLER-${String(i).padStart(2, "0")}`, 0, 0));
+		}
+		mode.ui.requestRender();
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("FILLER-39")));
+		expect(plainRows(term.getViewport()).some(row => row.includes("ScrolledWorker"))).toBe(false);
+
+		// Scroll up to bring tool, thinking/link, and task card into the viewport
+		mode.composer.scrollTranscript(-90);
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("ScrolledWorker")));
+		const anchorBefore = plainRows(term.getViewport())[0];
+
+		// With default tui.mouse=false, clicking the scrolled tool header does not expand
+		const toolRowDisabled = plainRows(term.getViewport()).findIndex(row => row.includes("Bash"));
+		expect(toolRowDisabled).toBeGreaterThanOrEqual(0);
+		term.sendInput(`\x1b[<0;5;${toolRowDisabled + 1}M`);
+		await term.waitForRender();
+		expect(tool.expanded).toBe(false);
+
+		// Enable tui.mouse: scrolled tool and thinking headers expand and collapse while preserving top anchor
+		cfgTuiMouse.set(mode.settings, true);
+		mode.ui.requestRender();
+		await term.waitForRender();
+
+		const clickVisible = async (marker: string): Promise<void> => {
+			const rows = plainRows(term.getViewport());
+			const row = rows.findIndex(line => line.includes(marker));
+			expect(row).toBeGreaterThanOrEqual(0);
+			term.sendInput(`\x1b[<0;5;${row + 1}M`);
+			mode.ui.renderNow();
+		};
+
+		await clickVisible("Bash");
+		await term.waitForRender(() => tool.expanded === true);
+		expect(plainRows(term.getViewport()).some(row => row.includes("Scrolled bash 11"))).toBe(true);
+		expect(plainRows(term.getViewport())[0]).toBe(anchorBefore);
+
+		await clickVisible("Bash");
+		await term.waitForRender(() => tool.expanded === false);
+		expect(plainRows(term.getViewport())[0]).toBe(anchorBefore);
+
+		await clickVisible("Thought");
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("Scrolled thinking body 1")),
+		);
+		await clickVisible("Thought");
+		await term.waitForRender(
+			() => !plainRows(term.getViewport()).some(row => row.includes("Scrolled thinking body 1")),
+		);
+		expect(plainRows(term.getViewport())[0]).toBe(anchorBefore);
+
+		// Hovering ScrolledWorker bands its current row, and scrolling clears stale hover state
+		mode.composer.scrollTranscript(12);
+		mode.ui.renderNow();
+		const workerRow = plainRows(term.getViewport()).findIndex(row => row.includes("ScrolledWorker"));
+		expect(workerRow).toBeGreaterThanOrEqual(0);
+		const bgBefore = term.getViewportRowBackgroundValues(workerRow);
+		term.sendInput(`\x1b[<32;5;${workerRow + 1}M`);
+		await term.waitForRender(
+			() => JSON.stringify(term.getViewportRowBackgroundValues(workerRow)) !== JSON.stringify(bgBefore),
+		);
+		mode.composer.scrollTranscript(3);
+		await term.waitForRender(
+			() => plainRows(term.getViewport()).findIndex(row => row.includes("ScrolledWorker")) !== workerRow,
+		);
+		const movedWorkerRow = plainRows(term.getViewport()).findIndex(row => row.includes("ScrolledWorker"));
+		expect(movedWorkerRow).toBeGreaterThanOrEqual(0);
+		expect(term.getViewportRowBackgroundValues(movedWorkerRow)).toEqual(bgBefore);
+
+		// Link hints and link clicks use post-scroll coordinates, and scrolling cancels active hints if targets change
+		mode.keybindings.setUserBindings({ "app.links.hint": "alt+k" });
+		term.sendInput("\x1bk");
+		await term.waitForRender(() => mode.linkHintsActive);
+		mode.composer.scrollTranscript(80);
+		await term.waitForRender(() => !mode.linkHintsActive);
+		expect(mode.linkHintsActive).toBe(false);
+
+		mode.composer.scrollTranscript(-80);
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("scrolled link")));
+		const linkViewport = plainRows(term.getViewport());
+		const linkRow = linkViewport.findIndex(row => row.includes("scrolled link"));
+		expect(linkRow).toBeGreaterThanOrEqual(0);
+		term.sendInput(`\x1b[<0;${linkViewport[linkRow]!.indexOf("scrolled link") + 2};${linkRow + 1}M`);
+		await firstActivation;
+		expect(activated).toEqual(["demo:scrolled/1"]);
 	});
 });

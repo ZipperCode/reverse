@@ -93,8 +93,6 @@ function parseUiState(
 		composerShape,
 		showHardwareCursor,
 		maxInlineImages,
-		resizeScrollback,
-		completeScrollback,
 		imeSafeCursor,
 		autocompleteMaxVisible,
 		spellingTypoDetection,
@@ -106,11 +104,6 @@ function parseUiState(
 		typeof composerShape !== "string" ||
 		typeof showHardwareCursor !== "boolean" ||
 		typeof maxInlineImages !== "number" ||
-		(resizeScrollback !== undefined &&
-			resizeScrollback !== "append" &&
-			resizeScrollback !== "rebuild" &&
-			resizeScrollback !== "preserve") ||
-		(completeScrollback !== undefined && typeof completeScrollback !== "boolean") ||
 		typeof imeSafeCursor !== "boolean" ||
 		typeof autocompleteMaxVisible !== "number" ||
 		typeof spellingTypoDetection !== "boolean" ||
@@ -137,8 +130,6 @@ function parseUiState(
 			composerShape,
 			showHardwareCursor,
 			maxInlineImages,
-			resizeScrollback: resizeScrollback ?? "rebuild",
-			completeScrollback: completeScrollback ?? false,
 			imeSafeCursor,
 			autocompleteMaxVisible,
 			spellingTypoDetection,

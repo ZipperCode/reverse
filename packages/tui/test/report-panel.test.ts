@@ -109,11 +109,7 @@ describe("ReportPanel in text mode", () => {
 		h.composer.stop();
 	});
 
-	it("keeps the editor on the bottom row when rows reached scrollback while the report was open", async () => {
-		// With the welcome header on screen, opening a tall report retires the
-		// header into scrollback, so the frame left after closing is shorter
-		// than the screen. The interactive mode notes the editor sat on the
-		// bottom row before opening and pins it there again on close.
+	it("keeps the editor pinned and refills the conversation after a tall report closes", async () => {
 		const terminal = new VirtualTerminal(100, ROWS);
 		const scheduler = new VirtualRenderScheduler();
 		const composer = new Composer({
@@ -122,7 +118,7 @@ describe("ReportPanel in text mode", () => {
 			preferences: { ...COMPOSER_DEFAULTS, quiet: false },
 		});
 		const transcript = new TranscriptContainer();
-		let transcriptRows = 0;
+		const transcriptRows = 4;
 		const dock = new Container();
 		const editor = new Container();
 		editor.addChild(new Text("EDITOR", 0, 0));
@@ -130,14 +126,11 @@ describe("ReportPanel in text mode", () => {
 		composer.start({ playWelcomeIntro: false });
 		await scheduler.settle(terminal);
 		const editorRow = () => terminal.getViewport().findIndex(row => row.includes("EDITOR"));
-		// The welcome tip is picked at random and wraps to a varying height, so
-		// grow the transcript until the frame exactly fills the screen.
-		for (; transcriptRows < ROWS && editorRow() < ROWS - 1; transcriptRows++) {
-			const row = transcriptRows;
-			transcript.addChild({ render: () => [`Transcript ${row}`], isTranscriptBlockFinalized: () => true } as never);
-			composer.ui.requestRender();
-			await scheduler.settle(terminal);
+		for (let row = 0; row < transcriptRows; row++) {
+			transcript.addChild({ render: () => [`Transcript ${row}`] });
 		}
+		composer.ui.requestRender();
+		await scheduler.settle(terminal);
 		expect(editorRow()).toBe(ROWS - 1);
 		expect(terminal.getViewport().some(row => row.includes("Tip:"))).toBe(true);
 		const viewport = composer.ui.getMutableViewport();

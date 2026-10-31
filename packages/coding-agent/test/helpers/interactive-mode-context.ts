@@ -220,7 +220,11 @@ export function createInteractiveModeContext(overrides: ContextOverrides = {}): 
 	};
 	const ctx = {
 		ui,
-		composer: { setRunActive: vi.fn() },
+		composer: {
+			scrollTranscript: vi.fn(),
+			scrollTranscriptToBottom: vi.fn(),
+			transcriptViewportHeight: 20,
+		},
 		chatContainer,
 		statusContainer: new Container(),
 		editorContainer: new Container(),

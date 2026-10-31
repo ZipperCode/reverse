@@ -1,11 +1,10 @@
 /**
  * SGR mouse report parsing (`\x1b[<button;col;rowM` / `…m`).
  *
- * Mouse tracking is enabled while a fullscreen overlay holds the alternate
- * screen (see tui.ts MOUSE_TRACKING_ON), or — controlled by `tui.mouse` — on the
- * normal buffer whenever no overlay is visible. Consumers hit-test
- * against their own rendered frame: the frame paints from screen row 0, hence
- * `row`/`col` are exposed 0-based for direct indexing into rendered lines.
+ * Application-owned fullscreen main screens always enable tracking for wheel
+ * scrolling; fullscreen overlays choose their own pointer policy. Inline
+ * surfaces may opt into tracking through their mouse provider. Consumers
+ * hit-test against their rendered frame; `row`/`col` are 0-based.
  */
 
 /** A decoded SGR mouse report. */

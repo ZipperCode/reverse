@@ -359,49 +359,6 @@ export const cfgTuiMaxInlineImages = register({
 		"Maximum number of inline images kept as live terminal graphics (default 8). Older images fall back to a text placeholder via a full redraw once the limit is exceeded. Set to 0 to keep every image (no limit).",
 });
 
-export const cfgTuiResizeScrollback = register({
-	id: "tui.resizeScrollback",
-	type: "enum",
-	values: ["append", "rebuild", "preserve"] as const,
-	default: "rebuild",
-	ui: {
-		tab: "appearance",
-		group: "Display",
-		label: "Resize Scrollback",
-		description: "How a settled terminal resize refreshes transcript rows retained in terminal scrollback",
-		options: [
-			{
-				value: "append",
-				label: "Append",
-				description: "Replay the transcript at the new width below retained history",
-			},
-			{
-				value: "rebuild",
-				label: "Rebuild",
-				description: "Erase all terminal scrollback, then replay one current-width transcript",
-			},
-			{
-				value: "preserve",
-				label: "Preserve",
-				description: "Repaint only the viewport and keep history wrapped at its old width",
-			},
-		],
-	},
-});
-
-export const cfgTuiCompleteScrollback = register({
-	id: "tui.completeScrollback",
-	type: "boolean",
-	default: false,
-	ui: {
-		tab: "appearance",
-		group: "Display",
-		label: "Complete Scrollback",
-		description:
-			"Send transcript rows pushed off screen by a growing HUD or dialog straight to scrollback; when it shrinks, blank rows sit between the transcript and the input until new output fills them",
-	},
-});
-
 export const cfgTerminalShowProgress = register({
 	id: "terminal.showProgress",
 	type: "boolean",
@@ -575,7 +532,7 @@ export const cfgTuiHyperlinks = register({
 // effective value, so pi-tui renderers gating on the shared flag track it the same instant path links do.
 effect(cfgTuiHyperlinks, applyHyperlinkSetting);
 
-// 默认关闭：普通缓冲区开启鼠标捕获会拦截滚轮事件，终端原生回滚与选区依赖关闭鼠标捕获。
+// 滚轮始终启用；此开关仅控制详情点击与悬停，默认保留关闭。
 export const cfgTuiMouse = register({
 	id: "tui.mouse",
 	type: "boolean",
@@ -584,11 +541,8 @@ export const cfgTuiMouse = register({
 		tab: "appearance",
 		group: "Display",
 		label: "Mouse Interaction",
-		get description() {
-			const shift = formatKeyHint("shift");
-			const ctrlO = formatKeyHint("ctrl+o");
-			return `Default off preserves native terminal scrolling and selection (${ctrlO} still expands details). When enabled, click visible thinking and tool headers, live subagent cards, or extension-owned links (the link-hint key picks them without the mouse); terminal scrolling and selection then require ${shift} (where supported)`;
-		},
+		description:
+			"Transcript wheel scrolling is always enabled. Enable clicks and hover on transcript details, subagent cards, and extension links. Hold Shift for terminal text selection where supported.",
 	},
 });
 

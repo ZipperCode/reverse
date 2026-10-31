@@ -26,10 +26,8 @@ import {
 	cfgSpellingAutocorrect,
 	cfgSpellingTypoDetection,
 	cfgStartupQuiet,
-	cfgTuiCompleteScrollback,
 	cfgTuiImeSafeCursor,
 	cfgTuiMaxInlineImages,
-	cfgTuiResizeScrollback,
 } from "@reverse/coding-agent/modes/settings";
 
 class CountingTerminal extends VirtualTerminal {
@@ -91,8 +89,6 @@ describe("Composer prepaint", () => {
 			composerShape: cfgComposerShape.get(settings) ?? "box",
 			showHardwareCursor: cfgShowHardwareCursor.get(settings),
 			maxInlineImages: cfgTuiMaxInlineImages.get(settings),
-			resizeScrollback: cfgTuiResizeScrollback.get(settings),
-			completeScrollback: cfgTuiCompleteScrollback.get(settings),
 			imeSafeCursor: cfgTuiImeSafeCursor.get(settings),
 			autocompleteMaxVisible: cfgAutocompleteMaxVisible.get(settings),
 			spellingTypoDetection: cfgSpellingTypoDetection.get(settings),
@@ -623,8 +619,6 @@ describe("Composer prepaint", () => {
 			composerShape: "box",
 			showHardwareCursor: config.showHardwareCursor,
 			maxInlineImages: config.maxInlineImages,
-			resizeScrollback: config.resizeScrollback,
-			completeScrollback: config.completeScrollback,
 			imeSafeCursor: config.imeSafeCursor,
 			autocompleteMaxVisible: config.autocompleteMaxVisible,
 			spellingTypoDetection: cfgSpellingTypoDetection.get(settings),

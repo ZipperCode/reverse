@@ -103,8 +103,9 @@ const PAINT_BEGIN = `${HIDE_CURSOR}${SYNC_OUTPUT_BEGIN}${DISABLE_AUTOWRAP}`;
 const PAINT_END = `${ENABLE_AUTOWRAP}${SYNC_OUTPUT_END}`;
 const PAINT_BEGIN_NO_SYNC = `${HIDE_CURSOR}${DISABLE_AUTOWRAP}`;
 const PAINT_END_NO_SYNC = ENABLE_AUTOWRAP;
-// Mouse reporting is scoped to fullscreen overlays that opt into pointer
-// interaction, plus product-configured normal-buffer click capture (`tui.mouse`).
+// Mouse reporting is enabled on the fullscreen main screen (while no non-tracking
+// overlay covers it), fullscreen overlays that opt into pointer interaction, and
+// product-configured normal-buffer click capture (`tui.mouse`).
 // 1000h = button click tracking, 1003h = any-motion tracking for hover
 // targets, and 1006h = SGR extended coordinates past column/row 223.
 // Selection-first surfaces leave these modes disabled so the terminal retains
@@ -153,7 +154,7 @@ export interface TuiPaint {
 	readonly viewport: readonly string[];
 	/** True when this paint erased scrollback and repainted from row zero (destructive reset or history replay): consumers drop their history copy before applying `history`. */
 	readonly reset: boolean;
-	/** True when `viewport` is an alternate-screen overlay; history is untouched. */
+	/** True when `viewport` is painted on the alternate screen buffer (fullscreen screen mode or fullscreen overlay); history is untouched. */
 	readonly alt: boolean;
 	readonly columns: number;
 	readonly rows: number;
@@ -165,6 +166,8 @@ export type PaintListener = (paint: TuiPaint) => void;
 export interface TUIOptions {
 	renderScheduler?: RenderScheduler;
 	onPaint?: PaintListener;
+	/** Physical screen ownership for ANSI rendering (`"inline"` by default). */
+	screenMode?: "inline" | "fullscreen";
 }
 /** Physical terminal dimensions supplied to a frame provider. */
 export interface ViewportSize {
@@ -194,7 +197,7 @@ export interface TerminalFramePlan {
 /** Produces bounded terminal frames and retires acknowledged history batches. */
 export interface TerminalFrameProvider {
 	renderFrame(viewport: ViewportSize): TerminalFramePlan;
-	acknowledgeHistory(id: number): void;
+	acknowledgeHistory?(id: number): void;
 	/** Full semantic viewport used only on the transient resize buffer. */
 	renderResizeFrame?(viewport: ViewportSize): readonly string[];
 	/** Re-offer finalized history after a display reset or resize replay. */
@@ -1051,6 +1054,9 @@ export class TUI extends Container {
 	// normal screen. #altPreviousLines is the last alt frame, diffed row by row
 	// against the next one.
 	#altActive = false;
+	readonly #screenMode: "inline" | "fullscreen";
+	#fullscreenOverlayActive = false;
+	#fullscreenMainViewportRows = 0;
 	#mouseTracking: MouseTrackingState = "off";
 	/** Product-owned probe for normal-buffer click capture (`tui.mouse`). Read every frame. */
 	#inlineMouseProvider: (() => boolean) | undefined;
@@ -1128,6 +1134,7 @@ export class TUI extends Container {
 		this.terminal = terminal;
 		this.#renderScheduler = options?.renderScheduler ?? DEFAULT_RENDER_SCHEDULER;
 		if (options?.onPaint) this.#paintListeners.add(options.onPaint);
+		this.#screenMode = options?.screenMode === "fullscreen" ? "fullscreen" : "inline";
 		this.#showHardwareCursor = showHardwareCursor === undefined ? this.#showHardwareCursor : showHardwareCursor;
 		this.#watchdog = new LoopWatchdog();
 	}
@@ -1160,6 +1167,7 @@ export class TUI extends Container {
 		this.#frameProvider = provider;
 		this.#providerWindow = [];
 		this.#providerPreparedRows = [];
+		this.#fullscreenMainViewportRows = 0;
 		this.#resizeReplaySize = undefined;
 		this.requestRender(true);
 	}
@@ -1388,6 +1396,21 @@ export class TUI extends Container {
 	 * the painted top is backed out by that net pad.
 	 */
 	getMutableViewport(): { top: number; length: number } {
+		if (this.#screenMode === "fullscreen") {
+			if (
+				!this.#altActive ||
+				!this.#hasEverRendered ||
+				this.hasOverlay() ||
+				this.terminal.columns <= 0 ||
+				this.terminal.rows <= 0 ||
+				this.terminal.columns !== this.#previousWidth ||
+				this.terminal.rows !== this.#previousHeight ||
+				this.#ghosttyInitialImageDelayTimer !== undefined
+			) {
+				return { top: 0, length: 0 };
+			}
+			return { top: 0, length: this.#fullscreenMainViewportRows };
+		}
 		if (
 			this.#altActive ||
 			this.#resizeAltActive ||
@@ -1607,6 +1630,12 @@ export class TUI extends Container {
 					this.#native!.noteTerminalColumns(this.terminal.columns);
 					return;
 				}
+				if (this.#screenMode === "fullscreen") {
+					this.#fullscreenMainViewportRows = 0;
+					this.invalidate();
+					this.requestRender(true);
+					return;
+				}
 				if (this.#resizeProbe) {
 					// Warp echoes a height-only ±1 SIGWINCH on CSI ?1049l. The echo
 					// must not restart the alt borrow (that is the flicker loop),
@@ -1812,9 +1841,13 @@ export class TUI extends Container {
 			setAltScreenActive(false);
 			this.#altActive = false;
 			this.#resizeAltActive = false;
+			this.#fullscreenOverlayActive = false;
+			this.#fullscreenMainViewportRows = 0;
+			this.#altPreviousLines = [];
+			this.#altPreparedRows = [];
 		}
 		this.#setMouseTracking("off");
-		if (this.#previousFrameLength > 0) {
+		if (this.#screenMode !== "fullscreen" && this.#previousFrameLength > 0) {
 			const lineDiff = this.#providerViewportTop - this.#hardwareCursorRow;
 			if (lineDiff > 0) this.terminal.write(`\x1b[${lineDiff}B`);
 			else if (lineDiff < 0) this.terminal.write(`\x1b[${-lineDiff}A`);
@@ -2690,11 +2723,17 @@ export class TUI extends Container {
 			this.terminal.write(exitSequence);
 			setAltScreenActive(false);
 			this.#altActive = false;
+			this.#fullscreenOverlayActive = false;
+			this.#fullscreenMainViewportRows = 0;
 			this.#mouseTracking = "off";
 			this.#altPreviousLines = [];
 			this.#altPreparedRows = [];
 			this.#pendingAltExit = "";
 			this.#resizeAltExitFused = false;
+			if (this.#screenMode === "fullscreen") {
+				this.#imageBudget.forgetTransmitted();
+				this.#imageBudget.takeResetPurgeIds();
+			}
 		} else if (this.#mouseTracking !== "off") {
 			// Inline capture with no overlay: still owned by us at quit, so
 			// release it — otherwise the parent shell keeps mouse reporting
@@ -2702,13 +2741,15 @@ export class TUI extends Container {
 			this.terminal.write(MOUSE_TRACKING_OFF);
 			this.#mouseTracking = "off";
 		}
+		this.#fullscreenOverlayActive = false;
+		this.#fullscreenMainViewportRows = 0;
 		// A latched destructive reset (settled rebuild-mode resize, /clear) pairs
 		// ED3 with a complete-ledger replay. Running that pair during stop would
 		// erase native history and re-stream the whole transcript at quit; drop
 		// the latch so the flush below writes only un-retired rows.
 		this.#clearScrollbackOnNextRender = false;
 		// The surface already holds the transcript; there's no row history to retire.
-		if (!nativeWasLive) this.#flushHistoryBeforeStop();
+		if (!nativeWasLive && this.#screenMode !== "fullscreen") this.#flushHistoryBeforeStop();
 		// Deliberately leave transmitted images in the terminal's graphics store:
 		// placeholder cells committed to native scrollback render only while their
 		// image data lives, so a delete-by-id here blanks every transcript image
@@ -2731,7 +2772,7 @@ export class TUI extends Container {
 		// enough; emitting `\r\n` would create an extra blank row. If the content
 		// already reaches the viewport bottom, scroll exactly once so the prompt
 		// lands directly below the last visible TUI row.
-		if (this.#previousFrameLength > 0) {
+		if (this.#screenMode !== "fullscreen" && this.#previousFrameLength > 0) {
 			// Provider frames anchor the mutable viewport below retained history;
 			// the shell prompt belongs on the first row after that content.
 			const targetRow = this.#providerViewportTop + this.#previousFrameLength;
@@ -2849,10 +2890,12 @@ export class TUI extends Container {
 		return true;
 	}
 	#prepareForcedRender(clearScrollback: boolean): void {
-		if (clearScrollback && !this.#clearScrollbackOnNextRender) {
-			this.#frameProvider?.beginHistoryReplay?.();
+		if (this.#screenMode !== "fullscreen") {
+			if (clearScrollback && !this.#clearScrollbackOnNextRender) {
+				this.#frameProvider?.beginHistoryReplay?.();
+			}
+			this.#clearScrollbackOnNextRender ||= clearScrollback;
 		}
-		this.#clearScrollbackOnNextRender ||= clearScrollback;
 		this.#forceViewportRepaintOnNextRender = true;
 		if (this.#renderTimer) {
 			this.#renderTimer.cancel();
@@ -3616,7 +3659,8 @@ export class TUI extends Container {
 		let viewport = viewportRows;
 		this.#imageBudget.limitResidentImages();
 		const history = offered !== undefined && offered.id > this.#acceptedHistoryBatchId ? offered : undefined;
-		if (offered !== undefined && offered.id <= this.#acceptedHistoryBatchId) provider?.acknowledgeHistory(offered.id);
+		if (offered !== undefined && offered.id <= this.#acceptedHistoryBatchId)
+			provider?.acknowledgeHistory?.(offered.id);
 
 		let historyRows = history?.rows ?? [];
 		let replayViewportRows = 0;
@@ -3866,7 +3910,7 @@ export class TUI extends Container {
 		});
 		if (history !== undefined) {
 			this.#acceptedHistoryBatchId = history.id;
-			provider?.acknowledgeHistory(history.id);
+			provider?.acknowledgeHistory?.(history.id);
 			// Normal retirement may hold another ordered batch. Replay is always
 			// complete, so pumping it would create a second visible redraw/write.
 			if (history.kind !== "replay") this.requestRender();
@@ -3884,6 +3928,10 @@ export class TUI extends Container {
 		if (this.#nativeHoldTimer) return;
 		const width = this.terminal.columns;
 		const height = this.terminal.rows;
+		if (this.#screenMode === "fullscreen") {
+			this.#renderFullscreenFrame(width, height);
+			return;
+		}
 		if (this.#resizeAltActive) {
 			this.#renderResizeAltFrame(width, height);
 			return;
@@ -4539,6 +4587,141 @@ export class TUI extends Container {
 	}
 
 	/**
+	 * Compose and paint one frame on the application-owned alternate screen
+	 * (`screenMode: "fullscreen"`). Without a fullscreen overlay, the frame
+	 * provider's bounded viewport (or the bounded tail of `super.render(width)`
+	 * when no provider is installed) forms the base and any visible
+	 * non-fullscreen overlays composite over it. A fullscreen overlay replaces
+	 * the base with a blank grid on the same alternate buffer — opening or
+	 * closing overlays never re-enters or leaves DECSET 1049.
+	 */
+	#renderFullscreenFrame(width: number, height: number): void {
+		if (width <= 0 || height <= 0) {
+			this.#fullscreenMainViewportRows = 0;
+			this.#forceViewportRepaintOnNextRender = true;
+			return;
+		}
+		if (this.#hasEverRendered && (width !== this.#previousWidth || height !== this.#previousHeight)) {
+			this.#forceViewportRepaintOnNextRender = true;
+		}
+		const topOverlay = this.#getTopmostVisibleOverlay();
+		const wantFullscreenOverlay = topOverlay?.options?.fullscreen === true;
+		const wantMouse: MouseTrackingState =
+			topOverlay === undefined
+				? "full"
+				: wantFullscreenOverlay && topOverlay.options?.mouseTracking !== false
+					? "full"
+					: "off";
+		if (!this.#altActive) {
+			this.#imageBudget.beginAltScreenLifecycle();
+			this.#imageBudget.forgetTransmitted();
+			this.#imageBudget.takeResetPurgeIds();
+		}
+		if (wantFullscreenOverlay !== this.#fullscreenOverlayActive) {
+			this.#fullscreenOverlayActive = wantFullscreenOverlay;
+			this.#forceViewportRepaintOnNextRender = true;
+			if (wantFullscreenOverlay) {
+				this.#imageBudget.beginAltScreenLifecycle();
+			}
+		}
+
+		const provider = this.#frameProvider;
+		const keyHolderOverlay = this.#getKeyHolderOverlay();
+		let lines: string[];
+		let mainViewportRows = 0;
+		if (wantFullscreenOverlay) {
+			this.#debugNextWindowTop = 0;
+			// oxlint-disable-next-line unicorn/no-new-array -- alt-frame length preallocation
+			const base: string[] = new Array(height).fill("");
+			do {
+				this.#imageBudget.beginPass(false, true);
+				lines = this.#compositeOverlaysIntoWindow(base, width, height);
+			} while (this.#imageBudget.endPass());
+		} else {
+			this.#debugNextWindowTop = 0;
+			do {
+				this.#imageBudget.beginPass();
+				let viewport: string[];
+				if (provider !== undefined) {
+					const plan = provider.renderFrame({ columns: width, rows: height });
+					if (plan.history !== undefined) {
+						throw new Error("Fullscreen frame providers must not emit history");
+					}
+					viewport = Array.from(plan.viewport);
+					if (viewport.length > height) {
+						const message = `Frame provider returned ${viewport.length} rows for a ${height}-row viewport`;
+						if (Bun.env.NODE_ENV === "test" || Bun.env.NODE_ENV === "development") {
+							throw new Error(message);
+						}
+						logger.error("TUI layout contract violated", { rows: viewport.length, height });
+						viewport = viewport.slice(0, height);
+					}
+				} else {
+					const composed = super.render(width);
+					this.#debugNextWindowTop = Math.max(0, composed.length - height);
+					viewport = composed.length > height ? composed.slice(composed.length - height) : Array.from(composed);
+				}
+				mainViewportRows = topOverlay === undefined ? viewport.length : 0;
+				if (keyHolderOverlay !== undefined) {
+					for (let i = 0; i < viewport.length; i++) {
+						const row = viewport[i]!;
+						if (row.includes(CURSOR_MARKER)) {
+							viewport[i] = row.replaceAll(CURSOR_MARKER, "");
+						}
+					}
+				}
+				lines = this.#compositeVisibleOverlays(viewport, width, height);
+			} while (this.#imageBudget.endPass());
+		}
+
+		if (!this.#altActive) {
+			this.#noteAltBufferToggle();
+			this.terminal.write(`\x1b[?1049h${this.#keyboardEnhancementEnter()}`);
+			this.#setMouseTracking(wantMouse);
+			setAltScreenActive(true);
+			this.terminal.hideCursor();
+			this.#forgetHardwareCursorState();
+			this.#recordHardwareCursorHidden();
+			this.#altActive = true;
+			this.#altPreviousLines = [];
+			this.#altPreparedRows = [];
+			this.#altEnterWidth = width;
+			this.#altEnterHeight = height;
+		} else if (wantMouse !== this.#mouseTracking) {
+			this.#setMouseTracking(wantMouse);
+		}
+
+		const markers: { row: number; col: number }[] = [];
+		const prepared = this.#prepareLinesArray(lines, width, this.#altPreparedRows, height, markers);
+		const focused = this.#focusedComponent;
+		let acceptsTerminalCursor: boolean;
+		if (wantFullscreenOverlay) {
+			acceptsTerminalCursor =
+				topOverlay !== undefined &&
+				focused !== null &&
+				isFocusable(focused) &&
+				focused.focused &&
+				typeof focused.setUseTerminalCursor === "function" &&
+				isOverlayFocusTarget(topOverlay.component, focused);
+		} else if (keyHolderOverlay !== undefined) {
+			acceptsTerminalCursor =
+				focused !== null &&
+				isFocusable(focused) &&
+				focused.focused &&
+				this.overlayStack.some(
+					entry => this.#isOverlayVisible(entry) && isOverlayFocusTarget(entry.component, focused),
+				);
+		} else {
+			acceptsTerminalCursor = focused === null || (isFocusable(focused) && focused.focused);
+		}
+		this.#emitAltFrame(prepared, width, height, true, acceptsTerminalCursor ? (markers[0] ?? null) : null);
+		this.#fullscreenMainViewportRows = mainViewportRows;
+		this.#previousWidth = width;
+		this.#previousHeight = height;
+		this.#hasEverRendered = true;
+	}
+
+	/**
 	 * Paint a frame on the alt buffer: only the rows that changed since the
 	 * previous frame, or every row when the height changed, a repaint is forced,
 	 * or a changed frame holds OSC 66 text before or after. Emits only
@@ -4652,6 +4835,7 @@ export class TUI extends Container {
 		// visibility and marker position without replacing that saved normal row,
 		// which stop() and a late native-surface handshake use after the restore.
 		if (target) this.#hardwareCursorState = target;
+		else if (rowsBuffer !== "") this.#forgetHardwareCursorState();
 		else this.#recordHardwareCursorHidden();
 	}
 }

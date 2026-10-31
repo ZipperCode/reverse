@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
-import { COMPOSER_DEFAULTS, Composer } from "@reverse/tui/prompt/composer";
+import { Composer } from "@reverse/tui/prompt/composer";
 import { initTheme } from "@reverse/tui/theme";
-import { type Component, Container, type RenderScheduler, visibleWidth } from "@reverse/tui";
+import { type Component, Container, Text, visibleWidth } from "@reverse/tui";
 import { Image } from "@reverse/tui/components/image";
 import { getKittyGraphics, setKittyGraphics } from "@reverse/tui/kitty-graphics";
 import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@reverse/tui/terminal-capabilities";
@@ -10,463 +10,204 @@ import { VirtualRenderScheduler } from "../../tui/test/virtual-render-scheduler"
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { withoutTerminalMultiplexer } from "../../tui/test/helpers/terminal-multiplexer";
 
-const BASE64_ONE_PIXEL_PNG =
-	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==";
-
 withoutTerminalMultiplexer();
-
-class ResizeScheduler implements RenderScheduler {
-	#now = 0;
-	#pending = new Set<() => void>();
-
-	now(): number {
-		return this.#now;
-	}
-
-	scheduleImmediate(callback: () => void) {
-		callback();
-		return { cancel() {} };
-	}
-
-	scheduleRender(callback: () => void, _delayMs: number) {
-		this.#pending.add(callback);
-		return { cancel: () => this.#pending.delete(callback) };
-	}
-
-	settle(): void {
-		this.#now += 120;
-		const pending = [...this.#pending];
-		this.#pending.clear();
-		for (const callback of pending) callback();
-	}
-	advance(ms: number): void {
-		this.#now += ms;
-	}
-}
-
-class MutableComposerTail implements Component {
+beforeAll(() => initTheme());
+afterEach(() => vi.restoreAllMocks());
+class Tail implements Component {
 	status = "thinking low";
-
-	invalidate(): void {}
-
-	render(): readonly string[] {
-		return ["╭─ EDITOR TOP ─╮", `│ ${this.status} │`, "╰─ EDITOR BOTTOM ─╯"];
+	render() {
+		return ["EDITOR TOP", this.status, "EDITOR BOTTOM"];
 	}
 }
-class WidthTranscriptBlock implements Component {
+class WidthBlock implements Component {
 	constructor(readonly id: number) {}
-
-	render(width: number): readonly string[] {
+	render(width: number) {
 		return [`block-${this.id}@${width}`];
 	}
 }
-
-class ToolAllocationBlock implements Component {
+class ToolBlock implements Component {
 	allocations: number[] = [];
-
-	constructor(readonly rows: number = 2) {}
-
-	setTranscriptAllocation(rows: number): void {
+	setTranscriptAllocation(rows: number) {
 		this.allocations.push(rows);
 	}
-
-	setToolActivityVisible(_visible: boolean): void {}
-
-	render(width: number): readonly string[] {
-		return Array.from({ length: this.rows }, (_, i) => `tool-row-${i}@${width}`);
+	render(width: number) {
+		return [`tool-0@${width}`, `tool-1@${width}`];
 	}
 }
-
 class TrackingTerminal extends VirtualTerminal {
-	readonly writes: string[] = [];
-
-	override write(data: string): void {
+	writes: string[] = [];
+	override write(data: string) {
 		this.writes.push(data);
 		super.write(data);
 	}
 }
-
-function plainBuffer(terminal: VirtualTerminal): string[] {
-	return terminal.getScrollBuffer().map(row => Bun.stripANSI(row).trimEnd());
-}
-
-function rowOf(rows: readonly string[], needle: string): number {
-	return rows.findIndex(row => row.includes(needle));
-}
-
-function countRows(rows: readonly string[], needle: string): number {
-	return rows.filter(row => row.includes(needle)).length;
-}
-
-function expectOneExactEditor(rows: readonly string[], status: string): number {
-	const top = rowOf(rows, "EDITOR TOP");
-	expect(countRows(rows, "EDITOR TOP")).toBe(1);
-	expect(countRows(rows, status)).toBe(1);
-	expect(countRows(rows, "EDITOR BOTTOM")).toBe(1);
-	expect(rowOf(rows, status)).toBe(top + 1);
-	expect(rowOf(rows, "EDITOR BOTTOM")).toBe(top + 2);
-	return top;
-}
-
-function startRetiredWelcome(version: string): { composer: Composer; terminal: TrackingTerminal } {
-	const terminal = new TrackingTerminal(80, 12);
+const screen = (terminal: VirtualTerminal) => terminal.getViewport().map(row => Bun.stripANSI(row).trimEnd());
+function harness(columns = 80, rows = 24, quiet = false, version = "test") {
+	const terminal = new TrackingTerminal(columns, rows);
+	terminal.write("SHELL-SENTINEL");
+	const scheduler = new VirtualRenderScheduler();
 	const composer = new Composer({
 		terminal,
-		tuiOptions: { renderScheduler: new ResizeScheduler() },
-		preferences: { ...COMPOSER_DEFAULTS, quiet: false, resizeScrollback: "preserve" },
+		tuiOptions: { renderScheduler: scheduler },
+		preferences: { quiet },
 		welcome: { version },
 	});
-	composer.setRuntimeChildren([new TranscriptContainer(), new MutableComposerTail()]);
+	const transcript = new TranscriptContainer();
+	const tail = new Tail();
+	composer.setRuntimeChildren([transcript, tail]);
 	composer.start({ playWelcomeIntro: false });
-	return { composer, terminal };
+	return { terminal, scheduler, composer, transcript, tail };
+}
+async function browse(h: ReturnHarness, needle: string): Promise<string[]> {
+	for (let page = 0; page < 50; page++) {
+		const rows = screen(h.terminal);
+		if (rows.some(row => row.includes(needle))) return rows;
+		h.composer.scrollTranscript(-Math.max(1, h.composer.transcriptViewportHeight - 1));
+		await h.scheduler.settle(h.terminal);
+	}
+	throw new Error(`Missing conversation content: ${needle}`);
+}
+interface ReturnHarness {
+	terminal: TrackingTerminal;
+	scheduler: VirtualRenderScheduler;
+	composer: Composer;
 }
 
-beforeAll(async () => {
-	await initTheme();
-});
-
-afterEach(() => {
-	vi.restoreAllMocks();
-});
-
-describe("composer welcome native-history resize", () => {
-	it("keeps one exact editor rectangle and retired welcome through repeated thinking and resize frames", async () => {
-		// Select the long auth-broker tip: it retires as three hard rows at
-		// width 80 and must not be recomposed into fewer rows after widening.
+describe("fullscreen welcome and conversation resize", () => {
+	it("keeps one bottom editor rectangle across repeated status updates and geometry changes", async () => {
 		vi.spyOn(Math, "random").mockReturnValue(0.5);
-		const terminal = new TrackingTerminal(80, 12);
-		const scheduler = new ResizeScheduler();
-		const composer = new Composer({
-			terminal,
-			tuiOptions: { renderScheduler: scheduler },
-			preferences: { ...COMPOSER_DEFAULTS, quiet: false, resizeScrollback: "preserve" },
-			welcome: { version: "test" },
-		});
-		const offered: number[] = [];
-		const acknowledged: number[] = [];
-		let resizeFrames = 0;
-		const renderFrame = composer.renderFrame.bind(composer);
-		const renderResizeFrame = composer.renderResizeFrame.bind(composer);
-		const acknowledgeHistory = composer.acknowledgeHistory.bind(composer);
-		composer.renderFrame = viewport => {
-			const plan = renderFrame(viewport);
-			if (plan.history) offered.push(plan.history.id);
-			return plan;
-		};
-		composer.renderResizeFrame = viewport => {
-			resizeFrames++;
-			return renderResizeFrame(viewport);
-		};
-		composer.acknowledgeHistory = id => {
-			acknowledged.push(id);
-			acknowledgeHistory(id);
-		};
-
-		const transcript = new TranscriptContainer();
-		const tail = new MutableComposerTail();
-		composer.setRuntimeChildren([transcript, tail]);
-		composer.start({ playWelcomeIntro: false });
-
-		expect(countRows(plainBuffer(terminal), "vtest")).toBe(1);
-		expect(offered).toHaveLength(1);
-		expect(acknowledged).toEqual(offered);
-		const initialAnchor = expectOneExactEditor(
-			terminal.getViewport().map(row => Bun.stripANSI(row)),
-			tail.status,
-		);
-		expect(initialAnchor).toBe(9);
-		const writesAfterRetirement = terminal.writes.length;
-
-		for (let index = 0; index < 40; index++) {
-			tail.status = index % 2 === 0 ? "thinking high" : "thinking low";
-			composer.ui.requestRender(true);
-			const viewport = terminal.getViewport().map(row => Bun.stripANSI(row));
-			expect(expectOneExactEditor(viewport, tail.status)).toBe(initialAnchor);
-			expect(countRows(plainBuffer(terminal), "vtest")).toBe(1);
+		const h = harness(80, 12);
+		try {
+			await h.scheduler.settle(h.terminal);
+			for (let i = 0; i < 40; i++) {
+				h.tail.status = i % 2 ? "thinking low" : "thinking high";
+				h.composer.ui.requestRender();
+				await h.scheduler.settle(h.terminal);
+				expect(screen(h.terminal).slice(-3)).toEqual(["EDITOR TOP", h.tail.status, "EDITOR BOTTOM"]);
+			}
+			for (const [columns, rows] of [
+				[96, 28],
+				[104, 30],
+				[100, 34],
+				[92, 30],
+				[72, 50],
+			]) {
+				h.terminal.resize(columns!, rows!);
+				await h.scheduler.settle(h.terminal);
+				const view = screen(h.terminal);
+				expect(view.slice(-3)).toEqual(["EDITOR TOP", h.tail.status, "EDITOR BOTTOM"]);
+				expect(view.filter(row => row.includes("vtest"))).toHaveLength(1);
+			}
+			expect(h.terminal.writes.join("")).not.toContain("\x1b[3J");
+			expect(h.terminal.writes.join("").split("\x1b[?1049h")).toHaveLength(2);
+		} finally {
+			h.composer.stop();
 		}
-		expect(offered).toHaveLength(1);
-		expect(acknowledged).toHaveLength(1);
+		expect(screen(h.terminal)[0]).toBe("SHELL-SENTINEL");
+	});
 
-		let lastTransient: string[] = [];
-		for (const [columns, rows] of [
-			[96, 28],
-			[104, 30],
-			[100, 34],
-		] as const) {
-			terminal.resize(columns, rows);
-			lastTransient = terminal.getViewport().map(row => Bun.stripANSI(row));
-			expect(countRows(lastTransient, "vtest")).toBe(1);
-			expectOneExactEditor(lastTransient, tail.status);
+	it("recomposes wide Unicode welcome content at the new width without retiring hard rows", async () => {
+		const h = harness(60, 24, false, "aaaa界-tail");
+		try {
+			await h.scheduler.settle(h.terminal);
+			const narrow = await browse(h, "界");
+			expect(narrow.filter(row => row.includes("界"))).toHaveLength(1);
+			h.terminal.resize(100, 40);
+			await h.scheduler.settle(h.terminal);
+			const wide = await browse(h, "界");
+			expect(wide.filter(row => row.includes("界"))).toHaveLength(1);
+			expect(Math.max(...wide.map(visibleWidth))).toBeGreaterThan(Math.max(...narrow.map(visibleWidth)));
+		} finally {
+			h.composer.stop();
 		}
-		expect(resizeFrames).toBe(3);
-		scheduler.settle();
-		// The settled anchor repaint waits on the CPR reply, which VirtualTerminal
-		// delivers on a microtask — drain it before reading the normal screen.
-		await terminal.flush();
+	});
 
-		let settledViewport = terminal.getViewport().map(row => Bun.stripANSI(row));
-		expect(countRows(settledViewport, "vtest")).toBe(1);
-		expect(rowOf(settledViewport, "vtest")).toBe(rowOf(lastTransient, "vtest"));
-		expect(expectOneExactEditor(settledViewport, tail.status)).toBe(expectOneExactEditor(lastTransient, tail.status));
-		expect(countRows(plainBuffer(terminal), "EDITOR TOP")).toBe(1);
-		scheduler.advance(101);
-
-		for (const [columns, rows] of [
-			[92, 30],
-			[72, 50],
-		] as const) {
-			terminal.resize(columns, rows);
-			lastTransient = terminal.getViewport().map(row => Bun.stripANSI(row));
-			expect(countRows(lastTransient, "vtest")).toBe(1);
-			expectOneExactEditor(lastTransient, tail.status);
+	it("retains a historical component anchor and recomposes its rows on resize", async () => {
+		const h = harness(20, 10, true);
+		for (let i = 0; i < 20; i++) h.transcript.addChild(new WidthBlock(i));
+		try {
+			await h.scheduler.settle(h.terminal);
+			h.composer.scrollTranscript(-10);
+			await h.scheduler.settle(h.terminal);
+			const first = screen(h.terminal)[0]!.replace("@20", "@30");
+			h.terminal.resize(30, 12);
+			await h.scheduler.settle(h.terminal);
+			expect(screen(h.terminal)[0]).toBe(first);
+			expect(screen(h.terminal).some(row => row.includes("@20"))).toBe(false);
+			expect((await browse(h, "block-0@30")).some(row => row.includes("block-0@30"))).toBe(true);
+		} finally {
+			h.composer.stop();
 		}
-		expect(resizeFrames).toBe(5);
-		scheduler.settle();
-		await terminal.flush();
-
-		settledViewport = terminal.getViewport().map(row => Bun.stripANSI(row));
-		expect(countRows(settledViewport, "vtest")).toBe(1);
-		expect(expectOneExactEditor(settledViewport, tail.status)).toBeGreaterThan(rowOf(settledViewport, "vtest"));
-		expect(countRows(plainBuffer(terminal), "EDITOR TOP")).toBe(1);
-		expect(offered).toHaveLength(1);
-		expect(acknowledged).toHaveLength(1);
-		expect(terminal.writes.slice(writesAfterRetirement).some(write => write.includes("\x1b[3J"))).toBe(false);
-		composer.ui.stop();
 	});
 
-	it("preserves a wide glyph that straddles a retired-row resize boundary", () => {
-		vi.spyOn(Math, "random").mockReturnValue(0.5);
-		const { composer, terminal } = startRetiredWelcome("aaaa界-tail");
-		const accepted = plainBuffer(terminal).find(row => row.includes("界"));
-		expect(accepted).toBeDefined();
-		const glyphIndex = accepted!.indexOf("界");
-		const width = visibleWidth(accepted!.slice(0, glyphIndex)) + 1;
-		expect(width).toBeLessThan(80);
-
-		const resizeFrame = composer.renderResizeFrame({ columns: width, rows: 200 }).map(row => Bun.stripANSI(row));
-		expect(countRows(resizeFrame, "界")).toBe(1);
-
-		terminal.resize(width, 200);
-
-		const transient = terminal.getViewport().map(row => Bun.stripANSI(row));
-		expect(countRows(transient, "界")).toBe(1);
-		composer.ui.stop();
-	});
-	it("clips retired hard rows instead of reflowing them inside a multiplexer", () => {
-		vi.spyOn(Math, "random").mockReturnValue(0.5);
-		Bun.env.TMUX = "/tmp/tmux-test/default,1,0";
-		const marker = "MUX-SUFFIX";
-		const { composer, terminal } = startRetiredWelcome(`aaaa${marker}`);
-		const accepted = plainBuffer(terminal).find(row => row.includes(marker));
-		expect(accepted).toBeDefined();
-		expect(visibleWidth(accepted!)).toBeLessThanOrEqual(80);
-		const markerIndex = accepted!.indexOf(marker);
-		const width = visibleWidth(accepted!.slice(0, markerIndex)) - 1;
-		expect(width).toBeGreaterThan(1);
-
-		const resizeFrame = composer.renderResizeFrame({ columns: width, rows: 200 }).map(row => Bun.stripANSI(row));
-		expect(countRows(resizeFrame, marker)).toBe(1);
-
-		terminal.resize(width, 200);
-
-		const transient = terminal.getViewport().map(row => Bun.stripANSI(row));
-		expect(countRows(transient, marker)).toBe(0);
-		composer.ui.stop();
-	});
-	it("recomposes the retired welcome header at the settled width on a rebuild resize", async () => {
-		vi.spyOn(Math, "random").mockReturnValue(0.5);
-		const terminal = new VirtualTerminal(60, 12);
-		const scheduler = new VirtualRenderScheduler();
-		const composer = new Composer({
-			terminal,
-			tuiOptions: { renderScheduler: scheduler },
-			preferences: { ...COMPOSER_DEFAULTS, quiet: false, resizeScrollback: "rebuild" },
-			welcome: { version: "test" },
-		});
-		composer.setRuntimeChildren([new TranscriptContainer(), new MutableComposerTail()]);
-		composer.start({ playWelcomeIntro: false });
-		await scheduler.settle(terminal);
-
-		const narrow = plainBuffer(terminal);
-		expect(countRows(narrow, "vtest")).toBe(1);
-		const narrowWidth = Math.max(...narrow.map(row => visibleWidth(row)));
-		expect(narrowWidth).toBeLessThan(60);
-
-		terminal.resize(100, 12);
-		// The refresh-capable settle waits out the 400 ms drag-end window plus
-		// the 40 ms drain horizon, then commits the recomposed header in the
-		// same transaction.
-		await scheduler.advance(terminal, 440);
-
-		const rebuilt = plainBuffer(terminal);
-		expect(countRows(rebuilt, "vtest")).toBe(1);
-		// A hard-wrap reflow can never widen a committed row; only a recompose at
-		// the settled width re-centers the banner in 100 columns.
-		expect(Math.max(...rebuilt.map(row => visibleWidth(row)))).toBeGreaterThan(narrowWidth);
-		composer.ui.stop();
+	it("does not flush conversation content into the restored shell on shutdown", async () => {
+		const h = harness(40, 10, true);
+		h.transcript.addChild(new WidthBlock(1));
+		await h.scheduler.settle(h.terminal);
+		expect(screen(h.terminal)).toContain("block-1@40");
+		h.composer.stop();
+		expect(h.terminal.getScrollBuffer().join("\n")).toContain("SHELL-SENTINEL");
+		expect(h.terminal.getScrollBuffer().join("\n")).not.toContain("block-1");
 	});
 
-	it("rebuilds retired transcript rows at the settled width by default", async () => {
-		const terminal = new VirtualTerminal(20, 4);
-		const scheduler = new VirtualRenderScheduler();
-		const composer = new Composer({
-			terminal,
-			tuiOptions: { renderScheduler: scheduler },
-			preferences: { ...COMPOSER_DEFAULTS, quiet: true },
-		});
-		const transcript = new TranscriptContainer();
-		for (let id = 0; id < 4; id++) transcript.addChild(new WidthTranscriptBlock(id));
-		composer.setRuntimeChildren([transcript, new MutableComposerTail()]);
-		composer.start({ playWelcomeIntro: false });
-		await scheduler.settle(terminal);
-
-		expect(plainBuffer(terminal)).toContain("block-0@20");
-
-		terminal.resize(30, 4);
-		// The refresh-capable settle waits out the 400 ms drag-end window plus
-		// the 40 ms drain horizon, then rebuilds the ledger at the settled width
-		// in the same transaction.
-		await scheduler.advance(terminal, 440);
-
-		const resized = plainBuffer(terminal);
-		expect(resized.some(row => row.includes("@20"))).toBe(false);
-		expect(resized).toContain("block-0@30");
-		expect(resized).toContain("block-3@30");
-		composer.ui.stop();
+	it("keeps resumed blocks reachable and gives visible tool blocks complete allocation after reset", async () => {
+		const h = harness(80, 10);
+		for (let i = 1; i <= 15; i++) h.transcript.addChild(new WidthBlock(i));
+		const tool = new ToolBlock();
+		h.transcript.addChild(tool);
+		try {
+			h.composer.ui.requestRender(true, { clearScrollback: true });
+			await h.scheduler.settle(h.terminal);
+			expect(tool.allocations.at(-1)).toBe(Number.MAX_SAFE_INTEGER);
+			expect((await browse(h, "block-1@80")).some(row => row.includes("block-1@80"))).toBe(true);
+			h.composer.scrollTranscriptToBottom();
+			await h.scheduler.settle(h.terminal);
+			expect(screen(h.terminal)).toContain("tool-1@80");
+			expect(h.terminal.writes.join("")).not.toContain("\x1b[3J");
+		} finally {
+			h.composer.stop();
+		}
 	});
 
-	it("recomposes a cached history batch when the image budget retries", () => {
-		const originalProtocol = TERMINAL.imageProtocol;
-		const originalTerminalId = TERMINAL.id;
-		const originalCellDimensions = { ...getCellDimensions() };
-		const originalGraphics = { ...getKittyGraphics() };
+	it("retries image-budget composition without stale graphics", async () => {
+		const protocol = TERMINAL.imageProtocol;
+		const terminalId = TERMINAL.id;
+		const dimensions = getCellDimensions();
+		const graphics = { ...getKittyGraphics() };
 		Reflect.set(TERMINAL, "imageProtocol", ImageProtocol.Kitty);
 		Reflect.set(TERMINAL, "id", "xterm");
 		setCellDimensions({ widthPx: 10, heightPx: 10 });
 		setKittyGraphics({ unicodePlaceholders: false });
-
-		const terminal = new TrackingTerminal(40, 4);
-		const composer = new Composer({
-			terminal,
-			tuiOptions: { renderScheduler: new ResizeScheduler() },
-			preferences: { ...COMPOSER_DEFAULTS, quiet: true },
-		});
-		composer.ui.setMaxInlineImages(1);
-		const transcript = new TranscriptContainer();
-		const block = new Container();
-		for (const key of ["first", "second", "third"]) {
-			block.addChild(
-				new Image(
-					BASE64_ONE_PIXEL_PNG,
-					"image/png",
-					{ fallbackColor: text => text },
-					{ maxWidthCells: 1, maxHeightCells: 1, budget: composer.ui.imageBudget, imageKey: key },
-					{ widthPx: 10, heightPx: 10 },
-				),
-			);
-		}
-		transcript.addChild(block);
-		composer.setRuntimeChildren([transcript, new MutableComposerTail()]);
-
+		const h = harness(40, 10, true);
 		try {
-			composer.start({ playWelcomeIntro: false });
-			const output = terminal.writes.join("");
-			expect(output.match(/\x1b_Ga=t/g)).toHaveLength(1);
-			expect(plainBuffer(terminal).filter(row => row.includes("[Image:"))).toHaveLength(2);
+			h.composer.ui.setMaxInlineImages(1);
+			const block = new Container();
+			for (const key of ["first", "second", "third"])
+				block.addChild(
+					new Image(
+						"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==",
+						"image/png",
+						{ fallbackColor: text => text },
+						{ maxWidthCells: 1, maxHeightCells: 1, budget: h.composer.ui.imageBudget, imageKey: key },
+						{ widthPx: 10, heightPx: 10 },
+					),
+				);
+			h.transcript.addChild(block);
+			h.composer.ui.requestRender();
+			await h.scheduler.settle(h.terminal);
+			expect(screen(h.terminal).filter(row => row.includes("[Image:"))).toHaveLength(2);
+			expect(h.terminal.graphicsPlacements()).toHaveLength(1);
+			h.transcript.clear();
+			h.transcript.addChild(new Text("plain"));
+			h.composer.ui.requestRender();
+			await h.scheduler.settle(h.terminal);
+			expect(h.terminal.graphicsPlacements()).toEqual([]);
 		} finally {
-			composer.ui.stop();
-			Reflect.set(TERMINAL, "imageProtocol", originalProtocol);
-			Reflect.set(TERMINAL, "id", originalTerminalId);
-			setCellDimensions(originalCellDimensions);
-			setKittyGraphics(originalGraphics);
+			h.composer.stop();
+			Reflect.set(TERMINAL, "imageProtocol", protocol);
+			Reflect.set(TERMINAL, "id", terminalId);
+			setCellDimensions(dimensions);
+			setKittyGraphics(graphics);
 		}
-	});
-
-	it("flushes a roomy finalized transcript before composer shutdown", async () => {
-		const terminal = new VirtualTerminal(40, 10);
-		const scheduler = new VirtualRenderScheduler();
-		const composer = new Composer({
-			terminal,
-			tuiOptions: { renderScheduler: scheduler },
-			preferences: { ...COMPOSER_DEFAULTS, quiet: true },
-		});
-		const transcript = new TranscriptContainer();
-		transcript.addChild(new WidthTranscriptBlock(1));
-		composer.setRuntimeChildren([transcript, new MutableComposerTail()]);
-		composer.start({ playWelcomeIntro: false });
-		await scheduler.settle(terminal);
-		expect(transcript.blockStates()).toEqual(["settled"]);
-
-		composer.stop();
-
-		expect(transcript.blockStates()).toEqual(["committed"]);
-		expect(plainBuffer(terminal)).toContain("block-1@40");
-	});
-
-	describe("resumed session scrollback retirement and tool allocation", () => {
-		it("flushes overflowing transcript blocks across frames and restores tool allocation after clearScrollback", async () => {
-			const terminal = new TrackingTerminal(80, 10);
-			const scheduler = new VirtualRenderScheduler();
-			const composer = new Composer({
-				terminal,
-				tuiOptions: { renderScheduler: scheduler },
-				welcome: { version: "test" },
-				preferences: { ...COMPOSER_DEFAULTS, quiet: false, resizeScrollback: "preserve" },
-			});
-			const transcript = new TranscriptContainer();
-			const tail = new MutableComposerTail();
-			composer.setRuntimeChildren([transcript, tail]);
-			try {
-				composer.start({ playWelcomeIntro: false });
-				await scheduler.settle(terminal);
-
-				for (let i = 1; i <= 15; i++) {
-					transcript.addChild(new WidthTranscriptBlock(i));
-				}
-				const tool = new ToolAllocationBlock(2);
-				transcript.addChild(tool);
-
-				composer.ui.requestRender(true, { clearScrollback: true });
-				await scheduler.settle(terminal);
-
-				expect(transcript.blockStates().filter(s => s === "committed").length).toBeGreaterThanOrEqual(10);
-				expect(transcript.blockStates().filter(s => s === "settled").length).toBeLessThanOrEqual(6);
-				expect(tool.allocations[tool.allocations.length - 1]).toBeGreaterThan(1);
-				expect(plainBuffer(terminal)).toContain("block-1@80");
-			} finally {
-				composer.ui.stop();
-			}
-		});
-
-		it("keeps blocks in viewport and gives tool unconstrained allocation when content fits capacity", async () => {
-			const terminal = new TrackingTerminal(80, 10);
-			const scheduler = new VirtualRenderScheduler();
-			const composer = new Composer({
-				terminal,
-				tuiOptions: { renderScheduler: scheduler },
-				welcome: { version: "test" },
-				preferences: { ...COMPOSER_DEFAULTS, quiet: false, resizeScrollback: "preserve" },
-			});
-			const transcript = new TranscriptContainer();
-			const tail = new MutableComposerTail();
-			composer.setRuntimeChildren([transcript, tail]);
-			try {
-				composer.start({ playWelcomeIntro: false });
-				await scheduler.settle(terminal);
-
-				const block1 = new ToolAllocationBlock(2);
-				const tool = new ToolAllocationBlock(2);
-				transcript.addChild(block1);
-				transcript.addChild(tool);
-
-				composer.ui.requestRender(true, { clearScrollback: true });
-				await scheduler.settle(terminal);
-
-				expect(transcript.blockStates()).toEqual(["settled", "settled"]);
-				expect(tool.allocations[tool.allocations.length - 1]).toBeGreaterThan(1);
-			} finally {
-				composer.ui.stop();
-			}
-		});
 	});
 });

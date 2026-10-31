@@ -29,6 +29,9 @@ interface AppKeybindings {
 	"app.exit": true;
 	"app.suspend": true;
 	"app.display.reset": true;
+	"app.transcript.pageUp": true;
+	"app.transcript.pageDown": true;
+	"app.transcript.bottom": true;
 	"app.thinking.cycle": true;
 	"app.thinking.toggle": true;
 	"app.model.cycleForward": true;
@@ -111,6 +114,18 @@ export const KEYBINDINGS = {
 	"app.display.reset": {
 		defaultKeys: "alt+l",
 		description: "Reset terminal display",
+	},
+	"app.transcript.pageUp": {
+		defaultKeys: "alt+pageUp",
+		description: "Scroll transcript up one page",
+	},
+	"app.transcript.pageDown": {
+		defaultKeys: "alt+pageDown",
+		description: "Scroll transcript down one page",
+	},
+	"app.transcript.bottom": {
+		defaultKeys: "alt+end",
+		description: "Return to latest transcript output",
 	},
 	"app.thinking.cycle": {
 		defaultKeys: "shift+tab",

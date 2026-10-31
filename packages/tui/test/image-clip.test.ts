@@ -15,6 +15,9 @@ import { type HistoryBatch, TUI } from "@reverse/tui/tui";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
+import { Composer } from "@reverse/tui/prompt/composer";
+import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
+import { Text } from "@reverse/tui";
 
 withoutTerminalMultiplexer();
 
@@ -112,11 +115,14 @@ function image(budget: ImageBudget): Image {
 }
 
 describe("direct placement lifecycle", () => {
-	for (const fullscreen of [false, true]) {
-		it(`removes moved and hidden images from the ${fullscreen ? "alternate" : "normal"} viewport`, async () => {
+	for (const mode of ["inline", "fullscreen", "overlay"] as const) {
+		it(`removes moved and hidden images from the ${mode} viewport`, async () => {
 			const term = new VirtualTerminal(40, 12);
 			const scheduler = new VirtualRenderScheduler();
-			const tui = new TUI(term, undefined, { renderScheduler: scheduler });
+			const tui = new TUI(term, undefined, {
+				renderScheduler: scheduler,
+				screenMode: mode === "fullscreen" ? "fullscreen" : "inline",
+			});
 			const graphic = image(tui.imageBudget);
 			let top = 1;
 			let visible = true;
@@ -125,7 +131,7 @@ describe("direct placement lifecycle", () => {
 				...(visible ? graphic.render(width) : ["replacement prose"]),
 			];
 			tui.setFrameProvider({ renderFrame: size => ({ viewport: render(size.columns) }), acknowledgeHistory() {} });
-			if (fullscreen) tui.showOverlay({ render, invalidate() {} }, { fullscreen: true, anchor: "top-left" });
+			if (mode === "overlay") tui.showOverlay({ render, invalidate() {} }, { fullscreen: true, anchor: "top-left" });
 			try {
 				tui.start();
 				await scheduler.settle(term);
@@ -218,6 +224,52 @@ describe("direct placement lifecycle", () => {
 			expect(term.graphicsPlacements()).toEqual(archived);
 		} finally {
 			tui.stop();
+		}
+	});
+});
+
+describe("fullscreen Composer image window", () => {
+	it("clips history graphics at the viewport edges, protects the dock, and restores graphics after overlays", async () => {
+		const term = new VirtualTerminal(40, 6);
+		const scheduler = new VirtualRenderScheduler();
+		const composer = new Composer({
+			terminal: term,
+			preferences: { quiet: true },
+			tuiOptions: { renderScheduler: scheduler },
+		});
+		const transcript = new TranscriptContainer();
+		const graphic = image(composer.ui.imageBudget);
+		transcript.addChild(new Text("before", 0, 0));
+		transcript.addChild(graphic);
+		transcript.addChild(new Text("after", 0, 0));
+		composer.setRuntimeChildren([transcript, new Text("EDITOR", 0, 0)]);
+		try {
+			composer.start({ playWelcomeIntro: false });
+			await scheduler.settle(term);
+			expect(term.getViewport()[5]?.trimEnd()).toBe("EDITOR");
+			expect(term.graphicsPlacements().every(p => p.row >= 0 && p.row + p.numRows <= 5)).toBe(true);
+			expect(term.graphicsPlacements()).toHaveLength(1);
+			composer.scrollTranscript(-100);
+			await scheduler.settle(term);
+			expect(term.getViewport()[0]?.trimEnd()).toBe("before");
+			expect(term.graphicsPlacements()).toEqual([]);
+			composer.scrollTranscriptToBottom();
+			await scheduler.settle(term);
+			expect(term.graphicsPlacements()).toHaveLength(1);
+			const overlay = composer.ui.showOverlay(new Text("OVERLAY", 0, 0), { fullscreen: true });
+			await scheduler.settle(term);
+			overlay.hide();
+			await scheduler.settle(term);
+			expect(term.graphicsPlacements()).toHaveLength(1);
+			expect(term.getViewport()[5]?.trimEnd()).toBe("EDITOR");
+			transcript.clear();
+			transcript.addChild(new Text("plain replacement", 0, 0));
+			composer.ui.requestRender();
+			await scheduler.settle(term);
+			expect(term.graphicsPlacements()).toEqual([]);
+			expect(term.getViewport()[0]?.trimEnd()).toBe("plain replacement");
+		} finally {
+			composer.stop();
 		}
 	});
 });

@@ -315,6 +315,7 @@ export class InputController {
 	#expandToolsListenerInstalled = false;
 	#inlineMouseListenerInstalled = false;
 	#linkHintListenerInstalled = false;
+	#transcriptListenerInstalled = false;
 
 	/** Click-candidate id the hover band currently tracks; repaint only on change. */
 	#lastHoverClickId: string | undefined;
@@ -361,6 +362,22 @@ export class InputController {
 			this.#linkHintListenerInstalled = true;
 			// First, so a tag letter typed in link-hint mode reaches no other listener or the editor.
 			this.ctx.ui.addInputListener(data => this.#handleLinkHintInput(data));
+		}
+		if (!this.#transcriptListenerInstalled) {
+			this.#transcriptListenerInstalled = true;
+			this.ctx.ui.addInputListener(data => {
+				if (this.ctx.ui.nativeRendering || this.ctx.ui.hasOverlay() || this.ctx.ui.getFocused() !== this.ctx.editor)
+					return undefined;
+				const page = Math.max(1, this.ctx.composer.transcriptViewportHeight - 1);
+				if (this.ctx.keybindings.matches(data, "app.transcript.pageUp")) this.ctx.composer.scrollTranscript(-page);
+				else if (this.ctx.keybindings.matches(data, "app.transcript.pageDown"))
+					this.ctx.composer.scrollTranscript(page);
+				else if (this.ctx.keybindings.matches(data, "app.transcript.bottom"))
+					this.ctx.composer.scrollTranscriptToBottom();
+				else return undefined;
+				this.#lastHoverClickId = undefined;
+				return { consume: true };
+			});
 		}
 		if (!this.#focusedLeftTapListenerInstalled) {
 			this.#focusedLeftTapListenerInstalled = true;
@@ -506,10 +523,7 @@ export class InputController {
 		}
 		if (!this.#inlineMouseListenerInstalled) {
 			this.#inlineMouseListenerInstalled = true;
-			// Inline click-to-focus (`tui.mouse`): SGR reports only arrive while
-			// the setting has tracking enabled, so this stays inert otherwise.
-			// Defers to fullscreen overlays, which own mouse handling on the
-			// alternate screen.
+			// 主界面始终接收滚轮；覆盖层和 editor-slot 对话框保留各自的输入所有权。
 			this.ctx.ui.addInputListener(data => this.#handleInlineMouse(data));
 		}
 		this.ctx.editor.onEscape = () => {
@@ -646,11 +660,7 @@ export class InputController {
 						} else {
 							this.ctx.showUserMessageSelector();
 						}
-						// Forced viewport repaint only: `resetDisplay()` replays the whole
-						// committed transcript (and clears native scrollback on direct
-						// terminals), which blocks on PTY backpressure for tens of seconds
-						// on long sessions — the selector opens invisibly and double-Esc
-						// reads as dead. O(viewport) is enough to settle the editor-slot swap.
+						// 选择器替换 editor slot 后强制重绘当前 owned viewport。
 						this.ctx.ui.requestRender(true);
 						this.ctx.lastEscapeTime = 0;
 					} else {
@@ -817,22 +827,25 @@ export class InputController {
 		}
 	}
 
-	/**
-	 * Inline click-to-focus (`tui.mouse`): left-clicks on live subagent cards
-	 * and HUD rows focus that agent in one action, and pointer motion lights up
-	 * the hover band on the target under the cursor. Every SGR report is consumed
-	 * while inline tracking owns the terminal so button/wheel bytes never reach
-	 * the editor as typed input; clicks on chrome simply swallow.
-	 */
+	/** Route transcript wheels before the optional detail click/hover setting. */
 	#handleInlineMouse(data: string): { consume?: boolean; data?: string } | undefined {
 		if (!data.startsWith("\x1b[<")) return undefined;
-		if (!cfgTuiMouse.get(this.ctx.settings)) return undefined;
-		if (this.ctx.ui.hasOverlay()) return undefined;
+		if (this.ctx.ui.nativeRendering || this.ctx.ui.hasOverlay()) return undefined;
 		const event = parseSgrMouse(data);
 		if (!event) return undefined;
-		if (event.motion) this.#updateHoverHighlight(event.row);
-		else if (event.leftClick && !this.#activateClickedLink(event.row, event.col)) {
-			this.#handleInlineLeftClick(event.row, event.col);
+		if (this.ctx.ui.getFocused() !== this.ctx.editor) return undefined;
+		if (event.wheel !== null && !event.release && !event.motion) {
+			const viewport = this.ctx.ui.getMutableViewport();
+			const row = event.row - viewport.top;
+			if (row >= 0 && row < Math.min(viewport.length, this.ctx.composer.transcriptViewportHeight)) {
+				this.ctx.composer.scrollTranscript(event.wheel * 3);
+				this.#lastHoverClickId = undefined;
+			}
+		} else if (cfgTuiMouse.get(this.ctx.settings)) {
+			if (event.motion) this.#updateHoverHighlight(event.row);
+			else if (event.leftClick && !this.#activateClickedLink(event.row, event.col)) {
+				this.#handleInlineLeftClick(event.row, event.col);
+			}
 		}
 		return { consume: true };
 	}
@@ -2895,8 +2908,6 @@ export class InputController {
 		this.ctx.chatContainer.setToolActivityVisible(!this.ctx.hideToolActivity);
 
 		if (this.ctx.hideToolActivity) this.ctx.ui.clearInlineImages();
-		// A viewport-only repaint leaves tool rows already retired to terminal history unchanged.
-		this.ctx.chatContainer.resetStableEmission();
 		this.ctx.ui.resetDisplay();
 		this.ctx.showStatus(`Tool activity: ${this.ctx.hideToolActivity ? "hidden" : "visible"}`);
 	}
@@ -2908,7 +2919,6 @@ export class InputController {
 				child.setExpanded(expanded);
 			}
 		}
-		this.ctx.chatContainer.resetStableEmission();
 		this.ctx.ui.resetDisplay();
 	}
 
@@ -2938,13 +2948,6 @@ export class InputController {
 			this.ctx.streamingComponent.updateContent(this.ctx.streamingMessage, { transient: true });
 		}
 
-		// This is an explicit user display gesture: rebuild native history so the
-		// visibility change also applies to rows already retired from the viewport.
-		// Append-only thinking heads emitted their stable rows to scrollback while
-		// streaming (visible); forget that emission ledger so the paired scrollback
-		// clear re-renders them under the new visibility instead of replaying the
-		// captured reasoning (#10177).
-		this.ctx.chatContainer.resetStableEmission();
 		this.ctx.ui.resetDisplay();
 
 		this.ctx.showStatus(`Thinking blocks: ${this.ctx.hideThinkingBlock ? "hidden" : "visible"}`);

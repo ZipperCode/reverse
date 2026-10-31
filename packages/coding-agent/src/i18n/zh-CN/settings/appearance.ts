@@ -135,20 +135,6 @@ export const appearanceSettingsZhCN: Record<string, SettingTranslation> = {
 		label: "阻止图片",
 		description: "阻止将图片发送给 LLM 提供商",
 	},
-	"tui.resizeScrollback": {
-		label: "调整回滚缓冲区",
-		description: "终端尺寸稳定变化后，如何刷新保留在终端回滚缓冲区中的记录行",
-		options: {
-			append: { label: "追加", description: "在保留的历史下方按新宽度重放记录" },
-			rebuild: { label: "重建", description: "清除所有终端回滚内容，然后按当前宽度重放一份记录" },
-			preserve: { label: "保留", description: "仅重绘视口，历史仍按旧宽度换行" },
-		},
-	},
-	"tui.completeScrollback": {
-		label: "完整回滚缓冲区",
-		description:
-			"将因 HUD 或对话框增长而被推离屏幕的记录行直接送入回滚缓冲区；当其缩小时，记录与输入区之间会保留空白行，直到新输出填满它们",
-	},
 	"terminal.showProgress": {
 		label: "原生终端进度",
 		description: "代理或上下文维护运行时发送 OSC 9;4 不确定进度（Tern 中始终开启）",
@@ -217,7 +203,7 @@ export const appearanceSettingsZhCN: Record<string, SettingTranslation> = {
 	"tui.mouse": {
 		label: "鼠标交互",
 		description:
-			"默认关闭以保留终端原生滚轮滚动和文本选择（仍可按 Ctrl+O 展开详情）。开启后可点击可见的思考与工具标题或子代理卡片，但原生滚动和选区需要配合终端修饰键（支持的环境下按住 Shift）",
+			"对话区始终支持滚轮。开启后可点击或悬停对话详情、子代理卡片和扩展链接；终端支持时按住 Shift 选择文本。",
 	},
 	"tui.tight": {
 		label: "紧凑布局",

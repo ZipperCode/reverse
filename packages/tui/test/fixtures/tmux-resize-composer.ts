@@ -1,4 +1,4 @@
-// Real ProcessTerminal + Composer retirement for the tmux height regression.
+// Real ProcessTerminal + fullscreen Composer for the tmux height regression.
 import { TranscriptContainer } from "@reverse/tui/chrome/transcript-container";
 import { COMPOSER_DEFAULTS, Composer } from "@reverse/tui/prompt/composer";
 import { ProcessTerminal } from "@reverse/tui/terminal";
@@ -30,13 +30,13 @@ setTerminalHeadless(false);
 const terminal = new RecordingTerminal();
 const composer = new Composer({
 	terminal,
-	preferences: { ...COMPOSER_DEFAULTS, quiet: true, resizeScrollback: "rebuild" },
+	preferences: { ...COMPOSER_DEFAULTS, quiet: true },
 });
 const transcript = new TranscriptContainer();
 for (let id = 0; id < 1000; id++) transcript.addChild(new Block(id));
 composer.setRuntimeChildren([transcript, new Editor()]);
 composer.ui.addPaintListener(paint => {
-	if (!paint.alt) terminal.setTitle(JSON.stringify({ height: paint.rows, resets: terminal.resets }));
+	terminal.setTitle(JSON.stringify({ height: paint.rows, resets: terminal.resets }));
 });
 composer.start({ playWelcomeIntro: false });
 await Bun.sleep(60000);

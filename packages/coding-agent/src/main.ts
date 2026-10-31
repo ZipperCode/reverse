@@ -176,10 +176,8 @@ import {
 	cfgSymbolPreset,
 	cfgThemeDark,
 	cfgThemeLight,
-	cfgTuiCompleteScrollback,
 	cfgTuiImeSafeCursor,
 	cfgTuiMaxInlineImages,
-	cfgTuiResizeScrollback,
 } from "./modes/settings";
 import {
 	cfgDefaultThinkingLevel,
@@ -2016,8 +2014,6 @@ export async function runRootCommand(
 			composerShape: cfgComposerShape.get(settingsInstance),
 			showHardwareCursor: cfgShowHardwareCursor.get(settingsInstance),
 			maxInlineImages: cfgTuiMaxInlineImages.get(settingsInstance),
-			resizeScrollback: cfgTuiResizeScrollback.get(settingsInstance),
-			completeScrollback: cfgTuiCompleteScrollback.get(settingsInstance),
 			imeSafeCursor: cfgTuiImeSafeCursor.get(settingsInstance),
 			autocompleteMaxVisible: cfgAutocompleteMaxVisible.get(settingsInstance),
 			spellingTypoDetection: cfgSpellingTypoDetection.get(settingsInstance),

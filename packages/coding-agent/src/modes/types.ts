@@ -146,7 +146,7 @@ export interface AgentHubOpenOptions {
 export interface InteractiveModeContext {
 	// UI access
 	ui: TUI;
-	readonly composer: Pick<Composer, "setRunActive">;
+	readonly composer: Pick<Composer, "scrollTranscript" | "scrollTranscriptToBottom" | "transcriptViewportHeight">;
 	chatContainer: TranscriptContainer;
 	pendingMessagesContainer: Container;
 	statusContainer: Container;

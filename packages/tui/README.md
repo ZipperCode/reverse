@@ -93,6 +93,14 @@ tui.requestComponentRender(component); // Re-render only the root subtree contai
 tui.onDebug = () => console.log("Debug triggered");
 ```
 
+For an application-owned screen, construct `new TUI(terminal, true, { screenMode: "fullscreen" })`.
+The default remains `inline`. Fullscreen providers return a bounded `viewport` without
+`history`; overlays share the same alternate buffer, resize/reset repaint only the
+owned screen, and stopping restores the original shell without replaying content.
+`Composer` always uses fullscreen ANSI rendering: its editable dock stays at the
+bottom while a component-anchored transcript window scrolls independently. TSP
+terminals retain their native `main`/`dock` surface.
+
 ### Component Interface
 
 All components implement:

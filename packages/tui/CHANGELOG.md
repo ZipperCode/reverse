@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Added application-owned fullscreen TUI rendering with shell-preserving resize/reset/stop and shared overlay buffer ownership; inline remains the generic default.
+- Fixed Composer's input dock to the terminal bottom and added bounded component-anchored conversation scrolling without native scrollback retirement.
 - Collapsed thinking by default in classic and native transcripts, retaining live activity and measured completion summaries; transcript expansion reveals thinking and error details.
 - Added explicit CLI, MCP, and Skill channel labels while preserving specialized tool layouts, status, diagnostics, and source links.
 - Added mouse expansion and collapse for visible thinking, tool-card, grouped-read, and Skill disclosure headers, with rendered-row hit testing that excludes body text and retired scrollback.
