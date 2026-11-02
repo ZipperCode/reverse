@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { Agent } from "@reverse/agent";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
-import { cfgTuiMouse } from "@reverse/coding-agent/modes/settings";
+import { cfgComposerTokenRate, cfgComposerShape, cfgTuiMouse } from "@reverse/coding-agent/modes/settings";
 import { InteractiveMode } from "@reverse/coding-agent/modes/interactive-mode";
 import { AgentSession } from "@reverse/coding-agent/session/agent-session";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
@@ -355,6 +355,30 @@ describe("tui.mouse default off runtime behavior", () => {
 		mode.ui.renderNow();
 		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-100"))).toBe(true);
 	});
+	it("keeps navigation to one row without an idle throughput row or duplicate working rate", async () => {
+		cfgComposerShape.set(mode.settings, "default");
+		cfgComposerTokenRate.set(mode.settings, true);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		for (let i = 0; i < 100; i++) mode.chatContainer.addChild(new Text(`ROW-${i}`, 0, 0));
+		mode.editor.setText("compact draft");
+		mode.ui.renderNow();
+		const H = mode.composer.transcriptViewportHeight;
+		session.tokenRate.seed(1000, 10000);
+		mode.ui.renderNow();
+		expect(mode.statusContainer.render(120)).toEqual([]);
+		expect(mode.composer.transcriptViewportHeight).toBe(H);
+		const idle = plainRows(term.getViewport());
+		expect(idle[H]).toContain("Go to top");
+		expect(idle[H]).not.toContain("tok/s");
+		mode.ensureLoadingAnimation();
+		mode.setWorkingMessage("Inspecting navigation layout");
+		mode.ui.renderNow();
+		const working = Bun.stripANSI(mode.statusContainer.render(120).join("\n"));
+		expect(working).toContain("Inspecting navigation layout");
+		expect(working).not.toContain("tok/s");
+	});
+
 	it("scrolls TODO and informational panels away while editor/status stay fixed, including short windows", async () => {
 		await mode.init({ suppressWelcomeIntro: true });
 		void mode.getUserInput();

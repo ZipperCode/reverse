@@ -1472,32 +1472,12 @@ export class InteractiveMode implements InteractiveModeContext {
 		if (!name) return undefined;
 		return `\x1b[2;3m${sanitizeStatusText(name)}\x1b[23;22m`;
 	}
-	/** Live gen tok/s for the working row: the viewed session's own meter, so a
-	 * focused subagent shows its own reading and the main session's survives
-	 * focus round-trips. */
+	/** Viewed session's generation meter, preserved across agent focus changes. */
 	get tokenRate(): TokenRateMeter {
 		return this.viewSession.tokenRate;
 	}
-	/** Generation tok/s: live while streaming, the last reading between
-	 * turns, blank until a run has produced enough tokens to measure. */
-	#tokenRateLabel(): string | undefined {
-		if (!cfgComposerTokenRate.get(settings)) return undefined;
-		const rate = this.tokenRate.rate();
-		if (rate === null) return undefined;
-		return theme.fg("dim", `${theme.icon.throughput} ${rate.toFixed(1)} tok/s`);
-	}
-	/** Right-docked suffix of the working row: the tok/s readout, then the band-mode title. */
-	#workingRowTrailer(): string | undefined {
-		const rate = this.#tokenRateLabel();
-		const title = this.#workingTitleTrailer();
-		if (rate && title) return `${rate}  ${title}`;
-		return rate ?? title;
-	}
-	/** Idle stand-in for the working row: the last tok/s reading and the
-	 * band-mode title stay readable between turns, docked where the loader's
-	 * trailer was. */
 	renderIdleStatusHud(width: number): readonly string[] | undefined {
-		const trailer = this.#workingRowTrailer();
+		const trailer = this.#workingTitleTrailer();
 		if (!trailer) return undefined;
 		return ["", " ".repeat(Math.max(0, width - visibleWidth(trailer))) + trailer];
 	}
@@ -8325,7 +8305,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				// status rows so the interrupt glyph reads as indented.
 				[` ${appKey(this.keybindings, "app.interrupt")}`],
 			);
-			this.loadingAnimation.setTrailer(() => this.#workingRowTrailer());
+			this.loadingAnimation.setTrailer(() => this.#workingTitleTrailer());
 			this.loadingAnimation.setWorkingRow(
 				() => this.#workingRowSpec(),
 				() => this.interruptFromPointer(),
