@@ -27,6 +27,10 @@ import { WelcomeComponent } from "./welcome";
 import { ensureThemeSync, getEditorTheme, theme } from "../theme/theme";
 
 import { type DetailClickResult, hasMouseRouter, type SgrMouseEvent } from "../mouse";
+import { TERMINAL } from "../terminal-capabilities";
+import { visibleWidth } from "../utils";
+import { resolveEffectiveLocale, type SupportedLocale } from "@reverse/utils/i18n";
+import { tuiHint } from "../overlays/settings-defs";
 const DOUBLE_INTERRUPT_MS = 500;
 
 /** Live settings that affect the composer before and after session adoption. */
@@ -292,6 +296,18 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 	#scrollRuntime: readonly Component[] | undefined;
 	#scrollTranscriptIndex = -1;
 	#transcriptViewportHeight = 0;
+	#scrollGeometry:
+		| {
+				width: number;
+				height: number;
+				rows: number;
+				track: Set<number>;
+				actions: { start: number; end: number; ratio: number }[];
+				navigation: boolean;
+		  }
+		| undefined;
+	#transcriptDragging = false;
+	#getScrollLocale: () => SupportedLocale = () => resolveEffectiveLocale();
 	/** Click spans of the last `renderFrame` viewport, in viewport coordinates. */
 	#lastClickSpans: ViewportClickSpan[] = [];
 	#lastDetailSpans: ViewportDetailClickSpan[] = [];
@@ -393,6 +409,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		const transcriptIndex = roots.findIndex(root => root instanceof TranscriptContainer);
 		const transcript = transcriptIndex < 0 ? undefined : (roots[transcriptIndex] as TranscriptContainer);
 		if (transcript !== this.#transcript || transcript?.children !== this.#transcriptChildren) {
+			this.cancelTranscriptDrag();
 			this.#transcriptViewport.reset();
 			this.#transcript = transcript;
 			this.#transcriptChildren = transcript?.children;
@@ -439,12 +456,89 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 			}
 		}
 		const visibleDock = height === 0 ? [] : dock.slice(drop, drop + height);
-		const available = Math.max(0, height - visibleDock.length);
+		const free = Math.max(0, height - visibleDock.length);
+		const navigation = free >= 3 && width >= 2;
+		const available = free - Number(navigation);
 		this.#transcriptViewportHeight = available;
+		const old = this.#scrollGeometry;
+		if (
+			old?.width !== width ||
+			old?.height !== height ||
+			old?.rows !== available ||
+			this.ui.nativeRendering ||
+			this.ui.hasOverlay() ||
+			this.ui.getFocused() !== this.editor
+		) {
+			this.cancelTranscriptDrag();
+		}
+		const geometry = {
+			width,
+			height,
+			rows: available,
+			track: new Set<number>(),
+			actions: [] as { start: number; end: number; ratio: number }[],
+			navigation,
+		};
+		this.#scrollGeometry = geometry;
 		const now = performance.now();
 		const frame: AnimationFrame = { now, tick: Math.floor(now / 80) };
-		const window = this.#transcriptViewport.render(this.#scrollRoots, width, available, frame);
-		const mutable = [...window.rows, ...Array<string>(available - window.rows.length).fill(""), ...visibleDock];
+		const window = this.#transcriptViewport.render(
+			this.#scrollRoots,
+			width >= 2 ? width - 1 : width,
+			available,
+			frame,
+		);
+		const history = [...window.rows, ...Array<string>(available - window.rows.length).fill("")];
+		if (width >= 2 && available >= 2 && !(window.atStart && window.atEnd)) {
+			const thumb = Math.round(window.progress * (available - 1));
+			for (let row = 0; row < available; row++) {
+				// 图片控制行独占整行，不能为补轨道改写协议字节。
+				if (TERMINAL.isImageLine(history[row]!)) continue;
+				history[row] = compositeLineAt(
+					history[row]!,
+					theme.fg("dim", row === thumb ? "█" : "│"),
+					width - 1,
+					1,
+					width,
+				);
+				geometry.track.add(row);
+			}
+		}
+		const nav: string[] = [];
+		if (navigation) {
+			const locale = this.#getScrollLocale();
+			let top = `[↑ ${tuiHint("transcript.toTop", locale, "Go to top")}]`;
+			let bottom = `[↓ ${tuiHint("transcript.toBottom", locale, "Jump to bottom")}]`;
+			if (visibleWidth(top) + visibleWidth(bottom) > width) {
+				top = "↑";
+				bottom = "↓";
+			}
+			const topWidth = visibleWidth(top);
+			const bottomWidth = visibleWidth(bottom);
+			let line = compositeLineAt("", theme.fg(window.atStart ? "dim" : "accent", top), 0, topWidth, width);
+			line = compositeLineAt(
+				line,
+				theme.fg(window.atEnd ? "dim" : "accent", bottom),
+				width - bottomWidth,
+				bottomWidth,
+				width,
+			);
+			const position = window.atEnd
+				? tuiHint("transcript.atBottom", locale, "At bottom")
+				: tuiHint("transcript.position", locale, "History: ~{percent}%").replace(
+						"{percent}",
+						String(Math.round(window.progress * 100)),
+					);
+			const positionWidth = visibleWidth(position);
+			const center = Math.floor((width - positionWidth) / 2);
+			if (center > topWidth && center + positionWidth < width - bottomWidth) {
+				line = compositeLineAt(line, theme.fg("dim", position), center, positionWidth, width);
+			}
+			if (!window.atStart) geometry.actions.push({ start: 0, end: topWidth, ratio: 0 });
+			if (!window.atEnd) geometry.actions.push({ start: width - bottomWidth, end: width, ratio: 1 });
+			nav.push(line);
+		}
+		const mutable = [...history, ...nav, ...visibleDock];
 		const spans: ViewportClickSpan[] = [];
 		for (const span of window.spans) {
 			const ids = (span.component as Component & { getClickFocusAgentIds?(): string[] }).getClickFocusAgentIds?.();
@@ -461,8 +555,8 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 			const end = Math.min(drop + visibleDock.length, span.end);
 			if (end > start)
 				spans.push({
-					start: available + start - drop,
-					end: available + end - drop,
+					start: free + start - drop,
+					end: free + end - drop,
 					candidates: local => span.candidates(local + start - span.start),
 				});
 		}
@@ -491,6 +585,55 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		this.#transcriptViewport.scrollToBottom();
 		this.#hoveredClickId = undefined;
 		this.ui.requestRender();
+	}
+
+	setScrollLocaleProvider(getLocale: () => SupportedLocale): void {
+		this.#getScrollLocale = getLocale;
+		this.ui.requestRender();
+	}
+
+	scrollTranscriptToRatio(ratio: number): void {
+		this.#transcriptViewport.scrollToRatio(ratio);
+		this.#hoveredClickId = undefined;
+		this.ui.requestRender();
+	}
+
+	cancelTranscriptDrag(): void {
+		this.#transcriptDragging = false;
+	}
+
+	handleTranscriptMouse(event: SgrMouseEvent, viewportRow: number): boolean {
+		const geometry = this.#scrollGeometry;
+		if (event.release) {
+			const consumed = this.#transcriptDragging;
+			this.cancelTranscriptDrag();
+			return consumed;
+		}
+		if (event.button & 64 || (event.motion && (event.button & 3) !== 0)) {
+			this.cancelTranscriptDrag();
+			return false;
+		}
+		if (event.motion) {
+			if (!this.#transcriptDragging || !geometry) return false;
+			this.scrollTranscriptToRatio(viewportRow / (geometry.rows - 1));
+			return true;
+		}
+		this.cancelTranscriptDrag();
+		if (!event.leftClick || !geometry) return false;
+		if (geometry.navigation && viewportRow === geometry.rows) {
+			const action = geometry.actions.find(action => event.col >= action.start && event.col < action.end);
+			if (action) {
+				if (action.ratio === 1) this.scrollTranscriptToBottom();
+				else this.scrollTranscriptToRatio(action.ratio);
+				return true;
+			}
+		}
+		if (event.col === geometry.width - 1 && geometry.track.has(viewportRow)) {
+			this.#transcriptDragging = true;
+			this.scrollTranscriptToRatio(viewportRow / (geometry.rows - 1));
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -927,6 +1070,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 
 	/** Stop a composer that has not transferred terminal ownership. */
 	stop(): void {
+		this.cancelTranscriptDrag();
 		if (!this.#started || this.#stopped || this.#transferred) return;
 		this.#welcome?.stopIntro();
 		this.#disposeStartupStatus();

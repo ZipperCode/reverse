@@ -79,6 +79,7 @@ import {
 	setProjectDir,
 } from "@reverse/utils";
 import chalk from "@reverse/utils/chalk";
+import { resolveEffectiveLocale } from "@reverse/utils/i18n";
 import { pickTableChart } from "../auto-graph/planner";
 import { restartArgv } from "../cli/flag-tables";
 import { KeybindingsManager } from "@reverse/tui/app-keybindings";
@@ -381,6 +382,7 @@ import {
 	cfgDisplayShowTurnTime,
 	cfgDisplaySubagentLivePreview,
 	cfgGitEnabled,
+	cfgLanguage,
 	cfgLoopConditionTimeoutMs,
 	cfgLoopMode,
 	cfgMagicKeywordsEnabled,
@@ -2023,6 +2025,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				welcome: { version },
 			});
 		this.composer.setPreferences(preferences);
+		this.composer.setScrollLocaleProvider(() => resolveEffectiveLocale(cfgLanguage.get(this.settings)));
 		this.ui = this.composer.ui;
 		this.editor = this.composer.editor;
 		this.editor.magicKeywordsEnabled = () => cfgMagicKeywordsEnabled.get(this.settings);

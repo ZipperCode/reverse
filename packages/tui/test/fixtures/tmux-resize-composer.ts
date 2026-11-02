@@ -4,6 +4,8 @@ import { COMPOSER_DEFAULTS, Composer } from "@reverse/tui/prompt/composer";
 import { ProcessTerminal } from "@reverse/tui/terminal";
 import { CURSOR_MARKER } from "@reverse/tui/tui";
 import { setTerminalHeadless } from "@reverse/utils";
+import { parseSgrMouse } from "@reverse/tui/mouse";
+import { matchesKey } from "@reverse/tui/keys";
 
 class RecordingTerminal extends ProcessTerminal {
 	resets = 0;
@@ -35,6 +37,27 @@ const composer = new Composer({
 const transcript = new TranscriptContainer();
 for (let id = 0; id < 1000; id++) transcript.addChild(new Block(id));
 composer.setRuntimeChildren([transcript, new Editor()]);
+composer.ui.addInputListener(data => {
+	if (data.startsWith("\x1b[<")) {
+		const event = parseSgrMouse(data);
+		if (!event) return undefined;
+		const viewport = composer.ui.getMutableViewport();
+		const row = event.row - viewport.top;
+		if (event.button & 64) {
+			composer.cancelTranscriptDrag();
+			if (event.wheel !== null && !event.release && !event.motion && row >= 0 && row < viewport.length) {
+				composer.scrollTranscript(event.wheel * 3);
+			}
+		} else composer.handleTranscriptMouse(event, row);
+		return { consume: true };
+	}
+	const page = Math.max(1, composer.transcriptViewportHeight - 1);
+	if (matchesKey(data, "alt+pageUp")) composer.scrollTranscript(-page);
+	else if (matchesKey(data, "alt+pageDown")) composer.scrollTranscript(page);
+	else if (matchesKey(data, "alt+end")) composer.scrollTranscriptToBottom();
+	else return undefined;
+	return { consume: true };
+});
 composer.ui.addPaintListener(paint => {
 	terminal.setTitle(JSON.stringify({ height: paint.rows, resets: terminal.resets }));
 });

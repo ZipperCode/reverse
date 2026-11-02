@@ -11,6 +11,7 @@ export interface TranscriptWindow {
 	readonly spans: readonly TranscriptViewportSpan[];
 	readonly atStart: boolean;
 	readonly atEnd: boolean;
+	readonly progress: number;
 }
 
 interface Anchor {
@@ -35,18 +36,30 @@ export class TranscriptViewport {
 	#anchor: Anchor | undefined;
 	#followTail = true;
 	#pending = 0;
+	#pendingRatio: number | undefined;
 
 	scrollBy(rows: number): void {
 		if (!Number.isFinite(rows)) return;
+		this.#pendingRatio = undefined;
 		const delta = Math.trunc(rows);
 		if (delta === 0 || (this.#followTail && delta > 0)) return;
 		this.#followTail = false;
 		this.#pending += delta;
 	}
 
+	scrollToRatio(ratio: number): void {
+		if (!Number.isFinite(ratio)) return;
+		const clamped = Math.max(0, Math.min(1, ratio));
+		if (clamped === 1) return this.scrollToBottom();
+		this.#pending = 0;
+		this.#pendingRatio = clamped;
+		this.#followTail = false;
+	}
+
 	scrollToBottom(): void {
 		this.#followTail = true;
 		this.#pending = 0;
+		this.#pendingRatio = undefined;
 	}
 
 	reset(): void {
@@ -58,10 +71,11 @@ export class TranscriptViewport {
 		const cap = Math.max(0, Math.trunc(height));
 		if (roots.length === 0) {
 			this.reset();
-			return { rows: [], spans: [], atStart: true, atEnd: true };
+			return { rows: [], spans: [], atStart: true, atEnd: true, progress: 1 };
 		}
 		// 隐藏对话区时不消费滚动，也不丢失被 dock 临时遮住的锚点。
-		if (cap === 0) return { rows: [], spans: [], atStart: false, atEnd: this.#followTail };
+		if (cap === 0)
+			return { rows: [], spans: [], atStart: false, atEnd: this.#followTail, progress: this.#followTail ? 1 : 0 };
 		const visited = new Map<number, Block>();
 		const block = (index: number): Block => {
 			const cached = visited.get(index);
@@ -85,6 +99,19 @@ export class TranscriptViewport {
 			}
 			return undefined;
 		};
+		if (this.#pendingRatio !== undefined) {
+			const q = this.#pendingRatio * roots.length;
+			const target = Math.min(roots.length - 1, Math.floor(q));
+			const index = nonempty(target, 1) ?? nonempty(target - 1, -1);
+			if (index !== undefined) {
+				const row =
+					index === target
+						? Math.min(block(index).rows.length - 1, Math.floor((q - target) * block(index).rows.length))
+						: 0;
+				this.#anchor = { component: roots[index]!, index, row };
+			}
+			this.#pendingRatio = undefined;
+		}
 		const previous = (position: Position): Position | undefined => {
 			if (position.row > 0) return { index: position.index, row: position.row - 1 };
 			const index = nonempty(position.index - 1, -1);
@@ -168,7 +195,7 @@ export class TranscriptViewport {
 		const last = positions[positions.length - 1];
 		if (!first || !last) {
 			this.reset();
-			return { rows: [], spans: [], atStart: true, atEnd: true };
+			return { rows: [], spans: [], atStart: true, atEnd: true, progress: 1 };
 		}
 		this.#anchor = { ...first, component: roots[first.index]! };
 		const rows: string[] = [];
@@ -190,6 +217,13 @@ export class TranscriptViewport {
 				spans.push({ component, start, end: start + 1, getComponentRow: local => componentRow + local });
 			}
 		}
-		return { rows, spans, atStart: previous(first) === undefined, atEnd: next(last) === undefined };
+		const atStart = previous(first) === undefined;
+		const atEnd = next(last) === undefined;
+		const progress = atEnd
+			? 1
+			: atStart
+				? 0
+				: (first.index + Math.max(0, first.row) / block(first.index).rows.length) / roots.length;
+		return { rows, spans, atStart, atEnd, progress };
 	}
 }

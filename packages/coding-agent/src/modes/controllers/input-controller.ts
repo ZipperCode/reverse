@@ -830,17 +830,23 @@ export class InputController {
 	/** Route transcript wheels before the optional detail click/hover setting. */
 	#handleInlineMouse(data: string): { consume?: boolean; data?: string } | undefined {
 		if (!data.startsWith("\x1b[<")) return undefined;
-		if (this.ctx.ui.nativeRendering || this.ctx.ui.hasOverlay()) return undefined;
 		const event = parseSgrMouse(data);
 		if (!event) return undefined;
-		if (this.ctx.ui.getFocused() !== this.ctx.editor) return undefined;
-		if (event.wheel !== null && !event.release && !event.motion) {
-			const viewport = this.ctx.ui.getMutableViewport();
-			const row = event.row - viewport.top;
-			if (row >= 0 && row < Math.min(viewport.length, this.ctx.composer.transcriptViewportHeight)) {
+		if (this.ctx.ui.nativeRendering || this.ctx.ui.hasOverlay() || this.ctx.ui.getFocused() !== this.ctx.editor) {
+			this.ctx.composer.cancelTranscriptDrag();
+			return undefined;
+		}
+		const viewport = this.ctx.ui.getMutableViewport();
+		const row = event.row - viewport.top;
+		if (event.button & 64) {
+			this.ctx.composer.cancelTranscriptDrag();
+			if (event.wheel !== null && !event.release && !event.motion && row >= 0 && row < viewport.length) {
 				this.ctx.composer.scrollTranscript(event.wheel * 3);
 				this.#lastHoverClickId = undefined;
 			}
+		} else if (this.ctx.composer.handleTranscriptMouse(event, row)) {
+			this.#lastHoverClickId = undefined;
+			return { consume: true };
 		} else if (cfgTuiMouse.get(this.ctx.settings)) {
 			if (event.motion) this.#updateHoverHighlight(event.row);
 			else if (event.leftClick && !this.#activateClickedLink(event.row, event.col)) {

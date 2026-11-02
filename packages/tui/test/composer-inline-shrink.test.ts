@@ -6,6 +6,13 @@ import { initTheme } from "@reverse/tui/theme";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
+import { parseSgrMouse } from "@reverse/tui/mouse";
+import { visibleWidth } from "@reverse/tui/utils";
+import { TERMINAL, ImageProtocol } from "@reverse/tui/terminal-capabilities";
+const content = (term: VirtualTerminal, height: number) =>
+	screen(term)
+		.slice(0, height)
+		.map(row => row.replace(/[│█]$/, "").trimEnd());
 
 withoutTerminalMultiplexer();
 beforeAll(() => initTheme());
@@ -24,6 +31,7 @@ function harness(realEditor = false, rows = 24) {
 		tuiOptions: { renderScheduler: scheduler },
 		preferences: { quiet: true },
 	});
+	composer.setScrollLocaleProvider(() => "en");
 	const transcript = new TranscriptContainer();
 	const hud = new Widget();
 	const editor = new Container();
@@ -46,19 +54,20 @@ describe("Composer fixed bottom dock", () => {
 			append(h.transcript, 100);
 			h.composer.ui.requestRender();
 			await h.scheduler.settle(h.terminal);
-			expect(screen(h.terminal).slice(-2)).toEqual(["ROW-099", "EDITOR"]);
+			expect(content(h.terminal, h.composer.transcriptViewportHeight).at(-1)).toBe("ROW-099");
 			h.composer.scrollTranscript(-10);
 			await h.scheduler.settle(h.terminal);
-			const top = screen(h.terminal)[0];
-			expect(top).toBe("ROW-083");
+			const top = content(h.terminal, h.composer.transcriptViewportHeight)[0];
+			expect(top).toBe("");
+			expect(content(h.terminal, h.composer.transcriptViewportHeight)[1]).toBe("ROW-084");
 			append(h.transcript, 1, 100);
 			h.composer.ui.requestRender();
 			await h.scheduler.settle(h.terminal);
-			expect(screen(h.terminal)[0]).toBe(top);
+			expect(content(h.terminal, h.composer.transcriptViewportHeight)[0]).toBe(top);
 			expect(screen(h.terminal)[23]).toBe("EDITOR");
 			h.composer.scrollTranscriptToBottom();
 			await h.scheduler.settle(h.terminal);
-			expect(screen(h.terminal).slice(-2)).toEqual(["ROW-100", "EDITOR"]);
+			expect(content(h.terminal, h.composer.transcriptViewportHeight).at(-1)).toBe("ROW-100");
 		} finally {
 			h.composer.stop();
 		}
@@ -71,19 +80,19 @@ describe("Composer fixed bottom dock", () => {
 			await h.scheduler.settle(h.terminal);
 			h.composer.scrollTranscript(-30);
 			await h.scheduler.settle(h.terminal);
-			const top = screen(h.terminal)[0];
+			const top = content(h.terminal, h.composer.transcriptViewportHeight)[0];
 			h.terminal.sendInput("中文🙂");
 			h.terminal.sendInput("\x1b[200~\nsecond line\x1b[201~");
 			await h.scheduler.settle(h.terminal);
 			expect(h.composer.editor.getText()).toBe("中文🙂\nsecond line");
-			expect(screen(h.terminal)[0]).toBe(top);
+			expect(content(h.terminal, h.composer.transcriptViewportHeight)[0]).toBe(top);
 			expect(h.composer.ui.getDebugPaint()?.cursor?.visible).toBe(true);
 			for (const count of [8, 40, 0]) {
 				h.hud.rows = count;
 				h.composer.ui.requestRender();
 				await h.scheduler.settle(h.terminal);
 			}
-			expect(screen(h.terminal)[0]).toBe(top);
+			expect(content(h.terminal, h.composer.transcriptViewportHeight)[0]).toBe(top);
 			for (const [columns, rows] of [
 				[60, 12],
 				[100, 40],
@@ -99,7 +108,7 @@ describe("Composer fixed bottom dock", () => {
 				expect(paint?.cursor?.y).toBeLessThan(rows!);
 				expect(screen(h.terminal).some(row => row.includes("second line"))).toBe(true);
 			}
-			expect(screen(h.terminal)[0]).toBe(top);
+			expect(content(h.terminal, h.composer.transcriptViewportHeight)[0]).toBe(top);
 		} finally {
 			h.composer.stop();
 		}
@@ -158,7 +167,128 @@ describe("Composer fixed bottom dock", () => {
 			append(h.transcript, 100, 200);
 			h.composer.ui.requestRender();
 			await h.scheduler.settle(h.terminal);
-			expect(screen(h.terminal).slice(-2)).toEqual(["ROW-299", "EDITOR"]);
+			expect(content(h.terminal, h.composer.transcriptViewportHeight).at(-1)).toBe("ROW-299");
+		} finally {
+			h.composer.stop();
+		}
+	});
+	it("draws navigation and routes track, endpoint actions and drag cancellation", async () => {
+		const h = harness();
+		const mouse = (button: number, col: number, row: number, release = false) =>
+			h.composer.handleTranscriptMouse(
+				{ ...parseSgrMouse(`\x1b[<${button};1;1${release ? "m" : "M"}`)!, col, row },
+				row,
+			);
+		try {
+			append(h.transcript, 100);
+			await h.scheduler.settle(h.terminal);
+			const H = h.composer.transcriptViewportHeight;
+			expect(screen(h.terminal)[H]).toContain("Go to top");
+			expect(screen(h.terminal)[H]).toContain("At bottom");
+			expect(screen(h.terminal)[H - 1]?.at(-1)).toBe("█");
+			expect(mouse(0, 79, Math.floor(H / 2))).toBe(true);
+			await h.scheduler.settle(h.terminal);
+			expect(content(h.terminal, H).some(row => /ROW-05\d/.test(row))).toBe(true);
+			expect(mouse(32, 20, -5)).toBe(true);
+			await h.scheduler.settle(h.terminal);
+			expect(content(h.terminal, H)[0]).toBe("ROW-000");
+			expect(mouse(0, 0, H)).toBe(false);
+			expect(mouse(0, 79, 0)).toBe(true);
+			expect(mouse(32, 10, H + 5)).toBe(true);
+			await h.scheduler.settle(h.terminal);
+			expect(content(h.terminal, H).at(-1)).toBe("ROW-099");
+			expect(mouse(0, 90, H + 10, true)).toBe(true);
+			expect(mouse(32, 79, 0)).toBe(false);
+			mouse(0, 79, 2);
+			mouse(35, 79, 2);
+			expect(mouse(32, 79, 0)).toBe(false);
+			mouse(0, 79, 2);
+			h.terminal.resize(60, 12);
+			await h.scheduler.settle(h.terminal);
+			expect(mouse(32, 59, 0)).toBe(false);
+			expect(mouse(0, 0, h.composer.transcriptViewportHeight)).toBe(true);
+			await h.scheduler.settle(h.terminal);
+			expect(content(h.terminal, h.composer.transcriptViewportHeight)[0]).toBe("ROW-000");
+			expect(mouse(0, 59, h.composer.transcriptViewportHeight)).toBe(true);
+			await h.scheduler.settle(h.terminal);
+			expect(content(h.terminal, h.composer.transcriptViewportHeight).at(-1)).toBe("ROW-099");
+		} finally {
+			h.composer.stop();
+		}
+	});
+
+	it("has no track for empty or short history and preserves image rows and wide text", async () => {
+		const h = harness();
+		const protocol = TERMINAL.imageProtocol;
+		TERMINAL.imageProtocol = ImageProtocol.Kitty;
+		try {
+			await h.scheduler.settle(h.terminal);
+			expect(h.composer.handleTranscriptMouse(parseSgrMouse("\x1b[<0;80;1M")!, 0)).toBe(false);
+			h.transcript.addChild(new Text("中文🙂", 0, 0));
+			await h.scheduler.settle(h.terminal);
+			expect(screen(h.terminal).some(row => /[│█]/.test(row))).toBe(false);
+			const image = "\x1b_Ga=p,i=7,r=4;payload\x1b\\";
+			h.transcript.addChild({ render: () => [image, ...Array.from({ length: 40 }, () => "中文🙂")] });
+			h.composer.scrollTranscriptToRatio(0);
+			await h.scheduler.settle(h.terminal);
+			const plan = h.composer.renderFrame({ columns: 80, rows: 24 });
+			const imageRow = plan.viewport.indexOf(image);
+			expect(imageRow).toBeGreaterThanOrEqual(0);
+			expect(h.composer.handleTranscriptMouse(parseSgrMouse(`\x1b[<0;80;${imageRow + 1}M`)!, imageRow)).toBe(false);
+			for (const row of plan.viewport.filter(row => row !== image))
+				expect(visibleWidth(row)).toBeLessThanOrEqual(80);
+		} finally {
+			TERMINAL.imageProtocol = protocol;
+			h.composer.stop();
+		}
+	});
+
+	it("reads navigation locale each frame and fits translated actions without overflow", async () => {
+		const h = harness();
+		let locale: "en" | "zh-CN" = "zh-CN";
+		h.composer.setScrollLocaleProvider(() => locale);
+		try {
+			append(h.transcript, 100);
+			await h.scheduler.settle(h.terminal);
+			let H = h.composer.transcriptViewportHeight;
+			expect(screen(h.terminal)[H]).toContain("到顶部");
+			expect(screen(h.terminal)[H]).toContain("回到底部");
+			expect(screen(h.terminal)[H]).toContain("已在底部");
+			h.composer.scrollTranscriptToRatio(0.5);
+			await h.scheduler.settle(h.terminal);
+			expect(screen(h.terminal)[H]).toContain("历史位置：约 50%");
+			locale = "en";
+			h.composer.ui.requestRender();
+			await h.scheduler.settle(h.terminal);
+			expect(screen(h.terminal)[H]).toContain("History: ~50%");
+			expect(screen(h.terminal)[H]).toContain("Jump to bottom");
+			for (const columns of [30, 20, 2]) {
+				h.terminal.resize(columns, 24);
+				await h.scheduler.settle(h.terminal);
+				H = h.composer.transcriptViewportHeight;
+				const nav = screen(h.terminal)[H]!;
+				expect(visibleWidth(nav)).toBeLessThanOrEqual(columns);
+				expect(nav.startsWith("↑")).toBe(true);
+				expect(nav.endsWith("↓")).toBe(true);
+			}
+		} finally {
+			h.composer.stop();
+		}
+	});
+
+	it("keeps the real cursor visible at widths one/two and heights one/two", async () => {
+		const h = harness(true);
+		try {
+			append(h.transcript, 100);
+			h.composer.editor.setText("中文🙂");
+			for (const columns of [1, 2])
+				for (const rows of [1, 2, 24]) {
+					h.terminal.resize(columns, rows);
+					await h.scheduler.settle(h.terminal);
+					const paint = h.composer.ui.getDebugPaint();
+					expect(paint?.cursor?.visible).toBe(true);
+					expect(paint?.cursor?.y).toBeLessThan(rows);
+				}
 		} finally {
 			h.composer.stop();
 		}

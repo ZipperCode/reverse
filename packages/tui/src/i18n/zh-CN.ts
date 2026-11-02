@@ -115,6 +115,10 @@ export const TUI_TRANSLATIONS_ZH_CN: TuiTranslations = {
 		Vision: "视觉",
 	},
 	hints: {
+		"transcript.toTop": "到顶部",
+		"transcript.toBottom": "回到底部",
+		"transcript.position": "历史位置：约 {percent}%",
+		"transcript.atBottom": "已在底部",
 		"settings.title": "设置",
 		"settings.prefsTitle": "设置",
 		"settings.plugins": "插件",

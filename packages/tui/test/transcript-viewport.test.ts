@@ -108,6 +108,60 @@ describe("component-anchored transcript viewport", () => {
 		view.scrollBy(-6);
 		expect(view.render(roots, 80, 23, frame).rows[0]).toBe("ROW-9985");
 		expect(calls).toBeLessThan(25);
+		calls = 0;
+		view.scrollToRatio(0.5);
+		expect(calls).toBe(0);
+		expect(view.render(roots, 80, 23, frame).rows[0]).toBe("ROW-5000");
+		expect(calls).toBeLessThan(25);
+	});
+
+	it("seeks component-weighted positions with exact endpoints and tail following", () => {
+		const roots = numbered(100);
+		const view = new TranscriptViewport();
+		view.scrollToRatio(-1);
+		expect(view.render(roots, 80, 5, frame)).toMatchObject({ atStart: true, progress: 0 });
+		view.scrollToRatio(0.5);
+		const middle = view.render(roots, 80, 5, frame);
+		expect(middle.rows[0]).toBe("ROW-50");
+		expect(middle.progress).toBe(0.5);
+		roots.push(component("ROW-100"));
+		expect(view.render(roots, 40, 7, frame).rows[0]).toBe("ROW-50");
+		roots.splice(50, 1);
+		expect(view.render(roots, 40, 7, frame).rows[0]).toBe("ROW-51");
+		view.scrollToRatio(2);
+		expect(view.render(roots, 80, 5, frame)).toMatchObject({ atEnd: true, progress: 1 });
+		roots.push(component("new tail"));
+		expect(view.render(roots, 80, 5, frame).rows.at(-1)).toBe("new tail");
+	});
+
+	it("seeks within tall blocks and preserves pending requests while hidden", () => {
+		const roots = [component(...Array.from({ length: 5000 }, (_, i) => `line-${i}`))];
+		const view = new TranscriptViewport();
+		view.scrollToRatio(0.5);
+		view.render(roots, 80, 0, frame);
+		expect(view.render(roots, 80, 5, frame).rows[0]).toBe("line-2500");
+		for (const ratio of [NaN, Infinity, -Infinity]) view.scrollToRatio(ratio);
+		expect(view.render(roots, 80, 5, frame).rows[0]).toBe("line-2500");
+		view.scrollBy(-10);
+		view.scrollToRatio(0.25);
+		expect(view.render(roots, 80, 5, frame).rows[0]).toBe("line-1250");
+		view.scrollToRatio(0.75);
+		view.scrollBy(-1);
+		expect(view.render(roots, 80, 5, frame).rows[0]).toBe("line-1249");
+	});
+
+	it("resolves empty targets forwards then backwards and resets empty documents", () => {
+		const view = new TranscriptViewport();
+		const roots = [component(), component("first"), component(), component("last", "last-2"), component()];
+		view.scrollToRatio(0);
+		expect(view.render(roots, 80, 1, frame).rows).toEqual(["first"]);
+		view.scrollToRatio(0.4);
+		expect(view.render(roots, 80, 1, frame).rows).toEqual(["last"]);
+		view.scrollToRatio(0.9);
+		expect(view.render(roots, 80, 1, frame).rows).toEqual(["last"]);
+		view.scrollToRatio(0.5);
+		expect(view.render([component(), component()], 80, 3, frame)).toMatchObject({ rows: [], progress: 1 });
+		expect(view.render([], 80, 3, frame)).toMatchObject({ rows: [], progress: 1 });
 	});
 
 	it("keeps image control rows byte-for-byte and requests complete block allocation", () => {

@@ -32,7 +32,11 @@ class CapturingTerminal extends VirtualTerminal {
 }
 
 function plainRows(rows: readonly string[]): string[] {
-	return rows.map(row => Bun.stripANSI(row).trimEnd());
+	return rows.map(row =>
+		Bun.stripANSI(row)
+			.replace(/[│█]$/, "")
+			.trimEnd(),
+	);
 }
 
 /** Exercise a real scrollable selector rather than merely echoing mouse input. */
@@ -192,7 +196,7 @@ describe("tui.mouse default off runtime behavior", () => {
 		expect(tool.expanded).toBe(true);
 	});
 
-	it("scrolls transcript by 3 rows on wheel, ignores dock/horizontal/release events, and keeps browsing stable across appends", async () => {
+	it("scrolls transcript by 3 rows across history/editor/status and keeps browsing stable across appends", async () => {
 		await mode.init({ suppressWelcomeIntro: true });
 		void mode.getUserInput();
 		await term.waitForRender();
@@ -241,16 +245,26 @@ describe("tui.mouse default off runtime behavior", () => {
 		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-100"))).toBe(false);
 		expect(plainRows(term.getViewport()).findIndex(row => row.includes("draft"))).toBe(editorRowIndex);
 
-		// Wheel on dock, horizontal wheel (66/67), and release events consume without scrolling or leaking bytes
-		const dockRow1Based = transcriptHeight + 1;
-		term.sendInput(`\x1b[<64;5;${dockRow1Based}M`);
-		term.sendInput(`\x1b[<65;5;${dockRow1Based}M`);
+		// Each dock wheel independently moves history by three rows without moving the draft/status.
+		let beforeDock = afterUp1Transcript;
+		for (const row of [editorRowIndex, initialAll.length - 1]) {
+			term.sendInput(`\x1b[<64;5;${row + 1}M`);
+			mode.ui.renderNow();
+			const afterDock = plainRows(term.getViewport()).slice(0, transcriptHeight);
+			expect(afterDock.slice(3)).toEqual(beforeDock.slice(0, transcriptHeight - 3));
+			expect(afterDock).not.toEqual(beforeDock);
+			expect(plainRows(term.getViewport()).findIndex(line => line.includes("draft"))).toBe(editorRowIndex);
+			expect(plainRows(term.getViewport()).at(-1)).toBe(initialAll.at(-1));
+			beforeDock = afterDock;
+		}
+		// Horizontal wheels, releases and events outside the window do not scroll.
+		term.sendInput("\x1b[<64;5;99M");
 		term.sendInput("\x1b[<66;5;3M");
 		term.sendInput("\x1b[<67;5;3M");
 		term.sendInput("\x1b[<64;5;3m");
 		term.sendInput("\x1b[<0;5;3m");
 		await term.waitForRender();
-		expect(plainRows(term.getViewport()).slice(0, transcriptHeight)).toEqual(afterUp1Transcript);
+		expect(plainRows(term.getViewport()).slice(0, transcriptHeight)).toEqual(beforeDock);
 		expect(mode.editor.getText()).toBe("draft");
 	});
 
@@ -337,5 +351,76 @@ describe("tui.mouse default off runtime behavior", () => {
 		term.sendInput("\x1b[1;3F");
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("ROW-099")));
 		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-099"))).toBe(true);
+		mode.chatContainer.addChild(new Text("ROW-100", 0, 0));
+		mode.ui.renderNow();
+		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-100"))).toBe(true);
+	});
+	it("uses real SGR track/drag/navigation by default, prevents click-through, and cancels capture across overlays", async () => {
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		for (let i = 0; i < 100; i++) mode.chatContainer.addChild(new Text(`ROW-${String(i).padStart(3, "0")}`, 0, 0));
+		mode.ui.renderNow();
+		const H = mode.composer.transcriptViewportHeight;
+		const click = (button: number, col: number, row: number, suffix = "M") => {
+			term.sendInput(`\x1b[<${button};${col};${row}${suffix}`);
+			mode.ui.renderNow();
+		};
+		click(0, 120, Math.floor(H / 2));
+		expect(
+			plainRows(term.getViewport())
+				.slice(0, H)
+				.some(row => /ROW-04\d|ROW-05\d/.test(row)),
+		).toBe(true);
+		click(32, 30, 1);
+		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-000"))).toBe(true);
+		click(32, 5, H + 10);
+		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-099"))).toBe(true);
+		click(0, 125, 60, "m");
+		const tail = plainRows(term.getViewport()).slice(0, H);
+		click(32, 120, 1);
+		expect(plainRows(term.getViewport()).slice(0, H)).toEqual(tail);
+		click(0, 120, 4);
+		const modal = new FullscreenWheelModal();
+		const handle = mode.ui.showOverlay(modal, { fullscreen: true });
+		mode.ui.renderNow();
+		click(0, 120, 8, "m");
+		handle.hide();
+		mode.ui.renderNow();
+		const beforeMotion = plainRows(term.getViewport()).slice(0, H);
+		click(35, 120, 1);
+		click(32, 120, 1);
+		expect(plainRows(term.getViewport()).slice(0, H)).toEqual(beforeMotion);
+		click(0, 120, 4);
+		const beforeNative = plainRows(term.getViewport()).slice(0, H);
+		Object.defineProperty(mode.ui, "nativeRendering", { configurable: true, get: () => true });
+		try {
+			term.sendInput("\x1b[<64;5;3M");
+			term.sendInput("\x1b[<32;120;1M");
+		} finally {
+			Reflect.deleteProperty(mode.ui, "nativeRendering");
+		}
+		mode.ui.renderNow();
+		expect(plainRows(term.getViewport()).slice(0, H)).toEqual(beforeNative);
+		click(32, 120, 1);
+		expect(plainRows(term.getViewport()).slice(0, H)).toEqual(beforeNative);
+		cfgTuiMouse.set(mode.settings, true);
+		let detailClicks = 0;
+		let linkClicks = 0;
+		mode.routeViewportDetailClick = () => {
+			detailClicks++;
+			return true;
+		};
+		mode.activateViewportLink = () => {
+			linkClicks++;
+			return true;
+		};
+		click(0, 120, H + 1);
+		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-099"))).toBe(true);
+		expect(detailClicks).toBe(0);
+		expect(linkClicks).toBe(0);
+		mode.chatContainer.addChild(new Text("ROW-100", 0, 0));
+		mode.ui.renderNow();
+		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-100"))).toBe(true);
+		expect(mode.editor.getText()).toBe("");
 	});
 });

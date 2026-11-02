@@ -33,9 +33,13 @@ function makeHarness(options?: { detailClickResult?: boolean; candidatesAtRow?: 
 			},
 			resetDisplay: () => {},
 			addStartListener: () => {},
-			getFocused: () => undefined,
+			getFocused: () => ctx.editor,
 		},
 		handlesBtwBranchKey: () => false,
+		composer: {
+			cancelTranscriptDrag: () => {},
+			handleTranscriptMouse: () => false,
+		},
 		editor: {
 			getText: () => "",
 			setActionKeys: () => {},
@@ -117,11 +121,11 @@ describe("InputController click routing", () => {
 		expect(h.focused).toEqual([]);
 	});
 
-	it("bypasses mouse events when tui.mouse is disabled", () => {
+	it("consumes mouse events without activating content when tui.mouse is disabled", () => {
 		cfgTuiMouse.set(settings, false);
 		const h = makeHarness();
 		const consumed = h.click();
-		expect(consumed).toBeUndefined();
+		expect(consumed).toBe(true);
 		expect(h.toggled()).toBe(0);
 		expect(h.focused).toEqual([]);
 	});
