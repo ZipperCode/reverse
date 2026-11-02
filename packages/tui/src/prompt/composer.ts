@@ -92,6 +92,8 @@ export interface ComposerOptions {
 
 /** How {@link Composer.setRuntimeChildren} lays out the roots below the transcript. */
 export interface RuntimeChildrenOptions {
+	/** First fixed ANSI root; preceding roots after the transcript scroll with history. */
+	readonly dockStart?: Component;
 	/**
 	 * Dock order on a TSP terminal (no status strip; the composer carries its
 	 * facts): the native dock stacks HUD pills, the working row and queued messages over
@@ -295,6 +297,8 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 	#scrollSource: readonly Component[] | undefined;
 	#scrollRuntime: readonly Component[] | undefined;
 	#scrollTranscriptIndex = -1;
+	#dockStart: Component | undefined;
+	#scrollDockIndex = -1;
 	#transcriptViewportHeight = 0;
 	#scrollGeometry:
 		| {
@@ -416,18 +420,22 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		}
 		// 拼接只随源数组/长度变化；未知的原位替换仅修正对应组件身份。
 		const source = transcript?.children;
+		const dockIndex = this.#dockStart ? roots.indexOf(this.#dockStart) : transcriptIndex + 1;
+		const trailing = transcript ? roots.slice(transcriptIndex + 1, dockIndex) : [];
 		const prefix = Math.max(0, transcriptIndex);
-		const length = 1 + prefix + (source?.length ?? 0);
+		const length = 1 + prefix + (source?.length ?? 0) + trailing.length;
 		if (
 			this.#scrollSource !== source ||
 			this.#scrollRuntime !== roots ||
 			this.#scrollTranscriptIndex !== transcriptIndex ||
+			this.#scrollDockIndex !== dockIndex ||
 			this.#scrollRoots.length !== length
 		) {
-			this.#scrollRoots = [this.#header, ...roots.slice(0, prefix), ...(source ?? [])];
+			this.#scrollRoots = [this.#header, ...roots.slice(0, prefix), ...(source ?? []), ...trailing];
 			this.#scrollSource = source;
 			this.#scrollRuntime = roots;
 			this.#scrollTranscriptIndex = transcriptIndex;
+			this.#scrollDockIndex = dockIndex;
 		} else {
 			for (let i = 0; i < prefix; i++) {
 				if (this.#scrollRoots[i + 1] !== roots[i]) this.#scrollRoots[i + 1] = roots[i]!;
@@ -435,10 +443,13 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 			for (let i = 0; i < (source?.length ?? 0); i++) {
 				if (this.#scrollRoots[prefix + 1 + i] !== source![i]) this.#scrollRoots[prefix + 1 + i] = source![i]!;
 			}
+			for (let i = 0; i < trailing.length; i++) {
+				this.#scrollRoots[prefix + 1 + (source?.length ?? 0) + i] = trailing[i]!;
+			}
 		}
 		const dockRoots = !this.#runtimeMounted
 			? [this.#bootstrapInputGap, this.editor, this.#statusHost]
-			: [...(transcript ? roots.slice(transcriptIndex + 1) : roots), this.#statusHost];
+			: [...(transcript ? roots.slice(dockIndex) : roots), this.#statusHost];
 		const dock: string[] = [];
 		const dockSpans: ViewportClickSpan[] = [];
 		const ends: { root: Component; end: number }[] = [];
@@ -1041,6 +1052,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 	setRuntimeChildren(children: readonly Component[], options: RuntimeChildrenOptions = {}): void {
 		if (this.#stopped) return;
 		this.#nativeDock = options.nativeDock;
+		this.#dockStart = options.dockStart;
 		this.ui.removeChild(this.#statusHost);
 		if (this.#runtimeMounted) {
 			for (const child of this.#runtimeChildren) this.ui.removeChild(child);

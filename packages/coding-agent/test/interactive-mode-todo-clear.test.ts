@@ -782,7 +782,7 @@ describe("InteractiveMode todo HUD anchor", () => {
 		expect(renderTodos(mode)).toContain("3 more todos");
 	});
 
-	describe("compact todo for small terminal height (< 18 rows)", () => {
+	describe("scrollable todo remains separate from fixed status at small heights", () => {
 		function setTerminalRows(rows: number): void {
 			Object.defineProperty(mode.ui.terminal, "rows", {
 				get: () => rows,
@@ -796,7 +796,7 @@ describe("InteractiveMode todo HUD anchor", () => {
 			mode.statusContainer.disposeChildren();
 		});
 
-		it("renders todo as a single line item aligned to the right when terminal height < 18", () => {
+		it("keeps the task tree out of the status line below 18 rows", () => {
 			setTerminalRows(15);
 			mode.setTodos([
 				{
@@ -809,21 +809,13 @@ describe("InteractiveMode todo HUD anchor", () => {
 				},
 			]);
 
-			// todoContainer is empty in compact mode
-			expect(mode.todoContainer.render(100)).toHaveLength(0);
-
-			// statusContainer renders the compact right-aligned todo above editor
-			const rendered = mode.statusContainer.render(100);
-			expect(rendered.length).toBeGreaterThan(0);
-			const lastLine = Bun.stripANSI(rendered[rendered.length - 1] ?? "");
-			expect(lastLine).toContain("TODO 1/3");
-			expect(lastLine).toContain("Create API endpoints");
-			// Right-aligned: ends with the todo text (with trailing space)
-			expect(lastLine.trimEnd().endsWith("Create API endpoints")).toBe(true);
-			expect(lastLine.startsWith(" ")).toBe(true);
+			expect(renderTodos(mode)).toContain("Create API endpoints");
+			expect(mode.todoContainer.render(100).length).toBeGreaterThan(1);
+			expect(Bun.stripANSI(mode.statusContainer.render(100).join("\n"))).not.toContain("Create API endpoints");
+			expect(Bun.stripANSI(mode.statusContainer.render(100).join("\n"))).not.toContain("TODO");
 		});
 
-		it("places compact todo on the right side of the active loader / intent spinner", () => {
+		it("keeps the active loader independent of TODO content", () => {
 			setTerminalRows(14);
 			mode.setTodos([
 				{
@@ -838,22 +830,16 @@ describe("InteractiveMode todo HUD anchor", () => {
 			mode.ensureLoadingAnimation();
 			mode.setWorkingMessage("Reading src/index.ts (esc to interrupt)");
 
-			expect(mode.todoContainer.render(120)).toHaveLength(0);
-
-			const rendered = mode.statusContainer.render(120);
-			expect(rendered.length).toBeGreaterThanOrEqual(2);
-			const lastLine = Bun.stripANSI(rendered[rendered.length - 1] ?? "");
-			// Left side has the intent spinner/message
-			expect(lastLine).toContain("Reading src/index.ts");
-			// Right side has the compact todo
-			expect(lastLine).toContain("TODO 0/2");
-			expect(lastLine).toContain("Inspect server");
-			// Left message comes before right todo
-			expect(lastLine.indexOf("Reading src/index.ts")).toBeLessThan(lastLine.indexOf("TODO 0/2"));
+			expect(renderTodos(mode)).toContain("Inspect server");
+			const rendered = Bun.stripANSI(mode.statusContainer.render(120).join("\n"));
+			expect(rendered).toContain("Reading src/index.ts");
+			expect(rendered).not.toContain("TODO");
+			expect(rendered).not.toContain("Inspect server");
 		});
 
-		it("shows completed summary when all tasks are done in compact mode", () => {
+		it("keeps completed tasks in the task panel rather than the status line", () => {
 			setTerminalRows(16);
+			cfgTasksTodoClearDelay.override(session.settings, -1);
 			mode.setTodos([
 				{
 					name: "Tasks",
@@ -864,13 +850,11 @@ describe("InteractiveMode todo HUD anchor", () => {
 				},
 			]);
 
-			const rendered = mode.statusContainer.render(100);
-			const lastLine = Bun.stripANSI(rendered[rendered.length - 1] ?? "");
-			expect(lastLine).toContain("TODO 2/2");
-			expect(lastLine).toContain("done");
+			expect(renderTodos(mode)).toContain("2/2");
+			expect(Bun.stripANSI(mode.statusContainer.render(100).join("\n"))).not.toContain("TODO");
 		});
 
-		it("switches dynamically between multi-line HUD and compact single line on resize", () => {
+		it("preserves the same task panel across terminal height changes", () => {
 			mode.setTodos([
 				{
 					name: "Tasks",
@@ -878,23 +862,12 @@ describe("InteractiveMode todo HUD anchor", () => {
 				},
 			]);
 
-			// Terminal >= 18 rows: full tree HUD
-			setTerminalRows(24);
-			expect(mode.todoContainer.render(100).length).toBeGreaterThan(0);
-			expect(mode.statusContainer.render(100)).toHaveLength(0);
-
-			// Terminal < 18 rows: compact mode
-			setTerminalRows(15);
-			expect(mode.todoContainer.render(100)).toHaveLength(0);
-			expect(mode.statusContainer.render(100).length).toBeGreaterThan(0);
-			const compactLine = Bun.stripANSI(mode.statusContainer.render(100).slice(-1)[0] ?? "");
-			expect(compactLine).toContain("TODO 0/1");
-			expect(compactLine).toContain("Refactor router");
-
-			// Resize back >= 18 rows
-			setTerminalRows(24);
-			expect(mode.todoContainer.render(100).length).toBeGreaterThan(0);
-			expect(mode.statusContainer.render(100)).toHaveLength(0);
+			const todo = renderTodos(mode);
+			for (const rows of [24, 15, 12, 24]) {
+				setTerminalRows(rows);
+				expect(renderTodos(mode)).toBe(todo);
+				expect(mode.statusContainer.render(100)).toHaveLength(0);
+			}
 		});
 	});
 });

@@ -355,6 +355,41 @@ describe("tui.mouse default off runtime behavior", () => {
 		mode.ui.renderNow();
 		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-100"))).toBe(true);
 	});
+	it("scrolls TODO and informational panels away while editor/status stay fixed, including short windows", async () => {
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		for (let i = 0; i < 100; i++) mode.chatContainer.addChild(new Text(`ROW-${String(i).padStart(3, "0")}`, 0, 0));
+		mode.setTodos([
+			{
+				name: "Scroll tasks",
+				tasks: [
+					{ content: "SCROLLABLE-TODO", status: "in_progress" },
+					{ content: "NEXT-TODO", status: "pending" },
+				],
+			},
+		]);
+		mode.subagentContainer.addChild(new Text("SCROLLABLE-AGENT", 0, 0));
+		mode.editor.setText("fixed draft");
+		mode.ui.renderNow();
+		for (const rows of [32, 12, 32]) {
+			term.resize(120, rows);
+			mode.composer.scrollTranscriptToBottom();
+			mode.ui.renderNow();
+			const H = mode.composer.transcriptViewportHeight;
+			const initial = plainRows(term.getViewport());
+			expect(initial.slice(0, H).some(row => row.includes("SCROLLABLE-TODO"))).toBe(true);
+			expect(initial.slice(H + 1).some(row => row.includes("TODO") || row.includes("SCROLLABLE-AGENT"))).toBe(false);
+			const dock = initial.slice(H + 1);
+			mode.composer.scrollTranscript(-40);
+			mode.ui.renderNow();
+			const browsing = plainRows(term.getViewport());
+			expect(browsing.some(row => row.includes("SCROLLABLE-TODO") || row.includes("SCROLLABLE-AGENT"))).toBe(false);
+			expect(browsing.slice(H + 1)).toEqual(dock);
+			expect(mode.editor.getText()).toBe("fixed draft");
+			expect(mode.ui.getDebugPaint()?.cursor?.visible).toBe(true);
+		}
+	});
+
 	it("uses real SGR track/drag/navigation by default, prevents click-through, and cancels capture across overlays", async () => {
 		await mode.init({ suppressWelcomeIntro: true });
 		void mode.getUserInput();

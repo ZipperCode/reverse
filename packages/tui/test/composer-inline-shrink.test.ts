@@ -172,6 +172,39 @@ describe("Composer fixed bottom dock", () => {
 			h.composer.stop();
 		}
 	});
+	it("scrolls live informational panels while keeping only the selected dock fixed", async () => {
+		const h = harness(true);
+		const status = new Text("STATUS", 0, 0);
+		h.hud.rows = 5;
+		h.composer.setRuntimeChildren([h.transcript, h.hud, status, h.editor], { dockStart: status });
+		try {
+			append(h.transcript, 100);
+			h.composer.editor.setText("preserved draft");
+			await h.scheduler.settle(h.terminal);
+			const H = h.composer.transcriptViewportHeight;
+			expect(content(h.terminal, H).at(-1)).toBe("HUD-4");
+			const dock = screen(h.terminal).slice(H + 1);
+			h.composer.scrollTranscript(-20);
+			await h.scheduler.settle(h.terminal);
+			expect(content(h.terminal, H).some(row => row.includes("HUD-"))).toBe(false);
+			expect(screen(h.terminal).slice(H + 1)).toEqual(dock);
+			const anchor = content(h.terminal, H)[0];
+			h.hud.rows = 10;
+			append(h.transcript, 1, 100);
+			h.composer.ui.requestRender();
+			await h.scheduler.settle(h.terminal);
+			expect(content(h.terminal, H)[0]).toBe(anchor);
+			expect(h.composer.transcriptViewportHeight).toBe(H);
+			h.composer.scrollTranscriptToBottom();
+			await h.scheduler.settle(h.terminal);
+			expect(content(h.terminal, H).at(-1)).toBe("HUD-9");
+			expect(h.composer.editor.getText()).toBe("preserved draft");
+			expect(h.composer.ui.getDebugPaint()?.cursor?.visible).toBe(true);
+		} finally {
+			h.composer.stop();
+		}
+	});
+
 	it("draws navigation and routes track, endpoint actions and drag cancellation", async () => {
 		const h = harness();
 		const mouse = (button: number, col: number, row: number, release = false) =>
