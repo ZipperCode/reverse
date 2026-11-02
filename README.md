@@ -2,7 +2,7 @@
 
 `reverse` is an independent terminal reverse-engineering and coding agent built from an upstream source snapshot of oh-my-pi, developed in repository `https://github.com/ZipperCode/rev`.
 
-reverse 基于 omp 改造，版本跟随 omp 稳定版迭代。当前同步目标为 [oh-my-pi 18.14.0](https://github.com/can1357/oh-my-pi/releases/tag/v18.14.0)，同步上游功能与修复，同时保留 reverse 的逆向能力、独立配置和中文设置。升级基线与验证流程见[上游同步指南](docs/porting-from-pi-mono.md#reverse--oh-my-pi-release-tracking)。源码开发使用 Bun 1.4.4；升级后重新构建原生模块与可执行文件。
+reverse 基于 omp 改造，版本跟随 omp 稳定版迭代。当前同步目标为 [oh-my-pi 18.15.0](https://github.com/can1357/oh-my-pi/releases/tag/v18.15.0)，同步上游功能与修复，同时保留 reverse 的逆向能力、独立配置和中文设置。升级基线与验证流程见[上游同步指南](docs/porting-from-pi-mono.md#reverse--oh-my-pi-release-tracking)。源码开发使用 Bun 1.4.4；升级后重新构建原生模块与可执行文件。
 
 ## Quickstart & Installation
 

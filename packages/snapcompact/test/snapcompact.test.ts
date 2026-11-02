@@ -1402,7 +1402,7 @@ describe("frame data budget", () => {
 		const opus = getBundledModel("anthropic", "claude-opus-5-5");
 		const sol = getBundledModel("openai-codex", "gpt-6.1-sol");
 		const throughProxy = (model: Model) => buildModel({ ...toModelSpec(model), baseUrl: "https://proxy.example/v1" });
-		expect(snapcompact.frameDataBytesBudget(opus)).toBe(12_000_000);
+		expect(snapcompact.frameDataBytesBudget(opus)).toBe(60_000_000);
 		expect(snapcompact.frameDataBytesBudget(sol)).toBe(12_000_000);
 		// A rerouted baseUrl has its own body limit; so does a host without a budget rule.
 		expect(snapcompact.frameDataBytesBudget(throughProxy(opus))).toBe(budget);
@@ -1427,10 +1427,10 @@ describe("frame data budget", () => {
 		};
 		expect(snapcompact.frameDataBytesBudget(factory("https://api.factory.ai/api/llm/a"))).toBeLessThan(budget);
 		expect(snapcompact.frameDataBytesBudget(factory("https://factory-gateway.example/api/llm/a"))).toBe(budget);
-		// Opus's 1932px frames: 17 under the default, 70 under Anthropic's share.
+		// Opus's 1932px frames: 17 under the default, 352 under Anthropic's share.
 		const opusShape = snapcompact.resolveShape(opus);
 		expect(snapcompact.maxFramesForDataBudget(opusShape, budget)).toBe(17);
-		expect(snapcompact.maxFramesForDataBudget(opusShape, snapcompact.frameDataBytesBudget(opus))).toBe(70);
+		expect(snapcompact.maxFramesForDataBudget(opusShape, snapcompact.frameDataBytesBudget(opus))).toBe(352);
 	});
 
 	it.each([
@@ -1450,7 +1450,7 @@ describe("frame data budget", () => {
 				FOUNDRY_BASE_URL: undefined,
 			};
 			withEnv(official, () => {
-				expect(snapcompact.frameDataBytesBudget(opus)).toBe(12_000_000);
+				expect(snapcompact.frameDataBytesBudget(opus)).toBe(60_000_000);
 				expect(snapcompact.providerImageBudget(opus)).toBe(600);
 			});
 			withEnv({ ...official, ...reroute }, () => {
@@ -1571,6 +1571,79 @@ describe("archive helpers", () => {
 			const source = snapcompact.getPreservedArchive(rendered.preserveData)?.text ?? "";
 			expect(source).not.toContain("secret");
 			expect(source).toContain("answer two");
+		});
+	});
+
+	describe("viewWithoutFrames", () => {
+		function sentText(view: snapcompact.ArchiveView): string {
+			const blocks = snapcompact.historyBlocks(view.archive);
+			expect(blocks.every(block => block.type === "text")).toBe(true);
+			return `${view.summary}\n${blocks.map(block => (block.type === "text" ? block.text : "")).join("\n")}`;
+		}
+
+		async function framedArchive(): Promise<snapcompact.CompactionResult> {
+			const fileOps = snapcompact.createFileOps();
+			fileOps.read.add("src/read-only.ts");
+			fileOps.read.add("src/both.ts");
+			fileOps.edited.add("src/both.ts");
+			fileOps.edited.add("src/edited.ts");
+			const result = await snapcompact.compact(
+				makePreparation({
+					messagesToSummarize: [
+						createUserMessage(`HEAD sentinel. ${"Important fact number one. ".repeat(60)}`),
+						createAssistantMessage([
+							{ type: "thinking", thinking: "PRIVATE plan." },
+							{ type: "text", text: `MIDDLE sentinel. ${"Important fact number two. ".repeat(60)}` },
+						]),
+						createUserMessage(`${"Important fact number three. ".repeat(60)}TAIL sentinel.`),
+					],
+					fileOps,
+				}),
+				{ model: { api: "anthropic-messages" }, frameSize: TEST_FRAME_SIZE, maxFrames: 5 },
+			);
+			const archive = snapcompact.getPreservedArchive(result.preserveData)!;
+			expect(archive.frames.length).toBeGreaterThan(0);
+			expect(archive.textHead).not.toContain("MIDDLE sentinel");
+			expect(archive.textTail).not.toContain("MIDDLE sentinel");
+			return result;
+		}
+
+		it("reads the archive's whole kept source as text in place of its frames, with its file list", async () => {
+			const result = await framedArchive();
+			const archive = snapcompact.getPreservedArchive(result.preserveData)!;
+			const view = snapcompact.viewWithoutFrames(result.summary, archive);
+			expect(view.archive.frames).toEqual([]);
+			expect(view.archive.text).toBe(archive.text);
+			const sent = sentText(view);
+			for (const sentinel of ["HEAD sentinel", "MIDDLE sentinel", "TAIL sentinel", "PRIVATE plan"]) {
+				expect(sent).toContain(sentinel);
+			}
+			expect(result.summary).toContain("images, not text");
+			expect(sent).not.toContain("images, not text");
+			// This reader may read reasoning, so the legend keeps it.
+			expect(sent).toContain("`¶think:`");
+			// The summary's own file list, read-and-written files included.
+			for (const file of ["read-only.ts (Read)", "both.ts (RW)", "edited.ts (Write)"]) {
+				expect(result.summary).toContain(file);
+				expect(sent).toContain(file);
+			}
+		});
+
+		it("keeps both ends of the text past maxChars and counts the cut middle as dropped", async () => {
+			const result = await framedArchive();
+			const archive = snapcompact.getPreservedArchive(result.preserveData)!;
+			const view = snapcompact.viewWithoutFrames(result.summary, archive, { maxChars: 400 });
+			expect(view.archive.frames).toEqual([]);
+			expect(view.archive.textHead).toHaveLength(200);
+			expect(view.archive.textTail).toHaveLength(200);
+			expect(view.archive.totalChars).toBe(400);
+			expect(view.archive.truncatedChars).toBe(archive.truncatedChars + archive.text!.length - 400);
+			const sent = sentText(view);
+			expect(sent).toContain("HEAD sentinel");
+			expect(sent).toContain("TAIL sentinel");
+			expect(sent).not.toContain("MIDDLE sentinel");
+			expect(sent).toContain("middle history omitted above");
+			expect(sent).toContain(`About ${view.archive.truncatedChars} characters of older middle history dropped`);
 		});
 	});
 

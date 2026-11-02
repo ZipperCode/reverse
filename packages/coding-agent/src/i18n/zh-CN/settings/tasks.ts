@@ -103,6 +103,21 @@ export const tasksSettingsZhCN: Record<string, SettingTranslation> = {
 		label: "按任务 effort",
 		description: "在 task 派生中暴露可选的 effort 参数，允许调用方覆盖每个子代理的思考级别",
 	},
+	"task.perCallModel": {
+		label: "按调用选择模型",
+		description:
+			"允许子代理调用使用精确的 provider/model-id[@upstream][:level] 选择模型。@upstream 固定上游仅受聚合提供商支持，且属于模型身份。仅接受配置已授权路由的模型；项目设置只能关闭此能力，不能开启或批准模型。",
+		options: {
+			off: { label: "关闭", description: "task 项和 eval agent()/workpool() 均不接受 model" },
+			eval: { label: "仅 Eval", description: "仅 eval agent() 和 workpool() 接受 model" },
+			on: { label: "开启", description: "task 项和 eval agent()/workpool() 均接受 model" },
+		},
+	},
+	"task.perCallModelAllow": {
+		label: "按调用模型白名单",
+		description:
+			"精确模型选择器列表：provider/model-id，仅固定 OpenRouter/Vercel 路由时包含 @upstream（如 openrouter/x@y）。设置后，按调用模型还必须在此列表中；留空允许配置已授权的全部模型。项目列表只能进一步收窄范围。",
+	},
 	"task.maxConcurrency": {
 		label: "最大并发任务数",
 		description: "同时运行的子代理最大数量",
@@ -230,6 +245,17 @@ export const tasksSettingsZhCN: Record<string, SettingTranslation> = {
 	"title.refreshOnReplan": {
 		label: "重新规划时刷新标题",
 		description: "待办初始化重新规划后刷新生成的会话标题，除非标题由用户设置",
+	},
+	"title.refreshAfterPrompts": {
+		label: "按提示次数刷新标题",
+		description: "每收到指定数量的用户提示后，让判断模型检查自动生成的会话标题是否仍符合当前对话；不符合时重新生成。",
+		options: {
+			"0": { label: "关闭", description: "默认" },
+			"1": { label: "每次提示" },
+			"3": { label: "每 3 次提示" },
+			"5": { label: "每 5 次提示" },
+			"10": { label: "每 10 次提示" },
+		},
 	},
 	"skills.enableSkillCommands": {
 		label: "技能命令",

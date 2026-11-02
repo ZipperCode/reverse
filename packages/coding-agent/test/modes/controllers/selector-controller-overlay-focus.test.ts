@@ -10,6 +10,9 @@ import type { InteractiveModeContext } from "@reverse/coding-agent/modes/types";
 import type { SessionInfo } from "@reverse/coding-agent/session/session-listing";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { Container, Input, Text, TUI } from "@reverse/tui";
+import { HistorySearchComponent } from "@reverse/tui/overlays/history-search";
+import { HookEditorComponent } from "@reverse/tui/overlays/hook-editor";
+import type { HistoryStorage } from "@reverse/coding-agent/session/history-storage";
 import { VirtualRenderScheduler } from "../../../../tui/test/virtual-render-scheduler";
 import { VirtualTerminal } from "../../../../tui/test/virtual-terminal";
 
@@ -39,7 +42,7 @@ function createEditorSlot(...initial: unknown[]): EditorSlot {
 	};
 }
 
-function createCtx(slot: EditorSlot, editor: unknown, focused: unknown = editor) {
+function createCtx(slot: EditorSlot, editor: unknown, focused: unknown = editor, extra: object = {}) {
 	const setFocus = vi.fn();
 	const ctx = {
 		editor,
@@ -49,6 +52,7 @@ function createCtx(slot: EditorSlot, editor: unknown, focused: unknown = editor)
 			setFocus,
 			requestRender: vi.fn(),
 		},
+		...extra,
 	} as unknown as InteractiveModeContext;
 	return { ctx, setFocus };
 }
@@ -119,6 +123,30 @@ describe("SelectorController.showSelector", () => {
 		finish();
 		expect(slot.children).toEqual([askDialog, editor]);
 		expect(setFocus).toHaveBeenLastCalledWith(askDialog);
+	});
+});
+
+describe("SelectorController.showHistorySearch", () => {
+	it("delivers the picked entry to the focused ask prompt, not the hidden composer", () => {
+		const storage = {
+			getRecent: () => [{ id: 1, prompt: "deploy the release", created_at: 0, useCount: 1 }],
+			search: () => [],
+		} as unknown as HistoryStorage;
+		const editor = { setText: vi.fn() };
+		const onSubmit = vi.fn();
+		const tui = { terminal: { columns: 120 } } as unknown as TUI;
+		const prompt = new HookEditorComponent(tui, "Other", undefined, onSubmit, vi.fn(), { promptStyle: true });
+		const slot = createEditorSlot(prompt);
+		const { ctx } = createCtx(slot, editor, prompt, { historyStorage: storage });
+
+		new SelectorController(ctx).showHistorySearch();
+		const [history] = slot.children;
+		if (!(history instanceof HistorySearchComponent)) throw new Error("history search was not mounted");
+		history.handleInput("\n");
+
+		expect(editor.setText).not.toHaveBeenCalled();
+		prompt.handleNativeEvent({ type: "action", key: "actions/submit", act: "submit", mods: [] });
+		expect(onSubmit).toHaveBeenCalledWith("deploy the release");
 	});
 });
 

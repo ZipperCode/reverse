@@ -262,6 +262,7 @@ describe("inline click-to-focus geometry", () => {
 			const viewport = plainRows(term.getViewport());
 			const screenRow = viewport.findIndex(row => row.includes(marker));
 			expect(screenRow).toBeGreaterThanOrEqual(0);
+			expect(mode.resolveViewportClickCandidates(screenRow)).not.toEqual([]);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
 		};
 

@@ -86,6 +86,7 @@ export interface ResolveStdioSpawnOptions {
 	env: Record<string, string | undefined>;
 	hostHasInheritableConsole?: boolean;
 	platform?: NodeJS.Platform;
+	signal?: AbortSignal;
 }
 
 const DEFAULT_WINDOWS_PATHEXT = [".COM", ".EXE", ".BAT", ".CMD"];
@@ -136,6 +137,7 @@ async function resolveWindowsCommandPath(
 	command: string,
 	cwd: string,
 	env: Record<string, string | undefined>,
+	signal?: AbortSignal,
 ): Promise<string | null> {
 	const extensions = getWindowsPathExt(env);
 	const hasExt = hasExecutableExtension(command, extensions);
@@ -143,6 +145,7 @@ async function resolveWindowsCommandPath(
 
 	if (hasPathSegment(command)) {
 		for (const candidate of candidates) {
+			signal?.throwIfAborted();
 			const resolved = path.isAbsolute(candidate) ? candidate : path.resolve(cwd, candidate);
 			if (await fileExists(resolved)) return resolved;
 		}
@@ -161,6 +164,7 @@ async function resolveWindowsCommandPath(
 	}
 	for (const dir of searchDirs) {
 		for (const candidate of candidates) {
+			signal?.throwIfAborted();
 			const resolved = path.join(dir, candidate);
 			if (await fileExists(resolved)) return resolved;
 		}
@@ -345,7 +349,7 @@ export async function resolveStdioSpawnCommand(
 	if (options.platform !== "win32") return { cmd: [config.command, ...args], detached: options.platform !== "darwin" };
 
 	const windowsHide = options.hostHasInheritableConsole === undefined ? true : !options.hostHasInheritableConsole;
-	const resolved = await resolveWindowsCommandPath(config.command, options.cwd, options.env);
+	const resolved = await resolveWindowsCommandPath(config.command, options.cwd, options.env, options.signal);
 	const resolvedCommand = resolved ?? config.command;
 	const npmShimCommand = await resolveWindowsNpmShimCommand(resolvedCommand, args, options.cwd, windowsHide);
 	if (npmShimCommand) return npmShimCommand;
@@ -681,7 +685,8 @@ export class StdioTransport implements MCPTransport {
 	/**
 	 * Start the subprocess and begin reading.
 	 */
-	async connect(): Promise<void> {
+	async connect(signal?: AbortSignal): Promise<void> {
+		signal?.throwIfAborted();
 		if (this.#connected) return;
 
 		const env = {
@@ -694,7 +699,10 @@ export class StdioTransport implements MCPTransport {
 			env,
 			platform: process.platform,
 			hostHasInheritableConsole: hostHasInheritableConsole(),
+			signal,
 		});
+		// Resolution may outlast the connection deadline, especially on Windows PATHs.
+		signal?.throwIfAborted();
 
 		this.#commandStr = sanitizeCommandArgv(this.config.command, this.config.args);
 		this.#currentPhase = "spawn";
@@ -1228,10 +1236,13 @@ export class StdioTransport implements MCPTransport {
 /**
  * Create and connect a stdio transport.
  */
-export async function createStdioTransport(config: MCPStdioServerConfig): Promise<StdioTransport> {
+export async function createStdioTransport(
+	config: MCPStdioServerConfig,
+	signal?: AbortSignal,
+): Promise<StdioTransport> {
 	const transport = new StdioTransport(config);
 	try {
-		await transport.connect();
+		await transport.connect(signal);
 		return transport;
 	} catch (error) {
 		throw normalizeMCPTransportError(error, { transport: "stdio", stage: "connect" });

@@ -16,6 +16,8 @@ afterEach(() => {
 	vi.restoreAllMocks();
 	vi.useRealTimers();
 });
+const screen = (term: VirtualTerminal) => term.getViewport().map(row => Bun.stripANSI(row).trimEnd());
+
 it("keeps an oversized startup changelog reachable above the fixed editor after the intro", async () => {
 	const terminal = new VirtualTerminal(100, 30);
 	vi.useFakeTimers();
@@ -38,17 +40,21 @@ it("keeps an oversized startup changelog reachable above the fixed editor after 
 		now = 3200;
 		vi.advanceTimersByTime(33);
 		await scheduler.settle(terminal);
+		const height = composer.transcriptViewportHeight;
+		expect(screen(terminal)[height - 1]?.at(-1)).toBe("█");
+		expect(screen(terminal)[height]).toMatch(/^\[↑ .*\[↓ .*\]$/);
 		const seen = new Set<string>();
 		for (let page = 0; page < 5; page++) {
-			for (const row of terminal.getViewport()) {
-				const text = Bun.stripANSI(row).trimEnd();
+			for (const row of screen(terminal).slice(0, composer.transcriptViewportHeight)) {
+				const text = row.replace(/[│█]$/, "").trimEnd();
 				if (text.startsWith("Changelog entry ")) seen.add(text);
 			}
 			composer.scrollTranscript(-25);
 			await scheduler.settle(terminal);
 		}
 		expect([...seen].sort((a, b) => Number(a.slice(16)) - Number(b.slice(16)))).toEqual(entries);
-		expect(terminal.getViewport().at(-1)?.trimEnd()).toBe("EDITOR");
+		expect(screen(terminal)[0]?.at(-1)).toBe("█");
+		expect(screen(terminal).at(-1)).toBe("EDITOR");
 	} finally {
 		composer.stop();
 	}

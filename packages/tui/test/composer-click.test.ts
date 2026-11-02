@@ -220,6 +220,43 @@ describe("composer chrome span recording", () => {
 			composer.stop();
 		}
 	});
+
+	it("keeps nested history row targets mapped while clipping and scrolling", () => {
+		const term = new VirtualTerminal(80, 24);
+		const composer = new Composer({ terminal: term, preferences: { ...COMPOSER_DEFAULTS, quiet: true } });
+		composer.start();
+		try {
+			const transcript = new TranscriptContainer();
+			const chrome = new Container();
+			const nested = new Container();
+			const first = new CountingBlock(["status one"]);
+			const ids = Array.from({ length: 40 }, (_, index) => `Agent${index}`);
+			nested.addChild(first);
+			nested.addChild(new RowTarget(["", ...ids.map(id => `hud ${id}`)], ["", ...ids]));
+			chrome.addChild(nested);
+			const dock = new CountingBlock(["EDITOR"]);
+			composer.setRuntimeChildren([transcript, chrome, dock], { dockStart: dock });
+			const verify = () => {
+				const before = first.renders;
+				const frame = composer.renderFrame({ columns: 80, rows: 24 });
+				const visible: string[] = [];
+				for (const [row, line] of frame.viewport.entries()) {
+					const id = /hud (Agent\d+)/.exec(Bun.stripANSI(line))?.[1];
+					if (!id) continue;
+					visible.push(id);
+					expect(composer.viewportClickCandidates(row)).toEqual([id]);
+				}
+				expect(first.renders).toBe(before + 1);
+				expect(Bun.stripANSI(frame.viewport.at(-1)!)).toBe("EDITOR");
+				return visible;
+			};
+			expect(verify().at(-1)).toBe("Agent39");
+			composer.scrollTranscript(-100);
+			expect(verify()).toContain("Agent0");
+		} finally {
+			composer.stop();
+		}
+	});
 });
 
 class DetailBlock implements Component, MouseRoutable {

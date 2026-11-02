@@ -1,9 +1,11 @@
 import { AuthStorage, SqliteAuthCredentialStore } from "@reverse/ai/auth-storage";
 import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { postmortem } from "@reverse/utils";
 
 const db = process.argv[2];
 const release = process.argv[3];
 if (!db || !release) throw new Error("Expected database and response-release paths");
+postmortem.installProcessHandlers();
 await AgentStorage.open(db);
 const auth = new AuthStorage(await SqliteAuthCredentialStore.open(db));
 await auth.credentials.set("anthropic", [{ type: "oauth", access: "old", refresh: "old-refresh", expires: 0 }]);

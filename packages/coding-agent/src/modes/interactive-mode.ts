@@ -363,8 +363,10 @@ import type {
 	ShowStatusOptions,
 	SelectOnlyModelSelectorOptions,
 	SubmittedUserInput,
+	YieldCompaction,
 } from "./types";
 import type { TodoItem, TodoPhase } from "@reverse/tui/tools/todo";
+import type { ConversationPosition } from "./utils/conversation-position";
 import { materializeImageChipLinks, UiHelpers } from "./utils/ui-helpers";
 
 import {
@@ -1325,6 +1327,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	readonly composer: Composer;
 	ui: TUI;
 	chatContainer: TranscriptContainer;
+	/** `!`/`$` runs started while the agent streams; {@link flushPendingBashComponents} moves them into the transcript. */
+	pendingShellContainer: Container;
 	pendingMessagesContainer: Container;
 	/** Judge-batch and automatic-download progress rows above the working line. */
 	progressHudContainer: Container;
@@ -1445,6 +1449,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	proseOnlyThinking = true;
 	expandThinkingBlocks = false;
 	compactionQueuedMessages: CompactionQueuedMessage[] = [];
+	yieldCompaction: YieldCompaction | undefined = undefined;
+	compactionQueueOrigin: ConversationPosition | undefined = undefined;
 	pendingTools = new Map<string, ToolExecutionHandle>();
 	transcriptMessageComponents = new WeakMap<AgentMessage, Component>();
 	pendingBashComponents: BashExecutionComponent[] = [];
@@ -1883,7 +1889,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.composer.setHoveredClickId(id);
 	}
 
-	clearTransientSessionUi(): void {
+	clearTransientSessionUi(options?: { viewOnly?: boolean }): void {
 		this.#hideSessionInfo();
 		if (this.loadingAnimation) {
 			this.loadingAnimation.stop();
@@ -1898,6 +1904,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.retryLoader = undefined;
 		}
 		this.statusContainer.disposeChildren();
+		this.pendingShellContainer.disposeChildren();
 		this.pendingMessagesContainer.disposeChildren();
 		this.#clearJudgmentBatchProgress();
 		this.#cancelModelCycleClearTimer();
@@ -1906,7 +1913,9 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#pendingCommandOutput = [];
 		this.#pendingCommandOutputSessionId = undefined;
 		this.#pendingCommandOutputCommands = 0;
-		this.compactionQueuedMessages = [];
+		// A view switch leaves the main session, and the input queued for it, in place. A session reset
+		// hands a queued `/compact` and the input in the compaction queue back to the editor.
+		if (!options?.viewOnly) this.#inputController.restoreCompactionQueueToEditor();
 		this.streamingComponent = undefined;
 		this.streamingMessage = undefined;
 		this.lastAssistantUsage = undefined;
@@ -2077,6 +2086,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			}),
 		);
 		this.chatContainer = new TranscriptContainer();
+		this.pendingShellContainer = new AnchoredLiveContainer();
 		this.pendingMessagesContainer = new AnchoredLiveContainer();
 		this.progressHudContainer = new AnchoredLiveContainer();
 		this.progressHudContainer.addChild(this.#judgmentBatchProgressHud);
@@ -2410,6 +2420,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.composer.setRuntimeChildren(
 			[
 				this.chatContainer,
+				this.pendingShellContainer,
 				this.pendingMessagesContainer,
 				this.todoContainer,
 				this.subagentContainer,
@@ -2448,6 +2459,9 @@ export class InteractiveMode implements InteractiveModeContext {
 					this.editorContainer,
 					this.hookWidgetContainerBelow,
 				],
+				// Deferred shell runs are transcript output: natively they flow at its
+				// end, where they stay when they move in, not pinned over the composer.
+				nativeTail: [this.pendingShellContainer],
 			},
 		);
 		this.ui.setFocus(this.editor);
@@ -8398,6 +8412,14 @@ export class InteractiveMode implements InteractiveModeContext {
 		return this.#uiHelpers.flushCompactionQueue(options);
 	}
 
+	runYieldCompaction(): void {
+		if (!this.yieldCompaction) return;
+		// Not awaited by callers: the compaction outlives the event dispatch or submission that starts it.
+		void this.#commandController.runYieldCompaction().catch(error => {
+			logger.warn("Queued compaction failed", { error: String(error) });
+		});
+	}
+
 	flushPendingBashComponents(): void {
 		this.#uiHelpers.flushPendingBashComponents();
 	}
@@ -8443,6 +8465,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#applyExtensionLinks();
 		await this.#uiHelpers.renderInitialMessages(options);
 		this.syncRetryHintRow();
+		// A switch or tree move that replays the transcript strands a `/compact` queued for the old position.
+		this.#inputController.releaseStaleYieldCompaction();
 	}
 	/**
 	 * Reconcile the idle "F5 to Retry" status row with the transcript tail:
@@ -9003,6 +9027,14 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	handleDequeue(): void {
 		this.#inputController.handleDequeue();
+	}
+
+	restoreCompactionQueueToEditor(status?: string): void {
+		this.#inputController.restoreCompactionQueueToEditor(status);
+	}
+
+	waitForSubmissionDispatches(): Promise<void> {
+		return this.#inputController.waitForSubmissionDispatches();
 	}
 
 	handleImagePaste(): Promise<boolean> {

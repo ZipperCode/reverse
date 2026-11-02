@@ -2,7 +2,7 @@
 /**
  * Build a self-contained HTML export viewer, including shared React tool/trace views.
  * Local generation updates viewer.generated.json and the ignored text embed;
- * CI and --check verify the metadata before emitting the same viewer bytes.
+ * CI and --check verify the metadata; --write updates it even under CI=true.
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -102,7 +102,7 @@ export async function buildExportViewer(options: ExportViewerBuildOptions = {}):
 		const existing: unknown = await Bun.file(metadataPath).json();
 		if (!isDeepStrictEqual(existing, metadata)) {
 			throw new Error(
-				"Export viewer metadata is stale; run bun run gen:export-viewer locally and commit viewer.generated.json",
+				"Export viewer metadata is stale; run bun run gen:export-viewer --write (packages/collab-web/scripts/build-export-viewer.ts) and commit viewer.generated.json",
 			);
 		}
 	}
@@ -119,7 +119,18 @@ export async function buildExportViewer(options: ExportViewerBuildOptions = {}):
 	return metadata;
 }
 
+/**
+ * Whether the command line asks to verify rather than update the manifest. CI=true
+ * implies a check so installs in CI verify the committed manifest; `--write`
+ * overrides that, since shells that export CI=true (reverse's bash tool among them)
+ * could otherwise never regenerate it. An explicit `--check` always wins.
+ */
+export function isExportViewerCheck(argv: readonly string[], env: Record<string, string | undefined>): boolean {
+	if (argv.includes("--check")) return true;
+	return env.CI === "true" && !argv.includes("--write");
+}
+
 if (import.meta.main) {
-	const metadata = await buildExportViewer({ check: process.argv.includes("--check") || process.env.CI === "true" });
+	const metadata = await buildExportViewer({ check: isExportViewerCheck(process.argv, process.env) });
 	console.log(`Generated ${metadata.file} (${(metadata.size / 1024).toFixed(1)} KiB)`);
 }

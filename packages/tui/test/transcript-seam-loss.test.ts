@@ -54,17 +54,23 @@ async function browse(
 ): Promise<string[]> {
 	const seen = new Map<number, string>();
 	for (let page = 0; page < REPLY_LINES * 2; page++) {
-		for (const row of terminal.getViewport()) {
-			const text = Bun.stripANSI(row).trim();
+		const height = composer.transcriptViewportHeight;
+		const rows = terminal.getViewport().map(row => Bun.stripANSI(row).trimEnd());
+		expect(rows.slice(0, height).every(row => /[│█]$/.test(row))).toBe(true);
+		expect(rows[height]).toMatch(/^\[↑ .*\[↓ .*\]$/);
+		for (const row of rows.slice(0, height)) {
+			const text = row.replace(/[│█]$/, "").trim();
 			const token = /QZ[ISC](\d{3})/.exec(text);
 			if (token) seen.set(Number(token[1]), text);
 		}
 		if (seen.size === REPLY_LINES) break;
-		composer.scrollTranscript(-Math.max(1, composer.transcriptViewportHeight - 1));
+		composer.scrollTranscript(-Math.max(1, height - 1));
 		await scheduler.settle(terminal);
 	}
 	composer.scrollTranscriptToBottom();
 	await scheduler.settle(terminal);
+	const tail = terminal.getViewport()[composer.transcriptViewportHeight - 1] ?? "";
+	expect(Bun.stripANSI(tail).trimEnd().at(-1)).toBe("█");
 	return [...seen].sort(([a], [b]) => a - b).map(([, text]) => text);
 }
 

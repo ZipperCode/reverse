@@ -8,6 +8,7 @@ import "@reverse/coding-agent/internal-urls/router";
 import { ReadToolGroupComponent, readArgsCollapseIntoGroup } from "@reverse/tui/chat/read-tool-group";
 import type { DescribeContext } from "@reverse/tui/native/node";
 import * as themeModule from "@reverse/tui/theme";
+import { FILE_NAME_COLOR } from "@reverse/tui/render/render-utils";
 import { cfgReadToolResultPreview } from "@reverse/coding-agent/tools/settings";
 import { cfgTuiHyperlinks } from "@reverse/coding-agent/modes/settings";
 import type { SgrMouseEvent } from "@reverse/tui/mouse";
@@ -194,6 +195,21 @@ describe("ReadToolGroupComponent", () => {
 		expect(pathMatches).toBe(1);
 		expect(plain).toContain(`${renderPath}:507-605,1070-1194,…,1270-1274`);
 		expect(plain).not.toContain("1210-1240");
+	});
+
+	it("styles grouped rows' paths and mutes their selectors, merged lists included", () => {
+		const { theme } = themeModule;
+		const component = new ReadToolGroupComponent();
+		const renderPath = path.resolve("/tmp/render.ts");
+		component.updateArgs({ path: `${renderPath}:507-605` }, "read-one");
+		component.updateArgs({ path: `${renderPath}:1070-1194,1210-1240,1270-1274` }, "read-more");
+		// A second file keeps the reads as group rows rather than one header line.
+		component.updateArgs({ path: path.resolve("/tmp/other.ts") }, "read-other");
+
+		const rendered = component.render(120).join("\n");
+
+		expect(rendered).toContain(theme.fg(FILE_NAME_COLOR, "render.ts"));
+		expect(rendered).toContain(theme.fg("muted", ":507-605,1070-1194,…,1270-1274"));
 	});
 
 	it("uses result-provided recovered targets for delimited reads", () => {

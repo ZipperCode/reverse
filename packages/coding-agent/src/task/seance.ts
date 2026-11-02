@@ -199,14 +199,9 @@ function validateSeanceFields(
 			return {
 				code: "task.seance",
 				key: "task.seance:reserved-source-session",
-				message: `\`sourceSession\` is reserved for the \`${SEANCE_AGENT_NAME}\` agent. Remove it, or set \`agent: "${SEANCE_AGENT_NAME}"\` and pass the source session there.`,
+				message: `\`sourceSession\` is only accepted for the \`${SEANCE_AGENT_NAME}\` agent. Remove it, or set \`agent: "${SEANCE_AGENT_NAME}"\` and pass the source session there.`,
 			};
-		if (item.model !== undefined)
-			return {
-				code: "task.seance",
-				key: "task.seance:reserved-model",
-				message: `\`model\` is reserved for the \`${SEANCE_AGENT_NAME}\` agent. Remove it, or set \`agent: "${SEANCE_AGENT_NAME}"\` and pass the model selector there.`,
-			};
+		// Elsewhere `model` is the per-call selector, decided by `task.perCallModel` at preflight.
 		return undefined;
 	}
 	// Hidden bundled seance (plan mode, policy) is rejected at spawn; a custom shadow is an ordinary agent.
@@ -251,11 +246,19 @@ export function validateSeanceParams(context: {
 }): TaskPlanFailure | undefined {
 	const { params, batchEnabled, defaultAgent, seanceAdvertised } = context;
 	if (batchEnabled && params.tasks !== undefined) {
-		if (params.sourceSession !== undefined || params.model !== undefined) {
+		if (params.sourceSession !== undefined) {
+			const fields = params.model !== undefined ? "`sourceSession` and `model`" : "`sourceSession`";
 			return {
 				code: "task.seance",
 				key: "task.seance:batch-placement",
-				message: `Put \`sourceSession\` and \`model\` on the individual \`${SEANCE_AGENT_NAME}\` item inside \`tasks[]\`, not on the batch call.`,
+				message: `Put ${fields} on the individual \`${SEANCE_AGENT_NAME}\` item inside \`tasks[]\`, not on the batch call.`,
+			};
+		}
+		if (params.model !== undefined) {
+			return {
+				code: "task.seance",
+				key: "task.seance:batch-placement",
+				message: "Put `model` on the individual items inside `tasks[]`.",
 			};
 		}
 		for (let index = 0; index < params.tasks.length; index++) {

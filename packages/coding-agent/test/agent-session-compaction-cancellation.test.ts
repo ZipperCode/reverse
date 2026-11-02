@@ -1,13 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { scheduler } from "node:timers/promises";
 import { Agent, CompactionCancelledError } from "@reverse/agent";
 import { getBundledModel } from "@reverse/catalog/models";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@reverse/coding-agent/extensibility/extensions/loader";
 import { ExtensionRunner } from "@reverse/coding-agent/extensibility/extensions/runner";
 import { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { type AsyncResultEntry, buildAsyncResultBatchMessage } from "@reverse/coding-agent/session/async-job-delivery";
+import { SessionMaintenance } from "@reverse/coding-agent/session/session-maintenance";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
-import { USER_INTERRUPT_LABEL } from "@reverse/coding-agent/session/messages";
+import { convertToLlm, USER_INTERRUPT_LABEL } from "@reverse/coding-agent/session/messages";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import {
 	ContextNotesTool,
@@ -18,7 +22,7 @@ import {
 	type ToolSession,
 } from "@reverse/coding-agent/tools";
 import { EventBus } from "@reverse/coding-agent/utils/event-bus";
-import { TempDir } from "@reverse/utils";
+import { TempDir, withTimeout } from "@reverse/utils";
 
 import {
 	cfgCompactionAutoContinue,
@@ -100,6 +104,7 @@ describe.each([false, true])("AgentSession compaction cancellation source (exper
 			: [];
 		const agent = new Agent({
 			initialState: { model, systemPrompt: ["Test"], tools, messages: [] },
+			convertToLlm,
 		});
 
 		sessionManager.appendMessage({ role: "user", content: "first turn", timestamp: Date.now() });
@@ -204,6 +209,68 @@ describe.each([false, true])("AgentSession compaction cancellation source (exper
 		await promptPromise;
 		expect(agentPrompt).toHaveBeenCalledTimes(1);
 	});
+
+	if (!experimental) {
+		it("delivers an idle async result after manual compaction on the persisted compacted context", async () => {
+			const entered = Promise.withResolvers<void>();
+			const gate = Promise.withResolvers<void>();
+			session = await createSession("park", entered.resolve, gate.promise);
+			const model = createMockModel({ responses: [{ content: ["result acknowledged"] }] });
+			const requests: string[] = [];
+			session.agent.streamFn = (activeModel, context, options) => {
+				requests.push(JSON.stringify(context));
+				return model.stream(activeModel, context, options);
+			};
+			session.agent.getApiKey = () => "test-key";
+			session.yieldQueue.register<AsyncResultEntry>("async-result-repro", {
+				build: buildAsyncResultBatchMessage,
+			});
+			const originalWait = SessionMaintenance.prototype.waitForContextReplacement;
+			const flushStarted = Promise.withResolvers<void>();
+			vi.spyOn(SessionMaintenance.prototype, "waitForContextReplacement").mockImplementation(
+				function (this: SessionMaintenance) {
+					flushStarted.resolve();
+					return originalWait.call(this);
+				},
+			);
+
+			const compaction = session.compact();
+			await entered.promise;
+			const receipt = session.yieldQueue.enqueueWithReceipt<AsyncResultEntry>("async-result-repro", {
+				jobId: "job-during-compact",
+				result: "JOB_DELIVERY_MARKER",
+				job: undefined,
+				durationMs: 0,
+				epoch: 0,
+			});
+			let delivered = false;
+			void receipt.then(() => {
+				delivered = true;
+			});
+			try {
+				await withTimeout(flushStarted.promise, 2_000, "Idle flush did not reach the compaction barrier");
+				await scheduler.yield();
+				expect(requests).toHaveLength(0);
+				expect(delivered).toBe(false);
+			} finally {
+				gate.resolve();
+				await compaction;
+			}
+			await withTimeout(receipt, 2_000, "Async result was not delivered after compaction");
+			await session.waitForIdle();
+			expect(session.sessionManager.getBranch()).toContainEqual(
+				expect.objectContaining({
+					type: "custom_message",
+					customType: "async-result",
+					content: expect.stringContaining("JOB_DELIVERY_MARKER"),
+				}),
+			);
+			expect(requests).toHaveLength(1);
+			expect(requests[0]).toContain("compacted");
+			expect(requests[0]).not.toContain("first turn");
+			expect(requests[0]).toContain("JOB_DELIVERY_MARKER");
+		});
+	}
 
 	it("resumes the interrupted turn when compaction rejects after the entry is appended", async () => {
 		// The entry lands, then post-append bookkeeping in #commitCompactionEntry

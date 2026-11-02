@@ -43,13 +43,13 @@ export interface SessionSnapshot {
 }
 
 /**
- * The page an attach worker drives. `create`: open a background tab and own it, in the browser of
- * `nearTargetId` (another tab reverse drives on the relay) when given. `owned`: a tab reverse created, adopted
- * again after a recycle. `borrowed`: a page the user has open; never closed, never focus-emulated.
+ * The page an attach worker drives. `create`: open and own a background tab in a
+ * spawned browser or relay; `nearTargetId` selects the relay browser when given.
+ * `owned`: an reverse tab adopted after recycle. `borrowed`: a user's page, never closed.
  */
 export type AttachPage = { kind: "create"; nearTargetId?: string } | { kind: "owned" | "borrowed"; targetId: string };
 
-/** reverse created the payload's page (headless, or a relay tab of its own): closing the tab closes the page. */
+/** reverse created the payload's page: closing the tab closes the page. */
 export function ownsPage(payload: WorkerInitPayload): boolean {
 	return payload.mode === "headless" || payload.page.kind !== "borrowed";
 }

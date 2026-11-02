@@ -80,6 +80,28 @@ describe("settings i18n behavior", () => {
 		expect(CJK.test(getTabLead("appearance", "zh-CN"))).toBe(true);
 	});
 
+	it("localizes release-train settings without replacing their English metadata", async () => {
+		await initSettings({ language: "zh-CN" });
+		const host = createSettingsHost();
+		for (const [tab, paths] of [
+			["tasks", ["task.perCallModel", "task.perCallModelAllow", "title.refreshAfterPrompts"]],
+			["providers", ["providers.openai-codex.daybreak"]],
+		] as const) {
+			const entries = getSettingsForTab(host.entries, tab);
+			for (const path of paths) {
+				const def = entries.find(candidate => candidate.path === path);
+				expect(def).toBeDefined();
+				if (!def) throw new Error(`missing setting def: ${path}`);
+				expect(CJK.test(def.label)).toBe(true);
+				expect(CJK.test(def.description ?? "")).toBe(true);
+				expect(CJK.test(def.canonicalLabel ?? "")).toBe(false);
+				if (def.type === "submenu") {
+					for (const option of def.options) expect(CJK.test(option.label)).toBe(true);
+				}
+			}
+		}
+	});
+
 	it("gives REVERSE_LANG precedence over the configured language and refreshes the host", async () => {
 		await initSettings({ language: "zh-CN" });
 		process.env.REVERSE_LANG = "en";

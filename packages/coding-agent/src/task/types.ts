@@ -8,8 +8,8 @@ export type {
 	SubagentLifecyclePayload,
 } from "@reverse/tui/overlays/session-observer-registry";
 import type { DeterministicDispatchFailure } from "@reverse/ai";
-import { type BaseType, type Type, type } from "@reverse/reversetype";
-import { $env } from "@reverse/utils";
+import { type BaseType, type FluentType, type Type, type } from "@reverse/reversetype";
+import { $env, isRecord } from "@reverse/utils";
 
 import type { AgentSessionEvent } from "../session/agent-session";
 import type { ConfiguredThinkingLevel } from "@reverse/tui/thinking";
@@ -63,13 +63,34 @@ export interface TaskPlanFailure extends DeterministicDispatchFailure {
 	readonly code: TaskPlanFailureCode;
 }
 
-// Batch items are validated inside an array, where the argument validator's
-// root-key preservation does not reach: a deleting item (`"+": "delete"`) would
-// erase a caller's reserved `sourceSession`/`model` (or a blank placeholder)
-// before the planning boundary could judge it, silently changing the intent. An
-// open index signature keeps every undeclared key instead, so `planSpawns`
-// decides; it also leaves them out of the advertised property list. Spawn
-// planning ignores them, so a stale key stays inert rather than rejecting the call.
+// Per-spawn fields the seance schema adds or widens. Typed against
+// SeanceTaskSchemaFields so a field added there fails to compile until it is
+// listed here too; a missed key would be dropped on batch items.
+const SEANCE_ITEM_KEY_SET = { sourceSession: true, model: true } as const satisfies Record<
+	keyof SeanceTaskSchemaFields,
+	true
+>;
+const SEANCE_ITEM_KEYS = Object.keys(SEANCE_ITEM_KEY_SET);
+
+/**
+ * Keep a batch item's seance keys through undeclared-key deletion: the item
+ * schema declares `sourceSession` only while seance is advertised, and argument
+ * validation re-attaches only root keys, so without this a
+ * `tasks[].sourceSession` on an ordinary agent is deleted before execute()
+ * instead of reaching the refusal. Other stale item keys are still deleted, and
+ * the wire schema is unchanged.
+ */
+function keepSeanceItemKeys<T, I>(item: FluentType<T, I>): FluentType<unknown, I> {
+	return item.onUndeclaredKey("ignore").pipe((input: unknown): unknown => {
+		const out: unknown = item(input);
+		if (out instanceof type.errors || !isRecord(out) || !isRecord(input)) return out;
+		for (const key of SEANCE_ITEM_KEYS) {
+			if (Object.hasOwn(input, key) && !Object.hasOwn(out, key)) out[key] = input[key];
+		}
+		return out;
+	});
+}
+
 export const taskItemSchema = type({
 	"name?": "string",
 	agent: "string = 'task'",
@@ -78,7 +99,8 @@ export const taskItemSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
-	"[string]": "unknown",
+	"model?": "string",
+	"+": "delete",
 });
 const taskItemSchemaIsolated = type({
 	"name?": "string",
@@ -88,8 +110,9 @@ const taskItemSchemaIsolated = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"isolated?": "boolean",
-	"[string]": "unknown",
+	"+": "delete",
 });
 
 export const taskSchema = type({
@@ -100,6 +123,7 @@ export const taskSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"isolated?": "boolean",
 	"+": "delete",
 });
@@ -111,6 +135,7 @@ const taskSchemaNoIsolation = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"+": "delete",
 });
 function guardBatchAgent(schema: BaseType): BaseType {
@@ -128,14 +153,14 @@ function guardBatchAgent(schema: BaseType): BaseType {
 const taskSchemaBatch = guardBatchAgent(
 	type.raw({
 		context: "string",
-		tasks: taskItemSchemaIsolated.array(),
+		tasks: keepSeanceItemKeys(taskItemSchemaIsolated).array(),
 		"+": "delete",
 	}),
 );
 const taskSchemaBatchNoIsolation = guardBatchAgent(
 	type.raw({
 		context: "string",
-		tasks: taskItemSchema.array(),
+		tasks: keepSeanceItemKeys(taskItemSchema).array(),
 		"+": "delete",
 	}),
 );
@@ -157,6 +182,7 @@ function taskAgentSchemaRule(defaultAgent: string): string {
 	return "string";
 }
 
+/** Task fields the seance schema adds or widens; `seanceTaskSchemaFields` in ./seance must match it exactly. */
 export type SeanceTaskSchemaFields = {
 	readonly sourceSession: Type;
 	readonly model?: Type;
@@ -171,8 +197,9 @@ const NON_SEANCE_AGENT_SCHEMA = type("string").matching(new RegExp(`^(?!${SEANCE
  *
  * When the bundled seance agent is spawnable (`seanceFields` present) the shape
  * is a discriminated union:
- * - the ordinary branch advertises no `sourceSession`/`model` and excludes
- *   `agent: "seance"`, so a seance call can never read as an ordinary spawn;
+ * - the ordinary branch advertises no `sourceSession`, declares `model` as one
+ *   string selector, and excludes `agent: "seance"`, so a seance call can never
+ *   read as an ordinary spawn;
  * - the seance branch pins `agent: "seance"` and requires a non-blank
  *   `sourceSession` plus non-blank model selectors.
  *
@@ -180,7 +207,7 @@ const NON_SEANCE_AGENT_SCHEMA = type("string").matching(new RegExp(`^(?!${SEANCE
  * agent fails validation instead of being healed into a different intent; the
  * tool's lenient argument handling hands such a call to `planSpawns`, which
  * reports the actionable reason. Without a seance branch, flat schemas delete
- * unknown keys; batch items retain them for the same planning boundary.
+ * unknown keys while batch items retain seance keys for the planning boundary.
  */
 function createTaskSchema(options: {
 	isolationEnabled: boolean;
@@ -199,6 +226,8 @@ function createTaskSchema(options: {
 		: {};
 	const toolsField = options.evalToolsEnabled ? { "tools?": "string[]" } : {};
 	const isolatedField = options.isolationEnabled ? { "isolated?": "boolean" } : {};
+	// `model` is always declared, and preflight decides whether a per-call model
+	// is allowed; seance widens it to a list.
 	const commonFields = {
 		"name?": "string",
 		...taskFields,
@@ -206,17 +235,25 @@ function createTaskSchema(options: {
 		...effortField,
 		...schemaFields,
 		...toolsField,
+		"model?": "string",
 		...isolatedField,
 	};
 	const seanceFields = options.seanceFields;
 	let items: BaseType;
 	if (!seanceFields) {
-		items = type.raw({
+		const item = type.raw({
 			...commonFields,
 			agent: taskAgentSchemaRule(options.defaultAgent),
-			// Batch items only: the flat root's undeclared keys already survive validation.
-			...(options.batchEnabled ? { "[string]": "unknown" } : { "+": "delete" }),
+			"+": "delete",
 		});
+		if (!options.batchEnabled) return item;
+		return guardBatchAgent(
+			type.raw({
+				context: "string",
+				tasks: keepSeanceItemKeys(item).array(),
+				"+": "delete",
+			}),
+		);
 	} else {
 		// A session whose spawn policy defaults to seance resolves an omitted
 		// `agent` to seance, so both branches must name the agent explicitly there.

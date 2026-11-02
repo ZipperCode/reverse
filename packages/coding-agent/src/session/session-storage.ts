@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { FileLock as NativeFileLock } from "@reverse/natives";
 import { getSessionOwnersDir } from "@reverse/utils/dirs";
 import { isBunTestRuntime } from "@reverse/utils/env";
-import { type FileLockHandle, tryAcquireFileLock, withFileLockSync } from "@reverse/utils/file-lock";
+import { type FileLockHandle, isFileLockHeld, tryAcquireFileLock, withFileLockSync } from "@reverse/utils/file-lock";
 import { type FsError, hasFsCode, isEnoent } from "@reverse/utils/fs-error";
 import * as logger from "@reverse/utils/logger";
 import { peekFileEnds } from "@reverse/utils/peek-file";
@@ -605,28 +605,24 @@ function readSessionHeaderIdSync(sessionPath: string): string | undefined {
 }
 
 /**
- * Take a session's ownership lease without waiting, or `null` while another
- * process holds it. A process writing the session holds it (see
- * `FileSessionStorage.claimSession`) until it exits; `reverse gc` probes it to tell
- * whether a session is live. Keyed by the session id from the journal's
- * header, not by the file's path, so every process that reaches the journal
- * (through a symlink, a hard link, or after a move) meets the same lease. Ids
- * read from a file are untrusted: anything but a plain token is hashed so it
- * cannot name a path outside the directory. Throws when the lock cannot be
- * probed.
+ * The lock path of a session's ownership lease, shared by every acquirer and
+ * prober so they cannot disagree on the name. Keyed by the session id from the
+ * journal's header, not by the file's path, so every process that reaches the
+ * journal (through a symlink, a hard link, or after a move) meets the same
+ * lease. Ids read from a file are untrusted: anything but a plain token is
+ * hashed so it cannot name a path outside the directory.
  */
-export function tryAcquireSessionLease(sessionId: string): FileLockHandle | null {
+function sessionLeasePath(sessionId: string, createDir: boolean): string {
 	const name = /^[A-Za-z0-9_-]{1,128}$/.test(sessionId)
 		? sessionId
 		: `h-${Bun.hash.wyhash(sessionId).toString(16).padStart(16, "0")}`;
-	const lockPath = path.join(sessionOwnersDir(), name);
+	const dir = sessionOwnersDir();
 	// Linux (abstract socket) and Windows (named mutex) locks never touch the
 	// filesystem; elsewhere the lock is a `flock` sidecar in that directory. The
 	// sidecars are empty and never removed: unlinking a flock file can split one
 	// lease between a holder of the old inode and a creator of a new one.
 	if (process.platform !== "linux" && process.platform !== "win32") {
-		const dir = path.dirname(lockPath);
-		fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+		if (createDir) fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
 		// The test-run dir sits in the shared OS temp dir, where another local
 		// user could pre-create it or plant a symlink: refuse anything but a
 		// directory this user owns that nobody else can enter.
@@ -636,7 +632,50 @@ export function tryAcquireSessionLease(sessionId: string): FileLockHandle | null
 			throw new Error(`Session ownership lease directory ${dir} is not a private directory owned by this user`);
 		}
 	}
-	return tryAcquireFileLock(lockPath);
+	return path.join(dir, name);
+}
+
+/**
+ * Take a session's ownership lease without waiting, or `null` while another
+ * process holds it. A process writing the session holds it (see
+ * `FileSessionStorage.claimSession`) until it exits; `reverse gc` takes it to
+ * delete a session no running process owns. Throws when the lock cannot be
+ * probed.
+ */
+export function tryAcquireSessionLease(sessionId: string): FileLockHandle | null {
+	return tryAcquireFileLock(sessionLeasePath(sessionId, true));
+}
+
+/**
+ * Whether a process, this one included, holds a session's ownership lease,
+ * observed without taking it, so it never makes a concurrent claim fork the
+ * session (see `isFileLockHeld`). `null` when
+ * the lease cannot be probed. Never throws.
+ */
+export function isSessionLeaseHeld(sessionId: string): boolean | null {
+	try {
+		return isFileLockHeld(sessionLeasePath(sessionId, false));
+	} catch (err) {
+		// No sidecar directory yet: nobody has ever claimed a session here.
+		return isEnoent(err) ? false : null;
+	}
+}
+
+/** Session ids whose lease is held, and those whose lease could not be probed; the rest are free. */
+export interface SessionLeaseReport {
+	held: string[];
+	unknown: string[];
+}
+
+/** `isSessionLeaseHeld` over many ids, for `reverse session lease` and RPC `get_session_lease`. */
+export function probeSessionLeases(sessionIds: readonly string[]): SessionLeaseReport {
+	const report: SessionLeaseReport = { held: [], unknown: [] };
+	for (const id of sessionIds) {
+		const held = isSessionLeaseHeld(id);
+		if (held === null) report.unknown.push(id);
+		else if (held) report.held.push(id);
+	}
+	return report;
 }
 
 /** Approximate size (UTF-16 units synchronously, bytes through a sink) buffered per staging-file write when streaming a body. */

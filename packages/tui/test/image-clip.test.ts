@@ -228,6 +228,12 @@ describe("direct placement lifecycle", () => {
 	});
 });
 
+const screen = (term: VirtualTerminal) => term.getViewport().map(row => Bun.stripANSI(row).trimEnd());
+const content = (term: VirtualTerminal, height: number) =>
+	screen(term)
+		.slice(0, height)
+		.map(row => row.replace(/[│█]$/, "").trimEnd());
+
 describe("fullscreen Composer image window", () => {
 	it("clips history graphics at the viewport edges, protects the dock, and restores graphics after overlays", async () => {
 		const term = new VirtualTerminal(40, 6);
@@ -246,16 +252,22 @@ describe("fullscreen Composer image window", () => {
 		try {
 			composer.start({ playWelcomeIntro: false });
 			await scheduler.settle(term);
-			expect(term.getViewport()[5]?.trimEnd()).toBe("EDITOR");
-			expect(term.graphicsPlacements().every(p => p.row >= 0 && p.row + p.numRows <= 5)).toBe(true);
+			const height = composer.transcriptViewportHeight;
+			expect(screen(term)[5]).toBe("EDITOR");
+			expect(screen(term)[height]).toMatch(/^\[↑ .*\[↓ .*\]$/);
+			expect(screen(term)[height - 1]?.at(-1)).toBe("█");
+			expect(content(term, height)[height - 1]).toBe("after");
+			expect(term.graphicsPlacements().every(p => p.row >= 0 && p.row + p.numRows <= height)).toBe(true);
 			expect(term.graphicsPlacements()).toHaveLength(1);
 			composer.scrollTranscript(-100);
 			await scheduler.settle(term);
-			expect(term.getViewport()[0]?.trimEnd()).toBe("before");
+			expect(content(term, height)[0]).toBe("before");
+			expect(screen(term)[0]?.at(-1)).toBe("█");
 			expect(term.graphicsPlacements()).toEqual([]);
 			composer.scrollTranscriptToBottom();
 			await scheduler.settle(term);
 			expect(term.graphicsPlacements()).toHaveLength(1);
+			expect(screen(term)[height - 1]?.at(-1)).toBe("█");
 			const overlay = composer.ui.showOverlay(new Text("OVERLAY", 0, 0), { fullscreen: true });
 			await scheduler.settle(term);
 			overlay.hide();
@@ -267,7 +279,12 @@ describe("fullscreen Composer image window", () => {
 			composer.ui.requestRender();
 			await scheduler.settle(term);
 			expect(term.graphicsPlacements()).toEqual([]);
-			expect(term.getViewport()[0]?.trimEnd()).toBe("plain replacement");
+			expect(content(term, composer.transcriptViewportHeight)[0]).toBe("plain replacement");
+			expect(
+				screen(term)
+					.slice(0, composer.transcriptViewportHeight)
+					.some(row => /[│█]$/.test(row)),
+			).toBe(false);
 		} finally {
 			composer.stop();
 		}

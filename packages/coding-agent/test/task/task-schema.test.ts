@@ -9,13 +9,17 @@ import {
 } from "@reverse/ai/utils/schema";
 import { type AgentTool, validateAgentToolArguments } from "@reverse/agent";
 import { type } from "@reverse/reversetype";
+import type { Model } from "@reverse/ai";
+import { createMockModel } from "@reverse/ai/providers/mock";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { TaskTool, taskSchema } from "@reverse/coding-agent/task";
 import { loadBundledAgents, parseAgent } from "@reverse/coding-agent/task/agents";
 import * as discoveryModule from "@reverse/coding-agent/task/discovery";
 import * as executorModule from "@reverse/coding-agent/task/executor";
+import { cfgTaskPerCallModel, cfgTaskPerCallModelAllow } from "@reverse/coding-agent/task/settings";
 import { getTaskSchema } from "@reverse/coding-agent/task/types";
 import { isBundledSeance, seanceTaskSchemaFields } from "@reverse/coding-agent/task/seance";
+import * as seanceModule from "@reverse/coding-agent/task/seance";
 import type { AgentDefinition } from "@reverse/coding-agent/task/types";
 import type { ToolSession } from "@reverse/coding-agent/tools";
 import { isRecord } from "@reverse/utils";
@@ -23,7 +27,13 @@ import { isRecord } from "@reverse/utils";
 let taskSchemaSessionIndex = 0;
 
 function createSession(
-	options: { parentSpawns?: string; disabledAgents?: string[]; planMode?: boolean; batchEnabled?: boolean } = {},
+	options: {
+		parentSpawns?: string;
+		disabledAgents?: string[];
+		planMode?: boolean;
+		batchEnabled?: boolean;
+		settings?: Record<string, unknown>;
+	} = {},
 ): ToolSession {
 	return {
 		cwd: `/tmp/task-schema-${taskSchemaSessionIndex++}`,
@@ -32,6 +42,7 @@ function createSession(
 			"task.isolation.enabled": false,
 			"task.batch": options.batchEnabled ?? false,
 			"task.disabledAgents": options.disabledAgents ?? [],
+			...options.settings,
 		}),
 		getSessionFile: () => null,
 		getSessionSpawns: () => options.parentSpawns ?? "*",
@@ -59,7 +70,11 @@ describe("task schema (single-spawn)", () => {
 		// Enabled first: the disabled schema must not reuse the enabled one from the cache.
 		for (const file of [true, false]) {
 			const schema = getTaskSchema({ batchEnabled, isolationEnabled: false, structured: false, file });
-			const item = { taskFile: "local://assignment.md", solutionSpace: "one defined change" };
+			const item = {
+				taskFile: "local://assignment.md",
+				model: "mock/file-worker",
+				solutionSpace: "one defined change",
+			};
 			const parsed = schema(batchEnabled ? { context: "shared context", tasks: [item] } : item);
 			const wire = schema.toJsonSchema();
 			const tasks = isRecord(wire.properties) ? wire.properties.tasks : undefined;
@@ -68,9 +83,12 @@ describe("task schema (single-spawn)", () => {
 			if (file) {
 				if (parsed instanceof type.errors) throw new Error(parsed.summary);
 				expect(parsed).toMatchObject(
-					batchEnabled ? { tasks: [{ taskFile: item.taskFile }] } : { taskFile: item.taskFile },
+					batchEnabled
+						? { tasks: [{ taskFile: item.taskFile, model: item.model }] }
+						: { taskFile: item.taskFile, model: item.model },
 				);
 				expect(itemWire.required).not.toContain("task");
+				expect(itemWire.properties).toHaveProperty("model");
 			} else {
 				expect(parsed instanceof type.errors).toBe(true);
 				expect(itemWire.properties).not.toHaveProperty("taskFile");
@@ -181,10 +199,10 @@ describe("task schema seance fields", () => {
 				expect(Array.isArray(branches)).toBe(true);
 				expect(branches).toHaveLength(2);
 				const [ordinary, seance] = branches!;
-				// The ordinary branch owns no reserved selector and cannot claim the
-				// seance agent; the exclusion is stated portably, not as a bare string.
+				// The ordinary branch owns no reserved sourceSession, restricts model
+				// to one string selector, and cannot claim the seance agent.
 				expect(ordinary!.properties).not.toHaveProperty("sourceSession");
-				expect(ordinary!.properties).not.toHaveProperty("model");
+				expect(ordinary!.properties?.model).toEqual({ type: "string" });
 				expect(ordinary!.properties?.agent).toMatchObject({ type: "string", not: { const: "seance" } });
 				expect(ordinary!.additionalProperties).toBe(false);
 				// The seance branch pins the agent and requires its source session.
@@ -245,7 +263,8 @@ describe("task schema seance fields", () => {
 				const schema = getTaskSchema({ batchEnabled, isolationEnabled });
 				const wireSchema = JSON.stringify(schema.toJsonSchema());
 				expect(wireSchema).not.toContain('"sourceSession"');
-				expect(wireSchema).not.toContain('"model"');
+				// Only the per-call `model` remains: one string, never the seance selector list.
+				expect(wireSchema).toContain('"model":{"type":"string"}');
 			}
 		}
 	});
@@ -294,7 +313,7 @@ Custom prompt.`,
 		const planSchema = JSON.stringify(planMode.parameters.toJsonSchema());
 		expect(planSchema).not.toContain('"sourceSession"');
 		expect(planSchema).not.toContain("seance");
-		expect(planSchema).not.toContain('"model"');
+		expect(planSchema).toContain('"model":{"type":"string"}');
 		expect(planMode.description).not.toContain("seance");
 		expect(planMode.description).not.toContain("Historical consults");
 
@@ -372,11 +391,24 @@ describe("task spawn validation", () => {
 		expect(batch).not.toContain("reserved");
 	});
 
-	it("rejects a populated reserved seance field on an ordinary task with the correction", async () => {
-		const params = { agent: "scout", task: "x", solutionSpace: "s", model: "anthropic/x" };
-		const tool = await makeTool([bundledSeance]);
+	it("rejects a model override for an ordinary task while task.perCallModel is off", async () => {
+		const schema = getTaskSchema({
+			isolationEnabled: false,
+			batchEnabled: false,
+			seanceFields: seanceTaskSchemaFields,
+		});
+		const params = {
+			agent: "scout",
+			task: "Map the auth module.",
+			solutionSpace: "focused inspection",
+			model: "anthropic/claude-sonnet-4-5",
+		};
+		expect(schema(params) instanceof type.errors).toBe(false);
+		const scout = loadBundledAgents().find(agent => agent.name === "scout");
+		if (!scout) throw new Error("Expected the bundled scout agent");
+		const tool = await makeTool([bundledSeance, scout]);
 		const result = await tool.execute("tool-call", params);
-		expect(firstText(result)).toContain("`model` is reserved for the `seance` agent");
+		expect(firstText(result)).toContain("task.perCallModel: off");
 		expect(result.isError).toBe(true);
 		expect(result.details?.executed).toBe(false);
 		expect(result.details?.unexecuted).toBe(true);
@@ -470,5 +502,167 @@ describe("task spawn validation", () => {
 		expect(indexed?.key).toBe("task.shape:item-task");
 		expect(reindexed?.key).toBe("task.shape:item-task");
 		expect(indexed?.message).not.toBe(reindexed?.message);
+	});
+
+	it("advertises approved selectors only while task.perCallModel is on", async () => {
+		const description = async (mode: string) => {
+			vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({ agents: [], projectAgentsDir: null });
+			return (
+				await TaskTool.create(
+					createSession({
+						settings: {
+							"task.perCallModel": mode,
+							modelRoles: { smol: "anthropic/claude-haiku-4-5", slow: "openai/gpt-5.5" },
+							"task.perCallModelAllow": ["openai/gpt-5.5"],
+						},
+					}),
+				)
+			).description;
+		};
+		for (const mode of ["off", "eval"]) {
+			const text = await description(mode);
+			for (const guidance of ["`model`: one exact", "anthropic/claude-haiku-4-5", "openai/gpt-5.5"]) {
+				expect(text).not.toContain(guidance);
+			}
+		}
+		const text = await description("on");
+		expect(text).toContain("`model`: one exact");
+		// The allowlist admits only slow's model; smol's would be refused at dispatch.
+		expect(text).toContain("`openai/gpt-5.5` (slow)");
+		expect(text).not.toContain("anthropic/claude-haiku-4-5");
+	});
+
+	it("omits kind roles, role aliases, and default/inherit selectors from approved models", async () => {
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({ agents: [], projectAgentsDir: null });
+		const tool = await TaskTool.create(
+			createSession({
+				settings: {
+					"task.perCallModel": "on",
+					modelRoles: {
+						smol: "anthropic/claude-haiku-4-5",
+						image: "hidden/image",
+						judge: "hidden/judge",
+						alias: "@smol",
+						legacyAlias: "pi/slow",
+						wildcardAlias: "*",
+						useDefault: "default",
+						inherited: "inherit",
+						slow: "openai/gpt-5.5",
+					},
+				},
+			}),
+		);
+		const text = tool.description;
+		for (const advertised of ["anthropic/claude-haiku-4-5", "openai/gpt-5.5"]) expect(text).toContain(advertised);
+		for (const omitted of ["hidden/image", "hidden/judge", "`@smol`", "`pi/slow`", "`*`", "`default`", "`inherit`"]) {
+			expect(text).not.toContain(omitted);
+		}
+	});
+
+	it("advertises provider-qualified role values as written and omits globs, without consulting the model registry", async () => {
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({ agents: [], projectAgentsDir: null });
+		const session = createSession({
+			settings: {
+				"task.perCallModel": "on",
+				modelRoles: { review: " mock/second:high, mock/*, mock/first, mock/* " },
+			},
+		});
+		const catalogLookup = vi.fn(() => [{ provider: "mock", id: "registry-expanded" }]);
+		Object.assign(session, { modelRegistry: { getAll: catalogLookup, getAvailable: catalogLookup } });
+		const text = (await TaskTool.create(session)).description;
+		expect(text).toContain("`mock/second:high`, `mock/first` (review)");
+		expect(text).not.toContain("mock/*");
+		expect(catalogLookup).not.toHaveBeenCalled();
+	});
+
+	it("advertises a bare role's resolved exact model selector", async () => {
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({ agents: [], projectAgentsDir: null });
+		const model = createMockModel({ id: "target" });
+		const session = createSession({
+			settings: { "task.perCallModel": "on", modelRoles: { review: "target" } },
+		});
+		Object.assign(session, { modelRegistry: { getAll: () => [model], getAvailable: () => [model] } });
+		const text = (await TaskTool.create(session)).description;
+		expect(text).toContain("`mock/target` (review)");
+		expect(text).not.toContain("`target` (review)");
+	});
+
+	it("offers the caller's own model only when one selector can name it", async () => {
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({ agents: [], projectAgentsDir: null });
+		const ownModel = createMockModel({ id: "own" });
+		// Several `only` upstreams: no single selector names this route.
+		const multiRouteModel = {
+			...ownModel,
+			compat: { openRouterRouting: { only: ["anthropic", "google-vertex"] } },
+		} as unknown as Model;
+		const description = async (activeModel: Model) => {
+			// No roles grant a model; the allowlist entry shows the advertisement still renders when the clause is withheld.
+			const session = createSession({
+				settings: { "task.perCallModel": "on", modelRoles: {}, "task.perCallModelAllow": ["mock/own"] },
+			});
+			Object.assign(session, { getActiveModel: () => activeModel });
+			return (await TaskTool.create(session)).description;
+		};
+		const offered = await description(ownModel);
+		expect(offered).toContain("your own current model");
+		expect(offered).toContain("mock/own");
+		const withheld = await description(multiRouteModel);
+		expect(withheld).not.toContain("your own current model");
+		expect(withheld).toContain("mock/own");
+	});
+
+	it("refreshes approved selectors and their allowlist from current settings", async () => {
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({ agents: [], projectAgentsDir: null });
+		// Distinct role and allowlist text, so each check proves its own refresh.
+		const session = createSession({
+			settings: {
+				"task.perCallModel": "on",
+				modelRoles: { smol: "mock/original-role" },
+				"task.perCallModelAllow": ["mock/original-role", "mock/original-allowed"],
+			},
+		});
+		const tool = await TaskTool.create(session);
+		expect(tool.description).toContain("`mock/original-role` (smol)");
+		expect(tool.description).toContain("mock/original-allowed");
+
+		session.settings.overrideModelRoles({ smol: "mock/replacement-role" });
+		cfgTaskPerCallModelAllow.override(session.settings, ["mock/replacement-role", "mock/replacement-allowed"]);
+		const refreshed = tool.description;
+		expect(refreshed).toContain("`mock/replacement-role` (smol)");
+		expect(refreshed).toContain("mock/replacement-allowed");
+		expect(refreshed).not.toContain("mock/original");
+
+		cfgTaskPerCallModel.override(session.settings, "off");
+		expect(tool.description).not.toContain("mock/replacement");
+	});
+
+	it("keys the seance model exemption on the resolved agent, not the raw `agent` value", async () => {
+		const seen: unknown[] = [];
+		vi.spyOn(seanceModule, "prepareSeance").mockImplementation(async context => {
+			seen.push(context.model);
+			throw new Error("stop after seance received its selectors");
+		});
+		vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
+			agents: [bundledSeance],
+			projectAgentsDir: null,
+		});
+		const selectors = ["anthropic/claude-sonnet-4-5", "openai/gpt-5"];
+		const run = async (batch: boolean, params: Record<string, unknown>) => {
+			const tool = await TaskTool.create(
+				createSession({ parentSpawns: "seance", settings: { "task.perCallModel": "off", "task.batch": batch } }),
+			);
+			const result = await tool.execute("tool-call", params);
+			return result.content.find(part => part.type === "text")?.text ?? "";
+		};
+		const flat = { task: "What was decided?", sourceSession: "/tmp/source.jsonl", model: selectors };
+		const item = { task: "What was decided?", sourceSession: "/tmp/source.jsonl", model: selectors };
+		const texts = [
+			await run(false, flat),
+			await run(false, { ...flat, agent: " seance " }),
+			await run(true, { context: "c", tasks: [item] }),
+			await run(true, { context: "c", tasks: [{ ...item, agent: " seance " }] }),
+		];
+		for (const text of texts) expect(text).not.toContain("invalid `model` value");
+		expect(seen).toEqual([selectors, selectors, selectors, selectors]);
 	});
 });

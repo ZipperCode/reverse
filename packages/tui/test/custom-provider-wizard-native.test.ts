@@ -30,8 +30,10 @@ const nodeActions = (node: TspNode): { click?: string } | undefined => {
 	return props?.actions;
 };
 
+const isActionNode = (node: TspNode): boolean => node.k === "button" || node.k === "row";
+
 async function clickAction(harness: TspHarness, surface: string, act: string): Promise<void> {
-	const node = harness.find(candidate => candidate.k === "row" && nodeActions(candidate)?.click === act);
+	const node = harness.find(candidate => isActionNode(candidate) && nodeActions(candidate)?.click === act);
 	if (!node) throw new Error(`native ${act} action missing`);
 	harness.event({ ev: "action", sf: surface, id: node.id, act, mods: [] });
 	await harness.render();
@@ -157,10 +159,7 @@ describe("CustomProviderWizard native keyboard path", () => {
 		await h.render();
 		expect(h.byId(inputId)?.p).toMatchObject({ text: "my-provider", cursor: 11 });
 
-		const next = h.find(node => {
-			const props = node.p as { actions?: { click?: string } } | undefined;
-			return node.k === "row" && props?.actions?.click === "next";
-		});
+		const next = h.find(node => isActionNode(node) && nodeActions(node)?.click === "next");
 		if (!next) throw new Error("native Continue action missing");
 		h.event({ ev: "action", sf: surface, id: next.id, act: "next", mods: [] });
 		await h.render();
@@ -640,10 +639,7 @@ describe("CustomProviderWizard native keyboard path", () => {
 		await h.render();
 		expect(h.byId(providerInput.id)?.p).toMatchObject({ text: "pasted-provider", cursor: 15 });
 
-		const next = h.find(node => {
-			const props = node.p as { actions?: { click?: string } } | undefined;
-			return node.k === "row" && props?.actions?.click === "next";
-		});
+		const next = h.find(node => isActionNode(node) && nodeActions(node)?.click === "next");
 		if (!next) throw new Error("native Continue action missing");
 		h.event({ ev: "action", sf: surface, id: next.id, act: "next", mods: [] });
 		await h.render();

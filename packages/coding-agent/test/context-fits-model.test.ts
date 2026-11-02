@@ -13,6 +13,7 @@ import { convertCodexResponsesMessages } from "@reverse/ai/providers/openai-code
 import { getBundledModel } from "@reverse/catalog/models";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { SessionMaintenance, type SessionMaintenanceHost } from "@reverse/coding-agent/session/session-maintenance";
+import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 
 const active = getBundledModel<"openai-codex-responses">("openai-codex", "gpt-6.1-sol");
 // Same encoding, another model: it gets the turns re-encoded without their reasoning.
@@ -64,6 +65,7 @@ function maintenance(
 	const host = {
 		agent,
 		settings: Settings.isolated({ "compaction.reserveTokens": 200 }),
+		sessionManager: SessionManager.inMemory(),
 		model: () => active,
 		messages: () => agent.state.messages,
 		nonMessageTokenSource: () => ({}),

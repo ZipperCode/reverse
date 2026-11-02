@@ -109,6 +109,11 @@ export const providersSettingsZhCN: Record<string, SettingTranslation> = {
 		description:
 			"将 Muse Code 结果存储在 Meta 的服务器上，使连接中断的轮次可以恢复而不是重跑。存储的运行会在 Meta 侧保留提示和输出。",
 	},
+	"providers.openai-codex.daybreak": {
+		label: "Codex Daybreak Blue 访问计划",
+		description:
+			"为符合资格的 ChatGPT 账户自动请求 Daybreak Blue 网络安全访问计划。OpenAI 可能使用 Daybreak Blue 会话内容改进模型。此开关不控制专用 Daybreak Blue 模型（gpt-daybreak-blue-*），这些模型仍可能以 Daybreak 会话运行。",
+	},
 	"providers.cacheRetention": {
 		label: "提示缓存保留",
 		description: "转发给支持该功能的提供商的提示缓存保留策略（Anthropic、Bedrock、OpenRouter、OpenAI）",

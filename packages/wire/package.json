@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@reverse/wire",
-  "version": "18.14.0",
+  "version": "18.15.0",
   "description": "Shared wire protocol types for reverse packages",
   "homepage": "https://github.com/ZipperCode/rev",
   "author": {

@@ -22,6 +22,26 @@ function dump(label: string, rows: readonly string[]): void {
 	for (const [i, row] of rows.entries()) console.log(String(i).padStart(3), JSON.stringify(row));
 }
 
+function browseTranscript(mode: InteractiveMode, term: VirtualTerminal, needle: string): boolean {
+	mode.composer.scrollTranscriptToBottom();
+	mode.ui.renderNow();
+	let found = false;
+	for (let page = 0; page < 40; page++) {
+		const height = mode.composer.transcriptViewportHeight;
+		const rows = plainRows(term.getViewport())
+			.slice(0, height)
+			.map(row => row.replace(/[│█]$/, "").trimEnd());
+		if (rows.some(row => row.includes(needle))) {
+			found = true;
+			break;
+		}
+		mode.composer.scrollTranscript(-Math.max(1, height - 1));
+		mode.ui.renderNow();
+	}
+	mode.composer.scrollTranscriptToBottom();
+	mode.ui.renderNow();
+	return found;
+}
 describe("libkitty end-to-end", () => {
 	let tempDir: TempDir;
 	let authStorage: AuthStorage;
@@ -152,16 +172,16 @@ describe("libkitty end-to-end", () => {
 
 		// Observe only paints after the final resize begins: the initial frame
 		// used this same size and must not satisfy the completion condition.
-		let rebuiltSize: string | undefined;
+		let paintedSize: string | undefined;
 		const removePaintListener = mode.ui.addPaintListener(paint => {
-			if (paint.reset && !paint.alt) rebuiltSize = `${paint.columns}x${paint.rows}`;
+			if (paint.alt && !paint.reset) paintedSize = `${paint.columns}x${paint.rows}`;
 		});
 		try {
 			term.resize(120, 32);
-			await term.waitForRender(() => rebuiltSize === "120x32");
+			await term.waitForRender(() => paintedSize === "120x32");
 			// The polling helper times out without throwing. Require the actual
-			// normal-buffer replay before checking for duplicate transcript rows.
-			expect(rebuiltSize).toBe("120x32");
+			// fullscreen repaint before checking for duplicate transcript rows.
+			expect(paintedSize).toBe("120x32");
 
 			const buffer = plainRows(term.getScrollBuffer());
 			const drafts = buffer.filter(row => row.includes("MARKER_DRAFT"));
@@ -231,29 +251,23 @@ describe("libkitty end-to-end", () => {
 			mode.addMessageToChat(assistantText(`Filler answer number ${i} occupying a transcript row.`));
 		}
 
-		// Retirement offers one finalized batch per frame under capacity pressure;
-		// drive frames until the thinking turn commits to native scrollback.
-		const committedRows = () => {
-			const { baseY } = term.getBufferPosition();
-			return plainRows(term.getScrollBuffer()).slice(0, baseY);
-		};
-		for (let i = 0; i < 20 && !committedRows().some(row => row.includes(THINK)); i++) {
-			mode.ui.requestRender(true);
-			await term.waitForRender();
-		}
-		expect(committedRows().some(row => row.includes(THINK))).toBe(true);
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("Filler answer number 11")),
+		);
+		expect(plainRows(term.getViewport()).some(row => row.includes(THINK))).toBe(false);
+		expect(browseTranscript(mode, term, THINK)).toBe(true);
 
-		// A live editor draft must survive the toggle's history rebuild.
+		// A live editor draft must survive the toggle's transcript re-render.
 		term.sendInput("LIVE_EDITOR_DRAFT");
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("LIVE_EDITOR_DRAFT")));
 
 		// Ctrl+T (0x14): the real keybinding path toggles thinking hidden.
 		term.sendInput("\x14");
-		await term.waitForRender(() => !plainRows(term.getScrollBuffer()).some(row => row.includes(THINK)));
+		await term.waitForRender(() => mode.hideThinkingBlock);
 
-		// The retired history was cleared and replayed hidden — the marker is gone
-		// from scrollback and viewport alike — while the live editor stays mounted.
-		expect(plainRows(term.getScrollBuffer()).some(row => row.includes(THINK))).toBe(false);
+		expect(mode.hideThinkingBlock).toBe(true);
+		expect(browseTranscript(mode, term, THINK)).toBe(false);
+		expect(browseTranscript(mode, term, "First visible answer.")).toBe(true);
 		expect(plainRows(term.getViewport()).some(row => row.includes("LIVE_EDITOR_DRAFT"))).toBe(true);
 	});
 	it("hides tool activity already retired to native scrollback when the real shortcut toggles", async () => {
@@ -318,24 +332,21 @@ describe("libkitty end-to-end", () => {
 			mode: "none",
 		});
 
-		const committedRows = () => {
-			const { baseY } = term.getBufferPosition();
-			return plainRows(term.getScrollBuffer()).slice(0, baseY);
-		};
-		for (let i = 0; i < 20 && !committedRows().some(row => row.includes(TOOL_MARKER)); i++) {
-			mode.ui.requestRender(true);
-			await term.waitForRender();
-		}
-		expect(committedRows().some(row => row.includes(TOOL_MARKER))).toBe(true);
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("Filler answer number 11")),
+		);
+		expect(plainRows(term.getViewport()).some(row => row.includes(TOOL_MARKER))).toBe(false);
+		expect(browseTranscript(mode, term, TOOL_MARKER)).toBe(true);
 
 		term.sendInput("LIVE_EDITOR_DRAFT");
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("LIVE_EDITOR_DRAFT")));
 
 		// Alt+O is the configured app.tools.toggleVisibility binding from this test's keybinding manager.
 		term.sendInput("\x1bo");
-		await term.waitForRender(() => !plainRows(term.getScrollBuffer()).some(row => row.includes(TOOL_MARKER)));
+		await term.waitForRender(() => mode.hideToolActivity);
 		expect(mode.hideToolActivity).toBe(true);
-		expect(plainRows(term.getScrollBuffer()).some(row => row.includes(TOOL_MARKER))).toBe(false);
+		expect(browseTranscript(mode, term, TOOL_MARKER)).toBe(false);
+		expect(browseTranscript(mode, term, "Filler answer number 0")).toBe(true);
 		expect(plainRows(term.getViewport()).some(row => row.includes("LIVE_EDITOR_DRAFT"))).toBe(true);
 	});
 });

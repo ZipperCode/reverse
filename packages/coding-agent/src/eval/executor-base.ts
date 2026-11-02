@@ -74,6 +74,8 @@ export interface KernelExecutorBaseOptions {
 	signal?: AbortSignal;
 	onStatus?: (event: JsStatusEvent) => void;
 	emitStatus?: (event: JsStatusEvent) => void;
+	/** Shows the user `out://` replies of the cell's bridged tool calls; absent, those calls are refused. */
+	onReply?: (text: string) => void;
 	toolSession?: ToolSession;
 	bridgeSessionId?: string;
 	artifactId?: string;
@@ -81,6 +83,8 @@ export interface KernelExecutorBaseOptions {
 	initialNotice?: string;
 	initialEvents?: JsStatusEvent[];
 	generation?: number;
+	/** Set by the kernel session registry; true when this cell is the first on a replacement for a dead kernel. */
+	claimKernelRestartNotice?: () => boolean;
 }
 
 /** Normalised execution result produced by {@link executeWithKernelBase}. */
@@ -106,6 +110,11 @@ export interface KernelExecutionResult {
 	definedNamesOmitted?: number;
 	missingNames?: string[];
 	recoveryGuidance?: string;
+}
+
+/** Mirrors the `eval-state-context` reminder wording so agents recognise it. */
+export function formatKernelRestartNotice(runtimeLabel: string): string {
+	return `Kernel restarted: the previous ${runtimeLabel} is dead; state is unavailable. Re-run needed setup: variables, imports and definitions from earlier cells are gone.`;
 }
 
 /** Minimal kernel surface the base executor drives, satisfied by every backend kernel. */
@@ -476,9 +485,6 @@ export async function executeWithKernelBase<
 		artifactMaxBytes: resolveOutputSinkArtifactMaxBytes(settings),
 		maxColumns: resolveOutputMaxColumns(settings),
 	});
-	if (options?.initialNotice) {
-		sink.push(`${options.initialNotice}\n\n`);
-	}
 
 	const display = new DisplayOutputCollector();
 	const displayOutputs = display.outputs;
@@ -535,6 +541,7 @@ export async function executeWithKernelBase<
 					signal: options.signal,
 					shieldedSignal: abortShield.signal,
 					emitStatus,
+					onReply: options.onReply,
 					shadowCell: getActiveEvalShadowCell(),
 					abortRequested: () => {
 						return abortShield.abortRequested;
@@ -542,7 +549,15 @@ export async function executeWithKernelBase<
 				})
 			: null;
 
+	const restartNotice = options?.claimKernelRestartNotice?.()
+		? formatKernelRestartNotice(`${errorLogLabel} kernel`)
+		: undefined;
 	try {
+		if (restartNotice) {
+			sink.push(`${restartNotice}\n`);
+		} else if (options?.initialNotice) {
+			sink.push(`${options.initialNotice}\n\n`);
+		}
 		if (remainingMs !== undefined && remainingMs <= 0) {
 			throw new cancelledErrorClass(true);
 		}
@@ -713,6 +728,8 @@ export async function executeWithKernelBase<
 		}
 		const error = err instanceof Error ? err : new Error(String(err));
 		logger.error(`${errorLogLabel} execution failed`, { error: error.message });
+		// The notice was claimed for this cell; a thrown error drops streamed output, so carry it here.
+		if (restartNotice) error.message = `${restartNotice}\n${error.message}`;
 		throw error;
 	} finally {
 		await sink.dispose();

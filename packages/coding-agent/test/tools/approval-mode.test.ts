@@ -3,10 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolContext } from "@reverse/agent";
+import { closeModelCache } from "@reverse/catalog/model-cache";
 import { getBundledModel } from "@reverse/catalog/models";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { createAgentSession } from "@reverse/coding-agent/sdk";
 import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
+import { AgentStorage } from "@reverse/coding-agent/session/agent-storage";
+import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { removeSyncWithRetries, Snowflake } from "@reverse/utils";
 
@@ -37,15 +40,18 @@ describe("tools.approvalMode setting", () => {
 	// auth-storage discovery, settings init) nine times over.
 	let tempDir: string;
 	let session: AgentSession;
+	let authStorage: AuthStorage;
 
 	beforeAll(async () => {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `pi-approval-mode-${Snowflake.next()}-`));
 		const cwd = path.join(tempDir, "cwd");
 		fs.mkdirSync(cwd, { recursive: true });
 		const sessionManager = SessionManager.create(cwd, path.join(tempDir, "sessions"));
+		authStorage = await AuthStorage.create(":memory:");
 		const created = await createAgentSession({
 			cwd,
 			agentDir: tempDir,
+			authStorage,
 			sessionManager,
 			settings: Settings.isolated(BASE_SETTINGS),
 			model: getBundledModel("openai", "gpt-4o-mini"),
@@ -64,18 +70,11 @@ describe("tools.approvalMode setting", () => {
 
 	afterAll(async () => {
 		await session.dispose();
-		// Windows can briefly hold tempdir handles after session.dispose(); retry a few times.
-		for (let attempt = 0; attempt < 5; attempt++) {
-			try {
-				removeSyncWithRetries(tempDir);
-				break;
-			} catch (err) {
-				const code = (err as NodeJS.ErrnoException).code;
-				if (code !== "EBUSY" && code !== "ENOTEMPTY" && code !== "EPERM") throw err;
-				if (attempt === 4) break; // best-effort: OS will reclaim
-				await Bun.sleep(50 * (attempt + 1));
-			}
-		}
+		authStorage.close();
+		// The session opened `<agentDir>/agent.db` and `models.db`; Windows cannot delete open databases.
+		AgentStorage.close();
+		closeModelCache();
+		removeSyncWithRetries(tempDir);
 	});
 
 	function approvalSettings(extraSettings: Record<string, unknown> = {}): Settings {

@@ -7,10 +7,20 @@ Use it for any merge: single file, feature branch, or full release sync.
 
 reverse 基于 oh-my-pi 改造，版本号跟随 omp 的稳定版本迭代；每次升级同步对应版本的功能与修复，并保留 reverse 的逆向能力、命名、独立配置、中文设置与提示词约定。
 
-- Current upstream release: **18.14.0** (`31147f9d1a76608549821c3759f8487b4d66c72d`, 2026-10-29).
-- Imported range: `v18.13.1` (`0838d2ab4407b74e870de07e1a6780a13c7d542c`) → `v18.14.0`.
+- Current upstream release: **18.15.0** (`3fedf8d53267e32a6d7521ce725fdcc4a36fdc67`, 2026-11-01).
+- Imported range: `v18.14.0` (`31147f9d1a76608549821c3759f8487b4d66c72d`) → `v18.15.0` (including 18.14.1 and 18.14.2).
 - All release-train TypeScript packages, the workspace catalog, native crate versions, and lockfiles use the upstream release version. The independently versioned browser-relay extension and export-viewer package retain their upstream versions.
 - Development uses **Bun 1.4.4**; upstream requires Bun >=1.4.4. Build the native addon before starting the updated CLI; version stamps and new native exports must match.
+
+### 18.15.0 integration verification
+
+- 同步 `v18.14.0` → `v18.15.0` 的实现、版本号与锁文件，包含 18.14.1/18.14.2 修复；保持 reverse 命名、独立配置、逆向工具、固定底栏滚动及离线 HTML 导出。上游未发布的 `main`、已移除的共享/发布服务及既有用户提示词不纳入同步。
+- Bun 1.4.4 冻结依赖安装、兼容规则与离线导出资源生成、原生模块和独立可执行文件构建、TypeScript lint/format/types、维护脚本类型及 Rust 检查通过。源码与独立程序均报告 `reverse/18.15.0` 并通过 `--smoke-test`。
+- Rust 验收通过 4,819 项测试（2 项跳过）及可运行 doctests；原生包 167 项测试、task/设置本地化 169 项、REPL/MCP/离线导出 71 项、导出查看器/stats 222 项和 singleton 1,294 项测试通过。
+- TUI/终端定向验收 81 项测试通过，覆盖原生按钮、历史内容与滚动条/导航条分离、图像裁剪、终端尺寸重绘、历史 thinking/tool 可见性快捷键和 setup；auto-learn 拒绝调用的 24 项测试通过，包含 reverse 的 dispatch hook 隔离。
+- 会话/RPC 验收累计 35/35 个隔离分块通过。补齐 `format_inspect`、`capability_inspect` 使用文档后，原失败分块复测为 131 项通过。
+- 修复 HUD 移入历史滚动区后嵌套子组件点击目标丢失的问题，保留原始行偏移且每帧只渲染一次；真实 SGR 展开/收起、裁剪滚动行映射及 TUI 回归合计 4,391 项测试通过（8 项跳过）。原 native 33/34 分块分别复测 102/137 项通过。
+- native/tooling/browser/unit 验收复用此前通过分块，按现有 runner 分片补跑超时未完成部分，累计覆盖 112/112 个分块；原 Chromium PDF 分块曾超时，隔离复测 97 项通过、5 项跳过。未运行依赖外部服务或凭证而被测试自身跳过的用例，不将其计为通过。
 
 ### 18.14.0 integration verification
 
@@ -38,7 +48,7 @@ reverse 基于 oh-my-pi 改造，版本号跟随 omp 的稳定版本迭代；每
 
    ```sh
    git fetch upstream --tags
-   git diff v18.14.0..<next-stable-tag> -- packages crates docs scripts package.json bun.lock Cargo.toml Cargo.lock
+   git diff v18.15.0..<next-stable-tag> -- packages crates docs scripts package.json bun.lock Cargo.toml Cargo.lock
    ```
 
 2. Apply that release delta with a three-way merge using the recorded upstream release as the base. The original fork was imported as a source snapshot and has no shared upstream Git ancestor; a plain unrelated-history merge is not the integration baseline.

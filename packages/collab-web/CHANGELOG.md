@@ -5,6 +5,11 @@
 ### Fixed
 
 - Restored standalone eval Markdown and table views using the shared parser and scoped export styles; embedded HTML and unsafe link/image schemes remain escaped or rejected.
+## [18.15.0] - 2026-11-01
+
+### Changed
+
+- `job` tool results name each background job by the purpose the model gave for it, falling back to its command ([#17649](https://github.com/can1357/oh-my-pi/pull/17649) by [@wolfiesch](https://github.com/wolfiesch))
 
 ## [18.13.3] - 2026-10-28
 

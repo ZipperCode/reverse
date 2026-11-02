@@ -22,7 +22,7 @@ import { formatKeyHint } from "@reverse/tui/app-keybindings";
 import { col, compact, keyed, node, row, span, text } from "@reverse/tui/native/describe";
 import { Memo } from "@reverse/tui/native/memo";
 import type { NativeNode, NativeUiEvent } from "@reverse/tui/native/node";
-import { actionBar, actionButton } from "@reverse/tui/native/overlay";
+import { actionBar, actionButton, iconButton } from "@reverse/tui/native/overlay";
 import {
 	type WordCompletionEngine,
 	WordCompletionProvider,
@@ -267,13 +267,7 @@ class PredictCompareComponent implements Component, Focusable {
 									align: "center",
 									role: "reverse.app.fresh",
 								}),
-							node("icon", {
-								name: "x",
-								role: "reverse.app.ibtn",
-								title: "Quit  esc",
-								aria: "Quit",
-								actions: { click: "quit" },
-							}),
+							iconButton("x", "quit", "Quit  esc", { aria: "Quit" }),
 						]),
 						{ gap: "md", align: "center", role: "reverse.app.tools" },
 					),

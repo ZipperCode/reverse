@@ -7,7 +7,7 @@
  */
 import { afterAll, afterEach, beforeAll, expect, it, spyOn } from "bun:test";
 import { type } from "@reverse/reversetype";
-import { Agent, type AgentTool } from "@reverse/agent";
+import { Agent, type AgentTool, type AgentToolContext } from "@reverse/agent";
 import { createMockModel, type MockModelOptions } from "@reverse/ai/providers/mock";
 import { AssistantMessageEventStream } from "@reverse/ai/utils/event-stream";
 import { getBundledModel } from "@reverse/catalog/models";
@@ -330,6 +330,34 @@ it("explicit yolo still gates tools whose per-tool policy requires a prompt", as
 
 	expect(permissionSpy).toHaveBeenCalledTimes(1);
 	expect(bashTool.executeCalls).toBe(1);
+});
+
+it("rejects intercepted bash command before invoking ACP requestPermission", async () => {
+	const bridge = makeBridge({ outcome: "selected", optionId: "allow_once", kind: "allow_once" });
+	const permissionSpy = spyOn(bridge, "requestPermission");
+	const settings = Settings.isolated({ "bashInterceptor.enabled": true });
+	const realBashTool = new BashTool({
+		...makeToolSession(bridge),
+		settings,
+		isToolActive: (name: string) => name === "read" || name === "bash",
+	});
+	session = await createSession([realBashTool as AgentTool, makeFakeTool("read")], bridge, {
+		"bashInterceptor.enabled": true,
+	});
+
+	await session.setActiveToolsByName(["bash", "read"]);
+	const wrappedBash = session.agent.state.tools.find(t => t.name === "bash");
+	await expect(
+		wrappedBash!.execute(
+			"call-intercepted",
+			{ command: "cat file.txt" },
+			undefined,
+			undefined as never,
+			{ toolNames: ["read", "bash"] } as AgentToolContext,
+		),
+	).rejects.toThrow("Use the `read` tool instead of cat/head/tail");
+
+	expect(permissionSpy).not.toHaveBeenCalled();
 });
 
 /**

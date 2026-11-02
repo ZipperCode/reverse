@@ -1,4 +1,4 @@
-import type { Component } from "../tui";
+import { Container, type Component } from "../tui";
 import {
 	type AnimationFrame,
 	type TranscriptPresentationTarget,
@@ -24,6 +24,7 @@ interface Anchor {
 interface Block {
 	rows: readonly string[];
 	leading: number;
+	spans: readonly { component: Component; start: number; end: number }[];
 }
 
 interface Position {
@@ -85,11 +86,23 @@ export class TranscriptViewport {
 				Number.MAX_SAFE_INTEGER,
 				frame,
 			);
-			const raw = component.render(width);
+			const raw: string[] = [];
+			const spans: { component: Component; start: number; end: number }[] = [];
+			// 纯容器逐项拼接，记录子组件原始行号；复用同次渲染，避免图像等渲染副作用执行两遍。
+			const append = (target: Component): void => {
+				if (target instanceof Container && target.render === Container.prototype.render) {
+					for (const child of target.children) append(child);
+					return;
+				}
+				const start = raw.length;
+				raw.push(...target.render(width));
+				spans.push({ component: target, start, end: raw.length });
+			};
+			append(component);
 			const rows = trimBlankEdges(raw);
 			let leading = 0;
 			while (leading < raw.length && !/\S/.test(raw[leading]!)) leading++;
-			const result = { rows, leading };
+			const result = { rows, leading, spans };
 			visited.set(index, result);
 			return result;
 		};
@@ -208,12 +221,14 @@ export class TranscriptViewport {
 			}
 			const rendered = block(position.index);
 			rows.push(rendered.rows[position.row]!);
-			const component = roots[position.index]!;
+			const rawRow = rendered.leading + position.row;
+			const target = rendered.spans.find(span => span.start <= rawRow && rawRow < span.end)!;
+			const component = target.component;
 			const lastSpan = spans[spans.length - 1];
 			if (lastSpan?.component === component && lastSpan.end === start) {
 				lastSpan.end++;
 			} else {
-				const componentRow = rendered.leading + position.row;
+				const componentRow = rawRow - target.start;
 				spans.push({ component, start, end: start + 1, getComponentRow: local => componentRow + local });
 			}
 		}

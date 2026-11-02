@@ -28,6 +28,7 @@ changing export HTML/CSS/JS, web themes, or the shared tool/trace renderers, run
 with the change. Generated JS lives in ignored `export-assets/`; the generated
 `src/export/html/viewer.generated.txt` text embed is ignored too. CI verifies the
 committed metadata (`--check`, also implied by `CI=true`) before writing both.
+In a shell that sets `CI=true`, use `bun run gen:export-viewer --write` to update it.
 
 Source and compiled exports inline the same self-contained viewer, Markdown
 parser, and syntax highlighter. Run `bun run gen:export-viewer` before building;

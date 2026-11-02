@@ -10,6 +10,7 @@ import { logger } from "@reverse/utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { InternalUrlRouter } from "../../internal-urls";
 import { settings } from "../../config/settings";
+import { continuesConversation } from "./conversation-position";
 import { createAdvisorMessageCard } from "@reverse/tui/chat/advisor-message";
 import { AssistantMessageComponent } from "@reverse/tui/chat/assistant-message";
 import { readMediaPath } from "@reverse/tui/native/blobs";
@@ -88,7 +89,7 @@ import {
 import {
 	assistantHasVisibleContent,
 	assistantUsageIsBilled,
-	buildAsyncResultBlock,
+	buildAsyncResultComponent,
 	buildFileMentionBlock,
 	buildIrcMessageCard,
 	buildLaunchCompletionBlock,
@@ -309,7 +310,9 @@ export class UiHelpers {
 			case "custom": {
 				if (message.display) {
 					if (message.customType === "async-result") {
-						const component = buildAsyncResultBlock(message);
+						const renderer = this.ctx.viewSession.extensionRunner?.getMessageRenderer(message.customType);
+						const component = buildAsyncResultComponent(message, renderer);
+						component.setExpanded(this.ctx.toolOutputExpanded);
 						this.ctx.chatContainer.addChild(component);
 						break;
 					}
@@ -1123,6 +1126,7 @@ export class UiHelpers {
 			// Drops deferred bash/python blocks with the old transcript, then repaints
 			// the queued-message bar from the live session queue: a mid-turn rebuild
 			// (rewind, /tree) keeps the queue, so it must stay visible and editable.
+			this.ctx.pendingShellContainer.disposeChildren();
 			this.ctx.updatePendingMessagesDisplay();
 			this.ctx.pendingBashComponents = [];
 			this.ctx.pendingPythonComponents = [];
@@ -1251,6 +1255,7 @@ export class UiHelpers {
 		const steeringMessages = [...queuedMessages.steering];
 		const followUpMessages = [...queuedMessages.followUp];
 		if (!this.ctx.focusedAgentId) {
+			if (this.ctx.yieldCompaction) followUpMessages.push(this.ctx.yieldCompaction.text);
 			for (const entry of this.ctx.compactionQueuedMessages as CompactionQueuedMessage[]) {
 				if (entry.mode === "steer") steeringMessages.push(entry.text);
 				else followUpMessages.push(entry.text);
@@ -1366,7 +1371,15 @@ export class UiHelpers {
 	}
 
 	async flushCompactionQueue(options?: { willRetry?: boolean }): Promise<void> {
-		if (this.ctx.compactionQueuedMessages.length === 0) {
+		// Follow-ups queued behind a yield compaction wait for it, not for a pass that lands first.
+		if (this.ctx.yieldCompaction) return;
+		const origin = this.ctx.compactionQueueOrigin;
+		this.ctx.compactionQueueOrigin = undefined;
+		if (this.ctx.compactionQueuedMessages.length === 0) return;
+		// Held behind the queued compaction that just ran: a switch or tree move while it summarized
+		// means they belong to a conversation that is no longer live, so they go back to the editor.
+		if (origin && !continuesConversation(this.ctx.sessionManager, origin)) {
+			this.ctx.restoreCompactionQueueToEditor();
 			return;
 		}
 
@@ -1550,12 +1563,12 @@ export class UiHelpers {
 	/** Move pending bash components from pending area to chat */
 	flushPendingBashComponents(): void {
 		for (const component of this.ctx.pendingBashComponents) {
-			this.ctx.pendingMessagesContainer.removeChild(component);
+			this.ctx.pendingShellContainer.removeChild(component);
 			this.ctx.chatContainer.addChild(component);
 		}
 		this.ctx.pendingBashComponents = [];
 		for (const component of this.ctx.pendingPythonComponents) {
-			this.ctx.pendingMessagesContainer.removeChild(component);
+			this.ctx.pendingShellContainer.removeChild(component);
 			this.ctx.chatContainer.addChild(component);
 		}
 		this.ctx.pendingPythonComponents = [];

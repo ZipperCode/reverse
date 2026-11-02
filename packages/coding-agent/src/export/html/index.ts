@@ -27,8 +27,11 @@ export function getTemplate(): string {
 		try {
 			viewer = fs.readFileSync(viewerPath, "utf8");
 		} catch (err) {
-			if (isEnoent(err))
-				throw new Error(`Development export viewer not found: ${viewerPath}. Run bun gen:export-viewer.`);
+			if (isEnoent(err)) {
+				throw new Error(
+					`Development export viewer not found: ${viewerPath}. Run bun gen:export-viewer (packages/collab-web/scripts/build-export-viewer.ts).`,
+				);
+			}
 			throw err;
 		}
 	}
